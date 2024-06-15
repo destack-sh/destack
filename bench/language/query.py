@@ -111,6 +111,8 @@ class ReadOptions(InlineStruct):
         for key, prop in self.__declared_properties__.items():
             value = getattr(self, key)
             if value:
+                if prop.is_enum:
+                    value = "|".join(v.bench_name for v in value)
                 content_parts.append(f"{prop.name}={value}")
         if content_parts:
             return ", ".join(content_parts)
@@ -255,7 +257,9 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         content_parts = []
         if self._base:
             content_parts.append(self._base.absolute_path)
-        for k in ("roots", "filter", "sort", "first", "skip", "aggregation"):
+        if self._roots is not None:
+            content_parts.append(f"roots=[{', '.join(str(r) for r in self._roots)}]")
+        for k in ("filter", "sort", "first", "skip", "aggregation"):
             v = getattr(self, f"_{k}", None)
             if k == "query":
                 v = f"({v})" if v is not None else None

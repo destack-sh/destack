@@ -64,6 +64,8 @@ class TextLineType(IdEnum):
 
 @struct_(StructType.TEXT_SPAN, inline=True)
 class TextSpan(TextOptions, InlineStruct):
+    """A span of text with optional formatting."""
+
     content: Optional[str] = p_regular(33, default=None)
     node: Optional[Node] = p_regular(
         34, array=False, default=None, require=False, references=LINK_TARGET_NODE_TYPES

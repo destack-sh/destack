@@ -59,7 +59,6 @@ if TYPE_CHECKING:
         Session,
         Store,
     )
-    from bench.language.expression import NodeReference
     from bench.proto.monkey import _PatchedRpcMetadata
     from bench.sql.client import PgStoreConnection
 
@@ -480,7 +479,6 @@ class GetConnection[ChannelT: Channel](
     def _unpack_result(self, result_data: GetResultData) -> GetResult:
         from bench.proto import wiring
 
-        assert self.session._supergraph is not None, f"{self!r} has no supergraph"
         roots, graph = wiring.unpack_node_roots(
             data_graph=result_data.graph,
             supergraph=self.session._supergraph,
@@ -495,7 +493,6 @@ class GetConnection[ChannelT: Channel](
 
         edit_data_graph(self.result_data.graph, update.edits, self.query._options)
         if self._result is not None:
-            assert self.session._supergraph is not None, f"{self!r} has no supergraph"
             edit_graph(
                 graph=self._result.graph,
                 supergraph=self.session._supergraph,
@@ -514,7 +511,6 @@ class SearchConnection[ChannelT: Channel](
     def _unpack_result(self, result_data: SearchResultData) -> SearchResult:
         from bench.proto import wiring
 
-        assert self.session._supergraph is not None, f"{self!r} has no supergraph"
         roots, graph = wiring.unpack_node_roots(
             data_graph=result_data.graph,
             supergraph=self.session._supergraph,
@@ -529,7 +525,6 @@ class SearchConnection[ChannelT: Channel](
 
         edit_data_graph(self.result_data.graph, update.edits, self.query._options)
         if self._result is not None:
-            assert self.session._supergraph is not None, f"{self!r} has no supergraph"
             edit_graph(
                 graph=self._result.graph,
                 supergraph=self.session._supergraph,
@@ -551,7 +546,6 @@ class AggregateConnection[ChannelT: Channel](
         from bench.language import Aggregation
         from bench.proto import wiring
 
-        assert self.session._supergraph is not None, f"{self!r} has no supergraph"
         aggregation = wiring.unpack_object(
             result_data.aggregation, supergraph=self.session._supergraph, expect=Aggregation
         )
@@ -700,7 +694,7 @@ class SplitConnectionBase(ConnectionBase):
         initial_types: Collection[NodeType],
     ) -> NodeDataGraph:
         """Fetch the surrounding ancestor/descendant nodes for a split query."""
-        from bench.language import QueryBuilder, ReadOptions
+        from bench.language import NodeReference, QueryBuilder, ReadOptions
         from bench.proto import wiring
 
         assert query._options is not None, f"{query!r} has no options"
@@ -741,7 +735,7 @@ class SplitConnectionBase(ConnectionBase):
                     ],
                     options=ReadOptions(ancestor_types=remaining_ancestors),
                 )
-                ancestor_connection = await ancestor_channel.search(ancestor_query, self.options)
+                ancestor_connection = await ancestor_channel.get(ancestor_query, self.options)
                 combined_graph.extend(ancestor_connection.result_data.graph.nodes)
 
         if remaining_descendants:
@@ -759,7 +753,10 @@ class SplitSearchConnection(SearchConnection[SplitChannel], SplitConnectionBase)
             self.scope, query._node_type, best_match=self.node_types, is_readonly=True
         )
         channel = await self.session.tx._get_channel(engine)
-        connection = await channel.search(query.trim_to(engine.node_types), self.options)
+        connection = await channel.search(
+            query.trim_to(engine.node_types),
+            SearchOptions(live=False, unpack=False, count=self.options.count),
+        )
         result = connection.result_data
         if query._options is None:
             return result  # nothing more to read
@@ -786,7 +783,9 @@ class SplitGetConnection(GetConnection[SplitChannel], SplitConnectionBase):
             self.scope, query._node_type, best_match=self.node_types, is_readonly=True
         )
         channel = await self.session.tx._get_channel(engine)
-        connection = await channel.get(query.trim_to(engine.node_types), self.options)
+        connection = await channel.get(
+            query.trim_to(engine.node_types), GetOptions(live=False, unpack=False)
+        )
         result = connection.result_data
         if query._options is None:
             return result  # nothing more to read

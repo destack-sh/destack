@@ -376,7 +376,7 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
 
         return subject_ptr, context
 
-    def create(self, *nodes: Node):
+    def _create(self, *nodes: Node):
         """Creates a new node. Errors if the node already exists."""
         assert self._tx is not None, f"no active transaction in {self!r}"
         assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
@@ -385,7 +385,7 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
             self._edited_nodes_by_id[n.id] = n
             self._tx.create(n, subject, self._origin, context, utcnow())
 
-    def upsert(self, *nodes: Node):
+    def _upsert(self, *nodes: Node):
         """Creates or updates a node. Any non-id properties will be overwritten."""
         assert self._tx is not None, f"no active transaction in {self!r}"
         assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
@@ -394,7 +394,7 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
             self._edited_nodes_by_id[n.id] = n
             self._tx.upsert(n, subject, self._origin, context, utcnow())
 
-    def update(self, node: Node, properties: Collection[Property], old_values: dict[int, Any]):
+    def _update(self, node: Node, properties: Collection[Property], old_values: dict[int, Any]):
         """Updates an existing node. Cannot move. The given properties are overwritten."""
         assert self._tx is not None, f"no active transaction in {self!r}"
         assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
@@ -402,7 +402,7 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
         subject, context = self._get_edit_context()
         self._tx.update(node, subject, self._origin, context, properties, old_values, utcnow())
 
-    def move(self, node: Node, properties: Collection[Property], old_values: dict[int, Any]):
+    def _move(self, node: Node, properties: Collection[Property], old_values: dict[int, Any]):
         """Moves and updates an existing node."""
         assert self._tx is not None, f"no active transaction in {self!r}"
         assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
@@ -410,7 +410,7 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
         subject, context = self._get_edit_context()
         self._tx.move(node, subject, self._origin, context, properties, old_values, utcnow())
 
-    def archive(self, *nodes: Node):
+    def _archive(self, *nodes: Node):
         """Marks a node as archived, so it will be hidden by default."""
         assert self._tx is not None, f"no active transaction in {self!r}"
         assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
@@ -424,7 +424,7 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
             self._tx.archive(n, subject, self._origin, context, now)
             n.archived_at = now
 
-    def unarchive(self, *nodes: Node):
+    def _unarchive(self, *nodes: Node):
         """Restore a node from the archive in its original place."""
         assert self._tx is not None, f"no active transaction in {self!r}"
         assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
@@ -434,7 +434,7 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
             self._tx.unarchive(n, subject, self._origin, context, utcnow())
             n.archived_at = None
 
-    def delete(self, *nodes: Node):
+    def _delete(self, *nodes: Node):
         """Deletes a node with the option to recover it for a limited time."""
         assert self._tx is not None, f"no active transaction in {self!r}"
         assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
@@ -448,7 +448,7 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
             self._tx.delete(n, subject, self._origin, context, now)
             n.deleted_at = now
 
-    def restore(self, *nodes: Node):
+    def _restore(self, *nodes: Node):
         """Restore a deleted node."""
         assert self._tx is not None, f"no active  transaction in {self!r}"
         assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
@@ -459,7 +459,7 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
             self._tx.restore(n, subject, self._origin, context, now)
             n.deleted_at = None
 
-    def erase(self, *nodes: Node):
+    def _erase(self, *nodes: Node):
         """Irreversibly wipe a node and its descendants from the graph."""
         assert self._tx is not None, f"no active transaction in {self!r}"
         assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
@@ -534,6 +534,8 @@ class HasSessionContext(BuiltinObject):
 
 @struct_(StructType.SESSION_CONTEXT, inline=True)
 class SessionContext(InlineStruct, HasSessionContext):
+    """Context information for runtime nodes created in a session."""
+
     pass
 
 

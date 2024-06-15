@@ -345,46 +345,77 @@ class NodeDataGraph(_NodeGraphBase[str, AnyNodeData]):
 
 
 class NodeSuperGraph:
-    """A set of graphs making up the currently available graph in some context (like a session)."""
+    """
+    A set of graphs making up the currently available graph in some context (like a session).
+    If the root_ptr is None, this is the 'null' graph.
+    """
 
-    def __init__(self, root_ptr: "NodeReference", graphs: Collection[NodeGraph] | None = None):
+    __slots__ = ("_graphs", "_graphs_by_node_type", "_root_ptr")
+
+    def __init__(
+        self, root_ptr: "NodeReference | None", graphs: Collection[NodeGraph] | None = None
+    ):
         self._root_ptr = root_ptr
-        self._graphs = list(graphs) if graphs is not None else []
+        self._graphs = tuple(graphs) if graphs is not None else ()
+        self._graphs_by_node_type: dict[NodeType, tuple[NodeGraph, ...]] = {}
 
     def __str__(self):
         return f"{len(self._graphs)} graphs"
 
     def __repr__(self):
-        root = self.get(self._root_ptr)
-        root_str = repr(root) if root is not None else f"{self._root_ptr!r}"
-        return f"<{self.__class__.__name__} from {root_str} ({self!s})>"
+        if self._root_ptr is None:
+            return f"<{self.__class__.__name__} <null>>"
+        else:
+            root = self.get(self._root_ptr)
+            root_str = repr(root) if root is not None else f"{self._root_ptr!r}"
+            return f"<{self.__class__.__name__} from {root_str} ({self!s})>"
 
     @property
     def root(self) -> "Node":
+        assert self._root_ptr is not None, f"{self!r} is a null graph"
         return self.get_or_fail(self._root_ptr)
 
     def add_graph(self, graph: NodeGraph):
+        assert self._root_ptr is not None, f"{self!r} is a null graph"
         if graph.supergraph is None:
             graph.supergraph = self
         assert graph.supergraph is self, f"{graph!r} is from {graph.supergraph!r}, not {self!r}"
         assert graph not in self._graphs, f"{graph!r} already in {self!r}"
-        self._graphs.append(graph)
+        self._graphs = (*self._graphs, graph)
+        for node_type in graph.node_types:
+            if node_type not in self._graphs_by_node_type:
+                self._graphs_by_node_type[node_type] = (graph,)
+            else:
+                self._graphs_by_node_type[node_type] = (
+                    *self._graphs_by_node_type[node_type],
+                    graph,
+                )
 
     def remove_graph(self, graph: NodeGraph):
+        assert self._root_ptr is not None, f"{self!r} is a null graph"
         assert graph in self._graphs, f"{graph!r} not in {self!r}"
-        self._graphs.remove(graph)
+        self._graphs = tuple(g for g in self._graphs if g is not graph)
+        for node_type in graph.node_types:
+            self._graphs_by_node_type[node_type] = tuple(
+                g for g in self._graphs_by_node_type[node_type] if g is not graph
+            )
 
     def get(self, ptr: "UUID | NodeReference") -> Optional["Node"]:
         if isinstance(ptr, UUID):
-            key = ptr
+            # check all graphs
+            for graph in self._graphs:
+                node = graph.get(ptr)
+                if node is not None:
+                    return node
+            return None
         else:
-            key = ptr.id
-            assert key is not None, f"expected id for {ptr!r}"
-        for graph in self._graphs:
-            node = graph.get(key)
-            if node is not None:
-                return node
-        return None
+            # check only graphs that have the node type
+            graphs = self._graphs_by_node_type.get(ptr.type, ())
+            for graph in graphs:
+                node = graph.get(cast(UUID, ptr.id))
+                if node is not None:
+                    return node
+            return None
 
     def get_or_fail(self, ptr: "UUID | NodeReference") -> "Node":
         node = self.get(ptr)
@@ -393,6 +424,9 @@ class NodeSuperGraph:
         return node
 
     __getitem__ = get_or_fail
+
+
+NULL_SUPERGRAPH = NodeSuperGraph(None)
 
 
 class _NodeDictBase[K, V]:
@@ -467,8 +501,7 @@ def generate_node_name(
 
 class NodeList[V: Node](abc.ABC, Collection[V]):
     """
-    A list of node descendants of a parent's property.
-    This is the primary way of adding, removing and accessing regular node relations.
+    A list of node children for a parent's child property.
     """
 
     __slots__ = ("_parent", "_property")
@@ -563,8 +596,7 @@ class NodeList[V: Node](abc.ABC, Collection[V]):
 
 
 class GraphNodeList[V: Node](NodeList[V]):
-    # TODO :Cleanup :Architecture: use ReadQuery/WriteQuery in NodeList?
-    #  (with InMemoryGraphEngine to query)
+    # NOTE :Cleanup :Architecture: provide ReadQuery interface in NodeList?
     __slots__ = ("_child_node_type", "_flags")
 
     def __init__(self, parent: "Node", property: "Property"):
@@ -616,15 +648,16 @@ class GraphNodeList[V: Node](NodeList[V]):
             node._validate_self((), invalid=on_invalid_raise)
 
         # add node (and descendants) to this parent's graph
-        if node._graph is not self._parent._graph:
+        target_graph = self._parent._graph
+        if node._graph is not target_graph:
             added = node._graph.collect_descendants(node, recursive=True)
             added = (*added, node)
-            self._parent._graph.add_graph(node._graph)
+            target_graph.add_graph(node._graph)
             for n in added:
-                n._graph = self._parent._graph
+                n._graph = target_graph
+            target_graph.supergraph.remove_graph(node._graph)  # must be in same supergraph
         else:
-            added = (node,)
-            self._parent._graph.add(node)
+            added = (node,)  # already in the graph
 
         # assign order key to ordered nodes
         if hasattr(node, "order_key") and getattr(node, "order_key") is None:
@@ -633,7 +666,7 @@ class GraphNodeList[V: Node](NodeList[V]):
 
         # 'create' node in session if it's attached
         if self._parent._session and self._parent._is_attached:
-            self._parent._session.create(*added)
+            self._parent._session._create(*added)
             self._parent._session.track_many(*added)
 
         return cast(tuple[V, ...], added)
@@ -653,7 +686,7 @@ class GraphNodeList[V: Node](NodeList[V]):
 
     def remove(self, n: V):  # type: ignore
         if self._parent._session is not None:
-            self._parent._session.delete(n)
+            self._parent._session._delete(n)
         self._parent._graph.remove(n)
         n.parent = None
 

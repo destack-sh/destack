@@ -240,7 +240,7 @@ async def test_create_run(some_bench: BenchHandle):
             status=RunStatus.SCHEDULED,
             code=Code.from_string("print('hello')"),
         )
-        session.create(run)
+        session._create(run)
         await session.commit()
 
         run = await Run.get(id=run.id)

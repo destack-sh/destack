@@ -44,7 +44,7 @@ from bench.language.const import (
     _active_session,
     new_struct_id,
 )
-from bench.language.graph import NodeDataGraph, NodeGraph, NodeSuperGraph
+from bench.language.graph import NULL_SUPERGRAPH, NodeDataGraph, NodeGraph, NodeSuperGraph
 from bench.language.property import (
     _PROPERTY_SPECIFIERS,
     METATYPE_PROPERTY,
@@ -633,7 +633,6 @@ def _object_computed_node_ref(prop: Property) -> property:
         def _get_node_scalar(self: BuiltinObject) -> Optional["Node"]:
             value_ptr: NodeReference | None = getattr(self, wired_prop.name)
             if value_ptr is not None:
-                assert self._supergraph is not None, f"{self!r} is not in any super graph"
                 return self._supergraph.get(value_ptr)
             else:
                 return None
@@ -653,7 +652,6 @@ def _object_computed_node_ref(prop: Property) -> property:
             assert type(value_ptrs) is list, f"invalid {prop!r}: {value_ptrs!r}"
             if len(value_ptrs) == 0:
                 return ()
-            assert self._supergraph is not None, f"{self!r} is not in any super graph"
             values = []
             for value_ptr in value_ptrs:
                 value = self._supergraph.get(value_ptr)
@@ -796,7 +794,7 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
         parent: "BuiltinObject | ValueObject | None" = None
 
     _session: "Session | None" = p_runtime(default=None)
-    _supergraph: "NodeSuperGraph | None" = p_runtime(default=None)
+    _supergraph: "NodeSuperGraph" = p_runtime(default=None)
     _updated_properties: bitarray | None = p_runtime(default=None)
 
     def __init__(self, *, _skip_init_self: bool = False, **kwargs):
@@ -885,6 +883,13 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
         # init session context
         if self._session is None:
             self._session = _active_session.get()
+
+        # need to know supergraph
+        if self._supergraph is None:
+            if self._session is not None:
+                self._supergraph = self._session._supergraph
+            else:
+                self._supergraph = NULL_SUPERGRAPH
 
         # and init components
         if not _skip_init_self:
@@ -1002,7 +1007,7 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
                         if self._updated_properties is None:
                             self._updated_properties = bitarray(self.__max_property_ord__ + 1)
                         self._updated_properties[prop.ord] = True
-                        session.update(node, properties=(prop,), old_values={prop.id: old_value})
+                        session._update(node, properties=(prop,), old_values={prop.id: old_value})
                 else:
                     pass  # TODO :Broken: handle in struct updates!
             return
@@ -1344,17 +1349,22 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
             self.created_at = now
             self.updated_at = now
 
-        # init node lists (preserving existing lists)
-        for name, prop in self.__node_child_properties__.items():
-            assert prop.reference_list_type is not None
-            node_list = prop.reference_list_type(self, prop)
-            setattr(self, name, node_list)
-
         # init graph
-        if self.parent_ptr is None:
-            if self._session is not None:
-                self._supergraph = self._session._supergraph
-            assert self._supergraph is not None, f"{self!r} has no super graph"
+        assert self._supergraph is not NULL_SUPERGRAPH, f"no supergraph for {self!r}"
+        if self._graph is not None:
+            # use given graph
+            self._supergraph = self._graph.supergraph
+            self._graph.add(self)
+        elif self.parent_ptr is not None:
+            # use parents graph
+            parent = self.parent
+            assert (
+                parent is not None
+            ), f"parent for {type(self).__name__} not in {self._supergraph!r}: {self.parent_ptr!r}"
+            self._graph = parent._graph
+            self._supergraph = parent._supergraph
+        else:
+            # no parent, create our own graph"
             # if we're not in a graph, start a new one
             # NOTE: cleanup NodeGraph definition "depends on itself", causing pyright errors
             graph = NodeGraph(  # type: ignore
@@ -1362,17 +1372,18 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
                 node_types=(self.metatype, *DESCENDANT_NODE_TYPES[self.metatype].tuple),
                 supergraph=self._supergraph,
             )
-            graph.add(self)  # type: ignore
             self._graph = graph
+            self._graph.add(self)  # type: ignore
             self._supergraph.add_graph(graph)
-        else:
-            # we'll be added to the graph by our parent
-            parent = self.parent
-            assert (
-                parent is not None
-            ), f"parent for {type(self).__name__} not in {self._supergraph!r}: {self.parent_ptr!r}"
-            self._graph = parent._graph
-            self._supergraph = parent._supergraph
+
+        # init node lists (preserving existing)
+        for name, prop in self.__node_child_properties__.items():
+            assert prop.reference_list_type is not None
+            node_list = prop.reference_list_type(self, prop)
+            setattr(self, name, node_list)
+            existing = kwargs.get(name, UNSET)
+            if existing is not UNSET:
+                node_list.extend(existing)
 
         # init session context
         if self._session is not None:
@@ -1577,44 +1588,50 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
 
     @property
     def is_archived(self) -> bool:
-        return self.archived_at is not None or (self.parent is not None and self.parent.is_archived)
+        parent = self.parent
+        return self.archived_at is not None or (parent is not None and parent.is_archived)
 
     @property
     def is_deleted(self) -> bool:
-        return self.deleted_at is not None or (self.parent is not None and self.parent.is_deleted)
+        parent = self.parent
+        return self.deleted_at is not None or (parent is not None and parent.is_deleted)
 
-    def move_to(
+    def move(
         self,
-        parent: "Node",
+        to_parent: "Node",
         after: Optional["Node"],
         before: Optional["Node"],
-        order_key: str | None = None,
     ):
-        raise NotImplementedError
+        """Move this node to a new parent."""
+        from_parent = self.parent
+        from_parent_ptr = self.parent_ptr
+        assert from_parent_ptr and from_parent, f"{self!r} has no parent"
+        assert to_parent._graph is from_parent._graph, f"{self!r} not in graph of {to_parent!r}"
+        raise NotImplementedError("move not yet supported")
 
     def archive(self):
         """Archive this node."""
         assert not self.is_archived, f"{self!r} is already archived"
-        self.active_session.archive(self)
+        self.active_session._archive(self)
 
     def unarchive(self):
         """Unarchive this node."""
         assert self.is_archived, f"{self!r} is not archived"
-        self.active_session.unarchive(self)
+        self.active_session._unarchive(self)
 
     def delete(self):
-        """Soft delete this node."""
+        """Delete this node (move to trash)."""
         assert not self.is_deleted, f"{self!r} is already deleted"
-        self.active_session.delete(self)
+        self.active_session._delete(self)
 
     def restore(self):
-        """Restore this node from soft deletion."""
+        """Restore this deleted node from the trash."""
         assert self.is_deleted, f"{self!r} is not deleted"
-        self.active_session.restore(self)
+        self.active_session._restore(self)
 
     def erase(self):
-        """Hard delete this node. Forever. Irreversibly."""
-        self.active_session.erase(self)
+        """Wipe this node from this universe forever."""
+        self.active_session._erase(self)
 
     #
     # Querying

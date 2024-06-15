@@ -388,6 +388,8 @@ class TypeInfoBase(HasValues):
 
 @struct_(StructType.TYPE_INFO)
 class TypeInfo(Struct, TypeInfoBase):
+    """A type from the type system."""
+
     pass
 
 

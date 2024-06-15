@@ -173,7 +173,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
                     raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "roots must be of the same type")
                 node_type = next(iter(roots_by_type.keys()))
 
-            with self.tracer.start_as_current_span("graph.get.fetch") as span:
+            with self.tracer.start_as_current_span("graph.get.read") as span:
                 query = QueryBuilder(
                     read_type=ReadType.GET,
                     node_type=wiring.unpack_enum(NodeType, node_type),
@@ -209,6 +209,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
             query=query,
             connection=connection,
             graph=result.graph,
+            adapted=len(adapted_nodes),
             epoch=self.epoch,
             span="current",
         )
@@ -282,7 +283,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
                     sort=sort,
                 )
 
-            with self.tracer.start_as_current_span("graph.search.fetch") as span:
+            with self.tracer.start_as_current_span("graph.search.read") as span:
                 connection = await self.connector.connect(
                     query=query,
                     session=session,
@@ -309,6 +310,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
             query=query,
             connection=connection,
             graph=result.graph,
+            adapted=len(adapted_nodes),
             epoch=self.epoch,
             span="current",
         )
@@ -377,7 +379,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
                     aggregation=aggregation,
                 )
 
-            with self.tracer.start_as_current_span("graph.aggregate.fetch") as span:
+            with self.tracer.start_as_current_span("graph.aggregate.read") as span:
                 connection = await self.connector.connect(
                     query=query,
                     session=session,
@@ -441,9 +443,6 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
             scope, epoch = self._prepare_commit(subject, context, request.edits)
 
             async with self.request_session(readonly=False, system_commit=False) as session:
-                # use supergraph to project edits 'on top' of the current graph
-                assert session._supergraph is not None, f"{session!r} has no supergraph"
-
                 # read the affected nodes into a single graph for evaluation
                 data_graph = NodeDataGraph(scope=self.scope, node_types=NODE_TYPES)
                 with self.tracer.start_as_current_span("graph.commit.read"):

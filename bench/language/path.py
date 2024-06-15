@@ -50,7 +50,10 @@ PATH_TOKEN_TO_STR: Mapping[PathTokenType, str] = {
 
 @struct_(StructType.PATH_TOKEN, inline=True)
 class PathToken(InlineStruct):
+    """A lexical token in a Bench path."""
+
     type: PathTokenType = p_regular(31)
+    content: Optional[str] = p_regular(32, default=None)
 
 
 @enum_(EnumType.PATH_SEGMENT_TYPE)
@@ -77,6 +80,8 @@ class PathSegmentType(IdEnum):
 
 @struct_(StructType.PATH_SEGMENT, inline=True)
 class PathSegment(InlineStruct):
+    """A semantic part of a Bench path."""
+
     type: PathSegmentType = p_regular(31)
     name: Optional[str] = p_regular(32, default=None)
     reference: Optional["Node"] = p_regular(

@@ -86,6 +86,8 @@ class IconKind(IdEnum):
 
 @struct_(StructType.ICON, inline=True)
 class Icon(InlineStruct):
+    """An icon to be displayed in some view."""
+
     kind: IconKind = p_internal(30, default=False)
     # content
     emoji: Optional[str] = p_internal(31, require=False)
