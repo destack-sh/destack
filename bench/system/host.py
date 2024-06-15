@@ -398,6 +398,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
             _engines=self._engines,
             _custom_commit=self._commit_system_session,
             _supergraph=self._bench._supergraph,
+            _split_reads=True,
         )
         self._bench._track_rec(self._session)
         self._main_package._track_rec(self._session)

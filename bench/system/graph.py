@@ -461,9 +461,10 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
                             roots=node_references,
                             options=options,
                         )
-                        connection = await session.tx._read_channel.get(
-                            query, GetOptions(live=False, unpack=False)
+                        channel = await session.tx._get_channel_for(
+                            request.scope, query.all_node_types, is_readonly=True
                         )
+                        connection = await channel.get(query, GetOptions(live=False, unpack=False))
                         # merge result into data_graph (there may be duplicates)
                         for node_data in connection.result_data.graph.nodes:
                             if node_data.id not in data_graph:

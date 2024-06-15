@@ -120,6 +120,7 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
     _edited_nodes_by_id: dict[UUID, Node] = p_runtime(default_factory=dict)
 
     # runtime
+    _split_reads: bool = p_runtime(default=False)
     _default_scope: GraphScope = p_runtime(default_factory=GraphScope)
     _active_session_token: contextvars.Token | None = p_runtime(default=None)
     _supervisor: Optional["SupervisorStub"] = p_runtime(default=None)
