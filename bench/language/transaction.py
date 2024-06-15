@@ -1,7 +1,7 @@
 import dataclasses
 from collections import defaultdict
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Collection, Literal, Optional, cast
+from typing import TYPE_CHECKING, Any, Collection, Iterable, Literal, Optional, cast
 from uuid import UUID
 
 import structlog
@@ -51,7 +51,7 @@ class Transaction:
     id: UUID
     session: "Session"
     is_readonly: bool = dataclasses.field(default=False)
-    _read_channel: Channel = dataclasses.field(init=False)
+    _split_read_channel: Optional[Channel] = dataclasses.field(default=None)
     _channels_by_engine_id: dict[Any, Channel] = dataclasses.field(default_factory=dict)
 
     """All edits from this transaction (since the previous commit)."""
@@ -68,7 +68,8 @@ class Transaction:
     _pending_nodes_by_ck: dict[UUID, Node] = dataclasses.field(default_factory=dict)
 
     def __post_init__(self):
-        self._read_channel = SplitChannel(self.session)
+        if self.session._split_reads:
+            self._split_read_channel = SplitChannel(self.session)
 
     def __str__(self):
         return f"[id={self.id}] ({len(self.edits)} edits, {len(self.cascaded_edits)} cascaded, {len(self.pending_edits)} pending)"
@@ -96,13 +97,13 @@ class Transaction:
     def _get_engine_for(
         self,
         scope: GraphScope,
-        node_types: NodeType | Collection[NodeType],
+        node_types: NodeType | Iterable[NodeType],
         *,
         is_readonly: bool,
         best_match: Collection[NodeType] | None = None,
     ) -> GraphEngine:
         """Gets the appropriate engine"""
-        node_types = (node_types,) if isinstance(node_types, NodeType) else node_types
+        node_types = (node_types,) if isinstance(node_types, NodeType) else tuple(node_types)
         candidate_engines = [
             engine
             for engine in self.session._engines
@@ -134,6 +135,23 @@ class Transaction:
             channel = await engine.connect(self.session)
             self._channels_by_engine_id[engine.id] = channel
         return channel
+
+    async def _get_channel_for(
+        self,
+        scope: GraphScope,
+        node_types: NodeType | Iterable[NodeType],
+        *,
+        is_readonly: bool,
+        best_match: Collection[NodeType] | None = None,
+    ) -> Channel:
+        """Gets or creates a store channel for a scope and node types."""
+        if is_readonly and self._split_read_channel is not None:
+            return self._split_read_channel
+        else:
+            engine = self._get_engine_for(
+                scope=scope, node_types=node_types, is_readonly=is_readonly, best_match=best_match
+            )
+            return await self._get_channel(engine)
 
     #
     # Edits

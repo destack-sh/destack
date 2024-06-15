@@ -26,7 +26,6 @@ from bench.language.const import (
     ReadType,
     StructType,
     active_session,
-    active_tx,
 )
 from bench.language.expression import C, Expression, coerce_conditional
 from bench.language.node import (
@@ -45,7 +44,7 @@ from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import stable_hash
 
 if TYPE_CHECKING:
-    from bench.language import Block, Field, NodeReference, ReadOptions, Session
+    from bench.language import Block, Channel, Field, NodeReference, ReadOptions, Session
 
 
 logger = structlog.get_logger(__name__)
@@ -306,7 +305,7 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
     def is_aggregation(self) -> bool:
         return self._aggregation is not None
 
-    def get_scope_in(self, session: "Session") -> GraphScope:
+    def _get_scope_in(self, session: "Session") -> GraphScope:
         return session.tx._get_scope_for_node(self._base) if self._base else session._default_scope
 
     #
@@ -447,10 +446,15 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
     async def __aiter__(self):
         return iter(await self.search())
 
+    async def _get_read_channel(self) -> "Channel":
+        session = active_session()
+        scope = self._get_scope_in(session)
+        return await session.tx._get_channel_for(scope, self.all_node_types, is_readonly=True)
+
     @tracer.start_as_current_span("query.get")
     async def get(
         self,
-        filter: Union["Expression", "NodeReference", None] = None,
+        filter: Union["Expression", "NodeReference", Collection["NodeReference"], None] = None,
         live: bool = False,
         **kwargs,
     ) -> NodeT:
@@ -460,16 +464,17 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         """
         from bench.language import GetOptions, NodeReference, coerce_conditional
 
-        if isinstance(filter, NodeReference):
+        if isinstance(filter, (NodeReference, Collection)):
             # true get request (with node pointers)
+            # prepare
             assert self._filter is None, f"cannot combine filter and roots in {self!r}"
             query = self.copy()
-            query._roots = [filter]
+            query._roots = [filter] if isinstance(filter, NodeReference) else list(filter)
             query._read_type = ReadType.GET
-            session = active_session()
-            connection = await session.tx._read_channel.get(
-                query, GetOptions(unpack=True, live=live)
-            )
+
+            # query
+            channel = await query._get_read_channel()
+            connection = await channel.get(query, GetOptions(unpack=True, live=live))
             assert (
                 len(connection.result.roots) == 1
             ), f"expected one node for {query!r} in {connection!r}: {connection.result.roots}"
@@ -477,16 +482,17 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
             return cast(NodeT, node)
         else:
             # search which should only have one result
+            # prepare
             filter = coerce_conditional(self._node_cls, filter, kwargs)
             query = self.where(filter) if filter is not None else self.copy()
+            # query
             results = await query.search()
-            if len(results) == 1:
-                return results[0]
-            else:
+            if len(results) != 1:
                 if len(results) == 0:
                     raise NodeNotFoundError(query=query)
                 else:
                     raise MultipleNodesFoundError(query=query, result=results)
+            return results[0]  # success
 
     @tracer.start_as_current_span("query.search")
     async def search(
@@ -495,12 +501,13 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         """Fetches the nodes matching the query."""
         from bench.language.connection import SearchOptions
 
+        # prepare
         filter = coerce_conditional(self._node_cls, filter, kwargs)
         query = self.where(filter) if filter is not None else self
-        session = active_session()
-        connection = await session.tx._read_channel.search(
-            query, SearchOptions(live=live, unpack=True, count=False)
-        )
+
+        # query
+        channel = await query._get_read_channel()
+        connection = await channel.search(query, SearchOptions(live=live, unpack=True, count=False))
         return cast(list[NodeT], connection.result.roots)
 
     tolist = search  # type: ignore
@@ -511,15 +518,16 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         """Returns the number of results."""
         from bench.language.expression import A, coerce_conditional
 
-        tx = active_tx()
+        # prepare
         filter = coerce_conditional(self._node_cls, filter, kwargs)
         query = self.where(filter) if filter is not None else self
         query = query.aggregate(A(AggregationOp.COUNT))
         query._read_type = ReadType.AGGREGATE
         trace.get_current_span().set_attribute("query", repr(query))
-        connection = await tx._read_channel.aggregate(
-            query, AggregateOptions(live=False, unpack=False)
-        )
+
+        # query
+        channel = await query._get_read_channel()
+        connection = await channel.aggregate(query, AggregateOptions(live=False, unpack=False))
         aggregation = connection.result_data.aggregation
         assert aggregation.count is not None, f"missing count in {connection!r}"
         return aggregation.count
@@ -529,15 +537,16 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         """Whether any nodes match the query."""
         from bench.language.expression import A, coerce_conditional
 
-        tx = active_tx()
+        # prepare
         filter = coerce_conditional(self._node_cls, filter, kwargs)
         query = self.where(filter) if filter is not None else self
         query = query.aggregate(A(AggregationOp.EXISTS))
         query._read_type = ReadType.AGGREGATE
         trace.get_current_span().set_attribute("query", repr(query))
-        connection = await tx._read_channel.aggregate(
-            query, AggregateOptions(live=False, unpack=False)
-        )
+
+        # query
+        channel = await query._get_read_channel()
+        connection = await channel.aggregate(query, AggregateOptions(live=False, unpack=False))
         aggregation = connection.result_data.aggregation
         assert aggregation.exists is not None, f"missing exists in {connection!r}"
         return aggregation.exists

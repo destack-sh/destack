@@ -302,7 +302,7 @@ class Channel(abc.ABC):
         """Read a single node given the query in the current transaction context (if any)."""
         assert query._read_type == ReadType.GET, f"{query!r} is not a get"
         assert query._roots is not None, f"{query!r} has no roots"
-        scope: GraphScope = query.get_scope_in(self.session)
+        scope: GraphScope = query._get_scope_in(self.session)
         connection_cls = self._get_connection_cls(query, scope, options)
         connection = connection_cls(self, scope, query, self.retry, options)
         assert isinstance(connection, GetConnection), f"{connection!r} is not a get"
@@ -313,7 +313,7 @@ class Channel(abc.ABC):
     async def search(self, query: "QueryBuilder", options: SearchOptions) -> "SearchConnection":
         """Read the nodes given the search query in the current transaction context (if any)."""
         assert query._read_type == ReadType.SEARCH, f"{query!r} is not a search"
-        scope: GraphScope = query.get_scope_in(self.session)
+        scope: GraphScope = query._get_scope_in(self.session)
         connection_cls = self._get_connection_cls(query, scope, options)
         connection = connection_cls(self, scope, query, self.retry, options)
         assert isinstance(connection, SearchConnection), f"{connection!r} is not a search"
@@ -327,7 +327,7 @@ class Channel(abc.ABC):
         """Read the nodes given the aggregate query in the current transaction context (if any)."""
         assert query._read_type == ReadType.AGGREGATE, f"{query!r} is not an aggregate"
         assert query._aggregation is not None, f"{query!r} has no aggregation"
-        scope: GraphScope = query.get_scope_in(self.session)
+        scope: GraphScope = query._get_scope_in(self.session)
         connection_cls = self._get_connection_cls(query, scope, options)
         connection = connection_cls(self, scope, query, self.retry, options)
         assert isinstance(connection, AggregateConnection), f"{connection!r} is not an aggregate"
