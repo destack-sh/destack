@@ -9,10 +9,12 @@ from typing import Callable, final
 
 import pytz
 
+from bench.utils.utils import get_from_env
+
 
 class Oracle(abc.ABC):
     """
-    The oracle for non-deterministic information.
+    The oracle for all our entropy, any non-deterministic information.
     Stuff like time and randomness. Used for simulation testing.
     """
 
@@ -74,14 +76,19 @@ class Oracle(abc.ABC):
         ...
 
 
+TIMEZONE = get_from_env(
+    "TIMEZONE", description="The timezone to use for the oracle", default="Europe/Zurich"
+)
+
+
 class RealOracle(Oracle):
     """The real world oracle."""
 
-    def __init__(self, seed: int | None = None):
+    def __init__(self, timezone: str = TIMEZONE, seed: int | None = None):
         self._random = random.Random()
         if seed is not None:
             self._random.seed(seed)
-        self._tz = pytz.timezone("Europe/Zurich")
+        self._tz = pytz.timezone(timezone)
         self._time = time
 
     @property
