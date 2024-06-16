@@ -228,8 +228,8 @@ class Runtime(ServiceBase, RuntimeBase):
                 bench_id=self._bench_id,
                 supervisor=self._supervisor,
                 host=self._host,
-                client=self._client,
-                machine=self._machine,
+                client_id=self._client_id,
+                machine_id=self._machine_id,
                 engines=self._engines,
                 queue=self._run_queue,
             )

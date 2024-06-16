@@ -6,7 +6,7 @@ from uuid import UUID
 import structlog
 from opentelemetry import trace
 
-from bench.language import Bench, Package, User
+from bench.language import Bench, Package
 from bench.language.bench import Client, Machine
 from bench.language.code import Code, run_code_exec
 from bench.language.connection import GraphEngine
@@ -15,6 +15,7 @@ from bench.language.expression import NodeReference
 from bench.language.graph import NodeSuperGraph
 from bench.language.run import Run, RunError
 from bench.language.session import Session, unsuspend_session
+from bench.language.user import User
 from bench.language.validation import on_invalid_raise
 from bench.language.value import check_value
 from bench.proto import wiring
@@ -34,6 +35,7 @@ tracer = trace.get_tracer(__name__)
 class RuntimeThread:
     """
     A thread for actually executing untrusted Runs in a Runtime in a specific Session.
+    Should be isolated in a separate Process for both security and snapshotting.
     """
 
     def __init__(
@@ -43,8 +45,8 @@ class RuntimeThread:
         bench_id: UUID,
         supervisor: SupervisorStub,
         host: HostStub,
-        client: Client,
-        machine: Machine | None,
+        client_id: UUID,
+        machine_id: UUID | None,
         engines: tuple[GraphEngine, ...],
         queue: asyncio.Queue[RunData],
     ):
@@ -62,8 +64,10 @@ class RuntimeThread:
         self._main_package: Package | None = None
 
         # context
-        self._client = client
-        self._machine = machine
+        self._client_id = client_id
+        self._machine_id = machine_id
+        self._client: Client | None = None
+        self._machine: Machine | None = None
         self._engines = engines
 
         # processing
@@ -111,31 +115,45 @@ class RuntimeThread:
     async def start(self):
         # setup thread
         self._session = Session(
-            client=self._client,
-            machine=self._machine,
+            # client=self._client,
+            # machine=self._machine,
             server=self._machine.parent if self._machine else None,
-            user=self._client.parent if isinstance(self._client.parent, User) else None,
+            # user=self._client.parent if isinstance(self._client.parent, User) else None,
             _is_readonly=False,
             _default_scope=GraphScope(bench_id=str(self._bench_id)),
             _engines=self._engines,
             _supervisor=self._supervisor,
             _host=self._host,
-            _subject=self._client.parent,
-            _origin=self._client.to_origin(),
+            # _subject=self._client.parent,
+            # _origin=self._client.to_origin(),
             _supergraph=self._supergraph,
         )
         await self._session.open(set_in_context=False)
 
         # connect
         async with self.session(readonly=True):
+            # connect bench
             self._bench = await BENCH_QUERY.get(self._bench_ptr, live=True)
             main_environment = self._bench.main_environment
             assert main_environment is not None, f"{self._bench!r} has no main environment"
             main_branch = self._bench.main_branch
             assert main_branch is not None, f"{self._bench!r} has no main branch"
             assert main_branch.main_package_id is not None, f"{main_branch!r} has no main package"
+            self._client = main_environment.server.clients.get(self._client_id)
+            assert self._client, f"{main_environment!r} has no client {self._client_id}"
+            if self._machine_id:
+                self._machine = main_environment.server.machines.get(self._machine_id)
+
+            # connect main package
             self._main_package = await PACKAGE_QUERY.get(main_branch.main_package_ptr, live=True)
             self._session.parent = self._main_package
+
+        # update session with client and machine info
+        self._session.client = self._client
+        self._session.machine = self._machine
+        self._session.user = self._client.parent if isinstance(self._client.parent, User) else None
+        self._session._subject = self._client.parent
+        self._session._origin = self._client.to_origin() if self._client else None
 
         # finally, start processing runs
         self._tasks.start_queue(
