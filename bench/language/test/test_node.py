@@ -19,10 +19,9 @@ def test_struct_regular_properties_are_available():
                 assert isinstance(attr, Property), f"{prop!r}->{attr!r} is not a Property"
 
 
-def test_get_set_non_existing_property():
+def test_get_set_non_existing_property(session: "Session"):
     """Should raise properly"""
     node = Bench(slug="test", name="Test")
-    node._session = Session()
     with pytest.raises(AttributeError):
         node.wadabadaboo = "wadabadaboo"  # type: ignore
     with pytest.raises(AttributeError):

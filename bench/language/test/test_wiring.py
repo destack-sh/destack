@@ -1,18 +1,18 @@
 from hypothesis import given
 
-from bench.language import BuiltinObject
+from bench.language import BuiltinObject, Session
 from bench.language.const import StructType
 from bench.language.test.strategies import builtin_objects, from_object_type
 from bench.proto import wiring
 
 
 @given(value=from_object_type(StructType.POLICY))
-def test_nocheckin_identity(value: BuiltinObject):
+def test_sync_hypothesis(value: BuiltinObject, shared_session: Session):
     assert value._equals_content(value), f"{value!r} != {value!r}"
 
 
 @given(obj=builtin_objects())
-def test_roundtrip_bytes(obj: BuiltinObject):
+def test_roundtrip_bytes(obj: BuiltinObject, shared_session: Session):
     packed_wire_obj = wiring.pack_object(obj)
     packed_bytes = bytes(packed_wire_obj)
     unpacked_wire_obj = type(packed_wire_obj)().parse(packed_bytes)
@@ -21,7 +21,7 @@ def test_roundtrip_bytes(obj: BuiltinObject):
 
 
 @given(obj=builtin_objects())
-def test_roundtrip_json(obj: BuiltinObject):
+def test_roundtrip_json(obj: BuiltinObject, shared_session: Session):
     packed_wire_obj = wiring.pack_object(obj)
     packed_json = packed_wire_obj.to_json(indent=2)
     unpacked_wire_obj = type(packed_wire_obj)().from_json(packed_json)
@@ -30,7 +30,7 @@ def test_roundtrip_json(obj: BuiltinObject):
 
 
 @given(obj=builtin_objects())
-def test_roundtrip_copy(obj: BuiltinObject):
+def test_roundtrip_copy(obj: BuiltinObject, shared_session: Session):
     packed_wire_obj = wiring.pack_object(obj)
     copied_obj = wiring.copy_struct(packed_wire_obj)
     assert copied_obj == packed_wire_obj, f"{copied_obj!r} != {packed_wire_obj!r}"

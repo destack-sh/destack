@@ -1,5 +1,5 @@
 from string import printable
-from typing import Any, cast
+from typing import Any, Sequence, cast
 
 import more_itertools
 import structlog
@@ -8,6 +8,7 @@ from hypothesis.strategies._internal.utils import cacheable, defines_strategy
 
 from bench.language.const import (
     EnumType,
+    NodeType,
     ObjectType,
     PrimitiveType,
     StructType,
@@ -98,15 +99,22 @@ def from_type_info_scalar(typ: TypeInfoBase) -> st.SearchStrategy[Any]:
         raise NotImplementedError(f"{typ!r} has no strategy yet")
 
 
+def wrap_value_scalar(
+    strat: st.SearchStrategy, *, is_required: bool, is_list: bool
+) -> st.SearchStrategy[Any]:
+    if is_list:
+        return st.lists(strat, min_size=0, max_size=10)
+    elif not is_required:
+        return st.none() | strat
+    else:
+        return strat
+
+
 @cacheable
 @defines_strategy()
 def from_type_info(typ: TypeInfoBase) -> st.SearchStrategy[Any]:
-    if typ.is_list:
-        return st.lists(from_type_info_scalar(typ), min_size=0, max_size=3)
-    elif not typ.is_required:
-        return st.none() | from_type_info_scalar(typ)
-    else:
-        return from_type_info_scalar(typ)
+    value_st = from_type_info_scalar(typ)
+    return wrap_value_scalar(value_st, is_required=typ.is_required, is_list=typ.is_list)
 
 
 @cacheable
@@ -126,17 +134,30 @@ def from_object_type(
             or (prop.id < 30 and prop._type_info is None)
             # ignore contributed wired properties (they're derived from the generated one)
             or (prop.reference_source is not None)
+            # ignore autoset properties (id, timestamps)
+            or prop.is_autoset
         ):
             continue
         elif prop.name in STRATEGY_BY_PROPERTY_NAME:
             object_dict[prop.name] = STRATEGY_BY_PROPERTY_NAME[prop.name]
         elif prop.is_node_reference:
-            object_dict[prop.name] = nodes()
+            # generate reference instead of node
+            assert prop.reference_wired_ptr is not None, f"{prop!r} has no wired ptr"
+            assert prop.reference_nodes, f"{prop!r} has no reference nodes"
+            object_dict[prop.reference_wired_ptr.name] = node_references(prop.reference_nodes)
         elif prop.is_property_reference:
-            object_dict[prop.name] = properties()
+            object_dict[prop.name] = wrap_value_scalar(
+                properties(), is_required=prop.is_required, is_list=prop.is_list
+            )
         else:
             object_dict[prop.name] = from_type_info(prop.type_info)
     return st.builds(object_cls, **object_dict)
+
+
+@st.composite
+def node_references(draw, node_types: Sequence[NodeType]):
+    node_type = st.sampled_from(node_types)
+    return from_object_type(StructType.NODE_REFERENCE, node_type=node_type)
 
 
 @st.composite

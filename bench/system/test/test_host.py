@@ -7,7 +7,6 @@ import pytest
 import structlog
 from grpclib.testing import ChannelFor
 
-from bench.conftest import global_session
 from bench.language import Bench, ReadOptions, Store, User
 from bench.language.bench import Branch, Package, ResourceStatus
 from bench.language.code import Code
