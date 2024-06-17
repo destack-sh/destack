@@ -129,7 +129,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
     reference_force_fk: bool = False
 
     _cached_as_ref: Optional["PropertyReference"] = None
-    type_info: Optional["TypeInfo"] = None
+    _type_info: Optional["TypeInfo"] = None
     _is_finalized: bool = False
 
     def __post_init__(self):
@@ -345,10 +345,10 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
         return typ
 
     @property
-    def as_type_info(self) -> "TypeInfo":
+    def type_info(self) -> "TypeInfo":
         """The type info for this property (can't extend TypeInfo because circles)."""
-        assert self.type_info is not None, f"{self!r} is not finalized"
-        return self.type_info
+        assert self._type_info is not None, f"{self!r} is not finalized"
+        return self._type_info
 
     def _contribute_ptrs(self, *, is_root: bool, is_inlined: bool) -> tuple["Property", ...]:
         """
@@ -735,7 +735,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
 
         # derive type info
         if self.is_introspectable or self.reference_source is not None or self.id == 1:
-            self.type_info = self._to_type_info()
+            self._type_info = self._to_type_info()
 
         # sanity check some stuff
         if IS_DEV:

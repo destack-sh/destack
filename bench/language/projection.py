@@ -167,7 +167,7 @@ def render_struct(value: Node | Struct) -> str:
         repr_by_name: dict[str, str] = {}
         for prop in value.__properties__.values():
             if (
-                prop.type_info is None
+                prop._type_info is None
                 or not prop.is_introspectable
                 or prop.id < 30  # skip system properties
                 or prop.is_tree_reference  # skip node properties
@@ -181,7 +181,7 @@ def render_struct(value: Node | Struct) -> str:
                 or (prop.is_list and len(prop_value) == 0)
             ):
                 continue  # skip empty values
-            prop_repr = render_value(prop_value, prop.type_info)
+            prop_repr = render_value(prop_value, prop._type_info)
             repr_by_name[prop.name] = prop_repr
         struct_repr = (
             f"{value.__class__.__name__}({', '.join(f'{k}={v}' for k, v in repr_by_name.items())})"

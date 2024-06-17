@@ -271,7 +271,7 @@ class Transaction:
                     prop = prop.reference_wired_ptr
                 old_value = old_values.get(prop.id, UNSET)
                 assert old_value is not UNSET, f"missing old value for {prop!r} in {node!r}"
-                prop_type = prop.as_type_info
+                prop_type = prop.type_info
                 old_node_packed[prop.id_as_str], _ = pack_value(
                     old_value, prop_type, wrap_primitive=False
                 )
@@ -313,12 +313,12 @@ class Transaction:
                     old_value = old_values.get(prop.id, UNSET)
                     assert old_value is not UNSET, f"missing old value for {prop!r} in {node!r}"
                     old_node_packed[prop.id_as_str], _ = pack_value(
-                        old_value, prop.as_type_info, wrap_primitive=False
+                        old_value, prop.type_info, wrap_primitive=False
                     )
                 # and update new value
                 new_value = getattr(node, prop.name)
                 new_node_packed[prop.id_as_str], _ = pack_value(
-                    new_value, prop.as_type_info, wrap_primitive=False
+                    new_value, prop.type_info, wrap_primitive=False
                 )
             edit.new_node_packed = wiring.pack_proto_json(new_node_packed)
             edit.old_node_packed = wiring.pack_proto_json(old_node_packed)
@@ -728,7 +728,7 @@ def edit_data_graph(
                     if is_prepass:
                         old_value = getattr(updated_node_data, prop.name)
                         old_node_data[prop.id_as_str], _ = pack_value_data(
-                            old_value, prop.as_type_info, wrap_primitive=False
+                            old_value, prop.type_info, wrap_primitive=False
                         )
                     new_value_data = getattr(new_node_data, prop.name)
                     setattr(updated_node_data, prop.name, new_value_data)

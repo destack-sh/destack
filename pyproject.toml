@@ -51,8 +51,8 @@ ignore = [
 
 [tool.pyright]
 include = ["bench"]
-exclude = ["^bench/migrations", "^venv|^venv-runtime", "test_[a-z_]*\\.py"]
-ignore = ["^bench/migrations", "^venv|^venv-runtime", "test_[a-z_]*\\.py"]
+exclude = ["^bench/migrations", "^venv*"]
+ignore = ["^bench/migrations", "^venv*"]
 venv = "venv"
 strictDictionaryInference = true
 strictListInference = true
@@ -62,7 +62,12 @@ strictSetInference = true
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 log_cli = true
-addopts = ["--color=yes", '-rP', '--strict-markers']
+addopts = [
+	"--color=yes",
+	'-rP',
+	'--strict-markers',
+	'--hypothesis-show-statistics',
+]
 markers = [
 	"slow: mark test as slow (>1s per run)",
 	"hypothesis: mark test as using hypothesis",

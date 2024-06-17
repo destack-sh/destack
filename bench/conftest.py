@@ -91,13 +91,6 @@ def bench_session(bench: "Bench", epoch: int = 0):
     )
 
 
-@pytest.fixture()
-def fabricator():
-    from bench.language.test.strategies import Fabricator
-
-    return Fabricator(seed=42)
-
-
 @contextmanager
 def raises_grpc_error(*statuses: grpclib.const.Status):
     with pytest.raises(grpclib.GRPCError) as exc_info:

@@ -1,114 +1,157 @@
-import enum
-import random
-import string
-import uuid
-from datetime import datetime, timedelta
-from typing import Any, Callable, Type, TypeVar, cast
+from string import printable
+from typing import Any, cast
 
+import more_itertools
 import structlog
+from hypothesis import strategies as st
+from hypothesis.strategies._internal.utils import cacheable, defines_strategy
 
-from bench.language import NodeReference, Property
 from bench.language.const import (
-    EMPTY_DICT,
-    NODE_TYPES,
+    EnumType,
     ObjectType,
     PrimitiveType,
-    ReferenceKind,
     StructType,
+    TypeKind,
 )
-from bench.language.node import BuiltinObject, InlineStruct, Node, Struct
-from bench.language.setup import NODE_CLASS_BY_TYPE, OBJECT_CLASS_BY_TYPE
-from bench.proto.wire import NodeReferenceData
+from bench.language.field import TypeInfoBase
+from bench.language.node import BuiltinObject
+from bench.language.setup import ENUM_CLASS_BY_TYPE, OBJECT_CLASS_BY_TYPE
 from bench.utils.fractional import INTEGER_ZERO
-from bench.utils.oracle import get_oracle
 
 logger = structlog.get_logger(__name__)
 
-NodeT = TypeVar("NodeT", bound=Node)
-StructT = TypeVar("StructT", bound=Struct | InlineStruct)
-ObjectT = TypeVar("ObjectT", bound=BuiltinObject)
+JSON_STRATEGY = st.recursive(
+    st.none() | st.booleans() | st.floats() | st.text(printable),
+    lambda children: st.lists(children) | st.dictionaries(st.text(printable), children),
+    max_leaves=5,  # only small json
+)
+ORDER_KEY_STRATEGY = st.just(INTEGER_ZERO)  # TODO :Test: generate order keys properly
+ALL_DECLARED_PROPERTIES = tuple(
+    more_itertools.flatten(
+        object_cls.__declared_properties__.values() for object_cls in OBJECT_CLASS_BY_TYPE.values()
+    )
+)
+PROPERTY_STRATEGY = st.sampled_from(ALL_DECLARED_PROPERTIES)
+
+STRATEGY_BY_PRIMITIVE_TYPE: dict[PrimitiveType, st.SearchStrategy] = {
+    PrimitiveType.BOOLEAN: st.booleans(),
+    PrimitiveType.INT16: st.integers(min_value=-(2**15), max_value=2**15 - 1),
+    PrimitiveType.INT32: st.integers(min_value=-(2**31), max_value=2**31 - 1),
+    PrimitiveType.INT64: st.integers(min_value=-(2**63), max_value=2**63 - 1),
+    PrimitiveType.DECIMAL: st.decimals(),
+    PrimitiveType.FLOAT32: st.floats(allow_nan=False, allow_infinity=False),
+    PrimitiveType.FLOAT64: st.floats(allow_nan=False, allow_infinity=False),
+    PrimitiveType.STRING: st.text(),
+    PrimitiveType.UUID: st.uuids(),
+    PrimitiveType.JSON: JSON_STRATEGY,
+    PrimitiveType.BYTES: st.binary(),
+    PrimitiveType.DATETIME: st.datetimes(),
+    PrimitiveType.INTERVAL: st.timedeltas(),
+}
+
+STRATEGY_BY_PROPERTY_NAME: dict[str, st.SearchStrategy] = {
+    "order_key": ORDER_KEY_STRATEGY,
+}
 
 
-class Fabricator:
-    def __init__(self, seed: int = 42):
-        random_random = random.Random(seed)
-        self.random = random_random
-        self.generators: dict[type, Callable] = {
-            bool: lambda: self.random.choice([True, False]),
-            str: lambda: "".join(self.random.choices(string.ascii_letters, k=10)),
-            int: lambda: self.random.randint(0, 1000),
-            float: lambda: self.random.random(),
-            bytes: lambda: self.random.randbytes(24),
-            uuid.UUID: lambda: uuid.uuid4(),
-            datetime: lambda: get_oracle().utc(),
-            timedelta: lambda: timedelta(seconds=self.random.randint(0, 1000)),
-        }
+@cacheable
+@defines_strategy()
+def properties(object_type: ObjectType | None = None):
+    if object_type is None:
+        return PROPERTY_STRATEGY
+    else:
+        object_cls = OBJECT_CLASS_BY_TYPE[object_type]
+        return st.sampled_from(tuple(object_cls.__declared_properties__.values()))
 
-    def fabricate_prop_scalar(self, prop: Property, path: tuple[ObjectType, ...] = ()) -> Any:
-        if prop.is_enum:
-            enum_cls = cast(type[enum.Enum], prop.py_type_stripped)
-            return random.choice(tuple(enum_cls)) if len(enum_cls) > 0 else None
-        elif prop.is_struct:
-            assert prop.reference_struct
-            return self.fabricate(OBJECT_CLASS_BY_TYPE[prop.reference_struct], path)
-        elif prop.py_type_stripped == NodeReferenceData:
-            return self.fabricate(OBJECT_CLASS_BY_TYPE[StructType.NODE_REFERENCE], path)
-        elif prop.primitive_type == PrimitiveType.JSON:
-            return {
-                self.generators[str](): self.generators[str](),
-                self.generators[str](): self.generators[int](),
-                self.generators[str](): None,
-            }
-        elif prop.name == "order_key":
-            return INTEGER_ZERO
-        elif prop.py_type_stripped in self.generators:
-            return self.generators[prop.py_type_stripped]()
-        elif prop.primitive_type == PrimitiveType.JSON:
-            return {}  # not correct, not sure what to do
+
+@cacheable
+@defines_strategy()
+def from_primitive_type(primitive_type: PrimitiveType) -> st.SearchStrategy[Any]:
+    return STRATEGY_BY_PRIMITIVE_TYPE[primitive_type]
+
+
+@cacheable
+@defines_strategy()
+def from_enum_type(enum_type: EnumType) -> st.SearchStrategy:
+    enum_cls = ENUM_CLASS_BY_TYPE[enum_type]
+    return st.sampled_from(enum_cls)
+
+
+object_types = from_enum_type(EnumType.OBJECT_TYPE)
+node_types = from_enum_type(EnumType.NODE_TYPE)
+struct_types = from_enum_type(EnumType.STRUCT_TYPE)
+
+
+@cacheable
+@defines_strategy()
+def from_type_info_scalar(typ: TypeInfoBase) -> st.SearchStrategy[Any]:
+    if typ.kind == TypeKind.PRIMITIVE:
+        assert typ.primitive_type is not None, f"{typ!r} has no primitive type"
+        return from_primitive_type(typ.primitive_type)
+    elif typ.kind == TypeKind.ENUM:
+        assert typ.bench_type is not None, f"{typ!r} has no enum type"
+        return from_enum_type(cast(EnumType, typ.bench_type))
+    elif typ.kind == TypeKind.STRUCT:
+        assert typ.bench_type is not None, f"{typ!r} has no struct type"
+        return from_object_type(cast(StructType, typ.bench_type))
+    else:
+        raise NotImplementedError(f"{typ!r} has no strategy yet")
+
+
+@cacheable
+@defines_strategy()
+def from_type_info(typ: TypeInfoBase) -> st.SearchStrategy[Any]:
+    if typ.is_list:
+        return st.lists(from_type_info_scalar(typ), min_size=0, max_size=3)
+    elif not typ.is_required:
+        return st.none() | from_type_info_scalar(typ)
+    else:
+        return from_type_info_scalar(typ)
+
+
+@cacheable
+@defines_strategy()
+def from_object_type(
+    object_type: ObjectType, /, **custom_strategies: st.SearchStrategy
+) -> st.SearchStrategy[BuiltinObject]:
+    object_cls = OBJECT_CLASS_BY_TYPE[object_type]
+    object_dict: dict[str, st.SearchStrategy] = {}
+    for prop in object_cls.__runtime_properties__.values():
+        if prop.name in custom_strategies:
+            object_dict[prop.name] = custom_strategies[prop.name]
+        elif (
+            # ignore runtime-only properties
+            prop.id is None
+            # ignore identity/tracking properties
+            or (prop.id < 30 and prop._type_info is None)
+            # ignore contributed wired properties (they're derived from the generated one)
+            or (prop.reference_source is not None)
+        ):
+            continue
+        elif prop.name in STRATEGY_BY_PROPERTY_NAME:
+            object_dict[prop.name] = STRATEGY_BY_PROPERTY_NAME[prop.name]
+        elif prop.is_node_reference:
+            object_dict[prop.name] = nodes()
+        elif prop.is_property_reference:
+            object_dict[prop.name] = properties()
         else:
-            raise ValueError(f"cannot fabricate {prop!r}")
+            object_dict[prop.name] = from_type_info(prop.type_info)
+    return st.builds(object_cls, **object_dict)
 
-    def fabricate(
-        self, object_cls: Type[ObjectT], path: tuple[ObjectType, ...] = (), **override
-    ) -> ObjectT:
-        object_type = object_cls.metatype
-        path = (*path, object_type)
-        override = override or EMPTY_DICT
 
-        # special cases for semantic correctness
-        if object_type == StructType.NODE_REFERENCE:
-            type = random.choice(NODE_TYPES)
-            id = uuid.uuid4()
-            ck = uuid.uuid4() if "ck" in NODE_CLASS_BY_TYPE[type].__properties__ else id
-            return cast(ObjectT, NodeReference(type=type, id=id, ck=ck))
-        elif object_type == StructType.PROPERTY_REFERENCE:
-            type = random.choice(NODE_TYPES)
-            prop = random.choice(
-                tuple(p for p in NODE_CLASS_BY_TYPE[type].__properties__.values() if p.id)
-            )
-            ref = prop.to_ref()
-            return ref  # type: ignore
-        else:  # default unconstrained random jumble of properties
-            kwargs = {**override}
-            bench_cls = OBJECT_CLASS_BY_TYPE[object_type]
-            for prop in bench_cls.__wired_properties__.values():
-                if prop.name in override or (prop.is_ephemeral or prop.is_computed):
-                    continue
-                elif prop.reference_kind == ReferenceKind.STRUCT_PARENT or (
-                    prop.reference_kind
-                    and prop.reference_kind.is_node_tree
-                    and not prop.reference_source
-                ):
-                    continue  # set indirectly via the underlying NodeReference/PropertyReference
-                elif prop.reference_struct in path:  # prevent circles
-                    kwargs[prop.name] = [] if prop.is_list else None
-                elif prop.is_list:
-                    len = random.randint(1, 4)
-                    kwargs[prop.name] = [self.fabricate_prop_scalar(prop, path) for _ in range(len)]
-                else:
-                    kwargs[prop.name] = self.fabricate_prop_scalar(prop, path)
-            fabricated = bench_cls(**kwargs)
-            assert (
-                fabricated.metatype == object_type
-            ), f"{fabricated!r}.metatype is not {object_type}"
-            return cast(ObjectT, fabricated)
+@st.composite
+def builtin_objects(draw):
+    object_type = draw(object_types)
+    return draw(from_object_type(object_type))
+
+
+@st.composite
+def nodes(draw):
+    node_type = draw(node_types)
+    return draw(from_object_type(node_type))
+
+
+@st.composite
+def structs(draw):
+    struct_type = draw(struct_types)
+    return draw(from_object_type(struct_type))

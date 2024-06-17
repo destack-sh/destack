@@ -636,10 +636,10 @@ def pack_builtin_object_data(
             continue
         elif prop.is_list:
             prop_value_packed = [
-                pack_value_scalar(element, prop.as_type_info) for element in prop_value
+                pack_value_scalar(element, prop.type_info) for element in prop_value
             ]
         else:
-            prop_value_packed = pack_value_scalar(prop_value, prop.as_type_info)
+            prop_value_packed = pack_value_scalar(prop_value, prop.type_info)
         value_packed[prop.id_as_str] = prop_value_packed
     return value_packed
 
@@ -671,11 +671,10 @@ def unpack_builtin_object_data[T: AnyStructData | AnyNodeData](
             continue
         elif prop.is_list:
             prop_value = [
-                unpack_value_scalar_data(element, prop.as_type_info)
-                for element in prop_value_packed
+                unpack_value_scalar_data(element, prop.type_info) for element in prop_value_packed
             ]
         else:
-            prop_value = unpack_value_scalar_data(prop_value_packed, prop.as_type_info)
+            prop_value = unpack_value_scalar_data(prop_value_packed, prop.type_info)
         setattr(value, prop.name, prop_value)
     return value
 
