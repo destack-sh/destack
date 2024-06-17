@@ -147,7 +147,9 @@ class ServiceBase:
         """Validate a request message for this service."""
         pass
 
-    async def _get_subject(self, request: betterproto.Message, metadata: RpcMetadata) -> Subject:
+    async def get_request_subject(
+        self, request: betterproto.Message, metadata: RpcMetadata
+    ) -> Subject:
         raise NotImplementedError(f"{self.__class__.__name__} must implement _get_subject")
 
     @final
@@ -174,7 +176,7 @@ class ServiceBase:
                 # prepare
                 metadata: RpcMetadata = RpcMetadata().from_headers(stream.metadata or {})  # type: ignore
                 if self.kind == ServiceKind.PUBLIC:
-                    subject = await self._get_subject(request, metadata)
+                    subject = await self.get_request_subject(request, metadata)
                     log = log.bind(subject=subject)
                 else:
                     subject = None
@@ -191,10 +193,10 @@ class ServiceBase:
                         response_stream = func(subject, request)
                     else:
                         response_stream = func(request)
-                    span.end()  # end early (streaming)
-                    async for partial_response in response_stream:
-                        log.trace(f"{rpc_name}.stream", response=partial_response)
-                        await stream.send_message(partial_response)
+                    span.end()  # end early (streaming, span shouldn't continue forever)
+                    async for response in response_stream:
+                        log.trace(f"{rpc_name}.stream", response=response)
+                        await stream.send_message(response)
                 else:
                     raise NotImplementedError(f"unsupported cardinality {cardinality}")
                 log.info(rpc_name, span="current")

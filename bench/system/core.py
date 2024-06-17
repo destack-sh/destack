@@ -39,7 +39,7 @@ GLOBAL_PG_NAME = get_from_env("GLOBAL_PG_NAME", description="Global Postgres dat
 GLOBAL_PG_USERNAME = get_from_env("GLOBAL_PG_USERNAME", description="Global Postgres username")
 GLOBAL_PG_PASSWORD = get_from_env("GLOBAL_PG_PASSWORD", description="Global Postgres password")
 
-SYSTEM_BENCH_ID = UUID(int=0)
+SYSTEM_BENCH_ID = UUID("ffffffff-ffff-ffff-ffff-ffffffffffff")
 SYSTEM_BENCH_PTR = NodeReference(
     type=NodeType.BENCH, id=SYSTEM_BENCH_ID, ck=SYSTEM_BENCH_ID, bench_id=SYSTEM_BENCH_ID
 )
@@ -83,7 +83,7 @@ def global_session(epoch: Optional[int] = None, _supergraph: Optional[NodeSuperG
         _default_scope=GraphScope(),
         _engines=(GLOBAL_POSTGRES_ENGINE,),
         _epoch=epoch,
-        _supergraph=_supergraph or SYSTEM_BENCH_STUB._supergraph,
+        _supergraph=_supergraph or SYSTEM_BENCH_STUB._supergraph.instance(),
     )
 
 

@@ -347,17 +347,25 @@ class NodeDataGraph(_NodeGraphBase[str, AnyNodeData]):
 class NodeSuperGraph:
     """
     A set of graphs making up the currently available graph in some context (like a session).
+    Nodes are resolved against the graphs in the order they were added.
     If the root_ptr is None, this is the 'null' graph.
     """
 
-    __slots__ = ("_graphs", "_graphs_by_node_type", "_root_ptr")
+    __slots__ = ("_base", "_graphs", "_graphs_by_node_type", "_root_ptr")
 
-    def __init__(
-        self, root_ptr: "NodeReference | None", graphs: Collection[NodeGraph] | None = None
-    ):
+    def __init__(self, root_ptr: "NodeReference | None", base: "NodeSuperGraph | None" = None):
         self._root_ptr = root_ptr
-        self._graphs = tuple(graphs) if graphs is not None else ()
+        self._graphs = ()
         self._graphs_by_node_type: dict[NodeType, tuple[NodeGraph, ...]] = {}
+        self._base = base
+
+    def instance(self) -> "NodeSuperGraph":
+        """Clone the supergraph, but not the graphs."""
+        instance = NodeSuperGraph(self._root_ptr)
+        instance._base = self
+        instance._graphs = self._graphs
+        instance._graphs_by_node_type = {**self._graphs_by_node_type}
+        return instance
 
     def __str__(self):
         return f"{len(self._graphs)} graphs"
@@ -368,7 +376,11 @@ class NodeSuperGraph:
         else:
             root = self.get(self._root_ptr)
             root_str = repr(root) if root is not None else f"{self._root_ptr!r}"
-            return f"<{self.__class__.__name__} from {root_str} ({self!s})>"
+            base_str = f", base={self._base!r}" if self._base is not None else ""
+            return f"<{self.__class__.__name__} from {root_str} ({self!s}{base_str})>"
+
+    def has(self, other: "NodeSuperGraph"):
+        return self is other or (self._base is not None and self._base.has(other))
 
     @property
     def root(self) -> "Node":
@@ -376,10 +388,12 @@ class NodeSuperGraph:
         return self.get_or_fail(self._root_ptr)
 
     def add_graph(self, graph: NodeGraph):
+        """Add a graph to this supergraph."""
         assert self._root_ptr is not None, f"{self!r} is a null graph"
         if graph.supergraph is None:
             graph.supergraph = self
-        assert graph.supergraph is self, f"{graph!r} is from {graph.supergraph!r}, not {self!r}"
+        elif graph.supergraph is not self:
+            raise RuntimeError(f"{graph!r} is from {graph.supergraph!r}, not {self!r}")
         assert graph not in self._graphs, f"{graph!r} already in {self!r}"
         self._graphs = (*self._graphs, graph)
         for node_type in graph.node_types:
@@ -392,6 +406,7 @@ class NodeSuperGraph:
                 )
 
     def remove_graph(self, graph: NodeGraph):
+        """Remove a graph from this supergraph."""
         assert self._root_ptr is not None, f"{self!r} is a null graph"
         assert graph in self._graphs, f"{graph!r} not in {self!r}"
         self._graphs = tuple(g for g in self._graphs if g is not graph)
@@ -401,6 +416,7 @@ class NodeSuperGraph:
             )
 
     def get(self, ptr: "UUID | NodeReference") -> Optional["Node"]:
+        """Get a node by some key."""
         if isinstance(ptr, UUID):
             # check all graphs
             for graph in self._graphs:
@@ -418,6 +434,7 @@ class NodeSuperGraph:
             return None
 
     def get_or_fail(self, ptr: "UUID | NodeReference") -> "Node":
+        """Get a node by some key (error if not exists)."""
         node = self.get(ptr)
         if node is None:
             raise KeyError(f"node {ptr!r} not found in {self!r}")
@@ -650,6 +667,9 @@ class GraphNodeList[V: Node](NodeList[V]):
         # add node (and descendants) to this parent's graph
         target_graph = self._parent._graph
         if node._graph is not target_graph:
+            assert target_graph.supergraph.has(
+                node._graph.supergraph
+            ), f"{node!r} not in same supergraph as {self!r} ({node._graph.supergraph!r} != {target_graph.supergraph!r})"
             added = node._graph.collect_descendants(node, recursive=True)
             added = (*added, node)
             target_graph.add_graph(node._graph)

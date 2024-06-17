@@ -228,6 +228,14 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
             _active_session.reset(self._active_session_token)
             self._active_session_token = None
 
+        # remove dangling graph if this was a solo session
+        # NOTE :Cleanup: not sure how to prune graphs from temporary objects like request sessions
+        if self._is_new:
+            if len(self._graph) == 1:
+                self._graph.supergraph.remove_graph(self._graph)
+            elif self.id in self._graph:  # (may not have been added)
+                self._graph.remove(self)
+
         logger.trace("session.close", session=self)
 
     def suspend(self):

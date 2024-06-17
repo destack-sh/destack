@@ -73,9 +73,13 @@ _caches: weakref.WeakSet["ClientCache"] = weakref.WeakSet()
 
 
 class ClientCache:
+    # NOTE :Architecture: should all cached clients be created in the same graph?
     def __init__(self):
         self._cache = TTLCache[UUID, Client](maxsize=10_000, ttl=60)
         _caches.add(self)
+
+    def has(self, client_id: UUID) -> bool:
+        return client_id in self._cache
 
     async def get(self, client_id: UUID, client_access_token: str) -> Client:
         client = self._cache.get(client_id)
