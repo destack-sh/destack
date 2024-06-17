@@ -2,7 +2,6 @@ from typing import cast
 
 import pytest
 
-from bench.conftest import global_session
 from bench.language.block import Block
 from bench.language.const import BlockType, NodeType, PrimitiveType, StructType
 from bench.language.field import Field, TypeKind, to_type

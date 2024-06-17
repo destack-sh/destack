@@ -1,13 +1,9 @@
 import os
 from contextlib import contextmanager
-from typing import TYPE_CHECKING
 
 import grpclib
 import pytest
 from pytest_asyncio import is_async_test
-
-if TYPE_CHECKING:
-    from bench.language import Bench
 
 
 def pytest_configure(config):
@@ -72,23 +68,6 @@ async def test_cur():
 
     async with pg_store_connection(GLOBAL_STORE, database="test") as cur:
         yield cur
-
-
-def global_session(epoch: int = 0):
-    from bench.language.session import Session
-    from bench.system.core import GLOBAL_POSTGRES_ENGINE
-
-    return Session(parent=None, _engines=(GLOBAL_POSTGRES_ENGINE,), _epoch=epoch)
-
-
-def bench_session(bench: "Bench", epoch: int = 0):
-    from bench.language.session import Session
-    from bench.system.core import GLOBAL_POSTGRES_ENGINE
-
-    assert bench.main_branch is not None, f"{bench!r} has no main branch"
-    return Session(
-        parent=bench.main_branch.main_package, _engines=(GLOBAL_POSTGRES_ENGINE,), _epoch=epoch
-    )
 
 
 @contextmanager

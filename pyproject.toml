@@ -69,6 +69,5 @@ addopts = [
 	'--hypothesis-show-statistics',
 ]
 markers = [
-	"slow: mark test as slow (>1s per run)",
-	"hypothesis: mark test as using hypothesis",
+	"hypothesis: test uses hypothesis",
 ]
