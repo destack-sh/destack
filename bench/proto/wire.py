@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.06.15.0"
+VERSION = "2024.06.17.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -1778,7 +1778,8 @@ class RunOptionsData(betterproto.Message):
     retry_interval: Optional[float] = betterproto.float_field(32, optional=True)
     backoff: Optional[float] = betterproto.float_field(33, optional=True)
     max_retry_interval: Optional[float] = betterproto.float_field(34, optional=True)
-    retry_on: List["RunErrorType"] = betterproto.enum_field(35)
+    jitter: Optional[float] = betterproto.float_field(35, optional=True)
+    retry_on: List["RunErrorType"] = betterproto.enum_field(38)
 
 
 @dataclass(eq=False, repr=False)
@@ -3541,7 +3542,9 @@ class WatchSearchResponse(betterproto.Message):
     removed_nodes_ptr: List["NodeReferenceData"] = betterproto.message_field(4)
     """Nodes removed from the result set."""
 
-    added_roots_ptr: List["NodeReferenceData"] = betterproto.message_field(5)
+    added_roots_ptr: Dict[int, "NodeReferenceData"] = betterproto.map_field(
+        5, betterproto.TYPE_INT32, betterproto.TYPE_MESSAGE
+    )
     """Roots added to the result set."""
 
     removed_roots_ptr: List["NodeReferenceData"] = betterproto.message_field(6)

@@ -1172,7 +1172,11 @@ export interface RunOptionsData {
      */
     maxRetryInterval?: number;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.RunErrorType retry_on = 35;
+     * @generated from protobuf field: optional float jitter = 35;
+     */
+    jitter?: number;
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.RunErrorType retry_on = 38;
      */
     retryOn: RunErrorType[];
 }
@@ -13021,7 +13025,8 @@ class RunOptionsData$Type extends MessageType<RunOptionsData> {
             { no: 32, name: "retry_interval", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
             { no: 33, name: "backoff", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
             { no: 34, name: "max_retry_interval", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 35, name: "retry_on", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.RunErrorType", RunErrorType, "RUN_ERROR_TYPE_"] }
+            { no: 35, name: "jitter", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 38, name: "retry_on", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.RunErrorType", RunErrorType, "RUN_ERROR_TYPE_"] }
         ]);
     }
     create(value?: PartialMessage<RunOptionsData>): RunOptionsData {
@@ -13068,7 +13073,10 @@ class RunOptionsData$Type extends MessageType<RunOptionsData> {
                 case /* optional float max_retry_interval */ 34:
                     message.maxRetryInterval = reader.float();
                     break;
-                case /* repeated symbolx.bench.RunErrorType retry_on */ 35:
+                case /* optional float jitter */ 35:
+                    message.jitter = reader.float();
+                    break;
+                case /* repeated symbolx.bench.RunErrorType retry_on */ 38:
                     if (wireType === WireType.LengthDelimited)
                         for (let e = reader.int32() + reader.pos; reader.pos < e;)
                             message.retryOn.push(reader.int32());
@@ -13117,9 +13125,12 @@ class RunOptionsData$Type extends MessageType<RunOptionsData> {
         /* optional float max_retry_interval = 34; */
         if (message.maxRetryInterval !== undefined)
             writer.tag(34, WireType.Bit32).float(message.maxRetryInterval);
-        /* repeated symbolx.bench.RunErrorType retry_on = 35; */
+        /* optional float jitter = 35; */
+        if (message.jitter !== undefined)
+            writer.tag(35, WireType.Bit32).float(message.jitter);
+        /* repeated symbolx.bench.RunErrorType retry_on = 38; */
         if (message.retryOn.length) {
-            writer.tag(35, WireType.LengthDelimited).fork();
+            writer.tag(38, WireType.LengthDelimited).fork();
             for (let i = 0; i < message.retryOn.length; i++)
                 writer.int32(message.retryOn[i]);
             writer.join();
@@ -25670,7 +25681,8 @@ export enum RunOptionsProperty {
   retryInterval = 32,
   backoff = 33,
   maxRetryInterval = 34,
-  retryOn = 35,
+  jitter = 35,
+  retryOn = 38,
 }
 
 export enum RetryAttemptProperty {
@@ -26319,7 +26331,8 @@ export const RunOptionsDataInfo: Record<RunOptionsProperty, PropertyInfo> = {
   [RunOptionsProperty.retryInterval]: { id: 32, name: 'retry_interval', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
   [RunOptionsProperty.backoff]: { id: 33, name: 'backoff', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
   [RunOptionsProperty.maxRetryInterval]: { id: 34, name: 'max_retry_interval', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [RunOptionsProperty.retryOn]: { id: 35, name: 'retry_on', component: ObjectType.RUN_OPTIONS, enumType: EnumType.RUN_ERROR_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [RunOptionsProperty.jitter]: { id: 35, name: 'jitter', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [RunOptionsProperty.retryOn]: { id: 38, name: 'retry_on', component: ObjectType.RUN_OPTIONS, enumType: EnumType.RUN_ERROR_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const RetryAttemptDataInfo: Record<RetryAttemptProperty, PropertyInfo> = {
   [RetryAttemptProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.RETRY_ATTEMPT, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },

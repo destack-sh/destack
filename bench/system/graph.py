@@ -534,7 +534,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
             subject=subject,
             request=request,
             request_edits=request.edits,
-            extended_edits=new_edits,
+            new_edits=len(new_edits),
             cascaded_edits=len(cascaded_edits),
             supergraph=session._supergraph,
             epoch=self.epoch,

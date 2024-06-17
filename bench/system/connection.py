@@ -323,7 +323,7 @@ class SearchConnection(NodeConnection[SearchResultData, WatchSearchUpdate]):
     """
     Connected search query in the graph.
     If live, we update the result set dynamically (with added/removed nodes).
-    In its final form, we want full incremental materialized view maintenance here.
+    In its final form, this should be a proper incremental materialized view.
     """
 
     read_type: ClassVar[ReadType] = ReadType.SEARCH
@@ -353,7 +353,10 @@ class SearchConnection(NodeConnection[SearchResultData, WatchSearchUpdate]):
 
 
 class AggregateConnection(Connection[AggregateResultData, WatchAggregateUpdate]):
-    """Connected aggregate query in the graph."""
+    """
+    Connected aggregate query in the graph.
+    Live isn't supported yet, but eventually (like search) this should be incremental materialized view.
+    """
 
     read_type: ClassVar[ReadType] = ReadType.AGGREGATE
 
