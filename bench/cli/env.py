@@ -1,3 +1,4 @@
+import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -40,7 +41,6 @@ def parse_env_var_site(site: str):
     typ_match = re.search(r"typ\s*=\s*([^,\(\)]+)", site)
     typ = typ_match.group(1).strip() if typ_match else "str"
 
-    # return {"key": key, "description": description, "default": default, "typ": typ}
     return EnvDeclaration(key, is_required, description, default, typ)
 
 
@@ -51,13 +51,14 @@ def extract_env_vars_from_file(content: str):
 
 
 @app.command()
-def show(path: str = "bench"):
-    env_vars = {}
-
+def show(path: str = "bench", current: bool = False):
+    # collect env vars
+    env_vars: dict[str, EnvDeclaration] = {}
     for f in Path(path).rglob("*.py"):
         file_text = Path(f).read_text()
         env_vars.update({decl.key: decl for decl in extract_env_vars_from_file(file_text)})
 
+    # build table
     console = Console()
     table = Table(show_header=True, header_style="bold magenta")
     table.add_column("Name", style="bold cyan")
@@ -65,14 +66,19 @@ def show(path: str = "bench"):
     table.add_column("Required", style="bold")
     table.add_column("Description", style="dim")
     table.add_column("Default", style="yellow")
+    if current:
+        table.add_column("Current", style="green")
 
     for key, details in env_vars.items():
-        table.add_row(
+        row = [
             key,
             details.typ,
             "✓" if details.is_required else "",
             details.description,
             details.default,
-        )
+        ]
+        if current:
+            row.append(os.getenv(key, ""))
+        table.add_row(*row)
 
     console.print(table)

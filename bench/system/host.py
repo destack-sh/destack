@@ -249,6 +249,11 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
     def request_session_parent(self):
         return self._main_package
 
+    @property
+    @override
+    def split_reads(self):
+        return True
+
     @override
     @asynccontextmanager
     async def session(self, *, readonly: bool = False, autocommit: bool = False):
