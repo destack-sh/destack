@@ -80,7 +80,9 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
         return (GLOBAL_POSTGRES_ENGINE,)
 
     @tracer.start_as_current_span("supervisor.get_subject")
-    async def _get_subject(self, request: betterproto.Message, metadata: RpcMetadata) -> Subject:
+    async def get_request_subject(
+        self, request: betterproto.Message, metadata: RpcMetadata
+    ) -> Subject:
         # NOTE :Architecture: for simplicity we don't get the full Subject auth in Supervisor
         #  (like we do in Host, since we have the entire Bench cached and ready there,
         #   and we don't expect to need Bench-level auth in the supervisor for now).
@@ -140,7 +142,7 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
         if subject.is_authenticated:
             raise GRPCError(GRPCStatus.ALREADY_EXISTS, "already logged in")
 
-        async with self.request_session(readonly=False) as session:
+        async with self.request_session(supergraph=subject._supergraph, readonly=False) as session:
             user = User(
                 id=to_uuid(request.id) or uuid4(),
                 slug=request.slug,
@@ -175,7 +177,7 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
         if not subject.user:
             raise GRPCError(GRPCStatus.UNAUTHENTICATED, "not logged in")
 
-        async with self.request_session(readonly=False) as session:
+        async with self.request_session(supergraph=subject._supergraph, readonly=False) as session:
             user = subject.user
             if user.password_salt is None or user.password_hash is None:
                 raise GRPCError(GRPCStatus.FAILED_PRECONDITION, "password not set")
@@ -201,7 +203,7 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
         if subject.is_authenticated:
             raise GRPCError(GRPCStatus.ALREADY_EXISTS, "already logged in")
 
-        async with self.request_session(readonly=False) as session:
+        async with self.request_session(supergraph=subject._supergraph, readonly=False) as session:
             key_name, key_value = betterproto.which_one_of(request, "user")
             if key_value is None:
                 raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "no user provided")
@@ -238,7 +240,7 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
         if subject.user is None:
             raise GRPCError(GRPCStatus.FAILED_PRECONDITION, "not a user")
 
-        async with self.request_session(readonly=False) as session:
+        async with self.request_session(supergraph=subject._supergraph, readonly=False) as session:
             # log out the current or the specified clients
             if request.clients:
                 client_ids = {to_uuid(c.id) for c in request.clients}
@@ -281,7 +283,7 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
             raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "cannot create bench in global region")
 
         owner_ptr = wiring.unpack_object(request.owner, supergraph=None, expect=NodeReference)
-        async with self.request_session(readonly=False) as session:
+        async with self.request_session(supergraph=subject._supergraph, readonly=False) as session:
             # check (and reload owner to get Handles)
             if owner_ptr.type == NodeType.USER:
                 if owner_ptr.id != user.id:
@@ -329,7 +331,7 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
     @override
     async def get_host(self, subject: "Subject", request: "GetHostRequest") -> "GetHostResponse":
         key, value = betterproto.which_one_of(request, "bench")
-        async with self.request_session():
+        async with self.request_session(supergraph=subject._supergraph):
             if key == "id":
                 await Bench.get(id=to_uuid(value))
             elif key == "slug":

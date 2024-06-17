@@ -1,6 +1,7 @@
+import abc
 import asyncio
 from datetime import datetime
-from typing import AsyncIterator, NamedTuple, Optional, cast, override
+from typing import AsyncIterator, NamedTuple, cast, override
 from uuid import UUID
 
 import betterproto
@@ -17,6 +18,7 @@ from bench.language.access import (
     evaluate_edit,
     generate_access_matrix,
 )
+from bench.language.bench import Package
 from bench.language.connection import ChannelFailedError, GetOptions, GraphEngine
 from bench.language.const import (
     BASED_NODE_TYPES,
@@ -78,12 +80,11 @@ from bench.system.connection import (
     WatchGetUpdate,
     WatchSearchUpdate,
 )
-from bench.system.core import SYSTEM_BENCH_PTR
 from bench.utils.func import CriticalLock, bittuple, group_by, to_uuid, uuid_to_str
 from bench.utils.oracle import get_oracle
 
 
-class GraphIoServiceBase(ServiceBase, GraphIoBase):
+class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
     """Common base for global & Bench-local graph I/O operations."""
 
     def __init__(
@@ -104,13 +105,10 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
         )
         self.connector = ConnectionIndex(scope=self.scope)
 
+    @abc.abstractmethod
     def get_engines(self) -> tuple[GraphEngine, ...]:
-        """Gets the store engines available to this subgraph. Implemented in the actual service."""
-        raise NotImplementedError
-
-    def get_supergraph(self) -> Optional[NodeSuperGraph]:
-        """Gets the supergraph to use"""
-        return None
+        """Gets the graph engines available to this subgraph."""
+        ...
 
     def _validate_request(self, request: betterproto.Message) -> None:
         """Validate a request message for this service."""
@@ -125,19 +123,21 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
             30, self.connector.gc_connections, task_id="gc_connections", skip_errors=False
         )
 
+    @property
+    def request_session_parent(self) -> Package | None:
+        return None
+
     def request_session(
         self,
+        supergraph: NodeSuperGraph,
         *,
         engines: tuple[GraphEngine, ...] | None = None,
         readonly: bool = True,
         system_commit: bool = True,
     ):
         """Gets a new session for processing a single request."""
-        supergraph = self.get_supergraph()
-        if supergraph is None:
-            supergraph = NodeSuperGraph(SYSTEM_BENCH_PTR)
         return Session(
-            parent=None,
+            parent=self.request_session_parent,
             _is_readonly=readonly,
             _default_scope=self.scope,
             _engines=engines if engines is not None else self.get_engines(),
@@ -149,7 +149,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
     @override
     async def get_nodes(self, subject: Subject, request: "GetNodesRequest") -> "GetNodesResponse":
         # parse query & fetch
-        async with self.request_session() as session:
+        async with self.request_session(supergraph=subject._supergraph) as session:
             with self.tracer.start_as_current_span("graph.get.parse"):
                 roots = [
                     wiring.unpack_object_validate(r, supergraph=None, expect=NodeReference)
@@ -255,7 +255,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
         self, subject: Subject, request: "SearchNodesRequest"
     ) -> "SearchNodesResponse":
         # parse query & fetch
-        async with self.request_session() as session:
+        async with self.request_session(supergraph=subject._supergraph) as session:
             with self.tracer.start_as_current_span("graph.search.parse"):
                 node_type: NodeType = wiring.unpack_enum(NodeType, request.node_type)
                 filter = wiring.unpack_object_validate_maybe(
@@ -360,7 +360,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
         self, subject: Subject, request: "AggregateNodesRequest"
     ) -> "AggregateNodesResponse":
         # parse query & fetch
-        async with self.request_session() as session:
+        async with self.request_session(supergraph=subject._supergraph) as session:
             with self.tracer.start_as_current_span("graph.aggregate.parse"):
                 node_type: NodeType = wiring.unpack_enum(NodeType, request.node_type)
                 filter = wiring.unpack_object_validate_maybe(
@@ -444,10 +444,9 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
             # pre-validate/prepare edits
             scope, epoch = self._prepare_commit(subject, context, request.edits)
 
-            async with self.request_session(readonly=False, system_commit=False) as session:
-                # nocheckin: use supergraph copy/overlay for request session
-                # (and clean up graphs in supergraphs somehow)
-
+            async with self.request_session(
+                supergraph=subject._supergraph, readonly=False, system_commit=False
+            ) as session:
                 # read the affected nodes into a single graph for evaluation
                 data_graph = NodeDataGraph(scope=self.scope, node_types=NODE_TYPES)
                 with self.tracer.start_as_current_span("graph.commit.read"):
@@ -489,7 +488,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
                     is_prepass=True,
                 )
                 unpacked_graph = wiring.unpack_node_graph(
-                    data_graph, supergraph=session._supergraph, parent=None, session=session
+                    data_graph, supergraph=subject._supergraph, parent=None, session=session
                 )
 
                 for node_id in scope.edited_node_ids:
@@ -533,6 +532,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase):
             request_edits=request.edits,
             extended_edits=new_edits,
             cascaded_edits=len(cascaded_edits),
+            supergraph=session._supergraph,
             epoch=self.epoch,
             span="current",
         )

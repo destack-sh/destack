@@ -464,7 +464,7 @@ class Connection[
             else:
                 raise retry.to_error(operation=self.query)
             # unpack (should not be retried)
-            if self._unpack_result is not None:
+            if self.options.unpack:
                 self._result = self._unpack_result(self._result_data)
             self._has_result.set()
         else:
@@ -492,7 +492,7 @@ class Connection[
                     self._result_data = await self._do_read(self.query)
                     logger.trace(f"connect.{self.type_name}", connection=self, span="current")
                 # unpack
-                if self._unpack_result is not None:
+                if self.options.unpack:
                     self._result = self._unpack_result(self._result_data)
                 self._has_result.set()
 

@@ -143,11 +143,11 @@ class HostRouter(ServiceBase, HostBase):
                     host = await self._start_host(bench_id)
         return host
 
-    async def _get_subject(
+    async def get_request_subject(
         self, request: betterproto.Message, metadata: wire.RpcMetadata
     ) -> Subject:
         host = await self._get_host(request)
-        return await host._get_subject(request, metadata)
+        return await host.get_request_subject(request, metadata)
 
     def _wrap_rpc_func(
         self, func: RpcCallable, method_name: str, handler: grpclib.const.Handler
@@ -244,23 +244,10 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
     def get_engines(self) -> tuple[GraphEngine, ...]:
         return self._engines
 
+    @property
     @override
-    def get_supergraph(self) -> NodeSuperGraph:
-        return self._supergraph
-
-    @override
-    def request_session(
-        self,
-        *,
-        engines: tuple[GraphEngine, ...] | None = None,
-        readonly: bool = True,
-        system_commit: bool = True,
-    ):
-        session = super().request_session(
-            engines=engines, readonly=readonly, system_commit=system_commit
-        )
-        session.parent = self._main_package
-        return session
+    def request_session_parent(self):
+        return self._main_package
 
     @override
     @asynccontextmanager
@@ -274,7 +261,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
             yield self._session
 
     @tracer.start_as_current_span("host.get_subject")
-    async def _get_subject(
+    async def get_request_subject(
         self, request: betterproto.Message, metadata: wire.RpcMetadata
     ) -> Subject:
         assert self._bench is not None, f"bench not loaded in {self!r}"
@@ -291,13 +278,16 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
             client_id = UUID(metadata.client_id)
             if metadata.client_type != wire.ClientType.BENCH_SERVER:
                 # user client
-                async with global_session(_supergraph=self._supergraph):
-                    if CLIENT_CACHE_ENABLED:
-                        client = await self._client_cache.get(
-                            client_id, metadata.client_access_token
-                        )
-                    else:
-                        client = await get_client(client_id, metadata.client_access_token)
+                if CLIENT_CACHE_ENABLED and self._client_cache.has(client_id):
+                    client = await self._client_cache.get(client_id, metadata.client_access_token)
+                else:
+                    async with global_session(_supergraph=self._supergraph):
+                        if CLIENT_CACHE_ENABLED:
+                            client = await self._client_cache.get(
+                                client_id, metadata.client_access_token
+                            )
+                        else:
+                            client = await get_client(client_id, metadata.client_access_token)
                 assert isinstance(client.parent, User), f"unexpected client: {client!r}"
                 if client.parent.main_bench_id == self._bench.id:
                     owned = [client.parent, self._bench]
@@ -328,8 +318,12 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
                 raise GRPCError(GRPCStatus.UNAUTHENTICATED, "invalid badge password")
             badges.append(badge)
 
-        # NOTE :Incomplete!: get roles/memberships/identities/... for subject in Host
+        # NOTE :Incomplete: get roles/memberships/identities/... for subject in this bench
 
+        # use new supergraph instance for session
+        # NOTE :Cleanup :Architecture: putting the request supergraph in the request subject
+        #  feels a bit indirect and clumsy.
+        supergraph = self._supergraph.instance()
         subject = Subject(
             is_authenticated=client is not None,
             is_staff=is_staff,
@@ -338,7 +332,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
             server=server,
             badges=badges,
             owned=owned,
-            _supergraph=self._supergraph,
+            _supergraph=supergraph,
         )
         return subject
 
@@ -349,7 +343,9 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
 
         # load bench
         #  (in different session because we don't have the actual engines yet)
-        async with self.request_session(engines=(GLOBAL_POSTGRES_ENGINE,)) as session:
+        async with self.request_session(
+            supergraph=self._supergraph, engines=(GLOBAL_POSTGRES_ENGINE,)
+        ) as session:
             self._bench = await BENCH_QUERY.get(self.bench_ptr)
             assert self._bench.main_environment, f"{self._bench!r} has no main environment"
             assert self._bench.main_environment.store, f"{self._bench!r} has no main store"
@@ -538,7 +534,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
                 created_at=edit.edited_at,
                 created_epoch=edit.epoch,
                 created_by_ptr=edit.subject_ptr,
-                # NOTE :Architecture: ideally we shouldn't need to store updated_* for Logs
+                # NOTE :Architecture: ideally we shouldn't need to store updated_* for Logs?
                 updated_at=edit.edited_at,
                 updated_epoch=edit.epoch,
                 updated_by_ptr=edit.subject_ptr,
