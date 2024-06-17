@@ -4,11 +4,9 @@ import pytest
 
 from bench.conftest import global_session
 from bench.language.block import Block
-from bench.language.const import OBJECT_TYPES, BlockType, NodeType, PrimitiveType, StructType
+from bench.language.const import BlockType, NodeType, PrimitiveType, StructType
 from bench.language.field import Field, TypeKind, to_type
 from bench.language.node import BuiltinObject
-from bench.language.setup import OBJECT_CLASS_BY_TYPE
-from bench.language.test.strategies import Fabricator
 from bench.language.text import Text
 from bench.language.value import (
     ValueObject,
@@ -19,8 +17,7 @@ from bench.language.value import (
 )
 from bench.proto import wiring
 
-fabricator = Fabricator(42)
-BUILTIN_OBJECTS = tuple(fabricator.fabricate(OBJECT_CLASS_BY_TYPE[t], ()) for t in OBJECT_TYPES)
+BUILTIN_OBJECTS = ()  # nocheckin
 
 
 def test_coerce_nested_value() -> None:

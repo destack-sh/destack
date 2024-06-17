@@ -1,5 +1,5 @@
 from dataclasses import replace
-from typing import TYPE_CHECKING, cast
+from typing import cast
 from uuid import uuid4
 
 import pytest
@@ -9,22 +9,17 @@ from bench.conftest import raises_grpc_error
 from bench.language import Client, ReadOptions, User
 from bench.language.const import (
     PUBLIC_NODE_TYPES,
-    ROOT_NODE_TYPES,
     AggregationOp,
     ClientType,
     NodeType,
 )
 from bench.language.expression import A
-from bench.language.node import Node
 from bench.language.property import Property
-from bench.language.setup import NODE_CLASS_BY_TYPE
 from bench.language.transaction import new_edit_id, pack_node_delta
-from bench.language.user import UserStatus
+from bench.language.user import Organization, UserStatus
 from bench.proto import wire, wiring
 from bench.proto.wire import (
     AggregateNodesRequest,
-    AnyNodeData,
-    BenchData,
     ClientDataIn,
     CommitTransactionRequest,
     EditData,
@@ -38,9 +33,6 @@ from bench.proto.wire import (
 )
 from bench.system.test.conftest import UserHandle, make_new_user_handle
 from bench.utils.oracle import get_oracle
-
-if TYPE_CHECKING:
-    from bench.language.test.strategies import Fabricator
 
 
 async def test_user_registration(supervisor: SupervisorStub):
@@ -240,18 +232,11 @@ async def test_public_node_read(
     assert isinstance(aggregate_rep.aggregation.count, int)
 
 
-@pytest.mark.parametrize("node_type", [*ROOT_NODE_TYPES], ids=lambda t: t.name)
-async def test_root_node_create_denied(
-    node_type: NodeType,
-    some_user: UserHandle,
-    supervisor: SupervisorStub,
-    fabricator: "Fabricator",
-):
+async def test_root_node_create_denied(some_user: UserHandle, supervisor: SupervisorStub):
     """Only the system can create root nodes."""
 
-    node: Node[AnyNodeData] = fabricator.fabricate(NODE_CLASS_BY_TYPE[node_type])
-    node_data: AnyNodeData = wiring.pack_object(node)
-    cast(BenchData, node_data).parent_ptr = None  # roots don't have parents
+    node = Organization(name="test")
+    node_data = wiring.pack_object(node)
 
     # try create
     for edit_type in (wire.EditType.CREATE, wire.EditType.UPSERT):

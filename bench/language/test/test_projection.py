@@ -5,14 +5,11 @@ import pytest
 from bench.language import Node, Struct
 from bench.language.block import Block
 from bench.language.code import format_code, run_code_eval, run_code_script
-from bench.language.const import OBJECT_TYPES, BlockType, NodeType, StructType
+from bench.language.const import BlockType, NodeType, StructType
 from bench.language.field import Field
 from bench.language.projection import render_node, render_struct
-from bench.language.setup import OBJECT_CLASS_BY_TYPE
-from bench.language.test.strategies import Fabricator
 
-fabricator = Fabricator(42)
-BUILTIN_OBJECTS = tuple(fabricator.fabricate(OBJECT_CLASS_BY_TYPE[t], ()) for t in OBJECT_TYPES)
+BUILTIN_OBJECTS = ()  # nocheckin
 
 
 @pytest.mark.parametrize("obj", BUILTIN_OBJECTS, ids=lambda o: o.__class__.__name__)

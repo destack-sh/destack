@@ -342,9 +342,9 @@ class Expression(Struct, HasValues):
     @property_
     def value_type(self) -> "TypeInfoBase | None":
         if self.field is not None:
-            typ = self.field.as_type_info
+            typ = self.field.type_info
         elif self.property is not None:
-            typ = self.property.as_type_info
+            typ = self.property.type_info
         else:
             return None
         # wrap as list if needed
@@ -547,7 +547,7 @@ def coerce_conditional(
             elif op == ConditionalOp.NOT_EQUALS:
                 op = ConditionalOp.EXISTS
 
-        _check_type_supports(target.as_type_info, op)
+        _check_type_supports(target.type_info, op)
         clauses.append(Expression(op=op, field=field, property=property, value=value))
     if not clauses:
         return None
@@ -604,7 +604,7 @@ def coerce_sort(
                 item = S(op, field=None, property=target)
             else:
                 item = S(op, field=target, property=None)
-            _check_type_supports(target.as_type_info, op)
+            _check_type_supports(target.type_info, op)
         if not isinstance(item, Expression) or item.kind != ExpressionKind.SORT:
             raise TypeError(f"expected Sort or str, got {item!r}")
         coerced.append(item)
@@ -692,7 +692,7 @@ def _require_expression_op(op: ExpressionOp):
     def decorator(func):
         @functools.wraps(func)
         def wrapper(self: "_TypeQueryBuilder", *args, **kwargs):
-            _check_type_supports(self.as_type_info, op)
+            _check_type_supports(self.type_info, op)
             return func(self, *args, **kwargs)
 
         return wrapper
@@ -721,7 +721,7 @@ class _TypeQueryBuilder:
     """
 
     @property
-    def as_type_info(self) -> "TypeInfoBase":
+    def type_info(self) -> "TypeInfoBase":
         raise NotImplementedError(f"{self!r} does not implement type")
 
     #

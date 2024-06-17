@@ -1002,9 +1002,9 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
             old_value = getattr(self, key)
             if is_tracked and validate:
                 # coerce & check type
-                if prop.type_info is not None and prop.reference_source is None:
-                    value = coerce_value(value, prop.type_info, self, prop, prop)
-                    check_value(value, prop.type_info, invalid=on_invalid_raise)
+                if prop._type_info is not None and prop.reference_source is None:
+                    value = coerce_value(value, prop._type_info, self, prop, prop)
+                    check_value(value, prop._type_info, invalid=on_invalid_raise)
                 object.__setattr__(self, key, value)
                 try:
                     self._validate_self((prop,), invalid=on_invalid_raise)
@@ -1088,9 +1088,9 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
         """Check the integrity of this object."""
         # check properties types
         for prop in properties or self.__tracked_properties__.values():
-            if prop.type_info is not None and prop.reference_source is None:
+            if prop._type_info is not None and prop.reference_source is None:
                 value = getattr(self, prop.name)
-                check_value(value, prop.type_info, invalid=invalid)
+                check_value(value, prop._type_info, invalid=invalid)
         # check components
         for component in self.__components__:
             component._validate_component(self, properties, invalid)

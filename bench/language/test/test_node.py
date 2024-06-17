@@ -8,7 +8,6 @@ from bench.language.const import BlockType, NodeType
 from bench.language.field import Field
 from bench.language.session import Session
 from bench.language.setup import NODE_CLASSES, STRUCT_CLASSES
-from bench.language.test.strategies import Fabricator
 
 
 def test_struct_regular_properties_are_available():
@@ -20,19 +19,19 @@ def test_struct_regular_properties_are_available():
                 assert isinstance(attr, Property), f"{prop!r}->{attr!r} is not a Property"
 
 
-def test_get_set_non_existing_property(fabricator: "Fabricator"):
+def test_get_set_non_existing_property():
     """Should raise properly"""
-    client = fabricator.fabricate(Client)
-    client._session = Session()
+    node = Bench(slug="test", name="Test")
+    node._session = Session()
     with pytest.raises(AttributeError):
-        client.wadabadaboo = "wadabadaboo"  # type: ignore
+        node.wadabadaboo = "wadabadaboo"  # type: ignore
     with pytest.raises(AttributeError):
-        _ = client.wadabadaboo  # type: ignore
+        _ = node.wadabadaboo  # type: ignore
 
 
-def test_node_pointers_consistency(fabricator: "Fabricator"):
+def test_node_pointers_consistency():
     """Pointers should include the relevant bench/base/base_bench references."""
-    bench_a = fabricator.fabricate(Bench, slug="test_a", name="test_b")
+    bench_a = Bench(slug="test_a", name="test_b")
     assert bench_a.to_ref()._equals_content(
         NodeReference(type=NodeType.BENCH, id=bench_a.id, ck=bench_a.ck, bench_id=bench_a.id)
     )
@@ -54,9 +53,9 @@ def test_node_pointers_consistency(fabricator: "Fabricator"):
     assert branch_a.parent_ptr.id == bench_a.id
 
     # sub bench nested pointers
-    server_a: Server = fabricator.fabricate(Server, parent=bench_a, name="Main")
+    server_a: Server = Server(parent=bench_a, name="Main")
     assert server_a.bench_id == bench_a.id
-    client_a = fabricator.fabricate(Client, parent=server_a, name="Testificate's iPhone")
+    client_a = Client(parent=server_a, name="Testificate's iPhone")
     assert client_a.bench_id == bench_a.id
     assert client_a.to_ref()._equals_content(
         NodeReference(type=NodeType.CLIENT, id=client_a.id, ck=client_a.ck, bench_id=bench_a.id)
@@ -91,7 +90,7 @@ def test_node_pointers_consistency(fabricator: "Fabricator"):
     )
 
     # refs pointing to different bench
-    bench_b = fabricator.fabricate(Bench, slug="test_b", name="test_b")
+    bench_b = Bench(slug="test_b", name="test_b")
     environment_b = Environment(parent=bench_b, name="Production B")
     branch_b = bench_b.branches.create(name="main b")
     package_b = branch_b.packages.create(environment=environment_b)

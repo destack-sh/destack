@@ -23,7 +23,6 @@ from bench.language import (
 from bench.language.const import ClientType, EnumType, NodeType, UserStatus
 from bench.language.field import TypeKind
 from bench.language.query import NodeNotFoundError
-from bench.language.test.strategies import Fabricator
 from bench.language.user import User
 from bench.sql.client import pg_store_connection
 from bench.sql.core import GLOBAL_EXTENSIONS, Column, Schema, Table
@@ -193,7 +192,7 @@ async def test_crud_rows(test_cur: psycopg.AsyncCursor, table: Table):
     assert db_rows == target_rows
 
 
-async def test_crud_node_pointers(fabricator: "Fabricator"):
+async def test_crud_node_pointers():
     """Ensures that node pointers (parent, regular, ancestor) roundtrip correctly"""
     # write
     async with global_session() as session:
