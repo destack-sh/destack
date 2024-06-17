@@ -1627,7 +1627,8 @@ message RunOptionsData {
   optional float retry_interval = 32;
   optional float backoff = 33;
   optional float max_retry_interval = 34;
-  repeated RunErrorType retry_on = 35;
+  optional float jitter = 35;
+  repeated RunErrorType retry_on = 38;
 }
 
 // The time-based schedule of something.

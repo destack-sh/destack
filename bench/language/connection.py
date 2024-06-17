@@ -136,7 +136,7 @@ class GetResultData:
     graph: NodeDataGraph
     roots_ptr: list[NodeReferenceData]
     epoch: int | None
-    token: str | None
+    connection_token: str | None
 
 
 @dataclass(slots=True)
@@ -171,7 +171,7 @@ class SearchResultData:
     roots_ptr: list[NodeReferenceData]
     total: int | None
     epoch: int | None
-    token: str | None
+    connection_token: str | None
 
 
 @dataclass(slots=True)
@@ -187,7 +187,7 @@ class WatchSearchUpdate:
     cascaded_edits: list[EditData]
     added_nodes: list[AnyNodeData]
     removed_nodes_ptr: list[NodeReferenceData]
-    added_roots_ptr: list[NodeReferenceData]
+    added_roots_ptr: dict[int, NodeReferenceData]
     removed_roots_ptr: list[NodeReferenceData]
     epoch: int
 
@@ -206,7 +206,7 @@ class AggregateOptions(_ConnectOptions):
 class AggregateResultData:
     aggregation: AggregationData
     epoch: int | None
-    token: str | None
+    connection_token: str | None
 
 
 @dataclass(slots=True)
@@ -498,7 +498,7 @@ class Connection[
 
                 # subscribe
                 async for update in self._do_subscribe(self.query, self._result_data):
-                    self._apply_update(update)
+                    self._apply_update(self._result_data, self._result, update)
             except retry.options.retry_on as e:
                 logger.error(f"connect.{self.type_name}.error", exc_info=e, connection=self)
                 retry.on_error(e)
@@ -511,17 +511,17 @@ class Connection[
         ...
 
     @abc.abstractmethod
-    def _apply_update(self, update: UpdateT):
-        """Applies an update to the result."""
+    def _apply_update(self, result_data: ResultDataT, result: ResultT | None, update: UpdateT):
+        """Applies an update to the result (in place)."""
         ...
 
     @abc.abstractmethod
     async def _do_read(self, query: "QueryBuilder") -> ResultDataT:
-        """Fetches the result from the graph."""
+        """Fetches the result data for the connection."""
         ...
 
     def _do_subscribe(self, query: "QueryBuilder", result: ResultDataT) -> AsyncIterator[UpdateT]:
-        """Subscribes to updates from the graph."""
+        """Subscribes to updates for the connection."""
         raise ChannelIncapableError(self, query, reason="live subscription not supported")
 
     @final
@@ -545,6 +545,7 @@ class GetConnection[ChannelT: Channel](
 ):
     """Base for get connections (may be live)."""
 
+    @override
     def _unpack_result(self, result_data: GetResultData) -> GetResult:
         from bench.proto import wiring
 
@@ -557,13 +558,16 @@ class GetConnection[ChannelT: Channel](
         )
         return GetResult(graph=graph, roots=list(roots))
 
-    def _apply_update(self, update: WatchGetUpdate):
+    @override
+    def _apply_update(
+        self, result_data: GetResultData, result: GetResult | None, update: WatchGetUpdate
+    ):
         from bench.language.transaction import edit_data_graph, edit_graph
 
-        edit_data_graph(self.result_data.graph, update.edits, self.query._options)
-        if self._result is not None:
+        edit_data_graph(result_data.graph, update.edits, self.query._options)
+        if result is not None:
             edit_graph(
-                graph=self._result.graph,
+                graph=result.graph,
                 supergraph=self.session._supergraph,
                 edits=update.edits,
                 options=self.query._options,
@@ -577,6 +581,7 @@ class SearchConnection[ChannelT: Channel](
 ):
     """Base for search connections (may be live)."""
 
+    @override
     def _unpack_result(self, result_data: SearchResultData) -> SearchResult:
         from bench.proto import wiring
 
@@ -589,20 +594,65 @@ class SearchConnection[ChannelT: Channel](
         )
         return SearchResult(graph=graph, roots=list(roots), total=result_data.total)
 
-    def _apply_update(self, update: WatchSearchUpdate):
+    @override
+    def _apply_update(
+        self, result_data: SearchResultData, result: SearchResult | None, update: WatchSearchUpdate
+    ):
         from bench.language.transaction import edit_data_graph, edit_graph
+        from bench.proto import wiring
 
-        # nocheckin :Broken: SearchConnection._apply_update
-        edit_data_graph(self.result_data.graph, update.edits, self.query._options)
-        if self._result is not None:
+        # apply edits
+        edit_data_graph(result_data.graph, update.edits, self.query._options)
+        for node_data in update.added_nodes:
+            result_data.graph.add(node_data)
+        if result is not None:
             edit_graph(
-                graph=self._result.graph,
+                graph=result.graph,
                 supergraph=self.session._supergraph,
                 edits=update.edits,
                 options=self.query._options,
                 track=False,
                 validate=False,
             )
+
+        # apply other added/removed nodes
+        for node_data in update.added_nodes:
+            result_data.graph.add(node_data)
+        for node_ptr in update.removed_nodes_ptr:
+            node_data = result_data.graph.get(cast(str, node_ptr.id))
+            assert node_data is not None, f"missing node for update: {node_ptr!r}"
+            result_data.graph.remove(node_data)
+        if result is not None:  # and update unpacked result
+            for node_data in update.added_nodes:
+                node = wiring.unpack_object(
+                    node_data,
+                    supergraph=self.session._supergraph,
+                    session=self.session,
+                    connection=self,
+                    expect=Node,
+                )
+                result.graph.add(node)
+            for node_ptr in update.removed_nodes_ptr:
+                node = result.graph.get(UUID(cast(str, node_ptr.id)))
+                assert node is not None, f"missing node for update: {node!r}"
+                result.graph.remove(node)
+
+        # update 'roots' list
+        for insert_index, new_root_ptr in update.added_roots_ptr.items():
+            new_root_data = result_data.graph.get(cast(str, new_root_ptr.id))
+            assert new_root_data is not None, f"missing new root: {new_root_ptr!r}"
+            result_data.roots.insert(insert_index, new_root_data)
+        for removed_root_ptr in update.removed_roots_ptr:
+            removed_root_data = result_data.graph.get(cast(str, removed_root_ptr.id))
+            assert removed_root_data is not None, f"missing removed root: {removed_root_ptr!r}"
+            result_data.roots.remove(removed_root_data)
+        if result is not None:  # and update unpacked result
+            new_roots = []
+            for root_data in result_data.roots_ptr:
+                root = result.graph.get(UUID(root_data.id))
+                assert root is not None, f"missing root for update: {root_data!r}"
+                new_roots.append(root)
+            result.roots = new_roots
 
 
 class AggregateConnection[ChannelT: Channel](
@@ -612,6 +662,7 @@ class AggregateConnection[ChannelT: Channel](
 ):
     """Base for aggregate connections (may be live)."""
 
+    @override
     def _unpack_result(self, result_data: AggregateResultData) -> AggregateResult:
         from bench.language import Aggregation
         from bench.proto import wiring
@@ -621,10 +672,20 @@ class AggregateConnection[ChannelT: Channel](
         )
         return AggregateResult(aggregation=aggregation)
 
-    def _apply_update(self, update: WatchAggregateUpdate):
-        self.result_data.aggregation = update.aggregation
-        if self._result is not None:
-            self._result = self._unpack_result(self.result_data)
+    @override
+    def _apply_update(
+        self,
+        result_data: AggregateResultData,
+        result: AggregateResult | None,
+        update: WatchAggregateUpdate,
+    ):
+        from bench.proto import wiring
+
+        result_data.aggregation = update.aggregation
+        if result is not None:
+            result.aggregation = wiring.unpack_object(
+                update.aggregation, supergraph=self.session._supergraph, expect=Aggregation
+            )
 
 
 class MemoryEngine(GraphEngine):
@@ -655,6 +716,7 @@ class MemoryChannel(Channel):
     def __str__(self):
         return f"engine={self.engine!r}, session={self.session}"
 
+    @override
     def _get_connection_cls(
         self, query: "QueryBuilder", scope: GraphScope, options: Options
     ) -> type[Connection]:
@@ -667,6 +729,7 @@ class MemoryChannel(Channel):
 class MemoryGetConnection(GetConnection[MemoryChannel]):
     """Search an in-memory channel."""
 
+    @override
     async def _do_read(self, query: "QueryBuilder") -> GetResultData:
         from bench.language import NodeDataGraph, NodeReference
         from bench.proto import wire
@@ -735,13 +798,14 @@ class MemoryGetConnection(GetConnection[MemoryChannel]):
             graph=visited_graph,
             roots_ptr=[NodeReference.from_node_data(r) for r in roots],
             epoch=None,
-            token=None,
+            connection_token=None,
         )
 
 
 class SplitChannel(Channel):
     """A read-only channel splits queries across channels."""
 
+    @override
     def _get_connection_cls(
         self, query: "QueryBuilder", scope: GraphScope, options: Options
     ) -> type[Connection]:
@@ -817,6 +881,7 @@ class SplitConnection(Connection):
 class SplitSearchConnection(SearchConnection[SplitChannel], SplitConnection):
     """Search across multiple connections."""
 
+    @override
     async def _do_read(self, query: "QueryBuilder") -> SearchResultData:
         # first trim query to nucleus around core node type (use best match)
         engine = self.session.tx._get_engine_for(
@@ -839,7 +904,7 @@ class SplitSearchConnection(SearchConnection[SplitChannel], SplitConnection):
             roots_ptr=result.roots_ptr,
             total=result.total,
             epoch=result.epoch,
-            token=result.token,
+            connection_token=result.connection_token,
         )
         return combined_result
 
@@ -847,6 +912,7 @@ class SplitSearchConnection(SearchConnection[SplitChannel], SplitConnection):
 class SplitGetConnection(GetConnection[SplitChannel], SplitConnection):
     """Get across multiple connections."""
 
+    @override
     async def _do_read(self, query: "QueryBuilder") -> GetResultData:
         # first trim query to nucleus around core node type (use best match)
         engine = self.session.tx._get_engine_for(
@@ -866,7 +932,7 @@ class SplitGetConnection(GetConnection[SplitChannel], SplitConnection):
             graph=combined_graph,
             roots_ptr=result.roots_ptr,
             epoch=result.epoch,
-            token=result.token,
+            connection_token=result.connection_token,
         )
         return combined_result
 
@@ -974,6 +1040,7 @@ class RemoteChannel(WritableChannel):
 class RemoteGetConnection(GetConnection[RemoteChannel]):
     """Search a remote channel live."""
 
+    @override
     async def _do_read(self, query: "QueryBuilder") -> GetResultData:
         from bench.proto import wire, wiring
 
@@ -992,18 +1059,19 @@ class RemoteGetConnection(GetConnection[RemoteChannel]):
             graph=graph,
             roots_ptr=roots_ptr,
             epoch=response.epoch,
-            token=response.connection_token,
+            connection_token=response.connection_token,
         )
 
+    @override
     async def _do_subscribe(
         self, query: "QueryBuilder", result: GetResultData
     ) -> AsyncIterator[WatchGetUpdate]:
         from bench.proto import wiring
 
-        assert result.token is not None, f"{result!r} has no token"
+        assert result.connection_token is not None, f"{result!r} has no token"
         assert result.epoch is not None, f"{result!r} has no epoch"
         watch_req = WatchGetRequest(
-            scope=self.scope, connection_token=result.token, since_epoch=result.epoch
+            scope=self.scope, connection_token=result.connection_token, since_epoch=result.epoch
         )
         async for rep in self.channel.engine.remote.watch_get(watch_req):
             update = WatchGetUpdate(
@@ -1019,6 +1087,7 @@ class RemoteGetConnection(GetConnection[RemoteChannel]):
 class RemoteSearchConnection(SearchConnection[RemoteChannel]):
     """Search a remote channel live."""
 
+    @override
     async def _do_read(self, query: "QueryBuilder") -> SearchResultData:
         from bench.proto import wire, wiring
 
@@ -1046,18 +1115,19 @@ class RemoteSearchConnection(SearchConnection[RemoteChannel]):
             roots_ptr=response.roots_ptr,
             total=response.total,
             epoch=response.epoch,
-            token=response.connection_token,
+            connection_token=response.connection_token,
         )
 
+    @override
     async def _do_subscribe(
         self, query: "QueryBuilder", result: SearchResultData
     ) -> AsyncIterator[WatchSearchUpdate]:
         from bench.proto import wiring
 
-        assert result.token is not None, f"{result!r} has no token"
+        assert result.connection_token is not None, f"{result!r} has no token"
         assert result.epoch is not None, f"{result!r} has no epoch"
         watch_req = WatchSearchRequest(
-            scope=self.scope, connection_token=result.token, since_epoch=result.epoch
+            scope=self.scope, connection_token=result.connection_token, since_epoch=result.epoch
         )
         async for rep in self.channel.engine.remote.watch_search(watch_req):
             update = WatchSearchUpdate(
@@ -1075,6 +1145,7 @@ class RemoteSearchConnection(SearchConnection[RemoteChannel]):
 class RemoteAggregateConnection(AggregateConnection[RemoteChannel]):
     """Aggregate a remote channel live."""
 
+    @override
     async def _do_read(self, query: "QueryBuilder") -> AggregateResultData:
         from bench.proto import wire, wiring
 
@@ -1088,7 +1159,9 @@ class RemoteAggregateConnection(AggregateConnection[RemoteChannel]):
         )
         response = await engine.remote.aggregate_nodes(request, metadata=engine.rpc_headers)
         return AggregateResultData(
-            aggregation=response.aggregation, epoch=response.epoch, token=response.connection_token
+            aggregation=response.aggregation,
+            epoch=response.epoch,
+            connection_token=response.connection_token,
         )
 
     # NOTE :Incomplete: RemoteAggregateConnection subscription
@@ -1138,6 +1211,7 @@ class PostgresChannel(WritableChannel):
     def __str__(self):
         return f"engine={self.engine!r}, session={self.session}"
 
+    @override
     def _get_connection_cls(
         self, query: "QueryBuilder", scope: GraphScope, options: Options
     ) -> type[Connection]:
@@ -1195,6 +1269,7 @@ class PostgresChannel(WritableChannel):
 class PostgresGetConnection(GetConnection[PostgresChannel]):
     """Get from a Postgres channel."""
 
+    @override
     async def _do_read(self, query: "QueryBuilder") -> GetResultData:
         from bench.language import ReadOptions
         from bench.sql.engine import pg_get_node_graph
@@ -1213,13 +1288,14 @@ class PostgresGetConnection(GetConnection[PostgresChannel]):
             graph=graph,
             roots_ptr=roots_ptr,
             epoch=None,
-            token=None,
+            connection_token=None,
         )
 
 
 class PostgresSearchConnection(SearchConnection[PostgresChannel]):
     """Search a Postgres channel."""
 
+    @override
     async def _do_read(self, query: "QueryBuilder") -> SearchResultData:
         from bench.language import NodeReference, ReadOptions
         from bench.sql.engine import _pg_compile_conditional_maybe, pg_count, pg_search_node_graph
@@ -1249,13 +1325,14 @@ class PostgresSearchConnection(SearchConnection[PostgresChannel]):
             roots_ptr=[NodeReference.from_node_data(r) for r in roots],
             total=total,
             epoch=None,
-            token=None,
+            connection_token=None,
         )
 
 
 class PostgresAggregateConnection(AggregateConnection):
     """Aggregate a Postgres channel."""
 
+    @override
     async def _do_read(self, query: "QueryBuilder") -> AggregateResultData:
         from bench.sql.engine import _pg_compile_conditional_maybe, pg_count, pg_exists
 
@@ -1267,14 +1344,14 @@ class PostgresAggregateConnection(AggregateConnection):
                 cur=self.channel.cur, table=query._node_cls.__table__, where=where
             )
             return AggregateResultData(
-                aggregation=AggregationData(exists=exists), epoch=None, token=None
+                aggregation=AggregationData(exists=exists), epoch=None, connection_token=None
             )
         elif query._aggregation.op == AggregationOp.COUNT:
             count = await pg_count(
                 cur=self.channel.cur, table=query._node_cls.__table__, where=where
             )
             return AggregateResultData(
-                aggregation=AggregationData(count=count), epoch=None, token=None
+                aggregation=AggregationData(count=count), epoch=None, connection_token=None
             )
         else:
             raise ChannelIncapableError(

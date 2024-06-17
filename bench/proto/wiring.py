@@ -184,6 +184,7 @@ def unpack_object[T: BuiltinObject](
     *,
     graph: NodeGraph | None = None,
     supergraph: NodeSuperGraph | None,
+    connection: Connection | None = None,
     parent: Node | None = None,
     expect: type[T] | None = None,
     session: Session | None = None,
@@ -206,6 +207,8 @@ def unpack_object[T: BuiltinObject](
             object_kwargs["_parent"] = parent
         if graph is not None:
             object_kwargs["_graph"] = graph
+        if connection is not None:
+            object_kwargs["_connection"] = connection
         object_kwargs["_supergraph"] = supergraph
         if issubclass(object_cls, Node):
             object_kwargs["_session"] = UNSET
@@ -296,10 +299,10 @@ def unpack_node_graph(
                 node_data,
                 graph=graph,
                 supergraph=supergraph,
+                connection=connection,
                 parent=node_parent,
                 expect=Node,
             )
-            node._connection = connection  # type: ignore
 
             # keep parent instance if it was passed (update it in place)
             if node.id == parent_id:
