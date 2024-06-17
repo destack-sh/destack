@@ -705,7 +705,8 @@ def adapt_read_options(
         if ancestor_type not in options.ancestor_types:
             options.ancestor_types.append(ancestor_type)
 
-    # TODO :Performance :Security: also pre-filter read options for owner?
+    # NOTE :Performance: select only properties required to evaluate edit (id/policies/...?)
+    # NOTE :Performance :Security: also pre-filter read options for owner?
 
     return options
 

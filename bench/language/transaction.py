@@ -67,10 +67,6 @@ class Transaction:
     _pending_updates_idx: dict[Node, tuple[Any, int]] = dataclasses.field(default_factory=dict)
     _pending_nodes_by_ck: dict[UUID, Node] = dataclasses.field(default_factory=dict)
 
-    def __post_init__(self):
-        if self.session._split_reads:
-            self._split_read_channel = SplitChannel(self.session)
-
     def __str__(self):
         return f"[id={self.id}] ({len(self.edits)} edits, {len(self.cascaded_edits)} cascaded, {len(self.pending_edits)} pending)"
 
@@ -145,7 +141,9 @@ class Transaction:
         best_match: Collection[NodeType] | None = None,
     ) -> Channel:
         """Gets or creates a store channel for a scope and node types."""
-        if is_readonly and self._split_read_channel is not None:
+        if is_readonly and self.session._split_reads:
+            if self._split_read_channel is None:
+                self._split_read_channel = SplitChannel(self.session)
             return self._split_read_channel
         else:
             engine = self._get_engine_for(

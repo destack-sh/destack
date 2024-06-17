@@ -127,6 +127,10 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
     def request_session_parent(self) -> Package | None:
         return None
 
+    @property
+    def split_reads(self) -> bool:
+        return False
+
     def request_session(
         self,
         supergraph: NodeSuperGraph,
@@ -144,6 +148,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
             _epoch=self.epoch,
             _custom_commit=self._commit_system_session if system_commit else None,
             _supergraph=supergraph,
+            _split_reads=self.split_reads,
         )
 
     @override
@@ -452,7 +457,6 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
                 with self.tracer.start_as_current_span("graph.commit.read"):
                     for node_type, node_references in scope.scopes_by_type.items():
                         node_type = wiring.unpack_enum(NodeType, node_type)
-                        # NOTE :Performance: select only properties required to evaluate edit (id/policies/...?)
                         options = adapt_read_options(subject, node_type, ReadOptions.all())
                         query = QueryBuilder(
                             read_type=ReadType.GET,
