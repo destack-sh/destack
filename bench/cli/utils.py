@@ -5,6 +5,7 @@ import subprocess
 from typing import TYPE_CHECKING
 
 import structlog
+import uvloop
 from opentelemetry import trace
 
 from bench.language.setup import NODE_CLASSES
@@ -38,7 +39,7 @@ def async_to_sync_blocking(func=None):
             if is_in_loop:
                 return func(*args, **kwargs)
             else:
-                return asyncio.run(func(*args, **kwargs))
+                return uvloop.run(func(*args, **kwargs))
 
         return wrapped
 
@@ -99,4 +100,4 @@ async def check_is_consistent(*, check_db: bool) -> None:
         if migration_ops:
             raise InconsistencyError(f"global SQL schema is out of sync: {migration_ops!r}")
 
-    log.debug("check_is_consistent", consistent=True, span='current')
+    log.debug("check_is_consistent", consistent=True, span="current")
