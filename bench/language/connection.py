@@ -264,6 +264,13 @@ class GraphEngine(abc.ABC):
         ...
 
 
+class NullEngine(GraphEngine):
+    """A null engine that does nothing."""
+
+    async def connect(self, session: "Session"):
+        raise ChannelIncapableError(self, reason="null engine")
+
+
 class Channel(abc.ABC):
     """A channel to a specific store to read from in a session."""
 

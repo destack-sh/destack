@@ -28,7 +28,7 @@ def test_get_set_non_existing_property(session: "Session"):
         _ = node.wadabadaboo  # type: ignore
 
 
-def test_node_pointers_consistency():
+def test_node_pointers_consistency(session: "Session"):
     """Pointers should include the relevant bench/base/base_bench references."""
     bench_a = Bench(slug="test_a", name="test_b")
     assert bench_a.to_ref()._equals_content(
@@ -114,7 +114,7 @@ def test_node_pointers_consistency():
 
 
 @pytest.mark.skip("TODO :Incomplete: Path")
-def test_node_absolute_path():
+def test_node_absolute_path(session: "Session"):
     bench = Bench(slug="test", name="Test")
     assert bench.absolute_path == "test"
 

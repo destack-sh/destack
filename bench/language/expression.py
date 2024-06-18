@@ -20,6 +20,7 @@ from bench.language.const import (
     SortMode,
     SortOp,
     StructType,
+    _active_session,
     enum_,
 )
 from bench.language.node import (
@@ -136,13 +137,25 @@ class NodeReference(InlineStruct[NodeReferenceData]):
         if node.metatype == NodeType.BENCH:
             reference.bench_id = node.id
         elif isinstance(node, BenchNode):
-            reference.bench_id = node.bench_id
+            bench_id = node.bench_id
+            if bench_id is None:
+                # maybe just creating, try from context
+                session = _active_session.get()
+                if session is not None and session.bench_id is not None:
+                    bench_id = session.bench_id
+            reference.bench_id = bench_id
         # base
         if node.metatype in BASED_NODE_TYPES:
             base = cast(HasNodeBase, node).base
             if base is not None:
                 reference.base_ck = base.ck
-                reference.base_bench_id = base.bench_id
+                base_bench_id = base.bench_id
+                if base_bench_id is None:
+                    # maybe also just creating, try from context
+                    session = _active_session.get()
+                    if session is not None and session.bench_id is not None:
+                        base_bench_id = session.bench_id
+                reference.base_bench_id = base_bench_id
 
         return reference
 

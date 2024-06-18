@@ -302,17 +302,6 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
         for node in nodes:
             self.add(node)
 
-    def set(self, nodes: Collection[V]):
-        """Replaces all nodes in the graph"""
-        self.clear()
-        for node in nodes:
-            self.add(node)
-
-    def add_graph(self, graph: "_NodeGraphBase[K, V]"):
-        """Adds all nodes from another graph"""
-        for node in graph.nodes:
-            self.add(node)
-
 
 class NodeGraph(_NodeGraphBase[UUID, "Node"]):
     """
@@ -544,7 +533,7 @@ class NodeList[V: Node](abc.ABC, Collection[V]):
         if "name" in node_cls.__properties__ and "name" not in kwargs:
             kwargs["name"] = generate_node_name(node_metatype, kwargs.get("type"), self)
         # set new node status to source to prevent activation before it's appended
-        node = node_cls(**kwargs)
+        node = node_cls(**kwargs, parent=self._parent)
         node = cast(V, node)
         self.append(node)
         return node
@@ -657,25 +646,28 @@ class GraphNodeList[V: Node](NodeList[V]):
 
         assert isinstance(node, Node), f"cannot append {node!r} to {self!r}"
         if node.parent is not None:
-            raise ValueError(f"cannot attach {node!r} to {self!r}: attached to {node.parent!r}")
+            if node.parent is not self._parent:
+                raise ValueError(f"cannot attach {node!r} to {self!r}: attached to {node.parent!r}")
+        else:
+            node.parent = self._parent
 
-        # validate early
-        node.parent = self._parent
+        # validate
         if self._parent._session is not None:
             node._validate_self((), invalid=on_invalid_raise)
 
         # add node (and descendants) to this parent's graph
-        target_graph = self._parent._graph
-        if node._graph is not target_graph:
-            assert target_graph.supergraph.has(
+        new_graph = self._parent._graph
+        if node._graph is not new_graph:
+            old_graph = node._graph
+            assert new_graph.supergraph.has(
                 node._graph.supergraph
-            ), f"{node!r} not in same supergraph as {self!r} ({node._graph.supergraph!r} != {target_graph.supergraph!r})"
+            ), f"{node!r} not in same supergraph as {self!r} ({node._graph.supergraph!r} != {new_graph.supergraph!r})"
             added = node._graph.collect_descendants(node, recursive=True)
             added = (*added, node)
-            target_graph.add_graph(node._graph)
             for n in added:
-                n._graph = target_graph
-            target_graph.supergraph.remove_graph(node._graph)  # must be in same supergraph
+                new_graph.add(n)
+                n._graph = new_graph
+            new_graph.supergraph.remove_graph(old_graph)  # must be in same supergraph
         else:
             added = (node,)  # already in the graph
 

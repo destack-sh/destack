@@ -3,6 +3,7 @@ from typing import cast
 import pytest
 from hypothesis import given
 
+from bench.language.bench import Package
 from bench.language.block import Block
 from bench.language.const import BlockType, NodeType, PrimitiveType, StructType
 from bench.language.field import Field, TypeKind, to_type
@@ -20,7 +21,7 @@ from bench.proto import wiring
 from bench.test.strategies import builtin_objects
 
 
-def test_coerce_nested_value(session: Session) -> None:
+def test_coerce_nested_value(session: Session, package: Package) -> None:
     """Coerce a nested Object value."""
 
     # choice block
@@ -58,7 +59,7 @@ def test_coerce_nested_value(session: Session) -> None:
     assert object_outer.field4 == object_inner
 
 
-def test_roundtrip_scalar_value(session: Session) -> None:
+def test_roundtrip_scalar_value(session: Session, package: Package) -> None:
     """Pack/unpack a scalar value inside a (Variable) Block (which HasValues)."""
 
     # first set in constructor
@@ -73,7 +74,7 @@ def test_roundtrip_scalar_value(session: Session) -> None:
     assert unpack_value(block.value_packed, block.secret_value_packed, type_info) == 42
 
 
-def test_roundtrip_nested_value(session: Session):
+def test_roundtrip_nested_value(session: Session, package: Package):
     """Pack/unpack a nested Object value."""
 
     # choice block

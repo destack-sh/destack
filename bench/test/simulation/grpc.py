@@ -1,19 +1,14 @@
 import asyncio
-from types import TracebackType
-from typing import Collection, Optional, Type
+from typing import Collection, Optional
 
 from grpclib._typing import IServable
 from grpclib.client import Channel
 from grpclib.encoding.base import CodecBase, StatusDetailsCodecBase
 from grpclib.protocol import H2Protocol
-from grpclib.server import Server
-
-# NOTE: we cannot keep gRPC service stubs across function boundaries because pytest-async
-#   creates a new loop for each test function, and gRPC services are tied to the loop.
-#   :PytestAsyncWeirdness
+from grpclib.server import Server as GrpcServer
 
 
-class _SimulatedServer(asyncio.AbstractServer):
+class SimulatedServer(asyncio.AbstractServer):
     def get_loop(self) -> asyncio.AbstractEventLoop:
         raise NotImplementedError
 
@@ -33,7 +28,7 @@ class _SimulatedServer(asyncio.AbstractServer):
         pass
 
 
-class _SimulatedTransport(asyncio.Transport):
+class SimulatedTransport(asyncio.Transport):
     def __init__(
         self,
         protocol: H2Protocol,
@@ -70,13 +65,13 @@ class SimulatedChannel:
         self._codec = codec
         self._status_details_codec = status_details_codec
 
-    async def __aenter__(self) -> Channel:
-        self._server = Server(
+    async def open(self) -> Channel:
+        self._server = GrpcServer(
             self._services,
             codec=self._codec,
             status_details_codec=self._status_details_codec,
         )
-        self._server._server = _SimulatedServer()
+        self._server._server = SimulatedServer()
         self._server._server_closed_fut = self._server._loop.create_future()
         self._server_protocol = self._server._protocol_factory()
 
@@ -86,20 +81,22 @@ class SimulatedChannel:
         )
         self._channel._protocol = self._channel._protocol_factory()
 
-        self._channel._protocol.connection_made(_SimulatedTransport(self._server_protocol))
-        self._server_protocol.connection_made(_SimulatedTransport(self._channel._protocol))
+        self._channel._protocol.connection_made(SimulatedTransport(self._server_protocol))
+        self._server_protocol.connection_made(SimulatedTransport(self._channel._protocol))
         return self._channel
 
-    async def __aexit__(
-        self,
-        exc_type: Optional[Type[BaseException]],
-        exc_val: Optional[BaseException],
-        exc_tb: Optional[TracebackType],
-    ) -> None:
-        assert self._channel._protocol is not None
-        self._channel._protocol.connection_lost(None)
-        self._channel.close()
+    def close(self):
+        if self._channel is not None:
+            if self._channel._protocol is not None:
+                self._channel._protocol.connection_lost(None)
+            self._channel.close()
+            self._channel = None
 
-        self._server_protocol.connection_lost(None)
-        self._server.close()
-        await self._server.wait_closed()
+        if self._server is not None:
+            self._server_protocol.connection_lost(None)
+            self._server.close()
+
+    async def wait_closed(self):
+        if self._server is not None:
+            await self._server.wait_closed()
+            self._server = None

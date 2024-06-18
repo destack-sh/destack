@@ -235,7 +235,7 @@ class TypeInfoBase(HasValues):
        - field zone, narrowing the fields included from the base type (if any)
        - format hint (which may impact the unpacked representation, like for Image)
        - condition which instances must satisfy
-       - constraints (simpler conditions the value must satisfy)
+       - constraints (simple conditions the value must satisfy)
        - combination flags for arrays, optionals, ...
     """
 
@@ -311,16 +311,14 @@ class TypeInfoBase(HasValues):
             from bench.language import Block
 
             assert self.base_type_ptr is not None, f"missing base type for alias {self!r}"
-            if self.base_type is not None:  # may not be resolved
-                if self.base_type.metatype == NodeType.STEP or (
-                    isinstance(self.base_type, Block) and self.base_type.type.is_classy
+            base_type = self.base_type
+            if base_type is not None:  # may not be resolved
+                if base_type.metatype == NodeType.STEP or (
+                    isinstance(base_type, Block) and base_type.type.is_classy
                 ):
-                    resolved_type = TypeInfo(kind=TypeKind.OBJECT, base_type=self.base_type)
-                elif (
-                    self.base_type.metatype == NodeType.BLOCK
-                    and self.base_type.value_type is not None
-                ):
-                    resolved_type = self.base_type.value_type
+                    resolved_type = TypeInfo(kind=TypeKind.OBJECT, base_type=base_type)
+                elif base_type.metatype == NodeType.BLOCK and base_type.value_type is not None:
+                    resolved_type = base_type.value_type
 
         self._resolved_type = resolved_type
         self._resolved_identity_key = encode_type_identity(resolved_type)
@@ -343,28 +341,28 @@ class TypeInfoBase(HasValues):
         implied_kind = get_implied_type_kind(self)
         if implied_kind is not None and implied_kind != self.kind:
             actual_kind = self.kind.name if self.kind else "None"
-            invalid(self, f"implied kind {implied_kind.name} does not match {actual_kind}", None)
+            invalid(self, f"kind is {actual_kind} but should be {implied_kind.name}", None)
 
     def __call__(self, *args, **kwargs) -> "SomeValue":
         """Converts the given value to this type."""
         # TODO :Cleanup :Architecture: TypeInfo.__call__ feels a lot like coerce_value
         #  But it's not quite the same. Here we want to error if we can't coerce, return full nodes, etc.
         typ = self._to_resolved()
-        if self.kind == TypeKind.PRIMITIVE:
-            py_type = PY_TYPE_BY_PRIMITIVE_TYPE.get(cast(PrimitiveType, self.primitive_type))
-            assert py_type is not None, f"{self!r} does not have a python type"
+        if typ.kind == TypeKind.PRIMITIVE:
+            py_type = PY_TYPE_BY_PRIMITIVE_TYPE.get(cast(PrimitiveType, typ.primitive_type))
+            assert py_type is not None, f"{typ!r} does not have a python type"
             return py_type(*args, **kwargs)
-        elif self.kind == TypeKind.BASED_NODE:
-            if self.bench_type == NodeType.FIELD:
-                assert self.base_type is not None, f"missing base type for {self!r}"
-                field = self.base_type.fields.get(*args, **kwargs)
+        elif typ.kind == TypeKind.BASED_NODE:
+            if typ.bench_type == NodeType.FIELD:
+                assert typ.base_type is not None, f"missing base type for {typ!r}"
+                field = typ.base_type.fields.get(*args, **kwargs)
                 if field is None:
-                    raise ValueError(f"no field {args!r} in {self.base_type!r}")
+                    raise ValueError(f"no field {args!r} in {typ.base_type!r}")
                 return field
-        elif self.kind == TypeKind.OBJECT:
+        elif typ.kind == TypeKind.OBJECT:
             return coerce_object_scalar(kwargs, typ)
 
-        raise ValueError(f"cannot implicitly create {self!r}")
+        raise ValueError(f"cannot create {self!r} (resolved={typ!r}) directly")
 
     @property
     def identity_key(self) -> str:
@@ -428,8 +426,13 @@ def to_type(typ: TypeIn, *, as_object: bool = False, zone: FieldZone | None = No
         if primitive_type:
             return TypeInfo(kind=TypeKind.PRIMITIVE, primitive_type=primitive_type)
         bench_type = OBJECT_TYPE_BY_CLASS.get(cast(Any, typ))
-        if bench_type:
-            return TypeInfo(kind=TypeKind.NODE, bench_type=bench_type)
+        if bench_type is not None:
+            if is_node_type(bench_type):
+                return TypeInfo(kind=TypeKind.NODE, bench_type=bench_type)
+            elif is_struct_type(bench_type):
+                return TypeInfo(kind=TypeKind.STRUCT, bench_type=bench_type)
+            elif is_enum_type(bench_type):
+                return TypeInfo(kind=TypeKind.ENUM, bench_type=bench_type)
 
     raise ValueError(f"unsupported type {typ!r}")
 
