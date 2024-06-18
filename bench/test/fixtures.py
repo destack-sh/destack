@@ -3,6 +3,13 @@ from contextlib import contextmanager
 import grpclib
 import pytest
 
+from bench.sql.core import Schema
+
+
+async def create_blank_test_db(name: str, schema: Schema):
+    assert name.startswith("test") and name != "test"
+    raise NotImplementedError
+
 
 @pytest.fixture(autouse=True, scope="session")
 async def _prepared_test_db():

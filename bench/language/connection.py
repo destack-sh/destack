@@ -49,7 +49,6 @@ from bench.proto.wire import (
     WatchSearchRequest,
 )
 from bench.utils.func import bittuple, group_by
-from bench.utils.oracle import get_oracle
 from bench.utils.task import wrap_task
 from bench.utils.tenacity import RETRY_GRPC, RETRY_NEVER, RetryOptions
 
@@ -457,7 +456,7 @@ class Connection[
         """
         if not self.is_live:
             # simple: just read and unpack
-            retry = self.retry.new()
+            retry = self.retry.new(self.session._oracle)
             while retry.should_retry:
                 retry.on_attempt()
                 # try read
@@ -469,7 +468,7 @@ class Connection[
                     except retry.options.retry_on as e:
                         logger.error(f"connect.{self.type_name}.error", exc_info=e, connection=self)
                         retry.on_error(e)
-                        await get_oracle().sleep(retry.get_wait_interval())
+                        await self.session._oracle.sleep(retry.get_wait_interval())
                         continue
             else:
                 raise retry.to_error(operation=self.query)
@@ -490,7 +489,7 @@ class Connection[
 
     async def _do_connect_live(self) -> None:
         """Runs the live connection loop until closed."""
-        retry = self.retry.new()
+        retry = self.retry.new(self.session._oracle)
         while not self._is_closed:
             if not retry.should_retry:
                 raise retry.to_error(operation=self.query)
@@ -512,7 +511,7 @@ class Connection[
             except retry.options.retry_on as e:
                 logger.error(f"connect.{self.type_name}.error", exc_info=e, connection=self)
                 retry.on_error(e)
-                await get_oracle().sleep(retry.get_wait_interval())
+                await self.session._oracle.sleep(retry.get_wait_interval())
                 continue
 
     @abc.abstractmethod
@@ -1002,7 +1001,7 @@ class RemoteChannel(WritableChannel):
         @wraps(func)
         @tracer.start_as_current_span(f"remote.{method_name}")
         async def wrapper(self: "RemoteChannel", *args, **kwargs):
-            retry = self.engine.retry.new()
+            retry = self.engine.retry.new(self.session._oracle)
             while retry.should_retry:
                 retry.on_attempt()
                 try:
@@ -1011,7 +1010,7 @@ class RemoteChannel(WritableChannel):
                     retry.on_error(e)
                     logger.error(f"remote.{method_name}.error", channel=self, exc_info=True)
                     if retry.should_retry:
-                        await get_oracle().sleep(retry.get_wait_interval())
+                        await self.session._oracle.sleep(retry.get_wait_interval())
             error = retry.to_error()
             if isinstance(error, (OSError,)):
                 raise ChannelFailedError(

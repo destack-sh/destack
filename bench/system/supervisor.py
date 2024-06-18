@@ -45,7 +45,7 @@ from bench.system.core import GLOBAL_POSTGRES_ENGINE, MockHost, global_session
 from bench.system.graph import GraphIoServiceBase
 from bench.system.provisioner import provision
 from bench.utils.func import generate_access_token, generate_salt, to_uuid
-from bench.utils.oracle import get_oracle
+from bench.utils.oracle import Oracle
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -54,9 +54,14 @@ tracer = trace.get_tracer(__name__)
 class Supervisor(GraphIoServiceBase, SupervisorBase):
     kind = ServiceKind.PUBLIC  # :ServiceKind
 
-    def __init__(self):
+    def __init__(self, oracle: Oracle):
         GraphIoServiceBase.__init__(
-            self, bench_id=None, node_types=USER_NODE_TYPES, logger=logger, tracer=tracer
+            self,
+            bench_id=None,
+            node_types=USER_NODE_TYPES,
+            logger=logger,
+            tracer=tracer,
+            oracle=oracle,
         )
 
     def __str__(self):
@@ -127,7 +132,7 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
             parent=user,
             name=name,
             type=cast(ClientType, client_data.type),
-            seen_at=get_oracle().utc(),
+            seen_at=self.oracle.utc(),
             _is_new=True,  # force create
         )
         # copy over other properties
@@ -150,7 +155,7 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
                 name=request.name or request.slug,
                 email=request.email,
                 status=UserStatus.REGISTERED,
-                last_logged_in_at=get_oracle().utc(),
+                last_logged_in_at=self.oracle.utc(),
                 _is_new=True,  # force create
             )
             user.password_salt = generate_salt(SALT_LENGTH)
@@ -183,7 +188,7 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
             if user.password_salt is None or user.password_hash is None:
                 raise GRPCError(GRPCStatus.FAILED_PRECONDITION, "password not set")
             if not await check_password(
-                request.old_password, user.password_salt, user.password_hash
+                request.old_password, user.password_salt, user.password_hash, self.oracle
             ):
                 raise GRPCError(GRPCStatus.UNAUTHENTICATED, "incorrect password")
 
@@ -215,10 +220,12 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
             )
             if user.password_salt is None or user.password_hash is None:
                 raise GRPCError(GRPCStatus.FAILED_PRECONDITION, "password not set")
-            if not await check_password(request.password, user.password_salt, user.password_hash):
+            if not await check_password(
+                request.password, user.password_salt, user.password_hash, self.oracle
+            ):
                 raise GRPCError(GRPCStatus.UNAUTHENTICATED, "incorrect password")
 
-            user.last_logged_in_at = get_oracle().utc()
+            user.last_logged_in_at = self.oracle.utc()
             client = await self._make_client(user, request.client)
             client.access_token = generate_access_token(ACCESS_TOKEN_LENGTH)
             session._upsert(client)
@@ -257,7 +264,7 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
             for client in clients:
                 client.logged_in_at = None
                 client.access_token = None
-                client.seen_at = get_oracle().utc()
+                client.seen_at = self.oracle.utc()
             await session.commit()
 
         purge_client_caches(subject.user)

@@ -22,7 +22,6 @@ from bench.proto.wire import (
     RpcMetadata,
     SupervisorStub,
 )
-from bench.utils.oracle import get_oracle
 
 
 @dataclass(slots=True)

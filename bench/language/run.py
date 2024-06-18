@@ -41,7 +41,6 @@ from bench.language.validation import TITLE_CONSTRAINT, TypeConstraintIn, Valida
 from bench.language.value import HasValues
 from bench.proto.wire import AnyNodeData, NodeReferenceData, RunData
 from bench.utils.func import IdEnum
-from bench.utils.oracle import get_oracle
 
 if TYPE_CHECKING:
     from bench.language import Block, NodeReference, Package, TypeInfoBase, ValueObject
@@ -218,7 +217,7 @@ class Run(PackageNode[RunData], HasTimeIdentity, HasNodeBase, HasSessionContext,
         """Pauses the Run."""
         assert self.status == RunStatus.RUNNING, f"cannot pause {self.status} run {self!r}"
         self.status = RunStatus.PAUSED
-        self.paused_at = get_oracle().utc()
+        self.paused_at = self.active_session._oracle.utc()
 
     def resume(self):
         """Resumes the Run."""

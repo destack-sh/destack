@@ -13,6 +13,7 @@ from bench.runtime.runtime import Runtime
 from bench.system.host import HostRouter
 from bench.system.supervisor import Supervisor
 from bench.utils.env import ENV, IS_DEV
+from bench.utils.oracle import REAL_ORACLE
 from bench.utils.utils import get_from_env, get_from_env_maybe
 from bench.utils.watch import restart_on_file_changes
 
@@ -29,9 +30,9 @@ async def system(
         await check_is_consistent(check_db=True)
     start = time_ns()
     logger.info("serve.system", host=host, port=port, env=ENV)
-    services: list[ServiceBase] = [HostRouter()]
+    services: list[ServiceBase] = [HostRouter(oracle=REAL_ORACLE)]
     if not no_supervisor:
-        services.append(Supervisor())
+        services.append(Supervisor(oracle=REAL_ORACLE))
     server = GrpcServer(handlers=services)
     if IS_DEV and watch:
         _ = asyncio.create_task(restart_on_file_changes())  # noqa: RUF006
@@ -59,6 +60,7 @@ async def runtime(host: str, port: int, watch: bool = False, skip_check: bool = 
         machine_id=get_from_env_maybe(
             "MACHINE_ID", typ=UUID, description="Node id of current machine"
         ),
+        oracle=REAL_ORACLE,
     )
     services = [server]
     server = GrpcServer(services)

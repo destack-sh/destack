@@ -167,7 +167,13 @@ class StoreProvisioner(Provisioner[Store, Store]):
         """Migrate the store to its indicated 'version'."""
         assert resource.version, f"{resource!r} has no version"
         async with pg_store_connection(resource) as cur:
-            await sql_migrate(cur, target=resource.version, is_global=False, store=resource)
+            await sql_migrate(
+                cur,
+                target=resource.version,
+                is_global=False,
+                store=resource,
+                oracle=self.host.oracle,
+            )
             await cur.connection.commit()
         async with self.host.session(autocommit=True):
             resource.current_version = resource.version

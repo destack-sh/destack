@@ -9,6 +9,7 @@ import structlog
 
 from bench.language.bench import Region
 from bench.utils.env import IS_DEV
+from bench.utils.oracle import REAL_ORACLE
 from bench.utils.tenacity import RetryOptions, retry
 from bench.utils.utils import get_from_env
 
@@ -187,7 +188,10 @@ class NeonApiRemote(NeonApi):
         self.url = url
         self.api_key = api_key
 
-    @retry(RetryOptions(max_attempts=5, retry_interval=2, backoff=1.5, retry_on=RecoverableError))
+    @retry(
+        RetryOptions(max_attempts=5, retry_interval=2, backoff=1.5, retry_on=RecoverableError),
+        oracle=REAL_ORACLE,
+    )
     async def _request(
         self,
         method: str,

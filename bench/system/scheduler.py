@@ -56,7 +56,7 @@ class QueueRunPlugin(HostPlugin[Run]):
         for run in commit.added:
             if run.parent_type == NodeType.PACKAGE and run.status == RunStatus.SCHEDULED:
                 logger.trace("scheduler.add", host=self, run=run)
-                attempt = QueueOperation(run=run, retry=self._retry.new())
+                attempt = QueueOperation(run=run, retry=self._retry.new(self.host.oracle))
                 self._runs_to_queue.put_nowait(attempt)
 
     @tracer.start_as_current_span("scheduler.queue_run")
