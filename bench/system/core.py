@@ -2,6 +2,7 @@ import abc
 import asyncio
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
+from datetime import datetime
 from itertools import chain
 from typing import Any, ClassVar, Collection, Generator, Iterable, Optional, final, override
 from uuid import UUID
@@ -11,14 +12,12 @@ import structlog
 from opentelemetry import trace
 
 from bench.language import Bench, Node, NodeType, Store
-from bench.language.bench import Package, Region
 from bench.language.connection import PostgresEngine
 from bench.language.const import (
     GLOBAL_NODE_TYPES,
-    LOADED_BENCH_NODE_TYPES,
-    SOURCE_NODE_TYPES,
     VERSION,
     EditType,
+    Region,
 )
 from bench.language.expression import NodeReference
 from bench.language.graph import NodeGraphLike, NodeSuperGraph
@@ -26,7 +25,7 @@ from bench.language.session import Session
 from bench.language.transaction import unpack_node_delta
 from bench.proto import wiring
 from bench.proto.wire import EditData, GraphScope
-from bench.sql.client import GLOBAL_PG_CRYPTO_KEY, PgStoreConnection
+from bench.sql.client import PgStoreConnection
 from bench.utils.func import bittuple
 from bench.utils.oracle import Oracle
 from bench.utils.task import TaskManager
@@ -35,57 +34,75 @@ from bench.utils.utils import get_from_env
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
-GLOBAL_PG_HOST = get_from_env("GLOBAL_PG_HOST", description="Global Postgres host")
-GLOBAL_PG_NAME = get_from_env("GLOBAL_PG_NAME", description="Global Postgres database name")
-GLOBAL_PG_USERNAME = get_from_env("GLOBAL_PG_USERNAME", description="Global Postgres username")
-GLOBAL_PG_PASSWORD = get_from_env("GLOBAL_PG_PASSWORD", description="Global Postgres password")
-
-SYSTEM_BENCH_ID = UUID("ffffffff-ffff-ffff-ffff-ffffffffffff")
-SYSTEM_BENCH_PTR = NodeReference(
-    type=NodeType.BENCH, id=SYSTEM_BENCH_ID, ck=SYSTEM_BENCH_ID, bench_id=SYSTEM_BENCH_ID
-)
-SYSTEM_BENCH_STUB = Bench(
-    id=SYSTEM_BENCH_ID,
-    name="System (Stub)",
-    slug="system",
-    region=Region.GLOBAL,
-    encryption_key=GLOBAL_PG_CRYPTO_KEY,
-    _supergraph=NodeSuperGraph(SYSTEM_BENCH_PTR),
-)
-
-GLOBAL_STORE = Store(
-    parent=SYSTEM_BENCH_STUB,
-    name="Global Store",
-    version=VERSION,
-    external_name=GLOBAL_PG_NAME,
-    connection_uri=f"postgresql://{GLOBAL_PG_USERNAME}:{GLOBAL_PG_PASSWORD}@{GLOBAL_PG_HOST}/{GLOBAL_PG_NAME}",
-    _supergraph=SYSTEM_BENCH_STUB._supergraph,
-)
-GLOBAL_POSTGRES_ENGINE = PostgresEngine(
-    store=GLOBAL_STORE,
-    bench=SYSTEM_BENCH_STUB,
-    scope=GraphScope(),
-    node_types=GLOBAL_NODE_TYPES,
-)
+BEGINNING_OF_TIME = datetime.fromisoformat("1970-01-01T00:00:00+00:00")
 
 
-LOADED_HOST_NODE_TYPES = LOADED_BENCH_NODE_TYPES | SOURCE_NODE_TYPES
-BENCH_QUERY = Bench.descendants(*LOADED_BENCH_NODE_TYPES).select_all()
-PACKAGE_QUERY = Package.descendants(*SOURCE_NODE_TYPES).select_all().exclude(Bench.encryption_key)
+def global_store_from_env() -> Store:
+    """Get the default global store configured in the environment"""
+    host = get_from_env("GLOBAL_PG_HOST", description="Global Postgres host")
+    name = get_from_env("GLOBAL_PG_NAME", description="Global Postgres database name")
+    username = get_from_env("GLOBAL_PG_USERNAME", description="Global Postgres username")
+    password = get_from_env("GLOBAL_PG_PASSWORD", description="Global Postgres password")
+    encryption_key = get_from_env("GLOBAL_PG_CRYPTO_KEY", description="Global encryption key")
+
+    system_bench_ptr = NodeReference(type=NodeType.BENCH, id=UUID(int=0), ck=UUID(int=0))
+    supergraph = NodeSuperGraph(root_ptr=system_bench_ptr)
+    system_bench_stub = Bench(
+        id=UUID(int=0),
+        name="System",
+        slug="system",
+        region=Region.GLOBAL,
+        encryption_key=encryption_key,
+        _supergraph=supergraph,
+        # set timestamps to avoid drawing from oracle (which we don't have here)
+        # (also these are technically 'eternal' nodes anyway)
+        created_at=BEGINNING_OF_TIME,
+        updated_at=BEGINNING_OF_TIME,
+    )
+
+    return Store(
+        parent=system_bench_stub,
+        name="Global Store",
+        version=VERSION,
+        external_name=name,
+        connection_uri=f"postgresql://{username}:{password}@{host}/{name}",
+        _supergraph=supergraph,
+        created_at=BEGINNING_OF_TIME,
+        updated_at=BEGINNING_OF_TIME,
+    )
 
 
-def global_pg_cursor(autocommit: bool = False):
-    return PgStoreConnection(GLOBAL_STORE, SYSTEM_BENCH_STUB, autocommit=autocommit)
+def global_pg_engine_from_store(store: Store):
+    """Get the global postgres engine for a global store"""
+    return PostgresEngine(
+        store=store,
+        bench=store.parent,
+        scope=GraphScope(),
+        node_types=GLOBAL_NODE_TYPES,
+    )
 
 
-def global_session(epoch: Optional[int] = None, _supergraph: Optional[NodeSuperGraph] = None):
+def global_session(
+    store: Store,
+    engines: tuple[PostgresEngine, ...],
+    oracle: Oracle,
+    *,
+    supergraph: NodeSuperGraph | None = None,
+    epoch: Optional[int] = None,
+):
+    """Create a Session in a global store"""
     return Session(
         parent=None,
         _default_scope=GraphScope(),
-        _engines=(GLOBAL_POSTGRES_ENGINE,),
+        _engines=engines,
         _epoch=epoch,
-        _supergraph=_supergraph or SYSTEM_BENCH_STUB._supergraph.instance(),
+        _supergraph=supergraph or store.parent._supergraph.instance(),
+        _oracle=oracle,
     )
+
+
+def global_pg_cursor(store: Store, *, autocommit: bool = False):
+    return PgStoreConnection(store, store.parent, autocommit=autocommit)
 
 
 @dataclass(slots=True)
@@ -253,6 +270,12 @@ class HostSpec(abc.ABC):
 
     @property
     @abc.abstractmethod
+    def global_store(self) -> Store:
+        """The global store for the Host."""
+        ...
+
+    @property
+    @abc.abstractmethod
     def oracle(self) -> Oracle: ...
 
     @abc.abstractmethod
@@ -271,13 +294,17 @@ class MockHost(HostSpec):
     def on_error(self, source: Any, error: Exception) -> None:
         pass
 
-    @asynccontextmanager
-    async def session(self, *, readonly: bool = False, autocommit: bool = False):
-        yield self._session
+    @property
+    def global_store(self) -> Store:
+        raise RuntimeError(f"{self.__class__.__name__} does not have a global store")
 
     @property
     def oracle(self) -> Oracle:
         return self._session._oracle
+
+    @asynccontextmanager
+    async def session(self, *, readonly: bool = False, autocommit: bool = False):
+        yield self._session
 
 
 class HostPlugin[T: Node](abc.ABC):

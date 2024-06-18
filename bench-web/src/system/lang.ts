@@ -520,6 +520,7 @@ export function createField(
   let parentPtr: NodeReferenceData;
   let orderKey: string;
   let zone: FieldZone;
+  let kind: TypeKind | null = null;
   let siblings: FieldData[];
   if (isNode(target, NodeType.BLOCK)) {
     if (anchor != "inside" && anchor != "center") throw new Error(`unexpected anchor for block: ${anchor}`);
@@ -527,16 +528,24 @@ export function createField(
     parentPtr = toNodeReference(target);
     orderKey = getOrderKey({ position: "after", reference: siblings[siblings.length - 1], nodes: siblings });
     // figure out field kind based on block type
-    if (target.type == BlockType.CHOICE) zone = FieldZone.OPTION;
-    else if (TYPE_BLOCK_TYPES.includes(target.type)) zone = FieldZone.MEMBER;
-    else if (RUNNABLE_BLOCK_TYPES.includes(target.type)) zone = FieldZone.INPUT;
-    else zone = FieldZone.VARIABLE;
+    if (target.type == BlockType.CHOICE) {
+      zone = FieldZone.OPTION;
+      kind = TypeKind.LITERAL;
+    } else if (TYPE_BLOCK_TYPES.includes(target.type)) {
+      zone = FieldZone.MEMBER;
+    } else if (RUNNABLE_BLOCK_TYPES.includes(target.type)) {
+      zone = FieldZone.INPUT;
+    } else {
+      zone = FieldZone.VARIABLE;
+    }
   } else if (isNode(target, NodeType.FIELD)) {
     if (anchor == "inside" || anchor == "center") throw new Error(`unexpected anchor for field: ${anchor}`);
     siblings = graph.getChildren(target.parentPtr!, NodeType.FIELD);
     parentPtr = target.parentPtr!;
     orderKey = getOrderKey({ position: anchor, reference: target, nodes: siblings });
     zone = target.zone;
+    // copy kind if none given
+    kind = fieldIn?.kind ?? (target as FieldData).kind;
   } else {
     throw new Error(`unexpected target node type: ${describeNode(target)}`);
   }
@@ -544,6 +553,10 @@ export function createField(
   // default to Text if no type given
   if (zone != FieldZone.OPTION && fieldIn?.kind == null) {
     fieldIn = { ...fieldIn, kind: TypeKind.STRUCT, benchType: BenchType.TEXT };
+  }
+  // assign kind if forced
+  if (kind != null) {
+    fieldIn = { ...fieldIn, kind };
   }
 
   // reset icon if it's the default one (so we can easily change the type & icon will auto-change too)

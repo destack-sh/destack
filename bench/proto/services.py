@@ -74,8 +74,13 @@ class ServiceBase:
     def __init__(self, *, logger: Any, tracer: trace.Tracer, oracle: Oracle):
         self.logger = logger
         self.tracer = tracer
-        self.oracle = oracle
+        self._oracle = oracle
         self.tasks = TaskManager(owner=self, logger=logger, oracle=oracle)
+
+    @property
+    def oracle(self) -> Oracle:
+        # wrap as property to comply with HostSpec
+        return self._oracle
 
     async def start(self) -> None:
         """Start the service. Should be ready for service when returning."""

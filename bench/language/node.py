@@ -1365,8 +1365,11 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
 
         # init timestamps
         if self.created_at is None:
+            if self._session is None and self.metatype == NodeType.SESSION:
+                # 'bootstrap' session with itself
+                self._session = cast("Session", self)
             assert self._session is not None, f"{self!r} is not in a session"
-            now = self._session.oracle.utc()
+            now = self._session._oracle.utc()
             self.created_at = now
             self.updated_at = now
 

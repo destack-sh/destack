@@ -8,15 +8,19 @@ from rich import print_json
 from bench.cli.utils import async_to_sync_blocking, check_is_consistent
 from bench.language import Bench, Region, User
 from bench.language.const import (
-    ROOT_RESOURCE_NODE_TYPES,
     ClientType,
     NodeType,
     UserStatus,
 )
 from bench.system.access import ACCESS_TOKEN_LENGTH
-from bench.system.core import MockHost, global_session
+from bench.system.core import (
+    global_pg_engine_from_store,
+    global_session,
+    global_store_from_env,
+)
 from bench.system.supervisor import create_default_bench
 from bench.utils.func import generate_access_token
+from bench.utils.oracle import REAL_ORACLE
 
 app = typer.Typer(short_help="some language-level utilities")
 
@@ -32,7 +36,9 @@ async def check(check_db: bool = False):
 @app.command(help="create 'bench' and 'system' Benches (owned by 'system' User)")
 @async_to_sync_blocking
 async def bootstrap(region: Region = Region.EUROPE_CENTRAL):
-    async with global_session(epoch=0) as session:
+    global_store = global_store_from_env()
+    global_pg_engine = global_pg_engine_from_store(global_store)
+    async with global_session(global_store, (global_pg_engine,), REAL_ORACLE, epoch=0) as session:
         system_user = User(
             name="System", slug="system", email="system@bench.com", status=UserStatus.REGISTERED
         )
@@ -55,22 +61,12 @@ async def bootstrap(region: Region = Region.EUROPE_CENTRAL):
         await session.commit()
 
 
-@app.command(help="provision resources for a Bench")
-@async_to_sync_blocking
-async def provision(bench_slug: str):
-    from bench.system.provisioner import provision
-
-    async with global_session() as session:
-        bench = await Bench.select_all().descendants(*ROOT_RESOURCE_NODE_TYPES).get(slug=bench_slug)
-        host = MockHost(session)
-        await provision(host, bench, list(bench.resources))
-        await session.commit()
-
-
 @app.command(name="make-server-client", help="gets or creates a server Client for a Bench")
 @async_to_sync_blocking
 async def make_server_client(bench_slug: str, name: str = "Localhost"):
-    async with global_session(epoch=0) as session:
+    global_store = global_store_from_env()
+    global_pg_engine = global_pg_engine_from_store(global_store)
+    async with global_session(global_store, (global_pg_engine,), REAL_ORACLE) as session:
         bench = (
             await Bench.descendants(NodeType.SERVER, NodeType.MACHINE, NodeType.CLIENT)
             .select_all()

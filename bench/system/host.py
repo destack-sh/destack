@@ -13,7 +13,7 @@ from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 from opentelemetry import trace
 
-from bench.language import Bench, Package, Run, Server, Subject
+from bench.language import Bench, Package, Run, Server, Store, Subject
 from bench.language.access import Badge, Ownable
 from bench.language.bench import Client
 from bench.language.connection import GraphEngine, MemoryEngine, PostgresEngine
@@ -21,6 +21,7 @@ from bench.language.const import (
     ETERNAL_NODE_TYPES,
     IN_BENCH_GLOBAL_NODE_TYPES,
     IN_BENCH_NODE_TYPES,
+    LOADED_BENCH_NODE_TYPES,
     LOCAL_NODE_TYPES,
     SOURCE_NODE_TYPES,
     ClientType,
@@ -51,14 +52,9 @@ from bench.proto.wire import (
 from bench.proto.wiring import unpack_proto_json
 from bench.system.access import CLIENT_CACHE_ENABLED, ClientCache, get_client
 from bench.system.core import (
-    BENCH_QUERY,
-    GLOBAL_POSTGRES_ENGINE,
-    GLOBAL_STORE,
-    LOADED_BENCH_NODE_TYPES,
-    LOADED_HOST_NODE_TYPES,
-    PACKAGE_QUERY,
     HostPlugin,
     HostSpec,
+    global_pg_engine_from_store,
     global_session,
     unpack_commit,
 )
@@ -80,6 +76,10 @@ HOST_MEMORY_ENGINE_ENABLED = get_from_env(
     description="Whether to provide in-memory engines for Bench/Package",
 )
 
+LOADED_HOST_NODE_TYPES = LOADED_BENCH_NODE_TYPES | SOURCE_NODE_TYPES
+BENCH_QUERY = Bench.descendants(*LOADED_BENCH_NODE_TYPES).select_all()
+PACKAGE_QUERY = Package.descendants(*SOURCE_NODE_TYPES).select_all().exclude(Bench.encryption_key)
+
 
 class HostRouter(ServiceBase, HostBase):
     """
@@ -90,10 +90,12 @@ class HostRouter(ServiceBase, HostBase):
 
     kind = ServiceKind.PUBLIC  # :ServiceKind
 
-    def __init__(self, oracle: Oracle):
+    def __init__(self, global_store: Store, oracle: Oracle):
         super().__init__(logger=logger, tracer=tracer, oracle=oracle)
-        self._hosts: dict[UUID, Host] = {}
-        self._hosts_lock = asyncio.Lock()
+        self.hosts: dict[UUID, Host] = {}
+        self.hosts_lock = asyncio.Lock()
+        self._global_store = global_store
+        self._global_pg_engine = global_pg_engine_from_store(global_store)
 
     def __str__(self):
         return "shards=[*]"
@@ -103,24 +105,24 @@ class HostRouter(ServiceBase, HostBase):
 
     async def start(self) -> None:
         await super().start()
-        async with global_session():
+        async with global_session(self._global_store, (self._global_pg_engine,), self.oracle):
             benches: list[Bench] = await Bench.search()
         await asyncio.gather(*(self._start_host(bench.id) for bench in benches))
 
     def close(self) -> None:
-        for host in self._hosts.values():
+        for host in self.hosts.values():
             host.close()
 
     async def wait_closed(self) -> None:
-        await asyncio.gather(*[host.wait_closed() for host in self._hosts.values()])
+        await asyncio.gather(*[host.wait_closed() for host in self.hosts.values()])
 
     async def _start_host(self, bench_id: UUID) -> "Host":
         """Starts a Host for the given Bench."""
-        existing_host = self._hosts.get(bench_id)
+        existing_host = self.hosts.get(bench_id)
         assert existing_host is None, f"already have Host for {bench_id}: {existing_host!r}"
-        host = Host(bench_id, self.oracle)
+        host = Host(bench_id, self._global_store, self.oracle)
         await host.start()
-        self._hosts[bench_id] = host
+        self.hosts[bench_id] = host
         return host
 
     async def _get_host(self, request: betterproto.Message) -> "Host":
@@ -135,10 +137,10 @@ class HostRouter(ServiceBase, HostBase):
             raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "missing bench scope id")
 
         # get host
-        host = self._hosts.get(bench_id)
+        host = self.hosts.get(bench_id)
         if host is None:
-            async with self._hosts_lock:
-                host = self._hosts.get(bench_id)
+            async with self.hosts_lock:
+                host = self.hosts.get(bench_id)
                 if host is None:
                     host = await self._start_host(bench_id)
         return host
@@ -187,7 +189,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
 
     kind = ServiceKind.PUBLIC  # :ServiceKind
 
-    def __init__(self, bench_id: UUID, oracle: Oracle):
+    def __init__(self, bench_id: UUID, global_store: Store, oracle: Oracle):
         GraphIoServiceBase.__init__(
             self,
             bench_id=bench_id,
@@ -201,15 +203,14 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         self.bench_ptr = NodeReference(
             type=NodeType.BENCH, id=bench_id, ck=bench_id, bench_id=bench_id
         )
+        self._global_store = global_store
+        self._global_pg_engine_unscoped = global_pg_engine_from_store(global_store)
         self._supergraph = NodeSuperGraph(self.bench_ptr)
         self._client_cache = ClientCache()
         self._bench: Bench | None = None
         self._main_package: Package | None = None
         self._scope: GraphScope = GraphScope(bench_id=str(bench_id))
         self._global_pg_engine: PostgresEngine | None = None
-        # NOTE: currently we only have one local engine because we only have one branch :Branching
-        #  but later we may need different engines for every 'full' branch
-        #  (separate Neon branch with separate compute endpoint with its own connection info)
         self._local_pg_engine: PostgresEngine | None = None
         self._engines: tuple[GraphEngine, ...] = ()
 
@@ -259,6 +260,18 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
     def split_reads(self):
         return True
 
+    @property
+    def global_store(self) -> Store:
+        return self._global_store
+
+    def global_session(self):
+        return global_session(
+            store=self.global_store,
+            engines=(self._global_pg_engine_unscoped,),
+            supergraph=self._supergraph,
+            oracle=self.oracle,
+        )
+
     @override
     @asynccontextmanager
     async def session(self, *, readonly: bool = False, autocommit: bool = False):
@@ -291,7 +304,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
                 if CLIENT_CACHE_ENABLED and self._client_cache.has(client_id):
                     client = await self._client_cache.get(client_id, metadata.client_access_token)
                 else:
-                    async with global_session(_supergraph=self._supergraph):
+                    async with self.global_session():
                         if CLIENT_CACHE_ENABLED:
                             client = await self._client_cache.get(
                                 client_id, metadata.client_access_token
@@ -353,9 +366,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
 
         # load bench
         #  (in different session because we don't have the actual engines yet)
-        async with self.request_session(
-            supergraph=self._supergraph, engines=(GLOBAL_POSTGRES_ENGINE,)
-        ) as session:
+        async with self.global_session() as session:
             self._bench = await BENCH_QUERY.get(self.bench_ptr)
             assert self._bench.main_environment, f"{self._bench!r} has no main environment"
             assert self._bench.main_environment.store, f"{self._bench!r} has no main store"
@@ -369,8 +380,9 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         trace.get_current_span().set_attribute("bench", self._bench.slug)
 
         # setup main engines
+        # (overwrite global pg engine now that we have the specific bench as context)
         self._global_pg_engine = PostgresEngine(
-            store=GLOBAL_STORE,
+            store=self.global_store,
             bench=self._bench,
             scope=self._scope,
             node_types=IN_BENCH_GLOBAL_NODE_TYPES,
