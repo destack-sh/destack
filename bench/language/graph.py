@@ -384,12 +384,12 @@ class NodeSuperGraph:
 
     @property
     def root(self) -> "Node":
-        assert self._root_ptr is not None, f"{self!r} is a null graph"
+        assert self._root_ptr is not None, f"{self!r} has no root"
         return self.get_or_fail(self._root_ptr)
 
     def add_graph(self, graph: NodeGraph):
         """Add a graph to this supergraph."""
-        assert self._root_ptr is not None, f"{self!r} is a null graph"
+        assert self is not NULL_SUPERGRAPH, f"cannot add to null graph {self!r}"
         if graph.supergraph is None:
             graph.supergraph = self
         elif graph.supergraph is not self:
@@ -407,7 +407,7 @@ class NodeSuperGraph:
 
     def remove_graph(self, graph: NodeGraph):
         """Remove a graph from this supergraph."""
-        assert self._root_ptr is not None, f"{self!r} is a null graph"
+        assert self is not NULL_SUPERGRAPH, f"cannot add to null graph {self!r}"
         assert graph in self._graphs, f"{graph!r} not in {self!r}"
         self._graphs = tuple(g for g in self._graphs if g is not graph)
         for node_type in graph.node_types:

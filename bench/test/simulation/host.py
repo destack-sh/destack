@@ -38,7 +38,7 @@ from bench.proto.wire import (
 from bench.sql.client import close_pg_connection_pool
 from bench.system.core import MockHost, global_session
 from bench.system.provisioner import get_provisioners_for
-from bench.test.conftest import UserHandle, make_random_user_handle
+from bench.test.simulation.conftest import UserHandle, make_random_user_handle
 from bench.utils.oracle import get_oracle
 from bench.utils.tenacity import RETRY_NEVER
 

@@ -59,6 +59,9 @@ strictListInference = true
 strictTupleInference = true
 strictSetInference = true
 
+[tool.pytest_env]
+ENVIRONMENT = "test"
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 python_files = "test/**/*.py test/*.py"
@@ -69,6 +72,4 @@ addopts = [
 	'--strict-markers',
 	'--hypothesis-show-statistics',
 ]
-markers = [
-	"hypothesis: test uses hypothesis",
-]
+markers = ["hypothesis: test uses hypothesis"]

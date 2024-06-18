@@ -9,6 +9,7 @@ from bench.language.const import BlockType, NodeType, StructType
 from bench.language.field import Field
 from bench.language.node import BuiltinObject
 from bench.language.projection import render_builtin_object, render_node
+from bench.language.session import Session
 from bench.test.strategies import builtin_objects
 
 
@@ -20,7 +21,7 @@ def test_render_struct(obj: BuiltinObject):
     # assert cast(Struct, ret)._equals_content(obj) # TODO :Robustness :Incomplete: assert
 
 
-def test_render_nested():
+def test_render_nested(session: Session):
     # choice block
     Choice1 = Block(type=BlockType.CHOICE, name="Choice1")
     Choice1.fields.extend(
