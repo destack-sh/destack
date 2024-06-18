@@ -9,7 +9,7 @@ from betterproto.lib.google.protobuf import Struct as ProtoStruct
 from opentelemetry import trace
 
 from bench.language.connection import Connection
-from bench.language.const import UNSET, NodeType, ObjectType
+from bench.language.const import NodeType, ObjectType
 from bench.language.expression import NodeReference
 from bench.language.graph import NULL_SUPERGRAPH, NodeDataGraph, NodeSuperGraph
 from bench.language.node import BuiltinObject, Node, NodeGraph
@@ -210,8 +210,8 @@ def unpack_object[T: BuiltinObject](
         if connection is not None:
             object_kwargs["_connection"] = connection
         object_kwargs["_supergraph"] = supergraph
-        if issubclass(object_cls, Node):
-            object_kwargs["_session"] = UNSET
+        if session is not None:
+            object_kwargs["_session"] = session
         obj = object_cls(**object_kwargs)
         if session is not None and isinstance(obj, Node):
             obj._track_self(session)

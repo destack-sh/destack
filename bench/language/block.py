@@ -180,9 +180,9 @@ class Block(SourceNode[BlockData], HasValues):
         from bench.language.field import TypeInfo
 
         if self.type == BlockType.CLASS:
-            # NOTE: we turn Class Blocks into Object Types here so we can instantiate them immediately
-            #  but for storage we would have to make this an Alias that resolves to an Object Type?
-            typ = TypeInfo(kind=TypeKind.OBJECT, base_type=self)
+            # NOTE: we turn Class Blocks into Alias Types here for correctness, but that means
+            #  we have to resolve them (unnecessarily) before instantiating.
+            typ = TypeInfo(kind=TypeKind.ALIAS, base_type=self)
         elif self.type == BlockType.CHOICE:
             typ = TypeInfo(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.FIELD)
         elif self.type == BlockType.SIGNAL:

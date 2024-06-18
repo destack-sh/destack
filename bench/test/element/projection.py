@@ -3,6 +3,7 @@ from typing import cast
 from hypothesis import given
 
 from bench.language import Node
+from bench.language.bench import Package
 from bench.language.block import Block
 from bench.language.code import format_code, run_code_eval, run_code_script
 from bench.language.const import BlockType, NodeType, StructType
@@ -14,28 +15,28 @@ from bench.test.strategies import builtin_objects
 
 
 @given(obj=builtin_objects())
-def test_render_struct(obj: BuiltinObject):
+def test_render_struct(obj: BuiltinObject, session: Session):
     rendered = render_builtin_object(obj)
     rendered = format_code(rendered)
     run_code_eval(rendered)
-    # assert cast(Struct, ret)._equals_content(obj) # TODO :Robustness :Incomplete: assert
+    # assert cast(Struct, ret)._equals_content(obj) # TODO :Robustness :Test: assert
 
 
-def test_render_nested(session: Session):
+def test_render_nested(session: Session, package: Package):
     # choice block
-    Choice1 = Block(type=BlockType.CHOICE, name="Choice1")
+    Choice1 = Block(parent=package, type=BlockType.CHOICE, name="Choice1")
     Choice1.fields.extend(
         Field.option(name="Option1"), Field.option(name="Option2"), Field.option(name="Option3")
     )
 
     # inner class
-    ClassInner = Block(type=BlockType.CLASS, name="ClassInner")
+    ClassInner = Block(parent=package, type=BlockType.CLASS, name="ClassInner")
     ClassInner.fields.extend(
         Field.member("Field1", Choice1), Field.member("Field2", NodeType.BLOCK)
     )
 
     # outer class
-    ClassOuter = Block(type=BlockType.CLASS, name="ClassOuter")
+    ClassOuter = Block(parent=package, type=BlockType.CLASS, name="ClassOuter")
     ClassOuter.fields.extend(
         Field.member("Field1", Choice1),
         Field.member("Field2", bool),

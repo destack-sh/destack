@@ -1,10 +1,10 @@
 # ruff: noqa: E402
 import pytest
 
-from bench.test.conftest import setup_test
+from bench.test.conftest import setup_test_env
 
 # NOTE: must run setup_test() before importing from bench
-setup_test()
+setup_test_env()
 
 import random
 import secrets

@@ -817,14 +817,13 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
         self_dict = self.__dict__
 
         # init session / supergraph context (first)
-        self_dict["_session"] = kwargs.pop("session", None) or _active_session.get()
+        self_dict["_session"] = kwargs.pop("_session", None) or _active_session.get()
+        supergraph: NodeSuperGraph
         if "_supergraph" in kwargs:
-            supergraph = kwargs.pop("_supergraph")
-        elif self._session is not None:
-            supergraph = self._session._supergraph
+            supergraph = cast(NodeSuperGraph, kwargs.pop("_supergraph"))
+        elif self_dict.get("_session") is not None:
+            supergraph = cast("Session", self_dict["_session"])._supergraph
         else:
-            supergraph = None
-        if supergraph is None:
             supergraph = NULL_SUPERGRAPH
         self_dict["_supergraph"] = supergraph
 
@@ -904,11 +903,15 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
                     prop_value = prop.default
                 elif not prop.is_required:
                     prop_value = None if not prop.is_list else []
+                else:
+                    raise ValueError(f"missing value for {prop!r}")
             if wired_ptr_prop is not None and wired_prop_value is UNSET:
                 if prop.is_list:
                     wired_prop_value = []
                 elif not prop.is_required:
                     wired_prop_value = None
+                else:
+                    raise ValueError(f"missing value for {wired_ptr_prop!r}")
 
             # and set it
             if prop_value is UNSET:
@@ -1380,6 +1383,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
                 parent is not None
             ), f"parent for {type(self).__name__} not in {self._supergraph!r}: {self.parent_ptr!r}"
             self._graph = parent._graph
+            self._graph.add(self)
             self._supergraph = parent._supergraph
         else:
             # no parent, create our own graph
