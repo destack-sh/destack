@@ -71,7 +71,7 @@ class ServiceBase:
     kind: ClassVar[ServiceKind]
 
     def __init__(self, logger: Any, tracer: trace.Tracer):
-        self._tasks = TaskManager(owner=self, logger=logger)
+        self.tasks = TaskManager(owner=self, logger=logger)
         self.logger = logger
         self.tracer = tracer
 
@@ -81,11 +81,11 @@ class ServiceBase:
 
     def close(self) -> None:
         """Close the service.."""
-        self._tasks.close()
+        self.tasks.close()
 
     async def wait_closed(self) -> None:
         """Wait for the service to be fully closed."""
-        await self._tasks.wait_closed()
+        await self.tasks.wait_closed()
 
     def __mapping__(self) -> Mapping[str, grpclib.const.Handler]:
         # combine mappings from non-overlapping superclasses

@@ -51,8 +51,8 @@ RUN /root/.cargo/bin/uv pip install --system --no-cache -r requirements-runtime.
 
 # copy relevant fiels
 COPY bench/ bench/ 
-# prune unnecessary packages
-RUN rm -rf bench/system
+# prune unnecessary modules
+RUN rm -rf bench/system bench/test
 # prune tests
 RUN find bench/ -type f -name 'test_*.py' -delete
 

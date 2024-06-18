@@ -14,9 +14,8 @@ from bench.language.const import (
     UserStatus,
 )
 from bench.system.access import ACCESS_TOKEN_LENGTH
-from bench.system.core import global_session
+from bench.system.core import MockHost, global_session
 from bench.system.supervisor import create_default_bench
-from bench.system.test.test_host import MockHost
 from bench.utils.func import generate_access_token
 
 app = typer.Typer(short_help="some language-level utilities")

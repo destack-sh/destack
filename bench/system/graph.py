@@ -1,7 +1,7 @@
 import abc
 import asyncio
 from datetime import datetime
-from typing import AsyncIterator, NamedTuple, cast, override
+from typing import AsyncIterator, NamedTuple, cast, final, override
 from uuid import UUID
 
 import betterproto
@@ -119,7 +119,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
             )
 
     async def start(self):
-        self._tasks.start_scheduled(
+        self.tasks.start_scheduled(
             30, self.connector.gc_connections, task_id="gc_connections", skip_errors=False
         )
 
@@ -131,6 +131,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
     def split_reads(self) -> bool:
         return False
 
+    @final
     def request_session(
         self,
         supergraph: NodeSuperGraph,

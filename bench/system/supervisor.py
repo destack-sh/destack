@@ -41,10 +41,9 @@ from bench.system.access import (
     hash_password,
     purge_client_caches,
 )
-from bench.system.core import GLOBAL_POSTGRES_ENGINE, global_session
+from bench.system.core import GLOBAL_POSTGRES_ENGINE, MockHost, global_session
 from bench.system.graph import GraphIoServiceBase
 from bench.system.provisioner import provision
-from bench.system.test.test_host import MockHost
 from bench.utils.func import generate_access_token, generate_salt, to_uuid
 from bench.utils.oracle import get_oracle
 
