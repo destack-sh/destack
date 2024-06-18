@@ -1,11 +1,13 @@
 from typing import cast
 
 import pytest
+from hypothesis import given
 
 from bench.language.block import Block
 from bench.language.const import BlockType, NodeType, PrimitiveType, StructType
 from bench.language.field import Field, TypeKind, to_type
 from bench.language.node import BuiltinObject
+from bench.language.session import Session
 from bench.language.text import Text
 from bench.language.value import (
     ValueObject,
@@ -15,11 +17,10 @@ from bench.language.value import (
     unpack_value,
 )
 from bench.proto import wiring
+from bench.test.strategies import builtin_objects
 
-BUILTIN_OBJECTS = ()  # nocheckin
 
-
-def test_coerce_nested_value() -> None:
+def test_coerce_nested_value(session: Session) -> None:
     """Coerce a nested Object value."""
 
     # choice block
@@ -57,23 +58,22 @@ def test_coerce_nested_value() -> None:
     assert object_outer.field4 == object_inner
 
 
-async def test_roundtrip_scalar_value() -> None:
+def test_roundtrip_scalar_value(session: Session) -> None:
     """Pack/unpack a scalar value inside a (Variable) Block (which HasValues)."""
 
-    async with global_session():
-        # first set in constructor
-        type_info = to_type(PrimitiveType.INT32)
-        block = Block(type=BlockType.VARIABLE, name="Variable1", value_type=type_info, value=7)
-        assert block.value == 7
-        assert unpack_value(block.value_packed, block.secret_value_packed, type_info) == 7
+    # first set in constructor
+    type_info = to_type(PrimitiveType.INT32)
+    block = Block(type=BlockType.VARIABLE, name="Variable1", value_type=type_info, value=7)
+    assert block.value == 7
+    assert unpack_value(block.value_packed, block.secret_value_packed, type_info) == 7
 
-        # set at runtime
-        block.value = 42
-        assert block.value == 42
-        assert unpack_value(block.value_packed, block.secret_value_packed, type_info) == 42
+    # set at runtime
+    block.value = 42
+    assert block.value == 42
+    assert unpack_value(block.value_packed, block.secret_value_packed, type_info) == 42
 
 
-def test_roundtrip_nested_value():
+def test_roundtrip_nested_value(session: Session):
     """Pack/unpack a nested Object value."""
 
     # choice block
@@ -117,7 +117,7 @@ def test_roundtrip_nested_value():
     assert unpacked_value == value
 
 
-@pytest.mark.parametrize("obj", BUILTIN_OBJECTS, ids=lambda o: o.__class__.__name__)
+@given(obj=builtin_objects())
 def test_roundtrip_builtin_object(obj: BuiltinObject):
     packed_wire_obj = wiring.pack_object(obj)
     packed_json = pack_builtin_object_data(packed_wire_obj)

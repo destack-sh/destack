@@ -61,6 +61,7 @@ strictSetInference = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+python_files = "test/**/*.py test/*.py"
 log_cli = true
 addopts = [
 	"--color=yes",

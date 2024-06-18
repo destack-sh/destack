@@ -1,20 +1,20 @@
 from typing import cast
 
-import pytest
+from hypothesis import given
 
-from bench.language import Node, Struct
+from bench.language import Node
 from bench.language.block import Block
 from bench.language.code import format_code, run_code_eval, run_code_script
 from bench.language.const import BlockType, NodeType, StructType
 from bench.language.field import Field
-from bench.language.projection import render_node, render_struct
+from bench.language.node import BuiltinObject
+from bench.language.projection import render_builtin_object, render_node
+from bench.test.strategies import builtin_objects
 
-BUILTIN_OBJECTS = ()  # nocheckin
 
-
-@pytest.mark.parametrize("obj", BUILTIN_OBJECTS, ids=lambda o: o.__class__.__name__)
-def test_render_struct(obj: Node | Struct):
-    rendered = render_struct(obj)
+@given(obj=builtin_objects())
+def test_render_struct(obj: BuiltinObject):
+    rendered = render_builtin_object(obj)
     rendered = format_code(rendered)
     run_code_eval(rendered)
     # assert cast(Struct, ret)._equals_content(obj) # TODO :Robustness :Incomplete: assert

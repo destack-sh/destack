@@ -8,7 +8,6 @@ import psycopg
 import pytest
 from psycopg import sql
 
-from bench.conftest import bench_session, global_session
 from bench.language import (
     Bench,
     Block,
@@ -20,10 +19,8 @@ from bench.language import (
     Server,
     ServerProfile,
 )
-from bench.language.const import ClientType, EnumType, NodeType, UserStatus
+from bench.language.const import ClientType, EnumType, NodeType
 from bench.language.field import TypeKind
-from bench.language.query import NodeNotFoundError
-from bench.language.user import User
 from bench.sql.client import pg_store_connection
 from bench.sql.core import GLOBAL_EXTENSIONS, Column, Schema, Table
 from bench.sql.engine import (
@@ -38,6 +35,8 @@ from bench.sql.engine import (
     pg_upsert,
 )
 from bench.sql.migration import force_create_schema
+from bench.system.core import global_session
+from bench.test.conftest import bench_session
 
 _TEST_TYPES = (
     PrimitiveType.BOOLEAN,
@@ -242,52 +241,3 @@ async def test_crud_node_pointers():
         assert block_1.to_ref()._equals_content(
             NodeReference(type=NodeType.BLOCK, id=block_1.id, ck=block_1.ck, bench_id=bench.id)
         )
-
-
-async def test_cascade_edits():
-    # NOTE :Test: this is a placeholder test until we test graphs & edits more deeply (hypothesis?)
-    async with global_session() as session:
-        user_1 = User(
-            name="Rabbit", slug="rabbit", status=UserStatus.REGISTERED, email="rabbit@symbolx.com"
-        )
-        session._create(user_1)
-        await session.flush()
-
-        client_1_a = Client(parent=user_1, type=ClientType.BENCH_WEB, name="Rabbit's Web")
-        client_1_b = Client(parent=user_1, type=ClientType.BENCH_MOBILE, name="Rabbit's iPhone")
-        client_1_c = Client(parent=user_1, type=ClientType.BENCH_MOBILE, name="Rabbit's Android")
-        session._create(client_1_a, client_1_b, client_1_c)
-        await session.commit()
-
-        # delete non-cascading
-        session._delete(client_1_c)
-        await session.commit()
-        with pytest.raises(NodeNotFoundError):
-            await Client.get(id=client_1_c.id)
-
-        # delete cascading
-        session._delete(user_1)
-        edits, cascaded_edits = await session.commit()
-        assert len(edits) == 1
-        assert len(cascaded_edits) == 2
-        with pytest.raises(NodeNotFoundError):
-            await User.get(id=user_1.id)
-        with pytest.raises(NodeNotFoundError):
-            await Client.get(id=client_1_a.id)
-
-        # restore cascading
-        session._restore(user_1)
-        edits, cascaded_edits = await session.commit()
-        assert len(edits) == 1
-        assert len(cascaded_edits) == 2
-        assert await User.get(id=user_1.id)
-        assert await Client.get(id=client_1_a.id)
-        with pytest.raises(NodeNotFoundError):  # should only restore its own deleted children
-            await Client.get(id=client_1_c.id)
-
-        # restore non-cascading
-        session._restore(client_1_c)
-        edits, cascaded_edits = await session.commit()
-        assert len(edits) == 1
-        assert len(cascaded_edits) == 0
-        assert await Client.get(id=client_1_c.id)

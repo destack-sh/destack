@@ -1,14 +1,8 @@
 from hypothesis import given
 
 from bench.language import BuiltinObject, Session
-from bench.language.const import StructType
-from bench.language.test.strategies import builtin_objects, from_object_type
 from bench.proto import wiring
-
-
-@given(value=from_object_type(StructType.POLICY))
-def test_sync_hypothesis(value: BuiltinObject, shared_session: Session):
-    assert value._equals_content(value), f"{value!r} != {value!r}"
+from bench.test.strategies import builtin_objects
 
 
 @given(obj=builtin_objects())

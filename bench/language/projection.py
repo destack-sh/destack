@@ -5,7 +5,7 @@ from uuid import UUID
 
 from bench.language.const import EnumType, NodeType, PrimitiveType, StructType, TypeKind
 from bench.language.graph import NodeList
-from bench.language.node import Node, Struct, struct_
+from bench.language.node import BuiltinObject, Node, Struct, struct_
 from bench.language.setup import ENUM_CLASS_BY_TYPE
 
 if TYPE_CHECKING:
@@ -110,7 +110,7 @@ def render_value_scalar(value: "ScalarValue", typ: "TypeInfoBase") -> str:
         value = enum_cls(value)
         return f"{enum_cls.__name__}.{value.name}"
     elif typ.kind == TypeKind.STRUCT:
-        return render_struct(cast(Struct, value))
+        return render_builtin_object(cast(Struct, value))
     else:
         raise RuntimeError(f"unexpected type {typ!r}")
 
@@ -152,7 +152,7 @@ def render_value(value: "SomeValue | None", typ: "TypeInfoBase") -> str:
             return f"[{', '.join(render_value_scalar(v, typ) for v in value)}]"
 
 
-def render_struct(value: Node | Struct) -> str:
+def render_builtin_object(value: BuiltinObject) -> str:
     """Renders the given Node/Struct to Bench python."""
     if value.metatype == StructType.TEXT:
         # Text: just the markdown
@@ -234,9 +234,9 @@ def render_node(
 
         # wrap with alias if needed :NodeAliasing
         if descendants_lines:
-            return [f"{node_alias} = {render_struct(node)}", *descendants_lines]
+            return [f"{node_alias} = {render_builtin_object(node)}", *descendants_lines]
         else:
-            return [render_struct(node)]
+            return [render_builtin_object(node)]
 
     all_lines: list[str] = []
     # traverse
@@ -256,6 +256,6 @@ def render(value: Node | Struct) -> str:
     """Renders the given Node/Struct to Bench python and prettifies it."""
     from bench.language.code import format_code
 
-    rendered = render_node(value) if isinstance(value, Node) else render_struct(value)
+    rendered = render_node(value) if isinstance(value, Node) else render_builtin_object(value)
     rendered = format_code(rendered)
     return rendered

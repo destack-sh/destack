@@ -106,7 +106,7 @@ from .notification import Notification
 from .path import Path
 from .projection import Projection
 from .property import Property
-from .query import Query, QueryBuilder, ReadOptions
+from .query import MultipleNodesFoundError, NodeNotFoundError, Query, QueryBuilder, ReadOptions
 from .record import Record
 from .run import RetryAttempt, Run, RunOptions
 from .session import Context, Session
@@ -210,12 +210,14 @@ __all__ = [
     "LogLevel",
     "Machine",
     "Message",
+    "MultipleNodesFoundError",
     "Node",
     "Node",
     "NodeDataDict",
     "NodeDataGraph",
     "NodeDict",
     "NodeGraph",
+    "NodeNotFoundError",
     "NodeReference",
     "NodeSuperGraph",
     "NodeType",
