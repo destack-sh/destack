@@ -509,6 +509,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
 
                 # extend commit
                 new_edits = await self.extend_commit(
+                    supergraph=session._supergraph,
                     session=session,
                     context=context,
                     graph=unpacked_graph,
@@ -523,6 +524,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
             # handle on commit
             self.epoch = epoch
             await self.on_commit(
+                supergraph=session._supergraph,
                 graph=unpacked_graph,
                 data_graph=data_graph,
                 edits=edits,
@@ -567,6 +569,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
 
             # extend commit
             await self.extend_commit(
+                supergraph=session._supergraph,
                 session=session,
                 context=None,
                 graph=edit_graph,
@@ -584,8 +587,9 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
         # handle on commit
         self.epoch = session.epoch
         await self.on_commit(
-            edit_graph,
-            edit_data_graph,
+            supergraph=session._supergraph,
+            graph=edit_graph,
+            data_graph=edit_data_graph,
             edits=edits,
             cascaded_edits=cascaded_edits,
             epoch=self.epoch,
@@ -594,6 +598,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
 
     async def extend_commit(
         self,
+        supergraph: NodeSuperGraph,
         session: Session,
         context: SessionContext | None,
         graph: NodeGraphLike,
@@ -605,6 +610,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
 
     async def on_commit(
         self,
+        supergraph: NodeSuperGraph,
         graph: NodeGraphLike,
         data_graph: NodeDataGraphLike,
         edits: list[EditData],

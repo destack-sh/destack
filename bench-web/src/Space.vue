@@ -191,7 +191,10 @@ watch([canvas.focusedViewPtr, bench], () => {
       </div>
       <div v-else-if="user">
         <!-- Logged in, but not on any space (not sure if this should even show or just auto-redirect?) -->
-        <h2 class="mb-1.5 text-2xl font-bold">You're Lost</h2>
+        <span>
+          <i class="fas fa-exclamation-triangle mr-1.5 text-gray-500" />
+          <span class="text-gray-600">You're Lost in Space</span>
+        </span>
         <Button
           name="GoHome"
           :icon="makeIcon('fas fa-home')"

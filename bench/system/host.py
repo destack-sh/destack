@@ -265,7 +265,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
             self._session._epoch = self.epoch
             yield self._session
 
-    @tracer.start_as_current_span("host.get_subject")
+    @tracer.start_as_current_span("host.get_request_subject")
     async def get_request_subject(
         self, request: betterproto.Message, metadata: wire.RpcMetadata
     ) -> Subject:
@@ -327,7 +327,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
 
         # use new supergraph instance for session
         # NOTE :Cleanup :Architecture: putting the request supergraph in the request subject
-        #  feels a bit indirect and clumsy.
+        #  feels a bit indirect and clumsy, but it has to be the same supergraph during the request.
         supergraph = self._supergraph.instance()
         subject = Subject(
             is_authenticated=client is not None,
@@ -473,6 +473,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
     @tracer.start_as_current_span("host.extend_commit")
     async def extend_commit(
         self,
+        supergraph: NodeSuperGraph,
         session: Session,
         context: SessionContext | None,
         graph: NodeGraphLike,
@@ -586,13 +587,14 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
     @tracer.start_as_current_span("host.on_commit")
     async def on_commit(
         self,
+        supergraph: NodeSuperGraph,
         graph: NodeGraphLike,
         data_graph: NodeDataGraphLike,
         edits: list[EditData],
         cascaded_edits: list[EditData],
         epoch: int,
     ):
-        await super().on_commit(graph, data_graph, edits, cascaded_edits, epoch)
+        await super().on_commit(supergraph, graph, data_graph, edits, cascaded_edits, epoch)
 
         assert self._session is not None, f"session not ready in {self!r}"
         assert self._bench is not None, f"bench not loaded in {self!r}"
@@ -641,7 +643,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
         self._session.track_many(*graph.nodes)
         commit = unpack_commit(
             session=self._session,
-            supergraph=self._supergraph,
+            supergraph=supergraph,
             graphs=(*self.graphs, graph),
             edits=edits,
             cascaded_edits=cascaded_edits,

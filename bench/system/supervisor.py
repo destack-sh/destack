@@ -78,17 +78,18 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
     def get_engines(self):
         return (GLOBAL_POSTGRES_ENGINE,)
 
-    @tracer.start_as_current_span("supervisor.get_subject")
+    @tracer.start_as_current_span("supervisor.get_request_subject")
     async def get_request_subject(
         self, request: betterproto.Message, metadata: RpcMetadata
     ) -> Subject:
         # NOTE :Architecture: for simplicity we don't get the full Subject auth in Supervisor
         #  (like we do in Host, since we have the entire Bench cached and ready there,
         #   and we don't expect to need Bench-level auth in the supervisor for now).
-        if not metadata.client_id or not metadata.client_access_token:
-            return Subject(is_authenticated=False)
 
         async with global_session():
+            # request will use the subject's supergraph, so ensure all subjects are created in session
+            if not metadata.client_id or not metadata.client_access_token:
+                return Subject(is_authenticated=False)
             client_id = UUID(metadata.client_id)
             client = await get_client(client_id, metadata.client_access_token)
             if isinstance(client.parent, User):
@@ -126,6 +127,7 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
             parent=user,
             name=name,
             type=cast(ClientType, client_data.type),
+            seen_at=get_oracle().utc(),
             _is_new=True,  # force create
         )
         # copy over other properties

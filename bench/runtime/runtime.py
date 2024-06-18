@@ -266,6 +266,7 @@ class Runtime(ServiceBase, RuntimeBase):
             parent=self.main_package,
             session=self._session,
             expect=Run,
+            skip_add_self=False,
         )
         async with self.session(autocommit=True):
             run.status = RunStatus.QUEUED
