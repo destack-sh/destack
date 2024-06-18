@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING
 
 import pytest
+import uvloop
 from pytest_asyncio import is_async_test
 
 if TYPE_CHECKING:
@@ -39,6 +40,11 @@ def pytest_configure(config):
 
 def pytest_addoption(parser):
     pass
+
+
+@pytest.fixture(scope="session")
+def event_loop_policy():
+    return uvloop.EventLoopPolicy()
 
 
 def pytest_collection_modifyitems(items):
