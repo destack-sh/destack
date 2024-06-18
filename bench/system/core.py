@@ -28,6 +28,7 @@ from bench.proto import wiring
 from bench.proto.wire import EditData, GraphScope
 from bench.sql.client import GLOBAL_PG_CRYPTO_KEY, PgStoreConnection
 from bench.utils.func import bittuple
+from bench.utils.oracle import Oracle
 from bench.utils.task import TaskManager
 from bench.utils.utils import get_from_env
 
@@ -250,6 +251,10 @@ class HostSpec(abc.ABC):
         """Handle a fatal error."""
         ...
 
+    @property
+    @abc.abstractmethod
+    def oracle(self) -> Oracle: ...
+
     @abc.abstractmethod
     @asynccontextmanager
     async def session(
@@ -270,6 +275,10 @@ class MockHost(HostSpec):
     async def session(self, *, readonly: bool = False, autocommit: bool = False):
         yield self._session
 
+    @property
+    def oracle(self) -> Oracle:
+        return self._session._oracle
+
 
 class HostPlugin[T: Node](abc.ABC):
     """A plugin into the Host operating system of a Bench."""
@@ -285,6 +294,7 @@ class HostPlugin[T: Node](abc.ABC):
             logger=logger,
             on_error=lambda e: host.on_error(source=self, error=e),
             task_id_prefix=f"{self.bench.slug}_{self.__class__.__name__}",
+            oracle=host.oracle,
         )
 
     def __str__(self) -> str:

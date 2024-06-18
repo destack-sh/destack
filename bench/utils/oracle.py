@@ -1,6 +1,5 @@
 import abc
 import asyncio
-import contextvars
 import random
 import time
 from datetime import datetime
@@ -121,10 +120,4 @@ class RealOracle(Oracle):
         asyncio.get_event_loop().call_soon(callback)
 
 
-_system_oracle = RealOracle()
-_oracle: contextvars.ContextVar[Oracle] = contextvars.ContextVar("oracle", default=_system_oracle)
-
-
-def get_oracle() -> Oracle:
-    """Get the current oracle."""
-    return _oracle.get()
+REAL_ORACLE = RealOracle()

@@ -43,6 +43,7 @@ from bench.runtime.core import (
 )
 from bench.runtime.thread import RuntimeThread
 from bench.utils.func import CriticalLock
+from bench.utils.oracle import Oracle
 from bench.utils.tenacity import RETRY_GRPC_FOREVER
 
 logger = structlog.get_logger(__name__)
@@ -65,8 +66,9 @@ class Runtime(ServiceBase, RuntimeBase):
         client_id: UUID,
         client_access_token: str,
         machine_id: UUID | None,
+        oracle: Oracle,
     ):
-        super().__init__(logger=logger, tracer=tracer)
+        super().__init__(logger=logger, tracer=tracer, oracle=oracle)
 
         # parse out supervisor host and port
         _supervisor_url = urlparse(supervisor_url)
@@ -184,6 +186,7 @@ class Runtime(ServiceBase, RuntimeBase):
             _supervisor=self._supervisor,
             _host=self._host,
             _supergraph=self._supergraph,
+            _oracle=self.oracle,
         )
         await self._session.open(set_in_context=False)
 
@@ -232,6 +235,7 @@ class Runtime(ServiceBase, RuntimeBase):
                 machine_id=self._machine_id,
                 engines=self._engines,
                 queue=self._run_queue,
+                oracle=self.oracle,
             )
             self._threads.append(thread)
             await thread.start()

@@ -79,6 +79,7 @@ from bench.sql.core import (
 from bench.utils.casing import Casing, to_casing
 from bench.utils.env import IS_DEV
 from bench.utils.func import bittuple, describe_type, group_by, to_uuid
+from bench.utils.oracle import REAL_ORACLE
 from bench.utils.tenacity import RetryOptions, retry
 from bench.utils.uuidt import UUIDT
 
@@ -603,7 +604,7 @@ def _pg_wrap_error(
 RETRY_PG = RetryOptions(max_attempts=2, max_retry_interval=5, retry_on=(OperationalError,))
 
 
-@retry(RETRY_PG)
+@retry(RETRY_PG, REAL_ORACLE)
 async def _pg_execute(
     cur: psycopg.AsyncCursor,
     statement: sql.Composed,
@@ -612,7 +613,7 @@ async def _pg_execute(
     await cur.execute(statement, params)
 
 
-@retry(RETRY_PG)
+@retry(RETRY_PG, REAL_ORACLE)
 async def _pg_executemany(
     cur: psycopg.AsyncCursor,
     statement: sql.Composed,

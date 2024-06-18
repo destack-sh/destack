@@ -31,6 +31,7 @@ from bench.sql.migration import (
 )
 from bench.sql.migration import sql_migrate as _migrate
 from bench.system.core import GLOBAL_STORE, global_pg_cursor, global_session
+from bench.utils.oracle import REAL_ORACLE
 from bench.utils.utils import format_python
 
 logger = structlog.get_logger(__name__)
@@ -108,6 +109,7 @@ async def make(
         global_ops=global_migration_ops,
         local_ops=local_migration_ops,
         exclude_inverse=no_downgrade,
+        oracle=REAL_ORACLE,
     )
     if not dry_run:
         add_migration_to_fs(migration=new_migration, code=migration_code)
@@ -146,7 +148,7 @@ async def apply(
 
     for store in stores:
         async with pg_store_connection(store) as cur:
-            await _migrate(cur=cur, target=target, is_global=bench is None)
+            await _migrate(cur=cur, target=target, is_global=bench is None, oracle=REAL_ORACLE)
             if not dry_run:
                 await cur.connection.commit()
             else:

@@ -21,6 +21,7 @@ async def restart_on_file_changes(on_restart: Callable | None = None):
                 or ".tmp" in event.src_path
                 or "test_" in event.src_path
                 or "/cli/" in event.src_path
+                or "/test/" in event.src_path
             ):
                 return
             if event.src_path.endswith(".py"):

@@ -66,7 +66,7 @@ from bench.system.graph import CommitScope, GraphIoServiceBase, parse_commit_sco
 from bench.system.provisioner import Provisioner, get_provisioners_for
 from bench.system.scheduler import QueueRunPlugin
 from bench.utils.func import to_uuid
-from bench.utils.oracle import get_oracle
+from bench.utils.oracle import Oracle
 from bench.utils.utils import get_from_env
 from bench.utils.uuidt import UUIDT
 
@@ -90,8 +90,8 @@ class HostRouter(ServiceBase, HostBase):
 
     kind = ServiceKind.PUBLIC  # :ServiceKind
 
-    def __init__(self):
-        super().__init__(logger=logger, tracer=tracer)
+    def __init__(self, oracle: Oracle):
+        super().__init__(logger=logger, tracer=tracer, oracle=oracle)
         self._hosts: dict[UUID, Host] = {}
         self._hosts_lock = asyncio.Lock()
 
@@ -118,7 +118,7 @@ class HostRouter(ServiceBase, HostBase):
         """Starts a Host for the given Bench."""
         existing_host = self._hosts.get(bench_id)
         assert existing_host is None, f"already have Host for {bench_id}: {existing_host!r}"
-        host = Host(bench_id)
+        host = Host(bench_id, self.oracle)
         await host.start()
         self._hosts[bench_id] = host
         return host
@@ -187,9 +187,14 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
 
     kind = ServiceKind.PUBLIC  # :ServiceKind
 
-    def __init__(self, bench_id: UUID):
+    def __init__(self, bench_id: UUID, oracle: Oracle):
         GraphIoServiceBase.__init__(
-            self, bench_id=bench_id, node_types=IN_BENCH_NODE_TYPES, logger=logger, tracer=tracer
+            self,
+            bench_id=bench_id,
+            node_types=IN_BENCH_NODE_TYPES,
+            logger=logger,
+            tracer=tracer,
+            oracle=oracle,
         )
 
         self.bench_id = bench_id
@@ -400,6 +405,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
             _custom_commit=self._commit_system_session,
             _supergraph=self._bench._supergraph,
             _split_reads=True,
+            _oracle=self.oracle,
         )
         self._bench._track_rec(self._session)
         self._main_package._track_rec(self._session)
@@ -457,7 +463,7 @@ class Host(GraphIoServiceBase, HostBase, HostSpec):
 
         # prepare commit
         scope = parse_commit_scope(edits, base_graph=self._main_package._data_graph)
-        now = get_oracle().utc()
+        now = self.oracle.utc()
         epoch = self.epoch
         for edit in edits:
             validate_edit(edit, subject, now)

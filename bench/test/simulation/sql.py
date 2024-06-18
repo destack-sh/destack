@@ -23,8 +23,10 @@ from bench.language.const import ClientType, EnumType, NodeType
 from bench.language.field import TypeKind
 from bench.language.session import Session
 from bench.sql.client import pg_store_connection
-from bench.sql.core import GLOBAL_EXTENSIONS, Column, Schema, Table
+from bench.sql.core import GLOBAL_EXTENSIONS, Column, ObjectKind, Schema, Table
 from bench.sql.engine import (
+    GLOBAL_SCHEMA,
+    LOCAL_SCHEMA,
     RowIn,
     _pg_adapt_row,
     _pg_adapt_rows,
@@ -35,7 +37,14 @@ from bench.sql.engine import (
     pg_update_variable,
     pg_upsert,
 )
-from bench.sql.migration import force_create_schema
+from bench.sql.migration import (
+    force_create_schema,
+    generate_sql_migration_ops,
+    introspect_sql_schema,
+    read_migrations_from_fs,
+    sql_migrate,
+)
+from bench.utils.oracle import REAL_ORACLE
 
 _TEST_TYPES = (
     PrimitiveType.BOOLEAN,
@@ -84,6 +93,7 @@ _ENCRYPTED_TABLE = Table(
 _TEST_TABLES = (_MINI_REGULAR_TABLE, _REGULAR_TABLE, _MINI_ENCRYPTED_TABLE, _ENCRYPTED_TABLE)
 _TEST_SCHEMA = Schema(extensions=GLOBAL_EXTENSIONS, tables=_TEST_TABLES)
 
+# NOTE :Test: convert sql test values to hypothesis strategies?
 COLUMN_VALUE_GENERATORS: Mapping[PrimitiveType, Callable[[], Any]] = {
     PrimitiveType.BOOLEAN: lambda: random.choice((True, False)),
     PrimitiveType.INT32: lambda: random.randint(0, 2**31 - 1),
@@ -142,7 +152,7 @@ async def test_crud_rows(test_cur: psycopg.AsyncCursor, table: Table):
     db_rows = await pg_select(cur=test_cur, table=table, order_by=sql.SQL("id"))
     assert db_rows == target_rows
 
-    # update with dynamic values (only some columns are updated)
+    # update with dynamic values (only some columns are updated in some rows)
     update_rows: list[RowIn] = []
     for id in range(1, 4):
         row = _generate_row(id)
@@ -235,3 +245,28 @@ async def test_crud_node_pointers(session: Session):
     assert block_1.to_ref()._equals_content(
         NodeReference(type=NodeType.BLOCK, id=block_1.id, ck=block_1.ck, bench_id=bench.id)
     )
+
+
+async def _do_test_stored_migrations(blank_test_cur: psycopg.AsyncCursor, *, is_global: bool):
+    # run all stored migrations
+    stored_migrations = read_migrations_from_fs()
+    await sql_migrate(
+        blank_test_cur, target=stored_migrations[-1].id, is_global=is_global, oracle=REAL_ORACLE
+    )
+
+    # diff again (should be empty now)
+    current_schema = await introspect_sql_schema(blank_test_cur)
+    new_schema = GLOBAL_SCHEMA if is_global else LOCAL_SCHEMA
+    current_ops = generate_sql_migration_ops(current_schema, new_schema)
+    current_ops = [op for op in current_ops if op.object_kind != ObjectKind.EXTENSION]
+    assert not current_ops, f"out of sync migrations, got {len(current_ops)} ops"
+
+
+async def test_stored_migrations_global(blank_global_test_cur: psycopg.AsyncCursor):
+    """Existing global migrations against a blank database."""
+    await _do_test_stored_migrations(blank_global_test_cur, is_global=True)
+
+
+async def test_stored_migrations_local(blank_local_test_cur: psycopg.AsyncCursor):
+    """Existing local migrations against a blank database."""
+    await _do_test_stored_migrations(blank_local_test_cur, is_global=False)

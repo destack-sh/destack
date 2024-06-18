@@ -71,7 +71,6 @@ from bench.sql.core import Constraint, ConstraintType, Index, IndexType, Table, 
 from bench.utils.casing import PYTHON_CASING, IdentifierType, to_casing
 from bench.utils.env import IS_DEV, IS_TEST
 from bench.utils.func import bittuple
-from bench.utils.oracle import get_oracle
 from bench.utils.utils import frozendict
 from bench.utils.uuidt import UUIDT
 
@@ -1366,7 +1365,8 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
 
         # init timestamps
         if self.created_at is None:
-            now = get_oracle().utc()
+            assert self._session is not None, f"{self!r} is not in a session"
+            now = self._session.oracle.utc()
             self.created_at = now
             self.updated_at = now
 

@@ -81,7 +81,7 @@ from bench.system.connection import (
     WatchSearchUpdate,
 )
 from bench.utils.func import CriticalLock, bittuple, group_by, to_uuid, uuid_to_str
-from bench.utils.oracle import get_oracle
+from bench.utils.oracle import Oracle
 
 
 class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
@@ -94,8 +94,9 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
         node_types: bittuple[NodeType],
         logger: structlog.BoundLogger,
         tracer: trace.Tracer,
+        oracle: Oracle,
     ):
-        super().__init__(logger=logger, tracer=tracer)
+        super().__init__(logger=logger, tracer=tracer, oracle=oracle)
         self.epoch: int = 0
         self.bench_id: UUID | None = bench_id
         self.scope = GraphScope(bench_id=uuid_to_str(bench_id))
@@ -103,7 +104,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
         self.tx_lock: asyncio.Lock = CriticalLock(
             name=f"{self.__class__.__name__}_{bench_id or ''}"
         )
-        self.connector = ConnectionIndex(scope=self.scope)
+        self.connector = ConnectionIndex(scope=self.scope, oracle=self.oracle)
 
     @abc.abstractmethod
     def get_engines(self) -> tuple[GraphEngine, ...]:
@@ -150,6 +151,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
             _custom_commit=self._commit_system_session if system_commit else None,
             _supergraph=supergraph,
             _split_reads=self.split_reads,
+            _oracle=self.oracle,
         )
 
     @override
@@ -416,7 +418,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
     ) -> tuple["CommitScope", int]:
         """Prepares and validates the edits for a commit."""
         scope = parse_commit_scope(edits, base_graph=None)
-        now = get_oracle().utc()
+        now = self.oracle.utc()
         epoch = self.epoch
         for edit in edits:
             validate_edit(edit, subject, now)

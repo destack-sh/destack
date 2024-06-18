@@ -26,7 +26,7 @@ from bench.proto.wire import (
     GraphScope,
 )
 from bench.utils.func import bittuple, generate_access_token
-from bench.utils.oracle import get_oracle
+from bench.utils.oracle import Oracle
 from bench.utils.utils import get_from_env
 
 logger = structlog.get_logger(__name__)
@@ -70,14 +70,15 @@ class Connection[
 
     read_type: ClassVar[ReadType]
 
-    def __init__(self, scope: GraphScope, query: QueryBuilder):
+    def __init__(self, scope: GraphScope, query: QueryBuilder, oracle: Oracle):
         self.scope = scope
         self.hash = query._stable_hash()
         self.token: str = generate_access_token(length=8)
         self.query = query
         self._node_types = bittuple(*query.all_node_types)
         self._subscribers: list[ConnectionSubscription[UpdateT]] = []
-        now_ns = get_oracle().time_ns()
+        self.oracle = oracle
+        now_ns = oracle.time_ns()
         self._created_at_ns = now_ns
         self._last_active_at_ns = now_ns
         self._last_referenced_at_ns = now_ns
@@ -90,7 +91,7 @@ class Connection[
     @final
     def __str__(self):
         content_str = self.__result_str__(self._result_data) if self._result_data else "<no result>"
-        now_ns = get_oracle().time_ns()
+        now_ns = self.oracle.time_ns()
         alive_duration = (now_ns - self._created_at_ns) / 1_000_000_000
         active_duration = (now_ns - self._last_active_at_ns) / 1_000_000_000
         return f"{content_str} (hash={self.hash}, token={self.token}, alive={alive_duration:.1f}s, last_active={active_duration:.1f}s, subscribers={len(self._subscribers)})"
@@ -113,10 +114,10 @@ class Connection[
         return len(self._subscribers) > 0
 
     def bump_active(self):
-        self._last_active_at_ns = get_oracle().time_ns()
+        self._last_active_at_ns = self.oracle.time_ns()
 
     def bump_referenced(self):
-        self._last_referenced_at_ns = get_oracle().time_ns()
+        self._last_referenced_at_ns = self.oracle.time_ns()
 
     @abc.abstractmethod
     async def connect(self, session: Session) -> ResultT:
@@ -174,7 +175,7 @@ class ConnectionSubscription[UpdateT: Any]:
         self.connection = connection
         self.subject = subject
         self._since_epoch = since_epoch
-        self._subscribed_at_ns = get_oracle().time_ns()
+        self._subscribed_at_ns = connection.oracle.time_ns()
         self._closed_at_ns: int | None = None
         self._update_queue: asyncio.Queue[UpdateT] = asyncio.Queue()
 
@@ -186,7 +187,7 @@ class ConnectionSubscription[UpdateT: Any]:
 
     @property
     def active_duration(self) -> float:
-        return (get_oracle().time_ns() - self._subscribed_at_ns) / 1_000_000
+        return (self.connection.oracle.time_ns() - self._subscribed_at_ns) / 1_000_000
 
     @property
     def queue(self) -> asyncio.Queue[UpdateT]:
@@ -195,7 +196,7 @@ class ConnectionSubscription[UpdateT: Any]:
     def cancel(self):
         if self._closed_at_ns is not None:
             raise RuntimeError(f"{self!r} is already closed")
-        self._closed_at_ns = get_oracle().time_ns()
+        self._closed_at_ns = self.connection.oracle.time_ns()
         self.connection.unsubscribe(self)
 
 
@@ -385,8 +386,9 @@ class AggregateConnection(Connection[AggregateResultData, WatchAggregateUpdate])
 class ConnectionIndex:
     """Connect and cache queries to the graph."""
 
-    def __init__(self, scope: GraphScope):
+    def __init__(self, scope: GraphScope, oracle: Oracle):
         self.scope = scope
+        self.oracle = oracle
         self._connections_by_hash: dict[int, Connection] = {}
         self._connections_by_token: dict[str, Connection] = {}
         self._lock_by_connection: dict[int, asyncio.Lock] = {}
@@ -409,7 +411,7 @@ class ConnectionIndex:
         if len(self._connections_by_hash) == 0:
             return  # nothing to do
         before_count = len(self._connections_by_hash)
-        now_ns = get_oracle().time_ns()
+        now_ns = self.oracle.time_ns()
         for connection in tuple(self._connections_by_hash.values()):
             if (
                 not connection.has_subscribers
@@ -432,7 +434,7 @@ class ConnectionIndex:
             query._read_type == connection_t.read_type
         ), f"unexpected {query!r} (want {connection_t})"
         if not cache:
-            connection = connection_t(self.scope, query)
+            connection = connection_t(self.scope, query, self.oracle)
             await connection.connect(session)
             logger.debug(
                 f"connect.{query._read_type.name.lower()}",
@@ -452,7 +454,7 @@ class ConnectionIndex:
                 connection = self._connections_by_hash.get(query_hash)
                 was_cached = connection is not None
                 if connection is None:
-                    connection = connection_t(self.scope, query)
+                    connection = connection_t(self.scope, query, self.oracle)
                     await connection.connect(session)
                     self._add_connection(connection)
                 else:

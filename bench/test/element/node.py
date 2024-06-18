@@ -7,7 +7,6 @@ from bench.language.bench import Client, ServerProfile
 from bench.language.const import BlockType, ClientType, NodeType
 from bench.language.session import Session
 from bench.language.setup import NODE_CLASSES, STRUCT_CLASSES
-from bench.utils.oracle import get_oracle
 
 
 def test_struct_regular_properties_are_available():
@@ -61,7 +60,7 @@ def test_node_pointers_consistency(session: "Session"):
     assert server_a.bench_id == bench_a.id
     client_a = Client(
         parent=server_a,
-        seen_at=get_oracle().utc(),
+        seen_at=session._oracle.utc(),
         type=ClientType.BENCH_MOBILE,
         name="Testificate's iPhone",
     )

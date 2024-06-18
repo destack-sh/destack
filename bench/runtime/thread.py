@@ -22,7 +22,7 @@ from bench.proto import wiring
 from bench.proto.wire import GraphScope, HostStub, RunData, SupervisorStub
 from bench.runtime.core import BENCH_QUERY, PACKAGE_QUERY
 from bench.utils.func import CriticalLock
-from bench.utils.oracle import get_oracle
+from bench.utils.oracle import Oracle
 from bench.utils.task import TaskManager
 
 if TYPE_CHECKING:
@@ -49,6 +49,7 @@ class RuntimeThread:
         machine_id: UUID | None,
         engines: tuple[GraphEngine, ...],
         queue: asyncio.Queue[RunData],
+        oracle: Oracle,
     ):
         self.id = id
 
@@ -69,6 +70,7 @@ class RuntimeThread:
         self._client: Client | None = None
         self._machine: Machine | None = None
         self._engines = engines
+        self._oracle = oracle
 
         # processing
         self._session: Session | None = None
@@ -76,7 +78,7 @@ class RuntimeThread:
             name=f"{self.__class__.__name__}_{self._bench_id or ''}_{self.id}"
         )
         self._queue = queue
-        self._tasks = TaskManager(owner=self, logger=logger)
+        self._tasks = TaskManager(owner=self, logger=logger, oracle=oracle)
 
     def __str__(self):
         return f"{self.id} on {repr(self.bench) if self.bench else self._bench_id}"
@@ -115,18 +117,14 @@ class RuntimeThread:
     async def start(self):
         # setup thread
         self._session = Session(
-            # client=self._client,
-            # machine=self._machine,
             server=self._machine.parent if self._machine else None,
-            # user=self._client.parent if isinstance(self._client.parent, User) else None,
             _is_readonly=False,
             _default_scope=GraphScope(bench_id=str(self._bench_id)),
             _engines=self._engines,
             _supervisor=self._supervisor,
             _host=self._host,
-            # _subject=self._client.parent,
-            # _origin=self._client.to_origin(),
             _supergraph=self._supergraph,
+            _oracle=self._oracle,
         )
         await self._session.open(set_in_context=False)
 
@@ -170,7 +168,7 @@ class RuntimeThread:
             run_data.parent_ptr and UUID(run_data.parent_ptr.id) == package.id
         ), f"{run_data!r} not in {package!r}"
 
-        async with self.session(readonly=False, autocommit=True):
+        async with self.session(readonly=False, autocommit=True) as session:
             run = wiring.unpack_object_validate(
                 run_data,
                 supergraph=self._supergraph,
@@ -180,7 +178,7 @@ class RuntimeThread:
             )
             run._unpack_values_inplace()  # values are a bit crummy :NoFakeComputed
             run.status = RunStatus.RUNNING
-            run.started_at = get_oracle().utc()
+            run.started_at = session._oracle.utc()
             run.started_epoch = self.epoch
             run_token = _active_run.set(run)
             logger.info("run.start", thread=self, run=run)
@@ -209,7 +207,7 @@ class RuntimeThread:
                 run.fail(RunError.from_exception(e))
                 logger.error("run.fail", thread=self, run=run, error=e, exc_info=e)
             finally:
-                run.terminated_at = get_oracle().utc()
+                run.terminated_at = session._oracle.utc()
                 run.terminated_epoch = self.epoch
                 run.duration = (run.terminated_at - run.started_at).total_seconds()
                 _active_run.reset(run_token)

@@ -52,7 +52,7 @@ from bench.sql.engine import (
 )
 from bench.utils.env import REPOSITORY_PATH
 from bench.utils.func import partition, re_search_or_error
-from bench.utils.oracle import get_oracle
+from bench.utils.oracle import Oracle
 from bench.utils.utils import format_python
 
 if TYPE_CHECKING:
@@ -227,6 +227,7 @@ def _load_migration_from_path(migration: Migration) -> MigrationFile:
 async def sql_migrate(
     cur: psycopg.AsyncCursor,
     target: str | int | None,
+    oracle: Oracle,
     *,
     is_global: bool,
     store: Optional["Store"] = None,
@@ -275,7 +276,12 @@ async def sql_migrate(
         return []
     else:
         await _do_sql_migrate(
-            cur, migrations_to_apply, is_upgrade=is_upgrade, is_global=is_global, store=store
+            cur,
+            migrations_to_apply,
+            oracle=oracle,
+            is_upgrade=is_upgrade,
+            is_global=is_global,
+            store=store,
         )
         log.debug("migrations.apply", cur=cur, migrations=migrations_to_apply, store=store)
 
@@ -297,13 +303,13 @@ async def sql_migrate(
 async def _do_sql_migrate(
     cur: psycopg.AsyncCursor,
     migrations: Collection[Migration],
+    oracle: Oracle,
     *,
     is_upgrade: bool,
     is_global: bool,
     store: Optional["Store"] = None,
 ):
     """Applies the given migrations in the given order."""
-    now = get_oracle().utc()
     for migration in migrations:
         func_name = (
             f"{(is_upgrade and 'upgrade') or 'downgrade'}_{(is_global and 'global') or 'local'}"
@@ -323,7 +329,7 @@ async def _do_sql_migrate(
             )
             raise
         if is_upgrade:
-            migration.applied_at = now
+            migration.applied_at = oracle.utc()
         else:
             migration.applied_at = None
         logger.debug("migration.apply", cur=cur, migration=migration, store=store, span="current")
@@ -509,6 +515,7 @@ def generate_sql_migration_ops(old_schema: Schema, new_schema: Schema) -> list[M
 @tracer.start_as_current_span("sql.generate_migration_code")
 def generate_sql_migration_code(
     migration: Migration,
+    oracle: Oracle,
     *,
     global_ops: list[MigrationOp],
     local_ops: list[MigrationOp],
@@ -518,7 +525,6 @@ def generate_sql_migration_code(
     migration_code = Path(MIGRATIONS_TEMPLATE_PATH).read_text()
 
     # impute header/metadata
-    oracle = get_oracle()
     today = oracle.utc().astimezone(oracle.tz).date().strftime("%Y.%m.%d")
     metadata_substitutions: dict[str, str] = {
         "# <Header>": f"# This migration was automatically generated on {today}. Edit as needed.",

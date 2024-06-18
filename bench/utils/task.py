@@ -2,7 +2,7 @@ import asyncio
 import contextlib
 from typing import Any, Awaitable, Callable, Coroutine
 
-from bench.utils.oracle import get_oracle
+from bench.utils.oracle import Oracle
 from bench.utils.utils import sentry_capture
 
 
@@ -27,6 +27,7 @@ class TaskManager:
         *,
         owner: Any,
         logger: Any,
+        oracle: Oracle,
         on_error: Callable[[Exception], None] | None = None,
         task_id_prefix: str | None = None,
     ):
@@ -34,6 +35,7 @@ class TaskManager:
         self._errors = []
         self._owner = owner
         self._logger = logger
+        self._oracle = oracle
         self._on_error = on_error
         self._task_id_prefix = task_id_prefix
 
@@ -114,7 +116,7 @@ class TaskManager:
     ) -> None:
         while True:
             try:
-                await get_oracle().sleep(run_every)
+                await self._oracle.sleep(run_every)
             except (asyncio.CancelledError, RuntimeError):
                 self._logger.trace("task.cancelled", owner=self._owner, task_id=task_id)
                 break

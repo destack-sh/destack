@@ -5,7 +5,7 @@ from typing import Any, Awaitable, Callable, Coroutine, Type, TypeVar, Union
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 
-from bench.utils.oracle import get_oracle
+from bench.utils.oracle import Oracle
 
 T = TypeVar("T")
 
@@ -28,14 +28,14 @@ class RetryOptions:
     def __repr__(self) -> str:
         return f"<RetryOptions {self}>"
 
-    def get_wait_interval(self, attempt: int) -> float:
+    def get_wait_interval(self, attempt: int, oracle: Oracle) -> float:
         interval = min(self.retry_interval * (self.backoff**attempt), self.max_retry_interval)
         if self.jitter is not None:
-            interval *= 1 + self.jitter * (2 * get_oracle().random.random() - 1)
+            interval *= 1 + self.jitter * (2 * oracle.random.random() - 1)
         return interval
 
-    def new(self):
-        return RetryState(options=self, start_ns=get_oracle().time_ns())
+    def new(self, oracle: Oracle):
+        return RetryState(options=self, start_ns=oracle.time_ns(), oracle=oracle)
 
 
 class RetryError(Exception):
@@ -55,6 +55,7 @@ class RetryState:
 
     options: RetryOptions
     start_ns: float
+    oracle: Oracle
     errors: list[Exception] | None = None
     attempt: int = 0
 
@@ -91,10 +92,10 @@ class RetryState:
 
     @property
     def duration_ns(self) -> float:
-        return get_oracle().time_ns() - self.start_ns
+        return self.oracle.time_ns() - self.start_ns
 
     def get_wait_interval(self) -> float:
-        return self.options.get_wait_interval(self.attempt)
+        return self.options.get_wait_interval(self.attempt, self.oracle)
 
     def to_error(self, operation: Any = None) -> RetryError | Exception:
         if self.errors:
@@ -105,15 +106,19 @@ class RetryState:
 
 def retry(
     options: Union[RetryOptions, Callable[..., RetryOptions]],
+    oracle: Oracle,
     on_error: Callable[..., Awaitable[T]] | None = None,
 ):
-    """Retry the decorated coroutine function on certain exceptions."""
+    """
+    Retry the decorated coroutine function on certain exceptions.
+    Simple decorator for when you have a fixed oracle.
+    """
 
     def decorator(func: Callable[..., Awaitable[T]]) -> Callable[..., Coroutine[None, None, T]]:
         @wraps(func)
         async def wrapper(*args, **kwargs) -> T:
             opt = options(*args, **kwargs) if callable(options) else options
-            retry = opt.new()
+            retry = opt.new(oracle)
             while retry.should_retry:
                 retry.on_attempt()
                 try:
@@ -124,7 +129,7 @@ def retry(
                         on_error(*args, **kwargs, e=e)
                     if not retry.should_retry:
                         raise
-                    await get_oracle().sleep(retry.get_wait_interval())
+                    await oracle.sleep(retry.get_wait_interval())
             raise retry.to_error()
 
         return wrapper

@@ -39,7 +39,6 @@ from bench.sql.client import close_pg_connection_pool
 from bench.system.core import MockHost, global_session
 from bench.system.provisioner import get_provisioners_for
 from bench.test.simulation.conftest import UserHandle, make_random_user_handle
-from bench.utils.oracle import get_oracle
 from bench.utils.tenacity import RETRY_NEVER
 
 logger = structlog.get_logger(__name__)
@@ -150,7 +149,6 @@ async def make_some_bench(supervisor: SupervisorStub, host: HostStub):
 
     # decommission
     async with global_session() as session:
-        start = get_oracle().time_ns()
         provisioners = get_provisioners_for(MockHost(session), bench)
         bench = await Bench.descendants(*ROOT_RESOURCE_NODE_TYPES).get(id=bench_id)
         for resource in bench.resources:
@@ -164,12 +162,7 @@ async def make_some_bench(supervisor: SupervisorStub, host: HostStub):
                     break
             else:
                 raise RuntimeError(f"no provisioner for {resource!r} in {provisioners!r}")
-        logger.debug(
-            "test_host.decommissioned",
-            bench=bench,
-            resources=list(bench.resources),
-            duration=get_oracle().time_ns() - start,
-        )
+        logger.debug("test_host.decommissioned", bench=bench, resources=list(bench.resources))
         await session.commit()
 
 

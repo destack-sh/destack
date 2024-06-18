@@ -33,6 +33,7 @@ from bench.proto.wiring import BENCH_CLASS_BY_PROTO_CLASS
 from bench.sql.engine import SqlAlreadyExistsError, SqlNotExistsError
 from bench.utils.casing import Casing, to_casing
 from bench.utils.env import IS_DEV, IS_TEST
+from bench.utils.oracle import Oracle
 from bench.utils.task import TaskManager
 from bench.utils.tracing import export_now
 from bench.utils.utils import sentry_capture
@@ -70,10 +71,11 @@ class ServiceBase:
 
     kind: ClassVar[ServiceKind]
 
-    def __init__(self, logger: Any, tracer: trace.Tracer):
-        self.tasks = TaskManager(owner=self, logger=logger)
+    def __init__(self, *, logger: Any, tracer: trace.Tracer, oracle: Oracle):
         self.logger = logger
         self.tracer = tracer
+        self.oracle = oracle
+        self.tasks = TaskManager(owner=self, logger=logger, oracle=oracle)
 
     async def start(self) -> None:
         """Start the service. Should be ready for service when returning."""
