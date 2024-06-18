@@ -10,6 +10,9 @@
       "program": "${file}",
       "purpose": ["debug-test"],
       "console": "integratedTerminal",
+      "env": {
+        "PYTEST_ADDOPTS": "--no-cov",
+      },
       "justMyCode": false
     },
     // general configs

@@ -21,6 +21,7 @@ from bench.language import (
 )
 from bench.language.const import ClientType, EnumType, NodeType
 from bench.language.field import TypeKind
+from bench.language.session import Session
 from bench.sql.client import pg_store_connection
 from bench.sql.core import GLOBAL_EXTENSIONS, Column, Schema, Table
 from bench.sql.engine import (
@@ -35,8 +36,6 @@ from bench.sql.engine import (
     pg_upsert,
 )
 from bench.sql.migration import force_create_schema
-from bench.system.core import global_session
-from bench.test.conftest import bench_session
 
 _TEST_TYPES = (
     PrimitiveType.BOOLEAN,
@@ -191,53 +190,48 @@ async def test_crud_rows(test_cur: psycopg.AsyncCursor, table: Table):
     assert db_rows == target_rows
 
 
-async def test_crud_node_pointers():
+async def test_crud_node_pointers(session: Session):
     """Ensures that node pointers (parent, regular, ancestor) roundtrip correctly"""
     # write
-    async with global_session() as session:
-        bench: Bench = Bench(slug="test", name="test_b", region=Region.GLOBAL, encryption_key="yo")
-        session._create(bench)
-        await session.flush()
-        server = bench.servers.create(name="Production A", profile=ServerProfile.TINY)
-        store = bench.stores.create(name="Production A")
-        drive = bench.drives.create(name="Production A")
-        client = server.clients.create(type=ClientType.BENCH_MOBILE, name="Testificate's iPhone")
-        environment = bench.environments.create(
-            name="main a", server=server, store=store, drive=drive
-        )
-        branch = bench.branches.create(name="main a")
-        package = branch.packages.create(environment=environment)
-        await session.flush()
-        branch.main_package = package
-        bench.main_environment = environment
-        bench.main_branch = branch
-        await session.commit()
-        bench._untrack_rec()
+    bench: Bench = Bench(slug="test", name="test_b", region=Region.GLOBAL, encryption_key="yo")
+    session._create(bench)
+    await session.flush()
+    server = bench.servers.create(name="Production A", profile=ServerProfile.TINY)
+    store = bench.stores.create(name="Production A")
+    drive = bench.drives.create(name="Production A")
+    client = server.clients.create(type=ClientType.BENCH_MOBILE, name="Testificate's iPhone")
+    environment = bench.environments.create(name="main a", server=server, store=store, drive=drive)
+    branch = bench.branches.create(name="main a")
+    package = branch.packages.create(environment=environment)
+    await session.flush()
+    branch.main_package = package
+    bench.main_environment = environment
+    bench.main_branch = branch
+    await session.commit()
+    bench._untrack_rec()
 
-    async with bench_session(bench) as session:
-        session.track(bench)
-        block_1 = package.blocks.create(type=BlockType.CODE)
-        block_1.fields.create(name="foo", kind=TypeKind.ENUM, bench_type=EnumType.PRIMITIVE_TYPE)
-        await session.commit()
+    session.track(bench)
+    block_1 = package.blocks.create(type=BlockType.CODE)
+    block_1.fields.create(name="foo", kind=TypeKind.ENUM, bench_type=EnumType.PRIMITIVE_TYPE)
+    await session.commit()
 
     # read back
-    async with bench_session(bench) as session:
-        server = await Server.include_ancestors().get(id=server.id)
-        assert server.parent_ptr
-        assert server.parent_ptr._equals_content(bench.to_ref())
-        assert server.bench_id == bench.id
-        assert server.to_ref()._equals_content(
-            NodeReference(type=NodeType.SERVER, id=server.id, ck=server.ck, bench_id=bench.id)
-        )
+    server = await Server.include_ancestors().get(id=server.id)
+    assert server.parent_ptr
+    assert server.parent_ptr._equals_content(bench.to_ref())
+    assert server.bench_id == bench.id
+    assert server.to_ref()._equals_content(
+        NodeReference(type=NodeType.SERVER, id=server.id, ck=server.ck, bench_id=bench.id)
+    )
 
-        client = await Client.include_ancestors().get(id=client.id)
-        assert client.bench_id == bench.id
-        assert client.to_ref()._equals_content(
-            NodeReference(type=NodeType.CLIENT, id=client.id, ck=client.ck, bench_id=bench.id)
-        )
+    client = await Client.include_ancestors().get(id=client.id)
+    assert client.bench_id == bench.id
+    assert client.to_ref()._equals_content(
+        NodeReference(type=NodeType.CLIENT, id=client.id, ck=client.ck, bench_id=bench.id)
+    )
 
-        block_1 = await Block.include_ancestors().get(id=block_1.id)
-        assert block_1.bench_id == bench.id
-        assert block_1.to_ref()._equals_content(
-            NodeReference(type=NodeType.BLOCK, id=block_1.id, ck=block_1.ck, bench_id=bench.id)
-        )
+    block_1 = await Block.include_ancestors().get(id=block_1.id)
+    assert block_1.bench_id == bench.id
+    assert block_1.to_ref()._equals_content(
+        NodeReference(type=NodeType.BLOCK, id=block_1.id, ck=block_1.ck, bench_id=bench.id)
+    )

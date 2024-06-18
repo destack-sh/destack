@@ -32,7 +32,8 @@ from bench.proto.wire import (
     SupervisorStub,
 )
 from bench.system.core import global_session
-from bench.test.conftest import UserHandle, make_new_user_handle, raises_grpc_error
+from bench.test.conftest import raises_grpc_error
+from bench.test.simulation.conftest import UserHandle, make_new_user_handle
 from bench.utils.oracle import get_oracle
 
 
