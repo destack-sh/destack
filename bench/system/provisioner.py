@@ -10,15 +10,7 @@ from bench.language.const import VERSION, NodeType
 from bench.sql.client import pg_store_connection
 from bench.sql.engine import sqlstr
 from bench.sql.migration import sql_migrate
-from bench.system.core import (
-    GLOBAL_PG_HOST,
-    GLOBAL_PG_PASSWORD,
-    GLOBAL_PG_USERNAME,
-    GLOBAL_STORE,
-    Commit,
-    DeferredHostPlugin,
-    HostSpec,
-)
+from bench.system.core import Commit, DeferredHostPlugin, HostSpec
 from bench.system.neon import NeonApi
 from bench.utils.env import ENV, IS_DEV, IS_TEST, Env
 from bench.utils.func import bittuple
@@ -232,10 +224,13 @@ class LocalhostPostgresStoreProvisioner(StoreProvisioner):
             async with self.host.session(autocommit=True):
                 resource.external_name = f"{ENV}-{resource.bench_id}"
         # create database through existing connection
-        async with pg_store_connection(GLOBAL_STORE, autocommit=True) as cur:
+        # (use same postgres instance as global store)
+        async with pg_store_connection(self.host.global_store, autocommit=True) as cur:
             await cur.execute(sqlstr(f'CREATE DATABASE "{resource.external_name}"'))
         async with self.host.session(autocommit=True):
-            resource.connection_uri = f"postgresql://{GLOBAL_PG_USERNAME}:{GLOBAL_PG_PASSWORD}@{GLOBAL_PG_HOST}/{resource.external_name}"
+            connection_uri = self.host.global_store.connection_uri
+            assert connection_uri, f"{self.host.global_store!r} has no connection URI"
+            resource.connection_uri = f"{connection_uri.rsplit('/', 1)[0]}/{resource.external_name}"
             if not resource.version:
                 resource.version = VERSION
             resource.status = ResourceStatus.HEALTHY
@@ -245,7 +240,7 @@ class LocalhostPostgresStoreProvisioner(StoreProvisioner):
     @override
     async def _do_decommission(self, resource: Store):
         # drop database through existing connection
-        async with pg_store_connection(GLOBAL_STORE) as cur:
+        async with pg_store_connection(self.host.global_store) as cur:
             await cur.execute(sqlstr(f'DROP DATABASE "{resource.external_name}"'))
 
 

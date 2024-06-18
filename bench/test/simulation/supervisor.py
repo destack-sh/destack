@@ -31,7 +31,6 @@ from bench.proto.wire import (
     SignupUserRequest,
     SupervisorStub,
 )
-from bench.system.core import global_session
 from bench.test.fixtures import raises_grpc_error
 from bench.test.simulation.conftest import UserHandle, make_new_user_handle
 

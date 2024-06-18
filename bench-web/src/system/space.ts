@@ -1,5 +1,5 @@
-import { getHostClient, supervisor } from "@/proto/services";
-import { BenchData, BranchData, EditType, NodeType, SpaceType } from "@/proto/wire";
+import { getHostClient } from "@/proto/services";
+import { BenchData, BranchData, NodeType, SpaceType } from "@/proto/wire";
 import {
   nodeReference,
   toNodeReference,

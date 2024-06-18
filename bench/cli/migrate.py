@@ -30,7 +30,12 @@ from bench.sql.migration import (
     read_migrations_from_pg,
 )
 from bench.sql.migration import sql_migrate as _migrate
-from bench.system.core import GLOBAL_STORE, global_pg_cursor, global_session
+from bench.system.core import (
+    global_pg_cursor,
+    global_pg_engine_from_store,
+    global_session,
+    global_store_from_env,
+)
 from bench.utils.oracle import REAL_ORACLE
 from bench.utils.utils import format_python
 
@@ -48,6 +53,8 @@ async def make(
     overwrite: bool = typer.Option(default=False, help="overwrite existing migration for version"),
 ):
     start = time.time()
+    global_store = global_store_from_env()
+    global_pg_engine = global_pg_engine_from_store(global_store)
 
     # check existing migrations for inconsistencies
     file_migrations = read_migrations_from_fs()
@@ -62,7 +69,7 @@ async def make(
             raise RuntimeError(
                 f"existing migration for version {VERSION}: {conflicting_migration!r}"
             )
-    async with global_pg_cursor() as cur:
+    async with global_pg_cursor(global_store) as cur:
         stored_migrations = await read_migrations_from_pg(cur)
     max_file_id = max(m.id for m in file_migrations) if file_migrations else 0
     max_stored_id = max(m.id for m in stored_migrations) if stored_migrations else 0
@@ -73,7 +80,7 @@ async def make(
 
     # diff local
     if not no_local:
-        async with global_session():
+        async with global_session(global_store, (global_pg_engine,), REAL_ORACLE):
             try:
                 bench_node = (
                     await Bench.descendants(Environment, Store).select_all().get(slug=bench)
@@ -88,7 +95,7 @@ async def make(
         local_migration_ops = []
 
     # diff global
-    async with global_pg_cursor() as cur:
+    async with global_pg_cursor(global_store) as cur:
         old_global_schema = await introspect_sql_schema(cur)
     global_migration_ops = generate_sql_migration_ops(old_global_schema, GLOBAL_SCHEMA)
 
@@ -131,10 +138,12 @@ async def apply(
     dry_run: bool = typer.Option(default=False, help="only try, don't commit"),
 ):
     start = time.time()
+    global_store = global_store_from_env()
+    global_pg_engine = global_pg_engine_from_store(global_store)
 
     # resolve local_pg_name (determine local/global migration)
     if bench is not None:
-        async with global_session():
+        async with global_session(global_store, (global_pg_engine,), REAL_ORACLE):
             if bench != "*":
                 bench_node = (
                     await Bench.descendants(Environment, Store).select_all().get(slug=bench)
@@ -144,7 +153,7 @@ async def apply(
                 benches = await Bench.descendants(Environment, Store).select_all().tolist()
                 stores = tuple(e.store for b in benches for e in b.environments)
     else:
-        stores = (GLOBAL_STORE,)
+        stores = (global_store,)
 
     for store in stores:
         async with pg_store_connection(store) as cur:
@@ -161,12 +170,14 @@ async def apply(
 @async_to_sync_blocking
 async def clear(from_id: int, to_id: int):
     start = time.time()
+    global_store = global_store_from_env()
+    global_pg_engine = global_pg_engine_from_store(global_store)
 
     delete_migrations_in_fs(from_id, to_id)
-    async with global_pg_cursor() as cur:
+    async with global_pg_cursor(global_store) as cur:
         await delete_migrations_in_pg(cur, from_id=from_id, to_id=to_id)
         await cur.connection.commit()
-    async with global_session():
+    async with global_session(global_store, (global_pg_engine,), REAL_ORACLE):
         benches = await Bench.search()
         for bench in benches:
             stores = tuple(e.store for e in bench.environments)
@@ -183,9 +194,11 @@ async def clear(from_id: int, to_id: int):
 async def introspect(bench: Optional[str] = None):  # type: ignore
     """Introspect the current schema of the Postgres instance."""
     start = time.perf_counter()
+    global_store = global_store_from_env()
+    global_pg_engine = global_pg_engine_from_store(global_store)
 
     if bench is not None:
-        async with global_session():
+        async with global_session(global_store, (global_pg_engine,), REAL_ORACLE):
             bench_node = await Bench.descendants(NodeType.ENVIRONMENT, NodeType.STORE).get(
                 slug=bench
             )
@@ -195,7 +208,7 @@ async def introspect(bench: Optional[str] = None):  # type: ignore
                 cur, include_columns=True, include_indexes=True, include_constraints=True
             )
     else:
-        async with global_pg_cursor() as cur:
+        async with global_pg_cursor(global_store) as cur:
             schema = await introspect_sql_schema(
                 cur, include_columns=True, include_indexes=True, include_constraints=True
             )

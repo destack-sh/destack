@@ -11,7 +11,7 @@ from opentelemetry import trace
 from bench.language.setup import NODE_CLASSES
 from bench.sql.core import Schema
 from bench.sql.engine import GLOBAL_SCHEMA, NODE_TABLES, map_node_class_to_pg_table
-from bench.system.core import global_pg_cursor
+from bench.system.core import global_pg_cursor, global_store_from_env
 
 if TYPE_CHECKING:
     pass
@@ -93,7 +93,8 @@ async def check_is_consistent(*, check_db: bool) -> None:
     # and diff DB state
     if check_db:
         # check global
-        async with global_pg_cursor() as cur:
+        global_store = global_store_from_env()
+        async with global_pg_cursor(global_store) as cur:
             old_global_schema = await introspect_sql_schema(cur)
             await cur.connection.rollback()
         migration_ops = generate_sql_migration_ops(old_global_schema, GLOBAL_SCHEMA)

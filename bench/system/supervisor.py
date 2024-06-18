@@ -7,7 +7,7 @@ from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 from opentelemetry import trace
 
-from bench.language import Bench, Client, NodeReference, Server, User
+from bench.language import Bench, Client, NodeReference, Server, Store, User
 from bench.language.access import Subject
 from bench.language.bench import Region, ServerProfile
 from bench.language.const import USER_NODE_TYPES, ClientType, NodeType, OrganizationStatus
@@ -41,7 +41,7 @@ from bench.system.access import (
     hash_password,
     purge_client_caches,
 )
-from bench.system.core import GLOBAL_POSTGRES_ENGINE, MockHost, global_session
+from bench.system.core import MockHost, global_pg_engine_from_store, global_session
 from bench.system.graph import GraphIoServiceBase
 from bench.system.provisioner import provision
 from bench.utils.func import generate_access_token, generate_salt, to_uuid
@@ -54,7 +54,7 @@ tracer = trace.get_tracer(__name__)
 class Supervisor(GraphIoServiceBase, SupervisorBase):
     kind = ServiceKind.PUBLIC  # :ServiceKind
 
-    def __init__(self, oracle: Oracle):
+    def __init__(self, global_store: Store, oracle: Oracle):
         GraphIoServiceBase.__init__(
             self,
             bench_id=None,
@@ -63,6 +63,8 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
             tracer=tracer,
             oracle=oracle,
         )
+        self._global_store = global_store
+        self._global_pg_engine = global_pg_engine_from_store(global_store)
 
     def __str__(self):
         return "shards=[*]"
@@ -81,7 +83,7 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
 
     @override
     def get_engines(self):
-        return (GLOBAL_POSTGRES_ENGINE,)
+        return (self._global_pg_engine,)
 
     @tracer.start_as_current_span("supervisor.get_request_subject")
     async def get_request_subject(
@@ -91,7 +93,7 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
         #  (like we do in Host, since we have the entire Bench cached and ready there,
         #   and we don't expect to need Bench-level auth in the supervisor for now).
 
-        async with global_session():
+        async with global_session(self._global_store, self.get_engines(), self.oracle):
             # request will use the subject's supergraph, so ensure all subjects are created in session
             if not metadata.client_id or not metadata.client_access_token:
                 return Subject(is_authenticated=False)
