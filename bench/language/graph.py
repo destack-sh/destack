@@ -407,14 +407,14 @@ class NodeSuperGraph:
     def get(self, ptr: "UUID | NodeReference") -> Optional["Node"]:
         """Get a node by some key."""
         if isinstance(ptr, UUID):
-            # check all graphs
+            # check all graphs :c
             for graph in self._graphs:
                 node = graph.get(ptr)
                 if node is not None:
                     return node
             return None
         else:
-            # check only graphs that have the node type
+            # check only graphs that have the node type :)
             graphs = self._graphs_by_node_type.get(ptr.type, ())
             for graph in graphs:
                 node = graph.get(cast(UUID, ptr.id))

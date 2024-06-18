@@ -3,11 +3,11 @@ from itertools import chain
 import pytest
 
 from bench.language import Bench, Environment, NodeReference, Property, Server, Signal
-from bench.language.bench import Client
-from bench.language.const import BlockType, NodeType
-from bench.language.field import Field
+from bench.language.bench import Client, ServerProfile
+from bench.language.const import BlockType, ClientType, NodeType
 from bench.language.session import Session
 from bench.language.setup import NODE_CLASSES, STRUCT_CLASSES
+from bench.utils.oracle import get_oracle
 
 
 def test_struct_regular_properties_are_available():
@@ -34,9 +34,14 @@ def test_node_pointers_consistency(session: "Session"):
     assert bench_a.to_ref()._equals_content(
         NodeReference(type=NodeType.BENCH, id=bench_a.id, ck=bench_a.ck, bench_id=bench_a.id)
     )
+    server_a = bench_a.servers.create(name="Server", profile=ServerProfile.TINY)
+    store_a = bench_a.stores.create(name="Store")
+    drive_a = bench_a.drives.create(name="Drive")
 
     # sub bench, above package pointers
-    environment_a = bench_a.environments.create(name="Production A")
+    environment_a = bench_a.environments.create(
+        name="Production A", server=server_a, store=store_a, drive=drive_a
+    )
     assert environment_a.bench_id == bench_a.id
     assert environment_a.to_ref()._equals_content(
         NodeReference(
@@ -52,9 +57,14 @@ def test_node_pointers_consistency(session: "Session"):
     assert branch_a.parent_ptr.id == bench_a.id
 
     # sub bench nested pointers
-    server_a: Server = Server(parent=bench_a, name="Main")
+    server_a: Server = Server(parent=bench_a, name="Main", profile=ServerProfile.TINY)
     assert server_a.bench_id == bench_a.id
-    client_a = Client(parent=server_a, name="Testificate's iPhone")
+    client_a = Client(
+        parent=server_a,
+        seen_at=get_oracle().utc(),
+        type=ClientType.BENCH_MOBILE,
+        name="Testificate's iPhone",
+    )
     assert client_a.bench_id == bench_a.id
     assert client_a.to_ref()._equals_content(
         NodeReference(type=NodeType.CLIENT, id=client_a.id, ck=client_a.ck, bench_id=bench_a.id)
@@ -90,7 +100,12 @@ def test_node_pointers_consistency(session: "Session"):
 
     # refs pointing to different bench
     bench_b = Bench(slug="test_b", name="test_b")
-    environment_b = Environment(parent=bench_b, name="Production B")
+    server_b = bench_b.servers.create(name="Server", profile=ServerProfile.TINY)
+    store_b = bench_b.stores.create(name="Store")
+    drive_b = bench_b.drives.create(name="Drive")
+    environment_b = Environment(
+        parent=bench_b, name="Production B", server=server_b, store=store_b, drive=drive_b
+    )
     branch_b = bench_b.branches.create(name="main b")
     package_b = branch_b.packages.create(environment=environment_b)
     block_b = package_b.blocks.create(type=BlockType.CODE, bases=[block_a_1])
@@ -111,24 +126,3 @@ def test_node_pointers_consistency(session: "Session"):
     )
     assert signal_b.parent_ptr
     assert signal_b.parent_ptr.bench_id == bench_b.id
-
-
-@pytest.mark.skip("TODO :Incomplete: Path")
-def test_node_absolute_path(session: "Session"):
-    bench = Bench(slug="test", name="Test")
-    assert bench.absolute_path == "test"
-
-    branch = bench.branches.create(name="Main")
-    assert branch.absolute_path == "test"  # should ignore branch
-
-    package = branch.packages.create(name="Main")
-    assert package.absolute_path == "test"  # should ignore package
-
-    page = package.blocks.create(name="Applications", type=BlockType.PAGE, is_page=True)
-    assert page.absolute_path == "test/Applications"
-
-    subpage = page.blocks.create(name="My Page", type=BlockType.PAGE, is_page=True)
-    assert subpage.absolute_path == "test/Applications/My Page"
-
-    subpage_field = subpage.fields.append(Field.member("My Field", str))
-    assert subpage_field.absolute_path == "test/Applications/My Page.My Field"

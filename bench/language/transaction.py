@@ -595,12 +595,8 @@ def edit_graph(
                 setattr(new_node_data, "updated_epoch", edit.edited_at)
             new_node_data.created_by_ptr = new_node_data.updated_by_ptr = edit.subject_ptr
             # unpack
-            if new_node_data.parent_ptr is not None:
-                parent = graph.get(UUID(new_node_data.parent_ptr.id))
-            else:
-                parent = None
             node = wiring.unpack_object(
-                new_node_data, supergraph=supergraph, parent=parent, expect=Node
+                new_node_data, graph=graph, supergraph=supergraph, expect=Node
             )
             if edit_type == EditType.CREATE or node.id not in graph:
                 graph.add(node)

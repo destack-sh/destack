@@ -1351,7 +1351,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     _connection: "GetConnection | SearchConnection" = p_runtime(default=None)
     _is_new: bool = p_runtime(default=False)
 
-    def __init__(self, **kwargs):
+    def __init__(self, *, _skip_add_self: bool = False, **kwargs):
         super().__init__(**kwargs, _skip_init_self=True)
 
         # init ck/id
@@ -1374,8 +1374,8 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         assert self._supergraph is not NULL_SUPERGRAPH, f"no supergraph for {self!r}"
         if self._graph is not None:
             # use given graph
-            self._supergraph = self._graph.supergraph
-            self._graph.add(self)
+            if not _skip_add_self:
+                self._graph.add(self)
         elif self.parent_ptr is not None:
             # use parents graph
             parent = self.parent
@@ -1383,8 +1383,8 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
                 parent is not None
             ), f"parent for {type(self).__name__} not in {self._supergraph!r}: {self.parent_ptr!r}"
             self._graph = parent._graph
-            self._graph.add(self)
-            self._supergraph = parent._supergraph
+            if not _skip_add_self:
+                self._graph.add(self)
         else:
             # no parent, create our own graph
             # if we're not in a graph, start a new one

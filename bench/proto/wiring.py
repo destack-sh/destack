@@ -182,12 +182,16 @@ def pack_object_maybe[T: AnyStructData | AnyNodeData](
 def unpack_object[T: BuiltinObject](
     obj_data: AnyStructData | AnyNodeData,
     *,
-    graph: NodeGraph | None = None,
-    supergraph: NodeSuperGraph | None,
-    connection: Connection | None = None,
-    parent: Node | None = None,
     expect: type[T] | None = None,
+    supergraph: NodeSuperGraph | None,
     session: Session | None = None,
+    connection: Connection | None = None,
+    # for nodes
+    graph: NodeGraph | None = None,
+    parent: Node | None = None,
+    # NOTE: by default new Nodes add themselves to their graph, but during
+    #  unpacking we almost never want this (because we manage it manually outside of sessions).
+    skip_add_self: bool = True,
 ) -> T:
     """Unpack a builtin object and any contained structs without validating."""
     supergraph = supergraph or NULL_SUPERGRAPH
@@ -203,15 +207,17 @@ def unpack_object[T: BuiltinObject](
             object_kwargs[prop.name] = unpack_object_prop(
                 prop, value, supergraph=supergraph, ignore_array=False
             )
-        if parent is not None:
-            object_kwargs["_parent"] = parent
-        if graph is not None:
-            object_kwargs["_graph"] = graph
-        if connection is not None:
-            object_kwargs["_connection"] = connection
         object_kwargs["_supergraph"] = supergraph
         if session is not None:
             object_kwargs["_session"] = session
+        if issubclass(object_cls, Node):
+            if parent is not None:
+                object_kwargs["_parent"] = parent
+            if graph is not None:
+                object_kwargs["_graph"] = graph
+            if connection is not None:
+                object_kwargs["_connection"] = connection
+            object_kwargs["_skip_add_self"] = skip_add_self
         obj = object_cls(**object_kwargs)
         if session is not None and isinstance(obj, Node):
             obj._track_self(session)
@@ -225,7 +231,6 @@ def unpack_object_validate[T: BuiltinObject](
     *,
     supergraph: NodeSuperGraph | None,
     parent: Node | None = None,
-    scope: Node | None = None,
     expect: type[T] | None = None,
     session: Session | None = None,
 ) -> T:
@@ -241,7 +246,6 @@ def unpack_object_validate_maybe[T: BuiltinObject](
     obj_data: AnyStructData | AnyNodeData | None,
     *,
     supergraph: NodeSuperGraph | None,
-    scope: Node | None = None,
     expect: type[T] | None = None,
     session: Session | None = None,
 ) -> T | None:
@@ -251,7 +255,6 @@ def unpack_object_validate_maybe[T: BuiltinObject](
         return unpack_object_validate(
             obj_data,
             supergraph=supergraph,
-            scope=scope,
             expect=expect,
             session=session,
         )
@@ -303,6 +306,7 @@ def unpack_node_graph(
                 parent=node_parent,
                 expect=Node,
             )
+            graph.add(node)
 
             # keep parent instance if it was passed (update it in place)
             if node.id == parent_id:

@@ -243,6 +243,9 @@ class GraphEngine(abc.ABC):
         self.scope = scope
         self.node_types = node_types
 
+    def __str__(self) -> str:
+        return ""
+
     def __repr__(self):
         self_str = str(self)
         if self_str:
@@ -428,7 +431,7 @@ class Connection[
     @property
     def has_result(self) -> bool:
         """Whether the connection has a result for the query."""
-        return self._result is not None
+        return self._result_data is not None
 
     @property
     def result(self) -> ResultT:

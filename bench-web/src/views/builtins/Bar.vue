@@ -255,6 +255,15 @@ const dockActions: Ref<Action[]> = computed(
           </template>
         </Popover>
       </template>
+      <template v-else>
+        <!-- Not logged in -->
+        <button
+          class="px-2 py-1 text-base text-gray-700 hover:bg-gray-100 hover:text-primary-900"
+          @click="fireActionById('user.auth.login')"
+        >
+          <i class="fas fa-arrow-right-from-bracket" />
+        </button>
+      </template>
     </div>
   </div>
 </template>
