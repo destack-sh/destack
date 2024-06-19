@@ -30,6 +30,7 @@ import structlog
 from bitarray import bitarray
 
 from bench.language.const import (
+    FLOAT_EPSILON,
     IN_BENCH_NODE_TYPES,
     IN_PACKAGE_NODE_TYPES,
     NODE_TYPES,
@@ -812,7 +813,9 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
     _supergraph: "NodeSuperGraph" = p_runtime(default=None)
     _updated_properties: bitarray | None = p_runtime(default=None)
 
-    def __init__(self, *, _skip_init_self: bool = False, **kwargs):
+    def __init__(
+        self, *, _skip_init_self: bool = False, _skip_validate_self: bool = False, **kwargs
+    ):
         self_dict = self.__dict__
 
         # init session / supergraph context (first)
@@ -921,6 +924,10 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
             if wired_ptr_prop is not None:
                 self_dict[wired_ptr_prop.name] = wired_prop_value
 
+        # validate self
+        if self._session is not None and not _skip_validate_self:
+            self._validate_self((), invalid=on_invalid_raise)
+
         # and init components
         if not _skip_init_self:
             self._init_self()
@@ -949,9 +956,12 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
                 continue  # ignore identity/tracking
             self_value = getattr(self, prop.name)
             other_value = getattr(other, prop.name)
-            if self_value != other_value and (
-                prop.py_type_stripped is not float
-                or not math.isclose(self_value, other_value, rel_tol=1e-5)
+            if self_value != other_value and not (
+                type(self_value) is float
+                and type(other_value) is float
+                and math.isclose(
+                    self_value, other_value, rel_tol=FLOAT_EPSILON, abs_tol=FLOAT_EPSILON
+                )
             ):
                 return False
         return True
@@ -1355,7 +1365,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     def __init__(
         self, *, _skip_add_self: bool = False, _skip_validate_self: bool = False, **kwargs
     ):
-        super().__init__(**kwargs, _skip_init_self=True)
+        super().__init__(**kwargs, _skip_init_self=True, _skip_validate_self=True)
 
         # init ck/id
         if isinstance(self, HasPersistentIdentity):

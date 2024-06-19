@@ -141,8 +141,7 @@ enum BenchType {
   BENCH_TYPE_READ_OPTIONS = 1050;
   BENCH_TYPE_EXPRESSION = 1060;
   BENCH_TYPE_AGGREGATION = 1061;
-  BENCH_TYPE_AGGREGATION_BUCKET = 1062;
-  BENCH_TYPE_SELECTION = 1063;
+  BENCH_TYPE_SELECTION = 1070;
   BENCH_TYPE_CODE = 1090;
   BENCH_TYPE_CODE_LINE = 1091;
   BENCH_TYPE_STEP_CONNECTION = 1100;
@@ -747,8 +746,7 @@ enum ObjectType {
   OBJECT_TYPE_READ_OPTIONS = 1050;
   OBJECT_TYPE_EXPRESSION = 1060;
   OBJECT_TYPE_AGGREGATION = 1061;
-  OBJECT_TYPE_AGGREGATION_BUCKET = 1062;
-  OBJECT_TYPE_SELECTION = 1063;
+  OBJECT_TYPE_SELECTION = 1070;
   OBJECT_TYPE_CODE = 1090;
   OBJECT_TYPE_CODE_LINE = 1091;
   OBJECT_TYPE_STEP_CONNECTION = 1100;
@@ -1044,8 +1042,7 @@ enum StructType {
   STRUCT_TYPE_READ_OPTIONS = 1050;
   STRUCT_TYPE_EXPRESSION = 1060;
   STRUCT_TYPE_AGGREGATION = 1061;
-  STRUCT_TYPE_AGGREGATION_BUCKET = 1062;
-  STRUCT_TYPE_SELECTION = 1063;
+  STRUCT_TYPE_SELECTION = 1070;
   STRUCT_TYPE_CODE = 1090;
   STRUCT_TYPE_CODE_LINE = 1091;
   STRUCT_TYPE_STEP_CONNECTION = 1100;
@@ -1268,14 +1265,6 @@ message AggregationData {
   optional bool exists = 31;
   optional int32 count = 32;
   optional float scalar = 33;
-  repeated AggregationBucketData buckets = 34;
-}
-
-// One bucket of an aggregation histogram.
-message AggregationBucketData {
-  ObjectType metatype = 1;
-  google.protobuf.Struct key = 30;
-  int32 count = 31;
 }
 
 // A box value. Absolute units are in pixels, ideally in Spacing scale.

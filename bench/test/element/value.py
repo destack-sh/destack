@@ -127,7 +127,12 @@ def test_roundtrip_builtin_object_value(
     packed_wire_obj = wiring.pack_object(obj)
     packed_json = pack_builtin_object_data(packed_wire_obj)
     unpacked_wire_obj = unpack_builtin_object_data(packed_json)
-    unpacked_obj = wiring.unpack_object(unpacked_wire_obj)  # type: ignore
+    unpacked_obj = wiring.unpack_object(
+        unpacked_wire_obj,
+        supergraph=shared_session._supergraph,
+        graph=shared_session._graph,
+        session=shared_session,
+    )
     assert unpacked_obj._equals_content(obj), f"{unpacked_obj!r} != {obj!r}"
 
 

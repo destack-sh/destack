@@ -940,7 +940,7 @@ function makeMainWindow(space: SpaceData, tx: Transaction): ViewData {
 }
 
 /** Clears all views from canvas */
-export function clearCanvas(tx: Transaction, graph: ReadNodeGraph, space: SpaceData) {
+export function clearSpace(tx: Transaction, graph: ReadNodeGraph, space: SpaceData) {
   const roots = graph.getChildren(space, NodeType.VIEW);
   for (const root of roots) {
     tx.delete(root);

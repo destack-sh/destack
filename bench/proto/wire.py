@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.06.19.1"
+VERSION = "2024.06.19.2"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -176,8 +176,7 @@ class BenchType(betterproto.Enum):
     READ_OPTIONS = 1050
     EXPRESSION = 1060
     AGGREGATION = 1061
-    AGGREGATION_BUCKET = 1062
-    SELECTION = 1063
+    SELECTION = 1070
     CODE = 1090
     CODE_LINE = 1091
     STEP_CONNECTION = 1100
@@ -790,8 +789,7 @@ class ObjectType(betterproto.Enum):
     READ_OPTIONS = 1050
     EXPRESSION = 1060
     AGGREGATION = 1061
-    AGGREGATION_BUCKET = 1062
-    SELECTION = 1063
+    SELECTION = 1070
     CODE = 1090
     CODE_LINE = 1091
     STEP_CONNECTION = 1100
@@ -1102,8 +1100,7 @@ class StructType(betterproto.Enum):
     READ_OPTIONS = 1050
     EXPRESSION = 1060
     AGGREGATION = 1061
-    AGGREGATION_BUCKET = 1062
-    SELECTION = 1063
+    SELECTION = 1070
     CODE = 1090
     CODE_LINE = 1091
     STEP_CONNECTION = 1100
@@ -1351,16 +1348,6 @@ class AggregationData(betterproto.Message):
     exists: Optional[bool] = betterproto.bool_field(31, optional=True)
     count: Optional[int] = betterproto.int32_field(32, optional=True)
     scalar: Optional[float] = betterproto.float_field(33, optional=True)
-    buckets: List["AggregationBucketData"] = betterproto.message_field(34)
-
-
-@dataclass(eq=False, repr=False)
-class AggregationBucketData(betterproto.Message):
-    """One bucket of an aggregation histogram."""
-
-    metatype: "ObjectType" = betterproto.enum_field(1)
-    key: "betterproto_lib_google_protobuf.Struct" = betterproto.message_field(30)
-    count: int = betterproto.int32_field(31)
 
 
 @dataclass(eq=False, repr=False)
@@ -4913,7 +4900,6 @@ AnyStructData = Union[
     ReadOptionsData,
     ExpressionData,
     AggregationData,
-    AggregationBucketData,
     SelectionData,
     CodeData,
     CodeLineData,
