@@ -16,3 +16,6 @@ class WorkloadType(enum.StrEnum):
 class WorkloadSpec:
     name: str
     type: WorkloadType
+
+
+# ... in specific Workload types
