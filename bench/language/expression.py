@@ -8,8 +8,6 @@ from uuid import UUID
 from bench.language.const import (
     BASED_NODE_TYPES,
     IN_BENCH_NODE_TYPES,
-    SUB_BENCH_NODE_TYPES,
-    USER_NODE_TYPES,
     AggregationOp,
     ConditionalOp,
     EnumType,
@@ -120,12 +118,14 @@ class NodeReference(InlineStruct[NodeReferenceData]):
     ) -> None:
         if self.id is None:
             invalid(self, "id is required", (NodeReference.id,))
-        if (
-            self.type in SUB_BENCH_NODE_TYPES
-            and self.type not in USER_NODE_TYPES
-            and self.bench_id is None
-        ):
-            invalid(self, "bench_id is required", (NodeReference.bench_id,))
+        # NOTE :Robustness: we use to require bench_id for sub-bench types here
+        #  but sometimes we send around nodes (with references) before they are attached
+        # if (
+        #     self.type in SUB_BENCH_NODE_TYPES
+        #     and self.type not in USER_NODE_TYPES
+        #     and self.bench_id is None
+        # ):
+        #     invalid(self, "bench_id is required", (NodeReference.bench_id,))
 
     @staticmethod
     def from_node(node: Node) -> "NodeReference":
@@ -502,17 +502,6 @@ class Aggregation(Struct):
     exists: Optional[bool] = p_regular(31, default=None)
     count: Optional[int] = p_regular(32, default=None)
     scalar: Optional[float] = p_regular(33, default=None)
-    buckets: list["AggregationBucket"] | None = p_regular(
-        34, array=True, struct=StructType.AGGREGATION_BUCKET
-    )
-
-
-@struct_(StructType.AGGREGATION_BUCKET, inline=True)
-class AggregationBucket(InlineStruct):
-    """One bucket of an aggregation histogram."""
-
-    key: Any = p_regular(30, require=True, primitive_type=PrimitiveType.JSON)
-    count: int = p_regular(31, require=True)
 
 
 def coerce_conditional(

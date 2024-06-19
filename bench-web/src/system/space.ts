@@ -112,6 +112,8 @@ export async function assignSpaceInPackage() {
       type: SpaceType.DESKTOP, // should derive this later :HeterogenousClients
       parentPtr: toNodeReference(pkg.value),
       packagePtr: toNodeReference(pkg.value),
+      name: "MySpace",
+      orderKey: "a0",
     });
     createEmptySpace(pkgConnection.tx, space);
     local.setSpace(toNodeReference(space));

@@ -28,7 +28,7 @@ import { generateRandomName } from "@/utils/naming";
 import { Casing, toCasing } from "@/utils/string";
 import {
   DEFAULT_BAR_POSITION,
-  clearCanvas,
+  clearSpace,
   collectViewComponentsUp,
   createDefaultDesktopSpace,
   createEmptySpace,
@@ -1034,7 +1034,7 @@ contributeActionMap<"view">({
       if (pkg.value == null) return;
       if (space.value == null) throw new Error(`${describeNode(pkg.value)} has no space`);
       const tx = canvas.txFactory();
-      clearCanvas(tx, canvas.graph, space.value);
+      clearSpace(tx, canvas.graph, space.value);
       createEmptySpace(tx, space.value);
     },
   },
@@ -1047,7 +1047,7 @@ contributeActionMap<"view">({
       if (pkg.value == null) return;
       if (space.value == null) throw new Error(`${describeNode(pkg.value)} has no space`);
       const tx = canvas.txFactory();
-      clearCanvas(tx, canvas.graph, space.value);
+      clearSpace(tx, canvas.graph, space.value);
       createDefaultDesktopSpace(tx, space.value);
     },
   },

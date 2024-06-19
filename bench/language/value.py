@@ -18,6 +18,7 @@ import structlog
 from betterproto.lib.google.protobuf import Struct as ProtoStruct
 
 from bench.language.const import (
+    FLOAT_EPSILON,
     PY_TYPE_BY_PRIMITIVE_TYPE,
     UNSET,
     EnumType,
@@ -398,7 +399,23 @@ def coerce_value(
 # Type checking
 #
 
-EPSILON = 1e-6
+# bounds checking
+MIN_VALUE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, Any] = {
+    PrimitiveType.INT16: -(2**15),
+    PrimitiveType.INT32: -(2**31),
+    PrimitiveType.INT64: -(2**63),
+    PrimitiveType.FLOAT32: -3.4028235e38,
+    PrimitiveType.FLOAT64: -1.7976931348623157e308,
+    PrimitiveType.INTERVAL: timedelta(days=-(1000 * 365)),
+}
+MAX_VALUE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, Any] = {
+    PrimitiveType.INT16: 2**15 - 1,
+    PrimitiveType.INT32: 2**31 - 1,
+    PrimitiveType.INT64: 2**63 - 1,
+    PrimitiveType.FLOAT32: 3.4028235e38,
+    PrimitiveType.FLOAT64: 1.7976931348623157e308,
+    PrimitiveType.INTERVAL: timedelta(days=(1000 * 365)),
+}
 
 
 def check_value_scalar(value: SomeValue, typ: "TypeInfoBase", invalid: "ValidationHandler") -> None:
@@ -406,10 +423,12 @@ def check_value_scalar(value: SomeValue, typ: "TypeInfoBase", invalid: "Validati
     if typ.kind == TypeKind.PRIMITIVE:
         expected_type = PY_TYPE_BY_PRIMITIVE_TYPE.get(cast(PrimitiveType, typ.primitive_type))
         if expected_type is None:
-            pass  # nothing to check?
+            return  # nothing to check?
         elif type(value) is not expected_type:
             invalid(value, "not of type", typ)
-        elif typ.constraint is not None:
+            return  # also nothing to do
+        # check constraint
+        if typ.constraint is not None:
             if type(value) is int or type(value) is float:
                 if typ.constraint.min_value is not None and value < typ.constraint.min_value:
                     invalid(value, "too small", typ)
@@ -417,7 +436,7 @@ def check_value_scalar(value: SomeValue, typ: "TypeInfoBase", invalid: "Validati
                     invalid(value, "too large", typ)
                 if (
                     typ.constraint.step_value is not None
-                    and value % typ.constraint.step_value > EPSILON
+                    and value % typ.constraint.step_value > FLOAT_EPSILON
                 ):
                     invalid(value, f"not a multiple of {typ.constraint.step_value}", typ)
             if type(value) is str:
@@ -435,6 +454,16 @@ def check_value_scalar(value: SomeValue, typ: "TypeInfoBase", invalid: "Validati
                     typ.constraint.ends_with
                 ):
                     invalid(value, f"does not end with {typ.constraint.ends_with}", typ)
+        # strings cannot be empty (because we use protobuf and have to disambiguate unset from empty)
+        if type(value) is str and len(value) == 0:
+            invalid(value, "empty string", typ)
+        # check bounds
+        min_value = MIN_VALUE_BY_PRIMITIVE_TYPE.get(cast(PrimitiveType, typ.primitive_type))
+        max_value = MAX_VALUE_BY_PRIMITIVE_TYPE.get(cast(PrimitiveType, typ.primitive_type))
+        if min_value is not None and value < min_value:
+            invalid(value, "too small", typ)
+        if max_value is not None and value > max_value:
+            invalid(value, "too large", typ)
     elif typ.kind == TypeKind.NODE or typ.kind == TypeKind.BASED_NODE:
         if not getattr(type(cast("Node", value)), "__is_node__", False):
             invalid(value, "not a Node", typ)
@@ -466,7 +495,7 @@ def _check_is_list(
     value: SomeValue, typ: "TypeInfoBase", invalid: "ValidationHandler"
 ) -> TypeGuard[list]:
     """Checks whether the given value is a list of the expected dimensions."""
-    if not isinstance(value, list):
+    if not isinstance(value, (list, tuple)):
         invalid(value, "not a list", typ)
         return False
     if typ.constraint is not None:

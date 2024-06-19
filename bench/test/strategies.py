@@ -23,6 +23,7 @@ from bench.language.field import DEFAULT_CONSTRAINT, Field, TypeInfo, TypeInfoBa
 from bench.language.node import BuiltinObject
 from bench.language.setup import ENUM_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE, OBJECT_CLASS_BY_TYPE
 from bench.language.validation import ValidationError
+from bench.language.value import MAX_VALUE_BY_PRIMITIVE_TYPE, MIN_VALUE_BY_PRIMITIVE_TYPE
 from bench.utils.fractional import INTEGER_ZERO
 
 logger = structlog.get_logger(__name__)
@@ -75,16 +76,6 @@ ENUM_TYPE_STRATEGY = st.sampled_from(EnumType)
 STRUCT_TYPE_STRATEGY = st.sampled_from(StructType)
 OBJECT_TYPE_STRATEGY = st.sampled_from(ObjectType)
 
-MIN_BY_PRIMITIVE_TYPE: dict[PrimitiveType, int] = {
-    PrimitiveType.INT16: -(2**15),
-    PrimitiveType.INT32: -(2**31),
-    PrimitiveType.INT64: -(2**63),
-}
-MAX_BY_PRIMITIVE_TYPE: dict[PrimitiveType, int] = {
-    PrimitiveType.INT16: 2**15 - 1,
-    PrimitiveType.INT32: 2**31 - 1,
-    PrimitiveType.INT64: 2**63 - 1,
-}
 
 STRATEGY_BY_PRIMITIVE_TYPE: dict[PrimitiveType, st.SearchStrategy] = {
     PrimitiveType.BOOLEAN: st.booleans(),
@@ -99,9 +90,11 @@ STRATEGY_BY_PRIMITIVE_TYPE: dict[PrimitiveType, st.SearchStrategy] = {
     PrimitiveType.JSON: JSON_STRATEGY,
     PrimitiveType.BYTES: st.binary(),
     PrimitiveType.DATETIME: st.datetimes(timezones=st.just(pytz.utc)),
-    PrimitiveType.INTERVAL: st.timedeltas(),
+    PrimitiveType.INTERVAL: st.timedeltas(
+        min_value=MIN_VALUE_BY_PRIMITIVE_TYPE[PrimitiveType.INTERVAL],
+        max_value=MAX_VALUE_BY_PRIMITIVE_TYPE[PrimitiveType.INTERVAL],
+    ),
 }
-
 STRATEGY_BY_PROPERTY_NAME: dict[str, st.SearchStrategy] = {
     "order_key": ORDER_KEY_STRATEGY,
 }
@@ -117,15 +110,10 @@ def properties(object_type: ObjectType | None = None):
         return st.sampled_from(tuple(object_cls.__declared_properties__.values()))
 
 
-object_types = st.sampled_from(ObjectType)
-node_types = st.sampled_from(NodeType)
-struct_types = st.sampled_from(StructType)
-
-
 @cacheable
 @defines_strategy()
 def from_type_info_scalar(typ: TypeInfoBase) -> st.SearchStrategy[Any]:
-    """Turns a type into a strategy for a scalar. Considers constraints."""
+    """Turns a type into a strategy for a scalar. Considers constraints. See check_value_scalar."""
     constraint = typ.constraint or DEFAULT_CONSTRAINT
     if typ.kind == TypeKind.PRIMITIVE:
         # apply constraints to primitive types
@@ -134,18 +122,28 @@ def from_type_info_scalar(typ: TypeInfoBase) -> st.SearchStrategy[Any]:
             min_value = (
                 int(constraint.min_value)
                 if constraint.min_value is not None
-                else MIN_BY_PRIMITIVE_TYPE[typ.primitive_type]
+                else cast(int, MIN_VALUE_BY_PRIMITIVE_TYPE[typ.primitive_type])
             )
             max_value = (
                 int(constraint.max_value)
                 if constraint.max_value is not None
-                else MAX_BY_PRIMITIVE_TYPE[typ.primitive_type]
+                else cast(int, MAX_VALUE_BY_PRIMITIVE_TYPE[typ.primitive_type])
             )
             return st.integers(min_value=min_value, max_value=max_value)
         elif typ.primitive_type in (PrimitiveType.FLOAT32, PrimitiveType.FLOAT64):
+            min_value = (
+                (constraint.min_value)
+                if constraint.min_value is not None
+                else cast(float, MIN_VALUE_BY_PRIMITIVE_TYPE[typ.primitive_type])
+            )
+            max_value = (
+                (constraint.max_value)
+                if constraint.max_value is not None
+                else cast(float, MAX_VALUE_BY_PRIMITIVE_TYPE[typ.primitive_type])
+            )
             return st.floats(
-                min_value=constraint.min_value,
-                max_value=constraint.max_value,
+                min_value=min_value,
+                max_value=max_value,
                 allow_nan=False,
                 allow_infinity=False,
             )
@@ -339,7 +337,9 @@ def fields(draw: st.DrawFn, kinds: st.SearchStrategy[TypeKind]):
 
 @cacheable
 @st.composite
-def builtin_objects(draw: st.DrawFn, object_types: st.SearchStrategy[ObjectType] = object_types):
+def builtin_objects(
+    draw: st.DrawFn, object_types: st.SearchStrategy[ObjectType] = OBJECT_TYPE_STRATEGY
+):
     object_type = draw(object_types)
     return draw(from_object_type(object_type, reject_invalid=True))
 

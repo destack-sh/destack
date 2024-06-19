@@ -11,7 +11,8 @@ from datetime import datetime
 from typing import Any, Collection, Iterable, Mapping, Self, Union
 
 import betterproto
-from betterproto import Message as BetterprotoMessage
+from betterproto import Message as ProtoMessage
+from betterproto import _Duration as ProtoDuration
 from betterproto.lib.google.protobuf import ListValue, NullValue
 from betterproto.lib.google.protobuf import Struct as ProtoStruct
 from betterproto.lib.google.protobuf import Value as ProtoValue
@@ -65,10 +66,10 @@ class _PatchedProtoClassMetadata(betterproto.ProtoClassMetadata):
 betterproto.ProtoClassMetadata._get_default_gen = _PatchedProtoClassMetadata._get_default_gen  # type: ignore
 
 
-# monkey-patch betterproto to provide to_robust_dict/from_robust_dict serialization :RobustJson
+# monkey-patch betterproto Messages for better __str__/__repr__ on messages
 
 
-class _PatchedMessage(BetterprotoMessage):
+class _PatchedMessage(ProtoMessage):
     def __str__(self):
         str_parts = []
         for field_name in (
@@ -135,6 +136,12 @@ def _unwrap_value(value: ProtoValue) -> Any:
         return [_unwrap_value(e) for e in v.values]
     else:
         return v
+
+
+# monkey-patch '_Duration' to fix floating preicion loss
+
+
+class _PatchedDuration(ProtoDuration): ...
 
 
 # monkey-patch betterproto 'Struct' to fix from_dict/to_dict for nested messages

@@ -21,10 +21,11 @@ class _Unset:
         return "<UNSET!>"
 
 
-VERSION = "2024.06.19.1"
+VERSION = "2024.06.19.2"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
+FLOAT_EPSILON = 1e-6
 UNSET = cast(Any, _Unset())
 EMPTY_LIST: list = []
 EMPTY_SET: frozenset = frozenset()
@@ -33,7 +34,7 @@ EMPTY_SCOPE = GraphScope()
 
 
 def new_struct_id() -> int:
-    id = secrets.randbits(32)
+    id = secrets.randbits(31)
     if id < 0:
         id = -id
     return id
@@ -308,8 +309,7 @@ class StructType(IdEnum):
     # expressions
     EXPRESSION = 1060
     AGGREGATION = 1061
-    AGGREGATION_BUCKET = 1062
-    SELECTION = 1063
+    SELECTION = 1070
 
     # code
     CODE = 1090

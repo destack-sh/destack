@@ -28,7 +28,7 @@ class Schedule(Struct):
     timezone: Optional[str] = p_regular(31, default=pytz.utc.zone)
 
     # interval
-    every: int = p_regular(40, default=1, constraint=TypeConstraintIn(min_value=0, max_value=60))
+    every: int = p_regular(40, default=1, constraint=TypeConstraintIn(min_value=1, max_value=60))
     interval: TimeInterval = p_regular(41, default=TimeInterval.DAY)
     offset: Optional[timedelta] = p_regular(42, default=None)
 
@@ -50,6 +50,9 @@ class Schedule(Struct):
         if self.type == ScheduleType.CRON:
             if not self.cron or not croniter.is_valid(self.cron):
                 invalid(self, f"invalid cron ('{self.cron}')", (Schedule.cron,))
+        if self.offset is not None:
+            if self.offset.days < 0:
+                invalid(self, "negative offset ('{self.offset}')", (Schedule.offset,))
 
 
 @node_(NodeType.TRIGGER)
