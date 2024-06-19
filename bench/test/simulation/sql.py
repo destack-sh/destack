@@ -18,10 +18,13 @@ from bench.language import (
     Region,
     Server,
     ServerProfile,
+    Store,
 )
-from bench.language.const import ClientType, EnumType, NodeType
+from bench.language.const import ClientType, EnumType, NodeType, UserStatus
 from bench.language.field import TypeKind
+from bench.language.query import NodeNotFoundError
 from bench.language.session import Session
+from bench.language.user import User
 from bench.sql.client import pg_store_connection
 from bench.sql.core import GLOBAL_EXTENSIONS, Column, ObjectKind, Schema, Table
 from bench.sql.engine import (
@@ -46,7 +49,7 @@ from bench.sql.migration import (
 )
 from bench.utils.oracle import REAL_ORACLE
 
-_TEST_TYPES = (
+TEST_PRIMITIVE_TYPES = (
     PrimitiveType.BOOLEAN,
     PrimitiveType.INT32,
     PrimitiveType.FLOAT32,
@@ -54,7 +57,7 @@ _TEST_TYPES = (
     PrimitiveType.JSON,
     PrimitiveType.BYTES,
 )
-_MINI_REGULAR_TABLE = Table(
+MINI_REGULAR_TABLE = Table(
     "_test_mini_table",
     columns=(
         Column("id", PrimitiveType.INT32, is_primary_key=True),
@@ -62,16 +65,16 @@ _MINI_REGULAR_TABLE = Table(
         Column("foo_n", PrimitiveType.STRING, is_nullable=True),
     ),
 )
-_REGULAR_TABLE = Table(
+REGULAR_TABLE = Table(
     "_test_regular_table",
     columns=(
         Column("id", PrimitiveType.INT32, is_primary_key=True),
-        *(Column(f"regular_{t.name.lower()}", t) for t in _TEST_TYPES),
-        *(Column(f"regular_{t.name.lower()}_n", t, is_nullable=True) for t in _TEST_TYPES),
-        *(Column(f"regular_{t.name.lower()}_a", t, is_array=True) for t in _TEST_TYPES),
+        *(Column(f"regular_{t.name.lower()}", t) for t in TEST_PRIMITIVE_TYPES),
+        *(Column(f"regular_{t.name.lower()}_n", t, is_nullable=True) for t in TEST_PRIMITIVE_TYPES),
+        *(Column(f"regular_{t.name.lower()}_a", t, is_array=True) for t in TEST_PRIMITIVE_TYPES),
     ),
 )
-_MINI_ENCRYPTED_TABLE = Table(
+MINI_ENCRYPTED_TABLE = Table(
     "_test_mini_encrypted_table",
     columns=(
         Column("id", PrimitiveType.INT32, is_primary_key=True),
@@ -79,19 +82,19 @@ _MINI_ENCRYPTED_TABLE = Table(
         Column("secret_n", PrimitiveType.STRING, is_encrypted=True, is_nullable=True),
     ),
 )
-_ENCRYPTED_TABLE = Table(
+ENCRYPTED_TABLE = Table(
     "_test_encrypted_table",
     columns=(
         Column("id", PrimitiveType.INT32, is_primary_key=True),
-        *(Column(f"secret_{t.name.lower()}", t, is_encrypted=True) for t in _TEST_TYPES),
+        *(Column(f"secret_{t.name.lower()}", t, is_encrypted=True) for t in TEST_PRIMITIVE_TYPES),
         *(
             Column(f"secret_{t.name.lower()}_n", t, is_encrypted=True, is_nullable=True)
-            for t in _TEST_TYPES
+            for t in TEST_PRIMITIVE_TYPES
         ),
     ),
 )
-_TEST_TABLES = (_MINI_REGULAR_TABLE, _REGULAR_TABLE, _MINI_ENCRYPTED_TABLE, _ENCRYPTED_TABLE)
-_TEST_SCHEMA = Schema(extensions=GLOBAL_EXTENSIONS, tables=_TEST_TABLES)
+TEST_TABLES = (MINI_REGULAR_TABLE, REGULAR_TABLE, MINI_ENCRYPTED_TABLE, ENCRYPTED_TABLE)
+TEST_SCHEMA = Schema(extensions=GLOBAL_EXTENSIONS, tables=TEST_TABLES)
 
 # NOTE :Test: convert sql test values to hypothesis strategies?
 COLUMN_VALUE_GENERATORS: Mapping[PrimitiveType, Callable[[], Any]] = {
@@ -104,16 +107,24 @@ COLUMN_VALUE_GENERATORS: Mapping[PrimitiveType, Callable[[], Any]] = {
 }
 
 
-@pytest.fixture(autouse=True, scope="module")
-async def _test_tables():
-    from bench.system.core import GLOBAL_STORE
+@pytest.fixture()
+async def blank_cur(blank_store: Store):
+    async with pg_store_connection(blank_store, autocommit=True) as cur:
+        yield cur
 
-    async with pg_store_connection(GLOBAL_STORE, database="test") as cur:
-        await force_create_schema(cur, _TEST_SCHEMA)
+
+@pytest.fixture()
+async def test_cur(blank_store: Store):
+    # creates test schema
+    async with pg_store_connection(blank_store, autocommit=True) as cur:
+        await force_create_schema(cur, TEST_SCHEMA)
         await cur.connection.commit()
 
+    async with pg_store_connection(blank_store) as cur:
+        yield cur
 
-@pytest.mark.parametrize("table", _TEST_TABLES, ids=lambda t: t.name)
+
+@pytest.mark.parametrize("table", TEST_TABLES, ids=lambda t: t.name)
 async def test_crud_rows(test_cur: psycopg.AsyncCursor, table: Table):
     from bench.sql.client import _force_pg_crypto_key
 
@@ -200,8 +211,83 @@ async def test_crud_rows(test_cur: psycopg.AsyncCursor, table: Table):
     assert db_rows == target_rows
 
 
-async def test_crud_node_pointers(session: Session):
+async def _do_test_stored_migrations(cur: psycopg.AsyncCursor, *, is_global: bool):
+    # run all stored migrations
+    stored_migrations = read_migrations_from_fs()
+    await sql_migrate(cur, target=stored_migrations[-1].id, is_global=is_global, oracle=REAL_ORACLE)
+
+    # diff again (should be empty now)
+    current_schema = await introspect_sql_schema(cur)
+    new_schema = GLOBAL_SCHEMA if is_global else LOCAL_SCHEMA
+    current_ops = generate_sql_migration_ops(current_schema, new_schema)
+    current_ops = [op for op in current_ops if op.object_kind != ObjectKind.EXTENSION]
+    assert not current_ops, f"out of sync migrations, got {len(current_ops)} ops"
+
+
+async def test_stored_migrations_global(blank_cur: psycopg.AsyncCursor):
+    """Existing global migrations against a blank database."""
+    await _do_test_stored_migrations(blank_cur, is_global=True)
+
+
+async def test_stored_migrations_local(blank_cur: psycopg.AsyncCursor):
+    """Existing local migrations against a blank database."""
+    await _do_test_stored_migrations(blank_cur, is_global=False)
+
+
+async def test_cascade_edits(global_real_session: Session):
+    """Ensure basic cascading works"""
+    session = global_real_session
+
+    user_1 = User(
+        name="Rabbit", slug="rabbit", status=UserStatus.REGISTERED, email="rabbit@symbolx.com"
+    )
+    session._create(user_1)
+    await session.flush()
+
+    client_1_a = Client(parent=user_1, type=ClientType.BENCH_WEB, name="Rabbit's Web")
+    client_1_b = Client(parent=user_1, type=ClientType.BENCH_MOBILE, name="Rabbit's iPhone")
+    client_1_c = Client(parent=user_1, type=ClientType.BENCH_MOBILE, name="Rabbit's Android")
+    session._create(client_1_a, client_1_b, client_1_c)
+    await session.commit()
+
+    # delete non-cascading
+    session._delete(client_1_c)
+    await session.commit()
+    with pytest.raises(NodeNotFoundError):
+        await Client.get(id=client_1_c.id)
+
+    # delete cascading
+    session._delete(user_1)
+    edits, cascaded_edits = await session.commit()
+    assert len(edits) == 1
+    assert len(cascaded_edits) == 2
+    with pytest.raises(NodeNotFoundError):
+        await User.get(id=user_1.id)
+    with pytest.raises(NodeNotFoundError):
+        await Client.get(id=client_1_a.id)
+
+    # restore cascading
+    session._restore(user_1)
+    edits, cascaded_edits = await session.commit()
+    assert len(edits) == 1
+    assert len(cascaded_edits) == 2
+    assert await User.get(id=user_1.id)
+    assert await Client.get(id=client_1_a.id)
+    with pytest.raises(NodeNotFoundError):  # should only restore its own deleted children
+        await Client.get(id=client_1_c.id)
+
+    # restore non-cascading
+    session._restore(client_1_c)
+    edits, cascaded_edits = await session.commit()
+    assert len(edits) == 1
+    assert len(cascaded_edits) == 0
+    assert await Client.get(id=client_1_c.id)
+
+
+async def test_crud_node_pointers(global_real_session: Session):
     """Ensures that node pointers (parent, regular, ancestor) roundtrip correctly"""
+    session = global_real_session
+
     # write
     bench: Bench = Bench(slug="test", name="test_b", region=Region.GLOBAL, encryption_key="yo")
     session._create(bench)
@@ -245,28 +331,3 @@ async def test_crud_node_pointers(session: Session):
     assert block_1.to_ref()._equals_content(
         NodeReference(type=NodeType.BLOCK, id=block_1.id, ck=block_1.ck, bench_id=bench.id)
     )
-
-
-async def _do_test_stored_migrations(blank_test_cur: psycopg.AsyncCursor, *, is_global: bool):
-    # run all stored migrations
-    stored_migrations = read_migrations_from_fs()
-    await sql_migrate(
-        blank_test_cur, target=stored_migrations[-1].id, is_global=is_global, oracle=REAL_ORACLE
-    )
-
-    # diff again (should be empty now)
-    current_schema = await introspect_sql_schema(blank_test_cur)
-    new_schema = GLOBAL_SCHEMA if is_global else LOCAL_SCHEMA
-    current_ops = generate_sql_migration_ops(current_schema, new_schema)
-    current_ops = [op for op in current_ops if op.object_kind != ObjectKind.EXTENSION]
-    assert not current_ops, f"out of sync migrations, got {len(current_ops)} ops"
-
-
-async def test_stored_migrations_global(blank_global_test_cur: psycopg.AsyncCursor):
-    """Existing global migrations against a blank database."""
-    await _do_test_stored_migrations(blank_global_test_cur, is_global=True)
-
-
-async def test_stored_migrations_local(blank_local_test_cur: psycopg.AsyncCursor):
-    """Existing local migrations against a blank database."""
-    await _do_test_stored_migrations(blank_local_test_cur, is_global=False)

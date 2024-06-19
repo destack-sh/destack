@@ -37,11 +37,11 @@ from bench.proto.wire import (
     EditContextData,
     EditData,
     GraphScope,
-    HostStub,
+    HostClient,
     NodeReferenceData,
     SessionContextData,
     SessionData,
-    SupervisorStub,
+    SupervisorClient,
 )
 from bench.utils.func import CriticalLock, uuid_to_str
 from bench.utils.oracle import Oracle
@@ -123,8 +123,8 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
     _split_reads: bool = p_runtime(default=False)
     _default_scope: GraphScope = p_runtime(default_factory=GraphScope)
     _active_session_token: contextvars.Token | None = p_runtime(default=None)
-    _supervisor: Optional["SupervisorStub"] = p_runtime(default=None)
-    _host: Optional["HostStub"] = p_runtime(default=None)
+    _supervisor: Optional["SupervisorClient"] = p_runtime(default=None)
+    _host: Optional["HostClient"] = p_runtime(default=None)
 
     # system
     _oracle: Oracle = p_runtime()
@@ -185,13 +185,13 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
         return self._is_suspended
 
     @property
-    def supervisor(self) -> "SupervisorStub":
+    def supervisor(self) -> "SupervisorClient":
         """The remote supervisor."""
         assert self._supervisor is not None, f"supervisor not available in {self!r}"
         return self._supervisor
 
     @property
-    def host(self) -> "HostStub":
+    def host(self) -> "HostClient":
         """The remote host."""
         assert self._host is not None, f"host not available in {self!r}"
         return self._host

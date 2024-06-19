@@ -14,7 +14,6 @@ from bench.language.const import (
 )
 from bench.language.expression import A
 from bench.language.property import Property
-from bench.language.query import NodeNotFoundError
 from bench.language.transaction import new_edit_id, pack_node_delta
 from bench.language.user import Organization, UserStatus
 from bench.proto import wire, wiring
@@ -29,13 +28,13 @@ from bench.proto.wire import (
     RpcMetadata,
     SearchNodesRequest,
     SignupUserRequest,
-    SupervisorStub,
+    SupervisorClient,
 )
 from bench.test.fixtures import raises_grpc_error
 from bench.test.simulation.conftest import UserHandle, make_new_user_handle
 
 
-async def test_user_registration(supervisor: SupervisorStub):
+async def test_user_registration(supervisor: SupervisorClient):
     """Create a User, login and logout. Read back data to confirm."""
 
     user = User(slug="test", name="Test", email="test@symbolx.com", status=UserStatus.INVITED)
@@ -116,7 +115,7 @@ async def test_user_registration(supervisor: SupervisorStub):
         _ = await supervisor.get_nodes(read_user_req, metadata=access_headers)
 
 
-async def test_cross_user_access(supervisor: SupervisorStub):
+async def test_cross_user_access(supervisor: SupervisorClient):
     """Users can only take certain actions on themselves."""
 
     user_a = User(slug="alice", name="Alice", email="alice@bench.app", status=UserStatus.REGISTERED)
@@ -201,7 +200,7 @@ async def test_cross_user_access(supervisor: SupervisorStub):
 
 @pytest.mark.parametrize("node_type", PUBLIC_NODE_TYPES, ids=lambda t: t.name)
 async def test_public_node_read(
-    node_type: NodeType, some_user: UserHandle, supervisor: SupervisorStub
+    node_type: NodeType, some_user: UserHandle, supervisor: SupervisorClient
 ):
     """Public nodes should be readable, but not directly editable in any way."""
 
@@ -232,7 +231,7 @@ async def test_public_node_read(
     assert isinstance(aggregate_rep.aggregation.count, int)
 
 
-async def test_root_node_create_denied(some_user: UserHandle, supervisor: SupervisorStub):
+async def test_root_node_create_denied(some_user: UserHandle, supervisor: SupervisorClient):
     """Only the system can create root nodes."""
 
     node = Organization(name="test")
@@ -252,52 +251,3 @@ async def test_root_node_create_denied(some_user: UserHandle, supervisor: Superv
         commit_req = CommitTransactionRequest(id=str(uuid4()), edits=[edit])
         with raises_grpc_error(GRPCStatus.PERMISSION_DENIED, GRPCStatus.INVALID_ARGUMENT):
             _ = await supervisor.commit_transaction(commit_req, metadata=some_user.headers)
-
-
-async def test_cascade_edits():
-    # NOTE :Test: this is a placeholder test until we test graphs & edits more deeply (hypothesis?)
-    async with global_session() as session:
-        user_1 = User(
-            name="Rabbit", slug="rabbit", status=UserStatus.REGISTERED, email="rabbit@symbolx.com"
-        )
-        session._create(user_1)
-        await session.flush()
-
-        client_1_a = Client(parent=user_1, type=ClientType.BENCH_WEB, name="Rabbit's Web")
-        client_1_b = Client(parent=user_1, type=ClientType.BENCH_MOBILE, name="Rabbit's iPhone")
-        client_1_c = Client(parent=user_1, type=ClientType.BENCH_MOBILE, name="Rabbit's Android")
-        session._create(client_1_a, client_1_b, client_1_c)
-        await session.commit()
-
-        # delete non-cascading
-        session._delete(client_1_c)
-        await session.commit()
-        with pytest.raises(NodeNotFoundError):
-            await Client.get(id=client_1_c.id)
-
-        # delete cascading
-        session._delete(user_1)
-        edits, cascaded_edits = await session.commit()
-        assert len(edits) == 1
-        assert len(cascaded_edits) == 2
-        with pytest.raises(NodeNotFoundError):
-            await User.get(id=user_1.id)
-        with pytest.raises(NodeNotFoundError):
-            await Client.get(id=client_1_a.id)
-
-        # restore cascading
-        session._restore(user_1)
-        edits, cascaded_edits = await session.commit()
-        assert len(edits) == 1
-        assert len(cascaded_edits) == 2
-        assert await User.get(id=user_1.id)
-        assert await Client.get(id=client_1_a.id)
-        with pytest.raises(NodeNotFoundError):  # should only restore its own deleted children
-            await Client.get(id=client_1_c.id)
-
-        # restore non-cascading
-        session._restore(client_1_c)
-        edits, cascaded_edits = await session.commit()
-        assert len(edits) == 1
-        assert len(cascaded_edits) == 0
-        assert await Client.get(id=client_1_c.id)
