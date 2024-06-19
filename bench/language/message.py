@@ -41,7 +41,7 @@ class Message(
     If the parent is also a Message, then this is part of a thread. Threads may be nested.
     """
 
-    parent: MessageParent = p_node_parent(4, *MESSAGE_PARENT_TYPES)
+    parent: MessageParent | None = p_node_parent(4, *MESSAGE_PARENT_TYPES)
     origin: BenchNode = p_regular(32, require=True, references=LINK_TARGET_NODE_TYPES)
     path: Optional["Path"] = p_regular(33, require=False, array=False, struct=StructType.PATH)
     reply_to: Optional["Message"] = p_regular(

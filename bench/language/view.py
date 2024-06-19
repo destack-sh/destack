@@ -391,7 +391,7 @@ class Alignment(IdEnum):
 class View(SourceNode[ViewData], HasValues):
     """A view of a user interface in a Bench."""
 
-    parent: Union["Space", "View", "Block"] = p_node_parent(
+    parent: Union["Space", "View", "Block", None] = p_node_parent(
         4, NodeType.SPACE, NodeType.VIEW, NodeType.BLOCK
     )
 

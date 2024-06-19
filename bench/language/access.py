@@ -110,7 +110,7 @@ class Badge(SourceNode):
     The delegated policies apply at the parent scope OR given scopes (which must be below parent's).
     """
 
-    parent: Union["Package", "Block"] = p_node_parent(4, NodeType.PACKAGE, NodeType.BLOCK)  # type: ignore
+    parent: Union["Package", "Block", None] = p_node_parent(4, NodeType.PACKAGE, NodeType.BLOCK)  # type: ignore
     name: str = p_regular(31, constraint=NAME_CONSTRAINT)
     delegated_policies: list["Policy"] = p_regular(32, array=True, struct=StructType.POLICY)
     expires_at: Optional[datetime] = p_regular(33, default=None)
@@ -134,7 +134,9 @@ class Role(SourceNode):
     The delegated policies apply to all descendant's accesses.
     """
 
-    parent: Union["Block", "Membership"] = p_node_parent(4, NodeType.BLOCK, NodeType.MEMBERSHIP)  # type: ignore
+    parent: Union["Block", "Membership", None] = p_node_parent(  # type: ignore
+        4, NodeType.BLOCK, NodeType.MEMBERSHIP
+    )
     type: "Block" = p_regular(30, array=False, require=True, references=NodeType.BLOCK)
 
 
@@ -146,7 +148,7 @@ class Identity(SourceNode):
     The delegated policies apply to all descendant's accesses.
     """
 
-    parent: Union["Block", "Membership", "User"] = p_node_parent(  # type: ignore
+    parent: Union["Block", "Membership", "User", None] = p_node_parent(  # type: ignore
         4, NodeType.BLOCK, NodeType.MEMBERSHIP, NodeType.USER
     )
     type: "Block" = p_regular(30, array=False, require=True, references=NodeType.BLOCK)
@@ -472,11 +474,13 @@ class Subject(Struct):
             if str(membership.parent_id) in graph:
                 subjects.append(Subject(memberships=[membership], _supergraph=self._supergraph))
         for role in self.roles or ():
-            if role.parent_type == NodeType.BLOCK:
+            role_parent = role.parent
+            assert role_parent, f"role {role!r} has no parent"
+            if role_parent.metatype == NodeType.BLOCK:
                 if str(role.parent_id) in graph:
                     subjects.append(Subject(roles=[role], _supergraph=self._supergraph))
-            elif role.parent_type == NodeType.MEMBERSHIP:
-                if str(role.parent.parent_id) in graph:
+            elif role_parent.metatype == NodeType.MEMBERSHIP:
+                if str(role_parent.parent_id) in graph:
                     subjects.append(Subject(roles=[role], _supergraph=self._supergraph))
             else:
                 raise BenchError(f"unexpected parent to {role!r}")

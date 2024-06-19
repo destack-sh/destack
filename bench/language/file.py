@@ -34,7 +34,7 @@ class FileRetentionMode(IdEnum):
 class Blob(BenchResourceNode[BlobData]):
     """The actual file content stored as a Blob in a Drive. De-duped to 1 per sha512."""
 
-    parent: Drive = p_node_parent(4, NodeType.DRIVE, is_system=True)
+    parent: Drive | None = p_node_parent(4, NodeType.DRIVE, is_system=True)
     sha512: str = p_internal(40)
     size: int = p_internal(41, primitive_type=PrimitiveType.INT64)
     mime_type: str = p_internal(42)

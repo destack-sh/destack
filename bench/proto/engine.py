@@ -45,7 +45,12 @@ def map_bench_property_to_proto(prop: "Property", cache: dict[_ThingType, ProtoT
             id=prop.id,
             name=prop.name,
             type=proto_t,
-            optional=prop.is_optional or prop.is_deferred or prop.is_sensitive,
+            optional=prop.is_optional
+            or prop.is_deferred
+            or prop.is_sensitive
+            # NOTE: parent_ptr always needs to be optional since betterproto doesn'default inits it to an invalid object
+            #  otherwise if unset (this is usually set, but sometimes we want to send around detached nodes)
+            or prop.name == "parent_ptr",
             repeated=prop.is_list,
         )
     elif prop.primitive_type in PROTO_FIELD_TYPE_BY_PRIMITIVE_TYPE:

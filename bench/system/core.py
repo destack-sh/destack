@@ -74,6 +74,7 @@ def global_store_from_env() -> Store:
 
 def global_pg_engine_from_store(store: Store):
     """Get the global postgres engine for a global store"""
+    assert store.parent is not None, f"missing parent for {store!r}"
     return PostgresEngine(
         store=store,
         bench=store.parent,
@@ -91,6 +92,7 @@ def global_session(
     epoch: Optional[int] = None,
 ):
     """Create a Session in a global store"""
+    assert store.parent is not None, f"missing parent for {store!r}"
     return Session(
         parent=None,
         _default_scope=GraphScope(),
@@ -102,6 +104,7 @@ def global_session(
 
 
 def global_pg_cursor(store: Store, *, autocommit: bool = False):
+    assert store.parent is not None, f"missing parent for {store!r}"
     return PgStoreConnection(store, store.parent, autocommit=autocommit)
 
 

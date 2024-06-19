@@ -49,7 +49,7 @@ class Notification(
     A Notification for a Bench (author = created_by).
     """
 
-    parent: "Package" = p_node_parent(4, NodeType.PACKAGE)
+    parent: "Package | None" = p_node_parent(4, NodeType.PACKAGE)
     kind: NotificationKind = p_regular(30)
     type: "Block" = p_system(32, require=True, array=False, references=NodeType.BLOCK)
     expires_at: Optional[datetime] = p_internal(33, default=None)

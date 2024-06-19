@@ -56,7 +56,7 @@ class Schedule(Struct):
 class Trigger(SourceNode[TriggerData]):
     """A trigger to run the node it is attached to (like a Block or Step)."""
 
-    parent: Union["Block", "Step"] = p_node_parent(4, NodeType.BLOCK, NodeType.STEP)
+    parent: Union["Block", "Step", None] = p_node_parent(4, NodeType.BLOCK, NodeType.STEP)
     type: TriggerType = p_regular(30, require=True)
     name: str = p_regular(31, constraint=NAME_CONSTRAINT)
     processed_epoch: Optional[int] = p_regular(32, default=None)

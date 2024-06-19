@@ -73,7 +73,7 @@ class Step(SourceNode[StepData], HasValues):
     An data or control flow unit in a FlowBlock.
     """
 
-    parent: Union["Block", "Step"] = p_node_parent(4, NodeType.BLOCK, NodeType.STEP)
+    parent: Union["Block", "Step", None] = p_node_parent(4, NodeType.BLOCK, NodeType.STEP)
 
     # common
     type: StepType = p_internal(30)

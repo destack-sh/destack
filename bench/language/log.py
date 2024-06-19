@@ -61,7 +61,7 @@ class Log(PackageNode[LogData], HasTimeIdentity, HasSessionContext, HasValues):
     A Log of something happening in a Bench.
     """
 
-    parent: "Package" = p_node_parent(4, NodeType.PACKAGE)
+    parent: "Package | None" = p_node_parent(4, NodeType.PACKAGE)
 
     # meta
     kind: LogKind = p_system(30)

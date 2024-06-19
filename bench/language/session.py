@@ -82,7 +82,7 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
     Once closed, a Session (like a Run) is effectively immutable.
     """
 
-    parent: Optional["Package"] = p_node_parent(4, NodeType.PACKAGE, is_system=True)
+    parent: "Package | None" = p_node_parent(4, NodeType.PACKAGE, is_system=True)
 
     # status
     status: SessionStatus = p_system(40, default=SessionStatus.PENDING, index_in_pg=True)
