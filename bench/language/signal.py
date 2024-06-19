@@ -33,7 +33,7 @@ class Signal(PackageNode[SignalData], HasTimeIdentity, HasNodeBase, HasSessionCo
     A Signal emitted in this Bench, usually received in Triggers.
     """
 
-    parent: "Package" = p_node_parent(4, NodeType.PACKAGE)
+    parent: "Package | None" = p_node_parent(4, NodeType.PACKAGE)
     type: "Block" = p_internal(32, require=True, array=False, references=NodeType.BLOCK)
 
     # content

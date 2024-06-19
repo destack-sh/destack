@@ -1782,7 +1782,7 @@ export interface BadgeData {
      */
     ck: string;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData parent_ptr = 4;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
     parentPtr?: NodeReferenceData;
     /**
@@ -1992,7 +1992,7 @@ export interface BlobData {
      */
     id: string;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData parent_ptr = 4;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
     parentPtr?: NodeReferenceData;
     /**
@@ -2099,7 +2099,7 @@ export interface BlockData {
      */
     ck: string;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData parent_ptr = 4;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
     parentPtr?: NodeReferenceData;
     /**
@@ -2254,7 +2254,7 @@ export interface BranchData {
      */
     id: string;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData parent_ptr = 4;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
     parentPtr?: NodeReferenceData;
     /**
@@ -2353,7 +2353,7 @@ export interface ClientData {
      */
     id: string;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData parent_ptr = 4;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
     parentPtr?: NodeReferenceData;
     /**
@@ -2473,7 +2473,7 @@ export interface DependencyData {
      */
     ck: string;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData parent_ptr = 4;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
     parentPtr?: NodeReferenceData;
     /**
@@ -2560,7 +2560,7 @@ export interface DriveData {
      */
     id: string;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData parent_ptr = 4;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
     parentPtr?: NodeReferenceData;
     /**
@@ -2643,7 +2643,7 @@ export interface EnvironmentData {
      */
     id: string;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData parent_ptr = 4;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
     parentPtr?: NodeReferenceData;
     /**
@@ -2739,7 +2739,7 @@ export interface FieldData {
      */
     ck: string;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData parent_ptr = 4;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
     parentPtr?: NodeReferenceData;
     /**
@@ -2890,7 +2890,7 @@ export interface HandleData {
      */
     id: string;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData parent_ptr = 4;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
     parentPtr?: NodeReferenceData;
     /**
@@ -2963,7 +2963,7 @@ export interface IdentityData {
      */
     ck: string;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData parent_ptr = 4;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
     parentPtr?: NodeReferenceData;
     /**
@@ -3046,7 +3046,7 @@ export interface InviteData {
      */
     ck: string;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData parent_ptr = 4;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
     parentPtr?: NodeReferenceData;
     /**
@@ -3137,7 +3137,7 @@ export interface IssueData {
      */
     id: string;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData parent_ptr = 4;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
     parentPtr?: NodeReferenceData;
     /**
@@ -3238,7 +3238,7 @@ export interface LinkData {
      */
     ck: string;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData parent_ptr = 4;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
     parentPtr?: NodeReferenceData;
     /**
@@ -3321,7 +3321,7 @@ export interface LogData {
      */
     id: string;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData parent_ptr = 4;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
     parentPtr?: NodeReferenceData;
     /**
@@ -3480,7 +3480,7 @@ export interface MachineData {
      */
     id: string;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData parent_ptr = 4;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
     parentPtr?: NodeReferenceData;
     /**
@@ -3607,7 +3607,7 @@ export interface MembershipData {
      */
     ck: string;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData parent_ptr = 4;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
     parentPtr?: NodeReferenceData;
     /**
@@ -3695,7 +3695,7 @@ export interface MessageData {
      */
     ck: string;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData parent_ptr = 4;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
     parentPtr?: NodeReferenceData;
     /**
@@ -3797,7 +3797,7 @@ export interface BaseNodeData {
      */
     id: string;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData parent_ptr = 4;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
     parentPtr?: NodeReferenceData;
     /**
@@ -3852,7 +3852,7 @@ export interface NotificationData {
      */
     ck: string;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData parent_ptr = 4;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
     parentPtr?: NodeReferenceData;
     /**
@@ -4031,7 +4031,7 @@ export interface PackageData {
      */
     id: string;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData parent_ptr = 4;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
     parentPtr?: NodeReferenceData;
     /**
@@ -4134,7 +4134,7 @@ export interface QueryData {
      */
     ck: string;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData parent_ptr = 4;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
     parentPtr?: NodeReferenceData;
     /**
@@ -4242,7 +4242,7 @@ export interface RecordData {
      */
     ck: string;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData parent_ptr = 4;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
     parentPtr?: NodeReferenceData;
     /**
@@ -4323,7 +4323,7 @@ export interface RoleData {
      */
     ck: string;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData parent_ptr = 4;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
     parentPtr?: NodeReferenceData;
     /**
@@ -4405,7 +4405,7 @@ export interface RunData {
      */
     id: string;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData parent_ptr = 4;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
     parentPtr?: NodeReferenceData;
     /**
@@ -4601,7 +4601,7 @@ export interface ServerData {
      */
     id: string;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData parent_ptr = 4;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
     parentPtr?: NodeReferenceData;
     /**
@@ -4711,7 +4711,7 @@ export interface SessionData {
      */
     id: string;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData parent_ptr = 4;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
     parentPtr?: NodeReferenceData;
     /**
@@ -4810,7 +4810,7 @@ export interface SignalData {
      */
     id: string;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData parent_ptr = 4;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
     parentPtr?: NodeReferenceData;
     /**
@@ -4925,7 +4925,7 @@ export interface SkipData {
      */
     id: string;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData parent_ptr = 4;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
     parentPtr?: NodeReferenceData;
     /**
@@ -4988,7 +4988,7 @@ export interface SpaceData {
      */
     ck: string;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData parent_ptr = 4;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
     parentPtr?: NodeReferenceData;
     /**
@@ -5103,7 +5103,7 @@ export interface StepData {
      */
     ck: string;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData parent_ptr = 4;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
     parentPtr?: NodeReferenceData;
     /**
@@ -5242,7 +5242,7 @@ export interface StoreData {
      */
     id: string;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData parent_ptr = 4;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
     parentPtr?: NodeReferenceData;
     /**
@@ -5349,7 +5349,7 @@ export interface TriggerData {
      */
     ck: string;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData parent_ptr = 4;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
     parentPtr?: NodeReferenceData;
     /**
@@ -5456,7 +5456,7 @@ export interface UpgradeData {
      */
     ck: string;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData parent_ptr = 4;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
     parentPtr?: NodeReferenceData;
     /**
@@ -5646,7 +5646,7 @@ export interface ViewData {
      */
     ck: string;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData parent_ptr = 4;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
      */
     parentPtr?: NodeReferenceData;
     /**
@@ -14571,7 +14571,7 @@ class BadgeData$Type extends MessageType<BadgeData> {
                 case /* string ck */ 3:
                     message.ck = reader.string();
                     break;
-                case /* symbolx.bench.NodeReferenceData parent_ptr */ 4:
+                case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
                 case /* symbolx.bench.NodeReferenceData package_ptr */ 5:
@@ -14662,7 +14662,7 @@ class BadgeData$Type extends MessageType<BadgeData> {
         /* string ck = 3; */
         if (message.ck !== "")
             writer.tag(3, WireType.LengthDelimited).string(message.ck);
-        /* symbolx.bench.NodeReferenceData parent_ptr = 4; */
+        /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeReferenceData package_ptr = 5; */
@@ -15034,7 +15034,7 @@ class BlobData$Type extends MessageType<BlobData> {
                 case /* string id */ 2:
                     message.id = reader.string();
                     break;
-                case /* symbolx.bench.NodeReferenceData parent_ptr */ 4:
+                case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
                 case /* symbolx.bench.NodeReferenceData bench_ptr */ 6:
@@ -15122,7 +15122,7 @@ class BlobData$Type extends MessageType<BlobData> {
         /* string id = 2; */
         if (message.id !== "")
             writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* symbolx.bench.NodeReferenceData parent_ptr = 4; */
+        /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeReferenceData bench_ptr = 6; */
@@ -15285,7 +15285,7 @@ class BlockData$Type extends MessageType<BlockData> {
                 case /* string ck */ 3:
                     message.ck = reader.string();
                     break;
-                case /* symbolx.bench.NodeReferenceData parent_ptr */ 4:
+                case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
                 case /* symbolx.bench.NodeReferenceData package_ptr */ 5:
@@ -15415,7 +15415,7 @@ class BlockData$Type extends MessageType<BlockData> {
         /* string ck = 3; */
         if (message.ck !== "")
             writer.tag(3, WireType.LengthDelimited).string(message.ck);
-        /* symbolx.bench.NodeReferenceData parent_ptr = 4; */
+        /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeReferenceData package_ptr = 5; */
@@ -15590,7 +15590,7 @@ class BranchData$Type extends MessageType<BranchData> {
                 case /* string id */ 2:
                     message.id = reader.string();
                     break;
-                case /* symbolx.bench.NodeReferenceData parent_ptr */ 4:
+                case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
                 case /* symbolx.bench.NodeReferenceData bench_ptr */ 6:
@@ -15675,7 +15675,7 @@ class BranchData$Type extends MessageType<BranchData> {
         /* string id = 2; */
         if (message.id !== "")
             writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* symbolx.bench.NodeReferenceData parent_ptr = 4; */
+        /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeReferenceData bench_ptr = 6; */
@@ -15810,7 +15810,7 @@ class ClientData$Type extends MessageType<ClientData> {
                 case /* string id */ 2:
                     message.id = reader.string();
                     break;
-                case /* symbolx.bench.NodeReferenceData parent_ptr */ 4:
+                case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
                 case /* optional symbolx.bench.NodeReferenceData bench_ptr */ 6:
@@ -15907,7 +15907,7 @@ class ClientData$Type extends MessageType<ClientData> {
         /* string id = 2; */
         if (message.id !== "")
             writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* symbolx.bench.NodeReferenceData parent_ptr = 4; */
+        /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.NodeReferenceData bench_ptr = 6; */
@@ -16052,7 +16052,7 @@ class DependencyData$Type extends MessageType<DependencyData> {
                 case /* string ck */ 3:
                     message.ck = reader.string();
                     break;
-                case /* symbolx.bench.NodeReferenceData parent_ptr */ 4:
+                case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
                 case /* symbolx.bench.NodeReferenceData package_ptr */ 5:
@@ -16131,7 +16131,7 @@ class DependencyData$Type extends MessageType<DependencyData> {
         /* string ck = 3; */
         if (message.ck !== "")
             writer.tag(3, WireType.LengthDelimited).string(message.ck);
-        /* symbolx.bench.NodeReferenceData parent_ptr = 4; */
+        /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeReferenceData package_ptr = 5; */
@@ -16250,7 +16250,7 @@ class DriveData$Type extends MessageType<DriveData> {
                 case /* string id */ 2:
                     message.id = reader.string();
                     break;
-                case /* symbolx.bench.NodeReferenceData parent_ptr */ 4:
+                case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
                 case /* symbolx.bench.NodeReferenceData bench_ptr */ 6:
@@ -16323,7 +16323,7 @@ class DriveData$Type extends MessageType<DriveData> {
         /* string id = 2; */
         if (message.id !== "")
             writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* symbolx.bench.NodeReferenceData parent_ptr = 4; */
+        /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeReferenceData bench_ptr = 6; */
@@ -16440,7 +16440,7 @@ class EnvironmentData$Type extends MessageType<EnvironmentData> {
                 case /* string id */ 2:
                     message.id = reader.string();
                     break;
-                case /* symbolx.bench.NodeReferenceData parent_ptr */ 4:
+                case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
                 case /* symbolx.bench.NodeReferenceData bench_ptr */ 6:
@@ -16519,7 +16519,7 @@ class EnvironmentData$Type extends MessageType<EnvironmentData> {
         /* string id = 2; */
         if (message.id !== "")
             writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* symbolx.bench.NodeReferenceData parent_ptr = 4; */
+        /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeReferenceData bench_ptr = 6; */
@@ -16667,7 +16667,7 @@ class FieldData$Type extends MessageType<FieldData> {
                 case /* string ck */ 3:
                     message.ck = reader.string();
                     break;
-                case /* symbolx.bench.NodeReferenceData parent_ptr */ 4:
+                case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
                 case /* symbolx.bench.NodeReferenceData package_ptr */ 5:
@@ -16794,7 +16794,7 @@ class FieldData$Type extends MessageType<FieldData> {
         /* string ck = 3; */
         if (message.ck !== "")
             writer.tag(3, WireType.LengthDelimited).string(message.ck);
-        /* symbolx.bench.NodeReferenceData parent_ptr = 4; */
+        /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeReferenceData package_ptr = 5; */
@@ -16955,7 +16955,7 @@ class HandleData$Type extends MessageType<HandleData> {
                 case /* string id */ 2:
                     message.id = reader.string();
                     break;
-                case /* symbolx.bench.NodeReferenceData parent_ptr */ 4:
+                case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
                 case /* optional symbolx.bench.NodeReferenceData bench_ptr */ 6:
@@ -17016,7 +17016,7 @@ class HandleData$Type extends MessageType<HandleData> {
         /* string id = 2; */
         if (message.id !== "")
             writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* symbolx.bench.NodeReferenceData parent_ptr = 4; */
+        /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.NodeReferenceData bench_ptr = 6; */
@@ -17121,7 +17121,7 @@ class IdentityData$Type extends MessageType<IdentityData> {
                 case /* string ck */ 3:
                     message.ck = reader.string();
                     break;
-                case /* symbolx.bench.NodeReferenceData parent_ptr */ 4:
+                case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
                 case /* symbolx.bench.NodeReferenceData package_ptr */ 5:
@@ -17194,7 +17194,7 @@ class IdentityData$Type extends MessageType<IdentityData> {
         /* string ck = 3; */
         if (message.ck !== "")
             writer.tag(3, WireType.LengthDelimited).string(message.ck);
-        /* symbolx.bench.NodeReferenceData parent_ptr = 4; */
+        /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeReferenceData package_ptr = 5; */
@@ -17313,7 +17313,7 @@ class InviteData$Type extends MessageType<InviteData> {
                 case /* string ck */ 3:
                     message.ck = reader.string();
                     break;
-                case /* symbolx.bench.NodeReferenceData parent_ptr */ 4:
+                case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
                 case /* symbolx.bench.NodeReferenceData package_ptr */ 5:
@@ -17395,7 +17395,7 @@ class InviteData$Type extends MessageType<InviteData> {
         /* string ck = 3; */
         if (message.ck !== "")
             writer.tag(3, WireType.LengthDelimited).string(message.ck);
-        /* symbolx.bench.NodeReferenceData parent_ptr = 4; */
+        /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeReferenceData package_ptr = 5; */
@@ -17520,7 +17520,7 @@ class IssueData$Type extends MessageType<IssueData> {
                 case /* string id */ 2:
                     message.id = reader.string();
                     break;
-                case /* symbolx.bench.NodeReferenceData parent_ptr */ 4:
+                case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
                 case /* symbolx.bench.NodeReferenceData package_ptr */ 5:
@@ -17602,7 +17602,7 @@ class IssueData$Type extends MessageType<IssueData> {
         /* string id = 2; */
         if (message.id !== "")
             writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* symbolx.bench.NodeReferenceData parent_ptr = 4; */
+        /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeReferenceData package_ptr = 5; */
@@ -17729,7 +17729,7 @@ class LinkData$Type extends MessageType<LinkData> {
                 case /* string ck */ 3:
                     message.ck = reader.string();
                     break;
-                case /* symbolx.bench.NodeReferenceData parent_ptr */ 4:
+                case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
                 case /* symbolx.bench.NodeReferenceData package_ptr */ 5:
@@ -17805,7 +17805,7 @@ class LinkData$Type extends MessageType<LinkData> {
         /* string ck = 3; */
         if (message.ck !== "")
             writer.tag(3, WireType.LengthDelimited).string(message.ck);
-        /* symbolx.bench.NodeReferenceData parent_ptr = 4; */
+        /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeReferenceData package_ptr = 5; */
@@ -17940,7 +17940,7 @@ class LogData$Type extends MessageType<LogData> {
                 case /* string id */ 2:
                     message.id = reader.string();
                     break;
-                case /* symbolx.bench.NodeReferenceData parent_ptr */ 4:
+                case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
                 case /* symbolx.bench.NodeReferenceData package_ptr */ 5:
@@ -18074,7 +18074,7 @@ class LogData$Type extends MessageType<LogData> {
         /* string id = 2; */
         if (message.id !== "")
             writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* symbolx.bench.NodeReferenceData parent_ptr = 4; */
+        /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeReferenceData package_ptr = 5; */
@@ -18262,7 +18262,7 @@ class MachineData$Type extends MessageType<MachineData> {
                 case /* string id */ 2:
                     message.id = reader.string();
                     break;
-                case /* symbolx.bench.NodeReferenceData parent_ptr */ 4:
+                case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
                 case /* symbolx.bench.NodeReferenceData bench_ptr */ 6:
@@ -18365,7 +18365,7 @@ class MachineData$Type extends MessageType<MachineData> {
         /* string id = 2; */
         if (message.id !== "")
             writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* symbolx.bench.NodeReferenceData parent_ptr = 4; */
+        /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeReferenceData bench_ptr = 6; */
@@ -18514,7 +18514,7 @@ class MembershipData$Type extends MessageType<MembershipData> {
                 case /* string ck */ 3:
                     message.ck = reader.string();
                     break;
-                case /* symbolx.bench.NodeReferenceData parent_ptr */ 4:
+                case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
                 case /* symbolx.bench.NodeReferenceData package_ptr */ 5:
@@ -18590,7 +18590,7 @@ class MembershipData$Type extends MessageType<MembershipData> {
         /* string ck = 3; */
         if (message.ck !== "")
             writer.tag(3, WireType.LengthDelimited).string(message.ck);
-        /* symbolx.bench.NodeReferenceData parent_ptr = 4; */
+        /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeReferenceData package_ptr = 5; */
@@ -18713,7 +18713,7 @@ class MessageData$Type extends MessageType<MessageData> {
                 case /* string ck */ 3:
                     message.ck = reader.string();
                     break;
-                case /* symbolx.bench.NodeReferenceData parent_ptr */ 4:
+                case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
                 case /* symbolx.bench.NodeReferenceData package_ptr */ 5:
@@ -18801,7 +18801,7 @@ class MessageData$Type extends MessageType<MessageData> {
         /* string ck = 3; */
         if (message.ck !== "")
             writer.tag(3, WireType.LengthDelimited).string(message.ck);
-        /* symbolx.bench.NodeReferenceData parent_ptr = 4; */
+        /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeReferenceData package_ptr = 5; */
@@ -18916,7 +18916,7 @@ class BaseNodeData$Type extends MessageType<BaseNodeData> {
                 case /* string id */ 2:
                     message.id = reader.string();
                     break;
-                case /* symbolx.bench.NodeReferenceData parent_ptr */ 4:
+                case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
                 case /* int64 revision */ 10:
@@ -18965,7 +18965,7 @@ class BaseNodeData$Type extends MessageType<BaseNodeData> {
         /* string id = 2; */
         if (message.id !== "")
             writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* symbolx.bench.NodeReferenceData parent_ptr = 4; */
+        /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
         /* int64 revision = 10; */
@@ -19064,7 +19064,7 @@ class NotificationData$Type extends MessageType<NotificationData> {
                 case /* string ck */ 3:
                     message.ck = reader.string();
                     break;
-                case /* symbolx.bench.NodeReferenceData parent_ptr */ 4:
+                case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
                 case /* symbolx.bench.NodeReferenceData package_ptr */ 5:
@@ -19152,7 +19152,7 @@ class NotificationData$Type extends MessageType<NotificationData> {
         /* string ck = 3; */
         if (message.ck !== "")
             writer.tag(3, WireType.LengthDelimited).string(message.ck);
-        /* symbolx.bench.NodeReferenceData parent_ptr = 4; */
+        /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeReferenceData package_ptr = 5; */
@@ -19464,7 +19464,7 @@ class PackageData$Type extends MessageType<PackageData> {
                 case /* string id */ 2:
                     message.id = reader.string();
                     break;
-                case /* symbolx.bench.NodeReferenceData parent_ptr */ 4:
+                case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
                 case /* symbolx.bench.NodeReferenceData bench_ptr */ 6:
@@ -19549,7 +19549,7 @@ class PackageData$Type extends MessageType<PackageData> {
         /* string id = 2; */
         if (message.id !== "")
             writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* symbolx.bench.NodeReferenceData parent_ptr = 4; */
+        /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeReferenceData bench_ptr = 6; */
@@ -19689,7 +19689,7 @@ class QueryData$Type extends MessageType<QueryData> {
                 case /* string ck */ 3:
                     message.ck = reader.string();
                     break;
-                case /* symbolx.bench.NodeReferenceData parent_ptr */ 4:
+                case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
                 case /* symbolx.bench.NodeReferenceData package_ptr */ 5:
@@ -19780,7 +19780,7 @@ class QueryData$Type extends MessageType<QueryData> {
         /* string ck = 3; */
         if (message.ck !== "")
             writer.tag(3, WireType.LengthDelimited).string(message.ck);
-        /* symbolx.bench.NodeReferenceData parent_ptr = 4; */
+        /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeReferenceData package_ptr = 5; */
@@ -19911,7 +19911,7 @@ class RecordData$Type extends MessageType<RecordData> {
                 case /* string ck */ 3:
                     message.ck = reader.string();
                     break;
-                case /* symbolx.bench.NodeReferenceData parent_ptr */ 4:
+                case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
                 case /* symbolx.bench.NodeReferenceData package_ptr */ 5:
@@ -19981,7 +19981,7 @@ class RecordData$Type extends MessageType<RecordData> {
         /* string ck = 3; */
         if (message.ck !== "")
             writer.tag(3, WireType.LengthDelimited).string(message.ck);
-        /* symbolx.bench.NodeReferenceData parent_ptr = 4; */
+        /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeReferenceData package_ptr = 5; */
@@ -20092,7 +20092,7 @@ class RoleData$Type extends MessageType<RoleData> {
                 case /* string ck */ 3:
                     message.ck = reader.string();
                     break;
-                case /* symbolx.bench.NodeReferenceData parent_ptr */ 4:
+                case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
                 case /* symbolx.bench.NodeReferenceData package_ptr */ 5:
@@ -20165,7 +20165,7 @@ class RoleData$Type extends MessageType<RoleData> {
         /* string ck = 3; */
         if (message.ck !== "")
             writer.tag(3, WireType.LengthDelimited).string(message.ck);
-        /* symbolx.bench.NodeReferenceData parent_ptr = 4; */
+        /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeReferenceData package_ptr = 5; */
@@ -20306,7 +20306,7 @@ class RunData$Type extends MessageType<RunData> {
                 case /* string id */ 2:
                     message.id = reader.string();
                     break;
-                case /* symbolx.bench.NodeReferenceData parent_ptr */ 4:
+                case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
                 case /* symbolx.bench.NodeReferenceData package_ptr */ 5:
@@ -20463,7 +20463,7 @@ class RunData$Type extends MessageType<RunData> {
         /* string id = 2; */
         if (message.id !== "")
             writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* symbolx.bench.NodeReferenceData parent_ptr = 4; */
+        /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeReferenceData package_ptr = 5; */
@@ -20670,7 +20670,7 @@ class ServerData$Type extends MessageType<ServerData> {
                 case /* string id */ 2:
                     message.id = reader.string();
                     break;
-                case /* symbolx.bench.NodeReferenceData parent_ptr */ 4:
+                case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
                 case /* symbolx.bench.NodeReferenceData bench_ptr */ 6:
@@ -20761,7 +20761,7 @@ class ServerData$Type extends MessageType<ServerData> {
         /* string id = 2; */
         if (message.id !== "")
             writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* symbolx.bench.NodeReferenceData parent_ptr = 4; */
+        /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeReferenceData bench_ptr = 6; */
@@ -20897,7 +20897,7 @@ class SessionData$Type extends MessageType<SessionData> {
                 case /* string id */ 2:
                     message.id = reader.string();
                     break;
-                case /* symbolx.bench.NodeReferenceData parent_ptr */ 4:
+                case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
                 case /* symbolx.bench.NodeReferenceData package_ptr */ 5:
@@ -20982,7 +20982,7 @@ class SessionData$Type extends MessageType<SessionData> {
         /* string id = 2; */
         if (message.id !== "")
             writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* symbolx.bench.NodeReferenceData parent_ptr = 4; */
+        /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeReferenceData package_ptr = 5; */
@@ -21115,7 +21115,7 @@ class SignalData$Type extends MessageType<SignalData> {
                 case /* string id */ 2:
                     message.id = reader.string();
                     break;
-                case /* symbolx.bench.NodeReferenceData parent_ptr */ 4:
+                case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
                 case /* symbolx.bench.NodeReferenceData package_ptr */ 5:
@@ -21212,7 +21212,7 @@ class SignalData$Type extends MessageType<SignalData> {
         /* string id = 2; */
         if (message.id !== "")
             writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* symbolx.bench.NodeReferenceData parent_ptr = 4; */
+        /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeReferenceData package_ptr = 5; */
@@ -21341,7 +21341,7 @@ class SkipData$Type extends MessageType<SkipData> {
                 case /* string id */ 2:
                     message.id = reader.string();
                     break;
-                case /* symbolx.bench.NodeReferenceData parent_ptr */ 4:
+                case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
                 case /* int64 revision */ 10:
@@ -21396,7 +21396,7 @@ class SkipData$Type extends MessageType<SkipData> {
         /* string id = 2; */
         if (message.id !== "")
             writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* symbolx.bench.NodeReferenceData parent_ptr = 4; */
+        /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
         /* int64 revision = 10; */
@@ -21507,7 +21507,7 @@ class SpaceData$Type extends MessageType<SpaceData> {
                 case /* string ck */ 3:
                     message.ck = reader.string();
                     break;
-                case /* symbolx.bench.NodeReferenceData parent_ptr */ 4:
+                case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
                 case /* symbolx.bench.NodeReferenceData package_ptr */ 5:
@@ -21604,7 +21604,7 @@ class SpaceData$Type extends MessageType<SpaceData> {
         /* string ck = 3; */
         if (message.ck !== "")
             writer.tag(3, WireType.LengthDelimited).string(message.ck);
-        /* symbolx.bench.NodeReferenceData parent_ptr = 4; */
+        /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeReferenceData package_ptr = 5; */
@@ -21762,7 +21762,7 @@ class StepData$Type extends MessageType<StepData> {
                 case /* string ck */ 3:
                     message.ck = reader.string();
                     break;
-                case /* symbolx.bench.NodeReferenceData parent_ptr */ 4:
+                case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
                 case /* symbolx.bench.NodeReferenceData package_ptr */ 5:
@@ -21880,7 +21880,7 @@ class StepData$Type extends MessageType<StepData> {
         /* string ck = 3; */
         if (message.ck !== "")
             writer.tag(3, WireType.LengthDelimited).string(message.ck);
-        /* symbolx.bench.NodeReferenceData parent_ptr = 4; */
+        /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeReferenceData package_ptr = 5; */
@@ -22043,7 +22043,7 @@ class StoreData$Type extends MessageType<StoreData> {
                 case /* string id */ 2:
                     message.id = reader.string();
                     break;
-                case /* symbolx.bench.NodeReferenceData parent_ptr */ 4:
+                case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
                 case /* symbolx.bench.NodeReferenceData bench_ptr */ 6:
@@ -22131,7 +22131,7 @@ class StoreData$Type extends MessageType<StoreData> {
         /* string id = 2; */
         if (message.id !== "")
             writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* symbolx.bench.NodeReferenceData parent_ptr = 4; */
+        /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeReferenceData bench_ptr = 6; */
@@ -22272,7 +22272,7 @@ class TriggerData$Type extends MessageType<TriggerData> {
                 case /* string ck */ 3:
                     message.ck = reader.string();
                     break;
-                case /* symbolx.bench.NodeReferenceData parent_ptr */ 4:
+                case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
                 case /* symbolx.bench.NodeReferenceData package_ptr */ 5:
@@ -22363,7 +22363,7 @@ class TriggerData$Type extends MessageType<TriggerData> {
         /* string ck = 3; */
         if (message.ck !== "")
             writer.tag(3, WireType.LengthDelimited).string(message.ck);
-        /* symbolx.bench.NodeReferenceData parent_ptr = 4; */
+        /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeReferenceData package_ptr = 5; */
@@ -22498,7 +22498,7 @@ class UpgradeData$Type extends MessageType<UpgradeData> {
                 case /* string ck */ 3:
                     message.ck = reader.string();
                     break;
-                case /* symbolx.bench.NodeReferenceData parent_ptr */ 4:
+                case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
                 case /* symbolx.bench.NodeReferenceData package_ptr */ 5:
@@ -22577,7 +22577,7 @@ class UpgradeData$Type extends MessageType<UpgradeData> {
         /* string ck = 3; */
         if (message.ck !== "")
             writer.tag(3, WireType.LengthDelimited).string(message.ck);
-        /* symbolx.bench.NodeReferenceData parent_ptr = 4; */
+        /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeReferenceData package_ptr = 5; */
@@ -22941,7 +22941,7 @@ class ViewData$Type extends MessageType<ViewData> {
                 case /* string ck */ 3:
                     message.ck = reader.string();
                     break;
-                case /* symbolx.bench.NodeReferenceData parent_ptr */ 4:
+                case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
                 case /* symbolx.bench.NodeReferenceData package_ptr */ 5:
@@ -23092,7 +23092,7 @@ class ViewData$Type extends MessageType<ViewData> {
         /* string ck = 3; */
         if (message.ck !== "")
             writer.tag(3, WireType.LengthDelimited).string(message.ck);
-        /* symbolx.bench.NodeReferenceData parent_ptr = 4; */
+        /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeReferenceData package_ptr = 5; */

@@ -80,7 +80,7 @@ assert len(IDENTIFIER_TYPE_BY_BLOCK_TYPE) == len(BlockType)
 class Block(SourceNode[BlockData], HasValues):
     """A building block containing logic, types, UI, data, AI, - any Bench program source."""
 
-    parent: Union["Block", "Package"] = p_node_parent(4, NodeType.BLOCK, NodeType.PACKAGE)
+    parent: Union["Block", "Package", None] = p_node_parent(4, NodeType.BLOCK, NodeType.PACKAGE)
 
     # content
     type: BlockType = p_internal(30)

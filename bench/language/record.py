@@ -31,7 +31,7 @@ class Record(PackageNode[RecordData], HasPersistentIdentity, HasNodeBase, HasVal
     """
 
     # :RecordSchema
-    parent: "Block" = p_node_parent(4, NodeType.BLOCK)
+    parent: "Block | None" = p_node_parent(4, NodeType.BLOCK)
     value_packed: Any = p_value_packed(30)
     secret_value_packed = p_secret_value_packed(31)
     value: "ValueObject | None" = p_value_runtime(
@@ -43,10 +43,11 @@ class Record(PackageNode[RecordData], HasPersistentIdentity, HasNodeBase, HasVal
 
     @property
     def value_type(self) -> "TypeInfoBase | None":
-        return self.parent.to_type(as_object=True)
+        parent = self.parent
+        return parent.to_type(as_object=True) if parent is not None else None
 
     @property
-    def base(self) -> "Block":
+    def base(self) -> "Block | None":
         return self.parent
 
     @staticmethod

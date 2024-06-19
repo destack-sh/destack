@@ -76,7 +76,7 @@ class Issue(PackageNode[IssueData]):
     A diagnostic regarding something in the Bench source.
     """
 
-    parent: IssueParent = p_node_parent(4, *ISSUE_PARENT_TYPES)
+    parent: IssueParent | None = p_node_parent(4, *ISSUE_PARENT_TYPES)
     kind: IssueKind = p_regular(30, default=None)
     type: IssueType = p_regular(31)
     subject: Node = p_regular(33, require=False, references=LINK_TARGET_NODE_TYPES)

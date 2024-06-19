@@ -604,7 +604,9 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
 class Query(SourceNode[QueryData]):
     """A stored query."""
 
-    parent: "Block" = p_node_parent(4, NodeType.BLOCK)
+    # NOTE :Architecture: should Query be just a Struct or remain a Node?
+
+    parent: "Block | None" = p_node_parent(4, NodeType.BLOCK)
     name: str = p_regular(30, constraint=NAME_CONSTRAINT)
     order_key: str = p_regular(31, default=INTEGER_ZERO)
     read_type: ReadType = p_regular(32)

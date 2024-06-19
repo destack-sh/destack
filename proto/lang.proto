@@ -1814,7 +1814,7 @@ message BadgeData {
   ObjectType metatype = 1;
   string id = 2;
   string ck = 3;
-  NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
   optional NodeReferenceData template_ptr = 7;
@@ -1871,7 +1871,7 @@ message BenchData {
 message BlobData {
   ObjectType metatype = 1;
   string id = 2;
-  NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData bench_ptr = 6;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
@@ -1900,7 +1900,7 @@ message BlockData {
   ObjectType metatype = 1;
   string id = 2;
   string ck = 3;
-  NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
   optional NodeReferenceData template_ptr = 7;
@@ -1941,7 +1941,7 @@ message BlockData {
 message BranchData {
   ObjectType metatype = 1;
   string id = 2;
-  NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData bench_ptr = 6;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
@@ -1968,7 +1968,7 @@ message BranchData {
 message ClientData {
   ObjectType metatype = 1;
   string id = 2;
-  NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData parent_ptr = 4;
   optional NodeReferenceData bench_ptr = 6;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
@@ -2001,7 +2001,7 @@ message DependencyData {
   ObjectType metatype = 1;
   string id = 2;
   string ck = 3;
-  NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
   optional NodeReferenceData template_ptr = 7;
@@ -2025,7 +2025,7 @@ message DependencyData {
 message DriveData {
   ObjectType metatype = 1;
   string id = 2;
-  NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData bench_ptr = 6;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
@@ -2048,7 +2048,7 @@ message DriveData {
 message EnvironmentData {
   ObjectType metatype = 1;
   string id = 2;
-  NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData bench_ptr = 6;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
@@ -2075,7 +2075,7 @@ message FieldData {
   ObjectType metatype = 1;
   string id = 2;
   string ck = 3;
-  NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
   optional NodeReferenceData template_ptr = 7;
@@ -2115,7 +2115,7 @@ message FieldData {
 message HandleData {
   ObjectType metatype = 1;
   string id = 2;
-  NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData parent_ptr = 4;
   optional NodeReferenceData bench_ptr = 6;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
@@ -2137,7 +2137,7 @@ message IdentityData {
   ObjectType metatype = 1;
   string id = 2;
   string ck = 3;
-  NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
   optional NodeReferenceData template_ptr = 7;
@@ -2160,7 +2160,7 @@ message InviteData {
   ObjectType metatype = 1;
   string id = 2;
   string ck = 3;
-  NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
   optional NodeReferenceData template_ptr = 7;
@@ -2185,7 +2185,7 @@ message InviteData {
 message IssueData {
   ObjectType metatype = 1;
   string id = 2;
-  NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
   int64 revision = 10;
@@ -2214,7 +2214,7 @@ message LinkData {
   ObjectType metatype = 1;
   string id = 2;
   string ck = 3;
-  NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
   optional NodeReferenceData template_ptr = 7;
@@ -2237,7 +2237,7 @@ message LinkData {
 message LogData {
   ObjectType metatype = 1;
   string id = 2;
-  NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
   int64 revision = 10;
@@ -2279,7 +2279,7 @@ message LogData {
 message MachineData {
   ObjectType metatype = 1;
   string id = 2;
-  NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData bench_ptr = 6;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
@@ -2313,7 +2313,7 @@ message MembershipData {
   ObjectType metatype = 1;
   string id = 2;
   string ck = 3;
-  NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
   optional NodeReferenceData template_ptr = 7;
@@ -2338,7 +2338,7 @@ message MessageData {
   ObjectType metatype = 1;
   string id = 2;
   string ck = 3;
-  NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
   int64 revision = 10;
@@ -2368,7 +2368,7 @@ message MessageData {
 message BaseNodeData {
   ObjectType metatype = 1;
   string id = 2;
-  NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData parent_ptr = 4;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 13;
@@ -2384,7 +2384,7 @@ message NotificationData {
   ObjectType metatype = 1;
   string id = 2;
   string ck = 3;
-  NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
   int64 revision = 10;
@@ -2434,7 +2434,7 @@ message OrganizationData {
 message PackageData {
   ObjectType metatype = 1;
   string id = 2;
-  NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData bench_ptr = 6;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
@@ -2462,7 +2462,7 @@ message QueryData {
   ObjectType metatype = 1;
   string id = 2;
   string ck = 3;
-  NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
   optional NodeReferenceData template_ptr = 7;
@@ -2492,7 +2492,7 @@ message RecordData {
   ObjectType metatype = 1;
   string id = 2;
   string ck = 3;
-  NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
   int64 revision = 10;
@@ -2516,7 +2516,7 @@ message RoleData {
   ObjectType metatype = 1;
   string id = 2;
   string ck = 3;
-  NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
   optional NodeReferenceData template_ptr = 7;
@@ -2541,7 +2541,7 @@ message RoleData {
 message RunData {
   ObjectType metatype = 1;
   string id = 2;
-  NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
   int64 revision = 10;
@@ -2593,7 +2593,7 @@ message RunData {
 message ServerData {
   ObjectType metatype = 1;
   string id = 2;
-  NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData bench_ptr = 6;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
@@ -2625,7 +2625,7 @@ message ServerData {
 message SessionData {
   ObjectType metatype = 1;
   string id = 2;
-  NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
   int64 revision = 10;
@@ -2652,7 +2652,7 @@ message SessionData {
 message SignalData {
   ObjectType metatype = 1;
   string id = 2;
-  NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
   int64 revision = 10;
@@ -2683,7 +2683,7 @@ message SignalData {
 message SkipData {
   ObjectType metatype = 1;
   string id = 2;
-  NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData parent_ptr = 4;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 13;
@@ -2701,7 +2701,7 @@ message SpaceData {
   ObjectType metatype = 1;
   string id = 2;
   string ck = 3;
-  NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
   optional NodeReferenceData template_ptr = 7;
@@ -2732,7 +2732,7 @@ message StepData {
   ObjectType metatype = 1;
   string id = 2;
   string ck = 3;
-  NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
   optional NodeReferenceData template_ptr = 7;
@@ -2769,7 +2769,7 @@ message StepData {
 message StoreData {
   ObjectType metatype = 1;
   string id = 2;
-  NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData bench_ptr = 6;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
@@ -2798,7 +2798,7 @@ message TriggerData {
   ObjectType metatype = 1;
   string id = 2;
   string ck = 3;
-  NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
   optional NodeReferenceData template_ptr = 7;
@@ -2827,7 +2827,7 @@ message UpgradeData {
   ObjectType metatype = 1;
   string id = 2;
   string ck = 3;
-  NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
   optional NodeReferenceData template_ptr = 7;
@@ -2879,7 +2879,7 @@ message ViewData {
   ObjectType metatype = 1;
   string id = 2;
   string ck = 3;
-  NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
   optional NodeReferenceData template_ptr = 7;

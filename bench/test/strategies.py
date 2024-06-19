@@ -2,6 +2,7 @@ from typing import Any, cast
 
 import hypothesis
 import more_itertools
+import pytz
 import structlog
 from cachetools import cached
 from hypothesis import example, given, reject, settings
@@ -9,6 +10,7 @@ from hypothesis import strategies as st
 from hypothesis.strategies._internal.utils import cacheable, defines_strategy
 
 from bench.language.const import (
+    IN_BENCH_NODE_TYPES,
     EnumType,
     NodeType,
     ObjectType,
@@ -17,7 +19,7 @@ from bench.language.const import (
     TypeKind,
 )
 from bench.language.expression import NodeReference
-from bench.language.field import DEFAULT_CONSTRAINT, Field, TypeInfoBase
+from bench.language.field import DEFAULT_CONSTRAINT, Field, TypeInfo, TypeInfoBase
 from bench.language.node import BuiltinObject
 from bench.language.setup import ENUM_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE, OBJECT_CLASS_BY_TYPE
 from bench.language.validation import ValidationError
@@ -96,7 +98,7 @@ STRATEGY_BY_PRIMITIVE_TYPE: dict[PrimitiveType, st.SearchStrategy] = {
     PrimitiveType.UUID: st.uuids(),
     PrimitiveType.JSON: JSON_STRATEGY,
     PrimitiveType.BYTES: st.binary(),
-    PrimitiveType.DATETIME: st.datetimes(),
+    PrimitiveType.DATETIME: st.datetimes(timezones=st.just(pytz.utc)),
     PrimitiveType.INTERVAL: st.timedeltas(),
 }
 
@@ -218,9 +220,10 @@ def get_naive_object_strategies(object_type: ObjectType):
         elif prop.name in STRATEGY_BY_PROPERTY_NAME:
             object_dict[prop.name] = STRATEGY_BY_PROPERTY_NAME[prop.name]
         elif prop.is_node_reference:
-            # generate reference instead of node
+            if not prop.reference_nodes:
+                continue  # nothing to do
+            # generate random reference instead of node (sometimes this is enough)
             assert prop.reference_wired_ptr is not None, f"{prop!r} has no wired ptr"
-            assert prop.reference_nodes, f"{prop!r} has no reference nodes"
             object_dict[prop.reference_wired_ptr.name] = wrap_value_scalar(
                 node_references(st.sampled_from(prop.reference_nodes)),
                 is_required=prop.is_required,
@@ -249,7 +252,9 @@ def from_object_type(
     if object_type == StructType.TYPE_INFO:
         return cast(st.SearchStrategy[BuiltinObject], type_infos(SIMPLE_TYPE_KINDS))
     elif object_type == StructType.PROPERTY_REFERENCE:
-        return cast(st.SearchStrategy[BuiltinObject], properties(object_type=None))
+        return cast(
+            st.SearchStrategy[BuiltinObject], properties(object_type=None).map(lambda p: p.to_ref())
+        )
     elif object_type == NodeType.FIELD:
         return cast(st.SearchStrategy[BuiltinObject], fields(SIMPLE_TYPE_KINDS))
 
@@ -286,7 +291,11 @@ def node_references(draw: st.DrawFn, node_types: st.SearchStrategy[NodeType]):
         node_ck = draw(STRATEGY_BY_PRIMITIVE_TYPE[PrimitiveType.UUID])
     else:
         node_ck = node_id
-    return NodeReference(type=node_type, id=node_id, ck=node_ck)
+    if node_type in IN_BENCH_NODE_TYPES:
+        bench_id = draw(STRATEGY_BY_PRIMITIVE_TYPE[PrimitiveType.UUID])
+    else:
+        bench_id = None
+    return NodeReference(type=node_type, id=node_id, ck=node_ck, bench_id=bench_id)
 
 
 SIMPLE_TYPE_KINDS = st.sampled_from((TypeKind.PRIMITIVE, TypeKind.ENUM, TypeKind.STRUCT))
@@ -311,7 +320,7 @@ def draw_type_info_base_dict(draw: st.DrawFn, kinds: st.SearchStrategy[TypeKind]
 @st.composite
 def type_infos(draw: st.DrawFn, kinds: st.SearchStrategy[TypeKind]):
     type_info_base_dict = draw_type_info_base_dict(draw, kinds)
-    return TypeInfoBase(**type_info_base_dict)
+    return TypeInfo(**type_info_base_dict)
 
 
 @st.composite

@@ -144,7 +144,7 @@ class Bench(BenchNode[BenchData]):
 class Environment(BenchNode[EnvironmentData]):
     """An environment of resources for a Bench's packages."""
 
-    parent: Bench = p_node_parent(4, NodeType.BENCH)
+    parent: Bench | None = p_node_parent(4, NodeType.BENCH)
     name: str = p_regular(32, constraint=NAME_CONSTRAINT)
     text: Optional["Text"] = p_regular(34, require=False, array=False, struct=StructType.TEXT)
     icon: Optional["Icon"] = p_regular(35, require=False, array=False, struct=StructType.ICON)
@@ -169,7 +169,7 @@ class Environment(BenchNode[EnvironmentData]):
 class Branch(BenchNode[BranchData]):
     """A branch is a lineage of Bench history."""
 
-    parent: Bench = p_node_parent(4, NodeType.BENCH)
+    parent: Bench | None = p_node_parent(4, NodeType.BENCH)
     name: str = p_regular(32, constraint=NAME_CONSTRAINT)
     slug: Optional[str] = p_regular(33, require=False, default=None, constraint=SLUG_CONSTRAINT)
     text: Optional["Text"] = p_regular(34, require=False, array=False, struct=StructType.TEXT)
@@ -201,7 +201,7 @@ class Branch(BenchNode[BranchData]):
 class Package(BenchNode[PackageData]):
     """A package is a version of a Bench in a Branch."""
 
-    parent: Branch = p_node_parent(4, NodeType.BRANCH)
+    parent: Branch | None = p_node_parent(4, NodeType.BRANCH)
     slug: Optional[str] = p_regular(33, require=False, default=None, constraint=SLUG_CONSTRAINT)
     text: Optional["Text"] = p_regular(34, require=False, array=False, struct=StructType.TEXT)
     icon: Optional["Icon"] = p_regular(35, require=False, array=False, struct=StructType.ICON)
@@ -269,7 +269,7 @@ class Dependency(SourceNode[DependencyData]):
     """
 
     # dependent
-    parent: Union[Package, "Block"] = p_node_parent(4, NodeType.PACKAGE, NodeType.BLOCK)
+    parent: Union[Package, "Block", None] = p_node_parent(4, NodeType.PACKAGE, NodeType.BLOCK)
     scopes: list["Block"] = p_regular(30, require=True, array=True, references=NodeType.BLOCK)
 
     # dependency
@@ -283,7 +283,7 @@ class Dependency(SourceNode[DependencyData]):
 class Upgrade(SourceNode[UpgradeData]):
     """An 'upgrade' to a Package, marking changes made to the containing Package."""
 
-    parent: Package = p_node_parent(4, NodeType.PACKAGE)
+    parent: Package | None = p_node_parent(4, NodeType.PACKAGE)
     name: str = p_regular(32, constraint=NAME_CONSTRAINT)
     title: Optional[str] = p_regular(34, constraint=TITLE_CONSTRAINT)
     text: Optional["Text"] = p_regular(35, require=False, array=False, struct=StructType.TEXT)
@@ -329,7 +329,7 @@ class BenchResourceNode(BenchNode[NodeDataT], abc.ABC, Generic[NodeDataT]):
     If different, the real 'current' state is stored in current_* properties.
     """
 
-    parent: "Bench" = p_node_parent(4, NodeType.BENCH, is_system=True)
+    parent: Bench | None = p_node_parent(4, NodeType.BENCH, is_system=True)
     name: str = p_regular(32)
     text: Optional["Text"] = p_regular(34, default=None, struct=StructType.TEXT)
     region: Region = p_system(35, default_factory=get_region, default_sql=None)
@@ -399,7 +399,7 @@ class Machine(BenchResourceNode[MachineData]):
     A Machine provides some isolated compute for a Server.
     """
 
-    parent: Server = p_node_parent(4, NodeType.SERVER)
+    parent: Server | None = p_node_parent(4, NodeType.SERVER)
 
     profile: MachineProfile = p_system(40)
     current_profile: Optional[MachineProfile] = p_system(41, default=None)
@@ -442,7 +442,7 @@ class Drive(BenchResourceNode[DriveData]):
 class Client(BenchNode[ClientData]):
     """A client to a Bench."""
 
-    parent: Union["User", "Server"] = p_node_parent(4, NodeType.USER, NodeType.SERVER)
+    parent: Union["User", "Server", None] = p_node_parent(4, NodeType.USER, NodeType.SERVER)
     type: ClientType = p_regular(30)
     name: str = p_regular(32, constraint=NAME_CONSTRAINT)
 

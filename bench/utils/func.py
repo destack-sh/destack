@@ -182,12 +182,17 @@ class TypeAnnotation(typing.NamedTuple):
 
 def _resolve_py_type(py_type: type | str | typing.ForwardRef, type_map: dict[str, type]) -> type:
     """Resolves the py type if it's a forward ref"""
-    if isinstance(py_type, str):
-        return type_map[py_type]
-    elif isinstance(py_type, typing.ForwardRef):
-        return type_map[py_type.__forward_arg__]
-    else:
-        return py_type
+    try:
+        if isinstance(py_type, str):
+            return type_map[py_type]
+        elif isinstance(py_type, typing.ForwardRef):
+            return type_map[py_type.__forward_arg__]
+        else:
+            return py_type
+    except KeyError as e:
+        raise ValueError(
+            f"unresolved forward ref: {py_type} (known: {list(type_map.keys())})"
+        ) from e
 
 
 def parse_py_annotation(
@@ -198,6 +203,12 @@ def parse_py_annotation(
     is_optional = False
     is_list = False
     if not isinstance(py_type, type):
+        if isinstance(py_type, typing.ForwardRef):
+            py_type = py_type.__forward_arg__
+        if isinstance(py_type, str):
+            if py_type.endswith(" | None"):  # highly advanced parsing logic
+                is_optional = True
+                py_type = py_type[:-7]
         py_type = _resolve_py_type(py_type, type_map)
     # strip optional
     if typing.get_origin(py_type) in (typing.Union, types.UnionType):

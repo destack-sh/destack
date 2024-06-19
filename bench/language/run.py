@@ -114,7 +114,7 @@ class Run(PackageNode[RunData], HasTimeIdentity, HasNodeBase, HasSessionContext,
     """
 
     # content
-    parent: Union["Package", "Run"] = p_node_parent(4, NodeType.PACKAGE, NodeType.RUN)
+    parent: Union["Package", "Run", None] = p_node_parent(4, NodeType.PACKAGE, NodeType.RUN)
     kind: RunKind = p_system(30)
     root: "Run" = p_node_ancestor_first(
         32, NodeType.RUN, require=True, store=True, wire=True, is_bench_implicit=True

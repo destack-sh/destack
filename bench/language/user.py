@@ -143,7 +143,7 @@ class Membership(SourceNode[MembershipData]):
     A membership to this Bench (and its owner if it's the main Bench).
     """
 
-    parent: "Package" = p_node_parent(4, NodeType.PACKAGE)
+    parent: "Package | None" = p_node_parent(4, NodeType.PACKAGE)
     user: "User" = p_internal(30, require=True, array=False, references=NodeType.USER)
     is_owner: bool = p_regular(31, default=False)
 
@@ -155,7 +155,7 @@ class Membership(SourceNode[MembershipData]):
 class Invite(SourceNode[InviteData]):
     """An invitation to become a member of this Bench."""
 
-    parent: "Package" = p_node_parent(4, NodeType.PACKAGE)
+    parent: "Package | None" = p_node_parent(4, NodeType.PACKAGE)
     user: Optional["User"] = p_internal(30, require=False, array=False, references=NodeType.USER)
     user_email: Optional[str] = p_regular(31)
 

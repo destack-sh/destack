@@ -280,7 +280,7 @@ class ElasticServerProvisioner(Provisioner[Server, Server | Machine]):
             if isinstance(node, Server):
                 servers.add(node)
             elif isinstance(node, Machine):
-                servers.add(node.parent)
+                servers.add(cast(Server, node.parent))
             else:
                 raise TypeError(f"unexpected node type {type(node)}")
 
