@@ -876,7 +876,9 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
                         raise ValueError(
                             f"got both {prop!r} and {wired_ptr_prop!r}: {prop_value!r}, {wired_prop_value!r}"
                         )
-                    if prop.is_list:
+                    if prop_value is None:
+                        wired_prop_value = None
+                    elif prop.is_list:
                         wired_prop_value = [p.to_ref() for p in prop_value]
                     else:
                         wired_prop_value = cast(Any, prop_value).to_ref()
@@ -1350,7 +1352,9 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     _connection: "GetConnection | SearchConnection" = p_runtime(default=None)
     _is_new: bool = p_runtime(default=False)
 
-    def __init__(self, *, _skip_add_self: bool = False, **kwargs):
+    def __init__(
+        self, *, _skip_add_self: bool = False, _skip_validate_self: bool = False, **kwargs
+    ):
         super().__init__(**kwargs, _skip_init_self=True)
 
         # init ck/id
@@ -1412,7 +1416,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
 
         # init session context
         if self._session is not None:
-            if self._is_new:
+            if self._is_new and not _skip_validate_self:
                 self._validate_self((), invalid=on_invalid_raise)
             self._track_self(self._session)
 

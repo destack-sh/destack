@@ -205,6 +205,9 @@ class TypeConstraint(Struct):
     ends_with: Optional[str] = p_regular(62, require=False, default=None)
 
 
+DEFAULT_CONSTRAINT = TypeConstraint()
+
+
 @object_component()
 class TypeInfoBase(HasValues):
     """
@@ -470,8 +473,10 @@ class Field(SourceNode[FieldData], HasNodeBase, TypeInfoBase, _TypeQueryBuilder)
     def __content_str__(self) -> str:
         if self.zone == FieldZone.OPTION:
             return ""  # nothing to show
-        if self.base_type is not None:
-            info_str = self.base_type.absolute_path
+
+        base_type = self.base_type
+        if base_type is not None:
+            info_str = base_type.absolute_path
         elif self.bench_type is not None:
             info_str = self.bench_type.bench_name
         elif self.primitive_type is not None:

@@ -15,7 +15,7 @@ from bench.test.strategies import builtin_objects
 
 
 @given(obj=builtin_objects())
-def test_render_struct(obj: BuiltinObject, session: Session, package: Package):
+def test_render_struct(obj: BuiltinObject, shared_session: Session, shared_package: Package):
     rendered = render_builtin_object(obj)
     rendered = format_code(rendered)
     run_code_eval(rendered)
