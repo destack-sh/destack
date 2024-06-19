@@ -1307,7 +1307,7 @@ class PostgresSearchConnection(SearchConnection[PostgresChannel]):
     @override
     async def _do_read(self, query: "QueryBuilder") -> SearchResultData:
         from bench.language import NodeReference, ReadOptions
-        from bench.sql.engine import _pg_compile_conditional_maybe, pg_count, pg_search_node_graph
+        from bench.sql.engine import pg_compile_conditional_maybe, pg_count, pg_search_node_graph
 
         assert query._node_cls.__table__ is not None, f"{query._node_cls} has no table"
         roots, graph = await pg_search_node_graph(
@@ -1324,7 +1324,7 @@ class PostgresSearchConnection(SearchConnection[PostgresChannel]):
             total = await pg_count(
                 cur=self.channel.cur,
                 table=query._node_cls.__table__,
-                where=_pg_compile_conditional_maybe(query._node_cls, query._filter),
+                where=pg_compile_conditional_maybe(query._node_cls, query._filter),
             )
         else:
             total = None
@@ -1343,11 +1343,11 @@ class PostgresAggregateConnection(AggregateConnection):
 
     @override
     async def _do_read(self, query: "QueryBuilder") -> AggregateResultData:
-        from bench.sql.engine import _pg_compile_conditional_maybe, pg_count, pg_exists
+        from bench.sql.engine import pg_compile_conditional_maybe, pg_count, pg_exists
 
         assert query._node_cls.__table__ is not None, f"{query._node_cls} has no table"
         assert query._aggregation is not None
-        where = _pg_compile_conditional_maybe(query._node_cls, query._filter)
+        where = pg_compile_conditional_maybe(query._node_cls, query._filter)
         if query._aggregation.op == AggregationOp.EXISTS:
             exists = await pg_exists(
                 cur=self.channel.cur, table=query._node_cls.__table__, where=where

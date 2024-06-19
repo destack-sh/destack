@@ -130,11 +130,15 @@ def create_global_session(global_store: Store, oracle: Oracle):
 
 
 @pytest.fixture()
-async def global_real_session(global_store: Store):
-    """Gets the per test function global real session"""
+def global_real_session(global_store: Store):
+    """
+    Gets the per test function global real session.
+    Unfortunately we can't set this session as the active session in context because
+     pytest-asyncio does not propagate contextvars across async tests/fixtures.
+    (see https://github.com/pytest-dev/pytest-asyncio/issues/127#issuecomment-1777004844)
+    """
 
-    async with create_global_session(global_store, REAL_ORACLE) as session:
-        yield session
+    return create_global_session(global_store, REAL_ORACLE)
 
 
 @dataclass(slots=True)
