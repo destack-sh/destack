@@ -1,9 +1,10 @@
-from string import printable
 from typing import Any, cast
 
+import hypothesis
 import more_itertools
 import structlog
-from hypothesis import example, reject
+from cachetools import cached
+from hypothesis import example, given, reject, settings
 from hypothesis import strategies as st
 from hypothesis.strategies._internal.utils import cacheable, defines_strategy
 
@@ -16,7 +17,7 @@ from bench.language.const import (
     TypeKind,
 )
 from bench.language.expression import NodeReference
-from bench.language.field import DEFAULT_CONSTRAINT, TypeInfo, TypeInfoBase
+from bench.language.field import DEFAULT_CONSTRAINT, Field, TypeInfoBase
 from bench.language.node import BuiltinObject
 from bench.language.setup import ENUM_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE, OBJECT_CLASS_BY_TYPE
 from bench.language.validation import ValidationError
@@ -36,11 +37,28 @@ def examples(examples: list[dict]):
     return apply_examples
 
 
-JSON_STRATEGY = st.recursive(
-    st.none() | st.booleans() | st.floats() | st.text(printable),
-    lambda children: st.lists(children) | st.dictionaries(st.text(printable), children),
-    max_leaves=5,  # only small json
-)
+# TODO :Broken! :Test!: figure out better way of drawing directly from strategies
+#  (outside of given context.. maybe have our own dummy conjecture data with a seed?)
+def draw_direct(strat: st.SearchStrategy):
+    examples = []
+
+    @given(strat)
+    @settings(
+        database=None,
+        max_examples=1,
+        deadline=None,
+        verbosity=hypothesis.Verbosity.quiet,
+        phases=(hypothesis.Phase.generate,),
+    )
+    def example_generating_inner_function(ex):
+        examples.append(ex)
+
+    example_generating_inner_function()
+
+    return examples[0]
+
+
+JSON_STRATEGY = st.none()  # not needed yet
 ORDER_KEY_STRATEGY = st.just(INTEGER_ZERO)  # TODO :Test: generate order keys properly
 ALL_DECLARED_PROPERTIES = tuple(
     more_itertools.flatten(
@@ -180,17 +198,13 @@ def from_type_info(typ: TypeInfoBase) -> st.SearchStrategy[Any]:
     )
 
 
-@cacheable
-@defines_strategy()
-def from_object_type(
-    object_type: ObjectType, /, **custom_strategies: st.SearchStrategy
-) -> st.SearchStrategy[BuiltinObject]:
+@cached({})
+def get_naive_object_strategies(object_type: ObjectType):
+    """Gets the default uncorrelated strategies for every (init) property of an object type."""
     object_cls = OBJECT_CLASS_BY_TYPE[object_type]
     object_dict: dict[str, st.SearchStrategy] = {}
     for prop in object_cls.__runtime_properties__.values():
-        if prop.name in custom_strategies:
-            object_dict[prop.name] = custom_strategies[prop.name]
-        elif (
+        if (
             # ignore runtime-only properties
             prop.id is None
             # ignore identity/tracking properties
@@ -207,8 +221,10 @@ def from_object_type(
             # generate reference instead of node
             assert prop.reference_wired_ptr is not None, f"{prop!r} has no wired ptr"
             assert prop.reference_nodes, f"{prop!r} has no reference nodes"
-            object_dict[prop.reference_wired_ptr.name] = node_references(
-                st.sampled_from(prop.reference_nodes)
+            object_dict[prop.reference_wired_ptr.name] = wrap_value_scalar(
+                node_references(st.sampled_from(prop.reference_nodes)),
+                is_required=prop.is_required,
+                is_list=prop.is_list,
             )
         elif prop.is_property_reference:
             object_dict[prop.name] = wrap_value_scalar(
@@ -218,18 +234,49 @@ def from_object_type(
             object_dict[prop.name] = st.none()  # TODO :Test :Incomplete: add strategy for Values
         else:
             object_dict[prop.name] = from_type_info(prop.type_info)
-
-    def _make_object_if_valid(**kwargs):
-        # despite best efforts, some combination of arguments are invalid, so reject those early
-        #  (this is much simpler than guaranteeing that all generated objects are valid upfront)
-        try:
-            return object_cls(**kwargs)
-        except ValidationError:
-            reject()
-
-    return st.builds(_make_object_if_valid, **object_dict)
+    return object_dict
 
 
+@cacheable
+@defines_strategy()
+def from_object_type(
+    object_type: ObjectType,
+    /,
+    reject_invalid: bool = True,
+    **custom_strategies: st.SearchStrategy,
+) -> st.SearchStrategy[BuiltinObject]:
+    # special case some types
+    if object_type == StructType.TYPE_INFO:
+        return cast(st.SearchStrategy[BuiltinObject], type_infos(SIMPLE_TYPE_KINDS))
+    elif object_type == StructType.PROPERTY_REFERENCE:
+        return cast(st.SearchStrategy[BuiltinObject], properties(object_type=None))
+    elif object_type == NodeType.FIELD:
+        return cast(st.SearchStrategy[BuiltinObject], fields(SIMPLE_TYPE_KINDS))
+
+    object_cls = OBJECT_CLASS_BY_TYPE[object_type]
+    object_dict = get_naive_object_strategies(object_type)
+    if custom_strategies:
+        object_dict = {**object_dict}
+        object_dict.update(custom_strategies)
+
+    if reject_invalid:
+
+        def _make_object_if_valid(**kwargs):
+            # despite best efforts, some combination of arguments may be invalid
+            #  (this may be simpler than guaranteeing that all generated objects are valid upfront)
+            try:
+                return object_cls(**kwargs)
+            except ValidationError:
+                reject()
+
+        buildf = _make_object_if_valid
+    else:
+        buildf = object_cls
+
+    return st.builds(buildf, **object_dict)
+
+
+@cacheable
 @st.composite
 def node_references(draw: st.DrawFn, node_types: st.SearchStrategy[NodeType]):
     node_type = draw(node_types)
@@ -245,26 +292,47 @@ def node_references(draw: st.DrawFn, node_types: st.SearchStrategy[NodeType]):
 SIMPLE_TYPE_KINDS = st.sampled_from((TypeKind.PRIMITIVE, TypeKind.ENUM, TypeKind.STRUCT))
 
 
-@st.composite
-def type_infos(draw: st.DrawFn, kinds: st.SearchStrategy[TypeKind]):
+def draw_type_info_base_dict(draw: st.DrawFn, kinds: st.SearchStrategy[TypeKind]) -> dict[str, Any]:
     kind = draw(kinds)
     if kind == TypeKind.PRIMITIVE:
         primitive_type = draw(PRIMITIVE_TYPE_STRATEGY)
-        return TypeInfo(kind=kind, primitive_type=primitive_type)
+        return {"kind": kind, "primitive_type": primitive_type}
     elif kind == TypeKind.ENUM:
-        enum_type = draw(PRIMITIVE_TYPE_STRATEGY)
-        return TypeInfo(kind=kind, bench_type=enum_type)
+        enum_type = draw(ENUM_TYPE_STRATEGY)
+        return {"kind": kind, "bench_type": enum_type}
     elif kind == TypeKind.STRUCT:
         struct_type = draw(STRUCT_TYPE_STRATEGY)
-        return TypeInfo(kind=kind, bench_type=struct_type)
+        return {"kind": kind, "bench_type": struct_type}
     else:
         raise NotImplementedError(f"TypeKind {kind!r} not implemented")
 
 
+@cacheable
+@st.composite
+def type_infos(draw: st.DrawFn, kinds: st.SearchStrategy[TypeKind]):
+    type_info_base_dict = draw_type_info_base_dict(draw, kinds)
+    return TypeInfoBase(**type_info_base_dict)
+
+
+@st.composite
+def fields(draw: st.DrawFn, kinds: st.SearchStrategy[TypeKind]):
+    type_info_base_dict = draw_type_info_base_dict(draw, kinds)
+    naive_base_dict = get_naive_object_strategies(NodeType.FIELD)
+    combined_dict = {}
+    for key in naive_base_dict:
+        # prefer type info where set
+        if key in type_info_base_dict:
+            combined_dict[key] = type_info_base_dict[key]
+        else:
+            combined_dict[key] = draw(naive_base_dict[key])
+    return Field(**combined_dict)
+
+
+@cacheable
 @st.composite
 def builtin_objects(draw: st.DrawFn, object_types: st.SearchStrategy[ObjectType] = object_types):
     object_type = draw(object_types)
-    return draw(from_object_type(object_type))
+    return draw(from_object_type(object_type, reject_invalid=True))
 
 
 nodes = builtin_objects(object_types=st.sampled_from(NodeType))

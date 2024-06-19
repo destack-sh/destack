@@ -1,9 +1,10 @@
 # ruff: noqa: E402
 
+import warnings
+
 import pytest
 
 from bench.test.conftest import setup_test_env
-from bench.utils.oracle import REAL_ORACLE
 
 # NOTE: must run setup_test() before importing from bench
 setup_test_env()
@@ -11,10 +12,12 @@ setup_test_env()
 from bench.language import Session
 from bench.language.bench import Bench, ServerProfile
 from bench.language.connection import NullEngine
-from bench.language.const import NODE_TYPES, UserStatus, _active_session
+from bench.language.const import NODE_TYPES, OBJECT_TYPES, UserStatus, _active_session
 from bench.language.graph import NodeGraph, NodeSuperGraph
 from bench.language.user import User
 from bench.proto.wire import GraphScope
+from bench.test.strategies import draw_direct, from_object_type
+from bench.utils.oracle import REAL_ORACLE
 
 
 def make_session(name: str):
@@ -52,28 +55,6 @@ async def session_async(request):
     await session.close()
 
 
-@pytest.fixture(scope="module")
-async def shared_session_async():
-    session = make_session("shared")
-    await session.open(set_in_context=False)
-    yield session
-    await session.close()
-
-
-@pytest.fixture()
-def session(session_async: Session):
-    active_session_token = _active_session.set(session_async)
-    yield session_async
-    _active_session.reset(active_session_token)
-
-
-@pytest.fixture(scope="module")
-def shared_session(shared_session_async: Session):
-    active_session_token = _active_session.set(shared_session_async)
-    yield shared_session_async
-    _active_session.reset(active_session_token)
-
-
 def make_package(session: Session):
     bench = Bench(name="test", slug="test")
     server = bench.servers.create(name="Server", profile=ServerProfile.TINY)
@@ -89,12 +70,48 @@ def make_package(session: Session):
 
 
 @pytest.fixture()
+def session(session_async: Session):
+    active_session_token = _active_session.set(session_async)
+    yield session_async
+    _active_session.reset(active_session_token)
+
+
+@pytest.fixture()
 def package(session: Session):
     package = make_package(session)
     return package
 
 
-@pytest.fixture(scope="module")
+SHARED_SESSION = make_session("shared")
+
+
+@pytest.fixture(scope="session")
+async def shared_session_async():
+    await SHARED_SESSION.open(set_in_context=False)
+    yield SHARED_SESSION
+    await SHARED_SESSION.close()
+
+
+@pytest.fixture(scope="session")
+def shared_session(shared_session_async: Session):
+    active_session_token = _active_session.set(shared_session_async)
+    yield shared_session_async
+    _active_session.reset(active_session_token)
+
+
+@pytest.fixture(scope="session")
 def shared_package(shared_session: Session):
     package = make_package(shared_session)
     return package
+
+
+# init shared builtin objects (in shared session)
+# NOTE :Test :Performance: defer init builtin objects somehow
+#  (unfortunately we need to add hypothesis examples statically, so not sure how)
+with warnings.catch_warnings(action="ignore"):
+    _active_session_token = _active_session.set(SHARED_SESSION)
+    BUILTIN_OBJECTS_OF_EVERY_TYPE = [
+        draw_direct(from_object_type(object_type, reject_invalid=True))
+        for object_type in OBJECT_TYPES
+    ]
+    _active_session.reset(_active_session_token)
