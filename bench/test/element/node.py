@@ -1,3 +1,4 @@
+import asyncio
 from itertools import chain
 
 import pytest
@@ -18,8 +19,9 @@ def test_struct_regular_properties_are_available():
                 assert isinstance(attr, Property), f"{prop!r}->{attr!r} is not a Property"
 
 
-def test_get_set_non_existing_property(session: "Session"):
+async def test_get_set_non_existing_property(session: "Session"):
     """Should raise properly"""
+    await asyncio.sleep(0)
     node = Bench(slug="test", name="Test")
     with pytest.raises(AttributeError):
         node.wadabadaboo = "wadabadaboo"  # type: ignore

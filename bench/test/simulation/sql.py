@@ -47,6 +47,7 @@ from bench.sql.migration import (
     read_migrations_from_fs,
     sql_migrate,
 )
+from bench.utils.func import generate_encryption_key
 from bench.utils.oracle import REAL_ORACLE
 
 TEST_PRIMITIVE_TYPES = (
@@ -235,99 +236,123 @@ async def test_stored_migrations_local(blank_cur: psycopg.AsyncCursor):
 
 
 async def test_cascade_edits(global_real_session: Session):
-    """Ensure basic cascading works"""
-    session = global_real_session
+    """Ensure basic cascading works. A simpler, isolated version of the simulation workloads."""
 
-    user_1 = User(
-        name="Rabbit", slug="rabbit", status=UserStatus.REGISTERED, email="rabbit@symbolx.com"
-    )
-    session._create(user_1)
-    await session.flush()
+    async with global_real_session as session:
+        user_1 = User(
+            name="Rabbit", slug="rabbit", status=UserStatus.REGISTERED, email="rabbit@symbolx.com"
+        )
+        session._create(user_1)
+        await session.flush()
 
-    client_1_a = Client(parent=user_1, type=ClientType.BENCH_WEB, name="Rabbit's Web")
-    client_1_b = Client(parent=user_1, type=ClientType.BENCH_MOBILE, name="Rabbit's iPhone")
-    client_1_c = Client(parent=user_1, type=ClientType.BENCH_MOBILE, name="Rabbit's Android")
-    session._create(client_1_a, client_1_b, client_1_c)
-    await session.commit()
+        client_1_a = Client(
+            parent=user_1,
+            type=ClientType.BENCH_WEB,
+            seen_at=session._oracle.utc(),
+            name="Rabbit's Web",
+        )
+        client_1_b = Client(
+            parent=user_1,
+            type=ClientType.BENCH_MOBILE,
+            seen_at=session._oracle.utc(),
+            name="Rabbit's iPhone",
+        )
+        client_1_c = Client(
+            parent=user_1,
+            type=ClientType.BENCH_MOBILE,
+            seen_at=session._oracle.utc(),
+            name="Rabbit's Android",
+        )
+        session._create(client_1_a, client_1_b, client_1_c)
+        await session.commit()
 
-    # delete non-cascading
-    session._delete(client_1_c)
-    await session.commit()
-    with pytest.raises(NodeNotFoundError):
-        await Client.get(id=client_1_c.id)
+        # delete non-cascading
+        session._delete(client_1_c)
+        await session.commit()
+        with pytest.raises(NodeNotFoundError):
+            await Client.get(id=client_1_c.id)
 
-    # delete cascading
-    session._delete(user_1)
-    edits, cascaded_edits = await session.commit()
-    assert len(edits) == 1
-    assert len(cascaded_edits) == 2
-    with pytest.raises(NodeNotFoundError):
-        await User.get(id=user_1.id)
-    with pytest.raises(NodeNotFoundError):
-        await Client.get(id=client_1_a.id)
+        # delete cascading
+        session._delete(user_1)
+        edits, cascaded_edits = await session.commit()
+        assert len(edits) == 1
+        assert len(cascaded_edits) == 2
+        with pytest.raises(NodeNotFoundError):
+            await User.get(id=user_1.id)
+        with pytest.raises(NodeNotFoundError):
+            await Client.get(id=client_1_a.id)
 
-    # restore cascading
-    session._restore(user_1)
-    edits, cascaded_edits = await session.commit()
-    assert len(edits) == 1
-    assert len(cascaded_edits) == 2
-    assert await User.get(id=user_1.id)
-    assert await Client.get(id=client_1_a.id)
-    with pytest.raises(NodeNotFoundError):  # should only restore its own deleted children
-        await Client.get(id=client_1_c.id)
+        # restore cascading
+        session._restore(user_1)
+        edits, cascaded_edits = await session.commit()
+        assert len(edits) == 1
+        assert len(cascaded_edits) == 2
+        assert await User.get(id=user_1.id)
+        assert await Client.get(id=client_1_a.id)
+        with pytest.raises(NodeNotFoundError):  # should only restore its own deleted children
+            await Client.get(id=client_1_c.id)
 
-    # restore non-cascading
-    session._restore(client_1_c)
-    edits, cascaded_edits = await session.commit()
-    assert len(edits) == 1
-    assert len(cascaded_edits) == 0
-    assert await Client.get(id=client_1_c.id)
+        # restore non-cascading
+        session._restore(client_1_c)
+        edits, cascaded_edits = await session.commit()
+        assert len(edits) == 1
+        assert len(cascaded_edits) == 0
+        assert await Client.get(id=client_1_c.id)
 
 
 async def test_crud_node_pointers(global_real_session: Session):
-    """Ensures that node pointers (parent, regular, ancestor) roundtrip correctly"""
-    session = global_real_session
+    """Ensures that node pointers (parent, regular, ancestor) roundtrip correctly."""
+    async with global_real_session as session:
+        # write
+        bench: Bench = Bench(
+            slug="test",
+            name="test_b",
+            region=Region.GLOBAL,
+            encryption_key=generate_encryption_key(32),
+        )
+        session._create(bench)
+        await session.flush()
+        server = bench.servers.create(name="Production A", profile=ServerProfile.TINY)
+        store = bench.stores.create(name="Production A")
+        drive = bench.drives.create(name="Production A")
+        client = server.clients.create(
+            type=ClientType.BENCH_MOBILE, seen_at=session._oracle.utc(), name="Testificate's iPhone"
+        )
+        environment = bench.environments.create(
+            name="main a", server=server, store=store, drive=drive
+        )
+        branch = bench.branches.create(name="main a")
+        package = branch.packages.create(environment=environment)
+        await session.flush()
+        session.parent = package
+        branch.main_package = package
+        bench.main_environment = environment
+        bench.main_branch = branch
+        await session.commit()
+        bench._untrack_rec()
 
-    # write
-    bench: Bench = Bench(slug="test", name="test_b", region=Region.GLOBAL, encryption_key="yo")
-    session._create(bench)
-    await session.flush()
-    server = bench.servers.create(name="Production A", profile=ServerProfile.TINY)
-    store = bench.stores.create(name="Production A")
-    drive = bench.drives.create(name="Production A")
-    client = server.clients.create(type=ClientType.BENCH_MOBILE, name="Testificate's iPhone")
-    environment = bench.environments.create(name="main a", server=server, store=store, drive=drive)
-    branch = bench.branches.create(name="main a")
-    package = branch.packages.create(environment=environment)
-    await session.flush()
-    branch.main_package = package
-    bench.main_environment = environment
-    bench.main_branch = branch
-    await session.commit()
-    bench._untrack_rec()
+        session.track(bench)
+        block_1 = package.blocks.create(type=BlockType.CODE)
+        block_1.fields.create(name="foo", kind=TypeKind.ENUM, bench_type=EnumType.PRIMITIVE_TYPE)
+        await session.commit()
 
-    session.track(bench)
-    block_1 = package.blocks.create(type=BlockType.CODE)
-    block_1.fields.create(name="foo", kind=TypeKind.ENUM, bench_type=EnumType.PRIMITIVE_TYPE)
-    await session.commit()
+        # read back
+        server = await Server.include_ancestors().get(id=server.id)
+        assert server.parent_ptr
+        assert server.parent_ptr._equals_content(bench.to_ref())
+        assert server.bench_id == bench.id
+        assert server.to_ref()._equals_content(
+            NodeReference(type=NodeType.SERVER, id=server.id, ck=server.ck, bench_id=bench.id)
+        )
 
-    # read back
-    server = await Server.include_ancestors().get(id=server.id)
-    assert server.parent_ptr
-    assert server.parent_ptr._equals_content(bench.to_ref())
-    assert server.bench_id == bench.id
-    assert server.to_ref()._equals_content(
-        NodeReference(type=NodeType.SERVER, id=server.id, ck=server.ck, bench_id=bench.id)
-    )
+        client = await Client.include_ancestors().get(id=client.id)
+        assert client.bench_id == bench.id
+        assert client.to_ref()._equals_content(
+            NodeReference(type=NodeType.CLIENT, id=client.id, ck=client.ck, bench_id=bench.id)
+        )
 
-    client = await Client.include_ancestors().get(id=client.id)
-    assert client.bench_id == bench.id
-    assert client.to_ref()._equals_content(
-        NodeReference(type=NodeType.CLIENT, id=client.id, ck=client.ck, bench_id=bench.id)
-    )
-
-    block_1 = await Block.include_ancestors().get(id=block_1.id)
-    assert block_1.bench_id == bench.id
-    assert block_1.to_ref()._equals_content(
-        NodeReference(type=NodeType.BLOCK, id=block_1.id, ck=block_1.ck, bench_id=bench.id)
-    )
+        block_1 = await Block.include_ancestors().get(id=block_1.id)
+        assert block_1.bench_id == bench.id
+        assert block_1.to_ref()._equals_content(
+            NodeReference(type=NodeType.BLOCK, id=block_1.id, ck=block_1.ck, bench_id=bench.id)
+        )

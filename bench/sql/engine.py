@@ -446,16 +446,16 @@ def _compile_expression_ref(
         raise TypeError(f"unexpected expression ref: {expr!r}")
 
 
-def _pg_compile_conditional_maybe(
+def pg_compile_conditional_maybe(
     node: Union[type[Node], Block],
     cond: Optional[Expression],
 ) -> SqlNode:
     if cond is None:
         return sqlstr("TRUE")
-    return _pg_compile_conditional(node, cond)
+    return pg_compile_conditional(node, cond)
 
 
-def _pg_compile_conditional(
+def pg_compile_conditional(
     node: Union[type[Node], Block],
     cond: Expression,
 ) -> SqlNode:
@@ -466,7 +466,7 @@ def _pg_compile_conditional(
     elif cond.op == LiteralOp.NONE:
         return sqlstr("NULL")
     elif cond.op in ExpressionOps.COND_LOGICAL and cond.op in PG_CONDITIONAL_OP_BY_BENCH:
-        clauses = [_pg_compile_conditional(node, c) for c in cond.clauses or ()]
+        clauses = [pg_compile_conditional(node, c) for c in cond.clauses or ()]
         return SqlCompound(op=PG_CONDITIONAL_OP_BY_BENCH[cond.op], operands=clauses)
     elif (
         cond.op in ExpressionOps.COND_COMPARISON or cond.op in ExpressionOps.COND_STRING
@@ -504,16 +504,14 @@ def _pg_compile_conditional(
     raise ChannelIncapableError("postgres", expression=cond, reason="unsupported conditional")
 
 
-def _pg_compile_sort(node: Union[type[Node], Block], sort: Expression) -> sql.Composed:
+def pg_compile_sort(node: Union[type[Node], Block], sort: Expression) -> sql.Composed:
     field_ref = _compile_expression_ref(node, sort)
     sort_op = POSTGRES_SORT_OP_BY_BENCH[cast(SortOp, sort.op)]
     return sqlstr("{} {}").format(sql_node_to_sql(field_ref), sqlstr(sort_op))
 
 
-def _pg_compile_sorts(
-    node: Union[type[Node], Block], sorts: Collection[Expression]
-) -> sql.Composed:
-    return sqljoin(", ", (_pg_compile_sort(node, sort) for sort in sorts))
+def pg_compile_sorts(node: Union[type[Node], Block], sorts: Collection[Expression]) -> sql.Composed:
+    return sqljoin(", ", (pg_compile_sort(node, sort) for sort in sorts))
 
 
 @dataclass(frozen=True)
@@ -1222,7 +1220,9 @@ def _pg_unpack_node_reference_from_row(prop: Property, row: RowOut, node: AnyNod
                 else:
                     raise RuntimeError(f"unexpected meta prop type: {meta_prop!r}")
                 setattr(ptr, meta_key, extra_value)
-            if prop.reference_is_bench_implicit:
+            if not ptr.ck:
+                ptr.ck = ptr.id
+            if bench_id and not ptr.bench_id:
                 ptr.bench_id = bench_id
                 if ptr.base_ck:
                     ptr.base_bench_id = ptr.bench_id
@@ -1254,7 +1254,9 @@ def _pg_unpack_node_reference_from_row(prop: Property, row: RowOut, node: AnyNod
                 else:
                     raise RuntimeError(f"unexpected meta prop type: {meta_prop!r}")
                 setattr(ptr, meta_key, extra_value)
-            if prop.reference_is_bench_implicit:
+            if not ptr.ck:
+                ptr.ck = ptr.id
+            if bench_id and not ptr.bench_id:
                 ptr.bench_id = bench_id
                 if ptr.base_ck:
                     ptr.base_bench_id = ptr.bench_id
@@ -1317,8 +1319,8 @@ async def pg_get_nodes(
     assert node_cls.__table__, f"no table for {node_cls!r}"
     columns = [prop.column for prop in properties]
     assert any(c.is_primary_key for c in columns), f"no primary key selected in {columns!r}"
-    where = _pg_compile_conditional(node_cls, filter) if filter is not None else None
-    order_by = _pg_compile_sorts(node_cls, sort) if sort else None
+    where = pg_compile_conditional(node_cls, filter) if filter is not None else None
+    order_by = pg_compile_sorts(node_cls, sort) if sort else None
     rows = await pg_select(
         cur=cur,
         table=node_cls.__table__,
@@ -1395,7 +1397,7 @@ async def pg_walk_graph_down(
             child_table = child_cls.__table__
             assert child_table, f"no table for {child_cls!r}"
             assert child_table._primary_key, f"no primary key for {child_cls!r}"
-            parent_where = _pg_compile_conditional(child_cls, parent_filter)
+            parent_where = pg_compile_conditional(child_cls, parent_filter)
             children_rows = await pg_select(
                 cur=cur,
                 table=child_table,
