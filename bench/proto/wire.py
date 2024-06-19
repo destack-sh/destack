@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.06.17.0"
+VERSION = "2024.06.19.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -3756,7 +3756,7 @@ class QueueRunResponse(betterproto.Message):
     pass
 
 
-class GraphIoStub(betterproto.ServiceStub):
+class GraphIoClient(betterproto.ServiceStub):
     async def get_nodes(
         self,
         request: "GetNodesRequest",
@@ -3880,7 +3880,7 @@ class GraphIoStub(betterproto.ServiceStub):
         )
 
 
-class SupervisorStub(betterproto.ServiceStub):
+class SupervisorClient(betterproto.ServiceStub):
     async def get_nodes(
         self,
         request: "GetNodesRequest",
@@ -4106,7 +4106,7 @@ class SupervisorStub(betterproto.ServiceStub):
         )
 
 
-class HostStub(betterproto.ServiceStub):
+class HostClient(betterproto.ServiceStub):
     async def get_nodes(
         self,
         request: "GetNodesRequest",
@@ -4230,7 +4230,7 @@ class HostStub(betterproto.ServiceStub):
         )
 
 
-class RuntimeStub(betterproto.ServiceStub):
+class RuntimeClient(betterproto.ServiceStub):
     async def restart(
         self,
         request: "RestartRuntimeRequest",

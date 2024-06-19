@@ -19,7 +19,7 @@ from bench.language.user import User
 from bench.language.validation import on_invalid_raise
 from bench.language.value import check_value
 from bench.proto import wiring
-from bench.proto.wire import GraphScope, HostStub, RunData, SupervisorStub
+from bench.proto.wire import GraphScope, HostClient, RunData, SupervisorClient
 from bench.runtime.core import BENCH_QUERY, PACKAGE_QUERY
 from bench.utils.func import CriticalLock
 from bench.utils.oracle import Oracle
@@ -43,8 +43,8 @@ class RuntimeThread:
         *,
         id: int,
         bench_id: UUID,
-        supervisor: SupervisorStub,
-        host: HostStub,
+        supervisor: SupervisorClient,
+        host: HostClient,
         client_id: UUID,
         machine_id: UUID | None,
         engines: tuple[GraphEngine, ...],

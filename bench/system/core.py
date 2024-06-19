@@ -59,8 +59,7 @@ def global_store_from_env() -> Store:
         created_at=BEGINNING_OF_TIME,
         updated_at=BEGINNING_OF_TIME,
     )
-
-    return Store(
+    store = Store(
         parent=system_bench_stub,
         name="Global Store",
         version=VERSION,
@@ -70,6 +69,7 @@ def global_store_from_env() -> Store:
         created_at=BEGINNING_OF_TIME,
         updated_at=BEGINNING_OF_TIME,
     )
+    return store
 
 
 def global_pg_engine_from_store(store: Store):

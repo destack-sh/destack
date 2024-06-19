@@ -27,14 +27,14 @@ from bench.proto import wire, wiring
 from bench.proto.services import ServiceBase
 from bench.proto.wire import (
     GraphScope,
-    HostStub,
+    HostClient,
     QueueRunRequest,
     QueueRunResponse,
     RpcMetadata,
     RunData,
     RuntimeBase,
     ServiceKind,
-    SupervisorStub,
+    SupervisorClient,
 )
 from bench.runtime.core import (
     BENCH_QUERY,
@@ -76,7 +76,7 @@ class Runtime(ServiceBase, RuntimeBase):
         self._supervisor_port = _supervisor_url.port
         if self._supervisor_host is None or self._supervisor_port is None:
             raise ValueError(f"invalid supervisor URL: {supervisor_url}")
-        self._supervisor = SupervisorStub(Channel(self._supervisor_host, self._supervisor_port))
+        self._supervisor = SupervisorClient(Channel(self._supervisor_host, self._supervisor_port))
 
         # context
         if client_type == ClientType.BENCH_SERVER and machine_id is None:
@@ -95,7 +95,7 @@ class Runtime(ServiceBase, RuntimeBase):
         self._engines: tuple[RemoteEngine, ...] = ()
 
         # bench stuff
-        self._host: HostStub | None = None
+        self._host: HostClient | None = None
         self._bench_id = bench_id
         self._bench_ptr = NodeReference(
             type=NodeType.BENCH, id=bench_id, ck=bench_id, bench_id=bench_id
@@ -123,7 +123,7 @@ class Runtime(ServiceBase, RuntimeBase):
         return f"<{self.__class__.__name__} {self}>"
 
     @property
-    def host(self) -> HostStub:
+    def host(self) -> HostClient:
         assert self._host is not None, f"no host for {self!r}"
         return self._host
 
@@ -285,6 +285,6 @@ class Runtime(ServiceBase, RuntimeBase):
         return QueueRunResponse()
 
 
-async def get_host_client(bench_id: UUID, supervisor: SupervisorStub) -> HostStub:  # noqa: RUF029
+async def get_host_client(bench_id: UUID, supervisor: SupervisorClient) -> HostClient:  # noqa: RUF029
     # NOTE :Scalability: lookup bench host (via supervisor?) :SingleHostService
-    return HostStub(supervisor.channel)
+    return HostClient(supervisor.channel)

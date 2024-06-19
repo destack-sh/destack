@@ -79,7 +79,7 @@ def _build_proto(schema_str: str) -> None:
     )
     _shell(f"mv {TEMP_PY_DIR}/symbolx/bench/__init__.py {TEMP_PY_FILE}")
 
-    # patch our extra stuff
+    # patch in our extra stuff
     wire_py = Path(TEMP_PY_FILE).read_text()
     # rename all '*_request' parameters to just 'request'
     wire_py = re.sub(r"\w[a-z_]+request,", "request,", wire_py)
@@ -101,6 +101,9 @@ def _build_proto(schema_str: str) -> None:
             base_py,
         )
         wire_py = wire_py[:base_start] + patched_base_py + wire_py[base_end:]
+
+    # rename XyzStub to XyzClient (stub is a bad name)
+    wire_py = re.sub(r"(?<!Service)Stub", "Client", wire_py)
 
     patch_prefix_code = f"""
 # type: ignore

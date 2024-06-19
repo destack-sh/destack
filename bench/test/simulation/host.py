@@ -31,9 +31,9 @@ from bench.proto.wire import (
     CreateBenchRequest,
     GetNodesRequest,
     GraphScope,
-    HostStub,
+    HostClient,
     SupervisorBase,
-    SupervisorStub,
+    SupervisorClient,
 )
 from bench.sql.client import close_pg_connection_pool
 from bench.system.core import MockHost, global_session
@@ -52,8 +52,8 @@ class BenchHandle:
     owner: User
     owner_handle: UserHandle
     # the actual stubs (per function scope) :PytestAsyncWeirdness
-    _supervisor: SupervisorStub | None
-    _host: HostStub | None
+    _supervisor: SupervisorClient | None
+    _host: HostClient | None
 
     @property
     def scope(self):
@@ -64,12 +64,12 @@ class BenchHandle:
         return self.owner_handle.headers
 
     @property
-    def supervisor(self) -> SupervisorStub:
+    def supervisor(self) -> SupervisorClient:
         assert self._supervisor is not None, f"no supervisor for {self!r}"
         return self._supervisor
 
     @property
-    def host(self) -> HostStub:
+    def host(self) -> HostClient:
         assert self._host is not None, f"no host for {self!r}"
         return self._host
 
@@ -107,7 +107,7 @@ class BenchHandle:
 
 
 @asynccontextmanager
-async def make_some_bench(supervisor: SupervisorStub, host: HostStub):
+async def make_some_bench(supervisor: SupervisorClient, host: HostClient):
     some_user = await make_random_user_handle(supervisor)
 
     # make bench in supervisor
@@ -169,8 +169,8 @@ async def make_some_bench(supervisor: SupervisorStub, host: HostStub):
 @pytest.fixture(scope="module")
 async def some_bench_setup(supervisor_service: SupervisorBase, host_service):
     async with ChannelFor([supervisor_service, host_service]) as channel:
-        supervisor = SupervisorStub(channel)
-        host = HostStub(channel)
+        supervisor = SupervisorClient(channel)
+        host = HostClient(channel)
         async with make_some_bench(supervisor, host) as handle:
             yield handle
 

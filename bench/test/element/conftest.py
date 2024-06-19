@@ -3,6 +3,7 @@
 import pytest
 
 from bench.test.conftest import setup_test_env
+from bench.utils.oracle import REAL_ORACLE
 
 # NOTE: must run setup_test() before importing from bench
 setup_test_env()
@@ -11,7 +12,7 @@ from bench.language import Session
 from bench.language.bench import Bench, ServerProfile
 from bench.language.connection import NullEngine
 from bench.language.const import NODE_TYPES, UserStatus, _active_session
-from bench.language.graph import NodeSuperGraph
+from bench.language.graph import NodeGraph, NodeSuperGraph
 from bench.language.user import User
 from bench.proto.wire import GraphScope
 
@@ -19,26 +20,30 @@ from bench.proto.wire import GraphScope
 @pytest.fixture()
 async def session_async(request):
     supergraph = NodeSuperGraph(root_ptr=None)
+    graph = NodeGraph(scope=GraphScope(), node_types=NODE_TYPES, supergraph=supergraph)
+    session = Session(
+        _engines=(NullEngine(scope=GraphScope(), node_types=NODE_TYPES),),
+        _supergraph=supergraph,
+        _graph=graph,
+        _oracle=REAL_ORACLE,
+    )
     user = User(
         status=UserStatus.REGISTERED,
         slug=f"test-{request.node.name}",
         email=f"test-{request.node.name}@symbolx.com",
         name=request.node.name,
+        _graph=graph,
         _supergraph=supergraph,
+        _session=session,
     )
     supergraph._root_ptr = user.to_ref()
-    session = Session(
-        _supergraph=user._supergraph,
-        _graph=user._graph,
-        _engines=(NullEngine(scope=GraphScope(), node_types=NODE_TYPES),),
-    )
     async with session:
         yield session
 
 
 @pytest.fixture()
 def session(session_async: Session):
-    # manually set session context since it's not propagated across tasks right now
+    # NOTE :Cleanup: manually set session context since it's not propagated across pytest tasks
     # https://github.com/pytest-dev/pytest-asyncio/issues/127#issuecomment-862817549
     active_session_token = _active_session.set(session_async)
     yield session_async
