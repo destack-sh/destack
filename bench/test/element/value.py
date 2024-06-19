@@ -1,7 +1,7 @@
 from typing import cast
 
 import pytest
-from hypothesis import given
+from hypothesis import HealthCheck, given, settings
 
 from bench.language.bench import Package
 from bench.language.block import Block
@@ -119,7 +119,8 @@ def test_roundtrip_nested_value(session: Session, package: Package):
 
 
 @given(obj=builtin_objects())
-def test_roundtrip_builtin_object(obj: BuiltinObject):
+@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
+def test_roundtrip_builtin_object_value(obj: BuiltinObject):
     packed_wire_obj = wiring.pack_object(obj)
     packed_json = pack_builtin_object_data(packed_wire_obj)
     unpacked_wire_obj = unpack_builtin_object_data(packed_json)

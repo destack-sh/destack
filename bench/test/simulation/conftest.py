@@ -44,7 +44,7 @@ from bench.utils.utils import get_from_env
 GLOBAL_PG_NAME = get_from_env("GLOBAL_PG_NAME", description="Global Postgres database name")
 
 
-def create_global_store(name: str):
+def make_global_store(name: str):
     """Creates a global store for testing. Like global store in system/core."""
 
     host = get_from_env("GLOBAL_PG_HOST", description="Global Postgres host")
@@ -100,7 +100,7 @@ async def create_test_db(store: Store, schema: Schema):
 async def blank_store(request: pytest.FixtureRequest):
     """Gets the per test function blank store"""
 
-    store = create_global_store(f"test_{request.node.name}")
+    store = make_global_store(f"test_{request.node.name}")
     await create_blank_test_db(store)
     return store
 
@@ -109,7 +109,7 @@ async def blank_store(request: pytest.FixtureRequest):
 async def global_store(request: pytest.FixtureRequest):
     """Gets the per test function global store"""
 
-    store = create_global_store(f"test_{request.node.name}")
+    store = make_global_store(f"test_{request.node.name}")
     await create_test_db(store, GLOBAL_SCHEMA)
     return store
 

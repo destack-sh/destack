@@ -12,4 +12,4 @@ pytest-xdist==3.6.1
 pytest==8.2.0
 ruff==0.4.5
 watchdog==3.0.0
-hypothesis==6.103.0
+hypothesis==6.103.2
