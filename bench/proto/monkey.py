@@ -7,7 +7,7 @@ import dataclasses
 import json
 from base64 import b64decode, b64encode
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Collection, Iterable, Mapping, Self, Union
 
 import betterproto
@@ -141,7 +141,17 @@ def _unwrap_value(value: ProtoValue) -> Any:
 # monkey-patch '_Duration' to fix floating preicion loss
 
 
-class _PatchedDuration(ProtoDuration): ...
+class _PatchedDuration(ProtoDuration):
+    @classmethod
+    def from_timedelta(
+        cls, delta: timedelta, *, _1_microsecond: timedelta | None = None
+    ) -> ProtoDuration:
+        delta_us = (delta.days * 24 * 60 * 60 + delta.seconds) * 10**6 + delta.microseconds
+        seconds, us = divmod(delta_us, 10**6)
+        return cls(seconds, us * 10**3)
+
+
+ProtoDuration.from_timedelta = _PatchedDuration.from_timedelta  # type: ignore
 
 
 # monkey-patch betterproto 'Struct' to fix from_dict/to_dict for nested messages

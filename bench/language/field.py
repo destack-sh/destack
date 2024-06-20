@@ -211,7 +211,7 @@ DEFAULT_CONSTRAINT = TypeConstraint()
 @object_component()
 class TypeInfoBase(HasValues):
     """
-    A type is a kind of value that can go somewhere, typically in a place designated by a Field.
+    A type is a kind of Value that can go somewhere, often in a place described by a Field.
 
     A type one of these TypeKinds:
        1. Primitive (= column type, value is scalar, like int32, string, bool, datetime, ...)
