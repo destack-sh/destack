@@ -3,8 +3,6 @@ from time import time_ns
 from typing import Any, Optional, cast
 
 from opentelemetry import metrics, trace
-from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
-from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
 from opentelemetry.sdk.resources import (
@@ -35,6 +33,9 @@ def setup_tracing():
     if IS_DEBUG or IS_TEST:
         # NOTE: we don't trace in debug mode because it's pretty slow
         return
+
+    from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
+    from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 
     OLTP_ENDPOINT = get_from_env("OTLP_ENDPOINT", description="Full URL to send OTLP traces to")
     resource = Resource(

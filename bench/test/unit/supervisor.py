@@ -1,15 +1,17 @@
 from dataclasses import replace
 from typing import cast
+from uuid import uuid4
 
+import pytest
 from grpclib import Status as GRPCStatus
 
-from bench.language import Client, ReadOptions, User
+from bench.language import ReadOptions, User
 from bench.language.const import (
-    ClientType,
     NodeType,
 )
+from bench.language.expression import NodeReference
 from bench.language.property import Property
-from bench.language.user import UserStatus
+from bench.proto import wire
 from bench.proto.wire import (
     ClientDataIn,
     GetNodesRequest,
@@ -18,54 +20,73 @@ from bench.proto.wire import (
     RpcMetadata,
     SignupUserRequest,
     SupervisorClient,
+    UserData,
 )
+from bench.system.supervisor import Supervisor
 from bench.test.fixtures import raises_grpc_error
+from bench.test.simulation.grpc import SimulatedChannel
+from bench.utils.oracle import REAL_ORACLE
+
+#
+# Simulated but unit-test-like supervisor-only tests
+#
+
+
+@pytest.fixture()
+async def supervisor_service(global_store):
+    supervisor_service = Supervisor(global_store, REAL_ORACLE)
+    await supervisor_service.start()
+    yield supervisor_service
+    supervisor_service.close()
+    await supervisor_service.wait_closed()
+
+
+@pytest.fixture()
+async def supervisor(supervisor_service):
+    async with SimulatedChannel(services=(supervisor_service,), oracle=REAL_ORACLE) as channel:
+        yield SupervisorClient(channel=channel)
 
 
 async def test_user_registration(supervisor: SupervisorClient):
-    """Create a User, login and logout. Read back data to confirm."""
+    """Create a User, login and logout. Try some wrong passwords and tokens. Read back data to confirm."""
 
-    user = User(slug="test", name="Test", email="test@symbolx.com", status=UserStatus.INVITED)
-    assert user.slug is not None and user.email is not None
-    client = Client(
-        parent=user,
-        type=ClientType.BENCH_WEB,
-        name="test",
-        device_name="pytest",
-        seen_at=get_oracle().utc(),
+    user_slug = "test"
+    user_name = "Test"
+    user_email = "test@symbolx.com"
+    client_name = "pytest"
+    client_device_name = "pytest"
+
+    user_in = UserData(slug=user_slug, name=user_name, email=user_email)
+    client_in = ClientDataIn(
+        id=str(uuid4()),
+        type=wire.ClientType.BENCH_WEB,
+        name=client_name,
+        device_name=client_device_name,
     )
 
     # signup -> success
     signup_req = SignupUserRequest(
-        id=str(user.id),
-        slug=user.slug,
-        name=user.name,
-        email=user.email,
-        client=cast(ClientDataIn, client._to_data()),
+        slug=cast(str, user_in.slug),
+        name=user_in.name,
+        email=cast(str, user_in.email),
+        client=cast(ClientDataIn, client_in),
         password="Password123!",
     )
     signup_rep = await supervisor.signup_user(signup_req)
-    assert signup_rep.user.slug == str(user.slug)
-    assert signup_rep.user.id == str(user.id)
+    assert signup_rep.user.slug == user_slug
 
     # login, invalid password -> fail
-    login_req = LoginUserRequest(
-        slug=user.slug, password="bad", client=cast(ClientDataIn, client._to_data())
-    )
+    login_req = LoginUserRequest(slug=user_slug, password="bad", client=client_in)
     with raises_grpc_error(GRPCStatus.UNAUTHENTICATED):
         _ = await supervisor.login_user(login_req)
 
     # login, wrong password -> fail
-    login_req = LoginUserRequest(
-        slug=user.slug, password="321Password!!!", client=cast(ClientDataIn, client._to_data())
-    )
+    login_req = LoginUserRequest(slug=user_slug, password="321Password!!!", client=client_in)
     with raises_grpc_error(GRPCStatus.UNAUTHENTICATED):
         _ = await supervisor.login_user(login_req)
 
     # login, correct password -> success
-    login_req = LoginUserRequest(
-        slug=user.slug, password="Password123!", client=cast(ClientDataIn, client._to_data())
-    )
+    login_req = LoginUserRequest(slug=user_slug, password="Password123!", client=client_in)
     login_rep = await supervisor.login_user(login_req)
     assert login_rep.access_token
 
@@ -74,18 +95,20 @@ async def test_user_registration(supervisor: SupervisorClient):
         include_properties=[cast(Property, User.email)],
         descendant_types=[NodeType.CLIENT, NodeType.HANDLE],
     )._to_data()
-    read_user_req = GetNodesRequest(roots=[user._to_ref_data()], options=options)
+    read_user_req = GetNodesRequest(
+        roots=[NodeReference.from_node_data(signup_rep.user)], options=options
+    )
     access_metadata = RpcMetadata(
-        client_id=str(client.id), client_access_token=login_rep.access_token
+        client_id=login_rep.client.id, client_access_token=login_rep.access_token
     )
     access_headers = access_metadata.to_headers()  # type: ignore
     read_user_rep = await supervisor.get_nodes(read_user_req, metadata=access_headers)
     assert len(read_user_rep.nodes) == 3
-    assert read_user_rep.nodes[0].user.email == user.email
+    assert read_user_rep.nodes[0].user.email == user_email
     assert read_user_rep.nodes[0].user.main_handle_ptr
     assert read_user_rep.nodes[0].user.main_handle_ptr.id == read_user_rep.nodes[2].handle.id
-    assert read_user_rep.nodes[1].client.device_name == client.device_name
-    assert read_user_rep.nodes[2].handle.slug == user.slug
+    assert read_user_rep.nodes[1].client.device_name == client_device_name
+    assert read_user_rep.nodes[2].handle.slug == user_slug
 
     # logout, invalid token -> fail
     with raises_grpc_error(GRPCStatus.UNAUTHENTICATED):

@@ -137,6 +137,10 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
             seen_at=self.oracle.utc(),
             _is_new=True,  # force create
         )
+        self._patch_client(client, client_data)
+        return client
+
+    def _patch_client(self, client: Client, client_data: ClientDataIn) -> Client:
         # copy over other properties
         for key, value in client_data.__dict__.items():
             if key not in ("id", "name") and key in client.__properties__:
@@ -228,7 +232,13 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
                 raise GRPCError(GRPCStatus.UNAUTHENTICATED, "incorrect password")
 
             user.last_logged_in_at = self.oracle.utc()
-            client = await self._make_client(user, request.client)
+            if request.client.id:  # upsert
+                client = user._supergraph.get(UUID(request.client.id))
+                if not isinstance(client, Client):
+                    raise GRPCError(GRPCStatus.NOT_FOUND, "client not found")
+                self._patch_client(client, request.client)
+            else:
+                client = await self._make_client(user, request.client)
             client.access_token = generate_access_token(ACCESS_TOKEN_LENGTH)
             session._upsert(client)
             await session.commit()

@@ -5,7 +5,6 @@ import pytest
 import uvloop
 
 from bench.test.conftest import setup_test_env
-from bench.utils.oracle import REAL_ORACLE, Oracle
 
 # NOTE: must run setup_test() before importing from bench
 setup_test_env()
@@ -16,19 +15,15 @@ from bench.language.bench import Bench
 from bench.language.const import NodeType, Region
 from bench.language.expression import NodeReference
 from bench.language.graph import NodeSuperGraph
-from bench.language.session import Session
-from bench.proto.wire import (
-    GraphScope,
-)
 from bench.sql.client import GLOBAL_PG_CRYPTO_KEY, pg_store_connection
 from bench.sql.core import Schema
-from bench.sql.engine import GLOBAL_SCHEMA, sqlstr
+from bench.sql.engine import sqlstr
 from bench.sql.migration import (
     apply_sql_migration_ops,
     generate_sql_migration_ops,
     introspect_sql_schema,
 )
-from bench.system.core import BEGINNING_OF_TIME, global_pg_cursor, global_pg_engine_from_store
+from bench.system.core import BEGINNING_OF_TIME, global_pg_cursor
 from bench.utils.utils import get_from_env
 
 
@@ -36,9 +31,6 @@ from bench.utils.utils import get_from_env
 @pytest.fixture()
 def event_loop_policy():
     return uvloop.EventLoopPolicy()
-
-
-GLOBAL_PG_NAME = get_from_env("GLOBAL_PG_NAME", description="Global Postgres database name")
 
 
 def make_global_store(name: str):
@@ -91,48 +83,3 @@ async def create_test_db(store: Store, schema: Schema):
         migration_ops = generate_sql_migration_ops(blank_schema, schema)
         await apply_sql_migration_ops(cur, migration_ops)
         await cur.connection.commit()
-
-
-@pytest.fixture()
-async def blank_store(request: pytest.FixtureRequest):
-    """Gets the per test function blank store"""
-
-    store = make_global_store(f"test_{request.node.name}")
-    await create_blank_test_db(store)
-    return store
-
-
-@pytest.fixture()
-async def global_store(request: pytest.FixtureRequest):
-    """Gets the per test function global store"""
-
-    store = make_global_store(f"test_{request.node.name}")
-    await create_test_db(store, GLOBAL_SCHEMA)
-    return store
-
-
-def create_global_session(global_store: Store, oracle: Oracle):
-    """Gets direct access to a per test global engine"""
-
-    global_pg_engine = global_pg_engine_from_store(global_store)
-    session = Session(
-        parent=None,
-        _default_scope=GraphScope(),
-        _engines=(global_pg_engine,),
-        _epoch=0,
-        _oracle=oracle,
-        _supergraph=NodeSuperGraph(root_ptr=None),
-    )
-    return session
-
-
-@pytest.fixture()
-def global_real_session(global_store: Store):
-    """
-    Gets the per test function global real session.
-    Unfortunately we can't set this session as the active session in context because
-     pytest-asyncio does not propagate contextvars across async tests/fixtures.
-    (see https://github.com/pytest-dev/pytest-asyncio/issues/127#issuecomment-1777004844)
-    """
-
-    return create_global_session(global_store, REAL_ORACLE)
