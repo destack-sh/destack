@@ -3,6 +3,7 @@
 import warnings
 
 import pytest
+import uvloop
 
 from bench.test.conftest import setup_test_env
 
@@ -18,6 +19,12 @@ from bench.language.user import User
 from bench.proto.wire import GraphScope
 from bench.test.strategies import draw_direct, from_object_type
 from bench.utils.oracle import REAL_ORACLE
+
+
+# NOTE: simulation tests must be run with one event loop per function to isolate
+@pytest.fixture(scope="session")  # scope=function!
+def event_loop_policy():
+    return uvloop.EventLoopPolicy()
 
 
 def make_session(name: str):

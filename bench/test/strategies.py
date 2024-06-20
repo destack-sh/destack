@@ -25,6 +25,7 @@ from bench.language.setup import ENUM_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE, OBJECT_
 from bench.language.validation import ValidationError
 from bench.language.value import MAX_VALUE_BY_PRIMITIVE_TYPE, MIN_VALUE_BY_PRIMITIVE_TYPE
 from bench.utils.fractional import INTEGER_ZERO
+from bench.utils.oracle import MAX_SCHEDULE_DURATION
 
 logger = structlog.get_logger(__name__)
 
@@ -61,6 +62,9 @@ def draw_direct(strat: st.SearchStrategy):
     return examples[0]
 
 
+DURATION_STRATEGY = st.floats(
+    min_value=0, max_value=MAX_SCHEDULE_DURATION, allow_nan=False, allow_infinity=False
+)
 JSON_STRATEGY = st.none()  # not needed yet
 ORDER_KEY_STRATEGY = st.just(INTEGER_ZERO)  # TODO :Test: generate order keys properly
 ALL_DECLARED_PROPERTIES = tuple(
