@@ -50,6 +50,10 @@ from bench.sql.migration import (
 from bench.utils.func import generate_encryption_key
 from bench.utils.oracle import REAL_ORACLE
 
+#
+# Simple SQL engine only tests
+#
+
 TEST_PRIMITIVE_TYPES = (
     PrimitiveType.BOOLEAN,
     PrimitiveType.INT32,

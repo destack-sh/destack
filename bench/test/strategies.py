@@ -1,3 +1,4 @@
+from string import ascii_lowercase
 from typing import Any, cast
 
 import hypothesis
@@ -74,13 +75,13 @@ ALL_DECLARED_PROPERTIES = tuple(
     )
 )
 PROPERTY_STRATEGY = st.sampled_from(ALL_DECLARED_PROPERTIES)
+SLUG_STRATEGY = st.text(alphabet=ascii_lowercase, min_size=1, max_size=64)
 
 TYPE_KIND_STRATEGY = st.sampled_from(TypeKind)
 PRIMITIVE_TYPE_STRATEGY = st.sampled_from(PrimitiveType)
 ENUM_TYPE_STRATEGY = st.sampled_from(EnumType)
 STRUCT_TYPE_STRATEGY = st.sampled_from(StructType)
 OBJECT_TYPE_STRATEGY = st.sampled_from(ObjectType)
-
 
 STRATEGY_BY_PRIMITIVE_TYPE: dict[PrimitiveType, st.SearchStrategy] = {
     PrimitiveType.BOOLEAN: st.booleans(),

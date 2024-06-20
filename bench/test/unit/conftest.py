@@ -10,21 +10,69 @@ from bench.test.conftest import setup_test_env
 # NOTE: must run setup_test() before importing from bench
 setup_test_env()
 
-from bench.language import Session
+from bench.language import Session, Store
 from bench.language.bench import Bench, ServerProfile
 from bench.language.connection import NullEngine
 from bench.language.const import NODE_TYPES, OBJECT_TYPES, UserStatus, _active_session
 from bench.language.graph import NodeGraph, NodeSuperGraph
 from bench.language.user import User
 from bench.proto.wire import GraphScope
+from bench.sql.engine import GLOBAL_SCHEMA
+from bench.system.core import global_pg_engine_from_store
+from bench.test.fixtures import create_blank_test_db, create_test_db, make_global_store
 from bench.test.strategies import draw_direct, from_object_type
-from bench.utils.oracle import REAL_ORACLE
+from bench.utils.oracle import REAL_ORACLE, Oracle
 
 
 # NOTE: unit tests are run in a shared event loop
 @pytest.fixture(scope="session")  # scope=function!
 def event_loop_policy():
     return uvloop.EventLoopPolicy()
+
+
+@pytest.fixture()
+async def blank_store(request: pytest.FixtureRequest):
+    """Gets the per test function blank store"""
+
+    store = make_global_store(f"test_{request.node.name}")
+    await create_blank_test_db(store)
+    return store
+
+
+@pytest.fixture()
+async def global_store(request: pytest.FixtureRequest):
+    """Gets the per test function global store"""
+
+    store = make_global_store(f"test_{request.node.name}")
+    await create_test_db(store, GLOBAL_SCHEMA)
+    return store
+
+
+def create_global_session(global_store: Store, oracle: Oracle):
+    """Gets direct access to a per test global engine"""
+
+    global_pg_engine = global_pg_engine_from_store(global_store)
+    session = Session(
+        parent=None,
+        _default_scope=GraphScope(),
+        _engines=(global_pg_engine,),
+        _epoch=0,
+        _oracle=oracle,
+        _supergraph=NodeSuperGraph(root_ptr=None),
+    )
+    return session
+
+
+@pytest.fixture()
+def global_real_session(global_store: Store):
+    """
+    Gets the per test function global real session.
+    Unfortunately we can't set this session as the active session in context because
+     pytest-asyncio does not propagate contextvars across async tests/fixtures.
+    (see https://github.com/pytest-dev/pytest-asyncio/issues/127#issuecomment-1777004844)
+    """
+
+    return create_global_session(global_store, REAL_ORACLE)
 
 
 def make_session(name: str):

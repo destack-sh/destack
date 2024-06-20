@@ -41,6 +41,8 @@ class SimulatedTransport(asyncio.Transport):
         super().__init__()
         self._protocol = protocol
         self._oracle = oracle
+        assert latency_min >= 0, f"latency_min={latency_min} must be >= 0"
+        assert latency_mean >= 0, f"latency_mean={latency_mean} must be >= 0"
         self._latency_min = latency_min
         self._latency_mean = latency_mean
 
@@ -50,7 +52,12 @@ class SimulatedTransport(asyncio.Transport):
 
     def write(self, data: bytes) -> None:
         if data:
-            latency = self._oracle.random.expovariate(1 / self._latency_mean) + self._latency_min
+            if self._latency_mean == 0:
+                latency = self._latency_min
+            else:
+                latency = (
+                    self._oracle.random.expovariate(1 / self._latency_mean) + self._latency_min
+                )
             self._oracle.call_later(latency, self._write_soon, data)
 
     def is_closing(self) -> bool:
@@ -68,8 +75,8 @@ class SimulatedChannel:
         *,
         services: Collection["IServable"],
         oracle: Oracle,
-        latency_min: float,
-        latency_mean: float,
+        latency_min: float = 0.0,
+        latency_mean: float = 0.0,
     ) -> None:
         self._services = services
         self._oracle = oracle
@@ -116,3 +123,10 @@ class SimulatedChannel:
         if self._server is not None:
             await self._server.wait_closed()
             self._server = None
+
+    async def __aenter__(self) -> Channel:
+        return await self.open()
+
+    async def __aexit__(self, exc_type, exc_value, traceback):
+        self.close()
+        await self.wait_closed()

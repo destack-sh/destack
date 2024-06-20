@@ -47,6 +47,8 @@ class SimulatedLoop:
         self._loop_task = asyncio.create_task(self._tick_forever())
 
     async def _tick_forever(self):
+        # TODO :Test!: consider wait_for and awaitable regions which cannot be fast forwarded
+        #  (e.g., calls to external services like postgres, docker, etc.)
         while True:
             scheduled = await self._scheduled_callbacks.get()
             now_ns = self.time_ns()

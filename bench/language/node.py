@@ -1390,9 +1390,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         # init graph (nodes must always be in a non-null supergraph & graph)
         assert self._supergraph is not NULL_SUPERGRAPH, f"no supergraph for {self!r}"
         if self._graph is not None:
-            # use given graph
-            if not _skip_add_self:
-                self._graph.add(self)
+            pass  # use given graph
         elif self.parent_ptr is not None:
             # use parents graph
             parent = self.parent
@@ -1400,8 +1398,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
                 parent is not None
             ), f"parent for {type(self).__name__} not in {self._supergraph!r}: {self.parent_ptr!r}"
             self._graph = parent._graph
-            if not _skip_add_self:
-                self._graph.add(self)
         else:
             # no parent, create our own graph
             # if we're not in a graph, start a new one
@@ -1412,8 +1408,9 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
                 supergraph=self._supergraph,
             )
             self._graph = graph
-            self._graph.add(self)  # type: ignore
             self._supergraph.add_graph(graph)
+        if not _skip_add_self:
+            self._graph.add(self)
 
         # init node lists (preserving existing)
         for name, prop in self.__node_child_properties__.items():
