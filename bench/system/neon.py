@@ -65,6 +65,7 @@ class NeonApiLocal(NeonApi):
     """
 
     def __init__(self, neon_path: str):
+        assert IS_DEV, "Neon local API only supported in dev"
         self.neon_path: str = Path(neon_path).resolve().absolute().as_posix()
 
     async def _execute(self, command: str, stderr_ok: bool = True) -> str:

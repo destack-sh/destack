@@ -525,7 +525,7 @@ def generate_sql_migration_code(
     migration_code = Path(MIGRATIONS_TEMPLATE_PATH).read_text()
 
     # impute header/metadata
-    today = oracle.utc().astimezone(oracle.tz).date().strftime("%Y.%m.%d")
+    today = oracle.utc().date().strftime("%Y.%m.%d")
     metadata_substitutions: dict[str, str] = {
         "# <Header>": f"# This migration was automatically generated on {today}. Edit as needed.",
         '"<ID>"': str(migration.id),

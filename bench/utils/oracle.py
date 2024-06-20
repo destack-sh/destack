@@ -4,11 +4,9 @@ import random
 import time
 from datetime import datetime
 from random import Random
-from typing import Callable, final
+from typing import Callable, final, override
 
 import pytz
-
-from bench.utils.utils import get_from_env
 
 
 class Oracle(abc.ABC):
@@ -33,20 +31,14 @@ class Oracle(abc.ABC):
     def random(self) -> Random:
         """Source of randomness."""
 
-    @property
     @abc.abstractmethod
-    def tz(self) -> pytz.tzinfo.BaseTzInfo:
-        """Current timezone."""
+    def time_ns(self) -> int:
+        """Current time in nanoseconds since the epoch."""
         ...
 
     @abc.abstractmethod
     def time(self) -> float:
         """Current time in seconds since the epoch."""
-        ...
-
-    @abc.abstractmethod
-    def time_ns(self) -> int:
-        """Current time in nanoseconds since the epoch."""
         ...
 
     @abc.abstractmethod
@@ -75,47 +67,45 @@ class Oracle(abc.ABC):
         ...
 
 
-TIMEZONE = get_from_env(
-    "TIMEZONE", description="The timezone to use for the oracle", default="Europe/Zurich"
-)
-
-
 class RealOracle(Oracle):
     """The real world oracle."""
 
-    def __init__(self, timezone: str = TIMEZONE, seed: int | None = None):
+    def __init__(self, *, seed: int | None = None):
         self._random = random.Random()
         if seed is not None:
             self._random.seed(seed)
-        self._tz = pytz.timezone(timezone)
         self._time = time
 
     @property
+    @override
     def random(self) -> Random:
         return self._random
 
-    @property
-    def tz(self):
-        return self._tz
-
+    @override
     def time(self) -> float:
         return self._time.time()
 
+    @override
     def time_ns(self) -> int:
         return self._time.time_ns()
 
+    @override
     def utc(self) -> datetime:
         return datetime.fromtimestamp(self._time.time_ns() / 1e9, tz=pytz.utc)
 
+    @override
     async def sleep(self, duration: float) -> None:
         await asyncio.sleep(duration)
 
+    @override
     def call_later(self, duration: float, callback: Callable) -> None:
         asyncio.get_event_loop().call_later(duration, callback)
 
+    @override
     def call_at(self, when: float, callback: Callable) -> None:
         asyncio.get_event_loop().call_at(when, callback)
 
+    @override
     def call_soon(self, callback: Callable) -> None:
         asyncio.get_event_loop().call_soon(callback)
 

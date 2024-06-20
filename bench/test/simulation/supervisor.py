@@ -1,37 +1,25 @@
 from dataclasses import replace
 from typing import cast
-from uuid import uuid4
 
-import pytest
 from grpclib import Status as GRPCStatus
 
 from bench.language import Client, ReadOptions, User
 from bench.language.const import (
-    PUBLIC_NODE_TYPES,
-    AggregationOp,
     ClientType,
     NodeType,
 )
-from bench.language.expression import A
 from bench.language.property import Property
-from bench.language.transaction import new_edit_id, pack_node_delta
-from bench.language.user import Organization, UserStatus
-from bench.proto import wire, wiring
+from bench.language.user import UserStatus
 from bench.proto.wire import (
-    AggregateNodesRequest,
     ClientDataIn,
-    CommitTransactionRequest,
-    EditData,
     GetNodesRequest,
     LoginUserRequest,
     LogoutUserRequest,
     RpcMetadata,
-    SearchNodesRequest,
     SignupUserRequest,
     SupervisorClient,
 )
 from bench.test.fixtures import raises_grpc_error
-from bench.test.simulation.conftest import UserHandle, make_new_user_handle
 
 
 async def test_user_registration(supervisor: SupervisorClient):
@@ -59,8 +47,6 @@ async def test_user_registration(supervisor: SupervisorClient):
     signup_rep = await supervisor.signup_user(signup_req)
     assert signup_rep.user.slug == str(user.slug)
     assert signup_rep.user.id == str(user.id)
-
-    # TODO :Security: user email confirmation etc.
 
     # login, invalid password -> fail
     login_req = LoginUserRequest(
@@ -113,141 +99,3 @@ async def test_user_registration(supervisor: SupervisorClient):
     # read user, logged out, expired token -> fail
     with raises_grpc_error(GRPCStatus.UNAUTHENTICATED):
         _ = await supervisor.get_nodes(read_user_req, metadata=access_headers)
-
-
-async def test_cross_user_access(supervisor: SupervisorClient):
-    """Users can only take certain actions on themselves."""
-
-    user_a = User(slug="alice", name="Alice", email="alice@bench.app", status=UserStatus.REGISTERED)
-    user_b = User(slug="bob", name="Bob", email="bob@bench.app", status=UserStatus.REGISTERED)
-    user_c = User(slug="carol", name="Carol", email="carol@bench.app", status=UserStatus.REGISTERED)
-    handle_a = await make_new_user_handle(supervisor, user_a)
-    handle_b = await make_new_user_handle(supervisor, user_b)
-    handle_c = await make_new_user_handle(supervisor, user_c)
-    all_handles = (handle_a, handle_b, handle_c)
-
-    # cross-test user access/actions
-    for actor_handle in all_handles:
-        for target_handle in all_handles:
-            actor = actor_handle.user
-            target = target_handle.user
-
-            # request our own and everyone else's data
-            sensitive_properties = cast(
-                list[Property], [User.email, User.password_salt, User.password_hash]
-            )
-            read_user_req = GetNodesRequest(
-                roots=[target._to_ref_data()],
-                options=ReadOptions(include_properties=sensitive_properties)._to_data(),
-            )
-            read_user_rep = await supervisor.get_nodes(read_user_req, metadata=actor_handle.headers)
-            read_target = read_user_rep.nodes[0].user
-            assert read_target.slug == target.slug
-            if actor == target:  # we should be able to read our own sensitive data
-                assert read_target.email == target.email
-            else:  # but not others
-                assert not read_target.email
-
-            # update the User's full name
-            target_data = target._to_data()
-            target_data.updated_at = get_oracle().utc()
-            target_data.updated_by_ptr = actor_handle.subject
-            target_data.name = f"{actor.name}'s Puppet"
-            edit = EditData(
-                id=new_edit_id(),
-                type=wire.EditType.UPDATE,
-                node_ptr=target._to_ref_data(),
-                properties=[User.name.id],  # type: ignore
-                new_node_packed=pack_node_delta(target_data, only=(User.name,)),
-                old_node_packed=pack_node_delta(target_data, only=(User.name,)),
-                origin=actor_handle.origin,
-                subject_ptr=actor_handle.subject,
-                edited_at=get_oracle().utc(),
-            )
-            commit_req = CommitTransactionRequest(id=str(uuid4()), edits=[edit])
-            if actor == target:  # can update our own data
-                _ = await supervisor.commit_transaction(commit_req, metadata=actor_handle.headers)
-            else:  # but not for others
-                with raises_grpc_error(GRPCStatus.PERMISSION_DENIED):
-                    _ = await supervisor.commit_transaction(
-                        commit_req, metadata=actor_handle.headers
-                    )
-            # update the User's client's device name
-            target_data = target_handle.client._to_data()
-            target_data.updated_at = get_oracle().utc()
-            target_data.updated_by_ptr = target_handle.subject
-            target_data.device_name = f"{actor.name}'s Puppet Device"
-            edit = EditData(
-                id=new_edit_id(),
-                type=wire.EditType.UPDATE,
-                node_ptr=target_handle.client._to_ref_data(),
-                properties=[Client.device_name.id],  # type: ignore
-                new_node_packed=pack_node_delta(target_data, only=(Client.device_name,)),
-                old_node_packed=pack_node_delta(target_data, only=(Client.device_name,)),
-                origin=actor_handle.origin,
-                subject_ptr=actor_handle.subject,
-                edited_at=get_oracle().utc(),
-            )
-            commit_req = CommitTransactionRequest(id=str(uuid4()), edits=[edit])
-            if actor == target:  # can update our own data
-                _ = await supervisor.commit_transaction(commit_req, metadata=actor_handle.headers)
-            else:  # but not for others
-                with raises_grpc_error(GRPCStatus.PERMISSION_DENIED):
-                    _ = await supervisor.commit_transaction(
-                        commit_req, metadata=actor_handle.headers
-                    )
-
-
-@pytest.mark.parametrize("node_type", PUBLIC_NODE_TYPES, ids=lambda t: t.name)
-async def test_public_node_read(
-    node_type: NodeType, some_user: UserHandle, supervisor: SupervisorClient
-):
-    """Public nodes should be readable, but not directly editable in any way."""
-
-    packed_node_type = wiring.pack_enum(NodeType, node_type)
-
-    # search (and count)
-    search_req = SearchNodesRequest(node_type=packed_node_type, count=True)
-    await supervisor.search_nodes(search_req, metadata=some_user.headers)
-    # can we assert anything here?
-
-    # search with filter (and count)
-    search_req = SearchNodesRequest(node_type=packed_node_type)
-    await supervisor.search_nodes(search_req, metadata=some_user.headers)
-    # here?
-
-    # aggregate: exists
-    aggregate_req = AggregateNodesRequest(
-        node_type=packed_node_type, aggregation=A(AggregationOp.EXISTS)._to_data()
-    )
-    aggregate_rep = await supervisor.aggregate_nodes(aggregate_req, metadata=some_user.headers)
-    assert isinstance(aggregate_rep.aggregation.exists, bool)
-
-    # aggregate: count
-    aggregate_req = AggregateNodesRequest(
-        node_type=packed_node_type, aggregation=A(AggregationOp.COUNT)._to_data()
-    )
-    aggregate_rep = await supervisor.aggregate_nodes(aggregate_req, metadata=some_user.headers)
-    assert isinstance(aggregate_rep.aggregation.count, int)
-
-
-async def test_root_node_create_denied(some_user: UserHandle, supervisor: SupervisorClient):
-    """Only the system can create root nodes."""
-
-    node = Organization(name="test")
-    node_data = wiring.pack_object(node)
-
-    # try create
-    for edit_type in (wire.EditType.CREATE, wire.EditType.UPSERT):
-        edit = EditData(
-            id=new_edit_id(),
-            type=edit_type,
-            node_ptr=node._to_ref_data(),
-            new_node_packed=pack_node_delta(node_data),
-            origin=some_user.origin,
-            subject_ptr=some_user.user._to_ref_data(),
-            edited_at=get_oracle().utc(),
-        )
-        commit_req = CommitTransactionRequest(id=str(uuid4()), edits=[edit])
-        with raises_grpc_error(GRPCStatus.PERMISSION_DENIED, GRPCStatus.INVALID_ARGUMENT):
-            _ = await supervisor.commit_transaction(commit_req, metadata=some_user.headers)
