@@ -18,8 +18,8 @@ from bench.language.value import (
     unpack_value,
 )
 from bench.proto import wiring
-from bench.test.element.conftest import BUILTIN_OBJECTS_OF_EVERY_TYPE
 from bench.test.strategies import builtin_objects, examples
+from bench.test.unit.conftest import BUILTIN_OBJECTS_OF_EVERY_TYPE
 
 
 def test_coerce_nested_value(session: Session, package: Package) -> None:

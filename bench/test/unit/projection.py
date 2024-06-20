@@ -12,8 +12,8 @@ from bench.language.field import Field
 from bench.language.node import BuiltinObject
 from bench.language.projection import render_builtin_object, render_node
 from bench.language.session import Session
-from bench.test.element.conftest import BUILTIN_OBJECTS_OF_EVERY_TYPE
 from bench.test.strategies import builtin_objects, examples
+from bench.test.unit.conftest import BUILTIN_OBJECTS_OF_EVERY_TYPE
 
 
 @pytest.mark.skip(":Test: projection")

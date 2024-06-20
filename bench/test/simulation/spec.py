@@ -5,7 +5,26 @@ from dataclasses import dataclass
 @dataclass
 class SimulationSpec:
     name: str
-    workloads: list["WorkloadSpec"]
+    seed: int
+    network: "NetworkSpec"
+    benches: tuple["BenchSpec", ...]
+    clients: tuple["ClientSpec", ...]
+    workloads: tuple["WorkloadSpec", ...]
+
+
+@dataclass
+class NetworkSpec:
+    one_way_latency: float
+
+
+@dataclass
+class BenchSpec:
+    name: str
+
+
+@dataclass
+class ClientSpec:
+    name: str
 
 
 class WorkloadType(enum.StrEnum):
@@ -14,8 +33,5 @@ class WorkloadType(enum.StrEnum):
 
 @dataclass
 class WorkloadSpec:
-    name: str
     type: WorkloadType
-
-
-# ... in specific Workload types
+    name: str

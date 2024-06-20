@@ -10,8 +10,8 @@ from bench.language import BuiltinObject, Session
 from bench.language.const import PrimitiveType
 from bench.language.value import MAX_VALUE_BY_PRIMITIVE_TYPE, MIN_VALUE_BY_PRIMITIVE_TYPE
 from bench.proto import wiring
-from bench.test.element.conftest import BUILTIN_OBJECTS_OF_EVERY_TYPE
 from bench.test.strategies import builtin_objects, examples
+from bench.test.unit.conftest import BUILTIN_OBJECTS_OF_EVERY_TYPE
 
 
 @given(obj=builtin_objects())
