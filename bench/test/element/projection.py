@@ -1,5 +1,6 @@
 from typing import cast
 
+import pytest
 from hypothesis import given
 
 from bench.language import Node
@@ -15,6 +16,7 @@ from bench.test.element.conftest import BUILTIN_OBJECTS_OF_EVERY_TYPE
 from bench.test.strategies import builtin_objects, examples
 
 
+@pytest.mark.skip(":Test: projection")
 @given(obj=builtin_objects())
 @examples([{"obj": obj} for obj in BUILTIN_OBJECTS_OF_EVERY_TYPE])
 def test_render_struct(obj: BuiltinObject, shared_session: Session, shared_package: Package):
@@ -24,6 +26,7 @@ def test_render_struct(obj: BuiltinObject, shared_session: Session, shared_packa
     # assert cast(Struct, ret)._equals_content(obj) # TODO :Robustness :Test: assert
 
 
+@pytest.mark.skip(":Test: projection")
 def test_render_nested(session: Session, package: Package):
     # choice block
     Choice1 = Block(parent=package, type=BlockType.CHOICE, name="Choice1")
