@@ -342,7 +342,11 @@ class TypeInfoBase(HasValues):
         self, properties: Collection[Property], invalid: "ValidationHandler"
     ) -> None:
         implied_kind = get_implied_type_kind(self)
-        if implied_kind is not None and implied_kind != self.kind:
+        if (
+            implied_kind is not None
+            and implied_kind != self.kind
+            and implied_kind != TypeKind.ALIAS
+        ):
             actual_kind = self.kind.name if self.kind else "None"
             invalid(self, f"kind is {actual_kind} but should be {implied_kind.name}", None)
 
