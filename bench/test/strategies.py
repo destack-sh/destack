@@ -65,7 +65,8 @@ JSON_STRATEGY = st.none()  # not needed yet
 ORDER_KEY_STRATEGY = st.just(INTEGER_ZERO)  # TODO :Test: generate order keys properly
 ALL_DECLARED_PROPERTIES = tuple(
     more_itertools.flatten(
-        object_cls.__declared_properties__.values() for object_cls in OBJECT_CLASS_BY_TYPE.values()
+        (p for p in object_cls.__declared_properties__.values() if p.id is not None)
+        for object_cls in OBJECT_CLASS_BY_TYPE.values()
     )
 )
 PROPERTY_STRATEGY = st.sampled_from(ALL_DECLARED_PROPERTIES)
@@ -107,7 +108,9 @@ def properties(object_type: ObjectType | None = None):
         return PROPERTY_STRATEGY
     else:
         object_cls = OBJECT_CLASS_BY_TYPE[object_type]
-        return st.sampled_from(tuple(object_cls.__declared_properties__.values()))
+        return st.sampled_from(
+            tuple(p for p in object_cls.__declared_properties__.values() if p.id is not None)
+        )
 
 
 @cacheable
@@ -301,17 +304,23 @@ SIMPLE_TYPE_KINDS = st.sampled_from((TypeKind.PRIMITIVE, TypeKind.ENUM, TypeKind
 
 def draw_type_info_base_dict(draw: st.DrawFn, kinds: st.SearchStrategy[TypeKind]) -> dict[str, Any]:
     kind = draw(kinds)
+    primitive_type = None
+    bench_type = None
+    base_type = None
     if kind == TypeKind.PRIMITIVE:
         primitive_type = draw(PRIMITIVE_TYPE_STRATEGY)
-        return {"kind": kind, "primitive_type": primitive_type}
     elif kind == TypeKind.ENUM:
-        enum_type = draw(ENUM_TYPE_STRATEGY)
-        return {"kind": kind, "bench_type": enum_type}
+        bench_type = draw(ENUM_TYPE_STRATEGY)
     elif kind == TypeKind.STRUCT:
-        struct_type = draw(STRUCT_TYPE_STRATEGY)
-        return {"kind": kind, "bench_type": struct_type}
+        bench_type = draw(STRUCT_TYPE_STRATEGY)
     else:
         raise NotImplementedError(f"TypeKind {kind!r} not implemented")
+    return {
+        "kind": kind,
+        "primitive_type": primitive_type,
+        "bench_type": bench_type,
+        "base_type": base_type,
+    }
 
 
 @cacheable
