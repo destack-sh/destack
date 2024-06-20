@@ -14,7 +14,8 @@ class SimulationSpec:
 
 @dataclass
 class NetworkSpec:
-    one_way_latency: float
+    latency_min: float
+    latency_mean: float
 
 
 @dataclass

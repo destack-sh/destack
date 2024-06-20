@@ -8,11 +8,14 @@ from typing import Callable, final, override
 
 import pytz
 
+MAX_SCHEDULE_DURATION = 100 * 365 * 24 * 60 * 60  # 100 years in seconds
+MAX_SCHEDULE_DURATION_NS = MAX_SCHEDULE_DURATION * 1e9  # 100 years in nanoseconds
+
 
 class Oracle(abc.ABC):
     """
-    The oracle for all our entropy, any non-deterministic information.
-    Stuff like time and randomness. Used for simulation testing.
+    The oracle for all our entropy, like time and randomness.
+    Useful to isolate non-determinsim, and of course to mock in simulation testing.
     """
 
     def __str__(self) -> str:
@@ -48,21 +51,21 @@ class Oracle(abc.ABC):
 
     @abc.abstractmethod
     async def sleep(self, duration: float) -> None:
-        """Sleep for a duration in seconds. Like asyncio.sleep."""
+        """Sleep for a duration in seconds. Like asyncio.sleep. Timing is relative to oracle."""
         ...
 
     @abc.abstractmethod
-    def call_later(self, duration: float, callback: Callable) -> None:
-        """Call a callback after a duration in seconds. Like asyncio.call_later."""
+    def call_later(self, duration: float, callback: Callable, *args) -> None:
+        """Call a callback after a duration in seconds. Like asyncio.call_later. Timing is relative to oracle."""
         ...
 
     @abc.abstractmethod
-    def call_at(self, when: float, callback: Callable) -> None:
-        """Call a callback at a specific time. Like asyncio.call_at."""
+    def call_at(self, when: float, callback: Callable, *args) -> None:
+        """Call a callback at a specific time in seconds. Like asyncio.call_at. Timing is relative to oracle."""
         ...
 
     @abc.abstractmethod
-    def call_soon(self, callback: Callable) -> None:
+    def call_soon(self, callback: Callable, *args) -> None:
         """Call a callback as soon as possible. Like asyncio.call_soon."""
         ...
 
@@ -98,16 +101,16 @@ class RealOracle(Oracle):
         await asyncio.sleep(duration)
 
     @override
-    def call_later(self, duration: float, callback: Callable) -> None:
-        asyncio.get_event_loop().call_later(duration, callback)
+    def call_later(self, duration: float, callback: Callable, *args) -> None:
+        asyncio.get_event_loop().call_later(duration, callback, *args)
 
     @override
-    def call_at(self, when: float, callback: Callable) -> None:
-        asyncio.get_event_loop().call_at(when, callback)
+    def call_at(self, when: float, callback: Callable, *args) -> None:
+        asyncio.get_event_loop().call_at(when, callback, *args)
 
     @override
-    def call_soon(self, callback: Callable) -> None:
-        asyncio.get_event_loop().call_soon(callback)
+    def call_soon(self, callback: Callable, *args) -> None:
+        asyncio.get_event_loop().call_soon(callback, *args)
 
 
 REAL_ORACLE = RealOracle()

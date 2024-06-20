@@ -2,6 +2,7 @@
 from uuid import UUID
 
 import pytest
+import uvloop
 
 from bench.test.conftest import setup_test_env
 from bench.utils.oracle import REAL_ORACLE, Oracle
@@ -29,6 +30,13 @@ from bench.sql.migration import (
 )
 from bench.system.core import BEGINNING_OF_TIME, global_pg_cursor, global_pg_engine_from_store
 from bench.utils.utils import get_from_env
+
+
+# NOTE: unit tests are run with a shared event loop
+@pytest.fixture(scope="session")
+def event_loop_policy():
+    return uvloop.EventLoopPolicy()
+
 
 GLOBAL_PG_NAME = get_from_env("GLOBAL_PG_NAME", description="Global Postgres database name")
 
