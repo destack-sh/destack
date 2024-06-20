@@ -21,7 +21,7 @@ from bench.test.strategies import draw_direct, from_object_type
 from bench.utils.oracle import REAL_ORACLE
 
 
-# NOTE: simulation tests must be run with one event loop per function to isolate
+# NOTE: unit tests are run in a shared event loop
 @pytest.fixture(scope="session")  # scope=function!
 def event_loop_policy():
     return uvloop.EventLoopPolicy()

@@ -32,8 +32,8 @@ from bench.system.core import BEGINNING_OF_TIME, global_pg_cursor, global_pg_eng
 from bench.utils.utils import get_from_env
 
 
-# NOTE: unit tests are run with a shared event loop
-@pytest.fixture(scope="session")
+# NOTE: simulation tests must be run with one event loop per function to isolate
+@pytest.fixture()
 def event_loop_policy():
     return uvloop.EventLoopPolicy()
 
