@@ -1,5 +1,6 @@
 import enum
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from datetime import timedelta
 
 import structlog
 
@@ -11,51 +12,53 @@ class SimulationSpec:
     """A simulation to run."""
 
     name: str
-    seed: int
-    network: "NetworkSpec"
-    services: "ServiceSpec"
-    benches: tuple["BenchSpec", ...]
-    clients: tuple["ClientSpec", ...]
-    activities: tuple["ActivitySpec", ...]
+    seed: int = 0
+    network: "NetworkSpec" = field(default_factory=lambda: NetworkSpec())
+    monkey: "MonkeySpec" = field(default_factory=lambda: MonkeySpec())
+    benches: tuple["BenchSpec", ...] = field(default_factory=lambda: (BenchSpec(),))
+    clients: tuple["ClientSpec", ...] = field(default_factory=lambda: (ClientSpec(name="Client1"),))
+    activities: tuple["ActivitySpec", ...] = ()
 
 
 @dataclass
-class ServiceSpec:
-    """The service health conditions"""
+class MonkeySpec:
+    """Inject failures into the services"""
 
-    failure_probability: float
-    recovery_probability: float
-    recovery_time_min: float
-    recovery_time_mean: float
+    failure_probability: float = 0.0
+    recovery_probability: float = 1.0
+    recovery_time_min: float = 0.0
+    recovery_time_mean: float = 0.0
 
 
 @dataclass
 class NetworkSpec:
     """The network conditions (client<->service and service<->external)"""
 
-    latency_min: float
-    latency_mean: float
-    partition_probability: float
+    latency_min: float = 0.0
+    latency_mean: float = 0.0
+    partition_probability: float = 0.0
 
 
 @dataclass
 class BenchSpec:
     """A bench to operate on"""
 
-    name: str
+    name: str = "testbench"
+    owner: str = "testuser"
 
 
 class ClientType(enum.StrEnum):
-    pass
+    USER = "user"
 
 
 @dataclass
 class ClientSpec:
     """A client for doing.. stuff"""
 
-    type: ClientType
     name: str
-    username: str
+    username: str = "testuser"
+    time_offset: timedelta | None = None
+    type: ClientType = ClientType.USER
 
 
 class ActivityType(enum.StrEnum):
@@ -71,6 +74,6 @@ class ActivitySpec:
 
     type: ActivityType
     name: str
-    repeat: int
-    client: str | None
-    session: str | None
+    repeat: int = 1
+    client: str | None = None
+    session: str | None = None
