@@ -1,12 +1,17 @@
 import asyncio
 from typing import Collection
 
+import structlog
 from grpclib._typing import IServable
 from grpclib.client import Channel
 from grpclib.protocol import H2Protocol
 from grpclib.server import Server as GrpcServer
+from opentelemetry import trace
 
 from bench.utils.oracle import Oracle
+
+logger = structlog.get_logger(__name__)
+tracer = trace.get_tracer(__name__)
 
 
 class SimulatedServer(asyncio.AbstractServer):

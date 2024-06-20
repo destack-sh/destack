@@ -666,7 +666,7 @@ async def apply_sql_migration_ops(cur: psycopg.AsyncCursor, ops: list[MigrationO
     exec(method, method_locals)
     _apply_inline = method_locals["_apply_inline"]
     await _apply_inline(cur)
-    logger.info("sql.apply_migration_ops", ops=ops, cur=cur, span="current")
+    logger.debug("sql.apply_migration_ops", ops=ops, cur=cur, span="current")
 
 
 async def force_create_schema(cur: psycopg.AsyncCursor, schema: Schema) -> None:
