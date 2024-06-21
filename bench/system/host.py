@@ -181,7 +181,7 @@ class HostRouter(ServiceBase, HostBase):
             raise NotImplementedError(f"unexpected cardinality in {method_name}: {cardinality}")
 
 
-class Host(GraphIoServiceBase, HostBase, HostApi):
+class Host(GraphIoServiceBase, HostApi, HostBase):
     """
     Host for a Bench, providing the OS-level functionality (lifecycle, resources, scheduling, etc.).
     There is only one Host per Bench. Clients interact with the Bench exclusively via its Host.

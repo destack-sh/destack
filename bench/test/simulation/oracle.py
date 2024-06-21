@@ -31,17 +31,25 @@ class _ScheduledCallable:
 class SimulatedLoop:
     """Simulated loop to progress the 'dynamic' offsets of oracles for fast-forwarding."""
 
+    __slots__ = ("_base_time_ns", "_ff_offset_ns", "_loop_task", "_scheduled_callbacks")
+
     def __init__(self, base_time_ns: TimeBaseNs):
         self._scheduled_callbacks: asyncio.Queue[_ScheduledCallable] = asyncio.PriorityQueue()
         self._loop_task: asyncio.Task | None = None
         self._base_time_ns = base_time_ns
-        self._dynamic_offset_ns = 0
+        self._ff_offset_ns = 0
+
+    def __str__(self) -> str:
+        return f"base={self._base_time_ns}, ff_ns={self._ff_offset_ns}, scheduled={self._scheduled_callbacks.qsize()}"
+
+    def __repr__(self) -> str:
+        return f"<{self.__class__.__name__} {self!s}>"
 
     def time_ns(self) -> int:
         base_time_ns = (
             self._base_time_ns if isinstance(self._base_time_ns, int) else self._base_time_ns()
         )
-        return base_time_ns + self._dynamic_offset_ns
+        return base_time_ns + self._ff_offset_ns
 
     async def start(self):
         self._loop_task = asyncio.create_task(self._tick_forever())
@@ -54,9 +62,9 @@ class SimulatedLoop:
             now_ns = self.time_ns()
             if scheduled.when_ns > now_ns:
                 # jump forward in time
-                self._dynamic_offset_ns += scheduled.when_ns - now_ns
+                self._ff_offset_ns += scheduled.when_ns - now_ns
             scheduled.callback(*scheduled.args)
-            # yield to allow other tasks to run
+            # yield to allow all other ready tasks to run until next suspension
             #  (otherwise we work through all scheduled callbacks at once,
             #    unexpectedly forwarding time more than calling code expects)
             await asyncio.sleep(0)
@@ -72,6 +80,7 @@ class SimulatedLoop:
             self._loop_task = None
 
     def schedule(self, when: float, callback: Callable, *args):
+        assert self._loop_task is not None, f"{self!r} not started"
         scheduled = _ScheduledCallable(when, int(when * 1e9), callback, args)
         self._scheduled_callbacks.put_nowait(scheduled)
 
@@ -84,9 +93,9 @@ class SimulatedOracle(Oracle):
     def __init__(
         self,
         *,
-        random: Random,
-        static_offset: timedelta | int | None,
         loop: SimulatedLoop,
+        random: Random,
+        static_offset: timedelta | int | None = None,
     ):
         self._random = random
         self._base_ns = loop._base_time_ns
@@ -109,7 +118,7 @@ class SimulatedOracle(Oracle):
     @override
     def time_ns(self) -> int:
         base_ns = self._base_ns if isinstance(self._base_ns, int) else self._base_ns()
-        return base_ns + self._static_offset_ns + self._loop._dynamic_offset_ns
+        return base_ns + self._static_offset_ns + self._loop._ff_offset_ns
 
     @override
     def time(self) -> float:

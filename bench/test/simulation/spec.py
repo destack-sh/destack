@@ -4,6 +4,8 @@ from datetime import timedelta
 
 import structlog
 
+from bench.language.const import ClientType
+
 logger = structlog.get_logger(__name__)
 
 
@@ -71,13 +73,13 @@ class ClientSpec:
 
     name: str
     username: str
+    type: ClientType = ClientType.BENCH_DESKTOP
     time_offset: timedelta | None = None
 
 
 class WorkloadType(enum.StrEnum):
     REPLAY_LOG = "replay_log"
     WRITE_BLOCK_TREE = "write_block_tree"
-    READ_BENCH = "read_bench"
     READ_PACKAGE = "read_package"
 
 
@@ -88,7 +90,12 @@ class WorkloadSpec:
     type: WorkloadType
     name: str = None  # type: ignore (default to 'type' in __post_init__)
     repeat: int = 1
+    repeat_interval: float = 0.0
+    duration: float | None = None
 
     def __post_init__(self):
         if self.name is None:
-            self.name = self.type.value
+            if hasattr(self, "client"):
+                self.name = f"{self.type.value}-{getattr(self, 'client')}"
+            else:
+                self.name = self.type.value

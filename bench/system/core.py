@@ -289,6 +289,10 @@ class HostApi(abc.ABC):
         """Gets the Session for short-lived, *exclusive access."""
         ...
 
+    def __mapping__(self):
+        # NOTE: __mapping__ is required for grpclib base classes (we subclass this in Host)
+        return {}
+
 
 class HostProxy(HostApi):
     def __init__(self, global_store: Store, session: Session):
