@@ -22,6 +22,7 @@ from bench.proto.wire import (
     SupervisorClient,
     UserData,
 )
+from bench.proto.wiring import pack_rpc_headers
 from bench.system.supervisor import Supervisor
 from bench.test.fixtures import raises_grpc_error
 from bench.test.simulation.grpc import SimulatedChannel
@@ -101,7 +102,7 @@ async def test_user_registration(supervisor: SupervisorClient):
     access_metadata = RpcMetadata(
         client_id=login_rep.client.id, client_access_token=login_rep.access_token
     )
-    access_headers = access_metadata.to_headers()  # type: ignore
+    access_headers = pack_rpc_headers(access_metadata)
     read_user_rep = await supervisor.get_nodes(read_user_req, metadata=access_headers)
     assert len(read_user_rep.nodes) == 3
     assert read_user_rep.nodes[0].user.email == user_email
@@ -113,7 +114,7 @@ async def test_user_registration(supervisor: SupervisorClient):
     # logout, invalid token -> fail
     with raises_grpc_error(GRPCStatus.UNAUTHENTICATED):
         bad_access_metadata = replace(access_metadata, client_access_token="bad")
-        bad_access_headers = bad_access_metadata.to_headers()  # type: ignore
+        bad_access_headers = pack_rpc_headers(bad_access_metadata)
         _ = await supervisor.logout_user(LogoutUserRequest(), metadata=bad_access_headers)
 
     # logout, valid token -> success

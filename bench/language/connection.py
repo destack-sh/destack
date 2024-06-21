@@ -63,7 +63,6 @@ if TYPE_CHECKING:
         Session,
         Store,
     )
-    from bench.proto.monkey import _PatchedRpcMetadata
     from bench.sql.client import PgStoreConnection
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -958,9 +957,11 @@ class RemoteEngine(GraphEngine):
         retry: RetryOptions = RETRY_GRPC,
     ):
         super().__init__(scope, node_types)
+        from bench.proto.wiring import pack_rpc_headers
+
         self.remote = remote
         self.rpc_metadata = rpc_metadata
-        self.rpc_headers = cast("_PatchedRpcMetadata", rpc_metadata).to_headers()
+        self.rpc_headers = pack_rpc_headers(rpc_metadata)
         self.retry = retry
 
     def __str__(self):

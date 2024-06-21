@@ -46,11 +46,19 @@ async def bootstrap(region: Region = Region.EUROPE_CENTRAL):
         await session.flush()
         system_user.main_handle = system_user.handles.create(slug="system")
         system_bench = await create_default_bench(
-            main_handle=system_user.main_handle, owner=system_user, region=region, session=session
+            main_handle=system_user.main_handle,
+            owner=system_user,
+            region=region,
+            global_store=global_store,
+            session=session,
         )
         bench_bench_handle = system_user.handles.create(slug="bench")
         bench_bench = await create_default_bench(
-            main_handle=bench_bench_handle, owner=system_user, region=region, session=session
+            main_handle=bench_bench_handle,
+            owner=system_user,
+            region=region,
+            global_store=global_store,
+            session=session,
         )
         logger.info(
             "system.bootstrap",

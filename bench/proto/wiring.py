@@ -1,6 +1,8 @@
+import json
+from base64 import b64decode, b64encode
 from copy import copy
 from itertools import chain
-from typing import Any, Collection, Union, cast
+from typing import Any, Collection, Mapping, Union, cast
 from uuid import UUID
 
 import betterproto
@@ -18,7 +20,13 @@ from bench.language.session import Session
 from bench.language.setup import OBJECT_CLASS_BY_TYPE
 from bench.language.validation import on_invalid_raise
 from bench.proto import wire
-from bench.proto.wire import AnyNodeData, AnyStructData, NodeReferenceData
+from bench.proto.wire import (
+    AnyNodeData,
+    AnyStructData,
+    NodeReferenceData,
+    RpcMetadata,
+    RpcMetadataBadgeInfo,
+)
 from bench.sql.core import PrimitiveType
 from bench.utils.casing import Casing, to_casing
 from bench.utils.func import IdEnum, IdEnumOrUnion, to_uuid
@@ -368,3 +376,45 @@ def unwrap_some_node(node: wire.SomeNodeData) -> AnyNodeData:
     _, wrapped_node = betterproto.which_one_of(node, "node")
     assert wrapped_node is not None, f"node not set in {node!r}"
     return wrapped_node
+
+
+def pack_rpc_headers(metadata: RpcMetadata) -> dict[str, str]:
+    # flat encoding with prefix, messages as base64 :RpcMetadataEncoding
+    packed = {
+        "2": str(int(metadata.client_type)) if metadata.client_type is not None else None,
+        "3": metadata.client_id,
+        "4": metadata.client_nonce,
+        "5": metadata.client_access_token,
+    }
+    packed_badges = [
+        {
+            "2": badge.id,
+            "3": badge.key,
+            "4": badge.password,
+        }
+        for badge in metadata.badges
+    ]
+    if packed_badges:
+        packed["6"] = b64encode(json.dumps(packed_badges).encode("utf-8")).decode("utf-8")
+    return {"x-bench-" + k: v for k, v in packed.items() if v is not None}
+
+
+def unpack_rpc_headers(headers: Mapping) -> RpcMetadata:
+    # flat encoding with prefixy, messages as base64 :RpcMetadataEncoding
+    metadata = RpcMetadata()
+    if headers.get("x-bench-2"):
+        metadata.client_type = wire.ClientType(int(headers["x-bench-2"]))
+    metadata.client_id = headers.get("x-bench-3")
+    metadata.client_nonce = headers.get("x-bench-4")
+    metadata.client_access_token = headers.get("x-bench-5")
+    if headers.get("6"):
+        unpacked_badges = json.loads(b64decode(headers.get("x-bench-6")).decode("utf-8"))  # type: ignore
+        metadata.badges = [
+            RpcMetadataBadgeInfo(
+                id=badge.get("2"),
+                key=badge.get("3"),
+                password=badge.get("4"),
+            )
+            for badge in unpacked_badges
+        ]
+    return metadata

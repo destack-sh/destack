@@ -290,8 +290,9 @@ class HostApi(abc.ABC):
         ...
 
 
-class MockHost(HostApi):
-    def __init__(self, session: Session):
+class HostProxy(HostApi):
+    def __init__(self, global_store: Store, session: Session):
+        self._global_store = global_store
         self._session = session
 
     def on_error(self, source: Any, error: Exception) -> None:
@@ -299,7 +300,7 @@ class MockHost(HostApi):
 
     @property
     def global_store(self) -> Store:
-        raise RuntimeError(f"{self.__class__.__name__} does not have a global store")
+        return self._global_store
 
     @property
     def oracle(self) -> Oracle:
