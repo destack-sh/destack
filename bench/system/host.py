@@ -52,8 +52,8 @@ from bench.proto.wire import (
 from bench.proto.wiring import unpack_proto_json
 from bench.system.access import CLIENT_CACHE_ENABLED, ClientCache, get_client
 from bench.system.core import (
+    HostApi,
     HostPlugin,
-    HostSpec,
     global_pg_engine_from_store,
     global_session,
     unpack_commit,
@@ -181,7 +181,7 @@ class HostRouter(ServiceBase, HostBase):
             raise NotImplementedError(f"unexpected cardinality in {method_name}: {cardinality}")
 
 
-class Host(GraphIoServiceBase, HostBase, HostSpec):
+class Host(GraphIoServiceBase, HostBase, HostApi):
     """
     Host for a Bench, providing the OS-level functionality (lifecycle, resources, scheduling, etc.).
     There is only one Host per Bench. Clients interact with the Bench exclusively via its Host.

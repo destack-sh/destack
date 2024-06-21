@@ -4,7 +4,6 @@ import functools
 import inspect
 import math
 from collections import defaultdict
-from dataclasses import dataclass
 from datetime import datetime
 from sys import intern
 from typing import (
@@ -85,7 +84,6 @@ if TYPE_CHECKING:
         Package,
         PropertyReference,
         QueryBuilder,
-        ReadOptions,
         Run,
         SearchConnection,
         Server,
@@ -1264,15 +1262,6 @@ EditSubject = Union["User", "Server", "Run"]
 EDIT_SUBJECT_TYPES = (NodeType.USER, NodeType.SERVER, NodeType.RUN)
 
 
-@dataclass(slots=True)
-class ReadInfo:
-    # NOTE :Architecture: ReadInfo is a clumsy way of passing around epoch/connection_token?
-    options: "ReadOptions | None"
-    epoch: int | None
-    connection_token: str | None
-    graph: NodeDataGraph | None = None
-
-
 def is_implicit_node_property(prop_id: int) -> bool:
     return prop_id < 30 and prop_id != 4  # parent is fine
 
@@ -1290,6 +1279,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
 
     __is_node__: ClassVar[bool] = True
     __identifier_type__: ClassVar[IdentifierType] = IdentifierType.VARIABLE
+    # nocheckin :Test: make id factories deterministic (incl. UUIDT? somehow)
     __id_factory__: ClassVar[Callable[[], UUID]] = uuid4
     __ck_factory__: ClassVar[Callable[[], UUID]] = uuid4
 

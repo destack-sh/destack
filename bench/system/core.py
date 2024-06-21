@@ -263,7 +263,7 @@ def unpack_commit(
     return commit
 
 
-class HostSpec(abc.ABC):
+class HostApi(abc.ABC):
     """Base interface for the Host so we can pass it around more easily (and stub it)."""
 
     @abc.abstractmethod
@@ -290,7 +290,7 @@ class HostSpec(abc.ABC):
         ...
 
 
-class MockHost(HostSpec):
+class MockHost(HostApi):
     def __init__(self, session: Session):
         self._session = session
 
@@ -316,7 +316,7 @@ class HostPlugin[T: Node](abc.ABC):
     """The type of nodes to subscribe to for edits."""
     watch_types: ClassVar[bittuple[NodeType]]
 
-    def __init__(self, host: HostSpec, bench: "Bench"):
+    def __init__(self, host: HostApi, bench: "Bench"):
         self.host = host
         self.bench = bench
         self.tasks = TaskManager(
@@ -385,7 +385,7 @@ class HostPlugin[T: Node](abc.ABC):
 class DeferredHostPlugin[T: Node](HostPlugin, abc.ABC):
     """A Host plugin with async event handlers."""
 
-    def __init__(self, host: HostSpec, bench: "Bench"):
+    def __init__(self, host: HostApi, bench: "Bench"):
         super().__init__(host, bench)
         self._commit_queue: asyncio.Queue[Commit[T]] = asyncio.Queue()
 

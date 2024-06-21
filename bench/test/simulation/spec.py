@@ -14,20 +14,17 @@ class SimulationSpec:
     name: str
     seed: int = 0
     network: "NetworkSpec" = field(default_factory=lambda: NetworkSpec())
-    monkey: "MonkeySpec" = field(default_factory=lambda: MonkeySpec())
-    benches: tuple["BenchSpec", ...] = field(default_factory=lambda: (BenchSpec(),))
-    clients: tuple["ClientSpec", ...] = field(default_factory=lambda: (ClientSpec(name="Client1"),))
-    activities: tuple["ActivitySpec", ...] = ()
+    supervisor: "SupervisorSpec" = field(default_factory=lambda: SupervisorSpec())
+    hosts: tuple["HostSpec", ...] = ()
+    workloads: tuple["WorkloadSpec", ...] = ()
+    clients: tuple["ClientSpec", ...] = ()
 
 
 @dataclass
-class MonkeySpec:
-    """Inject failures into the services"""
+class ServiceSpec:
+    """A service to simulate"""
 
-    failure_probability: float = 0.0
-    recovery_probability: float = 1.0
-    recovery_time_min: float = 0.0
-    recovery_time_mean: float = 0.0
+    pass
 
 
 @dataclass
@@ -40,15 +37,31 @@ class NetworkSpec:
 
 
 @dataclass
+class SupervisorSpec(ServiceSpec):
+    failure_probability: float = 0.0
+    recovery_probability: float = 1.0
+    recovery_time_min: float = 0.0
+    recovery_time_mean: float = 0.0
+
+
+@dataclass
+class HostSpec(ServiceSpec):
+    """A host to run a Bench"""
+
+    bench: "BenchSpec"
+    failure_probability: float = 0.0
+    recovery_probability: float = 1.0
+    recovery_time_min: float = 0.0
+    recovery_time_mean: float = 0.0
+    time_offset: timedelta | None = None
+
+
+@dataclass
 class BenchSpec:
     """A bench to operate on"""
 
-    name: str = "testbench"
-    owner: str = "testuser"
-
-
-class ClientType(enum.StrEnum):
-    USER = "user"
+    name: str
+    owner: str
 
 
 @dataclass
@@ -56,12 +69,11 @@ class ClientSpec:
     """A client for doing.. stuff"""
 
     name: str
-    username: str = "testuser"
+    username: str
     time_offset: timedelta | None = None
-    type: ClientType = ClientType.USER
 
 
-class ActivityType(enum.StrEnum):
+class WorkloadType(enum.StrEnum):
     REPLAY_LOG = "replay_log"
     WRITE_BLOCK_TREE = "write_block_tree"
     READ_BENCH = "read_bench"
@@ -69,11 +81,13 @@ class ActivityType(enum.StrEnum):
 
 
 @dataclass
-class ActivitySpec:
+class WorkloadSpec:
     """Some workload to run"""
 
-    type: ActivityType
-    name: str
+    type: WorkloadType
+    name: str = None  # type: ignore (default to 'type' in __post_init__)
     repeat: int = 1
-    client: str | None = None
-    session: str | None = None
+
+    def __post_init__(self):
+        if self.name is None:
+            self.name = self.type.value

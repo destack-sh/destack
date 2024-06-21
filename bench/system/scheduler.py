@@ -13,7 +13,7 @@ from bench.language.signal import Signal
 from bench.language.trigger import Trigger
 from bench.proto.services import get_channel_cached
 from bench.proto.wire import QueueRunRequest, RuntimeClient
-from bench.system.core import Commit, DeferredHostPlugin, HostPlugin, HostSpec
+from bench.system.core import Commit, DeferredHostPlugin, HostApi, HostPlugin
 from bench.utils.func import bittuple
 from bench.utils.tenacity import RETRY_GRPC, RetryOptions, RetryState
 
@@ -37,7 +37,7 @@ class QueueRunPlugin(HostPlugin[Run]):
 
     watch_types = bittuple(NodeType.RUN)
 
-    def __init__(self, host: HostSpec, bench: Bench, retry: RetryOptions = RETRY_GRPC):
+    def __init__(self, host: HostApi, bench: Bench, retry: RetryOptions = RETRY_GRPC):
         super().__init__(host, bench)
         self._retry = retry
         self._runs_to_queue: asyncio.Queue[QueueOperation] = asyncio.Queue()
