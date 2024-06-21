@@ -51,6 +51,12 @@ class SimulatedTransport(asyncio.Transport):
         self._latency_min = latency_min
         self._latency_mean = latency_mean
 
+    def __str__(self) -> str:
+        return f"latency_min={self._latency_min}, latency_mean={self._latency_mean}"
+
+    def __repr__(self) -> str:
+        return f"<{self.__class__.__name__} {self!s}>"
+
     def _write_soon(self, data: bytes) -> None:
         if not self._protocol.connection.is_closing():
             self._protocol.data_received(data)
@@ -92,6 +98,16 @@ class SimulatedChannel:
         self._server_transport: SimulatedTransport | None = None
         self._client_transport: SimulatedTransport | None = None
         self._channel: Channel | None = None
+
+    def __str__(self) -> str:
+        return f"services={self._services!r}, {'open' if self.is_open else 'closed'}"
+
+    def __repr__(self) -> str:
+        return f"<{self.__class__.__name__} {self!s}>"
+
+    @property
+    def is_open(self) -> bool:
+        return self._channel is not None
 
     @property
     def channel(self) -> Channel:

@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 
 class ServiceStatus(enum.Enum):
     UP = 1
-    FAILING = 2
+    DEGRADING = 2
     DOWN = 3
     RECOVERING = 4
 
@@ -32,7 +32,8 @@ class ServiceHandle[SpecT: ServiceSpec, S: ServiceBase, C: ServiceStub](abc.ABC)
     service_cls: type[S]
     client_cls: type[C]
 
-    def __init__(self, spec: SpecT, oracle: Oracle, simulation: "Simulation"):
+    def __init__(self, id: str, spec: SpecT, oracle: Oracle, simulation: "Simulation"):
+        self.id = id
         self.spec = spec
         self.oracle = oracle
         self.simulation = simulation
@@ -49,9 +50,13 @@ class ServiceHandle[SpecT: ServiceSpec, S: ServiceBase, C: ServiceStub](abc.ABC)
     @abc.abstractmethod
     async def _make_client(self, channel: SimulatedChannel) -> C: ...
 
+    async def connect(self, client: "ClientHandle") -> C:
+        channel = await self.simulation.network.connect(client, self)
+        return await self._make_client(channel)
+
     @final
     async def start(self):
-        # TODO :Test: fail & restart services according to spec
+        # TODO :Test: degrade, fail & recover services according to spec
         self._service = await self._do_start()
 
     def close(self):
@@ -89,8 +94,8 @@ class SupervisorHandle(ServiceHandle[SupervisorSpec, Supervisor, SupervisorClien
 class HostHandle(ServiceHandle[HostSpec, Host, HostClient]):
     """A Host for a Bench"""
 
-    def __init__(self, spec: HostSpec, oracle: Oracle, simulation: "Simulation"):
-        super().__init__(spec, oracle, simulation)
+    def __init__(self, id: str, spec: HostSpec, oracle: Oracle, simulation: "Simulation"):
+        super().__init__(id, spec, oracle, simulation)
         self._bench_id: UUID | None = None
 
     def __str__(self) -> str:
