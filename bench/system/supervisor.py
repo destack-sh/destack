@@ -41,7 +41,7 @@ from bench.system.access import (
     hash_password,
     purge_client_caches,
 )
-from bench.system.core import MockHost, global_pg_engine_from_store, global_session
+from bench.system.core import HostProxy, global_pg_engine_from_store, global_session
 from bench.system.graph import GraphIoServiceBase
 from bench.system.provisioner import provision
 from bench.utils.func import generate_access_token, generate_salt, to_uuid
@@ -323,11 +323,17 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
                 raise GRPCError(GRPCStatus.FAILED_PRECONDITION, "owner not registered")
 
             # create bench (assumes it's the primary bench)
-            if owner.status == UserStatus.ACTIVATED or owner.slug != request.slug:
+            if owner.status == UserStatus.ACTIVATED:
                 raise GRPCError(GRPCStatus.ALREADY_EXISTS, "cannot create secondary Benches (yet)")
+            if owner.slug != request.slug:
+                raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "slug mismatch")
             assert owner.main_handle is not None, f"{owner!r} has no main handle"
             bench = await create_default_bench(
-                main_handle=owner.main_handle, owner=owner, region=region, session=session
+                main_handle=owner.main_handle,
+                owner=owner,
+                region=region,
+                global_store=self._global_store,
+                session=session,
             )
 
             # 'activate' owner
@@ -362,7 +368,12 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
 
 
 async def create_default_bench(
-    main_handle: Handle, owner: User | Organization, region: Region, session: Session
+    *,
+    main_handle: Handle,
+    owner: User | Organization,
+    region: Region,
+    global_store: Store,
+    session: Session,
 ) -> Bench:
     # create bench
     bench = Bench(
@@ -396,6 +407,6 @@ async def create_default_bench(
     bench.main_branch = main_branch
 
     # immediately provision main store (must be ready for Host)
-    await provision(MockHost(session), bench, (store,))
+    await provision(HostProxy(global_store, session), bench, (store,))
 
     return bench

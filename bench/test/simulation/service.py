@@ -5,15 +5,18 @@ from uuid import UUID
 
 from betterproto import ServiceStub
 
+from bench.language.expression import NodeReference
+from bench.proto import wire
 from bench.proto.services import ServiceBase
-from bench.proto.wire import HostClient, SupervisorClient
+from bench.proto.wire import CreateBenchRequest, HostClient, SupervisorClient
 from bench.system.host import Host
 from bench.system.supervisor import Supervisor
-from bench.test.simulation.spec import HostSpec, ServiceSpec
+from bench.test.simulation.grpc import SimulatedChannel
+from bench.test.simulation.spec import HostSpec, ServiceSpec, SupervisorSpec
 from bench.utils.oracle import Oracle
 
 if TYPE_CHECKING:
-    from bench.test.simulation.simulation import Simulation
+    from bench.test.simulation.simulation import ClientHandle, Simulation
 
 
 class ServiceStatus(enum.Enum):
@@ -23,13 +26,13 @@ class ServiceStatus(enum.Enum):
     RECOVERING = 4
 
 
-class ServiceHandle[S: ServiceBase, C: ServiceStub](abc.ABC):
+class ServiceHandle[SpecT: ServiceSpec, S: ServiceBase, C: ServiceStub](abc.ABC):
     """Wrapper for a simulated  service we can monkey around with"""
 
     service_cls: type[S]
     client_cls: type[C]
 
-    def __init__(self, spec: ServiceSpec, oracle: Oracle, simulation: "Simulation"):
+    def __init__(self, spec: SpecT, oracle: Oracle, simulation: "Simulation"):
         self.spec = spec
         self.oracle = oracle
         self.simulation = simulation
@@ -41,16 +44,15 @@ class ServiceHandle[S: ServiceBase, C: ServiceStub](abc.ABC):
         return self._service
 
     @abc.abstractmethod
-    async def _do_start(self) -> S:
-        pass
+    async def _do_start(self) -> S: ...
+
+    @abc.abstractmethod
+    async def _make_client(self, channel: SimulatedChannel) -> C: ...
 
     @final
-    async def _make_client(self) -> C:
-        raise NotImplementedError
-
-    @final
-    async def run(self):
-        raise NotImplementedError
+    async def start(self):
+        # TODO :Test: fail & restart services according to spec
+        self._service = await self._do_start()
 
     def close(self):
         if self._service is not None:
@@ -63,26 +65,66 @@ class ServiceHandle[S: ServiceBase, C: ServiceStub](abc.ABC):
 
 
 @final
-class SupervisorHandle(ServiceHandle[Supervisor, SupervisorClient]):
+class SupervisorHandle(ServiceHandle[SupervisorSpec, Supervisor, SupervisorClient]):
     """A global Supervisor"""
 
     service_cls = Supervisor
     client_cls = SupervisorClient
 
+    def __repr__(self) -> str:
+        return "<SupervisorHandle>"
+
     @override
     async def _do_start(self):
-        return Supervisor(global_store=self.simulation.global_store, oracle=self.oracle)
+        service = Supervisor(global_store=self.simulation.global_store, oracle=self.oracle)
+        await service.start()
+        return service
+
+    @override
+    async def _make_client(self, channel: SimulatedChannel):
+        return SupervisorClient(channel=channel.channel)
 
 
 @final
-class HostHandle(ServiceHandle[Host, HostClient]):
+class HostHandle(ServiceHandle[HostSpec, Host, HostClient]):
     """A Host for a Bench"""
 
-    def __init__(self, bench_id: UUID, spec: HostSpec, oracle: Oracle, simulation: "Simulation"):
-        self.bench_id = bench_id
+    def __init__(self, spec: HostSpec, oracle: Oracle, simulation: "Simulation"):
+        super().__init__(spec, oracle, simulation)
+        self._bench_id: UUID | None = None
+
+    def __str__(self) -> str:
+        return f"{self.spec.bench.name}"
+
+    def __repr__(self) -> str:
+        return f"<HostHandle {self!s}>"
+
+    @property
+    def bench_id(self) -> UUID:
+        assert self._bench_id is not None, f"{self!r} not ready"
+        return self._bench_id
+
+    async def prepare(self, supervisor_client: SupervisorClient, client: "ClientHandle"):
+        # create bench in supervisor
+        create_bench_req = CreateBenchRequest(
+            owner=NodeReference.from_node_data(client.user.user_data),
+            is_main=True,
+            slug=self.spec.bench.name,
+            region=wire.Region.EUROPE_CENTRAL,
+        )
+        create_bench_rep = await supervisor_client.create_bench(
+            create_bench_req, metadata=client.rpc_headers
+        )
+        self._bench_id = UUID(create_bench_rep.bench.id)
 
     @override
     async def _do_start(self) -> Host:
-        return Host(
+        service = Host(
             bench_id=self.bench_id, global_store=self.simulation.global_store, oracle=self.oracle
         )
+        await service.start()
+        return service
+
+    @override
+    async def _make_client(self, channel: SimulatedChannel) -> HostClient:
+        return HostClient(channel=channel.channel)

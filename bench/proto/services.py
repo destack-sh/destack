@@ -29,7 +29,7 @@ from bench.language.access import AccessError, Subject
 from bench.language.const import BenchError
 from bench.language.query import NodeNotFoundError
 from bench.proto.wire import RpcMetadata, ServiceKind
-from bench.proto.wiring import BENCH_CLASS_BY_PROTO_CLASS
+from bench.proto.wiring import BENCH_CLASS_BY_PROTO_CLASS, unpack_rpc_headers
 from bench.sql.engine import SqlAlreadyExistsError, SqlNotExistsError
 from bench.utils.casing import Casing, to_casing
 from bench.utils.env import IS_DEV, IS_TEST
@@ -181,7 +181,7 @@ class ServiceBase:
                 self.validate_request(request)
 
                 # prepare
-                metadata: RpcMetadata = RpcMetadata().from_headers(stream.metadata or {})  # type: ignore
+                metadata: RpcMetadata = unpack_rpc_headers(stream.metadata or {})  # type: ignore
                 if self.kind == ServiceKind.PUBLIC:
                     subject = await self.get_request_subject(request, metadata)
                     log = log.bind(subject=subject)

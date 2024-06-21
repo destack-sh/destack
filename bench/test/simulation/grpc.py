@@ -87,6 +87,16 @@ class SimulatedChannel:
         self._oracle = oracle
         self._latency_min = latency_min
         self._latency_mean = latency_mean
+        self._server: GrpcServer | None = None
+        self._server_protocol: H2Protocol | None = None
+        self._server_transport: SimulatedTransport | None = None
+        self._client_transport: SimulatedTransport | None = None
+        self._channel: Channel | None = None
+
+    @property
+    def channel(self) -> Channel:
+        assert self._channel is not None, f"{self!r} not opened yet"
+        return self._channel
 
     async def open(self) -> Channel:
         self._server = GrpcServer(self._services)
@@ -114,14 +124,14 @@ class SimulatedChannel:
         return self._channel
 
     def close(self):
-        if self._channel is not None:
-            if self._channel._protocol is not None:
+        if self._channel:
+            if self._channel._protocol:
                 self._channel._protocol.connection_lost(None)
             self._channel.close()
             self._channel = None
-
-        if self._server is not None:
-            self._server_protocol.connection_lost(None)
+        if self._server:
+            if self._server_protocol:
+                self._server_protocol.connection_lost(None)
             self._server.close()
 
     async def wait_closed(self):

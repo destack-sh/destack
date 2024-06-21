@@ -14,10 +14,10 @@ class SimulationSpec:
     name: str
     seed: int = 0
     network: "NetworkSpec" = field(default_factory=lambda: NetworkSpec())
+    clients: tuple["ClientSpec", ...] = ()
     supervisor: "SupervisorSpec" = field(default_factory=lambda: SupervisorSpec())
     hosts: tuple["HostSpec", ...] = ()
     workloads: tuple["WorkloadSpec", ...] = ()
-    clients: tuple["ClientSpec", ...] = ()
 
 
 @dataclass
@@ -38,6 +38,8 @@ class NetworkSpec:
 
 @dataclass
 class SupervisorSpec(ServiceSpec):
+    """A supervisor service"""
+
     failure_probability: float = 0.0
     recovery_probability: float = 1.0
     recovery_time_min: float = 0.0
@@ -53,7 +55,6 @@ class HostSpec(ServiceSpec):
     recovery_probability: float = 1.0
     recovery_time_min: float = 0.0
     recovery_time_mean: float = 0.0
-    time_offset: timedelta | None = None
 
 
 @dataclass

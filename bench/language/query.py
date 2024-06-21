@@ -475,9 +475,11 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
             # query
             channel = await query._get_read_channel()
             connection = await channel.get(query, GetOptions(unpack=True, live=live))
-            assert (
-                len(connection.result.roots) == 1
-            ), f"expected one node for {query!r} in {connection!r}: {connection.result.roots}"
+            if len(connection.result.roots) != 1:
+                if len(connection.result.roots) == 0:
+                    raise NodeNotFoundError(query=query)
+                else:
+                    raise MultipleNodesFoundError(query=query, result=connection.result.roots)
             node = connection.result.roots[0]
             return cast(NodeT, node)
         else:
