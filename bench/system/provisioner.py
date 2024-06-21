@@ -10,7 +10,7 @@ from bench.language.const import VERSION, NodeType
 from bench.sql.client import pg_store_connection
 from bench.sql.engine import sqlstr
 from bench.sql.migration import sql_migrate
-from bench.system.core import Commit, DeferredHostPlugin, HostSpec
+from bench.system.core import Commit, DeferredHostPlugin, HostApi
 from bench.system.neon import NeonApi
 from bench.utils.env import ENV, IS_DEV, IS_TEST, Env
 from bench.utils.func import bittuple
@@ -180,7 +180,7 @@ class StoreProvisioner(Provisioner[Store, Store]):
 class NeonStoreProvisioner(StoreProvisioner):
     """Provision Stores with the Neon API."""
 
-    def __init__(self, host: "HostSpec", bench: Bench, neon_api: "NeonApi"):
+    def __init__(self, host: "HostApi", bench: Bench, neon_api: "NeonApi"):
         super().__init__(host, bench)
         self._neon_api = neon_api
 
@@ -310,7 +310,7 @@ class LocalhostMachineProvisioner(Provisioner[Machine, Machine]):
     watch_types = bittuple(NodeType.MACHINE)
     provision_types = bittuple(NodeType.MACHINE)
 
-    def __init__(self, host: HostSpec, bench: Bench, local_machine_url: str):
+    def __init__(self, host: HostApi, bench: Bench, local_machine_url: str):
         super().__init__(host, bench)
         self._local_machine_url = local_machine_url
 
@@ -368,7 +368,7 @@ LOCAL_NACHINE_URL = get_from_env_maybe(
 )
 
 
-def get_provisioners_for(host: HostSpec, bench: Bench) -> list[Provisioner]:
+def get_provisioners_for(host: HostApi, bench: Bench) -> list[Provisioner]:
     """Gets all available provisioners for that Bench in *this* environment"""
     from bench.system.neon import neon_api
 
@@ -399,7 +399,7 @@ def get_provisioners_for(host: HostSpec, bench: Bench) -> list[Provisioner]:
         raise RuntimeError(f"unexpected environment: {ENV!r}")
 
 
-async def provision(host: HostSpec, bench: Bench, resources: Collection[BenchResourceNode]) -> None:
+async def provision(host: HostApi, bench: Bench, resources: Collection[BenchResourceNode]) -> None:
     """Provisions the given resources in *this* environment"""
     provisioners = get_provisioners_for(host, bench)
     for resource in resources:
