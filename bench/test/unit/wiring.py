@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 import pytz
 from betterproto import _Duration as ProtoDuration
 from betterproto import _Timestamp as ProtoTimestamp
-from hypothesis import given
+from hypothesis import example, given
 from hypothesis import strategies as st
 
 from bench.language import BuiltinObject, Session
@@ -70,9 +70,15 @@ def test_roundtrip_builtin_object_copy(obj: BuiltinObject, shared_session: Sessi
         max_value=MAX_VALUE_BY_PRIMITIVE_TYPE[PrimitiveType.INTERVAL],
     )
 )
+@example(value=timedelta(days=99421, microseconds=1))
 def test_roundtrip_timedelta(value: timedelta):
     packed_value_data = ProtoDuration.from_timedelta(value)
     unpacked_value = packed_value_data.to_timedelta()
+    assert unpacked_value == value, f"{unpacked_value!r} != {value!r}"
+
+    packed_value_json = packed_value_data.to_json()
+    unpacked_value_data = ProtoDuration().from_json(packed_value_json)
+    unpacked_value = unpacked_value_data.to_timedelta()
     assert unpacked_value == value, f"{unpacked_value!r} != {value!r}"
 
 
@@ -80,4 +86,9 @@ def test_roundtrip_timedelta(value: timedelta):
 def test_roundtrip_datetime(value: datetime):
     packed_value_data = ProtoTimestamp.from_datetime(value)
     unpacked_value = packed_value_data.to_datetime()
+    assert unpacked_value == value, f"{unpacked_value!r} != {value!r}"
+
+    packed_value_json = packed_value_data.to_json()
+    unpacked_value_data = ProtoTimestamp().from_json(packed_value_json)
+    unpacked_value = unpacked_value_data.to_datetime()
     assert unpacked_value == value, f"{unpacked_value!r} != {value!r}"
