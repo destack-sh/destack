@@ -53,6 +53,8 @@ class Schedule(Struct):
         if self.offset is not None:
             if self.offset.days < 0:
                 invalid(self, "negative offset ('{self.offset}')", (Schedule.offset,))
+            elif self.offset.days > 7:
+                invalid(self, "offset too large ('{self.offset}')", (Schedule.offset,))
 
 
 @node_(NodeType.TRIGGER)
