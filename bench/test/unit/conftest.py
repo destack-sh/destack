@@ -5,10 +5,10 @@ import warnings
 import pytest
 import uvloop
 
-from bench.test.conftest import setup_test_env
+from bench.test.conftest import _setup_test_env
 
-# NOTE: must run setup_test() before importing from bench
-setup_test_env()
+# NOTE: must run setup before importing from bench
+_setup_test_env()
 
 from bench.language import Session, Store
 from bench.language.bench import Bench, ServerProfile

@@ -24,7 +24,7 @@ from bench.language.graph import NodeSuperGraph
 from bench.language.session import Session
 from bench.proto.wire import GraphScope, HostClient, SupervisorClient
 from bench.test.simulation.spec import WorkloadSpec, WorkloadType
-from bench.test.simulation.utils import SampledInt, to_value, to_value_maybe
+from bench.test.simulation.utils import SampledInt, to_value
 from bench.utils.oracle import Oracle
 from bench.utils.tenacity import RETRY_GRPC_FOREVER
 
@@ -60,6 +60,28 @@ class WorkloadBase[SpecT: WorkloadSpec](abc.ABC):
         self.spec = spec
         self.oracle = oracle
         self.simulation = simulation
+        self._started_at_ns: int | None = None
+        self._terminated_at_ns: int | None = None
+
+    def __str__(self):
+        return ""
+
+    @final
+    def __repr__(self):
+        content_str = str(self)
+        if self._started_at_ns is not None:
+            if self._terminated_at_ns is not None:
+                duration = (self._terminated_at_ns - self._started_at_ns) / 10**9
+                runtime_ns = f"runtime={(duration):.3f}s"
+            else:
+                duration = (self.oracle.time_ns() - self._started_at_ns) / 10**9
+                runtime_ns = f"runtime={(duration):.3f}s"
+        else:
+            runtime_ns = "runtime=<not started>"
+        if content_str:
+            return f"<{self.__class__.__name__} {content_str}, {runtime_ns}>"
+        else:
+            return f"<{self.__class__.__name__} {runtime_ns}>"
 
     @property
     def name(self):
@@ -78,12 +100,16 @@ class WorkloadBase[SpecT: WorkloadSpec](abc.ABC):
 
     @final
     async def run(self):
-        n_runs = 1
-        while n_runs <= self.spec.repeat:
-            with tracer.start_as_current_span(f"workload.{self.name}"):
-                await self._do_run()
-                await self.oracle.sleep(self.spec.repeat_interval)
-            n_runs += 1
+        self._started_at_ns = self.oracle.time_ns()
+        try:
+            n_runs = 1
+            while n_runs <= self.spec.repeat:
+                with tracer.start_as_current_span(f"workload.{self.name}"):
+                    await self._do_run()
+                    await self.oracle.sleep(self.spec.repeat_interval)
+                n_runs += 1
+        finally:
+            self._terminated_at_ns = self.oracle.time_ns()
 
     @abc.abstractmethod
     async def _do_run(self):
@@ -148,7 +174,7 @@ async def _make_remote_session(
 @asynccontextmanager
 async def _package_session(session: Session, bench_id: UUID, live: bool):
     async with session:
-        # get main package
+        # figure out package
         bench_ptr = NodeReference(type=NodeType.BENCH, id=bench_id, ck=bench_id)
         bench = await Bench.descendants(NodeType.BRANCH, NodeType.PACKAGE).get(bench_ptr)
         assert bench.main_branch is not None, f"{bench!r} has no main branch"
@@ -176,7 +202,7 @@ class WriteBlockTreeSpec(WorkloadSpec):
     client: str = ""
     block_types: tuple[BlockType, ...] = (BlockType.PAGE, BlockType.TEXT)
     edit_types: tuple[EditType, ...] = EDIT_TYPES.tuple
-    transactions: int | SampledInt | None = None
+    transactions: int | SampledInt = 1
     edits_per_transaction: int | SampledInt = 10
 
 
@@ -188,12 +214,12 @@ class WriteBlockTreeWorkload(WorkloadBase[WriteBlockTreeSpec]):
         client = self.simulation.get_client(self.spec.client)
         host = self.simulation.get_host(self.spec.bench)
         session = await _make_remote_session(bench_id, client, host, self.oracle, self.simulation)
-        max_transactions = to_value_maybe(self.random, self.spec.transactions)
+        max_transactions = to_value(self.random, self.spec.transactions)
 
         # run
         async with _package_session(session, bench_id, live=True):
             n_transactions = 0
-            while max_transactions is None or n_transactions < max_transactions:
+            while n_transactions < max_transactions:
                 n_transactions += 1
                 n_edits = to_value(self.random, self.spec.edits_per_transaction)
 

@@ -97,7 +97,7 @@ class Simulation:
 
         # runtime state
         self._started_at_ns = None
-        self._finished_at_ns = None
+        self._terminated_at_ns = None
 
     def __str__(self):
         return f"{self.id}"
@@ -169,7 +169,7 @@ class Simulation:
         finally:
             # cleanup
             self._close()
-            self._finished_at_ns = REAL_ORACLE.time_ns()
+            self._terminated_at_ns = REAL_ORACLE.time_ns()
 
     def _close(self):
         self._supervisor.close()

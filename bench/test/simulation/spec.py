@@ -91,7 +91,6 @@ class WorkloadSpec:
     name: str = None  # type: ignore (default to 'type' in __post_init__)
     repeat: int = 1
     repeat_interval: float = 0.0
-    duration: float | None = None
 
     def __post_init__(self):
         if self.name is None:

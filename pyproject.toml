@@ -72,4 +72,8 @@ addopts = [
 	'--strict-markers',
 	'--hypothesis-show-statistics',
 ]
-markers = ["hypothesis: test uses hypothesis"]
+markers = [
+	"hypothesis: test uses hypothesis",
+	"careful: test is slow or resource intensive",
+	"paranoid: test is very slow or resource intensive",
+]
