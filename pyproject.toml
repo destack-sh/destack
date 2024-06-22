@@ -65,6 +65,7 @@ ENVIRONMENT = "test"
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 python_files = "test/**/*.py test/*.py"
+python_classes = "!TestProfile"
 log_cli = true
 addopts = [
 	"--color=yes",
@@ -74,6 +75,7 @@ addopts = [
 ]
 markers = [
 	"hypothesis: test uses hypothesis",
+	"quick: quick to run",
 	"careful: test is slow or resource intensive",
 	"paranoid: test is very slow or resource intensive",
 ]

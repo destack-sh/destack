@@ -103,10 +103,12 @@ class WorkloadBase[SpecT: WorkloadSpec](abc.ABC):
         self._started_at_ns = self.oracle.time_ns()
         try:
             n_runs = 1
-            while n_runs <= self.spec.repeat:
+            repeat = to_value(self.random, self.spec.repeat)
+            repeat_interval = to_value(self.random, self.spec.repeat_interval)
+            while n_runs <= repeat:
                 with tracer.start_as_current_span(f"workload.{self.name}"):
                     await self._do_run()
-                    await self.oracle.sleep(self.spec.repeat_interval)
+                    await self.oracle.sleep(repeat_interval)
                 n_runs += 1
         finally:
             self._terminated_at_ns = self.oracle.time_ns()

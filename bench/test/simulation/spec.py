@@ -5,6 +5,8 @@ from datetime import timedelta
 import structlog
 
 from bench.language.const import ClientType
+from bench.test.conftest import TestProfile
+from bench.test.simulation.utils import SampledFloat, SampledInt
 
 logger = structlog.get_logger(__name__)
 
@@ -14,6 +16,7 @@ class SimulationSpec:
     """A simulation to run."""
 
     name: str
+    profile: TestProfile = TestProfile.DEFAULT
     seed: int = 0
     network: "NetworkSpec" = field(default_factory=lambda: NetworkSpec())
     clients: tuple["ClientSpec", ...] = ()
@@ -33,19 +36,17 @@ class ServiceSpec:
 class NetworkSpec:
     """The network conditions (client<->service and service<->external)"""
 
-    latency_min: float = 0.0
-    latency_mean: float = 0.0
-    partition_probability: float = 0.0
+    latency: float | SampledFloat = 0.0
+    partition_probability: float | SampledFloat = 0.0
 
 
 @dataclass
 class SupervisorSpec(ServiceSpec):
     """A supervisor service"""
 
-    failure_probability: float = 0.0
-    recovery_probability: float = 1.0
-    recovery_time_min: float = 0.0
-    recovery_time_mean: float = 0.0
+    failure_probability: float | SampledFloat = 0.0
+    recovery_probability: float | SampledFloat = 1.0
+    recovery_time: float | SampledFloat = 0.0
 
 
 @dataclass
@@ -53,10 +54,9 @@ class HostSpec(ServiceSpec):
     """A host to run a Bench"""
 
     bench: "BenchSpec"
-    failure_probability: float = 0.0
-    recovery_probability: float = 1.0
-    recovery_time_min: float = 0.0
-    recovery_time_mean: float = 0.0
+    failure_probability: float | SampledFloat = 0.0
+    recovery_probability: float | SampledFloat = 1.0
+    recovery_time: float | SampledFloat = 0.0
 
 
 @dataclass
@@ -89,8 +89,8 @@ class WorkloadSpec:
 
     type: WorkloadType
     name: str = None  # type: ignore (default to 'type' in __post_init__)
-    repeat: int = 1
-    repeat_interval: float = 0.0
+    repeat: int | SampledInt = 1
+    repeat_interval: float | SampledFloat = 0.0
 
     def __post_init__(self):
         if self.name is None:
