@@ -59,6 +59,9 @@ strictListInference = true
 strictTupleInference = true
 strictSetInference = true
 
+[tool.coverage.run]
+omit = ["bench/migrations/*", "bench/test/*"]
+
 [tool.pytest_env]
 ENVIRONMENT = "test"
 
@@ -75,7 +78,7 @@ addopts = [
 ]
 markers = [
 	"hypothesis: test uses hypothesis",
-	"quick: quick to run",
+	"quick: quick to run (for simulations)",
 	"careful: test is slow or resource intensive",
 	"paranoid: test is very slow or resource intensive",
 ]
