@@ -1279,7 +1279,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
 
     __is_node__: ClassVar[bool] = True
     __identifier_type__: ClassVar[IdentifierType] = IdentifierType.VARIABLE
-    # nocheckin :Test: make id factories deterministic (incl. UUIDT? somehow)
+    # NOTE :Test: make id factories deterministic (incl. UUIDT? somehow)
     __id_factory__: ClassVar[Callable[[], UUID]] = uuid4
     __ck_factory__: ClassVar[Callable[[], UUID]] = uuid4
 
