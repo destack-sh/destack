@@ -2,14 +2,24 @@ import asyncio
 import contextvars
 from contextlib import asynccontextmanager
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Awaitable, Callable, Collection, Optional, cast
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, Collection, Iterable, Optional, cast
 from uuid import UUID
 
 import structlog
 from opentelemetry import trace
 
-from bench.language.connection import ChannelFailedError, GraphEngine
+from bench.language.connection import (
+    Channel,
+    ChannelFailedError,
+    GraphEngine,
+    MemoryEngine,
+    NullEngine,
+    SplitChannel,
+    scope_includes,
+)
 from bench.language.const import (
+    NODE_TYPES,
+    BenchError,
     NodeType,
     PrimitiveType,
     SessionStatus,
@@ -18,6 +28,7 @@ from bench.language.const import (
     get_active_run,
 )
 from bench.language.node import (
+    BenchNode,
     BuiltinObject,
     EditSubject,
     HasTimeIdentity,
@@ -57,6 +68,7 @@ if TYPE_CHECKING:
         Machine,
         NodeReference,
         Package,
+        QueryBuilder,
         Run,
         Server,
         Signal,
@@ -111,22 +123,20 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
     _is_readonly: bool = p_runtime(default=False)
     _is_suspended: bool = p_runtime(default=False)
 
-    # transaction
+    # runtime
+    _split_read: bool = p_runtime(default=False)
+    _split_read_channel: Channel | None = p_runtime(default=None)
+    _engines: tuple["GraphEngine", ...] = p_runtime(default_factory=tuple)
+    _channels: list[Channel] = p_runtime(default_factory=list)
     _origin: ClientOrigin | None = p_runtime(default=None)
     _subject: EditSubject | None = p_runtime(default=None)
-    _engines: tuple["GraphEngine", ...] = p_runtime(default_factory=tuple)
     _tx: Transaction | None = p_runtime(default=None)
     _tx_lock: asyncio.Lock = p_runtime(default_factory=lambda: CriticalLock(name="session"))
     _edited_nodes_by_id: dict[UUID, Node] = p_runtime(default_factory=dict)
-
-    # runtime
-    _split_reads: bool = p_runtime(default=False)
     _default_scope: GraphScope = p_runtime(default_factory=GraphScope)
     _active_session_token: contextvars.Token | None = p_runtime(default=None)
     _supervisor: Optional["SupervisorClient"] = p_runtime(default=None)
     _host: Optional["HostClient"] = p_runtime(default=None)
-
-    # system
     _oracle: Oracle = p_runtime()
     _epoch: int | None = p_runtime(default=None)
     _custom_commit: CustomCommit | None = p_runtime(default=None)
@@ -196,6 +206,88 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
         assert self._host is not None, f"host not available in {self!r}"
         return self._host
 
+    def _get_scope_for_node(self, n: Node) -> GraphScope:
+        """Get the scope for a node in this session."""
+        scope = GraphScope()
+        if isinstance(n, BenchNode):
+            scope.bench_id = uuid_to_str(n.bench_id) or self._default_scope.bench_id
+        if isinstance(n, PackageNode):
+            scope.package_id = uuid_to_str(n.package_id) or self._default_scope.package_id
+        return scope
+
+    def _get_scope_for_query(self, query: "QueryBuilder") -> GraphScope:
+        """Get the scope for a query in this session."""
+        if query._base is not None:
+            return self._get_scope_for_node(query._base)
+        else:
+            return self._default_scope
+
+    def _get_engine_for(
+        self,
+        scope: GraphScope,
+        node_types: NodeType | Iterable[NodeType],
+        *,
+        is_readonly: bool,
+        best_match: Collection[NodeType] | None = None,
+    ) -> GraphEngine:
+        """Gets the appropriate engine"""
+        node_types = (node_types,) if isinstance(node_types, NodeType) else tuple(node_types)
+        candidate_engines = [
+            engine
+            for engine in self._engines
+            if (
+                (is_readonly or not engine.is_readonly)
+                and scope_includes(engine.scope, scope)
+                and all(t in engine.node_types for t in node_types)
+            )
+        ]
+        if not candidate_engines:
+            raise BenchError(
+                f"no engine for [scope={scope!r}, node_types={'|'.join(t.bench_name for t in node_types)}] in {self!r}"
+                f" (engines: {self._engines!r})"
+            )
+        if best_match is None or len(candidate_engines) < 2:
+            return candidate_engines[0]
+        else:
+            # try to find best match (most type overlap, best first)
+            candidate_engines.sort(key=lambda e: -len([t for t in best_match if t in e.node_types]))
+            # prefer in-memory engines
+            for e in candidate_engines:
+                if isinstance(e, MemoryEngine):
+                    return e
+            return candidate_engines[0]
+
+    async def _get_channel(self, engine: GraphEngine) -> Channel:
+        """Gets or creates a channel"""
+        for channel in self._channels:
+            if channel.engine.id == engine.id:
+                return channel
+        else:
+            channel = await engine.connect(self)
+            self._channels.append(channel)
+            return channel
+
+    async def _get_channel_for(
+        self,
+        scope: GraphScope,
+        node_types: NodeType | Iterable[NodeType],
+        *,
+        is_readonly: bool,
+        best_match: Collection[NodeType] | None = None,
+    ) -> Channel:
+        """Gets or creates a store channel for a scope and node types."""
+        if is_readonly and self._split_read:
+            if self._split_read_channel is None:
+                self._split_read_channel = SplitChannel(
+                    NullEngine(self._default_scope, NODE_TYPES), self
+                )
+            return self._split_read_channel
+        else:
+            engine = self._get_engine_for(
+                scope=scope, node_types=node_types, is_readonly=is_readonly, best_match=best_match
+            )
+            return await self._get_channel(engine)
+
     async def open(self, *, set_in_context: bool = True):
         """Opens the session for regular business. Activates context (by default)."""
         assert not self.closed_at, f"session already closed {self!r}"
@@ -219,7 +311,8 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
 
         # close transaction
         async with self._tx_lock:
-            await self.tx.close()
+            await asyncio.gather(*(channel.close() for channel in self._channels))
+            self._channels.clear()
             self._tx = None
 
         # close session
@@ -300,12 +393,6 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
         finally:
             if not _skip_lock:
                 self._tx_lock.release()
-
-    @tracer.start_as_current_span("session.rollback")
-    async def rollback(self):
-        assert self.is_open, f"cannot rollback {self!r} when closed"
-        async with self._tx_lock:
-            await self.tx.rollback()
 
     async def __aenter__(self):
         await self.open()

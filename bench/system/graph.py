@@ -150,7 +150,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
             _epoch=self.epoch,
             _custom_commit=self._commit_system_session if system_commit else None,
             _supergraph=supergraph,
-            _split_reads=self.split_reads,
+            _split_read=self.split_reads,
             _oracle=self.oracle,
         )
 
@@ -467,7 +467,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
                             roots=node_references,
                             options=options,
                         )
-                        channel = await session.tx._get_channel_for(
+                        channel = await session._get_channel_for(
                             request.scope, query.all_node_types, is_readonly=True
                         )
                         connection = await channel.get(query, GetOptions(live=False, unpack=False))

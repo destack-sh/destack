@@ -416,7 +416,7 @@ class Host(GraphIoServiceBase, HostApi, HostBase):
             _engines=self._engines,
             _custom_commit=self._commit_system_session,
             _supergraph=self._bench._supergraph,
-            _split_reads=True,
+            _split_read=True,
             _oracle=self.oracle,
         )
         self._bench._track_rec(self._session)
