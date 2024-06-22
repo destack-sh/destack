@@ -743,7 +743,7 @@ def validate_edit(edit: EditData, subject: Subject, now: datetime) -> None:
     if not edit.edited_at or not _is_allowable_drift(edit.edited_at, now):
         raise GRPCError(
             GRPCStatus.INVALID_ARGUMENT,
-            f"bad edited_at in {edit!r}: {edit.edited_at} != {now}",
+            f"bad edited_at in {edit!r}: {edit.edited_at} !~= {now}",
         )
 
     # old/new node packed

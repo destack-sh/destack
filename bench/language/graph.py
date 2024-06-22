@@ -91,6 +91,10 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
         """All nodes in the graph"""
         return self._nodes_by_id.values()
 
+    def nodes_of_type[T: Node](self, node_type: type[T]) -> tuple[T, ...]:
+        """All nodes of a certain type in the graph"""
+        return tuple(n for n in self.nodes if isinstance(n, node_type))
+
     def __len__(self):
         """Number of nodes in the graph"""
         return len(self._nodes_by_id)

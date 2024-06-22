@@ -98,3 +98,33 @@ class WorkloadSpec:
                 self.name = f"{self.type.value}-{getattr(self, 'client')}"
             else:
                 self.name = self.type.value
+
+
+USERNAMES = (
+    "alfred",
+    "bertram",
+    "cecil",
+    "douglas",
+    "edmund",
+    "frederick",
+    "geoffrey",
+    "harold",
+    "irving",
+    "james",
+    "kenneth",
+    "leonard",
+    "michael",
+    "nicholas",
+    "oscar",
+    "peter",
+    "quincy",
+    "roger",
+    "sebastian",
+    "theodore",
+    "ulysses",
+    "victor",
+    "william",
+    "xavier",
+    "yuri",
+    "zebedee",
+)

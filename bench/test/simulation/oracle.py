@@ -9,11 +9,16 @@ from random import Random
 from typing import Callable, Union, override
 
 import pytz
+import structlog
 from hypothesis import example, given, reject
 from hypothesis import strategies as st
+from opentelemetry import trace
 
 from bench.test.strategies import DURATION_STRATEGY
 from bench.utils.oracle import MAX_SCHEDULE_DURATION, REAL_ORACLE, Oracle, Timer
+
+logger = structlog.get_logger(__name__)
+tracer = trace.get_tracer(__name__)
 
 TimeBaseNs = Union[int, Callable[[], int]]
 

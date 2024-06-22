@@ -1,5 +1,4 @@
 import abc
-from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, final
 from uuid import UUID
@@ -8,10 +7,10 @@ import structlog
 from opentelemetry import trace
 
 from bench.language.bench import Bench, Branch, Package
+from bench.language.block import Block
 from bench.language.connection import GraphEngine, RemoteEngine
 from bench.language.const import (
     BENCH_NODE_TYPES,
-    EDIT_TYPES,
     IN_PACKAGE_NODE_TYPES,
     PUBLIC_NODE_TYPES,
     SOURCE_NODE_TYPES,
@@ -22,9 +21,11 @@ from bench.language.const import (
 from bench.language.expression import NodeReference
 from bench.language.graph import NodeSuperGraph
 from bench.language.session import Session
+from bench.language.user import User
 from bench.proto.wire import GraphScope, HostClient, SupervisorClient
+from bench.proto.wiring import unpack_object
 from bench.test.simulation.spec import WorkloadSpec, WorkloadType
-from bench.test.simulation.utils import SampledInt, to_value
+from bench.test.simulation.utils import SampledFloat, SampledInt, to_value
 from bench.utils.oracle import Oracle
 from bench.utils.tenacity import RETRY_GRPC_FOREVER
 
@@ -146,7 +147,7 @@ def _make_remote_engines(
     return engines
 
 
-async def _make_remote_session(
+async def make_remote_session(
     bench_id: UUID,
     client: "ClientHandle",
     host: "HostHandle",
@@ -165,36 +166,37 @@ async def _make_remote_session(
         _is_readonly=False,
         _default_scope=GraphScope(bench_id=str(bench_id)),
         _engines=engines,
+        _origin=client.client_origin,
         _supervisor=supervisor_client,
         _host=host_client,
         _oracle=oracle,
         _supergraph=supergraph,
     )
+    subject = unpack_object(
+        client.user.user_data, session=session, supergraph=supergraph, expect=User
+    )
+    session._subject = subject
     return session
 
 
-@asynccontextmanager
-async def _package_session(session: Session, bench_id: UUID, live: bool):
-    async with session:
-        # figure out package
-        bench_ptr = NodeReference(type=NodeType.BENCH, id=bench_id, ck=bench_id)
-        bench = await Bench.descendants(NodeType.BRANCH, NodeType.PACKAGE).get(bench_ptr)
-        assert bench.main_branch is not None, f"{bench!r} has no main branch"
-        assert bench.main_branch.main_package is not None, f"{bench!r} has no main package"
-        main_package = bench.main_branch.main_package
+async def get_package(bench_id: UUID, session: Session, *, live: bool):
+    """Gets the entire main package source"""
+    # resolve package pointer
+    bench_ptr = NodeReference(type=NodeType.BENCH, id=bench_id, ck=bench_id)
+    bench = await Bench.descendants(NodeType.BRANCH, NodeType.PACKAGE).get(bench_ptr)
+    assert bench.main_branch is not None, f"{bench!r} has no main branch"
+    assert bench.main_branch.main_package is not None, f"{bench!r} has no main package"
+    pkg_stub = bench.main_branch.main_package
 
-        # get query
-        pkg = await (
-            Package.descendants(*SOURCE_NODE_TYPES)
-            .ancestors(Bench, Branch)
-            .select_all()
-            .exclude(Bench.encryption_key)
-            .get(main_package.to_ref(), live=live)
-        )
-        connection = pkg._connection
-        assert connection is not None, f"{pkg!r} has no connection"
-
-        yield session
+    # get package source
+    pkg = await (
+        Package.descendants(*SOURCE_NODE_TYPES)
+        .ancestors(Bench, Branch)
+        .select_all()
+        .exclude(Bench.encryption_key)
+        .get(pkg_stub.to_ref(), live=live)
+    )
+    return pkg
 
 
 @dataclass
@@ -203,8 +205,9 @@ class WriteBlockTreeSpec(WorkloadSpec):
     bench: str = ""
     client: str = ""
     block_types: tuple[BlockType, ...] = (BlockType.PAGE, BlockType.TEXT)
-    edit_types: tuple[EditType, ...] = EDIT_TYPES.tuple
+    edit_types: tuple[EditType, ...] = (EditType.CREATE, EditType.DELETE)
     transactions: int | SampledInt = 1
+    transactions_interval: float | SampledFloat = 0.0
     edits_per_transaction: int | SampledInt = 10
 
 
@@ -215,17 +218,40 @@ class WriteBlockTreeWorkload(WorkloadBase[WriteBlockTreeSpec]):
         bench_id = self.simulation.resolve_bench_id(self.spec.bench)
         client = self.simulation.get_client(self.spec.client)
         host = self.simulation.get_host(self.spec.bench)
-        session = await _make_remote_session(bench_id, client, host, self.oracle, self.simulation)
+        session = await make_remote_session(bench_id, client, host, self.oracle, self.simulation)
         max_transactions = to_value(self.random, self.spec.transactions)
 
         # run
-        async with _package_session(session, bench_id, live=True):
+        async with session:
+            pkg = await get_package(bench_id, session, live=True)
+
             n_transactions = 0
             while n_transactions < max_transactions:
+                max_edits = to_value(self.random, self.spec.edits_per_transaction)
+                for _ in range(max_edits):
+                    edit_type = self.random.choice(self.spec.edit_types)
+                    if edit_type == EditType.CREATE:
+                        block_type = self.random.choice(self.spec.block_types)
+                        blocks = pkg._graph.nodes_of_type(Block)
+                        parent = self.random.choice((pkg, *blocks))
+                        num_blocks_of_type = len([b for b in blocks if b.type == block_type])
+                        block = Block.new(
+                            block_type, name=f"{block_type.bench_name}{num_blocks_of_type + 1}"
+                        )
+                        parent.blocks.append(block)
+                    elif edit_type == EditType.DELETE:
+                        blocks = pkg._graph.nodes_of_type(Block)
+                        if not blocks:
+                            continue  # no blocks to delete yet
+                        block = self.random.choice(blocks)
+                        block.delete()
+                    else:
+                        raise NotImplementedError(f"unexpected edit type {edit_type}")
+                await session.commit()
                 n_transactions += 1
-                n_edits = to_value(self.random, self.spec.edits_per_transaction)
 
-                ...  # nocheckin
+                wait = to_value(self.random, self.spec.transactions_interval)
+                await self.oracle.sleep(wait)
 
 
 @dataclass
@@ -243,8 +269,9 @@ class ReadPackageWorkload(WorkloadBase[ReadPackageSpec]):
         bench_id = self.simulation.resolve_bench_id(self.spec.bench)
         client = self.simulation.get_client(self.spec.client)
         host = self.simulation.get_host(self.spec.bench)
-        session = await _make_remote_session(bench_id, client, host, self.oracle, self.simulation)
+        session = await make_remote_session(bench_id, client, host, self.oracle, self.simulation)
 
         # run
-        async with _package_session(session, bench_id, self.spec.live):
-            ...  # nocheckin
+        async with session:
+            pkg = await get_package(bench_id, session, live=self.spec.live)
+            ...  # nocheckin evaluate package after workload/simulation is complete
