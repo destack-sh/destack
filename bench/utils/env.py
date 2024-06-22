@@ -14,7 +14,7 @@ class Env(StrEnum):
     PROD = "prod"
 
 
-def setup_dotenv():
+def setup_env():
     """Loads .env files according to the local environment at the project root."""
 
     if ENV == Env.PROD:

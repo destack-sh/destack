@@ -132,7 +132,7 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
         if node.parent_ptr is not None:
             self._add_to_parent(node)
 
-    def update(self, node: V):
+    def update(self, node: V, _force_update_parent: bool = False):
         """Updates an existing node in this graph (must exist)"""
         assert isinstance(
             node.id, self.key_type
@@ -151,8 +151,8 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
             node.id, old.parent_ptr.id if old.parent_ptr is not None else None
         )
         new_parent_id = node.parent_ptr.id if node.parent_ptr is not None else None
-        if old_parent_id != new_parent_id:
-            if old_parent_id is not None:
+        if old_parent_id != new_parent_id or _force_update_parent:
+            if old_parent_id is not None and not _force_update_parent:
                 self._remove_from_parent(old)
             if new_parent_id is not None:
                 self._add_to_parent(node)
@@ -173,11 +173,12 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
         assert isinstance(
             node.id, self.key_type
         ), f"cannot remove {node!r} with id {node.id!r} in {self!r}"
-        if node.parent_ptr is not None:
-            self._remove_from_parent(node)
-        self._nodes_by_id.pop(node.id, None)
+        existing = self._nodes_by_id.pop(node.id, None)
+        assert existing is not None, f"node {node!r} not in {self!r}"
         if hasattr(node, "ck"):
             self._nodes_by_ck.pop(getattr(node, "ck"), None)
+        if node.parent_ptr is not None:
+            self._remove_from_parent(node)
         # descend
         if node.id in self._nodes_by_parent:
             for child_type in tuple(self._nodes_by_parent[node.id]):

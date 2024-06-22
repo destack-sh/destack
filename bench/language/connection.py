@@ -456,28 +456,37 @@ class Connection[
         """
         if not self.is_live:
             # one-off connection: just read and unpack
+            self.session._on_connection_begin(self)
             retry = self.retry.new(self.session._oracle)
-            while retry.should_retry:
-                retry.on_attempt()
-                # try read
-                with tracer.start_as_current_span(f"connect.{self.type_name}.read"):
-                    try:
-                        self._result_data = await self._do_read(self.query)
-                        logger.trace(f"connect.{self.type_name}", connection=self, span="current")
-                        break  # success
-                    except retry.options.retry_on as e:
-                        logger.error(f"connect.{self.type_name}.error", exc_info=e, connection=self)
-                        retry.on_error(e)
-                        await self.session._oracle.sleep(retry.get_wait_interval())
-                        continue
-            else:
-                raise retry.to_error(operation=self.query)
-            # unpack (should not be retried)
-            if self.options.unpack:
-                self._result = self._unpack_result(self._result_data)
-            self._has_result.set()
+            try:
+                while retry.should_retry:
+                    retry.on_attempt()
+                    # try read
+                    with tracer.start_as_current_span(f"connect.{self.type_name}.read"):
+                        try:
+                            self._result_data = await self._do_read(self.query)
+                            logger.trace(
+                                f"connect.{self.type_name}", connection=self, span="current"
+                            )
+                            break  # success
+                        except retry.options.retry_on as e:
+                            logger.error(
+                                f"connect.{self.type_name}.error", exc_info=e, connection=self
+                            )
+                            retry.on_error(e)
+                            await self.session._oracle.sleep(retry.get_wait_interval())
+                            continue
+                else:
+                    raise retry.to_error(operation=self.query)
+                # unpack (should not be retried)
+                if self.options.unpack:
+                    self._result = self._unpack_result(self._result_data)
+                self._has_result.set()
+            finally:
+                self.session._on_connection_end(self)
         else:
             # live connection: loop (in seperate task) and await first result
+            self.session._on_connection_begin(self)
             task = wrap_task(
                 self._do_connect_live(),
                 logger=logger,
@@ -490,29 +499,32 @@ class Connection[
     async def _do_connect_live(self) -> None:
         """Runs the live connection loop until closed."""
         retry = self.retry.new(self.session._oracle)
-        while not self._is_closed:
-            if not retry.should_retry:
-                raise retry.to_error(operation=self.query)
-            retry.on_attempt()
+        try:
+            while not self._is_closed:
+                if not retry.should_retry:
+                    raise retry.to_error(operation=self.query)
+                retry.on_attempt()
 
-            try:
-                # initial read
-                with tracer.start_as_current_span(f"connect.{self.type_name}"):
-                    self._result_data = await self._do_read(self.query)
-                    logger.trace(f"connect.{self.type_name}", connection=self, span="current")
-                # unpack
-                if self.options.unpack:
-                    self._result = self._unpack_result(self._result_data)
-                self._has_result.set()
+                try:
+                    # initial read
+                    with tracer.start_as_current_span(f"connect.{self.type_name}"):
+                        self._result_data = await self._do_read(self.query)
+                        logger.trace(f"connect.{self.type_name}", connection=self, span="current")
+                    # unpack
+                    if self.options.unpack:
+                        self._result = self._unpack_result(self._result_data)
+                    self._has_result.set()
 
-                # subscribe
-                async for update in self._do_subscribe(self.query, self._result_data):
-                    self._apply_update(self._result_data, self._result, update)
-            except retry.options.retry_on as e:
-                logger.error(f"connect.{self.type_name}.error", exc_info=e, connection=self)
-                retry.on_error(e)
-                await self.session._oracle.sleep(retry.get_wait_interval())
-                continue
+                    # subscribe
+                    async for update in self._do_subscribe(self.query, self._result_data):
+                        self._apply_update(self._result_data, self._result, update)
+                except retry.options.retry_on as e:
+                    logger.error(f"connect.{self.type_name}.error", exc_info=e, connection=self)
+                    retry.on_error(e)
+                    await self.session._oracle.sleep(retry.get_wait_interval())
+                    continue
+        finally:
+            self.session._on_connection_end(self)
 
     @abc.abstractmethod
     def _unpack_result(self, result_data: ResultDataT) -> ResultT:

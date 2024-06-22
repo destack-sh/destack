@@ -33,11 +33,11 @@ def _setup_test_env():
     if _is_test_setup:
         return
 
-    from bench.utils.env import ENV, Env, setup_dotenv
+    from bench.utils.env import ENV, Env, setup_env
 
     assert ENV == Env.TEST, f"must run in {Env.TEST} (got: {ENV!r})"
 
-    setup_dotenv()
+    setup_env()
 
     from bench.utils.logging import setup_logging
 

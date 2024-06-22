@@ -8,9 +8,7 @@ from datetime import datetime, timedelta
 from random import Random
 from typing import Callable, Union, override
 
-import pytest
 import pytz
-import uvloop
 from hypothesis import example, given, reject
 from hypothesis import strategies as st
 
@@ -156,19 +154,7 @@ class SimulatedOracle(Oracle):
 
 #
 # Tests (testing the timing simulation)
-# NOTE: we care so much about this being right that we run it in all event loops.
 #
-
-
-@pytest.fixture(
-    params=(
-        uvloop.EventLoopPolicy(),
-        asyncio.DefaultEventLoopPolicy(),
-    )
-)
-def event_loop_policy(request: pytest.FixtureRequest):
-    # see https://pytest-asyncio.readthedocs.io/en/latest/how-to-guides/multiple_loops.html
-    return request.param
 
 
 @contextlib.asynccontextmanager

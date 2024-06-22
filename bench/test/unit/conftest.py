@@ -121,6 +121,7 @@ def make_package(session: Session):
     branch = bench.branches.create(name="Branch")
     package = branch.packages.create(environment=environment)
     session.parent = package
+    session._graph.update(session, _force_update_parent=True)
     return package
 
 

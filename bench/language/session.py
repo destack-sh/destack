@@ -11,6 +11,7 @@ from opentelemetry import trace
 from bench.language.connection import (
     Channel,
     ChannelFailedError,
+    Connection,
     GraphEngine,
     MemoryEngine,
     NullEngine,
@@ -128,6 +129,7 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
     _split_read_channel: Channel | None = p_runtime(default=None)
     _engines: tuple["GraphEngine", ...] = p_runtime(default_factory=tuple)
     _channels: list[Channel] = p_runtime(default_factory=list)
+    _connections: list[Connection] = p_runtime(default_factory=list)
     _origin: ClientOrigin | None = p_runtime(default=None)
     _subject: EditSubject | None = p_runtime(default=None)
     _tx: Transaction | None = p_runtime(default=None)
@@ -288,6 +290,14 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
             )
             return await self._get_channel(engine)
 
+    def _on_connection_begin(self, connection: Connection):
+        """Called when a connection begins."""
+        self._connections.append(connection)
+
+    def _on_connection_end(self, connection: Connection):
+        """Called when a connection ends."""
+        self._connections.remove(connection)
+
     async def open(self, *, set_in_context: bool = True):
         """Opens the session for regular business. Activates context (by default)."""
         assert not self.closed_at, f"session already closed {self!r}"
@@ -308,6 +318,11 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
         """Closes the session, rolling back uncommitted edits. Prevents further use."""
         assert self.opened_at, f"session not open {self!r}"
         assert not self.closed_at, f"session already closed {self!r}"
+
+        # close connections
+        for connection in self._connections:
+            connection.close()
+        await asyncio.gather(*(channel.close() for channel in self._channels))
 
         # close transaction
         async with self._tx_lock:
