@@ -9,14 +9,14 @@ if TYPE_CHECKING:
     pass
 
 
-class _TestProfile(enum.StrEnum):
+class TestProfile(enum.StrEnum):
     QUICK = "quick"
     DEFAULT = "default"
     CAREFUL = "careful"
     PARANOID = "paranoid"
 
 
-TEST_PROFILES = list(_TestProfile)
+TEST_PROFILES = list(TestProfile)
 
 hypothesis.settings.register_profile("quick", max_examples=40)
 hypothesis.settings.register_profile("default", max_examples=100)
@@ -54,16 +54,16 @@ _setup_test_env()
 
 from bench.utils.utils import get_from_env  # noqa: E402
 
-TEST_PROFILE = get_from_env("TEST_PROFILE", typ=_TestProfile, description="Test profile")
+TEST_PROFILE = get_from_env("TEST_PROFILE", typ=TestProfile, description="Test profile")
 hypothesis.settings.load_profile(TEST_PROFILE.value)
 
 
 def pytest_configure(config):
     _setup_test_env()
     # compile test profile into pytest 'markexpr' to filter tests
-    if TEST_PROFILE == _TestProfile.PARANOID:
+    if TEST_PROFILE == TestProfile.PARANOID:
         markexpr = ""
-    elif TEST_PROFILE == _TestProfile.CAREFUL:
+    elif TEST_PROFILE == TestProfile.CAREFUL:
         markexpr = "not paranoid"
     else:
         markexpr = "not paranoid and not careful"

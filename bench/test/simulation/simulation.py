@@ -14,6 +14,7 @@ from bench.proto.wire import (
     SupervisorClient,
 )
 from bench.sql.engine import GLOBAL_SCHEMA
+from bench.test.conftest import TestProfile
 from bench.test.fixtures import create_test_db, make_global_store
 from bench.test.simulation.client import ClientHandle, UserHandle
 from bench.test.simulation.grpc import SimulatedChannel
@@ -32,6 +33,7 @@ from bench.test.simulation.workload import (
     WriteBlockTreeSpec,
     get_workload_cls,
 )
+from bench.utils.func import group_by
 from bench.utils.oracle import REAL_ORACLE
 from bench.utils.task import TaskManager, wrap_task
 
@@ -231,10 +233,12 @@ AVAILABLE_SIMULATIONS: list[SimulationSpec] = [
     # sanity
     SimulationSpec(
         name="single_client_sanity",
+        profile=TestProfile.QUICK,
         clients=(ClientSpec(name="alice-1", username="alice"),),
     ),
     SimulationSpec(
         name="multi_client_sanity",
+        profile=TestProfile.QUICK,
         clients=(
             ClientSpec(name="alice-1", username="alice"),
             ClientSpec(name="alice-2", username="alice"),
@@ -243,11 +247,13 @@ AVAILABLE_SIMULATIONS: list[SimulationSpec] = [
     ),
     SimulationSpec(
         name="single_host_sanity",
+        profile=TestProfile.QUICK,
         clients=(ClientSpec(name="alice-1", username="alice"),),
         hosts=(HostSpec(bench=BenchSpec(name="alice", owner="alice")),),
     ),
     SimulationSpec(
         name="multi_host_sanity",
+        profile=TestProfile.QUICK,
         clients=(
             ClientSpec(name="alice-1", username="alice"),
             ClientSpec(name="bob-1", username="bob"),
@@ -281,10 +287,10 @@ AVAILABLE_SIMULATIONS: list[SimulationSpec] = [
         ),
     ),
 ]
+SIMULATIONS_BY_PROFILE = group_by(AVAILABLE_SIMULATIONS, lambda s: s.profile)
 
 
-@pytest.mark.parametrize("spec", AVAILABLE_SIMULATIONS, ids=lambda s: s.name)
-async def test_simulation(spec: SimulationSpec):
+async def _do_test_simulation(spec: SimulationSpec):
     simulation_id = get_simulation_id(spec)
     global_store = make_global_store(f"test_{simulation_id}")
     await create_test_db(global_store, GLOBAL_SCHEMA)
@@ -294,3 +300,34 @@ async def test_simulation(spec: SimulationSpec):
     except Exception as e:
         logger.exception("simulation.error", simulation=simulation, error=e)
         raise
+
+
+@pytest.mark.quick()
+@pytest.mark.parametrize(
+    "spec", SIMULATIONS_BY_PROFILE.get(TestProfile.QUICK, ()), ids=lambda s: s.name
+)
+async def test_simulation_quick(spec: SimulationSpec):
+    await _do_test_simulation(spec)
+
+
+@pytest.mark.parametrize(
+    "spec", SIMULATIONS_BY_PROFILE.get(TestProfile.DEFAULT, ()), ids=lambda s: s.name
+)
+async def test_simulation_default(spec: SimulationSpec):
+    await _do_test_simulation(spec)
+
+
+@pytest.mark.careful()
+@pytest.mark.parametrize(
+    "spec", SIMULATIONS_BY_PROFILE.get(TestProfile.CAREFUL, ()), ids=lambda s: s.name
+)
+async def test_simulation_careful(spec: SimulationSpec):
+    await _do_test_simulation(spec)
+
+
+@pytest.mark.paranoid()
+@pytest.mark.parametrize(
+    "spec", SIMULATIONS_BY_PROFILE.get(TestProfile.PARANOID, ()), ids=lambda s: s.name
+)
+async def test_simulation_paranoid(spec: SimulationSpec):
+    await _do_test_simulation(spec)
