@@ -219,3 +219,11 @@ class Block(SourceNode[BlockData], HasValues):
     @property
     def output_type(self) -> "TypeInfoBase":
         return self.to_type(as_object=True, zone=FieldZone.OUTPUT)
+
+    @staticmethod
+    def new(typ: BlockType, name: str, **kwargs) -> "Block":
+        if typ == BlockType.PAGE:
+            kwargs.setdefault("is_page", True)
+        elif typ == BlockType.PROTOCOL:
+            kwargs.setdefault("is_protocol", True)
+        return Block(type=typ, name=name, **kwargs)

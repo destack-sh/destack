@@ -539,6 +539,7 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
                 self._edited_nodes_by_id[descendant.id] = descendant
             self._tx.archive(n, subject, self._origin, context, now)
             n.archived_at = now
+            n._graph.remove(n)
 
     def _unarchive(self, *nodes: Node):
         """Restore a node from the archive in its original place."""
@@ -563,6 +564,7 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
                 self._edited_nodes_by_id[descendant.id] = descendant
             self._tx.delete(n, subject, self._origin, context, now)
             n.deleted_at = now
+            n._graph.remove(n)
 
     def _restore(self, *nodes: Node):
         """Restore a deleted node."""
@@ -588,6 +590,7 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
                 self._edited_nodes_by_id[descendant.id] = descendant
             self._tx.erase(n, subject, self._origin, context, now)
             n.deleted_at = now
+            n._graph.remove(n)
 
 
 @struct_(StructType.EDIT_CONTEXT, inline=True)

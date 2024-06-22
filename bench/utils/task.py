@@ -10,7 +10,7 @@ async def wrap_task(coro: Coroutine, logger, task_id: str, owner: Any) -> None:
     try:
         return await coro
     except asyncio.CancelledError as e:
-        logger.exception(f"{task_id}.cancel", task_id=task_id, owner=owner, exc_info=e)
+        logger.trace(f"{task_id}.cancel", task_id=task_id, owner=owner, exc_info=e)
         pass
     except BaseException as e:
         logger.exception(
@@ -71,7 +71,7 @@ class TaskManager:
                 await process(item)
             except (asyncio.CancelledError, RuntimeError):
                 # queue throws RuntimeError if event loop is closed (happens when pytest shuts down)
-                self._logger.trace("task.cancelled", owner=self._owner, task_id=task_id)
+                self._logger.trace("task.cancel", owner=self._owner, task_id=task_id)
                 break
             except Exception as e:
                 self._logger.exception(
@@ -120,7 +120,7 @@ class TaskManager:
                 if ret is not None:
                     await ret
             except (asyncio.CancelledError, RuntimeError):
-                self._logger.trace("task.cancelled", owner=self._owner, task_id=task_id)
+                self._logger.trace("task.cancel", owner=self._owner, task_id=task_id)
                 break
             except Exception as e:
                 self._logger.exception(

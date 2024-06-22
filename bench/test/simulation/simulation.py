@@ -276,7 +276,7 @@ AVAILABLE_SIMULATIONS: list[SimulationSpec] = [
     ),
     # simple
     SimulationSpec(
-        name="single_client_rw_block_tree",
+        name="single_writer_single_reader_block_tree",
         clients=(ClientSpec(name="alice-1", username="alice"),),
         hosts=(HostSpec(bench=BenchSpec(name="alice", owner="alice")),),
         workloads=(
@@ -285,16 +285,18 @@ AVAILABLE_SIMULATIONS: list[SimulationSpec] = [
         ),
     ),
     SimulationSpec(
-        name="multi_client_rw_block_tree",
+        name="single_writer_multi_reader_block_tree",
         hosts=(HostSpec(bench=BenchSpec(name="alice", owner="alice")),),
         clients=(
             ClientSpec(name="alice-1", username="alice"),
             ClientSpec(name="alice-2", username="alice"),
+            ClientSpec(name="alice-3", username="alice"),
         ),
         workloads=(
             WriteBlockTreeSpec(bench="alice", client="alice-1"),
             ReadPackageSpec(bench="alice", client="alice-1"),
             ReadPackageSpec(bench="alice", client="alice-2"),
+            ReadPackageSpec(bench="alice", client="alice-3"),
         ),
     ),
 ]
