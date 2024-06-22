@@ -1,6 +1,5 @@
 import asyncio
 import gc
-import time
 from itertools import chain
 from random import Random
 from typing import NamedTuple, final
@@ -19,7 +18,7 @@ from bench.test.conftest import TestProfile
 from bench.test.fixtures import create_test_db, make_global_store
 from bench.test.simulation.client import ClientHandle, UserHandle
 from bench.test.simulation.grpc import SimulatedChannel
-from bench.test.simulation.oracle import SimulatedLoop, SimulatedOracle
+from bench.test.simulation.oracle import SimulatedEventLoop, SimulatedOracle
 from bench.test.simulation.service import HostHandle, ServiceHandle, SupervisorHandle
 from bench.test.simulation.spec import (
     BenchSpec,
@@ -58,17 +57,18 @@ class Simulation:
         # system
         self.random = Random(spec.seed)
         self.network = Network(spec.network, self)
-        self._sim_loop = SimulatedLoop(base_time_ns=time.time_ns)
-        self._sim_oracle = SimulatedOracle(loop=self._sim_loop, random=self.random)
-        self._tasks = TaskManager(owner=self, logger=logger, oracle=self._sim_oracle)
+        self._loop = asyncio.get_event_loop()
+        assert isinstance(self._loop, SimulatedEventLoop), f"bad loop: {self._loop}"
+        self._oracle = SimulatedOracle(loop=self._loop, random=self.random)
+        self._tasks = TaskManager(owner=self, logger=logger, oracle=self._oracle)
 
         # services
-        self._supervisor = SupervisorHandle("supervisor", spec.supervisor, self._sim_oracle, self)
+        self._supervisor = SupervisorHandle("supervisor", spec.supervisor, self._oracle, self)
         self._hosts_by_name: dict[str, HostHandle] = {}
         for host_spec in spec.hosts:
             if host_spec.bench.name in self._hosts_by_name:
                 raise ValueError(f"duplicate host name: {host_spec.bench.name} in {self!r}")
-            host = HostHandle(host_spec.bench.name, host_spec, self._sim_oracle, self)
+            host = HostHandle(host_spec.bench.name, host_spec, self._oracle, self)
             self._hosts_by_name[host_spec.bench.name] = host
 
         # clients
@@ -92,7 +92,7 @@ class Simulation:
         self._workloads_by_name: dict[str, WorkloadBase] = {}
         for workload_spec in spec.workloads:
             workload_cls = get_workload_cls(workload_spec.type)
-            workload = workload_cls(workload_spec, self._sim_oracle, self)
+            workload = workload_cls(workload_spec, self._oracle, self)
             self._workloads.append(workload)
             if workload_spec.name in self._workloads_by_name:
                 raise ValueError(f"duplicate workload name: {workload_spec.name} in {self!r}")
@@ -128,15 +128,12 @@ class Simulation:
 
     async def run(self):
         """Run the simulation."""
-        # start simulation loop
-        await self._sim_loop.start()
-
         # prepare services and such
         #  (use direct supervisor channel to bootstrap)
         with tracer.start_as_current_span("simulation.prepare"):
             await self._supervisor.start()
             async with SimulatedChannel(
-                services=(self._supervisor.service,), oracle=self._sim_oracle
+                services=(self._supervisor.service,), oracle=self._oracle
             ) as supervisor_channel:
                 supervisor_client = SupervisorClient(supervisor_channel)
                 # prepare users & clients
@@ -180,14 +177,12 @@ class Simulation:
         for host in self._hosts_by_name.values():
             host.close()
         self._tasks.close()
-        self._sim_loop.close()
 
     async def _wait_closed(self):
         await asyncio.gather(
             self._supervisor.wait_closed(),
             *(host.wait_closed() for host in self._hosts_by_name.values()),
             self._tasks.wait_closed(),
-            self._sim_loop.wait_closed(),
             return_exceptions=True,
         )
 
@@ -220,7 +215,7 @@ class Network:
         channel = self._channels.get(pair)
         if channel is not None:
             return channel
-        channel = SimulatedChannel(services=(service.service,), oracle=self.simulation._sim_oracle)
+        channel = SimulatedChannel(services=(service.service,), oracle=self.simulation._oracle)
         self._channels[pair] = channel
         await channel.open()
         return channel
