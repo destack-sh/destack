@@ -57,6 +57,7 @@ class SimulatedLoop:
     async def _tick_forever(self):
         # TODO :Test!: consider wait_for and awaitable regions which cannot be fast forwarded
         #  (e.g., calls to external services like postgres, docker, etc.)
+        #  Also I have a gut feeling we need to replace the entire event loop, not just shim it.
         while True:
             scheduled = await self._scheduled_callbacks.get()
             now_ns = self.time_ns()

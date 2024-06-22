@@ -1,4 +1,5 @@
 import asyncio
+import gc
 import time
 from itertools import chain
 from random import Random
@@ -171,6 +172,7 @@ class Simulation:
         finally:
             # cleanup
             self._close()
+            await self._wait_closed()
             self._terminated_at_ns = REAL_ORACLE.time_ns()
 
     def _close(self):
@@ -179,6 +181,15 @@ class Simulation:
             host.close()
         self._tasks.close()
         self._sim_loop.close()
+
+    async def _wait_closed(self):
+        await asyncio.gather(
+            self._supervisor.wait_closed(),
+            *(host.wait_closed() for host in self._hosts_by_name.values()),
+            self._tasks.wait_closed(),
+            self._sim_loop.wait_closed(),
+            return_exceptions=True,
+        )
 
 
 class ConnectionPair(NamedTuple):
@@ -300,6 +311,9 @@ async def _do_test_simulation(spec: SimulationSpec):
     except Exception as e:
         logger.exception("simulation.error", simulation=simulation, error=e)
         raise
+    finally:
+        # force gc for simulation isolation
+        gc.collect()
 
 
 @pytest.mark.quick()

@@ -68,12 +68,11 @@ class TaskManager:
         while True:
             try:
                 item = await queue.get()
+                await process(item)
             except (asyncio.CancelledError, RuntimeError):
                 # queue throws RuntimeError if event loop is closed (happens when pytest shuts down)
                 self._logger.trace("task.cancelled", owner=self._owner, task_id=task_id)
                 break
-            try:
-                await process(item)
             except Exception as e:
                 self._logger.exception(
                     "task.error",
@@ -117,13 +116,12 @@ class TaskManager:
         while True:
             try:
                 await self._oracle.sleep(run_every)
-            except (asyncio.CancelledError, RuntimeError):
-                self._logger.trace("task.cancelled", owner=self._owner, task_id=task_id)
-                break
-            try:
                 ret = process()
                 if ret is not None:
                     await ret
+            except (asyncio.CancelledError, RuntimeError):
+                self._logger.trace("task.cancelled", owner=self._owner, task_id=task_id)
+                break
             except Exception as e:
                 self._logger.exception(
                     "task.error",
@@ -161,6 +159,5 @@ class TaskManager:
                 task.cancel()
 
     async def wait_closed(self) -> None:
-        with contextlib.suppress(asyncio.CancelledError, RuntimeError):
-            await asyncio.gather(*self._active_tasks, return_exceptions=True)
+        await asyncio.gather(*self._active_tasks, return_exceptions=True)
         self._active_tasks.clear()

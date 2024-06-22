@@ -76,10 +76,10 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
         await super().start()
 
     def close(self) -> None:
-        pass
+        super().close()
 
     async def wait_closed(self) -> None:
-        pass
+        await super().wait_closed()
 
     @override
     def get_engines(self):
