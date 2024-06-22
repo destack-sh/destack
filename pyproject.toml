@@ -82,3 +82,4 @@ markers = [
 	"careful: test is slow or resource intensive",
 	"paranoid: test is very slow or resource intensive",
 ]
+filterwarnings = ["ignore::DeprecationWarning", "ignore::UserWarning"]

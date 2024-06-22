@@ -9,9 +9,9 @@ from rich.console import Console
 if (len(sys.argv) < 2 or sys.argv[1] != "serve") and os.getenv("ENVIRONMENT") is None:
     os.environ["ENVIRONMENT"] = "dev"
 
-from bench.utils.env import setup_dotenv
+from bench.utils.env import setup_env
 
-setup_dotenv()
+setup_env()
 
 from bench.utils.logging import setup_logging  # noqa: E402
 from bench.utils.tracing import setup_tracing  # noqa: E402
