@@ -230,7 +230,7 @@ def scope_includes(scope: GraphScope, other: GraphScope) -> bool:
     )
 
 
-class GraphEngine(abc.ABC):
+class GraphEngine[C: Channel](abc.ABC):
     """A Graph IO service to perform IO on some subgraph."""
 
     def __init__(
@@ -257,10 +257,10 @@ class GraphEngine(abc.ABC):
 
     @property
     def id(self) -> int | str | UUID:
-        return hash(self)
+        return id(self)
 
     @abc.abstractmethod
-    async def connect(self, session: "Session") -> "Channel":
+    async def connect(self, session: "Session") -> C:
         """Opens an IO channel on this subgraph in a session."""
         ...
 
@@ -272,10 +272,11 @@ class NullEngine(GraphEngine):
         raise ChannelIncapableError(self, reason="null engine")
 
 
-class Channel(abc.ABC):
+class Channel[E: GraphEngine](abc.ABC):
     """A channel to a specific store to read from in a session."""
 
-    def __init__(self, session: "Session"):
+    def __init__(self, engine: E, session: "Session"):
+        self.engine = engine
         self.session = session
 
     def __str__(self):
@@ -310,7 +311,7 @@ class Channel(abc.ABC):
         """Read a single node given the query in the current transaction context (if any)."""
         assert query._read_type == ReadType.GET, f"{query!r} is not a get"
         assert query._roots is not None, f"{query!r} has no roots"
-        scope: GraphScope = query._get_scope_in(self.session)
+        scope = self.session._get_scope_for_query(query)
         connection_cls = self._get_connection_cls(query, scope, options)
         connection = connection_cls(self, scope, query, self.retry, options)
         assert isinstance(connection, GetConnection), f"{connection!r} is not a get"
@@ -321,7 +322,7 @@ class Channel(abc.ABC):
     async def search(self, query: "QueryBuilder", options: SearchOptions) -> "SearchConnection":
         """Read the nodes given the search query in the current transaction context (if any)."""
         assert query._read_type == ReadType.SEARCH, f"{query!r} is not a search"
-        scope: GraphScope = query._get_scope_in(self.session)
+        scope = self.session._get_scope_for_query(query)
         connection_cls = self._get_connection_cls(query, scope, options)
         connection = connection_cls(self, scope, query, self.retry, options)
         assert isinstance(connection, SearchConnection), f"{connection!r} is not a search"
@@ -335,7 +336,7 @@ class Channel(abc.ABC):
         """Read the nodes given the aggregate query in the current transaction context (if any)."""
         assert query._read_type == ReadType.AGGREGATE, f"{query!r} is not an aggregate"
         assert query._aggregation is not None, f"{query!r} has no aggregation"
-        scope: GraphScope = query._get_scope_in(self.session)
+        scope = self.session._get_scope_for_query(query)
         connection_cls = self._get_connection_cls(query, scope, options)
         connection = connection_cls(self, scope, query, self.retry, options)
         assert isinstance(connection, AggregateConnection), f"{connection!r} is not an aggregate"
@@ -355,7 +356,7 @@ class CommitResultData:
     cascaded_edits: list[EditData]
 
 
-class WritableChannel(Channel):
+class WritableChannel[E: GraphEngine](Channel[E]):
     """A channel you can write to."""
 
     #
@@ -386,7 +387,7 @@ class Connection[
     ResultDataT: ResultData,
     UpdateT: UpdateData,
 ](abc.ABC):
-    """A live query result from a graph connection."""
+    """A connection to a graph for some query."""
 
     def __init__(
         self,
@@ -454,7 +455,7 @@ class Connection[
         Unpacks the result if needed.
         """
         if not self.is_live:
-            # simple: just read and unpack
+            # one-off connection: just read and unpack
             retry = self.retry.new(self.session._oracle)
             while retry.should_retry:
                 retry.on_attempt()
@@ -476,7 +477,7 @@ class Connection[
                 self._result = self._unpack_result(self._result_data)
             self._has_result.set()
         else:
-            # start live connection loop (in seperate task) and await first result
+            # live connection: loop (in seperate task) and await first result
             task = wrap_task(
                 self._do_connect_live(),
                 logger=logger,
@@ -696,7 +697,7 @@ class AggregateConnection[ChannelT: Channel](
             )
 
 
-class MemoryEngine(GraphEngine):
+class MemoryEngine(GraphEngine["MemoryChannel"]):
     """A read-only engine that reads from an in-memory graph."""
 
     def __init__(self, scope: GraphScope, node_types: bittuple[NodeType], graph: "NodeDataGraph"):
@@ -714,12 +715,11 @@ class MemoryEngine(GraphEngine):
         return MemoryChannel(self, session)
 
 
-class MemoryChannel(Channel):
+class MemoryChannel(Channel[MemoryEngine]):
     """A read-only channel to an in-memory graph."""
 
     def __init__(self, engine: "MemoryEngine", session: "Session"):
-        super().__init__(session)
-        self.engine = engine
+        super().__init__(engine, session)
 
     def __str__(self):
         return f"engine={self.engine!r}, session={self.session}"
@@ -810,7 +810,7 @@ class MemoryGetConnection(GetConnection[MemoryChannel]):
         )
 
 
-class SplitChannel(Channel):
+class SplitChannel(Channel[NullEngine]):
     """A read-only channel splits queries across channels."""
 
     @override
@@ -860,10 +860,10 @@ class SplitConnection(Connection):
             # just select our way up
             actual_roots_parents = tuple(n.parent_ptr for n in actual_roots if n.parent_ptr)
             actual_roots_parents_by_type = group_by(actual_roots_parents, lambda n: n.type)
-            ancestor_engine = self.session.tx._get_engine_for(
+            ancestor_engine = self.session._get_engine_for(
                 self.scope, remaining_ancestors, is_readonly=True
             )
-            ancestor_channel = await self.session.tx._get_channel(ancestor_engine)
+            ancestor_channel = await self.session._get_channel(ancestor_engine)
 
             for parent_type, parents in actual_roots_parents_by_type.items():
                 if parent_type not in remaining_ancestors:
@@ -892,10 +892,10 @@ class SplitSearchConnection(SearchConnection[SplitChannel], SplitConnection):
     @override
     async def _do_read(self, query: "QueryBuilder") -> SearchResultData:
         # first trim query to nucleus around core node type (use best match)
-        engine = self.session.tx._get_engine_for(
+        engine = self.session._get_engine_for(
             self.scope, query._node_type, best_match=self.node_types, is_readonly=True
         )
-        channel = await self.session.tx._get_channel(engine)
+        channel = await self.session._get_channel(engine)
         connection = await channel.search(
             query.trim_to(engine.node_types),
             SearchOptions(live=False, unpack=False, count=self.options.count),
@@ -923,10 +923,10 @@ class SplitGetConnection(GetConnection[SplitChannel], SplitConnection):
     @override
     async def _do_read(self, query: "QueryBuilder") -> GetResultData:
         # first trim query to nucleus around core node type (use best match)
-        engine = self.session.tx._get_engine_for(
+        engine = self.session._get_engine_for(
             self.scope, query._node_type, best_match=self.node_types, is_readonly=True
         )
-        channel = await self.session.tx._get_channel(engine)
+        channel = await self.session._get_channel(engine)
         connection = await channel.get(
             query.trim_to(engine.node_types), GetOptions(live=False, unpack=False)
         )
@@ -945,7 +945,7 @@ class SplitGetConnection(GetConnection[SplitChannel], SplitConnection):
         return combined_result
 
 
-class RemoteEngine(GraphEngine):
+class RemoteEngine(GraphEngine["RemoteChannel"]):
     """An engine that proxies to a remote graph store."""
 
     def __init__(
@@ -972,12 +972,8 @@ class RemoteEngine(GraphEngine):
         return RemoteChannel(self, session)
 
 
-class RemoteChannel(WritableChannel):
+class RemoteChannel(WritableChannel[RemoteEngine]):
     """A channel to a remote graph."""
-
-    def __init__(self, engine: "RemoteEngine", session: "Session"):
-        super().__init__(session)
-        self.engine = engine
 
     def __str__(self):
         return f"engine={self.engine!r}, session={self.session}"
@@ -1203,7 +1199,7 @@ class PostgresEngine(GraphEngine):
         return PostgresChannel(self, session, conn, cur)
 
 
-class PostgresChannel(WritableChannel):
+class PostgresChannel(WritableChannel[PostgresEngine]):
     """A channel to a Postgres store (usually maps to a postgres connection)."""
 
     def __init__(
@@ -1213,8 +1209,7 @@ class PostgresChannel(WritableChannel):
         conn: "PgStoreConnection",
         cur: psycopg.AsyncCursor,
     ):
-        super().__init__(session)
-        self.engine = engine
+        super().__init__(engine, session)
         self.conn = conn
         self.cur = cur
 

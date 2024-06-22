@@ -39,12 +39,12 @@ from bench.language.node import (
 from bench.language.property import Property, p_node_parent, p_regular
 from bench.language.setup import ANCESTOR_NODE_TYPES, NODE_CLASSES, _on_completing_setup
 from bench.language.validation import NAME_CONSTRAINT
-from bench.proto.wire import AnyNodeData, GraphScope, QueryData
+from bench.proto.wire import AnyNodeData, QueryData
 from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import stable_hash
 
 if TYPE_CHECKING:
-    from bench.language import Block, Channel, Field, NodeReference, ReadOptions, Session
+    from bench.language import Block, Channel, Field, NodeReference, ReadOptions
 
 
 logger = structlog.get_logger(__name__)
@@ -305,9 +305,6 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
     def is_aggregation(self) -> bool:
         return self._aggregation is not None
 
-    def _get_scope_in(self, session: "Session") -> GraphScope:
-        return session.tx._get_scope_for_node(self._base) if self._base else session._default_scope
-
     #
     # Builder
     #
@@ -448,8 +445,8 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
 
     async def _get_read_channel(self) -> "Channel":
         session = active_session()
-        scope = self._get_scope_in(session)
-        return await session.tx._get_channel_for(scope, self.all_node_types, is_readonly=True)
+        scope = session._get_scope_for_query(self)
+        return await session._get_channel_for(scope, self.all_node_types, is_readonly=True)
 
     @tracer.start_as_current_span("query.get")
     async def get(

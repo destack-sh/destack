@@ -1,7 +1,7 @@
 import dataclasses
 from collections import defaultdict
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Collection, Iterable, Literal, Optional, cast
+from typing import TYPE_CHECKING, Any, Collection, Literal, Optional, cast
 from uuid import UUID
 
 import structlog
@@ -11,24 +11,19 @@ from opentelemetry import trace
 from bench.language.connection import (
     Channel,
     GraphEngine,
-    MemoryEngine,
-    SplitChannel,
     WritableChannel,
-    scope_includes,
 )
-from bench.language.const import UNSET, BenchError, EditType, NodeType
+from bench.language.const import UNSET, EditType, NodeType
 from bench.language.graph import NodeDataGraph, NodeGraph
-from bench.language.node import BenchNode, Node, PackageNode, Property
+from bench.language.node import Node, Property
 from bench.language.setup import NODE_CLASS_BY_TYPE
 from bench.proto.wire import (
     AnyNodeData,
     ClientOrigin,
     EditContextData,
     EditData,
-    GraphScope,
     NodeReferenceData,
 )
-from bench.utils.func import uuid_to_str
 from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
@@ -52,7 +47,7 @@ class Transaction:
     session: "Session"
     is_readonly: bool = dataclasses.field(default=False)
     _split_read_channel: Optional[Channel] = dataclasses.field(default=None)
-    _channels_by_engine_id: dict[Any, Channel] = dataclasses.field(default_factory=dict)
+    _channels: list[Channel] = dataclasses.field(default_factory=list)
 
     """All edits from this transaction (since the previous commit)."""
     edits: list[EditData] = dataclasses.field(default_factory=list)
@@ -80,76 +75,6 @@ class Transaction:
     @property
     def has_pending_edits(self) -> bool:
         return any(self._pending_edits_by_engine_id.values())
-
-    def _get_scope_for_node(self, n: Node) -> GraphScope:
-        """Gets the explicit or implicit scope for a node."""
-        scope = GraphScope()
-        if isinstance(n, BenchNode):
-            scope.bench_id = uuid_to_str(n.bench_id) or self.session._default_scope.bench_id
-        if isinstance(n, PackageNode):
-            scope.package_id = uuid_to_str(n.package_id) or self.session._default_scope.package_id
-        return scope
-
-    def _get_engine_for(
-        self,
-        scope: GraphScope,
-        node_types: NodeType | Iterable[NodeType],
-        *,
-        is_readonly: bool,
-        best_match: Collection[NodeType] | None = None,
-    ) -> GraphEngine:
-        """Gets the appropriate engine"""
-        node_types = (node_types,) if isinstance(node_types, NodeType) else tuple(node_types)
-        candidate_engines = [
-            engine
-            for engine in self.session._engines
-            if (
-                (is_readonly or not engine.is_readonly)
-                and scope_includes(engine.scope, scope)
-                and all(t in engine.node_types for t in node_types)
-            )
-        ]
-        if not candidate_engines:
-            raise BenchError(
-                f"no engine for [scope={scope!r}, node_types={'|'.join(t.bench_name for t in node_types)}] in {self.session!r}"
-                f" (engines: {self.session._engines!r})"
-            )
-        if best_match is None or len(candidate_engines) < 2:
-            return candidate_engines[0]
-        else:
-            # try to find best match (most type overlap, best first)
-            candidate_engines.sort(key=lambda e: -len([t for t in best_match if t in e.node_types]))
-            if any(isinstance(e, MemoryEngine) for e in candidate_engines):
-                # prefer in-memory engines
-                return next(e for e in candidate_engines if isinstance(e, MemoryEngine))
-            return candidate_engines[0]
-
-    async def _get_channel(self, engine: GraphEngine) -> Channel:
-        """Gets or creates a store channel"""
-        channel = self._channels_by_engine_id.get(engine.id)
-        if channel is None:
-            channel = await engine.connect(self.session)
-            self._channels_by_engine_id[engine.id] = channel
-        return channel
-
-    async def _get_channel_for(
-        self,
-        scope: GraphScope,
-        node_types: NodeType | Iterable[NodeType],
-        *,
-        is_readonly: bool,
-        best_match: Collection[NodeType] | None = None,
-    ) -> Channel:
-        """Gets or creates a store channel for a scope and node types."""
-        if is_readonly and self.session._split_reads:
-            if self._split_read_channel is None:
-                self._split_read_channel = SplitChannel(self.session)
-            return self._split_read_channel
-        else:
-            engine = self._get_engine_for(
-                scope=scope, node_types=node_types, is_readonly=is_readonly, best_match=best_match
-            )
-            return await self._get_channel(engine)
 
     #
     # Edits
@@ -212,7 +137,7 @@ class Transaction:
             node_ptr=node._to_ref_data(),
             new_node_packed=new_node_packed,
             old_node_packed=old_node_packed,
-            scope=self._get_scope_for_node(node),
+            scope=self.session._get_scope_for_node(node),
             origin=origin,
             subject_ptr=subject,
             context=context,
@@ -286,7 +211,7 @@ class Transaction:
                 properties=[prop.id for prop in properties],
                 old_node_packed=wiring.pack_proto_json(old_node_packed),
                 new_node_packed=wiring.pack_proto_json(new_node_packed),
-                scope=self._get_scope_for_node(node),
+                scope=self.session._get_scope_for_node(node),
                 subject_ptr=subject,
                 origin=origin,
                 context=context,
@@ -434,7 +359,7 @@ class Transaction:
         from bench.proto import wiring
 
         node_type = wiring.unpack_enum(NodeType, edit.node_ptr.type)
-        engine = self._get_engine_for(edit.scope, node_type, is_readonly=False)
+        engine = self.session._get_engine_for(edit.scope, node_type, is_readonly=False)
         self.edits.append(edit)
         self.pending_edits.append(edit)
         self._pending_edits_by_engine_id[engine.id].append(edit)
@@ -454,13 +379,13 @@ class Transaction:
         assert self.session is not None, f"no session for {self!r}"
         log = logger.bind(edits=len(self.edits), transaction=self)
 
-        # TODO :Robustness!: use :2PC in Transaction.commit (if there are more than 2 engines)
+        # TODO :Robustness!: use :2PC in Transaction.commit (if there are more than 2 channels)
         for engine in self.session._engines:
             # prepare edits & channel
             pending_edits = self._pending_edits_by_engine_id.get(engine.id, [])
             if not (pending_edits or (commit and engine.id in self._used_engine_ids)):
                 continue  # nothing to do
-            channel = await self._get_channel(engine)
+            channel = await self.session._get_channel(engine)
             assert isinstance(channel, WritableChannel), f"read-only {channel!r} for {engine!r}"
 
             # flush/commit
@@ -504,11 +429,6 @@ class Transaction:
         self._used_engine_ids.clear()
         return edits, cascaded_edits
 
-    @tracer.start_as_current_span("transaction.rollback")
-    async def rollback(self):
-        """Rolls back uncommitted edits in primary stores."""
-        raise NotImplementedError("not yet supported")  # :2PC
-
     async def reset(self):
         """Resets the transaction, any edits and channels (without closing)."""
         self.edits.clear()
@@ -518,15 +438,6 @@ class Transaction:
         self._pending_updates_idx.clear()
         self._pending_nodes_by_ck.clear()
         self._used_engine_ids.clear()
-        for channel in self._channels_by_engine_id.values():
-            await channel.close()
-        self._channels_by_engine_id.clear()
-
-    async def close(self):
-        """Closes the transaction and associated store engines, rolling back uncommitted edits."""
-        for channel in self._channels_by_engine_id.values():
-            await channel.close()
-        self._channels_by_engine_id.clear()
 
 
 def pack_node_delta(
