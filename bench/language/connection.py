@@ -36,6 +36,7 @@ from bench.language.setup import CHILD_NODE_TYPES
 from bench.proto.wire import (
     AggregationData,
     AnyNodeData,
+    ClientOrigin,
     EditData,
     ExpressionData,
     GraphIoClient,
@@ -228,6 +229,10 @@ def scope_includes(scope: GraphScope, other: GraphScope) -> bool:
     return (scope.bench_id is None or scope.bench_id == other.bench_id) and (
         scope.package_id is None or scope.package_id == other.package_id
     )
+
+
+def origin_matches(origin: ClientOrigin, other: ClientOrigin) -> bool:
+    return origin.id == other.id and origin.nonce == other.nonce
 
 
 class GraphEngine[C: Channel](abc.ABC):
@@ -596,12 +601,20 @@ class GetConnection[ChannelT: Channel](
     ):
         from bench.language.transaction import edit_data_graph, edit_graph
 
+        if self.session._origin:
+            new_edits = [
+                edit
+                for edit in update.edits
+                if not edit.origin or not origin_matches(edit.origin, self.session._origin)
+            ]
+        else:
+            new_edits = update.edits
         edit_data_graph(result_data.graph, update.edits, self.query._options)
         if result is not None:
             edit_graph(
                 graph=result.graph,
                 supergraph=self.session._supergraph,
-                edits=update.edits,
+                edits=new_edits,
                 options=self.query._options,
                 track=False,
                 validate=False,
@@ -634,6 +647,14 @@ class SearchConnection[ChannelT: Channel](
         from bench.proto import wiring
 
         # apply edits
+        if self.session._origin:
+            new_edits = [
+                edit
+                for edit in update.edits
+                if not edit.origin or not origin_matches(edit.origin, self.session._origin)
+            ]
+        else:
+            new_edits = update.edits
         edit_data_graph(result_data.graph, update.edits, self.query._options)
         for node_data in update.added_nodes:
             result_data.graph.add(node_data)
@@ -641,7 +662,7 @@ class SearchConnection[ChannelT: Channel](
             edit_graph(
                 graph=result.graph,
                 supergraph=self.session._supergraph,
-                edits=update.edits,
+                edits=new_edits,
                 options=self.query._options,
                 track=False,
                 validate=False,

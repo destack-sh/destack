@@ -1,7 +1,7 @@
 import asyncio
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING, Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import structlog
 from opentelemetry import trace
@@ -52,6 +52,7 @@ class RuntimeThread:
         oracle: Oracle,
     ):
         self.id = id
+        self._nonce = str(uuid4())
 
         # bench stuff
         self._supervisor = supervisor
@@ -151,7 +152,7 @@ class RuntimeThread:
         self._session.machine = self._machine
         self._session.user = self._client.parent if isinstance(self._client.parent, User) else None
         self._session._subject = self._client.parent
-        self._session._origin = self._client.to_origin() if self._client else None
+        self._session._origin = self._client.to_origin(nonce=self._nonce) if self._client else None
 
         # finally, start processing runs
         self._tasks.start_queue(

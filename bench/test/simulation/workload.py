@@ -386,6 +386,9 @@ def assert_graph_equals(graph_a: NodeGraph, graph_b: NodeGraph):
         assert node_b is not None, f"missing node {node_a!r} in {graph_b!r}"
         assert node_a == node_b, f"node {node_a!r} != {node_b!r}"
         assert node_a._equals_content(node_b), f"node {node_a!r} != {node_b!r}"
+    for node_b in graph_b.nodes:
+        node_a = graph_a.get(node_b.id)
+        assert node_a is not None, f"missing node {node_b!r} in {graph_a!r}"
 
 
 @dataclass
