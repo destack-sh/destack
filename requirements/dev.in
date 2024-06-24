@@ -1,6 +1,8 @@
 # run ./scripts/update-requirements.sh
 
 docker==7.0.0
+filelock==3.15.4
+hypothesis==6.103.2
 pip-tools==7.3.0
 pre-commit==3.3.3
 pyright==1.1.366
@@ -13,4 +15,3 @@ pytest==8.2.0
 py-spy==0.3.14
 ruff==0.4.5
 watchdog==3.0.0
-hypothesis==6.103.2
