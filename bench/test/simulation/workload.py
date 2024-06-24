@@ -1,12 +1,12 @@
 import abc
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, final
+from typing import TYPE_CHECKING, Self, cast, final, override
 from uuid import UUID
 
 import structlog
 from opentelemetry import trace
 
-from bench.language.bench import Bench, Branch, Package
+from bench.language.bench import Bench, Branch, Client, Package
 from bench.language.block import Block
 from bench.language.connection import GraphEngine, RemoteEngine
 from bench.language.const import (
@@ -19,8 +19,8 @@ from bench.language.const import (
     NodeType,
 )
 from bench.language.expression import NodeReference
-from bench.language.graph import NodeSuperGraph
-from bench.language.session import Session
+from bench.language.graph import NodeGraph, NodeSuperGraph
+from bench.language.session import Session, unsuspend_session
 from bench.language.user import User
 from bench.proto.wire import GraphScope, HostClient, SupervisorClient
 from bench.proto.wiring import unpack_object
@@ -63,6 +63,11 @@ class WorkloadBase[SpecT: WorkloadSpec](abc.ABC):
         self.simulation = simulation
         self._started_at_ns: int | None = None
         self._terminated_at_ns: int | None = None
+        self._do_init()
+
+    def _do_init(self):  # noqa: B027
+        """Initializes the workload state."""
+        pass
 
     def __str__(self):
         return ""
@@ -96,11 +101,18 @@ class WorkloadBase[SpecT: WorkloadSpec](abc.ABC):
     def random(self):
         return self.simulation.random
 
-    async def prepare(self):  # noqa: B027
+    @final
+    async def prepare(self):
+        """Prepare the workload before running it."""
+        await self._do_prepare()
+
+    async def _do_prepare(self):  # noqa: B027
+        """Prepares the workload before running it."""
         pass
 
     @final
     async def run(self):
+        """Runs the full workload until some termination condition is met."""
         self._started_at_ns = self.oracle.time_ns()
         try:
             n_runs = 1
@@ -116,7 +128,26 @@ class WorkloadBase[SpecT: WorkloadSpec](abc.ABC):
 
     @abc.abstractmethod
     async def _do_run(self):
+        """Runs one repetition of the workload."""
         raise NotImplementedError
+
+    @final
+    async def check(self):
+        """Validate any post-run conditions."""
+        await self._do_check()
+        if self.spec.group:
+            group = self.simulation.get_workload_group(self.spec.group)
+            if self is group[0]:
+                assert all(isinstance(w, type(self)) for w in group), f"unexpected group {group!r}"
+                await self._do_check_group(cast(list[Self], group))
+
+    async def _do_check(self):  # noqa: B027
+        """Validates any post-run conditions."""
+        pass
+
+    async def _do_check_group(self, group: list[Self]):  # noqa: B027
+        """Validates any post-run conditions for a group of workloads. Called only for one workload in the group."""
+        pass
 
 
 def _make_remote_engines(
@@ -172,10 +203,21 @@ async def make_remote_session(
         _oracle=oracle,
         _supergraph=supergraph,
     )
-    subject = unpack_object(
-        client.user.user_data, session=session, supergraph=supergraph, expect=User
+    session.user = unpack_object(
+        client.user.user_data,
+        session=session,
+        supergraph=supergraph,
+        expect=User,
+        skip_add_self=False,
     )
-    session._subject = subject
+    session.client = unpack_object(
+        client.client_data,
+        session=session,
+        supergraph=supergraph,
+        expect=Client,
+        skip_add_self=False,
+    )
+    session._subject = session.user
     return session
 
 
@@ -200,78 +242,147 @@ async def get_package(bench_id: UUID, session: Session, *, live: bool):
 
 
 @dataclass
-class WriteBlockTreeSpec(WorkloadSpec):
-    type: WorkloadType = WorkloadType.WRITE_BLOCK_TREE
-    bench: str = ""
+class SingleClientWorkloadSpec(WorkloadSpec):
     client: str = ""
+    bench: str = ""
+
+
+class SingleClientWorkloadBase[SpecT: SingleClientWorkloadSpec](WorkloadBase[SpecT]):
+    """Base class for workloads with a single client."""
+
+    @override
+    @final
+    async def _do_prepare(self):
+        self.bench_id = self.simulation.resolve_bench_id(self.spec.bench)
+        self.client = self.simulation.get_client(self.spec.client)
+        self.host = self.simulation.get_host(self.spec.bench)
+        self.session = await make_remote_session(
+            self.bench_id, self.client, self.host, self.oracle, self.simulation
+        )
+        await self.session.open(set_in_context=False)
+        async with unsuspend_session(self.session, readonly=False, autocommit=True):
+            await self._do_prepare_in_session(self.session)
+
+    async def _do_prepare_in_session(self, session: Session):
+        """Prepare the workload in the given session."""
+        pass  # do nothing by default
+
+    @override
+    @final
+    async def _do_run(self):
+        async with unsuspend_session(self.session, readonly=False, autocommit=True):
+            await self._do_run_in_session(self.session)
+
+    @abc.abstractmethod
+    async def _do_run_in_session(self, session: Session):
+        """Runs one repetition of the workload in the given session."""
+        raise NotImplementedError
+
+
+@dataclass
+class WriteBlockTreeSpec(SingleClientWorkloadSpec):
+    type: WorkloadType = WorkloadType.WRITE_BLOCK_TREE
     block_types: tuple[BlockType, ...] = (BlockType.PAGE, BlockType.TEXT)
     edit_types: tuple[EditType, ...] = (EditType.CREATE, EditType.DELETE)
     transactions: int | SampledInt = 1
     transactions_interval: float | SampledFloat = 0.0
     edits_per_transaction: int | SampledInt = 10
+    live: bool = True
 
 
 @workload(WorkloadType.WRITE_BLOCK_TREE, WriteBlockTreeSpec)
-class WriteBlockTreeWorkload(WorkloadBase[WriteBlockTreeSpec]):
-    async def _do_run(self):
-        # prepare
-        bench_id = self.simulation.resolve_bench_id(self.spec.bench)
-        client = self.simulation.get_client(self.spec.client)
-        host = self.simulation.get_host(self.spec.bench)
-        session = await make_remote_session(bench_id, client, host, self.oracle, self.simulation)
+class WriteBlockTreeWorkload(SingleClientWorkloadBase[WriteBlockTreeSpec]):
+    """Write a random tree of blocks."""
+
+    @override
+    def _do_init(self):
+        self.pkg: Package | None = None
+
+    @override
+    async def _do_prepare_in_session(self, session: Session):
+        self.pkg = await get_package(self.bench_id, session, live=self.spec.live)
+
+    @override
+    async def _do_run_in_session(self, session: Session):
+        assert self.pkg is not None, f"{self!r} not ready"
         max_transactions = to_value(self.random, self.spec.transactions)
+        n_transactions = 0
+        while n_transactions < max_transactions:
+            max_edits = to_value(self.random, self.spec.edits_per_transaction)
+            for _ in range(max_edits):
+                edit_type = self.random.choice(self.spec.edit_types)
+                if edit_type == EditType.CREATE:
+                    block_type = self.random.choice(self.spec.block_types)
+                    blocks = self.pkg._graph.nodes_of_type(Block)
+                    parent = self.random.choice((self.pkg, *blocks))
+                    num_blocks_of_type = len([b for b in blocks if b.type == block_type])
+                    block = Block.new(
+                        block_type, name=f"{block_type.bench_name}{num_blocks_of_type + 1}"
+                    )
+                    parent.blocks.append(block)
+                elif edit_type == EditType.DELETE:
+                    blocks = self.pkg._graph.nodes_of_type(Block)
+                    if not blocks:
+                        continue  # no blocks to delete yet
+                    block = self.random.choice(blocks)
+                    block.delete()
+                else:
+                    raise NotImplementedError(f"unexpected edit type {edit_type}")
+            await self.session.commit()
+            n_transactions += 1
 
-        # run
-        async with session:
-            pkg = await get_package(bench_id, session, live=True)
-
-            n_transactions = 0
-            while n_transactions < max_transactions:
-                max_edits = to_value(self.random, self.spec.edits_per_transaction)
-                for _ in range(max_edits):
-                    edit_type = self.random.choice(self.spec.edit_types)
-                    if edit_type == EditType.CREATE:
-                        block_type = self.random.choice(self.spec.block_types)
-                        blocks = pkg._graph.nodes_of_type(Block)
-                        parent = self.random.choice((pkg, *blocks))
-                        num_blocks_of_type = len([b for b in blocks if b.type == block_type])
-                        block = Block.new(
-                            block_type, name=f"{block_type.bench_name}{num_blocks_of_type + 1}"
-                        )
-                        parent.blocks.append(block)
-                    elif edit_type == EditType.DELETE:
-                        blocks = pkg._graph.nodes_of_type(Block)
-                        if not blocks:
-                            continue  # no blocks to delete yet
-                        block = self.random.choice(blocks)
-                        block.delete()
-                    else:
-                        raise NotImplementedError(f"unexpected edit type {edit_type}")
-                await session.commit()
-                n_transactions += 1
-
-                wait = to_value(self.random, self.spec.transactions_interval)
-                await self.oracle.sleep(wait)
+            wait = to_value(self.random, self.spec.transactions_interval)
+            await self.oracle.sleep(wait)
 
 
 @dataclass
-class ReadPackageSpec(WorkloadSpec):
+class ReadPackageSpec(SingleClientWorkloadSpec):
     type: WorkloadType = WorkloadType.READ_PACKAGE
-    bench: str = ""
-    client: str = ""
     live: bool = True
 
 
 @workload(WorkloadType.READ_PACKAGE, ReadPackageSpec)
-class ReadPackageWorkload(WorkloadBase[ReadPackageSpec]):
-    async def _do_run(self):
-        # prepare
-        bench_id = self.simulation.resolve_bench_id(self.spec.bench)
-        client = self.simulation.get_client(self.spec.client)
-        host = self.simulation.get_host(self.spec.bench)
-        session = await make_remote_session(bench_id, client, host, self.oracle, self.simulation)
+class ReadPackageWorkload(SingleClientWorkloadBase[ReadPackageSpec]):
+    """Reads an entire package."""
 
-        # run
-        async with session:
-            pkg = await get_package(bench_id, session, live=self.spec.live)
-            ...  # nocheckin evaluate package after workload/simulation is complete
+    @override
+    def _do_init(self):
+        self.pkg: Package | None = None
+
+    @override
+    async def _do_prepare_in_session(self, session: Session):
+        self.pkg = await get_package(self.bench_id, session, live=self.spec.live)
+
+    @override
+    async def _do_run_in_session(self, session: Session):
+        pass  # nothing to do?
+
+    @override
+    async def _do_check_group(self, group: list[Self]):
+        # check that all packages are the same
+        assert self.pkg is not None, f"{self!r} not ready"
+        for workload in group:
+            if workload is self:
+                continue
+            assert workload.pkg is not None, f"{workload!r} not ready"
+            assert_graph_equals(self.pkg._graph, workload.pkg._graph)
+
+
+def assert_graph_equals(graph_a: NodeGraph, graph_b: NodeGraph):
+    for node_a in graph_a.nodes:
+        node_b = graph_b.get(node_a.id)
+        assert node_b is not None, f"missing node {node_a!r} in {graph_b!r}"
+        assert node_a == node_b, f"node {node_a!r} != {node_b!r}"
+        assert node_a._equals_content(node_b), f"node {node_a!r} != {node_b!r}"
+
+
+@dataclass
+class WatchLogsSpec(SingleClientWorkloadSpec):
+    type: WorkloadType = WorkloadType.REPLAY_LOG
+    live: bool = True
+
+
+@workload(WorkloadType.WATCH_LOGS, WatchLogsSpec)
+class WatchLogsWorkload(SingleClientWorkloadBase[WatchLogsSpec]):
+    @override
+    async def _do_run_in_session(self, session: Session): ...  # nocheckin: watch

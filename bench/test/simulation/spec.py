@@ -81,6 +81,7 @@ class WorkloadType(enum.StrEnum):
     REPLAY_LOG = "replay_log"
     WRITE_BLOCK_TREE = "write_block_tree"
     READ_PACKAGE = "read_package"
+    WATCH_LOGS = "watch_logs"
 
 
 @dataclass
@@ -91,6 +92,7 @@ class WorkloadSpec:
     name: str = None  # type: ignore (default to 'type' in __post_init__)
     repeat: int | SampledInt = 1
     repeat_interval: float | SampledFloat = 0.0
+    group: str | None = None
 
     def __post_init__(self):
         if self.name is None:
@@ -98,33 +100,3 @@ class WorkloadSpec:
                 self.name = f"{self.type.value}-{getattr(self, 'client')}"
             else:
                 self.name = self.type.value
-
-
-USERNAMES = (
-    "alfred",
-    "bertram",
-    "cecil",
-    "douglas",
-    "edmund",
-    "frederick",
-    "geoffrey",
-    "harold",
-    "irving",
-    "james",
-    "kenneth",
-    "leonard",
-    "michael",
-    "nicholas",
-    "oscar",
-    "peter",
-    "quincy",
-    "roger",
-    "sebastian",
-    "theodore",
-    "ulysses",
-    "victor",
-    "william",
-    "xavier",
-    "yuri",
-    "zebedee",
-)
