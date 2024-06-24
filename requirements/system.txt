@@ -6,8 +6,10 @@ aiosignal==1.3.1
     # via aiohttp
 annotated-types==0.6.0
     # via pydantic
+anthropic==0.29.0
 anyio==4.3.0
     # via
+    #   anthropic
     #   httpx
     #   openai
     #   starlette
@@ -49,11 +51,17 @@ deprecated==1.2.14
     #   opentelemetry-api
     #   opentelemetry-exporter-otlp-proto-grpc
 distro==1.9.0
-    # via openai
+    # via
+    #   anthropic
+    #   openai
+filelock==3.15.4
+    # via huggingface-hub
 frozenlist==1.4.1
     # via
     #   aiohttp
     #   aiosignal
+fsspec==2024.6.0
+    # via huggingface-hub
 google-auth==2.29.0
     # via kubernetes
 googleapis-common-protos==1.63.0
@@ -77,7 +85,11 @@ hpack==4.0.0
 httpcore==1.0.5
     # via httpx
 httpx==0.27.0
-    # via openai
+    # via
+    #   anthropic
+    #   openai
+huggingface-hub==0.23.4
+    # via tokenizers
 hyperframe==6.0.1
     # via h2
 idna==3.7
@@ -92,6 +104,8 @@ isort==5.13.2
     # via betterproto
 jinja2==3.1.4
     # via betterproto
+jiter==0.4.2
+    # via anthropic
 jmespath==1.0.1
     # via
     #   boto3
@@ -136,7 +150,9 @@ opentelemetry-semantic-conventions==0.45b0
     # via opentelemetry-sdk
 orjson==3.10.3
 packaging==24.0
-    # via black
+    # via
+    #   black
+    #   huggingface-hub
 pathspec==0.12.1
     # via black
 platformdirs==4.2.2
@@ -158,7 +174,9 @@ pyasn1==0.6.0
 pyasn1-modules==0.4.0
     # via google-auth
 pydantic==2.7.1
-    # via openai
+    # via
+    #   anthropic
+    #   openai
 pydantic-core==2.18.2
     # via pydantic
 pygments==2.18.0
@@ -175,11 +193,13 @@ python-dotenv==1.0.1
 pytz==2024.1
 pyyaml==6.0.1
     # via
+    #   huggingface-hub
     #   kubernetes
     #   kubernetes-asyncio
 redis==4.5.4
 requests==2.31.0
     # via
+    #   huggingface-hub
     #   kubernetes
     #   posthog
     #   requests-oauthlib
@@ -204,17 +224,24 @@ six==1.16.0
     #   python-dateutil
 sniffio==1.3.1
     # via
+    #   anthropic
     #   anyio
     #   httpx
     #   openai
 starlette==0.34.0
 structlog==24.2.0
+tokenizers==0.19.1
+    # via anthropic
 tqdm==4.66.4
-    # via openai
+    # via
+    #   huggingface-hub
+    #   openai
 typer==0.12.3
 typing-extensions==4.11.0
     # via
+    #   anthropic
     #   betterproto
+    #   huggingface-hub
     #   openai
     #   opentelemetry-sdk
     #   psycopg
