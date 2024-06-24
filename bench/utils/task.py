@@ -68,7 +68,10 @@ class TaskManager:
         while True:
             try:
                 item = await queue.get()
-                await process(item)
+                try:
+                    await process(item)
+                finally:
+                    queue.task_done()
             except (asyncio.CancelledError, RuntimeError):
                 # queue throws RuntimeError if event loop is closed (happens when pytest shuts down)
                 self._logger.trace("task.cancel", owner=self._owner, task_id=task_id)
@@ -86,8 +89,6 @@ class TaskManager:
                         self._on_error(e)
                     self._errors.append(e)
                     raise
-            finally:
-                queue.task_done()
 
     def start_queue[T](
         self,
