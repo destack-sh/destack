@@ -90,6 +90,7 @@ class Simulation:
         # workloads
         self._workloads: list[WorkloadBase] = []
         self._workloads_by_name: dict[str, WorkloadBase] = {}
+        self._workloads_by_group: dict[str, list[WorkloadBase]] = {}
         for workload_spec in spec.workloads:
             workload_cls = get_workload_cls(workload_spec.type)
             workload = workload_cls(workload_spec, self._oracle, self)
@@ -97,6 +98,10 @@ class Simulation:
             if workload_spec.name in self._workloads_by_name:
                 raise ValueError(f"duplicate workload name: {workload_spec.name} in {self!r}")
             self._workloads_by_name[workload_spec.name] = workload
+            if workload_spec.group:
+                if workload_spec.group not in self._workloads_by_group:
+                    self._workloads_by_group[workload_spec.group] = []
+                self._workloads_by_group[workload_spec.group].append(workload)
 
         # runtime state
         self._started_at_ns = None
@@ -121,6 +126,11 @@ class Simulation:
             host is not None
         ), f"{self!r} has no host: '{name}' (available: {list(self._hosts_by_name)})"
         return host
+
+    def get_workload_group(self, name: str) -> list["WorkloadBase"]:
+        if name not in self._workloads_by_group:
+            raise ValueError(f"{self!r} has no workload group: '{name}'")
+        return self._workloads_by_group[name]
 
     def resolve_bench_id(self, name: str) -> UUID:
         host = self.get_host(name)
@@ -162,6 +172,9 @@ class Simulation:
                     for workload in self._workloads
                 )
                 await asyncio.gather(*tasks)
+            # and run checks
+            with tracer.start_as_current_span("simulation.check"):
+                await asyncio.gather(*(workload.check() for workload in self._workloads))
             logger.info("simulation.run", simulation=self)
         except Exception as e:
             logger.error("simulation.error", simulation=self, exc_info=e)
@@ -289,9 +302,9 @@ AVAILABLE_SIMULATIONS: list[SimulationSpec] = [
         ),
         workloads=(
             WriteBlockTreeSpec(bench="alice", client="alice-1"),
-            ReadPackageSpec(bench="alice", client="alice-1"),
-            ReadPackageSpec(bench="alice", client="alice-2"),
-            ReadPackageSpec(bench="alice", client="alice-3"),
+            ReadPackageSpec(bench="alice", client="alice-1", group="read-alice-0"),
+            ReadPackageSpec(bench="alice", client="alice-2", group="read-alice-0"),
+            ReadPackageSpec(bench="alice", client="alice-3", group="read-alice-0"),
         ),
     ),
 ]
@@ -311,6 +324,11 @@ async def _do_test_simulation(spec: SimulationSpec):
     finally:
         # force gc for simulation isolation
         gc.collect()
+
+
+# NOTE: we lay out the simulation tests like below so so pytest collects them nicely
+#  (organized by category and parameterized by simulation)
+#  Of course, for paranoid testing we'll run the same simulation multiple times.
 
 
 @pytest.mark.quick()
