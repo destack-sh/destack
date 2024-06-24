@@ -61,7 +61,7 @@ async def make(
     conflicting_migration = first((m for m in file_migrations if m.version == VERSION), None)
     if conflicting_migration:
         if overwrite:
-            logger.info("makemigrations.overwrite", migration=conflicting_migration)
+            logger.info("migrate.make.overwrite", migration=conflicting_migration)
             assert conflicting_migration.path, f"{conflicting_migration!r} has no path"
             Path(conflicting_migration.path).unlink()
             file_migrations.remove(conflicting_migration)
@@ -101,7 +101,7 @@ async def make(
 
     # generate migration
     if not global_migration_ops and not local_migration_ops:
-        logger.info("makemigrations.noop")
+        logger.info("migrate.make.noop")
         return
     latest_migration = max(file_migrations, key=lambda m: m.id, default=None)
     new_migration = Migration(
@@ -123,7 +123,7 @@ async def make(
     else:
         print(migration_code)
 
-    logger.info("makemigrations", duration=time.time() - start)
+    logger.info("migrate.make", duration=time.time() - start)
 
 
 @app.command(help="apply global OR local SQL migrations")
