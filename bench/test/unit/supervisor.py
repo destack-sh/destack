@@ -25,7 +25,7 @@ from bench.proto.wire import (
 from bench.proto.wiring import pack_rpc_headers
 from bench.system.supervisor import Supervisor
 from bench.test.fixtures import raises_grpc_error
-from bench.test.simulation.grpc import SimulatedChannel
+from bench.test.simulation.transport import SimulatedChannel
 from bench.utils.oracle import REAL_ORACLE
 
 #

@@ -11,8 +11,8 @@ from bench.proto.services import ServiceBase
 from bench.proto.wire import CreateBenchRequest, HostClient, SupervisorClient
 from bench.system.host import Host
 from bench.system.supervisor import Supervisor
-from bench.test.simulation.grpc import SimulatedChannel
 from bench.test.simulation.spec import HostSpec, ServiceSpec, SupervisorSpec
+from bench.test.simulation.transport import SimulatedChannel
 from bench.utils.oracle import Oracle
 
 if TYPE_CHECKING:
