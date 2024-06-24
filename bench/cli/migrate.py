@@ -10,13 +10,11 @@ from rich import print
 from bench.cli.utils import async_to_sync_blocking
 from bench.language import Bench, Environment, Store
 from bench.language.const import VERSION, NodeType
-from bench.language.query import NodeNotFoundError
 from bench.sql.client import pg_store_connection
 from bench.sql.core import Schema
 from bench.sql.engine import (
     GLOBAL_SCHEMA,
     LOCAL_SCHEMA,
-    SqlUndefinedObjectError,
 )
 from bench.sql.migration import (
     Migration,
@@ -51,6 +49,7 @@ async def make(
     no_local: bool = typer.Option(default=False, help="exclude local operations"),
     dry_run: bool = typer.Option(default=False, help="only print, don't store"),
     overwrite: bool = typer.Option(default=False, help="overwrite existing migration for version"),
+    from_scratch: bool = typer.Option(default=False, help="generate migration from scratch"),
 ):
     start = time.time()
     global_store = global_store_from_env()
@@ -80,16 +79,16 @@ async def make(
 
     # diff local
     if not no_local:
-        async with global_session(global_store, (global_pg_engine,), REAL_ORACLE):
-            try:
+        if not from_scratch:
+            async with global_session(global_store, (global_pg_engine,), REAL_ORACLE):
                 bench_node = (
                     await Bench.descendants(Environment, Store).select_all().get(slug=bench)
                 )
                 assert bench_node.main_environment, f"{bench!r} has no main environment"
                 async with pg_store_connection(bench_node.main_environment.store) as cur:
                     old_local_schema = await introspect_sql_schema(cur)
-            except (NodeNotFoundError, SqlUndefinedObjectError):
-                old_local_schema = Schema.blank()  # initial migration
+        else:
+            old_local_schema = Schema.blank()
         local_migration_ops = generate_sql_migration_ops(old_local_schema, LOCAL_SCHEMA)
     else:
         local_migration_ops = []

@@ -58,8 +58,11 @@ TEST_PROFILE = get_from_env("TEST_PROFILE", typ=TestProfile, description="Test p
 hypothesis.settings.load_profile(TEST_PROFILE.value)
 
 
+def pytest_addoption(parser):
+    pass
+
+
 def pytest_configure(config):
-    _setup_test_env()
     # compile test profile into pytest 'markexpr' to filter tests
     if TEST_PROFILE == TestProfile.PARANOID:
         markexpr = ""
@@ -68,10 +71,6 @@ def pytest_configure(config):
     else:
         markexpr = "not paranoid and not careful"
     config.option.markexpr = markexpr
-
-
-def pytest_addoption(parser):
-    pass
 
 
 def pytest_collection_modifyitems(items):
