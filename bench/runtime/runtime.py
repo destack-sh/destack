@@ -2,7 +2,7 @@ import asyncio
 from contextlib import asynccontextmanager
 from typing import cast, override
 from urllib.parse import urlparse
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import structlog
 from grpclib.client import Channel
@@ -69,6 +69,7 @@ class Runtime(ServiceBase, RuntimeBase):
         oracle: Oracle,
     ):
         super().__init__(logger=logger, tracer=tracer, oracle=oracle)
+        self._nonce = str(uuid4())
 
         # parse out supervisor host and port
         _supervisor_url = urlparse(supervisor_url)
@@ -217,7 +218,7 @@ class Runtime(ServiceBase, RuntimeBase):
             else:
                 self._session.user = self._client.parent
             self._session._subject = self._client.parent
-            self._session._origin = self._client.to_origin()
+            self._session._origin = self._client.to_origin(nonce=self._nonce)
 
             # connect main package
             self._main_package = await PACKAGE_QUERY.get(main_branch.main_package_ptr, live=True)

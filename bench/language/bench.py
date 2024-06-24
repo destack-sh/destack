@@ -480,7 +480,9 @@ class Client(BenchNode[ClientData]):
                 value_parts.append(value)
         return ", ".join(value_parts)
 
-    def to_origin(self) -> ClientOrigin:
+    def to_origin(self, *, nonce: str | None) -> ClientOrigin:
         from bench.proto.wire import ClientType
 
-        return ClientOrigin(type=cast(ClientType, self.type), id=str(self.id))
+        return ClientOrigin(
+            type=cast(ClientType, self.type), id=str(self.id), nonce=nonce or str(self.id)
+        )
