@@ -49,8 +49,8 @@ from bench.proto.wire import (
     WatchSearchRequest,
 )
 from bench.utils.func import bittuple, group_by
-from bench.utils.task import wrap_task
-from bench.utils.tenacity import RETRY_GRPC, RETRY_NEVER, RetryOptions
+from bench.utils.task import create_task
+from bench.utils.tenacity import RETRY_GRPC, RetryOptions
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -101,7 +101,7 @@ class ChannelError(BenchError):
         self.reason = reason
 
 
-class ChannelFailedError(ChannelError):
+class ChannelUnavailableError(ChannelError):
     """The channel is temporarily unavailable."""
 
     pass
@@ -272,6 +272,12 @@ class NullEngine(GraphEngine):
         raise ChannelIncapableError(self, reason="null engine")
 
 
+RETRY_IF_CHANNEL_UNAVAILABLE = RetryOptions(
+    max_attempts=-1,
+    retry_on=(ChannelUnavailableError,),
+)
+
+
 class Channel[E: GraphEngine](abc.ABC):
     """A channel to a specific store to read from in a session."""
 
@@ -299,7 +305,7 @@ class Channel[E: GraphEngine](abc.ABC):
 
     @property
     def retry(self) -> RetryOptions:
-        return RETRY_NEVER
+        return RETRY_IF_CHANNEL_UNAVAILABLE
 
     @abc.abstractmethod
     def _get_connection_cls(
@@ -469,11 +475,13 @@ class Connection[
                                 f"connect.{self.type_name}", connection=self, span="current"
                             )
                             break  # success
-                        except retry.options.retry_on as e:
+                        except Exception as e:
                             logger.error(
                                 f"connect.{self.type_name}.error", exc_info=e, connection=self
                             )
                             retry.on_error(e)
+                            if not isinstance(e, self.retry.retry_on):
+                                raise
                             await self.session._oracle.sleep(retry.get_wait_interval())
                             continue
                 else:
@@ -487,13 +495,12 @@ class Connection[
         else:
             # live connection: loop (in seperate task) and await first result
             self.session._on_connection_begin(self)
-            task = wrap_task(
+            self._connect_task = create_task(
                 self._do_connect_live(),
                 logger=logger,
                 task_id=f"connect.{self.type_name}",
                 owner=self,
             )
-            self._connect_task = asyncio.create_task(task)
             await self._has_result.wait()
 
     async def _do_connect_live(self) -> None:
@@ -514,15 +521,19 @@ class Connection[
                     if self.options.unpack:
                         self._result = self._unpack_result(self._result_data)
                     self._has_result.set()
-
                     # subscribe
                     async for update in self._do_subscribe(self.query, self._result_data):
                         self._apply_update(self._result_data, self._result, update)
-                except retry.options.retry_on as e:
+                except Exception as e:
                     logger.error(f"connect.{self.type_name}.error", exc_info=e, connection=self)
                     retry.on_error(e)
+                    if not isinstance(e, self.retry.retry_on):
+                        raise
                     await self.session._oracle.sleep(retry.get_wait_interval())
                     continue
+        except Exception as e:
+            if self.session._on_error:
+                self.session._on_error(e)
         finally:
             self.session._on_connection_end(self)
 
@@ -1015,14 +1026,16 @@ class RemoteChannel(WritableChannel[RemoteEngine]):
                 retry.on_attempt()
                 try:
                     return await func(self, *args, **kwargs)
-                except self.engine.retry.retry_on as e:
-                    retry.on_error(e)
+                except Exception as e:
                     logger.error(f"remote.{method_name}.error", channel=self, exc_info=True)
+                    retry.on_error(e)
+                    if not isinstance(e, self.retry.retry_on):
+                        raise
                     if retry.should_retry:
                         await self.session._oracle.sleep(retry.get_wait_interval())
             error = retry.to_error()
             if isinstance(error, (OSError,)):
-                raise ChannelFailedError(
+                raise ChannelUnavailableError(
                     self, args[0] if args else None, reason=str(error)
                 ) from error
             else:
@@ -1254,7 +1267,7 @@ class PostgresChannel(WritableChannel[PostgresEngine]):
             try:
                 return await func(self, *args, **kwargs)
             except SqlConnectionError as e:
-                raise ChannelFailedError(self, args[0] if args else None, reason=str(e)) from e
+                raise ChannelUnavailableError(self, args[0] if args else None, reason=str(e)) from e
 
         return wrapper
 

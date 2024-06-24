@@ -10,7 +10,7 @@ from opentelemetry import trace
 
 from bench.language.connection import (
     Channel,
-    ChannelFailedError,
+    ChannelUnavailableError,
     Connection,
     GraphEngine,
     MemoryEngine,
@@ -141,6 +141,7 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
     _host: Optional["HostClient"] = p_runtime(default=None)
     _oracle: Oracle = p_runtime()
     _epoch: int | None = p_runtime(default=None)
+    _on_error: Callable[[Exception], None] | None = p_runtime(default=None)
     _custom_commit: CustomCommit | None = p_runtime(default=None)
 
     def __content_str__(self):
@@ -374,7 +375,7 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
                 await self._tx_lock.acquire()
             await self._tx.flush()
             return self._tx.edits, self._tx.cascaded_edits
-        except ChannelFailedError as e:
+        except ChannelUnavailableError as e:
             logger.error("session.flush.error", session=self, error=e)
             await self._tx.reset()
             raise
@@ -401,7 +402,7 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
             else:
                 # custom commit (in system)
                 return await self._custom_commit(self)
-        except ChannelFailedError as e:
+        except ChannelUnavailableError as e:
             logger.error("session.commit.error", session=self, error=e)
             await self._tx.reset()
             raise

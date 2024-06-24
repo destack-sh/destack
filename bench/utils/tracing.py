@@ -14,7 +14,7 @@ from opentelemetry.sdk.resources import (
 from opentelemetry.sdk.trace import Span, TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
-from bench.utils.env import ENV, IS_DEBUG, IS_DEV, IS_TEST
+from bench.utils.env import ENV, IS_DEBUG, IS_DEV
 from bench.utils.utils import get_from_env
 
 VERSION = Path("version").read_text().strip()
@@ -30,9 +30,9 @@ def setup_tracing():
     global _setup_tracing
     if _setup_tracing:
         return
-    if IS_DEBUG or IS_TEST:
-        # NOTE: we don't trace in debug mode because it's pretty slow
-        return
+    TRACING = get_from_env("TRACING", typ=bool, description="Enable tracing")
+    if not TRACING or IS_DEBUG:
+        return  # don't trace in debug mode, distorts performance metrics
 
     from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
     from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter

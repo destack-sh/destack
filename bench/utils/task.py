@@ -6,7 +6,7 @@ from bench.utils.oracle import Oracle
 from bench.utils.utils import sentry_capture
 
 
-async def wrap_task(coro: Coroutine, logger, task_id: str, owner: Any) -> None:
+async def _wrap_task(coro: Coroutine, logger, task_id: str, owner: Any) -> None:
     try:
         return await coro
     except asyncio.CancelledError as e:
@@ -14,9 +14,20 @@ async def wrap_task(coro: Coroutine, logger, task_id: str, owner: Any) -> None:
         pass
     except BaseException as e:
         logger.exception(
-            f"{task_id}.error", task_id=task_id, owner=owner, exc_info=e, sentry=sentry_capture(e)
+            f"{task_id}.error",
+            task_id=task_id,
+            owner=owner,
+            exc_info=e,
+            sentry=sentry_capture(e),
         )
         raise
+
+
+def create_task(
+    coro: Coroutine, logger, task_id: str | None = None, owner: Any = None
+) -> asyncio.Task:
+    task_id = task_id or coro.__name__
+    return asyncio.create_task(coro=_wrap_task(coro, logger, task_id, owner), name=task_id)
 
 
 class TaskManager:
@@ -57,6 +68,29 @@ class TaskManager:
                 task_id = task_id[1:]
             task_id = f"{self._task_id_prefix}_{task_id}"
         return task_id
+
+    async def _run_task(self, coro: Coroutine, logger, task_id: str, owner: Any) -> None:
+        try:
+            return await coro
+        except asyncio.CancelledError as e:
+            logger.trace(f"{task_id}.cancel", task_id=task_id, owner=owner, exc_info=e)
+            pass
+        except BaseException as e:
+            logger.exception(
+                f"{task_id}.error",
+                task_id=task_id,
+                owner=owner,
+                exc_info=e,
+                sentry=sentry_capture(e),
+            )
+            raise
+
+    def run(self, coro: Coroutine, task_id: str | None = None) -> None:
+        task_id = self._make_task_id(task_id, coro.__name__)
+        task = asyncio.create_task(
+            coro=self._run_task(coro, self._logger, task_id, self._owner), name=task_id
+        )
+        self._active_tasks.append(task)
 
     async def _run_queue_task(
         self,

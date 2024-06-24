@@ -17,7 +17,6 @@ from bench.sql.engine import GLOBAL_SCHEMA
 from bench.test.conftest import TestProfile
 from bench.test.fixtures import create_test_db, make_global_store
 from bench.test.simulation.client import ClientHandle, UserHandle
-from bench.test.simulation.grpc import SimulatedChannel
 from bench.test.simulation.oracle import SimulatedEventLoop, SimulatedOracle
 from bench.test.simulation.service import HostHandle, ServiceHandle, SupervisorHandle
 from bench.test.simulation.spec import (
@@ -27,6 +26,7 @@ from bench.test.simulation.spec import (
     NetworkSpec,
     SimulationSpec,
 )
+from bench.test.simulation.transport import SimulatedChannel
 from bench.test.simulation.workload import (
     ReadPackageSpec,
     WorkloadBase,
@@ -35,7 +35,7 @@ from bench.test.simulation.workload import (
 )
 from bench.utils.func import group_by
 from bench.utils.oracle import REAL_ORACLE
-from bench.utils.task import TaskManager, wrap_task
+from bench.utils.task import TaskManager
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -60,7 +60,11 @@ class Simulation:
         self._loop = asyncio.get_event_loop()
         assert isinstance(self._loop, SimulatedEventLoop), f"bad loop: {self._loop}"
         self._oracle = SimulatedOracle(loop=self._loop, random=self.random)
-        self._tasks = TaskManager(owner=self, logger=logger, oracle=self._oracle)
+        self._tasks = TaskManager(
+            owner=self, logger=logger, oracle=self._oracle, on_error=self.on_error
+        )
+        self._errors: list[Exception] = []
+        self._has_error = asyncio.Event()
 
         # services
         self._supervisor = SupervisorHandle("supervisor", spec.supervisor, self._oracle, self)
@@ -113,6 +117,10 @@ class Simulation:
     def __repr__(self):
         return f"<{self.__class__.__name__} {self!s}>"
 
+    def on_error(self, error: Exception):
+        self._errors.append(error)
+        self._has_error.set()
+
     def get_client(self, name: str) -> "ClientHandle":
         client = self._clients_by_name.get(name)
         assert (
@@ -158,24 +166,25 @@ class Simulation:
                     await host.prepare(supervisor_client, user.some_client)
             # and run hosts
             await asyncio.gather(*(host.start() for host in self._hosts_by_name.values()))
-
             # prepare workloads
             await asyncio.gather(*(workload.prepare() for workload in self._workloads))
-        logger.info("simulation.start", simulation=self)
+            logger.info("simulation.prepare", simulation=self, span="current")
 
         # run workloads until completion
         try:
             self._started_at_ns = REAL_ORACLE.time_ns()
             with tracer.start_as_current_span("simulation.run"):
-                tasks = (
-                    wrap_task(workload.run(), task_id=workload.name, logger=logger, owner=workload)
-                    for workload in self._workloads
-                )
-                await asyncio.gather(*tasks)
+                await asyncio.gather(*(workload.run() for workload in self._workloads))
+                logger.info("simulation.run", simulation=self, span="current")
             # and run checks
             with tracer.start_as_current_span("simulation.check"):
                 await asyncio.gather(*(workload.check() for workload in self._workloads))
-            logger.info("simulation.run", simulation=self)
+                logger.info("simulation.check", simulation=self, span="current")
+                if self._errors:
+                    if len(self._errors) == 1:
+                        raise self._errors[0]
+                    else:
+                        raise RuntimeError(f"multiple errors in {self!r}: {self._errors}")
         except Exception as e:
             logger.error("simulation.error", simulation=self, exc_info=e)
             raise
@@ -301,12 +310,15 @@ AVAILABLE_SIMULATIONS: list[SimulationSpec] = [
             ClientSpec(name="alice-3", username="alice"),
         ),
         workloads=(
-            WriteBlockTreeSpec(bench="alice", client="alice-1"),
-            ReadPackageSpec(bench="alice", client="alice-1", group="read-alice-0"),
-            ReadPackageSpec(bench="alice", client="alice-2", group="read-alice-0"),
-            ReadPackageSpec(bench="alice", client="alice-3", group="read-alice-0"),
+            WriteBlockTreeSpec(
+                bench="alice", client="alice-1", transactions=10, group="alice-0-main"
+            ),
+            ReadPackageSpec(bench="alice", client="alice-1", group="alice-0-main"),
+            ReadPackageSpec(bench="alice", client="alice-2", group="alice-0-main"),
+            ReadPackageSpec(bench="alice", client="alice-3", group="alice-0-main"),
         ),
     ),
+    # TODO :Test!: test multi-writer, various write patterns, latency, ...
 ]
 SIMULATIONS_BY_PROFILE = group_by(AVAILABLE_SIMULATIONS, lambda s: s.profile)
 

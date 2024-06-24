@@ -19,7 +19,7 @@ from bench.language.access import (
     generate_access_matrix,
 )
 from bench.language.bench import Package
-from bench.language.connection import ChannelFailedError, GetOptions, GraphEngine
+from bench.language.connection import ChannelUnavailableError, GetOptions, GraphEngine
 from bench.language.const import (
     BASED_NODE_TYPES,
     NODE_TYPES,
@@ -581,7 +581,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
 
             # commit
             edits, cascaded_edits = await session._tx.commit()
-        except ChannelFailedError as e:
+        except ChannelUnavailableError as e:
             self.logger.error("graph.commit.error", session=session, error=e)
             await session._tx.reset()
             raise

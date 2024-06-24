@@ -1,6 +1,6 @@
 import abc
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Self, cast, final, override
+from typing import TYPE_CHECKING, final, override
 from uuid import UUID
 
 import structlog
@@ -26,6 +26,7 @@ from bench.proto.wire import GraphScope, HostClient, SupervisorClient
 from bench.proto.wiring import unpack_object
 from bench.test.simulation.spec import WorkloadSpec, WorkloadType
 from bench.test.simulation.utils import SampledFloat, SampledInt, to_value
+from bench.utils.casing import Casing, to_casing
 from bench.utils.oracle import Oracle
 from bench.utils.tenacity import RETRY_GRPC_FOREVER
 
@@ -61,6 +62,8 @@ class WorkloadBase[SpecT: WorkloadSpec](abc.ABC):
         self.spec = spec
         self.oracle = oracle
         self.simulation = simulation
+        logger = structlog.get_logger(to_casing(self.__class__.__name__, Casing.SNAKE))
+        self.log = logger.bind(workload=self)
         self._started_at_ns: int | None = None
         self._terminated_at_ns: int | None = None
         self._do_init()
@@ -69,7 +72,7 @@ class WorkloadBase[SpecT: WorkloadSpec](abc.ABC):
         """Initializes the workload state."""
         pass
 
-    def __str__(self):
+    def __str__(self) -> str:
         return ""
 
     @final
@@ -102,9 +105,11 @@ class WorkloadBase[SpecT: WorkloadSpec](abc.ABC):
         return self.simulation.random
 
     @final
+    @tracer.start_as_current_span("workload.prepare")
     async def prepare(self):
         """Prepare the workload before running it."""
         await self._do_prepare()
+        self.log.debug("workload.prepare", span="current")
 
     async def _do_prepare(self):  # noqa: B027
         """Prepares the workload before running it."""
@@ -121,6 +126,7 @@ class WorkloadBase[SpecT: WorkloadSpec](abc.ABC):
             while n_runs <= repeat:
                 with tracer.start_as_current_span(f"workload.{self.name}"):
                     await self._do_run()
+                    self.log.info("workload.run", run=n_runs, span="current")
                     await self.oracle.sleep(repeat_interval)
                 n_runs += 1
         finally:
@@ -132,21 +138,22 @@ class WorkloadBase[SpecT: WorkloadSpec](abc.ABC):
         raise NotImplementedError
 
     @final
+    @tracer.start_as_current_span("workload.check")
     async def check(self):
         """Validate any post-run conditions."""
         await self._do_check()
         if self.spec.group:
             group = self.simulation.get_workload_group(self.spec.group)
-            if self is group[0]:
-                assert all(isinstance(w, type(self)) for w in group), f"unexpected group {group!r}"
-                await self._do_check_group(cast(list[Self], group))
+            # NOTE :Performance :Test: check in-group pairings only as needed
+            await self._do_check_group(group)
+        self.log.debug("workload.check", span="current")
 
     async def _do_check(self):  # noqa: B027
         """Validates any post-run conditions."""
         pass
 
-    async def _do_check_group(self, group: list[Self]):  # noqa: B027
-        """Validates any post-run conditions for a group of workloads. Called only for one workload in the group."""
+    async def _do_check_group(self, group: list["WorkloadBase"]):  # noqa: B027
+        """Validates any post-run conditions for a group of workloads. Called for every workload in the group."""
         pass
 
 
@@ -202,6 +209,7 @@ async def make_remote_session(
         _host=host_client,
         _oracle=oracle,
         _supergraph=supergraph,
+        _on_error=simulation.on_error,
     )
     session.user = unpack_object(
         client.user.user_data,
@@ -294,6 +302,9 @@ class WriteBlockTreeSpec(SingleClientWorkloadSpec):
 class WriteBlockTreeWorkload(SingleClientWorkloadBase[WriteBlockTreeSpec]):
     """Write a random tree of blocks."""
 
+    def __str__(self):
+        return f"block_types={self.spec.block_types}, edit_types={self.spec.edit_types}"
+
     @override
     def _do_init(self):
         self.pkg: Package | None = None
@@ -358,14 +369,15 @@ class ReadPackageWorkload(SingleClientWorkloadBase[ReadPackageSpec]):
         pass  # nothing to do?
 
     @override
-    async def _do_check_group(self, group: list[Self]):
+    async def _do_check_group(self, group: list[WorkloadBase]):
         # check that all packages are the same
         assert self.pkg is not None, f"{self!r} not ready"
         for workload in group:
             if workload is self:
                 continue
-            assert workload.pkg is not None, f"{workload!r} not ready"
-            assert_graph_equals(self.pkg._graph, workload.pkg._graph)
+            pkg = getattr(workload, "pkg", None)
+            assert isinstance(pkg, Package), f"{workload!r} has no package"
+            assert_graph_equals(self.pkg._graph, pkg._graph)
 
 
 def assert_graph_equals(graph_a: NodeGraph, graph_b: NodeGraph):
