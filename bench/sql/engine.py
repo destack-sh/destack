@@ -114,12 +114,7 @@ def _trace_pg_span(func):
             span.set_attribute("node_type", NodeType(node_type).bench_name)
 
         # forward call
-        try:
-            return await func(**kwargs)  # type: ignore
-        except Exception as e:
-            # debug, not error, because this may not be an actual error at the application level
-            logger.debug(f"{func_name}.error", **kwargs, exc_info=e, span="current")
-            raise
+        return await func(**kwargs)  # type: ignore
 
     return wrapped
 

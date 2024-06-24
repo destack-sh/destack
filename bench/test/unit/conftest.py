@@ -34,7 +34,7 @@ def event_loop_policy():
 async def blank_store(request: pytest.FixtureRequest):
     """Gets the per test function blank store"""
 
-    store = make_global_store(f"test_{request.node.name}")
+    store = make_global_store(f"test-{request.node.name}")
     await create_blank_test_db(store)
     return store
 
@@ -43,7 +43,7 @@ async def blank_store(request: pytest.FixtureRequest):
 async def global_store(request: pytest.FixtureRequest):
     """Gets the per test function global store"""
 
-    store = make_global_store(f"test_{request.node.name}")
+    store = make_global_store(f"test-{request.node.name}")
     await create_test_db(store, GLOBAL_SCHEMA)
     return store
 

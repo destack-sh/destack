@@ -70,7 +70,7 @@ def make_global_store(name: str):
 async def create_blank_test_db(store: Store):
     """Creates a blank postgres database"""
     # reset test database (connect to test since we can't drop active db)
-    async with pg_store_connection(store, database="test", autocommit=True) as cur:
+    async with pg_store_connection(store, database="bench", autocommit=True) as cur:
         await cur.execute(sqlstr(f'DROP DATABASE IF EXISTS "{store.external_name}"'))
         await cur.execute(sqlstr(f'CREATE DATABASE "{store.external_name}"'))
 
