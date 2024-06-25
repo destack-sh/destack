@@ -25,7 +25,7 @@ const query = ref<"">("");
 
 const containerRef = ref<HTMLElement | null>(null);
 const queryRef = ref<HTMLInputElement | null>(null);
-const activeResultId: Ref<string | null> = ref(null);
+const activeResultLocalId: Ref<string | null> = ref(null);
 
 const isQueryEmpty = computed(() => query.value.length === 0);
 const indices = computed(() => {
@@ -38,6 +38,7 @@ const indices = computed(() => {
   // views
   if (space.value != null && ["everywhere", "space", "views"].includes(m))
     indices["Views"] = graphIndex({
+      id: "views",
       graph: spaceGraph,
       metatypes: [NodeType.VIEW],
       roots: [space.value],
@@ -50,6 +51,7 @@ const indices = computed(() => {
   // NOTE: we only search package deeply if we have a query for performance & clarity
   if (packagePtr.value != null && hasLocalPkg.value && ["everywhere", "space", "bench", "package"].includes(m))
     indices["Package"] = graphIndex({
+      id: "package",
       graph: pkgGraph,
       metatypes: [NodeType.BLOCK, NodeType.VIEW, NodeType.BLOCK, NodeType.STEP],
       roots: [pkgGraph.getOrError(packagePtr.value)],
@@ -69,13 +71,13 @@ const showResultCategory = computed(() => query.value.length === 0);
 
 /** Go to the selected result */
 function go() {
-  if (!activeResultId.value) throw new Error("no result selected");
-  fire(activeResultId.value);
+  if (!activeResultLocalId.value) throw new Error("no result selected");
+  fire(activeResultLocalId.value);
 }
 
 /** Fires the action associated with the given result  */
 async function fire(id: string) {
-  const result = candidates.value.find((r) => r.id === id);
+  const result = candidates.value.find((r) => r.localId === id);
   // fire
   if (result != null) {
     if (result.metatype == "action") fireAction(result);
@@ -90,23 +92,25 @@ async function fire(id: string) {
 /** Select absolute/relative result */
 function select(option: string | number | null) {
   if (typeof option === "string" || option == null) {
-    activeResultId.value = option;
+    activeResultLocalId.value = option;
   } else {
-    const index = results.value.findIndex((r) => r.id === activeResultId.value);
+    const index = results.value.findIndex((r) => r.localId === activeResultLocalId.value);
     if (index === -1) {
-      activeResultId.value = results.value[0].id ?? null;
+      activeResultLocalId.value = results.value[0].localId ?? null;
     } else {
-      activeResultId.value = results.value[(index + option + results.value.length) % results.value.length].id ?? null;
+      activeResultLocalId.value =
+        results.value[(index + option + results.value.length) % results.value.length].localId ?? null;
     }
   }
-  if (activeResultId.value != null)
-    resultsRefs[activeResultId.value]?.scrollIntoView({ block: "center", behavior: "instant" });
+  if (activeResultLocalId.value != null) {
+    resultsRefs[activeResultLocalId.value]?.scrollIntoView({ block: "center", behavior: "instant" });
+  }
 }
 
-// auto-select best match when searching
+// auto-select best match while searching
 watch(results, () => {
   if (results.value.length > 0) {
-    activeResultId.value = results.value[0].id;
+    activeResultLocalId.value = results.value[0].localId;
   }
 });
 
@@ -120,7 +124,7 @@ function open(inMode: OmnibarMode = "everywhere") {
   clear();
   mode.value = inMode;
   updateCandidates();
-  select(candidates.value[0]?.id ?? null);
+  select(candidates.value[0]?.localId ?? null);
   nextTick(focus);
 }
 
@@ -277,11 +281,11 @@ defineExpose({ isActive, open });
                 </div>
                 <!-- Result -->
                 <li
-                  :ref="(ref: any | undefined) => (ref != null ? (resultsRefs[item.id] = ref) : delete resultsRefs[item.id])"
+                  :ref="(ref: any | undefined) => (ref != null ? (resultsRefs[item.localId] = ref) : delete resultsRefs[item.localId])"
                   role="button"
-                  :data-selected="item.id === activeResultId"
+                  :data-selected="item.localId === activeResultLocalId"
                   class="fleyx-row my-0.5 flex w-full items-center rounded border border-transparent px-2 py-1 hover:bg-primary-300 data-[selected=true]:border-gray-900 data-[selected=true]:bg-primary-300"
-                  @click.stop.prevent="() => fire(item.id)"
+                  @click.stop.prevent="() => fire(item.localId)"
                 >
                   <!-- Content -->
                   <IconInline v-bind="item.icon ?? DEFAULT_ACTION_ICON" class="w-5 text-gray-700" />
