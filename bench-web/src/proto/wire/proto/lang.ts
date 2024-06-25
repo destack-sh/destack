@@ -1708,37 +1708,6 @@ export interface TypeInfoData {
     isRequired: boolean;
 }
 /**
- * Reference a value at a path of a Node.
- *
- * @generated from protobuf message symbolx.bench.ValueReferenceData
- */
-export interface ValueReferenceData {
-    /**
-     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
-     */
-    metatype: ObjectType;
-    /**
-     * @generated from protobuf field: int32 id = 2;
-     */
-    id: number;
-    /**
-     * @generated from protobuf field: optional int32 parent_id = 3;
-     */
-    parentId?: number;
-    /**
-     * @generated from protobuf field: optional string parent_key = 4;
-     */
-    parentKey?: string;
-    /**
-     * @generated from protobuf field: optional string order_key = 9;
-     */
-    orderKey?: string;
-    /**
-     * @generated from protobuf field: symbolx.bench.PathData path = 31;
-     */
-    path?: PathData;
-}
-/**
  * Attach a badge to a node with an inline definition.
  * A badge's policies are delegated to the 'holder' (any client presenting its secrets).
  * The delegated policies apply at the parent scope OR given scopes (which must be below parent's).
@@ -6451,10 +6420,6 @@ export enum BenchType {
      */
     PROPERTY_REFERENCE = 1004,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_VALUE_REFERENCE = 1005;
-     */
-    VALUE_REFERENCE = 1005,
-    /**
      * @generated from protobuf enum value: BENCH_TYPE_TYPE_INFO = 1010;
      */
     TYPE_INFO = 1010,
@@ -8652,10 +8617,6 @@ export enum ObjectType {
      */
     PROPERTY_REFERENCE = 1004,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_VALUE_REFERENCE = 1005;
-     */
-    VALUE_REFERENCE = 1005,
-    /**
      * @generated from protobuf enum value: OBJECT_TYPE_TYPE_INFO = 1010;
      */
     TYPE_INFO = 1010,
@@ -9631,10 +9592,6 @@ export enum StructType {
      * @generated from protobuf enum value: STRUCT_TYPE_PROPERTY_REFERENCE = 1004;
      */
     PROPERTY_REFERENCE = 1004,
-    /**
-     * @generated from protobuf enum value: STRUCT_TYPE_VALUE_REFERENCE = 1005;
-     */
-    VALUE_REFERENCE = 1005,
     /**
      * @generated from protobuf enum value: STRUCT_TYPE_TYPE_INFO = 1010;
      */
@@ -14323,89 +14280,6 @@ class TypeInfoData$Type extends MessageType<TypeInfoData> {
  * @generated MessageType for protobuf message symbolx.bench.TypeInfoData
  */
 export const TypeInfoData = new TypeInfoData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class ValueReferenceData$Type extends MessageType<ValueReferenceData> {
-    constructor() {
-        super("symbolx.bench.ValueReferenceData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
-            { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 9, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 31, name: "path", kind: "message", T: () => PathData }
-        ]);
-    }
-    create(value?: PartialMessage<ValueReferenceData>): ValueReferenceData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.id = 0;
-        if (value !== undefined)
-            reflectionMergePartial<ValueReferenceData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ValueReferenceData): ValueReferenceData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.ObjectType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* int32 id */ 2:
-                    message.id = reader.int32();
-                    break;
-                case /* optional int32 parent_id */ 3:
-                    message.parentId = reader.int32();
-                    break;
-                case /* optional string parent_key */ 4:
-                    message.parentKey = reader.string();
-                    break;
-                case /* optional string order_key */ 9:
-                    message.orderKey = reader.string();
-                    break;
-                case /* symbolx.bench.PathData path */ 31:
-                    message.path = PathData.internalBinaryRead(reader, reader.uint32(), options, message.path);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: ValueReferenceData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.ObjectType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* int32 id = 2; */
-        if (message.id !== 0)
-            writer.tag(2, WireType.Varint).int32(message.id);
-        /* optional int32 parent_id = 3; */
-        if (message.parentId !== undefined)
-            writer.tag(3, WireType.Varint).int32(message.parentId);
-        /* optional string parent_key = 4; */
-        if (message.parentKey !== undefined)
-            writer.tag(4, WireType.LengthDelimited).string(message.parentKey);
-        /* optional string order_key = 9; */
-        if (message.orderKey !== undefined)
-            writer.tag(9, WireType.LengthDelimited).string(message.orderKey);
-        /* symbolx.bench.PathData path = 31; */
-        if (message.path)
-            PathData.internalBinaryWrite(message.path, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.ValueReferenceData
- */
-export const ValueReferenceData = new ValueReferenceData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class BadgeData$Type extends MessageType<BadgeData> {
     constructor() {
@@ -23546,9 +23420,9 @@ export const SomeNodeData = new SomeNodeData$Type();
 
 // Any...
 export type AnyNodeData = BenchData | EnvironmentData | BranchData | PackageData | DependencyData | UpgradeData | SpaceData | LinkData | SkipData | IssueData | BlockData | TriggerData | FieldData | QueryData | ViewData | StepData | BadgeData | RoleData | IdentityData | MembershipData | InviteData | SessionData | RunData | SignalData | LogData | NotificationData | MessageData | RecordData | ServerData | StoreData | MachineData | DriveData | BlobData | HandleData | UserData | OrganizationData | ClientData
-export type AnyStructData = PathData | PathSegmentData | PathTokenData | NodeReferenceData | PropertyReferenceData | ValueReferenceData | TypeInfoData | TypeConstraintData | ContextData | SessionContextData | EditContextData | ScheduleData | ProjectionData | PolicyData | PolicyRuleData | SubjectData | AccessZoneData | AccessMatrixData | AccessData | ReadOptionsData | ExpressionData | AggregationData | SelectionData | CodeData | CodeLineData | StepConnectionData | RunErrorData | RunOptionsData | RetryAttemptData | TextData | TextLineData | TextSpanData | ColorData | FontData | BoxData | OffsetData | TransformData | FileData | IconData
+export type AnyStructData = PathData | PathSegmentData | PathTokenData | NodeReferenceData | PropertyReferenceData | TypeInfoData | TypeConstraintData | ContextData | SessionContextData | EditContextData | ScheduleData | ProjectionData | PolicyData | PolicyRuleData | SubjectData | AccessZoneData | AccessMatrixData | AccessData | ReadOptionsData | ExpressionData | AggregationData | SelectionData | CodeData | CodeLineData | StepConnectionData | RunErrorData | RunOptionsData | RetryAttemptData | TextData | TextLineData | TextSpanData | ColorData | FontData | BoxData | OffsetData | TransformData | FileData | IconData
 export type AnyNodeDataType = typeof BenchData | typeof EnvironmentData | typeof BranchData | typeof PackageData | typeof DependencyData | typeof UpgradeData | typeof SpaceData | typeof LinkData | typeof SkipData | typeof IssueData | typeof BlockData | typeof TriggerData | typeof FieldData | typeof QueryData | typeof ViewData | typeof StepData | typeof BadgeData | typeof RoleData | typeof IdentityData | typeof MembershipData | typeof InviteData | typeof SessionData | typeof RunData | typeof SignalData | typeof LogData | typeof NotificationData | typeof MessageData | typeof RecordData | typeof ServerData | typeof StoreData | typeof MachineData | typeof DriveData | typeof BlobData | typeof HandleData | typeof UserData | typeof OrganizationData | typeof ClientData
-export type AnyStructDataType = typeof PathData | typeof PathSegmentData | typeof PathTokenData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof ValueReferenceData | typeof TypeInfoData | typeof TypeConstraintData | typeof ContextData | typeof SessionContextData | typeof EditContextData | typeof ScheduleData | typeof ProjectionData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof ReadOptionsData | typeof ExpressionData | typeof AggregationData | typeof SelectionData | typeof CodeData | typeof CodeLineData | typeof StepConnectionData | typeof RunErrorData | typeof RunOptionsData | typeof RetryAttemptData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof ColorData | typeof FontData | typeof BoxData | typeof OffsetData | typeof TransformData | typeof FileData | typeof IconData
+export type AnyStructDataType = typeof PathData | typeof PathSegmentData | typeof PathTokenData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof TypeInfoData | typeof TypeConstraintData | typeof ContextData | typeof SessionContextData | typeof EditContextData | typeof ScheduleData | typeof ProjectionData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof ReadOptionsData | typeof ExpressionData | typeof AggregationData | typeof SelectionData | typeof CodeData | typeof CodeLineData | typeof StepConnectionData | typeof RunErrorData | typeof RunOptionsData | typeof RetryAttemptData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof ColorData | typeof FontData | typeof BoxData | typeof OffsetData | typeof TransformData | typeof FileData | typeof IconData
 
 // Ancestry maps
 export const PARENT_NODE_TYPES: Record<NodeType, NodeType[]> = {
@@ -23760,7 +23634,6 @@ export const MESSAGE_TYPE_BY_OBJECT_TYPE: Partial<Record<ObjectType, MessageType
   [ObjectType.PATH_TOKEN]: PathTokenData,
   [ObjectType.NODE_REFERENCE]: NodeReferenceData,
   [ObjectType.PROPERTY_REFERENCE]: PropertyReferenceData,
-  [ObjectType.VALUE_REFERENCE]: ValueReferenceData,
   [ObjectType.TYPE_INFO]: TypeInfoData,
   [ObjectType.TYPE_CONSTRAINT]: TypeConstraintData,
   [ObjectType.CONTEXT]: ContextData,
@@ -23839,7 +23712,6 @@ export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
   ["symbolx.bench.PathTokenData"]: ObjectType.PATH_TOKEN,
   ["symbolx.bench.NodeReferenceData"]: ObjectType.NODE_REFERENCE,
   ["symbolx.bench.PropertyReferenceData"]: ObjectType.PROPERTY_REFERENCE,
-  ["symbolx.bench.ValueReferenceData"]: ObjectType.VALUE_REFERENCE,
   ["symbolx.bench.TypeInfoData"]: ObjectType.TYPE_INFO,
   ["symbolx.bench.TypeConstraintData"]: ObjectType.TYPE_CONSTRAINT,
   ["symbolx.bench.ContextData"]: ObjectType.CONTEXT,
@@ -23956,7 +23828,6 @@ export interface StructTypeMapping extends Record<StructType, AnyStructData> {
   [StructType.PATH_TOKEN]: PathTokenData,
   [StructType.NODE_REFERENCE]: NodeReferenceData,
   [StructType.PROPERTY_REFERENCE]: PropertyReferenceData,
-  [StructType.VALUE_REFERENCE]: ValueReferenceData,
   [StructType.TYPE_INFO]: TypeInfoData,
   [StructType.TYPE_CONSTRAINT]: TypeConstraintData,
   [StructType.CONTEXT]: ContextData,
@@ -24075,7 +23946,6 @@ export interface AnyTypeMapping extends Record<ObjectType, AnyStructData | AnyNo
   [ObjectType.PATH_TOKEN]: PathTokenData,
   [ObjectType.NODE_REFERENCE]: NodeReferenceData,
   [ObjectType.PROPERTY_REFERENCE]: PropertyReferenceData,
-  [ObjectType.VALUE_REFERENCE]: ValueReferenceData,
   [ObjectType.TYPE_INFO]: TypeInfoData,
   [ObjectType.TYPE_CONSTRAINT]: TypeConstraintData,
   [ObjectType.CONTEXT]: ContextData,
@@ -25266,15 +25136,6 @@ export enum PropertyReferenceProperty {
   referencesNode = 32,
 }
 
-export enum ValueReferenceProperty {
-  metatype = 1,
-  id = 2,
-  parentId = 3,
-  parentKey = 4,
-  orderKey = 9,
-  path = 31,
-}
-
 export enum TypeInfoProperty {
   metatype = 1,
   id = 2,
@@ -25688,11 +25549,11 @@ export enum IconProperty {
 }
 
 export type AnyNodeProperty = typeof BenchProperty | typeof EnvironmentProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof UpgradeProperty | typeof SpaceProperty | typeof LinkProperty | typeof SkipProperty | typeof IssueProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof BadgeProperty | typeof RoleProperty | typeof IdentityProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof MessageProperty | typeof RecordProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof BlobProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty
-export type AnyStructProperty = typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof ValueReferenceProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ContextProperty | typeof SessionContextProperty | typeof EditContextProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof ReadOptionsProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof CodeProperty | typeof CodeLineProperty | typeof StepConnectionProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RetryAttemptProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof FileProperty | typeof IconProperty
+export type AnyStructProperty = typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ContextProperty | typeof SessionContextProperty | typeof EditContextProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof ReadOptionsProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof CodeProperty | typeof CodeLineProperty | typeof StepConnectionProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RetryAttemptProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof FileProperty | typeof IconProperty
 export type AnyProperty = AnyNodeProperty | AnyStructProperty
 export type AnyNodePropertyType = typeof BenchProperty | typeof EnvironmentProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof UpgradeProperty | typeof SpaceProperty | typeof LinkProperty | typeof SkipProperty | typeof IssueProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof BadgeProperty | typeof RoleProperty | typeof IdentityProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof MessageProperty | typeof RecordProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof BlobProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty
-export type AnyStructPropertyType = typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof ValueReferenceProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ContextProperty | typeof SessionContextProperty | typeof EditContextProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof ReadOptionsProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof CodeProperty | typeof CodeLineProperty | typeof StepConnectionProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RetryAttemptProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof FileProperty | typeof IconProperty
-export type AnyPropertyType = typeof BenchProperty | typeof EnvironmentProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof UpgradeProperty | typeof SpaceProperty | typeof LinkProperty | typeof SkipProperty | typeof IssueProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof BadgeProperty | typeof RoleProperty | typeof IdentityProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof MessageProperty | typeof RecordProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof BlobProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof ValueReferenceProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ContextProperty | typeof SessionContextProperty | typeof EditContextProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof ReadOptionsProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof CodeProperty | typeof CodeLineProperty | typeof StepConnectionProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RetryAttemptProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof FileProperty | typeof IconProperty
+export type AnyStructPropertyType = typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ContextProperty | typeof SessionContextProperty | typeof EditContextProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof ReadOptionsProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof CodeProperty | typeof CodeLineProperty | typeof StepConnectionProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RetryAttemptProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof FileProperty | typeof IconProperty
+export type AnyPropertyType = typeof BenchProperty | typeof EnvironmentProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof UpgradeProperty | typeof SpaceProperty | typeof LinkProperty | typeof SkipProperty | typeof IssueProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof BadgeProperty | typeof RoleProperty | typeof IdentityProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof MessageProperty | typeof RecordProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof BlobProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ContextProperty | typeof SessionContextProperty | typeof EditContextProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof ReadOptionsProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof CodeProperty | typeof CodeLineProperty | typeof StepConnectionProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RetryAttemptProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof FileProperty | typeof IconProperty
 export const NODE_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyNodePropertyType>> = {
   [ObjectType.BENCH]: BenchProperty,
   [ObjectType.ENVIRONMENT]: EnvironmentProperty,
@@ -25739,7 +25600,6 @@ export const STRUCT_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyStructP
   [ObjectType.PATH_TOKEN]: PathTokenProperty,
   [ObjectType.NODE_REFERENCE]: NodeReferenceProperty,
   [ObjectType.PROPERTY_REFERENCE]: PropertyReferenceProperty,
-  [ObjectType.VALUE_REFERENCE]: ValueReferenceProperty,
   [ObjectType.TYPE_INFO]: TypeInfoProperty,
   [ObjectType.TYPE_CONSTRAINT]: TypeConstraintProperty,
   [ObjectType.CONTEXT]: ContextProperty,
@@ -25818,7 +25678,6 @@ export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>>
   [ObjectType.PATH_TOKEN]: PathTokenProperty,
   [ObjectType.NODE_REFERENCE]: NodeReferenceProperty,
   [ObjectType.PROPERTY_REFERENCE]: PropertyReferenceProperty,
-  [ObjectType.VALUE_REFERENCE]: ValueReferenceProperty,
   [ObjectType.TYPE_INFO]: TypeInfoProperty,
   [ObjectType.TYPE_CONSTRAINT]: TypeConstraintProperty,
   [ObjectType.CONTEXT]: ContextProperty,
@@ -25929,14 +25788,6 @@ export const PropertyReferenceDataInfo: Record<PropertyReferenceProperty, Proper
   [PropertyReferenceProperty.type]: { id: 30, name: 'type', component: ObjectType.PROPERTY_REFERENCE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [PropertyReferenceProperty.id]: { id: 31, name: 'id', component: ObjectType.PROPERTY_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [PropertyReferenceProperty.referencesNode]: { id: 32, name: 'references_node', component: ObjectType.PROPERTY_REFERENCE, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-}
-export const ValueReferenceDataInfo: Record<ValueReferenceProperty, PropertyInfo> = {
-  [ValueReferenceProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.VALUE_REFERENCE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [ValueReferenceProperty.id]: { id: 2, name: 'id', component: ObjectType.VALUE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ValueReferenceProperty.parentId]: { id: 3, name: 'parent_id', component: ObjectType.VALUE_REFERENCE, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
-  [ValueReferenceProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.VALUE_REFERENCE, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
-  [ValueReferenceProperty.orderKey]: { id: 9, name: 'order_key', component: ObjectType.VALUE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [ValueReferenceProperty.path]: { id: 31, name: 'path', component: ObjectType.VALUE_REFERENCE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.PATH },
 }
 export const TypeInfoDataInfo: Record<TypeInfoProperty, PropertyInfo> = {
   [TypeInfoProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.TYPE_INFO, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -27328,7 +27179,6 @@ export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo
   [ObjectType.PATH_TOKEN]: PathTokenDataInfo,
   [ObjectType.NODE_REFERENCE]: NodeReferenceDataInfo,
   [ObjectType.PROPERTY_REFERENCE]: PropertyReferenceDataInfo,
-  [ObjectType.VALUE_REFERENCE]: ValueReferenceDataInfo,
   [ObjectType.TYPE_INFO]: TypeInfoDataInfo,
   [ObjectType.TYPE_CONSTRAINT]: TypeConstraintDataInfo,
   [ObjectType.CONTEXT]: ContextDataInfo,

@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.06.24.0"
+VERSION = "2024.06.25.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -159,7 +159,6 @@ class BenchType(betterproto.Enum):
     PATH_TOKEN = 1002
     NODE_REFERENCE = 1003
     PROPERTY_REFERENCE = 1004
-    VALUE_REFERENCE = 1005
     TYPE_INFO = 1010
     TYPE_CONSTRAINT = 1011
     CONTEXT = 1020
@@ -772,7 +771,6 @@ class ObjectType(betterproto.Enum):
     PATH_TOKEN = 1002
     NODE_REFERENCE = 1003
     PROPERTY_REFERENCE = 1004
-    VALUE_REFERENCE = 1005
     TYPE_INFO = 1010
     TYPE_CONSTRAINT = 1011
     CONTEXT = 1020
@@ -1083,7 +1081,6 @@ class StructType(betterproto.Enum):
     PATH_TOKEN = 1002
     NODE_REFERENCE = 1003
     PROPERTY_REFERENCE = 1004
-    VALUE_REFERENCE = 1005
     TYPE_INFO = 1010
     TYPE_CONSTRAINT = 1011
     CONTEXT = 1020
@@ -1965,18 +1962,6 @@ class TypeInfoData(betterproto.Message):
     is_list: bool = betterproto.bool_field(60)
     is_secret: bool = betterproto.bool_field(61)
     is_required: bool = betterproto.bool_field(62)
-
-
-@dataclass(eq=False, repr=False)
-class ValueReferenceData(betterproto.Message):
-    """Reference a value at a path of a Node."""
-
-    metatype: "ObjectType" = betterproto.enum_field(1)
-    id: int = betterproto.int32_field(2)
-    parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
-    parent_key: Optional[str] = betterproto.string_field(4, optional=True)
-    order_key: Optional[str] = betterproto.string_field(9, optional=True)
-    path: "PathData" = betterproto.message_field(31)
 
 
 @dataclass(eq=False, repr=False)
@@ -3599,15 +3584,27 @@ class WatchAggregateResponse(betterproto.Message):
 class CommitTransactionRequest(betterproto.Message):
     scope: "GraphScope" = betterproto.message_field(1)
     id: str = betterproto.string_field(2)
+    """UUIDT of the transaction."""
+
     edits: List["EditData"] = betterproto.message_field(3)
+    """All the edits for all the changes in order."""
+
     context: Optional["SessionContextData"] = betterproto.message_field(4, optional=True)
+    """
+    Explicit current context of the subject (with extra context info not contained in edits).
+    """
 
 
 @dataclass(eq=False, repr=False)
 class CommitTransactionResponse(betterproto.Message):
     revisions: List[int] = betterproto.int64_field(1)
+    """The new revisions for every submitted edit."""
+
     cascaded_edits: List["EditData"] = betterproto.message_field(2)
+    """Any cascaded edits."""
+
     epoch: int = betterproto.uint64_field(3)
+    """Current epoch."""
 
 
 @dataclass(eq=False, repr=False)
@@ -4883,7 +4880,6 @@ AnyStructData = Union[
     PathTokenData,
     NodeReferenceData,
     PropertyReferenceData,
-    ValueReferenceData,
     TypeInfoData,
     TypeConstraintData,
     ContextData,

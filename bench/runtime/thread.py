@@ -146,9 +146,10 @@ class RuntimeThread:
             self._main_package = await PACKAGE_QUERY.get(main_branch.main_package_ptr, live=True)
             self._session.parent = self._main_package
 
-        # update session with client and machine info
+        # update session context
         self._session.client = self._client
         self._session.machine = self._machine
+        self._session.server = self._machine.parent if self._machine else None
         self._session.user = self._client.parent if isinstance(self._client.parent, User) else None
         self._session._subject = self._client.parent
         self._session._origin = self._client.to_origin(nonce=self._nonce) if self._client else None
