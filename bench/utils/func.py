@@ -519,6 +519,10 @@ class IdEnum(enum.IntEnum):
         return typing.cast(type["IdEnum"], combined)
 
 
+def repr_enums(enums: Iterable[IdEnum]) -> str:
+    return "|".join(e.bench_name for e in enums)
+
+
 IdEnumOrUnion = Union[IdEnum, Union[IdEnum, Any]]
 # NOTE: IdEnumOrOnion is intended for stuff like AccessType = IdEnum.combine("AccessType", ReadType, ...)
 #  But for type checking we have it as AccessType = ReadType | ...

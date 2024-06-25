@@ -118,6 +118,7 @@ class Simulation:
         return f"<{self.__class__.__name__} {self!s}>"
 
     def on_error(self, error: Exception):
+        logger.error("simulation.error", simulation=self, exc_infoerror=error)
         self._errors.append(error)
         self._has_error.set()
 

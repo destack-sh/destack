@@ -49,7 +49,7 @@ from bench.proto.wire import (
     WatchGetRequest,
     WatchSearchRequest,
 )
-from bench.utils.func import bittuple, group_by
+from bench.utils.func import bittuple, group_by, repr_enums
 from bench.utils.task import create_task
 from bench.utils.tenacity import RETRY_GRPC, RetryOptions
 
@@ -418,6 +418,7 @@ class Connection[
         self.options = options
         self.is_live = options.live
         self.is_unpacked = options.unpack
+        self.log = logger.bind(connection=self)
 
         self._has_result: asyncio.Event = asyncio.Event()
         self._result: ResultT | None = None
@@ -476,14 +477,10 @@ class Connection[
                     with tracer.start_as_current_span(f"connect.{self.type_name}.read"):
                         try:
                             self._result_data = await self._do_read(self.query)
-                            logger.trace(
-                                f"connect.{self.type_name}", connection=self, span="current"
-                            )
+                            self.log.trace(f"connect.{self.type_name}", span="current")
                             break  # success
                         except Exception as e:
-                            logger.error(
-                                f"connect.{self.type_name}.error", exc_info=e, connection=self
-                            )
+                            self.log.error(f"connect.{self.type_name}.error", exc_info=e)
                             retry.on_error(e)
                             if not isinstance(e, self.retry.retry_on):
                                 raise
@@ -521,16 +518,17 @@ class Connection[
                     # initial read
                     with tracer.start_as_current_span(f"connect.{self.type_name}"):
                         self._result_data = await self._do_read(self.query)
-                        logger.trace(f"connect.{self.type_name}", connection=self, span="current")
+                        self.log.trace(f"connect.{self.type_name}", span="current")
                     # unpack
                     if self.options.unpack:
                         self._result = self._unpack_result(self._result_data)
                     self._has_result.set()
                     # subscribe
                     async for update in self._do_subscribe(self.query, self._result_data):
+                        self.log.trace(f"connect.{self.type_name}.update", update=update)
                         self._apply_update(self._result_data, self._result, update)
                 except Exception as e:
-                    logger.error(f"connect.{self.type_name}.error", exc_info=e, connection=self)
+                    self.log.error(f"connect.{self.type_name}.error", exc_info=e)
                     retry.on_error(e)
                     if not isinstance(e, self.retry.retry_on):
                         raise
@@ -749,7 +747,9 @@ class MemoryEngine(GraphEngine["MemoryChannel"]):
         self.graph = graph
 
     def __str__(self):
-        return f"scope={self.scope!r}, node_types={'|'.join(t.bench_name for t in self.node_types)}, graph={self.graph!r}"
+        return (
+            f"scope={self.scope!r}, node_types={repr_enums(self.node_types)}, graph={self.graph!r}"
+        )
 
     @property
     def is_readonly(self) -> bool:
@@ -1009,7 +1009,7 @@ class RemoteEngine(GraphEngine["RemoteChannel"]):
         self.retry = retry
 
     def __str__(self):
-        return f"scope={self.scope!r}, node_types={'|'.join(t.bench_name for t in self.node_types)}, remote={self.remote.__class__.__name__}"
+        return f"scope={self.scope!r}, node_types={repr_enums(self.node_types)}, remote={self.remote.__class__.__name__}"
 
     @override
     async def connect(self, session: "Session") -> "RemoteChannel":
@@ -1234,7 +1234,9 @@ class PostgresEngine(GraphEngine):
         self.bench = bench
 
     def __str__(self):
-        return f"scope={self.scope!r}, node_types={'|'.join(t.bench_name for t in self.node_types)}, store={self.store!r}"
+        return (
+            f"scope={self.scope!r}, node_types={repr_enums(self.node_types)}, store={self.store!r}"
+        )
 
     @override
     async def connect(self, session: "Session") -> "PostgresChannel":

@@ -27,6 +27,7 @@ from bench.proto.wiring import unpack_object
 from bench.test.simulation.spec import WorkloadSpec, WorkloadType
 from bench.test.simulation.utils import SampledFloat, SampledInt, to_value
 from bench.utils.casing import Casing, to_casing
+from bench.utils.func import repr_enums
 from bench.utils.oracle import Oracle
 from bench.utils.tenacity import RETRY_GRPC_FOREVER
 
@@ -194,6 +195,7 @@ async def make_remote_session(
     supergraph: NodeSuperGraph | None = None,
 ):
     """Create a Session to a remote Bench"""
+    nonce = str(UUID(int=oracle.random.getrandbits(128)))
     supervisor_client = await simulation._supervisor.connect(client)
     host_client = await host.connect(client)
     engines = _make_remote_engines(bench_id, client, supervisor_client, host_client)
@@ -204,7 +206,7 @@ async def make_remote_session(
         _is_readonly=False,
         _default_scope=GraphScope(bench_id=str(bench_id)),
         _engines=engines,
-        _origin=client.client_origin,
+        _origin=client.to_origin(nonce=nonce),
         _supervisor=supervisor_client,
         _host=host_client,
         _oracle=oracle,
@@ -303,7 +305,7 @@ class WriteBlockTreeWorkload(SingleClientWorkloadBase[WriteBlockTreeSpec]):
     """Write a random tree of blocks."""
 
     def __str__(self):
-        return f"block_types={self.spec.block_types}, edit_types={self.spec.edit_types}"
+        return f"pkg={self.pkg!r}, block_types={repr_enums(self.spec.block_types)}, edit_types={repr_enums(self.spec.edit_types)}"
 
     @override
     def _do_init(self):
@@ -356,6 +358,9 @@ class ReadPackageSpec(SingleClientWorkloadSpec):
 class ReadPackageWorkload(SingleClientWorkloadBase[ReadPackageSpec]):
     """Reads an entire package."""
 
+    def __str__(self):
+        return f"pkg={self.pkg!r}"
+
     @override
     def _do_init(self):
         self.pkg: Package | None = None
@@ -372,11 +377,11 @@ class ReadPackageWorkload(SingleClientWorkloadBase[ReadPackageSpec]):
     async def _do_check_group(self, group: list[WorkloadBase]):
         # check that all packages are the same
         assert self.pkg is not None, f"{self!r} not ready"
-        for workload in group:
-            if workload is self:
+        for other in group:
+            if other is self:
                 continue
-            pkg = getattr(workload, "pkg", None)
-            assert isinstance(pkg, Package), f"{workload!r} has no package"
+            pkg = getattr(other, "pkg", None)
+            assert isinstance(pkg, Package), f"{other!r} has no package"
             assert_graph_equals(self.pkg._graph, pkg._graph)
 
 
@@ -400,4 +405,4 @@ class WatchLogsSpec(SingleClientWorkloadSpec):
 @workload(WorkloadType.WATCH_LOGS, WatchLogsSpec)
 class WatchLogsWorkload(SingleClientWorkloadBase[WatchLogsSpec]):
     @override
-    async def _do_run_in_session(self, session: Session): ...  # nocheckin: watch
+    async def _do_run_in_session(self, session: Session): ...

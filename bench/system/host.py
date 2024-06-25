@@ -73,7 +73,7 @@ HOST_MEMORY_ENGINE_ENABLED = get_from_env(
     "HOST_MEMORY_ENGINE_ENABLED",
     typ=bool,
     default=True,
-    description="Whether to provide in-memory engines for Bench/Package",
+    description="Whether to provide in-memory caches for Bench/Package",
 )
 
 LOADED_HOST_NODE_TYPES = LOADED_BENCH_NODE_TYPES | SOURCE_NODE_TYPES
@@ -238,7 +238,7 @@ class Host(GraphIoServiceBase, HostApi, HostBase):
 
     @override
     def on_error(self, source: HostPlugin, error: Exception) -> None:
-        pass  # error is already reported, we just keep running
+        pass  # error is already reported, we just keep running?
 
     @property
     def graphs(self) -> tuple[NodeGraphLike, ...]:

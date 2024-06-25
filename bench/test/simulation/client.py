@@ -69,7 +69,6 @@ class ClientHandle:
         self.user = user
         self.simulation = simulation
         self._client_data: ClientData | None = None
-        self._client_origin: ClientOrigin | None = None
         self._access_token: str | None = None
         self._rpc_metadata: RpcMetadata | None = None
         self._rpc_headers: dict[str, str] | None = None
@@ -85,10 +84,12 @@ class ClientHandle:
         assert self._client_data is not None, f"{self!r} not ready"
         return self._client_data
 
-    @property
-    def client_origin(self) -> ClientOrigin:
-        assert self._client_origin is not None, f"{self!r} not ready"
-        return self._client_origin
+    def to_origin(self, *, nonce: str | None) -> ClientOrigin:
+        return ClientOrigin(
+            type=self.client_data.type,
+            id=self.client_data.id,
+            nonce=nonce or self.client_data.id,
+        )
 
     @property
     def rpc_metadata(self) -> RpcMetadata:
@@ -112,11 +113,6 @@ class ClientHandle:
         )
         login_rep = await supervisor_client.login_user(login_req)
         self._client_data = login_rep.client
-        self._client_origin = ClientOrigin(
-            type=self._client_data.type,
-            id=self._client_data.id,
-            nonce=self._client_data.id,
-        )
         self._access_token = login_rep.access_token
         self._rpc_metadata = RpcMetadata(
             client_type=self._client_data.type,
