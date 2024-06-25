@@ -288,6 +288,8 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
                     filter=filter,
                     options=adapted_options,
                     sort=sort,
+                    first=request.first,
+                    skip=request.skip,
                 )
 
             with self.tracer.start_as_current_span("graph.search.read") as span:
@@ -448,6 +450,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
         #  but we have to guarantee absolute order + integrity of any loaded graphs (in Host).
         # We can probably optimize this by only locking some tighter critical sections
         #  if we rollback somehow on failure. Maybe we can even 'cache' apply some edits only in memory.
+        # Later, we'll figure out how to shard the Host properly and dynamically, how fun :)
         async with self.tx_lock:
             # pre-validate/prepare edits
             scope, epoch = self._prepare_commit(subject, context, request.edits)

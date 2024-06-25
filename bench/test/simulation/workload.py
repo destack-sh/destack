@@ -403,6 +403,7 @@ def assert_graph_equals(graph_a: NodeGraph, graph_b: NodeGraph):
 @dataclass
 class WatchLogsSpec(SingleClientWorkloadSpec):
     type: WorkloadType = WorkloadType.WATCH_LOGS
+    limit: int | SampledInt = 50
     live: bool = True
 
 
@@ -410,6 +411,12 @@ class WatchLogsSpec(SingleClientWorkloadSpec):
 class WatchLogsWorkload(SingleClientWorkloadBase[WatchLogsSpec]):
     @override
     async def _do_run_in_session(self, session: Session):
-        logs = await Log.order_by("-created_at").search(live=True)
+        limit = to_value(self.random, self.spec.limit)
+        logs = await Log.order_by("-created_at").first(limit).search(live=True)
+        assert len(logs) <= limit, f"too many logs {len(logs)} > {limit}"
+        if logs:
+            connection = logs[0]._connection
+            assert connection, f"no connection for {logs[0]!r}"
+            assert len(logs[0]._graph.nodes) == len(logs)
 
         # nocheckin: collect updates? check/compare logs?

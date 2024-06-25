@@ -593,7 +593,6 @@ export class RemoteSearchConnection<T extends NodeType> extends ConnectionBase<"
       );
       editStream.responses.onNext((rep) => {
         if (rep == null) return;
-        // nocheckin: watch edits
         this.txBuffer.accept(rep.edits);
         editGraph(graph, rep.edits);
         // apply other added/removed nodes
@@ -604,14 +603,17 @@ export class RemoteSearchConnection<T extends NodeType> extends ConnectionBase<"
           const node = graph.get(nodePtr);
           if (node != null) graph.remove(node);
         }
-        // update roots list
+        // update' roots' list
+        const newRoots = roots.value.slice();
         for (const insertIndex of Object.keys(rep.addedRootsPtr)) {
           const index = Number(insertIndex);
-          roots.value.splice(index, 0, rep.addedRootsPtr[index] as TypedNodeReferenceData<T>);
+          newRoots.splice(index, 0, rep.addedRootsPtr[index] as TypedNodeReferenceData<T>);
         }
-        for (const removeIndex of rep.removedNodesPtr) {
-          roots.value = roots.value.filter((r) => r.id != removeIndex.id); // inefficient
+        for (const nodePtr of rep.removedNodesPtr) {
+          const removeIndex = newRoots.findIndex((r) => r.id == nodePtr.id)
+          if (removeIndex >= 0) newRoots.splice(removeIndex, 1);
         }
+        roots.value = newRoots;
       });
       editStream.responses.onError(onError);
     }
