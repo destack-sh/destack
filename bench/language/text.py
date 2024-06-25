@@ -10,6 +10,7 @@ from bench.language.node import (
     BuiltinObject,
     InlineStruct,
     Node,
+    NodeReference,
     Struct,
     object_component,
     struct_,
@@ -208,8 +209,6 @@ _LINE_TYPE_BY_MD_PREFIX: dict[str, TextLineType] = {
 
 
 def _mention_to_url(node: Node) -> str:
-    from bench.language.expression import NodeReference
-
     node_ref = node.to_ref()
     url_parts = []
     for key in NodeReference.__declared_properties__:

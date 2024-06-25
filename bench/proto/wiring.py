@@ -12,9 +12,8 @@ from opentelemetry import trace
 
 from bench.language.connection import Connection
 from bench.language.const import NodeType, ObjectType
-from bench.language.expression import NodeReference
 from bench.language.graph import NULL_SUPERGRAPH, NodeDataGraph, NodeSuperGraph
-from bench.language.node import BuiltinObject, Node, NodeGraph
+from bench.language.node import BuiltinObject, Node, NodeGraph, NodeReference
 from bench.language.property import Property
 from bench.language.session import Session
 from bench.language.setup import OBJECT_CLASS_BY_TYPE

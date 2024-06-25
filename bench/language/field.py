@@ -21,12 +21,13 @@ from bench.language.const import (
     is_node_type,
     is_struct_type,
 )
-from bench.language.expression import NodeReference, _TypeQueryBuilder
+from bench.language.expression import _TypeQueryBuilder
 from bench.language.graph import NodeList
 from bench.language.issue import Issue
 from bench.language.node import (
     HasNodeBase,
     Node,
+    NodeReference,
     SourceNode,
     Struct,
     get_tk_b64_from_ck,

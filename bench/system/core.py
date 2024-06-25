@@ -11,7 +11,7 @@ import bitarray
 import structlog
 from opentelemetry import trace
 
-from bench.language import Bench, Node, NodeType, Store
+from bench.language import Bench, Node, NodeReference, NodeType, Store
 from bench.language.connection import PostgresEngine
 from bench.language.const import (
     GLOBAL_NODE_TYPES,
@@ -19,7 +19,6 @@ from bench.language.const import (
     EditType,
     Region,
 )
-from bench.language.expression import NodeReference
 from bench.language.graph import NodeGraphLike, NodeSuperGraph
 from bench.language.session import Session
 from bench.language.transaction import unpack_node_delta

@@ -6,12 +6,11 @@ from uuid import UUID, uuid4
 import structlog
 from opentelemetry import trace
 
-from bench.language import Bench, Package
+from bench.language import Bench, NodeReference, Package
 from bench.language.bench import Client, Machine
 from bench.language.code import Code, run_code_exec
 from bench.language.connection import GraphEngine
 from bench.language.const import BlockType, NodeType, RunKind, RunStatus, _active_run
-from bench.language.expression import NodeReference
 from bench.language.graph import NodeSuperGraph
 from bench.language.run import Run, RunError
 from bench.language.session import Session, unsuspend_session

@@ -13,10 +13,9 @@ from bench.utils.oracle import Oracle
 _setup_test_env()
 
 
-from bench.language import VERSION, Store
+from bench.language import VERSION, NodeReference, Store
 from bench.language.bench import Bench
 from bench.language.const import NodeType, Region
-from bench.language.expression import NodeReference
 from bench.language.graph import NodeSuperGraph
 from bench.language.session import Session
 from bench.proto.wire import (

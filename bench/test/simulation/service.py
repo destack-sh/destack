@@ -5,7 +5,7 @@ from uuid import UUID
 
 from betterproto import ServiceStub
 
-from bench.language.expression import NodeReference
+from bench.language import NodeReference
 from bench.proto import wire
 from bench.proto.services import ServiceBase
 from bench.proto.wire import CreateBenchRequest, HostClient, SupervisorClient

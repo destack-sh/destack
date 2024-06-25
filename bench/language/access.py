@@ -37,11 +37,11 @@ from bench.language.const import (
     StructType,
     UseType,
 )
-from bench.language.expression import NodeReference
 from bench.language.graph import NodeDataGraph, NodeGraph, NodeList, NodeSuperGraph
 from bench.language.node import (
     NODE_CLASS_BY_TYPE,
     InlineStruct,
+    NodeReference,
     SourceNode,
     Struct,
     node_,

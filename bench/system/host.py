@@ -13,7 +13,7 @@ from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 from opentelemetry import trace
 
-from bench.language import Bench, Package, Run, Server, Store, Subject
+from bench.language import Bench, NodeReference, Package, Run, Server, Store, Subject
 from bench.language.access import Badge, Ownable
 from bench.language.bench import Client
 from bench.language.connection import GraphEngine, MemoryEngine, PostgresEngine
@@ -27,7 +27,6 @@ from bench.language.const import (
     ClientType,
     NodeType,
 )
-from bench.language.expression import NodeReference
 from bench.language.graph import NodeDataGraphLike, NodeGraphLike, NodeSuperGraph
 from bench.language.log import Log
 from bench.language.property import Property

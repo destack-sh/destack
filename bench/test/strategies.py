@@ -10,6 +10,7 @@ from hypothesis import example, given, reject, settings
 from hypothesis import strategies as st
 from hypothesis.strategies._internal.utils import cacheable, defines_strategy
 
+from bench.language import NodeReference
 from bench.language.const import (
     IN_BENCH_NODE_TYPES,
     EnumType,
@@ -19,7 +20,6 @@ from bench.language.const import (
     StructType,
     TypeKind,
 )
-from bench.language.expression import NodeReference
 from bench.language.field import DEFAULT_CONSTRAINT, Field, TypeInfo, TypeInfoBase
 from bench.language.node import BuiltinObject
 from bench.language.setup import ENUM_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE, OBJECT_CLASS_BY_TYPE

@@ -67,17 +67,7 @@ from .const import (
     TriggerType,
     Visibility,
 )
-from .expression import (
-    A,
-    Aggregation,
-    C,
-    Expression,
-    NodeReference,
-    PropertyReference,
-    S,
-    ValueReference,
-    coerce_conditional,
-)
+from .expression import A, Aggregation, C, Expression, S, coerce_conditional
 from .field import Field, FieldZone, TypeConstraint, TypeInfo, TypeInfoBase
 from .file import Blob, File, Icon
 from .graph import (
@@ -98,7 +88,9 @@ from .node import (
     InlineStruct,
     Link,
     Node,
+    NodeReference,
     PackageNode,
+    PropertyReference,
     SourceNode,
     Struct,
 )
@@ -283,7 +275,6 @@ __all__ = [
     "ValidationError",
     "ValueList",
     "ValueObject",
-    "ValueReference",
     "Variant",
     "View",
     "ViewType",

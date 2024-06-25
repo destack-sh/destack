@@ -10,6 +10,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     AsyncIterator,
+    Callable,
     Collection,
     Optional,
     TypeVar,
@@ -424,6 +425,7 @@ class Connection[
         self._result: ResultT | None = None
         self._result_data: ResultDataT | None = None
         self._is_closed = False
+        self._update_subscribers: list[Callable[[UpdateT], None]] = []
 
     def __str__(self):
         is_live_postfix = " (live)" if self.is_live else ""
@@ -459,6 +461,12 @@ class Connection[
         assert self._result_data is not None, f"{self!r} has no result data"
         assert self._result_data.epoch is not None, f"{self!r} has no epoch"
         return self._result_data.epoch
+
+    @final
+    def on_update(self, callback: Callable[[UpdateT], None]):
+        """Register a callback for updates."""
+        assert self.is_live, f"{self!r} is not live"
+        self._update_subscribers.append(callback)
 
     @final
     async def connect(self) -> None:
@@ -527,6 +535,8 @@ class Connection[
                     async for update in self._do_subscribe(self.query, self._result_data):
                         self.log.trace(f"connect.{self.type_name}.update", update=update)
                         self._apply_update(self._result_data, self._result, update)
+                        for callback in self._update_subscribers:
+                            callback(update)
                 except Exception as e:
                     self.log.error(f"connect.{self.type_name}.error", exc_info=e)
                     retry.on_error(e)

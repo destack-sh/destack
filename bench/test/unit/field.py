@@ -2,8 +2,8 @@ from uuid import UUID
 
 import pytest
 
+from bench.language import NodeReference
 from bench.language.const import EnumType, NodeType, PrimitiveType, StructType
-from bench.language.expression import NodeReference
 from bench.language.field import TypeInfo, TypeKind, decode_type_identity, encode_type_identity
 from bench.language.node import get_tk_from_ptr_maybe
 
