@@ -1615,8 +1615,8 @@ async def pg_edit(
         del prev_edit  # for clarity
 
         # cascade edits down
-        # NOTE :Performance: we probably don't _always_ need to cascade down removes
-        #  (for instance in Host we may the edited graph loaded, so we could do this in memory)
+        # NOTE :Performance: sometimes we don't need to cascade down removes in PG
+        #  (for instance in Host we the edited graph may be loaded, so we could do this in memory)
         if edit_type in cascade and node_type in HAS_CHILD_NODE_TYPES:
             cascaded_edits = await _pg_edit_cascade(
                 cur=cur, edit_type=edit_type, node_type=node_type, batch=batch

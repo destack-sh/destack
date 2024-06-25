@@ -186,15 +186,14 @@ def unpack_commit(
     def _add_edit(edit: EditData, node: Node):
         if edit.type in (EditType.CREATE, EditType.UNARCHIVE, EditType.RESTORE):
             # TODO :Broken: not sure how to handle upsert here yet (just error for now)
+            removed.pop(node.id, None)
             added[node.id] = node
-            if node.id in removed:
-                del removed[node.id]
         elif edit.type in (EditType.MOVE, EditType.UPDATE):
             if node.id not in added:
                 updated[node.id] = node
         elif edit.type in (EditType.ARCHIVE, EditType.DELETE, EditType.ERASE):
-            if node.id in added:
-                del added[node.id]
+            added.pop(node.id, None)
+            updated.pop(node.id, None)
             removed[node.id] = node
         else:
             raise RuntimeError(f"unexpected edit type {edit.type} in {edit!r}")
@@ -219,7 +218,6 @@ def unpack_commit(
         _add_edit(edit, node)
 
     # any cascaded edits are expected to be full trusted nodes (from archive/unarchive/...)
-    unpacked_nodes: dict[UUID, Node] = {}
     for edit in cascaded_edits:
         node_type = NodeType(edit.node_ptr.type)
         edited_types[node_type.ord] = True
@@ -236,18 +234,20 @@ def unpack_commit(
         parent_id = UUID(node.parent_ptr.id)
         for graph in graphs:
             if parent_id in graph:
-                parent = graph.get(parent_id)
+                parent = graph[parent_id]
                 break
         else:
-            if parent_id in unpacked_nodes:
-                parent = unpacked_nodes[parent_id]
-            else:
-                # cascaded edits should bei in pre-order, so the parent must exist
-                raise RuntimeError(f"missing parent {parent_id} for {node!r} in {edit!r}")
+            # cascaded edits should bei in pre-order, so the parent must exist
+            raise RuntimeError(f"missing parent {parent_id} for {node!r} in {edit!r}")
+        # cascaded nodes may also be regularly edited nodes, so we add/update them
         node = wiring.unpack_object(
             node, supergraph=supergraph, parent=parent, session=session, expect=Node
         )
-        unpacked_nodes[node.id] = node
+        if node.id not in parent._graph:
+            parent._graph.add(node)
+        else:
+            parent._graph.update(node)
+
         # map
         _add_edit(edit, node)
 
