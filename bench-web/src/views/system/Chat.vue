@@ -369,6 +369,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
                   modelValue: nodePtr,
                   placeholder: 'Select Thread',
                   customIndex: graphIndex({
+                    id: 'graph',
                     graph: nodePtr == null ? localPkgGraph : pkgGraph,
                     metatypes: [NodeType.MESSAGE],
                     roots: [context!],

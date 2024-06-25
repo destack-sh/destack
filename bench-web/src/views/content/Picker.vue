@@ -93,7 +93,7 @@ const index: Ref<SearchIndex<any>> = computed(() => {
   if (props.customIndex != null) {
     return props.customIndex;
   } else if (isEnumType(props.valueType?.benchType)) {
-    return enumIndex([props.valueType.benchType]);
+    return enumIndex({ id: "enum", enumTypes: [props.valueType.benchType] });
   } else if (isNodeType(props.valueType?.benchType)) {
     let roots: AnyNodeData[] | undefined = undefined;
     if (props.valueType.baseTypePtr != null) {
@@ -102,13 +102,14 @@ const index: Ref<SearchIndex<any>> = computed(() => {
       if (base != null) roots = [base];
     }
     return graphIndex({
+      id: "graph",
       graph: pkgGraph,
       metatypes: [props.valueType.benchType],
       roots,
       skipDepth: roots != null ? 0 : 2,
     });
   } else if (props.valueType?.benchType == BenchType.TYPE_INFO) {
-    return typeIndex({ graph: pkgGraph, skipDepth: 2 });
+    return typeIndex({ id: "type", graph: pkgGraph, skipDepth: 2 });
   } else {
     throw new Error(`unsupported value type: ${props.valueType?.benchType}`);
   }
