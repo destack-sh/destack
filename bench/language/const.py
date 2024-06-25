@@ -21,7 +21,7 @@ class _Unset:
         return "<UNSET!>"
 
 
-VERSION = "2024.06.25.0"
+VERSION = "2024.06.25.1"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -303,12 +303,13 @@ class StructType(IdEnum):
     ACCESS_MATRIX = 1035
     ACCESS = 1037
     ...
-    READ_OPTIONS = 1050
 
     # expressions
     EXPRESSION = 1060
     AGGREGATION = 1061
     SELECTION = 1070
+    QUERY_INFO = 1080
+    READ_OPTIONS = 1085
 
     # code
     CODE = 1090

@@ -741,7 +741,7 @@ declareActionMap<"common">({
     text: "Find implementations of this node",
   },
   // session
-  // nocheckin: session.* action handling (in Block/Step/Page/...)
+  // TODO :Incomplete: session.* action handling (in Block/Step/Page/...)
   "common.session.run": {
     icon: "fas fa-play",
     title: "Run",
