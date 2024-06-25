@@ -25,9 +25,7 @@ _reader: PeriodicExportingMetricReader | None
 
 
 def setup_tracing():
-    global _processor
-    global _reader
-    global _setup_tracing
+    global _processor, _reader, _setup_tracing
     if _setup_tracing:
         return
     TRACING = get_from_env("TRACING", typ=bool, description="Enable tracing")
@@ -63,6 +61,7 @@ def setup_tracing():
 
 def export_now():
     """Exports all pending spans and metrics."""
+    global _processor, _reader
     if _processor:
         _processor.force_flush()
     if _reader:

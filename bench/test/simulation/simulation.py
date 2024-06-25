@@ -298,7 +298,7 @@ AVAILABLE_SIMULATIONS: list[SimulationSpec] = [
         clients=(ClientSpec(name="alice-1", username="alice"),),
         hosts=(HostSpec(bench=BenchSpec(name="alice", owner="alice")),),
         workloads=(
-            WriteBlockTreeSpec(bench="alice", client="alice-1"),
+            WriteBlockTreeSpec(bench="alice", client="alice-1", transactions=10),
             ReadPackageSpec(bench="alice", client="alice-1"),
         ),
     ),
