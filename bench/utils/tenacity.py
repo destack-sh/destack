@@ -4,6 +4,7 @@ from typing import Any, Awaitable, Callable, Coroutine, Type, TypeVar, Union
 
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
+from grpclib.exceptions import ProtocolError, StreamTerminatedError
 
 from bench.utils.oracle import Oracle
 
@@ -67,14 +68,22 @@ class RetryState:
 
     def __repr__(self) -> str:
         return f"<RetryState {self}>"
+    
+    def on_success(self):
+        self.attempt = 0
+        self.errors = None
 
     def on_attempt(self):
         self.attempt += 1
 
-    def on_error(self, error: Exception):
+    def on_error(self, error: Exception) -> bool:
         if self.errors is None:
             self.errors = []
         self.errors.append(error)
+        should_retry_on_error = isinstance(error, self.options.retry_on) and (
+            self.options.retry_if is None or self.options.retry_if(error)
+        )
+        return should_retry_on_error
 
     @property
     def last_error(self) -> Exception | None:
@@ -149,7 +158,7 @@ def is_retryable_grpc_error(e: Exception) -> bool:
             GRPCStatus.DEADLINE_EXCEEDED,
             GRPCStatus.RESOURCE_EXHAUSTED,
         )
-    ) or isinstance(e, OSError)
+    ) or isinstance(e, (OSError, StreamTerminatedError, ProtocolError))
 
 
 RETRY_STANDARD = RetryOptions()

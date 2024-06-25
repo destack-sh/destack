@@ -17,7 +17,6 @@ from bench.language.const import (
     PUBLIC_NODE_TYPES,
     ClientType,
     NodeType,
-    RunStatus,
 )
 from bench.language.graph import NodeSuperGraph
 from bench.language.run import Run
@@ -167,7 +166,7 @@ class Runtime(ServiceBase, RuntimeBase):
                 scope=GraphScope(),
                 node_types=PUBLIC_NODE_TYPES,
                 remote=self._supervisor,
-                retry=RETRY_GRPC_FOREVER,
+                write_retry=RETRY_GRPC_FOREVER,
                 rpc_metadata=self._rpc_metadata,
             ),
             # bench engine
@@ -175,7 +174,7 @@ class Runtime(ServiceBase, RuntimeBase):
                 scope=bench_scope,
                 node_types=BENCH_NODE_TYPES | IN_PACKAGE_NODE_TYPES,
                 remote=self._host,
-                retry=RETRY_GRPC_FOREVER,
+                write_retry=RETRY_GRPC_FOREVER,
                 rpc_metadata=self._rpc_metadata,
             ),
         )
@@ -263,6 +262,7 @@ class Runtime(ServiceBase, RuntimeBase):
     async def queue_run(self, request: QueueRunRequest) -> QueueRunResponse:
         assert self._client is not None, f"{self!r} not ready"
 
+        # unpack to ensure it's valid
         # mark run as queued in this runtime
         run = wiring.unpack_object(
             request.run,
@@ -272,12 +272,7 @@ class Runtime(ServiceBase, RuntimeBase):
             expect=Run,
             skip_add_self=False,
         )
-        async with self.session(autocommit=True):
-            run.status = RunStatus.QUEUED
-            if isinstance(self._client.parent, Server):
-                run.server = self._client.parent
-            run.client = self._client
-            run.machine = self._machine
+        # (NOTE: should we mark it as queued? only if the queue is long?)
 
         # just add to main queue
         self._run_queue.put_nowait(run._to_data())

@@ -201,7 +201,7 @@ class ConnectionSubscription[UpdateT: Any]:
 
 
 # TODO :Security!: apply policies to connection subscriptions
-#  (might need a per-connection-type subscription subtype?)
+#  (need some per-connection-type subscription info?)
 
 
 class NodeConnection[
@@ -210,17 +210,17 @@ class NodeConnection[
 ](Connection[ResultT, UpdateT]):
     """Base connection for get/search queries in the graph."""
 
-    def _apply_node_edits(
+    def _apply_node_edits_in_scope(
         self,
         updated_graph: NodeDataGraphLike,
-        unfiltered_edits: list[EditData],
+        edits: list[EditData],
         is_cascaded: bool,
     ) -> list[EditData]:
-        """Apply relevant node edits to our result graph, return filtered edits."""
+        """Apply node edits that are in the scope of our result graph, return applied edits."""
         options = self.query._options or DEFAULT_READ_OPTIONS
         result_graph = self.result.graph
-        filtered_edits: list[EditData] = []
-        for edit in unfiltered_edits:
+        applied_edits: list[EditData] = []
+        for edit in edits:
             # filter type
             node_type = NodeType(edit.node_ptr.type)
             if node_type not in self._node_types:
@@ -230,19 +230,23 @@ class NodeConnection[
             # filter scope
             node_id = edit.node_ptr.id
             assert node_id, f"missing node id for {edit.node_ptr!r}"
-            if is_cascaded:
+            updated_node = updated_graph.get(node_id)
+            if updated_node is None:
                 if edit.type in (EditType.ARCHIVE, EditType.DELETE, EditType.ERASE):
                     assert edit.old_node_packed, f"missing old node data for {edit!r}"
                     updated_node = unpack_node_delta(edit.old_node_packed, node_type=node_type)
-                elif edit.type in (EditType.UNARCHIVE, EditType.RESTORE):
+                elif edit.type in (
+                    EditType.UNARCHIVE,
+                    EditType.RESTORE,
+                    EditType.CREATE,
+                    EditType.UPSERT,
+                ):
                     assert edit.new_node_packed, f"missing new node data for {edit!r}"
                     updated_node = unpack_node_delta(edit.new_node_packed, node_type=node_type)
                 else:
-                    raise RuntimeError(f"unexpected cascaded edit type {edit.type} in {edit!r}")
-            else:
-                updated_node = updated_graph.get(node_id)
-                # (all edited nodes must be in the data graph, even deleted ones)
-                assert updated_node is not None, f"missing node data for {edit.node_ptr!r}"
+                    raise RuntimeError(f"unexpected empty edit type {edit.type} in {edit!r}")
+            # (all edited nodes must be either in graph or full in edit, even deleted ones)
+            assert updated_node is not None, f"missing node data for {edit.node_ptr!r}"
             if edit.type in (EditType.CREATE, EditType.UPSERT) or (
                 not options.include_hidden and edit_type in (EditType.UNARCHIVE, EditType.RESTORE)
             ):
@@ -258,7 +262,7 @@ class NodeConnection[
                 continue  # irrelevant scope
 
             # apply (just copy node instead of actually applying edit, we don't modify anything)
-            filtered_edits.append(edit)
+            applied_edits.append(edit)
             if edit_type == EditType.ERASE or (
                 not options.include_hidden and edit_type in (EditType.ARCHIVE, EditType.DELETE)
             ):
@@ -268,7 +272,7 @@ class NodeConnection[
                 result_graph.update(updated_node)
             else:
                 result_graph.add(updated_node)
-        return filtered_edits
+        return applied_edits
 
 
 class GetConnection(NodeConnection[GetResultData, WatchGetUpdate]):
@@ -280,7 +284,7 @@ class GetConnection(NodeConnection[GetResultData, WatchGetUpdate]):
     read_type: ClassVar[ReadType] = ReadType.GET
 
     def __result_str__(self, result: GetResultData) -> str:
-        return f"{len(result.graph)} nodes"
+        return f"nodes={len(result.graph)}"
 
     @override
     async def connect(self, session: Session) -> GetResultData:
@@ -299,11 +303,11 @@ class GetConnection(NodeConnection[GetResultData, WatchGetUpdate]):
         epoch: int,
     ):
         # filter to relevant edits & update result graph
-        filtered_edits = self._apply_node_edits(
-            updated_graph=graph, unfiltered_edits=edits, is_cascaded=False
+        filtered_edits = self._apply_node_edits_in_scope(
+            updated_graph=graph, edits=edits, is_cascaded=False
         )
-        filtered_cascaded_edits = self._apply_node_edits(
-            updated_graph=graph, unfiltered_edits=cascaded_edits, is_cascaded=True
+        filtered_cascaded_edits = self._apply_node_edits_in_scope(
+            updated_graph=graph, edits=cascaded_edits, is_cascaded=True
         )
 
         # emit update if any
@@ -330,7 +334,7 @@ class SearchConnection(NodeConnection[SearchResultData, WatchSearchUpdate]):
     read_type: ClassVar[ReadType] = ReadType.SEARCH
 
     def __result_str__(self, result: SearchResultData) -> str:
-        return f"{len(result.graph)} nodes, {len(result.roots)} roots, total={result.total}"
+        return f"nodes={len(result.graph)}, roots={len(result.roots)}, total={result.total}"
 
     @override
     async def connect(self, session: Session) -> SearchResultData:
@@ -350,7 +354,15 @@ class SearchConnection(NodeConnection[SearchResultData, WatchSearchUpdate]):
         cascaded_edits: list[EditData],
         epoch: int,
     ):
-        raise NotImplementedError("nocheckin: SearchConnection.on_commit")
+        # filter edits to relevant nodes & update result graph
+        filtered_edits = self._apply_node_edits_in_scope(
+            updated_graph=graph, edits=edits, is_cascaded=False
+        )
+        filtered_cascaded_edits = self._apply_node_edits_in_scope(
+            updated_graph=graph, edits=cascaded_edits, is_cascaded=True
+        )
+
+        # nocheckin: SearchConnection.on_commit
 
 
 class AggregateConnection(Connection[AggregateResultData, WatchAggregateUpdate]):
@@ -362,7 +374,7 @@ class AggregateConnection(Connection[AggregateResultData, WatchAggregateUpdate])
     read_type: ClassVar[ReadType] = ReadType.AGGREGATE
 
     def __result_str__(self, result: AggregateResultData) -> str:
-        return f"{result.aggregation!r}"
+        return f"aggregation={result.aggregation!r}"
 
     @override
     async def connect(self, session: Session) -> AggregateResultData:
