@@ -172,7 +172,7 @@ def _make_remote_engines(
             scope=GraphScope(),
             node_types=PUBLIC_NODE_TYPES,
             remote=supervisor_client,
-            retry=RETRY_GRPC_FOREVER,
+            write_retry=RETRY_GRPC_FOREVER,
             rpc_metadata=client.rpc_metadata,
         ),
         # bench engine
@@ -180,7 +180,7 @@ def _make_remote_engines(
             scope=GraphScope(bench_id=str(bench_id)),
             node_types=BENCH_NODE_TYPES | IN_PACKAGE_NODE_TYPES,
             remote=host_client,
-            retry=RETRY_GRPC_FOREVER,
+            write_retry=RETRY_GRPC_FOREVER,
             rpc_metadata=client.rpc_metadata,
         ),
     )
@@ -411,3 +411,5 @@ class WatchLogsWorkload(SingleClientWorkloadBase[WatchLogsSpec]):
     @override
     async def _do_run_in_session(self, session: Session):
         logs = await Log.order_by("-created_at").search(live=True)
+
+        # nocheckin: collect updates? check/compare logs?

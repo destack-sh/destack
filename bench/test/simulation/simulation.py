@@ -260,14 +260,14 @@ class Network:
 # NOTE :Test: read simulation specs from disk (some JSON schema + toml thing?)
 #  probably also mark and categorize them?
 AVAILABLE_SIMULATIONS: list[SimulationSpec] = [
-    # sanity
+    # empty tests to sanity test simulation setup
     SimulationSpec(
-        name="single_client_sanity",
+        name="SingleClientEmpty",
         profile=TestProfile.QUICK,
         clients=(ClientSpec(name="alice-1", username="alice"),),
     ),
     SimulationSpec(
-        name="multi_client_sanity",
+        name="MultiClientEmpty",
         profile=TestProfile.QUICK,
         clients=(
             ClientSpec(name="alice-1", username="alice"),
@@ -276,13 +276,13 @@ AVAILABLE_SIMULATIONS: list[SimulationSpec] = [
         ),
     ),
     SimulationSpec(
-        name="single_host_sanity",
+        name="SingleHostEmpty",
         profile=TestProfile.QUICK,
         clients=(ClientSpec(name="alice-1", username="alice"),),
         hosts=(HostSpec(bench=BenchSpec(name="alice", owner="alice")),),
     ),
     SimulationSpec(
-        name="multi_host_sanity",
+        name="MultiHostEmpty",
         profile=TestProfile.QUICK,
         clients=(
             ClientSpec(name="alice-1", username="alice"),

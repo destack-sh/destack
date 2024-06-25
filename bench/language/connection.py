@@ -52,7 +52,7 @@ from bench.proto.wire import (
 )
 from bench.utils.func import bittuple, group_by, repr_enums
 from bench.utils.task import create_task
-from bench.utils.tenacity import RETRY_GRPC, RetryOptions
+from bench.utils.tenacity import RETRY_GRPC, RETRY_GRPC_FOREVER, RetryOptions
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -89,6 +89,7 @@ class ChannelError(BenchError):
         query: Optional["QueryBuilder"] | Collection[EditData] = None,
         expression: Union["Expression", list["Expression"], None] = None,
         reason: str | None = None,
+        cause: Exception | None = None,
     ):
         if query is not None:
             action = repr(query)
@@ -101,6 +102,7 @@ class ChannelError(BenchError):
         self.query = query
         self.expression = expression
         self.reason = reason
+        self.__cause__ = cause
 
 
 class ChannelUnavailableError(ChannelError):
@@ -278,12 +280,6 @@ class NullEngine(GraphEngine):
         raise ChannelIncapableError(self, reason="null engine")
 
 
-RETRY_IF_CHANNEL_UNAVAILABLE = RetryOptions(
-    max_attempts=-1,
-    retry_on=(ChannelUnavailableError,),
-)
-
-
 class Channel[E: GraphEngine](abc.ABC):
     """A channel to a specific store to read from in a session."""
 
@@ -301,6 +297,10 @@ class Channel[E: GraphEngine](abc.ABC):
         else:
             return f"<{self.__class__.__name__}>"
 
+    @property
+    def read_retry(self) -> RetryOptions:
+        return RetryOptions(retry_on=(ChannelUnavailableError,))
+
     async def close(self):  # noqa: B027
         """Closes this channel to all further operations."""
         pass  # nothing to do
@@ -308,10 +308,6 @@ class Channel[E: GraphEngine](abc.ABC):
     #
     # Read
     #
-
-    @property
-    def retry(self) -> RetryOptions:
-        return RETRY_IF_CHANNEL_UNAVAILABLE
 
     @abc.abstractmethod
     def _get_connection_cls(
@@ -325,7 +321,7 @@ class Channel[E: GraphEngine](abc.ABC):
         assert query._roots is not None, f"{query!r} has no roots"
         scope = self.session._get_scope_for_query(query)
         connection_cls = self._get_connection_cls(query, scope, options)
-        connection = connection_cls(self, scope, query, self.retry, options)
+        connection = connection_cls(self, scope, query, self.read_retry, options)
         assert isinstance(connection, GetConnection), f"{connection!r} is not a get"
         await connection.connect()
         return connection
@@ -336,7 +332,7 @@ class Channel[E: GraphEngine](abc.ABC):
         assert query._read_type == ReadType.SEARCH, f"{query!r} is not a search"
         scope = self.session._get_scope_for_query(query)
         connection_cls = self._get_connection_cls(query, scope, options)
-        connection = connection_cls(self, scope, query, self.retry, options)
+        connection = connection_cls(self, scope, query, self.read_retry, options)
         assert isinstance(connection, SearchConnection), f"{connection!r} is not a search"
         await connection.connect()
         return connection
@@ -350,7 +346,7 @@ class Channel[E: GraphEngine](abc.ABC):
         assert query._aggregation is not None, f"{query!r} has no aggregation"
         scope = self.session._get_scope_for_query(query)
         connection_cls = self._get_connection_cls(query, scope, options)
-        connection = connection_cls(self, scope, query, self.retry, options)
+        connection = connection_cls(self, scope, query, self.read_retry, options)
         assert isinstance(connection, AggregateConnection), f"{connection!r} is not an aggregate"
         await connection.connect()
         return connection
@@ -488,11 +484,13 @@ class Connection[
                             self.log.trace(f"connect.{self.type_name}", span="current")
                             break  # success
                         except Exception as e:
-                            self.log.error(f"connect.{self.type_name}.error", exc_info=e)
-                            retry.on_error(e)
-                            if not isinstance(e, self.retry.retry_on):
+                            interval = retry.get_wait_interval()
+                            self.log.error(
+                                f"connect.{self.type_name}.error", exc_info=e, interval=interval
+                            )
+                            if not retry.on_error(e):
                                 raise
-                            await self.session._oracle.sleep(retry.get_wait_interval())
+                            await self.session._oracle.sleep(interval)
                             continue
                 else:
                     raise retry.to_error(operation=self.query)
@@ -531,6 +529,7 @@ class Connection[
                     if self.options.unpack:
                         self._result = self._unpack_result(self._result_data)
                     self._has_result.set()
+                    retry.on_success()
                     # subscribe
                     async for update in self._do_subscribe(self.query, self._result_data):
                         self.log.trace(f"connect.{self.type_name}.update", update=update)
@@ -538,11 +537,11 @@ class Connection[
                         for callback in self._update_subscribers:
                             callback(update)
                 except Exception as e:
-                    self.log.error(f"connect.{self.type_name}.error", exc_info=e)
-                    retry.on_error(e)
-                    if not isinstance(e, self.retry.retry_on):
+                    interval = retry.get_wait_interval()
+                    self.log.error(f"connect.{self.type_name}.error", exc_info=e, interval=interval)
+                    if not retry.on_error(e):
                         raise
-                    await self.session._oracle.sleep(retry.get_wait_interval())
+                    await self.session._oracle.sleep(interval)
                     continue
         except Exception as e:
             if self.session._on_error:
@@ -1008,7 +1007,7 @@ class RemoteEngine(GraphEngine["RemoteChannel"]):
         node_types: bittuple[NodeType],
         remote: GraphIoClient | HostClient | SupervisorClient,
         rpc_metadata: RpcMetadata,
-        retry: RetryOptions = RETRY_GRPC,
+        write_retry: RetryOptions = RETRY_GRPC,
     ):
         super().__init__(scope, node_types)
         from bench.proto.wiring import pack_rpc_headers
@@ -1016,7 +1015,7 @@ class RemoteEngine(GraphEngine["RemoteChannel"]):
         self.remote = remote
         self.rpc_metadata = rpc_metadata
         self.rpc_headers = pack_rpc_headers(rpc_metadata)
-        self.retry = retry
+        self.write_retry = write_retry
 
     def __str__(self):
         return f"scope={self.scope!r}, node_types={repr_enums(self.node_types)}, remote={self.remote.__class__.__name__}"
@@ -1044,6 +1043,11 @@ class RemoteChannel(WritableChannel[RemoteEngine]):
         else:
             raise RuntimeError(f"unsupported read type {query._read_type}")
 
+    @property
+    @override
+    def read_retry(self):
+        return RETRY_GRPC_FOREVER
+
     @staticmethod
     def _rpc(func):
         """Wraps an RPC function with tracing & retries."""
@@ -1052,7 +1056,7 @@ class RemoteChannel(WritableChannel[RemoteEngine]):
         @wraps(func)
         @tracer.start_as_current_span(f"remote.{method_name}")
         async def wrapper(self: "RemoteChannel", *args, **kwargs):
-            retry = self.engine.retry.new(self.session._oracle)
+            retry = self.engine.write_retry.new(self.session._oracle)
             while retry.should_retry:
                 retry.on_attempt()
                 try:
@@ -1060,7 +1064,7 @@ class RemoteChannel(WritableChannel[RemoteEngine]):
                 except Exception as e:
                     logger.error(f"remote.{method_name}.error", channel=self, exc_info=True)
                     retry.on_error(e)
-                    if not isinstance(e, self.retry.retry_on):
+                    if not isinstance(e, self.read_retry.retry_on):
                         raise
                     if retry.should_retry:
                         await self.session._oracle.sleep(retry.get_wait_interval())

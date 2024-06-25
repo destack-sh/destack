@@ -160,7 +160,7 @@ class RuntimeThread:
         logger.info("thread.start", process=self, bench=self._bench, span="current")
 
     async def _process_run(self, run_data: RunData):
-        # TODO :Architecture!: process run in steps/ticks somehow
+        # TODO :Incomplete :Architecture!: process run in steps/ticks somehow
         #  (also: flush run/session state independent from other nodes, handle pausing, ...)
         assert self._main_package is not None, f"no main package for {self!r}"
         package = self._main_package
@@ -177,6 +177,9 @@ class RuntimeThread:
                 expect=Run,
             )
             run._unpack_values_inplace()  # values are a bit crummy :NoFakeComputed
+            run.client = self._client
+            run.server = self._machine.parent if self._machine else None
+            run.machine = self._machine
             run.status = RunStatus.RUNNING
             run.started_at = session._oracle.utc()
             run.started_epoch = self.epoch

@@ -74,7 +74,7 @@ async def bootstrap(region: Region = Region.EUROPE_CENTRAL):
 async def make_server_client(bench_slug: str, name: str = "Localhost"):
     global_store = global_store_from_env()
     global_pg_engine = global_pg_engine_from_store(global_store)
-    async with global_session(global_store, (global_pg_engine,), REAL_ORACLE) as session:
+    async with global_session(global_store, (global_pg_engine,), REAL_ORACLE, epoch=0) as session:
         bench = (
             await Bench.descendants(NodeType.SERVER, NodeType.MACHINE, NodeType.CLIENT)
             .select_all()
@@ -88,6 +88,7 @@ async def make_server_client(bench_slug: str, name: str = "Localhost"):
                 type=ClientType.BENCH_SERVER,
                 name=name,
                 access_token=generate_access_token(ACCESS_TOKEN_LENGTH),
+                seen_at=REAL_ORACLE.utc(),
             )
         machine = first(server.machines, None)
         if machine is None:
