@@ -5,11 +5,10 @@ from uuid import uuid4
 import pytest
 from grpclib import Status as GRPCStatus
 
-from bench.language import ReadOptions, User
+from bench.language import NodeReference, ReadOptions, User
 from bench.language.const import (
     NodeType,
 )
-from bench.language.expression import NodeReference
 from bench.language.property import Property
 from bench.proto import wire
 from bench.proto.wire import (

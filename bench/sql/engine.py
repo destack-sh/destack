@@ -27,7 +27,7 @@ from opentelemetry import trace
 from psycopg import OperationalError, sql
 from psycopg.types.json import Jsonb
 
-from bench.language import Block, ConditionalOp, Field, Property
+from bench.language import Block, ConditionalOp, Field, NodeReference, Property
 from bench.language.connection import ChannelIncapableError
 from bench.language.const import (
     CASCADING_EDIT_TYPES,
@@ -42,7 +42,7 @@ from bench.language.const import (
     ReferenceKind,
     SortOp,
 )
-from bench.language.expression import C, Expression, ExpressionOps, NodeReference
+from bench.language.expression import C, Expression, ExpressionOps
 from bench.language.graph import NodeDataGraph
 from bench.language.node import NODE_CLASS_BY_TYPE, UNSET, BenchNode, Node
 from bench.language.query import FILTER_VISIBLE, SELECT_ALL_PROPERTIES, ReadOptions

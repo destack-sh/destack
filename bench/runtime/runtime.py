@@ -8,7 +8,7 @@ import structlog
 from grpclib.client import Channel
 from opentelemetry import trace
 
-from bench.language import Bench, Package
+from bench.language import Bench, NodeReference, Package
 from bench.language.bench import Client, Machine, Server
 from bench.language.connection import RemoteEngine
 from bench.language.const import (
@@ -19,7 +19,6 @@ from bench.language.const import (
     NodeType,
     RunStatus,
 )
-from bench.language.expression import NodeReference
 from bench.language.graph import NodeSuperGraph
 from bench.language.run import Run
 from bench.language.session import Session, unsuspend_session

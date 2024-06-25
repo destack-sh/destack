@@ -29,6 +29,7 @@ from bench.test.simulation.spec import (
 from bench.test.simulation.transport import SimulatedChannel
 from bench.test.simulation.workload import (
     ReadPackageSpec,
+    WatchLogsSpec,
     WorkloadBase,
     WriteBlockTreeSpec,
     get_workload_cls,
@@ -294,7 +295,7 @@ AVAILABLE_SIMULATIONS: list[SimulationSpec] = [
     ),
     # simple
     SimulationSpec(
-        name="single_writer_single_reader_block_tree",
+        name="SingleWriterBlockTree",
         clients=(ClientSpec(name="alice-1", username="alice"),),
         hosts=(HostSpec(bench=BenchSpec(name="alice", owner="alice")),),
         workloads=(
@@ -303,7 +304,7 @@ AVAILABLE_SIMULATIONS: list[SimulationSpec] = [
         ),
     ),
     SimulationSpec(
-        name="single_writer_multi_reader_block_tree",
+        name="SingleWriterMultiReaderBlockTree",
         hosts=(HostSpec(bench=BenchSpec(name="alice", owner="alice")),),
         clients=(
             ClientSpec(name="alice-1", username="alice"),
@@ -317,6 +318,19 @@ AVAILABLE_SIMULATIONS: list[SimulationSpec] = [
             ReadPackageSpec(bench="alice", client="alice-1", group="alice-0-main"),
             ReadPackageSpec(bench="alice", client="alice-2", group="alice-0-main"),
             ReadPackageSpec(bench="alice", client="alice-3", group="alice-0-main"),
+        ),
+    ),
+    SimulationSpec(
+        name="SingleWriterLogWatch",
+        clients=(
+            ClientSpec(name="alice-1", username="alice"),
+            ClientSpec(name="alice-2", username="alice"),
+        ),
+        hosts=(HostSpec(bench=BenchSpec(name="alice", owner="alice")),),
+        workloads=(
+            WriteBlockTreeSpec(bench="alice", client="alice-1", transactions=10),
+            WatchLogsSpec(bench="alice", client="alice-1", group="alice-0-main"),
+            WatchLogsSpec(bench="alice", client="alice-2", group="alice-0-main"),
         ),
     ),
     # TODO :Test!: test multi-writer, various write patterns, latency, ...

@@ -6,6 +6,7 @@ from uuid import UUID
 import structlog
 from opentelemetry import trace
 
+from bench.language import NodeReference
 from bench.language.bench import Bench, Branch, Client, Package
 from bench.language.block import Block
 from bench.language.connection import GraphEngine, RemoteEngine
@@ -18,8 +19,8 @@ from bench.language.const import (
     EditType,
     NodeType,
 )
-from bench.language.expression import NodeReference
 from bench.language.graph import NodeGraph, NodeSuperGraph
+from bench.language.log import Log
 from bench.language.session import Session, unsuspend_session
 from bench.language.user import User
 from bench.proto.wire import GraphScope, HostClient, SupervisorClient
@@ -341,6 +342,9 @@ class WriteBlockTreeWorkload(SingleClientWorkloadBase[WriteBlockTreeSpec]):
                     block.delete()
                 else:
                     raise NotImplementedError(f"unexpected edit type {edit_type}")
+            assert (
+                len(self.session.tx.pending_edits) <= max_edits
+            ), f"{self.session!s} has too many pending edits for {self!r} ({self.session.tx.pending_edits})"
             await self.session.commit()
             n_transactions += 1
 
@@ -398,11 +402,12 @@ def assert_graph_equals(graph_a: NodeGraph, graph_b: NodeGraph):
 
 @dataclass
 class WatchLogsSpec(SingleClientWorkloadSpec):
-    type: WorkloadType = WorkloadType.REPLAY_LOG
+    type: WorkloadType = WorkloadType.WATCH_LOGS
     live: bool = True
 
 
 @workload(WorkloadType.WATCH_LOGS, WatchLogsSpec)
 class WatchLogsWorkload(SingleClientWorkloadBase[WatchLogsSpec]):
     @override
-    async def _do_run_in_session(self, session: Session): ...
+    async def _do_run_in_session(self, session: Session):
+        logs = await Log.order_by("-created_at").search(live=True)

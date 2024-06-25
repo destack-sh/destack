@@ -2,11 +2,9 @@
 
 import functools
 import re
-from typing import TYPE_CHECKING, Any, Collection, Optional, Type, TypeVar, Union, cast, override
-from uuid import UUID
+from typing import TYPE_CHECKING, Any, Optional, TypeVar, Union, cast
 
 from bench.language.const import (
-    BASED_NODE_TYPES,
     IN_BENCH_NODE_TYPES,
     AggregationOp,
     ConditionalOp,
@@ -14,34 +12,27 @@ from bench.language.const import (
     ExpressionKind,
     ExpressionOp,
     NodeType,
-    ObjectType,
     SortMode,
     SortOp,
     StructType,
-    _active_session,
     enum_,
 )
 from bench.language.node import (
-    BenchNode,
-    BuiltinObject,
-    HasNodeBase,
     InlineStruct,
     Node,
     Property,
     Struct,
     struct_,
 )
-from bench.language.property import p_internal, p_regular, p_value_packed, p_value_runtime
-from bench.language.setup import OBJECT_CLASS_BY_TYPE
-from bench.language.validation import ValidationHandler
+from bench.language.property import p_regular, p_value_packed, p_value_runtime
 from bench.language.value import HasValues
-from bench.proto.wire import AnyNodeData, NodeReferenceData
+from bench.proto.wire import AnyNodeData
 from bench.sql.core import PrimitiveType
 from bench.utils.casing import Casing, to_casing
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
-    from bench.language import Block, Field, Path, TypeInfoBase
+    from bench.language import Block, Field, TypeInfoBase
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -77,211 +68,6 @@ _CONDITIONAL_OP_SIGN: dict[ConditionalOp, str] = {
     # vector
     ConditionalOp.NEAR: "~=",
 }
-
-
-@struct_(StructType.NODE_REFERENCE, inline=True)
-class NodeReference(InlineStruct[NodeReferenceData]):
-    """
-    A reference to a Node.
-    We include the Bench and 'ck' where available.
-    Base = the node is 'based' on (like Record.parent->Block, Signal.type->Block).
-    """
-
-    type: NodeType = p_internal(30, require=True)
-    id: Optional[UUID] = p_internal(31, default=None)
-    ck: Optional[UUID] = p_internal(32, default=None)
-    bench_id: Optional[UUID] = p_internal(33, default=None)
-    base_ck: Optional[UUID] = p_internal(34, default=None)
-    # base could be in a different Bench (e.g. a Signal in Bench A with a type from Bench B)
-    base_bench_id: Optional[UUID] = p_internal(35, default=None)
-
-    def __content_str__(self):
-        content_parts = []
-        if self.id is not None:
-            content_parts.append(f"id={self.id}")
-        if self.ck is not None:
-            if self.ck == self.id:
-                content_parts.append("ck=id")
-            else:
-                content_parts.append(f"ck={self.ck}")
-        if self.bench_id is not None:
-            content_parts.append(f"bench_id={self.bench_id}")
-        if self.base_ck is not None:
-            content_parts.append(f"base_ck={self.base_ck}")
-        if self.base_bench_id is not None:
-            content_parts.append(f"base_bench_id={self.base_bench_id}")
-        selector_str = ", ".join(content_parts)
-        return f"{self.type.bench_name}:[{selector_str}]"
-
-    def _validate_component(
-        self, properties: Collection[Property], invalid: "ValidationHandler"
-    ) -> None:
-        if self.id is None:
-            invalid(self, "id is required", (NodeReference.id,))
-        # NOTE :Robustness: we use to require bench_id for sub-bench types here
-        #  but sometimes we send around nodes (with references) before they are attached
-        # if (
-        #     self.type in SUB_BENCH_NODE_TYPES
-        #     and self.type not in USER_NODE_TYPES
-        #     and self.bench_id is None
-        # ):
-        #     invalid(self, "bench_id is required", (NodeReference.bench_id,))
-
-    @staticmethod
-    def from_node(node: Node) -> "NodeReference":
-        """Turn a node into a reference to that node."""
-        assert isinstance(node, Node), f"expected Node, got {node!r}"
-        reference = NodeReference(type=node.metatype, id=node.id, ck=node.ck)
-
-        # bench
-        if node.metatype == NodeType.BENCH:
-            reference.bench_id = node.id
-        elif isinstance(node, BenchNode):
-            bench_id = node.bench_id
-            if bench_id is None:
-                # maybe just creating, try from context
-                session = _active_session.get()
-                if session is not None and session.bench_id is not None:
-                    bench_id = session.bench_id
-            reference.bench_id = bench_id
-        # base
-        if node.metatype in BASED_NODE_TYPES:
-            base = cast(HasNodeBase, node).base
-            if base is not None:
-                reference.base_ck = base.ck
-                base_bench_id = base.bench_id
-                if base_bench_id is None:
-                    # maybe also just creating, try from context
-                    session = _active_session.get()
-                    if session is not None and session.bench_id is not None:
-                        base_bench_id = session.bench_id
-                reference.base_bench_id = base_bench_id
-
-        return reference
-
-    @staticmethod
-    def from_node_data(node_data: AnyNodeData) -> "NodeReferenceData":
-        """Turn a data node into a data node reference to that node."""
-        from bench.proto import wire
-
-        node_cls = OBJECT_CLASS_BY_TYPE[cast(ObjectType, node_data.metatype)]
-        reference = NodeReferenceData(
-            metatype=wire.ObjectType.NODE_REFERENCE,
-            type=cast(wire.NodeType, node_data.metatype),
-            id=node_data.id,
-            ck=getattr(node_data, "ck", node_data.id),
-        )
-
-        # bench
-        if node_data.metatype == NodeType.BENCH:
-            reference.bench_id = node_data.id
-        elif "bench" in node_cls.__properties__ and node_data.parent_ptr is not None:
-            reference.bench_id = node_data.parent_ptr.bench_id
-        # base
-        if NodeType(node_data.metatype) in BASED_NODE_TYPES:
-            base = cast(HasNodeBase, node_cls).get_base_from_data(node_data)
-            if base is not None:
-                reference.base_ck = base.ck
-                reference.base_bench_id = base.bench_id
-
-        return reference
-
-    @staticmethod
-    def data_from_node(node: Node) -> "NodeReferenceData":
-        """Turn a node straight to a data node reference."""
-        from bench.proto import wire
-
-        reference = NodeReferenceData(
-            metatype=wire.ObjectType.NODE_REFERENCE,
-            type=cast(wire.NodeType, node.metatype),
-            id=str(node.id),
-            ck=str(node.ck),
-        )
-
-        # bench
-        if node.metatype == NodeType.BENCH:
-            reference.bench_id = str(node.id)
-        elif isinstance(node, BenchNode) and node.bench_id is not None:
-            reference.bench_id = str(node.bench_id)
-        # base
-        if node.metatype in BASED_NODE_TYPES:
-            base = cast(HasNodeBase, node).base
-            if base is not None:
-                reference.base_ck = str(base.ck)
-                reference.base_bench_id = str(base.bench_id)
-
-        return reference
-
-
-@struct_(StructType.PROPERTY_REFERENCE, inline=True)
-class PropertyReference(InlineStruct):
-    """
-    A reference to a builtin object's Property.
-    If type is unset, this refers to a base property in one of the base BuiltinObject types.
-    """
-
-    type: ObjectType | None = p_regular(30)
-    id: int = p_regular(31)
-    references_node: Optional[NodeType] = p_internal(32)  # disambiguate reference properties
-
-    def __content_str__(self):
-        object_cls = Node if self.type is None else OBJECT_CLASS_BY_TYPE.get(self.type)
-        if object_cls is None:
-            if self.type is None:
-                return f"Node.??? [id={self.id}]"
-            else:
-                return f"{self.type.name}.??? [id={self.id}]"
-        else:
-            prop = object_cls.__properties_by_id__.get(self.id)
-            if prop is None:
-                return f"{object_cls.__name__}.??? [id={self.id}]"
-            else:
-                return f"{object_cls.__name__}.{prop.name} [id={self.id}]"
-
-    @property
-    def object_cls(self) -> Type[BuiltinObject] | None:
-        if self.type is None:
-            return Node
-        else:
-            return OBJECT_CLASS_BY_TYPE.get(self.type)
-
-    @override
-    def _validate_component(self, properties: tuple[Property, ...], invalid: "ValidationHandler"):
-        object_cls = self.object_cls
-        if object_cls is None:
-            invalid(self, "invalid type", (PropertyReference.type,))
-        else:
-            prop = object_cls.__properties_by_id__.get(self.id)
-            if prop is None:
-                invalid(self, "invalid prop id", (PropertyReference.id,))
-
-    def resolve(self) -> Property:
-        resolved = self.resolve_maybe()
-        if resolved is None:
-            raise ValueError(f"could not resolve {self!r}")
-        return resolved
-
-    def resolve_maybe(self) -> "Property | None":
-        object_cls = self.object_cls
-        prop = (object_cls or Node).__properties_by_id__.get(self.id)
-        if prop is None:
-            return None
-        if self.references_node is not None:
-            assert prop.reference_stored_ids_by_type is not None, f"{prop!r} has no stored ids"
-            prop = prop.reference_stored_ids_by_type.get(self.references_node)
-            if prop is None:
-                return None
-        return prop
-
-
-@struct_(StructType.VALUE_REFERENCE)
-class ValueReference(Struct):
-    """Reference a value at a path of a Node."""
-
-    path: "Path" = p_regular(31, require=True, struct=StructType.PATH)
-
-    def __content_str__(self):
-        return f"@{self.path}" if self.path is not None else "@???"
 
 
 @enum_(EnumType.SELECTION_KIND)

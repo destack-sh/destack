@@ -10,10 +10,9 @@ from bench.test.simulation.oracle import SimulatedEventLoopPolicy
 _setup_test_env()
 
 
-from bench.language import VERSION, Store
+from bench.language import VERSION, NodeReference, Store
 from bench.language.bench import Bench
 from bench.language.const import NodeType, Region
-from bench.language.expression import NodeReference
 from bench.language.graph import NodeSuperGraph
 from bench.sql.client import GLOBAL_PG_CRYPTO_KEY, pg_store_connection
 from bench.sql.core import Schema
