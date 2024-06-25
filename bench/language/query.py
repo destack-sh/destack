@@ -30,10 +30,13 @@ from bench.language.const import (
 from bench.language.expression import C, Expression, coerce_conditional
 from bench.language.node import (
     NODE_CLASS_BY_TYPE,
+    BuiltinObject,
     InlineStruct,
     Node,
     SourceNode,
+    Struct,
     node_,
+    object_component,
     struct_,
 )
 from bench.language.property import Property, p_node_parent, p_regular
@@ -599,24 +602,37 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         return [cast(type[Node], t).metatype if isinstance(t, type) else t for t in node_types]
 
 
-@node_(NodeType.QUERY)
-class Query(SourceNode[QueryData]):
+@object_component()
+class QueryInfoBase(BuiltinObject):
+    """An object we can build query from."""
+
+    read_type: ReadType = p_regular(40)
+    node_type: NodeType = p_regular(41)
+    base: Optional["Block"] = p_regular(
+        42, array=False, require=False, default=None, references=NodeType.BLOCK
+    )
+    filter: Optional["Expression"] = p_regular(43, default=None, struct=StructType.EXPRESSION)
+    sort: Optional[list["Expression"]] = p_regular(
+        44, default=None, array=True, struct=StructType.EXPRESSION
+    )
+
+
+@struct_(StructType.QUERY_INFO)
+class QueryInfo(Struct, QueryInfoBase):
     """A stored query."""
+
+    pass
+
+
+@node_(NodeType.QUERY)
+class Query(SourceNode[QueryData], QueryInfoBase):
+    """A stored query with identity."""
 
     # NOTE :Architecture: should Query be just a Struct or remain a Node?
 
     parent: "Block | None" = p_node_parent(4, NodeType.BLOCK)
     name: str = p_regular(30, constraint=NAME_CONSTRAINT)
     order_key: str = p_regular(31, default=INTEGER_ZERO)
-    read_type: ReadType = p_regular(32)
-    node_type: NodeType = p_regular(33)
-    base: Optional["Block"] = p_regular(
-        34, array=False, require=False, default=None, references=NodeType.BLOCK
-    )
-    filter: Optional["Expression"] = p_regular(35, default=None, struct=StructType.EXPRESSION)
-    sort: Optional[list["Expression"]] = p_regular(
-        36, default=None, array=True, struct=StructType.EXPRESSION
-    )
 
     def __content_str__(self):
         return f"{self.node_type}[{self.filter}, {self.sort or '<default sort>'}]"

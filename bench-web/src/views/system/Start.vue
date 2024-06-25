@@ -12,6 +12,7 @@ import { DEFAULT_HEADER_HEIGHT } from "@/views/canvas";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import { getViewComponent, hasViewComponent } from "@/views/registry";
+import Feed from "@/views/system/Feed.vue";
 import { computed, ref, toRef, type Ref } from "vue";
 
 const HEADER_HEIGHT = DEFAULT_HEADER_HEIGHT;
@@ -130,7 +131,7 @@ defineExpose<ViewExposed>({ self });
         <div class="h-[1px] w-full min-w-fit bg-gray-200" />
       </div>
       <!-- Feed -->
-      <!-- nocheckin: Feed -->
+       <Feed />
     </Scroll>
   </div>
   <div v-else class="flex h-full w-full flex-col justify-center bg-white text-center">

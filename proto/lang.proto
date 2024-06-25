@@ -137,10 +137,11 @@ enum BenchType {
   BENCH_TYPE_ACCESS_ZONE = 1034;
   BENCH_TYPE_ACCESS_MATRIX = 1035;
   BENCH_TYPE_ACCESS = 1037;
-  BENCH_TYPE_READ_OPTIONS = 1050;
   BENCH_TYPE_EXPRESSION = 1060;
   BENCH_TYPE_AGGREGATION = 1061;
   BENCH_TYPE_SELECTION = 1070;
+  BENCH_TYPE_QUERY_INFO = 1080;
+  BENCH_TYPE_READ_OPTIONS = 1085;
   BENCH_TYPE_CODE = 1090;
   BENCH_TYPE_CODE_LINE = 1091;
   BENCH_TYPE_STEP_CONNECTION = 1100;
@@ -741,10 +742,11 @@ enum ObjectType {
   OBJECT_TYPE_ACCESS_ZONE = 1034;
   OBJECT_TYPE_ACCESS_MATRIX = 1035;
   OBJECT_TYPE_ACCESS = 1037;
-  OBJECT_TYPE_READ_OPTIONS = 1050;
   OBJECT_TYPE_EXPRESSION = 1060;
   OBJECT_TYPE_AGGREGATION = 1061;
   OBJECT_TYPE_SELECTION = 1070;
+  OBJECT_TYPE_QUERY_INFO = 1080;
+  OBJECT_TYPE_READ_OPTIONS = 1085;
   OBJECT_TYPE_CODE = 1090;
   OBJECT_TYPE_CODE_LINE = 1091;
   OBJECT_TYPE_STEP_CONNECTION = 1100;
@@ -1036,10 +1038,11 @@ enum StructType {
   STRUCT_TYPE_ACCESS_ZONE = 1034;
   STRUCT_TYPE_ACCESS_MATRIX = 1035;
   STRUCT_TYPE_ACCESS = 1037;
-  STRUCT_TYPE_READ_OPTIONS = 1050;
   STRUCT_TYPE_EXPRESSION = 1060;
   STRUCT_TYPE_AGGREGATION = 1061;
   STRUCT_TYPE_SELECTION = 1070;
+  STRUCT_TYPE_QUERY_INFO = 1080;
+  STRUCT_TYPE_READ_OPTIONS = 1085;
   STRUCT_TYPE_CODE = 1090;
   STRUCT_TYPE_CODE_LINE = 1091;
   STRUCT_TYPE_STEP_CONNECTION = 1100;
@@ -1555,6 +1558,20 @@ message PropertyReferenceData {
   optional ObjectType type = 30;
   int32 id = 31;
   optional NodeType references_node = 32;
+}
+
+// A stored query.
+message QueryInfoData {
+  ObjectType metatype = 1;
+  int32 id = 2;
+  optional int32 parent_id = 3;
+  optional string parent_key = 4;
+  optional string order_key = 9;
+  ReadType read_type = 40;
+  NodeType node_type = 41;
+  optional NodeReferenceData base_ptr = 42;
+  optional ExpressionData filter = 43;
+  repeated ExpressionData sort = 44;
 }
 
 // Fine-grained options to a read request.
@@ -2433,7 +2450,7 @@ message PackageData {
   bool is_paused = 65;
 }
 
-// A stored query.
+// A stored query with identity.
 message QueryData {
   ObjectType metatype = 1;
   string id = 2;
@@ -2455,11 +2472,11 @@ message QueryData {
   repeated int32 set_properties = 29;
   string name = 30;
   string order_key = 31;
-  ReadType read_type = 32;
-  NodeType node_type = 33;
-  optional NodeReferenceData base_ptr = 34;
-  optional ExpressionData filter = 35;
-  repeated ExpressionData sort = 36;
+  ReadType read_type = 40;
+  NodeType node_type = 41;
+  optional NodeReferenceData base_ptr = 42;
+  optional ExpressionData filter = 43;
+  repeated ExpressionData sort = 44;
 }
 
 // A record in a DatabaseBlock.

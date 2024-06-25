@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.06.25.0"
+VERSION = "2024.06.25.1"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -172,10 +172,11 @@ class BenchType(betterproto.Enum):
     ACCESS_ZONE = 1034
     ACCESS_MATRIX = 1035
     ACCESS = 1037
-    READ_OPTIONS = 1050
     EXPRESSION = 1060
     AGGREGATION = 1061
     SELECTION = 1070
+    QUERY_INFO = 1080
+    READ_OPTIONS = 1085
     CODE = 1090
     CODE_LINE = 1091
     STEP_CONNECTION = 1100
@@ -784,10 +785,11 @@ class ObjectType(betterproto.Enum):
     ACCESS_ZONE = 1034
     ACCESS_MATRIX = 1035
     ACCESS = 1037
-    READ_OPTIONS = 1050
     EXPRESSION = 1060
     AGGREGATION = 1061
     SELECTION = 1070
+    QUERY_INFO = 1080
+    READ_OPTIONS = 1085
     CODE = 1090
     CODE_LINE = 1091
     STEP_CONNECTION = 1100
@@ -1094,10 +1096,11 @@ class StructType(betterproto.Enum):
     ACCESS_ZONE = 1034
     ACCESS_MATRIX = 1035
     ACCESS = 1037
-    READ_OPTIONS = 1050
     EXPRESSION = 1060
     AGGREGATION = 1061
     SELECTION = 1070
+    QUERY_INFO = 1080
+    READ_OPTIONS = 1085
     CODE = 1090
     CODE_LINE = 1091
     STEP_CONNECTION = 1100
@@ -1694,6 +1697,22 @@ class PropertyReferenceData(betterproto.Message):
     type: Optional["ObjectType"] = betterproto.enum_field(30, optional=True)
     id: int = betterproto.int32_field(31)
     references_node: Optional["NodeType"] = betterproto.enum_field(32, optional=True)
+
+
+@dataclass(eq=False, repr=False)
+class QueryInfoData(betterproto.Message):
+    """A stored query."""
+
+    metatype: "ObjectType" = betterproto.enum_field(1)
+    id: int = betterproto.int32_field(2)
+    parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
+    parent_key: Optional[str] = betterproto.string_field(4, optional=True)
+    order_key: Optional[str] = betterproto.string_field(9, optional=True)
+    read_type: "ReadType" = betterproto.enum_field(40)
+    node_type: "NodeType" = betterproto.enum_field(41)
+    base_ptr: Optional["NodeReferenceData"] = betterproto.message_field(42, optional=True)
+    filter: Optional["ExpressionData"] = betterproto.message_field(43, optional=True)
+    sort: List["ExpressionData"] = betterproto.message_field(44)
 
 
 @dataclass(eq=False, repr=False)
@@ -2714,7 +2733,7 @@ class PackageData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class QueryData(betterproto.Message):
-    """A stored query."""
+    """A stored query with identity."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
@@ -2736,11 +2755,11 @@ class QueryData(betterproto.Message):
     set_properties: List[int] = betterproto.int32_field(29)
     name: str = betterproto.string_field(30)
     order_key: str = betterproto.string_field(31)
-    read_type: "ReadType" = betterproto.enum_field(32)
-    node_type: "NodeType" = betterproto.enum_field(33)
-    base_ptr: Optional["NodeReferenceData"] = betterproto.message_field(34, optional=True)
-    filter: Optional["ExpressionData"] = betterproto.message_field(35, optional=True)
-    sort: List["ExpressionData"] = betterproto.message_field(36)
+    read_type: "ReadType" = betterproto.enum_field(40)
+    node_type: "NodeType" = betterproto.enum_field(41)
+    base_ptr: Optional["NodeReferenceData"] = betterproto.message_field(42, optional=True)
+    filter: Optional["ExpressionData"] = betterproto.message_field(43, optional=True)
+    sort: List["ExpressionData"] = betterproto.message_field(44)
 
 
 @dataclass(eq=False, repr=False)
@@ -3591,7 +3610,7 @@ class CommitTransactionRequest(betterproto.Message):
 
     context: Optional["SessionContextData"] = betterproto.message_field(4, optional=True)
     """
-    Explicit current context of the subject (with extra context info not contained in edits).
+    Extra session context (with any info not contained in EditContext, like machine/server).
     """
 
 
@@ -4893,10 +4912,11 @@ AnyStructData = Union[
     AccessZoneData,
     AccessMatrixData,
     AccessData,
-    ReadOptionsData,
     ExpressionData,
     AggregationData,
     SelectionData,
+    QueryInfoData,
+    ReadOptionsData,
     CodeData,
     CodeLineData,
     StepConnectionData,

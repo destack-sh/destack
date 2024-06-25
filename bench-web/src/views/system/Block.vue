@@ -21,7 +21,7 @@ import { RUNNABLE_BLOCK_TYPES, TYPE_BLOCK_TYPES, createField, isGeneratedNodeNam
 import { canvas, inspectionPtr } from "@/system/space";
 import { makeTypeInfo, packValue, resolveType, unpackValue, type TypeIdentity } from "@/system/value";
 import { onMouseReleasedOnce } from "@/utils/layout";
-import { menuActionsLike, pushPopover, type PopoverContext, type PopoverInfo, type PopoverInfoIn } from "@/utils/menu";
+import { menuActionsLike, pushPopover, type PopoverInfo, type PopoverInfoIn } from "@/utils/menu";
 import type { TooltipInfo } from "@/utils/tooltip";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import { makeViewId, viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";

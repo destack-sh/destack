@@ -444,7 +444,7 @@ export interface CommitTransactionRequest {
      */
     edits: EditData[];
     /**
-     * Explicit current context of the subject (with extra context info not contained in edits).
+     * Extra session context (with any info not contained in EditContext, like machine/server).
      *
      * @generated from protobuf field: optional symbolx.bench.SessionContextData context = 4;
      */

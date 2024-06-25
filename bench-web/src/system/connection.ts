@@ -18,7 +18,7 @@ import {
 } from "@/proto/wire";
 import { describeNode, makeDefaultBenchProto, unwrapSomeNode, type TypedNodeReferenceData } from "@/proto/wiring";
 import { AccessProxy, accessFromMatrix, accessFull, type AccessArbiter } from "@/system/access";
-import { LOCAL_SPACE_PTR, spaceGraphLocal } from "@/system/client";
+import { LOCAL_SPACE_PTR, packagePtr, spaceGraphLocal } from "@/system/client";
 import {
   DEFAULT_NODE_FILTER,
   LayerNodeGraph,
@@ -150,8 +150,8 @@ function getScopeFromParams<T extends NodeType>(params: ConnectionParamsMapping<
   if (params.scope != null) return params.scope;
   if ("roots" in params && params.roots.length > 0) return { benchId: params.roots[0].benchId };
   if ("bases" in params && (params.bases?.length ?? 0) > 0) return { benchId: params.bases![0].benchId };
-
-  throw new Error(`cannot determine scope from params: ${JSON.stringify(params)}`);
+  // NOTE: scope defaults to current package (not sure if this is right.. probably want to make it explicit)
+  return { benchId: packagePtr.value?.benchId };
 }
 
 function getNodeTypesFromParams<T extends NodeType>(
@@ -477,8 +477,9 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
 
   /** Whether this connection is a superset of the given connection */
   supports(params: ConnectionParamsMapping<T>[K]): boolean {
+    // NOTE :Broken: connection 'overlap' detection is broken :ConnectionMatching
+    //  (but shouldn't be an issue for now as we we fetch the entire package source / other search connections separately)
     if (this.kind == "get") {
-      // nocheckin :Broken: connection 'overlap' detection is broken :ConnectionMatching
       const thisGet = this.params as GetConnectionParams<T>;
       const otherGet = params as GetConnectionParams<T>;
       // scope included?
@@ -534,10 +535,9 @@ export class RemoteGetConnection<T extends NodeType> extends ConnectionBase<"get
         { abort, ...this.operationMeta },
       );
       editStream.responses.onNext((rep) => {
-        if (rep != null) {
-          editGraph(graph, rep.edits);
-          this.txBuffer.accept(rep.edits);
-        }
+        if (rep == null) return;
+        editGraph(graph, rep.edits);
+        this.txBuffer.accept(rep.edits);
       });
       editStream.responses.onError(onError);
     } else {
@@ -567,7 +567,7 @@ export class RemoteSearchConnection<T extends NodeType> extends ConnectionBase<"
 
     // fetch nodes
     const {
-      response: { epoch, nodes, rootsPtr: rootsInitial, total: totalInitial },
+      response: { epoch, nodes, rootsPtr: rootsInitial, total: totalInitial, connectionToken },
     } = await client.searchNodes(
       {
         ...params,
@@ -585,8 +585,36 @@ export class RemoteSearchConnection<T extends NodeType> extends ConnectionBase<"
     const page = shallowRef({ roots: rootsInitial, size: rootsInitial.length, total: totalInitial });
 
     // watch edits if live
-    // nocheckin: watch edits
-    //  (also this should react to current overlay graph somehow)
+    // NOTE :UX: search should react to current overlay graph (including 'phantom' edits like Logs)
+    if (this.isLive) {
+      const editStream = client.watchSearch(
+        { connectionToken, sinceEpoch: epoch, scope: graph.scope },
+        { abort, ...this.operationMeta },
+      );
+      editStream.responses.onNext((rep) => {
+        if (rep == null) return;
+        // nocheckin: watch edits
+        this.txBuffer.accept(rep.edits);
+        editGraph(graph, rep.edits);
+        // apply other added/removed nodes
+        for (const node of rep.addedNodes) {
+          graph.add(unwrapSomeNode(node));
+        }
+        for (const nodePtr of rep.removedNodesPtr) {
+          const node = graph.get(nodePtr);
+          if (node != null) graph.remove(node);
+        }
+        // update roots list
+        for (const insertIndex of Object.keys(rep.addedRootsPtr)) {
+          const index = Number(insertIndex);
+          roots.value.splice(index, 0, rep.addedRootsPtr[index] as TypedNodeReferenceData<T>);
+        }
+        for (const removeIndex of rep.removedNodesPtr) {
+          roots.value = roots.value.filter((r) => r.id != removeIndex.id); // inefficient
+        }
+      });
+      editStream.responses.onError(onError);
+    }
 
     const overlay = makeConnectionOverlayGraph(graph, this, subs);
     return { graph, overlay, roots, page, subs };
