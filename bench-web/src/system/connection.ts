@@ -974,7 +974,7 @@ export function useExistingConnection<T extends NodeType = any>(
  * Gets the given nodes from the relevant subgraph, fetching/caching automatically.
  * If live, will also ensure that edits for the given nodes are watched.
  */
-export function useGet<T extends NodeType>(
+export function useGetConnection<T extends NodeType>(
   metaIn: ConnectionMetadataIn,
   params: MaybeRef<GetConnectionParams<T>>,
 ): GetConnectionResult<T> & { connection: Connection<"get", T> } {
@@ -994,7 +994,7 @@ export function useGet<T extends NodeType>(
  * Searches for nodes of the given type in the relevant subgraph, fetching/caching automatically.
  * If live, will also ensure that 1) edits for the result nodes are watched and 2) the search itself is watched.
  */
-export function useSearch<T extends NodeType>(
+export function useSearchConnection<T extends NodeType>(
   metaIn: ConnectionMetadataIn,
   params: MaybeRef<SearchConnectionParams<T>>,
 ): SearchConnectionResult<T> & { connection: Connection<"search", T> } {
@@ -1016,7 +1016,7 @@ export function useSearch<T extends NodeType>(
  * Aggregates nodes of the given type in the relevant subgraph, fetching/caching automatically.
  * NOTE :Incomplete: live aggregation
  */
-export function useAggregate(
+export function useAggregateConnection(
   params: MaybeRef<AggregateConnectionParams>,
 ): AggregateConnectionResult & { connection: ConnectionBase<"aggregate", NodeType> } {
   throw new Error("aggregate not yet implemented");

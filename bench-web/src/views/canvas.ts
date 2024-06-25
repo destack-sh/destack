@@ -472,7 +472,7 @@ export class ViewCanvas {
         const child = this.getViewData(viewData.focus.nodesPtr.find((n) => n.type == NodeType.VIEW)!);
         if (child != null) {
           // if we have a focus state we must use it, even if it didn't actually focus in the component
-          //  (so we 'emulate' the focus in the component by calling onComponentFocused directly)
+          //  (so we 'pretend' there was focus in the component by calling onComponentFocused directly)
           if (!this.focusInComponent(child)) this.onComponentFocused(component);
           return true;
         }
@@ -496,7 +496,7 @@ export class ViewCanvas {
           }
         }
       } else if (focusResult !== null && focusResult !== false) {
-        // success
+        // success (directly focused)
         return true;
       }
     }
@@ -1032,7 +1032,6 @@ export function createDefaultDesktopSpace(
     name: "Outline1",
     title: "Outline",
   });
-
 
   // primary
   // ...?
