@@ -124,18 +124,6 @@ function getAnchorPosition(anchor: "start" | "end", blockIdx: number, anchorWidt
   }
 }
 
-// sync view title with page name
-// NOTE: syncing page view titles with their block's names only when active means they may be stale sometimes.
-watch(
-  () => page.value?.name,
-  () => {
-    if (page.value != null && selfView.value != null && page.value?.name != selfView.value?.title) {
-      pkgConnection.tx.update(selfView.value, { title: page.value?.name }, { debounce: "long" });
-    }
-  },
-  { immediate: true },
-);
-
 //
 // Interaction
 //

@@ -177,9 +177,9 @@ function makeConnectionOverlayGraph(
   const sub = connection.txBuffer.onPending((event) => {
     // NOTE :UX :Architecture: instead of ignoring transactions from other connections outright we could optimistically
     //  apply edits to the same node identities to other connections as well. Ultimately,
-    //  we probably want to emulate even more of the backend live connection logic (e.g., optimistic search results).
+    //  we probably want to emulate even more of the backend live connesction logic (e.g., optimistic search results).
     // (the reason for having the connection filter below is that while the backend properly filters edits per connection,
-    //  here we distribute optimistic edits to across the transaction buffer, so the edit might not be relevant)
+    //  here we distribute optimistic edits to across the per-bench tx buffer, so the edit might not be relevant)
     if (event.connectionId != null && event.connectionId != connection.meta.id) return;
     if (event.type == "reset") overlay.clear();
     editGraph(overlay, event.edits, { base: base });

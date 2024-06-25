@@ -129,6 +129,12 @@ export interface ReadNodeGraph {
     options?: NodeSubscriptionOptions,
   ): SubRef<NodeTypeMapping[T][]>;
 
+  /** Gets a reactive reference to many nodes with potentially unset keys (missing nodes included as null) */
+  getManyMaybeRef<T extends NodeType>(
+    keys: MaybeRef<(NodeKey<T> | undefined | null)[] | undefined | null>,
+    options?: NodeSubscriptionOptions,
+  ): SubRef<(NodeTypeMapping[T] | null)[]>;
+
   /** Gets a reactive reference to the children of the given parent with the given metatype */
   getChildrenRef<T extends NodeType>(
     parent: MaybeRef<NodeKey<any> | undefined | null>,
@@ -311,6 +317,30 @@ abstract class BaseNodeGraphMixin implements ReadNodeGraph {
       if (keysRef.value)
         keysRef.value.filter((k) => k != null).forEach((key) => subs.push(this.subscribe(key, trigger, options)));
     };
+
+    const { ref, trigger } = manualSubRef(get, unsub);
+    watchValue(keysRef, () => (update(), trigger()));
+    update();
+    tryOnBeforeUnmount(unsub);
+    return ref;
+  }
+
+  getManyMaybeRef<T extends NodeType>(keys: MaybeRef<(NodeKey<T> | null | undefined)[] | null | undefined>, options?: NodeSubscriptionOptions | undefined): SubRef<(NodeTypeMapping[T] | null)[]> {
+    const keysRef = toRef(keys) as Ref<(NodeKey<T> | null | undefined)[] | null | undefined>;
+    const subs: (() => void)[] = [];
+    const unsub = () => {
+      subs.forEach((sub) => sub());
+      subs.length = 0;
+    };
+    const get = () =>
+      keysRef.value != null
+        ? (keysRef.value.map((key) => (key != null ? this.get(key) : null)) as (NodeTypeMapping[T] | null)[])
+        : [];
+    const update = () => {
+      unsub();
+      if (keysRef.value)
+        keysRef.value.filter((k) => k != null).forEach((key) => subs.push(this.subscribe(key!, trigger, options)));
+    }
 
     const { ref, trigger } = manualSubRef(get, unsub);
     watchValue(keysRef, () => (update(), trigger()));

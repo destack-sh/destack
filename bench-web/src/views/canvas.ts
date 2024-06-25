@@ -746,7 +746,6 @@ export class ViewCanvas {
             type: ViewType.PAGE,
             nodePtr: toNodeReference(containingPage),
             focus: makeSelection(nodeRef),
-            title: containingPage.name,
           },
           { ifPresent: "upsertAndFocus", ...options },
         );
@@ -947,6 +946,8 @@ export function clearSpace(tx: Transaction, graph: ReadNodeGraph, space: SpaceDa
   }
   tx.update(space, { focus: undefined, inspectionPtr: undefined }, { debounce: "short" });
 }
+
+// NOTE :Cleanup: defining space/canvas layouts is a bit cumbersome
 
 /** Sets up a minimal empty space with one root tab */
 export function createEmptySpace(tx: Transaction, space: SpaceData): { primary: ViewData } {

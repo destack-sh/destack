@@ -27,10 +27,27 @@ const self = toRef(props, "self");
 // focus
 const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self);
 const tabs = spaceGraph.getChildrenRef(self, NodeType.VIEW, { ignoreAncestors: true });
+const tabsNodes = spaceGraph.getManyMaybeRef(computed(() => tabs.value.map((t) => t.nodePtr ?? null)));
+const tabsTitles = computed(() => {
+  const tabsTitles: string[] = [];
+  for (let tabIdx = 0; tabIdx < tabs.value.length; tabIdx++) {
+    const tab = tabs.value[tabIdx];
+    if (tab.title) {
+      tabsTitles.push(tab.title);
+    } else if (tab.nodePtr != null) {
+      const tabNode = tabsNodes.value[tabIdx];
+      tabsTitles.push((tabNode as any)?.name ?? "???");
+    } else {
+      tabsTitles.push(tab.name);
+    }
+  }
+  return tabsTitles;
+});
 
 const focusedTabIdx: Ref<number | null> = computed(() => {
-  if (tabs.value.length == 0) return null;
-  if ((props.focus?.nodesPtr.length ?? 0) > 0) {
+  if (tabs.value.length == 0) {
+    return null;
+  } else if ((props.focus?.nodesPtr.length ?? 0) > 0) {
     const focusedId = props.focus!.nodesPtr[0].id;
     const focusedTabIdx = tabs.value.findIndex((tab) => tab.id == focusedId);
     return focusedTabIdx >= 0 ? focusedTabIdx : 0;
@@ -214,7 +231,7 @@ defineExpose<ViewExposed>({ self, actions });
           class="mr-1.5 w-5"
           :class="i == focusedTabIdx ? '' : ' group-hover:text-primary-900'"
         />
-        <span class="truncate" :class="[tab.title ? '' : 'italic']">{{ tab.title ?? tab.name }}</span>
+        <span class="truncate" :class="[tabsTitles[i] == tab.name ? 'italic' : '']">{{ tabsTitles[i] }}</span>
         <!-- Close tab -->
         <button
           class="ml-1.5 group-hover:text-gray-400"
