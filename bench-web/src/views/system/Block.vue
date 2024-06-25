@@ -15,7 +15,7 @@ import {
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import type { ActionMapImplementation } from "@/system/action";
 import type { PreparedGetConnection } from "@/system/connection";
-import { useGet } from "@/system/connection";
+import { useGetConnection } from "@/system/connection";
 import { IconInline, getNodeIcon } from "@/system/icon";
 import { RUNNABLE_BLOCK_TYPES, TYPE_BLOCK_TYPES, createField, isGeneratedNodeName } from "@/system/lang";
 import { canvas, inspectionPtr } from "@/system/space";
@@ -50,7 +50,7 @@ const textRef: Ref<InstanceType<typeof Text> | null> = ref(null);
 const nodePtr = toRef(props, "nodePtr") as Ref<TypedNodeReferenceData<NodeType.BLOCK>>;
 const pkgGetConnection =
   props.preparedConnection ??
-  useGet(
+  useGetConnection(
     { name: `block.${nodePtr.value.id}` },
     computed(() => ({
       roots: [nodePtr.value],

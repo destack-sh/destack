@@ -16,7 +16,7 @@ import {
 import { makeNode, toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
 import { fireActionById, type ActionContext, type ActionMapImplementation } from "@/system/action";
 import { useHierarchicalNodeMoveActions } from "@/system/block";
-import { useExistingConnection, useGet } from "@/system/connection";
+import { useExistingConnection, useGetConnection } from "@/system/connection";
 import { getGroupedChildrenRef, isDescendantOf, walkDescendantsRef, type NodeTreeItem } from "@/system/graph";
 import { ICON_BY_BLOCK_TYPE, IconInline } from "@/system/icon";
 import { EXPOSED_BLOCK_TYPES, RUNNABLE_BLOCK_TYPES, createBlock, moveNode, toCamelName } from "@/system/lang";
@@ -56,7 +56,7 @@ const self = toRef(props, "self");
 
 const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self);
 const selfView = spaceGraph.getRef(self);
-const preparedPkgConnection = useGet(
+const preparedPkgConnection = useGetConnection(
   { name: `page.${props.nodePtr?.id}` },
   computed(() => ({
     roots: [props.nodePtr!],
@@ -236,31 +236,30 @@ function createAndFocusBlock(
 
 // focus
 function focus(anchor?: FocusAnchor | NodeReferenceData) {
+  let block: InstanceType<typeof Block> | undefined;
   if (typeof anchor != "object") {
     if (anchor != "bottom") {
-      const block = expandedBlockRefs.value[expandedBlocks.value[0].nodePtr.id!];
+      block = expandedBlockRefs.value[expandedBlocks.value[0].nodePtr.id!];
       block?.$el.scrollIntoView({ block: "start", behavior: "instant" });
     } else {
-      const block = expandedBlockRefs.value[expandedBlocks.value[expandedBlocks.value.length - 1].nodePtr.id!];
+      block = expandedBlockRefs.value[expandedBlocks.value[expandedBlocks.value.length - 1].nodePtr.id!];
       block?.$el.scrollIntoView({ block: "end", behavior: "instant" });
     }
   } else {
     if (anchor.id == props.nodePtr?.id) {
       // just focus first
       if (expandedBlocks.value.length > 0) {
-        expandedBlockRefs.value[expandedBlocks.value[0].nodePtr.id!]?.$el.scrollIntoView({
-          block: "nearest",
-          behavior: "instant",
-        });
+        block = expandedBlockRefs.value[expandedBlocks.value[0].nodePtr.id!];
+        block.$el.scrollIntoView({ block: "nearest", behavior: "instant" });
       }
     } else {
-      const block = expandedBlockRefs.value[anchor.id!];
+      block = expandedBlockRefs.value[anchor.id!];
       block?.$el.scrollIntoView({ block: "nearest", behavior: "instant" });
     }
   }
 
   blurDocument(); // nothing to focus directly
-  return true;
+  return block?.$el;
 }
 const isFocusedAbsolute = canvas.isFocusedAbsoluteRef(self);
 
