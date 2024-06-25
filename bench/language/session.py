@@ -449,7 +449,7 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
     # Transaction
     #
 
-    def _get_session_context(self) -> SessionContextData:
+    def _get_context(self) -> SessionContextData:
         """Gathers context valid for the entire session"""
         context = SessionContextData(metatype=wire.ObjectType.SESSION_CONTEXT)
         if self.client_ptr is not None:

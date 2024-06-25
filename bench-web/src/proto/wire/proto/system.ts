@@ -432,14 +432,20 @@ export interface CommitTransactionRequest {
      */
     scope?: GraphScope;
     /**
+     * UUIDT of the transaction.
+     *
      * @generated from protobuf field: string id = 2;
      */
     id: string;
     /**
+     * All the edits for all the changes in order.
+     *
      * @generated from protobuf field: repeated symbolx.bench.EditData edits = 3;
      */
     edits: EditData[];
     /**
+     * Explicit current context of the subject (with extra context info not contained in edits).
+     *
      * @generated from protobuf field: optional symbolx.bench.SessionContextData context = 4;
      */
     context?: SessionContextData;
@@ -449,14 +455,20 @@ export interface CommitTransactionRequest {
  */
 export interface CommitTransactionResponse {
     /**
+     * The new revisions for every submitted edit.
+     *
      * @generated from protobuf field: repeated int64 revisions = 1;
      */
     revisions: bigint[];
     /**
+     * Any cascaded edits.
+     *
      * @generated from protobuf field: repeated symbolx.bench.EditData cascaded_edits = 2;
      */
     cascadedEdits: EditData[];
     /**
+     * Current epoch.
+     *
      * @generated from protobuf field: uint64 epoch = 3;
      */
     epoch: bigint;

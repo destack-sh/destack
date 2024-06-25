@@ -434,7 +434,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
 
         # figure out context
         context = wiring.unpack_object_validate_maybe(
-            request.context, supergraph=None, expect=SessionContext
+            request.context, supergraph=subject._supergraph, expect=SessionContext
         )
         if context is None:
             context = SessionContext(

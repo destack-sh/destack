@@ -124,7 +124,6 @@ enum BenchType {
   BENCH_TYPE_PATH_TOKEN = 1002;
   BENCH_TYPE_NODE_REFERENCE = 1003;
   BENCH_TYPE_PROPERTY_REFERENCE = 1004;
-  BENCH_TYPE_VALUE_REFERENCE = 1005;
   BENCH_TYPE_TYPE_INFO = 1010;
   BENCH_TYPE_TYPE_CONSTRAINT = 1011;
   BENCH_TYPE_CONTEXT = 1020;
@@ -729,7 +728,6 @@ enum ObjectType {
   OBJECT_TYPE_PATH_TOKEN = 1002;
   OBJECT_TYPE_NODE_REFERENCE = 1003;
   OBJECT_TYPE_PROPERTY_REFERENCE = 1004;
-  OBJECT_TYPE_VALUE_REFERENCE = 1005;
   OBJECT_TYPE_TYPE_INFO = 1010;
   OBJECT_TYPE_TYPE_CONSTRAINT = 1011;
   OBJECT_TYPE_CONTEXT = 1020;
@@ -1025,7 +1023,6 @@ enum StructType {
   STRUCT_TYPE_PATH_TOKEN = 1002;
   STRUCT_TYPE_NODE_REFERENCE = 1003;
   STRUCT_TYPE_PROPERTY_REFERENCE = 1004;
-  STRUCT_TYPE_VALUE_REFERENCE = 1005;
   STRUCT_TYPE_TYPE_INFO = 1010;
   STRUCT_TYPE_TYPE_CONSTRAINT = 1011;
   STRUCT_TYPE_CONTEXT = 1020;
@@ -1784,16 +1781,6 @@ message TypeInfoData {
   bool is_list = 60;
   bool is_secret = 61;
   bool is_required = 62;
-}
-
-// Reference a value at a path of a Node.
-message ValueReferenceData {
-  ObjectType metatype = 1;
-  int32 id = 2;
-  optional int32 parent_id = 3;
-  optional string parent_key = 4;
-  optional string order_key = 9;
-  PathData path = 31;
 }
 
 // Attach a badge to a node with an inline definition.
