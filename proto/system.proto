@@ -15,7 +15,7 @@ message GetNodesRequest {
   repeated NodeReferenceData roots = 2;  // must be of same type
   // Options to configure read.
   optional ReadOptionsData options = 3;
-  // Whether to use and populate the cache.
+  // Whether to sideline the cache.
   optional bool no_cache = 4;
 }
 message GetNodesResponse {
@@ -61,13 +61,11 @@ message SearchNodesRequest {
   optional int32 first = 6;
   // Paginate result set.
   optional int32 skip = 7;
-  // Paginate result set.
-  optional NodeReferenceData after = 8;
   // Whether to get the total count.
   optional bool count = 9;
   // Options to configure read.
   optional ReadOptionsData options = 10;
-  // Whether to use and populate the cache.
+  // Whether to sideline the cache.
   optional bool no_cache = 11;
 }
 message SearchNodesResponse {
@@ -99,7 +97,7 @@ message WatchSearchResponse {
   repeated SomeNodeData added_nodes = 3;
   // Nodes removed from the result set.
   repeated NodeReferenceData removed_nodes_ptr = 4;
-  // Roots added to the result set.
+  // Roots added to the result set. Indices are into previous roots, before removed_roots_ptr.
   map<int32, NodeReferenceData> added_roots_ptr = 5;
   // Roots removed from the result set.
   repeated NodeReferenceData removed_roots_ptr = 6;
@@ -121,7 +119,7 @@ message AggregateNodesRequest {
   repeated ExpressionData sort = 5;
   // Aggregation expression.
   ExpressionData aggregation = 6;
-  // Whether to use and populate the cache.
+  // Whether to sideline the cache.
   optional bool no_cache = 7;
 }
 message AggregateNodesResponse {
