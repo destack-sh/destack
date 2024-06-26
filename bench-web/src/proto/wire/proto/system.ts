@@ -22,11 +22,11 @@ import { SessionContextData } from "./lang";
 import { AggregationData } from "./lang";
 import { ExpressionData } from "./lang";
 import { NodeType } from "./lang";
-import { EditData } from "./common";
+import { EditData } from "./lang";
 import { SomeNodeData } from "./lang";
 import { ReadOptionsData } from "./lang";
 import { NodeReferenceData } from "./lang";
-import { GraphScope } from "./common";
+import { GraphScopeData } from "./lang";
 // 
 // Graph
 // 
@@ -36,9 +36,9 @@ import { GraphScope } from "./common";
  */
 export interface GetNodesRequest {
     /**
-     * @generated from protobuf field: symbolx.bench.GraphScope scope = 1;
+     * @generated from protobuf field: symbolx.bench.GraphScopeData scope = 1;
      */
-    scope?: GraphScope;
+    scope?: GraphScopeData;
     /**
      * The 'root' nodes to get around.
      *
@@ -52,7 +52,7 @@ export interface GetNodesRequest {
      */
     options?: ReadOptionsData;
     /**
-     * Whether to use and populate the cache.
+     * Whether to sideline the cache.
      *
      * @generated from protobuf field: optional bool no_cache = 4;
      */
@@ -86,9 +86,9 @@ export interface GetNodesResponse {
  */
 export interface WatchGetRequest {
     /**
-     * @generated from protobuf field: symbolx.bench.GraphScope scope = 1;
+     * @generated from protobuf field: symbolx.bench.GraphScopeData scope = 1;
      */
-    scope?: GraphScope;
+    scope?: GraphScopeData;
     /**
      * The connection to watch. Must already exist.
      *
@@ -142,9 +142,9 @@ export interface WatchGetResponse {
  */
 export interface SearchNodesRequest {
     /**
-     * @generated from protobuf field: symbolx.bench.GraphScope scope = 1;
+     * @generated from protobuf field: symbolx.bench.GraphScopeData scope = 1;
      */
-    scope?: GraphScope;
+    scope?: GraphScopeData;
     /**
      * The type of node to search.
      *
@@ -182,12 +182,6 @@ export interface SearchNodesRequest {
      */
     skip?: number;
     /**
-     * Paginate result set.
-     *
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData after = 8;
-     */
-    after?: NodeReferenceData;
-    /**
      * Whether to get the total count.
      *
      * @generated from protobuf field: optional bool count = 9;
@@ -200,7 +194,7 @@ export interface SearchNodesRequest {
      */
     options?: ReadOptionsData;
     /**
-     * Whether to use and populate the cache.
+     * Whether to sideline the cache.
      *
      * @generated from protobuf field: optional bool no_cache = 11;
      */
@@ -246,9 +240,9 @@ export interface SearchNodesResponse {
  */
 export interface WatchSearchRequest {
     /**
-     * @generated from protobuf field: symbolx.bench.GraphScope scope = 1;
+     * @generated from protobuf field: symbolx.bench.GraphScopeData scope = 1;
      */
-    scope?: GraphScope;
+    scope?: GraphScopeData;
     /**
      * The connection to watch. Must already exist.
      *
@@ -291,7 +285,7 @@ export interface WatchSearchResponse {
      */
     removedNodesPtr: NodeReferenceData[];
     /**
-     * Roots added to the result set.
+     * Roots added to the result set. Indices are into previous roots, before removed_roots_ptr.
      *
      * @generated from protobuf field: map<int32, symbolx.bench.NodeReferenceData> added_roots_ptr = 5;
      */
@@ -322,9 +316,9 @@ export interface WatchSearchResponse {
  */
 export interface AggregateNodesRequest {
     /**
-     * @generated from protobuf field: symbolx.bench.GraphScope scope = 1;
+     * @generated from protobuf field: symbolx.bench.GraphScopeData scope = 1;
      */
-    scope?: GraphScope;
+    scope?: GraphScopeData;
     /**
      * The type of node to aggregate.
      *
@@ -356,7 +350,7 @@ export interface AggregateNodesRequest {
      */
     aggregation?: ExpressionData;
     /**
-     * Whether to use and populate the cache.
+     * Whether to sideline the cache.
      *
      * @generated from protobuf field: optional bool no_cache = 7;
      */
@@ -367,9 +361,9 @@ export interface AggregateNodesRequest {
  */
 export interface AggregateNodesResponse {
     /**
-     * @generated from protobuf field: symbolx.bench.GraphScope scope = 1;
+     * @generated from protobuf field: symbolx.bench.GraphScopeData scope = 1;
      */
-    scope?: GraphScope;
+    scope?: GraphScopeData;
     /**
      * The connection to watch. Must already exist.
      *
@@ -394,9 +388,9 @@ export interface AggregateNodesResponse {
  */
 export interface WatchAggregateRequest {
     /**
-     * @generated from protobuf field: symbolx.bench.GraphScope scope = 1;
+     * @generated from protobuf field: symbolx.bench.GraphScopeData scope = 1;
      */
-    scope?: GraphScope;
+    scope?: GraphScopeData;
     /**
      * The connection to watch. Must already exist.
      *
@@ -428,9 +422,9 @@ export interface WatchAggregateResponse {
  */
 export interface CommitTransactionRequest {
     /**
-     * @generated from protobuf field: symbolx.bench.GraphScope scope = 1;
+     * @generated from protobuf field: symbolx.bench.GraphScopeData scope = 1;
      */
-    scope?: GraphScope;
+    scope?: GraphScopeData;
     /**
      * UUIDT of the transaction.
      *
@@ -766,7 +760,7 @@ export interface GetHostResponse {
 class GetNodesRequest$Type extends MessageType<GetNodesRequest> {
     constructor() {
         super("symbolx.bench.GetNodesRequest", [
-            { no: 1, name: "scope", kind: "message", T: () => GraphScope },
+            { no: 1, name: "scope", kind: "message", T: () => GraphScopeData },
             { no: 2, name: "roots", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 3, name: "options", kind: "message", T: () => ReadOptionsData },
             { no: 4, name: "no_cache", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
@@ -784,8 +778,8 @@ class GetNodesRequest$Type extends MessageType<GetNodesRequest> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.GraphScope scope */ 1:
-                    message.scope = GraphScope.internalBinaryRead(reader, reader.uint32(), options, message.scope);
+                case /* symbolx.bench.GraphScopeData scope */ 1:
+                    message.scope = GraphScopeData.internalBinaryRead(reader, reader.uint32(), options, message.scope);
                     break;
                 case /* repeated symbolx.bench.NodeReferenceData roots */ 2:
                     message.roots.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
@@ -808,9 +802,9 @@ class GetNodesRequest$Type extends MessageType<GetNodesRequest> {
         return message;
     }
     internalBinaryWrite(message: GetNodesRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.GraphScope scope = 1; */
+        /* symbolx.bench.GraphScopeData scope = 1; */
         if (message.scope)
-            GraphScope.internalBinaryWrite(message.scope, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+            GraphScopeData.internalBinaryWrite(message.scope, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
         /* repeated symbolx.bench.NodeReferenceData roots = 2; */
         for (let i = 0; i < message.roots.length; i++)
             NodeReferenceData.internalBinaryWrite(message.roots[i], writer.tag(2, WireType.LengthDelimited).fork(), options).join();
@@ -897,7 +891,7 @@ export const GetNodesResponse = new GetNodesResponse$Type();
 class WatchGetRequest$Type extends MessageType<WatchGetRequest> {
     constructor() {
         super("symbolx.bench.WatchGetRequest", [
-            { no: 1, name: "scope", kind: "message", T: () => GraphScope },
+            { no: 1, name: "scope", kind: "message", T: () => GraphScopeData },
             { no: 2, name: "connection_token", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "since_epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ }
         ]);
@@ -915,8 +909,8 @@ class WatchGetRequest$Type extends MessageType<WatchGetRequest> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.GraphScope scope */ 1:
-                    message.scope = GraphScope.internalBinaryRead(reader, reader.uint32(), options, message.scope);
+                case /* symbolx.bench.GraphScopeData scope */ 1:
+                    message.scope = GraphScopeData.internalBinaryRead(reader, reader.uint32(), options, message.scope);
                     break;
                 case /* string connection_token */ 2:
                     message.connectionToken = reader.string();
@@ -936,9 +930,9 @@ class WatchGetRequest$Type extends MessageType<WatchGetRequest> {
         return message;
     }
     internalBinaryWrite(message: WatchGetRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.GraphScope scope = 1; */
+        /* symbolx.bench.GraphScopeData scope = 1; */
         if (message.scope)
-            GraphScope.internalBinaryWrite(message.scope, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+            GraphScopeData.internalBinaryWrite(message.scope, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
         /* string connection_token = 2; */
         if (message.connectionToken !== "")
             writer.tag(2, WireType.LengthDelimited).string(message.connectionToken);
@@ -1038,14 +1032,13 @@ export const WatchGetResponse = new WatchGetResponse$Type();
 class SearchNodesRequest$Type extends MessageType<SearchNodesRequest> {
     constructor() {
         super("symbolx.bench.SearchNodesRequest", [
-            { no: 1, name: "scope", kind: "message", T: () => GraphScope },
+            { no: 1, name: "scope", kind: "message", T: () => GraphScopeData },
             { no: 2, name: "node_type", kind: "enum", T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 3, name: "bases", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 4, name: "filter", kind: "message", T: () => ExpressionData },
             { no: 5, name: "sort", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ExpressionData },
             { no: 6, name: "first", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 7, name: "skip", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 8, name: "after", kind: "message", T: () => NodeReferenceData },
             { no: 9, name: "count", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 10, name: "options", kind: "message", T: () => ReadOptionsData },
             { no: 11, name: "no_cache", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
@@ -1065,8 +1058,8 @@ class SearchNodesRequest$Type extends MessageType<SearchNodesRequest> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.GraphScope scope */ 1:
-                    message.scope = GraphScope.internalBinaryRead(reader, reader.uint32(), options, message.scope);
+                case /* symbolx.bench.GraphScopeData scope */ 1:
+                    message.scope = GraphScopeData.internalBinaryRead(reader, reader.uint32(), options, message.scope);
                     break;
                 case /* symbolx.bench.NodeType node_type */ 2:
                     message.nodeType = reader.int32();
@@ -1085,9 +1078,6 @@ class SearchNodesRequest$Type extends MessageType<SearchNodesRequest> {
                     break;
                 case /* optional int32 skip */ 7:
                     message.skip = reader.int32();
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData after */ 8:
-                    message.after = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.after);
                     break;
                 case /* optional bool count */ 9:
                     message.count = reader.bool();
@@ -1110,9 +1100,9 @@ class SearchNodesRequest$Type extends MessageType<SearchNodesRequest> {
         return message;
     }
     internalBinaryWrite(message: SearchNodesRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.GraphScope scope = 1; */
+        /* symbolx.bench.GraphScopeData scope = 1; */
         if (message.scope)
-            GraphScope.internalBinaryWrite(message.scope, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+            GraphScopeData.internalBinaryWrite(message.scope, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeType node_type = 2; */
         if (message.nodeType !== 0)
             writer.tag(2, WireType.Varint).int32(message.nodeType);
@@ -1131,9 +1121,6 @@ class SearchNodesRequest$Type extends MessageType<SearchNodesRequest> {
         /* optional int32 skip = 7; */
         if (message.skip !== undefined)
             writer.tag(7, WireType.Varint).int32(message.skip);
-        /* optional symbolx.bench.NodeReferenceData after = 8; */
-        if (message.after)
-            NodeReferenceData.internalBinaryWrite(message.after, writer.tag(8, WireType.LengthDelimited).fork(), options).join();
         /* optional bool count = 9; */
         if (message.count !== undefined)
             writer.tag(9, WireType.Varint).bool(message.count);
@@ -1235,7 +1222,7 @@ export const SearchNodesResponse = new SearchNodesResponse$Type();
 class WatchSearchRequest$Type extends MessageType<WatchSearchRequest> {
     constructor() {
         super("symbolx.bench.WatchSearchRequest", [
-            { no: 1, name: "scope", kind: "message", T: () => GraphScope },
+            { no: 1, name: "scope", kind: "message", T: () => GraphScopeData },
             { no: 2, name: "connection_token", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "since_epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ }
         ]);
@@ -1253,8 +1240,8 @@ class WatchSearchRequest$Type extends MessageType<WatchSearchRequest> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.GraphScope scope */ 1:
-                    message.scope = GraphScope.internalBinaryRead(reader, reader.uint32(), options, message.scope);
+                case /* symbolx.bench.GraphScopeData scope */ 1:
+                    message.scope = GraphScopeData.internalBinaryRead(reader, reader.uint32(), options, message.scope);
                     break;
                 case /* string connection_token */ 2:
                     message.connectionToken = reader.string();
@@ -1274,9 +1261,9 @@ class WatchSearchRequest$Type extends MessageType<WatchSearchRequest> {
         return message;
     }
     internalBinaryWrite(message: WatchSearchRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.GraphScope scope = 1; */
+        /* symbolx.bench.GraphScopeData scope = 1; */
         if (message.scope)
-            GraphScope.internalBinaryWrite(message.scope, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+            GraphScopeData.internalBinaryWrite(message.scope, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
         /* string connection_token = 2; */
         if (message.connectionToken !== "")
             writer.tag(2, WireType.LengthDelimited).string(message.connectionToken);
@@ -1419,7 +1406,7 @@ export const WatchSearchResponse = new WatchSearchResponse$Type();
 class AggregateNodesRequest$Type extends MessageType<AggregateNodesRequest> {
     constructor() {
         super("symbolx.bench.AggregateNodesRequest", [
-            { no: 1, name: "scope", kind: "message", T: () => GraphScope },
+            { no: 1, name: "scope", kind: "message", T: () => GraphScopeData },
             { no: 2, name: "node_type", kind: "enum", T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 3, name: "bases", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 4, name: "filter", kind: "message", T: () => ExpressionData },
@@ -1442,8 +1429,8 @@ class AggregateNodesRequest$Type extends MessageType<AggregateNodesRequest> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.GraphScope scope */ 1:
-                    message.scope = GraphScope.internalBinaryRead(reader, reader.uint32(), options, message.scope);
+                case /* symbolx.bench.GraphScopeData scope */ 1:
+                    message.scope = GraphScopeData.internalBinaryRead(reader, reader.uint32(), options, message.scope);
                     break;
                 case /* symbolx.bench.NodeType node_type */ 2:
                     message.nodeType = reader.int32();
@@ -1475,9 +1462,9 @@ class AggregateNodesRequest$Type extends MessageType<AggregateNodesRequest> {
         return message;
     }
     internalBinaryWrite(message: AggregateNodesRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.GraphScope scope = 1; */
+        /* symbolx.bench.GraphScopeData scope = 1; */
         if (message.scope)
-            GraphScope.internalBinaryWrite(message.scope, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+            GraphScopeData.internalBinaryWrite(message.scope, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.NodeType node_type = 2; */
         if (message.nodeType !== 0)
             writer.tag(2, WireType.Varint).int32(message.nodeType);
@@ -1510,7 +1497,7 @@ export const AggregateNodesRequest = new AggregateNodesRequest$Type();
 class AggregateNodesResponse$Type extends MessageType<AggregateNodesResponse> {
     constructor() {
         super("symbolx.bench.AggregateNodesResponse", [
-            { no: 1, name: "scope", kind: "message", T: () => GraphScope },
+            { no: 1, name: "scope", kind: "message", T: () => GraphScopeData },
             { no: 2, name: "connection_token", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "aggregation", kind: "message", T: () => AggregationData },
             { no: 10, name: "epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ }
@@ -1529,8 +1516,8 @@ class AggregateNodesResponse$Type extends MessageType<AggregateNodesResponse> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.GraphScope scope */ 1:
-                    message.scope = GraphScope.internalBinaryRead(reader, reader.uint32(), options, message.scope);
+                case /* symbolx.bench.GraphScopeData scope */ 1:
+                    message.scope = GraphScopeData.internalBinaryRead(reader, reader.uint32(), options, message.scope);
                     break;
                 case /* string connection_token */ 2:
                     message.connectionToken = reader.string();
@@ -1553,9 +1540,9 @@ class AggregateNodesResponse$Type extends MessageType<AggregateNodesResponse> {
         return message;
     }
     internalBinaryWrite(message: AggregateNodesResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.GraphScope scope = 1; */
+        /* symbolx.bench.GraphScopeData scope = 1; */
         if (message.scope)
-            GraphScope.internalBinaryWrite(message.scope, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+            GraphScopeData.internalBinaryWrite(message.scope, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
         /* string connection_token = 2; */
         if (message.connectionToken !== "")
             writer.tag(2, WireType.LengthDelimited).string(message.connectionToken);
@@ -1579,7 +1566,7 @@ export const AggregateNodesResponse = new AggregateNodesResponse$Type();
 class WatchAggregateRequest$Type extends MessageType<WatchAggregateRequest> {
     constructor() {
         super("symbolx.bench.WatchAggregateRequest", [
-            { no: 1, name: "scope", kind: "message", T: () => GraphScope },
+            { no: 1, name: "scope", kind: "message", T: () => GraphScopeData },
             { no: 2, name: "connection_token", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "since_epoch", kind: "scalar", T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ }
         ]);
@@ -1597,8 +1584,8 @@ class WatchAggregateRequest$Type extends MessageType<WatchAggregateRequest> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.GraphScope scope */ 1:
-                    message.scope = GraphScope.internalBinaryRead(reader, reader.uint32(), options, message.scope);
+                case /* symbolx.bench.GraphScopeData scope */ 1:
+                    message.scope = GraphScopeData.internalBinaryRead(reader, reader.uint32(), options, message.scope);
                     break;
                 case /* string connection_token */ 2:
                     message.connectionToken = reader.string();
@@ -1618,9 +1605,9 @@ class WatchAggregateRequest$Type extends MessageType<WatchAggregateRequest> {
         return message;
     }
     internalBinaryWrite(message: WatchAggregateRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.GraphScope scope = 1; */
+        /* symbolx.bench.GraphScopeData scope = 1; */
         if (message.scope)
-            GraphScope.internalBinaryWrite(message.scope, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+            GraphScopeData.internalBinaryWrite(message.scope, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
         /* string connection_token = 2; */
         if (message.connectionToken !== "")
             writer.tag(2, WireType.LengthDelimited).string(message.connectionToken);
@@ -1695,7 +1682,7 @@ export const WatchAggregateResponse = new WatchAggregateResponse$Type();
 class CommitTransactionRequest$Type extends MessageType<CommitTransactionRequest> {
     constructor() {
         super("symbolx.bench.CommitTransactionRequest", [
-            { no: 1, name: "scope", kind: "message", T: () => GraphScope },
+            { no: 1, name: "scope", kind: "message", T: () => GraphScopeData },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "edits", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditData },
             { no: 4, name: "context", kind: "message", T: () => SessionContextData }
@@ -1714,8 +1701,8 @@ class CommitTransactionRequest$Type extends MessageType<CommitTransactionRequest
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.GraphScope scope */ 1:
-                    message.scope = GraphScope.internalBinaryRead(reader, reader.uint32(), options, message.scope);
+                case /* symbolx.bench.GraphScopeData scope */ 1:
+                    message.scope = GraphScopeData.internalBinaryRead(reader, reader.uint32(), options, message.scope);
                     break;
                 case /* string id */ 2:
                     message.id = reader.string();
@@ -1738,9 +1725,9 @@ class CommitTransactionRequest$Type extends MessageType<CommitTransactionRequest
         return message;
     }
     internalBinaryWrite(message: CommitTransactionRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.GraphScope scope = 1; */
+        /* symbolx.bench.GraphScopeData scope = 1; */
         if (message.scope)
-            GraphScope.internalBinaryWrite(message.scope, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+            GraphScopeData.internalBinaryWrite(message.scope, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
         /* string id = 2; */
         if (message.id !== "")
             writer.tag(2, WireType.LengthDelimited).string(message.id);

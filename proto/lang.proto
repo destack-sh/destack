@@ -119,24 +119,28 @@ enum BenchType {
   BENCH_TYPE_USER = 221;
   BENCH_TYPE_ORGANIZATION = 222;
   BENCH_TYPE_CLIENT = 223;
-  BENCH_TYPE_PATH = 1000;
-  BENCH_TYPE_PATH_SEGMENT = 1001;
-  BENCH_TYPE_PATH_TOKEN = 1002;
-  BENCH_TYPE_NODE_REFERENCE = 1003;
-  BENCH_TYPE_PROPERTY_REFERENCE = 1004;
-  BENCH_TYPE_TYPE_INFO = 1010;
-  BENCH_TYPE_TYPE_CONSTRAINT = 1011;
-  BENCH_TYPE_CONTEXT = 1020;
-  BENCH_TYPE_SESSION_CONTEXT = 1021;
-  BENCH_TYPE_EDIT_CONTEXT = 1022;
-  BENCH_TYPE_SCHEDULE = 1012;
-  BENCH_TYPE_PROJECTION = 1013;
+  BENCH_TYPE_CONTEXT = 1000;
+  BENCH_TYPE_SESSION_CONTEXT = 1001;
+  BENCH_TYPE_EDIT_CONTEXT = 1002;
+  BENCH_TYPE_EDIT = 1005;
+  BENCH_TYPE_CHANGE = 1006;
+  BENCH_TYPE_GRAPH_SCOPE = 1010;
+  BENCH_TYPE_CLIENT_ORIGIN = 1011;
+  BENCH_TYPE_NODE_REFERENCE = 1012;
+  BENCH_TYPE_PROPERTY_REFERENCE = 1013;
+  BENCH_TYPE_PATH = 1020;
+  BENCH_TYPE_PATH_SEGMENT = 1021;
+  BENCH_TYPE_PATH_TOKEN = 1022;
   BENCH_TYPE_POLICY = 1030;
   BENCH_TYPE_POLICY_RULE = 1031;
   BENCH_TYPE_SUBJECT = 1032;
   BENCH_TYPE_ACCESS_ZONE = 1034;
   BENCH_TYPE_ACCESS_MATRIX = 1035;
   BENCH_TYPE_ACCESS = 1037;
+  BENCH_TYPE_TYPE_INFO = 1040;
+  BENCH_TYPE_TYPE_CONSTRAINT = 1041;
+  BENCH_TYPE_SCHEDULE = 1042;
+  BENCH_TYPE_PROJECTION = 1043;
   BENCH_TYPE_EXPRESSION = 1060;
   BENCH_TYPE_AGGREGATION = 1061;
   BENCH_TYPE_SELECTION = 1070;
@@ -164,6 +168,7 @@ enum BenchType {
   BENCH_TYPE_OBJECT_TYPE = 2004;
   BENCH_TYPE_BENCH_TYPE = 2005;
   BENCH_TYPE_VISIBILITY = 2010;
+  BENCH_TYPE_CHANGE_KIND = 2011;
   BENCH_TYPE_ACCESS_MODE = 2030;
   BENCH_TYPE_ACCESS_KIND = 2033;
   BENCH_TYPE_READ_TYPE = 2034;
@@ -249,6 +254,15 @@ enum BlockType {
   BLOCK_TYPE_SCREEN = 70;
   BLOCK_TYPE_ROLE = 90;
   BLOCK_TYPE_IDENTITY = 91;
+}
+
+// The kind of Change.
+enum ChangeKind {
+  CHANGE_KIND_UNSPECIFIED = 0;
+  CHANGE_KIND_CODE = 1;
+  CHANGE_KIND_MATERIALIZED = 2;
+  CHANGE_KIND_LOGS = 3;
+  CHANGE_KIND_LOGS_QUERY = 4;
 }
 
 enum ClientType {
@@ -363,6 +377,7 @@ enum EnumType {
   ENUM_TYPE_OBJECT_TYPE = 2004;
   ENUM_TYPE_BENCH_TYPE = 2005;
   ENUM_TYPE_VISIBILITY = 2010;
+  ENUM_TYPE_CHANGE_KIND = 2011;
   ENUM_TYPE_ACCESS_MODE = 2030;
   ENUM_TYPE_ACCESS_KIND = 2033;
   ENUM_TYPE_READ_TYPE = 2034;
@@ -597,10 +612,8 @@ enum LiteralOp {
 
 enum LogKind {
   LOG_KIND_UNSPECIFIED = 0;
-  LOG_KIND_READ = 1;
-  LOG_KIND_EDIT = 2;
-  LOG_KIND_USE = 3;
-  LOG_KIND_CUSTOM = 10;
+  LOG_KIND_EDIT = 1;
+  LOG_KIND_CHANGE = 2;
 }
 
 enum LogLevel {
@@ -724,24 +737,28 @@ enum ObjectType {
   OBJECT_TYPE_USER = 221;
   OBJECT_TYPE_ORGANIZATION = 222;
   OBJECT_TYPE_CLIENT = 223;
-  OBJECT_TYPE_PATH = 1000;
-  OBJECT_TYPE_PATH_SEGMENT = 1001;
-  OBJECT_TYPE_PATH_TOKEN = 1002;
-  OBJECT_TYPE_NODE_REFERENCE = 1003;
-  OBJECT_TYPE_PROPERTY_REFERENCE = 1004;
-  OBJECT_TYPE_TYPE_INFO = 1010;
-  OBJECT_TYPE_TYPE_CONSTRAINT = 1011;
-  OBJECT_TYPE_CONTEXT = 1020;
-  OBJECT_TYPE_SESSION_CONTEXT = 1021;
-  OBJECT_TYPE_EDIT_CONTEXT = 1022;
-  OBJECT_TYPE_SCHEDULE = 1012;
-  OBJECT_TYPE_PROJECTION = 1013;
+  OBJECT_TYPE_CONTEXT = 1000;
+  OBJECT_TYPE_SESSION_CONTEXT = 1001;
+  OBJECT_TYPE_EDIT_CONTEXT = 1002;
+  OBJECT_TYPE_EDIT = 1005;
+  OBJECT_TYPE_CHANGE = 1006;
+  OBJECT_TYPE_GRAPH_SCOPE = 1010;
+  OBJECT_TYPE_CLIENT_ORIGIN = 1011;
+  OBJECT_TYPE_NODE_REFERENCE = 1012;
+  OBJECT_TYPE_PROPERTY_REFERENCE = 1013;
+  OBJECT_TYPE_PATH = 1020;
+  OBJECT_TYPE_PATH_SEGMENT = 1021;
+  OBJECT_TYPE_PATH_TOKEN = 1022;
   OBJECT_TYPE_POLICY = 1030;
   OBJECT_TYPE_POLICY_RULE = 1031;
   OBJECT_TYPE_SUBJECT = 1032;
   OBJECT_TYPE_ACCESS_ZONE = 1034;
   OBJECT_TYPE_ACCESS_MATRIX = 1035;
   OBJECT_TYPE_ACCESS = 1037;
+  OBJECT_TYPE_TYPE_INFO = 1040;
+  OBJECT_TYPE_TYPE_CONSTRAINT = 1041;
+  OBJECT_TYPE_SCHEDULE = 1042;
+  OBJECT_TYPE_PROJECTION = 1043;
   OBJECT_TYPE_EXPRESSION = 1060;
   OBJECT_TYPE_AGGREGATION = 1061;
   OBJECT_TYPE_SELECTION = 1070;
@@ -1020,24 +1037,28 @@ enum StepType {
 
 enum StructType {
   STRUCT_TYPE_UNSPECIFIED = 0;
-  STRUCT_TYPE_PATH = 1000;
-  STRUCT_TYPE_PATH_SEGMENT = 1001;
-  STRUCT_TYPE_PATH_TOKEN = 1002;
-  STRUCT_TYPE_NODE_REFERENCE = 1003;
-  STRUCT_TYPE_PROPERTY_REFERENCE = 1004;
-  STRUCT_TYPE_TYPE_INFO = 1010;
-  STRUCT_TYPE_TYPE_CONSTRAINT = 1011;
-  STRUCT_TYPE_CONTEXT = 1020;
-  STRUCT_TYPE_SESSION_CONTEXT = 1021;
-  STRUCT_TYPE_EDIT_CONTEXT = 1022;
-  STRUCT_TYPE_SCHEDULE = 1012;
-  STRUCT_TYPE_PROJECTION = 1013;
+  STRUCT_TYPE_CONTEXT = 1000;
+  STRUCT_TYPE_SESSION_CONTEXT = 1001;
+  STRUCT_TYPE_EDIT_CONTEXT = 1002;
+  STRUCT_TYPE_EDIT = 1005;
+  STRUCT_TYPE_CHANGE = 1006;
+  STRUCT_TYPE_GRAPH_SCOPE = 1010;
+  STRUCT_TYPE_CLIENT_ORIGIN = 1011;
+  STRUCT_TYPE_NODE_REFERENCE = 1012;
+  STRUCT_TYPE_PROPERTY_REFERENCE = 1013;
+  STRUCT_TYPE_PATH = 1020;
+  STRUCT_TYPE_PATH_SEGMENT = 1021;
+  STRUCT_TYPE_PATH_TOKEN = 1022;
   STRUCT_TYPE_POLICY = 1030;
   STRUCT_TYPE_POLICY_RULE = 1031;
   STRUCT_TYPE_SUBJECT = 1032;
   STRUCT_TYPE_ACCESS_ZONE = 1034;
   STRUCT_TYPE_ACCESS_MATRIX = 1035;
   STRUCT_TYPE_ACCESS = 1037;
+  STRUCT_TYPE_TYPE_INFO = 1040;
+  STRUCT_TYPE_TYPE_CONSTRAINT = 1041;
+  STRUCT_TYPE_SCHEDULE = 1042;
+  STRUCT_TYPE_PROJECTION = 1043;
   STRUCT_TYPE_EXPRESSION = 1060;
   STRUCT_TYPE_AGGREGATION = 1061;
   STRUCT_TYPE_SELECTION = 1070;
@@ -1276,6 +1297,30 @@ message BoxData {
   optional float height_relative = 53;
 }
 
+// A change is a sequence of related edits.
+message ChangeData {
+  ObjectType metatype = 1;
+  int32 id = 2;
+  optional int32 parent_id = 3;
+  optional string parent_key = 4;
+  optional string order_key = 9;
+  string key = 30;
+  ChangeKind kind = 31;
+  optional NodeReferenceData scope_ptr = 32;
+  optional CodeData code = 33;
+  repeated EditData edits = 34;
+  repeated NodeReferenceData logs_ptr = 35;
+  optional ExpressionData logs_filter = 36;
+}
+
+// Information to identify a client.
+message ClientOriginData {
+  ObjectType metatype = 1;
+  ClientType type = 30;
+  optional string id = 31;
+  optional string nonce = 32;
+}
+
 // Code composed of multiple lines.
 message CodeData {
   ObjectType metatype = 1;
@@ -1330,14 +1375,37 @@ message ContextData {
   optional NodeReferenceData signal_ptr = 55;
 }
 
+// An edit to a Node.
+// For updates/moves, the old/new node values are just the edited properties.
+// For 'remove's, the old node is the full node.
+// (technically we don't *need* if for non-hard deletes, but it's very convenient)
+// Similarly, for 'adds', the new node is the full node.
+message EditData {
+  ObjectType metatype = 1;
+  string id = 2;
+  EditType type = 30;
+  NodeReferenceData node_ptr = 31;
+  repeated int32 properties = 32;
+  optional google.protobuf.Struct old_node_packed = 33;
+  optional google.protobuf.Struct new_node_packed = 34;
+  GraphScopeData scope = 40;
+  optional string change_key = 41;
+  optional NodeReferenceData subject_ptr = 42;
+  optional ClientOriginData origin = 43;
+  optional EditContextData context = 44;
+  google.protobuf.Timestamp edited_at = 45;
+  optional int32 revision = 46;
+  optional int32 epoch = 47;
+}
+
 // Additional context for a specific edit (per-edit variable subset of Session context).
 message EditContextData {
   ObjectType metatype = 1;
-  optional NodeReferenceData block_ptr = 60;
-  optional NodeReferenceData step_ptr = 61;
-  optional NodeReferenceData session_ptr = 62;
-  optional NodeReferenceData run_ptr = 63;
-  optional NodeReferenceData run_root_ptr = 64;
+  optional NodeReferenceData block_ptr = 70;
+  optional NodeReferenceData step_ptr = 71;
+  optional NodeReferenceData session_ptr = 72;
+  optional NodeReferenceData run_ptr = 73;
+  optional NodeReferenceData run_root_ptr = 74;
 }
 
 // An expression like a value, function, comparison or such.
@@ -1373,6 +1441,13 @@ message FontData {
   optional FontType type = 31;
   optional FontWeight weight = 32;
   optional FontSize size = 33;
+}
+
+// The scope for an operation on the Bench graph.
+message GraphScopeData {
+  ObjectType metatype = 1;
+  optional string bench_id = 30;
+  optional string package_id = 31;
 }
 
 // An icon to be displayed in some view.
@@ -1661,15 +1736,15 @@ message SelectionData {
 // Context information for runtime nodes created in a session.
 message SessionContextData {
   ObjectType metatype = 1;
-  optional NodeReferenceData block_ptr = 60;
-  optional NodeReferenceData step_ptr = 61;
-  optional NodeReferenceData session_ptr = 62;
-  optional NodeReferenceData run_ptr = 63;
-  optional NodeReferenceData run_root_ptr = 64;
-  optional NodeReferenceData client_ptr = 65;
-  optional NodeReferenceData machine_ptr = 66;
-  optional NodeReferenceData server_ptr = 67;
-  optional NodeReferenceData user_ptr = 68;
+  optional NodeReferenceData block_ptr = 70;
+  optional NodeReferenceData step_ptr = 71;
+  optional NodeReferenceData session_ptr = 72;
+  optional NodeReferenceData run_ptr = 73;
+  optional NodeReferenceData run_root_ptr = 74;
+  optional NodeReferenceData client_ptr = 75;
+  optional NodeReferenceData machine_ptr = 76;
+  optional NodeReferenceData server_ptr = 77;
+  optional NodeReferenceData user_ptr = 78;
 }
 
 // A connection between two Steps in a FlowBlock.
@@ -2253,19 +2328,17 @@ message LogData {
   optional google.protobuf.Struct new_node_packed = 45;
   optional google.protobuf.Struct new_node_secret_packed = 46;
   optional int64 new_revision = 47;
-  optional string title = 50;
-  optional TextData text = 51;
-  optional google.protobuf.Struct value_packed = 52;
-  optional google.protobuf.Struct secret_value_packed = 53;
-  optional NodeReferenceData block_ptr = 60;
-  optional NodeReferenceData step_ptr = 61;
-  optional NodeReferenceData session_ptr = 62;
-  optional NodeReferenceData run_ptr = 63;
-  optional NodeReferenceData run_root_ptr = 64;
-  optional NodeReferenceData client_ptr = 65;
-  optional NodeReferenceData machine_ptr = 66;
-  optional NodeReferenceData server_ptr = 67;
-  optional NodeReferenceData user_ptr = 68;
+  optional NodeReferenceData change_ptr = 48;
+  repeated NodeReferenceData nodes_ptr = 50;
+  optional NodeReferenceData block_ptr = 70;
+  optional NodeReferenceData step_ptr = 71;
+  optional NodeReferenceData session_ptr = 72;
+  optional NodeReferenceData run_ptr = 73;
+  optional NodeReferenceData run_root_ptr = 74;
+  optional NodeReferenceData client_ptr = 75;
+  optional NodeReferenceData machine_ptr = 76;
+  optional NodeReferenceData server_ptr = 77;
+  optional NodeReferenceData user_ptr = 78;
 }
 
 // A Machine provides some isolated compute for a Server.
@@ -2570,15 +2643,15 @@ message RunData {
   optional google.protobuf.Struct value_secret_packed = 55;
   repeated RetryAttemptData attempts = 56;
   optional RunErrorData error = 57;
-  optional NodeReferenceData block_ptr = 60;
-  optional NodeReferenceData step_ptr = 61;
-  optional NodeReferenceData session_ptr = 62;
-  optional NodeReferenceData run_ptr = 63;
-  optional NodeReferenceData run_root_ptr = 64;
-  optional NodeReferenceData client_ptr = 65;
-  optional NodeReferenceData machine_ptr = 66;
-  optional NodeReferenceData server_ptr = 67;
-  optional NodeReferenceData user_ptr = 68;
+  optional NodeReferenceData block_ptr = 70;
+  optional NodeReferenceData step_ptr = 71;
+  optional NodeReferenceData session_ptr = 72;
+  optional NodeReferenceData run_ptr = 73;
+  optional NodeReferenceData run_root_ptr = 74;
+  optional NodeReferenceData client_ptr = 75;
+  optional NodeReferenceData machine_ptr = 76;
+  optional NodeReferenceData server_ptr = 77;
+  optional NodeReferenceData user_ptr = 78;
 }
 
 // A server provides some compute for a Bench's Runtime.
@@ -2661,15 +2734,15 @@ message SignalData {
   NodeReferenceData type_ptr = 32;
   optional google.protobuf.Struct value_packed = 42;
   optional google.protobuf.Struct secret_value_packed = 43;
-  optional NodeReferenceData block_ptr = 60;
-  optional NodeReferenceData step_ptr = 61;
-  optional NodeReferenceData session_ptr = 62;
-  optional NodeReferenceData run_ptr = 63;
-  optional NodeReferenceData run_root_ptr = 64;
-  optional NodeReferenceData client_ptr = 65;
-  optional NodeReferenceData machine_ptr = 66;
-  optional NodeReferenceData server_ptr = 67;
-  optional NodeReferenceData user_ptr = 68;
+  optional NodeReferenceData block_ptr = 70;
+  optional NodeReferenceData step_ptr = 71;
+  optional NodeReferenceData session_ptr = 72;
+  optional NodeReferenceData run_ptr = 73;
+  optional NodeReferenceData run_root_ptr = 74;
+  optional NodeReferenceData client_ptr = 75;
+  optional NodeReferenceData machine_ptr = 76;
+  optional NodeReferenceData server_ptr = 77;
+  optional NodeReferenceData user_ptr = 78;
 }
 
 // A reference to another node in some graph that wasn't available for some reason (usually permissions).

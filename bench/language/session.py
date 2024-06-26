@@ -45,10 +45,10 @@ from bench.language.property import Property, p_internal, p_node_parent, p_runti
 from bench.language.transaction import Transaction
 from bench.proto import wire
 from bench.proto.wire import (
-    ClientOrigin,
+    ClientOriginData,
     EditContextData,
     EditData,
-    GraphScope,
+    GraphScopeData,
     HostClient,
     NodeReferenceData,
     SessionContextData,
@@ -130,12 +130,12 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
     _engines: tuple["GraphEngine", ...] = p_runtime(default_factory=tuple)
     _channels: list[Channel] = p_runtime(default_factory=list)
     _connections: list[Connection] = p_runtime(default_factory=list)
-    _origin: ClientOrigin | None = p_runtime(default=None)
+    _origin: ClientOriginData | None = p_runtime(default=None)
     _subject: EditSubject | None = p_runtime(default=None)
     _tx: Transaction | None = p_runtime(default=None)
     _tx_lock: asyncio.Lock = p_runtime(default_factory=lambda: CriticalLock(name="session"))
     _edited_nodes_by_id: dict[UUID, Node] = p_runtime(default_factory=dict)
-    _default_scope: GraphScope = p_runtime(default_factory=GraphScope)
+    _default_scope: GraphScopeData = p_runtime(default_factory=GraphScopeData)
     _active_session_token: contextvars.Token | None = p_runtime(default=None)
     _supervisor: Optional["SupervisorClient"] = p_runtime(default=None)
     _host: Optional["HostClient"] = p_runtime(default=None)
@@ -209,16 +209,16 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
         assert self._host is not None, f"host not available in {self!r}"
         return self._host
 
-    def _get_scope_for_node(self, n: Node) -> GraphScope:
+    def _get_scope_for_node(self, n: Node) -> GraphScopeData:
         """Get the scope for a node in this session."""
-        scope = GraphScope()
+        scope = GraphScopeData()
         if isinstance(n, BenchNode):
             scope.bench_id = uuid_to_str(n.bench_id) or self._default_scope.bench_id
         if isinstance(n, PackageNode):
             scope.package_id = uuid_to_str(n.package_id) or self._default_scope.package_id
         return scope
 
-    def _get_scope_for_query(self, query: "QueryBuilder") -> GraphScope:
+    def _get_scope_for_query(self, query: "QueryBuilder") -> GraphScopeData:
         """Get the scope for a query in this session."""
         if query._base is not None:
             return self._get_scope_for_node(query._base)
@@ -227,7 +227,7 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
 
     def _get_engine_for(
         self,
-        scope: GraphScope,
+        scope: GraphScopeData,
         node_types: NodeType | Iterable[NodeType],
         *,
         is_readonly: bool,
@@ -272,7 +272,7 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
 
     async def _get_channel_for(
         self,
-        scope: GraphScope,
+        scope: GraphScopeData,
         node_types: NodeType | Iterable[NodeType],
         *,
         is_readonly: bool,
@@ -308,7 +308,7 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
         self.opened_at = self._oracle.utc()
         self._session = self
         if self.parent is not None:
-            self._default_scope = GraphScope(
+            self._default_scope = GraphScopeData(
                 bench_id=uuid_to_str(self.parent.bench_id), package_id=uuid_to_str(self.parent.id)
             )
         if set_in_context:
@@ -598,16 +598,16 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
 class EditContext(InlineStruct):
     """Additional context for a specific edit (per-edit variable subset of Session context)."""
 
-    block: Optional["Block"] = p_internal(60, require=False, array=False, references=NodeType.BLOCK)
-    step: Optional["Step"] = p_internal(61, require=False, array=False, references=NodeType.STEP)
+    block: Optional["Block"] = p_internal(70, require=False, array=False, references=NodeType.BLOCK)
+    step: Optional["Step"] = p_internal(71, require=False, array=False, references=NodeType.STEP)
     session: Optional["Session"] = p_internal(
-        62, require=False, array=False, references=NodeType.SESSION, same_bench=True
+        72, require=False, array=False, references=NodeType.SESSION, same_bench=True
     )
     run: Optional["Run"] = p_internal(
-        63, require=False, array=False, references=NodeType.RUN, same_bench=True
+        73, require=False, array=False, references=NodeType.RUN, same_bench=True
     )
     run_root: Optional["Run"] = p_internal(
-        64, require=False, array=False, references=NodeType.RUN, same_bench=True
+        74, require=False, array=False, references=NodeType.RUN, same_bench=True
     )
 
 
@@ -616,29 +616,29 @@ class HasSessionContext(BuiltinObject):
     """Context for the creation of a node in some Session."""
 
     # NOTE :Security: session context properties are p_internal, not p_system so we can update
-    #   them in all clients. This however also means users can mess with them if they really want to.
+    #   them in all clients. But this also means users can mess with them if they really want to.
     # :SessionContext
-    block: Optional["Block"] = p_internal(60, require=False, array=False, references=NodeType.BLOCK)
-    step: Optional["Step"] = p_internal(61, require=False, array=False, references=NodeType.STEP)
+    block: Optional["Block"] = p_internal(70, require=False, array=False, references=NodeType.BLOCK)
+    step: Optional["Step"] = p_internal(71, require=False, array=False, references=NodeType.STEP)
     session: Optional["Session"] = p_internal(
-        62, require=False, array=False, references=NodeType.SESSION, same_bench=True
+        72, require=False, array=False, references=NodeType.SESSION, same_bench=True
     )
     run: Optional["Run"] = p_internal(
-        63, require=False, array=False, references=NodeType.RUN, same_bench=True
+        73, require=False, array=False, references=NodeType.RUN, same_bench=True
     )
     run_root: Optional["Run"] = p_internal(
-        64, require=False, array=False, references=NodeType.RUN, same_bench=True
+        74, require=False, array=False, references=NodeType.RUN, same_bench=True
     )
     client: Optional["Client"] = p_internal(
-        65, require=False, array=False, references=NodeType.CLIENT, same_bench=True
+        75, require=False, array=False, references=NodeType.CLIENT, same_bench=True
     )
     machine: Optional["Machine"] = p_internal(
-        66, require=False, array=False, references=NodeType.MACHINE, same_bench=True
+        76, require=False, array=False, references=NodeType.MACHINE, same_bench=True
     )
     server: Optional["Server"] = p_internal(
-        67, require=False, array=False, references=NodeType.SERVER, same_bench=True
+        77, require=False, array=False, references=NodeType.SERVER, same_bench=True
     )
-    user: Optional["User"] = p_internal(68, require=False, array=False, references=NodeType.USER)
+    user: Optional["User"] = p_internal(78, require=False, array=False, references=NodeType.USER)
 
     if TYPE_CHECKING:
         block_ptr: Optional[NodeReference] = None

@@ -165,7 +165,7 @@ class Run(PackageNode[RunData], HasTimeIdentity, HasNodeBase, HasSessionContext,
         57, default=None, require=False, array=False, struct=StructType.RUN_ERROR
     )
 
-    # ...HasSessionContext[60-69]
+    # ...HasSessionContext[70-79]
 
     # NOTE :Architecture :Performance: (some) Runs will likely be stored outside the main user DB later.
     #  And maybe we'll also have 'inline runs' for non-Bench constructs that were run (like deeper profiling).

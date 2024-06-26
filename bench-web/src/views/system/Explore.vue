@@ -396,7 +396,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
               ? 'border-primary-400 bg-primary-200'
               : '',
           ]"
-          :style="{ paddingLeft: 8 + depth * DEPTH_OFFSET + 'px', paddingRight: 4 + 'px' }"
+          :style="{ paddingLeft: 4 + depth * DEPTH_OFFSET + 'px', paddingRight: 4 + 'px' }"
           role="treeitem"
           :draggable="true"
           @click.stop="fire(node)"

@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.06.25.1"
+VERSION = "2024.06.26.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -154,24 +154,28 @@ class BenchType(betterproto.Enum):
     USER = 221
     ORGANIZATION = 222
     CLIENT = 223
-    PATH = 1000
-    PATH_SEGMENT = 1001
-    PATH_TOKEN = 1002
-    NODE_REFERENCE = 1003
-    PROPERTY_REFERENCE = 1004
-    TYPE_INFO = 1010
-    TYPE_CONSTRAINT = 1011
-    CONTEXT = 1020
-    SESSION_CONTEXT = 1021
-    EDIT_CONTEXT = 1022
-    SCHEDULE = 1012
-    PROJECTION = 1013
+    CONTEXT = 1000
+    SESSION_CONTEXT = 1001
+    EDIT_CONTEXT = 1002
+    EDIT = 1005
+    CHANGE = 1006
+    GRAPH_SCOPE = 1010
+    CLIENT_ORIGIN = 1011
+    NODE_REFERENCE = 1012
+    PROPERTY_REFERENCE = 1013
+    PATH = 1020
+    PATH_SEGMENT = 1021
+    PATH_TOKEN = 1022
     POLICY = 1030
     POLICY_RULE = 1031
     SUBJECT = 1032
     ACCESS_ZONE = 1034
     ACCESS_MATRIX = 1035
     ACCESS = 1037
+    TYPE_INFO = 1040
+    TYPE_CONSTRAINT = 1041
+    SCHEDULE = 1042
+    PROJECTION = 1043
     EXPRESSION = 1060
     AGGREGATION = 1061
     SELECTION = 1070
@@ -199,6 +203,7 @@ class BenchType(betterproto.Enum):
     OBJECT_TYPE = 2004
     BENCH_TYPE = 2005
     VISIBILITY = 2010
+    CHANGE_KIND = 2011
     ACCESS_MODE = 2030
     ACCESS_KIND = 2033
     READ_TYPE = 2034
@@ -284,6 +289,16 @@ class BlockType(betterproto.Enum):
     SCREEN = 70
     ROLE = 90
     IDENTITY = 91
+
+
+class ChangeKind(betterproto.Enum):
+    """The kind of Change."""
+
+    UNSPECIFIED = 0
+    CODE = 1
+    MATERIALIZED = 2
+    LOGS = 3
+    LOGS_QUERY = 4
 
 
 class ClientType(betterproto.Enum):
@@ -401,6 +416,7 @@ class EnumType(betterproto.Enum):
     OBJECT_TYPE = 2004
     BENCH_TYPE = 2005
     VISIBILITY = 2010
+    CHANGE_KIND = 2011
     ACCESS_MODE = 2030
     ACCESS_KIND = 2033
     READ_TYPE = 2034
@@ -639,10 +655,8 @@ class LiteralOp(betterproto.Enum):
 
 class LogKind(betterproto.Enum):
     UNSPECIFIED = 0
-    READ = 1
-    EDIT = 2
-    USE = 3
-    CUSTOM = 10
+    EDIT = 1
+    CHANGE = 2
 
 
 class LogLevel(betterproto.Enum):
@@ -767,24 +781,28 @@ class ObjectType(betterproto.Enum):
     USER = 221
     ORGANIZATION = 222
     CLIENT = 223
-    PATH = 1000
-    PATH_SEGMENT = 1001
-    PATH_TOKEN = 1002
-    NODE_REFERENCE = 1003
-    PROPERTY_REFERENCE = 1004
-    TYPE_INFO = 1010
-    TYPE_CONSTRAINT = 1011
-    CONTEXT = 1020
-    SESSION_CONTEXT = 1021
-    EDIT_CONTEXT = 1022
-    SCHEDULE = 1012
-    PROJECTION = 1013
+    CONTEXT = 1000
+    SESSION_CONTEXT = 1001
+    EDIT_CONTEXT = 1002
+    EDIT = 1005
+    CHANGE = 1006
+    GRAPH_SCOPE = 1010
+    CLIENT_ORIGIN = 1011
+    NODE_REFERENCE = 1012
+    PROPERTY_REFERENCE = 1013
+    PATH = 1020
+    PATH_SEGMENT = 1021
+    PATH_TOKEN = 1022
     POLICY = 1030
     POLICY_RULE = 1031
     SUBJECT = 1032
     ACCESS_ZONE = 1034
     ACCESS_MATRIX = 1035
     ACCESS = 1037
+    TYPE_INFO = 1040
+    TYPE_CONSTRAINT = 1041
+    SCHEDULE = 1042
+    PROJECTION = 1043
     EXPRESSION = 1060
     AGGREGATION = 1061
     SELECTION = 1070
@@ -1078,24 +1096,28 @@ class StepType(betterproto.Enum):
 
 class StructType(betterproto.Enum):
     UNSPECIFIED = 0
-    PATH = 1000
-    PATH_SEGMENT = 1001
-    PATH_TOKEN = 1002
-    NODE_REFERENCE = 1003
-    PROPERTY_REFERENCE = 1004
-    TYPE_INFO = 1010
-    TYPE_CONSTRAINT = 1011
-    CONTEXT = 1020
-    SESSION_CONTEXT = 1021
-    EDIT_CONTEXT = 1022
-    SCHEDULE = 1012
-    PROJECTION = 1013
+    CONTEXT = 1000
+    SESSION_CONTEXT = 1001
+    EDIT_CONTEXT = 1002
+    EDIT = 1005
+    CHANGE = 1006
+    GRAPH_SCOPE = 1010
+    CLIENT_ORIGIN = 1011
+    NODE_REFERENCE = 1012
+    PROPERTY_REFERENCE = 1013
+    PATH = 1020
+    PATH_SEGMENT = 1021
+    PATH_TOKEN = 1022
     POLICY = 1030
     POLICY_RULE = 1031
     SUBJECT = 1032
     ACCESS_ZONE = 1034
     ACCESS_MATRIX = 1035
     ACCESS = 1037
+    TYPE_INFO = 1040
+    TYPE_CONSTRAINT = 1041
+    SCHEDULE = 1042
+    PROJECTION = 1043
     EXPRESSION = 1060
     AGGREGATION = 1061
     SELECTION = 1070
@@ -1362,6 +1384,34 @@ class BoxData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class ChangeData(betterproto.Message):
+    """A change is a sequence of related edits."""
+
+    metatype: "ObjectType" = betterproto.enum_field(1)
+    id: int = betterproto.int32_field(2)
+    parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
+    parent_key: Optional[str] = betterproto.string_field(4, optional=True)
+    order_key: Optional[str] = betterproto.string_field(9, optional=True)
+    key: str = betterproto.string_field(30)
+    kind: "ChangeKind" = betterproto.enum_field(31)
+    scope_ptr: Optional["NodeReferenceData"] = betterproto.message_field(32, optional=True)
+    code: Optional["CodeData"] = betterproto.message_field(33, optional=True)
+    edits: List["EditData"] = betterproto.message_field(34)
+    logs_ptr: List["NodeReferenceData"] = betterproto.message_field(35)
+    logs_filter: Optional["ExpressionData"] = betterproto.message_field(36, optional=True)
+
+
+@dataclass(eq=False, repr=False)
+class ClientOriginData(betterproto.Message):
+    """Information to identify a client."""
+
+    metatype: "ObjectType" = betterproto.enum_field(1)
+    type: "ClientType" = betterproto.enum_field(30)
+    id: Optional[str] = betterproto.string_field(31, optional=True)
+    nonce: Optional[str] = betterproto.string_field(32, optional=True)
+
+
+@dataclass(eq=False, repr=False)
 class CodeData(betterproto.Message):
     """Code composed of multiple lines."""
 
@@ -1424,17 +1474,48 @@ class ContextData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class EditData(betterproto.Message):
+    """
+    An edit to a Node.
+     For updates/moves, the old/new node values are just the edited properties.
+     For 'remove's, the old node is the full node.
+     (technically we don't *need* if for non-hard deletes, but it's very convenient)
+     Similarly, for 'adds', the new node is the full node.
+    """
+
+    metatype: "ObjectType" = betterproto.enum_field(1)
+    id: str = betterproto.string_field(2)
+    type: "EditType" = betterproto.enum_field(30)
+    node_ptr: "NodeReferenceData" = betterproto.message_field(31)
+    properties: List[int] = betterproto.int32_field(32)
+    old_node_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
+        33, optional=True
+    )
+    new_node_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
+        34, optional=True
+    )
+    scope: "GraphScopeData" = betterproto.message_field(40)
+    change_key: Optional[str] = betterproto.string_field(41, optional=True)
+    subject_ptr: Optional["NodeReferenceData"] = betterproto.message_field(42, optional=True)
+    origin: Optional["ClientOriginData"] = betterproto.message_field(43, optional=True)
+    context: Optional["EditContextData"] = betterproto.message_field(44, optional=True)
+    edited_at: datetime = betterproto.message_field(45)
+    revision: Optional[int] = betterproto.int32_field(46, optional=True)
+    epoch: Optional[int] = betterproto.int32_field(47, optional=True)
+
+
+@dataclass(eq=False, repr=False)
 class EditContextData(betterproto.Message):
     """
     Additional context for a specific edit (per-edit variable subset of Session context).
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
-    block_ptr: Optional["NodeReferenceData"] = betterproto.message_field(60, optional=True)
-    step_ptr: Optional["NodeReferenceData"] = betterproto.message_field(61, optional=True)
-    session_ptr: Optional["NodeReferenceData"] = betterproto.message_field(62, optional=True)
-    run_ptr: Optional["NodeReferenceData"] = betterproto.message_field(63, optional=True)
-    run_root_ptr: Optional["NodeReferenceData"] = betterproto.message_field(64, optional=True)
+    block_ptr: Optional["NodeReferenceData"] = betterproto.message_field(70, optional=True)
+    step_ptr: Optional["NodeReferenceData"] = betterproto.message_field(71, optional=True)
+    session_ptr: Optional["NodeReferenceData"] = betterproto.message_field(72, optional=True)
+    run_ptr: Optional["NodeReferenceData"] = betterproto.message_field(73, optional=True)
+    run_root_ptr: Optional["NodeReferenceData"] = betterproto.message_field(74, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -1478,6 +1559,15 @@ class FontData(betterproto.Message):
     type: Optional["FontType"] = betterproto.enum_field(31, optional=True)
     weight: Optional["FontWeight"] = betterproto.enum_field(32, optional=True)
     size: Optional["FontSize"] = betterproto.enum_field(33, optional=True)
+
+
+@dataclass(eq=False, repr=False)
+class GraphScopeData(betterproto.Message):
+    """The scope for an operation on the Bench graph."""
+
+    metatype: "ObjectType" = betterproto.enum_field(1)
+    bench_id: Optional[str] = betterproto.string_field(30, optional=True)
+    package_id: Optional[str] = betterproto.string_field(31, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -1818,15 +1908,15 @@ class SessionContextData(betterproto.Message):
     """Context information for runtime nodes created in a session."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
-    block_ptr: Optional["NodeReferenceData"] = betterproto.message_field(60, optional=True)
-    step_ptr: Optional["NodeReferenceData"] = betterproto.message_field(61, optional=True)
-    session_ptr: Optional["NodeReferenceData"] = betterproto.message_field(62, optional=True)
-    run_ptr: Optional["NodeReferenceData"] = betterproto.message_field(63, optional=True)
-    run_root_ptr: Optional["NodeReferenceData"] = betterproto.message_field(64, optional=True)
-    client_ptr: Optional["NodeReferenceData"] = betterproto.message_field(65, optional=True)
-    machine_ptr: Optional["NodeReferenceData"] = betterproto.message_field(66, optional=True)
-    server_ptr: Optional["NodeReferenceData"] = betterproto.message_field(67, optional=True)
-    user_ptr: Optional["NodeReferenceData"] = betterproto.message_field(68, optional=True)
+    block_ptr: Optional["NodeReferenceData"] = betterproto.message_field(70, optional=True)
+    step_ptr: Optional["NodeReferenceData"] = betterproto.message_field(71, optional=True)
+    session_ptr: Optional["NodeReferenceData"] = betterproto.message_field(72, optional=True)
+    run_ptr: Optional["NodeReferenceData"] = betterproto.message_field(73, optional=True)
+    run_root_ptr: Optional["NodeReferenceData"] = betterproto.message_field(74, optional=True)
+    client_ptr: Optional["NodeReferenceData"] = betterproto.message_field(75, optional=True)
+    machine_ptr: Optional["NodeReferenceData"] = betterproto.message_field(76, optional=True)
+    server_ptr: Optional["NodeReferenceData"] = betterproto.message_field(77, optional=True)
+    user_ptr: Optional["NodeReferenceData"] = betterproto.message_field(78, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2502,23 +2592,17 @@ class LogData(betterproto.Message):
         betterproto.message_field(46, optional=True)
     )
     new_revision: Optional[int] = betterproto.int64_field(47, optional=True)
-    title: Optional[str] = betterproto.string_field(50, optional=True)
-    text: Optional["TextData"] = betterproto.message_field(51, optional=True)
-    value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
-        52, optional=True
-    )
-    secret_value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = (
-        betterproto.message_field(53, optional=True)
-    )
-    block_ptr: Optional["NodeReferenceData"] = betterproto.message_field(60, optional=True)
-    step_ptr: Optional["NodeReferenceData"] = betterproto.message_field(61, optional=True)
-    session_ptr: Optional["NodeReferenceData"] = betterproto.message_field(62, optional=True)
-    run_ptr: Optional["NodeReferenceData"] = betterproto.message_field(63, optional=True)
-    run_root_ptr: Optional["NodeReferenceData"] = betterproto.message_field(64, optional=True)
-    client_ptr: Optional["NodeReferenceData"] = betterproto.message_field(65, optional=True)
-    machine_ptr: Optional["NodeReferenceData"] = betterproto.message_field(66, optional=True)
-    server_ptr: Optional["NodeReferenceData"] = betterproto.message_field(67, optional=True)
-    user_ptr: Optional["NodeReferenceData"] = betterproto.message_field(68, optional=True)
+    change_ptr: Optional["NodeReferenceData"] = betterproto.message_field(48, optional=True)
+    nodes_ptr: List["NodeReferenceData"] = betterproto.message_field(50)
+    block_ptr: Optional["NodeReferenceData"] = betterproto.message_field(70, optional=True)
+    step_ptr: Optional["NodeReferenceData"] = betterproto.message_field(71, optional=True)
+    session_ptr: Optional["NodeReferenceData"] = betterproto.message_field(72, optional=True)
+    run_ptr: Optional["NodeReferenceData"] = betterproto.message_field(73, optional=True)
+    run_root_ptr: Optional["NodeReferenceData"] = betterproto.message_field(74, optional=True)
+    client_ptr: Optional["NodeReferenceData"] = betterproto.message_field(75, optional=True)
+    machine_ptr: Optional["NodeReferenceData"] = betterproto.message_field(76, optional=True)
+    server_ptr: Optional["NodeReferenceData"] = betterproto.message_field(77, optional=True)
+    user_ptr: Optional["NodeReferenceData"] = betterproto.message_field(78, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2881,15 +2965,15 @@ class RunData(betterproto.Message):
     )
     attempts: List["RetryAttemptData"] = betterproto.message_field(56)
     error: Optional["RunErrorData"] = betterproto.message_field(57, optional=True)
-    block_ptr: Optional["NodeReferenceData"] = betterproto.message_field(60, optional=True)
-    step_ptr: Optional["NodeReferenceData"] = betterproto.message_field(61, optional=True)
-    session_ptr: Optional["NodeReferenceData"] = betterproto.message_field(62, optional=True)
-    run_ptr: Optional["NodeReferenceData"] = betterproto.message_field(63, optional=True)
-    run_root_ptr: Optional["NodeReferenceData"] = betterproto.message_field(64, optional=True)
-    client_ptr: Optional["NodeReferenceData"] = betterproto.message_field(65, optional=True)
-    machine_ptr: Optional["NodeReferenceData"] = betterproto.message_field(66, optional=True)
-    server_ptr: Optional["NodeReferenceData"] = betterproto.message_field(67, optional=True)
-    user_ptr: Optional["NodeReferenceData"] = betterproto.message_field(68, optional=True)
+    block_ptr: Optional["NodeReferenceData"] = betterproto.message_field(70, optional=True)
+    step_ptr: Optional["NodeReferenceData"] = betterproto.message_field(71, optional=True)
+    session_ptr: Optional["NodeReferenceData"] = betterproto.message_field(72, optional=True)
+    run_ptr: Optional["NodeReferenceData"] = betterproto.message_field(73, optional=True)
+    run_root_ptr: Optional["NodeReferenceData"] = betterproto.message_field(74, optional=True)
+    client_ptr: Optional["NodeReferenceData"] = betterproto.message_field(75, optional=True)
+    machine_ptr: Optional["NodeReferenceData"] = betterproto.message_field(76, optional=True)
+    server_ptr: Optional["NodeReferenceData"] = betterproto.message_field(77, optional=True)
+    user_ptr: Optional["NodeReferenceData"] = betterproto.message_field(78, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2986,15 +3070,15 @@ class SignalData(betterproto.Message):
     secret_value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = (
         betterproto.message_field(43, optional=True)
     )
-    block_ptr: Optional["NodeReferenceData"] = betterproto.message_field(60, optional=True)
-    step_ptr: Optional["NodeReferenceData"] = betterproto.message_field(61, optional=True)
-    session_ptr: Optional["NodeReferenceData"] = betterproto.message_field(62, optional=True)
-    run_ptr: Optional["NodeReferenceData"] = betterproto.message_field(63, optional=True)
-    run_root_ptr: Optional["NodeReferenceData"] = betterproto.message_field(64, optional=True)
-    client_ptr: Optional["NodeReferenceData"] = betterproto.message_field(65, optional=True)
-    machine_ptr: Optional["NodeReferenceData"] = betterproto.message_field(66, optional=True)
-    server_ptr: Optional["NodeReferenceData"] = betterproto.message_field(67, optional=True)
-    user_ptr: Optional["NodeReferenceData"] = betterproto.message_field(68, optional=True)
+    block_ptr: Optional["NodeReferenceData"] = betterproto.message_field(70, optional=True)
+    step_ptr: Optional["NodeReferenceData"] = betterproto.message_field(71, optional=True)
+    session_ptr: Optional["NodeReferenceData"] = betterproto.message_field(72, optional=True)
+    run_ptr: Optional["NodeReferenceData"] = betterproto.message_field(73, optional=True)
+    run_root_ptr: Optional["NodeReferenceData"] = betterproto.message_field(74, optional=True)
+    client_ptr: Optional["NodeReferenceData"] = betterproto.message_field(75, optional=True)
+    machine_ptr: Optional["NodeReferenceData"] = betterproto.message_field(76, optional=True)
+    server_ptr: Optional["NodeReferenceData"] = betterproto.message_field(77, optional=True)
+    user_ptr: Optional["NodeReferenceData"] = betterproto.message_field(78, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -3309,13 +3393,6 @@ class SomeNodeData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class ClientOrigin(betterproto.Message):
-    type: "ClientType" = betterproto.enum_field(2)
-    id: str = betterproto.string_field(3)
-    nonce: str = betterproto.string_field(4)
-
-
-@dataclass(eq=False, repr=False)
 class RpcMetadata(betterproto.Message):
     """
     Core metadata for all RPC requests.
@@ -3343,70 +3420,8 @@ class RpcMetadataBadgeInfo(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class GraphScope(betterproto.Message):
-    """Scope for an operation in the Bench graph."""
-
-    bench_id: Optional[str] = betterproto.string_field(1, optional=True)
-    package_id: Optional[str] = betterproto.string_field(3, optional=True)
-
-
-@dataclass(eq=False, repr=False)
-class EditData(betterproto.Message):
-    """
-    Edit to a Node.
-     For updates/moves, the old/new node values are just the edited properties.
-     For archive, soft delete and delete, the old node is the full node.
-      (technically we don't *need* if for non-hard deletes, but it's very convenient)
-     Similarly, for unarchive/restore, the new node is the full node.
-    """
-
-    id: str = betterproto.string_field(2)
-    """Unique identifier for the edit within a transaction."""
-
-    type: "EditType" = betterproto.enum_field(30)
-    """Type of edit."""
-
-    node_ptr: "NodeReferenceData" = betterproto.message_field(31)
-    """Which node."""
-
-    properties: List[int] = betterproto.uint32_field(32)
-    """Which non-tracking properties are edited in an update or move."""
-
-    old_node_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
-        33, optional=True
-    )
-    """The previous values for the edited properties (if any)."""
-
-    new_node_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
-        34, optional=True
-    )
-    """The new values for the edited properties (if any)."""
-
-    scope: "GraphScope" = betterproto.message_field(40)
-    """Enclosing scope of the node."""
-
-    subject_ptr: Optional["NodeReferenceData"] = betterproto.message_field(41, optional=True)
-    """Who made the edit (subject)."""
-
-    origin: Optional["ClientOrigin"] = betterproto.message_field(42, optional=True)
-    """WHo made the edit (client)."""
-
-    context: Optional["EditContextData"] = betterproto.message_field(43, optional=True)
-    """Additional context for server clients."""
-
-    edited_at: datetime = betterproto.message_field(44)
-    """When the edit was made."""
-
-    revision: Optional[int] = betterproto.int64_field(45, optional=True)
-    """Revision for the node."""
-
-    epoch: Optional[int] = betterproto.int64_field(46, optional=True)
-    """Epoch at that edit."""
-
-
-@dataclass(eq=False, repr=False)
 class GetNodesRequest(betterproto.Message):
-    scope: "GraphScope" = betterproto.message_field(1)
+    scope: "GraphScopeData" = betterproto.message_field(1)
     roots: List["NodeReferenceData"] = betterproto.message_field(2)
     """The 'root' nodes to get around."""
 
@@ -3414,7 +3429,7 @@ class GetNodesRequest(betterproto.Message):
     """Options to configure read."""
 
     no_cache: Optional[bool] = betterproto.bool_field(4, optional=True)
-    """Whether to use and populate the cache."""
+    """Whether to sideline the cache."""
 
 
 @dataclass(eq=False, repr=False)
@@ -3431,7 +3446,7 @@ class GetNodesResponse(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class WatchGetRequest(betterproto.Message):
-    scope: "GraphScope" = betterproto.message_field(1)
+    scope: "GraphScopeData" = betterproto.message_field(1)
     connection_token: str = betterproto.string_field(2)
     """The connection to watch. Must already exist."""
 
@@ -3459,7 +3474,7 @@ class WatchGetResponse(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class SearchNodesRequest(betterproto.Message):
-    scope: "GraphScope" = betterproto.message_field(1)
+    scope: "GraphScopeData" = betterproto.message_field(1)
     node_type: "NodeType" = betterproto.enum_field(2)
     """The type of node to search."""
 
@@ -3478,9 +3493,6 @@ class SearchNodesRequest(betterproto.Message):
     skip: Optional[int] = betterproto.int32_field(7, optional=True)
     """Paginate result set."""
 
-    after: Optional["NodeReferenceData"] = betterproto.message_field(8, optional=True)
-    """Paginate result set."""
-
     count: Optional[bool] = betterproto.bool_field(9, optional=True)
     """Whether to get the total count."""
 
@@ -3488,7 +3500,7 @@ class SearchNodesRequest(betterproto.Message):
     """Options to configure read."""
 
     no_cache: Optional[bool] = betterproto.bool_field(11, optional=True)
-    """Whether to use and populate the cache."""
+    """Whether to sideline the cache."""
 
 
 @dataclass(eq=False, repr=False)
@@ -3511,7 +3523,7 @@ class SearchNodesResponse(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class WatchSearchRequest(betterproto.Message):
-    scope: "GraphScope" = betterproto.message_field(1)
+    scope: "GraphScopeData" = betterproto.message_field(1)
     connection_token: str = betterproto.string_field(2)
     """The connection to watch. Must already exist."""
 
@@ -3536,7 +3548,9 @@ class WatchSearchResponse(betterproto.Message):
     added_roots_ptr: Dict[int, "NodeReferenceData"] = betterproto.map_field(
         5, betterproto.TYPE_INT32, betterproto.TYPE_MESSAGE
     )
-    """Roots added to the result set."""
+    """
+    Roots added to the result set. Indices are into previous roots, before removed_roots_ptr.
+    """
 
     removed_roots_ptr: List["NodeReferenceData"] = betterproto.message_field(6)
     """Roots removed from the result set."""
@@ -3550,7 +3564,7 @@ class WatchSearchResponse(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class AggregateNodesRequest(betterproto.Message):
-    scope: "GraphScope" = betterproto.message_field(1)
+    scope: "GraphScopeData" = betterproto.message_field(1)
     node_type: "NodeType" = betterproto.enum_field(2)
     """The type of node to aggregate."""
 
@@ -3567,12 +3581,12 @@ class AggregateNodesRequest(betterproto.Message):
     """Aggregation expression."""
 
     no_cache: Optional[bool] = betterproto.bool_field(7, optional=True)
-    """Whether to use and populate the cache."""
+    """Whether to sideline the cache."""
 
 
 @dataclass(eq=False, repr=False)
 class AggregateNodesResponse(betterproto.Message):
-    scope: "GraphScope" = betterproto.message_field(1)
+    scope: "GraphScopeData" = betterproto.message_field(1)
     connection_token: str = betterproto.string_field(2)
     """The connection to watch. Must already exist."""
 
@@ -3585,7 +3599,7 @@ class AggregateNodesResponse(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class WatchAggregateRequest(betterproto.Message):
-    scope: "GraphScope" = betterproto.message_field(1)
+    scope: "GraphScopeData" = betterproto.message_field(1)
     connection_token: str = betterproto.string_field(2)
     """The connection to watch. Must already exist."""
 
@@ -3601,7 +3615,7 @@ class WatchAggregateResponse(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class CommitTransactionRequest(betterproto.Message):
-    scope: "GraphScope" = betterproto.message_field(1)
+    scope: "GraphScopeData" = betterproto.message_field(1)
     id: str = betterproto.string_field(2)
     """UUIDT of the transaction."""
 
@@ -4894,24 +4908,28 @@ AnyNodeData = Union[
     ClientData,
 ]
 AnyStructData = Union[
-    PathData,
-    PathSegmentData,
-    PathTokenData,
-    NodeReferenceData,
-    PropertyReferenceData,
-    TypeInfoData,
-    TypeConstraintData,
     ContextData,
     SessionContextData,
     EditContextData,
-    ScheduleData,
-    ProjectionData,
+    EditData,
+    ChangeData,
+    GraphScopeData,
+    ClientOriginData,
+    NodeReferenceData,
+    PropertyReferenceData,
+    PathData,
+    PathSegmentData,
+    PathTokenData,
     PolicyData,
     PolicyRuleData,
     SubjectData,
     AccessZoneData,
     AccessMatrixData,
     AccessData,
+    TypeInfoData,
+    TypeConstraintData,
+    ScheduleData,
+    ProjectionData,
     ExpressionData,
     AggregationData,
     SelectionData,

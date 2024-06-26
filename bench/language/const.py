@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from typing import Any, Mapping, Optional, cast
 from uuid import UUID
 
-from bench.proto.wire import GraphScope
+from bench.proto.wire import GraphScopeData
 from bench.utils.func import IdEnum, bittuple, cyrb53a
 from bench.utils.utils import frozendict, get_from_env
 
@@ -21,7 +21,7 @@ class _Unset:
         return "<UNSET!>"
 
 
-VERSION = "2024.06.25.1"
+VERSION = "2024.06.26.0"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -30,7 +30,7 @@ UNSET = cast(Any, _Unset())
 EMPTY_LIST: list = []
 EMPTY_SET: frozenset = frozenset()
 EMPTY_DICT: dict[Any, Any] = frozendict()
-EMPTY_SCOPE = GraphScope()
+EMPTY_SCOPE = GraphScopeData()
 
 
 def new_struct_id() -> int:
@@ -70,6 +70,7 @@ class EnumType(IdEnum):
     OBJECT_TYPE = 2004  # NodeType | StructType
     BENCH_TYPE = 2005  # NodeType | StructType | EnumType
     VISIBILITY = 2010
+    CHANGE_KIND = 2011
 
     # access
     ACCESS_MODE = 2030
@@ -281,19 +282,24 @@ USER_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if nt.id >= 200))
 
 @enum_(EnumType.STRUCT_TYPE)
 class StructType(IdEnum):
-    # core
-    PATH = 1000
-    PATH_SEGMENT = 1001
-    PATH_TOKEN = 1002
-    NODE_REFERENCE = 1003
-    PROPERTY_REFERENCE = 1004
-    TYPE_INFO = 1010
-    TYPE_CONSTRAINT = 1011
-    CONTEXT = 1020
-    SESSION_CONTEXT = 1021
-    EDIT_CONTEXT = 1022
-    SCHEDULE = 1012
-    PROJECTION = 1013
+    # transaction
+    CONTEXT = 1000
+    SESSION_CONTEXT = 1001
+    EDIT_CONTEXT = 1002
+    # TRANSACTION ?
+    EDIT = 1005
+    CHANGE = 1006
+
+    # utility
+    GRAPH_SCOPE = 1010
+    CLIENT_ORIGIN = 1011
+    NODE_REFERENCE = 1012
+    PROPERTY_REFERENCE = 1013
+
+    # path
+    PATH = 1020
+    PATH_SEGMENT = 1021
+    PATH_TOKEN = 1022
 
     # access
     POLICY = 1030
@@ -303,6 +309,12 @@ class StructType(IdEnum):
     ACCESS_MATRIX = 1035
     ACCESS = 1037
     ...
+
+    # type
+    TYPE_INFO = 1040
+    TYPE_CONSTRAINT = 1041
+    SCHEDULE = 1042
+    PROJECTION = 1043
 
     # expressions
     EXPRESSION = 1060

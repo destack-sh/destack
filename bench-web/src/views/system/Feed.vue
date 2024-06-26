@@ -1,34 +1,31 @@
 <script lang="ts" setup>
 import {
-  ViewData,
-  NodeType,
-  BoxData,
-  IconData,
-  RunStatus,
-  LogData,
-  RunData,
-  UserData,
-  type AnyNodeData,
   BlockData,
-  StepData,
+  BoxData,
   EditType,
-  Timestamp,
-  StructType,
   ExpressionOp,
-  ObjectType,
+  IconData,
+  LogData,
   LogProperty,
+  NodeType,
+  ObjectType,
+  RunData,
+  StepData,
+  StructType,
+  Timestamp,
+  UserData,
+  ViewData,
+  type AnyNodeData,
 } from "@/proto/wire";
 import { makeStruct, propertyReference, type TypedNodeReferenceData } from "@/proto/wiring";
-import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
-import { canvas, pkgGraph } from "@/system/space";
-import { computed, ref, toRef, type Ref } from "vue";
 import { useSearchConnection } from "@/system/connection";
-import { DEFAULT_HEADER_HEIGHT } from "@/views/canvas";
-import { toCamelName } from "@/system/lang";
-import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import { ICON_BY_EDIT_TYPE, ICON_BY_NODE_TYPE, IconInline, getNodeIcon } from "@/system/icon";
-import { DateTime } from "luxon";
-import { formatRelativeDate, tsToDt } from "@/utils/time";
+import { toCamelName } from "@/system/lang";
+import { canvas, pkgGraph } from "@/system/space";
+import { formatRelativeDate } from "@/utils/time";
+import { DEFAULT_HEADER_HEIGHT } from "@/views/canvas";
+import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
+import { computed, ref, toRef, type Ref } from "vue";
 
 const HEADER_HEIGHT = DEFAULT_HEADER_HEIGHT;
 const MIN_WIDTH = 320;
@@ -57,12 +54,19 @@ type LogItem = FeedItemBase & {
   subject: UserData | RunData | null;
 };
 
+type ChangeItem = FeedItemBase & {
+  kind: "change";
+  it: LogData[];
+  nodes: AnyNodeData[];
+  subject: UserData | RunData | null;
+};
+
 type RunItem = FeedItemBase & {
   kind: "run";
   it: RunData;
   node: BlockData | StepData | null;
 };
-type FeedItem = LogItem | RunItem;
+type FeedItem = LogItem | ChangeItem | RunItem;
 
 // TODO :Incomplete!: store Feed query (and View-type-specific data) in view node
 const nodeType = NodeType.LOG;

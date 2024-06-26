@@ -42,7 +42,7 @@ from bench.proto import wire
 from bench.proto.services import RpcCallable, ServiceBase
 from bench.proto.wire import (
     EditData,
-    GraphScope,
+    GraphScopeData,
     HostBase,
     LogData,
     ServiceKind,
@@ -128,7 +128,7 @@ class HostRouter(ServiceBase, HostBase):
         """Gets or starts a running Host for the given Bench"""
 
         # get request's bench id
-        scope: GraphScope | None = getattr(request, "scope")
+        scope: GraphScopeData | None = getattr(request, "scope")
         if scope is None:
             raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "missing scope")
         bench_id = to_uuid(scope.bench_id)
@@ -208,7 +208,7 @@ class Host(GraphIoServiceBase, HostApi, HostBase):
         self._client_cache = ClientCache()
         self._bench: Bench | None = None
         self._main_package: Package | None = None
-        self._scope: GraphScope = GraphScope(bench_id=str(bench_id))
+        self._scope: GraphScopeData = GraphScopeData(bench_id=str(bench_id))
         self._global_pg_engine: PostgresEngine | None = None
         self._local_pg_engine: PostgresEngine | None = None
         self._engines: tuple[GraphEngine, ...] = ()

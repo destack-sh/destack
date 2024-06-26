@@ -37,6 +37,7 @@ from bench.language.const import (
     NODE_TYPES,
     TK_LENGTH_BYTES,
     UNSET,
+    ClientType,
     NodeType,
     ObjectType,
     PrimitiveType,
@@ -69,7 +70,7 @@ from bench.language.setup import (
     STRUCT_CLASS_BY_TYPE,
 )
 from bench.language.validation import ValidationError, ValidationHandler, on_invalid_raise
-from bench.proto.wire import AnyNodeData, AnyStructData, GraphScope, NodeReferenceData
+from bench.proto.wire import AnyNodeData, AnyStructData, GraphScopeData, NodeReferenceData
 from bench.sql.core import Constraint, ConstraintType, Index, IndexType, Table, stable_hash
 from bench.utils.casing import PYTHON_CASING, IdentifierType, to_casing
 from bench.utils.env import IS_DEV, IS_TEST
@@ -1396,7 +1397,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
             # if we're not in a graph, start a new one
             # NOTE: cleanup NodeGraph definition "depends on itself", causing pyright errors
             graph = NodeGraph(  # type: ignore
-                scope=GraphScope(),
+                scope=GraphScopeData(),
                 node_types=(self.metatype, *DESCENDANT_NODE_TYPES[self.metatype].tuple),
                 supergraph=self._supergraph,
             )
@@ -1822,6 +1823,28 @@ def is_node[T: Node](obj: Any, node_cls: type[T]) -> TypeGuard[T]:
 
 def is_struct[T: InlineStruct | Struct](obj: Any, struct_cls: type[T]) -> TypeGuard[T]:
     return isinstance(obj, (InlineStruct, Struct)) and obj.metatype == struct_cls.metatype
+
+
+#
+# Utility types
+#
+
+
+@struct_(StructType.GRAPH_SCOPE, inline=True)
+class GraphScope(InlineStruct):
+    """The scope for an operation on the Bench graph."""
+
+    bench_id: Optional[UUID] = p_internal(30, default=None)
+    package_id: Optional[UUID] = p_internal(31, default=None)
+
+
+@struct_(StructType.CLIENT_ORIGIN, inline=True)
+class ClientOrigin(InlineStruct):
+    """Information to identify a client."""
+
+    type: ClientType = p_internal(30, require=True)
+    id: Optional[UUID] = p_internal(31, default=None)
+    nonce: Optional[UUID] = p_internal(32, default=None)
 
 
 @struct_(StructType.NODE_REFERENCE, inline=True)

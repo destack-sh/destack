@@ -23,7 +23,7 @@ from bench.language.graph import NodeGraph, NodeSuperGraph
 from bench.language.log import Log
 from bench.language.session import Session, unsuspend_session
 from bench.language.user import User
-from bench.proto.wire import GraphScope, HostClient, SupervisorClient
+from bench.proto.wire import GraphScopeData, HostClient, SupervisorClient
 from bench.proto.wiring import unpack_object
 from bench.test.simulation.spec import WorkloadSpec, WorkloadType
 from bench.test.simulation.utils import SampledFloat, SampledInt, to_value
@@ -169,7 +169,7 @@ def _make_remote_engines(
     engines = (
         # global engine
         RemoteEngine(
-            scope=GraphScope(),
+            scope=GraphScopeData(),
             node_types=PUBLIC_NODE_TYPES,
             remote=supervisor_client,
             write_retry=RETRY_GRPC_FOREVER,
@@ -177,7 +177,7 @@ def _make_remote_engines(
         ),
         # bench engine
         RemoteEngine(
-            scope=GraphScope(bench_id=str(bench_id)),
+            scope=GraphScopeData(bench_id=str(bench_id)),
             node_types=BENCH_NODE_TYPES | IN_PACKAGE_NODE_TYPES,
             remote=host_client,
             write_retry=RETRY_GRPC_FOREVER,
@@ -205,7 +205,7 @@ async def make_remote_session(
         supergraph = NodeSuperGraph(root_ptr)
     session = Session(
         _is_readonly=False,
-        _default_scope=GraphScope(bench_id=str(bench_id)),
+        _default_scope=GraphScopeData(bench_id=str(bench_id)),
         _engines=engines,
         _origin=client.to_origin(nonce=nonce),
         _supervisor=supervisor_client,

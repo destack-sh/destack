@@ -84,6 +84,7 @@ from .message import Message
 from .node import (
     BenchNode,
     BuiltinObject,
+    GraphScope,
     HasNodeBase,
     InlineStruct,
     Link,
@@ -101,7 +102,7 @@ from .property import Property
 from .query import MultipleNodesFoundError, NodeNotFoundError, Query, QueryBuilder, ReadOptions
 from .record import Record
 from .run import RetryAttempt, Run, RunOptions
-from .session import Context, Session
+from .session import Context, EditContext, Session, SessionContext
 from .setup import _complete_bench_setup
 from .signal import Signal
 from .step import Step, StepType
@@ -173,6 +174,7 @@ __all__ = [
     "Context",
     "Dependency",
     "Drive",
+    "EditContext",
     "Environment",
     "Expression",
     "Field",
@@ -187,6 +189,7 @@ __all__ = [
     "GetOptions",
     "GetResult",
     "GetResultData",
+    "GraphScope",
     "Handle",
     "HasNodeBase",
     "Icon",
@@ -249,6 +252,7 @@ __all__ = [
     "Server",
     "ServerProfile",
     "Session",
+    "SessionContext",
     "Signal",
     "SortMode",
     "SortOp",

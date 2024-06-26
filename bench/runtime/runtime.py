@@ -24,7 +24,7 @@ from bench.language.session import Session, unsuspend_session
 from bench.proto import wire, wiring
 from bench.proto.services import ServiceBase
 from bench.proto.wire import (
-    GraphScope,
+    GraphScopeData,
     HostClient,
     QueueRunRequest,
     QueueRunResponse,
@@ -159,11 +159,11 @@ class Runtime(ServiceBase, RuntimeBase):
     async def start(self):
         # setup host
         self._host = await get_host_client(self._bench_id, self._supervisor)
-        bench_scope = GraphScope(bench_id=str(self._bench_id))
+        bench_scope = GraphScopeData(bench_id=str(self._bench_id))
         self._engines = (
             # global engine
             RemoteEngine(
-                scope=GraphScope(),
+                scope=GraphScopeData(),
                 node_types=PUBLIC_NODE_TYPES,
                 remote=self._supervisor,
                 write_retry=RETRY_GRPC_FOREVER,

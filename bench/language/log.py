@@ -8,20 +8,11 @@ from bench.language.const import (
     EnumType,
     NodeType,
     PrimitiveType,
-    StructType,
     enum_,
 )
 from bench.language.node import HasTimeIdentity, Node, PackageNode, timed_node
-from bench.language.property import (
-    p_internal,
-    p_node_parent,
-    p_secret_value_packed,
-    p_system,
-    p_value_packed,
-    p_value_runtime,
-)
+from bench.language.property import p_node_parent, p_system
 from bench.language.session import HasSessionContext
-from bench.language.text import Text
 from bench.language.value import HasValues
 from bench.proto.wire import EditData, LogData
 from bench.utils.func import IdEnum
@@ -37,12 +28,10 @@ logger = structlog.get_logger(__name__)
 @enum_(EnumType.LOG_KIND)
 class LogKind(IdEnum):
     # access
-    READ = 1
-    EDIT = 2
-    USE = 3
+    EDIT = 1
+    CHANGE = 2
 
-    # custom
-    CUSTOM = 10
+    # custom?
 
 
 @enum_(EnumType.LOG_LEVEL)
@@ -67,7 +56,7 @@ class Log(PackageNode[LogData], HasTimeIdentity, HasSessionContext, HasValues):
     kind: LogKind = p_system(30)
     level: LogLevel = p_system(31, default=LogLevel.INFO)
 
-    # content (access)
+    # content (edit)
     type: AccessType | None = p_system(40, default=None)
     node: Optional["Node"] = p_system(
         41, require=False, array=False, references=NODE_TYPES.tuple, same_bench=True
@@ -84,21 +73,20 @@ class Log(PackageNode[LogData], HasTimeIdentity, HasSessionContext, HasValues):
         46, primitive_type=PrimitiveType.JSON, encrypt=True, sensitive=True, defer=True
     )
     new_revision: int | None = p_system(47, primitive_type=PrimitiveType.INT64)
-
-    # content (custom)
-    title: Optional[str] = p_internal(50, default=None)
-    text: Optional[Text] = p_internal(
-        51, default=None, require=False, array=False, struct=StructType.TEXT
+    change: Optional["Log"] = p_system(
+        48, require=False, array=False, references=NodeType.LOG, same_bench=True
     )
-    value_packed: Any | None = p_value_packed(52)
-    secret_value_packed: Any | None = p_secret_value_packed(53)
-    value: Any = p_value_runtime(52, 53, typ=None)  # free type
+
+    # content (change)
+    nodes: list["Node"] = p_system(
+        50, require=False, array=True, references=NODE_TYPES.tuple, same_bench=True
+    )
 
     # context
-    # ...HasSessionContext[60-69]
+    # ...HasSessionContext[70-79]
 
     def __content_str__(self):
-        return f"[{self.kind.bench_name}:{self.level.bench_name}] '{self.title or self.text or '<empty>'}' ({self.created_at})"
+        return f"[{self.kind.bench_name}:{self.level.bench_name}] ({self.created_at})"
 
     def to_edit(self) -> EditData:
         """Restores the edit of an access Log"""

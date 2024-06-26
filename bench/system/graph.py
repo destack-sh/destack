@@ -59,7 +59,7 @@ from bench.proto.wire import (
     GetNodesRequest,
     GetNodesResponse,
     GraphIoBase,
-    GraphScope,
+    GraphScopeData,
     NodeReferenceData,
     SearchNodesRequest,
     SearchNodesResponse,
@@ -99,7 +99,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
         super().__init__(logger=logger, tracer=tracer, oracle=oracle)
         self.epoch: int = 0
         self.bench_id: UUID | None = bench_id
-        self.scope = GraphScope(bench_id=uuid_to_str(bench_id))
+        self.scope = GraphScopeData(bench_id=uuid_to_str(bench_id))
         self.node_types: bittuple[NodeType] = node_types
         self.tx_lock: asyncio.Lock = CriticalLock(
             name=f"{self.__class__.__name__}_{bench_id or ''}"
@@ -113,7 +113,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
 
     def _validate_request(self, request: betterproto.Message) -> None:
         """Validate a request message for this service."""
-        scope: GraphScope = getattr(request, "scope", GraphScope())
+        scope: GraphScopeData = getattr(request, "scope", GraphScopeData())
         if to_uuid(scope.bench_id) != self.bench_id:
             raise GRPCError(
                 GRPCStatus.INVALID_ARGUMENT, f"scope mismatch: {scope.bench_id} != {self.bench_id}"
@@ -631,7 +631,7 @@ class CommitScope(NamedTuple):
 
     edited_node_ids: set[str]
     scopes_by_type: dict[NodeType, list[NodeReference]]
-    graph_scopes: tuple[GraphScope, ...]
+    graph_scopes: tuple[GraphScopeData, ...]
 
 
 def parse_commit_scope(edits: list[EditData], base_graph: NodeDataGraph | None) -> CommitScope:
@@ -642,7 +642,7 @@ def parse_commit_scope(edits: list[EditData], base_graph: NodeDataGraph | None) 
 
     edited_node_ids: set[str] = set()
     node_scopes_by_id: dict[str, NodeReferenceData] = {}
-    graph_scopes: dict[int, GraphScope] = {}
+    graph_scopes: dict[int, GraphScopeData] = {}
     in_tx_created_nodes_ids: set[str] = set()
     for edit in edits:
         node_type = NodeType(edit.node_ptr.type)

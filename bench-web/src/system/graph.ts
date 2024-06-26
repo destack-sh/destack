@@ -1,6 +1,6 @@
 import {
   CHILD_NODE_TYPES,
-  GraphScope,
+  GraphScopeData,
   NODE_PROPERTY_ENUM_BY_TYPE,
   NodeReferenceData,
   NodeType,
@@ -10,6 +10,7 @@ import {
   type NodeTypeMapping,
 } from "@/proto/wire";
 import {
+  EMPTY_SCOPE,
   describeNode,
   describeScope,
   toNodeReference,
@@ -44,7 +45,7 @@ export interface ReadNodeGraph {
   describeSelf(): string;
 
   /** The scope contained in this graph */
-  get scope(): GraphScope;
+  get scope(): GraphScopeData;
 
   /** The node types contained in this graph */
   get nodeTypes(): NodeType[];
@@ -152,7 +153,7 @@ export interface ReadNodeGraph {
 /** A node graph with write methods */
 export interface WriteNodeGraph {
   /** The scope contained in this graph */
-  get scope(): GraphScope;
+  get scope(): GraphScopeData;
   /** Adds a node to the graph (error if exists) */
   add(node: AnyNodeData): void;
   /** Adds multiple nodes to the graph (error if exists) */
@@ -169,7 +170,7 @@ export interface WriteNodeGraph {
  * Helper mixin for managing in a graph.
  */
 abstract class BaseNodeGraphMixin implements ReadNodeGraph {
-  abstract scope: GraphScope;
+  abstract scope: GraphScopeData;
   abstract nodeTypes: NodeType[];
   abstract isOverlayOf: ReadNodeGraph | null;
   abstract nodes: AnyNodeData[];
@@ -405,7 +406,7 @@ abstract class BaseNodeGraphMixin implements ReadNodeGraph {
  * If it's an overlay, we don't try to maintain local consistency (as this is likely an overlay in a layered graph).
  */
 export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, WriteNodeGraph {
-  public readonly scope: GraphScope;
+  public readonly scope: GraphScopeData;
   public readonly nodeTypes: NodeType[];
   public readonly isOverlayOf: ReadNodeGraph | null;
 
@@ -417,7 +418,7 @@ export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, Writ
   private subsByCk: { [ck: string]: Array<NodeGraphCallback> } = {};
   private subsByParentIdAndType: { [parentId: string]: { [type: string]: Array<NodeGraphCallback> } } = {};
 
-  constructor(init: { scope: GraphScope; nodeTypes: NodeType[]; isOverlayOf?: ReadNodeGraph }) {
+  constructor(init: { scope: GraphScopeData; nodeTypes: NodeType[]; isOverlayOf?: ReadNodeGraph }) {
     super();
     this.scope = init?.scope ?? {};
     this.nodeTypes = init?.nodeTypes ?? [];
@@ -786,8 +787,8 @@ export class ProxyNodeGraph extends FilterBaseNodeGraphMixin implements ReadNode
     if (this._graph.value !== graph) this._graph.value = graph;
   }
 
-  get scope(): GraphScope {
-    return this._graph.value?.scope ?? {};
+  get scope(): GraphScopeData {
+    return this._graph.value?.scope ?? EMPTY_SCOPE;
   }
 
   get nodeTypes(): NodeType[] {
@@ -911,8 +912,8 @@ export class LayerNodeGraph extends FilterBaseNodeGraphMixin implements ReadNode
     this.layers.value = this.layers.value.filter((l) => l != layer);
   }
 
-  get scope(): GraphScope {
-    if (this.layers.value.length == 0) return {} as GraphScope;
+  get scope(): GraphScopeData {
+    if (this.layers.value.length == 0) return {} as GraphScopeData;
     else return this.layers.value[0].scope;
   }
 
