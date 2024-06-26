@@ -16,6 +16,7 @@ const props = defineProps<{ node?: NodeReferenceData; isConnected: boolean }>();
     </template>
     <template v-else>
       <!-- Loading -->
+       <!-- (delay appear to prevent flickering for very fast loads) -->
       <Transition
         enter-from-class="opacity-0"
         enter-active-class="transition-opacity duration-200"

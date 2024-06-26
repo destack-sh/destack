@@ -275,7 +275,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
     <!-- Header -->
     <div
       data-keep-inspection-in-base="true"
-      class="group flex w-full max-w-full flex-row px-2.5"
+      class="group flex w-full max-w-full flex-row pl-1.5 pr-3"
       :style="{ height: HEADER_HEIGHT + 'px' }"
     >
       <!-- Breadcrumb -->
