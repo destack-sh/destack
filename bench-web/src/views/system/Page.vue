@@ -68,7 +68,6 @@ const preparedPkgConnection = useGetConnection(
 );
 const { graph: pkgGraph, connection: pkgConnection } = preparedPkgConnection;
 const page = pkgGraph.getRef(toRef(props, "nodePtr")) as Ref<BlockData | undefined>;
-const selfBlockRef = ref<InstanceType<typeof Block> | null>(null);
 const { items: expandedBlocks } = walkDescendantsRef({
   graph: pkgGraph,
   rootPtr: toRef(props, "nodePtr"),

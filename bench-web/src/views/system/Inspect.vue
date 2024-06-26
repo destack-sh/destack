@@ -49,7 +49,7 @@ defineExpose<ViewExposed>({ self });
     <!-- Header -->
     <div class="group w-full" :style="{ height: HEADER_HEIGHT + 'px' }">
       <div
-        class="mx-auto flex h-full max-w-full flex-row items-center pl-1.5 pr-2.5"
+        class="mx-auto flex h-full max-w-full flex-row items-center pl-2 pr-2.5"
         :style="{ minWidth: MIN_WIDTH + 'px' }"
       >
         <!-- Node -->

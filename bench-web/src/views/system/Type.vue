@@ -2,6 +2,7 @@
 import { BlockType, FieldZone, NodeType, Orientation, Variant, ViewData, type FieldData } from "@/proto/wire";
 import { isNode, toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
 import type { ActionContext, ActionMapImplementation } from "@/system/action";
+import { PACKAGE_SCOPE } from "@/system/client";
 import { useGetConnection, type PreparedGetConnection } from "@/system/connection";
 import { RUNNABLE_BLOCK_TYPES, createField, moveNode, onNodeMorphed, toCamelName } from "@/system/lang";
 import { canvas } from "@/system/space";
@@ -30,7 +31,7 @@ const { graph: pkgGraph, connection: pkgConnection } =
   props.preparedConnection ??
   useGetConnection(
     { name: `class.${nodePtr.value.id}` },
-    computed(() => ({ roots: [nodePtr.value], isEnabled: nodePtr.value != null })),
+    computed(() => ({ scope: PACKAGE_SCOPE.value, roots: [nodePtr.value], isEnabled: nodePtr.value != null })),
   );
 const block = pkgGraph.getRef(nodePtr, { ignoreAncestors: props.self == null });
 const isFunction = computed(() => block.value != null && RUNNABLE_BLOCK_TYPES.includes(block.value.type));

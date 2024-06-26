@@ -11,6 +11,7 @@ import type { ActionMapImplementation } from "@/system/action";
 import Icon from "@/views/content/Icon.vue";
 import { type PopoverInfo, type PopoverInfoIn } from "@/utils/menu";
 import type { TooltipInfo } from "@/utils/tooltip";
+import { PACKAGE_SCOPE } from "@/system/client";
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; preparedConnection?: PreparedGetConnection } & Pick<
@@ -30,7 +31,7 @@ const { graph: pkgGraph, connection: pkgConnection } =
   props.preparedConnection ??
   useGetConnection(
     { name: `field.${nodePtr.value.id}` },
-    computed(() => ({ roots: [nodePtr.value], isEnabled: nodePtr.value != null })),
+    computed(() => ({ scope: PACKAGE_SCOPE.value, roots: [nodePtr.value], isEnabled: nodePtr.value != null })),
   );
 const field = pkgGraph.getRef(nodePtr, { ignoreAncestors: props.self == null });
 

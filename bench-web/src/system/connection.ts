@@ -16,6 +16,8 @@ import {
 } from "@/proto/wire";
 import {
   EMPTY_SCOPE,
+  contentEquals,
+  deepContentEquals,
   describeNode,
   makeDefaultBenchProto,
   makeScope,
@@ -504,9 +506,9 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
       if (!otherNodeTypes.every((t) => thisNodeTypes.includes(t))) return false;
       return true;
     } else if (this.kind == "search") {
-      return deepValueEquals(this.params, params);
+      return deepContentEquals(this.params, params);
     } else if (this.kind == "aggregate") {
-      return deepValueEquals(this.params, params);
+      return deepContentEquals(this.params, params);
     } else {
       throw new Error(`unsupported connection kind: ${this.kind}`);
     }

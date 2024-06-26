@@ -14,6 +14,7 @@ import {
   StructType,
   type AnyNodeData,
   type AnyPropertyType,
+  type AnyStructData,
   type AnyTypeMapping,
   type NodeTypeMapping,
   type StructTypeMapping,
@@ -380,4 +381,43 @@ export function unwrapSomeNode(node: SomeNodeData): AnyNodeData {
   const oneOfKind = node.node.oneofKind;
   if (!oneOfKind) throw new Error("missing oneofKind");
   return (node.node as any)[oneOfKind];
+}
+
+/** Checks whether the content properties of two builtin objects are equal */
+export function contentEquals<T extends AnyNodeData | AnyStructData>(object: T, other: T): boolean {
+  const allProperties = PROPERTY_ENUM_BY_TYPE[object.metatype as unknown as ObjectType];
+  if (allProperties == null)
+    throw new Error(`missing properties for ${NodeType[object.metatype]} (${object.metatype})`);
+  for (const propId of Object.keys(allProperties)) {
+    if (isNaN(Number(propId))) {
+      continue; // skip non-numeric keys
+    } else if ((propId as unknown as number) < 30) {
+      continue; // skip non-content properties
+    } else {
+      const propName = allProperties[propId as unknown as number];
+      if (!deepContentEquals((object as any)[propName], (other as any)[propName])) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+/**
+ * Deep checks whether two arbitrary objects are equal, only comparing content properties for our objects
+ * (we just use the presence of the 'metatype' property to determine if it's one of our objects)
+ */
+export function deepContentEquals(object: any, other: any): boolean {
+  if (object == null || other == null) {
+    return object === other;
+  } else if (typeof object != "object" || typeof other != "object") {
+    return object === other;
+  } else if ("metatype" in object && "metatype" in other) {
+    return contentEquals(object, other);
+  } else {
+    for (const key of Object.keys(object)) {
+      if (!deepContentEquals(object[key], other[key])) return false;
+    }
+    return true;
+  }
 }

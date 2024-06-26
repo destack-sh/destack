@@ -20,6 +20,7 @@ import {
 import { makeStruct, propertyReference, type TypedNodeReferenceData } from "@/proto/wiring";
 import { PACKAGE_SCOPE } from "@/system/client";
 import { useSearchConnection } from "@/system/connection";
+import { makeExpression } from "@/system/expression";
 import { ICON_BY_EDIT_TYPE, ICON_BY_NODE_TYPE, IconInline, getNodeIcon } from "@/system/icon";
 import { toCamelName } from "@/system/lang";
 import { canvas, pkgGraph } from "@/system/space";
@@ -48,15 +49,15 @@ type FeedItemBase = {
   createdAt: Timestamp;
 };
 
-type LogItem = FeedItemBase & {
-  kind: "log";
+type LogEditItem = FeedItemBase & {
+  kind: "log-edit";
   it: LogData;
   node: AnyNodeData | null;
   subject: UserData | RunData | null;
 };
 
-type ChangeItem = FeedItemBase & {
-  kind: "change";
+type LogChangeItem = FeedItemBase & {
+  kind: "log-change";
   it: LogData[];
   nodes: AnyNodeData[];
   subject: UserData | RunData | null;
@@ -67,24 +68,28 @@ type RunItem = FeedItemBase & {
   it: RunData;
   node: BlockData | StepData | null;
 };
-type FeedItem = LogItem | ChangeItem | RunItem;
+type FeedItem = LogEditItem | LogChangeItem | RunItem;
 
 // TODO :Incomplete!: store Feed query (and View-type-specific data) in view node
 const nodeType = NodeType.LOG;
 const { roots, graph, connection, page } = useSearchConnection(
   { name: `feed.${toCamelName(NodeType, nodeType).toLowerCase()}` },
   {
-		scope: PACKAGE_SCOPE.value,
-    nodeType: nodeType, // nocheckin: parameterize Feed search
+    scope: PACKAGE_SCOPE.value,
+    // nocheckin: parameterize Feed search
+    nodeType: nodeType,
     first: 10,
     sort: [
-      makeStruct({
-        metatype: StructType.EXPRESSION,
+      makeExpression({
         op: ExpressionOp.DESCENDING,
         propertyPtr: propertyReference(nodeType as unknown as ObjectType, LogProperty.createdAt),
-        clauses: [],
       }),
     ],
+    // filter: makeExpression({
+    // 	op: ExpressionOp.EQUALS,
+    // 	propertyPtr: propertyReference(nodeType as unknown as ObjectType, LogProperty.kind),
+    // 	valuePacked: packVa
+    // })
   },
 );
 
@@ -92,8 +97,8 @@ const items = computed<FeedItem[]>(() => {
   const items: FeedItem[] = [];
   if (nodeType == NodeType.LOG) {
     for (const it of roots.value) {
-      const item: LogItem = {
-        kind: "log",
+      const item: LogEditItem = {
+        kind: "log-edit",
         id: it.id,
         it,
         icon: ICON_BY_EDIT_TYPE[it.type as unknown as EditType] ?? ICON_BY_NODE_TYPE[NodeType.LOG]!,
@@ -127,20 +132,26 @@ defineExpose<ViewExposed>({ self, id });
         class="py-1"
       >
         <!-- Item header -->
-        <div class="flex flex-row items-center gap-x-1">
+        <div class="flex flex-row items-center gap-x-1.5">
           <!-- nocheckin -->
           <!-- 'Title' -->
           <IconInline v-bind="item.icon" class="text-gray-700" />
-          <template v-if="item.kind == 'log'">
+          <template v-if="item.kind == 'log-edit'">
             <!-- Subject -->
             <button v-if="item.subject"></button>
-            <span v-else class="text-gray-900">System</span>
+            <span v-else class="italic text-gray-900">System</span>
             <!-- Verb -->
             {{ toCamelName(EditType, item.it.type).toLowerCase() }}
             <!-- Object -->
-            <button v-if="item.node">
+            <button
+              v-if="item.node"
+              class="hover:bg-primary-100 px-1 hover:text-primary-900"
+              @click="canvas.goToNode(item.node)"
+            >
               <IconInline v-bind="getNodeIcon(item.node)" class="mr-1 text-gray-700" />
-              {{ (item.node as any)?.name ?? toCamelName(NodeType, item.node.metatype) }}
+              <span class="underline decoration-gray-300 underline-offset-3">
+                {{ (item.node as any)?.name ?? toCamelName(NodeType, item.node.metatype) }}
+              </span>
             </button>
             <span v-else>???</span>
           </template>
@@ -149,7 +160,7 @@ defineExpose<ViewExposed>({ self, id });
           <!-- Extra stuff -->
           <div class="ml-auto">
             <!-- Time -->
-            <span>{{ formatRelativeDate(item.createdAt) }}</span>
+            <span class="text-gray-400">{{ formatRelativeDate(item.createdAt) }}</span>
             <!-- Actions -->
             <!-- ... -->
           </div>
@@ -159,7 +170,7 @@ defineExpose<ViewExposed>({ self, id });
       </li>
     </ul>
     <!-- Loading -->
-    <div v-else class="flex h-full w-full flex-col text-center align-middle">
+    <div v-else class="flex h-full w-full min-h-20 flex-col text-center align-middle">
       <Transition
         enter-from-class="opacity-0"
         enter-active-class="transition-opacity duration-200"

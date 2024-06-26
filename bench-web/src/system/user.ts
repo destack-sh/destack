@@ -11,7 +11,7 @@ import {
   UserStatus,
   ViewType,
 } from "@/proto/wire";
-import { makeNode, nodeReference, propertyReference, toNodeReferenceRef, toProtoOneOf } from "@/proto/wiring";
+import { EMPTY_SCOPE, makeNode, nodeReference, propertyReference, toNodeReferenceRef, toProtoOneOf } from "@/proto/wiring";
 import { ACTION_COMING_SOON, contributeActionMap } from "@/system/action";
 import local, { persistentInfo } from "@/system/client";
 import { clearConnections, useGetConnection } from "@/system/connection";
@@ -28,6 +28,7 @@ export const isUnauthenticated = computed(() => !isAuthenticated.value);
 export const { graph: userGraph, connection: userConnection } = useGetConnection(
   { name: "user", live: true, paramsPretty: computed(() => ({ slug: local.userInfo.value?.slug })) },
   computed(() => ({
+    scope: EMPTY_SCOPE,
     roots: [nodeReference(NodeType.USER, local.userInfo.value?.id!)],
     options: {
       descendantTypes: [NodeType.CLIENT],
