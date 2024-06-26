@@ -55,7 +55,7 @@ from bench.language.setup import (
 from bench.language.transaction import pack_node_delta, unpack_node_delta
 from bench.language.value import pack_builtin_object_data, unpack_builtin_object_data
 from bench.proto import wire, wiring
-from bench.proto.wire import AnyNodeData, EditData, GraphScope, IdEnum, NodeReferenceData
+from bench.proto.wire import AnyNodeData, EditData, GraphScopeData, IdEnum, NodeReferenceData
 from bench.proto.wiring import PROTO_CLASS_BY_TYPE
 from bench.sql import schema
 from bench.sql.client import get_pg_crypto_key
@@ -1189,7 +1189,7 @@ def _pg_unpack_node_reference_from_row(prop: Property, row: RowOut, node: AnyNod
     assert prop.reference_stored_meta is not None, f"no stored extras for {prop!r}"
     assert prop.reference_wired_ptr is not None, f"no wired ptr for {prop!r}"
     if prop.is_list:  # list reference
-        # can only be a a set of id props + a single ck prop (:HomogeneousListCk)
+        # can only be a a set of id props + a single ck prop
         ptrs = []
         # pointer id/cks
         for stored_prop in prop.reference_stored_ids:
@@ -1521,7 +1521,7 @@ async def pg_get_node_graph(
 async def pg_search_node_graph(
     *,
     cur: psycopg.AsyncCursor,
-    scope: GraphScope,
+    scope: GraphScopeData,
     node_type: NodeType,
     options: ReadOptions,
     filter: Expression | None = None,

@@ -6,18 +6,15 @@ import {
 } from "@/proto/services";
 import {
   AggregationData,
-  ObjectType,
-  EditData,
   ExpressionData,
   NodeType,
-  Timestamp,
-  type GraphScope,
+  ObjectType,
+  type GraphScopeData,
   type NodeReferenceData,
   type NodeTypeMapping,
   type ReadOptionsData,
 } from "@/proto/wire";
-import { describeNode, makeDefaultBenchProto, unwrapSomeNode, type TypedNodeReferenceData } from "@/proto/wiring";
-import { AccessProxy, accessFromMatrix, accessFull, type AccessArbiter } from "@/system/access";
+import { describeNode, makeDefaultBenchProto, makeScope, unwrapSomeNode, type TypedNodeReferenceData } from "@/proto/wiring";
 import { LOCAL_SPACE_PTR, packagePtr, spaceGraphLocal } from "@/system/client";
 import {
   DEFAULT_NODE_FILTER,
@@ -41,7 +38,7 @@ import { IS_DEV } from "@/utils/globals";
 import { log } from "@/utils/log";
 import { deepValueEquals, immediateStopWatch, pretendReadonly, toValueRef } from "@/utils/ref";
 import type { RpcError } from "@protobuf-ts/runtime-rpc";
-import { tryOnBeforeUnmount, useInterval, useIntervalFn, useNetwork, whenever } from "@vueuse/core";
+import { tryOnBeforeUnmount, useNetwork, whenever } from "@vueuse/core";
 import { DateTime } from "luxon";
 import { computed, isRef, markRaw, shallowRef, toRef, watch, type MaybeRef, type Ref, type ShallowRef } from "vue";
 
@@ -52,7 +49,7 @@ export function makeReadOptions(options: Partial<ReadOptionsData>): ReadOptionsD
   };
 }
 
-export function getScopeKey(scope: GraphScope): string {
+export function getScopeKey(scope: GraphScopeData): string {
   return JSON.stringify(scope);
 }
 
@@ -90,7 +87,7 @@ type ConnectionMetadata = {
 type GetConnectionParams<T extends NodeType> = {
   isEnabled?: boolean;
   roots: (Omit<NodeReferenceData, "type"> & { type: T })[];
-  scope?: Partial<GraphScope>;
+  scope: GraphScopeData;
   options?: Partial<ReadOptionsData>;
 };
 type GetConnectionResult<T extends NodeType> = {
@@ -103,7 +100,7 @@ type GetConnectionResult<T extends NodeType> = {
 type SearchConnectionParams<T extends NodeType> = {
   isEnabled?: boolean;
   nodeType: T;
-  scope?: Partial<GraphScope>;
+  scope: GraphScopeData;
   bases?: NodeReferenceData[];
   filter?: ExpressionData;
   sort?: ExpressionData[];
@@ -124,7 +121,7 @@ type SearchConnectionResult<T extends NodeType> = {
 type AggregateConnectionParams = {
   isEnabled?: boolean;
   nodeType: NodeType;
-  scope?: Partial<GraphScope>;
+  scope: GraphScopeData;
   bases?: NodeReferenceData[];
   filter?: ExpressionData;
   sort?: ExpressionData[];
@@ -146,12 +143,14 @@ interface ConnectionResultMapping<T extends NodeType> extends Record<GraphConnec
   aggregate: AggregateConnectionResult;
 }
 
-function getScopeFromParams<T extends NodeType>(params: ConnectionParamsMapping<T>[GraphConnectionKind]): GraphScope {
+function getScopeFromParams<T extends NodeType>(
+  params: ConnectionParamsMapping<T>[GraphConnectionKind],
+): GraphScopeData {
   if (params.scope != null) return params.scope;
-  if ("roots" in params && params.roots.length > 0) return { benchId: params.roots[0].benchId };
-  if ("bases" in params && (params.bases?.length ?? 0) > 0) return { benchId: params.bases![0].benchId };
+  if ("roots" in params && params.roots.length > 0) return makeScope({ benchId: params.roots[0].benchId });
+  if ("bases" in params && (params.bases?.length ?? 0) > 0) return makeScope({ benchId: params.bases![0].benchId });
   // NOTE: scope defaults to current package (not sure if this is right.. probably want to make it explicit)
-  return { benchId: packagePtr.value?.benchId };
+  return makeScope({ benchId: packagePtr.value?.benchId });
 }
 
 function getNodeTypesFromParams<T extends NodeType>(
@@ -433,7 +432,7 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
    * If there is an error, the fetch is aborted and the onError handler is called.
    * */
   async fetch(
-    params: ConnectionParamsMapping<T>[K] & { scope?: GraphScope; onError?: (error: Error) => void },
+    params: ConnectionParamsMapping<T>[K] & { scope?: GraphScopeData; onError?: (error: Error) => void },
   ): Promise<ConnectionResultMapping<T>[K] & ConnectionInternalResult> {
     if (this.isFetching.value) this.abortController?.abort();
 
@@ -468,7 +467,7 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
 
   /** Actually fetch in the relevant connection type. */
   protected abstract doFetch(
-    scope: GraphScope,
+    scope: GraphScopeData,
     nodeTypes: NodeType[],
     params: ConnectionParamsMapping<T>[K],
     abort: AbortSignal,
@@ -511,7 +510,7 @@ export class RemoteGetConnection<T extends NodeType> extends ConnectionBase<"get
   readonly kind = "get";
 
   protected async doFetch(
-    scope: GraphScope,
+    scope: GraphScopeData,
     nodeTypes: NodeType[],
     params: GetConnectionParams<T>,
     abort: AbortSignal,
@@ -554,7 +553,7 @@ export class RemoteSearchConnection<T extends NodeType> extends ConnectionBase<"
   readonly kind = "search";
 
   protected async doFetch(
-    scope: GraphScope,
+    scope: GraphScopeData,
     nodeTypes: NodeType[],
     params: SearchConnectionParams<T>,
     abort: AbortSignal,
@@ -649,7 +648,7 @@ export class LocalGetConnection<T extends NodeType> extends ConnectionBase<"get"
   }
 
   protected async doFetch(
-    scope: GraphScope,
+    scope: GraphScopeData,
     nodeTypes: NodeType[],
     params: GetConnectionParams<T>,
   ): Promise<GetConnectionResult<T>> {

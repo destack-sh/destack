@@ -19,7 +19,7 @@ from bench.language.const import NodeType, Region
 from bench.language.graph import NodeSuperGraph
 from bench.language.session import Session
 from bench.proto.wire import (
-    GraphScope,
+    GraphScopeData,
 )
 from bench.sql.client import GLOBAL_PG_CRYPTO_KEY, pg_store_connection
 from bench.sql.core import Schema
@@ -91,7 +91,7 @@ def create_global_session(global_store: Store, oracle: Oracle):
     global_pg_engine = global_pg_engine_from_store(global_store)
     session = Session(
         parent=None,
-        _default_scope=GraphScope(),
+        _default_scope=GraphScopeData(),
         _engines=(global_pg_engine,),
         _epoch=0,
         _oracle=oracle,

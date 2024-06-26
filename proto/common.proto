@@ -4,8 +4,6 @@ package symbolx.bench;
 
 import "proto/lang.proto";
 import "google/protobuf/descriptor.proto";
-import "google/protobuf/struct.proto";
-import "google/protobuf/timestamp.proto";
 
 enum ServiceKind {
   UNSPECIFIED = 0;
@@ -20,12 +18,6 @@ extend google.protobuf.ServiceOptions {
 extend google.protobuf.FieldOptions {
   // Field should never be printed in logs.
   optional bool sensitive = 50000;
-}
-
-message ClientOrigin {
-  ClientType type = 2;
-  string id = 3;
-  string nonce = 4;
 }
 
 // Core metadata for all RPC requests.
@@ -46,45 +38,4 @@ message RpcMetadata {
     optional string password = 4;
   }
   repeated BadgeInfo badges = 6;
-}
-
-// Scope for an operation in the Bench graph.
-message GraphScope {
-  optional string bench_id = 1;
-  optional string package_id = 3;
-}
-
-// Edit to a Node.
-// For updates/moves, the old/new node values are just the edited properties.
-// For archive, soft delete and delete, the old node is the full node.
-//  (technically we don't *need* if for non-hard deletes, but it's very convenient)
-// Similarly, for unarchive/restore, the new node is the full node.
-message EditData {
-  // Unique identifier for the edit within a transaction.
-  string id = 2;
-  // Type of edit.
-  EditType type = 30;
-  // Which node.
-  NodeReferenceData node_ptr = 31;
-  // Which non-tracking properties are edited in an update or move.
-  repeated uint32 properties = 32;
-  // The previous values for the edited properties (if any).
-  optional google.protobuf.Struct old_node_packed = 33;
-  // The new values for the edited properties (if any).
-  optional google.protobuf.Struct new_node_packed = 34;
-  
-  // Enclosing scope of the node.
-  GraphScope scope = 40;
-  // Who made the edit (subject).
-  optional NodeReferenceData subject_ptr = 41;
-  // WHo made the edit (client).
-  optional ClientOrigin origin = 42;
-  // Additional context for server clients.
-  optional EditContextData context = 43;
-  // When the edit was made.
-  google.protobuf.Timestamp edited_at = 44;
-  // Revision for the node.
-  optional int64 revision = 45;
-  // Epoch at that edit.
-  optional int64 epoch = 46;
 }

@@ -18,7 +18,7 @@ import {
   PackageData,
   EditType,
   EditData,
-  GraphScope,
+  GraphScopeData,
 } from "@/proto/wire";
 import { BASED_NODE_TYPES, TIMED_NODE_TYPES, getBaseFromNode, toCamelName } from "@/system/lang";
 import { reverseRecord } from "@/utils/functools";
@@ -36,7 +36,16 @@ export type TypedNodeReferenceData<T extends NodeType> = NodeReferenceData & { t
 export type AnyNodeReferenceData = NodeReferenceData | TypedNodeReferenceData<NodeType>;
 export type SomeNodeReferenceData<T extends NodeType> = NodeReferenceData | TypedNodeReferenceData<T>;
 
-export function describeScope(scope: GraphScope): string {
+export function makeScope(scope: Partial<GraphScopeData>): GraphScopeData {
+  return {
+    metatype: ObjectType.GRAPH_SCOPE,
+    ...scope,
+  };
+}
+
+export const EMPTY_SCOPE = makeScope({});
+
+export function describeScope(scope: GraphScopeData): string {
   const scopeParts: string[] = [];
   if (scope.benchId) scopeParts.push(`bench=${scope.benchId}`);
   if (scope.packageId) scopeParts.push(`package=${scope.packageId}`);

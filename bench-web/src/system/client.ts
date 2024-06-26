@@ -1,5 +1,13 @@
-import { ObjectType, ClientOrigin, LocalNodeGraph, LocalStorage, NodeType, SpaceData, ClientType } from "@/proto/wire";
-import { describeNode, nodeReference, toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
+import {
+  ObjectType,
+  ClientOriginData,
+  LocalNodeGraph,
+  LocalStorage,
+  NodeType,
+  SpaceData,
+  ClientType,
+} from "@/proto/wire";
+import { describeNode, makeScope, nodeReference, toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
 import { getBrowserName, getBrowserVersion, getDeviceType, getOperatingSystem } from "@/utils/browser";
 import { log } from "@/utils/log";
 import { pickRef, pretendReadonly } from "@/utils/ref";
@@ -96,14 +104,15 @@ export function useLocal<T extends keyof LocalStorage>(key: T): Ref<LocalStorage
 
 export const CLIENT_TYPE = ClientType.BENCH_WEB; // NOTE: will need to detect/change this later :HeterogenousClients
 export const nonce = v4(); // changes per page load
-export const origin: Readonly<Ref<ClientOrigin>> = pretendReadonly(
+export const origin: Readonly<Ref<ClientOriginData>> = pretendReadonly(
   computed(() => ({
+    metatype: ObjectType.CLIENT_ORIGIN,
     type: CLIENT_TYPE,
     id: _clientInfo.value?.id ?? nonce,
     nonce,
   })),
 );
-export function isSameOrigin(other: ClientOrigin): boolean {
+export function isSameOrigin(other: ClientOriginData): boolean {
   return origin.value.id == other.id && origin.value.nonce == other.nonce;
 }
 
@@ -181,7 +190,7 @@ export const packagePtr = computed(() => {
 }) as Readonly<Ref<TypedNodeReferenceData<NodeType.PACKAGE> | null>>;
 // current local Space graph (not yet persisted).
 const _spaceGraphLocal = new NodeGraph({
-  scope: { benchId: LOCAL_BENCH_ID, packageId: LOCAL_PACKAGE_ID },
+  scope: makeScope({ benchId: LOCAL_BENCH_ID, packageId: LOCAL_PACKAGE_ID }),
   nodeTypes: SOURCE_NODE_TYPES,
 });
 _spaceGraphLocal.add({

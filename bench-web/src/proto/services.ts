@@ -1,4 +1,4 @@
-import { GraphScope, HostClient, RpcMetadata, SupervisorClient, type IGraphIOClient } from "@/proto/wire";
+import { GraphScopeData, HostClient, RpcMetadata, SupervisorClient, type IGraphIOClient } from "@/proto/wire";
 import { CLIENT_TYPE, clientInfo, clientMeta } from "@/system/client";
 import { toaster } from "@/system/toast";
 import { SUPERVISOR_URL } from "@/utils/globals";
@@ -321,7 +321,7 @@ export async function getHostClient(bench: { id: string }): Promise<HostClient> 
 }
 
 /** Gets the Graph client for a given scope */
-export async function getGraphClient(scope?: Partial<GraphScope>): Promise<IGraphIOClient> {
+export async function getGraphClient(scope?: Partial<GraphScopeData>): Promise<IGraphIOClient> {
   if (scope?.benchId == null) return supervisor;
   else return await getHostClient({ id: scope.benchId });
 }

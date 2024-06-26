@@ -3,7 +3,7 @@ import {
   BlockProperty,
   CommitTransactionRequest,
   EditType,
-  GraphScope,
+  GraphScopeData,
   NODE_PROPERTY_ENUM_BY_TYPE,
   NodeReferenceData,
   NodeType,
@@ -19,10 +19,12 @@ import {
   type PropertyInfo,
 } from "@/proto/wire";
 import {
+  EMPTY_SCOPE,
   describeEdit,
   describeNode,
   isNode,
   makeNode,
+  makeScope,
   nodeReference,
   toNodeReference,
   type TypedNodeReferenceData,
@@ -79,7 +81,7 @@ function newTransactionId(): string {
 
 /** A transaction on the Bench state graph. */
 export type Transaction = {
-  readonly scope: GraphScope;
+  readonly scope: GraphScopeData;
   readonly id: string;
   readonly edits: EditData[];
   describeSelf(): string;
@@ -120,7 +122,7 @@ export type Transaction = {
 /* Shared state to create multiple TransactionBuilder handles from different connections with same data */
 export class TransactionState {
   readonly id: string;
-  readonly scope: GraphScope;
+  readonly scope: GraphScopeData;
   readonly benchPtr: TypedNodeReferenceData<NodeType.BENCH> | null;
   readonly edits: EditData[] = [];
 
@@ -128,7 +130,7 @@ export class TransactionState {
   readonly _subs: Array<(edit: EditData, connectionId: number | null, debounce: DebounceLevel | null) => void> = [];
   readonly _buildersByConnectionId: Record<number, TransactionBuilder> = {};
 
-  constructor(id: string, scope: GraphScope) {
+  constructor(id: string, scope: GraphScopeData) {
     this.id = id;
     this.scope = scope;
     this.benchPtr = scope.benchId != null ? nodeReference(NodeType.BENCH, scope.benchId) : null;
@@ -160,7 +162,7 @@ export class TransactionBuilder implements Transaction {
     return this.state.id;
   }
 
-  get scope(): GraphScope {
+  get scope(): GraphScopeData {
     return this.state.scope;
   }
 
@@ -196,13 +198,13 @@ export class TransactionBuilder implements Transaction {
     };
   }
 
-  _getScope(node: AnyNodeData): GraphScope {
+  _getScope(node: AnyNodeData): GraphScopeData {
     const allProperties = NODE_PROPERTY_ENUM_BY_TYPE[node.metatype]!;
     const benchId = (node as any).benchPtr?.id ?? this.scope.benchId;
     const packageId = (node as any).packagePtr?.id ?? this.scope.packageId;
     if ("packagePtr" in allProperties && packageId == null)
       throw new Error(`missing packagePtr in ${describeNode(node)}`);
-    return { benchId, packageId };
+    return makeScope({ benchId, packageId });
   }
 
   _checkInScope(node: AnyNodeData) {
@@ -606,13 +608,13 @@ export interface TransactionBuffer {
  */
 export class ImmediateTransactionBuffer implements TransactionBuffer {
   public readonly id: number;
-  public readonly scope: GraphScope;
+  public readonly scope: GraphScopeData;
   public readonly graph: ReadNodeGraph & WriteNodeGraph;
   public readonly isPaused: Ref<boolean> = ref(false);
   private _committedSubs: Array<CommittedCallback> = [];
   private _currentTx: TransactionBuilder | null = null; // always keep a single transaction
 
-  constructor(id: number, scope: GraphScope, graph: ReadNodeGraph & WriteNodeGraph) {
+  constructor(id: number, scope: GraphScopeData, graph: ReadNodeGraph & WriteNodeGraph) {
     this.id = id;
     this.scope = scope;
     this.graph = graph;
@@ -683,7 +685,7 @@ export class ImmediateTransactionBuffer implements TransactionBuffer {
  */
 export class RemoteTransactionBuffer implements TransactionBuffer {
   public readonly id: number;
-  public readonly scope: GraphScope;
+  public readonly scope: GraphScopeData;
   public readonly client: IGraphIOClient;
   public readonly isPaused: Ref<boolean> = ref(false);
   private pendingSubs: Array<PendingCallback> = [];
@@ -694,7 +696,7 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
   private pendingConnectionByEditId: Record<string, number> = {};
   failedCommits: Ref<Record<string, CommitFailure>> = shallowRef({});
 
-  constructor(id: number, scope: GraphScope, client: IGraphIOClient) {
+  constructor(id: number, scope: GraphScopeData, client: IGraphIOClient) {
     this.id = id;
     this.scope = scope;
     this.currentTx = null;
@@ -881,7 +883,7 @@ let bufferId = 0;
 export function newBufferId() {
   return bufferId++;
 }
-const globalTxBuffer: TransactionBuffer = new RemoteTransactionBuffer(newBufferId(), {}, supervisor);
+const globalTxBuffer: TransactionBuffer = new RemoteTransactionBuffer(newBufferId(), EMPTY_SCOPE, supervisor);
 const txBuffersByBenchId: Ref<Record<string, RemoteTransactionBuffer>> = shallowRef({});
 const txBufferLockByBenchId: Record<string, AsyncEvent> = {};
 
@@ -893,7 +895,7 @@ export function getAllTransactionBuffers(): TransactionBuffer[] {
  * Gets the transaction buffer for the given scope (non-exclusively).
  * Currently we maintain one shared buffer per Bench and one for other global nodes.
  * */
-export async function getTransactionBuffer(scope: GraphScope): Promise<TransactionBuffer> {
+export async function getTransactionBuffer(scope: GraphScopeData): Promise<TransactionBuffer> {
   if (scope.benchId) {
     if (!txBuffersByBenchId.value[scope.benchId]) {
       // synchronize so that only one buffer is created per bench even when called concurrently

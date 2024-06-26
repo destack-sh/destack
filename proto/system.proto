@@ -10,7 +10,7 @@ import "proto/lang.proto";
 //
 
 message GetNodesRequest {
-  GraphScope scope = 1;
+  GraphScopeData scope = 1;
   // The 'root' nodes to get around.
   repeated NodeReferenceData roots = 2;  // must be of same type
   // Options to configure read.
@@ -28,7 +28,7 @@ message GetNodesResponse {
 }
 
 message WatchGetRequest {
-  GraphScope scope = 1;
+  GraphScopeData scope = 1;
   // The connection to watch. Must already exist.
   string connection_token = 2;
   // Get any updates in between the original request and this one.
@@ -48,7 +48,7 @@ message WatchGetResponse {
 }
 
 message SearchNodesRequest {
-  GraphScope scope = 1;
+  GraphScopeData scope = 1;
   // The type of node to search.
   NodeType node_type = 2;
   // Any relevant bases if it's a based node.
@@ -82,7 +82,7 @@ message SearchNodesResponse {
 }
 
 message WatchSearchRequest {
-  GraphScope scope = 1;
+  GraphScopeData scope = 1;
   // The connection to watch. Must already exist.
   string connection_token = 2;
   // Get any updates in between the original request and this one.
@@ -108,7 +108,7 @@ message WatchSearchResponse {
 }
 
 message AggregateNodesRequest {
-  GraphScope scope = 1;
+  GraphScopeData scope = 1;
   // The type of node to aggregate.
   NodeType node_type = 2;
   // Any relevant bases if it's a based node.
@@ -123,7 +123,7 @@ message AggregateNodesRequest {
   optional bool no_cache = 7;
 }
 message AggregateNodesResponse {
-  GraphScope scope = 1;
+  GraphScopeData scope = 1;
   // The connection to watch. Must already exist.
   string connection_token = 2;
   // An updated aggregation result.
@@ -133,7 +133,7 @@ message AggregateNodesResponse {
 }
 
 message WatchAggregateRequest {
-  GraphScope scope = 1;
+  GraphScopeData scope = 1;
   // The connection to watch. Must already exist.
   string connection_token = 2;
   // Get any updates in between the original request and this one.
@@ -145,7 +145,7 @@ message WatchAggregateResponse {
 }
 
 message CommitTransactionRequest {
-  GraphScope scope = 1;
+  GraphScopeData scope = 1;
   // UUIDT of the transaction.
   string id = 2;
   // All the edits for all the changes in order.

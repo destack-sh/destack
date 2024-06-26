@@ -62,7 +62,7 @@ class Message(
     is_pinned: bool = p_regular(50, default=False)
 
     # context
-    # ...HasSessionContext[60-69]
+    # ...HasSessionContext[70-79]
 
     def __content_str__(self) -> str:
         if self.title:

@@ -189,7 +189,7 @@ watch([canvas.focusedViewPtr, bench], () => {
           @click="() => assignSpaceInPackage()"
         />
       </div>
-      <div v-else-if="user">
+      <div v-else-if="user" class="flex flex-col gap-y-2 self-center">
         <!-- Logged in, but not on any space (not sure if this should even show or just auto-redirect?) -->
         <span>
           <i class="fas fa-exclamation-triangle mr-1.5 text-gray-500" />
@@ -202,7 +202,7 @@ watch([canvas.focusedViewPtr, bench], () => {
           @click="fireActionById('user.misc.goToHome')"
         />
       </div>
-      <div v-else>
+      <div v-else class="flex flex-col gap-y-2 self-center">
         <!-- Not logged in, not on a space (general landing page should go here) -->
         <h2 class="mb-1.5 text-2xl font-bold">Bench</h2>
         <Button

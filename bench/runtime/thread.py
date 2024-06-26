@@ -18,7 +18,7 @@ from bench.language.user import User
 from bench.language.validation import on_invalid_raise
 from bench.language.value import check_value
 from bench.proto import wiring
-from bench.proto.wire import GraphScope, HostClient, RunData, SupervisorClient
+from bench.proto.wire import GraphScopeData, HostClient, RunData, SupervisorClient
 from bench.runtime.core import BENCH_QUERY, PACKAGE_QUERY
 from bench.utils.func import CriticalLock
 from bench.utils.oracle import Oracle
@@ -119,7 +119,7 @@ class RuntimeThread:
         self._session = Session(
             server=self._machine.parent if self._machine else None,
             _is_readonly=False,
-            _default_scope=GraphScope(bench_id=str(self._bench_id)),
+            _default_scope=GraphScopeData(bench_id=str(self._bench_id)),
             _engines=self._engines,
             _supervisor=self._supervisor,
             _host=self._host,

@@ -13,21 +13,50 @@ from bench.language.connection import (
     GraphEngine,
     WritableChannel,
 )
-from bench.language.const import UNSET, EditType, NodeType
+from bench.language.const import (
+    NODE_TYPES,
+    UNSET,
+    EditType,
+    EnumType,
+    NodeType,
+    PrimitiveType,
+    StructType,
+    enum_,
+)
 from bench.language.graph import NodeDataGraph, NodeGraph
-from bench.language.node import Node, Property
+from bench.language.node import (
+    EDIT_SUBJECT_TYPES,
+    ClientOrigin,
+    EditSubject,
+    GraphScope,
+    InlineStruct,
+    Node,
+    Property,
+    Struct,
+    struct_,
+)
+from bench.language.property import p_internal, p_system
 from bench.language.setup import NODE_CLASS_BY_TYPE
 from bench.proto.wire import (
     AnyNodeData,
-    ClientOrigin,
+    ClientOriginData,
     EditContextData,
     EditData,
     NodeReferenceData,
 )
+from bench.utils.func import IdEnum
 from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
-    from bench.language import NodeSuperGraph, ReadOptions, Session
+    from bench.language import (
+        Code,
+        EditContext,
+        Expression,
+        Log,
+        NodeSuperGraph,
+        ReadOptions,
+        Session,
+    )
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -37,10 +66,102 @@ def new_edit_id() -> str:
     return str(UUIDT())
 
 
+@struct_(StructType.EDIT, inline=True)
+class Edit(InlineStruct):
+    """
+    An edit to a Node.
+    For updates/moves, the old/new node values are just the edited properties.
+    For 'remove's, the old node is the full node.
+      (technically we don't *need* if for non-hard deletes, but it's very convenient)
+    Similarly, for 'adds', the new node is the full node.
+    """
+
+    # content
+    id: UUID = p_system(
+        2,
+        default_factory=UUIDT,
+        require=True,
+        description="Unique identifier for the edit within a session.",
+    )
+    type: EditType = p_system(30, require=True, description="Type of edit.")
+    node: Node = p_system(31, require=True, references=NODE_TYPES.tuple, description="Which node.")
+    properties: list[int] = p_system(
+        32, array=True, description="Which non-tracking properties are edited."
+    )
+    old_node_packed: Any | None = p_system(
+        33,
+        primitive_type=PrimitiveType.JSON,
+        description="The previous values for the edited properties (if any.)",
+    )
+    new_node_packed: Any | None = p_system(
+        34,
+        primitive_type=PrimitiveType.JSON,
+        description="The new values for the edited properties (if any.)",
+    )
+
+    # context
+    scope: GraphScope = p_system(
+        40, require=True, struct=StructType.GRAPH_SCOPE, description="Enclosing scope of the edit."
+    )
+    change_key: UUID | None = p_system(
+        41, require=False, description="The change that this edit is part of."
+    )
+    subject: EditSubject | None = p_system(
+        42, require=False, references=EDIT_SUBJECT_TYPES, description="Who made the edit."
+    )
+    origin: ClientOrigin | None = p_system(
+        43, require=False, struct=StructType.CLIENT_ORIGIN, description="Where the edit came from."
+    )
+    context: "EditContext | None" = p_system(
+        44,
+        require=False,
+        struct=StructType.EDIT_CONTEXT,
+        description="Additional per edit context for servers.",
+    )
+    edited_at: datetime = p_system(45, require=True, description="When the edit was made.")
+    revision: int | None = p_system(
+        46, require=False, description="New revision of the edited node."
+    )
+    epoch: int | None = p_system(
+        47,
+        require=False,
+        description="Epoch at that edit (client if submitting, system if accepted).",
+    )
+
+
+@enum_(EnumType.CHANGE_KIND)
+class ChangeKind(IdEnum):
+    """The kind of Change."""
+
+    CODE = 1
+    MATERIALIZED = 2
+    LOGS = 3
+    LOGS_QUERY = 4
+
+
+@struct_(StructType.CHANGE)
+class Change(Struct):
+    """A change is a sequence of related edits."""
+
+    key: UUID = p_system(30, default_factory=UUIDT)
+    kind: ChangeKind = p_internal(31, require=True, description="The kind of change.")
+    scope: Optional["Node"] = p_internal(32, require=False, references=NODE_TYPES.tuple)
+    code: Optional["Code"] = p_internal(33, require=False, array=False, struct=StructType.CODE)
+    edits: list[Edit] = p_internal(
+        34, array=True, struct=StructType.EDIT, description="The materialized edits in the change."
+    )
+    logs: list["Log"] = p_internal(
+        35, require=False, array=True, references=NodeType.LOG, description="Logs for the change."
+    )
+    logs_filter: Optional["Expression"] = p_internal(
+        36, require=False, array=False, struct=StructType.EXPRESSION, description="Filter for logs."
+    )
+
+
 @dataclasses.dataclass(slots=True)
 class Transaction:
     """
-    A transaction in the Bench graph with an atomic list of edits.
+    A transaction is an atomic list of Edits (may be multiple sets of changes).
     """
 
     id: UUID
@@ -93,7 +214,7 @@ class Transaction:
         ],
         node: Node,
         subject: NodeReferenceData | None,
-        origin: ClientOrigin | None,
+        origin: ClientOriginData | None,
         context: EditContextData | None,
         now: datetime,
     ) -> EditData:
@@ -149,7 +270,7 @@ class Transaction:
         self,
         node: Node,
         subject: NodeReferenceData | None,
-        origin: ClientOrigin | None,
+        origin: ClientOriginData | None,
         context: EditContextData | None,
         now: datetime,
     ):
@@ -162,7 +283,7 @@ class Transaction:
         self,
         node: Node,
         subject: NodeReferenceData | None,
-        origin: ClientOrigin | None,
+        origin: ClientOriginData | None,
         context: EditContextData | None,
         now: datetime,
     ):
@@ -176,7 +297,7 @@ class Transaction:
         edit_type: Literal[EditType.UPDATE, EditType.MOVE],
         node: Node,
         subject: NodeReferenceData | None,
-        origin: ClientOrigin | None,
+        origin: ClientOriginData | None,
         context: EditContextData | None,
         properties: Collection[Property],
         old_values: dict[int, Any],
@@ -255,7 +376,7 @@ class Transaction:
         self,
         node: Node,
         subject: NodeReferenceData | None,
-        origin: ClientOrigin | None,
+        origin: ClientOriginData | None,
         context: EditContextData | None,
         properties: Collection[Property],
         old_values: dict[int, Any],
@@ -269,7 +390,7 @@ class Transaction:
         self,
         node: Node,
         subject: NodeReferenceData | None,
-        origin: ClientOrigin | None,
+        origin: ClientOriginData | None,
         context: EditContextData | None,
         properties: Collection[Property],
         old_values: dict[int, Any],
@@ -281,7 +402,7 @@ class Transaction:
         self,
         node: Node,
         subject: NodeReferenceData | None,
-        origin: ClientOrigin | None,
+        origin: ClientOriginData | None,
         context: EditContextData | None,
         now: datetime,
     ):
@@ -294,7 +415,7 @@ class Transaction:
         self,
         node: Node,
         subject: NodeReferenceData | None,
-        origin: ClientOrigin | None,
+        origin: ClientOriginData | None,
         context: EditContextData | None,
         now: datetime,
     ):
@@ -307,7 +428,7 @@ class Transaction:
         self,
         node: Node,
         subject: NodeReferenceData | None,
-        origin: ClientOrigin | None,
+        origin: ClientOriginData | None,
         context: EditContextData | None,
         now: datetime,
     ):
@@ -320,7 +441,7 @@ class Transaction:
         self,
         node: Node,
         subject: NodeReferenceData | None,
-        origin: ClientOrigin | None,
+        origin: ClientOriginData | None,
         context: EditContextData | None,
         now: datetime,
     ):
@@ -338,7 +459,7 @@ class Transaction:
         self,
         node: Node,
         subject: NodeReferenceData | None,
-        origin: ClientOrigin | None,
+        origin: ClientOriginData | None,
         context: EditContextData | None,
         now: datetime,
     ):

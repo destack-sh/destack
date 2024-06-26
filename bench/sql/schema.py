@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.06.25.1"
+VERSION = "2024.06.26.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1103,10 +1103,11 @@ LOG_TABLE = Table(
         Column("new_node_packed", PrimitiveType.JSON, is_nullable=True),
         Column("new_node_secret_packed", PrimitiveType.JSON, is_nullable=True, is_encrypted=True),
         Column("new_revision", PrimitiveType.INT64, is_nullable=True),
-        Column("title", PrimitiveType.STRING, is_nullable=True),
-        Column("text", PrimitiveType.JSON, is_nullable=True),
-        Column("value_packed", PrimitiveType.JSON, is_nullable=True),
-        Column("secret_value_packed", PrimitiveType.JSON, is_nullable=True, is_encrypted=True),
+        Column("change_id", PrimitiveType.UUID, is_nullable=True),
+        Column("nodes_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
+        Column("nodes_ck", PrimitiveType.UUID, is_array=True, is_nullable=True),
+        Column("nodes_type", PrimitiveType.INT16, is_array=True, is_nullable=True),
+        Column("nodes_base_ck", PrimitiveType.UUID, is_array=True, is_nullable=True),
         Column("block_id", PrimitiveType.UUID, is_nullable=True),
         Column("block_ck", PrimitiveType.UUID, is_nullable=True),
         Column("block_bench_id", PrimitiveType.UUID, is_nullable=True),

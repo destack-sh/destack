@@ -571,8 +571,6 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
                     extra_stored_props["ck"] = ck_ref_prop
                 if len(shared_ptr_types) > 1:
                     # disambiguate type for heterogeneous ck references :HomogeneousListCk
-                    # NOTE: we only support homogenous lists because it would be a pain to mix types.
-                    assert not is_list, f"cannot store heterogeneous types in list: {self!r}"
                     extra_stored_props["type"] = Property(
                         id=self.id,
                         name=self.name + "_type",
@@ -615,19 +613,18 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
 
             # we also need a base and _its_ bench if this is a 'based' node (node with a base node)
             if any(t in BASED_NODE_TYPES for t in shared_ptr_types):
-                assert not is_list, f"cannot store based types in list: {self!r}"
                 extra_stored_props["base_ck"] = Property(
                     id=self.id,
                     name=self.name + "_base_ck",
                     component=self.component,
                     reference_kind=self.reference_kind,
-                    py_type_raw=UUID,
+                    py_type_raw=list[UUID] if is_list else UUID,
                     reference_source=self,
                     is_runtime=False,
                     is_wired=False,
                     is_stored=True,
                     is_internal=is_internal,
-                    is_list=False,
+                    is_list=is_list,
                     is_required=False,
                     primitive_type=PrimitiveType.UUID,
                 )

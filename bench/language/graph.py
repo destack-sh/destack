@@ -24,7 +24,7 @@ from opentelemetry import trace
 from bench.language.const import EMPTY_LIST, NodeType, ObjectType, ReferenceKind
 from bench.language.setup import NODE_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE
 from bench.language.validation import on_invalid_raise
-from bench.proto.wire import AnyNodeData, GraphScope
+from bench.proto.wire import AnyNodeData, GraphScopeData
 from bench.utils.casing import Casing, to_casing
 from bench.utils.fractional import get_key_bounds, get_order_key, get_order_keys
 from bench.utils.func import IdEnum
@@ -52,7 +52,7 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
 
     def __init__(
         self,
-        scope: GraphScope,
+        scope: GraphScopeData,
         node_types: Collection[NodeType],
         *,
         nodes: Collection[V] | None = None,
@@ -319,7 +319,7 @@ class NodeGraph(_NodeGraphBase[UUID, "Node"]):
 
     def __init__(
         self,
-        scope: GraphScope,
+        scope: GraphScopeData,
         node_types: Collection[NodeType],
         supergraph: "NodeSuperGraph",
         *,

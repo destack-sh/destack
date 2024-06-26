@@ -37,11 +37,11 @@ from bench.language.setup import CHILD_NODE_TYPES
 from bench.proto.wire import (
     AggregationData,
     AnyNodeData,
-    ClientOrigin,
+    ClientOriginData,
     EditData,
     ExpressionData,
     GraphIoClient,
-    GraphScope,
+    GraphScopeData,
     HostClient,
     NodeReferenceData,
     ReadOptionsData,
@@ -228,13 +228,13 @@ Result = GetResult | SearchResult | AggregateResult
 UpdateData = WatchGetUpdate | WatchSearchUpdate | WatchAggregateUpdate
 
 
-def scope_includes(scope: GraphScope, other: GraphScope) -> bool:
+def scope_includes(scope: GraphScopeData, other: GraphScopeData) -> bool:
     return (scope.bench_id is None or scope.bench_id == other.bench_id) and (
         scope.package_id is None or scope.package_id == other.package_id
     )
 
 
-def origin_matches(origin: ClientOrigin, other: ClientOrigin) -> bool:
+def origin_matches(origin: ClientOriginData, other: ClientOriginData) -> bool:
     return origin.id == other.id and origin.nonce == other.nonce
 
 
@@ -243,7 +243,7 @@ class GraphEngine[C: Channel](abc.ABC):
 
     def __init__(
         self,
-        scope: GraphScope,
+        scope: GraphScopeData,
         node_types: bittuple[NodeType],
     ):
         self.scope = scope
@@ -311,7 +311,7 @@ class Channel[E: GraphEngine](abc.ABC):
 
     @abc.abstractmethod
     def _get_connection_cls(
-        self, query: "QueryBuilder", scope: GraphScope, options: Options
+        self, query: "QueryBuilder", scope: GraphScopeData, options: Options
     ) -> "type[Connection]": ...
 
     @final
@@ -400,7 +400,7 @@ class Connection[
     def __init__(
         self,
         channel: ChannelT,
-        scope: GraphScope,
+        scope: GraphScopeData,
         query: "QueryBuilder",
         retry: RetryOptions,
         options: OptionsT,
@@ -751,7 +751,9 @@ class AggregateConnection[ChannelT: Channel](
 class MemoryEngine(GraphEngine["MemoryChannel"]):
     """A read-only engine that reads from an in-memory graph."""
 
-    def __init__(self, scope: GraphScope, node_types: bittuple[NodeType], graph: "NodeDataGraph"):
+    def __init__(
+        self, scope: GraphScopeData, node_types: bittuple[NodeType], graph: "NodeDataGraph"
+    ):
         super().__init__(scope, node_types)
         self.graph = graph
 
@@ -779,7 +781,7 @@ class MemoryChannel(Channel[MemoryEngine]):
 
     @override
     def _get_connection_cls(
-        self, query: "QueryBuilder", scope: GraphScope, options: Options
+        self, query: "QueryBuilder", scope: GraphScopeData, options: Options
     ) -> type[Connection]:
         if query._read_type == ReadType.GET:
             return MemoryGetConnection
@@ -868,7 +870,7 @@ class SplitChannel(Channel[NullEngine]):
 
     @override
     def _get_connection_cls(
-        self, query: "QueryBuilder", scope: GraphScope, options: Options
+        self, query: "QueryBuilder", scope: GraphScopeData, options: Options
     ) -> type[Connection]:
         if query._read_type == ReadType.GET:
             return SplitGetConnection
@@ -1003,7 +1005,7 @@ class RemoteEngine(GraphEngine["RemoteChannel"]):
 
     def __init__(
         self,
-        scope: GraphScope,
+        scope: GraphScopeData,
         node_types: bittuple[NodeType],
         remote: GraphIoClient | HostClient | SupervisorClient,
         rpc_metadata: RpcMetadata,
@@ -1032,7 +1034,7 @@ class RemoteChannel(WritableChannel[RemoteEngine]):
         return f"engine={self.engine!r}, session={self.session}"
 
     def _get_connection_cls(
-        self, query: "QueryBuilder", scope: GraphScope, options: Options
+        self, query: "QueryBuilder", scope: GraphScopeData, options: Options
     ) -> type[Connection]:
         if query._read_type == ReadType.GET:
             return RemoteGetConnection
@@ -1240,7 +1242,7 @@ class PostgresEngine(GraphEngine):
         self,
         store: "Store",
         bench: "Bench",
-        scope: GraphScope,
+        scope: GraphScopeData,
         node_types: bittuple[NodeType],
     ):
         super().__init__(scope, node_types)
@@ -1280,7 +1282,7 @@ class PostgresChannel(WritableChannel[PostgresEngine]):
 
     @override
     def _get_connection_cls(
-        self, query: "QueryBuilder", scope: GraphScope, options: Options
+        self, query: "QueryBuilder", scope: GraphScopeData, options: Options
     ) -> type[Connection]:
         if query._read_type == ReadType.GET:
             return PostgresGetConnection

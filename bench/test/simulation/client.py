@@ -5,7 +5,7 @@ from bench.proto import wire
 from bench.proto.wire import (
     ClientData,
     ClientDataIn,
-    ClientOrigin,
+    ClientOriginData,
     LoginUserRequest,
     RpcMetadata,
     SignupUserRequest,
@@ -84,8 +84,8 @@ class ClientHandle:
         assert self._client_data is not None, f"{self!r} not ready"
         return self._client_data
 
-    def to_origin(self, *, nonce: str | None) -> ClientOrigin:
-        return ClientOrigin(
+    def to_origin(self, *, nonce: str | None) -> ClientOriginData:
+        return ClientOriginData(
             type=self.client_data.type,
             id=self.client_data.id,
             nonce=nonce or self.client_data.id,

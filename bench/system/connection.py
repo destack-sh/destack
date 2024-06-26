@@ -23,7 +23,7 @@ from bench.language.query import DEFAULT_READ_OPTIONS, QueryBuilder
 from bench.language.transaction import unpack_node_delta
 from bench.proto.wire import (
     EditData,
-    GraphScope,
+    GraphScopeData,
 )
 from bench.utils.func import bittuple, generate_access_token
 from bench.utils.oracle import Oracle
@@ -70,7 +70,7 @@ class Connection[
 
     read_type: ClassVar[ReadType]
 
-    def __init__(self, scope: GraphScope, query: QueryBuilder, oracle: Oracle):
+    def __init__(self, scope: GraphScopeData, query: QueryBuilder, oracle: Oracle):
         self.scope = scope
         self.hash = query._stable_hash()
         self.token: str = generate_access_token(length=8)
@@ -398,7 +398,7 @@ class AggregateConnection(Connection[AggregateResultData, WatchAggregateUpdate])
 class ConnectionIndex:
     """Connect and cache queries to the graph."""
 
-    def __init__(self, scope: GraphScope, oracle: Oracle):
+    def __init__(self, scope: GraphScopeData, oracle: Oracle):
         self.scope = scope
         self.oracle = oracle
         self._connections_by_hash: dict[int, Connection] = {}
