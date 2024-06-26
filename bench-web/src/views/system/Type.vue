@@ -155,6 +155,13 @@ const actions: Partial<ActionMapImplementation<"common">> = {
       pkgConnection.tx.delete(field);
     },
   },
+  "common.edit.archive": {
+    action: (action, ctx) => {
+      const { field } = getFieldFromContext(ctx);
+      if (field == null) return false;
+      pkgConnection.tx.archive(field);
+    },
+  },
 };
 
 canvas.registerView(self, id);
@@ -225,6 +232,7 @@ defineExpose<ViewExposed>({ self, id, actions });
                     'common.edit.rename',
                     'common.edit.morph',
                     'common.edit.duplicate',
+                    'common.edit.archive',
                     'common.edit.delete',
                     'common.create.above',
                     'common.create.below',

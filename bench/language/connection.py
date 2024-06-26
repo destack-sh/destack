@@ -189,8 +189,8 @@ class WatchSearchUpdate:
     cascaded_edits: list[EditData]
     added_nodes: list[AnyNodeData]
     removed_nodes_ptr: list[NodeReferenceData]
-    added_roots_ptr: dict[int, NodeReferenceData]
-    removed_roots_ptr: list[NodeReferenceData]
+    roots_ptr: list[NodeReferenceData]
+    total: int | None
     epoch: int
 
 
@@ -698,16 +698,15 @@ class SearchConnection[ChannelT: Channel](
                 result.graph.remove(node)
 
         # update 'roots' list
-        for insert_index, new_root_ptr in update.added_roots_ptr.items():
-            new_root_data = result_data.graph.get(cast(str, new_root_ptr.id))
-            assert new_root_data is not None, f"missing new root: {new_root_ptr!r}"
-            result_data.roots.insert(insert_index, new_root_data)
-        for removed_root_ptr in update.removed_roots_ptr:
-            removed_root_data = result_data.graph.get(cast(str, removed_root_ptr.id))
-            assert removed_root_data is not None, f"missing removed root: {removed_root_ptr!r}"
-            result_data.roots.remove(removed_root_data)
+        new_roots_data: list[AnyNodeData] = []
+        for root_ptr in result_data.roots_ptr:
+            root = result_data.graph.get(cast(str, root_ptr.id))
+            assert root is not None, f"missing root for update: {root_ptr!r}"
+            new_roots_data.append(root)
+        result_data.roots = new_roots_data
+        result_data.roots_ptr = result_data.roots_ptr
         if result is not None:  # and update unpacked result
-            new_roots = []
+            new_roots: list[Node] = []
             for root_data in result_data.roots_ptr:
                 root = result.graph.get(UUID(root_data.id))
                 assert root is not None, f"missing root for update: {root_data!r}"
@@ -1203,8 +1202,8 @@ class RemoteSearchConnection(SearchConnection[RemoteChannel]):
                 cascaded_edits=rep.cascaded_edits,
                 added_nodes=[wiring.unwrap_some_node(n) for n in rep.added_nodes],
                 removed_nodes_ptr=rep.removed_nodes_ptr,
-                added_roots_ptr=rep.added_roots_ptr,
-                removed_roots_ptr=rep.removed_roots_ptr,
+                roots_ptr=rep.roots_ptr,
+                total=rep.total,
                 epoch=rep.epoch,
             )
             yield update

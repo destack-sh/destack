@@ -18,12 +18,15 @@ from bench.language.connection import (
     WatchSearchUpdate,
 )
 from bench.language.const import EditType, NodeType, ReadType
+from bench.language.expression import matches_expression
 from bench.language.graph import NodeDataGraphLike
 from bench.language.query import DEFAULT_READ_OPTIONS, QueryBuilder
 from bench.language.transaction import unpack_node_delta
 from bench.proto.wire import (
+    AnyNodeData,
     EditData,
     GraphScopeData,
+    NodeReferenceData,
 )
 from bench.utils.func import bittuple, generate_access_token
 from bench.utils.oracle import Oracle
@@ -210,13 +213,42 @@ class NodeConnection[
 ](Connection[ResultT, UpdateT]):
     """Base connection for get/search queries in the graph."""
 
+    def _unpack_edited_node(self, updated_graph: NodeDataGraphLike, edit: EditData) -> AnyNodeData:
+        """Extract the full edited node data."""
+        node_id = edit.node_ptr.id
+        assert node_id, f"missing node id for {edit.node_ptr!r} in {edit!r}"
+        updated_node = updated_graph.get(node_id)
+        if updated_node is None:
+            if edit.type in (EditType.ARCHIVE, EditType.DELETE, EditType.ERASE):
+                assert edit.old_node_packed, f"missing old node data for {edit!r}"
+                updated_node = unpack_node_delta(
+                    edit.old_node_packed, node_type=self.query._node_type
+                )
+            elif edit.type in (
+                EditType.UNARCHIVE,
+                EditType.RESTORE,
+                EditType.CREATE,
+                EditType.UPSERT,
+            ):
+                assert edit.new_node_packed, f"missing new node data for {edit!r}"
+                updated_node = unpack_node_delta(
+                    edit.new_node_packed, node_type=self.query._node_type
+                )
+            else:
+                raise RuntimeError(f"unexpected empty edit type {edit.type} in {edit!r}")
+        assert updated_node is not None, f"missing node data for {edit.node_ptr!r}"
+        return updated_node
+
     def _apply_node_edits_in_scope(
         self,
         updated_graph: NodeDataGraphLike,
         edits: list[EditData],
         is_cascaded: bool,
     ) -> list[EditData]:
-        """Apply node edits that are in the scope of our result graph, return applied edits."""
+        """
+        Apply node edits that are in the scope of the result graph, return applied edits.
+        'in scope' here means the node or its parent is already in the given graph.
+        """
         options = self.query._options or DEFAULT_READ_OPTIONS
         result_graph = self.result.graph
         applied_edits: list[EditData] = []
@@ -228,25 +260,7 @@ class NodeConnection[
             edit_type = EditType(edit.type)
 
             # filter scope
-            node_id = edit.node_ptr.id
-            assert node_id, f"missing node id for {edit.node_ptr!r}"
-            updated_node = updated_graph.get(node_id)
-            if updated_node is None:
-                if edit.type in (EditType.ARCHIVE, EditType.DELETE, EditType.ERASE):
-                    assert edit.old_node_packed, f"missing old node data for {edit!r}"
-                    updated_node = unpack_node_delta(edit.old_node_packed, node_type=node_type)
-                elif edit.type in (
-                    EditType.UNARCHIVE,
-                    EditType.RESTORE,
-                    EditType.CREATE,
-                    EditType.UPSERT,
-                ):
-                    assert edit.new_node_packed, f"missing new node data for {edit!r}"
-                    updated_node = unpack_node_delta(edit.new_node_packed, node_type=node_type)
-                else:
-                    raise RuntimeError(f"unexpected empty edit type {edit.type} in {edit!r}")
-            # (all edited nodes must be either in graph or full in edit, even deleted ones)
-            assert updated_node is not None, f"missing node data for {edit.node_ptr!r}"
+            updated_node = self._unpack_edited_node(updated_graph, edit)
             if edit.type in (EditType.CREATE, EditType.UPSERT) or (
                 not options.include_hidden and edit_type in (EditType.UNARCHIVE, EditType.RESTORE)
             ):
@@ -257,7 +271,7 @@ class NodeConnection[
                 is_in_scope = parent_id in result_graph
             else:
                 # node must be in our result graph
-                is_in_scope = node_id in result_graph
+                is_in_scope = updated_node.id in result_graph
             if not is_in_scope:
                 continue  # irrelevant scope
 
@@ -266,9 +280,9 @@ class NodeConnection[
             if edit_type == EditType.ERASE or (
                 not options.include_hidden and edit_type in (EditType.ARCHIVE, EditType.DELETE)
             ):
-                if node_id in result_graph:
+                if updated_node.id in result_graph:
                     result_graph.remove(updated_node)
-            elif node_id in result_graph:
+            elif updated_node.id in result_graph:
                 result_graph.update(updated_node)
             else:
                 result_graph.add(updated_node)
@@ -331,6 +345,11 @@ class SearchConnection(NodeConnection[SearchResultData, WatchSearchUpdate]):
     In its final form, this should be a proper incremental materialized view.
     """
 
+    def __init__(self, scope: GraphScopeData, query: QueryBuilder, oracle: Oracle):
+        super().__init__(scope, query, oracle)
+        self._filter = query._filter
+        self._result_roots_ids: set[str] | None = None
+
     read_type: ClassVar[ReadType] = ReadType.SEARCH
 
     def __result_str__(self, result: SearchResultData) -> str:
@@ -345,6 +364,7 @@ class SearchConnection(NodeConnection[SearchResultData, WatchSearchUpdate]):
             self.query, SearchOptions(live=False, unpack=False, count=True)
         )
         self._result_data = connection.result_data
+        self._result_roots_ids = {node.id for node in self._result_data.roots}
         return self._result_data
 
     def on_commit(
@@ -354,15 +374,61 @@ class SearchConnection(NodeConnection[SearchResultData, WatchSearchUpdate]):
         cascaded_edits: list[EditData],
         epoch: int,
     ):
-        # filter edits to relevant nodes & update result graph
-        filtered_edits = self._apply_node_edits_in_scope(
-            updated_graph=graph, edits=edits, is_cascaded=False
-        )
-        filtered_cascaded_edits = self._apply_node_edits_in_scope(
-            updated_graph=graph, edits=cascaded_edits, is_cascaded=True
-        )
+        assert self._result_data is not None, f"no result for {self!r}"
+        assert self._result_roots_ids is not None, f"no result for {self!r}"
 
-        # nocheckin: SearchConnection.on_commit
+        # filter all edits to figure out new roots
+        # nocheckin: handle added_nodes/removed_nodes_ptr
+        added_nodes: list[AnyNodeData] = []
+        removed_nodes_ptr: list[NodeReferenceData] = []
+        relevant_edits: list[EditData] = []
+        for edit in edits:
+            if edit.node_ptr.type != self.query._node_type:
+                continue
+            node_id = edit.node_ptr.id
+            assert node_id, f"missing node id for {edit.node_ptr!r} in {edit!r}"
+            node = self._unpack_edited_node(graph, edit)
+            is_relevant = self._filter is None or matches_expression(self._filter, node)
+            is_extant = node_id in self._result_roots_ids
+            if not is_relevant and not is_extant:
+                continue  # ignore irrelevant edit
+            # handle relevant edit
+            relevant_edits.append(edit)
+            if is_extant:
+                is_remove = edit.type == EditType.ERASE or (
+                    edit.type in (EditType.ARCHIVE, EditType.DELETE)
+                    and not DEFAULT_READ_OPTIONS.include_hidden
+                )
+                if is_relevant and not is_remove:
+                    self._result_data.graph.update(node)
+                if not is_relevant or is_remove:
+                    self._result_roots_ids.remove(node_id)
+                    self._result_data.graph.remove(node)
+                    self._result_data.roots_ptr = [  # inefficient
+                        ptr for ptr in self._result_data.roots_ptr if ptr.id != node_id
+                    ]
+                    if self._result_data.total is not None:
+                        self._result_data.total -= 1
+            else:  # is_relevant
+                self._result_roots_ids.add(node_id)
+                self._result_data.graph.add(node)
+                self._result_data.roots_ptr.append(edit.node_ptr)
+                if self._result_data.total is not None:
+                    self._result_data.total += 1
+
+        # nocheckin: SearchConnection sort & limit
+        if relevant_edits:
+            update = WatchSearchUpdate(
+                # nocheckin: SearchConnection rest of edits & cascaded edits
+                edits=relevant_edits,
+                cascaded_edits=[],
+                roots_ptr=self._result_data.roots_ptr,
+                added_nodes=added_nodes,
+                removed_nodes_ptr=removed_nodes_ptr,
+                total=self._result_data.total,
+                epoch=epoch,
+            )
+            self.notify_update(update)
 
 
 class AggregateConnection(Connection[AggregateResultData, WatchAggregateUpdate]):

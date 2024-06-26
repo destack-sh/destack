@@ -429,14 +429,6 @@ def _compile_expression_ref(
 ) -> SqlNode:
     if expr.property is not None:
         return sqlident(expr.property.name)
-    elif expr.field is not None:
-        assert (
-            expr.field._introspected_from is None
-        ), f"cannot use introspected: {expr!r}->{expr.field!r}"
-        if isinstance(node, Block) and not node.is_materialized:
-            return SqlJsonPath(sqlident("value"), [expr.field.storage_key])
-        else:
-            return sqlident(get_field_column_name(expr.field))
     else:
         raise TypeError(f"unexpected expression ref: {expr!r}")
 
@@ -467,11 +459,6 @@ def pg_compile_conditional(
         cond.op in ExpressionOps.COND_COMPARISON or cond.op in ExpressionOps.COND_STRING
     ) and cond.op in PG_CONDITIONAL_OP_BY_BENCH:
         left = _compile_expression_ref(node, cond)
-        # add explicit cast to LHS if possible
-        if isinstance(cond.field, Field):
-            assert cond.field.primitive_type is not None, f"no primitive type for {cond.field!r}"
-            pg_type = PG_CAST_PRIMITIVE_TYPE[cond.field.primitive_type]
-            left = sqlstr("({})::{}").format(sql_node_to_sql(left), sqlstr(pg_type))
 
         if cond.op in (ConditionalOp.IN, ConditionalOp.NOT_IN):
             # map IN to ANY() construct (IN/NOT IN doesn't work in psycopg)

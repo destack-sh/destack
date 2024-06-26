@@ -37,6 +37,14 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
+class GraphError(ValueError):
+    pass
+
+
+class GraphConsistencyError(GraphError):
+    pass
+
+
 class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
     __slots__ = (
         "_nodes_by_ck",
@@ -129,7 +137,7 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
         ), f"cannot add {node!r} with id {node.id!r} in {self!r}"
         if node.id in self._nodes_by_id:
             existing = self._nodes_by_id[node.id]
-            raise ValueError(
+            raise GraphConsistencyError(
                 f"node {node!r} (id={node.id}) already exists in {self!r}: {existing!r} (id={existing.id})"
             )
         self._nodes_by_id[node.id] = node
@@ -145,7 +153,7 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
         ), f"cannot update {node!r} with id {node.id!r} in {self!r}"
         old = self._nodes_by_id.get(node.id)
         if old is None:
-            raise ValueError(f"node {node!r} does not exist in {self!r}")
+            raise GraphConsistencyError(f"node {node!r} does not exist in {self!r}")
         self._nodes_by_id[node.id] = node
         if hasattr(node, "ck"):
             self._nodes_by_ck[getattr(node, "ck")] = node
@@ -170,7 +178,7 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
                     self._nodes_by_parent[old_parent_id][metatype][i] = node
                     break
             else:
-                raise ValueError(
+                raise GraphConsistencyError(
                     f"node {node!r} not in {self!r} (should be in {self._nodes_by_parent[old_parent_id][metatype]}, was {old!r})"
                 )
 

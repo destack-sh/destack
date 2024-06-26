@@ -191,7 +191,7 @@ watch([canvas.focusedViewPtr, bench], () => {
       </div>
       <div v-else-if="user" class="flex flex-col gap-y-2 self-center">
         <!-- Logged in, but not on any space (not sure if this should even show or just auto-redirect?) -->
-        <span>
+        <span>^
           <i class="fas fa-exclamation-triangle mr-1.5 text-gray-500" />
           <span class="text-gray-600">You're Lost in Space</span>
         </span>
@@ -207,7 +207,7 @@ watch([canvas.focusedViewPtr, bench], () => {
         <h2 class="mb-1.5 text-2xl font-bold">Bench</h2>
         <Button
           name="LogIn"
-          :icon="makeIcon('fas fa-arrow-right-from-bracket')"
+          :icon="makeIcon('fas fa-arrow-right-to-bracket')"
           title="Log In"
           @click="fireActionById('user.auth.login')"
         />

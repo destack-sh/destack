@@ -233,8 +233,8 @@ def unpack_commit(
         assert node.parent_ptr, f"missing parent ptr for {node!r} in {edit!r}"
         parent_id = UUID(node.parent_ptr.id)
         for graph in graphs:
-            if parent_id in graph:
-                parent = graph[parent_id]
+            parent = graph.get(parent_id)
+            if parent is not None:
                 break
         else:
             # cascaded edits should bei in pre-order, so the parent must exist

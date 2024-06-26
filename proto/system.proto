@@ -97,10 +97,9 @@ message WatchSearchResponse {
   repeated SomeNodeData added_nodes = 3;
   // Nodes removed from the result set.
   repeated NodeReferenceData removed_nodes_ptr = 4;
-  // Roots added to the result set. Indices are into previous roots, before removed_roots_ptr.
-  map<int32, NodeReferenceData> added_roots_ptr = 5;
-  // Roots removed from the result set.
-  repeated NodeReferenceData removed_roots_ptr = 6;
+  // New roots in the result set.
+  // NOTE :Performance: make watch search root update incremental 
+  repeated NodeReferenceData roots_ptr = 5;
   // New total count.
   optional int32 total = 7;
   // Current epoch.

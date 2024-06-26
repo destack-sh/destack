@@ -369,8 +369,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
                     cascaded_edits=update.cascaded_edits,
                     added_nodes=[wiring.wrap_some_node(n) for n in update.added_nodes],
                     removed_nodes_ptr=update.removed_nodes_ptr,
-                    added_roots_ptr=update.added_roots_ptr,
-                    removed_roots_ptr=update.removed_roots_ptr,
+                    roots_ptr=update.roots_ptr,
                     epoch=update.epoch,
                 )
         finally:

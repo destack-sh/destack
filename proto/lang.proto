@@ -1416,8 +1416,7 @@ message ExpressionData {
   optional string parent_key = 4;
   optional string order_key = 9;
   ExpressionOp op = 30;
-  optional NodeReferenceData field_ptr = 31;
-  optional PropertyReferenceData property_ptr = 32;
+  optional PropertyReferenceData property_ptr = 31;
   repeated ExpressionData clauses = 35;
   optional google.protobuf.Struct value_packed = 36;
   optional SortMode sort_mode = 38;
