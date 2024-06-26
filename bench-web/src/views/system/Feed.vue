@@ -73,7 +73,7 @@ type FeedItem = LogEditItem | LogChangeItem | RunItem;
 // TODO :Incomplete!: store Feed query (and View-type-specific data) in view node
 const nodeType = NodeType.LOG;
 const { roots, graph, connection, page } = useSearchConnection(
-  { name: `feed.${toCamelName(NodeType, nodeType).toLowerCase()}` },
+  { name: `feed.${toCamelName(NodeType, nodeType).toLowerCase()}`, live: true },
   {
     scope: PACKAGE_SCOPE.value,
     // nocheckin: parameterize Feed search
@@ -145,7 +145,7 @@ defineExpose<ViewExposed>({ self, id });
             <!-- Object -->
             <button
               v-if="item.node"
-              class="hover:bg-primary-100 px-1 hover:text-primary-900"
+              class="px-1 hover:bg-primary-100 hover:text-primary-900"
               @click="canvas.goToNode(item.node)"
             >
               <IconInline v-bind="getNodeIcon(item.node)" class="mr-1 text-gray-700" />
@@ -154,9 +154,9 @@ defineExpose<ViewExposed>({ self, id });
               </span>
             </button>
             <span v-else>
-							<IconInline v-bind="ICON_BY_NODE_TYPE[item.it.nodePtr!.type]" class="text-gray-700" />
-							<span class="italic ml-1">Unavailable</span>
-						</span>
+              <IconInline v-bind="ICON_BY_NODE_TYPE[item.it.nodePtr!.type]" class="text-gray-700" />
+              <span class="ml-1 italic">Unavailable</span>
+            </span>
           </template>
           <template v-else-if="item.kind == 'run'"> run! </template>
           <span v-else class="text-danger-500">???</span>
@@ -173,7 +173,7 @@ defineExpose<ViewExposed>({ self, id });
       </li>
     </ul>
     <!-- Loading -->
-    <div v-else class="flex h-full w-full min-h-20 flex-col text-center align-middle">
+    <div v-else class="flex h-full min-h-20 w-full flex-col text-center align-middle">
       <Transition
         enter-from-class="opacity-0"
         enter-active-class="transition-opacity duration-200"

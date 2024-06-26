@@ -102,10 +102,10 @@ class Expression(Struct, HasValues):
     """
 
     op: ExpressionOp = p_regular(30, require=True)
-    field: Optional["Field"] = p_regular(31, require=False, array=False, references=NodeType.FIELD)
     property: Optional[Property] = p_regular(
-        32, require=False, default=None, array=False, struct=StructType.PROPERTY_REFERENCE
+        31, require=False, default=None, array=False, struct=StructType.PROPERTY_REFERENCE
     )
+    # field...?
     clauses: list["Expression"] | None = p_regular(35, array=True, struct=StructType.EXPRESSION)
     value_packed: Any = p_value_packed(36)
     value: Any = p_value_runtime(36, typ=lambda self: cast(Expression, self).value_type)
@@ -140,9 +140,7 @@ class Expression(Struct, HasValues):
 
     @property_
     def value_type(self) -> "TypeInfoBase | None":
-        if self.field is not None:
-            typ = self.field.type_info
-        elif self.property is not None:
+        if self.property is not None:
             typ = self.property.type_info
         else:
             return None
@@ -164,9 +162,9 @@ class Expression(Struct, HasValues):
             ), f"expected 1 clause, got {self}"
             return self.clauses[0]
         elif self.op == ConditionalOp.EXISTS:
-            return C(ConditionalOp.NOT_EXISTS, field=self.field, property=self.property)
+            return C(ConditionalOp.NOT_EXISTS, property=self.property)
         elif self.op == ConditionalOp.NOT_EXISTS:
-            return C(ConditionalOp.EXISTS, field=self.field, property=self.property)
+            return C(ConditionalOp.EXISTS, property=self.property)
         else:
             return C(ConditionalOp.NOT, clauses=[self])
 
@@ -194,9 +192,7 @@ class Expression(Struct, HasValues):
 
     @property_
     def target(self) -> Union["Field", Property, None]:
-        if self.field is not None:
-            return self.field
-        elif self.property is not None:
+        if self.property is not None:
             return self.property
         else:
             return None
@@ -316,27 +312,17 @@ def coerce_conditional(
             key, op = arg, ConditionalOp.EQUALS
 
         # map key into field/property
-        target = None
-        if key in node.__properties__:
-            target = node.__properties__[key]
-        elif isinstance(node, Node) and "fields" in node.__node_child_properties__:
-            target = node.fields.get(key)
+        target = node.__properties__.get(key)
         if target is None:
             raise TypeError(f"{node!r} has no field {key}")
-        elif isinstance(target, Property):
-            field, property = None, target
-        else:
-            field, property = target, None
-
         # coerce None to NOT_EXISTS/EXISTS
         if value is None:
             if op == ConditionalOp.EQUALS:
                 op = ConditionalOp.NOT_EXISTS
             elif op == ConditionalOp.NOT_EQUALS:
                 op = ConditionalOp.EXISTS
-
         _check_type_supports(target.type_info, op)
-        clauses.append(Expression(op=op, field=field, property=property, value=value))
+        clauses.append(Expression(op=op, property=target, value=value))
     if not clauses:
         return None
     else:
@@ -401,6 +387,10 @@ def coerce_sort(
     return coerced
 
 
+def matches_expression(expression: Expression, value: Any) -> bool:
+    return True  # nocheckin
+
+
 # single-letter convenience constructors
 def E(  # noqa: N802
     op: ExpressionOp, *, _expect_kind: type[ExpressionKind] | None = None, **kwargs
@@ -420,7 +410,7 @@ METATYPE_KEY = "_type"
 
 
 #
-# Field query ops
+# Type query ops
 # :ExpressionSupport
 #
 

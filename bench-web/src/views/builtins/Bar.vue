@@ -261,7 +261,7 @@ const dockActions: Ref<Action[]> = computed(
           class="px-2 py-1 text-base text-gray-700 hover:bg-gray-100 hover:text-primary-900"
           @click="fireActionById('user.auth.login')"
         >
-          <i class="fas fa-arrow-right-from-bracket" />
+          <i class="fas fa-arrow-right-to-bracket" />
         </button>
       </template>
     </div>

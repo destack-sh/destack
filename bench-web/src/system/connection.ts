@@ -612,16 +612,7 @@ export class RemoteSearchConnection<T extends NodeType> extends ConnectionBase<"
           if (node != null) graph.remove(node);
         }
         // update' roots' list
-        const newRoots = rootsPtr.value.slice();
-        for (const insertIndex of Object.keys(rep.addedRootsPtr)) {
-          const index = Number(insertIndex);
-          newRoots.splice(index, 0, rep.addedRootsPtr[index] as TypedNodeReferenceData<T>);
-        }
-        for (const nodePtr of rep.removedNodesPtr) {
-          const removeIndex = newRoots.findIndex((r) => r.id == nodePtr.id);
-          if (removeIndex >= 0) newRoots.splice(removeIndex, 1);
-        }
-        rootsPtr.value = newRoots;
+        rootsPtr.value = rep.rootsPtr as TypedNodeReferenceData<T>[];
       });
       editStream.responses.onError(onError);
     }

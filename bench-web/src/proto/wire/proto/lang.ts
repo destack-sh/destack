@@ -589,11 +589,7 @@ export interface ExpressionData {
      */
     op: ExpressionOp;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData field_ptr = 31;
-     */
-    fieldPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.PropertyReferenceData property_ptr = 32;
+     * @generated from protobuf field: optional symbolx.bench.PropertyReferenceData property_ptr = 31;
      */
     propertyPtr?: PropertyReferenceData;
     /**
@@ -11918,8 +11914,7 @@ class ExpressionData$Type extends MessageType<ExpressionData> {
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 9, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "op", kind: "enum", T: () => ["symbolx.bench.ExpressionOp", ExpressionOp, "EXPRESSION_OP_"] },
-            { no: 31, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 32, name: "property_ptr", kind: "message", T: () => PropertyReferenceData },
+            { no: 31, name: "property_ptr", kind: "message", T: () => PropertyReferenceData },
             { no: 35, name: "clauses", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ExpressionData },
             { no: 36, name: "value_packed", kind: "message", T: () => Struct },
             { no: 38, name: "sort_mode", kind: "enum", opt: true, T: () => ["symbolx.bench.SortMode", SortMode, "SORT_MODE_"] },
@@ -11959,10 +11954,7 @@ class ExpressionData$Type extends MessageType<ExpressionData> {
                 case /* symbolx.bench.ExpressionOp op */ 30:
                     message.op = reader.int32();
                     break;
-                case /* optional symbolx.bench.NodeReferenceData field_ptr */ 31:
-                    message.fieldPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.fieldPtr);
-                    break;
-                case /* optional symbolx.bench.PropertyReferenceData property_ptr */ 32:
+                case /* optional symbolx.bench.PropertyReferenceData property_ptr */ 31:
                     message.propertyPtr = PropertyReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.propertyPtr);
                     break;
                 case /* repeated symbolx.bench.ExpressionData clauses */ 35:
@@ -12007,12 +11999,9 @@ class ExpressionData$Type extends MessageType<ExpressionData> {
         /* symbolx.bench.ExpressionOp op = 30; */
         if (message.op !== 0)
             writer.tag(30, WireType.Varint).int32(message.op);
-        /* optional symbolx.bench.NodeReferenceData field_ptr = 31; */
-        if (message.fieldPtr)
-            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.PropertyReferenceData property_ptr = 32; */
+        /* optional symbolx.bench.PropertyReferenceData property_ptr = 31; */
         if (message.propertyPtr)
-            PropertyReferenceData.internalBinaryWrite(message.propertyPtr, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
+            PropertyReferenceData.internalBinaryWrite(message.propertyPtr, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
         /* repeated symbolx.bench.ExpressionData clauses = 35; */
         for (let i = 0; i < message.clauses.length; i++)
             ExpressionData.internalBinaryWrite(message.clauses[i], writer.tag(35, WireType.LengthDelimited).fork(), options).join();
@@ -26211,8 +26200,7 @@ export enum ExpressionProperty {
   parentKey = 4,
   orderKey = 9,
   op = 30,
-  fieldPtr = 31,
-  propertyPtr = 32,
+  propertyPtr = 31,
   clauses = 35,
   valuePacked = 36,
   sortMode = 38,
@@ -26916,8 +26904,7 @@ export const ExpressionDataInfo: Record<ExpressionProperty, PropertyInfo> = {
   [ExpressionProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.EXPRESSION, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [ExpressionProperty.orderKey]: { id: 9, name: 'order_key', component: ObjectType.EXPRESSION, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ExpressionProperty.op]: { id: 30, name: 'op', component: ObjectType.EXPRESSION, enumType: EnumType.EXPRESSION_OP, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [ExpressionProperty.fieldPtr]: { id: 31, name: 'field_ptr', component: ObjectType.EXPRESSION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
-  [ExpressionProperty.propertyPtr]: { id: 32, name: 'property_ptr', component: ObjectType.EXPRESSION, kind: 'primitive', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceStruct: StructType.PROPERTY_REFERENCE },
+  [ExpressionProperty.propertyPtr]: { id: 31, name: 'property_ptr', component: ObjectType.EXPRESSION, kind: 'primitive', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceStruct: StructType.PROPERTY_REFERENCE },
   [ExpressionProperty.clauses]: { id: 35, name: 'clauses', component: ObjectType.EXPRESSION, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
   [ExpressionProperty.valuePacked]: { id: 36, name: 'value_packed', component: ObjectType.EXPRESSION, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [ExpressionProperty.sortMode]: { id: 38, name: 'sort_mode', component: ObjectType.EXPRESSION, enumType: EnumType.SORT_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },

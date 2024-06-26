@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.06.26.0"
+VERSION = "2024.06.26.1"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -1528,8 +1528,7 @@ class ExpressionData(betterproto.Message):
     parent_key: Optional[str] = betterproto.string_field(4, optional=True)
     order_key: Optional[str] = betterproto.string_field(9, optional=True)
     op: "ExpressionOp" = betterproto.enum_field(30)
-    field_ptr: Optional["NodeReferenceData"] = betterproto.message_field(31, optional=True)
-    property_ptr: Optional["PropertyReferenceData"] = betterproto.message_field(32, optional=True)
+    property_ptr: Optional["PropertyReferenceData"] = betterproto.message_field(31, optional=True)
     clauses: List["ExpressionData"] = betterproto.message_field(35)
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         36, optional=True
@@ -3545,15 +3544,11 @@ class WatchSearchResponse(betterproto.Message):
     removed_nodes_ptr: List["NodeReferenceData"] = betterproto.message_field(4)
     """Nodes removed from the result set."""
 
-    added_roots_ptr: Dict[int, "NodeReferenceData"] = betterproto.map_field(
-        5, betterproto.TYPE_INT32, betterproto.TYPE_MESSAGE
-    )
+    roots_ptr: List["NodeReferenceData"] = betterproto.message_field(5)
     """
-    Roots added to the result set. Indices are into previous roots, before removed_roots_ptr.
+    New roots in the result set.
+     NOTE :Performance: make watch search root update incremental
     """
-
-    removed_roots_ptr: List["NodeReferenceData"] = betterproto.message_field(6)
-    """Roots removed from the result set."""
 
     total: Optional[int] = betterproto.int32_field(7, optional=True)
     """New total count."""
