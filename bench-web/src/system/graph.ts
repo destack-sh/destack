@@ -326,7 +326,10 @@ abstract class BaseNodeGraphMixin implements ReadNodeGraph {
     return ref;
   }
 
-  getManyMaybeRef<T extends NodeType>(keys: MaybeRef<(NodeKey<T> | null | undefined)[] | null | undefined>, options?: NodeSubscriptionOptions | undefined): SubRef<(NodeTypeMapping[T] | null)[]> {
+  getManyMaybeRef<T extends NodeType>(
+    keys: MaybeRef<(NodeKey<T> | null | undefined)[] | null | undefined>,
+    options?: NodeSubscriptionOptions | undefined,
+  ): SubRef<(NodeTypeMapping[T] | null)[]> {
     const keysRef = toRef(keys) as Ref<(NodeKey<T> | null | undefined)[] | null | undefined>;
     const subs: (() => void)[] = [];
     const unsub = () => {
@@ -341,7 +344,7 @@ abstract class BaseNodeGraphMixin implements ReadNodeGraph {
       unsub();
       if (keysRef.value)
         keysRef.value.filter((k) => k != null).forEach((key) => subs.push(this.subscribe(key!, trigger, options)));
-    }
+    };
 
     const { ref, trigger } = manualSubRef(get, unsub);
     watchValue(keysRef, () => (update(), trigger()));
@@ -521,7 +524,7 @@ export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, Writ
   private _addToParent(node: AnyNodeData) {
     if (node.parentPtr?.id) {
       const parentId: string = node.parentPtr.id;
-      if (!this.nodesById[parentId] && !this.isOverlayOf) {
+      if (!this.nodesById[parentId] && !this.isOverlayOf && this.nodeTypes.includes(node.parentPtr.type)) {
         throw new Error(
           `parent ${describeNode(node.parentPtr)} not found in ${this.describeSelf()} for node ${describeNode(node)}`,
         );
@@ -539,7 +542,7 @@ export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, Writ
     if (node.parentPtr?.id) {
       const parentId: string = node.parentPtr.id;
       const nodeIdx = this.nodesByParentIdAndType[parentId]?.[node.metatype]?.findIndex((n) => n == node.id);
-      if (nodeIdx == null && this.isOverlayOf) return;
+      if (nodeIdx == null && (this.isOverlayOf || this.nodeTypes.includes(node.parentPtr.type))) return;
       else if (nodeIdx == -1)
         throw new Error(
           `node ${describeNode(node)} not found in parent ${describeNode(node.parentPtr)} in ${this.describeSelf()}`,
@@ -735,7 +738,8 @@ abstract class FilterBaseNodeGraphMixin extends BaseNodeGraphMixin {
     let parent = node.parentPtr;
     while (parent != null) {
       const parentNode = this.get(parent);
-      if (parentNode == null || !this.isNodeVisibleSelf(parentNode)) return false;
+      if (parentNode == null) break; // parent not in this graph
+      if (!this.isNodeVisibleSelf(parentNode)) return false;
       parent = parentNode.parentPtr;
     }
     return true;

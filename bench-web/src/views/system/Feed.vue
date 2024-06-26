@@ -153,7 +153,10 @@ defineExpose<ViewExposed>({ self, id });
                 {{ (item.node as any)?.name ?? toCamelName(NodeType, item.node.metatype) }}
               </span>
             </button>
-            <span v-else>???</span>
+            <span v-else>
+							<IconInline v-bind="ICON_BY_NODE_TYPE[item.it.nodePtr!.type]" class="text-gray-700" />
+							<span class="italic ml-1">Unavailable</span>
+						</span>
           </template>
           <template v-else-if="item.kind == 'run'"> run! </template>
           <span v-else class="text-danger-500">???</span>

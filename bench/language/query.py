@@ -121,6 +121,10 @@ class ReadOptions(InlineStruct):
         else:
             return "<default>"
 
+    @property
+    def all_node_types(self) -> Iterable[NodeType]:
+        return chain(self.ancestor_types, self.descendant_types)
+
     def copy(self) -> "ReadOptions":
         return ReadOptions(
             ancestor_types=list(self.ancestor_types),
