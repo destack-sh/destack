@@ -61,7 +61,7 @@ export function getScopeKey(scope: GraphScope): string {
 // NOTE: we re-type the graph connection params here to relax some constraints for convenience
 //
 
-export type PageInfo = { roots: NodeReferenceData[]; size: number; total?: number };
+export type PageInfo = { size: number; total?: number };
 
 /** The options to the connection supervisor. */
 type ConnectionOptions = {
@@ -116,7 +116,7 @@ type SearchConnectionParams<T extends NodeType> = {
 type SearchConnectionResult<T extends NodeType> = {
   graph: ReadNodeGraph;
   overlay: ReadNodeGraph | null;
-  roots: Ref<TypedNodeReferenceData<T>[]>;
+  rootsPtr: Ref<TypedNodeReferenceData<T>[]>;
   page: Ref<PageInfo>;
 };
 
@@ -581,7 +581,7 @@ export class RemoteSearchConnection<T extends NodeType> extends ConnectionBase<"
     );
     graph.extend(...nodes.map(unwrapSomeNode));
 
-    const roots = shallowRef(rootsInitial as TypedNodeReferenceData<T>[]);
+    const rootsPtr = shallowRef(rootsInitial as TypedNodeReferenceData<T>[]);
     const page = shallowRef({ roots: rootsInitial, size: rootsInitial.length, total: totalInitial });
 
     // watch edits if live
@@ -604,22 +604,22 @@ export class RemoteSearchConnection<T extends NodeType> extends ConnectionBase<"
           if (node != null) graph.remove(node);
         }
         // update' roots' list
-        const newRoots = roots.value.slice();
+        const newRoots = rootsPtr.value.slice();
         for (const insertIndex of Object.keys(rep.addedRootsPtr)) {
           const index = Number(insertIndex);
           newRoots.splice(index, 0, rep.addedRootsPtr[index] as TypedNodeReferenceData<T>);
         }
         for (const nodePtr of rep.removedNodesPtr) {
-          const removeIndex = newRoots.findIndex((r) => r.id == nodePtr.id)
+          const removeIndex = newRoots.findIndex((r) => r.id == nodePtr.id);
           if (removeIndex >= 0) newRoots.splice(removeIndex, 1);
         }
-        roots.value = newRoots;
+        rootsPtr.value = newRoots;
       });
       editStream.responses.onError(onError);
     }
 
     const overlay = makeConnectionOverlayGraph(graph, this, subs);
-    return { graph, overlay, roots, page, subs };
+    return { graph, overlay, rootsPtr, page, subs };
   }
 }
 
@@ -1027,19 +1027,22 @@ export function useGetConnection<T extends NodeType>(
 export function useSearchConnection<T extends NodeType>(
   metaIn: ConnectionMetadataIn,
   params: MaybeRef<SearchConnectionParams<T>>,
-): SearchConnectionResult<T> & { connection: Connection<"search", T> } {
+): SearchConnectionResult<T> & { roots: Ref<NodeTypeMapping[T][]>; connection: Connection<"search", T> } {
   const paramsRef = toRef(params) as Ref<SearchConnectionParams<T>>;
   const connection = useConnection<"search", T>("search", metaIn, paramsRef);
 
   // map results
   const graph = useConnectionOverlayGraph(connection);
-  const roots: Ref<TypedNodeReferenceData<T>[]> = computed(() => connection.value?.result?.value?.roots?.value ?? []);
+  const rootsPtr: Ref<TypedNodeReferenceData<T>[]> = computed(
+    () => connection.value?.result?.value?.rootsPtr?.value ?? [],
+  );
+  const roots = graph.getManyRef(rootsPtr);
   const page: Ref<PageInfo> = computed(
     () => connection.value?.result?.value?.page?.value ?? ({ roots: [], cursors: [], size: 0 } as PageInfo),
   );
 
   // no overlay because already already overlaid
-  return { graph, overlay: null, connection: new ProxyConnection(connection), roots, page };
+  return { graph, overlay: null, connection: new ProxyConnection(connection), rootsPtr, roots, page };
 }
 
 /**

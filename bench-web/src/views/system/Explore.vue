@@ -291,12 +291,12 @@ defineExpose<ViewExposed>({ self, actions, focus });
     <!-- Header -->
     <div class="group w-full" :style="{ height: DEFAULT_HEADER_HEIGHT + 'px' }">
       <div
-        class="mx-auto flex h-full max-w-full flex-row items-center px-3"
+        class="mx-auto flex h-full max-w-full flex-row items-center pl-1.5 pr-3"
         :style="{ minWidth: DEFAULT_MIN_WIDTH + 'px', maxWidth: DEFAULT_MAX_WIDTH + 'px' }"
       >
         <!-- Location -->
         <!-- NOTE :UX: should probably be only node crumb in explorer header? -->
-        <div v-if="type == ViewType.EXPLORE" class="flex flex-row items-center">
+        <div v-if="type == ViewType.EXPLORE" class="flex flex-row items-center px-1">
           <IconInline
             v-bind="bench != null ? getNodeIcon(bench) : DEFAULT_BENCH_ICON"
             class="mr-1.5 w-5 text-gray-600"

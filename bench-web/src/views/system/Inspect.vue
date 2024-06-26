@@ -49,8 +49,8 @@ defineExpose<ViewExposed>({ self });
     <!-- Header -->
     <div class="group w-full" :style="{ height: HEADER_HEIGHT + 'px' }">
       <div
-        class="mx-auto flex h-full max-w-full flex-row items-center px-5"
-        :style="{ minWidth: MIN_WIDTH + 'px', maxWidth: MAX_WIDTH + 'px' }"
+        class="mx-auto flex h-full max-w-full flex-row items-center pl-1.5 pr-2.5"
+        :style="{ minWidth: MIN_WIDTH + 'px' }"
       >
         <!-- Node -->
         <NodeCrumb :node="node" :connection="pkgConnection" class="font-medium" />

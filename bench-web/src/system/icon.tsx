@@ -23,6 +23,7 @@ import {
   Alignment,
   StepType,
   Anchor,
+  EditType,
 } from "@/proto/wire";
 import type { FunctionalComponent } from "vue";
 // file is generated with:
@@ -404,6 +405,17 @@ export const ICON_BY_LEVEL: Record<LogLevel, IconData> = {
   [LogLevel.CRITICAL]: makeIcon({ faName: "fas fa-skull" }),
 };
 
+export const ICON_BY_EDIT_TYPE: Partial<Record<EditType, IconData>> = _makeIcons<EditType>({
+  [EditType.CREATE]: "fas fa-plus",
+  [EditType.UPSERT]: "fas fa-plus",
+  [EditType.UPDATE]: "fas fa-pen",
+  [EditType.MOVE]: "fas fa-arrows-turn-right",
+  [EditType.ARCHIVE]: "fas fa-box-archive",
+  [EditType.UNARCHIVE]: "fas fa-box-archive",
+  [EditType.DELETE]: "fas fa-trash",
+  [EditType.RESTORE]: "fas fa-trash-undo",
+});
+
 export const ENUM_ICONS_BY_TYPE: Partial<Record<EnumType, Record<any, IconData>>> = {
   [EnumType.NODE_TYPE]: ICON_BY_NODE_TYPE,
   [EnumType.STRUCT_TYPE]: ICON_BY_STRUCT_TYPE,
@@ -418,6 +430,7 @@ export const ENUM_ICONS_BY_TYPE: Partial<Record<EnumType, Record<any, IconData>>
   [EnumType.FORMAT_HINT]: ICON_BY_FORMAT_HINT,
   [EnumType.FIELD_ZONE]: ICON_BY_FIELD_ZONE,
   [EnumType.LOG_LEVEL]: ICON_BY_LEVEL,
+  [EnumType.EDIT_TYPE]: ICON_BY_EDIT_TYPE,
 };
 
 export function getNodeIcon(

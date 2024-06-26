@@ -36,29 +36,29 @@ import Popover from "@/views/builtins/Popover.vue";
       <!-- will probably move this to a Connections View (maybe keep summary on hover) -->
       <div v-outside.click.stop="close" class="p z-50 rounded border border-gray-300 bg-white text-gray-900">
         <div class="my-1 border-b border-gray-300 px-3 py-1">
-          <span class="font-semibold">Graph Connections ({{ connections.length }})</span>
+          <span class="font-semibold">Connections ({{ connections.length }})</span>
         </div>
         <Scroll
-          :size="{ width: 400, height: 400 }"
+          :size="{ width: 480, height: 400 }"
           size-is-dynamic
           :orientation="Orientation.VERTICAL"
           :track-width="ScrollbarWidth.sm"
         >
-          <ul class="my-1.5 flex min-w-[320px] flex-col gap-y-1 px-3">
-            <li v-for="connection in connections" :key="connection.id" class="flex flex-row py-0.5">
+          <ul class="my-1.5 flex min-w-[480px] flex-col gap-y-1 px-3">
+            <li v-for="connection in connections" :key="connection.id" class="flex flex-row py-1">
               <!-- Metadata -->
-              <span class="rounded bg-secondary-100 px-2 font-mono uppercase text-secondary-900">
+              <span class="h-fit rounded bg-secondary-100 px-2 font-semibold text-secondary-900">
                 {{ connection.kind }}
               </span>
-              <span class="ml-2 font-semibold">{{ connection.name }}</span>
+              <span class="ml-2 font-semibold truncate">{{ connection.name }}</span>
               <span class="ml-2 text-gray-500">#{{ connection.id }}</span>
               <!-- Status -->
-              <span class="ml-auto flex flex-row pl-4">
+              <span class="ml-auto flex flex-row pl-4 align-top">
                 <span class="mr-2" :class="connection.referenceCount > 0 ? '' : 'text-gray-500'">
                   {{ connection.referenceCount }}
                 </span>
                 <!-- Connected (status) -->
-                <span class="rounded px-1 py-0.5">
+                <span class="rounded px-1">
                   <i
                     class="fas"
                     :class="
@@ -69,7 +69,7 @@ import Popover from "@/views/builtins/Popover.vue";
                   />
                 </span>
                 <!-- Down (status & toggle) -->
-                <button class="rounded px-1 py-0.5 hover:bg-primary-200" @click="connection.togglePaused()">
+                <button class="rounded px-1 hover:bg-primary-200" @click="connection.togglePaused()">
                   <i
                     :class="
                       connection.isFetching.value
@@ -81,7 +81,7 @@ import Popover from "@/views/builtins/Popover.vue";
                   />
                 </button>
                 <!-- Up (toggle) -->
-                <button class="rounded px-1 py-0.5 hover:bg-primary-200" @click="connection.txBuffer.togglePaused()">
+                <button class="rounded px-1 hover:bg-primary-200" @click="connection.txBuffer.togglePaused()">
                   <i
                     class="fas fa-up"
                     :class="connection.txBuffer.isPaused.value ? 'text-secondary-500' : 'text-success-600'"

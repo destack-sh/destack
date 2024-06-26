@@ -60,14 +60,15 @@ defineExpose<ViewExposed>({ self });
     <!-- Header -->
     <div class="group mx-auto flex w-full flex-row items-center" :style="{ height: HEADER_HEIGHT + 'px' }">
       <div
-        class="mx-auto flex w-full max-w-full flex-row items-center px-5"
-        :style="{ minWidth: MIN_WIDTH + 'px', maxWidth: MAX_WIDTH + 'px' }"
+        class="mx-auto flex w-full max-w-full flex-row items-center pl-1.5 pr-2.5"
+        :style="{ minWidth: MIN_WIDTH + 'px' }"
       >
         <!-- Runnable -->
         <NodeCrumb class="font-medium" :node="runnableNode" :connection="pkgConnection" />
         <!-- Controls -->
         <div class="ml-auto flex flex-row items-center pl-1.5">
           <button
+            v-tooltip="{ title: 'Start run' }"
             :disabled="runnableNode == null"
             class="h-fit hover:text-primary-900 enabled:text-gray-700 disabled:text-gray-400"
             @click="
@@ -131,7 +132,11 @@ defineExpose<ViewExposed>({ self });
         <div class="h-[1px] w-full min-w-fit bg-gray-200" />
       </div>
       <!-- Feed -->
-       <Feed />
+      <div class="mx-auto mt-1 px-5 py-3" :style="{ minWidth: MIN_WIDTH + 'px', maxWidth: MAX_WIDTH + 'px' }">
+        <!-- nocheckin: filter Run feed -->
+        <h4 class="font-semibold">Last Runs</h4>
+        <Feed is-inline />
+      </div>
     </Scroll>
   </div>
   <div v-else class="flex h-full w-full flex-col justify-center bg-white text-center">
