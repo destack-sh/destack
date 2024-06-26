@@ -5,7 +5,6 @@ from datetime import datetime, timedelta
 from typing import Any, Mapping, Optional, cast
 from uuid import UUID
 
-from bench.proto.wire import GraphScopeData
 from bench.utils.func import IdEnum, bittuple, cyrb53a
 from bench.utils.utils import frozendict, get_from_env
 
@@ -30,7 +29,6 @@ UNSET = cast(Any, _Unset())
 EMPTY_LIST: list = []
 EMPTY_SET: frozenset = frozenset()
 EMPTY_DICT: dict[Any, Any] = frozendict()
-EMPTY_SCOPE = GraphScopeData()
 
 
 def new_struct_id() -> int:

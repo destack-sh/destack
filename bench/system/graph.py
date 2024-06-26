@@ -38,6 +38,8 @@ from bench.language.graph import (
 )
 from bench.language.node import (
     EDIT_SUBJECT_TYPES,
+    EMPTY_SCOPE,
+    GraphScope,
     HasNodeBase,
     Node,
     is_implicit_node_property,
@@ -80,7 +82,7 @@ from bench.system.connection import (
     WatchGetUpdate,
     WatchSearchUpdate,
 )
-from bench.utils.func import CriticalLock, bittuple, group_by, to_uuid, uuid_to_str
+from bench.utils.func import CriticalLock, bittuple, group_by, to_uuid
 from bench.utils.oracle import Oracle
 
 
@@ -99,7 +101,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
         super().__init__(logger=logger, tracer=tracer, oracle=oracle)
         self.epoch: int = 0
         self.bench_id: UUID | None = bench_id
-        self.scope = GraphScopeData(bench_id=uuid_to_str(bench_id))
+        self.scope = GraphScope(bench_id=bench_id)._to_data()
         self.node_types: bittuple[NodeType] = node_types
         self.tx_lock: asyncio.Lock = CriticalLock(
             name=f"{self.__class__.__name__}_{bench_id or ''}"
@@ -113,7 +115,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
 
     def _validate_request(self, request: betterproto.Message) -> None:
         """Validate a request message for this service."""
-        scope: GraphScopeData = getattr(request, "scope", GraphScopeData())
+        scope: GraphScopeData = getattr(request, "scope", EMPTY_SCOPE._to_data())
         if to_uuid(scope.bench_id) != self.bench_id:
             raise GRPCError(
                 GRPCStatus.INVALID_ARGUMENT, f"scope mismatch: {scope.bench_id} != {self.bench_id}"

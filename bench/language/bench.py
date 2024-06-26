@@ -2,7 +2,7 @@ import abc
 from datetime import datetime
 from enum import Enum
 from itertools import chain
-from typing import TYPE_CHECKING, Generic, Iterable, Optional, TypeVar, Union, cast
+from typing import TYPE_CHECKING, Generic, Iterable, Optional, TypeVar, Union
 from uuid import UUID
 
 from bench.language.const import (
@@ -17,7 +17,7 @@ from bench.language.const import (
     get_region,
 )
 from bench.language.graph import NodeList
-from bench.language.node import BenchNode, Node, SourceNode, node_, node_component
+from bench.language.node import BenchNode, ClientOrigin, Node, SourceNode, node_, node_component
 from bench.language.property import (
     p_internal,
     p_kernel,
@@ -32,7 +32,6 @@ from bench.proto.wire import (
     BenchData,
     BranchData,
     ClientData,
-    ClientOriginData,
     DependencyData,
     DriveData,
     EnvironmentData,
@@ -480,9 +479,5 @@ class Client(BenchNode[ClientData]):
                 value_parts.append(value)
         return ", ".join(value_parts)
 
-    def to_origin(self, *, nonce: str | None) -> ClientOriginData:
-        from bench.proto.wire import ClientType
-
-        return ClientOriginData(
-            type=cast(ClientType, self.type), id=str(self.id), nonce=nonce or str(self.id)
-        )
+    def to_origin(self, *, nonce: UUID | None) -> ClientOrigin:
+        return ClientOrigin(type=self.type, id=self.id, nonce=nonce or self.id)

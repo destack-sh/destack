@@ -14,8 +14,15 @@ import {
   type NodeTypeMapping,
   type ReadOptionsData,
 } from "@/proto/wire";
-import { describeNode, makeDefaultBenchProto, makeScope, unwrapSomeNode, type TypedNodeReferenceData } from "@/proto/wiring";
-import { LOCAL_SPACE_PTR, packagePtr, spaceGraphLocal } from "@/system/client";
+import {
+  EMPTY_SCOPE,
+  describeNode,
+  makeDefaultBenchProto,
+  makeScope,
+  unwrapSomeNode,
+  type TypedNodeReferenceData,
+} from "@/proto/wiring";
+import { LOCAL_SPACE_PTR, PACKAGE_SCOPE, packagePtr, spaceGraphLocal } from "@/system/client";
 import {
   DEFAULT_NODE_FILTER,
   LayerNodeGraph,
@@ -759,7 +766,7 @@ const _connections: Ref<ConnectionBase<any, any>[]> = shallowRef([
   // add local graph
   new LocalGetConnection(
     { id: newConnectionId(), name: "local.space", live: true, options: {} },
-    { roots: [LOCAL_SPACE_PTR], options: makeReadOptions({ descendantTypes: [NodeType.VIEW] }) },
+    { scope: EMPTY_SCOPE, roots: [LOCAL_SPACE_PTR], options: makeReadOptions({ descendantTypes: [NodeType.VIEW] }) },
     new ProxyNodeGraph({ graph: spaceGraphLocal, filter: DEFAULT_NODE_FILTER }),
     // we export it as read-only but it's actually writable
     spaceGraphLocal as ReadNodeGraph & WriteNodeGraph,
@@ -965,7 +972,7 @@ export function useExistingConnection<T extends NodeType = any>(
     if (nodeRef.value != null && options?.isEnabled?.value !== false) {
       newConnection = acquireExistingConnection(
         "get",
-        { roots: [nodeRef.value as TypedNodeReferenceData<T>] },
+        { scope: PACKAGE_SCOPE.value, roots: [nodeRef.value as TypedNodeReferenceData<T>] },
         options?.match,
       );
       if (newConnection == null && !options?.isOptional)

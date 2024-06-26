@@ -1500,8 +1500,8 @@ class EditData(betterproto.Message):
     origin: Optional["ClientOriginData"] = betterproto.message_field(43, optional=True)
     context: Optional["EditContextData"] = betterproto.message_field(44, optional=True)
     edited_at: datetime = betterproto.message_field(45)
-    revision: Optional[int] = betterproto.int32_field(46, optional=True)
-    epoch: Optional[int] = betterproto.int32_field(47, optional=True)
+    revision: Optional[int] = betterproto.int64_field(46, optional=True)
+    epoch: Optional[int] = betterproto.int64_field(47, optional=True)
 
 
 @dataclass(eq=False, repr=False)

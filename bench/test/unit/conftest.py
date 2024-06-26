@@ -5,6 +5,7 @@ import warnings
 import pytest
 import uvloop
 
+from bench.language.node import EMPTY_SCOPE
 from bench.test.conftest import _setup_test_env
 
 # NOTE: must run setup before importing from bench
@@ -16,7 +17,6 @@ from bench.language.connection import NullEngine
 from bench.language.const import NODE_TYPES, OBJECT_TYPES, UserStatus, _active_session
 from bench.language.graph import NodeGraph, NodeSuperGraph
 from bench.language.user import User
-from bench.proto.wire import GraphScopeData
 from bench.sql.engine import GLOBAL_SCHEMA
 from bench.system.core import global_pg_engine_from_store
 from bench.test.fixtures import create_blank_test_db, create_test_db, make_global_store
@@ -54,7 +54,7 @@ def create_global_session(global_store: Store, oracle: Oracle):
     global_pg_engine = global_pg_engine_from_store(global_store)
     session = Session(
         parent=None,
-        _default_scope=GraphScopeData(),
+        _default_scope=EMPTY_SCOPE._to_data(),
         _engines=(global_pg_engine,),
         _epoch=0,
         _oracle=oracle,
@@ -78,9 +78,9 @@ def global_real_session(global_store: Store):
 def make_session(name: str):
     """Make a 'fake' session for context"""
     supergraph = NodeSuperGraph(root_ptr=None)
-    graph = NodeGraph(scope=GraphScopeData(), node_types=NODE_TYPES, supergraph=supergraph)
+    graph = NodeGraph(scope=EMPTY_SCOPE._to_data(), node_types=NODE_TYPES, supergraph=supergraph)
     session = Session(
-        _engines=(NullEngine(scope=GraphScopeData(), node_types=NODE_TYPES),),
+        _engines=(NullEngine(scope=EMPTY_SCOPE._to_data(), node_types=NODE_TYPES),),
         _supergraph=supergraph,
         _graph=graph,
         _oracle=REAL_ORACLE,

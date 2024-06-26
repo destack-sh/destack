@@ -29,6 +29,7 @@ from bench.language.const import (
 )
 from bench.language.graph import NodeDataGraphLike, NodeGraphLike, NodeSuperGraph
 from bench.language.log import Log
+from bench.language.node import GraphScope
 from bench.language.property import Property
 from bench.language.session import Session, SessionContext, unsuspend_session
 from bench.language.setup import NODE_CLASS_BY_TYPE
@@ -208,7 +209,7 @@ class Host(GraphIoServiceBase, HostApi, HostBase):
         self._client_cache = ClientCache()
         self._bench: Bench | None = None
         self._main_package: Package | None = None
-        self._scope: GraphScopeData = GraphScopeData(bench_id=str(bench_id))
+        self._scope: GraphScopeData = GraphScope(bench_id=bench_id)._to_data()
         self._global_pg_engine: PostgresEngine | None = None
         self._local_pg_engine: PostgresEngine | None = None
         self._engines: tuple[GraphEngine, ...] = ()

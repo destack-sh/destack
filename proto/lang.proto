@@ -1394,8 +1394,8 @@ message EditData {
   optional ClientOriginData origin = 43;
   optional EditContextData context = 44;
   google.protobuf.Timestamp edited_at = 45;
-  optional int32 revision = 46;
-  optional int32 epoch = 47;
+  optional int64 revision = 46;
+  optional int64 epoch = 47;
 }
 
 // Additional context for a specific edit (per-edit variable subset of Session context).

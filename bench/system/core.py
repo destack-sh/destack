@@ -20,10 +20,11 @@ from bench.language.const import (
     Region,
 )
 from bench.language.graph import NodeGraphLike, NodeSuperGraph
+from bench.language.node import EMPTY_SCOPE
 from bench.language.session import Session
 from bench.language.transaction import unpack_node_delta
 from bench.proto import wiring
-from bench.proto.wire import EditData, GraphScopeData
+from bench.proto.wire import EditData
 from bench.sql.client import PgStoreConnection
 from bench.utils.func import bittuple
 from bench.utils.oracle import Oracle
@@ -77,7 +78,7 @@ def global_pg_engine_from_store(store: Store):
     return PostgresEngine(
         store=store,
         bench=store.parent,
-        scope=GraphScopeData(),
+        scope=EMPTY_SCOPE._to_data(),
         node_types=GLOBAL_NODE_TYPES,
     )
 
@@ -94,7 +95,7 @@ def global_session(
     assert store.parent is not None, f"missing parent for {store!r}"
     return Session(
         parent=None,
-        _default_scope=GraphScopeData(),
+        _default_scope=EMPTY_SCOPE._to_data(),
         _engines=engines,
         _epoch=epoch,
         _supergraph=supergraph or store.parent._supergraph.instance(),

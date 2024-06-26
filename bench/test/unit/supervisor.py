@@ -9,6 +9,7 @@ from bench.language import NodeReference, ReadOptions, User
 from bench.language.const import (
     NodeType,
 )
+from bench.language.node import GraphScope
 from bench.language.property import Property
 from bench.proto import wire
 from bench.proto.wire import (
@@ -96,7 +97,9 @@ async def test_user_registration(supervisor: SupervisorClient):
         descendant_types=[NodeType.CLIENT, NodeType.HANDLE],
     )._to_data()
     read_user_req = GetNodesRequest(
-        roots=[NodeReference.from_node_data(signup_rep.user)], options=options
+        scope=GraphScope()._to_data(),
+        roots=[NodeReference.from_node_data(signup_rep.user)],
+        options=options,
     )
     access_metadata = RpcMetadata(
         client_id=login_rep.client.id, client_access_token=login_rep.access_token

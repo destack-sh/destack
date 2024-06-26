@@ -9,19 +9,20 @@ import {
   unwrapSomeNode,
   type SomeNodeReferenceData,
 } from "@/proto/wiring";
-import local, { LOCAL_SPACE_ID, spaceGraphLocal, spacePtr } from "@/system/client";
+import local, { BENCH_SCOPE, LOCAL_SPACE_ID, PACKAGE_SCOPE, spaceGraphLocal, spacePtr } from "@/system/client";
 import { makeReadOptions, useExistingConnection, useGetConnection } from "@/system/connection";
 import { NodeGraph, ProxyNodeGraph } from "@/system/graph";
 import { SOURCE_NODE_TYPES } from "@/system/lang";
 import { toaster } from "@/system/toast";
 import { log } from "@/utils/log";
-import { ViewCanvas, createDefaultDesktopSpace, createEmptySpace } from "@/views/canvas";
+import { ViewCanvas, createDesktopProSpace, createEmptySpace } from "@/views/canvas";
 import { computed, nextTick, watch } from "vue";
 
 // bench/packages
 export const { graph: benchGraph, connection: benchConnection } = useGetConnection(
   { name: "bench", live: true, paramsPretty: computed(() => ({ id: local.benchPtr.value?.id })) },
   computed(() => ({
+    scope: BENCH_SCOPE.value,
     roots: [local.benchPtr.value!],
     options: { descendantTypes: [NodeType.ENVIRONMENT, NodeType.BRANCH, NodeType.PACKAGE] },
     isEnabled: local.benchPtr.value != null,
@@ -31,6 +32,7 @@ export const bench = benchGraph.getRef(local.benchPtr);
 export const { graph: pkgGraph, connection: pkgConnection } = useGetConnection(
   { name: "pkg", live: true, paramsPretty: computed(() => ({ id: local.packagePtr.value?.id })) },
   computed(() => ({
+    scope: PACKAGE_SCOPE.value,
     roots: [local.packagePtr.value!],
     options: { descendantTypes: SOURCE_NODE_TYPES },
     isEnabled: local.packagePtr.value != null,
@@ -82,7 +84,7 @@ watch(
   async () => {
     await spaceConnection.waitForResult((result) => result?.graph.get({ id: spacePtr.value.id }) != null);
     // NOTE :Robustness :Cleanup: why doesn't nextTick work to restoreComponentFocus on space change?
-    //  (All the views should get rendered immediately, right?)
+    //  (All the views should get rendered immediately, right? Apparently not, since this delay doesn't always work.)
     setTimeout(() => {
       try {
         canvas.restoreComponentFocus();
@@ -112,7 +114,7 @@ export async function assignSpaceInPackage() {
     local.setSpace(toNodeReference(ownedSpacesInPkg.value[0]));
     if (pkgGraph.getChildren(spacePtr.value, NodeType.VIEW).length == 0) {
       // setup default canvas if needed
-      createDefaultDesktopSpace(pkgConnection.tx, space);
+      createDesktopProSpace(pkgConnection.tx, space);
     }
     spaceGraph.graph = pkgGraph;
   } else {

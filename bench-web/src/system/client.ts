@@ -1,23 +1,22 @@
 import {
-  ObjectType,
   ClientOriginData,
-  LocalNodeGraph,
+  ClientType,
   LocalStorage,
   NodeType,
-  SpaceData,
-  ClientType,
+  ObjectType,
+  SpaceData
 } from "@/proto/wire";
 import { describeNode, makeScope, nodeReference, toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
+import { NodeGraph, type ReadNodeGraph } from "@/system/graph";
+import { SOURCE_NODE_TYPES } from "@/system/lang";
 import { getBrowserName, getBrowserVersion, getDeviceType, getOperatingSystem } from "@/utils/browser";
+import { isDeveloperMode as globalIsDeveloperMode } from "@/utils/globals";
 import { log } from "@/utils/log";
-import { pickRef, pretendReadonly } from "@/utils/ref";
+import { computedValue, pickRef, pretendReadonly } from "@/utils/ref";
 import { pseudoRandomNumber, xorString } from "@/utils/string";
 import { syncRef, useLocalStorage } from "@vueuse/core";
 import { v4 } from "uuid";
 import { computed, readonly, shallowRef, type Ref } from "vue";
-import { isDeveloperMode as globalIsDeveloperMode } from "@/utils/globals";
-import { NodeGraph, type ReadNodeGraph } from "@/system/graph";
-import { SOURCE_NODE_TYPES } from "@/system/lang";
 
 const BENCH_LOCAL_STORAGE_PREFIX = "bench-";
 
@@ -164,10 +163,8 @@ function clearUser() {
 
 // Current Space. May be local if not in current Bench.
 const _spacePtr = useLocal("spacePtr") as Ref<TypedNodeReferenceData<NodeType.SPACE> | null>;
-export const spacePtr = pretendReadonly(computed(() => _spacePtr.value ?? LOCAL_SPACE_PTR));
 // Current Bench.
 const _benchPtr = useLocal("benchPtr") as Ref<TypedNodeReferenceData<NodeType.BENCH> | null>;
-export const benchPtr = pretendReadonly(_benchPtr);
 // The Bench->Package mappings.
 const _packagePtrs = useLocal("packagePtrs") as Ref<TypedNodeReferenceData<NodeType.PACKAGE>[]>;
 // The Bench->Space mappings.
@@ -181,6 +178,8 @@ const packageIdByBenchId = computed(() => {
   }
   return packageIdByBenchId;
 });
+export const spacePtr = pretendReadonly(computed(() => _spacePtr.value ?? LOCAL_SPACE_PTR));
+export const benchPtr = pretendReadonly(_benchPtr);
 export const packagePtr = computed(() => {
   if (_benchPtr.value == null) return null;
   else
@@ -188,6 +187,11 @@ export const packagePtr = computed(() => {
       benchId: _benchPtr.value.id!,
     });
 }) as Readonly<Ref<TypedNodeReferenceData<NodeType.PACKAGE> | null>>;
+export const BENCH_SCOPE = computedValue(() => makeScope({ benchId: _benchPtr.value?.id }));
+export const PACKAGE_SCOPE = computedValue(() =>
+  makeScope({ benchId: _benchPtr.value?.id, packageId: packagePtr.value?.id }),
+);
+
 // current local Space graph (not yet persisted).
 const _spaceGraphLocal = new NodeGraph({
   scope: makeScope({ benchId: LOCAL_BENCH_ID, packageId: LOCAL_PACKAGE_ID }),

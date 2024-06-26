@@ -86,6 +86,7 @@ class ClientHandle:
 
     def to_origin(self, *, nonce: str | None) -> ClientOriginData:
         return ClientOriginData(
+            metatype=wire.ObjectType.CLIENT_ORIGIN,
             type=self.client_data.type,
             id=self.client_data.id,
             nonce=nonce or self.client_data.id,

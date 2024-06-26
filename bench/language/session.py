@@ -29,6 +29,7 @@ from bench.language.const import (
     get_active_run,
 )
 from bench.language.node import (
+    EMPTY_SCOPE,
     BenchNode,
     BuiltinObject,
     EditSubject,
@@ -135,7 +136,7 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
     _tx: Transaction | None = p_runtime(default=None)
     _tx_lock: asyncio.Lock = p_runtime(default_factory=lambda: CriticalLock(name="session"))
     _edited_nodes_by_id: dict[UUID, Node] = p_runtime(default_factory=dict)
-    _default_scope: GraphScopeData = p_runtime(default_factory=GraphScopeData)
+    _default_scope: GraphScopeData = p_runtime(default_factory=lambda: EMPTY_SCOPE._to_data())
     _active_session_token: contextvars.Token | None = p_runtime(default=None)
     _supervisor: Optional["SupervisorClient"] = p_runtime(default=None)
     _host: Optional["HostClient"] = p_runtime(default=None)
@@ -211,7 +212,7 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
 
     def _get_scope_for_node(self, n: Node) -> GraphScopeData:
         """Get the scope for a node in this session."""
-        scope = GraphScopeData()
+        scope = GraphScopeData(metatype=wire.ObjectType.GRAPH_SCOPE)
         if isinstance(n, BenchNode):
             scope.bench_id = uuid_to_str(n.bench_id) or self._default_scope.bench_id
         if isinstance(n, PackageNode):

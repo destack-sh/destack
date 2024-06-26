@@ -18,6 +18,7 @@ import {
   type AnyNodeData,
 } from "@/proto/wire";
 import { makeStruct, propertyReference, type TypedNodeReferenceData } from "@/proto/wiring";
+import { PACKAGE_SCOPE } from "@/system/client";
 import { useSearchConnection } from "@/system/connection";
 import { ICON_BY_EDIT_TYPE, ICON_BY_NODE_TYPE, IconInline, getNodeIcon } from "@/system/icon";
 import { toCamelName } from "@/system/lang";
@@ -73,6 +74,7 @@ const nodeType = NodeType.LOG;
 const { roots, graph, connection, page } = useSearchConnection(
   { name: `feed.${toCamelName(NodeType, nodeType).toLowerCase()}` },
   {
+		scope: PACKAGE_SCOPE.value,
     nodeType: nodeType, // nocheckin: parameterize Feed search
     first: 10,
     sort: [

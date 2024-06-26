@@ -12,13 +12,14 @@ from bench.language.code import Code, run_code_exec
 from bench.language.connection import GraphEngine
 from bench.language.const import BlockType, NodeType, RunKind, RunStatus, _active_run
 from bench.language.graph import NodeSuperGraph
+from bench.language.node import GraphScope
 from bench.language.run import Run, RunError
 from bench.language.session import Session, unsuspend_session
 from bench.language.user import User
 from bench.language.validation import on_invalid_raise
 from bench.language.value import check_value
 from bench.proto import wiring
-from bench.proto.wire import GraphScopeData, HostClient, RunData, SupervisorClient
+from bench.proto.wire import HostClient, RunData, SupervisorClient
 from bench.runtime.core import BENCH_QUERY, PACKAGE_QUERY
 from bench.utils.func import CriticalLock
 from bench.utils.oracle import Oracle
@@ -51,7 +52,7 @@ class RuntimeThread:
         oracle: Oracle,
     ):
         self.id = id
-        self._nonce = str(uuid4())
+        self._nonce = uuid4()
 
         # bench stuff
         self._supervisor = supervisor
@@ -119,7 +120,7 @@ class RuntimeThread:
         self._session = Session(
             server=self._machine.parent if self._machine else None,
             _is_readonly=False,
-            _default_scope=GraphScopeData(bench_id=str(self._bench_id)),
+            _default_scope=GraphScope(bench_id=self._bench_id)._to_data(),
             _engines=self._engines,
             _supervisor=self._supervisor,
             _host=self._host,
@@ -152,7 +153,9 @@ class RuntimeThread:
         self._session.server = self._machine.parent if self._machine else None
         self._session.user = self._client.parent if isinstance(self._client.parent, User) else None
         self._session._subject = self._client.parent
-        self._session._origin = self._client.to_origin(nonce=self._nonce) if self._client else None
+        self._session._origin = (
+            self._client.to_origin(nonce=self._nonce)._to_data() if self._client else None
+        )
 
         # finally, start processing runs
         self._tasks.start_queue(

@@ -19,6 +19,7 @@ from bench.language.const import (
     NodeType,
 )
 from bench.language.graph import NodeSuperGraph
+from bench.language.node import EMPTY_SCOPE
 from bench.language.run import Run
 from bench.language.session import Session, unsuspend_session
 from bench.proto import wire, wiring
@@ -67,7 +68,7 @@ class Runtime(ServiceBase, RuntimeBase):
         oracle: Oracle,
     ):
         super().__init__(logger=logger, tracer=tracer, oracle=oracle)
-        self._nonce = str(uuid4())
+        self._nonce = uuid4()
 
         # parse out supervisor host and port
         _supervisor_url = urlparse(supervisor_url)
@@ -159,11 +160,13 @@ class Runtime(ServiceBase, RuntimeBase):
     async def start(self):
         # setup host
         self._host = await get_host_client(self._bench_id, self._supervisor)
-        bench_scope = GraphScopeData(bench_id=str(self._bench_id))
+        bench_scope = GraphScopeData(
+            metatype=wire.ObjectType.GRAPH_SCOPE, bench_id=str(self._bench_id)
+        )
         self._engines = (
             # global engine
             RemoteEngine(
-                scope=GraphScopeData(),
+                scope=EMPTY_SCOPE._to_data(),
                 node_types=PUBLIC_NODE_TYPES,
                 remote=self._supervisor,
                 write_retry=RETRY_GRPC_FOREVER,
@@ -216,7 +219,7 @@ class Runtime(ServiceBase, RuntimeBase):
             else:
                 self._session.user = self._client.parent
             self._session._subject = self._client.parent
-            self._session._origin = self._client.to_origin(nonce=self._nonce)
+            self._session._origin = self._client.to_origin(nonce=self._nonce)._to_data()
 
             # connect main package
             self._main_package = await PACKAGE_QUERY.get(main_branch.main_package_ptr, live=True)
