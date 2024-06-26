@@ -694,27 +694,6 @@ def _setup_system_policies():
     _SYSTEM_POLICIES.extend(system_policies)
 
 
-def adapt_read_options(
-    subject: Subject, root_node_type: NodeType, options: "ReadOptions"
-) -> "ReadOptions":
-    """
-    Adapt read options based on the access to pre-filter as feasible while enabling the complete post-read check.
-    Does NOT fully evaluate access yet, but avoids loading data that will be denied anyway.
-    """
-
-    options = options.copy()
-
-    # query ancestors up to root
-    for ancestor_type in ANCESTOR_NODE_TYPES[root_node_type]:
-        if ancestor_type not in options.ancestor_types:
-            options.ancestor_types.append(ancestor_type)
-
-    # NOTE :Performance: select only properties required to evaluate edit (id/policies/...?)
-    # NOTE :Performance :Security: also pre-filter read options for owner?
-
-    return options
-
-
 @tracer.start_as_current_span("access.generate_access_matrix")
 def generate_access_matrix(
     subject: Subject,
@@ -954,16 +933,41 @@ def evaluate_access(
     return decision, composite_allowed_properties
 
 
+def adapt_read_options(
+    subject: Subject, root_node_type: NodeType, options: "ReadOptions"
+) -> "ReadOptions":
+    """
+    Adapt read options based on the access to pre-filter as feasible while enabling the complete post-read check.
+    Does NOT fully evaluate access yet, but avoids loading data that will be denied anyway.
+    """
+
+    options = options.copy()
+
+    # query ancestors up to root
+    for ancestor_type in ANCESTOR_NODE_TYPES[root_node_type]:
+        if ancestor_type not in options.ancestor_types:
+            options.ancestor_types.append(ancestor_type)
+
+    # NOTE :Performance: select only properties required to evaluate edit (id/policies/...?)
+    # NOTE :Performance :Security: also pre-filter read options for owner?
+
+    return options
+
+
 @tracer.start_as_current_span("access.evaluate_and_adapt_read")
 def evaluate_and_adapt_read(
     matrix: AccessMatrix,
     graph: NodeDataGraph,
+    root_node_type: NodeType,
+    options: "ReadOptions",
     *,
     required_nodes: Collection[NodeReferenceData] | None = None,
 ) -> tuple[PolicyEffect, Collection[Access], Collection[AnyNodeData]]:
     """
     Evaluate *and* adapt access to all nodes in the given graph, pruning nodes & properties as needed.
      -> unlike for other accesses, we don't outright reject GET reads, you just get less (or zero) data.
+    Node types not in the original (unadapted) options are pruned (e.g. when querying Records, we adapt
+      options to load Record->Block->...->Package->Branch->Bench to evaluate, but we only want Records)
 
     In case a node was completely denied but its children weren't, we include a Skip node in the result.
     If no overall owner is given, the owners (i.e. actual roots) must be in the graph.
@@ -974,7 +978,8 @@ def evaluate_and_adapt_read(
     from bench.proto import wire
 
     trace.get_current_span().set_attribute("nodes", len(graph))
-    all_nodes_preorder: list[AnyNodeData] = []
+    requested_node_types = bittuple(root_node_type, *options.all_node_types)
+    requested_nodes_preorder: list[AnyNodeData] = []
     visible_nodes: list[AnyNodeData] = []
     allowed_properties_by_node_id: dict[str, bitarray] = {}
     skipped: set[str] = set()
@@ -987,7 +992,7 @@ def evaluate_and_adapt_read(
             descendants = graph.collect_descendants(root, recursive=True)
             for node in chain((root,), descendants):
                 # evaluate access
-                node_type = cast(NodeType, node.metatype)
+                node_type = NodeType(node.metatype)
                 node_properties: bitarray = NODE_CLASS_BY_TYPE[node_type].__properties_mask_set__
                 decision, allowed_properties = evaluate_access(
                     matrix=matrix,
@@ -1011,13 +1016,12 @@ def evaluate_and_adapt_read(
                         allowed_properties=list(node_cls._unmask_properties(allowed_properties)),
                     )
                     return decision, (access,), ()
-            # remember order
-            all_nodes_preorder.append(root)
-            all_nodes_preorder.extend(descendants)
+                if node_type in requested_node_types:
+                    requested_nodes_preorder.append(node)
 
     # adapt & filter nodes
     with tracer.start_as_current_span("access.adapt_read", attributes={"nodes": len(graph)}):
-        for node in all_nodes_preorder:
+        for node in requested_nodes_preorder:
             node_cls = NODE_CLASS_BY_TYPE[cast(NodeType, node.metatype)]
             allowed_properties = allowed_properties_by_node_id.get(node.id)
             node_type = cast(NodeType, node.metatype)

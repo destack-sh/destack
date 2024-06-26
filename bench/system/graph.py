@@ -183,11 +183,12 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
                 node_type = next(iter(roots_by_type.keys()))
 
             with self.tracer.start_as_current_span("graph.get.read") as span:
+                adapted_options = adapt_read_options(subject, node_type, options)
                 query = QueryBuilder(
                     read_type=ReadType.GET,
                     node_type=wiring.unpack_enum(NodeType, node_type),
                     roots=roots,
-                    options=adapt_read_options(subject, node_type, options),
+                    options=adapted_options,
                 )
                 connection = await self.connector.connect(
                     query=query,
@@ -203,11 +204,15 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
             missing_roots = tuple(root for root in roots if str(root.id) not in result.graph)
             raise GRPCError(GRPCStatus.NOT_FOUND, f"roots not found: {missing_roots}")
 
-        # check access
+        # check access & prune result
         with self.tracer.start_as_current_span("graph.get.check_access"):
             matrix = generate_access_matrix(subject, result.graph, supergraph=session._supergraph)
             decision, accesses, adapted_nodes = evaluate_and_adapt_read(
-                matrix, result.graph, required_nodes=request.roots
+                matrix,
+                result.graph,
+                root_node_type=node_type,
+                options=options,
+                required_nodes=request.roots,
             )
             if decision != PolicyEffect.ALLOW:
                 raise AccessError(accesses)
@@ -306,11 +311,15 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
                     {"connection_hash": connection.hash, "connection_token": connection.token}
                 )
 
-        # check access
+        # check access & prune result
         with self.tracer.start_as_current_span("graph.search.check_access"):
             matrix = generate_access_matrix(subject, result.graph, supergraph=session._supergraph)
             decision, accesses, adapted_nodes = evaluate_and_adapt_read(
-                matrix, result.graph, required_nodes=request.bases
+                matrix,
+                result.graph,
+                root_node_type=node_type,
+                options=options,
+                required_nodes=request.bases,
             )
             if decision != PolicyEffect.ALLOW:
                 raise AccessError(accesses)

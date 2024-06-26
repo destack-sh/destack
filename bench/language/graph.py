@@ -27,7 +27,7 @@ from bench.language.validation import on_invalid_raise
 from bench.proto.wire import AnyNodeData, GraphScopeData
 from bench.utils.casing import Casing, to_casing
 from bench.utils.fractional import get_key_bounds, get_order_key, get_order_keys
-from bench.utils.func import IdEnum
+from bench.utils.func import IdEnum, bittuple
 
 if TYPE_CHECKING:
     # noinspection PyUnresolvedReferences
@@ -58,7 +58,9 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
         nodes: Collection[V] | None = None,
     ):
         self.scope = scope
-        self.node_types = node_types
+        self.node_types = (
+            bittuple(*node_types) if not isinstance(node_types, bittuple) else node_types
+        )
 
         self._nodes_by_id: dict[K, V] = {}
         self._nodes_by_ck: dict[K, V] = {}  # *most* nodes have a 'ck'
