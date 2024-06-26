@@ -86,7 +86,10 @@ class Edit(InlineStruct):
     type: EditType = p_system(30, require=True, description="Type of edit.")
     node: Node = p_system(31, require=True, references=NODE_TYPES.tuple, description="Which node.")
     properties: list[int] = p_system(
-        32, array=True, description="Which non-tracking properties are edited."
+        32,
+        array=True,
+        description="Which non-tracking properties are edited.",
+        primitive_type=PrimitiveType.INT16,
     )
     old_node_packed: Any | None = p_system(
         33,
@@ -120,12 +123,16 @@ class Edit(InlineStruct):
     )
     edited_at: datetime = p_system(45, require=True, description="When the edit was made.")
     revision: int | None = p_system(
-        46, require=False, description="New revision of the edited node."
+        46,
+        require=False,
+        description="New revision of the edited node.",
+        primitive_type=PrimitiveType.INT64,
     )
     epoch: int | None = p_system(
         47,
         require=False,
         description="Epoch at that edit (client if submitting, system if accepted).",
+        primitive_type=PrimitiveType.INT64,
     )
 
 
@@ -219,7 +226,7 @@ class Transaction:
         now: datetime,
     ) -> EditData:
         """Creates a simple non-update/move edit and adds it to the pending edits."""
-        from bench.proto import wiring
+        from bench.proto import wire, wiring
 
         assert self.session is not None, f"no session for {self!r}"
         if self.is_readonly:
@@ -253,6 +260,7 @@ class Transaction:
 
         # make edit
         edit = EditData(
+            metatype=wire.ObjectType.EDIT,
             id=new_edit_id(),
             type=wiring.pack_enum(EditType, edit_type),
             node_ptr=node._to_ref_data(),
@@ -305,7 +313,7 @@ class Transaction:
     ):
         """Update or move a node."""
         from bench.language.value import pack_value
-        from bench.proto import wiring
+        from bench.proto import wire, wiring
 
         existing_edit_idx = self._pending_updates_idx.get(node)
         if existing_edit_idx is None:
@@ -326,6 +334,7 @@ class Transaction:
                     new_value, prop_type, wrap_primitive=False
                 )
             edit = EditData(
+                metatype=wire.ObjectType.EDIT,
                 id=new_edit_id(),
                 type=wiring.pack_enum(EditType, edit_type),
                 node_ptr=node._to_ref_data(),

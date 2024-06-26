@@ -16,6 +16,7 @@ import {
 import { makeNode, toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
 import { fireActionById, type ActionContext, type ActionMapImplementation } from "@/system/action";
 import { useHierarchicalNodeMoveActions } from "@/system/block";
+import { PACKAGE_SCOPE } from "@/system/client";
 import { useExistingConnection, useGetConnection } from "@/system/connection";
 import { getGroupedChildrenRef, isDescendantOf, walkDescendantsRef, type NodeTreeItem } from "@/system/graph";
 import { ICON_BY_BLOCK_TYPE, IconInline } from "@/system/icon";
@@ -59,6 +60,7 @@ const selfView = spaceGraph.getRef(self);
 const preparedPkgConnection = useGetConnection(
   { name: `page.${props.nodePtr?.id}` },
   computed(() => ({
+    scope: PACKAGE_SCOPE.value,
     roots: [props.nodePtr!],
     options: { descendantTypes: [NodeType.BLOCK] },
     isEnabled: props.nodePtr != null,

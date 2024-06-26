@@ -30,7 +30,7 @@ import {
   DEFAULT_BAR_POSITION,
   clearSpace,
   collectViewComponentsUp,
-  createDefaultDesktopSpace,
+  createDesktopProSpace,
   createEmptySpace,
 } from "@/views/canvas";
 import type { ViewComponent } from "@/views/common";
@@ -1048,7 +1048,7 @@ contributeActionMap<"view">({
       if (space.value == null) throw new Error(`${describeNode(pkg.value)} has no space`);
       const tx = canvas.txFactory();
       clearSpace(tx, canvas.graph, space.value);
-      createDefaultDesktopSpace(tx, space.value);
+      createDesktopProSpace(tx, space.value);
     },
   },
   "view.space.rotateBarPosition": {
@@ -1282,7 +1282,9 @@ contributeActionMap<"space">({
     title: "Open Log",
     text: "Read the Logs",
     icon: "fas fa-clipboard-list",
-    action: ACTION_COMING_SOON,
+    action: () => {
+      canvas.addView({ type: ViewType.FEED, title: "Logs" }, { ifPresent: "upsertAndFocus" });
+    },
   },
   "space.launch.start": {
     title: "Open Start",

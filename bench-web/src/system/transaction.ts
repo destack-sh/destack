@@ -253,6 +253,7 @@ export class TransactionBuilder implements Transaction {
 
     // make edit & notify
     const edit: EditData = {
+      metatype: ObjectType.EDIT,
       id: newEditId(),
       type: editType,
       nodePtr: toNodeReference(node),
@@ -351,6 +352,7 @@ export class TransactionBuilder implements Transaction {
         newNodePacked[prop.id.toString()] = newValuePacked;
       }
       const edit: EditData = {
+        metatype: ObjectType.EDIT,
         id: newEditId(),
         type: editType,
         nodePtr: toNodeReference(node),

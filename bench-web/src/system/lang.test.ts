@@ -1,5 +1,5 @@
 import { NodeType, ObjectType, ViewData } from "@/proto/wire";
-import { toNodeReference } from "@/proto/wiring";
+import { EMPTY_SCOPE, toNodeReference } from "@/proto/wiring";
 import { NodeGraph } from "@/system/graph";
 import { fabricate } from "@/system/graph.test";
 import { fixOrderKeys } from "@/system/lang";
@@ -19,13 +19,13 @@ describe("order keys", () => {
     const tx = new TransactionBuilder({
       connectionId: null,
       subject: toNodeReference(fabricate(ObjectType.USER)),
-      state: new TransactionState(uuidt(), {}),
+      state: new TransactionState(uuidt(), EMPTY_SCOPE),
     });
     fixOrderKeys(tx, badNodes);
     expect(tx.edits.length).toBe(3);
 
     // apply edits to graph and check the order is as given
-    const graph = new NodeGraph({ scope: {}, nodeTypes: [NodeType.VIEW] });
+    const graph = new NodeGraph({ scope: EMPTY_SCOPE, nodeTypes: [NodeType.VIEW] });
     graph.extend(...badNodes);
     editGraph(graph, tx.edits);
     const fixedNodes = graph.nodes as ViewData[];

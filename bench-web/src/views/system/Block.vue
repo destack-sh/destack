@@ -14,6 +14,7 @@ import {
 } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import type { ActionMapImplementation } from "@/system/action";
+import { PACKAGE_SCOPE } from "@/system/client";
 import type { PreparedGetConnection } from "@/system/connection";
 import { useGetConnection } from "@/system/connection";
 import { IconInline, getNodeIcon } from "@/system/icon";
@@ -53,6 +54,7 @@ const pkgGetConnection =
   useGetConnection(
     { name: `block.${nodePtr.value.id}` },
     computed(() => ({
+      scope: PACKAGE_SCOPE.value,
       roots: [nodePtr.value],
       options: { descendantTypes: [NodeType.FIELD, NodeType.VIEW, NodeType.STEP, NodeType.TRIGGER] },
       isEnabled: nodePtr.value != null,

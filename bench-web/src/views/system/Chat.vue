@@ -39,6 +39,7 @@ import { makeSelection } from "@/views/canvas";
 import { getElement } from "@/utils/element";
 import { toCamelName } from "@/system/lang";
 import NodePath from "@/views/builtins/NodePath.vue";
+import { PACKAGE_SCOPE } from "@/system/client";
 
 const HEADER_HEIGHT_NORMAL = 36;
 const HEADER_HEIGHT_COMPACT = 32;
@@ -168,7 +169,7 @@ function replyTo(message: MessageData) {
 function createNewThread(parent: AnyNodeData, title: string = generateRandomName()) {
   const packagePtr = isNode(parent, NodeType.PACKAGE) ? toNodeReference(parent) : (parent as any).packagePtr;
   if (packagePtr == null) throw new Error(`parent is not in a package: ${describeNode(parent)}`);
-  const tx = findExistingConnectionOrError("get", { roots: [toNodeReference(parent)] }).tx;
+  const tx = findExistingConnectionOrError("get", { scope: PACKAGE_SCOPE.value, roots: [toNodeReference(parent)] }).tx;
   const thread = tx.create({
     metatype: NodeType.MESSAGE,
     parentPtr: parent != null ? toNodeReference(parent) : undefined,
@@ -193,7 +194,10 @@ function submit() {
     const parent = node.value ?? pkg.value;
     if (parent == null) throw new Error("no parent to create thread in");
     const thread = createNewThread(parent);
-    const tx = findExistingConnectionOrError("get", { roots: [toNodeReference(thread)] }).tx;
+    const tx = findExistingConnectionOrError("get", {
+      scope: PACKAGE_SCOPE.value,
+      roots: [toNodeReference(thread)],
+    }).tx;
     const message = tx.create({
       metatype: NodeType.MESSAGE,
       parentPtr: toNodeReference(thread),

@@ -70,7 +70,13 @@ from bench.language.setup import (
     STRUCT_CLASS_BY_TYPE,
 )
 from bench.language.validation import ValidationError, ValidationHandler, on_invalid_raise
-from bench.proto.wire import AnyNodeData, AnyStructData, GraphScopeData, NodeReferenceData
+from bench.proto.wire import (
+    AnyNodeData,
+    AnyStructData,
+    ClientOriginData,
+    GraphScopeData,
+    NodeReferenceData,
+)
 from bench.sql.core import Constraint, ConstraintType, Index, IndexType, Table, stable_hash
 from bench.utils.casing import PYTHON_CASING, IdentifierType, to_casing
 from bench.utils.env import IS_DEV, IS_TEST
@@ -1397,7 +1403,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
             # if we're not in a graph, start a new one
             # NOTE: cleanup NodeGraph definition "depends on itself", causing pyright errors
             graph = NodeGraph(  # type: ignore
-                scope=GraphScopeData(),
+                scope=GraphScope()._to_data(),
                 node_types=(self.metatype, *DESCENDANT_NODE_TYPES[self.metatype].tuple),
                 supergraph=self._supergraph,
             )
@@ -1831,15 +1837,18 @@ def is_struct[T: InlineStruct | Struct](obj: Any, struct_cls: type[T]) -> TypeGu
 
 
 @struct_(StructType.GRAPH_SCOPE, inline=True)
-class GraphScope(InlineStruct):
+class GraphScope(InlineStruct[GraphScopeData]):
     """The scope for an operation on the Bench graph."""
 
     bench_id: Optional[UUID] = p_internal(30, default=None)
     package_id: Optional[UUID] = p_internal(31, default=None)
 
 
+EMPTY_SCOPE = GraphScope()
+
+
 @struct_(StructType.CLIENT_ORIGIN, inline=True)
-class ClientOrigin(InlineStruct):
+class ClientOrigin(InlineStruct[ClientOriginData]):
     """Information to identify a client."""
 
     type: ClientType = p_internal(30, require=True)

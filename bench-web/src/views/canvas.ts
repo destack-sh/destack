@@ -965,8 +965,8 @@ export function createEmptySpace(tx: Transaction, space: SpaceData): { primary: 
   return { primary };
 }
 
-/** Setups up the default three-frame canvas (side, primary, secondary views) */
-export function createDefaultDesktopSpace(
+/** Setups up the pro level three-side double split canvas */
+export function createDesktopProSpace(
   tx: Transaction,
   space: SpaceData,
   options: { secondary: "split" | "side" | false } = { secondary: "split" },
@@ -1098,6 +1098,15 @@ export function createDefaultDesktopSpace(
       orderKey: "a0",
       name: "Create1",
       title: "Create",
+    });  
+    tx.create({
+      metatype: NodeType.VIEW,
+      type: ViewType.FEED,
+      parentPtr: toNodeReference(secondaryBottom),
+      packagePtr: space.packagePtr,
+      orderKey: "a1",
+      name: "Logs1",
+      title: "Logs",
     });
   }
 

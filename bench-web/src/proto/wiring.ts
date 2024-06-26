@@ -1,9 +1,12 @@
 import {
-  ObjectType,
+  EditData,
+  EditType,
+  GraphScopeData,
   MESSAGE_TYPE_BY_OBJECT_TYPE,
   NODE_PROPERTY_ENUM_BY_TYPE,
   NodeReferenceData,
   NodeType,
+  ObjectType,
   PROPERTY_ENUM_BY_TYPE,
   PropertyReferenceData,
   STRUCT_PROPERTY_ENUM_BY_TYPE,
@@ -11,21 +14,16 @@ import {
   StructType,
   type AnyNodeData,
   type AnyPropertyType,
-  type AnyStructData,
   type AnyTypeMapping,
   type NodeTypeMapping,
   type StructTypeMapping,
-  PackageData,
-  EditType,
-  EditData,
-  GraphScopeData,
 } from "@/proto/wire";
 import { BASED_NODE_TYPES, TIMED_NODE_TYPES, getBaseFromNode, toCamelName } from "@/system/lang";
 import { reverseRecord } from "@/utils/functools";
 import { Casing, toCasing } from "@/utils/string";
 import { uuidt } from "@/utils/uuidt";
 import { MessageType, ScalarType, type FieldInfo } from "@protobuf-ts/runtime";
-import { v4, v5 } from "uuid";
+import { v4 } from "uuid";
 import { computed, toRef, type MaybeRef, type Ref } from "vue";
 
 export const NODE_TYPE_NAME: Record<NodeType, string> = reverseRecord(NodeType);
@@ -37,10 +35,7 @@ export type AnyNodeReferenceData = NodeReferenceData | TypedNodeReferenceData<No
 export type SomeNodeReferenceData<T extends NodeType> = NodeReferenceData | TypedNodeReferenceData<T>;
 
 export function makeScope(scope: Partial<GraphScopeData>): GraphScopeData {
-  return {
-    metatype: ObjectType.GRAPH_SCOPE,
-    ...scope,
-  };
+  return { metatype: ObjectType.GRAPH_SCOPE, ...scope };
 }
 
 export const EMPTY_SCOPE = makeScope({});
