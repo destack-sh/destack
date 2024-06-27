@@ -390,7 +390,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
           "
           class="group relative mx-1 mt-[1px] flex flex-row items-center rounded border py-0.5 hover:cursor-pointer hover:bg-gray-100 hover:text-primary-900 data-[dragging=true]:opacity-50"
           :class="[
-            focusedNode?.id == node.id && isFocusAbsolute ? 'border-orange-900' : 'border-transparent',
+            focusedNode?.id == node.id && isFocusAbsolute ? 'border-primary-900' : 'border-transparent',
             isFocusedAbsolute(node) ? 'bg-gray-100' : '',
             activeDropZone?.targetId == node.id && activeDropZone?.anchor == 'center'
               ? 'border-primary-400 bg-primary-200'
