@@ -19,12 +19,12 @@ import {
 } from "@/proto/wire";
 import { makeStruct, propertyReference, type TypedNodeReferenceData } from "@/proto/wiring";
 import { PACKAGE_SCOPE } from "@/system/client";
-import { useSearchConnection } from "@/system/connection";
+import { supergraph, useSearchConnection } from "@/system/connection";
 import { makeExpression } from "@/system/expression";
 import { ICON_BY_EDIT_TYPE, ICON_BY_NODE_TYPE, IconInline, getNodeIcon } from "@/system/icon";
 import { toCamelName } from "@/system/lang";
 import { canvas, pkgGraph } from "@/system/space";
-import { formatRelativeDate } from "@/utils/time";
+import { TimeUpdateInterval, formatRelativeDate } from "@/utils/time";
 import { DEFAULT_HEADER_HEIGHT } from "@/views/canvas";
 import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import { computed, ref, toRef, type Ref } from "vue";
@@ -85,11 +85,6 @@ const { roots, graph, connection, page } = useSearchConnection(
         propertyPtr: propertyReference(nodeType as unknown as ObjectType, LogProperty.createdAt),
       }),
     ],
-    // filter: makeExpression({
-    // 	op: ExpressionOp.EQUALS,
-    // 	propertyPtr: propertyReference(nodeType as unknown as ObjectType, LogProperty.kind),
-    // 	valuePacked: packVa
-    // })
   },
 );
 
@@ -102,8 +97,8 @@ const items = computed<FeedItem[]>(() => {
         id: it.id,
         it,
         icon: ICON_BY_EDIT_TYPE[it.type as unknown as EditType] ?? ICON_BY_NODE_TYPE[NodeType.LOG]!,
-        node: it.nodePtr != null ? pkgGraph.get(it.nodePtr) : null,
-        subject: null,
+        node: it.nodePtr != null ? supergraph.get(it.nodePtr) : null,
+        subject: it.createdByPtr != null ? supergraph.get(it.createdByPtr) : null,
         createdAt: it.createdAt!,
       };
       items.push(item);
@@ -136,9 +131,10 @@ defineExpose<ViewExposed>({ self, id });
           <!-- nocheckin -->
           <!-- 'Title' -->
           <IconInline v-bind="item.icon" class="text-gray-700" />
+          <!-- Log -->
           <template v-if="item.kind == 'log-edit'">
             <!-- Subject -->
-            <button v-if="item.subject"></button>
+            <button v-if="item.subject">{{ item.subject.name }}</button>
             <span v-else class="italic text-gray-900">System</span>
             <!-- Verb -->
             {{ toCamelName(EditType, item.it.type).toLowerCase() }}
@@ -158,12 +154,15 @@ defineExpose<ViewExposed>({ self, id });
               <span class="ml-1 italic">Unavailable</span>
             </span>
           </template>
+          <!-- Run -->
           <template v-else-if="item.kind == 'run'"> run! </template>
           <span v-else class="text-danger-500">???</span>
           <!-- Extra stuff -->
           <div class="ml-auto">
             <!-- Time -->
-            <span class="text-gray-400">{{ formatRelativeDate(item.createdAt) }}</span>
+            <span class="text-gray-400">
+              {{ formatRelativeDate(item.createdAt, { minUnit: "m", minValue: 1 }) }}
+            </span>
             <!-- Actions -->
             <!-- ... -->
           </div>
