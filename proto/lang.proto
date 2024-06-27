@@ -168,11 +168,12 @@ enum BenchType {
   BENCH_TYPE_VISIBILITY = 2010;
   BENCH_TYPE_CHANGE_KIND = 2011;
   BENCH_TYPE_ACCESS_MODE = 2030;
-  BENCH_TYPE_ACCESS_KIND = 2033;
-  BENCH_TYPE_READ_TYPE = 2034;
-  BENCH_TYPE_EDIT_TYPE = 2035;
-  BENCH_TYPE_USE_TYPE = 2036;
-  BENCH_TYPE_ACCESS_TYPE = 2037;
+  BENCH_TYPE_ACCESS_KIND = 2031;
+  BENCH_TYPE_READ_TYPE = 2032;
+  BENCH_TYPE_EDIT_TYPE = 2033;
+  BENCH_TYPE_USE_TYPE = 2034;
+  BENCH_TYPE_ACCESS_TYPE = 2035;
+  BENCH_TYPE_EDIT_CATEGORY = 2036;
   BENCH_TYPE_POLICY_EFFECT = 2040;
   BENCH_TYPE_REGION = 2050;
   BENCH_TYPE_TENANCY = 2051;
@@ -353,6 +354,12 @@ enum Day {
   DAY_SUNDAY = 7;
 }
 
+// Optional classification for edits.
+enum EditCategory {
+  EDIT_CATEGORY_UNSPECIFIED = 0;
+  EDIT_CATEGORY_SPACE = 10;
+}
+
 // Ways to edit nodes.
 enum EditType {
   EDIT_TYPE_UNSPECIFIED = 0;
@@ -377,11 +384,12 @@ enum EnumType {
   ENUM_TYPE_VISIBILITY = 2010;
   ENUM_TYPE_CHANGE_KIND = 2011;
   ENUM_TYPE_ACCESS_MODE = 2030;
-  ENUM_TYPE_ACCESS_KIND = 2033;
-  ENUM_TYPE_READ_TYPE = 2034;
-  ENUM_TYPE_EDIT_TYPE = 2035;
-  ENUM_TYPE_USE_TYPE = 2036;
-  ENUM_TYPE_ACCESS_TYPE = 2037;
+  ENUM_TYPE_ACCESS_KIND = 2031;
+  ENUM_TYPE_READ_TYPE = 2032;
+  ENUM_TYPE_EDIT_TYPE = 2033;
+  ENUM_TYPE_USE_TYPE = 2034;
+  ENUM_TYPE_ACCESS_TYPE = 2035;
+  ENUM_TYPE_EDIT_CATEGORY = 2036;
   ENUM_TYPE_POLICY_EFFECT = 2040;
   ENUM_TYPE_REGION = 2050;
   ENUM_TYPE_TENANCY = 2051;
@@ -610,8 +618,8 @@ enum LiteralOp {
 
 enum LogKind {
   LOG_KIND_UNSPECIFIED = 0;
-  LOG_KIND_EDIT = 1;
-  LOG_KIND_CHANGE = 2;
+  LOG_KIND_CHANGE = 1;
+  LOG_KIND_EDIT = 2;
 }
 
 enum LogLevel {
@@ -1292,6 +1300,8 @@ message BoxData {
 }
 
 // A change is a sequence of related edits.
+// Any edit not associated with a change is implicitly in its own change.
+// The 'key' is the id the change will have in the Log.
 message ChangeData {
   ObjectType metatype = 1;
   int32 id = 2;
@@ -1384,12 +1394,13 @@ message EditData {
   optional google.protobuf.Struct new_node_packed = 34;
   GraphScopeData scope = 40;
   optional string change_key = 41;
-  optional NodeReferenceData subject_ptr = 42;
-  optional ClientOriginData origin = 43;
-  optional EditContextData context = 44;
-  google.protobuf.Timestamp edited_at = 45;
-  optional int64 revision = 46;
-  optional int64 epoch = 47;
+  optional EditCategory category = 42;
+  optional NodeReferenceData subject_ptr = 43;
+  optional ClientOriginData origin = 44;
+  optional EditContextData context = 45;
+  google.protobuf.Timestamp edited_at = 46;
+  optional int64 revision = 47;
+  optional int64 epoch = 48;
 }
 
 // Additional context for a specific edit (per-edit variable subset of Session context).
@@ -1400,6 +1411,7 @@ message EditContextData {
   optional NodeReferenceData session_ptr = 72;
   optional NodeReferenceData run_ptr = 73;
   optional NodeReferenceData run_root_ptr = 74;
+  optional NodeReferenceData identity_ptr = 75;
 }
 
 // An expression like a value, function, comparison or such.
@@ -2300,7 +2312,9 @@ message LogData {
   optional google.protobuf.Struct new_node_secret_packed = 46;
   optional int64 new_revision = 47;
   optional NodeReferenceData change_ptr = 48;
+  optional EditCategory category = 49;
   repeated NodeReferenceData nodes_ptr = 50;
+  optional int32 nodes_total = 51;
   optional NodeReferenceData block_ptr = 70;
   optional NodeReferenceData step_ptr = 71;
   optional NodeReferenceData session_ptr = 72;

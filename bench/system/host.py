@@ -581,6 +581,7 @@ class Host(GraphIoServiceBase, HostApi, HostBase):
                 machine_ptr=context_data.machine_ptr,
                 server_ptr=context_data.server_ptr,
                 user_ptr=context_data.user_ptr,
+                identity_ptr=edit.context.identity_ptr if edit.context else None,
             )
             create_log_edit = EditData(
                 id=log_data.id,

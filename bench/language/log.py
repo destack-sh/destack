@@ -18,7 +18,7 @@ from bench.proto.wire import EditData, LogData
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
-    from bench.language import NodeReference, Package
+    from bench.language import EditCategory, NodeReference, Package
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -28,8 +28,8 @@ logger = structlog.get_logger(__name__)
 @enum_(EnumType.LOG_KIND)
 class LogKind(IdEnum):
     # access
-    EDIT = 1
-    CHANGE = 2
+    CHANGE = 1
+    EDIT = 2
 
     # custom?
 
@@ -56,7 +56,7 @@ class Log(PackageNode[LogData], HasTimeIdentity, HasSessionContext, HasValues):
     kind: LogKind = p_system(30)
     level: LogLevel = p_system(31, default=LogLevel.INFO)
 
-    # content (edit)
+    # content
     type: AccessType | None = p_system(40, default=None)
     node: Optional["Node"] = p_system(
         41, require=False, array=False, references=NODE_TYPES.tuple, same_bench=True
@@ -76,11 +76,13 @@ class Log(PackageNode[LogData], HasTimeIdentity, HasSessionContext, HasValues):
     change: Optional["Log"] = p_system(
         48, require=False, array=False, references=NodeType.LOG, same_bench=True
     )
-
-    # content (change)
+    category: Optional["EditCategory"] = p_system(49, require=False, array=False)
     nodes: list["Node"] = p_system(
         50, require=False, array=True, references=NODE_TYPES.tuple, same_bench=True
     )
+    if TYPE_CHECKING:
+        nodes_ptr: list[NodeReference] = []
+    nodes_total: int | None = p_system(51, require=False, primitive_type=PrimitiveType.INT32)
 
     # context
     # ...HasSessionContext[70-79]

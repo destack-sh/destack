@@ -2,6 +2,7 @@
 import {
   BlockData,
   BoxData,
+  EditCategory,
   EditType,
   ExpressionOp,
   IconData,
@@ -10,6 +11,7 @@ import {
   NodeReferenceData,
   NodeType,
   ObjectType,
+  PROPERTY_INFOS_BY_TYPE,
   RunData,
   StepData,
   Timestamp,
@@ -25,6 +27,8 @@ import { makeExpression } from "@/system/expression";
 import { ICON_BY_EDIT_TYPE, ICON_BY_NODE_TYPE, IconInline, getNodeIcon } from "@/system/icon";
 import { EDIT_TYPE_PAST_VERB, toCamelName } from "@/system/lang";
 import { canvas } from "@/system/space";
+import { packProtoStruct } from "@/system/transaction";
+import { getTypeIdentityForProperty, packValue, packValueSimple, packValueSimpleStruct } from "@/system/value";
 import { getElement } from "@/utils/element";
 import { formatRelativeDate } from "@/utils/time";
 import { tooltipFromAction } from "@/utils/tooltip";
@@ -87,6 +91,19 @@ const { roots, graph, connection, page } = useSearchConnection(
         propertyPtr: propertyReference(nodeType as unknown as ObjectType, LogProperty.createdAt),
       }),
     ],
+    filter: makeExpression({
+      op: ExpressionOp.AND,
+      clauses: [
+        makeExpression({
+          op: ExpressionOp.NOT_EQUALS,
+          propertyPtr: propertyReference(ObjectType.LOG, LogProperty.category),
+          valuePacked: packValueSimpleStruct(
+            EditCategory.SPACE,
+            getTypeIdentityForProperty(PROPERTY_INFOS_BY_TYPE[ObjectType.LOG][LogProperty.category]),
+          ),
+        }),
+      ],
+    }),
   },
 );
 

@@ -20,7 +20,7 @@ class _Unset:
         return "<UNSET!>"
 
 
-VERSION = "2024.06.27.1"
+VERSION = "2024.06.27.2"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -72,11 +72,12 @@ class EnumType(IdEnum):
 
     # access
     ACCESS_MODE = 2030
-    ACCESS_KIND = 2033
-    READ_TYPE = 2034
-    EDIT_TYPE = 2035
-    USE_TYPE = 2036
-    ACCESS_TYPE = 2037  # ReadType | EditType | UseType
+    ACCESS_KIND = 2031
+    READ_TYPE = 2032
+    EDIT_TYPE = 2033
+    USE_TYPE = 2034
+    ACCESS_TYPE = 2035  # ReadType | EditType | UseType
+    EDIT_CATEGORY = 2036
     POLICY_EFFECT = 2040
 
     # bench

@@ -105,7 +105,7 @@ from .setup import _complete_bench_setup
 from .signal import Signal
 from .step import Step, StepType
 from .text import Text, TextSpan
-from .transaction import Transaction
+from .transaction import Change, Edit, EditCategory, Transaction
 from .trigger import Trigger
 from .user import Handle, Organization, User
 from .validation import ValidationError
@@ -156,6 +156,7 @@ __all__ = [
     "Branch",
     "BuiltinObject",
     "C",
+    "Change",
     "Channel",
     "Client",
     "ClientType",
@@ -172,6 +173,8 @@ __all__ = [
     "Context",
     "Dependency",
     "Drive",
+    "Edit",
+    "EditCategory",
     "EditContext",
     "Environment",
     "Expression",

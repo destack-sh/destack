@@ -427,7 +427,7 @@ function unpackValueObject(
 export function packValue(
   value: any,
   type: TypeIdentity,
-  graph: ReadNodeGraph | null,
+  graph?: ReadNodeGraph | null,
   options: { wrapPrimitive: boolean } = { wrapPrimitive: true },
   previous?: { valuePacked?: JsonValue; secretValuePacked?: JsonValue | undefined },
 ): { valuePacked: JsonValue; secretValuePacked: JsonValue | undefined } {
@@ -471,6 +471,24 @@ export function packValue(
   }
 }
 
+export function packValueSimple(
+  value: any,
+  type: TypeIdentity,
+  graph?: ReadNodeGraph,
+  options: { wrapPrimitive: boolean } = { wrapPrimitive: true },
+): JsonValue {
+  return packValue(value, type, graph, options).valuePacked;
+}
+
+export function packValueSimpleStruct(
+  value: any,
+  type: TypeIdentity,
+  graph?: ReadNodeGraph,
+  options: { wrapPrimitive: boolean } = { wrapPrimitive: true },
+): ProtoStruct {
+  return ProtoStruct.fromJson(packValueSimple(value, type, graph, options));
+}
+
 /**
  * Unpack the value data from JSON wire format.
  * Graph is required if we're dealing with an alias or any object type.
@@ -478,7 +496,7 @@ export function packValue(
 export function unpackValue(
   packed: { valuePacked?: JsonValue; secretValuePacked?: JsonValue },
   type: TypeIdentity,
-  graph: ReadNodeGraph | null,
+  graph?: ReadNodeGraph,
 ): any {
   if (type.kind == TypeKind.ALIAS) {
     if (graph == null) throw new Error(`missing graph to resolve ${describeTypeIdentity(type)}`);

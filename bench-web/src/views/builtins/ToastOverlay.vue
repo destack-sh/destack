@@ -90,8 +90,8 @@ const absoluteStyle = computed(() => {
       <!-- Actions -->
       <div v-if="toast.actions.length > 0" class="mt-1.5 flex w-full justify-end gap-x-3">
         <button
-          v-for="action in toast.actions"
-          :key="i"
+          v-for="(action, j) in toast.actions"
+          :key="j"
           class="group/action max-w-20 truncate font-medium"
           @click="action.action(), toaster.dismiss(toast)"
         >
