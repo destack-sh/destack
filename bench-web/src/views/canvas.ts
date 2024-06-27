@@ -1164,13 +1164,14 @@ export function collapseSelection(selection: SelectionData, nodes: (AnyNodeData 
 export function useExpansion(options: {
   graph: ReadNodeGraph;
   connection: Connection<any, any>;
-  self: Ref<AnyNodeReferenceData>;
+  self: Ref<AnyNodeReferenceData | null | undefined>;
   isDefaultExpanded?: boolean;
 }) {
   const selfNode = options.graph.getRef(options.self.value) as Ref<ViewData>;
   const expansion = computed(() => selfNode.value?.expansion);
 
   function toggleExpanded(node: AnyNodeData | AnyNodeReferenceData) {
+    if (options.self.value == null) throw new Error("no self node");
     const selfNode = options.graph.getOrError(options.self.value) as ViewData;
     if (isExpanded(node)) {
       options.connection.tx.update(

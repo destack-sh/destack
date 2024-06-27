@@ -7,26 +7,29 @@ import {
   IconData,
   LogData,
   LogProperty,
+  NodeReferenceData,
   NodeType,
   ObjectType,
   RunData,
   StepData,
-  StructType,
   Timestamp,
   UserData,
   ViewData,
   type AnyNodeData,
 } from "@/proto/wire";
-import { isNode, makeStruct, propertyReference, type TypedNodeReferenceData } from "@/proto/wiring";
+import { propertyReference, toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
+import { getAction, type Action } from "@/system/action";
 import { PACKAGE_SCOPE } from "@/system/client";
-import { supergraph, useSearchConnection } from "@/system/connection";
+import { supergraph, useExistingConnection, useSearchConnection } from "@/system/connection";
 import { makeExpression } from "@/system/expression";
 import { ICON_BY_EDIT_TYPE, ICON_BY_NODE_TYPE, IconInline, getNodeIcon } from "@/system/icon";
-import { EDIT_TYPE_PAST_VERB, EDIT_TYPE_PRESENT_VERB, toCamelName } from "@/system/lang";
-import { canvas, pkgGraph } from "@/system/space";
-import { TimeUpdateInterval, formatRelativeDate } from "@/utils/time";
-import { DEFAULT_HEADER_HEIGHT } from "@/views/canvas";
-import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
+import { EDIT_TYPE_PAST_VERB, toCamelName } from "@/system/lang";
+import { canvas } from "@/system/space";
+import { getElement } from "@/utils/element";
+import { formatRelativeDate } from "@/utils/time";
+import { tooltipFromAction } from "@/utils/tooltip";
+import { DEFAULT_HEADER_HEIGHT, useExpansion } from "@/views/canvas";
+import { makeViewId, viewEmits, type ViewComponent, type ViewExposed } from "@/views/common";
 import { computed, ref, toRef, type Ref } from "vue";
 
 const HEADER_HEIGHT = DEFAULT_HEADER_HEIGHT;
@@ -35,34 +38,33 @@ const MAX_WIDTH = 800;
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; size?: Required<Pick<BoxData, "width" | "height">> } & Partial<
-    Pick<ViewData, "variant" | "isInput" | "isInline" | "valueType" | "valuePacked">
+    Pick<ViewData, "variant" | "focus" | "isInput" | "isInline" | "valueType" | "valuePacked">
   >
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 const id = makeViewId(props);
+const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self);
 
 type FeedItemBase = {
   kind: string;
   id: string;
   icon: IconData;
   createdAt: Timestamp;
+  actions: Action[];
 };
-
 type LogEditItem = FeedItemBase & {
   kind: "log-edit";
   it: LogData;
   node: AnyNodeData | null;
   subject: UserData | RunData | null;
 };
-
 type LogChangeItem = FeedItemBase & {
   kind: "log-change";
-  it: LogData[];
+  it: LogData;
   nodes: AnyNodeData[];
   subject: UserData | RunData | null;
 };
-
 type RunItem = FeedItemBase & {
   kind: "run";
   it: RunData;
@@ -101,6 +103,7 @@ const items = computed<FeedItem[]>(() => {
         node: it.nodePtr != null ? supergraph.get(it.nodePtr) : null,
         subject,
         createdAt: it.createdAt!,
+        actions: [getAction("common.history.undo"), getAction("common.history.redo")],
       };
       items.push(item);
     }
@@ -111,26 +114,74 @@ const items = computed<FeedItem[]>(() => {
 });
 const itemRefs: Ref<Record<string, HTMLElement>> = ref({});
 
+// interaction
+const { toggleExpanded, isExpanded } = useExpansion({
+  graph: spaceGraph,
+  connection: spaceConnection,
+  self,
+});
+const focusedItem = computed(() => {
+  if (props.focus?.nodesPtr.length ?? 0 > 0) {
+    const focusedId = props.focus!.nodesPtr[0].id;
+    return items.value.find((item) => item.id == focusedId);
+  } else {
+    return null;
+  }
+});
+const focusedNode = computed(() => focusedItem.value?.it);
+
+function mapToNode(element: HTMLElement | SVGElement | ViewComponent): NodeReferenceData | null {
+  // find 'data-message-id' attribute
+  let el = getElement(element);
+  while (el != null) {
+    const id = el.getAttribute("data-message-id");
+    if (id != null) {
+      const node = supergraph.get({ id });
+      if (node != null) return toNodeReference(node);
+    }
+    el = el.parentElement;
+  }
+  return null;
+}
+
 canvas.registerView(self, id);
-defineExpose<ViewExposed>({ self, id });
+defineExpose<ViewExposed>({ self, id, mapToNode });
 </script>
 <template>
   <div>
     <!-- Header -->
-    <div class="group mx-auto py-2">nocheckin feed filter pills</div>
+    <div
+      class="group mx-auto flex w-full flex-row items-center"
+      :class="[isInline ? '' : 'mx-5']"
+      :style="{ height: HEADER_HEIGHT + 'px' }"
+    >
+      nocheckin feed filter pills
+    </div>
     <!-- Content -->
-    <ul v-if="connection.isConnected.value" class="mt-1 flex flex-col gap-y-0.5 py-1">
+    <ul v-if="connection.isConnected.value" class="mt-0.5 flex flex-col gap-y-[3px] py-1">
       <!-- Feed item -->
       <li
         v-for="item in items"
         :key="item.id"
         :ref="(ref: any) => (ref != null ? (itemRefs[item.id] = ref) : delete itemRefs[item.id])"
-        class="py-1"
+        :data-item-id="item.id"
+        class="group/item rounded-md border py-0.5 pl-1 pr-1.5 text-gray-900 hover:cursor-pointer hover:bg-gray-100"
+        :class="[isInline ? '' : 'mx-5', focusedNode?.id == item.id ? 'border-primary-900' : 'border-transparent']"
       >
         <!-- Item header -->
-        <div class="flex flex-row items-center gap-x-2">
+        <div class="flex flex-row flex-nowrap items-center gap-x-1.5">
           <!-- nocheckin -->
-          <!-- 'Title' -->
+          <!-- Expand -->
+          <button
+            class="mr-1 w-5 rounded enabled:hover:text-primary-900"
+            :class="focusedNode?.id == item.id ? '' : 'text-gray-400'"
+            @click.stop="toggleExpanded(item.it)"
+          >
+            <i
+              class="fas fa-chevron-right dxuration-75 transition-transform"
+              :class="[isExpanded(item.it) ? 'rotate-90' : 'rotate-0']"
+            />
+          </button>
 
           <!-- Log -->
           <template v-if="item.kind == 'log-edit'">
@@ -151,14 +202,20 @@ defineExpose<ViewExposed>({ self, id });
             <!-- Object -->
             <button
               v-if="item.node"
-              class="px-1 hover:bg-primary-100 hover:text-primary-900"
+              class="group/node px-1 hover:bg-primary-100 hover:text-primary-900"
               @click="canvas.goToNode(item.node)"
             >
-              <IconInline v-bind="getNodeIcon(item.node)" class="mr-1.5 text-gray-700" />
+              <IconInline
+                v-bind="getNodeIcon(item.node)"
+                class="mr-1.5 text-gray-700 group-hover/node:text-primary-900"
+              />
               <span>{{ (item.node as any)?.name ?? toCamelName(NodeType, item.node.metatype) }}</span>
             </button>
-            <span v-else>
-              <IconInline v-bind="ICON_BY_NODE_TYPE[item.it.nodePtr!.type]" class="text-gray-700" />
+            <span v-else class="group/node">
+              <IconInline
+                v-bind="ICON_BY_NODE_TYPE[item.it.nodePtr!.type]"
+                class="text-gray-700 group-hover/node:text-primary-900"
+              />
               <span class="ml-1 italic">Unavailable</span>
             </span>
           </template>
@@ -168,15 +225,25 @@ defineExpose<ViewExposed>({ self, id });
           <span v-else class="text-danger-500">???</span>
 
           <!-- Extra stuff -->
-          <div class="ml-auto">
+          <div class="ml-auto inline-flex flex-row items-center gap-x-1.5">
+            <!-- Actions -->
+            <button
+              v-for="action in item.actions"
+              :key="action.id"
+              v-tooltip="{ title: action.title, small: true }"
+              class="text-gray-400 hover:text-gray-900 hover:opacity-100 group-hover/item:opacity-100"
+              :class="focusedNode?.id == item.id ? '' : 'opacity-0'"
+            >
+              <IconInline v-bind="action.icon" />
+            </button>
+            <!-- ... -->
             <!-- Time -->
             <span class="text-gray-400">
               {{ formatRelativeDate(item.createdAt, { minUnit: "m", minValue: 1 }) }}
             </span>
-            <!-- Actions -->
-            <!-- ... -->
           </div>
         </div>
+
         <!-- Item body -->
         <!-- ...? -->
       </li>
