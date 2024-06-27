@@ -20,7 +20,7 @@ class _Unset:
         return "<UNSET!>"
 
 
-VERSION = "2024.06.26.1"
+VERSION = "2024.06.27.1"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -194,10 +194,8 @@ class NodeType(IdEnum):
     # BREAKPOINT?
     # source (auth)
     BADGE = 60
-    ROLE = 61
-    IDENTITY = 62
-    MEMBERSHIP = 63
-    INVITE = 64
+    MEMBERSHIP = 61
+    INVITE = 62
 
     # runtime
     SESSION = 80  # (local, timed)

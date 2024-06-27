@@ -725,7 +725,7 @@ def _is_allowable_drift(dt: datetime, now: datetime) -> bool:
 
 
 def validate_edit(edit: EditData, subject: Subject, now: datetime) -> None:
-    """Checks the given edit for basic validity in isolation."""
+    """Checks the given (non-system) edit for basic validity."""
     assert subject.client, f"{subject!r} has no client"
     node_cls = NODE_CLASS_BY_TYPE[cast(NodeType, edit.node_ptr.type)]
 

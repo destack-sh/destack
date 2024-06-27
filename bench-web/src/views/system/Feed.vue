@@ -17,12 +17,12 @@ import {
   ViewData,
   type AnyNodeData,
 } from "@/proto/wire";
-import { makeStruct, propertyReference, type TypedNodeReferenceData } from "@/proto/wiring";
+import { isNode, makeStruct, propertyReference, type TypedNodeReferenceData } from "@/proto/wiring";
 import { PACKAGE_SCOPE } from "@/system/client";
 import { supergraph, useSearchConnection } from "@/system/connection";
 import { makeExpression } from "@/system/expression";
 import { ICON_BY_EDIT_TYPE, ICON_BY_NODE_TYPE, IconInline, getNodeIcon } from "@/system/icon";
-import { toCamelName } from "@/system/lang";
+import { EDIT_TYPE_PAST_VERB, EDIT_TYPE_PRESENT_VERB, toCamelName } from "@/system/lang";
 import { canvas, pkgGraph } from "@/system/space";
 import { TimeUpdateInterval, formatRelativeDate } from "@/utils/time";
 import { DEFAULT_HEADER_HEIGHT } from "@/views/canvas";
@@ -78,7 +78,7 @@ const { roots, graph, connection, page } = useSearchConnection(
     scope: PACKAGE_SCOPE.value,
     // nocheckin: parameterize Feed search
     nodeType: nodeType,
-    first: 10,
+    first: 16,
     sort: [
       makeExpression({
         op: ExpressionOp.DESCENDING,
@@ -92,13 +92,14 @@ const items = computed<FeedItem[]>(() => {
   const items: FeedItem[] = [];
   if (nodeType == NodeType.LOG) {
     for (const it of roots.value) {
+      const subject = it.createdByPtr != null ? (supergraph.get(it.createdByPtr) as RunData | UserData | null) : null;
       const item: LogEditItem = {
         kind: "log-edit",
         id: it.id,
         it,
         icon: ICON_BY_EDIT_TYPE[it.type as unknown as EditType] ?? ICON_BY_NODE_TYPE[NodeType.LOG]!,
         node: it.nodePtr != null ? supergraph.get(it.nodePtr) : null,
-        subject: it.createdByPtr != null ? supergraph.get(it.createdByPtr) : null,
+        subject,
         createdAt: it.createdAt!,
       };
       items.push(item);
@@ -127,36 +128,45 @@ defineExpose<ViewExposed>({ self, id });
         class="py-1"
       >
         <!-- Item header -->
-        <div class="flex flex-row items-center gap-x-1.5">
+        <div class="flex flex-row items-center gap-x-2">
           <!-- nocheckin -->
           <!-- 'Title' -->
-          <IconInline v-bind="item.icon" class="text-gray-700" />
+
           <!-- Log -->
           <template v-if="item.kind == 'log-edit'">
             <!-- Subject -->
-            <button v-if="item.subject">{{ item.subject.name }}</button>
+            <button v-if="item.it.createdByPtr">
+              <IconInline
+                v-bind="item.subject != null ? getNodeIcon(item.subject) : null"
+                class="mr-1.5 text-gray-700"
+              />
+              <span>{{ (item.node as any)?.name ?? toCamelName(NodeType, item.it.createdByPtr.type) }}</span>
+            </button>
             <span v-else class="italic text-gray-900">System</span>
             <!-- Verb -->
-            {{ toCamelName(EditType, item.it.type).toLowerCase() }}
+            <span>
+              <!-- <IconInline v-bind="item.icon" class="text-gray-700 mr-1" /> -->
+              <span>{{ EDIT_TYPE_PAST_VERB[item.it.type as unknown as EditType] }}</span>
+            </span>
             <!-- Object -->
             <button
               v-if="item.node"
               class="px-1 hover:bg-primary-100 hover:text-primary-900"
               @click="canvas.goToNode(item.node)"
             >
-              <IconInline v-bind="getNodeIcon(item.node)" class="mr-1 text-gray-700" />
-              <span class="underline decoration-gray-300 underline-offset-3">
-                {{ (item.node as any)?.name ?? toCamelName(NodeType, item.node.metatype) }}
-              </span>
+              <IconInline v-bind="getNodeIcon(item.node)" class="mr-1.5 text-gray-700" />
+              <span>{{ (item.node as any)?.name ?? toCamelName(NodeType, item.node.metatype) }}</span>
             </button>
             <span v-else>
               <IconInline v-bind="ICON_BY_NODE_TYPE[item.it.nodePtr!.type]" class="text-gray-700" />
               <span class="ml-1 italic">Unavailable</span>
             </span>
           </template>
+
           <!-- Run -->
           <template v-else-if="item.kind == 'run'"> run! </template>
           <span v-else class="text-danger-500">???</span>
+
           <!-- Extra stuff -->
           <div class="ml-auto">
             <!-- Time -->

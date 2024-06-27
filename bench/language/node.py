@@ -87,6 +87,7 @@ from bench.utils.uuidt import UUIDT
 if TYPE_CHECKING:
     from bench.language import (
         Bench,
+        Block,
         Expression,
         Field,
         GetConnection,
@@ -1268,8 +1269,8 @@ FieldOrProperty = Union[
     Field if TYPE_CHECKING else "Field", Property if TYPE_CHECKING else "Property", Any
 ]
 NodeTypeOrClass = Union[NodeType, type["Node"]]
-EditSubject = Union["User", "Server", "Run"]
-EDIT_SUBJECT_TYPES = (NodeType.USER, NodeType.SERVER, NodeType.RUN)
+EditSubject = Union["User", "Server", "Block", "Run"]
+EDIT_SUBJECT_TYPES = (NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN)
 
 
 def is_implicit_node_property(prop_id: int) -> bool:

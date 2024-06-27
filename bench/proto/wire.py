@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.06.26.1"
+VERSION = "2024.06.27.1"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -134,10 +134,8 @@ class BenchType(betterproto.Enum):
     VIEW = 34
     STEP = 35
     BADGE = 60
-    ROLE = 61
-    IDENTITY = 62
-    MEMBERSHIP = 63
-    INVITE = 64
+    MEMBERSHIP = 61
+    INVITE = 62
     SESSION = 80
     RUN = 81
     SIGNAL = 82
@@ -711,10 +709,8 @@ class NodeType(betterproto.Enum):
     VIEW = 34
     STEP = 35
     BADGE = 60
-    ROLE = 61
-    IDENTITY = 62
-    MEMBERSHIP = 63
-    INVITE = 64
+    MEMBERSHIP = 61
+    INVITE = 62
     SESSION = 80
     RUN = 81
     SIGNAL = 82
@@ -761,10 +757,8 @@ class ObjectType(betterproto.Enum):
     VIEW = 34
     STEP = 35
     BADGE = 60
-    ROLE = 61
-    IDENTITY = 62
-    MEMBERSHIP = 63
-    INVITE = 64
+    MEMBERSHIP = 61
+    INVITE = 62
     SESSION = 80
     RUN = 81
     SIGNAL = 82
@@ -1916,6 +1910,7 @@ class SessionContextData(betterproto.Message):
     machine_ptr: Optional["NodeReferenceData"] = betterproto.message_field(76, optional=True)
     server_ptr: Optional["NodeReferenceData"] = betterproto.message_field(77, optional=True)
     user_ptr: Optional["NodeReferenceData"] = betterproto.message_field(78, optional=True)
+    identity_ptr: Optional["NodeReferenceData"] = betterproto.message_field(79, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2176,9 +2171,7 @@ class BlobData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class BlockData(betterproto.Message):
-    """
-    A building block containing logic, types, UI, data, AI, - any Bench program source.
-    """
+    """A building block with logic, types, UI, data, auth, AI, ..."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
@@ -2201,7 +2194,6 @@ class BlockData(betterproto.Message):
     type: "BlockType" = betterproto.enum_field(30)
     name: str = betterproto.string_field(32)
     order_key: str = betterproto.string_field(33)
-    policies: List["PolicyData"] = betterproto.message_field(34)
     bases_ptr: List["NodeReferenceData"] = betterproto.message_field(35)
     text: Optional["TextData"] = betterproto.message_field(36, optional=True)
     icon: Optional["IconData"] = betterproto.message_field(37, optional=True)
@@ -2215,6 +2207,9 @@ class BlockData(betterproto.Message):
     )
     code: Optional["CodeData"] = betterproto.message_field(42, optional=True)
     run_options: Optional["RunOptionsData"] = betterproto.message_field(43, optional=True)
+    roles_ptr: List["NodeReferenceData"] = betterproto.message_field(46)
+    identity_ptr: Optional["NodeReferenceData"] = betterproto.message_field(47, optional=True)
+    policies: List["PolicyData"] = betterproto.message_field(48)
     delegated_policies: List["PolicyData"] = betterproto.message_field(49)
     is_builtin: bool = betterproto.bool_field(60)
     is_page: bool = betterproto.bool_field(61)
@@ -2440,35 +2435,6 @@ class HandleData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class IdentityData(betterproto.Message):
-    """
-    Attach an identity to a block, member or user (only the user itself can do that).
-     Identity policies are delegated to the parent and its descendants.
-     The delegated policies apply to all descendant's accesses.
-    """
-
-    metatype: "ObjectType" = betterproto.enum_field(1)
-    id: str = betterproto.string_field(2)
-    ck: str = betterproto.string_field(3)
-    parent_ptr: Optional["NodeReferenceData"] = betterproto.message_field(4, optional=True)
-    package_ptr: "NodeReferenceData" = betterproto.message_field(5)
-    bench_ptr: "NodeReferenceData" = betterproto.message_field(6)
-    template_ptr: Optional["NodeReferenceData"] = betterproto.message_field(7, optional=True)
-    templated_epoch: Optional[int] = betterproto.int64_field(8, optional=True)
-    revision: int = betterproto.int64_field(10)
-    created_at: datetime = betterproto.message_field(11)
-    created_epoch: int = betterproto.int64_field(12)
-    updated_at: datetime = betterproto.message_field(13)
-    updated_epoch: int = betterproto.int64_field(14)
-    deleted_at: Optional[datetime] = betterproto.message_field(15, optional=True)
-    archived_at: Optional[datetime] = betterproto.message_field(16, optional=True)
-    created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(21, optional=True)
-    updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(22, optional=True)
-    set_properties: List[int] = betterproto.int32_field(29)
-    type_ptr: "NodeReferenceData" = betterproto.message_field(30)
-
-
-@dataclass(eq=False, repr=False)
 class InviteData(betterproto.Message):
     """An invitation to become a member of this Bench."""
 
@@ -2602,6 +2568,7 @@ class LogData(betterproto.Message):
     machine_ptr: Optional["NodeReferenceData"] = betterproto.message_field(76, optional=True)
     server_ptr: Optional["NodeReferenceData"] = betterproto.message_field(77, optional=True)
     user_ptr: Optional["NodeReferenceData"] = betterproto.message_field(78, optional=True)
+    identity_ptr: Optional["NodeReferenceData"] = betterproto.message_field(79, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2877,35 +2844,6 @@ class RecordData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class RoleData(betterproto.Message):
-    """
-    Attach a role to a block or member.
-     Role policies are delegated to the parent and its descendants.
-     The delegated policies apply to all descendant's accesses.
-    """
-
-    metatype: "ObjectType" = betterproto.enum_field(1)
-    id: str = betterproto.string_field(2)
-    ck: str = betterproto.string_field(3)
-    parent_ptr: Optional["NodeReferenceData"] = betterproto.message_field(4, optional=True)
-    package_ptr: "NodeReferenceData" = betterproto.message_field(5)
-    bench_ptr: "NodeReferenceData" = betterproto.message_field(6)
-    template_ptr: Optional["NodeReferenceData"] = betterproto.message_field(7, optional=True)
-    templated_epoch: Optional[int] = betterproto.int64_field(8, optional=True)
-    revision: int = betterproto.int64_field(10)
-    created_at: datetime = betterproto.message_field(11)
-    created_epoch: int = betterproto.int64_field(12)
-    updated_at: datetime = betterproto.message_field(13)
-    updated_epoch: int = betterproto.int64_field(14)
-    deleted_at: Optional[datetime] = betterproto.message_field(15, optional=True)
-    archived_at: Optional[datetime] = betterproto.message_field(16, optional=True)
-    created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(21, optional=True)
-    updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(22, optional=True)
-    set_properties: List[int] = betterproto.int32_field(29)
-    type_ptr: "NodeReferenceData" = betterproto.message_field(30)
-
-
-@dataclass(eq=False, repr=False)
 class RunData(betterproto.Message):
     """
     A 'run' of Blocks (and Steps within them) or 'lambdas' (just Code/Text).
@@ -2973,6 +2911,7 @@ class RunData(betterproto.Message):
     machine_ptr: Optional["NodeReferenceData"] = betterproto.message_field(76, optional=True)
     server_ptr: Optional["NodeReferenceData"] = betterproto.message_field(77, optional=True)
     user_ptr: Optional["NodeReferenceData"] = betterproto.message_field(78, optional=True)
+    identity_ptr: Optional["NodeReferenceData"] = betterproto.message_field(79, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -3078,6 +3017,7 @@ class SignalData(betterproto.Message):
     machine_ptr: Optional["NodeReferenceData"] = betterproto.message_field(76, optional=True)
     server_ptr: Optional["NodeReferenceData"] = betterproto.message_field(77, optional=True)
     user_ptr: Optional["NodeReferenceData"] = betterproto.message_field(78, optional=True)
+    identity_ptr: Optional["NodeReferenceData"] = betterproto.message_field(79, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -3173,6 +3113,9 @@ class StepData(betterproto.Message):
     node_ptr: Optional["NodeReferenceData"] = betterproto.message_field(43, optional=True)
     code: Optional["CodeData"] = betterproto.message_field(44, optional=True)
     condition: Optional["ExpressionData"] = betterproto.message_field(45, optional=True)
+    roles_ptr: List["NodeReferenceData"] = betterproto.message_field(46)
+    identity_ptr: Optional["NodeReferenceData"] = betterproto.message_field(47, optional=True)
+    policies: List["PolicyData"] = betterproto.message_field(48)
     position: Optional["OffsetData"] = betterproto.message_field(50, optional=True)
     background_color: Optional["ColorData"] = betterproto.message_field(51, optional=True)
     is_template: bool = betterproto.bool_field(60)
@@ -3369,26 +3312,24 @@ class SomeNodeData(betterproto.Message):
     view: "ViewData" = betterproto.message_field(15, group="node")
     step: "StepData" = betterproto.message_field(16, group="node")
     badge: "BadgeData" = betterproto.message_field(17, group="node")
-    role: "RoleData" = betterproto.message_field(18, group="node")
-    identity: "IdentityData" = betterproto.message_field(19, group="node")
-    membership: "MembershipData" = betterproto.message_field(20, group="node")
-    invite: "InviteData" = betterproto.message_field(21, group="node")
-    session: "SessionData" = betterproto.message_field(22, group="node")
-    run: "RunData" = betterproto.message_field(23, group="node")
-    signal: "SignalData" = betterproto.message_field(24, group="node")
-    log: "LogData" = betterproto.message_field(25, group="node")
-    notification: "NotificationData" = betterproto.message_field(26, group="node")
-    message: "MessageData" = betterproto.message_field(27, group="node")
-    record: "RecordData" = betterproto.message_field(28, group="node")
-    server: "ServerData" = betterproto.message_field(29, group="node")
-    store: "StoreData" = betterproto.message_field(30, group="node")
-    machine: "MachineData" = betterproto.message_field(31, group="node")
-    drive: "DriveData" = betterproto.message_field(32, group="node")
-    blob: "BlobData" = betterproto.message_field(33, group="node")
-    handle: "HandleData" = betterproto.message_field(34, group="node")
-    user: "UserData" = betterproto.message_field(35, group="node")
-    organization: "OrganizationData" = betterproto.message_field(36, group="node")
-    client: "ClientData" = betterproto.message_field(37, group="node")
+    membership: "MembershipData" = betterproto.message_field(18, group="node")
+    invite: "InviteData" = betterproto.message_field(19, group="node")
+    session: "SessionData" = betterproto.message_field(20, group="node")
+    run: "RunData" = betterproto.message_field(21, group="node")
+    signal: "SignalData" = betterproto.message_field(22, group="node")
+    log: "LogData" = betterproto.message_field(23, group="node")
+    notification: "NotificationData" = betterproto.message_field(24, group="node")
+    message: "MessageData" = betterproto.message_field(25, group="node")
+    record: "RecordData" = betterproto.message_field(26, group="node")
+    server: "ServerData" = betterproto.message_field(27, group="node")
+    store: "StoreData" = betterproto.message_field(28, group="node")
+    machine: "MachineData" = betterproto.message_field(29, group="node")
+    drive: "DriveData" = betterproto.message_field(30, group="node")
+    blob: "BlobData" = betterproto.message_field(31, group="node")
+    handle: "HandleData" = betterproto.message_field(32, group="node")
+    user: "UserData" = betterproto.message_field(33, group="node")
+    organization: "OrganizationData" = betterproto.message_field(34, group="node")
+    client: "ClientData" = betterproto.message_field(35, group="node")
 
 
 @dataclass(eq=False, repr=False)
@@ -4881,8 +4822,6 @@ AnyNodeData = Union[
     ViewData,
     StepData,
     BadgeData,
-    RoleData,
-    IdentityData,
     MembershipData,
     InviteData,
     SessionData,

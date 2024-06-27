@@ -35,6 +35,7 @@ import {
   TypeKind,
   PackageData,
   Anchor,
+  EditType,
 } from "@/proto/wire";
 import {
   describeNode,
@@ -592,6 +593,31 @@ export function createField(
 //
 // Enums
 //
+
+export const EDIT_TYPE_PRESENT_VERB: Record<EditType, string> = {
+  [EditType.UNSPECIFIED]: "???",
+  [EditType.CREATE]: "creates",
+  [EditType.UPSERT]: "upserts",
+  [EditType.UPDATE]: "updates",
+  [EditType.MOVE]: "moves",
+  [EditType.ARCHIVE]: "archives",
+  [EditType.UNARCHIVE]: "unarchives",
+  [EditType.DELETE]: "deletes",
+  [EditType.RESTORE]: "restores",
+  [EditType.ERASE]: "erases",
+}
+export const EDIT_TYPE_PAST_VERB: Record<EditType, string> = {
+  [EditType.UNSPECIFIED]: "???",
+  [EditType.CREATE]: "created",
+  [EditType.UPSERT]: "upserted",
+  [EditType.UPDATE]: "updated",
+  [EditType.MOVE]: "moved",
+  [EditType.ARCHIVE]: "archived",
+  [EditType.UNARCHIVE]: "unarchived",
+  [EditType.DELETE]: "deleted",
+  [EditType.RESTORE]: "restored",
+  [EditType.ERASE]: "erased",
+}
 
 // NOTE: we soft-limit the subset of available enum options in bench-web
 //  (in code and backend the entire ranges are available)

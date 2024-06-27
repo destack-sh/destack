@@ -1,3 +1,4 @@
+import sys
 import time
 from pathlib import Path
 from typing import Optional
@@ -6,6 +7,7 @@ import structlog
 import typer
 from more_itertools import first
 from rich import print
+from rich.console import Console
 
 from bench.cli.utils import async_to_sync_blocking
 from bench.language import Bench, Environment, Store
@@ -15,6 +17,7 @@ from bench.sql.core import Schema
 from bench.sql.engine import (
     GLOBAL_SCHEMA,
     LOCAL_SCHEMA,
+    SqlUndefinedObjectError,
 )
 from bench.sql.migration import (
     Migration,
@@ -39,6 +42,7 @@ from bench.utils.utils import format_python
 
 logger = structlog.get_logger(__name__)
 app = typer.Typer(short_help="migration management")
+console = Console()
 
 
 @app.command(help="generate global / local SQL migrations")
@@ -80,13 +84,18 @@ async def make(
     # diff local
     if not no_local:
         if not from_scratch:
-            async with global_session(global_store, (global_pg_engine,), REAL_ORACLE):
-                bench_node = (
-                    await Bench.descendants(Environment, Store).select_all().get(slug=bench)
-                )
-                assert bench_node.main_environment, f"{bench!r} has no main environment"
-                async with pg_store_connection(bench_node.main_environment.store) as cur:
-                    old_local_schema = await introspect_sql_schema(cur)
+            try:
+                async with global_session(global_store, (global_pg_engine,), REAL_ORACLE):
+                    bench_node = (
+                        await Bench.descendants(Environment, Store).select_all().get(slug=bench)
+                    )
+                    assert bench_node.main_environment, f"{bench!r} has no main environment"
+                    async with pg_store_connection(bench_node.main_environment.store) as cur:
+                        old_local_schema = await introspect_sql_schema(cur)
+            except SqlUndefinedObjectError as e:
+                # missing from_scratch flag?
+                console.print(f"[red]couldn't make migrations (missing --from-scratch?): {e}[/red]")
+                sys.exit(-1)
         else:
             old_local_schema = Schema.blank()
         local_migration_ops = generate_sql_migration_ops(old_local_schema, LOCAL_SCHEMA)

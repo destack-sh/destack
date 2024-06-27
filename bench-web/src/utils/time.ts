@@ -80,13 +80,14 @@ type FormatDurationOptions = {
  * Like 3.7s, 48m, 2d, 1w, 3y.
  */
 export function formatDuration(duration: Duration, options?: FormatDurationOptions): string {
-  const { minUnit = "ms",  maxUnit = "y", minValue, tooSmall = "now",precision, short = true } = options ?? {};
+  const { minUnit = "ms", maxUnit = "y", minValue, tooSmall = "now", precision, short = true } = options ?? {};
   const durationMs = duration.as("milliseconds");
 
   // find largest unit that fits
   let currentUnit: TimeUnit = minUnit;
-  for (const unit of TIME_UNITS_SHORT) {
-    if (durationMs >= TIME_UNIT_MILLIS[unit] && TIME_UNITS_SHORT.indexOf(unit) <= TIME_UNITS_SHORT.indexOf(maxUnit)) {
+  for (let i = TIME_UNITS_SHORT.indexOf(minUnit); i <= TIME_UNITS_SHORT.indexOf(maxUnit); i++) {
+    const unit = TIME_UNITS_SHORT[i];
+    if (durationMs >= TIME_UNIT_MILLIS[unit]) {
       currentUnit = unit;
     }
   }

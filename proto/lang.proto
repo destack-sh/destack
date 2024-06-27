@@ -99,10 +99,8 @@ enum BenchType {
   BENCH_TYPE_VIEW = 34;
   BENCH_TYPE_STEP = 35;
   BENCH_TYPE_BADGE = 60;
-  BENCH_TYPE_ROLE = 61;
-  BENCH_TYPE_IDENTITY = 62;
-  BENCH_TYPE_MEMBERSHIP = 63;
-  BENCH_TYPE_INVITE = 64;
+  BENCH_TYPE_MEMBERSHIP = 61;
+  BENCH_TYPE_INVITE = 62;
   BENCH_TYPE_SESSION = 80;
   BENCH_TYPE_RUN = 81;
   BENCH_TYPE_SIGNAL = 82;
@@ -668,10 +666,8 @@ enum NodeType {
   NODE_TYPE_VIEW = 34;
   NODE_TYPE_STEP = 35;
   NODE_TYPE_BADGE = 60;
-  NODE_TYPE_ROLE = 61;
-  NODE_TYPE_IDENTITY = 62;
-  NODE_TYPE_MEMBERSHIP = 63;
-  NODE_TYPE_INVITE = 64;
+  NODE_TYPE_MEMBERSHIP = 61;
+  NODE_TYPE_INVITE = 62;
   NODE_TYPE_SESSION = 80;
   NODE_TYPE_RUN = 81;
   NODE_TYPE_SIGNAL = 82;
@@ -717,10 +713,8 @@ enum ObjectType {
   OBJECT_TYPE_VIEW = 34;
   OBJECT_TYPE_STEP = 35;
   OBJECT_TYPE_BADGE = 60;
-  OBJECT_TYPE_ROLE = 61;
-  OBJECT_TYPE_IDENTITY = 62;
-  OBJECT_TYPE_MEMBERSHIP = 63;
-  OBJECT_TYPE_INVITE = 64;
+  OBJECT_TYPE_MEMBERSHIP = 61;
+  OBJECT_TYPE_INVITE = 62;
   OBJECT_TYPE_SESSION = 80;
   OBJECT_TYPE_RUN = 81;
   OBJECT_TYPE_SIGNAL = 82;
@@ -1744,6 +1738,7 @@ message SessionContextData {
   optional NodeReferenceData machine_ptr = 76;
   optional NodeReferenceData server_ptr = 77;
   optional NodeReferenceData user_ptr = 78;
+  optional NodeReferenceData identity_ptr = 79;
 }
 
 // A connection between two Steps in a FlowBlock.
@@ -1962,7 +1957,7 @@ message BlobData {
   optional google.protobuf.Timestamp expires_at = 44;
 }
 
-// A building block containing logic, types, UI, data, AI, - any Bench program source.
+// A building block with logic, types, UI, data, auth, AI, ...
 message BlockData {
   ObjectType metatype = 1;
   string id = 2;
@@ -1985,7 +1980,6 @@ message BlockData {
   BlockType type = 30;
   string name = 32;
   string order_key = 33;
-  repeated PolicyData policies = 34;
   repeated NodeReferenceData bases_ptr = 35;
   optional TextData text = 36;
   optional IconData icon = 37;
@@ -1995,6 +1989,9 @@ message BlockData {
   optional google.protobuf.Struct secret_value_packed = 41;
   optional CodeData code = 42;
   optional RunOptionsData run_options = 43;
+  repeated NodeReferenceData roles_ptr = 46;
+  optional NodeReferenceData identity_ptr = 47;
+  repeated PolicyData policies = 48;
   repeated PolicyData delegated_policies = 49;
   bool is_builtin = 60;
   bool is_page = 61;
@@ -2197,31 +2194,6 @@ message HandleData {
   string slug = 30;
 }
 
-// Attach an identity to a block, member or user (only the user itself can do that).
-// Identity policies are delegated to the parent and its descendants.
-// The delegated policies apply to all descendant's accesses.
-message IdentityData {
-  ObjectType metatype = 1;
-  string id = 2;
-  string ck = 3;
-  optional NodeReferenceData parent_ptr = 4;
-  NodeReferenceData package_ptr = 5;
-  NodeReferenceData bench_ptr = 6;
-  optional NodeReferenceData template_ptr = 7;
-  optional int64 templated_epoch = 8;
-  int64 revision = 10;
-  google.protobuf.Timestamp created_at = 11;
-  int64 created_epoch = 12;
-  google.protobuf.Timestamp updated_at = 13;
-  int64 updated_epoch = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
-  optional google.protobuf.Timestamp archived_at = 16;
-  optional NodeReferenceData created_by_ptr = 21;
-  optional NodeReferenceData updated_by_ptr = 22;
-  repeated int32 set_properties = 29;
-  NodeReferenceData type_ptr = 30;
-}
-
 // An invitation to become a member of this Bench.
 message InviteData {
   ObjectType metatype = 1;
@@ -2338,6 +2310,7 @@ message LogData {
   optional NodeReferenceData machine_ptr = 76;
   optional NodeReferenceData server_ptr = 77;
   optional NodeReferenceData user_ptr = 78;
+  optional NodeReferenceData identity_ptr = 79;
 }
 
 // A Machine provides some isolated compute for a Server.
@@ -2574,31 +2547,6 @@ message RecordData {
   optional google.protobuf.Struct secret_value_packed = 31;
 }
 
-// Attach a role to a block or member.
-// Role policies are delegated to the parent and its descendants.
-// The delegated policies apply to all descendant's accesses.
-message RoleData {
-  ObjectType metatype = 1;
-  string id = 2;
-  string ck = 3;
-  optional NodeReferenceData parent_ptr = 4;
-  NodeReferenceData package_ptr = 5;
-  NodeReferenceData bench_ptr = 6;
-  optional NodeReferenceData template_ptr = 7;
-  optional int64 templated_epoch = 8;
-  int64 revision = 10;
-  google.protobuf.Timestamp created_at = 11;
-  int64 created_epoch = 12;
-  google.protobuf.Timestamp updated_at = 13;
-  int64 updated_epoch = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
-  optional google.protobuf.Timestamp archived_at = 16;
-  optional NodeReferenceData created_by_ptr = 21;
-  optional NodeReferenceData updated_by_ptr = 22;
-  repeated int32 set_properties = 29;
-  NodeReferenceData type_ptr = 30;
-}
-
 // A 'run' of Blocks (and Steps within them) or 'lambdas' (just Code/Text).
 // When 'running' something that's not directly runnable (like a Text Block, Text Step or Text Lambda),
 // we implicitly pass it to the corresponding default Text program.
@@ -2651,6 +2599,7 @@ message RunData {
   optional NodeReferenceData machine_ptr = 76;
   optional NodeReferenceData server_ptr = 77;
   optional NodeReferenceData user_ptr = 78;
+  optional NodeReferenceData identity_ptr = 79;
 }
 
 // A server provides some compute for a Bench's Runtime.
@@ -2742,6 +2691,7 @@ message SignalData {
   optional NodeReferenceData machine_ptr = 76;
   optional NodeReferenceData server_ptr = 77;
   optional NodeReferenceData user_ptr = 78;
+  optional NodeReferenceData identity_ptr = 79;
 }
 
 // A reference to another node in some graph that wasn't available for some reason (usually permissions).
@@ -2825,6 +2775,9 @@ message StepData {
   optional NodeReferenceData node_ptr = 43;
   optional CodeData code = 44;
   optional ExpressionData condition = 45;
+  repeated NodeReferenceData roles_ptr = 46;
+  optional NodeReferenceData identity_ptr = 47;
+  repeated PolicyData policies = 48;
   optional OffsetData position = 50;
   optional ColorData background_color = 51;
   bool is_template = 60;
@@ -3007,26 +2960,24 @@ message SomeNodeData {
     ViewData view = 15;
     StepData step = 16;
     BadgeData badge = 17;
-    RoleData role = 18;
-    IdentityData identity = 19;
-    MembershipData membership = 20;
-    InviteData invite = 21;
-    SessionData session = 22;
-    RunData run = 23;
-    SignalData signal = 24;
-    LogData log = 25;
-    NotificationData notification = 26;
-    MessageData message = 27;
-    RecordData record = 28;
-    ServerData server = 29;
-    StoreData store = 30;
-    MachineData machine = 31;
-    DriveData drive = 32;
-    BlobData blob = 33;
-    HandleData handle = 34;
-    UserData user = 35;
-    OrganizationData organization = 36;
-    ClientData client = 37;
+    MembershipData membership = 18;
+    InviteData invite = 19;
+    SessionData session = 20;
+    RunData run = 21;
+    SignalData signal = 22;
+    LogData log = 23;
+    NotificationData notification = 24;
+    MessageData message = 25;
+    RecordData record = 26;
+    ServerData server = 27;
+    StoreData store = 28;
+    MachineData machine = 29;
+    DriveData drive = 30;
+    BlobData blob = 31;
+    HandleData handle = 32;
+    UserData user = 33;
+    OrganizationData organization = 34;
+    ClientData client = 35;
   };
 }
 

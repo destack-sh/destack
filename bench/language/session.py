@@ -640,6 +640,9 @@ class HasSessionContext(BuiltinObject):
         77, require=False, array=False, references=NodeType.SERVER, same_bench=True
     )
     user: Optional["User"] = p_internal(78, require=False, array=False, references=NodeType.USER)
+    identity: Optional["Block"] = p_internal(
+        79, require=False, array=False, references=NodeType.BLOCK
+    )
 
     if TYPE_CHECKING:
         block_ptr: Optional[NodeReference] = None
@@ -651,6 +654,7 @@ class HasSessionContext(BuiltinObject):
         machine_ptr: Optional[NodeReference] = None
         server_ptr: Optional[NodeReference] = None
         user_ptr: Optional[NodeReference] = None
+        identity_ptr: Optional[NodeReference] = None
 
 
 @struct_(StructType.SESSION_CONTEXT, inline=True)
