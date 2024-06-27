@@ -2,7 +2,8 @@
 
 import functools
 import re
-from typing import TYPE_CHECKING, Any, Optional, TypeVar, Union, cast
+from collections.abc import Collection
+from typing import TYPE_CHECKING, Any, Optional, Sequence, TypeVar, Union, cast
 
 from bench.language.const import (
     IN_BENCH_NODE_TYPES,
@@ -387,8 +388,108 @@ def coerce_sort(
     return coerced
 
 
-def matches_expression(expression: Expression, value: Any) -> bool:
-    return True  # nocheckin
+def evaluate_conditional(cond: Expression, node: Node | AnyNodeData) -> bool:
+    """Evaluates the conditional expression against the node."""
+    assert cond.kind == ExpressionKind.CONDITIONAL, f"expected Conditional, got {cond!r}"
+    # logical
+    if cond.op == ConditionalOp.NOT:
+        assert cond.clauses, f"expected 1 clause, got {cond!r}"
+        return not evaluate_conditional(cond.clauses[0], node)
+    elif cond.op == ConditionalOp.AND:
+        assert cond.clauses, f"expected 1+ clauses, got {cond!r}"
+        return all(evaluate_conditional(clause, node) for clause in cond.clauses)
+    elif cond.op == ConditionalOp.OR:
+        assert cond.clauses, f"expected 1+ clauses, got {cond!r}"
+        return any(evaluate_conditional(clause, node) for clause in cond.clauses)
+
+    # some property-based comparison
+    prop = cond.property
+    assert prop is not None, f"expected Conditional with property, got {cond!r}"
+    if prop.reference_wired_ptr is not None:
+        prop = prop.reference_wired_ptr
+    node_value = getattr(node, prop.py_ident)
+    cond_value = cond.value  # NOTE :Broken?: when do we need to unpack condition value here?
+    # basic comparison
+    if cond.op == ConditionalOp.EQUALS:
+        return node_value == cond_value
+    elif cond.op == ConditionalOp.NOT_EQUALS:
+        return node_value != cond_value
+    elif cond.op == ConditionalOp.GREATER_THAN:
+        return node_value > cond_value
+    elif cond.op == ConditionalOp.GREATER_THAN_OR_EQUALS:
+        return node_value >= cond_value
+    elif cond.op == ConditionalOp.LESS_THAN:
+        return node_value < cond_value
+    elif cond.op == ConditionalOp.LESS_THAN_OR_EQUALS:
+        return node_value <= cond_value
+    # string comparison
+    elif cond.op == ConditionalOp.MATCHES_REGEX:
+        assert isinstance(cond_value, str), f"expected str value, got {cond_value!r}"
+        return node_value is not None and re.match(cond_value, node_value) is not None
+    elif cond.op == ConditionalOp.STARTS_WITH:
+        assert isinstance(cond_value, str), f"expected str value, got {cond_value!r}"
+        return node_value is not None and node_value.startswith(cond_value)
+    elif cond.op == ConditionalOp.ENDS_WITH:
+        assert isinstance(cond_value, str), f"expected str value, got {cond_value!r}"
+        return node_value is not None and node_value.endswith(cond_value)
+    # containment
+    elif cond.op == ConditionalOp.CONTAINS:
+        return isinstance(node_value, Collection) and cond_value in node_value
+    elif cond.op == ConditionalOp.NOT_CONTAINS:
+        return isinstance(node_value, Collection) and cond_value not in node_value
+    elif cond.op == ConditionalOp.IN:
+        assert isinstance(cond_value, Collection), f"expected Collection value, got {cond_value!r}"
+        return node_value in cond_value
+    elif cond.op == ConditionalOp.NOT_IN:
+        assert isinstance(cond_value, Collection), f"expected Collection value, got {cond_value!r}"
+        return node_value not in cond_value
+    # existence
+    elif cond.op == ConditionalOp.EXISTS:
+        return node_value is not None
+    elif cond.op == ConditionalOp.NOT_EXISTS:
+        return node_value is None
+    # vector
+    elif cond.op == ConditionalOp.NEAR:
+        raise RuntimeError(f"cannot evaluate vector expression {cond!r}")
+    # unknown
+    else:
+        raise RuntimeError(f"unsupported conditional {cond!r}")
+
+
+def _compare_sort_key(
+    sorts: Sequence[Expression], a: Node | AnyNodeData, b: Node | AnyNodeData
+) -> int:
+    """Compares the two values based on the given sort expressions."""
+    for sort in sorts:
+        prop = sort.property
+        assert prop is not None, f"expected Sort with property, got {sort!r}"
+        if prop.reference_wired_ptr is not None:
+            prop = prop.reference_wired_ptr
+        a_value = getattr(a, prop.py_ident)
+        b_value = getattr(b, prop.py_ident)
+        if a_value == b_value:
+            continue
+        if prop.primitive_type is not None and (
+            prop.primitive_type.is_numeric
+            or prop.primitive_type
+            in (PrimitiveType.STRING, PrimitiveType.DATETIME, PrimitiveType.INTERVAL)
+        ):
+            cmp = -1 if a_value < b_value else 1
+            if sort.op == SortOp.DESCENDING:
+                cmp = -cmp
+            return cmp
+        else:
+            raise RuntimeError(f"unsupported sort {sort!r}")
+    return 0
+
+
+def apply_sort[T: AnyNodeData | Node](sorts: Sequence[Expression], values: list[T]) -> list[T]:
+    """Sorts the values in place for the given expression"""
+    if not sorts:
+        return values  # nothing to do
+    assert all(sort.kind == ExpressionKind.SORT for sort in sorts), f"expected Sorts, got {sorts!r}"
+    values.sort(key=functools.cmp_to_key(lambda a, b: _compare_sort_key(sorts, a, b)))
+    return values
 
 
 # single-letter convenience constructors
@@ -405,9 +506,6 @@ C = functools.partial(E, _expect_t=ExpressionKind.CONDITIONAL)
 S = functools.partial(E, _expect_t=ExpressionKind.SORT)
 A = functools.partial(E, _expect_t=ExpressionKind.AGGREGATION)
 
-SCORE_KEY = "_score"  # for ranking
-METATYPE_KEY = "_type"
-
 
 #
 # Type query ops
@@ -420,27 +518,26 @@ class UnsupportedExpressionError(ValueError):
         super().__init__(f"{type!r} does not support {thing!r}")
 
 
-def _check_type_supports(type: "TypeInfoBase", op: ExpressionOp):
+def _check_type_supports(typ: "TypeInfoBase", op: ExpressionOp):
     """Asserts that the field supports the given expression operator."""
     if op in SortOp:
-        if type.primitive_type in (
-            PrimitiveType.DATETIME,
-            PrimitiveType.FLOAT32,
-            PrimitiveType.INT32,
-            PrimitiveType.INT64,
+        if typ.primitive_type is not None and (
+            typ.primitive_type.is_numeric
+            or typ.primitive_type
+            in (PrimitiveType.STRING, PrimitiveType.DATETIME, PrimitiveType.INTERVAL)
         ):
             return
     else:
         if (
             op in _ExprOps.COND_EXISTENCE
             or (
-                type.primitive_type is not None
-                and op in SUPPORTED_PRIMITIVE_OPS.get(type.primitive_type, _EMPTY_SET)
+                typ.primitive_type is not None
+                and op in SUPPORTED_PRIMITIVE_OPS.get(typ.primitive_type, _EMPTY_SET)
             )
-            or (type.bench_type is not None and op in SUPPORTED_NODE_OPS)
+            or (typ.bench_type is not None and op in SUPPORTED_NODE_OPS)
         ):
             return
-    raise UnsupportedExpressionError(type, op)
+    raise UnsupportedExpressionError(typ, op)
 
 
 # should probably also have expression support per query engine?
@@ -448,12 +545,15 @@ _ExprOps = ExpressionOps  # alias
 SUPPORTED_PRIMITIVE_OPS: dict[PrimitiveType, set[ConditionalOp]] = {
     # cumulative supported query ops by type
     PrimitiveType.UUID: _ExprOps.COND_RANGE | _ExprOps.COND_EXACT,
+    PrimitiveType.INT16: _ExprOps.COND_RANGE | _ExprOps.COND_EXACT,
     PrimitiveType.INT32: _ExprOps.COND_RANGE | _ExprOps.COND_EXACT,
     PrimitiveType.INT64: _ExprOps.COND_RANGE | _ExprOps.COND_EXACT,
+    PrimitiveType.DECIMAL: _ExprOps.COND_RANGE | _ExprOps.COND_EXACT,
     PrimitiveType.FLOAT32: _ExprOps.COND_RANGE | _ExprOps.COND_EXACT,
     PrimitiveType.FLOAT64: _ExprOps.COND_RANGE | _ExprOps.COND_EXACT,
     PrimitiveType.BOOLEAN: _ExprOps.COND_EXACT,
     PrimitiveType.DATETIME: _ExprOps.COND_RANGE | _ExprOps.COND_EXACT,
+    PrimitiveType.INTERVAL: _ExprOps.COND_RANGE | _ExprOps.COND_EXACT,
     PrimitiveType.VECTOR: _ExprOps.COND_VECTOR,
     PrimitiveType.STRING: _ExprOps.COND_EXACT | _ExprOps.COND_RANGE | _ExprOps.COND_STRING,
 }
@@ -563,9 +663,13 @@ class _TypeQueryBuilder:
     def starts_with(self: Any, value: str) -> "Expression":
         return _to_conditional(ConditionalOp.STARTS_WITH, self, value=value)
 
+    startswith = starts_with
+
     @_require_expression_op(ConditionalOp.ENDS_WITH)
     def ends_with(self: Any, value: str) -> "Expression":
         return _to_conditional(ConditionalOp.ENDS_WITH, self, value=value)
+
+    endswith = ends_with
 
     # containment
 

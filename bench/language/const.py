@@ -672,6 +672,10 @@ class PrimitiveType(IdEnum):
     DATETIME = 30
     INTERVAL = 31
 
+    @property
+    def is_numeric(self) -> bool:
+        return self.id >= 5 and self.id <= 15
+
 
 PrimitiveValue = bool | int | float | str | bytes | UUID | datetime | timedelta
 

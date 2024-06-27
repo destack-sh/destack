@@ -71,8 +71,9 @@ python_files = "test/**/*.py test/*.py"
 python_classes = "!TestProfile"
 log_cli = true
 addopts = [
-	"--color=yes",
 	'-rP',
+	"-vv",
+	"--color=yes",
 	'--strict-markers',
 	'--hypothesis-show-statistics',
 ]

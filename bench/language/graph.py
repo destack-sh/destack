@@ -188,7 +188,8 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
             node.id, self.key_type
         ), f"cannot remove {node!r} with id {node.id!r} in {self!r}"
         existing = self._nodes_by_id.pop(node.id, None)
-        assert existing is not None, f"node {node!r} not in {self!r}"
+        if existing is None:
+            raise GraphConsistencyError(f"node {node!r} does not exist in {self!r}")
         if hasattr(node, "ck"):
             self._nodes_by_ck.pop(getattr(node, "ck"), None)
         if node.parent_ptr is not None:
