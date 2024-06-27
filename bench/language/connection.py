@@ -698,13 +698,13 @@ class SearchConnection[ChannelT: Channel](
                 result.graph.remove(node)
 
         # update 'roots' list
+        result_data.roots_ptr = update.roots_ptr
         new_roots_data: list[AnyNodeData] = []
         for root_ptr in result_data.roots_ptr:
             root = result_data.graph.get(cast(str, root_ptr.id))
             assert root is not None, f"missing root for update: {root_ptr!r}"
             new_roots_data.append(root)
         result_data.roots = new_roots_data
-        result_data.roots_ptr = result_data.roots_ptr
         if result is not None:  # and update unpacked result
             new_roots: list[Node] = []
             for root_data in result_data.roots_ptr:

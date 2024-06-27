@@ -113,7 +113,7 @@ class Simulation:
         self._terminated_at_ns = None
 
     def __str__(self):
-        return f"{self.id}"
+        return f"'{self.id}'"
 
     def __repr__(self):
         return f"<{self.__class__.__name__} {self!s}>"
