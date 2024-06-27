@@ -1,5 +1,5 @@
 import { getHostClient } from "@/proto/services";
-import { BenchData, BranchData, NodeType, SpaceType } from "@/proto/wire";
+import { BenchData, BranchData, EditCategory, NodeType, SpaceType } from "@/proto/wire";
 import {
   makeScope,
   nodeReference,
@@ -59,7 +59,9 @@ export const inspectionBasePtr = computed(() => space.value?.basePtr);
 export const { connection: spaceConnection } = useExistingConnection(local.spacePtr, {
   isOptional: true,
 });
-export const canvas = new ViewCanvas(local.spacePtr, spaceGraph, () => spaceConnection.tx);
+export const canvas = new ViewCanvas(local.spacePtr, spaceGraph, () =>
+  spaceConnection.tx.with({ category: EditCategory.SPACE }),
+);
 export const allSpaces = pkgGraph.getChildrenRef(pkg, NodeType.SPACE);
 export const ownedSpacesInPkg = computed(() =>
   local.userInfo.value == null ? [] : allSpaces.value.filter((s) => s.createdByPtr?.id == local.userInfo.value?.id),

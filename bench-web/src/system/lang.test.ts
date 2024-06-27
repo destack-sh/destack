@@ -17,7 +17,6 @@ describe("order keys", () => {
 
     // 'fix' order keys with minimal edits
     const tx = new TransactionBuilder({
-      connectionId: null,
       subject: toNodeReference(fabricate(ObjectType.USER)),
       state: new TransactionState(uuidt(), EMPTY_SCOPE),
     });

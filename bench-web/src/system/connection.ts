@@ -200,7 +200,7 @@ function makeConnectionOverlayGraph(
     //  we probably want to emulate even more of the backend live connesction logic (e.g., optimistic search results).
     // (the reason for having the connection filter below is that while the backend properly filters edits per connection,
     //  here we distribute optimistic edits to across the per-bench tx buffer, so the edit might not be relevant)
-    if (event.connectionId != null && event.connectionId != connection.meta.id) return;
+    if (event.meta.connectionId != null && event.meta.connectionId != connection.meta.id) return;
     if (event.type == "reset") overlay.clear();
     editGraph(overlay, event.edits, { base: base });
   });
@@ -294,7 +294,7 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
   }
 
   get tx(): Transaction {
-    return this.txBuffer.tx.getSubtransaction(this.meta.id);
+    return this.txBuffer.tx.with({ connectionId: this.meta.id });
   }
 
   incRefCount(): void {
