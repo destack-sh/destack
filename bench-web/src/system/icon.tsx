@@ -159,8 +159,6 @@ export const ICON_BY_NODE_TYPE: Partial<Record<NodeType, IconData>> = _makeIcons
 
   // auth
   [NodeType.BADGE]: "fas fa-id-badge",
-  [NodeType.ROLE]: "fas fa-user-tag",
-  [NodeType.IDENTITY]: "fas fa-image-user",
   [NodeType.MEMBERSHIP]: "fas fa-book-user",
   [NodeType.INVITE]: "fas fa-circle-nodes",
 

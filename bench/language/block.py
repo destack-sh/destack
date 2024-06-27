@@ -78,7 +78,7 @@ assert len(IDENTIFIER_TYPE_BY_BLOCK_TYPE) == len(BlockType)
 
 @node_(NodeType.BLOCK, passthrough="value")
 class Block(SourceNode[BlockData], HasValues):
-    """A building block containing logic, types, UI, data, AI, - any Bench program source."""
+    """A building block with logic, types, UI, data, auth, AI, ..."""
 
     parent: Union["Block", "Package", None] = p_node_parent(4, NodeType.BLOCK, NodeType.PACKAGE)
 
@@ -86,7 +86,6 @@ class Block(SourceNode[BlockData], HasValues):
     type: BlockType = p_internal(30)
     name: str = p_regular(32, constraint=NAME_CONSTRAINT)
     order_key: str = p_internal(33, default=INTEGER_ZERO)
-    policies: list["Policy"] = p_regular(34, array=True, struct=StructType.POLICY)
     bases: list["Block"] = p_regular(35, require=False, array=True, references=NodeType.BLOCK)
     text: Optional["Text"] = p_regular(
         36, default=None, require=False, array=False, struct=StructType.TEXT
@@ -105,7 +104,12 @@ class Block(SourceNode[BlockData], HasValues):
     run_options: Optional["RunOptions"] = p_regular(
         43, default=None, require=False, array=False, struct=StructType.RUN_OPTIONS
     )
-    delegated_policies: list["Policy"] = p_regular(49, array=True, struct=StructType.POLICY)
+    roles: list["Block"] = p_regular(46, require=False, array=True, references=NodeType.BLOCK)
+    identity: Optional["Block"] = p_regular(47, require=False, references=NodeType.BLOCK)
+    policies: list["Policy"] = p_regular(48, require=False, array=True, struct=StructType.POLICY)
+    delegated_policies: list["Policy"] = p_regular(
+        49, require=False, array=True, struct=StructType.POLICY
+    )
 
     # flags
     is_builtin: bool = p_system(

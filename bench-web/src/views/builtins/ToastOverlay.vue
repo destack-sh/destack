@@ -9,7 +9,7 @@ const props = defineProps<{ anchor: ToastAnchor; box: { left: number; top: numbe
 const isInverted = computed(() => props.anchor == "top-left" || props.anchor == "top-right");
 
 // enter from top/bottom
-const TOAST_WIDTH = 320;
+const TOAST_WIDTH = 360;
 const MAX_TOASTS = 5;
 
 const ENTER_FROM_BY_ANCHOR: Record<ToastAnchor, string> = {
@@ -49,7 +49,7 @@ const absoluteStyle = computed(() => {
 <template>
   <TransitionGroup
     tag="ul"
-    class="fixed z-50 flex gap-y-2 p-2"
+    class="fixed z-50 flex p-2"
     data-outside-view="true"
     :class="[isInverted ? 'flex-col-reverse' : 'flex-col']"
     :style="absoluteStyle"
@@ -66,13 +66,8 @@ const absoluteStyle = computed(() => {
       v-for="toast in visibleToasts"
       :key="toast.id"
       :style="{ width: TOAST_WIDTH + 'px' }"
-      class="group/toast relative rounded border border-gray-300 bg-white px-4 py-3"
+      class="group/toast relative rounded border border-gray-300 bg-white px-3.5 py-2.5"
     >
-      <!-- Level indicator -->
-      <div
-        class="absolute left-0 top-0 h-1 w-full rounded transition-transform duration-200"
-        :class="BG_COLOR_BY_LEVEL[toast.level]"
-      />
       <!-- Body -->
       <div class="flex flex-row">
         <!-- Icon -->

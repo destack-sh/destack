@@ -37,7 +37,7 @@ from bench.language.const import (
     StructType,
     UseType,
 )
-from bench.language.graph import NodeDataGraph, NodeGraph, NodeList, NodeSuperGraph
+from bench.language.graph import NodeDataGraph, NodeGraph, NodeSuperGraph
 from bench.language.node import (
     NODE_CLASS_BY_TYPE,
     InlineStruct,
@@ -50,7 +50,6 @@ from bench.language.node import (
 from bench.language.property import (
     Property,
     p_internal,
-    p_node_children,
     p_node_parent,
     p_regular,
     p_runtime,
@@ -62,7 +61,7 @@ from bench.language.setup import (
     _on_completing_setup,
 )
 from bench.language.text import Text
-from bench.language.user import Membership, User
+from bench.language.user import User
 from bench.language.validation import NAME_CONSTRAINT, ValidationError
 from bench.proto.wire import AnyNodeData, EditData, NodeReferenceData
 from bench.utils.func import IdEnum, bittuple
@@ -82,6 +81,7 @@ LEGISLATIVE_NODE_TYPES: bittuple[NodeType] = bittuple(
     NodeType.PACKAGE,
     NodeType.SPACE,
     NodeType.BLOCK,
+    NodeType.STEP,
 )
 
 
@@ -124,36 +124,6 @@ class Badge(SourceNode):
     password_hash: Optional[str] = p_internal(
         43, default=None, encrypt=True, defer=True, sensitive=True
     )
-
-
-@node_(NodeType.ROLE)
-class Role(SourceNode):
-    """
-    Attach a role to a block or member.
-    Role policies are delegated to the parent and its descendants.
-    The delegated policies apply to all descendant's accesses.
-    """
-
-    parent: Union["Block", "Membership", None] = p_node_parent(  # type: ignore
-        4, NodeType.BLOCK, NodeType.MEMBERSHIP
-    )
-    type: "Block" = p_regular(30, array=False, require=True, references=NodeType.BLOCK)
-
-
-@node_(NodeType.IDENTITY)
-class Identity(SourceNode):
-    """
-    Attach an identity to a block, member or user (only the user itself can do that).
-    Identity policies are delegated to the parent and its descendants.
-    The delegated policies apply to all descendant's accesses.
-    """
-
-    parent: Union["Block", "Membership", "User", None] = p_node_parent(  # type: ignore
-        4, NodeType.BLOCK, NodeType.MEMBERSHIP, NodeType.USER
-    )
-    type: "Block" = p_regular(30, array=False, require=True, references=NodeType.BLOCK)
-
-    roles: NodeList["Role"] = p_node_children(NodeType.ROLE)
 
 
 @struct_(StructType.POLICY)
@@ -436,8 +406,8 @@ class Subject(Struct):
         server_ptr: Optional[NodeReference] = None
 
     # accessories
-    identity: Optional["Identity"] = p_system(
-        50, default=None, require=False, array=False, references=NodeType.IDENTITY
+    identity: Optional["Block"] = p_system(
+        50, default=None, require=False, array=False, references=NodeType.BLOCK
     )
     badges: list["Badge"] = p_system(51, require=False, array=True, references=NodeType.BADGE)
     owned: list[Ownable] = p_system(
@@ -446,7 +416,7 @@ class Subject(Struct):
     memberships: list[Union["Bench", "Organization"]] = p_system(
         53, require=False, array=True, references=NodeType.MEMBERSHIP
     )
-    roles: list["Role"] = p_system(54, require=False, array=True, references=NodeType.ROLE)
+    roles: list["Block"] = p_system(54, require=False, array=True, references=NodeType.BLOCK)
 
     def split_into_acting_subjects(self, graph: NodeDataGraph) -> tuple["Subject", ...]:
         """

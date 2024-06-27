@@ -30,7 +30,7 @@ from bench.sql.core import Constraint, ConstraintType
 from bench.utils.casing import IdentifierType
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Client, Icon, NodeReference, Package, Role, Text
+    from bench.language import Bench, Block, Client, Icon, NodeReference, Package, Text
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -147,9 +147,6 @@ class Membership(SourceNode[MembershipData]):
     user: "User" = p_internal(30, require=True, array=False, references=NodeType.USER)
     is_owner: bool = p_regular(31, default=False)
 
-    # roles are defined (and resolved) in the main bench
-    roles: NodeList["Role"] = p_node_children(NodeType.ROLE)
-
 
 @node_(NodeType.INVITE)
 class Invite(SourceNode[InviteData]):
@@ -161,4 +158,4 @@ class Invite(SourceNode[InviteData]):
 
     # membership properties once accepted
     is_owner: bool = p_regular(32, default=False)
-    roles: list["Role"] = p_regular(33, require=False, array=True, references=NodeType.ROLE)
+    roles: list["Block"] = p_regular(33, require=False, array=True, references=NodeType.BLOCK)

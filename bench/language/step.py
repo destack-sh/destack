@@ -28,6 +28,7 @@ if TYPE_CHECKING:
         Field,
         Icon,
         Offset,
+        Policy,
         RunOptions,
         Text,
         Trigger,
@@ -104,6 +105,9 @@ class Step(SourceNode[StepData], HasValues):
     condition: Optional["Expression"] = p_regular(
         45, require=False, array=False, default=None, struct=StructType.EXPRESSION
     )
+    roles: list["Block"] = p_regular(46, require=False, array=True, references=NodeType.BLOCK)
+    identity: Optional["Block"] = p_regular(47, require=False, references=NodeType.BLOCK)
+    policies: list["Policy"] = p_regular(48, require=False, array=True, struct=StructType.POLICY)
 
     # layout/style ('view')
     position: Optional["Offset"] = p_regular(
