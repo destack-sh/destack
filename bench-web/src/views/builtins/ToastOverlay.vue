@@ -63,10 +63,11 @@ const absoluteStyle = computed(() => {
   >
     <!-- Toasts -->
     <li
-      v-for="toast in visibleToasts"
+      v-for="(toast, i) in visibleToasts"
       :key="toast.id"
       :style="{ width: TOAST_WIDTH + 'px' }"
-      class="group/toast relative rounded border border-gray-300 bg-white px-3.5 py-2.5"
+      class="group/toast relative border border-gray-300 bg-white px-3.5 py-2.5"
+      :class="[i == 0 ? 'rounded-t' : '', i == visibleToasts.length - 1 ? 'rounded-b' : 'border-b-0']"
     >
       <!-- Body -->
       <div class="flex flex-row">
@@ -89,7 +90,7 @@ const absoluteStyle = computed(() => {
       <!-- Actions -->
       <div v-if="toast.actions.length > 0" class="mt-1.5 flex w-full justify-end gap-x-3">
         <button
-          v-for="(action, i) in toast.actions"
+          v-for="action in toast.actions"
           :key="i"
           class="group/action max-w-20 truncate font-medium"
           @click="action.action(), toaster.dismiss(toast)"
@@ -99,7 +100,10 @@ const absoluteStyle = computed(() => {
         </button>
       </div>
       <!-- Dismiss -->
-      <button class="absolute right-3 top-2.5 text-gray-300 group-hover/toast:text-gray-400" @click="toaster.dismiss(toast)">
+      <button
+        class="absolute right-3 top-2.5 text-gray-300 group-hover/toast:text-gray-400"
+        @click="toaster.dismiss(toast)"
+      >
         <i class="fas fa-xmark hover:text-primary-900" />
       </button>
     </li>

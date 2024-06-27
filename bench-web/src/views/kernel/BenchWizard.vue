@@ -72,8 +72,7 @@ defineExpose({ self, focus });
     <div>
       <h2 class="text-2xl font-semibold">Create your Bench</h2>
       <p class="mt-2 text-gray-500">
-        <span v-if="state == 'create-bench'">You're off the waitlist. Let's go!</span>
-        <span v-else-if="state == 'all-set'">You already have a Bench.</span>
+        <span v-if="state == 'all-set'">You already have a Bench.</span>
       </p>
     </div>
     <!-- Data -->

@@ -1,5 +1,3 @@
-version: '3'
-
 services:
   postgres:
     image: timescale/timescaledb:latest-pg16
@@ -50,10 +48,8 @@ services:
       #  (and then manually configure this 'localhost' cert as 'Always Trust' in Keychain Access)
       - ./infra/local_cert.key:/etc/envoy/ssl/cert.key
       - ./infra/local_cert.pem:/etc/envoy/ssl/cert.pem
-    # can't use network_mode: host because it's only supported on Linux
-    ports:
-      - '8080:8080'
-      - '9901:9901'
+    network_mode: host
+    # ports: 8080 & 9901 are not needed in host network mode
 
   jaeger:
     image: jaegertracing/all-in-one:latest
@@ -62,6 +58,7 @@ services:
       - 4317:4317 # OTLP gRPC receiver
       - 4318:4318 # OTLP http receiver
       - 9411:9411 # Zipkin receiver
+
 volumes:
   postgres_data:
   minio_data:
