@@ -592,6 +592,7 @@ class Host(GraphIoServiceBase, HostApi, HostBase):
                 revision=log_data.revision,
                 new_node_packed=pack_node_delta(log_data),
                 edited_at=log_data.created_at,
+                subject_ptr=edit.subject_ptr,
             )
             log_edits.append(create_log_edit)
 

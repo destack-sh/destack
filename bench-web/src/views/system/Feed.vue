@@ -140,7 +140,7 @@ defineExpose<ViewExposed>({ self, id });
                 v-bind="item.subject != null ? getNodeIcon(item.subject) : null"
                 class="mr-1.5 text-gray-700"
               />
-              <span>{{ (item.node as any)?.name ?? toCamelName(NodeType, item.it.createdByPtr.type) }}</span>
+              <span>{{ (item.subject as any)?.name ?? toCamelName(NodeType, item.it.createdByPtr.type) }}</span>
             </button>
             <span v-else class="italic text-gray-900">System</span>
             <!-- Verb -->
