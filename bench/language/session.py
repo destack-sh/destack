@@ -610,6 +610,16 @@ class EditContext(InlineStruct):
     run_root: Optional["Run"] = p_internal(
         74, require=False, array=False, references=NodeType.RUN, same_bench=True
     )
+    identity: Optional["Block"] = p_internal(
+        75, require=False, array=False, references=NodeType.BLOCK
+    )
+    if TYPE_CHECKING:
+        block_ptr: Optional[NodeReference] = None
+        step_ptr: Optional[NodeReference] = None
+        session_ptr: Optional[NodeReference] = None
+        run_ptr: Optional[NodeReference] = None
+        run_root_ptr: Optional[NodeReference] = None
+        identity_ptr: Optional[NodeReference] = None
 
 
 @object_component()
@@ -643,7 +653,6 @@ class HasSessionContext(BuiltinObject):
     identity: Optional["Block"] = p_internal(
         79, require=False, array=False, references=NodeType.BLOCK
     )
-
     if TYPE_CHECKING:
         block_ptr: Optional[NodeReference] = None
         step_ptr: Optional[NodeReference] = None

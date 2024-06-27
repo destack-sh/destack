@@ -454,7 +454,8 @@ def pg_compile_conditional(
         return sqlstr("NULL")
     elif cond.op in ExpressionOps.COND_LOGICAL and cond.op in PG_CONDITIONAL_OP_BY_BENCH:
         clauses = [pg_compile_conditional(node, c) for c in cond.clauses or ()]
-        return SqlCompound(op=PG_CONDITIONAL_OP_BY_BENCH[cond.op], operands=clauses)
+        clause = SqlCompound(op=PG_CONDITIONAL_OP_BY_BENCH[cond.op], operands=clauses)
+        return clause
     elif (
         cond.op in ExpressionOps.COND_COMPARISON or cond.op in ExpressionOps.COND_STRING
     ) and cond.op in PG_CONDITIONAL_OP_BY_BENCH:
@@ -473,16 +474,30 @@ def pg_compile_conditional(
             return SqlComparison(left=left, op=op, right=right)
         elif cond.op == ConditionalOp.STARTS_WITH:
             right = sqlstr("{} || '%'").format(sql.Literal(cond.value))
+        elif cond.op == ConditionalOp.ENDS_WITH:
+            right = sqlstr("'%s' || {}").format(sql.Literal(cond.value))
         else:
             assert cond.value is not None, f"cannot compare {cond!r} with None"
             right = sql.Literal(cond.value)
 
-        return SqlComparison(left=left, op=PG_CONDITIONAL_OP_BY_BENCH[cond.op], right=right)
+        clause = SqlComparison(left=left, op=PG_CONDITIONAL_OP_BY_BENCH[cond.op], right=right)
+
+        # coerce x != y to (x != y or x IS NULL) if x is nullable
+        if cond.op == ConditionalOp.NOT_EQUALS and (
+            cond.property is not None and not cond.property.is_required
+        ):
+            null_clause = SqlUnary(
+                op=PostgresConditionalOp.IS_NULL, left=_compile_expression_ref(node, cond)
+            )
+            clause = SqlCompound(op=PostgresConditionalOp.OR, operands=[clause, null_clause])
+
+        return clause
     elif cond.op in ExpressionOps.COND_EXISTENCE:
-        return SqlUnary(
+        clause = SqlUnary(
             left=_compile_expression_ref(node, cond),
             op=PG_CONDITIONAL_OP_BY_BENCH[cond.op],
         )
+        return clause
     raise ChannelIncapableError("postgres", expression=cond, reason="unsupported conditional")
 
 

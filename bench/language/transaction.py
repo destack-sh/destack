@@ -66,6 +66,13 @@ def new_edit_id() -> str:
     return str(UUIDT())
 
 
+@enum_(EnumType.EDIT_CATEGORY)
+class EditCategory(IdEnum):
+    """Optional classification for edits."""
+
+    SPACE = 10
+
+
 @struct_(StructType.EDIT, inline=True)
 class Edit(InlineStruct):
     """
@@ -102,34 +109,37 @@ class Edit(InlineStruct):
         description="The new values for the edited properties (if any.)",
     )
 
-    # context
+    # meta
     scope: GraphScope = p_system(
         40, require=True, struct=StructType.GRAPH_SCOPE, description="Enclosing scope of the edit."
     )
     change_key: UUID | None = p_system(
         41, require=False, description="The change that this edit is part of."
     )
+    category: EditCategory | None = p_system(
+        42, require=False, description="Optional classification for the edit."
+    )
     subject: EditSubject | None = p_system(
-        42, require=False, references=EDIT_SUBJECT_TYPES, description="Who made the edit."
+        43, require=False, references=EDIT_SUBJECT_TYPES, description="Who made the edit."
     )
     origin: ClientOrigin | None = p_system(
-        43, require=False, struct=StructType.CLIENT_ORIGIN, description="Where the edit came from."
+        44, require=False, struct=StructType.CLIENT_ORIGIN, description="Where the edit came from."
     )
     context: "EditContext | None" = p_system(
-        44,
+        45,
         require=False,
         struct=StructType.EDIT_CONTEXT,
         description="Additional per edit context for servers.",
     )
-    edited_at: datetime = p_system(45, require=True, description="When the edit was made.")
+    edited_at: datetime = p_system(46, require=True, description="When the edit was made.")
     revision: int | None = p_system(
-        46,
+        47,
         require=False,
         description="New revision of the edited node.",
         primitive_type=PrimitiveType.INT64,
     )
     epoch: int | None = p_system(
-        47,
+        48,
         require=False,
         description="Epoch at that edit (client if submitting, system if accepted).",
         primitive_type=PrimitiveType.INT64,
@@ -148,7 +158,11 @@ class ChangeKind(IdEnum):
 
 @struct_(StructType.CHANGE)
 class Change(Struct):
-    """A change is a sequence of related edits."""
+    """
+    A change is a sequence of related edits.
+    Any edit not associated with a change is implicitly in its own change.
+    The 'key' is the id the change will have in the Log.
+    """
 
     key: UUID = p_system(30, default_factory=UUIDT)
     kind: ChangeKind = p_internal(31, require=True, description="The kind of change.")

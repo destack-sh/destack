@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.06.27.1"
+VERSION = "2024.06.27.2"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -203,11 +203,12 @@ class BenchType(betterproto.Enum):
     VISIBILITY = 2010
     CHANGE_KIND = 2011
     ACCESS_MODE = 2030
-    ACCESS_KIND = 2033
-    READ_TYPE = 2034
-    EDIT_TYPE = 2035
-    USE_TYPE = 2036
-    ACCESS_TYPE = 2037
+    ACCESS_KIND = 2031
+    READ_TYPE = 2032
+    EDIT_TYPE = 2033
+    USE_TYPE = 2034
+    ACCESS_TYPE = 2035
+    EDIT_CATEGORY = 2036
     POLICY_EFFECT = 2040
     REGION = 2050
     TENANCY = 2051
@@ -391,6 +392,13 @@ class Day(betterproto.Enum):
     SUNDAY = 7
 
 
+class EditCategory(betterproto.Enum):
+    """Optional classification for edits."""
+
+    UNSPECIFIED = 0
+    SPACE = 10
+
+
 class EditType(betterproto.Enum):
     """Ways to edit nodes."""
 
@@ -416,11 +424,12 @@ class EnumType(betterproto.Enum):
     VISIBILITY = 2010
     CHANGE_KIND = 2011
     ACCESS_MODE = 2030
-    ACCESS_KIND = 2033
-    READ_TYPE = 2034
-    EDIT_TYPE = 2035
-    USE_TYPE = 2036
-    ACCESS_TYPE = 2037
+    ACCESS_KIND = 2031
+    READ_TYPE = 2032
+    EDIT_TYPE = 2033
+    USE_TYPE = 2034
+    ACCESS_TYPE = 2035
+    EDIT_CATEGORY = 2036
     POLICY_EFFECT = 2040
     REGION = 2050
     TENANCY = 2051
@@ -653,8 +662,8 @@ class LiteralOp(betterproto.Enum):
 
 class LogKind(betterproto.Enum):
     UNSPECIFIED = 0
-    EDIT = 1
-    CHANGE = 2
+    CHANGE = 1
+    EDIT = 2
 
 
 class LogLevel(betterproto.Enum):
@@ -1379,7 +1388,11 @@ class BoxData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class ChangeData(betterproto.Message):
-    """A change is a sequence of related edits."""
+    """
+    A change is a sequence of related edits.
+     Any edit not associated with a change is implicitly in its own change.
+     The 'key' is the id the change will have in the Log.
+    """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     id: int = betterproto.int32_field(2)
@@ -1490,12 +1503,13 @@ class EditData(betterproto.Message):
     )
     scope: "GraphScopeData" = betterproto.message_field(40)
     change_key: Optional[str] = betterproto.string_field(41, optional=True)
-    subject_ptr: Optional["NodeReferenceData"] = betterproto.message_field(42, optional=True)
-    origin: Optional["ClientOriginData"] = betterproto.message_field(43, optional=True)
-    context: Optional["EditContextData"] = betterproto.message_field(44, optional=True)
-    edited_at: datetime = betterproto.message_field(45)
-    revision: Optional[int] = betterproto.int64_field(46, optional=True)
-    epoch: Optional[int] = betterproto.int64_field(47, optional=True)
+    category: Optional["EditCategory"] = betterproto.enum_field(42, optional=True)
+    subject_ptr: Optional["NodeReferenceData"] = betterproto.message_field(43, optional=True)
+    origin: Optional["ClientOriginData"] = betterproto.message_field(44, optional=True)
+    context: Optional["EditContextData"] = betterproto.message_field(45, optional=True)
+    edited_at: datetime = betterproto.message_field(46)
+    revision: Optional[int] = betterproto.int64_field(47, optional=True)
+    epoch: Optional[int] = betterproto.int64_field(48, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -1510,6 +1524,7 @@ class EditContextData(betterproto.Message):
     session_ptr: Optional["NodeReferenceData"] = betterproto.message_field(72, optional=True)
     run_ptr: Optional["NodeReferenceData"] = betterproto.message_field(73, optional=True)
     run_root_ptr: Optional["NodeReferenceData"] = betterproto.message_field(74, optional=True)
+    identity_ptr: Optional["NodeReferenceData"] = betterproto.message_field(75, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2558,7 +2573,9 @@ class LogData(betterproto.Message):
     )
     new_revision: Optional[int] = betterproto.int64_field(47, optional=True)
     change_ptr: Optional["NodeReferenceData"] = betterproto.message_field(48, optional=True)
+    category: Optional["EditCategory"] = betterproto.enum_field(49, optional=True)
     nodes_ptr: List["NodeReferenceData"] = betterproto.message_field(50)
+    nodes_total: Optional[int] = betterproto.int32_field(51, optional=True)
     block_ptr: Optional["NodeReferenceData"] = betterproto.message_field(70, optional=True)
     step_ptr: Optional["NodeReferenceData"] = betterproto.message_field(71, optional=True)
     session_ptr: Optional["NodeReferenceData"] = betterproto.message_field(72, optional=True)
