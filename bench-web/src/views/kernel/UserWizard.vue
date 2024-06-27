@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import { NodeType, Region, Variant, ViewData, type NodeReferenceData } from "@/proto/wire";
 import type { TypedNodeReferenceData } from "@/proto/wiring";
+import { fireActionById } from "@/system/action";
 import { benchPtr } from "@/system/client";
 import { useExistingConnection } from "@/system/connection";
 import { makeIcon } from "@/system/icon";
@@ -102,9 +103,7 @@ defineExpose<ViewExposed>({ self, focus });
   <div class="mx-auto mt-24 h-fit min-w-80 max-w-96 rounded border border-gray-200 bg-white px-9 py-7 text-gray-900">
     <!-- Header -->
     <div>
-      <h2 class="text-2xl font-semibold">
-        {{ title }}
-      </h2>
+      <h2 class="text-2xl font-semibold">{{ title }}</h2>
       <p class="mt-2 text-gray-500">
         <span v-if="state === 'log-in'">Log into an existing Bench account.</span>
         <span v-else-if="state === 'sign-up'">Create a new Bench account.</span>
@@ -172,13 +171,12 @@ defineExpose<ViewExposed>({ self, focus });
         @click="() => setState(state == 'log-in' ? 'sign-up' : 'log-in')"
       />
       <Button
-        v-if="state == 'all-set'"
-        name="Close"
-        :icon="makeIcon({ faName: 'fas fa-xmark' })"
-        :title="'Close'"
-        class="w-full"
-        :variant="Variant.COMPACT"
-        @click="() => canvas.removeView(spaceConnection.tx, spaceGraph, spaceGraph.get(self) as ViewData)"
+        v-if="state === 'all-set'"
+        name="Activate"
+        :icon="makeIcon({ faName: 'fas fa-shuffle' })"
+        title="Activate"
+        class="mt-2 w-full"
+        @click="() => fireActionById('user.auth.activate')"
       />
     </div>
   </div>
