@@ -1,11 +1,12 @@
 import abc
 import asyncio
+from itertools import chain
 from typing import Any, ClassVar, final, override
 
 import structlog
 from opentelemetry import trace
 
-from bench.language import Session, Subject
+from bench.language import NodeReference, Session, Subject
 from bench.language.connection import (
     AggregateOptions,
     AggregateResultData,
@@ -18,7 +19,7 @@ from bench.language.connection import (
     WatchSearchUpdate,
 )
 from bench.language.const import EditType, NodeType, ReadType
-from bench.language.expression import matches_expression
+from bench.language.expression import apply_sort, evaluate_conditional
 from bench.language.graph import NodeDataGraphLike
 from bench.language.query import DEFAULT_READ_OPTIONS, QueryBuilder
 from bench.language.transaction import unpack_node_delta
@@ -347,6 +348,7 @@ class SearchConnection(NodeConnection[SearchResultData, WatchSearchUpdate]):
 
     def __init__(self, scope: GraphScopeData, query: QueryBuilder, oracle: Oracle):
         super().__init__(scope, query, oracle)
+        #   and we also need to separate roots from descendants/ancestors (like in Runs).
         self._filter = query._filter
         self._result_roots_ids: set[str] | None = None
 
@@ -377,49 +379,83 @@ class SearchConnection(NodeConnection[SearchResultData, WatchSearchUpdate]):
         assert self._result_data is not None, f"no result for {self!r}"
         assert self._result_roots_ids is not None, f"no result for {self!r}"
 
+        # NOTE :Incomplete: support ancestors/descendants in (live) search connection
+        #  This seems tricky because we'll have to re-query somehow when a new root is added
+        #   (we don't have its ancestors/descendants ready anywhere),
+        #  and because we need to somehow split roots from descendants/ancestors if they
+        #  are the same type (like when querying Runs with some filter and their descendants).
+
         # filter all edits to figure out new roots
-        # nocheckin: handle added_nodes/removed_nodes_ptr
+        relevant_edits: list[EditData] = []
         added_nodes: list[AnyNodeData] = []
         removed_nodes_ptr: list[NodeReferenceData] = []
-        relevant_edits: list[EditData] = []
-        for edit in edits:
+        for edit in chain(edits, cascaded_edits):
             if edit.node_ptr.type != self.query._node_type:
                 continue
             node_id = edit.node_ptr.id
             assert node_id, f"missing node id for {edit.node_ptr!r} in {edit!r}"
             node = self._unpack_edited_node(graph, edit)
-            is_relevant = self._filter is None or matches_expression(self._filter, node)
+            is_relevant = self._filter is None or evaluate_conditional(self._filter, node)
             is_extant = node_id in self._result_roots_ids
             if not is_relevant and not is_extant:
                 continue  # ignore irrelevant edit
-            # handle relevant edit
-            relevant_edits.append(edit)
+            is_add = edit.type in (EditType.CREATE, EditType.UPSERT) or (
+                edit.type in (EditType.UNARCHIVE, EditType.RESTORE)
+                and not DEFAULT_READ_OPTIONS.include_hidden
+            )
+            is_remove = edit.type == EditType.ERASE or (
+                edit.type in (EditType.ARCHIVE, EditType.DELETE)
+                and not DEFAULT_READ_OPTIONS.include_hidden
+            )
             if is_extant:
-                is_remove = edit.type == EditType.ERASE or (
-                    edit.type in (EditType.ARCHIVE, EditType.DELETE)
-                    and not DEFAULT_READ_OPTIONS.include_hidden
-                )
                 if is_relevant and not is_remove:
+                    # regular update
+                    relevant_edits.append(edit)
                     self._result_data.graph.update(node)
-                if not is_relevant or is_remove:
+                elif not is_relevant or is_remove:
+                    # remove (either because no longer relevant or directly removed)
+                    if is_remove:
+                        relevant_edits.append(edit)
+                    else:
+                        removed_nodes_ptr.append(edit.node_ptr)
                     self._result_roots_ids.remove(node_id)
                     self._result_data.graph.remove(node)
-                    self._result_data.roots_ptr = [  # inefficient
-                        ptr for ptr in self._result_data.roots_ptr if ptr.id != node_id
+                    self._result_data.roots = [
+                        node for node in self._result_data.roots if node.id != node_id
                     ]
                     if self._result_data.total is not None:
                         self._result_data.total -= 1
             else:  # is_relevant
+                # add (either because now relevant or directly added)
+                if is_add:
+                    relevant_edits.append(edit)
+                elif is_remove:
+                    continue  # skip irrelevant remove (wasn't extant.. can this happen?)
+                else:
+                    added_nodes.append(node)
                 self._result_roots_ids.add(node_id)
                 self._result_data.graph.add(node)
-                self._result_data.roots_ptr.append(edit.node_ptr)
+                self._result_data.roots.insert(0, node)  # insert at front
                 if self._result_data.total is not None:
                     self._result_data.total += 1
 
-        # nocheckin: SearchConnection sort & limit
-        if relevant_edits:
+        if relevant_edits or added_nodes or removed_nodes_ptr:
+            # apply sort & limit
+            if self.query._sort:
+                apply_sort(self.query._sort, self._result_data.roots)
+            if self.query._first is not None:
+                trimmed = self._result_data.roots[self.query._first :]
+                self._result_data.roots = self._result_data.roots[: self.query._first]
+                for node in trimmed:
+                    removed_nodes_ptr.append(NodeReference.from_node_data(node))
+                    self._result_data.graph.remove(node)
+                    self._result_roots_ids.remove(node.id)
+            self._result_data.roots_ptr = [
+                NodeReference.from_node_data(node) for node in self._result_data.roots
+            ]
+
+            # emit update
             update = WatchSearchUpdate(
-                # nocheckin: SearchConnection rest of edits & cascaded edits
                 edits=relevant_edits,
                 cascaded_edits=[],
                 roots_ptr=self._result_data.roots_ptr,

@@ -10,8 +10,6 @@ export function makeExpression(options: { op: ExpressionOp } & Partial<Expressio
   };
 }
 
-export function makeSort(
-  options: Pick<ExpressionData, "sortMode" | "fieldPtr"> & { op: SortOp },
-): ExpressionData {
+export function makeSort(options: Pick<ExpressionData, "sortMode" | "propertyPtr"> & { op: SortOp }): ExpressionData {
   return makeExpression({ ...(options as unknown as ExpressionData) });
 }
