@@ -230,7 +230,7 @@ export class ViewCanvas {
       if (
         activeElement.value != null &&
         activeElement.value !== document.body &&
-        // NOTE: Chrome pretends that scrollable containers are focusable element, so ignore those.
+        // NOTE: Chrome thinks that scrollable containers are a focusable element, so ignore those.
         //  (Otherwise we would get confused because activeElement change comes after mousedown event,
         //   and if the mousedown'ed target was the next higher container will trigger later, changing focus)
         isFocusableElement(activeElement.value) &&

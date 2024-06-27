@@ -2,6 +2,7 @@ import { HUMANIZED_OPERATION_STATUS, getHostClient, supervisor } from "@/proto/s
 import {
   BlockProperty,
   CommitTransactionRequest,
+  EditCategory,
   EditType,
   GraphScopeData,
   NODE_PROPERTY_ENUM_BY_TYPE,
@@ -11,6 +12,7 @@ import {
   PROPERTY_ENUM_BY_TYPE,
   PROPERTY_INFOS_BY_TYPE,
   Struct as ProtoStruct,
+  TextData,
   Timestamp,
   type AnyNodeData,
   type EditData,
@@ -89,7 +91,7 @@ export type Transaction = {
   /** Adds an externally created edit */
   addEdit(edit: EditData): void;
   /** Gets the sub tx for a specific connection */
-  getSubtransaction(connectionId: number): TransactionBuilder;
+  with(meta: { connectionId?: number; change?: ChangeIn; category?: EditCategory }): Transaction;
 
   /** Create a new node */
   create<T extends NodeType>(
@@ -127,8 +129,8 @@ export class TransactionState {
   readonly edits: EditData[] = [];
 
   readonly _debouncedUpdates: Record<string, EditData> = {};
-  readonly _subs: Array<(edit: EditData, connectionId: number | null, debounce: DebounceLevel | null) => void> = [];
-  readonly _buildersByConnectionId: Record<number, TransactionBuilder> = {};
+  readonly _subs: Array<(edit: EditData, meta: TransactionMeta, debounce: DebounceLevel | null) => void> = [];
+  readonly _txByConnectionId: Record<number, TransactionBuilder> = {};
 
   constructor(id: string, scope: GraphScopeData) {
     this.id = id;
@@ -137,25 +139,42 @@ export class TransactionState {
   }
 }
 
+export type TransactionMeta = {
+  connectionId?: number;
+  subjectRef?: Ref<NodeReferenceData | null>;
+  change?: ChangeIn;
+  category?: EditCategory;
+};
+export type ChangeIn = {
+  key: string;
+  title?: string;
+  text?: TextData;
+};
+
 /**
- *  Build a transaction (maybe for a specific connection)
- *  NOTE :Architecture: it's a bit gnarly that we share some of the tx state across builders (see above),
- *   but I can't think of a much better way to do it right now.
+ * Build a transaction (maybe for a specific connection/change).
+ * We often want to share transaction state across multiple builders with curried info (connectionId, change, category, ...).
  */
-export class TransactionBuilder implements Transaction {
-  public readonly connectionId: number | null;
+export class TransactionBuilder implements TransactionMeta, Transaction {
+  public readonly connectionId: number | undefined;
   public readonly subjectRef: Ref<NodeReferenceData | null>;
+  public readonly change: ChangeIn | undefined;
+  public readonly category: EditCategory | undefined;
 
   state: TransactionState;
 
   constructor(tx: {
-    connectionId: number | null;
-    subject: MaybeRef<NodeReferenceData | null>;
     state: TransactionState;
+    connectionId?: number;
+    subject: MaybeRef<NodeReferenceData | null>;
+    change?: ChangeIn;
+    category?: EditCategory;
   }) {
+    this.state = tx.state;
     this.connectionId = tx.connectionId;
     this.subjectRef = toRef(tx.subject);
-    this.state = tx.state;
+    this.change = tx.change;
+    this.category = tx.category;
   }
 
   get id() {
@@ -175,22 +194,44 @@ export class TransactionBuilder implements Transaction {
     return this.subjectRef.value;
   }
 
-  getSubtransaction(connectionId: number): TransactionBuilder {
-    if (this.state._buildersByConnectionId[connectionId] == null) {
-      this.state._buildersByConnectionId[connectionId] = new TransactionBuilder({
-        connectionId,
-        subject: this.subjectRef,
-        state: this.state,
-      });
+  with(meta: { connectionId?: number; change?: ChangeIn; category?: EditCategory }): Transaction {
+    if (meta.connectionId == this.connectionId && meta.change == this.change && meta.category == this.category) {
+      return this; // no change
     }
-    return this.state._buildersByConnectionId[connectionId];
+
+    let base: TransactionBuilder = this;
+
+    // cache by connection id
+    if (meta.connectionId != null) {
+      if (this.state._txByConnectionId[meta.connectionId] == null) {
+        this.state._txByConnectionId[meta.connectionId] = new TransactionBuilder({
+          state: this.state,
+          subject: this.subjectRef,
+          ...meta,
+        });
+      }
+      base = this.state._txByConnectionId[meta.connectionId];
+    }
+
+    // and split if change/category is specified
+    if (meta.change != null || meta.category != null) {
+      return new TransactionBuilder({
+        state: this.state,
+        connectionId: base.connectionId,
+        subject: base.subjectRef,
+        change: meta.change ?? base.change,
+        category: meta.category ?? base.category,
+      });
+    } else {
+      return base;
+    }
   }
 
   describeSelf(): string {
     return `Transaction(${this.id}, ${this.state.edits.length} edits)`;
   }
 
-  onEdit(sub: (edit: EditData, connectionId: number | null, debounce: DebounceLevel | null) => void): () => void {
+  onEdit(sub: (edit: EditData, meta: TransactionMeta, debounce: DebounceLevel | null) => void): () => void {
     this.state._subs.push(sub);
     return () => {
       const idx = this.state._subs.indexOf(sub);
@@ -263,6 +304,7 @@ export class TransactionBuilder implements Transaction {
       properties: [],
       origin: origin.value,
       subjectPtr: this.subject,
+      category: this.category,
       editedAt: Timestamp.now(),
     };
     this.state.edits.push(edit);
@@ -272,7 +314,7 @@ export class TransactionBuilder implements Transaction {
 
   _notifyEdit(edit: EditData, debounce: DebounceLevel | null) {
     for (const sub of this.state._subs) {
-      sub(edit, this.connectionId, debounce);
+      sub(edit, this, debounce);
     }
   }
 
@@ -574,8 +616,8 @@ type CommitFailure = {
 };
 type PendingCallback = (
   event:
-    | { type: "add"; connectionId: number | null; edits: EditData[]; debounce: DebounceLevel | null }
-    | { type: "reset"; connectionId: number | null; edits: EditData[] },
+    | { type: "add"; meta: TransactionMeta; edits: EditData[]; debounce: DebounceLevel | null }
+    | { type: "reset"; meta: TransactionMeta; edits: EditData[] },
 ) => void;
 type CommittedCallback = (edits: EditData[]) => void;
 
@@ -643,7 +685,6 @@ export class ImmediateTransactionBuffer implements TransactionBuffer {
     // NOTE: we default to null user pointer in immediate transaction buffer since it's only used locally
     //  and we need some 'subject' to create edits (even when not connected to a 'real' remote graph)
     const newTx = new TransactionBuilder({
-      connectionId: null,
       subject: userOrNullPtr,
       state: new TransactionState(uuidt({ nonce: NONCE_POSTFIX }), this.scope),
     });
@@ -788,7 +829,7 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
     this.pendingEditsById = {};
     this.pendingConnectionByEditId = {};
     this.pendingTx = null;
-    this.pendingSubs.forEach((sub) => sub({ type: "reset", connectionId: null, edits: [] }));
+    this.pendingSubs.forEach((sub) => sub({ type: "reset", meta: {}, edits: [] }));
   }
 
   async retry(id: string) {
@@ -803,20 +844,19 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
 
   private _makeCurrentTx() {
     const tx = new TransactionBuilder({
-      connectionId: null, // root tx has no connection
       subject: userPtr,
       state: new TransactionState(newTransactionId(), this.scope),
     });
-    tx.onEdit((edit, connectionId, debounce) => {
+    tx.onEdit((edit, meta, debounce) => {
       if (this.currentTx?.id !== tx.id) throw new Error(`transaction ${tx.describeSelf()} is closed`);
       const pendingConnectionId = this.pendingConnectionByEditId[edit.id];
-      if (pendingConnectionId != null && (!connectionId || connectionId != pendingConnectionId))
+      if (pendingConnectionId != null && (!meta.connectionId || meta.connectionId != pendingConnectionId))
         // ensure connections don't trample on each others edits since we currently only optimistically overlay
         //  edits from the same connection (see connection)
         throw new Error(`edit ${edit.id} already pending in ${pendingConnectionId}`);
       this.pendingEditsById[edit.id] = edit;
-      if (connectionId != null) this.pendingConnectionByEditId[edit.id] = connectionId;
-      this.pendingSubs.forEach((sub) => sub({ type: "add", connectionId, edits: [edit], debounce }));
+      if (meta.connectionId != null) this.pendingConnectionByEditId[edit.id] = meta.connectionId;
+      this.pendingSubs.forEach((sub) => sub({ type: "add", meta, edits: [edit], debounce }));
     });
     return tx;
   }
@@ -840,11 +880,11 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
         newPendingEditsByConnection[connectionId].push(edit);
       }
       this.pendingSubs.forEach((sub) => {
-        sub({ type: "reset", connectionId: null, edits: newPendingEditsByConnection[-1] ?? [] });
+        sub({ type: "reset", meta: {}, edits: newPendingEditsByConnection[-1] ?? [] });
         for (const connectionId of Object.keys(newPendingEditsByConnection)) {
           sub({
             type: "add",
-            connectionId: parseInt(connectionId),
+            meta: { connectionId: parseInt(connectionId) },
             edits: newPendingEditsByConnection[parseInt(connectionId)]!,
             debounce: null,
           });
