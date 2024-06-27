@@ -68,6 +68,8 @@ const DEFAULT_PRECISION_BY_UNIT: Record<TimeUnit, number> = {
 
 type FormatDurationOptions = {
   minUnit?: TimeUnit;
+  minValue?: number;
+  tooSmall?: string;
   maxUnit?: TimeUnit;
   precision?: number;
   short?: boolean;
@@ -78,7 +80,7 @@ type FormatDurationOptions = {
  * Like 3.7s, 48m, 2d, 1w, 3y.
  */
 export function formatDuration(duration: Duration, options?: FormatDurationOptions): string {
-  const { minUnit = "ms", maxUnit = "y", precision, short = true } = options ?? {};
+  const { minUnit = "ms",  maxUnit = "y", minValue, tooSmall = "now",precision, short = true } = options ?? {};
   const durationMs = duration.as("milliseconds");
 
   // find largest unit that fits
@@ -87,6 +89,11 @@ export function formatDuration(duration: Duration, options?: FormatDurationOptio
     if (durationMs >= TIME_UNIT_MILLIS[unit] && TIME_UNITS_SHORT.indexOf(unit) <= TIME_UNITS_SHORT.indexOf(maxUnit)) {
       currentUnit = unit;
     }
+  }
+
+  // if value is too small, use special string
+  if (minValue != null && durationMs < TIME_UNIT_MILLIS[currentUnit] * minValue) {
+    return tooSmall;
   }
 
   // convert & format
@@ -179,9 +186,11 @@ export function humanizeBytes(bytes: number, options?: { cutoff?: number; round?
 
 /** Convert a proto Timestamp to a Luxon DateTime */
 export function tsToDt(timestamp: Timestamp): DateTime {
-  return DateTime.fromSeconds(Number(timestamp.seconds), { zone: "utc" }).plus({
-    milliseconds: Math.ceil(timestamp.nanos / 1000000),
-  }).setZone("local");
+  return DateTime.fromSeconds(Number(timestamp.seconds), { zone: "utc" })
+    .plus({
+      milliseconds: Math.ceil(timestamp.nanos / 1000000),
+    })
+    .setZone("local");
 }
 
 /** Convert a Luxon DateTime to a proto Timestamp */

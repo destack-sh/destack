@@ -29,6 +29,7 @@ import {
   DEFAULT_NODE_FILTER,
   LayerNodeGraph,
   NodeGraph,
+  NodeSuperGraph,
   ProxyNodeGraph,
   type ReadNodeGraph,
   type WriteNodeGraph,
@@ -49,7 +50,18 @@ import { deepValueEquals, immediateStopWatch, pretendReadonly, toValueRef } from
 import type { RpcError } from "@protobuf-ts/runtime-rpc";
 import { tryOnBeforeUnmount, useNetwork, whenever } from "@vueuse/core";
 import { DateTime } from "luxon";
-import { computed, isRef, markRaw, shallowRef, toRef, watch, type MaybeRef, type Ref, type ShallowRef } from "vue";
+import {
+  computed,
+  isRef,
+  markRaw,
+  shallowRef,
+  toRef,
+  triggerRef,
+  watch,
+  type MaybeRef,
+  type Ref,
+  type ShallowRef,
+} from "vue";
 
 export function makeReadOptions(options: Partial<ReadOptionsData>): ReadOptionsData {
   return {
@@ -407,12 +419,39 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
       while (!this.isClosed.value) {
         retrySignal.reset();
         try {
-          const newResult = await this.fetch({ ...this.params, onError });
+          // (re)connect once
+          if (this.isFetching.value) this.abortController?.abort();
+          log.debug(`graph.${this.kind}`, this.meta.name, this.params);
+          this.isFetching.value = true;
+          this.abortController = new AbortController();
+          let newResult;
+          try {
+            newResult = await this.doConnect(
+              getScopeFromParams(this.params),
+              getNodeTypesFromParams(this.params),
+              this.params,
+              this.abortController.signal,
+              (e) => {
+                onError(e);
+                this.abortController?.abort();
+              },
+            );
+            this.abortController = null;
+            log.debug(`graph.${this.kind}.completed`, this.meta.name, this.params, newResult);
+          } finally {
+            if (this.abortController) {
+              // cleanup
+              this.abortController.abort();
+              this.abortController = null;
+            }
+            this.isFetching.value = false;
+          }
           if (this.result.value != null) {
             this.result.value.subs?.forEach((sub) => sub());
           }
           this.result.value = newResult;
 
+          // retry if needed
           if (retryCount > 0) {
             toaster.info({
               key: `connection:${this.meta.id}`,
@@ -435,47 +474,12 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
     establishAndMaintainConnection(); // run async
   }
 
-  /**
-   * Fetch the results of this connection for the given params once.
-   * If live, also updates the results from the source (until aborted).
-   * If there is an error, the fetch is aborted and the onError handler is called.
-   * */
-  async fetch(
-    params: ConnectionParamsMapping<T>[K] & { scope?: GraphScopeData; onError?: (error: Error) => void },
-  ): Promise<ConnectionResultMapping<T>[K] & ConnectionInternalResult> {
-    if (this.isFetching.value) this.abortController?.abort();
-
-    log.debug(`graph.${this.kind}`, this.meta.name, params);
-    this.isFetching.value = true;
-    this.abortController = new AbortController();
-    const onError = (error: Error) => {
-      this.abortController?.abort();
-      params.onError?.(error);
-    };
-
-    try {
-      const scope = params.scope ?? getScopeFromParams(params);
-      const nodeTypes = getNodeTypesFromParams(params);
-      const result = await this.doFetch(scope, nodeTypes, params, this.abortController.signal, onError);
-      this.abortController = null;
-      log.debug(`graph.${this.kind}.completed`, this.meta.name, params, result);
-      return result;
-    } finally {
-      if (this.abortController) {
-        // cleanup
-        this.abortController.abort();
-        this.abortController = null;
-      }
-      this.isFetching.value = false;
-    }
-  }
-
   // NOTE :Robustness: split doFetch into doFetch and doFetchLive?
   //  so we can retry doFetchLive if that connection breaks without refetching everything?
   //  but how would we know where to resume the watch (the epoch is local to the server, so it has to be the same server)?
 
   /** Actually fetch in the relevant connection type. */
-  protected abstract doFetch(
+  protected abstract doConnect(
     scope: GraphScopeData,
     nodeTypes: NodeType[],
     params: ConnectionParamsMapping<T>[K],
@@ -518,7 +522,7 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
 export class RemoteGetConnection<T extends NodeType> extends ConnectionBase<"get", T> {
   readonly kind = "get";
 
-  protected async doFetch(
+  protected async doConnect(
     scope: GraphScopeData,
     nodeTypes: NodeType[],
     params: GetConnectionParams<T>,
@@ -561,7 +565,7 @@ export class RemoteGetConnection<T extends NodeType> extends ConnectionBase<"get
 export class RemoteSearchConnection<T extends NodeType> extends ConnectionBase<"search", T> {
   readonly kind = "search";
 
-  protected async doFetch(
+  protected async doConnect(
     scope: GraphScopeData,
     nodeTypes: NodeType[],
     params: SearchConnectionParams<T>,
@@ -647,7 +651,7 @@ export class LocalGetConnection<T extends NodeType> extends ConnectionBase<"get"
     return Promise.resolve();
   }
 
-  protected async doFetch(
+  protected async doConnect(
     scope: GraphScopeData,
     nodeTypes: NodeType[],
     params: GetConnectionParams<T>,
@@ -768,8 +772,35 @@ const _connections: Ref<ConnectionBase<any, any>[]> = shallowRef([
 export const connections = pretendReadonly(_connections);
 export const hasPendingConnections = computed(() => connections.value.some((c) => !c.isConnected.value));
 
-export function addConnection(connection: ConnectionBase<any, any>): void {
+export const supergraph = new NodeSuperGraph();
+const connectionWatcherByConnection = new Map<any, () => void>();
+
+/** Adds a new connection to the connection set */
+function _addConnection(connection: ConnectionBase<any, any>): void {
   _connections.value = [..._connections.value, connection];
+  const sub = watch(
+    connection.result,
+    (newResult, oldResult) => {
+      if (oldResult != null && "graph" in oldResult) {
+        supergraph.removeGraph(oldResult.graph);
+      }
+      if (newResult != null && "graph" in newResult) {
+        supergraph.addGraph(newResult.graph);
+      }
+    },
+    { immediate: true },
+  );
+  connectionWatcherByConnection.set(connection, sub);
+}
+
+/** Removes a connection from the connection set */
+async function _removeConnection(connection: ConnectionBase<any, any>): Promise<void> {
+  await connection.close();
+  const connectionIdx = _connections.value.indexOf(connection);
+  if (connectionIdx >= 0) _connections.value.splice(connectionIdx, 1);
+  triggerRef(_connections);
+  const sub = connectionWatcherByConnection.get(connection);
+  if (sub) sub();
 }
 
 /** GC inactive (non-local) connections that have been idle for some time */
@@ -783,8 +814,7 @@ async function gcInactiveConnections() {
   );
   if (inactiveConnections.length > 0) {
     log.debug("graph.gcInactiveConnections", { count: inactiveConnections.length });
-    await Promise.all(inactiveConnections.map((c) => c.close()));
-    _connections.value = _connections.value.filter((c) => !inactiveConnections.includes(c));
+    await Promise.all(inactiveConnections.map((c) => _removeConnection(c)));
   }
 }
 
@@ -868,7 +898,7 @@ async function acquireNewConnection<K extends GraphConnectionKind, T extends Nod
     throw new Error(`unsupported connection kind: ${kind}`);
   }
   connection = markRaw(connection); // ensure it's never proxied
-  addConnection(connection);
+  _addConnection(connection);
   connection.incRefCount();
 
   // connect

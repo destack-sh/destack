@@ -20,7 +20,18 @@ import {
 import { defaultSortNode, toCamelName } from "@/system/lang";
 import { computedValue, manualSubRef, watchValue, type SubRef } from "@/utils/ref";
 import { tryOnBeforeUnmount } from "@vueuse/core";
-import { isRef, shallowRef, toRef, watch, type MaybeRef, type Ref, type ShallowRef, type WatchSource } from "vue";
+import {
+  isRef,
+  ref,
+  shallowRef,
+  toRef,
+  triggerRef,
+  watch,
+  type MaybeRef,
+  type Ref,
+  type ShallowRef,
+  type WatchSource,
+} from "vue";
 
 /** A NodeReference but with proper typing */
 export type NodeKey<T extends NodeType> = { type?: T; id?: string; ck?: string };
@@ -1179,4 +1190,108 @@ export function getGroupedChildrenRef<T extends NodeType>(walk: {
 /** Whether child is a descendant of parent */
 export function isDescendantOf(graph: ReadNodeGraph, child: NodeKey<any>, parent: NodeKey<any>): boolean {
   return graph.getAncestors(child, { includeSelf: true }).some((ancestor) => ancestor.id == parent.id);
+}
+
+/**
+ * A supergraph composed of multiple subgraphs.
+ * Used for global resolution of nodes across multiple graphs.
+ * Graphs are searched in order, first match wins. We assume that that there are no meaningful overlaps.
+ */
+export class NodeSuperGraph {
+  graphs: Ref<ReadNodeGraph[]>;
+
+  constructor(graphs: ReadNodeGraph[] = []) {
+    this.graphs = shallowRef(graphs);
+  }
+
+  /**
+   * Adds a graph to the supergraph.
+   */
+  addGraph(graph: ReadNodeGraph) {
+    this.graphs.value.push(graph);
+    triggerRef(this.graphs);
+  }
+
+  /**
+   * Removes a graph from the supergraph.
+   */
+  removeGraph(graph: ReadNodeGraph) {
+    const idx = this.graphs.value.indexOf(graph);
+    if (idx >= 0) {
+      this.graphs.value.splice(idx, 1);
+      triggerRef(this.graphs);
+    }
+  }
+
+  /**
+   * Gets a node from the supergraph.
+   */
+  get<T extends NodeType>(key: NodeKey<T>): NodeTypeMapping[T] | null {
+    for (const graph of this.graphs.value) {
+      const node = graph.get(key);
+      if (node != null) return node;
+    }
+    return null;
+  }
+
+  /**
+   * Gets a node from the supergraph maybe.
+   */
+  getMaybe<T extends NodeType>(key: NodeKey<T> | null): NodeTypeMapping[T] | null {
+    if (key == null) return null;
+    else return this.get(key);
+  }
+
+  /**
+   * Subscribe to any change in the given key
+   * Unlike ReadNodeGraph, we only subscribe to the first graph containing the node if it exists (otherwise all).
+   */
+  subscribe(key: { id?: string; ck?: string }, callback: NodeGraphCallback): () => void {
+    const subs: Array<() => void> = [];
+    const unsub = () => {
+      subs.forEach((sub) => sub());
+      subs.splice(0, subs.length);
+    };
+    const update = () => {
+      unsub();
+      let found = false;
+      for (const graph of this.graphs.value) {
+        const node = graph.get(key);
+        if (node != null) {
+          subs.push(graph.subscribe(key, callback));
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        // subscribe to all graphs and graphs list
+        for (const graph of this.graphs.value) {
+          subs.push(graph.subscribe(key, () => (callback(), update())));
+        }
+        subs.push(watch(this.graphs, () => (callback(), update()), { flush: "sync" }));
+      }
+    };
+    update();
+    return unsub;
+  }
+
+  /**
+   * Gets a reactive reference to the current node with that key
+   */
+  getRef<T extends NodeType>(key: MaybeRef<NodeKey<T> | null>): Ref<NodeTypeMapping[T] | null> {
+    const keyRef = toRef(key) as Ref<NodeKey<T>>;
+    let sub: (() => void) | null = null;
+    const unsub = () => (sub != null ? (sub(), (sub = null)) : null);
+    const get = () => (keyRef.value != null ? this.get(keyRef.value) : null);
+    const update = () => {
+      unsub();
+      if (keyRef.value != null) sub = this.subscribe(keyRef.value, trigger);
+    };
+
+    const { ref, trigger } = manualSubRef(get, unsub);
+    watch(keyRef, () => (update(), trigger()));
+    update();
+    tryOnBeforeUnmount(unsub);
+    return ref;
+  }
 }
