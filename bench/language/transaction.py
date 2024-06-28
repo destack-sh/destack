@@ -744,6 +744,13 @@ def edit_data_graph(
     if options is None:
         options = DEFAULT_READ_OPTIONS
 
+    def _make_vignette(node: AnyNodeData) -> ChangeVignetteData:
+        return ChangeVignetteData(
+            metatype=wire.ObjectType.CHANGE_VIGNETTE,
+            name=getattr(node, "name", None),
+            icon=getattr(node, "icon", None),
+        )
+
     for edit in edits:
         assert edit.epoch is not None, f"missing epoch for {edit!r}"
         edit_type = cast(EditType, edit.type)
@@ -770,6 +777,10 @@ def edit_data_graph(
                 graph.add(new_node_data)
             else:
                 graph.update(new_node_data)
+
+            # prepass: make vignette with new data
+            if is_prepass:
+                edit.vignette = _make_vignette(new_node_data)
         elif (
             edit_type == EditType.ERASE
             or (not options.include_hidden and edit_type in (EditType.ARCHIVE, EditType.DELETE))
@@ -791,12 +802,7 @@ def edit_data_graph(
 
             # prepass: make vignette with old data
             if is_prepass:
-                vignette = ChangeVignetteData(
-                    metatype=wire.ObjectType.CHANGE_VIGNETTE,
-                    name=getattr(updated_node_data, "name", None),
-                    icon=getattr(updated_node_data, "icon", None),
-                )
-                edit.vignette = vignette
+                edit.vignette = _make_vignette(updated_node_data)
 
             # directly edited properties
             old_node_data = {}

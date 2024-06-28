@@ -30,6 +30,7 @@ import { EDIT_TYPE_PAST_VERB, toCamelName } from "@/system/lang";
 import { canvas } from "@/system/space";
 import { getTypeIdentityForProperty, packValueSimpleStruct } from "@/system/value";
 import { getElement } from "@/utils/element";
+import { humanizeNumber } from "@/utils/human";
 import { ScrollbarWidth } from "@/utils/layout";
 import { formatRelativeDate } from "@/utils/time";
 import { DEFAULT_HEADER_HEIGHT, useExpansion } from "@/views/canvas";
@@ -87,6 +88,7 @@ const { roots, graph, connection, page } = useSearchConnection(
     // nocheckin: parameterize Feed search
     nodeType: nodeType,
     first: 16,
+    count: true,
     sort: [
       makeExpression({
         op: ExpressionOp.DESCENDING,
@@ -260,9 +262,20 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
             </div>
           </div>
 
-          <!-- Item body -->
+          <!-- Item body (if expanded) -->
           <!-- ...? -->
         </li>
+        <!-- Nothing found -->
+        <div v-if="items.length == 0" class="mx-auto my-1 w-full text-center">
+          <i class="fas fa-empty-set w-5 text-center text-gray-400" />
+          <span class="ml-1 text-gray-500">No results</span>
+        </div>
+        <!-- NOTE :Incomplete: feed needs pagination (see useSearchConnection) -->
+        <!-- End of list -->
+        <div class="mx-auto my-1 w-full text-center">
+          <i class="fas fa-ellipsis-h w-5 text-center text-gray-400" />
+          <span v-if="page.total" class="ml-1 text-gray-500">{{ humanizeNumber(page.total - page.size) }} more</span>
+        </div>
       </ul>
       <!-- Loading -->
       <div v-else class="flex h-full min-h-20 w-full flex-col text-center align-middle">
