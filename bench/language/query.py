@@ -16,7 +16,7 @@ from typing import (
 import structlog
 from opentelemetry import trace
 
-from bench.language.connection import AggregateOptions
+from bench.language.connection import AggregateOptions, SearchConnection
 from bench.language.const import (
     AggregationOp,
     BenchError,
@@ -458,7 +458,7 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
     @tracer.start_as_current_span("query.get")
     async def get(
         self,
-        filter: Union["Expression", "NodeReference", Collection["NodeReference"], None] = None,
+        filter: Union["Expression", "NodeReference", None] = None,
         live: bool = False,
         **kwargs,
     ) -> NodeT:
@@ -468,15 +468,12 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         """
         from bench.language import GetOptions, NodeReference, coerce_conditional
 
-        if isinstance(filter, (NodeReference, Collection)):
+        if isinstance(filter, NodeReference):
             # true get request (with node pointers)
-            # prepare
             assert self._filter is None, f"cannot combine filter and roots in {self!r}"
             query = self.copy()
-            query._roots = [filter] if isinstance(filter, NodeReference) else list(filter)
+            query._roots = [filter]
             query._read_type = ReadType.GET
-
-            # query
             channel = await query._get_read_channel()
             connection = await channel.get(query, GetOptions(unpack=True, live=live))
             if len(connection.result.roots) != 1:
@@ -488,10 +485,8 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
             return cast(NodeT, node)
         else:
             # search which should only have one result
-            # prepare
             filter = coerce_conditional(self._node_cls, filter, kwargs)
             query = self.where(filter) if filter is not None else self.copy()
-            # query
             results = await query.search()
             if len(results) != 1:
                 if len(results) == 0:
@@ -501,20 +496,32 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
             return results[0]  # success
 
     @tracer.start_as_current_span("query.search")
-    async def search(
-        self, filter: Optional["Expression"] = None, *, live: bool = False, **kwargs
-    ) -> list[NodeT]:
+    async def search(self, filter: Optional["Expression"] = None, **kwargs) -> list[NodeT]:
         """Fetches the nodes matching the query."""
         from bench.language.connection import SearchOptions
 
-        # prepare
         filter = coerce_conditional(self._node_cls, filter, kwargs)
         query = self.where(filter) if filter is not None else self
-
-        # query
         channel = await query._get_read_channel()
-        connection = await channel.search(query, SearchOptions(live=live, unpack=True, count=False))
+        connection = await channel.search(
+            query, SearchOptions(live=False, unpack=True, count=False)
+        )
         return cast(list[NodeT], connection.result.roots)
+
+    @tracer.start_as_current_span("query.search")
+    async def search_live(
+        self, filter: Optional["Expression"] = None, **kwargs
+    ) -> "SearchConnection[Any, NodeT]":
+        """Fetches the nodes matching the query (live)."""
+        from bench.language.connection import SearchOptions
+
+        filter = coerce_conditional(self._node_cls, filter, kwargs)
+        query = self.where(filter) if filter is not None else self
+        channel = await query._get_read_channel()
+        connection = await channel.search(
+            query, SearchOptions(live=False, unpack=True, count=False)
+        )
+        return connection
 
     tolist = search  # type: ignore
     to_list = search  # type: ignore

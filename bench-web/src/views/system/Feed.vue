@@ -185,6 +185,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
       :track-width="ScrollbarWidth.md"
       track-is-overlay
     >
+      <!-- TODO :UX: make feed not so ugly -->
       <ul v-if="connection.isConnected.value" class="mt-0.5 flex flex-col gap-y-[3px] py-1">
         <!-- Feed item -->
         <li

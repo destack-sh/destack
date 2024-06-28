@@ -411,13 +411,30 @@ class WatchLogsSpec(SingleClientWorkloadSpec):
 @workload(WorkloadType.WATCH_LOGS, WatchLogsSpec)
 class WatchLogsWorkload(SingleClientWorkloadBase[WatchLogsSpec]):
     @override
-    async def _do_run_in_session(self, session: Session):
-        limit = to_value(self.random, self.spec.limit)
-        logs = await Log.order_by("-created_at").first(limit).search(live=True)
-        assert len(logs) <= limit, f"too many logs {len(logs)} > {limit}"
-        if logs:
-            connection = logs[0]._connection
-            assert connection, f"no connection for {logs[0]!r}"
-            assert len(logs[0]._graph.nodes) == len(logs)
+    async def _do_prepare_in_session(self, session: Session):
+        self.limit = to_value(self.random, self.spec.limit)
+        self.connection = await Log.order_by("-created_at").first(self.limit).search_live()
 
-        # nocheckin: collect updates? check/compare logs?
+    @property
+    def logs(self) -> list[Log]:
+        return self.connection.result.roots
+
+    @override
+    async def _do_run_in_session(self, session: Session):
+        pass  # nothing to do?
+
+    @override
+    async def _do_check(self):
+        logs = self.connection.result.roots
+        assert len(logs) <= self.limit, f"too many logs {len(logs)} > {self.limit}"
+        assert len(self.connection.result.graph.nodes) == len(logs)
+
+    @override
+    async def _do_check_group(self, group: list[WorkloadBase]):
+        for other in group:
+            if other is self or not isinstance(other, WatchLogsWorkload):
+                continue
+            assert len(self.logs) == len(other.logs), f"{self!r} != {other!r}"
+            for log_a, log_b in zip(self.logs, other.logs):
+                assert log_a == log_b, f"{log_a!r} != {log_b!r}"
+                assert log_a._equals_content(log_b), f"{log_a!r} != {log_b!r}"
