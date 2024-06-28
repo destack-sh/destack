@@ -45,6 +45,7 @@ const MIN_GUTTER_WIDTH = 44;
 const ROOT_BLOCK_GAP_Y = 8;
 const NESTED_BLOCK_GAP_Y = 8;
 const HANDLE_WIDTH = 6;
+const SEPARATOR_WIDTH = 6;
 
 const props = defineProps<
   { self: TypedNodeReferenceData<NodeType.VIEW>; size: Required<Pick<BoxData, "width" | "height">> } & Pick<
@@ -110,11 +111,11 @@ const widths = computed(() => {
 });
 
 /** Gets the position for a div anchored at the start/end of the given block */
-function getAnchorPosition(anchor: "start" | "end", blockIdx: number, anchorWidth: number) {
+function getAnchorPositionStyle(anchor: "start" | "end", blockIdx: number, anchorWidth: number) {
   if (anchor == "start") {
     const depth = expandedBlocks.value[blockIdx]?.depth;
     return {
-      top: (depth == 0 ? -ROOT_BLOCK_GAP_Y : NESTED_BLOCK_GAP_Y) / 2 - anchorWidth / 2 + "px",
+      top: (depth == 0 ? -ROOT_BLOCK_GAP_Y : -NESTED_BLOCK_GAP_Y) / 2 - anchorWidth / 2 + "px",
     };
   } else {
     const depth = expandedBlocks.value[blockIdx]?.depth;
@@ -140,7 +141,12 @@ const { activeDropZone } = useMultiDropZone({
   fallbackToClosest: true,
   allowDrop: (dragged, anchor, targetId) => {
     const target = pkgGraph.get({ id: targetId });
-    return dragged.kind == "node" && target != null && !isDescendantOf(pkgGraph, target, dragged.node);
+    return (
+      dragged.kind == "node" &&
+      target != null &&
+      target.id != page.value?.id && // page block is also a block, but 'dropping' there is confusing (moves block outside of page)
+      !isDescendantOf(pkgGraph, target, dragged.node)
+    );
   },
   onDrop: (dragged, anchor, targetId) => {
     if (targetId != null && dragged.kind == "node") {
@@ -298,23 +304,19 @@ defineExpose<ViewExposed>({ self, actions, focus });
       track-is-overlay
     >
       <div ref="contentRef" class="mb-16 flex flex-col">
-        <!-- TODO :UX: indicate 'self' block in Page view better -->
         <!--  (while still retaining all the functionality of a full block 'line') -->
         <!-- Block 'line' -->
         <template v-for="({ nodePtr: blockPtr, node: block, depth }, i) in expandedBlocksWithSelf" :key="blockPtr.id">
           <div
             class="group/block-line relative flex min-w-fit flex-row"
             :style="{
-              marginTop: depth == 0 ? ROOT_BLOCK_GAP_Y + 'px' : '0',
+              marginTop: (depth == 0 ? ROOT_BLOCK_GAP_Y : NESTED_BLOCK_GAP_Y) + 'px',
             }"
           >
             <!-- Left gutter -->
             <div
               class="relative flex flex-shrink-0 flex-row items-start justify-end gap-x-2 text-right"
-              :style="{
-                width: widths.gutter + DEPTH_OFFSET * depth + 'px',
-                marginTop: (depth != 0 ? NESTED_BLOCK_GAP_Y : 0) + 6 + 'px',
-              }"
+              :style="{ width: widths.gutter + DEPTH_OFFSET * depth + 'px', marginTop: SEPARATOR_WIDTH + 'px' }"
             >
               <!-- Activity / Run / ... -->
               <!-- Run -->
@@ -353,12 +355,9 @@ defineExpose<ViewExposed>({ self, actions, focus });
                 width: widths.block - DEPTH_OFFSET * depth + 'px',
               }"
             >
-              <!-- Nested space -->
-              <div v-if="depth != 0" class="" :style="{ height: NESTED_BLOCK_GAP_Y + 'px' }" />
-
-              <!-- Create above/below (in between blocks) -->
+              <!-- Separator: create above/below (in between blocks) -->
               <div
-                v-for="anchor in i == 0 ? [] : i < expandedBlocks.length - 1 ? ['start'] : ['start', 'end']"
+                v-for="anchor in i == 0 ? [] : i < expandedBlocks.length - 1 ? ['start', 'end'] : ['start', 'end']"
                 :key="anchor"
                 v-menu="
                   (): PopoverInfoIn => ({
@@ -370,23 +369,20 @@ defineExpose<ViewExposed>({ self, actions, focus });
                   })
                 "
                 role="button"
-                class="absolute h-[6px] w-full flex-shrink-0 text-center text-gray-300 opacity-0 transition-colors duration-75 hover:z-10 hover:text-gray-300 hover:opacity-100 data-[popover=true]:text-primary-900 data-[popover=true]:opacity-100"
-                :style="
-                  getAnchorPosition(
-                    anchor as 'start' | 'end',
-                    i,
-                    anchor == 'start' || depth != expandedBlocks[i + 1]?.depth ? 8 : 4,
-                  )
-                "
+                class="absolute w-full flex-shrink-0 text-center text-gray-300 opacity-0 transition-colors duration-75 hover:z-10 hover:text-gray-300 hover:opacity-100 data-[popover=true]:text-primary-900 data-[popover=true]:opacity-100"
+                :style="{
+                  ...getAnchorPositionStyle(anchor as 'start' | 'end', i, SEPARATOR_WIDTH),
+                  height: `${SEPARATOR_WIDTH}px`,
+                }"
                 data-keep-inspection-in-base="true"
               >
                 <!-- Line with a gap for the button -->
                 <div class="relative">
                   <svg class="translate-y-1" width="100%" height="1px" viewBox="0 0 100 1" preserveAspectRatio="none">
-                    <path d="M0,0.5 L49,0.5" fill="none" stroke="currentColor" stroke-width="1" />
-                    <path d="M100,0.5 L51,0.5" fill="none" stroke="currentColor" stroke-width="1" />
+                    <path d="M0,0.5 L48.5,0.5" fill="none" stroke="currentColor" stroke-width="1" />
+                    <path d="M100,0.5 L51.5,0.5" fill="none" stroke="currentColor" stroke-width="1" />
                   </svg>
-                  <button class="-translate-y-[8px] px-1 text-primary-900">&plus;</button>
+                  <i class="fas fa-plus px-1 -translate-y-[6px]" />
                 </div>
               </div>
 
@@ -394,7 +390,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
               <div
                 v-if="activeDropZone?.targetId == blockPtr.id"
                 class="absolute z-10 h-1 w-full rounded-sm bg-primary-400"
-                :style="getAnchorPosition(activeDropZone?.anchor as 'start' | 'end', i, 4)"
+                :style="getAnchorPositionStyle(activeDropZone?.anchor as 'start' | 'end', i, 4)"
               />
 
               <!-- Block -->
@@ -435,10 +431,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
             <!-- Right gutter -->
             <div
               class="relative flex flex-shrink-0 flex-row items-start justify-start px-0.5 transition-colors duration-75"
-              :style="{
-                width: widths.gutter,
-                marginTop: (depth != 0 ? NESTED_BLOCK_GAP_Y : 0) + 6 + 'px',
-              }"
+              :style="{ width: widths.gutter, marginTop: SEPARATOR_WIDTH + 'px' }"
             >
               <!-- Messages -->
               <button
@@ -469,8 +462,8 @@ defineExpose<ViewExposed>({ self, actions, focus });
           </div>
 
           <!-- Top block spacer (top block == page) -->
-          <div v-if="i == 0" class="mx-auto my-3 px-2 w-full" :style="{ width: widths.block + 'px' }">
-            <div class="w-full h-[1px] bg-gray-200" />
+          <div v-if="i == 0" class="mx-auto my-3 w-full px-2" :style="{ width: widths.block + 'px' }">
+            <div class="h-[1px] w-full bg-gray-200" />
           </div>
         </template>
 
