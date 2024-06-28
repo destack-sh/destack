@@ -19,7 +19,7 @@ const props = defineProps<{ self: TypedNodeReferenceData<NodeType.VIEW> } & Pick
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 
-const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(toRef(props, "self"));
+const { graph: spaceGraph } = useExistingConnection(toRef(props, "self"));
 
 type State = "sign-up" | "log-in" | "all-set";
 const TITLE_BY_STATE: Record<State, string> = {
@@ -41,7 +41,7 @@ const isActive = ref(false);
 function setState(newState: State) {
   if (newState == state.value) return;
   state.value = newState;
-  spaceConnection.tx.update(spaceGraph.getOrError(self.value) as ViewData, { title: TITLE_BY_STATE[newState] });
+  canvas.tx().update(spaceGraph.getOrError(self.value) as ViewData, { title: TITLE_BY_STATE[newState] });
   canvas.focusInComponent(self.value);
 }
 

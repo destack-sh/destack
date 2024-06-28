@@ -26,7 +26,7 @@ const props = defineProps<
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 
-const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self);
+const { graph: spaceGraph } = useExistingConnection(self);
 const { graph: pkgGraph, connection: pkgConnection } = useExistingConnection(inspectionPtr);
 const node = pkgGraph.getRef(inspectionPtr);
 const nodeMetatype = computed(() => node.value?.metatype);

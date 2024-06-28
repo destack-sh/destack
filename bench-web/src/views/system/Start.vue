@@ -29,7 +29,7 @@ const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 
 const focusPtr = computed(() => props.nodePtr ?? inspectionPtr.value);
-const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self);
+const { graph: spaceGraph } = useExistingConnection(self);
 const { graph: pkgGraph, connection: pkgConnection } = useExistingConnection(focusPtr);
 const ancestors = pkgGraph.getAncestorsRef(focusPtr, { includeSelf: true });
 const runnableNode: Ref<BlockData | StepData | null> = computed(() => {

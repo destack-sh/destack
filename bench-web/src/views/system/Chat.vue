@@ -77,7 +77,7 @@ const focusedNodePtr = computedValue(() => props.focus?.nodesPtr[0]);
 
 // NOTE: threadPtr can point to a message node if we already have a thread or to any node to create a thread on
 const nodePtr = toRef(props, "nodePtr");
-const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self);
+const { graph: spaceGraph } = useExistingConnection(self);
 const preparedPkgConnection = useExistingConnection(nodePtr);
 const { graph: pkgGraph, connection: pkgConnection } = preparedPkgConnection;
 const selfView = spaceGraph.getRef(self);
@@ -178,7 +178,7 @@ function createNewThread(parent: AnyNodeData, title: string = generateRandomName
   });
   if (self.value != null) {
     const selfView = spaceGraph.getOrError(self.value);
-    spaceConnection.tx.update(selfView, { nodePtr: toNodeReference(thread) });
+    canvas.tx().update(selfView, { nodePtr: toNodeReference(thread) });
   } else {
     emit("update:self", { nodePtr: toNodeReference(thread) });
   }
@@ -243,7 +243,7 @@ function focus(anchor?: FocusAnchor | NodeReferenceData) {
     textRef.value?.focus?.("center");
   } else {
     const selfView = spaceGraph.getOrError(self.value!);
-    canvas.focusInGraph(spaceConnection.tx, { view: selfView, focus: makeSelection([anchor]) });
+    canvas.focusInGraph({ view: selfView, focus: makeSelection([anchor]) });
     const messageEl = messageRefs.value[anchor.id!];
     if (messageEl != null) messageEl.scrollIntoView({ behavior: "instant", block: "center" });
   }
@@ -384,7 +384,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
                 onApply: (value) => {
                   if (value != null) {
                     const selfView = spaceGraph.getOrError(self!);
-                    spaceConnection.tx.update(selfView, { nodePtr: value });
+                    canvas.tx().update(selfView, { nodePtr: value });
                     $nextTick(followEnd);
                   }
                 },

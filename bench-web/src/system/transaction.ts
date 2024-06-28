@@ -404,6 +404,7 @@ export class TransactionBuilder implements TransactionMeta, Transaction {
         newNodePacked: ProtoStruct.fromJson(newNodePacked),
         origin: origin.value,
         subjectPtr: this.subject,
+        category: this.category,
         editedAt: Timestamp.now(),
       };
       if (options?.debounce) {

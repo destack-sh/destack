@@ -14,7 +14,7 @@ import { getViewComponentChildren, isVueInstanceOf } from "@/views/canvas";
 const props = defineProps<{ self: NodeReferenceData } & Pick<ViewData, "nodePtr">>();
 const emit = defineEmits(viewEmits());
 
-const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(toRef(props, "self"));
+const { graph: spaceGraph } = useExistingConnection(toRef(props, "self"));
 
 type State = "create-bench" | "activate-bench" | "all-set";
 const self = toRef(props, "self");
@@ -111,7 +111,7 @@ defineExpose({ self, focus });
         title="Close"
         class="w-full"
         :variant="Variant.COMPACT"
-        @click="() => canvas.removeView(spaceConnection.tx, spaceGraph, spaceGraph.get(self) as ViewData)"
+        @click="() => canvas.removeView(spaceGraph, spaceGraph.get(self) as ViewData)"
       />
     </div>
   </div>

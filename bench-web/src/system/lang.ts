@@ -770,7 +770,7 @@ type InspectionLayout = {
 function getInspectionInfo(metatype: ObjectType, type: any): Record<string, InspectionCategory> | null {
   if (metatype == ObjectType.FIELD) {
     if (type == FieldZone.OPTION) {
-      return { Common: [FieldProperty.zone, FieldProperty.text, FieldProperty.visibility] };
+      return { Common: [FieldProperty.zone, FieldProperty.text] };
     }
     const properties = {
       Common: [
@@ -798,7 +798,6 @@ function getInspectionInfo(metatype: ObjectType, type: any): Record<string, Insp
           }),
         },
         { from: 30, to: 43, excluding: [FieldProperty.valuePacked] },
-        FieldProperty.visibility,
       ],
       Constraint: [FieldProperty.formatHint, { from: 60 }],
     };
@@ -833,7 +832,6 @@ function getInspectionInfo(metatype: ObjectType, type: any): Record<string, Insp
         }),
       });
     }
-    properties.Common.push(BlockProperty.visibility);
     return properties;
   } else if (metatype == ObjectType.VIEW) {
     const properties = {

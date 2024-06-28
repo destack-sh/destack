@@ -81,7 +81,7 @@ class Log(PackageNode[LogData], HasTimeIdentity, HasSessionContext, HasValues):
         50, require=False, array=True, references=NODE_TYPES.tuple, same_bench=True
     )
     if TYPE_CHECKING:
-        nodes_ptr: list[NodeReference] = []
+        nodes_ptr: tuple[NodeReference, ...] = ()
     nodes_total: int | None = p_system(51, require=False, primitive_type=PrimitiveType.INT32)
 
     # context

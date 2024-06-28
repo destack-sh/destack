@@ -55,7 +55,7 @@ const props = defineProps<
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 
-const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self);
+const { graph: spaceGraph } = useExistingConnection(self);
 const selfView = spaceGraph.getRef(self);
 const preparedPkgConnection = useGetConnection(
   { name: `page.${props.nodePtr?.id}` },
@@ -199,7 +199,7 @@ const actions: Partial<ActionMapImplementation<"common">> = {
           toFocus = expandedBlocks.value[expandedBlocks.value.length - 1]?.nodePtr;
         else return false;
       }
-      if (toFocus != null) canvas.focus(spaceConnection.tx, { node: toFocus, view: self.value });
+      if (toFocus != null) canvas.focus({ node: toFocus, view: self.value });
     },
   },
   "common.navigate.down": {
@@ -210,7 +210,7 @@ const actions: Partial<ActionMapImplementation<"common">> = {
         if (props.nodePtr?.id == focusedNodePtr.value?.id) toFocus = expandedBlocks.value[0]?.nodePtr;
         else return false;
       }
-      if (toFocus != null) canvas.focus(spaceConnection.tx, { node: toFocus, view: self.value });
+      if (toFocus != null) canvas.focus({ node: toFocus, view: self.value });
     },
   },
   // move
@@ -301,174 +301,178 @@ defineExpose<ViewExposed>({ self, actions, focus });
         <!-- TODO :UX: indicate 'self' block in Page view better -->
         <!--  (while still retaining all the functionality of a full block 'line') -->
         <!-- Block 'line' -->
-        <div
-          v-for="({ nodePtr: blockPtr, node: block, depth }, i) in expandedBlocksWithSelf"
-          :key="blockPtr.id"
-          class="group/block-line relative flex min-w-fit flex-row"
-          :class="i == 0 ? 'mb-4' : ''"
-          :style="{
-            marginTop: depth == 0 ? ROOT_BLOCK_GAP_Y + 'px' : '0',
-          }"
-        >
-          <!-- Left gutter -->
+        <template v-for="({ nodePtr: blockPtr, node: block, depth }, i) in expandedBlocksWithSelf" :key="blockPtr.id">
           <div
-            class="relative flex flex-shrink-0 flex-row items-start justify-end gap-x-2 text-right"
+            class="group/block-line relative flex min-w-fit flex-row"
             :style="{
-              width: widths.gutter + DEPTH_OFFSET * depth + 'px',
-              marginTop: (depth != 0 ? NESTED_BLOCK_GAP_Y : 0) + 6 + 'px',
+              marginTop: depth == 0 ? ROOT_BLOCK_GAP_Y + 'px' : '0',
             }"
           >
-            <!-- Activity / Run / ... -->
-            <!-- Run -->
-            <button
-              v-if="RUNNABLE_BLOCK_TYPES.includes(block.type)"
-              class="text-gray-400 hover:text-primary-900"
-              :class="inspectionPtr?.id == blockPtr?.id ? '' : 'opacity-0 group-hover/block-line:opacity-100'"
-              data-keep-inspection-in-base="true"
-              @click="
-                () => {
-                  const run = makeRun(block, pkgGraph);
-                  pkgConnection.tx.create(run);
-                }
-              "
-            >
-              <i class="fas fa-play" />
-            </button>
-            <!-- Handle -->
+            <!-- Left gutter -->
             <div
-              class="h-full rounded transition-colors duration-75"
-              :class="
-                inspectionPtr?.id == blockPtr?.id
-                  ? 'bg-primary-900'
-                  : focusedNodePtr?.id == blockPtr?.id
-                    ? 'bg-gray-300'
-                    : 'bg-transparent group-hover/block-line:bg-gray-200'
-              "
-              :style="{ width: HANDLE_WIDTH + 'px' }"
-            />
-          </div>
-
-          <!-- Block wrapper -->
-          <div
-            class="group/block-wrapper relative rounded border-gray-100"
-            :style="{
-              width: widths.block - DEPTH_OFFSET * depth + 'px',
-            }"
-          >
-            <!-- Nested space -->
-            <div v-if="depth != 0" class="" :style="{ height: NESTED_BLOCK_GAP_Y + 'px' }" />
-
-            <!-- Create above/below (in between blocks) -->
-            <div
-              v-for="anchor in i == 0 ? [] : i < expandedBlocks.length - 1 ? ['start'] : ['start', 'end']"
-              :key="anchor"
-              v-menu="
-                (): PopoverInfoIn => ({
-                  component: ViewType.PICKER,
-                  placement: 'bottom',
-                  props: { valueType: makeTypeInfo({ benchType: BenchType.BLOCK_TYPE, isRequired: true }) },
-                  onApply: (blockType: BlockType) =>
-                    createAndFocusBlock({ type: blockType }, anchor == 'start' ? 'before' : 'after', blockPtr),
-                })
-              "
-              role="button"
-              class="absolute h-[6px] w-full flex-shrink-0 text-center text-gray-300 opacity-0 transition-colors duration-75 hover:z-10 hover:text-gray-300 hover:opacity-100 data-[popover=true]:text-primary-900 data-[popover=true]:opacity-100"
-              :style="
-                getAnchorPosition(
-                  anchor as 'start' | 'end',
-                  i,
-                  anchor == 'start' || depth != expandedBlocks[i + 1]?.depth ? 8 : 4,
-                )
-              "
-              data-keep-inspection-in-base="true"
+              class="relative flex flex-shrink-0 flex-row items-start justify-end gap-x-2 text-right"
+              :style="{
+                width: widths.gutter + DEPTH_OFFSET * depth + 'px',
+                marginTop: (depth != 0 ? NESTED_BLOCK_GAP_Y : 0) + 6 + 'px',
+              }"
             >
-              <!-- Line with a gap for the button -->
-              <div class="relative">
-                <svg class="translate-y-1" width="100%" height="1px" viewBox="0 0 100 1" preserveAspectRatio="none">
-                  <path d="M0,0.5 L49,0.5" fill="none" stroke="currentColor" stroke-width="1" />
-                  <path d="M100,0.5 L51,0.5" fill="none" stroke="currentColor" stroke-width="1" />
-                </svg>
-                <button class="-translate-y-[8px] px-1 text-primary-900">&plus;</button>
-              </div>
+              <!-- Activity / Run / ... -->
+              <!-- Run -->
+              <button
+                v-if="RUNNABLE_BLOCK_TYPES.includes(block.type)"
+                class="text-gray-400 hover:text-primary-900"
+                :class="inspectionPtr?.id == blockPtr?.id ? '' : 'opacity-0 group-hover/block-line:opacity-100'"
+                data-keep-inspection-in-base="true"
+                @click="
+                  () => {
+                    const run = makeRun(block, pkgGraph);
+                    pkgConnection.tx.create(run);
+                  }
+                "
+              >
+                <i class="fas fa-play" />
+              </button>
+              <!-- Handle -->
+              <div
+                class="h-full rounded transition-colors duration-75"
+                :class="
+                  inspectionPtr?.id == blockPtr?.id
+                    ? 'bg-primary-900'
+                    : focusedNodePtr?.id == blockPtr?.id
+                      ? 'bg-gray-300'
+                      : 'bg-transparent group-hover/block-line:bg-gray-200'
+                "
+                :style="{ width: HANDLE_WIDTH + 'px' }"
+              />
             </div>
 
-            <!-- Drag above/below -->
+            <!-- Block wrapper -->
             <div
-              v-if="activeDropZone?.targetId == blockPtr.id"
-              class="absolute z-10 h-1 w-full rounded-sm bg-primary-400"
-              :style="getAnchorPosition(activeDropZone?.anchor as 'start' | 'end', i, 4)"
-            />
-
-            <!-- Block -->
-            <Block
-              :ref="
-                (ref: any) => (ref ? (expandedBlockRefs[blockPtr.id!] = ref) : delete expandedBlockRefs[blockPtr.id!])
-              "
-              v-contextmenu="
-                (context: PopoverContext): PopoverInfo => ({
-                  kind: 'menu',
-                  placement: 'bottom-right',
-                  items: menuActionsLike(
-                    [
-                      'common.edit.rename',
-                      'common.edit.morph',
-                      'common.edit.move',
-                      'common.edit.duplicate',
-                      'common.edit.archive',
-                      'common.edit.delete',
-                      'message.handle.startThread',
-                    ],
-                    {
-                      context: { ...context, triggerNode: blockPtr },
-                    },
-                  ),
-                })
-              "
-              class="w-full px-2 py-1.5 data-[dragging=true]:opacity-50"
-              borderless
-              :variant="Variant.STEALTH"
-              :node-ptr="blockPtr"
-              :prepared-connection="preparedPkgConnection"
-              :draggable="true"
-              @dragstart.stop="(e: DragEvent) => startDragging(e, pkgGraph, blockPtr)"
-            />
-          </div>
-
-          <!-- Right gutter -->
-          <div
-            class="relative flex flex-shrink-0 flex-row items-start justify-start px-0.5 transition-colors duration-75"
-            :style="{
-              width: widths.gutter,
-              marginTop: (depth != 0 ? NESTED_BLOCK_GAP_Y : 0) + 6 + 'px',
-            }"
-          >
-            <!-- Messages -->
-            <button
-              v-menu="
-                (context: PopoverContext): PopoverInfoIn => ({
-                  component: ViewType.CHAT,
-                  placement: 'bottom',
-                  container: 'containingRoot',
-                  containerMargin: 12,
-                  props: {
-                    variant: Variant.COMPACT,
-                    nodePtr: toNodeReference(threadsByBlockId[blockPtr.id!]?.at(-1)!) ?? blockPtr,
-                  },
-                })
-              "
-              class="rounded transition-colors duration-75 hover:text-primary-900 data-[popover=true]:text-primary-900"
-              :class="[
-                inspectionPtr?.id == blockPtr?.id || threadsByBlockId[blockPtr.id!]?.length
-                  ? ''
-                  : 'opacity-0 group-hover/block-line:opacity-100',
-                threadsByBlockId[blockPtr.id!]?.length ? 'text-gray-700' : 'text-gray-400',
-              ]"
-              data-keep-inspection-in-base="true"
+              class="group/block-wrapper relative rounded border-gray-100"
+              :style="{
+                width: widths.block - DEPTH_OFFSET * depth + 'px',
+              }"
             >
-              <i class="fas fa-message w-5 text-center" />
-            </button>
+              <!-- Nested space -->
+              <div v-if="depth != 0" class="" :style="{ height: NESTED_BLOCK_GAP_Y + 'px' }" />
+
+              <!-- Create above/below (in between blocks) -->
+              <div
+                v-for="anchor in i == 0 ? [] : i < expandedBlocks.length - 1 ? ['start'] : ['start', 'end']"
+                :key="anchor"
+                v-menu="
+                  (): PopoverInfoIn => ({
+                    component: ViewType.PICKER,
+                    placement: 'bottom',
+                    props: { valueType: makeTypeInfo({ benchType: BenchType.BLOCK_TYPE, isRequired: true }) },
+                    onApply: (blockType: BlockType) =>
+                      createAndFocusBlock({ type: blockType }, anchor == 'start' ? 'before' : 'after', blockPtr),
+                  })
+                "
+                role="button"
+                class="absolute h-[6px] w-full flex-shrink-0 text-center text-gray-300 opacity-0 transition-colors duration-75 hover:z-10 hover:text-gray-300 hover:opacity-100 data-[popover=true]:text-primary-900 data-[popover=true]:opacity-100"
+                :style="
+                  getAnchorPosition(
+                    anchor as 'start' | 'end',
+                    i,
+                    anchor == 'start' || depth != expandedBlocks[i + 1]?.depth ? 8 : 4,
+                  )
+                "
+                data-keep-inspection-in-base="true"
+              >
+                <!-- Line with a gap for the button -->
+                <div class="relative">
+                  <svg class="translate-y-1" width="100%" height="1px" viewBox="0 0 100 1" preserveAspectRatio="none">
+                    <path d="M0,0.5 L49,0.5" fill="none" stroke="currentColor" stroke-width="1" />
+                    <path d="M100,0.5 L51,0.5" fill="none" stroke="currentColor" stroke-width="1" />
+                  </svg>
+                  <button class="-translate-y-[8px] px-1 text-primary-900">&plus;</button>
+                </div>
+              </div>
+
+              <!-- Drag above/below -->
+              <div
+                v-if="activeDropZone?.targetId == blockPtr.id"
+                class="absolute z-10 h-1 w-full rounded-sm bg-primary-400"
+                :style="getAnchorPosition(activeDropZone?.anchor as 'start' | 'end', i, 4)"
+              />
+
+              <!-- Block -->
+              <Block
+                :ref="
+                  (ref: any) => (ref ? (expandedBlockRefs[blockPtr.id!] = ref) : delete expandedBlockRefs[blockPtr.id!])
+                "
+                v-contextmenu="
+                  (context: PopoverContext): PopoverInfo => ({
+                    kind: 'menu',
+                    placement: 'bottom-right',
+                    items: menuActionsLike(
+                      [
+                        'common.edit.rename',
+                        'common.edit.morph',
+                        'common.edit.move',
+                        'common.edit.duplicate',
+                        'common.edit.archive',
+                        'common.edit.delete',
+                        'message.handle.startThread',
+                      ],
+                      {
+                        context: { ...context, triggerNode: blockPtr },
+                      },
+                    ),
+                  })
+                "
+                class="w-full px-2 py-1.5 data-[dragging=true]:opacity-50"
+                borderless
+                :variant="Variant.STEALTH"
+                :node-ptr="blockPtr"
+                :prepared-connection="preparedPkgConnection"
+                :draggable="true"
+                @dragstart.stop="(e: DragEvent) => startDragging(e, pkgGraph, blockPtr)"
+              />
+            </div>
+
+            <!-- Right gutter -->
+            <div
+              class="relative flex flex-shrink-0 flex-row items-start justify-start px-0.5 transition-colors duration-75"
+              :style="{
+                width: widths.gutter,
+                marginTop: (depth != 0 ? NESTED_BLOCK_GAP_Y : 0) + 6 + 'px',
+              }"
+            >
+              <!-- Messages -->
+              <button
+                v-menu="
+                  (context: PopoverContext): PopoverInfoIn => ({
+                    component: ViewType.CHAT,
+                    placement: 'bottom',
+                    container: 'containingRoot',
+                    containerMargin: 12,
+                    props: {
+                      variant: Variant.COMPACT,
+                      nodePtr: toNodeReference(threadsByBlockId[blockPtr.id!]?.at(-1)!) ?? blockPtr,
+                    },
+                  })
+                "
+                class="rounded transition-colors duration-75 hover:text-primary-900 data-[popover=true]:text-primary-900"
+                :class="[
+                  inspectionPtr?.id == blockPtr?.id || threadsByBlockId[blockPtr.id!]?.length
+                    ? ''
+                    : 'opacity-0 group-hover/block-line:opacity-100',
+                  threadsByBlockId[blockPtr.id!]?.length ? 'text-gray-700' : 'text-gray-400',
+                ]"
+                data-keep-inspection-in-base="true"
+              >
+                <i class="fas fa-message w-5 text-center" />
+              </button>
+            </div>
           </div>
-        </div>
+
+          <!-- Top block spacer (top block == page) -->
+          <div v-if="i == 0" class="mx-auto my-3 px-2 w-full" :style="{ width: widths.block + 'px' }">
+            <div class="w-full h-[1px] bg-gray-200" />
+          </div>
+        </template>
 
         <!-- Footer -->
         <!-- Quick create -->

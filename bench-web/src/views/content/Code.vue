@@ -4,7 +4,7 @@ import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { ViewContentWrapper, makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import { canvas } from "@/system/space";
 import { onBeforeUnmount, ref, toRef, watch } from "vue";
-import { EditorView, keymap } from "@codemirror/view";
+import { EditorView, keymap, lineNumbers } from "@codemirror/view";
 import { EditorState } from "@codemirror/state";
 import { useDropZone } from "@/utils/drag";
 import type { ActionMapImplementation } from "@/system/action";
@@ -38,6 +38,7 @@ function makeEditorState(code?: CodeData): EditorState {
       EditorView.lineWrapping,
       syntaxHighlighting(defaultHighlightStyle),
       autocompletion({}),
+      lineNumbers(),
       python(),
       indentUnit.of("    "), // 4 spaces
     ],
@@ -178,7 +179,7 @@ defineExpose<ViewExposed>({ self, id, actions });
           dontFocus: true, // keep focus on the editor
         })
       "
-      class="code rounded bg-gray-100 px-1 py-1.5 hover:cursor-text"
+      class="code rounded px-1 py-1.5 hover:cursor-text"
       :class="[
         variant != Variant.STEALTH
           ? 'border border-gray-200 focus-within:border-primary-900 not-focus-within:hover:border-gray-300'
@@ -209,5 +210,8 @@ defineExpose<ViewExposed>({ self, id, actions });
 }
 .code .cm-editor .cm-completionMatchedText {
   @apply font-semibold underline underline-offset-2;
+}
+.code .cm-editor .cm-gutters {
+  @apply bg-transparent pr-1.5;
 }
 </style>
