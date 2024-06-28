@@ -142,9 +142,9 @@ class GetResultData:
 
 
 @dataclass(slots=True)
-class GetResult:
+class GetResult[T: Node]:
     graph: NodeGraph
-    roots: list[Node]
+    roots: list[T]
 
 
 @dataclass(slots=True)
@@ -177,9 +177,9 @@ class SearchResultData:
 
 
 @dataclass(slots=True)
-class SearchResult:
+class SearchResult[T: Node]:
     graph: NodeGraph
-    roots: list[Node]
+    roots: list[T]
     total: int | None
 
 
@@ -584,8 +584,8 @@ class Connection[
             self._connect_task = None
 
 
-class GetConnection[ChannelT: Channel](
-    Connection[ChannelT, GetOptions, GetResult, GetResultData, WatchGetUpdate]
+class GetConnection[ChannelT: Channel, T: Node](
+    Connection[ChannelT, GetOptions, GetResult[T], GetResultData, WatchGetUpdate]
 ):
     """Base for get connections (may be live)."""
 
@@ -628,8 +628,8 @@ class GetConnection[ChannelT: Channel](
             )
 
 
-class SearchConnection[ChannelT: Channel](
-    Connection[ChannelT, SearchOptions, SearchResult, SearchResultData, WatchSearchUpdate]
+class SearchConnection[ChannelT: Channel, T: Node](
+    Connection[ChannelT, SearchOptions, SearchResult[T], SearchResultData, WatchSearchUpdate]
 ):
     """Base for search connections (may be live)."""
 
@@ -788,7 +788,7 @@ class MemoryChannel(Channel[MemoryEngine]):
             raise RuntimeError(f"unsupported memory read {query!r}")
 
 
-class MemoryGetConnection(GetConnection[MemoryChannel]):
+class MemoryGetConnection[T: Node](GetConnection[MemoryChannel, T]):
     """Search an in-memory channel."""
 
     @override
@@ -940,7 +940,7 @@ class SplitConnection(Connection):
         return combined_graph
 
 
-class SplitSearchConnection(SearchConnection[SplitChannel], SplitConnection):
+class SplitSearchConnection[T: Node](SearchConnection[SplitChannel, T], SplitConnection):
     """Search across multiple connections."""
 
     @override
@@ -971,7 +971,7 @@ class SplitSearchConnection(SearchConnection[SplitChannel], SplitConnection):
         return combined_result
 
 
-class SplitGetConnection(GetConnection[SplitChannel], SplitConnection):
+class SplitGetConnection[T: Node](GetConnection[SplitChannel, T], SplitConnection):
     """Get across multiple connections."""
 
     @override
@@ -1104,7 +1104,7 @@ class RemoteChannel(WritableChannel[RemoteEngine]):
         )
 
 
-class RemoteGetConnection(GetConnection[RemoteChannel]):
+class RemoteGetConnection[T: Node](GetConnection[RemoteChannel, T]):
     """Search a remote channel live."""
 
     @override
@@ -1151,7 +1151,7 @@ class RemoteGetConnection(GetConnection[RemoteChannel]):
             yield update
 
 
-class RemoteSearchConnection(SearchConnection[RemoteChannel]):
+class RemoteSearchConnection[T: Node](SearchConnection[RemoteChannel, T]):
     """Search a remote channel live."""
 
     @override
@@ -1334,7 +1334,7 @@ class PostgresChannel(WritableChannel[PostgresEngine]):
         await self.conn.close()
 
 
-class PostgresGetConnection(GetConnection[PostgresChannel]):
+class PostgresGetConnection[T: Node](GetConnection[PostgresChannel, T]):
     """Get from a Postgres channel."""
 
     @override
@@ -1360,7 +1360,7 @@ class PostgresGetConnection(GetConnection[PostgresChannel]):
         )
 
 
-class PostgresSearchConnection(SearchConnection[PostgresChannel]):
+class PostgresSearchConnection[T: Node](SearchConnection[PostgresChannel, T]):
     """Search a Postgres channel."""
 
     @override
