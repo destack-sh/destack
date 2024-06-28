@@ -123,7 +123,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
   <div
     v-if="block"
     ref="blockRef"
-    class="group/block relative rounded bg-white"
+    class="group/block relative rounded"
     :class="[
       borderless ? '' : 'border',
       nodePtr?.id == inspectionPtr?.id
