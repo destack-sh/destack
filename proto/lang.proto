@@ -1342,7 +1342,7 @@ message CodeLineData {
   optional int32 parent_id = 3;
   optional string parent_key = 4;
   optional string order_key = 9;
-  string content = 32;
+  optional string content = 32;
 }
 
 // A color value.

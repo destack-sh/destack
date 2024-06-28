@@ -1,7 +1,7 @@
 import { ObjectType, type CodeData, type CodeLineData } from "@/proto/wire";
 import { newStructId } from "@/proto/wiring";
 import { defaultSortStruct } from "@/system/lang";
-import { Text as PmText, type Line as PmLine } from "@codemirror/state";
+import { Text as PmText } from "@codemirror/state";
 
 export function mapCodeToCmDoc(code: CodeData): string {
   defaultSortStruct(code.lines);
@@ -11,7 +11,7 @@ export function mapCodeToCmDoc(code: CodeData): string {
   //  (maybe use StateFields like in https://codemirror.net/examples/decoration/)
   const linesPm: string[] = [];
   for (const line of code.lines) {
-    linesPm.push(line.content);
+    linesPm.push(line.content ?? "");
   }
   return linesPm.join("\n");
 }
@@ -20,17 +20,12 @@ export function mapPmDocToCode(doc: PmText, prev: CodeData | undefined): CodeDat
   const lines: CodeLineData[] = [];
   let lineIdx = 0;
   for (const linePm of doc.iterLines()) {
-    const line: CodeLineData = {
-      metatype: ObjectType.CODE_LINE,
-      id: lineIdx++,
-      content: linePm,
-    };
+    const line: CodeLineData = { metatype: ObjectType.CODE_LINE, id: lineIdx++ };
+    if (linePm.length > 0) {
+      line.content = linePm;
+    }
     lines.push(line);
   }
-  const code: CodeData = {
-    metatype: ObjectType.CODE,
-    id: prev?.id ?? newStructId(),
-    lines,
-  };
+  const code: CodeData = { metatype: ObjectType.CODE, id: prev?.id ?? newStructId(), lines };
   return code;
 }

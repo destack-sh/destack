@@ -20,7 +20,7 @@ class _Unset:
         return "<UNSET!>"
 
 
-VERSION = "2024.06.27.2"
+VERSION = "2024.06.28.0"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)

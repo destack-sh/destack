@@ -20,7 +20,7 @@ logger = structlog.get_logger(__name__)
 class CodeLine(Struct):
     """A line of code."""
 
-    content: str = p_regular(32)
+    content: str | None = p_regular(32, require=False)
 
 
 @struct_(StructType.CODE)
@@ -31,7 +31,7 @@ class Code(Struct):
     lines: list[CodeLine] = p_regular(30, require=True, array=True, struct=StructType.CODE_LINE)
 
     def __content_str__(self) -> str:
-        preview_str = "\\n".join(line.content for line in self.lines[:3])
+        preview_str = "\\n".join(line.content or "" for line in self.lines[:3])
         if len(preview_str) > 100:
             preview_str = preview_str[:100] + "..."
         return f"'{preview_str}', {len(self.lines)} lines"
@@ -49,11 +49,11 @@ class Code(Struct):
 
 
 def code_to_string(code: Code) -> str:
-    return "\n".join(line.content for line in code.lines)
+    return "\n".join(line.content or "" for line in code.lines)
 
 
 def string_to_code(s: str) -> Code:
-    return Code(lines=[CodeLine(content=line) for line in s.split("\n")])
+    return Code(lines=[CodeLine(content=line or None) for line in s.split("\n")])
 
 
 def format_code(code: str, suppress_error: bool = False) -> str:

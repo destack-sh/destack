@@ -212,6 +212,9 @@ defineExpose<ViewExposed>({ self, id, actions });
   @apply font-semibold underline underline-offset-2;
 }
 .code .cm-editor .cm-gutters {
-  @apply bg-transparent pr-1.5;
+  @apply bg-transparent pr-1.5 mr-0.5 text-gray-400;
+}
+.code:focus-within .cm-editor .cm-gutters {
+  @apply border-primary-900 text-gray-700;
 }
 </style>

@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.06.27.2"
+VERSION = "2024.06.28.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -1439,7 +1439,7 @@ class CodeLineData(betterproto.Message):
     parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
     parent_key: Optional[str] = betterproto.string_field(4, optional=True)
     order_key: Optional[str] = betterproto.string_field(9, optional=True)
-    content: str = betterproto.string_field(32)
+    content: Optional[str] = betterproto.string_field(32, optional=True)
 
 
 @dataclass(eq=False, repr=False)
