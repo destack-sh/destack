@@ -77,7 +77,7 @@ class EnumType(IdEnum):
     EDIT_TYPE = 2033
     USE_TYPE = 2034
     ACCESS_TYPE = 2035  # ReadType | EditType | UseType
-    EDIT_CATEGORY = 2036
+    CHANGE_CATEGORY = 2036
     POLICY_EFFECT = 2040
 
     # bench
@@ -286,6 +286,7 @@ class StructType(IdEnum):
     # TRANSACTION ?
     EDIT = 1005
     CHANGE = 1006
+    CHANGE_VIGNETTE = 1007
 
     # utility
     GRAPH_SCOPE = 1010

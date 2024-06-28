@@ -2,7 +2,7 @@ import { HUMANIZED_OPERATION_STATUS, getHostClient, supervisor } from "@/proto/s
 import {
   BlockProperty,
   CommitTransactionRequest,
-  EditCategory,
+  ChangeCategory,
   EditType,
   GraphScopeData,
   NODE_PROPERTY_ENUM_BY_TYPE,
@@ -91,7 +91,7 @@ export type Transaction = {
   /** Adds an externally created edit */
   addEdit(edit: EditData): void;
   /** Gets the sub tx for a specific connection */
-  with(meta: { connectionId?: number; change?: ChangeIn; category?: EditCategory }): Transaction;
+  with(meta: { connectionId?: number; change?: ChangeIn; category?: ChangeCategory }): Transaction;
 
   /** Create a new node */
   create<T extends NodeType>(
@@ -143,7 +143,7 @@ export type TransactionMeta = {
   connectionId?: number;
   subjectRef?: Ref<NodeReferenceData | null>;
   change?: ChangeIn;
-  category?: EditCategory;
+  category?: ChangeCategory;
 };
 export type ChangeIn = {
   key: string;
@@ -159,7 +159,7 @@ export class TransactionBuilder implements TransactionMeta, Transaction {
   public readonly connectionId: number | undefined;
   public readonly subjectRef: Ref<NodeReferenceData | null>;
   public readonly change: ChangeIn | undefined;
-  public readonly category: EditCategory | undefined;
+  public readonly category: ChangeCategory | undefined;
 
   state: TransactionState;
 
@@ -168,7 +168,7 @@ export class TransactionBuilder implements TransactionMeta, Transaction {
     connectionId?: number;
     subject: MaybeRef<NodeReferenceData | null>;
     change?: ChangeIn;
-    category?: EditCategory;
+    category?: ChangeCategory;
   }) {
     this.state = tx.state;
     this.connectionId = tx.connectionId;
@@ -194,7 +194,7 @@ export class TransactionBuilder implements TransactionMeta, Transaction {
     return this.subjectRef.value;
   }
 
-  with(meta: { connectionId?: number; change?: ChangeIn; category?: EditCategory }): Transaction {
+  with(meta: { connectionId?: number; change?: ChangeIn; category?: ChangeCategory }): Transaction {
     if (meta.connectionId == this.connectionId && meta.change == this.change && meta.category == this.category) {
       return this; // no change
     }

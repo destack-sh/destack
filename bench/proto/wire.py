@@ -157,6 +157,7 @@ class BenchType(betterproto.Enum):
     EDIT_CONTEXT = 1002
     EDIT = 1005
     CHANGE = 1006
+    CHANGE_VIGNETTE = 1007
     GRAPH_SCOPE = 1010
     CLIENT_ORIGIN = 1011
     NODE_REFERENCE = 1012
@@ -208,7 +209,7 @@ class BenchType(betterproto.Enum):
     EDIT_TYPE = 2033
     USE_TYPE = 2034
     ACCESS_TYPE = 2035
-    EDIT_CATEGORY = 2036
+    CHANGE_CATEGORY = 2036
     POLICY_EFFECT = 2040
     REGION = 2050
     TENANCY = 2051
@@ -288,6 +289,13 @@ class BlockType(betterproto.Enum):
     SCREEN = 70
     ROLE = 90
     IDENTITY = 91
+
+
+class ChangeCategory(betterproto.Enum):
+    """Optional classification for edits."""
+
+    UNSPECIFIED = 0
+    SPACE = 10
 
 
 class ChangeKind(betterproto.Enum):
@@ -392,13 +400,6 @@ class Day(betterproto.Enum):
     SUNDAY = 7
 
 
-class EditCategory(betterproto.Enum):
-    """Optional classification for edits."""
-
-    UNSPECIFIED = 0
-    SPACE = 10
-
-
 class EditType(betterproto.Enum):
     """Ways to edit nodes."""
 
@@ -429,7 +430,7 @@ class EnumType(betterproto.Enum):
     EDIT_TYPE = 2033
     USE_TYPE = 2034
     ACCESS_TYPE = 2035
-    EDIT_CATEGORY = 2036
+    CHANGE_CATEGORY = 2036
     POLICY_EFFECT = 2040
     REGION = 2050
     TENANCY = 2051
@@ -789,6 +790,7 @@ class ObjectType(betterproto.Enum):
     EDIT_CONTEXT = 1002
     EDIT = 1005
     CHANGE = 1006
+    CHANGE_VIGNETTE = 1007
     GRAPH_SCOPE = 1010
     CLIENT_ORIGIN = 1011
     NODE_REFERENCE = 1012
@@ -1104,6 +1106,7 @@ class StructType(betterproto.Enum):
     EDIT_CONTEXT = 1002
     EDIT = 1005
     CHANGE = 1006
+    CHANGE_VIGNETTE = 1007
     GRAPH_SCOPE = 1010
     CLIENT_ORIGIN = 1011
     NODE_REFERENCE = 1012
@@ -1409,6 +1412,18 @@ class ChangeData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class ChangeVignetteData(betterproto.Message):
+    """
+    A short non-binding summary of key properties at the time just before the edit.
+     (so if you rename Block 'A' to 'B', the vignette will say 'A').
+    """
+
+    metatype: "ObjectType" = betterproto.enum_field(1)
+    name: Optional[str] = betterproto.string_field(30, optional=True)
+    icon: Optional["IconData"] = betterproto.message_field(31, optional=True)
+
+
+@dataclass(eq=False, repr=False)
 class ClientOriginData(betterproto.Message):
     """Information to identify a client."""
 
@@ -1501,9 +1516,10 @@ class EditData(betterproto.Message):
     new_node_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         34, optional=True
     )
+    vignette: Optional["ChangeVignetteData"] = betterproto.message_field(35, optional=True)
     scope: "GraphScopeData" = betterproto.message_field(40)
     change_key: Optional[str] = betterproto.string_field(41, optional=True)
-    category: Optional["EditCategory"] = betterproto.enum_field(42, optional=True)
+    category: Optional["ChangeCategory"] = betterproto.enum_field(42, optional=True)
     subject_ptr: Optional["NodeReferenceData"] = betterproto.message_field(43, optional=True)
     origin: Optional["ClientOriginData"] = betterproto.message_field(44, optional=True)
     context: Optional["EditContextData"] = betterproto.message_field(45, optional=True)
@@ -2556,6 +2572,7 @@ class LogData(betterproto.Message):
     set_properties: List[int] = betterproto.int32_field(29)
     kind: "LogKind" = betterproto.enum_field(30)
     level: "LogLevel" = betterproto.enum_field(31)
+    change_ptr: Optional["NodeReferenceData"] = betterproto.message_field(32, optional=True)
     type: Optional["AccessType"] = betterproto.enum_field(40, optional=True)
     node_ptr: Optional["NodeReferenceData"] = betterproto.message_field(41, optional=True)
     properties: List[int] = betterproto.int32_field(42)
@@ -2572,10 +2589,8 @@ class LogData(betterproto.Message):
         betterproto.message_field(46, optional=True)
     )
     new_revision: Optional[int] = betterproto.int64_field(47, optional=True)
-    change_ptr: Optional["NodeReferenceData"] = betterproto.message_field(48, optional=True)
-    category: Optional["EditCategory"] = betterproto.enum_field(49, optional=True)
-    nodes_ptr: List["NodeReferenceData"] = betterproto.message_field(50)
-    nodes_total: Optional[int] = betterproto.int32_field(51, optional=True)
+    category: Optional["ChangeCategory"] = betterproto.enum_field(48, optional=True)
+    vignette: Optional["ChangeVignetteData"] = betterproto.message_field(49, optional=True)
     block_ptr: Optional["NodeReferenceData"] = betterproto.message_field(70, optional=True)
     step_ptr: Optional["NodeReferenceData"] = betterproto.message_field(71, optional=True)
     session_ptr: Optional["NodeReferenceData"] = betterproto.message_field(72, optional=True)
@@ -4864,6 +4879,7 @@ AnyStructData = Union[
     EditContextData,
     EditData,
     ChangeData,
+    ChangeVignetteData,
     GraphScopeData,
     ClientOriginData,
     NodeReferenceData,

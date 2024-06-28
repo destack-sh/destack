@@ -574,6 +574,7 @@ class Host(GraphIoServiceBase, HostApi, HostBase):
                 new_node_secret_packed=new_node_secret_packed,
                 new_revision=edit.revision,
                 category=edit.category,
+                vignette=edit.vignette,
                 # session context
                 block_ptr=edit.context.block_ptr if edit.context else None,
                 step_ptr=edit.context.step_ptr if edit.context else None,

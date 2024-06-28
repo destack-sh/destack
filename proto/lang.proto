@@ -122,6 +122,7 @@ enum BenchType {
   BENCH_TYPE_EDIT_CONTEXT = 1002;
   BENCH_TYPE_EDIT = 1005;
   BENCH_TYPE_CHANGE = 1006;
+  BENCH_TYPE_CHANGE_VIGNETTE = 1007;
   BENCH_TYPE_GRAPH_SCOPE = 1010;
   BENCH_TYPE_CLIENT_ORIGIN = 1011;
   BENCH_TYPE_NODE_REFERENCE = 1012;
@@ -173,7 +174,7 @@ enum BenchType {
   BENCH_TYPE_EDIT_TYPE = 2033;
   BENCH_TYPE_USE_TYPE = 2034;
   BENCH_TYPE_ACCESS_TYPE = 2035;
-  BENCH_TYPE_EDIT_CATEGORY = 2036;
+  BENCH_TYPE_CHANGE_CATEGORY = 2036;
   BENCH_TYPE_POLICY_EFFECT = 2040;
   BENCH_TYPE_REGION = 2050;
   BENCH_TYPE_TENANCY = 2051;
@@ -253,6 +254,12 @@ enum BlockType {
   BLOCK_TYPE_SCREEN = 70;
   BLOCK_TYPE_ROLE = 90;
   BLOCK_TYPE_IDENTITY = 91;
+}
+
+// Optional classification for edits.
+enum ChangeCategory {
+  CHANGE_CATEGORY_UNSPECIFIED = 0;
+  CHANGE_CATEGORY_SPACE = 10;
 }
 
 // The kind of Change.
@@ -354,12 +361,6 @@ enum Day {
   DAY_SUNDAY = 7;
 }
 
-// Optional classification for edits.
-enum EditCategory {
-  EDIT_CATEGORY_UNSPECIFIED = 0;
-  EDIT_CATEGORY_SPACE = 10;
-}
-
 // Ways to edit nodes.
 enum EditType {
   EDIT_TYPE_UNSPECIFIED = 0;
@@ -389,7 +390,7 @@ enum EnumType {
   ENUM_TYPE_EDIT_TYPE = 2033;
   ENUM_TYPE_USE_TYPE = 2034;
   ENUM_TYPE_ACCESS_TYPE = 2035;
-  ENUM_TYPE_EDIT_CATEGORY = 2036;
+  ENUM_TYPE_CHANGE_CATEGORY = 2036;
   ENUM_TYPE_POLICY_EFFECT = 2040;
   ENUM_TYPE_REGION = 2050;
   ENUM_TYPE_TENANCY = 2051;
@@ -744,6 +745,7 @@ enum ObjectType {
   OBJECT_TYPE_EDIT_CONTEXT = 1002;
   OBJECT_TYPE_EDIT = 1005;
   OBJECT_TYPE_CHANGE = 1006;
+  OBJECT_TYPE_CHANGE_VIGNETTE = 1007;
   OBJECT_TYPE_GRAPH_SCOPE = 1010;
   OBJECT_TYPE_CLIENT_ORIGIN = 1011;
   OBJECT_TYPE_NODE_REFERENCE = 1012;
@@ -1044,6 +1046,7 @@ enum StructType {
   STRUCT_TYPE_EDIT_CONTEXT = 1002;
   STRUCT_TYPE_EDIT = 1005;
   STRUCT_TYPE_CHANGE = 1006;
+  STRUCT_TYPE_CHANGE_VIGNETTE = 1007;
   STRUCT_TYPE_GRAPH_SCOPE = 1010;
   STRUCT_TYPE_CLIENT_ORIGIN = 1011;
   STRUCT_TYPE_NODE_REFERENCE = 1012;
@@ -1317,6 +1320,14 @@ message ChangeData {
   optional ExpressionData logs_filter = 36;
 }
 
+// A short non-binding summary of key properties at the time just before the edit.
+// (so if you rename Block 'A' to 'B', the vignette will say 'A').
+message ChangeVignetteData {
+  ObjectType metatype = 1;
+  optional string name = 30;
+  optional IconData icon = 31;
+}
+
 // Information to identify a client.
 message ClientOriginData {
   ObjectType metatype = 1;
@@ -1392,9 +1403,10 @@ message EditData {
   repeated int32 properties = 32;
   optional google.protobuf.Struct old_node_packed = 33;
   optional google.protobuf.Struct new_node_packed = 34;
+  optional ChangeVignetteData vignette = 35;
   GraphScopeData scope = 40;
   optional string change_key = 41;
-  optional EditCategory category = 42;
+  optional ChangeCategory category = 42;
   optional NodeReferenceData subject_ptr = 43;
   optional ClientOriginData origin = 44;
   optional EditContextData context = 45;
@@ -2303,6 +2315,7 @@ message LogData {
   repeated int32 set_properties = 29;
   LogKind kind = 30;
   LogLevel level = 31;
+  optional NodeReferenceData change_ptr = 32;
   optional AccessType type = 40;
   optional NodeReferenceData node_ptr = 41;
   repeated int32 properties = 42;
@@ -2311,10 +2324,8 @@ message LogData {
   optional google.protobuf.Struct new_node_packed = 45;
   optional google.protobuf.Struct new_node_secret_packed = 46;
   optional int64 new_revision = 47;
-  optional NodeReferenceData change_ptr = 48;
-  optional EditCategory category = 49;
-  repeated NodeReferenceData nodes_ptr = 50;
-  optional int32 nodes_total = 51;
+  optional ChangeCategory category = 48;
+  optional ChangeVignetteData vignette = 49;
   optional NodeReferenceData block_ptr = 70;
   optional NodeReferenceData step_ptr = 71;
   optional NodeReferenceData session_ptr = 72;
