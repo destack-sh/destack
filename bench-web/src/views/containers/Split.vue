@@ -21,7 +21,7 @@ const props = defineProps<
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 
-const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self);
+const { graph: spaceGraph } = useExistingConnection(self);
 const splits = spaceGraph.getChildrenRef(self, NodeType.VIEW, { ignoreAncestors: true });
 
 const focusedSplitIdx: Ref<number | null> = computed(() => {
@@ -52,7 +52,7 @@ const { sizedViews, draggingIdx } = useSplitView(
   toRef(props, "size"),
   containerRef,
   splitLayout,
-  spaceConnection,
+  canvas.tx,
 );
 
 // actions
@@ -67,7 +67,7 @@ const actions: Partial<ActionMapImplementation<"view">> = {
     action: (action, ctx) => {
       const focusedSplit = getSplitFromContext(ctx);
       if (focusedSplit == null) return false;
-      canvas.removeView(spaceConnection.tx, spaceGraph, focusedSplit);
+      canvas.removeView(spaceGraph, focusedSplit);
     },
   },
   "view.navigate.focusPreviousFrame": {
@@ -78,7 +78,7 @@ const actions: Partial<ActionMapImplementation<"view">> = {
       if (focusedSplit == null) return false;
       const currentIdx = allFrames.findIndex((window) => window.id == focusedSplit.id);
       const prevIdx = ((currentIdx ?? 0) - 1 + allFrames.length) % allFrames.length;
-      canvas.focus(spaceConnection.tx, { node: allFrames[prevIdx] });
+      canvas.focus({ node: allFrames[prevIdx] });
     },
   },
   "view.navigate.focusNextFrame": {
@@ -89,7 +89,7 @@ const actions: Partial<ActionMapImplementation<"view">> = {
       if (focusedSplit == null) return false;
       const currentIdx = allFrames.findIndex((window) => window.id == focusedSplit.id);
       const nextIdx = ((currentIdx ?? 0) + 1) % canvas.frames.length;
-      canvas.focus(spaceConnection.tx, { node: allFrames[nextIdx] });
+      canvas.focus({ node: allFrames[nextIdx] });
     },
   },
   "view.navigate.closeSplit": {
@@ -97,7 +97,7 @@ const actions: Partial<ActionMapImplementation<"view">> = {
     action: (action, ctx) => {
       const focusedSplit = getSplitFromContext(ctx);
       if (focusedSplit == null) return false;
-      canvas.removeView(spaceConnection.tx, spaceGraph, focusedSplit);
+      canvas.removeView(spaceGraph, focusedSplit);
     },
   },
   "view.navigate.focusNextSplit": {
@@ -106,7 +106,7 @@ const actions: Partial<ActionMapImplementation<"view">> = {
       const focusedSplit = getSplitFromContext(ctx);
       const focusedSplitIdx = splits.value.findIndex((split) => split.id == focusedSplit.id);
       const nextIdx = (focusedSplitIdx + 1) % splits.value.length;
-      canvas.focus(spaceConnection.tx, { node: splits.value[nextIdx] });
+      canvas.focus({ node: splits.value[nextIdx] });
     },
   },
   "view.navigate.focusPreviousSplit": {
@@ -115,7 +115,7 @@ const actions: Partial<ActionMapImplementation<"view">> = {
       const focusedSplit = getSplitFromContext(ctx);
       const focusedSplitIdx = splits.value.findIndex((split) => split.id == focusedSplit.id);
       const prevIdx = (focusedSplitIdx - 1 + splits.value.length) % splits.value.length;
-      canvas.focus(spaceConnection.tx, { node: splits.value[prevIdx] });
+      canvas.focus({ node: splits.value[prevIdx] });
     },
   },
   //

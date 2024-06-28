@@ -206,7 +206,7 @@ type OpenViewOptions = {
 export class ViewCanvas {
   spacePtr: Ref<TypedNodeReferenceData<NodeType.SPACE> | null>;
   graph: ReadNodeGraph;
-  txFactory: () => Transaction; // for when we're not given a transaction to work with (e.g. browser events)
+  tx: () => Transaction; // for when we're not given a transaction to work with (e.g. browser events)
   viewRefsById: Ref<Record<string, ViewComponent>> = shallowRef({});
 
   // absolutely focused views/components (focused from the top down)
@@ -222,7 +222,7 @@ export class ViewCanvas {
   ) {
     this.spacePtr = spacePtr;
     this.graph = graph;
-    this.txFactory = txFactory;
+    this.tx = txFactory;
 
     // respond to 'unmanaged' input from browser
     // active element
@@ -297,9 +297,6 @@ export class ViewCanvas {
       this.focusedViewPtr.value = null;
     }
 
-    // refresh
-    const tx = this.txFactory();
-
     // update focus
     this.focusedViewComponent.value = component;
     const componentsById: Record<string, ViewComponent> = {};
@@ -327,20 +324,19 @@ export class ViewCanvas {
       linkedNodePtr != null &&
       linkedNodePtr != inspectionPtr.value?.id
     ) {
-      this.inspect(tx, { node: linkedNodePtr, view: this.focusedViewPtr.value! });
+      this.inspect({ node: linkedNodePtr, view: this.focusedViewPtr.value! });
     }
     if (
       !keepInspectionInBase &&
       this.focusedViewPtr.value != null &&
       this.focusedView.value?.focus?.nodesPtr[0]?.id != linkedNodePtr?.id
     ) {
-      this.focusInGraph(tx, { view: this.focusedViewPtr.value, focus: makeSelectionMaybe(linkedNodePtr) });
+      this.focusInGraph({ view: this.focusedViewPtr.value, focus: makeSelectionMaybe(linkedNodePtr) });
     }
   }
 
   /** Inspects the given node */
   inspect(
-    tx: Transaction,
     inspect: { node: AnyNodeData | AnyNodeReferenceData; view: SomeView; focusInspector?: boolean },
   ): void {
     log.trace("canvas.inspect", inspect);
@@ -351,7 +347,7 @@ export class ViewCanvas {
     const baseNodePtr = viewAncestors[rootViewIdx - 1]?.nodePtr;
     if (inspectionPtr.value?.id != nodePtr.id || inspectionBasePtr.value?.id != baseNodePtr?.id) {
       const space = this.graph.getOrError(this.spacePtr.value!);
-      tx.update(space, { inspectionPtr: nodePtr, basePtr: baseNodePtr }, { debounce: "short" });
+      this.tx().update(space, { inspectionPtr: nodePtr, basePtr: baseNodePtr }, { debounce: "short" });
     }
 
     // open inspector
@@ -365,7 +361,6 @@ export class ViewCanvas {
    * Also updates inspection to that node if re-focusing a view.
    * */
   focus(
-    tx: Transaction,
     focus: (
       | { node: TypedNodeReferenceData<NodeType.VIEW> | ViewData }
       | { node: AnyNodeReferenceData | AnyNodeData; view: SomeView }
@@ -387,14 +382,14 @@ export class ViewCanvas {
         } else if (!focus.ignoreInspection) {
           // auto-inspect what was previously focused inside this view
           const node = viewData!.focus!.nodesPtr[0];
-          this.inspect(tx, { node, view: viewData! });
+          this.inspect({ node, view: viewData! });
           break;
         }
       }
       if (viewData == null) throw new Error(`no view data for ${describeNode(node)}`);
 
       // focus in graph & then in component
-      this.focusInGraph(tx, { ...focus, view: viewData });
+      this.focusInGraph({ ...focus, view: viewData });
       nextTick(() => {
         const focused = this.focusInComponent(node, focus.anchor);
         if (!focused) {
@@ -407,9 +402,9 @@ export class ViewCanvas {
       // focus as a general node in the given view
       const node = focus.node as AnyNodeReferenceData | AnyNodeData;
       // focus in graph & then in component
-      this.focusInGraph(tx, { view: focus.view, focus: makeSelection([node]) });
+      this.focusInGraph({ view: focus.view, focus: makeSelection([node]) });
       if (!focus.ignoreInspection) {
-        this.inspect(tx, { node, view: focus.view });
+        this.inspect({ node, view: focus.view });
       }
       const component = this.getViewComponent(focus.view.id!);
       if (component != null) this.focusInComponent(component, focus.anchor);
@@ -420,9 +415,10 @@ export class ViewCanvas {
 
   /** Focuses the given view absolutely in the graph. */
   focusInGraph(
-    tx: Transaction,
     focus: { view: SomeView; focus?: SelectionData; parent?: SomeView; resetDown?: boolean },
   ) {
+    const tx = this.tx();
+
     // focus the given selection within the view
     if (focus.focus != null) {
       const view = this.getViewData(focus.view)!;
@@ -649,7 +645,7 @@ export class ViewCanvas {
 
   /** Add a new view to the canvas at the current root.  */
   addView(view: ViewDataIn, options?: OpenViewOptions) {
-    const tx = this.txFactory();
+    const tx = this.tx();
     const existing = this.findView({ type: view.type, nodePtr: view.nodePtr });
     log.debug("canvas.addView", view, { existing, options, focusedRoot: this.focusedRoot });
 
@@ -698,14 +694,14 @@ export class ViewCanvas {
           newView.type,
         );
       tx.create(newView);
-      this.focus(tx, { node: newView });
+      this.focus({ node: newView });
       return newView;
     } else if (options?.ifPresent == "focus") {
-      this.focus(tx, { node: existing });
+      this.focus({ node: existing });
       return existing;
     } else if (options?.ifPresent == "upsertAndFocus") {
       tx.update(existing, { icon: toIconMaybe(view.icon), focus: view.focus });
-      this.focus(tx, { node: existing });
+      this.focus({ node: existing });
       return existing;
     } else {
       throw new Error(`unexpected ifPresent: ${options?.ifPresent}`);
@@ -729,10 +725,10 @@ export class ViewCanvas {
     const nodeRef =
       node.metatype == ObjectType.NODE_REFERENCE ? (node as NodeReferenceData) : toNodeReference(node as AnyNodeData);
     log.debug("canvas.goToNode", node);
-    const tx = this.txFactory();
+    const tx = this.tx();
     if (nodeRef.type == NodeType.VIEW && this.isInSpace(node)) {
       // just focus directly
-      this.focus(tx, { node: nodeRef as ViewData | TypedNodeReferenceData<NodeType.VIEW> });
+      this.focus({ node: nodeRef as ViewData | TypedNodeReferenceData<NodeType.VIEW> });
     } else {
       // find or create appropriate view
       const graph = options?.graph ?? this.graph;
@@ -749,7 +745,7 @@ export class ViewCanvas {
           },
           { ifPresent: "upsertAndFocus", ...options },
         );
-        this.inspect(tx, { node: nodeRef, view });
+        this.inspect({ node: nodeRef, view });
       } else {
         throw new Error(`cannot go to node: ${describeNode(node)}`);
       }
@@ -759,11 +755,11 @@ export class ViewCanvas {
   /**
    * Removes the given view from the space graph, taking care to clean up.
    */
-  removeView(tx: Transaction, graph: ReadNodeGraph, view: ViewData) {
+  removeView(graph: ReadNodeGraph, view: ViewData) {
     log.debug("canvas.remove", view);
     const parent = graph.get(view.parentPtr!) as ViewData;
-    tx.delete(view);
-    this.cleanupRootViews(tx, graph, parent);
+    this.tx().delete(view);
+    this.cleanupRootViews(graph, parent);
   }
 
   /**
@@ -771,7 +767,7 @@ export class ViewCanvas {
    * NOTE: right now we only close sub root views because it's annoying to have your layout change because you accidentally close a tab.
    *  (and the 'layout' is usually your root splits)
    */
-  cleanupRootViews(tx: Transaction, graph: ReadNodeGraph, view: ViewData) {
+  cleanupRootViews(graph: ReadNodeGraph, view: ViewData) {
     if (!ROOT_VIEW_TYPES.has(view.type)) return;
     if (
       graph.getChildren(view, NodeType.VIEW).length == 0 &&
@@ -779,7 +775,7 @@ export class ViewCanvas {
       graph.get({ type: NodeType.VIEW, id: view.parentPtr!.id })?.type == ViewType.SPLIT
     ) {
       // NOTE :UX: should we re-distribute space if cleaning up after a split?
-      this.removeView(tx, graph, view);
+      this.removeView(graph, view);
     }
   }
 
@@ -787,7 +783,6 @@ export class ViewCanvas {
    * Adds the given view into this view at the target/anchor.
    */
   moveView(
-    tx: Transaction,
     graph: ReadNodeGraph,
     self: ViewData,
     child: ViewData,
@@ -795,6 +790,7 @@ export class ViewCanvas {
     referenceId: string | null,
   ) {
     log.debug("canvas.move", { self, child, anchor, referenceId });
+    const tx = this.tx();
     // move & update order
     if (child.id != referenceId) {
       updateOrder({
@@ -807,7 +803,7 @@ export class ViewCanvas {
     }
     if (child.parentPtr?.id != self.id) {
       tx.move(child, { parentPtr: toNodeReference(self) }, { debounce: "tick" });
-      this.cleanupRootViews(tx, graph, graph.get(child.parentPtr!) as ViewData);
+      this.cleanupRootViews(graph, graph.get(child.parentPtr!) as ViewData);
     }
   }
 
@@ -816,13 +812,13 @@ export class ViewCanvas {
    * If we're already split alongside the given orientation, the child is added to the existing split.
    */
   splitView(
-    tx: Transaction,
     graph: ReadNodeGraph,
     parent: ViewData,
     child: ViewData,
     anchor: Omit<SplitAnchor, "center">,
   ) {
     log.debug("canvas.split", { parent, child, anchor });
+    const tx = this.tx();
 
     // determine if we need a new split in the enclosing split view
     let split: ViewData | null = null;
@@ -894,14 +890,10 @@ export class ViewCanvas {
         }),
       });
       tx.create(newSplitParent);
-      tx.move(child, {
-        parentPtr: toNodeReference(newSplitParent),
-        size: undefined,
-        orderKey: "a0",
-      });
+      tx.move(child, { parentPtr: toNodeReference(newSplitParent), size: undefined, orderKey: "a0" });
       tx.update(parent, { size: halfSize });
     }
-    this.cleanupRootViews(tx, graph, graph.get(child.parentPtr!) as ViewData);
+    this.cleanupRootViews(graph, graph.get(child.parentPtr!) as ViewData);
   }
 }
 
@@ -1098,7 +1090,7 @@ export function createDesktopProSpace(
       orderKey: "a0",
       name: "Create1",
       title: "Create",
-    });  
+    });
     tx.create({
       metatype: NodeType.VIEW,
       type: ViewType.FEED,

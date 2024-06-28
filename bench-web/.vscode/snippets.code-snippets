@@ -25,7 +25,7 @@
 			"const emit = defineEmits(viewEmits());",
 			"const self = toRef(props, \"self\");",
 			"",
-			"const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self);",
+			"const { graph: spaceGraph } = useExistingConnection(self);",
 			"",
 			"canvas.registerView(self);",
 			"defineExpose<ViewExposed>({ self });",

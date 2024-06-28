@@ -1033,7 +1033,7 @@ contributeActionMap<"view">({
     action: () => {
       if (pkg.value == null) return;
       if (space.value == null) throw new Error(`${describeNode(pkg.value)} has no space`);
-      const tx = canvas.txFactory();
+      const tx = canvas.tx();
       clearSpace(tx, canvas.graph, space.value);
       createEmptySpace(tx, space.value);
     },
@@ -1046,7 +1046,7 @@ contributeActionMap<"view">({
     action: () => {
       if (pkg.value == null) return;
       if (space.value == null) throw new Error(`${describeNode(pkg.value)} has no space`);
-      const tx = canvas.txFactory();
+      const tx = canvas.tx();
       clearSpace(tx, canvas.graph, space.value);
       createDesktopProSpace(tx, space.value);
     },
@@ -1058,7 +1058,7 @@ contributeActionMap<"view">({
     icon: "fas fa-rotate",
     action: () => {
       if (space.value == null) throw new Error("no space");
-      const tx = canvas.txFactory();
+      const tx = canvas.tx();
       const barPosition = space.value.barPosition ?? DEFAULT_BAR_POSITION;
       const nextBarPosition = EXPOSED_ANCHORS[(EXPOSED_ANCHORS.indexOf(barPosition) + 1) % EXPOSED_ANCHORS.length];
       tx.update(space.value, { barPosition: nextBarPosition });

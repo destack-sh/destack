@@ -562,7 +562,8 @@ class Host(GraphIoServiceBase, HostApi, HostBase):
                 updated_at=edit.edited_at,
                 updated_epoch=edit.epoch,
                 updated_by_ptr=edit.subject_ptr,
-                kind=wire.LogKind.EDIT,
+                # content
+                kind=wire.LogKind.CHANGE,
                 level=wire.LogLevel.INFO,
                 type=cast(wire.AccessType, edit.type),
                 node_ptr=edit.node_ptr,
@@ -572,6 +573,8 @@ class Host(GraphIoServiceBase, HostApi, HostBase):
                 new_node_packed=new_node_packed,
                 new_node_secret_packed=new_node_secret_packed,
                 new_revision=edit.revision,
+                category=edit.category,
+                # session context
                 block_ptr=edit.context.block_ptr if edit.context else None,
                 step_ptr=edit.context.step_ptr if edit.context else None,
                 session_ptr=edit.context.session_ptr if edit.context else None,

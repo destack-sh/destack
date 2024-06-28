@@ -25,7 +25,7 @@ const path = computed(() => ancestors.value.slice().reverse());
     <template v-for="(node, i) in path" :key="i">
       <!-- Node -->
       <button
-        class="flex cursor-pointer flex-row items-center rounded px-1 hover:bg-gray-100 hover:text-primary-900"
+        class="flex cursor-pointer flex-row items-center rounded px-0.5 hover:bg-gray-100 hover:text-primary-900"
         role="button"
         :class="node.id == self?.id || node.id == focus?.id ? 'text-primary-900' : 'text-gray-600'"
         :draggable="true"

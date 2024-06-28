@@ -173,7 +173,7 @@ watch([canvas.focusedViewPtr, bench], () => {
           name="Create"
           :icon="makeIcon('fas fa-redo-alt')"
           title="Restore Default"
-          @click="() => createDesktopProSpace(spaceConnection.tx, space!)"
+          @click="() => createDesktopProSpace(canvas.tx(), space!)"
         />
       </div>
       <div v-else-if="bench" class="flex w-fit flex-col gap-y-2 self-center">
@@ -191,7 +191,8 @@ watch([canvas.focusedViewPtr, bench], () => {
       </div>
       <div v-else-if="user" class="flex flex-col gap-y-2 self-center">
         <!-- Logged in, but not on any space (not sure if this should even show or just auto-redirect?) -->
-        <span>^
+        <span
+          >^
           <i class="fas fa-exclamation-triangle mr-1.5 text-gray-500" />
           <span class="text-gray-600">You're Lost in Space</span>
         </span>

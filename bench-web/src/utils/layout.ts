@@ -1,5 +1,6 @@
 import { ObjectType, BoxData, NodeType, Orientation, type ViewData } from "@/proto/wire";
 import type { Connection } from "@/system/connection";
+import type { Transaction } from "@/system/transaction";
 import { roundToDigits } from "@/utils/functools";
 import {
   useElementSize,
@@ -167,7 +168,7 @@ export function useSplitView(
   sizeRef: Ref<{ width: number; height: number }>,
   containerRef: Ref<HTMLElement | null>,
   layoutRef: Ref<SplitLayout>,
-  graphConnection: Connection<any, any>,
+  txFactory: () => Transaction,
 ) {
   const { sizedViews, updateSeparator } = splitView(viewsRef, sizeRef, layoutRef);
   const { elementX: mouseRelativeX, elementY: mouseRelativeY } = useMouseInElement(containerRef);
@@ -187,8 +188,9 @@ export function useSplitView(
         const draggedToPx =
           layoutRef.value.orientation == Orientation.HORIZONTAL ? mouseRelativeX.value : mouseRelativeY.value;
         const [aUpdate, bUpdate] = updateSeparator(draggingIdx.value, draggedToPx);
-        graphConnection.tx.update(viewsRef.value[draggingIdx.value], { size: aUpdate.size }, { debounce: "long" });
-        graphConnection.tx.update(viewsRef.value[draggingIdx.value + 1], { size: bUpdate.size }, { debounce: "long" });
+        const tx = txFactory();
+        tx.update(viewsRef.value[draggingIdx.value], { size: aUpdate.size }, { debounce: "long" });
+        tx.update(viewsRef.value[draggingIdx.value + 1], { size: bUpdate.size }, { debounce: "long" });
       });
 
       // and stop dragging once mouse is released

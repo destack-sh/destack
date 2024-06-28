@@ -13,7 +13,7 @@ const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 
 const basePtr = computed(() => inspectionPtr.value ?? inspectionBasePtr.value);
-const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self);
+const { graph: spaceGraph } = useExistingConnection(self);
 const { graph: pkgGraph, connection: pkgConnection } = useExistingConnection(basePtr);
 const baseNode = pkgGraph.getRef(basePtr);
 
