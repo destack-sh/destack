@@ -39,6 +39,7 @@ from bench.language.property import p_internal, p_system
 from bench.language.setup import NODE_CLASS_BY_TYPE
 from bench.proto.wire import (
     AnyNodeData,
+    ChangeVignetteData,
     ClientOriginData,
     EditContextData,
     EditData,
@@ -52,6 +53,7 @@ if TYPE_CHECKING:
         Code,
         EditContext,
         Expression,
+        Icon,
         Log,
         NodeSuperGraph,
         ReadOptions,
@@ -66,11 +68,24 @@ def new_edit_id() -> str:
     return str(UUIDT())
 
 
-@enum_(EnumType.EDIT_CATEGORY)
-class EditCategory(IdEnum):
+@enum_(EnumType.CHANGE_CATEGORY)
+class ChangeCategory(IdEnum):
     """Optional classification for edits."""
 
     SPACE = 10
+
+
+@struct_(StructType.CHANGE_VIGNETTE, inline=True)
+class ChangeVignette(InlineStruct):
+    """
+    A short non-binding summary of key properties at the time just before the edit.
+    (so if you rename Block 'A' to 'B', the vignette will say 'A').
+    """
+
+    name: str | None = p_system(30, require=False, description="Name of the object.")
+    icon: Optional["Icon"] = p_system(
+        31, require=False, struct=StructType.ICON, description="Icon of the object."
+    )
 
 
 @struct_(StructType.EDIT, inline=True)
@@ -108,6 +123,12 @@ class Edit(InlineStruct):
         primitive_type=PrimitiveType.JSON,
         description="The new values for the edited properties (if any.)",
     )
+    vignette: ChangeVignette | None = p_system(
+        35,
+        require=False,
+        struct=StructType.CHANGE_VIGNETTE,
+        description="Summary of the node before the edit.",
+    )
 
     # meta
     scope: GraphScope = p_system(
@@ -116,7 +137,7 @@ class Edit(InlineStruct):
     change_key: UUID | None = p_system(
         41, require=False, description="The change that this edit is part of."
     )
-    category: EditCategory | None = p_system(
+    category: ChangeCategory | None = p_system(
         42, require=False, description="Optional classification for the edit."
     )
     subject: EditSubject | None = p_system(
@@ -718,7 +739,7 @@ def edit_data_graph(
 
     from bench.language.query import DEFAULT_READ_OPTIONS
     from bench.language.value import pack_value_data
-    from bench.proto import wiring
+    from bench.proto import wire, wiring
 
     if options is None:
         options = DEFAULT_READ_OPTIONS
@@ -767,6 +788,15 @@ def edit_data_graph(
             updated_node_data = graph.get(node_id)
             assert updated_node_data is not None, f"missing node {edit.node_ptr!r} for {edit!r}"
             updated_node_data = wiring.copy_struct(updated_node_data)
+
+            # prepass: make vignette with old data
+            if is_prepass:
+                vignette = ChangeVignetteData(
+                    metatype=wire.ObjectType.CHANGE_VIGNETTE,
+                    name=getattr(updated_node_data, "name", None),
+                    icon=getattr(updated_node_data, "icon", None),
+                )
+                edit.vignette = vignette
 
             # directly edited properties
             old_node_data = {}

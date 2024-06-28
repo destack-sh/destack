@@ -1,5 +1,5 @@
 import { getHostClient } from "@/proto/services";
-import { BenchData, BranchData, EditCategory, NodeType, SpaceType } from "@/proto/wire";
+import { BenchData, BranchData, ChangeCategory, NodeType, SpaceType } from "@/proto/wire";
 import {
   makeScope,
   nodeReference,
@@ -60,7 +60,7 @@ export const { connection: spaceConnection } = useExistingConnection(local.space
   isOptional: true,
 });
 export const canvas = new ViewCanvas(local.spacePtr, spaceGraph, () =>
-  spaceConnection.tx.with({ category: EditCategory.SPACE }),
+  spaceConnection.tx.with({ category: ChangeCategory.SPACE }),
 );
 export const allSpaces = pkgGraph.getChildrenRef(pkg, NodeType.SPACE);
 export const ownedSpacesInPkg = computed(() =>

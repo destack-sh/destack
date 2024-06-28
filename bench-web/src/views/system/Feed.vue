@@ -2,7 +2,7 @@
 import {
   BlockData,
   BoxData,
-  EditCategory,
+  ChangeCategory,
   EditType,
   ExpressionOp,
   IconData,
@@ -62,6 +62,7 @@ type LogEditItem = FeedItemBase & {
   kind: "log-edit";
   it: LogData;
   node: AnyNodeData | null;
+  nodeType: NodeType;
   subject: UserData | RunData | null;
 };
 type LogChangeItem = FeedItemBase & {
@@ -99,7 +100,7 @@ const { roots, graph, connection, page } = useSearchConnection(
           op: ExpressionOp.NOT_EQUALS,
           propertyPtr: propertyReference(ObjectType.LOG, LogProperty.category),
           valuePacked: packValueSimpleStruct(
-            EditCategory.SPACE,
+            ChangeCategory.SPACE,
             getTypeIdentityForProperty(PROPERTY_INFOS_BY_TYPE[ObjectType.LOG][LogProperty.category]),
           ),
         }),
@@ -119,6 +120,7 @@ const items = computed<FeedItem[]>(() => {
         it,
         icon: ICON_BY_EDIT_TYPE[it.type as unknown as EditType] ?? ICON_BY_NODE_TYPE[NodeType.LOG]!,
         node: it.nodePtr != null ? supergraph.get(it.nodePtr) : null,
+        nodeType: it.nodePtr!.type,
         subject,
         createdAt: it.createdAt!,
         actions: [getAction("common.history.undo"), getAction("common.history.redo")],
@@ -219,23 +221,18 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
               </span>
               <!-- Object -->
               <button
-                v-if="item.node"
                 class="group/node flex-shrink-0 px-1 hover:bg-primary-100 hover:text-primary-900"
-                @click="canvas.goToNode(item.node)"
+                @click="item.node && canvas.goToNode(item.node)"
               >
                 <IconInline
-                  v-bind="getNodeIcon(item.node)"
+                  v-bind="
+                    item.it.vignette?.icon ??
+                    (item.node != null ? getNodeIcon(item.node) : ICON_BY_NODE_TYPE[item.nodeType])
+                  "
                   class="mr-1.5 text-gray-700 group-hover/node:text-primary-900"
                 />
-                <span>{{ (item.node as any)?.name ?? toCamelName(NodeType, item.node.metatype) }}</span>
+                <span>{{ item.it.vignette?.name ?? toCamelName(NodeType, item.nodeType) }}</span>
               </button>
-              <span v-else class="group/node">
-                <IconInline
-                  v-bind="ICON_BY_NODE_TYPE[item.it.nodePtr!.type]"
-                  class="text-gray-700 group-hover/node:text-primary-900"
-                />
-                <span class="ml-1">???</span>
-              </span>
             </template>
 
             <!-- Run -->

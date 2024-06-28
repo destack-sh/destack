@@ -256,6 +256,26 @@ export interface ChangeData {
     logsFilter?: ExpressionData;
 }
 /**
+ * A short non-binding summary of key properties at the time just before the edit.
+ * (so if you rename Block 'A' to 'B', the vignette will say 'A').
+ *
+ * @generated from protobuf message symbolx.bench.ChangeVignetteData
+ */
+export interface ChangeVignetteData {
+    /**
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: optional string name = 30;
+     */
+    name?: string;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.IconData icon = 31;
+     */
+    icon?: IconData;
+}
+/**
  * Information to identify a client.
  *
  * @generated from protobuf message symbolx.bench.ClientOriginData
@@ -497,6 +517,10 @@ export interface EditData {
      */
     newNodePacked?: Struct;
     /**
+     * @generated from protobuf field: optional symbolx.bench.ChangeVignetteData vignette = 35;
+     */
+    vignette?: ChangeVignetteData;
+    /**
      * @generated from protobuf field: symbolx.bench.GraphScopeData scope = 40;
      */
     scope?: GraphScopeData;
@@ -505,9 +529,9 @@ export interface EditData {
      */
     changeKey?: string;
     /**
-     * @generated from protobuf field: optional symbolx.bench.EditCategory category = 42;
+     * @generated from protobuf field: optional symbolx.bench.ChangeCategory category = 42;
      */
-    category?: EditCategory;
+    category?: ChangeCategory;
     /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData subject_ptr = 43;
      */
@@ -3475,6 +3499,10 @@ export interface LogData {
      */
     level: LogLevel;
     /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData change_ptr = 32;
+     */
+    changePtr?: NodeReferenceData;
+    /**
      * @generated from protobuf field: optional symbolx.bench.AccessType type = 40;
      */
     type?: AccessType;
@@ -3507,21 +3535,13 @@ export interface LogData {
      */
     newRevision?: bigint;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData change_ptr = 48;
+     * @generated from protobuf field: optional symbolx.bench.ChangeCategory category = 48;
      */
-    changePtr?: NodeReferenceData;
+    category?: ChangeCategory;
     /**
-     * @generated from protobuf field: optional symbolx.bench.EditCategory category = 49;
+     * @generated from protobuf field: optional symbolx.bench.ChangeVignetteData vignette = 49;
      */
-    category?: EditCategory;
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData nodes_ptr = 50;
-     */
-    nodesPtr: NodeReferenceData[];
-    /**
-     * @generated from protobuf field: optional int32 nodes_total = 51;
-     */
-    nodesTotal?: number;
+    vignette?: ChangeVignetteData;
     /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData block_ptr = 70;
      */
@@ -6487,6 +6507,10 @@ export enum BenchType {
      */
     CHANGE = 1006,
     /**
+     * @generated from protobuf enum value: BENCH_TYPE_CHANGE_VIGNETTE = 1007;
+     */
+    CHANGE_VIGNETTE = 1007,
+    /**
      * @generated from protobuf enum value: BENCH_TYPE_GRAPH_SCOPE = 1010;
      */
     GRAPH_SCOPE = 1010,
@@ -6691,9 +6715,9 @@ export enum BenchType {
      */
     ACCESS_TYPE = 2035,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_EDIT_CATEGORY = 2036;
+     * @generated from protobuf enum value: BENCH_TYPE_CHANGE_CATEGORY = 2036;
      */
-    EDIT_CATEGORY = 2036,
+    CHANGE_CATEGORY = 2036,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_POLICY_EFFECT = 2040;
      */
@@ -7003,6 +7027,21 @@ export enum BlockType {
      * @generated from protobuf enum value: BLOCK_TYPE_IDENTITY = 91;
      */
     IDENTITY = 91
+}
+/**
+ * Optional classification for edits.
+ *
+ * @generated from protobuf enum symbolx.bench.ChangeCategory
+ */
+export enum ChangeCategory {
+    /**
+     * @generated from protobuf enum value: CHANGE_CATEGORY_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: CHANGE_CATEGORY_SPACE = 10;
+     */
+    SPACE = 10
 }
 /**
  * The kind of Change.
@@ -7353,21 +7392,6 @@ export enum Day {
     SUNDAY = 7
 }
 /**
- * Optional classification for edits.
- *
- * @generated from protobuf enum symbolx.bench.EditCategory
- */
-export enum EditCategory {
-    /**
-     * @generated from protobuf enum value: EDIT_CATEGORY_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: EDIT_CATEGORY_SPACE = 10;
-     */
-    SPACE = 10
-}
-/**
  * Ways to edit nodes.
  *
  * @generated from protobuf enum symbolx.bench.EditType
@@ -7475,9 +7499,9 @@ export enum EnumType {
      */
     ACCESS_TYPE = 2035,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_EDIT_CATEGORY = 2036;
+     * @generated from protobuf enum value: ENUM_TYPE_CHANGE_CATEGORY = 2036;
      */
-    EDIT_CATEGORY = 2036,
+    CHANGE_CATEGORY = 2036,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_POLICY_EFFECT = 2040;
      */
@@ -8738,6 +8762,10 @@ export enum ObjectType {
      */
     CHANGE = 1006,
     /**
+     * @generated from protobuf enum value: OBJECT_TYPE_CHANGE_VIGNETTE = 1007;
+     */
+    CHANGE_VIGNETTE = 1007,
+    /**
      * @generated from protobuf enum value: OBJECT_TYPE_GRAPH_SCOPE = 1010;
      */
     GRAPH_SCOPE = 1010,
@@ -9733,6 +9761,10 @@ export enum StructType {
      * @generated from protobuf enum value: STRUCT_TYPE_CHANGE = 1006;
      */
     CHANGE = 1006,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_CHANGE_VIGNETTE = 1007;
+     */
+    CHANGE_VIGNETTE = 1007,
     /**
      * @generated from protobuf enum value: STRUCT_TYPE_GRAPH_SCOPE = 1010;
      */
@@ -11038,6 +11070,67 @@ class ChangeData$Type extends MessageType<ChangeData> {
  */
 export const ChangeData = new ChangeData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class ChangeVignetteData$Type extends MessageType<ChangeVignetteData> {
+    constructor() {
+        super("symbolx.bench.ChangeVignetteData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 30, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 31, name: "icon", kind: "message", T: () => IconData }
+        ]);
+    }
+    create(value?: PartialMessage<ChangeVignetteData>): ChangeVignetteData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        if (value !== undefined)
+            reflectionMergePartial<ChangeVignetteData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ChangeVignetteData): ChangeVignetteData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* optional string name */ 30:
+                    message.name = reader.string();
+                    break;
+                case /* optional symbolx.bench.IconData icon */ 31:
+                    message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: ChangeVignetteData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* optional string name = 30; */
+        if (message.name !== undefined)
+            writer.tag(30, WireType.LengthDelimited).string(message.name);
+        /* optional symbolx.bench.IconData icon = 31; */
+        if (message.icon)
+            IconData.internalBinaryWrite(message.icon, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.ChangeVignetteData
+ */
+export const ChangeVignetteData = new ChangeVignetteData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class ClientOriginData$Type extends MessageType<ClientOriginData> {
     constructor() {
         super("symbolx.bench.ClientOriginData", [
@@ -11547,9 +11640,10 @@ class EditData$Type extends MessageType<EditData> {
             { no: 32, name: "properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 33, name: "old_node_packed", kind: "message", T: () => Struct },
             { no: 34, name: "new_node_packed", kind: "message", T: () => Struct },
+            { no: 35, name: "vignette", kind: "message", T: () => ChangeVignetteData },
             { no: 40, name: "scope", kind: "message", T: () => GraphScopeData },
             { no: 41, name: "change_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 42, name: "category", kind: "enum", opt: true, T: () => ["symbolx.bench.EditCategory", EditCategory, "EDIT_CATEGORY_"] },
+            { no: 42, name: "category", kind: "enum", opt: true, T: () => ["symbolx.bench.ChangeCategory", ChangeCategory, "CHANGE_CATEGORY_"] },
             { no: 43, name: "subject_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 44, name: "origin", kind: "message", T: () => ClientOriginData },
             { no: 45, name: "context", kind: "message", T: () => EditContextData },
@@ -11598,13 +11692,16 @@ class EditData$Type extends MessageType<EditData> {
                 case /* optional google.protobuf.Struct new_node_packed */ 34:
                     message.newNodePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.newNodePacked);
                     break;
+                case /* optional symbolx.bench.ChangeVignetteData vignette */ 35:
+                    message.vignette = ChangeVignetteData.internalBinaryRead(reader, reader.uint32(), options, message.vignette);
+                    break;
                 case /* symbolx.bench.GraphScopeData scope */ 40:
                     message.scope = GraphScopeData.internalBinaryRead(reader, reader.uint32(), options, message.scope);
                     break;
                 case /* optional string change_key */ 41:
                     message.changeKey = reader.string();
                     break;
-                case /* optional symbolx.bench.EditCategory category */ 42:
+                case /* optional symbolx.bench.ChangeCategory category */ 42:
                     message.category = reader.int32();
                     break;
                 case /* optional symbolx.bench.NodeReferenceData subject_ptr */ 43:
@@ -11662,13 +11759,16 @@ class EditData$Type extends MessageType<EditData> {
         /* optional google.protobuf.Struct new_node_packed = 34; */
         if (message.newNodePacked)
             Struct.internalBinaryWrite(message.newNodePacked, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.ChangeVignetteData vignette = 35; */
+        if (message.vignette)
+            ChangeVignetteData.internalBinaryWrite(message.vignette, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.GraphScopeData scope = 40; */
         if (message.scope)
             GraphScopeData.internalBinaryWrite(message.scope, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
         /* optional string change_key = 41; */
         if (message.changeKey !== undefined)
             writer.tag(41, WireType.LengthDelimited).string(message.changeKey);
-        /* optional symbolx.bench.EditCategory category = 42; */
+        /* optional symbolx.bench.ChangeCategory category = 42; */
         if (message.category !== undefined)
             writer.tag(42, WireType.Varint).int32(message.category);
         /* optional symbolx.bench.NodeReferenceData subject_ptr = 43; */
@@ -18191,6 +18291,7 @@ class LogData$Type extends MessageType<LogData> {
             { no: 29, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 30, name: "kind", kind: "enum", T: () => ["symbolx.bench.LogKind", LogKind, "LOG_KIND_"] },
             { no: 31, name: "level", kind: "enum", T: () => ["symbolx.bench.LogLevel", LogLevel, "LOG_LEVEL_"] },
+            { no: 32, name: "change_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 40, name: "type", kind: "enum", opt: true, T: () => ["symbolx.bench.AccessType", AccessType, "ACCESS_TYPE_"] },
             { no: 41, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 42, name: "properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
@@ -18199,10 +18300,8 @@ class LogData$Type extends MessageType<LogData> {
             { no: 45, name: "new_node_packed", kind: "message", T: () => Struct },
             { no: 46, name: "new_node_secret_packed", kind: "message", T: () => Struct },
             { no: 47, name: "new_revision", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 48, name: "change_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 49, name: "category", kind: "enum", opt: true, T: () => ["symbolx.bench.EditCategory", EditCategory, "EDIT_CATEGORY_"] },
-            { no: 50, name: "nodes_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
-            { no: 51, name: "nodes_total", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 48, name: "category", kind: "enum", opt: true, T: () => ["symbolx.bench.ChangeCategory", ChangeCategory, "CHANGE_CATEGORY_"] },
+            { no: 49, name: "vignette", kind: "message", T: () => ChangeVignetteData },
             { no: 70, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 71, name: "step_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 72, name: "session_ptr", kind: "message", T: () => NodeReferenceData },
@@ -18226,7 +18325,6 @@ class LogData$Type extends MessageType<LogData> {
         message.kind = 0;
         message.level = 0;
         message.properties = [];
-        message.nodesPtr = [];
         if (value !== undefined)
             reflectionMergePartial<LogData>(this, message, value);
         return message;
@@ -18291,6 +18389,9 @@ class LogData$Type extends MessageType<LogData> {
                 case /* symbolx.bench.LogLevel level */ 31:
                     message.level = reader.int32();
                     break;
+                case /* optional symbolx.bench.NodeReferenceData change_ptr */ 32:
+                    message.changePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.changePtr);
+                    break;
                 case /* optional symbolx.bench.AccessType type */ 40:
                     message.type = reader.int32();
                     break;
@@ -18319,17 +18420,11 @@ class LogData$Type extends MessageType<LogData> {
                 case /* optional int64 new_revision */ 47:
                     message.newRevision = reader.int64().toBigInt();
                     break;
-                case /* optional symbolx.bench.NodeReferenceData change_ptr */ 48:
-                    message.changePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.changePtr);
-                    break;
-                case /* optional symbolx.bench.EditCategory category */ 49:
+                case /* optional symbolx.bench.ChangeCategory category */ 48:
                     message.category = reader.int32();
                     break;
-                case /* repeated symbolx.bench.NodeReferenceData nodes_ptr */ 50:
-                    message.nodesPtr.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                case /* optional int32 nodes_total */ 51:
-                    message.nodesTotal = reader.int32();
+                case /* optional symbolx.bench.ChangeVignetteData vignette */ 49:
+                    message.vignette = ChangeVignetteData.internalBinaryRead(reader, reader.uint32(), options, message.vignette);
                     break;
                 case /* optional symbolx.bench.NodeReferenceData block_ptr */ 70:
                     message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
@@ -18428,6 +18523,9 @@ class LogData$Type extends MessageType<LogData> {
         /* symbolx.bench.LogLevel level = 31; */
         if (message.level !== 0)
             writer.tag(31, WireType.Varint).int32(message.level);
+        /* optional symbolx.bench.NodeReferenceData change_ptr = 32; */
+        if (message.changePtr)
+            NodeReferenceData.internalBinaryWrite(message.changePtr, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.AccessType type = 40; */
         if (message.type !== undefined)
             writer.tag(40, WireType.Varint).int32(message.type);
@@ -18456,18 +18554,12 @@ class LogData$Type extends MessageType<LogData> {
         /* optional int64 new_revision = 47; */
         if (message.newRevision !== undefined)
             writer.tag(47, WireType.Varint).int64(message.newRevision);
-        /* optional symbolx.bench.NodeReferenceData change_ptr = 48; */
-        if (message.changePtr)
-            NodeReferenceData.internalBinaryWrite(message.changePtr, writer.tag(48, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.EditCategory category = 49; */
+        /* optional symbolx.bench.ChangeCategory category = 48; */
         if (message.category !== undefined)
-            writer.tag(49, WireType.Varint).int32(message.category);
-        /* repeated symbolx.bench.NodeReferenceData nodes_ptr = 50; */
-        for (let i = 0; i < message.nodesPtr.length; i++)
-            NodeReferenceData.internalBinaryWrite(message.nodesPtr[i], writer.tag(50, WireType.LengthDelimited).fork(), options).join();
-        /* optional int32 nodes_total = 51; */
-        if (message.nodesTotal !== undefined)
-            writer.tag(51, WireType.Varint).int32(message.nodesTotal);
+            writer.tag(48, WireType.Varint).int32(message.category);
+        /* optional symbolx.bench.ChangeVignetteData vignette = 49; */
+        if (message.vignette)
+            ChangeVignetteData.internalBinaryWrite(message.vignette, writer.tag(49, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.NodeReferenceData block_ptr = 70; */
         if (message.blockPtr)
             NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(70, WireType.LengthDelimited).fork(), options).join();
@@ -23789,9 +23881,9 @@ export const SomeNodeData = new SomeNodeData$Type();
 
 // Any...
 export type AnyNodeData = BenchData | EnvironmentData | BranchData | PackageData | DependencyData | UpgradeData | SpaceData | LinkData | SkipData | IssueData | BlockData | TriggerData | FieldData | QueryData | ViewData | StepData | BadgeData | MembershipData | InviteData | SessionData | RunData | SignalData | LogData | NotificationData | MessageData | RecordData | ServerData | StoreData | MachineData | DriveData | BlobData | HandleData | UserData | OrganizationData | ClientData
-export type AnyStructData = ContextData | SessionContextData | EditContextData | EditData | ChangeData | GraphScopeData | ClientOriginData | NodeReferenceData | PropertyReferenceData | PathData | PathSegmentData | PathTokenData | PolicyData | PolicyRuleData | SubjectData | AccessZoneData | AccessMatrixData | AccessData | TypeInfoData | TypeConstraintData | ScheduleData | ProjectionData | ExpressionData | AggregationData | SelectionData | QueryInfoData | ReadOptionsData | CodeData | CodeLineData | StepConnectionData | RunErrorData | RunOptionsData | RetryAttemptData | TextData | TextLineData | TextSpanData | ColorData | FontData | BoxData | OffsetData | TransformData | FileData | IconData
+export type AnyStructData = ContextData | SessionContextData | EditContextData | EditData | ChangeData | ChangeVignetteData | GraphScopeData | ClientOriginData | NodeReferenceData | PropertyReferenceData | PathData | PathSegmentData | PathTokenData | PolicyData | PolicyRuleData | SubjectData | AccessZoneData | AccessMatrixData | AccessData | TypeInfoData | TypeConstraintData | ScheduleData | ProjectionData | ExpressionData | AggregationData | SelectionData | QueryInfoData | ReadOptionsData | CodeData | CodeLineData | StepConnectionData | RunErrorData | RunOptionsData | RetryAttemptData | TextData | TextLineData | TextSpanData | ColorData | FontData | BoxData | OffsetData | TransformData | FileData | IconData
 export type AnyNodeDataType = typeof BenchData | typeof EnvironmentData | typeof BranchData | typeof PackageData | typeof DependencyData | typeof UpgradeData | typeof SpaceData | typeof LinkData | typeof SkipData | typeof IssueData | typeof BlockData | typeof TriggerData | typeof FieldData | typeof QueryData | typeof ViewData | typeof StepData | typeof BadgeData | typeof MembershipData | typeof InviteData | typeof SessionData | typeof RunData | typeof SignalData | typeof LogData | typeof NotificationData | typeof MessageData | typeof RecordData | typeof ServerData | typeof StoreData | typeof MachineData | typeof DriveData | typeof BlobData | typeof HandleData | typeof UserData | typeof OrganizationData | typeof ClientData
-export type AnyStructDataType = typeof ContextData | typeof SessionContextData | typeof EditContextData | typeof EditData | typeof ChangeData | typeof GraphScopeData | typeof ClientOriginData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof PathData | typeof PathSegmentData | typeof PathTokenData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof TypeInfoData | typeof TypeConstraintData | typeof ScheduleData | typeof ProjectionData | typeof ExpressionData | typeof AggregationData | typeof SelectionData | typeof QueryInfoData | typeof ReadOptionsData | typeof CodeData | typeof CodeLineData | typeof StepConnectionData | typeof RunErrorData | typeof RunOptionsData | typeof RetryAttemptData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof ColorData | typeof FontData | typeof BoxData | typeof OffsetData | typeof TransformData | typeof FileData | typeof IconData
+export type AnyStructDataType = typeof ContextData | typeof SessionContextData | typeof EditContextData | typeof EditData | typeof ChangeData | typeof ChangeVignetteData | typeof GraphScopeData | typeof ClientOriginData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof PathData | typeof PathSegmentData | typeof PathTokenData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof TypeInfoData | typeof TypeConstraintData | typeof ScheduleData | typeof ProjectionData | typeof ExpressionData | typeof AggregationData | typeof SelectionData | typeof QueryInfoData | typeof ReadOptionsData | typeof CodeData | typeof CodeLineData | typeof StepConnectionData | typeof RunErrorData | typeof RunOptionsData | typeof RetryAttemptData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof ColorData | typeof FontData | typeof BoxData | typeof OffsetData | typeof TransformData | typeof FileData | typeof IconData
 
 // Ancestry maps
 export const PARENT_NODE_TYPES: Record<NodeType, NodeType[]> = {
@@ -23993,6 +24085,7 @@ export const MESSAGE_TYPE_BY_OBJECT_TYPE: Partial<Record<ObjectType, MessageType
   [ObjectType.EDIT_CONTEXT]: EditContextData,
   [ObjectType.EDIT]: EditData,
   [ObjectType.CHANGE]: ChangeData,
+  [ObjectType.CHANGE_VIGNETTE]: ChangeVignetteData,
   [ObjectType.GRAPH_SCOPE]: GraphScopeData,
   [ObjectType.CLIENT_ORIGIN]: ClientOriginData,
   [ObjectType.NODE_REFERENCE]: NodeReferenceData,
@@ -24074,6 +24167,7 @@ export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
   ["symbolx.bench.EditContextData"]: ObjectType.EDIT_CONTEXT,
   ["symbolx.bench.EditData"]: ObjectType.EDIT,
   ["symbolx.bench.ChangeData"]: ObjectType.CHANGE,
+  ["symbolx.bench.ChangeVignetteData"]: ObjectType.CHANGE_VIGNETTE,
   ["symbolx.bench.GraphScopeData"]: ObjectType.GRAPH_SCOPE,
   ["symbolx.bench.ClientOriginData"]: ObjectType.CLIENT_ORIGIN,
   ["symbolx.bench.NodeReferenceData"]: ObjectType.NODE_REFERENCE,
@@ -24129,7 +24223,7 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.EDIT_TYPE]: EditType,
   [EnumType.USE_TYPE]: UseType,
   [EnumType.ACCESS_TYPE]: AccessType,
-  [EnumType.EDIT_CATEGORY]: EditCategory,
+  [EnumType.CHANGE_CATEGORY]: ChangeCategory,
   [EnumType.POLICY_EFFECT]: PolicyEffect,
   [EnumType.REGION]: Region,
   [EnumType.TENANCY]: Tenancy,
@@ -24197,6 +24291,7 @@ export interface StructTypeMapping extends Record<StructType, AnyStructData> {
   [StructType.EDIT_CONTEXT]: EditContextData,
   [StructType.EDIT]: EditData,
   [StructType.CHANGE]: ChangeData,
+  [StructType.CHANGE_VIGNETTE]: ChangeVignetteData,
   [StructType.GRAPH_SCOPE]: GraphScopeData,
   [StructType.CLIENT_ORIGIN]: ClientOriginData,
   [StructType.NODE_REFERENCE]: NodeReferenceData,
@@ -24316,6 +24411,7 @@ export interface AnyTypeMapping extends Record<ObjectType, AnyStructData | AnyNo
   [ObjectType.EDIT_CONTEXT]: EditContextData,
   [ObjectType.EDIT]: EditData,
   [ObjectType.CHANGE]: ChangeData,
+  [ObjectType.CHANGE_VIGNETTE]: ChangeVignetteData,
   [ObjectType.GRAPH_SCOPE]: GraphScopeData,
   [ObjectType.CLIENT_ORIGIN]: ClientOriginData,
   [ObjectType.NODE_REFERENCE]: NodeReferenceData,
@@ -24371,7 +24467,7 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.EDIT_TYPE]: EditType,
   [EnumType.USE_TYPE]: UseType,
   [EnumType.ACCESS_TYPE]: AccessType,
-  [EnumType.EDIT_CATEGORY]: EditCategory,
+  [EnumType.CHANGE_CATEGORY]: ChangeCategory,
   [EnumType.POLICY_EFFECT]: PolicyEffect,
   [EnumType.REGION]: Region,
   [EnumType.TENANCY]: Tenancy,
@@ -25108,6 +25204,7 @@ export enum LogProperty {
   setProperties = 29,
   kind = 30,
   level = 31,
+  changePtr = 32,
   type = 40,
   nodePtr = 41,
   properties = 42,
@@ -25116,10 +25213,8 @@ export enum LogProperty {
   newNodePacked = 45,
   newNodeSecretPacked = 46,
   newRevision = 47,
-  changePtr = 48,
-  category = 49,
-  nodesPtr = 50,
-  nodesTotal = 51,
+  category = 48,
+  vignette = 49,
   blockPtr = 70,
   stepPtr = 71,
   sessionPtr = 72,
@@ -25495,6 +25590,7 @@ export enum EditProperty {
   properties = 32,
   oldNodePacked = 33,
   newNodePacked = 34,
+  vignette = 35,
   scope = 40,
   changeKey = 41,
   category = 42,
@@ -25519,6 +25615,12 @@ export enum ChangeProperty {
   edits = 34,
   logsPtr = 35,
   logsFilter = 36,
+}
+
+export enum ChangeVignetteProperty {
+  metatype = 1,
+  name = 30,
+  icon = 31,
 }
 
 export enum GraphScopeProperty {
@@ -25951,11 +26053,11 @@ export enum IconProperty {
 }
 
 export type AnyNodeProperty = typeof BenchProperty | typeof EnvironmentProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof UpgradeProperty | typeof SpaceProperty | typeof LinkProperty | typeof SkipProperty | typeof IssueProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof BadgeProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof MessageProperty | typeof RecordProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof BlobProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty
-export type AnyStructProperty = typeof ContextProperty | typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof ChangeProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof ReadOptionsProperty | typeof CodeProperty | typeof CodeLineProperty | typeof StepConnectionProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RetryAttemptProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof FileProperty | typeof IconProperty
+export type AnyStructProperty = typeof ContextProperty | typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof ReadOptionsProperty | typeof CodeProperty | typeof CodeLineProperty | typeof StepConnectionProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RetryAttemptProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof FileProperty | typeof IconProperty
 export type AnyProperty = AnyNodeProperty | AnyStructProperty
 export type AnyNodePropertyType = typeof BenchProperty | typeof EnvironmentProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof UpgradeProperty | typeof SpaceProperty | typeof LinkProperty | typeof SkipProperty | typeof IssueProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof BadgeProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof MessageProperty | typeof RecordProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof BlobProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty
-export type AnyStructPropertyType = typeof ContextProperty | typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof ChangeProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof ReadOptionsProperty | typeof CodeProperty | typeof CodeLineProperty | typeof StepConnectionProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RetryAttemptProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof FileProperty | typeof IconProperty
-export type AnyPropertyType = typeof BenchProperty | typeof EnvironmentProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof UpgradeProperty | typeof SpaceProperty | typeof LinkProperty | typeof SkipProperty | typeof IssueProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof BadgeProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof MessageProperty | typeof RecordProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof BlobProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof ContextProperty | typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof ChangeProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof ReadOptionsProperty | typeof CodeProperty | typeof CodeLineProperty | typeof StepConnectionProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RetryAttemptProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof FileProperty | typeof IconProperty
+export type AnyStructPropertyType = typeof ContextProperty | typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof ReadOptionsProperty | typeof CodeProperty | typeof CodeLineProperty | typeof StepConnectionProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RetryAttemptProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof FileProperty | typeof IconProperty
+export type AnyPropertyType = typeof BenchProperty | typeof EnvironmentProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof UpgradeProperty | typeof SpaceProperty | typeof LinkProperty | typeof SkipProperty | typeof IssueProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof BadgeProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof MessageProperty | typeof RecordProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof BlobProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof ContextProperty | typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof ReadOptionsProperty | typeof CodeProperty | typeof CodeLineProperty | typeof StepConnectionProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RetryAttemptProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof FileProperty | typeof IconProperty
 export const NODE_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyNodePropertyType>> = {
   [ObjectType.BENCH]: BenchProperty,
   [ObjectType.ENVIRONMENT]: EnvironmentProperty,
@@ -26000,6 +26102,7 @@ export const STRUCT_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyStructP
   [ObjectType.EDIT_CONTEXT]: EditContextProperty,
   [ObjectType.EDIT]: EditProperty,
   [ObjectType.CHANGE]: ChangeProperty,
+  [ObjectType.CHANGE_VIGNETTE]: ChangeVignetteProperty,
   [ObjectType.GRAPH_SCOPE]: GraphScopeProperty,
   [ObjectType.CLIENT_ORIGIN]: ClientOriginProperty,
   [ObjectType.NODE_REFERENCE]: NodeReferenceProperty,
@@ -26081,6 +26184,7 @@ export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>>
   [ObjectType.EDIT_CONTEXT]: EditContextProperty,
   [ObjectType.EDIT]: EditProperty,
   [ObjectType.CHANGE]: ChangeProperty,
+  [ObjectType.CHANGE_VIGNETTE]: ChangeVignetteProperty,
   [ObjectType.GRAPH_SCOPE]: GraphScopeProperty,
   [ObjectType.CLIENT_ORIGIN]: ClientOriginProperty,
   [ObjectType.NODE_REFERENCE]: NodeReferenceProperty,
@@ -26217,9 +26321,10 @@ export const EditDataInfo: Record<EditProperty, PropertyInfo> = {
   [EditProperty.properties]: { id: 32, name: 'properties', component: ObjectType.EDIT, kind: 'primitive', primitiveType: PrimitiveType.INT16, isList: true, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [EditProperty.oldNodePacked]: { id: 33, name: 'old_node_packed', component: ObjectType.EDIT, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [EditProperty.newNodePacked]: { id: 34, name: 'new_node_packed', component: ObjectType.EDIT, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [EditProperty.vignette]: { id: 35, name: 'vignette', component: ObjectType.EDIT, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CHANGE_VIGNETTE },
   [EditProperty.scope]: { id: 40, name: 'scope', component: ObjectType.EDIT, kind: 'reference', primitiveType: PrimitiveType.JSON, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.GRAPH_SCOPE },
   [EditProperty.changeKey]: { id: 41, name: 'change_key', component: ObjectType.EDIT, kind: 'primitive', primitiveType: PrimitiveType.UUID, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [EditProperty.category]: { id: 42, name: 'category', component: ObjectType.EDIT, enumType: EnumType.EDIT_CATEGORY, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [EditProperty.category]: { id: 42, name: 'category', component: ObjectType.EDIT, enumType: EnumType.CHANGE_CATEGORY, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [EditProperty.subjectPtr]: { id: 43, name: 'subject_ptr', component: ObjectType.EDIT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [EditProperty.origin]: { id: 44, name: 'origin', component: ObjectType.EDIT, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CLIENT_ORIGIN },
   [EditProperty.context]: { id: 45, name: 'context', component: ObjectType.EDIT, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EDIT_CONTEXT },
@@ -26240,6 +26345,11 @@ export const ChangeDataInfo: Record<ChangeProperty, PropertyInfo> = {
   [ChangeProperty.edits]: { id: 34, name: 'edits', component: ObjectType.CHANGE, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EDIT },
   [ChangeProperty.logsPtr]: { id: 35, name: 'logs_ptr', component: ObjectType.CHANGE, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.LOG], referenceStruct: StructType.NODE_REFERENCE },
   [ChangeProperty.logsFilter]: { id: 36, name: 'logs_filter', component: ObjectType.CHANGE, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
+}
+export const ChangeVignetteDataInfo: Record<ChangeVignetteProperty, PropertyInfo> = {
+  [ChangeVignetteProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.CHANGE_VIGNETTE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [ChangeVignetteProperty.name]: { id: 30, name: 'name', component: ObjectType.CHANGE_VIGNETTE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ChangeVignetteProperty.icon]: { id: 31, name: 'icon', component: ObjectType.CHANGE_VIGNETTE, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
 }
 export const GraphScopeDataInfo: Record<GraphScopeProperty, PropertyInfo> = {
   [GraphScopeProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.GRAPH_SCOPE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -27285,6 +27395,7 @@ export const LogDataInfo: Record<LogProperty, PropertyInfo> = {
   [LogProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true },
   [LogProperty.kind]: { id: 30, name: 'kind', component: ObjectType.LOG, enumType: EnumType.LOG_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [LogProperty.level]: { id: 31, name: 'level', component: ObjectType.LOG, enumType: EnumType.LOG_LEVEL, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [LogProperty.changePtr]: { id: 32, name: 'change_ptr', component: ObjectType.LOG, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.LOG], referenceStruct: StructType.NODE_REFERENCE },
   [LogProperty.type]: { id: 40, name: 'type', component: ObjectType.LOG, enumType: EnumType.ACCESS_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [LogProperty.nodePtr]: { id: 41, name: 'node_ptr', component: ObjectType.LOG, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.ENVIRONMENT, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.UPGRADE, NodeType.SPACE, NodeType.LINK, NodeType.SKIP, NodeType.ISSUE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.NOTIFICATION, NodeType.MESSAGE, NodeType.RECORD, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.BLOB, NodeType.HANDLE, NodeType.USER, NodeType.ORGANIZATION, NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
   [LogProperty.properties]: { id: 42, name: 'properties', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.INT16, isList: true, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -27293,10 +27404,8 @@ export const LogDataInfo: Record<LogProperty, PropertyInfo> = {
   [LogProperty.newNodePacked]: { id: 45, name: 'new_node_packed', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [LogProperty.newNodeSecretPacked]: { id: 46, name: 'new_node_secret_packed', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
   [LogProperty.newRevision]: { id: 47, name: 'new_revision', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.INT64, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [LogProperty.changePtr]: { id: 48, name: 'change_ptr', component: ObjectType.LOG, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.LOG], referenceStruct: StructType.NODE_REFERENCE },
-  [LogProperty.category]: { id: 49, name: 'category', component: ObjectType.LOG, enumType: EnumType.EDIT_CATEGORY, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [LogProperty.nodesPtr]: { id: 50, name: 'nodes_ptr', component: ObjectType.LOG, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.ENVIRONMENT, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.UPGRADE, NodeType.SPACE, NodeType.LINK, NodeType.SKIP, NodeType.ISSUE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.NOTIFICATION, NodeType.MESSAGE, NodeType.RECORD, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.BLOB, NodeType.HANDLE, NodeType.USER, NodeType.ORGANIZATION, NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
-  [LogProperty.nodesTotal]: { id: 51, name: 'nodes_total', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [LogProperty.category]: { id: 48, name: 'category', component: ObjectType.LOG, enumType: EnumType.CHANGE_CATEGORY, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [LogProperty.vignette]: { id: 49, name: 'vignette', component: ObjectType.LOG, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CHANGE_VIGNETTE },
   [LogProperty.blockPtr]: { id: 70, name: 'block_ptr', component: ObjectType.LOG, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [LogProperty.stepPtr]: { id: 71, name: 'step_ptr', component: ObjectType.LOG, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.STEP], referenceStruct: StructType.NODE_REFERENCE },
   [LogProperty.sessionPtr]: { id: 72, name: 'session_ptr', component: ObjectType.LOG, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SESSION], referenceStruct: StructType.NODE_REFERENCE },
@@ -27609,6 +27718,7 @@ export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo
   [ObjectType.EDIT_CONTEXT]: EditContextDataInfo,
   [ObjectType.EDIT]: EditDataInfo,
   [ObjectType.CHANGE]: ChangeDataInfo,
+  [ObjectType.CHANGE_VIGNETTE]: ChangeVignetteDataInfo,
   [ObjectType.GRAPH_SCOPE]: GraphScopeDataInfo,
   [ObjectType.CLIENT_ORIGIN]: ClientOriginDataInfo,
   [ObjectType.NODE_REFERENCE]: NodeReferenceDataInfo,

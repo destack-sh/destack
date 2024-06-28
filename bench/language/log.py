@@ -8,6 +8,7 @@ from bench.language.const import (
     EnumType,
     NodeType,
     PrimitiveType,
+    StructType,
     enum_,
 )
 from bench.language.node import HasTimeIdentity, Node, PackageNode, timed_node
@@ -18,7 +19,7 @@ from bench.proto.wire import EditData, LogData
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
-    from bench.language import EditCategory, NodeReference, Package
+    from bench.language import ChangeCategory, ChangeVignette, NodeReference, Package
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -55,6 +56,9 @@ class Log(PackageNode[LogData], HasTimeIdentity, HasSessionContext, HasValues):
     # meta
     kind: LogKind = p_system(30)
     level: LogLevel = p_system(31, default=LogLevel.INFO)
+    change: Optional["Log"] = p_system(
+        32, require=False, array=False, references=NodeType.LOG, same_bench=True
+    )
 
     # content
     type: AccessType | None = p_system(40, default=None)
@@ -73,16 +77,10 @@ class Log(PackageNode[LogData], HasTimeIdentity, HasSessionContext, HasValues):
         46, primitive_type=PrimitiveType.JSON, encrypt=True, sensitive=True, defer=True
     )
     new_revision: int | None = p_system(47, primitive_type=PrimitiveType.INT64)
-    change: Optional["Log"] = p_system(
-        48, require=False, array=False, references=NodeType.LOG, same_bench=True
+    category: Optional["ChangeCategory"] = p_system(48, require=False, array=False)
+    vignette: Optional["ChangeVignette"] = p_system(
+        49, require=False, array=False, struct=StructType.CHANGE_VIGNETTE
     )
-    category: Optional["EditCategory"] = p_system(49, require=False, array=False)
-    nodes: list["Node"] = p_system(
-        50, require=False, array=True, references=NODE_TYPES.tuple, same_bench=True
-    )
-    if TYPE_CHECKING:
-        nodes_ptr: tuple[NodeReference, ...] = ()
-    nodes_total: int | None = p_system(51, require=False, primitive_type=PrimitiveType.INT32)
 
     # context
     # ...HasSessionContext[70-79]
@@ -94,7 +92,6 @@ class Log(PackageNode[LogData], HasTimeIdentity, HasSessionContext, HasValues):
         """Restores the edit of an access Log"""
         from bench.proto import wire, wiring
 
-        assert self.kind == LogKind.EDIT, f"{self!r} is not an edit"
         assert self.type is not None, f"{self!r} has no type"
         assert self.node_ptr is not None, f"{self!r} has no node"
         assert self.new_revision is not None, f"{self!r} has no new revision"
