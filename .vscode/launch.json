@@ -46,8 +46,8 @@
         "BENCH_ID": "77c37dca-8c9a-4952-ac0f-63fb464d4e28",
         "MACHINE_ID": "afe89c4d-13a3-492f-80e1-ef217552b2f6",
         "CLIENT_TYPE": "10",
-        "CLIENT_ID": "a762b429-a8ec-40db-a0e5-517e3f4e52c3",
-        "CLIENT_ACCESS_TOKEN": "5s3CB8ZMivGgH1Uy21xEWfnw6HUV5MVQvjVQbTbyw8Jz"
+        "CLIENT_ID": "a88fe585-2b15-499d-9afc-17da72e93d0d",
+        "CLIENT_ACCESS_TOKEN": "H3PWcp8XrgdNiAweKNAk7aC4vJNwtrEqvsW3YjGoLEqy"
       },
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",

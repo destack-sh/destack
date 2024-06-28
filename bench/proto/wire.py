@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.06.28.0"
+VERSION = "2024.06.28.1"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -122,7 +122,6 @@ class BenchType(betterproto.Enum):
     BRANCH = 3
     PACKAGE = 20
     DEPENDENCY = 21
-    UPGRADE = 22
     SPACE = 23
     LINK = 24
     SKIP = 25
@@ -194,8 +193,14 @@ class BenchType(betterproto.Enum):
     BOX = 1202
     OFFSET = 1203
     TRANSFORM = 1204
-    FILE = 1250
-    ICON = 1251
+    START_VIEW_STATE = 1250
+    FEED_VIEW_STATE = 1251
+    CHART_VIEW_STATE = 1252
+    HISTORY_VIEW_STATE = 1253
+    TIMELINE_VIEW_STATE = 1254
+    USER_WIZARD_VIEW_STATE = 1255
+    FILE = 1300
+    ICON = 1301
     ENUM_TYPE = 2001
     NODE_TYPE = 2002
     STRUCT_TYPE = 2003
@@ -218,55 +223,56 @@ class BenchType(betterproto.Enum):
     RESOURCE_STATUS = 2057
     FILE_RETENTION_MODE = 2058
     CLIENT_TYPE = 2060
-    BLOCK_TYPE = 2070
     PRIMITIVE_TYPE = 2080
     FORMAT_HINT = 2081
     FIELD_ZONE = 2082
     TYPE_KIND = 2083
-    TEXT_LINE_TYPE = 2090
     SCHEDULE_TYPE = 2100
     TIME_INTERVAL = 2101
     DAY = 2102
     MONTH = 2103
+    TEXT_LINE_TYPE = 2110
+    ICON_KIND = 2111
+    EXPRESSION_KIND = 2200
+    EXPRESSION_OP = 2201
+    LITERAL_OP = 2202
+    FUNCTIONAL_OP = 2203
+    CONDITIONAL_OP = 2204
+    AGGREGATION_OP = 2205
+    SORT_MODE = 2206
+    SORT_OP = 2207
+    SELECTION_KIND = 2208
+    PATH_TOKEN_TYPE = 2210
+    PATH_SEGMENT_TYPE = 2211
+    BLOCK_TYPE = 2070
     ISSUE_KIND = 2170
     ISSUE_TYPE = 2171
     STEP_TYPE = 2180
     STEP_CONNECTION_TYPE = 2181
-    SPACE_TYPE = 2200
-    VIEW_TYPE = 2201
-    VARIANT = 2202
-    COLOR_TYPE = 2203
-    COLOR_SHADE = 2204
-    FONT_TYPE = 2205
-    FONT_WEIGHT = 2206
-    FONT_SIZE = 2207
-    SPACING = 2208
-    ANCHOR = 2209
-    ORIENTATION = 2210
-    ALIGNMENT = 2211
-    ICON_KIND = 2212
-    LOG_KIND = 2250
-    LOG_LEVEL = 2251
-    RUN_STATUS = 2260
-    RUN_KIND = 2261
-    RUN_ERROR_KIND = 2262
-    RUN_ERROR_TYPE = 2263
-    SESSION_STATUS = 2264
-    TRIGGER_TYPE = 2270
-    NOTIFICATION_KIND = 2281
-    EXPRESSION_KIND = 2300
-    EXPRESSION_OP = 2301
-    LITERAL_OP = 2302
-    FUNCTIONAL_OP = 2303
-    CONDITIONAL_OP = 2304
-    AGGREGATION_OP = 2305
-    SORT_MODE = 2306
-    SORT_OP = 2307
-    SELECTION_KIND = 2308
-    PATH_TOKEN_TYPE = 2320
-    PATH_SEGMENT_TYPE = 2321
-    USER_STATUS = 2500
-    ORGANIZATION_STATUS = 2501
+    LOG_KIND = 2300
+    LOG_LEVEL = 2301
+    RUN_STATUS = 2302
+    RUN_KIND = 2303
+    RUN_ERROR_KIND = 2304
+    RUN_ERROR_TYPE = 2305
+    SESSION_STATUS = 2306
+    TRIGGER_TYPE = 2307
+    NOTIFICATION_KIND = 2308
+    SPACE_TYPE = 2400
+    VIEW_TYPE = 2401
+    VARIANT = 2402
+    COLOR_TYPE = 2403
+    COLOR_SHADE = 2404
+    FONT_TYPE = 2405
+    FONT_WEIGHT = 2406
+    FONT_SIZE = 2407
+    SPACING = 2408
+    ANCHOR = 2409
+    ORIENTATION = 2410
+    ALIGNMENT = 2411
+    USER_WIZARD_STAGE = 2450
+    USER_STATUS = 2800
+    ORGANIZATION_STATUS = 2801
 
 
 class BlockType(betterproto.Enum):
@@ -281,12 +287,11 @@ class BlockType(betterproto.Enum):
     PROTOCOL = 14
     TEXT = 30
     CODE = 31
-    SCRIPT = 32
-    FLOW = 33
+    FLOW = 32
     VARIABLE = 50
     QUERY = 52
     DATABASE = 53
-    SCREEN = 70
+    VIEW = 70
     ROLE = 90
     IDENTITY = 91
 
@@ -439,55 +444,56 @@ class EnumType(betterproto.Enum):
     RESOURCE_STATUS = 2057
     FILE_RETENTION_MODE = 2058
     CLIENT_TYPE = 2060
-    BLOCK_TYPE = 2070
     PRIMITIVE_TYPE = 2080
     FORMAT_HINT = 2081
     FIELD_ZONE = 2082
     TYPE_KIND = 2083
-    TEXT_LINE_TYPE = 2090
     SCHEDULE_TYPE = 2100
     TIME_INTERVAL = 2101
     DAY = 2102
     MONTH = 2103
+    TEXT_LINE_TYPE = 2110
+    ICON_KIND = 2111
+    EXPRESSION_KIND = 2200
+    EXPRESSION_OP = 2201
+    LITERAL_OP = 2202
+    FUNCTIONAL_OP = 2203
+    CONDITIONAL_OP = 2204
+    AGGREGATION_OP = 2205
+    SORT_MODE = 2206
+    SORT_OP = 2207
+    SELECTION_KIND = 2208
+    PATH_TOKEN_TYPE = 2210
+    PATH_SEGMENT_TYPE = 2211
+    BLOCK_TYPE = 2070
     ISSUE_KIND = 2170
     ISSUE_TYPE = 2171
     STEP_TYPE = 2180
     STEP_CONNECTION_TYPE = 2181
-    SPACE_TYPE = 2200
-    VIEW_TYPE = 2201
-    VARIANT = 2202
-    COLOR_TYPE = 2203
-    COLOR_SHADE = 2204
-    FONT_TYPE = 2205
-    FONT_WEIGHT = 2206
-    FONT_SIZE = 2207
-    SPACING = 2208
-    ANCHOR = 2209
-    ORIENTATION = 2210
-    ALIGNMENT = 2211
-    ICON_KIND = 2212
-    LOG_KIND = 2250
-    LOG_LEVEL = 2251
-    RUN_STATUS = 2260
-    RUN_KIND = 2261
-    RUN_ERROR_KIND = 2262
-    RUN_ERROR_TYPE = 2263
-    SESSION_STATUS = 2264
-    TRIGGER_TYPE = 2270
-    NOTIFICATION_KIND = 2281
-    EXPRESSION_KIND = 2300
-    EXPRESSION_OP = 2301
-    LITERAL_OP = 2302
-    FUNCTIONAL_OP = 2303
-    CONDITIONAL_OP = 2304
-    AGGREGATION_OP = 2305
-    SORT_MODE = 2306
-    SORT_OP = 2307
-    SELECTION_KIND = 2308
-    PATH_TOKEN_TYPE = 2320
-    PATH_SEGMENT_TYPE = 2321
-    USER_STATUS = 2500
-    ORGANIZATION_STATUS = 2501
+    LOG_KIND = 2300
+    LOG_LEVEL = 2301
+    RUN_STATUS = 2302
+    RUN_KIND = 2303
+    RUN_ERROR_KIND = 2304
+    RUN_ERROR_TYPE = 2305
+    SESSION_STATUS = 2306
+    TRIGGER_TYPE = 2307
+    NOTIFICATION_KIND = 2308
+    SPACE_TYPE = 2400
+    VIEW_TYPE = 2401
+    VARIANT = 2402
+    COLOR_TYPE = 2403
+    COLOR_SHADE = 2404
+    FONT_TYPE = 2405
+    FONT_WEIGHT = 2406
+    FONT_SIZE = 2407
+    SPACING = 2408
+    ANCHOR = 2409
+    ORIENTATION = 2410
+    ALIGNMENT = 2411
+    USER_WIZARD_STAGE = 2450
+    USER_STATUS = 2800
+    ORGANIZATION_STATUS = 2801
 
 
 class ExpressionKind(betterproto.Enum):
@@ -707,7 +713,6 @@ class NodeType(betterproto.Enum):
     BRANCH = 3
     PACKAGE = 20
     DEPENDENCY = 21
-    UPGRADE = 22
     SPACE = 23
     LINK = 24
     SKIP = 25
@@ -755,7 +760,6 @@ class ObjectType(betterproto.Enum):
     BRANCH = 3
     PACKAGE = 20
     DEPENDENCY = 21
-    UPGRADE = 22
     SPACE = 23
     LINK = 24
     SKIP = 25
@@ -827,8 +831,14 @@ class ObjectType(betterproto.Enum):
     BOX = 1202
     OFFSET = 1203
     TRANSFORM = 1204
-    FILE = 1250
-    ICON = 1251
+    START_VIEW_STATE = 1250
+    FEED_VIEW_STATE = 1251
+    CHART_VIEW_STATE = 1252
+    HISTORY_VIEW_STATE = 1253
+    TIMELINE_VIEW_STATE = 1254
+    USER_WIZARD_VIEW_STATE = 1255
+    FILE = 1300
+    ICON = 1301
 
 
 class OrganizationStatus(betterproto.Enum):
@@ -1143,8 +1153,14 @@ class StructType(betterproto.Enum):
     BOX = 1202
     OFFSET = 1203
     TRANSFORM = 1204
-    FILE = 1250
-    ICON = 1251
+    START_VIEW_STATE = 1250
+    FEED_VIEW_STATE = 1251
+    CHART_VIEW_STATE = 1252
+    HISTORY_VIEW_STATE = 1253
+    TIMELINE_VIEW_STATE = 1254
+    USER_WIZARD_VIEW_STATE = 1255
+    FILE = 1300
+    ICON = 1301
 
 
 class Tenancy(betterproto.Enum):
@@ -1225,6 +1241,14 @@ class UserStatus(betterproto.Enum):
     ACTIVATED = 10
 
 
+class UserWizardViewStage(betterproto.Enum):
+    """The stage of a User view."""
+
+    UNSPECIFIED = 0
+    SIGN_UP = 1
+    LOG_IN = 2
+
+
 class Variant(betterproto.Enum):
     """The style variant of a view."""
 
@@ -1244,7 +1268,7 @@ class ViewType(betterproto.Enum):
     BLOCK = 102
     FIELD = 103
     DATABASE = 104
-    SCREEN = 105
+    VIEW = 105
     FLOW = 106
     STEP = 107
     TYPE = 108
@@ -1424,6 +1448,13 @@ class ChangeVignetteData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class ChartViewStateData(betterproto.Message):
+    """The state of a Chart view."""
+
+    metatype: "ObjectType" = betterproto.enum_field(1)
+
+
+@dataclass(eq=False, repr=False)
 class ClientOriginData(betterproto.Message):
     """Information to identify a client."""
 
@@ -1563,6 +1594,14 @@ class ExpressionData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class FeedViewStateData(betterproto.Message):
+    """The state of a Feed view."""
+
+    metatype: "ObjectType" = betterproto.enum_field(1)
+    query: Optional["ExpressionData"] = betterproto.message_field(30, optional=True)
+
+
+@dataclass(eq=False, repr=False)
 class FileData(betterproto.Message):
     """A reference to a file stored somewhere."""
 
@@ -1592,6 +1631,13 @@ class GraphScopeData(betterproto.Message):
     metatype: "ObjectType" = betterproto.enum_field(1)
     bench_id: Optional[str] = betterproto.string_field(30, optional=True)
     package_id: Optional[str] = betterproto.string_field(31, optional=True)
+
+
+@dataclass(eq=False, repr=False)
+class HistoryViewStateData(betterproto.Message):
+    """The state of a History view."""
+
+    metatype: "ObjectType" = betterproto.enum_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -1945,6 +1991,16 @@ class SessionContextData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class StartViewStateData(betterproto.Message):
+    """The state of a Start view."""
+
+    metatype: "ObjectType" = betterproto.enum_field(1)
+    inputs_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
+        30, optional=True
+    )
+
+
+@dataclass(eq=False, repr=False)
 class StepConnectionData(betterproto.Message):
     """A connection between two Steps in a FlowBlock."""
 
@@ -2037,6 +2093,13 @@ class TextSpanData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class TimelineViewStateData(betterproto.Message):
+    """The state of a Timeline view."""
+
+    metatype: "ObjectType" = betterproto.enum_field(1)
+
+
+@dataclass(eq=False, repr=False)
 class TransformData(betterproto.Message):
     """A transform in 2D space."""
 
@@ -2096,6 +2159,14 @@ class TypeInfoData(betterproto.Message):
     is_list: bool = betterproto.bool_field(60)
     is_secret: bool = betterproto.bool_field(61)
     is_required: bool = betterproto.bool_field(62)
+
+
+@dataclass(eq=False, repr=False)
+class UserWizardViewStateData(betterproto.Message):
+    """The state of a User view."""
+
+    metatype: "ObjectType" = betterproto.enum_field(1)
+    stage: Optional["UserWizardViewStage"] = betterproto.enum_field(30, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -3215,35 +3286,6 @@ class TriggerData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class UpgradeData(betterproto.Message):
-    """
-    An 'upgrade' to a Package, marking changes made to the containing Package.
-    """
-
-    metatype: "ObjectType" = betterproto.enum_field(1)
-    id: str = betterproto.string_field(2)
-    ck: str = betterproto.string_field(3)
-    parent_ptr: Optional["NodeReferenceData"] = betterproto.message_field(4, optional=True)
-    package_ptr: "NodeReferenceData" = betterproto.message_field(5)
-    bench_ptr: "NodeReferenceData" = betterproto.message_field(6)
-    template_ptr: Optional["NodeReferenceData"] = betterproto.message_field(7, optional=True)
-    templated_epoch: Optional[int] = betterproto.int64_field(8, optional=True)
-    revision: int = betterproto.int64_field(10)
-    created_at: datetime = betterproto.message_field(11)
-    created_epoch: int = betterproto.int64_field(12)
-    updated_at: datetime = betterproto.message_field(13)
-    updated_epoch: int = betterproto.int64_field(14)
-    deleted_at: Optional[datetime] = betterproto.message_field(15, optional=True)
-    archived_at: Optional[datetime] = betterproto.message_field(16, optional=True)
-    created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(21, optional=True)
-    updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(22, optional=True)
-    set_properties: List[int] = betterproto.int32_field(29)
-    name: str = betterproto.string_field(32)
-    title: Optional[str] = betterproto.string_field(34, optional=True)
-    text: Optional["TextData"] = betterproto.message_field(35, optional=True)
-
-
-@dataclass(eq=False, repr=False)
 class UserData(betterproto.Message):
     """A Bench user."""
 
@@ -3332,36 +3374,35 @@ class SomeNodeData(betterproto.Message):
     branch: "BranchData" = betterproto.message_field(3, group="node")
     package: "PackageData" = betterproto.message_field(4, group="node")
     dependency: "DependencyData" = betterproto.message_field(5, group="node")
-    upgrade: "UpgradeData" = betterproto.message_field(6, group="node")
-    space: "SpaceData" = betterproto.message_field(7, group="node")
-    link: "LinkData" = betterproto.message_field(8, group="node")
-    skip: "SkipData" = betterproto.message_field(9, group="node")
-    issue: "IssueData" = betterproto.message_field(10, group="node")
-    block: "BlockData" = betterproto.message_field(11, group="node")
-    trigger: "TriggerData" = betterproto.message_field(12, group="node")
-    field: "FieldData" = betterproto.message_field(13, group="node")
-    query: "QueryData" = betterproto.message_field(14, group="node")
-    view: "ViewData" = betterproto.message_field(15, group="node")
-    step: "StepData" = betterproto.message_field(16, group="node")
-    badge: "BadgeData" = betterproto.message_field(17, group="node")
-    membership: "MembershipData" = betterproto.message_field(18, group="node")
-    invite: "InviteData" = betterproto.message_field(19, group="node")
-    session: "SessionData" = betterproto.message_field(20, group="node")
-    run: "RunData" = betterproto.message_field(21, group="node")
-    signal: "SignalData" = betterproto.message_field(22, group="node")
-    log: "LogData" = betterproto.message_field(23, group="node")
-    notification: "NotificationData" = betterproto.message_field(24, group="node")
-    message: "MessageData" = betterproto.message_field(25, group="node")
-    record: "RecordData" = betterproto.message_field(26, group="node")
-    server: "ServerData" = betterproto.message_field(27, group="node")
-    store: "StoreData" = betterproto.message_field(28, group="node")
-    machine: "MachineData" = betterproto.message_field(29, group="node")
-    drive: "DriveData" = betterproto.message_field(30, group="node")
-    blob: "BlobData" = betterproto.message_field(31, group="node")
-    handle: "HandleData" = betterproto.message_field(32, group="node")
-    user: "UserData" = betterproto.message_field(33, group="node")
-    organization: "OrganizationData" = betterproto.message_field(34, group="node")
-    client: "ClientData" = betterproto.message_field(35, group="node")
+    space: "SpaceData" = betterproto.message_field(6, group="node")
+    link: "LinkData" = betterproto.message_field(7, group="node")
+    skip: "SkipData" = betterproto.message_field(8, group="node")
+    issue: "IssueData" = betterproto.message_field(9, group="node")
+    block: "BlockData" = betterproto.message_field(10, group="node")
+    trigger: "TriggerData" = betterproto.message_field(11, group="node")
+    field: "FieldData" = betterproto.message_field(12, group="node")
+    query: "QueryData" = betterproto.message_field(13, group="node")
+    view: "ViewData" = betterproto.message_field(14, group="node")
+    step: "StepData" = betterproto.message_field(15, group="node")
+    badge: "BadgeData" = betterproto.message_field(16, group="node")
+    membership: "MembershipData" = betterproto.message_field(17, group="node")
+    invite: "InviteData" = betterproto.message_field(18, group="node")
+    session: "SessionData" = betterproto.message_field(19, group="node")
+    run: "RunData" = betterproto.message_field(20, group="node")
+    signal: "SignalData" = betterproto.message_field(21, group="node")
+    log: "LogData" = betterproto.message_field(22, group="node")
+    notification: "NotificationData" = betterproto.message_field(23, group="node")
+    message: "MessageData" = betterproto.message_field(24, group="node")
+    record: "RecordData" = betterproto.message_field(25, group="node")
+    server: "ServerData" = betterproto.message_field(26, group="node")
+    store: "StoreData" = betterproto.message_field(27, group="node")
+    machine: "MachineData" = betterproto.message_field(28, group="node")
+    drive: "DriveData" = betterproto.message_field(29, group="node")
+    blob: "BlobData" = betterproto.message_field(30, group="node")
+    handle: "HandleData" = betterproto.message_field(31, group="node")
+    user: "UserData" = betterproto.message_field(32, group="node")
+    organization: "OrganizationData" = betterproto.message_field(33, group="node")
+    client: "ClientData" = betterproto.message_field(34, group="node")
 
 
 @dataclass(eq=False, repr=False)
@@ -4842,7 +4883,6 @@ AnyNodeData = Union[
     BranchData,
     PackageData,
     DependencyData,
-    UpgradeData,
     SpaceData,
     LinkData,
     SkipData,
@@ -4916,6 +4956,12 @@ AnyStructData = Union[
     BoxData,
     OffsetData,
     TransformData,
+    StartViewStateData,
+    FeedViewStateData,
+    ChartViewStateData,
+    HistoryViewStateData,
+    TimelineViewStateData,
+    UserWizardViewStateData,
     FileData,
     IconData,
 ]

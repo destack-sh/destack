@@ -1,5 +1,13 @@
 <script lang="ts" setup>
-import { NodeType, Region, Variant, ViewData, type NodeReferenceData } from "@/proto/wire";
+import {
+  NodeType,
+  ObjectType,
+  Region,
+  UserWizardViewStage,
+  Variant,
+  ViewData,
+  type NodeReferenceData,
+} from "@/proto/wire";
 import type { TypedNodeReferenceData } from "@/proto/wiring";
 import { fireActionById } from "@/system/action";
 import { benchPtr } from "@/system/client";
@@ -8,57 +16,26 @@ import { makeIcon } from "@/system/icon";
 import { canvas, goToBench } from "@/system/space";
 import { logIn, signUp, user } from "@/system/user";
 import { makeTypeInfo } from "@/system/value";
-import { reverseRecord } from "@/utils/functools";
-import { getViewComponentChildren, isVueInstanceOf } from "@/views/canvas";
+import { getViewComponentChildren, isVueInstanceOf, useViewState } from "@/views/canvas";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import HtmlInput from "@/views/content/HtmlInput.vue";
 import Button from "@/views/controls/Button.vue";
-import { ref, toRef, watch, type Ref } from "vue";
+import { ref, toRef, type Ref } from "vue";
 
-const props = defineProps<{ self: TypedNodeReferenceData<NodeType.VIEW> } & Pick<ViewData, "title">>();
+const props = defineProps<{ self: TypedNodeReferenceData<NodeType.VIEW> } & Pick<ViewData, "title" | "valuePacked">>();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 
 const { graph: spaceGraph } = useExistingConnection(toRef(props, "self"));
 
-type State = "sign-up" | "log-in" | "all-set";
-const TITLE_BY_STATE: Record<State, string> = {
-  "sign-up": "Sign Up",
-  "log-in": "Log In",
-  "all-set": "All Set",
-};
-const STATE_BY_TITLE = reverseRecord(TITLE_BY_STATE);
-
-// determine initial state from title (not great but we only use this internally)
-const state: Ref<State> = ref(STATE_BY_TITLE[props.title ?? ""] ?? "log-in");
+const { state, updateState, useStateProp } = useViewState(self, spaceGraph, ObjectType.USER_WIZARD_VIEW_STATE, props);
+const stage = useStateProp("stage", UserWizardViewStage.LOG_IN);
 const name: Ref<string> = ref("");
 const slug: Ref<string> = ref("");
 const email: Ref<string> = ref("");
 const password: Ref<string> = ref("");
 const region: Ref<Region> = ref(Region.EUROPE_CENTRAL);
 const isActive = ref(false);
-
-function setState(newState: State) {
-  if (newState == state.value) return;
-  state.value = newState;
-  canvas.tx().update(spaceGraph.getOrError(self.value) as ViewData, { title: TITLE_BY_STATE[newState] });
-  canvas.focusInComponent(self.value);
-}
-
-// sync state from user & title
-watch(
-  [user, () => props.title],
-  () => {
-    if (user.value) {
-      setState("all-set");
-    } else if (state.value == "all-set") {
-      setState("log-in");
-    } else if (STATE_BY_TITLE[props.title ?? ""] != null) {
-      setState(STATE_BY_TITLE[props.title ?? ""]!);
-    }
-  },
-  { immediate: true },
-);
 
 function clear() {
   name.value = "";
@@ -70,16 +47,16 @@ function clear() {
 async function submit() {
   isActive.value = true;
   try {
-    if (state.value == "sign-up") {
+    if (stage.value == UserWizardViewStage.SIGN_UP) {
       await signUp({ name: name.value, slug: slug.value, email: email.value }, password.value);
-    } else if (state.value == "log-in") {
+    } else if (stage.value == UserWizardViewStage.LOG_IN) {
       const { user } = await logIn({ slug: slug.value }, password.value);
       // if we're outside a Bench and have a Bench, go home
       if (user.mainBenchPtr != null && benchPtr.value == null) {
         await goToBench({ bench: user.mainBenchPtr });
       }
     } else {
-      throw new Error(`unexpected registration state: ${state.value}`);
+      throw new Error(`unexpected registration stage: ${stage.value}`);
     }
     clear();
   } finally {
@@ -105,15 +82,15 @@ defineExpose<ViewExposed>({ self, focus });
     <div>
       <h2 class="text-2xl font-semibold">{{ title }}</h2>
       <p class="mt-2 text-gray-500">
-        <span v-if="state === 'log-in'">Log into an existing Bench account.</span>
-        <span v-else-if="state === 'sign-up'">Create a new Bench account.</span>
-        <span v-else-if="state === 'all-set'">You're logged in and good to go.</span>
+        <span v-if="user">You're logged in and good to go.</span>
+        <span v-else-if="stage == UserWizardViewStage.LOG_IN">Log into an existing Bench account.</span>
+        <span v-else-if="stage == UserWizardViewStage.SIGN_UP">Create a new Bench account.</span>
       </p>
     </div>
     <!-- Data -->
-    <div v-if="state == 'sign-up' || state == 'log-in'" class="mt-5 flex w-full flex-col gap-y-3">
+    <div v-if="!user" class="mt-5 flex w-full flex-col gap-y-3">
       <HtmlInput
-        v-if="state === 'sign-up'"
+        v-if="stage == UserWizardViewStage.SIGN_UP"
         v-model="name"
         :icon="makeIcon({ faName: 'fas fa-user' })"
         name="Name"
@@ -130,7 +107,7 @@ defineExpose<ViewExposed>({ self, focus });
         is-input
       />
       <HtmlInput
-        v-if="state === 'sign-up'"
+        v-if="stage == UserWizardViewStage.SIGN_UP"
         v-model="email"
         :icon="makeIcon({ faName: 'fas fa-at' })"
         name="Email"
@@ -152,26 +129,31 @@ defineExpose<ViewExposed>({ self, focus });
     <!-- Actions -->
     <div class="mt-7">
       <Button
-        v-if="state === 'log-in' || state === 'sign-up'"
+        v-if="!user"
         name="Submit"
         :icon="makeIcon({ faName: 'fas fa-arrow-right-from-bracket' })"
-        :title="state === 'log-in' ? 'Log in' : 'Sign up'"
+        :title="stage === UserWizardViewStage.LOG_IN ? 'Log in' : 'Sign up'"
         class="w-full"
         :is-disabled="isActive"
         :is-loading="isActive"
         @click="submit"
       />
       <Button
-        v-if="state === 'log-in' || state === 'sign-up'"
+        v-if="!user"
         name="Switch"
         :icon="makeIcon({ faName: 'fas fa-shuffle' })"
-        :title="state === 'log-in' ? 'Sign up instead' : 'Log in instead'"
+        :title="stage === UserWizardViewStage.LOG_IN ? 'Sign up instead' : 'Log in instead'"
         class="mt-2 w-full"
         :variant="Variant.COMPACT"
-        @click="() => setState(state == 'log-in' ? 'sign-up' : 'log-in')"
+        @click="
+          () =>
+            stage == UserWizardViewStage.LOG_IN
+              ? (stage = UserWizardViewStage.SIGN_UP)
+              : (stage = UserWizardViewStage.LOG_IN)
+        "
       />
       <Button
-        v-if="state === 'all-set'"
+        v-if="user"
         name="Activate"
         :icon="makeIcon({ faName: 'fas fa-shuffle' })"
         title="Activate"

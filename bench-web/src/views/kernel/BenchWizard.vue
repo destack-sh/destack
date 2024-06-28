@@ -4,7 +4,7 @@ import { useExistingConnection } from "@/system/connection";
 import { makeIcon } from "@/system/icon";
 import { createBench, user } from "@/system/user";
 import { viewEmits, type FocusAnchor } from "@/views/common";
-import { toRef, type Ref, ref, watch } from "vue";
+import { toRef, type Ref, ref, watch, computed } from "vue";
 import Button from "@/views/controls/Button.vue";
 import HtmlInput from "@/views/content/HtmlInput.vue";
 import { toNodeReference } from "@/proto/wiring";
@@ -16,23 +16,18 @@ const emit = defineEmits(viewEmits());
 
 const { graph: spaceGraph } = useExistingConnection(toRef(props, "self"));
 
-type State = "create-bench" | "activate-bench" | "all-set";
 const self = toRef(props, "self");
-const state: Ref<State> = ref("create-bench");
 const slug: Ref<string> = ref("");
 const region: Ref<Region> = ref(Region.EUROPE_CENTRAL);
 const isActive = ref(false);
+const isActivated = computed(() => user.value?.status == UserStatus.ACTIVATED);
 
-// sync user/bench state
+// init slug with user slug
 watch(
   user,
   () => {
-    state.value = "create-bench";
     if (user.value) {
       slug.value = user.value.slug ?? "";
-      if (user.value.status == UserStatus.ACTIVATED) {
-        state.value = "all-set";
-      }
     }
   },
   { immediate: true },
@@ -72,11 +67,11 @@ defineExpose({ self, focus });
     <div>
       <h2 class="text-2xl font-semibold">Create your Bench</h2>
       <p class="mt-2 text-gray-500">
-        <span v-if="state == 'all-set'">You already have a Bench.</span>
+        <span v-if="isActivated">You already have a Bench.</span>
       </p>
     </div>
     <!-- Data -->
-    <div v-if="state == 'create-bench'" class="mt-5">
+    <div v-if="!isActivated" class="mt-5">
       <!-- Owner -->
       <!-- ... -->
       <!-- Slug must match user slug for main bench -->
@@ -93,9 +88,8 @@ defineExpose({ self, focus });
       <!-- ... -->
     </div>
     <!-- Actions -->
-    <div class="mt-7">
+    <div v-if="!isActivated" class="mt-7">
       <Button
-        v-if="state == 'create-bench'"
         name="Submit"
         :icon="makeIcon({ faName: 'fas fa-rocket-launch' })"
         title="Create Bench"
@@ -103,15 +97,6 @@ defineExpose({ self, focus });
         :is-loading="isActive"
         :is-disabled="isActive"
         @click="submit"
-      />
-      <Button
-        v-if="state == 'all-set'"
-        name="Close"
-        :icon="makeIcon({ faName: 'fas fa-xmark' })"
-        title="Close"
-        class="w-full"
-        :variant="Variant.COMPACT"
-        @click="() => canvas.removeView(spaceGraph, spaceGraph.get(self) as ViewData)"
       />
     </div>
   </div>

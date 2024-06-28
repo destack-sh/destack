@@ -26,7 +26,7 @@ from bench.language.property import (
     p_regular,
     p_system,
 )
-from bench.language.validation import NAME_CONSTRAINT, SLUG_CONSTRAINT, TITLE_CONSTRAINT
+from bench.language.validation import NAME_CONSTRAINT, SLUG_CONSTRAINT
 from bench.proto.wire import (
     AnyNodeData,
     BenchData,
@@ -39,7 +39,6 @@ from bench.proto.wire import (
     PackageData,
     ServerData,
     StoreData,
-    UpgradeData,
 )
 from bench.utils.casing import IdentifierType
 from bench.utils.func import IdEnum, bittuple, generate_encryption_key
@@ -276,16 +275,6 @@ class Dependency(SourceNode[DependencyData]):
     dependency_scopes: list["Block"] = p_regular(
         41, require=True, array=True, references=NodeType.BLOCK
     )
-
-
-@node_(NodeType.UPGRADE, identifier=IdentifierType.VARIABLE)
-class Upgrade(SourceNode[UpgradeData]):
-    """An 'upgrade' to a Package, marking changes made to the containing Package."""
-
-    parent: Package | None = p_node_parent(4, NodeType.PACKAGE)
-    name: str = p_regular(32, constraint=NAME_CONSTRAINT)
-    title: Optional[str] = p_regular(34, constraint=TITLE_CONSTRAINT)
-    text: Optional["Text"] = p_regular(35, require=False, array=False, struct=StructType.TEXT)
 
 
 @enum_(EnumType.TENANCY)
