@@ -223,7 +223,7 @@ class NodeConnection[
             if edit.type in (EditType.ARCHIVE, EditType.DELETE, EditType.ERASE):
                 assert edit.old_node_packed, f"missing old node data for {edit!r}"
                 updated_node = unpack_node_delta(
-                    edit.old_node_packed, node_type=self.query._node_type
+                    edit.old_node_packed, node_type=NodeType(edit.node_ptr.type)
                 )
             elif edit.type in (
                 EditType.UNARCHIVE,
@@ -233,7 +233,7 @@ class NodeConnection[
             ):
                 assert edit.new_node_packed, f"missing new node data for {edit!r}"
                 updated_node = unpack_node_delta(
-                    edit.new_node_packed, node_type=self.query._node_type
+                    edit.new_node_packed, node_type=NodeType(edit.node_ptr.type)
                 )
             else:
                 raise RuntimeError(f"unexpected empty edit type {edit.type} in {edit!r}")
