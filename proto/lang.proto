@@ -87,7 +87,6 @@ enum BenchType {
   BENCH_TYPE_BRANCH = 3;
   BENCH_TYPE_PACKAGE = 20;
   BENCH_TYPE_DEPENDENCY = 21;
-  BENCH_TYPE_UPGRADE = 22;
   BENCH_TYPE_SPACE = 23;
   BENCH_TYPE_LINK = 24;
   BENCH_TYPE_SKIP = 25;
@@ -159,8 +158,14 @@ enum BenchType {
   BENCH_TYPE_BOX = 1202;
   BENCH_TYPE_OFFSET = 1203;
   BENCH_TYPE_TRANSFORM = 1204;
-  BENCH_TYPE_FILE = 1250;
-  BENCH_TYPE_ICON = 1251;
+  BENCH_TYPE_START_VIEW_STATE = 1250;
+  BENCH_TYPE_FEED_VIEW_STATE = 1251;
+  BENCH_TYPE_CHART_VIEW_STATE = 1252;
+  BENCH_TYPE_HISTORY_VIEW_STATE = 1253;
+  BENCH_TYPE_TIMELINE_VIEW_STATE = 1254;
+  BENCH_TYPE_USER_WIZARD_VIEW_STATE = 1255;
+  BENCH_TYPE_FILE = 1300;
+  BENCH_TYPE_ICON = 1301;
   BENCH_TYPE_ENUM_TYPE = 2001;
   BENCH_TYPE_NODE_TYPE = 2002;
   BENCH_TYPE_STRUCT_TYPE = 2003;
@@ -183,55 +188,56 @@ enum BenchType {
   BENCH_TYPE_RESOURCE_STATUS = 2057;
   BENCH_TYPE_FILE_RETENTION_MODE = 2058;
   BENCH_TYPE_CLIENT_TYPE = 2060;
-  BENCH_TYPE_BLOCK_TYPE = 2070;
   BENCH_TYPE_PRIMITIVE_TYPE = 2080;
   BENCH_TYPE_FORMAT_HINT = 2081;
   BENCH_TYPE_FIELD_ZONE = 2082;
   BENCH_TYPE_TYPE_KIND = 2083;
-  BENCH_TYPE_TEXT_LINE_TYPE = 2090;
   BENCH_TYPE_SCHEDULE_TYPE = 2100;
   BENCH_TYPE_TIME_INTERVAL = 2101;
   BENCH_TYPE_DAY = 2102;
   BENCH_TYPE_MONTH = 2103;
+  BENCH_TYPE_TEXT_LINE_TYPE = 2110;
+  BENCH_TYPE_ICON_KIND = 2111;
+  BENCH_TYPE_EXPRESSION_KIND = 2200;
+  BENCH_TYPE_EXPRESSION_OP = 2201;
+  BENCH_TYPE_LITERAL_OP = 2202;
+  BENCH_TYPE_FUNCTIONAL_OP = 2203;
+  BENCH_TYPE_CONDITIONAL_OP = 2204;
+  BENCH_TYPE_AGGREGATION_OP = 2205;
+  BENCH_TYPE_SORT_MODE = 2206;
+  BENCH_TYPE_SORT_OP = 2207;
+  BENCH_TYPE_SELECTION_KIND = 2208;
+  BENCH_TYPE_PATH_TOKEN_TYPE = 2210;
+  BENCH_TYPE_PATH_SEGMENT_TYPE = 2211;
+  BENCH_TYPE_BLOCK_TYPE = 2070;
   BENCH_TYPE_ISSUE_KIND = 2170;
   BENCH_TYPE_ISSUE_TYPE = 2171;
   BENCH_TYPE_STEP_TYPE = 2180;
   BENCH_TYPE_STEP_CONNECTION_TYPE = 2181;
-  BENCH_TYPE_SPACE_TYPE = 2200;
-  BENCH_TYPE_VIEW_TYPE = 2201;
-  BENCH_TYPE_VARIANT = 2202;
-  BENCH_TYPE_COLOR_TYPE = 2203;
-  BENCH_TYPE_COLOR_SHADE = 2204;
-  BENCH_TYPE_FONT_TYPE = 2205;
-  BENCH_TYPE_FONT_WEIGHT = 2206;
-  BENCH_TYPE_FONT_SIZE = 2207;
-  BENCH_TYPE_SPACING = 2208;
-  BENCH_TYPE_ANCHOR = 2209;
-  BENCH_TYPE_ORIENTATION = 2210;
-  BENCH_TYPE_ALIGNMENT = 2211;
-  BENCH_TYPE_ICON_KIND = 2212;
-  BENCH_TYPE_LOG_KIND = 2250;
-  BENCH_TYPE_LOG_LEVEL = 2251;
-  BENCH_TYPE_RUN_STATUS = 2260;
-  BENCH_TYPE_RUN_KIND = 2261;
-  BENCH_TYPE_RUN_ERROR_KIND = 2262;
-  BENCH_TYPE_RUN_ERROR_TYPE = 2263;
-  BENCH_TYPE_SESSION_STATUS = 2264;
-  BENCH_TYPE_TRIGGER_TYPE = 2270;
-  BENCH_TYPE_NOTIFICATION_KIND = 2281;
-  BENCH_TYPE_EXPRESSION_KIND = 2300;
-  BENCH_TYPE_EXPRESSION_OP = 2301;
-  BENCH_TYPE_LITERAL_OP = 2302;
-  BENCH_TYPE_FUNCTIONAL_OP = 2303;
-  BENCH_TYPE_CONDITIONAL_OP = 2304;
-  BENCH_TYPE_AGGREGATION_OP = 2305;
-  BENCH_TYPE_SORT_MODE = 2306;
-  BENCH_TYPE_SORT_OP = 2307;
-  BENCH_TYPE_SELECTION_KIND = 2308;
-  BENCH_TYPE_PATH_TOKEN_TYPE = 2320;
-  BENCH_TYPE_PATH_SEGMENT_TYPE = 2321;
-  BENCH_TYPE_USER_STATUS = 2500;
-  BENCH_TYPE_ORGANIZATION_STATUS = 2501;
+  BENCH_TYPE_LOG_KIND = 2300;
+  BENCH_TYPE_LOG_LEVEL = 2301;
+  BENCH_TYPE_RUN_STATUS = 2302;
+  BENCH_TYPE_RUN_KIND = 2303;
+  BENCH_TYPE_RUN_ERROR_KIND = 2304;
+  BENCH_TYPE_RUN_ERROR_TYPE = 2305;
+  BENCH_TYPE_SESSION_STATUS = 2306;
+  BENCH_TYPE_TRIGGER_TYPE = 2307;
+  BENCH_TYPE_NOTIFICATION_KIND = 2308;
+  BENCH_TYPE_SPACE_TYPE = 2400;
+  BENCH_TYPE_VIEW_TYPE = 2401;
+  BENCH_TYPE_VARIANT = 2402;
+  BENCH_TYPE_COLOR_TYPE = 2403;
+  BENCH_TYPE_COLOR_SHADE = 2404;
+  BENCH_TYPE_FONT_TYPE = 2405;
+  BENCH_TYPE_FONT_WEIGHT = 2406;
+  BENCH_TYPE_FONT_SIZE = 2407;
+  BENCH_TYPE_SPACING = 2408;
+  BENCH_TYPE_ANCHOR = 2409;
+  BENCH_TYPE_ORIENTATION = 2410;
+  BENCH_TYPE_ALIGNMENT = 2411;
+  BENCH_TYPE_USER_WIZARD_STAGE = 2450;
+  BENCH_TYPE_USER_STATUS = 2800;
+  BENCH_TYPE_ORGANIZATION_STATUS = 2801;
 }
 
 enum BlockType {
@@ -246,12 +252,11 @@ enum BlockType {
   BLOCK_TYPE_PROTOCOL = 14;
   BLOCK_TYPE_TEXT = 30;
   BLOCK_TYPE_CODE = 31;
-  BLOCK_TYPE_SCRIPT = 32;
-  BLOCK_TYPE_FLOW = 33;
+  BLOCK_TYPE_FLOW = 32;
   BLOCK_TYPE_VARIABLE = 50;
   BLOCK_TYPE_QUERY = 52;
   BLOCK_TYPE_DATABASE = 53;
-  BLOCK_TYPE_SCREEN = 70;
+  BLOCK_TYPE_VIEW = 70;
   BLOCK_TYPE_ROLE = 90;
   BLOCK_TYPE_IDENTITY = 91;
 }
@@ -399,55 +404,56 @@ enum EnumType {
   ENUM_TYPE_RESOURCE_STATUS = 2057;
   ENUM_TYPE_FILE_RETENTION_MODE = 2058;
   ENUM_TYPE_CLIENT_TYPE = 2060;
-  ENUM_TYPE_BLOCK_TYPE = 2070;
   ENUM_TYPE_PRIMITIVE_TYPE = 2080;
   ENUM_TYPE_FORMAT_HINT = 2081;
   ENUM_TYPE_FIELD_ZONE = 2082;
   ENUM_TYPE_TYPE_KIND = 2083;
-  ENUM_TYPE_TEXT_LINE_TYPE = 2090;
   ENUM_TYPE_SCHEDULE_TYPE = 2100;
   ENUM_TYPE_TIME_INTERVAL = 2101;
   ENUM_TYPE_DAY = 2102;
   ENUM_TYPE_MONTH = 2103;
+  ENUM_TYPE_TEXT_LINE_TYPE = 2110;
+  ENUM_TYPE_ICON_KIND = 2111;
+  ENUM_TYPE_EXPRESSION_KIND = 2200;
+  ENUM_TYPE_EXPRESSION_OP = 2201;
+  ENUM_TYPE_LITERAL_OP = 2202;
+  ENUM_TYPE_FUNCTIONAL_OP = 2203;
+  ENUM_TYPE_CONDITIONAL_OP = 2204;
+  ENUM_TYPE_AGGREGATION_OP = 2205;
+  ENUM_TYPE_SORT_MODE = 2206;
+  ENUM_TYPE_SORT_OP = 2207;
+  ENUM_TYPE_SELECTION_KIND = 2208;
+  ENUM_TYPE_PATH_TOKEN_TYPE = 2210;
+  ENUM_TYPE_PATH_SEGMENT_TYPE = 2211;
+  ENUM_TYPE_BLOCK_TYPE = 2070;
   ENUM_TYPE_ISSUE_KIND = 2170;
   ENUM_TYPE_ISSUE_TYPE = 2171;
   ENUM_TYPE_STEP_TYPE = 2180;
   ENUM_TYPE_STEP_CONNECTION_TYPE = 2181;
-  ENUM_TYPE_SPACE_TYPE = 2200;
-  ENUM_TYPE_VIEW_TYPE = 2201;
-  ENUM_TYPE_VARIANT = 2202;
-  ENUM_TYPE_COLOR_TYPE = 2203;
-  ENUM_TYPE_COLOR_SHADE = 2204;
-  ENUM_TYPE_FONT_TYPE = 2205;
-  ENUM_TYPE_FONT_WEIGHT = 2206;
-  ENUM_TYPE_FONT_SIZE = 2207;
-  ENUM_TYPE_SPACING = 2208;
-  ENUM_TYPE_ANCHOR = 2209;
-  ENUM_TYPE_ORIENTATION = 2210;
-  ENUM_TYPE_ALIGNMENT = 2211;
-  ENUM_TYPE_ICON_KIND = 2212;
-  ENUM_TYPE_LOG_KIND = 2250;
-  ENUM_TYPE_LOG_LEVEL = 2251;
-  ENUM_TYPE_RUN_STATUS = 2260;
-  ENUM_TYPE_RUN_KIND = 2261;
-  ENUM_TYPE_RUN_ERROR_KIND = 2262;
-  ENUM_TYPE_RUN_ERROR_TYPE = 2263;
-  ENUM_TYPE_SESSION_STATUS = 2264;
-  ENUM_TYPE_TRIGGER_TYPE = 2270;
-  ENUM_TYPE_NOTIFICATION_KIND = 2281;
-  ENUM_TYPE_EXPRESSION_KIND = 2300;
-  ENUM_TYPE_EXPRESSION_OP = 2301;
-  ENUM_TYPE_LITERAL_OP = 2302;
-  ENUM_TYPE_FUNCTIONAL_OP = 2303;
-  ENUM_TYPE_CONDITIONAL_OP = 2304;
-  ENUM_TYPE_AGGREGATION_OP = 2305;
-  ENUM_TYPE_SORT_MODE = 2306;
-  ENUM_TYPE_SORT_OP = 2307;
-  ENUM_TYPE_SELECTION_KIND = 2308;
-  ENUM_TYPE_PATH_TOKEN_TYPE = 2320;
-  ENUM_TYPE_PATH_SEGMENT_TYPE = 2321;
-  ENUM_TYPE_USER_STATUS = 2500;
-  ENUM_TYPE_ORGANIZATION_STATUS = 2501;
+  ENUM_TYPE_LOG_KIND = 2300;
+  ENUM_TYPE_LOG_LEVEL = 2301;
+  ENUM_TYPE_RUN_STATUS = 2302;
+  ENUM_TYPE_RUN_KIND = 2303;
+  ENUM_TYPE_RUN_ERROR_KIND = 2304;
+  ENUM_TYPE_RUN_ERROR_TYPE = 2305;
+  ENUM_TYPE_SESSION_STATUS = 2306;
+  ENUM_TYPE_TRIGGER_TYPE = 2307;
+  ENUM_TYPE_NOTIFICATION_KIND = 2308;
+  ENUM_TYPE_SPACE_TYPE = 2400;
+  ENUM_TYPE_VIEW_TYPE = 2401;
+  ENUM_TYPE_VARIANT = 2402;
+  ENUM_TYPE_COLOR_TYPE = 2403;
+  ENUM_TYPE_COLOR_SHADE = 2404;
+  ENUM_TYPE_FONT_TYPE = 2405;
+  ENUM_TYPE_FONT_WEIGHT = 2406;
+  ENUM_TYPE_FONT_SIZE = 2407;
+  ENUM_TYPE_SPACING = 2408;
+  ENUM_TYPE_ANCHOR = 2409;
+  ENUM_TYPE_ORIENTATION = 2410;
+  ENUM_TYPE_ALIGNMENT = 2411;
+  ENUM_TYPE_USER_WIZARD_STAGE = 2450;
+  ENUM_TYPE_USER_STATUS = 2800;
+  ENUM_TYPE_ORGANIZATION_STATUS = 2801;
 }
 
 enum ExpressionKind {
@@ -663,7 +669,6 @@ enum NodeType {
   NODE_TYPE_BRANCH = 3;
   NODE_TYPE_PACKAGE = 20;
   NODE_TYPE_DEPENDENCY = 21;
-  NODE_TYPE_UPGRADE = 22;
   NODE_TYPE_SPACE = 23;
   NODE_TYPE_LINK = 24;
   NODE_TYPE_SKIP = 25;
@@ -710,7 +715,6 @@ enum ObjectType {
   OBJECT_TYPE_BRANCH = 3;
   OBJECT_TYPE_PACKAGE = 20;
   OBJECT_TYPE_DEPENDENCY = 21;
-  OBJECT_TYPE_UPGRADE = 22;
   OBJECT_TYPE_SPACE = 23;
   OBJECT_TYPE_LINK = 24;
   OBJECT_TYPE_SKIP = 25;
@@ -782,8 +786,14 @@ enum ObjectType {
   OBJECT_TYPE_BOX = 1202;
   OBJECT_TYPE_OFFSET = 1203;
   OBJECT_TYPE_TRANSFORM = 1204;
-  OBJECT_TYPE_FILE = 1250;
-  OBJECT_TYPE_ICON = 1251;
+  OBJECT_TYPE_START_VIEW_STATE = 1250;
+  OBJECT_TYPE_FEED_VIEW_STATE = 1251;
+  OBJECT_TYPE_CHART_VIEW_STATE = 1252;
+  OBJECT_TYPE_HISTORY_VIEW_STATE = 1253;
+  OBJECT_TYPE_TIMELINE_VIEW_STATE = 1254;
+  OBJECT_TYPE_USER_WIZARD_VIEW_STATE = 1255;
+  OBJECT_TYPE_FILE = 1300;
+  OBJECT_TYPE_ICON = 1301;
 }
 
 enum OrganizationStatus {
@@ -1083,8 +1093,14 @@ enum StructType {
   STRUCT_TYPE_BOX = 1202;
   STRUCT_TYPE_OFFSET = 1203;
   STRUCT_TYPE_TRANSFORM = 1204;
-  STRUCT_TYPE_FILE = 1250;
-  STRUCT_TYPE_ICON = 1251;
+  STRUCT_TYPE_START_VIEW_STATE = 1250;
+  STRUCT_TYPE_FEED_VIEW_STATE = 1251;
+  STRUCT_TYPE_CHART_VIEW_STATE = 1252;
+  STRUCT_TYPE_HISTORY_VIEW_STATE = 1253;
+  STRUCT_TYPE_TIMELINE_VIEW_STATE = 1254;
+  STRUCT_TYPE_USER_WIZARD_VIEW_STATE = 1255;
+  STRUCT_TYPE_FILE = 1300;
+  STRUCT_TYPE_ICON = 1301;
 }
 
 // How a Resource is shared (if at all).
@@ -1161,6 +1177,13 @@ enum UserStatus {
   USER_STATUS_ACTIVATED = 10;
 }
 
+// The stage of a User view.
+enum UserWizardViewStage {
+  USER_WIZARD_VIEW_STAGE_UNSPECIFIED = 0;
+  USER_WIZARD_VIEW_STAGE_SIGN_UP = 1;
+  USER_WIZARD_VIEW_STAGE_LOG_IN = 2;
+}
+
 // The style variant of a view.
 enum Variant {
   VARIANT_UNSPECIFIED = 0;
@@ -1179,7 +1202,7 @@ enum ViewType {
   VIEW_TYPE_BLOCK = 102;
   VIEW_TYPE_FIELD = 103;
   VIEW_TYPE_DATABASE = 104;
-  VIEW_TYPE_SCREEN = 105;
+  VIEW_TYPE_VIEW = 105;
   VIEW_TYPE_FLOW = 106;
   VIEW_TYPE_STEP = 107;
   VIEW_TYPE_TYPE = 108;
@@ -1328,6 +1351,11 @@ message ChangeVignetteData {
   optional IconData icon = 31;
 }
 
+// The state of a Chart view.
+message ChartViewStateData {
+  ObjectType metatype = 1;
+}
+
 // Information to identify a client.
 message ClientOriginData {
   ObjectType metatype = 1;
@@ -1441,6 +1469,12 @@ message ExpressionData {
   optional float tolerance = 39;
 }
 
+// The state of a Feed view.
+message FeedViewStateData {
+  ObjectType metatype = 1;
+  optional ExpressionData query = 30;
+}
+
 // A reference to a file stored somewhere.
 message FileData {
   ObjectType metatype = 1;
@@ -1465,6 +1499,11 @@ message GraphScopeData {
   ObjectType metatype = 1;
   optional string bench_id = 30;
   optional string package_id = 31;
+}
+
+// The state of a History view.
+message HistoryViewStateData {
+  ObjectType metatype = 1;
 }
 
 // An icon to be displayed in some view.
@@ -1765,6 +1804,12 @@ message SessionContextData {
   optional NodeReferenceData identity_ptr = 79;
 }
 
+// The state of a Start view.
+message StartViewStateData {
+  ObjectType metatype = 1;
+  optional google.protobuf.Struct inputs_packed = 30;
+}
+
 // A connection between two Steps in a FlowBlock.
 message StepConnectionData {
   ObjectType metatype = 1;
@@ -1841,6 +1886,11 @@ message TextSpanData {
   optional bool is_code = 64;
 }
 
+// The state of a Timeline view.
+message TimelineViewStateData {
+  ObjectType metatype = 1;
+}
+
 // A transform in 2D space.
 message TransformData {
   ObjectType metatype = 1;
@@ -1891,6 +1941,12 @@ message TypeInfoData {
   bool is_list = 60;
   bool is_secret = 61;
   bool is_required = 62;
+}
+
+// The state of a User view.
+message UserWizardViewStateData {
+  ObjectType metatype = 1;
+  optional UserWizardViewStage stage = 30;
 }
 
 // Attach a badge to a node with an inline definition.
@@ -2865,31 +2921,6 @@ message TriggerData {
   bool is_paused = 50;
 }
 
-// An 'upgrade' to a Package, marking changes made to the containing Package.
-message UpgradeData {
-  ObjectType metatype = 1;
-  string id = 2;
-  string ck = 3;
-  optional NodeReferenceData parent_ptr = 4;
-  NodeReferenceData package_ptr = 5;
-  NodeReferenceData bench_ptr = 6;
-  optional NodeReferenceData template_ptr = 7;
-  optional int64 templated_epoch = 8;
-  int64 revision = 10;
-  google.protobuf.Timestamp created_at = 11;
-  int64 created_epoch = 12;
-  google.protobuf.Timestamp updated_at = 13;
-  int64 updated_epoch = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
-  optional google.protobuf.Timestamp archived_at = 16;
-  optional NodeReferenceData created_by_ptr = 21;
-  optional NodeReferenceData updated_by_ptr = 22;
-  repeated int32 set_properties = 29;
-  string name = 32;
-  optional string title = 34;
-  optional TextData text = 35;
-}
-
 // A Bench user.
 message UserData {
   ObjectType metatype = 1;
@@ -2973,36 +3004,35 @@ message SomeNodeData {
     BranchData branch = 3;
     PackageData package = 4;
     DependencyData dependency = 5;
-    UpgradeData upgrade = 6;
-    SpaceData space = 7;
-    LinkData link = 8;
-    SkipData skip = 9;
-    IssueData issue = 10;
-    BlockData block = 11;
-    TriggerData trigger = 12;
-    FieldData field = 13;
-    QueryData query = 14;
-    ViewData view = 15;
-    StepData step = 16;
-    BadgeData badge = 17;
-    MembershipData membership = 18;
-    InviteData invite = 19;
-    SessionData session = 20;
-    RunData run = 21;
-    SignalData signal = 22;
-    LogData log = 23;
-    NotificationData notification = 24;
-    MessageData message = 25;
-    RecordData record = 26;
-    ServerData server = 27;
-    StoreData store = 28;
-    MachineData machine = 29;
-    DriveData drive = 30;
-    BlobData blob = 31;
-    HandleData handle = 32;
-    UserData user = 33;
-    OrganizationData organization = 34;
-    ClientData client = 35;
+    SpaceData space = 6;
+    LinkData link = 7;
+    SkipData skip = 8;
+    IssueData issue = 9;
+    BlockData block = 10;
+    TriggerData trigger = 11;
+    FieldData field = 12;
+    QueryData query = 13;
+    ViewData view = 14;
+    StepData step = 15;
+    BadgeData badge = 16;
+    MembershipData membership = 17;
+    InviteData invite = 18;
+    SessionData session = 19;
+    RunData run = 20;
+    SignalData signal = 21;
+    LogData log = 22;
+    NotificationData notification = 23;
+    MessageData message = 24;
+    RecordData record = 25;
+    ServerData server = 26;
+    StoreData store = 27;
+    MachineData machine = 28;
+    DriveData drive = 29;
+    BlobData blob = 30;
+    HandleData handle = 31;
+    UserData user = 32;
+    OrganizationData organization = 33;
+    ClientData client = 34;
   };
 }
 

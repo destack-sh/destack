@@ -10,6 +10,7 @@ from bench.language.node import (
     Node,
     SourceNode,
     node_,
+    object_component,
     struct_,
 )
 from bench.language.property import (
@@ -28,7 +29,7 @@ from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
-    from bench.language import Block, Icon, Package, Policy, Text, TypeInfo
+    from bench.language import Block, Expression, Icon, Package, Policy, Text, TypeInfo
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -52,7 +53,7 @@ class ViewType(IdEnum):
     BLOCK = 102
     FIELD = 103
     DATABASE = 104
-    SCREEN = 105
+    VIEW = 105
     FLOW = 106
     STEP = 107
     TYPE = 108
@@ -411,8 +412,7 @@ class View(SourceNode[ViewData], HasValues):
     )
     value_packed: Any = p_value_packed(41)
     value: Any = p_value_runtime(packed=41, typ=None)  # freely typed for now
-    # TODO :Cleanup :Architecture: View.node should probably just be in View.value
-    #  (with relevant Views having that type... once we have the Value system more figured out)
+    # NOTE :Architecture: View.node should probably just be in builtin View.value
     node: Optional["Node"] = p_regular(
         42, default=None, require=False, array=False, references=LINK_TARGET_NODE_TYPES
     )
@@ -502,3 +502,68 @@ class Space(SourceNode[SpaceData]):
     base: Optional[Node] = p_regular(
         76, default=None, require=False, array=False, references=tuple(NODE_TYPES)
     )
+
+
+#
+# Custom view states
+#
+
+
+@object_component()
+class ViewState(InlineStruct):
+    """Builtin special Value as the state of some specific view type (in View.value)."""
+
+    pass
+
+
+@struct_(StructType.START_VIEW_STATE, inline=True)
+class StartViewState(ViewState):
+    """The state of a Start view."""
+
+    inputs_packed: Any = p_value_packed(30)
+
+
+@struct_(StructType.FEED_VIEW_STATE, inline=True)
+class FeedViewState(ViewState):
+    """The state of a Feed view."""
+
+    query: "Expression | None" = p_regular(
+        30, default=None, require=False, struct=StructType.EXPRESSION
+    )
+    filter_pills: list[str] = p_regular(99, array=True)
+
+
+@struct_(StructType.CHART_VIEW_STATE, inline=True)
+class ChartViewState(ViewState):
+    """The state of a Chart view."""
+
+    pass  # ... vega stuff or something
+
+
+@struct_(StructType.HISTORY_VIEW_STATE, inline=True)
+class HistoryViewState(ViewState):
+    """The state of a History view."""
+
+    pass
+
+
+@struct_(StructType.TIMELINE_VIEW_STATE, inline=True)
+class TimelineViewState(ViewState):
+    """The state of a Timeline view."""
+
+    pass
+
+
+@enum_(EnumType.USER_WIZARD_STAGE)
+class UserWizardViewStage(IdEnum):
+    """The stage of a User view."""
+
+    SIGN_UP = 1
+    LOG_IN = 2
+
+
+@struct_(StructType.USER_WIZARD_VIEW_STATE, inline=True)
+class UserWizardViewState(ViewState):
+    """The state of a User view."""
+
+    stage: UserWizardViewStage | None = p_regular(30)

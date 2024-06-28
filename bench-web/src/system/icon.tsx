@@ -145,7 +145,6 @@ export const ICON_BY_NODE_TYPE: Partial<Record<NodeType, IconData>> = _makeIcons
   // source
   [NodeType.PACKAGE]: "fas fa-box-open",
   [NodeType.DEPENDENCY]: "fas fa-turn-down-right",
-  [NodeType.UPGRADE]: "fas fa-circle-up",
   [NodeType.SPACE]: "fas fa-galaxy",
   [NodeType.LINK]: "fas fa-link",
   [NodeType.SKIP]: "fas fa-ban",
@@ -233,14 +232,13 @@ export const ICON_BY_BLOCK_TYPE: Partial<Record<BlockType, IconData>> = _makeIco
 
   [BlockType.TEXT]: "fas fa-text",
   [BlockType.CODE]: "fas fa-code",
-  [BlockType.SCRIPT]: "fas fa-file-code",
   [BlockType.FLOW]: "fas fa-diagram-project",
 
   [BlockType.VARIABLE]: "fas fa-sliders",
   [BlockType.QUERY]: "fas fa-magnifying-glass",
   [BlockType.DATABASE]: "fas fa-database",
 
-  [BlockType.SCREEN]: "fas fa-window",
+  [BlockType.VIEW]: "fas fa-window",
 
   [BlockType.ROLE]: "fas fa-user-tag",
   [BlockType.IDENTITY]: "fas fa-image-user",

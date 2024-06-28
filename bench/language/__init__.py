@@ -22,7 +22,6 @@ from .bench import (
     ServerProfile,
     Store,
     Tenancy,
-    Upgrade,
 )
 from .block import Block
 from .code import Code, CodeLine
@@ -274,7 +273,6 @@ __all__ = [
     "TypeConstraint",
     "TypeInfo",
     "TypeInfoBase",
-    "Upgrade",
     "User",
     "ValidationError",
     "ValueList",

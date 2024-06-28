@@ -18,6 +18,7 @@ import {
   ViewData,
   ViewType,
   type AnyNodeData,
+  type AnyTypeMapping,
 } from "@/proto/wire";
 import {
   copyNode,
@@ -41,8 +42,9 @@ import {
   getOrderKey,
   updateOrder,
 } from "@/system/lang";
-import { inspectionBasePtr, inspectionPtr } from "@/system/space";
-import type { Transaction } from "@/system/transaction";
+import { canvas, inspectionBasePtr, inspectionPtr } from "@/system/space";
+import { packProtoStruct, unpackProtoStruct, type DebounceLevel, type Transaction } from "@/system/transaction";
+import { packBuiltinObject, unpackBuiltinObject } from "@/system/value";
 import type { SplitAnchor } from "@/utils/drag";
 import { getElement, isFocusableElement } from "@/utils/element";
 import { generateOrderKey } from "@/utils/fractional";
@@ -336,9 +338,7 @@ export class ViewCanvas {
   }
 
   /** Inspects the given node */
-  inspect(
-    inspect: { node: AnyNodeData | AnyNodeReferenceData; view: SomeView; focusInspector?: boolean },
-  ): void {
+  inspect(inspect: { node: AnyNodeData | AnyNodeReferenceData; view: SomeView; focusInspector?: boolean }): void {
     log.trace("canvas.inspect", inspect);
 
     const nodePtr = toNodeReference(inspect.node as AnyNodeData);
@@ -414,9 +414,7 @@ export class ViewCanvas {
   }
 
   /** Focuses the given view absolutely in the graph. */
-  focusInGraph(
-    focus: { view: SomeView; focus?: SelectionData; parent?: SomeView; resetDown?: boolean },
-  ) {
+  focusInGraph(focus: { view: SomeView; focus?: SelectionData; parent?: SomeView; resetDown?: boolean }) {
     const tx = this.tx();
 
     // focus the given selection within the view
@@ -782,13 +780,7 @@ export class ViewCanvas {
   /**
    * Adds the given view into this view at the target/anchor.
    */
-  moveView(
-    graph: ReadNodeGraph,
-    self: ViewData,
-    child: ViewData,
-    anchor: "start" | "end",
-    referenceId: string | null,
-  ) {
+  moveView(graph: ReadNodeGraph, self: ViewData, child: ViewData, anchor: "start" | "end", referenceId: string | null) {
     log.debug("canvas.move", { self, child, anchor, referenceId });
     const tx = this.tx();
     // move & update order
@@ -811,12 +803,7 @@ export class ViewCanvas {
    * 'Splits' the 'parent' view to accomodate a new equally sized subview 'child' (at the anchor).
    * If we're already split alongside the given orientation, the child is added to the existing split.
    */
-  splitView(
-    graph: ReadNodeGraph,
-    parent: ViewData,
-    child: ViewData,
-    anchor: Omit<SplitAnchor, "center">,
-  ) {
+  splitView(graph: ReadNodeGraph, parent: ViewData, child: ViewData, anchor: Omit<SplitAnchor, "center">) {
     log.debug("canvas.split", { parent, child, anchor });
     const tx = this.tx();
 
@@ -1185,4 +1172,41 @@ export function useExpansion(options: {
   }
 
   return { toggleExpanded, isExpanded: options.isDefaultExpanded ? () => true : isExpanded };
+}
+
+export function useViewState<T extends ObjectType>(
+  selfPtr: Ref<TypedNodeReferenceData<NodeType.VIEW>>,
+  graph: ReadNodeGraph,
+  stateType: T,
+  props: Pick<ViewData, "valuePacked">,
+) {
+  const state = computed(() => {
+    if (props.valuePacked == null) {
+      return { metatype: stateType } as AnyTypeMapping[T];
+    } else {
+      const valuePacked = unpackProtoStruct(props.valuePacked);
+      const unpacked = unpackBuiltinObject(valuePacked, stateType);
+      return unpacked;
+    }
+  });
+
+  function update(value: Partial<AnyTypeMapping[T]>, options?: { debounce?: DebounceLevel }) {
+    const tx = canvas.tx();
+    const self = graph.getOrError(selfPtr.value);
+    const newState = { ...state.value, ...value } as AnyTypeMapping[T];
+    const valuePacked = packBuiltinObject(newState);
+    tx.update(self, { valuePacked: packProtoStruct(valuePacked) }, options);
+  }
+
+  function useStateProp<P extends keyof AnyTypeMapping[T]>(
+    prop: P,
+    defaultValue?: AnyTypeMapping[T][P],
+  ): Ref<AnyTypeMapping[T][P]> {
+    return computed({
+      get: () => (state.value?.[prop] ?? defaultValue) as any,
+      set: (value: AnyTypeMapping[T][P]) => update({ [prop]: value } as any),
+    });
+  }
+
+  return { state, updateState: update, useStateProp };
 }

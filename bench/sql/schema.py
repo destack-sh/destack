@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.06.28.0"
+VERSION = "2024.06.28.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -268,40 +268,6 @@ DEPENDENCY_TABLE = Table(
         Column("dependency_scopes_id", PrimitiveType.UUID, is_array=True),
         Column("dependency_scopes_ck", PrimitiveType.UUID, is_array=True),
         Column("dependency_scopes_bench_id", PrimitiveType.UUID, is_array=True),
-    ),
-)
-
-UPGRADE_TABLE = Table(
-    "bench_upgrade",
-    (
-        Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("ck", PrimitiveType.UUID),
-        Column("parent_id", PrimitiveType.UUID),
-        Column("package_id", PrimitiveType.UUID),
-        Column("bench_id", PrimitiveType.UUID),
-        Column("template_id", PrimitiveType.UUID, is_nullable=True),
-        Column("template_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("template_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("templated_epoch", PrimitiveType.INT64, is_nullable=True),
-        Column("revision", PrimitiveType.INT64),
-        Column("created_at", PrimitiveType.DATETIME),
-        Column("created_epoch", PrimitiveType.INT64),
-        Column("updated_at", PrimitiveType.DATETIME),
-        Column("updated_epoch", PrimitiveType.INT64),
-        Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("archived_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
-        Column("created_by_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("created_by_type", PrimitiveType.INT16, is_nullable=True),
-        Column("created_by_base_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("updated_by_id", PrimitiveType.UUID, is_nullable=True),
-        Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
-        Column("updated_by_base_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("set_properties", PrimitiveType.INT32, is_array=True),
-        Column("name", PrimitiveType.STRING),
-        Column("title", PrimitiveType.STRING, is_nullable=True),
-        Column("text", PrimitiveType.JSON, is_nullable=True),
     ),
 )
 

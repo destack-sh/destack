@@ -20,7 +20,7 @@ class _Unset:
         return "<UNSET!>"
 
 
-VERSION = "2024.06.28.0"
+VERSION = "2024.06.28.1"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -62,6 +62,7 @@ def enum_(enum_type: "EnumType"):
 
 
 class EnumType(IdEnum):
+    # intrinsic
     ENUM_TYPE = 2001  # so meta
     NODE_TYPE = 2002
     STRUCT_TYPE = 2003
@@ -89,23 +90,35 @@ class EnumType(IdEnum):
     FILE_RETENTION_MODE = 2058
     CLIENT_TYPE = 2060
 
-    # block
-    BLOCK_TYPE = 2070
-
     # type
     PRIMITIVE_TYPE = 2080
     FORMAT_HINT = 2081
     FIELD_ZONE = 2082
     TYPE_KIND = 2083
 
-    # text
-    TEXT_LINE_TYPE = 2090
-
-    # time
+    # basic
     SCHEDULE_TYPE = 2100
     TIME_INTERVAL = 2101
     DAY = 2102
     MONTH = 2103
+    TEXT_LINE_TYPE = 2110
+    ICON_KIND = 2111
+
+    # expression
+    EXPRESSION_KIND = 2200
+    EXPRESSION_OP = 2201
+    LITERAL_OP = 2202
+    FUNCTIONAL_OP = 2203
+    CONDITIONAL_OP = 2204
+    AGGREGATION_OP = 2205
+    SORT_MODE = 2206
+    SORT_OP = 2207
+    SELECTION_KIND = 2208
+    PATH_TOKEN_TYPE = 2210
+    PATH_SEGMENT_TYPE = 2211
+
+    # block
+    BLOCK_TYPE = 2070
 
     # issue
     ISSUE_KIND = 2170
@@ -115,48 +128,36 @@ class EnumType(IdEnum):
     STEP_TYPE = 2180
     STEP_CONNECTION_TYPE = 2181
 
-    # view
-    SPACE_TYPE = 2200
-    VIEW_TYPE = 2201
-    VARIANT = 2202
-    COLOR_TYPE = 2203
-    COLOR_SHADE = 2204
-    FONT_TYPE = 2205
-    FONT_WEIGHT = 2206
-    FONT_SIZE = 2207
-    SPACING = 2208
-    ANCHOR = 2209
-    ORIENTATION = 2210
-    ALIGNMENT = 2211
-    ICON_KIND = 2212
-
     # session
-    LOG_KIND = 2250
-    LOG_LEVEL = 2251
-    RUN_STATUS = 2260
-    RUN_KIND = 2261
-    RUN_ERROR_KIND = 2262
-    RUN_ERROR_TYPE = 2263
-    SESSION_STATUS = 2264
-    TRIGGER_TYPE = 2270
-    NOTIFICATION_KIND = 2281
+    LOG_KIND = 2300
+    LOG_LEVEL = 2301
+    RUN_STATUS = 2302
+    RUN_KIND = 2303
+    RUN_ERROR_KIND = 2304
+    RUN_ERROR_TYPE = 2305
+    SESSION_STATUS = 2306
+    TRIGGER_TYPE = 2307
+    NOTIFICATION_KIND = 2308
 
-    # expression
-    EXPRESSION_KIND = 2300
-    EXPRESSION_OP = 2301
-    LITERAL_OP = 2302
-    FUNCTIONAL_OP = 2303
-    CONDITIONAL_OP = 2304
-    AGGREGATION_OP = 2305
-    SORT_MODE = 2306
-    SORT_OP = 2307
-    SELECTION_KIND = 2308
-    PATH_TOKEN_TYPE = 2320
-    PATH_SEGMENT_TYPE = 2321
+    # view
+    SPACE_TYPE = 2400
+    VIEW_TYPE = 2401
+    VARIANT = 2402
+    COLOR_TYPE = 2403
+    COLOR_SHADE = 2404
+    FONT_TYPE = 2405
+    FONT_WEIGHT = 2406
+    FONT_SIZE = 2407
+    SPACING = 2408
+    ANCHOR = 2409
+    ORIENTATION = 2410
+    ALIGNMENT = 2411
+    # view states
+    USER_WIZARD_STAGE = 2450
 
     # user
-    USER_STATUS = 2500
-    ORGANIZATION_STATUS = 2501
+    USER_STATUS = 2800
+    ORGANIZATION_STATUS = 2801
 
 
 enum_(EnumType.ENUM_TYPE)(EnumType)
@@ -178,7 +179,6 @@ class NodeType(IdEnum):
     # source
     PACKAGE = 20
     DEPENDENCY = 21
-    UPGRADE = 22
     SPACE = 23
     LINK = 24
     SKIP = 25
@@ -335,23 +335,23 @@ class StructType(IdEnum):
     TEXT_LINE = 1161
     TEXT_SPAN = 1162
 
-    # views
+    # space/views
     COLOR = 1200
     FONT = 1201
     BOX = 1202
     OFFSET = 1203
     TRANSFORM = 1204
     ...
+    START_VIEW_STATE = 1250
+    FEED_VIEW_STATE = 1251
+    CHART_VIEW_STATE = 1252
+    HISTORY_VIEW_STATE = 1253
+    TIMELINE_VIEW_STATE = 1254
+    USER_WIZARD_VIEW_STATE = 1255
 
     # files
-    FILE = 1250
-    ICON = 1251
-
-    # space
-    ...
-
-    # shapes
-    ...
+    FILE = 1300
+    ICON = 1301
 
 
 STRUCT_TYPES: bittuple[StructType] = bittuple(*StructType)
@@ -427,10 +427,9 @@ class BlockType(IdEnum):
     # BLOCK = ...  # define a new block type?
 
     # runnable
-    TEXT = 30  # define a 'paragraph' of text/comment/instruction with fields (incl. input/output)
+    TEXT = 30  # define a 'paragraph' of text/prompt with fields (incl. input/output)
     CODE = 31  # define a code function with fields (incl. input/output)
-    SCRIPT = 32  # define a code script with exported code-level constructs
-    FLOW = 33  # define a flow with steps and fields (optionally incl. input/output)
+    FLOW = 32  # define a flow with steps and fields (optionally incl. input/output)
 
     # state
     VARIABLE = 50  # define a single-value variable
@@ -438,7 +437,7 @@ class BlockType(IdEnum):
     DATABASE = 53  # define a database with records & queries
 
     # view
-    SCREEN = 70  # define a screen with views
+    VIEW = 70  # define a view (with fields and nested views)
 
     # auth
     ROLE = 90  # define a role with policies

@@ -34,7 +34,6 @@ from bench.language.graph import GraphNodeList, NodeList, ValueList
 from bench.language.setup import (
     BENCH_CLASS_BY_NAME,
     ENUM_TYPE_BY_CLASS,
-    STRUCT_CLASS_BY_TYPE,
     _on_completing_setup,
 )
 from bench.language.validation import TypeConstraintIn
@@ -736,14 +735,6 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
 
         # sanity check some stuff
         if IS_DEV:
-            if (
-                self.component.__is_struct_inlined__
-                and self.reference_kind == ReferenceKind.STRUCT_CHILD
-                and self.reference_struct
-            ):
-                referenced_struct_cls = STRUCT_CLASS_BY_TYPE[self.reference_struct]
-                if not referenced_struct_cls.__is_struct_inlined__:
-                    raise ValueError(f"{self!r} cannot reference non-inlined struct {self!r}")
             if self.is_encrypted and not self.is_sensitive:
                 raise ValueError(f"encrypted properties should be sensitive {self!r}")
             if self.is_encrypted and not self.is_deferred:

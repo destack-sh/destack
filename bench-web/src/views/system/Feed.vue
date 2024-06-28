@@ -79,10 +79,10 @@ type RunItem = FeedItemBase & {
 };
 type FeedItem = LogEditItem | LogChangeItem | RunItem;
 
-// NOTE :Incomplete: store Feed query (and any View-type-specific data in general?) in view node
-
+// NOTE :Incomplete: support generic Feed query instead of just pills (once we have proper expression builders)
 const nodeType = NodeType.LOG;
 type FilterPill = {
+  key: string;
   name: string;
   isEnabled: boolean;
   isActive: boolean;
@@ -91,18 +91,21 @@ type FilterPill = {
 };
 const pills: FilterPill[] = [
   {
+    key: "status-active",
     name: "Active",
     isEnabled: true,
     isActive: true,
     group: "status",
   },
   {
+    key: "status-terminated",
     name: "Terminated",
     isEnabled: true,
     isActive: false,
     group: "status",
   },
   {
+    key: "status-failed",
     name: "Failed",
     isEnabled: true,
     isActive: false,

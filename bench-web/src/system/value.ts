@@ -15,6 +15,8 @@ import {
   TypeKind,
   type AnyNodeData,
   type AnyStructData,
+  type AnyTypeMapping,
+  type NodeTypeMapping,
   type PropertyInfo,
   type TypeInfoData,
 } from "@/proto/wire";
@@ -290,7 +292,7 @@ function unpackValueScalar(valuePacked: JsonValue, type: TypeIdentity): ScalarVa
 function unpackValueScalarData(valuePacked: JsonValue, type: TypeIdentity): ScalarValue {
   let value = unpackValueScalar(valuePacked, type);
   if (type.kind == TypeKind.PRIMITIVE) {
-    // unpack 
+    // unpack
     if (type.primitiveType == PrimitiveType.JSON) {
       value = ProtoStruct.fromJson(value as JsonValue);
     }
@@ -324,16 +326,16 @@ export function packBuiltinObject(value: AnyStructData | AnyNodeData, options?: 
 }
 
 /** Decodes proto value representation of a struct. See encode. */
-export function unpackBuiltinObject(valuePacked: any, objectType?: ObjectType): AnyStructData | AnyNodeData {
+export function unpackBuiltinObject<T extends ObjectType>(valuePacked: any, objectType?: T): AnyTypeMapping[T] {
   if (objectType == null) {
     if (valuePacked["1"] == null) throw new Error(`missing object type in ${JSON.stringify(valuePacked)}`);
-    objectType = valuePacked["1"] as ObjectType;
+    objectType = valuePacked["1"] as T;
   }
   const propertyEnum = PROPERTY_ENUM_BY_TYPE[objectType];
   const properties = PROPERTY_INFOS_BY_TYPE[objectType];
   if (propertyEnum == null || properties == null) throw new Error(`unexpected object type ${objectType}`);
 
-  const value: AnyNodeData | AnyStructData = { metatype: objectType };
+  const value = { metatype: objectType } as AnyTypeMapping[T];
   for (const prop of Object.values(properties)) {
     const propName = propertyEnum[prop.id];
     const propType = getTypeIdentityForProperty(prop);

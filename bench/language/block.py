@@ -58,12 +58,11 @@ IDENTIFIER_TYPE_BY_BLOCK_TYPE: dict[BlockType, IdentifierType] = {
     BlockType.PROTOCOL: IdentifierType.TYPE,
     BlockType.TEXT: IdentifierType.FUNCTION,
     BlockType.CODE: IdentifierType.FUNCTION,
-    BlockType.SCRIPT: IdentifierType.FUNCTION,
     BlockType.FLOW: IdentifierType.FUNCTION,
     BlockType.VARIABLE: IdentifierType.VARIABLE,
     BlockType.DATABASE: IdentifierType.TYPE,
     BlockType.QUERY: IdentifierType.VARIABLE,
-    BlockType.SCREEN: IdentifierType.TYPE,
+    BlockType.VIEW: IdentifierType.TYPE,
     BlockType.ROLE: IdentifierType.TYPE,
     BlockType.IDENTITY: IdentifierType.TYPE,
 }
