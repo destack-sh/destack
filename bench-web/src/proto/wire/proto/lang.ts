@@ -336,9 +336,9 @@ export interface CodeLineData {
      */
     orderKey?: string;
     /**
-     * @generated from protobuf field: string content = 32;
+     * @generated from protobuf field: optional string content = 32;
      */
-    content: string;
+    content?: string;
 }
 /**
  * A color value.
@@ -11199,14 +11199,13 @@ class CodeLineData$Type extends MessageType<CodeLineData> {
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 9, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 32, name: "content", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
+            { no: 32, name: "content", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<CodeLineData>): CodeLineData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = 0;
-        message.content = "";
         if (value !== undefined)
             reflectionMergePartial<CodeLineData>(this, message, value);
         return message;
@@ -11231,7 +11230,7 @@ class CodeLineData$Type extends MessageType<CodeLineData> {
                 case /* optional string order_key */ 9:
                     message.orderKey = reader.string();
                     break;
-                case /* string content */ 32:
+                case /* optional string content */ 32:
                     message.content = reader.string();
                     break;
                 default:
@@ -11261,8 +11260,8 @@ class CodeLineData$Type extends MessageType<CodeLineData> {
         /* optional string order_key = 9; */
         if (message.orderKey !== undefined)
             writer.tag(9, WireType.LengthDelimited).string(message.orderKey);
-        /* string content = 32; */
-        if (message.content !== "")
+        /* optional string content = 32; */
+        if (message.content !== undefined)
             writer.tag(32, WireType.LengthDelimited).string(message.content);
         let u = options.writeUnknownFields;
         if (u !== false)
@@ -26489,7 +26488,7 @@ export const CodeLineDataInfo: Record<CodeLineProperty, PropertyInfo> = {
   [CodeLineProperty.parentId]: { id: 3, name: 'parent_id', component: ObjectType.CODE_LINE, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [CodeLineProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.CODE_LINE, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [CodeLineProperty.orderKey]: { id: 9, name: 'order_key', component: ObjectType.CODE_LINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [CodeLineProperty.content]: { id: 32, name: 'content', component: ObjectType.CODE_LINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [CodeLineProperty.content]: { id: 32, name: 'content', component: ObjectType.CODE_LINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
 }
 export const StepConnectionDataInfo: Record<StepConnectionProperty, PropertyInfo> = {
   [StepConnectionProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.STEP_CONNECTION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },

@@ -38,7 +38,7 @@ import Scroll from "@/views/containers/Scroll.vue";
 import { computed, ref, toRef, type Ref } from "vue";
 
 const HEADER_HEIGHT = DEFAULT_HEADER_HEIGHT;
-const MIN_WIDTH = 400;
+const MIN_WIDTH = 320;
 const MAX_WIDTH = 800;
 
 const props = defineProps<
@@ -169,8 +169,8 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
   <div>
     <!-- Header -->
     <div
-      class="group flex flex-row items-center"
-      :class="[!isInline ? 'mx-auto w-full px-5' : '']"
+      class="group flex w-full flex-row items-center"
+      :class="[!isInline ? 'mx-auto  px-5' : '']"
       :style="{ height: HEADER_HEIGHT + 'px', minWidth: MIN_WIDTH + 'px', maxWidth: MAX_WIDTH + 'px' }"
     >
       nocheckin feed filter pills
@@ -190,9 +190,9 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
           :key="item.id"
           :ref="(ref: any) => (ref != null ? (itemRefs[item.id] = ref) : delete itemRefs[item.id])"
           :data-item-id="item.id"
-          class="group/item mx-auto rounded-md border py-0.5 text-gray-900 hover:cursor-pointer hover:bg-gray-100"
+          class="group/item mx-auto w-full rounded-md border py-0.5 text-gray-900 hover:cursor-pointer hover:bg-gray-100"
           :class="[
-            !isInline ? 'mx-auto w-full px-5' : '',
+            !isInline ? 'mx-auto  px-5' : '',
             focusedNode?.id == item.id ? 'border-primary-900' : 'border-transparent',
           ]"
           :style="{ minWidth: MIN_WIDTH + 'px', maxWidth: MAX_WIDTH + 'px' }"
@@ -234,7 +234,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
                   v-bind="ICON_BY_NODE_TYPE[item.it.nodePtr!.type]"
                   class="text-gray-700 group-hover/node:text-primary-900"
                 />
-                <span class="ml-1 italic">Unavailable</span>
+                <span class="ml-1">???</span>
               </span>
             </template>
 
