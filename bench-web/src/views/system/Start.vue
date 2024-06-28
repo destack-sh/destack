@@ -69,7 +69,7 @@ defineExpose<ViewExposed>({ self });
         <div class="ml-auto flex flex-row items-center pl-1.5">
           <button
             :disabled="runnableNode == null"
-            class="h-fit enabled:hover:text-primary-900 enabled:text-gray-700 disabled:text-gray-400"
+            class="h-fit enabled:text-gray-700 enabled:hover:text-primary-900 disabled:text-gray-400"
             @click="
               () => {
                 if (runnableNode == null) return;
@@ -78,8 +78,8 @@ defineExpose<ViewExposed>({ self });
               }
             "
           >
-          <i class="fas fa-play w-5 text-center" />
-          <span class="ml-0.5">Start</span>
+            <i class="fas fa-play w-5 text-center" />
+            <span class="ml-0.5">Start</span>
           </button>
         </div>
       </div>
@@ -134,7 +134,7 @@ defineExpose<ViewExposed>({ self });
       <!-- Feed -->
       <div class="mx-auto mt-1 px-5 py-3" :style="{ minWidth: MIN_WIDTH + 'px', maxWidth: MAX_WIDTH + 'px' }">
         <!-- nocheckin: filter Run feed -->
-        <h4 class="font-semibold">Last Runs</h4>
+        <h4 class="font-semibold">Runs</h4>
         <Feed is-inline />
       </div>
     </Scroll>

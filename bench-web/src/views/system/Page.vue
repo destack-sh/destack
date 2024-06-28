@@ -355,7 +355,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
                 width: widths.block - DEPTH_OFFSET * depth + 'px',
               }"
             >
-              <!-- Separator: create above/below (in between blocks) -->
+              <!-- Separator: create above/below (in between and around blocks) -->
               <div
                 v-for="anchor in i == 0 ? [] : i < expandedBlocks.length - 1 ? ['start', 'end'] : ['start', 'end']"
                 :key="anchor"
