@@ -153,8 +153,8 @@ export const ACTION_BUILTIN_IDS = [
   "block.edit.isMaterialized",
   "block.edit.isPaused",
   // message
-  "message.handle.reply",
   "message.handle.startThread",
+  "message.handle.reply",
   "message.handle.edit",
   "message.handle.pin",
   // text
@@ -836,16 +836,16 @@ declareActionMap<"block">({
 // message
 declareActionMap<"message">({
   // handle
+  "message.handle.startThread": {
+    icon: "fas fa-message",
+    title: "Message",
+    text: "Start a message thread about this",
+    shortcuts: ["mod+enter"],
+  },
   "message.handle.reply": {
     icon: "fas fa-reply",
     title: "Reply",
     text: "Reply to this message",
-  },
-  "message.handle.startThread": {
-    icon: "fas fa-reel",
-    title: "Start Thread",
-    text: "Start a message thread about this",
-    shortcuts: ["mod+enter"],
   },
   "message.handle.edit": {
     icon: "fas fa-pencil",
