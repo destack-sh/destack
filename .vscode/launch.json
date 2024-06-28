@@ -43,11 +43,11 @@
         "SERVICE_NAME": "runtime",
         "SUPERVISOR_URL": "http://localhost:60061",
         // this is the 'test' bench (should probably set this in a local.env?)
-        "BENCH_ID": "fa491f38-3514-4365-b781-bfe3f6d6cc00",
-        "MACHINE_ID": "00d42d4c-757c-4458-8aac-f0270b768dce",
+        "BENCH_ID": "77c37dca-8c9a-4952-ac0f-63fb464d4e28",
+        "MACHINE_ID": "afe89c4d-13a3-492f-80e1-ef217552b2f6",
         "CLIENT_TYPE": "10",
-        "CLIENT_ID": "83d7dc96-c75a-4a8b-ace6-bc8faf51bdbb",
-        "CLIENT_ACCESS_TOKEN": "HqHhGbvPXoYMPU6WkhDWd4Dtq9pJcnqWqUM6ipd2gG86"
+        "CLIENT_ID": "a762b429-a8ec-40db-a0e5-517e3f4e52c3",
+        "CLIENT_ACCESS_TOKEN": "5s3CB8ZMivGgH1Uy21xEWfnw6HUV5MVQvjVQbTbyw8Jz"
       },
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",

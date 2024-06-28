@@ -20,7 +20,7 @@ import {
   ViewData,
   type AnyNodeData,
 } from "@/proto/wire";
-import { propertyReference, toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
+import { isNode, propertyReference, toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
 import { getAction, type Action } from "@/system/action";
 import { PACKAGE_SCOPE } from "@/system/client";
 import { supergraph, useExistingConnection, useSearchConnection } from "@/system/connection";
@@ -64,13 +64,13 @@ type LogEditItem = FeedItemBase & {
   it: LogData;
   node: AnyNodeData | null;
   nodeType: NodeType;
-  subject: UserData | RunData | null;
+  subject: UserData | RunData | BlockData | StepData | null;
 };
 type LogChangeItem = FeedItemBase & {
   kind: "log-change";
   it: LogData;
   nodes: AnyNodeData[];
-  subject: UserData | RunData | null;
+  subject: UserData | RunData | BlockData | StepData | null;
 };
 type RunItem = FeedItemBase & {
   kind: "run";
@@ -79,15 +79,43 @@ type RunItem = FeedItemBase & {
 };
 type FeedItem = LogEditItem | LogChangeItem | RunItem;
 
-// TODO :Incomplete!: store Feed query (and View-type-specific data) in view node
+// NOTE :Incomplete: store Feed query (and any View-type-specific data in general?) in view node
+
 const nodeType = NodeType.LOG;
+type FilterPill = {
+  name: string;
+  isEnabled: boolean;
+  isActive: boolean;
+  group: string;
+  toggle?: () => void;
+};
+const pills: FilterPill[] = [
+  {
+    name: "Active",
+    isEnabled: true,
+    isActive: true,
+    group: "status",
+  },
+  {
+    name: "Terminated",
+    isEnabled: true,
+    isActive: false,
+    group: "status",
+  },
+  {
+    name: "Failed",
+    isEnabled: true,
+    isActive: false,
+    group: "status",
+  },
+];
+
 const { roots, graph, connection, page } = useSearchConnection(
   { name: `feed.${toCamelName(NodeType, nodeType).toLowerCase()}`, live: true },
   {
     scope: PACKAGE_SCOPE.value,
-    // nocheckin: parameterize Feed search
     nodeType: nodeType,
-    first: 16,
+    first: 32,
     count: true,
     sort: [
       makeExpression({
@@ -115,7 +143,16 @@ const items = computed<FeedItem[]>(() => {
   const items: FeedItem[] = [];
   if (nodeType == NodeType.LOG) {
     for (const it of roots.value) {
-      const subject = it.createdByPtr != null ? (supergraph.get(it.createdByPtr) as RunData | UserData | null) : null;
+      let subject: UserData | RunData | BlockData | StepData | null;
+      if (it.createdByPtr != null) {
+        if (it.createdByPtr.type == NodeType.RUN) {
+          subject = supergraph.get({ ck: it.createdByPtr.baseCk }) as BlockData | StepData | null;
+        } else {
+          subject = supergraph.get(it.createdByPtr) as UserData | null;
+        }
+      } else {
+        subject = null;
+      }
       const item: LogEditItem = {
         kind: "log-edit",
         id: it.id,
@@ -137,11 +174,7 @@ const items = computed<FeedItem[]>(() => {
 const itemRefs: Ref<Record<string, HTMLElement>> = ref({});
 
 // interaction
-const { toggleExpanded, isExpanded } = useExpansion({
-  graph: spaceGraph,
-  connection: spaceConnection,
-  self,
-});
+const { toggleExpanded, isExpanded } = useExpansion({ graph: spaceGraph, connection: spaceConnection, self });
 const focusedItem = computed(() => {
   if (props.focus?.nodesPtr.length ?? 0 > 0) {
     const focusedId = props.focus!.nodesPtr[0].id;
@@ -173,11 +206,29 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
   <div>
     <!-- Header -->
     <div
-      class="group flex w-full flex-row items-center"
+      class="group flex w-full flex-row items-center gap-x-1.5"
       :class="[!isInline ? 'mx-auto  px-5' : '']"
       :style="{ height: HEADER_HEIGHT + 'px', minWidth: MIN_WIDTH + 'px', maxWidth: MAX_WIDTH + 'px' }"
     >
-      nocheckin feed filter pills
+      <!-- Filters -->
+      <button
+        v-for="pill in pills"
+        :key="pill.name"
+        :disabled="!pill.isEnabled"
+        :data-active="pill.isActive"
+        class="data-[active=true] rounded-2xl border border-gray-200 px-2 py-0.5 enabled:bg-gray-50 enabled:text-gray-700 disabled:text-gray-400 data-[active=true]:border-primary-900 data-[active=true]:text-primary-900 data-[active=true]:hover:bg-gray-100 data-[active=false]:hover:text-primary-900"
+        @click="pill.toggle"
+      >
+        <span>{{ pill.name }}</span>
+      </button>
+      <!-- Date picker -->
+      <div class="ml-auto">
+        <!-- NOTE :Incomplete: paginate & pick date range in Feed -->
+        <button disabled class="enabled:text-gray-700 disabled:text-gray-400">
+          <i class="fas fa-calendar-alt mr-1.5 text-gray-400" />
+          <span>All time</span>
+        </button>
+      </div>
     </div>
     <!-- Body -->
     <component
@@ -188,7 +239,8 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
       track-is-overlay
     >
       <!-- TODO :UX: make feed not so ugly -->
-      <ul v-if="connection.isConnected.value" class="mt-0.5 flex flex-col gap-y-[3px] py-1">
+      <!-- NOTE :Incomplete: support more feed variants (like table) -->
+      <ul v-if="connection.isConnected.value" class="flex flex-col gap-y-[3px] py-1">
         <!-- Feed item -->
         <li
           v-for="item in items"
@@ -203,15 +255,17 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
           :style="{ minWidth: MIN_WIDTH + 'px', maxWidth: MAX_WIDTH + 'px' }"
         >
           <!-- Item header -->
-          <div class="flex flex-row flex-nowrap items-center gap-x-1.5">
-            <!-- nocheckin -->
-
+          <div class="flex flex-row flex-nowrap items-center gap-x-1">
             <!-- Log -->
             <template v-if="item.kind == 'log-edit'">
               <!-- Subject -->
               <button v-if="item.it.createdByPtr" class="flex-shrink-0">
                 <IconInline
-                  v-bind="item.subject != null ? getNodeIcon(item.subject) : null"
+                  v-bind="
+                    item.subject != null
+                      ? getNodeIcon(item.subject)
+                      : ICON_BY_NODE_TYPE[item.it.metatype as unknown as NodeType]
+                  "
                   class="mr-1.5 text-gray-700"
                 />
                 <span>{{ (item.subject as any)?.name ?? toCamelName(NodeType, item.it.createdByPtr.type) }}</span>
@@ -228,13 +282,21 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
                 @click="item.node && canvas.goToNode(item.node)"
               >
                 <IconInline
-                  v-bind="
-                    item.it.vignette?.icon ??
-                    (item.node != null ? getNodeIcon(item.node) : ICON_BY_NODE_TYPE[item.nodeType])
-                  "
+                  v-bind="item.node != null ? getNodeIcon(item.node) : ICON_BY_NODE_TYPE[item.nodeType]"
                   class="mr-1.5 text-gray-700 group-hover/node:text-primary-900"
                 />
-                <span>{{ item.it.vignette?.name ?? toCamelName(NodeType, item.nodeType) }}</span>
+                <span>{{ (item.node as any)?.name ?? toCamelName(NodeType, item.nodeType) }}</span>
+                <!-- Old name if new name is different -->
+                <span
+                  v-if="
+                    item.it.vignette?.name != null &&
+                    item.node != null &&
+                    item.it.vignette?.name != (item.node as any)?.name
+                  "
+                  class="text-gray-400"
+                >
+                  ({{ item.it.vignette?.name }})
+                </span>
               </button>
             </template>
 
@@ -270,7 +332,6 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
           <i class="fas fa-empty-set w-5 text-center text-gray-400" />
           <span class="ml-1 text-gray-500">No results</span>
         </div>
-        <!-- NOTE :Incomplete: feed needs pagination (see useSearchConnection) -->
         <!-- End of list -->
         <div class="mx-auto my-1 w-full text-center">
           <i class="fas fa-ellipsis-h w-5 text-center text-gray-400" />
