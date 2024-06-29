@@ -1,7 +1,7 @@
-import { ColorData, ColorShade, ColorType, LogLevel, ObjectType } from "@/proto/wire";
+import { ColorData, ColorShade, ColorType, LogLevel, ObjectType, RunStatus } from "@/proto/wire";
 import { Casing, toCasing } from "@/utils/string";
 
-export const BG_COLOR_BY_LEVEL: Record<LogLevel, string> = {
+export const BG_COLOR_BY_LOG_LEVEL: Record<LogLevel, string> = {
   [LogLevel.UNSPECIFIED]: "bg-gray-500",
   [LogLevel.TRACE]: "bg-gray-500",
   [LogLevel.DEBUG]: "bg-gray-500",
@@ -10,14 +10,27 @@ export const BG_COLOR_BY_LEVEL: Record<LogLevel, string> = {
   [LogLevel.ERROR]: "bg-danger-500",
   [LogLevel.CRITICAL]: "bg-danger-500",
 };
-export const ACCENT_COLOR_BY_LEVEL: Record<LogLevel, string> = {
-  [LogLevel.UNSPECIFIED]: "text-gray-500",
-  [LogLevel.TRACE]: "text-gray-500",
-  [LogLevel.DEBUG]: "text-gray-500",
-  [LogLevel.INFO]: "text-hint-500",
-  [LogLevel.WARNING]: "text-warning-400",
-  [LogLevel.ERROR]: "text-danger-500",
-  [LogLevel.CRITICAL]: "text-danger-500",
+export const ACCENT_COLOR_BY_LOG_LEVEL: Record<LogLevel, string> = {
+  [LogLevel.UNSPECIFIED]: "text-gray-700",
+  [LogLevel.TRACE]: "text-gray-700",
+  [LogLevel.DEBUG]: "text-gray-700",
+  [LogLevel.INFO]: "text-hint-700",
+  [LogLevel.WARNING]: "text-warning-600",
+  [LogLevel.ERROR]: "text-danger-700",
+  [LogLevel.CRITICAL]: "text-danger-700",
+};
+
+export const ACCENT_COLOR_BY_RUN_STATUS: Record<RunStatus, string> = {
+  [RunStatus.UNSPECIFIED]: "text-gray-700",
+  [RunStatus.SCHEDULED]: "text-hint-700",
+  [RunStatus.QUEUED]: "text-hint-700",
+  [RunStatus.RUNNING]: "text-primary-700",
+  [RunStatus.PAUSED]: "text-primary-700",
+  [RunStatus.SUSPENDED]: "text-primary-700",
+  [RunStatus.COMPLETED]: "text-success-700",
+  [RunStatus.CANCELLED]: "text-warning-600",
+  [RunStatus.ABORTED]: "text-warning-600",
+  [RunStatus.FAILED]: "text-danger-600",
 };
 
 export const COLOR_SHADE_INDEX: Record<ColorShade, number> = {

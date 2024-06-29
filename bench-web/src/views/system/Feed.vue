@@ -26,13 +26,21 @@ import { type Action } from "@/system/action";
 import { PACKAGE_SCOPE } from "@/system/client";
 import { supergraph, useExistingConnection, useSearchConnection } from "@/system/connection";
 import { makeExpression, resolveSubject, type EditSubject } from "@/system/expression";
-import { ICON_BY_EDIT_TYPE, ICON_BY_NODE_TYPE, IconInline, getNodeIcon } from "@/system/icon";
+import {
+  ICON_BY_EDIT_TYPE,
+  ICON_BY_NODE_TYPE,
+  ICON_BY_RUN_STATUS,
+  IconInline,
+  getNodeIcon,
+  makeIcon,
+} from "@/system/icon";
 import { ACTIVE_RUN_STATUSES, EDIT_TYPE_PAST_VERB, TERMINAL_RUN_STATUSES, toCamelName } from "@/system/lang";
 import { canvas } from "@/system/space";
 import { user } from "@/system/user";
 import { getElement } from "@/utils/element";
 import { humanizeNumber } from "@/utils/human";
 import { ScrollbarWidth } from "@/utils/layout";
+import { ACCENT_COLOR_BY_RUN_STATUS } from "@/utils/style";
 import { formatRelativeDate } from "@/utils/time";
 import { DEFAULT_HEADER_HEIGHT, useExpansion, useViewState } from "@/views/canvas";
 import { makeViewId, viewEmits, type ViewComponent, type ViewExposed } from "@/views/common";
@@ -70,7 +78,6 @@ const activeFilterKeys = useStateProp("filterPills", []);
 type FeedItemBase = {
   kind: string;
   id: string;
-  icon: IconData;
   createdAt: Timestamp;
   actions: Action[];
   createdBy: EditSubject | null;
@@ -170,7 +177,7 @@ function togglePill(pill: FilterPill) {
 const effectiveFilter: Ref<ExpressionData> = computed(() => {
   const clauses: ExpressionData[] = [];
   if (state.value.filter != null) {
-    // clauses.push(state.value.filter);
+    // clauses.push(state.value.filter); // nocheckin
   }
   for (const pill of pills.value) {
     if (activeFilterKeys.value.includes(pill.key)) {
@@ -206,14 +213,12 @@ const { roots, graph, connection, page } = useSearchConnection(
 );
 const items = computed<FeedItem[]>(() => {
   const items: FeedItem[] = [];
-  if (nodeType.value == NodeType.LOG) {
-    for (const it of roots.value) {
-      if (!isNode(it, nodeType.value)) throw new Error(`expected ${nodeType.value} but got ${describeNode(it)}`);
+  for (const it of roots.value) {
+    if (isNode(it, NodeType.LOG)) {
       const item: LogEditItem = {
         kind: "log-edit",
         id: it.id,
         it,
-        icon: ICON_BY_EDIT_TYPE[it.type as unknown as EditType] ?? ICON_BY_NODE_TYPE[NodeType.LOG]!,
         node: it.nodePtr != null ? supergraph.get(it.nodePtr) : null,
         nodeType: it.nodePtr!.type,
         createdAt: it.createdAt!,
@@ -221,15 +226,33 @@ const items = computed<FeedItem[]>(() => {
         actions: [],
       };
       items.push(item);
+    } else if (isNode(it, NodeType.RUN)) {
+      let node: BlockData | StepData | null = null;
+      if (it.stepPtr != null) node = supergraph.get(it.stepPtr) as StepData;
+      else if (it.blockPtr != null) node = supergraph.get(it.blockPtr) as BlockData;
+      const item: RunItem = {
+        kind: "run",
+        id: it.id,
+        it,
+        node,
+        createdAt: it.createdAt!,
+        createdBy: resolveSubject(it.createdByPtr),
+        actions: [],
+      };
+      items.push(item);
+    } else {
+      throw new Error(`unexpected node type: ${describeNode(it)}`);
     }
-  } else if (nodeType.value == NodeType.RUN) {
-    // nocheckin
-  } else {
-    throw new Error(`unsupported feed node type: ${nodeType}`);
   }
   return items;
 });
 const itemRefs: Ref<Record<string, HTMLElement>> = ref({});
+
+function toSubjectIcon(item: FeedItem) {
+  return item.createdBy != null
+    ? getNodeIcon(item.createdBy)
+    : ICON_BY_NODE_TYPE[item.it.metatype as unknown as NodeType];
+}
 
 //
 // Interaction
@@ -320,14 +343,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
             <template v-if="item.kind == 'log-edit'">
               <!-- Subject -->
               <button class="flex-shrink-0">
-                <IconInline
-                  v-bind="
-                    item.createdBy != null
-                      ? getNodeIcon(item.createdBy)
-                      : ICON_BY_NODE_TYPE[item.it.metatype as unknown as NodeType]
-                  "
-                  class="mr-1 w-5 text-gray-700"
-                />
+                <IconInline v-bind="toSubjectIcon(item)" class="mr-1 w-5 text-gray-700" />
                 <span v-if="item.it.createdByPtr != null">
                   {{ (item.createdBy as any)?.name ?? toCamelName(NodeType, item.it.createdByPtr.type) }}
                 </span>
@@ -363,7 +379,28 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
             </template>
 
             <!-- Run -->
-            <template v-else-if="item.kind == 'run'"> run! </template>
+            <template v-else-if="item.kind == 'run'">
+              <!-- Status -->
+              <IconInline
+                class="w-5"
+                :class="ACCENT_COLOR_BY_RUN_STATUS[item.it.status]"
+                v-bind="ICON_BY_RUN_STATUS[item.it.status]"
+              />
+              <!-- Node -->
+              <button>
+                <IconInline
+                  v-bind="item.node != null ? getNodeIcon(item.node) : makeIcon('fas fa-lambda')"
+                  class="mr-1 w-5 text-gray-700 group-hover/node:text-primary-900"
+                />
+                <span>{{ (item.node as any)?.name ?? "Lambda" }}</span>
+              </button>
+              <!-- Subject -->
+              by
+              <button class="flex-shrink-0">
+                <IconInline v-bind="toSubjectIcon(item)" class="mr-1 w-5 text-gray-700" />
+                <span>{{ (item.createdBy as any)?.name ?? toCamelName(NodeType, item.it.createdByPtr?.type) }}</span>
+              </button>
+            </template>
             <span v-else class="text-danger-500">???</span>
 
             <!-- Extra stuff -->
