@@ -282,7 +282,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
     <!-- Header -->
     <div
       data-keep-inspection-in-base="true"
-      class="group flex w-full max-w-full flex-row pl-1.5 pr-3"
+      class="group flex w-full max-w-full flex-row pl-2 pr-3"
       :style="{ height: HEADER_HEIGHT + 'px' }"
     >
       <!-- Breadcrumb -->
@@ -325,12 +325,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
                 class="text-gray-400 hover:text-primary-900"
                 :class="inspectionPtr?.id == blockPtr?.id ? '' : 'opacity-0 group-hover/block-line:opacity-100'"
                 data-keep-inspection-in-base="true"
-                @click="
-                  () => {
-                    const run = makeRun(block, pkgGraph);
-                    pkgConnection.tx.create(run);
-                  }
-                "
+                @click="() => pkgConnection.tx.create(makeRun(block, pkgGraph))"
               >
                 <i class="fas fa-play" />
               </button>
@@ -382,7 +377,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
                     <path d="M0,0.5 L48.5,0.5" fill="none" stroke="currentColor" stroke-width="1" />
                     <path d="M100,0.5 L51.5,0.5" fill="none" stroke="currentColor" stroke-width="1" />
                   </svg>
-                  <i class="fas fa-plus px-1 -translate-y-[6px]" />
+                  <i class="fas fa-plus -translate-y-[6px] px-1" />
                 </div>
               </div>
 

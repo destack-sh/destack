@@ -36,6 +36,7 @@ import {
   PackageData,
   Anchor,
   EditType,
+  RunStatus,
 } from "@/proto/wire";
 import {
   describeNode,
@@ -113,6 +114,9 @@ export const CLASSY_BLOCK_TYPES = [
   BlockType.VARIABLE,
   BlockType.DATABASE,
 ];
+
+export const TERMINAL_RUN_STATUSES = [RunStatus.CANCELLED, RunStatus.ABORTED, RunStatus.FAILED, RunStatus.COMPLETED];
+export const ACTIVE_RUN_STATUSES = [RunStatus.RUNNING, RunStatus.PAUSED, RunStatus.SUSPENDED];
 
 export const VIEW_TYPES = Object.values(ViewType).filter((v) => typeof v == "number" && v > 0) as ViewType[];
 export const ROOT_VIEW_TYPES = new Set([ViewType.WINDOW, ViewType.TAB, ViewType.SPLIT]);

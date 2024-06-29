@@ -9,6 +9,7 @@ import {
   PROPERTY_ENUM_BY_TYPE,
   PROPERTY_INFOS_BY_TYPE,
   PrimitiveType,
+  PropertyReferenceData,
   Struct as ProtoStruct,
   StructType,
   Timestamp,
@@ -69,39 +70,54 @@ export function makeTypeInfo(partial: Partial<Omit<TypeInfoData, "metatype">>): 
   return makeDefaultStruct({ ...partial, metatype: StructType.TYPE_INFO });
 }
 
-export function getPropertyType(property: PropertyInfo): TypeIdentity {
-  // TODO :Performance: cache PropertyInfo->TypeIdentity
-  let kind: TypeKind;
-  let benchType: BenchType | undefined;
-  let primitiveType: PrimitiveType | undefined;
-  if ((property.referenceNodes?.length ?? 0) > 0) {
-    kind = TypeKind.NODE;
-    benchType = property.referenceNodes![0] as unknown as BenchType;
-  } else if (property.referenceStruct != null) {
-    kind = TypeKind.STRUCT;
-    benchType = property.referenceStruct as unknown as BenchType;
-  } else if (property.enumType != null) {
-    kind = TypeKind.ENUM;
-    benchType = property.enumType as unknown as BenchType;
-  } else if (property.primitiveType != null) {
-    kind = TypeKind.PRIMITIVE;
-    primitiveType = property.primitiveType;
-  } else {
-    throw new Error(`cannot determine type info for ${JSON.stringify(property)}`);
-  }
+const _propertyTypeInfos: Record<string, TypeIdentity> = {}
 
-  return {
-    kind,
-    benchType,
-    primitiveType,
-    isList: property.isList ?? false,
-    isSecret: property.isEncrypted ?? false,
-  };
+export function getPropertyType(property: PropertyInfo | PropertyReferenceData): TypeIdentity {
+  if (isStruct(property, StructType.PROPERTY_REFERENCE)) {
+    property = propertyInfo(property.type as unknown as ObjectType, property.id);
+  }
+  const cacheKey = `${property.component}.${property.id}`
+  const cached = _propertyTypeInfos[cacheKey];
+  if (cached == null) {
+    let kind: TypeKind;
+    let benchType: BenchType | undefined;
+    let primitiveType: PrimitiveType | undefined;
+    if ((property.referenceNodes?.length ?? 0) > 0) {
+      kind = TypeKind.NODE;
+      benchType = property.referenceNodes![0] as unknown as BenchType;
+    } else if (property.referenceStruct != null) {
+      kind = TypeKind.STRUCT;
+      benchType = property.referenceStruct as unknown as BenchType;
+    } else if (property.enumType != null) {
+      kind = TypeKind.ENUM;
+      benchType = property.enumType as unknown as BenchType;
+    } else if (property.primitiveType != null) {
+      kind = TypeKind.PRIMITIVE;
+      primitiveType = property.primitiveType;
+    } else {
+      throw new Error(`cannot determine type info for ${JSON.stringify(property)}`);
+    }
+
+    const type: TypeIdentity = {
+      kind,
+      benchType,
+      primitiveType,
+      isList: property.isList ?? false,
+      isSecret: property.isEncrypted ?? false,
+    };
+    _propertyTypeInfos[cacheKey] = type;
+  }
+  return _propertyTypeInfos[cacheKey]!;
 }
 
-export function propertyType(metatype: ObjectType, id: number) {
+export function propertyType(metatype: ObjectType, id: number, override?: Partial<TypeInfoData>) {
   const prop = propertyInfo(metatype, id);
-  return getPropertyType(prop);
+  const type = getPropertyType(prop);
+  if (override != null) {
+    return { ...type, ...override };
+  } else {
+    return type;
+  }
 }
 
 const LETTER_BY_TYPE_KIND: Partial<Record<TypeKind, string>> = {

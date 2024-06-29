@@ -13,23 +13,23 @@ import {
   NodeType,
   ObjectType,
   Orientation,
-  PROPERTY_INFOS_BY_TYPE,
   RunData,
+  RunProperty,
+  RunStatus,
   StepData,
   Timestamp,
-  UserData,
   ViewData,
   type AnyNodeData,
 } from "@/proto/wire";
 import { describeNode, isNode, propertyReference, toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
-import { getAction, type Action } from "@/system/action";
+import { type Action } from "@/system/action";
 import { PACKAGE_SCOPE } from "@/system/client";
 import { supergraph, useExistingConnection, useSearchConnection } from "@/system/connection";
-import { makeExpression } from "@/system/expression";
+import { makeExpression, resolveSubject, type EditSubject } from "@/system/expression";
 import { ICON_BY_EDIT_TYPE, ICON_BY_NODE_TYPE, IconInline, getNodeIcon } from "@/system/icon";
-import { EDIT_TYPE_PAST_VERB, toCamelName } from "@/system/lang";
+import { ACTIVE_RUN_STATUSES, EDIT_TYPE_PAST_VERB, TERMINAL_RUN_STATUSES, toCamelName } from "@/system/lang";
 import { canvas } from "@/system/space";
-import { getPropertyType, packValueSimpleStruct } from "@/system/value";
+import { user } from "@/system/user";
 import { getElement } from "@/utils/element";
 import { humanizeNumber } from "@/utils/human";
 import { ScrollbarWidth } from "@/utils/layout";
@@ -53,34 +53,6 @@ const self = toRef(props, "self");
 const id = makeViewId(props);
 const { graph: spaceGraph } = useExistingConnection(self);
 
-type FeedItemBase = {
-  kind: string;
-  id: string;
-  icon: IconData;
-  createdAt: Timestamp;
-  actions: Action[];
-};
-type LogEditItem = FeedItemBase & {
-  kind: "log-edit";
-  it: LogData;
-  node: AnyNodeData | null;
-  nodeType: NodeType;
-  subject: UserData | RunData | BlockData | StepData | null;
-};
-type LogChangeItem = FeedItemBase & {
-  kind: "log-change";
-  it: LogData;
-  nodes: AnyNodeData[];
-  subject: UserData | RunData | BlockData | StepData | null;
-};
-type RunItem = FeedItemBase & {
-  kind: "run";
-  it: RunData;
-  node: BlockData | StepData | null;
-};
-type FeedItem = LogEditItem | LogChangeItem | RunItem;
-
-// NOTE :Incomplete: support generic Feed query instead of just pills (once we have proper expression builders)
 const { state, useStateProp } = useViewState({
   selfPtr: self,
   graph: spaceGraph,
@@ -89,61 +61,136 @@ const { state, useStateProp } = useViewState({
   emit,
 });
 const nodeType = useStateProp("nodeType", NodeType.LOG);
+const activeFilterKeys = useStateProp("filterPills", []);
+
+//
+// Filter
+//
+
+type FeedItemBase = {
+  kind: string;
+  id: string;
+  icon: IconData;
+  createdAt: Timestamp;
+  actions: Action[];
+  createdBy: EditSubject | null;
+};
+type LogEditItem = FeedItemBase & {
+  kind: "log-edit";
+  it: LogData;
+  node: AnyNodeData | null;
+  nodeType: NodeType;
+};
+type RunItem = FeedItemBase & {
+  kind: "run";
+  it: RunData;
+  node: BlockData | StepData | null;
+};
+type FeedItem = LogEditItem | RunItem;
+
+// NOTE :Incomplete: support generic Feed query instead of just pills (once we have proper expression builders)
 type FilterPill = {
   key: string;
   name: string;
   isEnabled: boolean;
-  isActive: boolean;
   group: string;
-  toggle?: () => void;
+  filterIfActive?: ExpressionData;
+  filterIfInactive?: ExpressionData;
 };
-// nocheckin: filter pills
-const pills: FilterPill[] = [
-  {
-    key: "log-category-source",
-    name: "Source",
-    isEnabled: true,
-    isActive: true,
-    group: "category",
-  },
-  {
-    key: "run-status-active",
-    name: "Active",
-    isEnabled: true,
-    isActive: true,
-    group: "status",
-  },
-  {
-    key: "run-status-terminated",
-    name: "Terminated",
-    isEnabled: true,
-    isActive: false,
-    group: "status",
-  },
-  {
-    key: "run-status-failed",
-    name: "Failed",
-    isEnabled: true,
-    isActive: false,
-    group: "status",
-  },
-];
+const pills: Ref<FilterPill[]> = computed(() => {
+  const pills: FilterPill[] = [];
+  if (nodeType.value == NodeType.LOG) {
+    const logCategory = propertyReference(ObjectType.LOG, LogProperty.category);
+    pills.push({
+      key: "log-category-space",
+      name: "Space",
+      isEnabled: true,
+      group: "category",
+      filterIfActive: makeExpression({
+        op: ExpressionOp.EQUALS,
+        propertyPtr: logCategory,
+        value: ChangeCategory.SPACE,
+      }),
+      filterIfInactive: makeExpression({
+        op: ExpressionOp.NOT_EQUALS,
+        propertyPtr: logCategory,
+        value: ChangeCategory.SPACE,
+      }),
+    });
+    pills.push({
+      key: "log-just-me",
+      name: "Just me",
+      isEnabled: user.value != null,
+      group: "source",
+      filterIfActive: makeExpression({
+        op: ExpressionOp.EQUALS,
+        propertyPtr: propertyReference(ObjectType.LOG, LogProperty.createdByPtr),
+        value: toNodeReference(user.value!),
+      }),
+    });
+  } else if (nodeType.value == NodeType.RUN) {
+    const runStatus = propertyReference(ObjectType.RUN, RunProperty.status);
+    pills.push({
+      key: "run-status-active",
+      name: "Active",
+      isEnabled: true,
+      group: "status",
+      filterIfActive: makeExpression({ op: ExpressionOp.IN, propertyPtr: runStatus, value: ACTIVE_RUN_STATUSES }),
+    });
+    pills.push({
+      key: "run-status-terminated",
+      name: "Terminated",
+      isEnabled: true,
+      group: "status",
+      filterIfActive: makeExpression({ op: ExpressionOp.NOT_IN, propertyPtr: runStatus, value: TERMINAL_RUN_STATUSES }),
+    });
+    pills.push({
+      key: "run-status-failed",
+      name: "Failed",
+      isEnabled: true,
+      group: "status",
+      filterIfActive: makeExpression({ op: ExpressionOp.EQUALS, propertyPtr: runStatus, value: RunStatus.FAILED }),
+    });
+  }
+  return pills;
+});
+
+function isPillActive(pill: FilterPill): boolean {
+  return activeFilterKeys.value.includes(pill.key);
+}
+/** Toggles the pill (and deactivates any other pill in group if) */
+function togglePill(pill: FilterPill) {
+  const isActive = isPillActive(pill);
+  if (isActive) {
+    activeFilterKeys.value = activeFilterKeys.value.filter((key) => key != pill.key);
+  } else {
+    activeFilterKeys.value = activeFilterKeys.value.filter((key) => key != pill.group).concat(pill.key);
+  }
+}
 const effectiveFilter: Ref<ExpressionData> = computed(() => {
   const clauses: ExpressionData[] = [];
-  // makeExpression({
-  //         op: ExpressionOp.NOT_EQUALS,
-  //         propertyPtr: propertyReference(ObjectType.LOG, LogProperty.category),
-  //         valuePacked: packValueSimpleStruct(
-  //           ChangeCategory.SPACE,
-  //           getPropertyType(PROPERTY_INFOS_BY_TYPE[ObjectType.LOG][LogProperty.category]),
-  //         ),
-  //       }),
+  if (state.value.filter != null) {
+    // clauses.push(state.value.filter);
+  }
+  for (const pill of pills.value) {
+    if (activeFilterKeys.value.includes(pill.key)) {
+      if (pill.filterIfActive != null) {
+        clauses.push(pill.filterIfActive);
+      }
+    } else if (pill.filterIfInactive != null) {
+      clauses.push(pill.filterIfInactive);
+    }
+  }
   return makeExpression({ op: ExpressionOp.AND, clauses });
 });
 
+//
+// Feed
+//
+
 const { roots, graph, connection, page } = useSearchConnection(
   { name: `feed.${toCamelName(NodeType, nodeType.value).toLowerCase()}`, live: true },
-  {
+  computed(() => ({
     scope: PACKAGE_SCOPE.value,
     nodeType: nodeType.value,
     first: 32,
@@ -151,28 +198,17 @@ const { roots, graph, connection, page } = useSearchConnection(
     sort: [
       makeExpression({
         op: ExpressionOp.DESCENDING,
-        propertyPtr: propertyReference(nodeType as unknown as ObjectType, LogProperty.createdAt),
+        propertyPtr: propertyReference(nodeType.value as unknown as ObjectType, LogProperty.createdAt),
       }),
     ],
     filter: effectiveFilter.value,
-  },
+  })),
 );
-
 const items = computed<FeedItem[]>(() => {
   const items: FeedItem[] = [];
   if (nodeType.value == NodeType.LOG) {
     for (const it of roots.value) {
       if (!isNode(it, nodeType.value)) throw new Error(`expected ${nodeType.value} but got ${describeNode(it)}`);
-      let subject: UserData | RunData | BlockData | StepData | null;
-      if (it.createdByPtr != null) {
-        if (it.createdByPtr.type == NodeType.RUN) {
-          subject = supergraph.get({ ck: it.createdByPtr.baseCk }) as BlockData | StepData | null;
-        } else {
-          subject = supergraph.get(it.createdByPtr) as UserData | null;
-        }
-      } else {
-        subject = null;
-      }
       const item: LogEditItem = {
         kind: "log-edit",
         id: it.id,
@@ -180,9 +216,9 @@ const items = computed<FeedItem[]>(() => {
         icon: ICON_BY_EDIT_TYPE[it.type as unknown as EditType] ?? ICON_BY_NODE_TYPE[NodeType.LOG]!,
         node: it.nodePtr != null ? supergraph.get(it.nodePtr) : null,
         nodeType: it.nodePtr!.type,
-        subject,
         createdAt: it.createdAt!,
-        actions: [getAction("common.history.undo"), getAction("common.history.redo")],
+        createdBy: resolveSubject(it.createdByPtr),
+        actions: [],
       };
       items.push(item);
     }
@@ -195,7 +231,10 @@ const items = computed<FeedItem[]>(() => {
 });
 const itemRefs: Ref<Record<string, HTMLElement>> = ref({});
 
-// interaction
+//
+// Interaction
+//
+
 const { toggleExpanded, isExpanded } = useExpansion({ graph: spaceGraph, tx: canvas.tx, self });
 const focusedItem = computed(() => {
   if (props.focus?.nodesPtr.length ?? 0 > 0) {
@@ -237,9 +276,9 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
         v-for="pill in pills"
         :key="pill.name"
         :disabled="!pill.isEnabled"
-        :data-active="pill.isActive"
+        :data-active="isPillActive(pill)"
         class="data-[active=true] rounded-2xl border border-gray-200 px-2 py-0.5 enabled:bg-gray-50 enabled:text-gray-700 disabled:text-gray-400 data-[active=true]:border-primary-900 data-[active=true]:text-primary-900 data-[active=true]:hover:bg-gray-100 data-[active=false]:hover:text-primary-900"
-        @click="pill.toggle"
+        @click="togglePill(pill)"
       >
         <span>{{ pill.name }}</span>
       </button>
@@ -280,18 +319,20 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
             <!-- Log -->
             <template v-if="item.kind == 'log-edit'">
               <!-- Subject -->
-              <button v-if="item.it.createdByPtr" class="flex-shrink-0">
+              <button class="flex-shrink-0">
                 <IconInline
                   v-bind="
-                    item.subject != null
-                      ? getNodeIcon(item.subject)
+                    item.createdBy != null
+                      ? getNodeIcon(item.createdBy)
                       : ICON_BY_NODE_TYPE[item.it.metatype as unknown as NodeType]
                   "
                   class="mr-1 w-5 text-gray-700"
                 />
-                <span>{{ (item.subject as any)?.name ?? toCamelName(NodeType, item.it.createdByPtr.type) }}</span>
+                <span v-if="item.it.createdByPtr != null">
+                  {{ (item.createdBy as any)?.name ?? toCamelName(NodeType, item.it.createdByPtr.type) }}
+                </span>
+                <span v-else class="italic">System</span>
               </button>
-              <span v-else class="italic text-gray-900">System</span>
               <!-- Verb -->
               <span>
                 <!-- <IconInline v-bind="item.icon" class="text-gray-700 mr-1" /> -->
@@ -354,13 +395,13 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
           <span class="ml-1 text-gray-500">No results</span>
         </div>
         <!-- End of list -->
-        <div class="mx-auto my-1 w-full text-center">
+        <div v-if="page.total && page.size < page.total" class="mx-auto my-1 w-full text-center">
           <i class="fas fa-ellipsis-h w-5 text-center text-gray-400" />
           <span v-if="page.total" class="ml-1 text-gray-500">{{ humanizeNumber(page.total - page.size) }} more</span>
         </div>
       </ul>
       <!-- Loading -->
-      <div v-else class="flex h-full min-h-20 w-full flex-col text-center align-middle">
+      <div v-else class="flex h-full min-h-20 w-full flex-col justify-center text-center">
         <Transition
           enter-from-class="opacity-0"
           enter-active-class="transition-opacity duration-200"

@@ -76,12 +76,13 @@ export const ACTION_BUILTIN_IDS = [
   "space.launch.explorer",
   "space.launch.outline",
   "space.launch.docs",
-  "space.launch.log",
+  "space.launch.logs",
   "space.launch.start",
   "space.launch.discord",
   "space.launch.notifications",
   "space.edit.inspect",
   "space.edit.create",
+  "space.display.fullscreen",
   // common
   "common.create.above",
   "common.create.below",
@@ -1278,8 +1279,8 @@ contributeActionMap<"space">({
     isEnabled: ref(false),
     action: ACTION_COMING_SOON,
   },
-  "space.launch.log": {
-    title: "Open Log",
+  "space.launch.logs": {
+    title: "Open Logs",
     text: "Read the Logs",
     icon: "fas fa-clipboard-list",
     action: () => {
@@ -1306,6 +1307,18 @@ contributeActionMap<"space">({
     text: "Create a new separate Space",
     icon: "fas fa-plus",
     action: ACTION_COMING_SOON,
+  },
+  // full screen
+  "space.display.fullscreen": {
+    type: "toggle",
+    icon: "fas fa-expand",
+    title: "Toggle Fullscreen",
+    text: "Toggle fullscreen mode",
+    action: () => {
+      const isFullscreen = document.fullscreenElement != null;
+      if (isFullscreen) document.exitFullscreen();
+      else document.documentElement.requestFullscreen();
+    },
   },
 });
 

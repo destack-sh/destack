@@ -25,7 +25,7 @@ const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 
 // focus
-const { graph: spaceGraph } = useExistingConnection(self);
+const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self);
 const tabs = spaceGraph.getChildrenRef(self, NodeType.VIEW, { ignoreAncestors: true });
 const tabsNodes = spaceGraph.getManyMaybeRef(computed(() => tabs.value.map((t) => t.nodePtr ?? null)));
 const tabsTitles = computed(() => {
@@ -188,7 +188,7 @@ defineExpose<ViewExposed>({ self, actions });
         (context: PopoverContext): PopoverInfo => ({
           kind: 'menu',
           placement: 'bottom-right',
-          items: menuActionsLike(['view.navigate*frame*', 'view.layout*'], { context }),
+          items: menuActionsLike(['view.navigate*close*frame*', 'view.layout*'], { context }),
           context,
         })
       "
@@ -210,7 +210,7 @@ defineExpose<ViewExposed>({ self, actions });
             return {
               kind: 'menu',
               placement: 'bottom-right',
-              items: menuActionsLike(['view.navigate*tab*', 'view.layout*'], { context }),
+              items: menuActionsLike(['view.navigate*close*tab*', 'view.layout*'], { context }),
               context,
             };
           }

@@ -452,10 +452,10 @@ def pg_compile_conditional(
         return sqlstr("FALSE")
     elif cond.op == LiteralOp.NONE:
         return sqlstr("NULL")
-    elif cond.op in ExpressionOps.COND_LOGICAL and cond.op in PG_CONDITIONAL_OP_BY_BENCH:
+    elif cond.op in ExpressionOps.COND_COMPOUND and cond.op in PG_CONDITIONAL_OP_BY_BENCH:
         clauses = [pg_compile_conditional(node, c) for c in cond.clauses or ()]
         if not clauses:
-            # and/or/not <nothing> are all TRUE
+            # and/or/not <nothing> are all TRUE :EmptyCompoundConditional
             return sqlstr("TRUE")
         clause = SqlCompound(op=PG_CONDITIONAL_OP_BY_BENCH[cond.op], operands=clauses)
         return clause

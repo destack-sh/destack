@@ -594,7 +594,7 @@ export class RemoteSearchConnection<T extends NodeType> extends ConnectionBase<"
     graph.extend(...nodes.map(unwrapSomeNode));
 
     const rootsPtr = shallowRef(rootsInitial as TypedNodeReferenceData<T>[]);
-    const page = shallowRef({ roots: rootsInitial, size: rootsInitial.length, total: totalInitial });
+    const page: Ref<PageInfo> = shallowRef({ size: rootsInitial.length, total: totalInitial });
 
     // watch edits if live
     // NOTE :UX: search should react to current overlay graph (including 'phantom' edits like Logs)
@@ -617,6 +617,7 @@ export class RemoteSearchConnection<T extends NodeType> extends ConnectionBase<"
         }
         // update' roots' list
         rootsPtr.value = rep.rootsPtr as TypedNodeReferenceData<T>[];
+        page.value = { size: rep.rootsPtr.length, total: rep.total };
       });
       editStream.responses.onError(onError);
     }
