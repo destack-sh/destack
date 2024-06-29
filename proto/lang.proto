@@ -2652,7 +2652,7 @@ message RunData {
   optional NodeReferenceData updated_by_ptr = 22;
   repeated int32 set_properties = 29;
   RunKind kind = 30;
-  NodeReferenceData root_ptr = 32;
+  optional NodeReferenceData root_ptr = 32;
   optional CodeData code = 36;
   optional TextData text = 37;
   optional RunOptionsData options = 38;

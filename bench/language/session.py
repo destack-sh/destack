@@ -484,7 +484,7 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
         if subject.metatype == NodeType.RUN:
             run = cast("Run", subject)
             context.run_ptr = subject_ptr
-            context.run_root_ptr = run.root._to_ref_data()
+            context.run_root_ptr = run.root_ptr._to_data() if run.root_ptr is not None else None
             context.block_ptr = run.block_ptr._to_data() if run.block_ptr is not None else None
             context.step_ptr = run.step_ptr._to_data() if run.step_ptr is not None else None
 

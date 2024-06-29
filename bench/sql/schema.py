@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.06.29.0"
+VERSION = "2024.06.29.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -921,7 +921,7 @@ RUN_TABLE = Table(
         Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
         Column("updated_by_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("kind", PrimitiveType.INT16),
-        Column("root_id", PrimitiveType.UUID),
+        Column("root_id", PrimitiveType.UUID, is_nullable=True),
         Column("root_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("code", PrimitiveType.JSON, is_nullable=True),
         Column("text", PrimitiveType.JSON, is_nullable=True),
