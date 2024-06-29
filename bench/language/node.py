@@ -53,7 +53,7 @@ from bench.language.property import (
     METATYPE_PROPERTY,
     Property,
     p_internal,
-    p_node_ancestor_first,
+    p_node_ancestor_with_self,
     p_node_parent,
     p_node_template,
     p_regular,
@@ -259,8 +259,8 @@ def _process_object_cls[ObjectT: BuiltinObject](
         # collect any extra contributed properties
         if prop.reference_kind in (
             ReferenceKind.NODE_PARENT,
-            ReferenceKind.NODE_ANCESTOR_FIRST,
-            ReferenceKind.NODE_ANCESTOR_ROOT,
+            ReferenceKind.NODE_ANCESTOR_OR_SELF,
+            ReferenceKind.NODE_ANCESTOR,
             ReferenceKind.NODE_REGULAR,
             ReferenceKind.NODE_TEMPLATE,
             ReferenceKind.STRUCT_PARENT,
@@ -308,8 +308,8 @@ def _process_object_cls[ObjectT: BuiltinObject](
                 setattr(cls, name, _object_node_ref(prop))
             # computed node ancestor property
             elif prop.reference_kind in (
-                ReferenceKind.NODE_ANCESTOR_FIRST,
-                ReferenceKind.NODE_ANCESTOR_ROOT,
+                ReferenceKind.NODE_ANCESTOR,
+                ReferenceKind.NODE_ANCESTOR_OR_SELF,
             ):
                 setattr(cls, name, _node_ancestor_ref(prop))
                 setattr(cls, f"{name}_ptr", _node_ancestor_ptr_ref(prop))
@@ -723,21 +723,21 @@ def _node_ancestor_ref(prop: Property) -> property:
 
     # NOTE :Performance: _node_ancestor_ref could just walk in the graph directly?
 
-    if prop.reference_kind == ReferenceKind.NODE_ANCESTOR_FIRST:
+    if prop.reference_kind == ReferenceKind.NODE_ANCESTOR_OR_SELF:
 
-        def get_ancestor_first(self: Node) -> Optional[Node]:
-            parent = self.parent
+        def get_ancestor_first_self(self: Node) -> Optional[Node]:
+            parent = self
             while parent is not None:
                 if prop.reference_nodes and parent.metatype in prop.reference_nodes:
                     return parent
                 parent = parent.parent
             return None
 
-        get = get_ancestor_first
+        get = get_ancestor_first_self
 
-    elif prop.reference_kind == ReferenceKind.NODE_ANCESTOR_ROOT:
+    elif prop.reference_kind == ReferenceKind.NODE_ANCESTOR:
 
-        def get_ancestor_root(self: Node) -> Optional[Node]:
+        def get_ancestor_first_other(self: Node) -> Optional[Node]:
             parent = self.parent
             farthest = None
             while parent is not None:
@@ -746,7 +746,7 @@ def _node_ancestor_ref(prop: Property) -> property:
                 parent = parent.parent
             return farthest
 
-        get = get_ancestor_root
+        get = get_ancestor_first_other
 
     else:
         raise ValueError(f"unexpected ancestor reference kind: {prop.reference_kind}")
@@ -1736,7 +1736,9 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
 class BenchNode[NodeDataT: AnyNodeData](Node[NodeDataT], abc.ABC):
     """A node that exists inside a Bench."""
 
-    bench: "Bench" = p_node_ancestor_first(6, NodeType.BENCH, require=True, store=True, wire=True)
+    bench: "Bench" = p_node_ancestor_with_self(
+        6, NodeType.BENCH, require=True, store=True, wire=True
+    )
     if TYPE_CHECKING:
         bench_id: Optional[UUID] = None
         bench_ptr: Optional[NodeReference] = None
@@ -1756,7 +1758,7 @@ class BenchNode[NodeDataT: AnyNodeData](Node[NodeDataT], abc.ABC):
 class PackageNode[NodeDataT: AnyNodeData](BenchNode[NodeDataT], abc.ABC):
     """A node that exists inside a Package."""
 
-    package: "Package" = p_node_ancestor_first(
+    package: "Package" = p_node_ancestor_with_self(
         5, NodeType.PACKAGE, require=True, store=True, wire=True, is_bench_implicit=True
     )
     if TYPE_CHECKING:

@@ -334,8 +334,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
             bench_type=bench_type,
             primitive_type=primitive_type,
             is_list=self.is_list,
-            # NOTE: we ignore is_required if deferred since we don't have a mechanism for determining
-            #  which properties were loaded in a given graph yet. Revisit this with read info.
+            # NOTE: we ignore is_required if deferred as it's unclear what to do with unloaded properties
             is_required=self.is_required and not self.is_deferred,
             constraint=constraint,
             _from_property=self,
@@ -439,8 +438,8 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
             is_internal = True
             on_delete = CascadeAction.CASCADE
         elif self.reference_kind in (
-            ReferenceKind.NODE_ANCESTOR_ROOT,
-            ReferenceKind.NODE_ANCESTOR_FIRST,
+            ReferenceKind.NODE_ANCESTOR_OR_SELF,
+            ReferenceKind.NODE_ANCESTOR,
         ):
             assert self.is_wired is not UNSET, f"must set is_wired on {self!r}"
             assert self.is_stored is not UNSET, f"must set is_stored on {self!r}"
@@ -663,7 +662,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
         if self.is_runtime is UNSET:
             self.is_runtime = self.is_stored
         # obviously, we don't store the runtime properties with different wired/stored representations
-        #  directly, we just use is_wired/is_stored to indicate whether to generate those (above)
+        #  directly, we just use is_wired/is_stored to indicate whether to contribute those (above)
         if self.reference_wired_ptr or self.reference_stored_ids:
             self.is_wired = False
             self.is_stored = False
@@ -874,7 +873,7 @@ def p_node_parent(id: int, *node_type: NodeType, is_system: bool = False) -> Any
     )
 
 
-def p_node_ancestor(
+def _p_node_ancestor(
     id: int,
     node_type: NodeType,
     kind: ReferenceKind,
@@ -901,8 +900,10 @@ def p_node_ancestor(
     )
 
 
-p_node_ancestor_first = functools.partial(p_node_ancestor, kind=ReferenceKind.NODE_ANCESTOR_FIRST)
-p_node_ancestor_root = functools.partial(p_node_ancestor, kind=ReferenceKind.NODE_ANCESTOR_ROOT)
+p_node_ancestor = functools.partial(_p_node_ancestor, kind=ReferenceKind.NODE_ANCESTOR)
+p_node_ancestor_with_self = functools.partial(
+    p_node_ancestor, kind=ReferenceKind.NODE_ANCESTOR_OR_SELF
+)
 
 
 def p_node_children(

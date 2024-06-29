@@ -112,7 +112,7 @@ const pills: Ref<FilterPill[]> = computed(() => {
       key: "log-category-space",
       name: "Space",
       isEnabled: true,
-      group: "category",
+      group: "log-category",
       filterIfActive: makeExpression({
         op: ExpressionOp.EQUALS,
         propertyPtr: logCategory,
@@ -128,9 +128,20 @@ const pills: Ref<FilterPill[]> = computed(() => {
       key: "log-just-me",
       name: "Just me",
       isEnabled: user.value != null,
-      group: "source",
+      group: "log-subject",
       filterIfActive: makeExpression({
         op: ExpressionOp.EQUALS,
+        propertyPtr: propertyReference(ObjectType.LOG, LogProperty.createdByPtr),
+        value: toNodeReference(user.value!),
+      }),
+    });
+    pills.push({
+      key: "log-not-me",
+      name: "Not me",
+      isEnabled: user.value != null,
+      group: "log-subject",
+      filterIfActive: makeExpression({
+        op: ExpressionOp.NOT_EQUALS,
         propertyPtr: propertyReference(ObjectType.LOG, LogProperty.createdByPtr),
         value: toNodeReference(user.value!),
       }),
@@ -141,21 +152,21 @@ const pills: Ref<FilterPill[]> = computed(() => {
       key: "run-status-active",
       name: "Active",
       isEnabled: true,
-      group: "status",
+      group: "run-status",
       filterIfActive: makeExpression({ op: ExpressionOp.IN, propertyPtr: runStatus, value: ACTIVE_RUN_STATUSES }),
     });
     pills.push({
       key: "run-status-terminated",
       name: "Terminated",
       isEnabled: true,
-      group: "status",
+      group: "run-status",
       filterIfActive: makeExpression({ op: ExpressionOp.NOT_IN, propertyPtr: runStatus, value: TERMINAL_RUN_STATUSES }),
     });
     pills.push({
       key: "run-status-failed",
       name: "Failed",
       isEnabled: true,
-      group: "status",
+      group: "run-status",
       filterIfActive: makeExpression({ op: ExpressionOp.EQUALS, propertyPtr: runStatus, value: RunStatus.FAILED }),
     });
   }
@@ -165,20 +176,24 @@ const pills: Ref<FilterPill[]> = computed(() => {
 function isPillActive(pill: FilterPill): boolean {
   return activeFilterKeys.value.includes(pill.key);
 }
-/** Toggles the pill (and deactivates any other pill in group if) */
 function togglePill(pill: FilterPill) {
   const isActive = isPillActive(pill);
   if (isActive) {
     activeFilterKeys.value = activeFilterKeys.value.filter((key) => key != pill.key);
   } else {
-    activeFilterKeys.value = activeFilterKeys.value.filter((key) => key != pill.group).concat(pill.key);
+    activeFilterKeys.value = activeFilterKeys.value
+      .filter((key) => pills.value.find((p) => p.key === key)?.group !== pill.group)
+      .concat(pill.key);
   }
 }
+
 const effectiveFilter: Ref<ExpressionData> = computed(() => {
   const clauses: ExpressionData[] = [];
+  // add given filter from state
   if (state.value.filter != null) {
-    // clauses.push(state.value.filter); // nocheckin
+    clauses.push(state.value.filter);
   }
+  // and any pills
   for (const pill of pills.value) {
     if (activeFilterKeys.value.includes(pill.key)) {
       if (pill.filterIfActive != null) {
@@ -309,7 +324,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
       <div class="ml-auto">
         <!-- NOTE :Incomplete: paginate & pick date range in Feed -->
         <button disabled class="enabled:text-gray-700 disabled:text-gray-400">
-          <i class="fas fa-calendar-alt mr-1.5 text-gray-400" />
+          <i class="fas fa-calendar-alt mr-1.5 w-5 text-center text-gray-400" />
           <span>All time</span>
         </button>
       </div>
@@ -323,7 +338,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
       track-is-overlay
     >
       <!-- NOTE :UX :Incomplete: make feed not so ugly, support more feed variants (like table) -->
-      <ul v-if="connection.isConnected.value" class="flex mt-1 flex-col gap-y-1 py-1">
+      <ul v-if="connection.isConnected.value" class="mt-1 flex flex-col gap-y-1 py-1">
         <!-- Feed item -->
         <li
           v-for="item in items"

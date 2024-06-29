@@ -24,6 +24,5 @@ export function makeRun(
     stepPtr: isNode(runnable, NodeType.STEP) ? toNodeReference(runnable) : undefined,
     inputsPacked: options?.inputsPacked != null ? Struct.fromJson(options?.inputsPacked) : undefined,
   });
-  run.rootPtr = toNodeReference(run);
   return run;
 }
