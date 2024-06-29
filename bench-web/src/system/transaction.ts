@@ -35,13 +35,7 @@ import { nonce, origin, userOrNullPtr, userPtr } from "@/system/client";
 import { type ReadNodeGraph, type WriteNodeGraph } from "@/system/graph";
 import { makeIcon } from "@/system/icon";
 import { toaster } from "@/system/toast";
-import {
-  getPropertyType,
-  packBuiltinObject,
-  packValue,
-  unpackBuiltinObject,
-  type JsonValue,
-} from "@/system/value";
+import { getPropertyType, packBuiltinObject, packValue, unpackBuiltinObject, type JsonValue } from "@/system/value";
 import { AsyncEvent } from "@/utils/functools";
 import { IS_DEV } from "@/utils/globals";
 import { log } from "@/utils/log";

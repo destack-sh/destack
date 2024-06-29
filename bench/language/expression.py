@@ -114,7 +114,7 @@ class Expression(Struct, HasValues):
     tolerance: Optional[float] = p_regular(39, default=None)
 
     def __content_str__(self):
-        if self.op in ExpressionOps.COND_LOGICAL:
+        if self.op in ExpressionOps.COND_COMPOUND:
             inner = f" {_CONDITIONAL_OP_SIGN[self.op]} ".join(str(q) for q in self.clauses or ())
             return f"({inner})"
         elif (
@@ -222,7 +222,7 @@ class Expression(Struct, HasValues):
 
 class ExpressionOps:  # :ExpressionOps
     # conditionals
-    COND_LOGICAL = {ConditionalOp.NOT, ConditionalOp.AND, ConditionalOp.OR}
+    COND_COMPOUND = {ConditionalOp.NOT, ConditionalOp.AND, ConditionalOp.OR}
     COND_EXACT = {
         ConditionalOp.EQUALS,
         ConditionalOp.NOT_EQUALS,
@@ -392,15 +392,15 @@ def evaluate_conditional(cond: Expression, node: Node | AnyNodeData) -> bool:
     """Evaluates the conditional expression against the node."""
     assert cond.kind == ExpressionKind.CONDITIONAL, f"expected Conditional, got {cond!r}"
     # logical
-    if cond.op == ConditionalOp.NOT:
-        assert cond.clauses, f"expected 1 clause, got {cond!r}"
-        return not evaluate_conditional(cond.clauses[0], node)
-    elif cond.op == ConditionalOp.AND:
-        assert cond.clauses, f"expected 1+ clauses, got {cond!r}"
-        return all(evaluate_conditional(clause, node) for clause in cond.clauses)
-    elif cond.op == ConditionalOp.OR:
-        assert cond.clauses, f"expected 1+ clauses, got {cond!r}"
-        return any(evaluate_conditional(clause, node) for clause in cond.clauses)
+    if cond.op in ExpressionOps.COND_COMPOUND:
+        if not cond.clauses:
+            return True  # empty compound is True :EmptyCompoundConditional
+        if cond.op == ConditionalOp.NOT:
+            return not evaluate_conditional(cond.clauses[0], node)
+        elif cond.op == ConditionalOp.AND:
+            return all(evaluate_conditional(clause, node) for clause in cond.clauses)
+        elif cond.op == ConditionalOp.OR:
+            return any(evaluate_conditional(clause, node) for clause in cond.clauses)
 
     # some property-based comparison
     prop = cond.property

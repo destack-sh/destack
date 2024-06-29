@@ -91,6 +91,8 @@ const BENCH_MENU_ITEMS = computed(() => {
     // extra
     menuItemFromAction("space.launch.explorer"),
     menuItemFromAction("space.launch.outline"),
+    menuItemFromAction("space.launch.inspect"),
+    menuItemFromAction("space.launch.logs"),
     menuItemFromAction("space.launch.create"),
     menuItemFromAction("space.launch.docs"),
     menuItemFromAction("space.launch.discord"),
@@ -158,7 +160,7 @@ const dockActions: Ref<Action[]> = computed(
           :class="[isOpen ? ' bg-gray-100' : '']"
           @click="toggle"
         >
-          <img src="@/assets/icon_256w.png" class="w-4 rounded-md h-4 mr-1.5" />
+          <img src="@/assets/icon_outline.svg" class="w-5 rounded-md h-5" />
         </button>
       </template>
 
@@ -170,7 +172,7 @@ const dockActions: Ref<Action[]> = computed(
             <div class="flex flex-row px-2.5 pb-2 pt-1.5">
               <div class="mr-2 w-10 rounded border border-gray-300 bg-primary-400 py-0.5 text-center text-lg">
                 <IconInline v-if="bench.icon" class="text-gray-700" v-bind="bench.icon" />
-                <img v-else src="@/assets/icon_256.png" class="w-7 mx-auto rounded-md h-7" />
+                <img v-else src="@/assets/icon_outline.svg" class="w-7 mx-auto rounded-md h-7" />
               </div>
               <div class="flex flex-col leading-tight">
                 <span class="select-all font-medium">{{ bench?.name ?? "???" }}</span>
