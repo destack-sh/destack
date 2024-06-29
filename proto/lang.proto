@@ -1472,7 +1472,9 @@ message ExpressionData {
 // The state of a Feed view.
 message FeedViewStateData {
   ObjectType metatype = 1;
-  optional ExpressionData query = 30;
+  optional NodeType node_type = 30;
+  optional ExpressionData filter = 31;
+  repeated string filter_pills = 99;
 }
 
 // A reference to a file stored somewhere.
@@ -1808,6 +1810,7 @@ message SessionContextData {
 message StartViewStateData {
   ObjectType metatype = 1;
   optional google.protobuf.Struct inputs_packed = 30;
+  optional FeedViewStateData feed = 31;
 }
 
 // A connection between two Steps in a FlowBlock.

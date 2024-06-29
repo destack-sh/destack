@@ -67,7 +67,7 @@ const absoluteStyle = computed(() => {
       :key="toast.id"
       :style="{ width: TOAST_WIDTH + 'px' }"
       class="group/toast relative border border-gray-300 bg-white px-3.5 py-2.5"
-      :class="[i == 0 ? 'rounded-t' : '', i == visibleToasts.length - 1 ? 'rounded-b' : 'border-b-0']"
+      :class="[i == 0 ? 'rounded-t' : '', i == visibleToasts.length - 1 ? 'rounded-b' : '']"
     >
       <!-- Body -->
       <div class="flex flex-row">

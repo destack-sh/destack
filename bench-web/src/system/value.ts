@@ -16,11 +16,10 @@ import {
   type AnyNodeData,
   type AnyStructData,
   type AnyTypeMapping,
-  type NodeTypeMapping,
   type PropertyInfo,
   type TypeInfoData,
 } from "@/proto/wire";
-import { describeNode, isStruct, makeDefaultStruct } from "@/proto/wiring";
+import { describeNode, isStruct, makeDefaultStruct, propertyInfo } from "@/proto/wiring";
 import type { ReadNodeGraph } from "@/system/graph";
 import {
   CLASSY_BLOCK_TYPES,
@@ -70,7 +69,7 @@ export function makeTypeInfo(partial: Partial<Omit<TypeInfoData, "metatype">>): 
   return makeDefaultStruct({ ...partial, metatype: StructType.TYPE_INFO });
 }
 
-export function getTypeIdentityForProperty(property: PropertyInfo): TypeIdentity {
+export function getPropertyType(property: PropertyInfo): TypeIdentity {
   // TODO :Performance: cache PropertyInfo->TypeIdentity
   let kind: TypeKind;
   let benchType: BenchType | undefined;
@@ -98,6 +97,11 @@ export function getTypeIdentityForProperty(property: PropertyInfo): TypeIdentity
     isList: property.isList ?? false,
     isSecret: property.isEncrypted ?? false,
   };
+}
+
+export function propertyType(metatype: ObjectType, id: number) {
+  const prop = propertyInfo(metatype, id);
+  return getPropertyType(prop);
 }
 
 const LETTER_BY_TYPE_KIND: Partial<Record<TypeKind, string>> = {
@@ -223,7 +227,7 @@ export function resolveFields(type: TypeIdentity, graph: ReadNodeGraph): FieldDa
 //   It's likely possible to just cheat/refactor a little and auto-encode/decode ProtoStruct properties at the boundary
 //   without introducing an entire new layer like in the backend).
 
-function isProtoJson(value: any): value is ProtoStruct {
+export function isProtoJson(value: any): value is ProtoStruct {
   return typeof value == "object" && "fields" in value;
 }
 
@@ -309,7 +313,7 @@ export function packBuiltinObject(value: AnyStructData | AnyNodeData, options?: 
   const valuePacked: Record<string, any> = {};
   for (const prop of Object.values(properties)) {
     const propName = propertyEnum[prop.id];
-    const propType = getTypeIdentityForProperty(prop);
+    const propType = getPropertyType(prop);
     const propValue = (value as any)[propName];
     let propValuePacked;
     if (propValue == null || (prop.isList && propValue.length == 0)) {
@@ -338,7 +342,7 @@ export function unpackBuiltinObject<T extends ObjectType>(valuePacked: any, obje
   const value = { metatype: objectType } as AnyTypeMapping[T];
   for (const prop of Object.values(properties)) {
     const propName = propertyEnum[prop.id];
-    const propType = getTypeIdentityForProperty(prop);
+    const propType = getPropertyType(prop);
     const propValuePacked = valuePacked[prop.id.toString()];
     let propValue;
     if (prop.isList) {

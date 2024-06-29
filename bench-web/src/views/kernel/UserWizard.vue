@@ -28,7 +28,13 @@ const self = toRef(props, "self");
 
 const { graph: spaceGraph } = useExistingConnection(toRef(props, "self"));
 
-const { state, updateState, useStateProp } = useViewState(self, spaceGraph, ObjectType.USER_WIZARD_VIEW_STATE, props);
+const { state, updateState, useStateProp, packStateUpdate } = useViewState({
+  selfPtr: self,
+  graph: spaceGraph,
+  stateType: ObjectType.USER_WIZARD_VIEW_STATE,
+  props,
+  emit,
+});
 const stage = useStateProp("stage", UserWizardViewStage.LOG_IN);
 const name: Ref<string> = ref("");
 const slug: Ref<string> = ref("");
@@ -42,6 +48,21 @@ function clear() {
   slug.value = "";
   email.value = "";
   password.value = "";
+}
+
+function switchStage() {
+  const selfNode = spaceGraph.getOrError(self.value);
+  if (stage.value == UserWizardViewStage.LOG_IN) {
+    canvas
+      .tx()
+      .update(selfNode, { title: "Sign Up", valuePacked: packStateUpdate({ stage: UserWizardViewStage.SIGN_UP }) });
+  } else if (stage.value == UserWizardViewStage.SIGN_UP) {
+    canvas
+      .tx()
+      .update(selfNode, { title: "Log In", valuePacked: packStateUpdate({ stage: UserWizardViewStage.LOG_IN }) });
+  } else {
+    throw new Error(`unexpected registration stage: ${stage.value}`);
+  }
 }
 
 async function submit() {
@@ -145,12 +166,7 @@ defineExpose<ViewExposed>({ self, focus });
         :title="stage === UserWizardViewStage.LOG_IN ? 'Sign up instead' : 'Log in instead'"
         class="mt-2 w-full"
         :variant="Variant.COMPACT"
-        @click="
-          () =>
-            stage == UserWizardViewStage.LOG_IN
-              ? (stage = UserWizardViewStage.SIGN_UP)
-              : (stage = UserWizardViewStage.LOG_IN)
-        "
+        @click="() => switchStage()"
       />
       <Button
         v-if="user"

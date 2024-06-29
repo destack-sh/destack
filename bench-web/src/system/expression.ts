@@ -1,4 +1,4 @@
-import { ExpressionOp, ObjectType, type AggregationOp, type ExpressionData, type SortOp } from "@/proto/wire";
+import { ExpressionOp, ObjectType, type ExpressionData, type SortOp } from "@/proto/wire";
 import { newStructId } from "@/proto/wiring";
 
 export function makeExpression(options: { op: ExpressionOp } & Partial<ExpressionData>): ExpressionData {

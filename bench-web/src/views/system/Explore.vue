@@ -89,7 +89,7 @@ const rootNode = pkgGraph.getRef(rootPtr);
 
 const { toggleExpanded, isExpanded } = useExpansion({
   graph: spaceGraph,
-  connection: spaceConnection,
+  tx: canvas.tx,
   self,
   isDefaultExpanded: props.type == ViewType.OUTLINE,
 });

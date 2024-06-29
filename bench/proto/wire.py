@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.06.28.1"
+VERSION = "2024.06.29.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -1598,7 +1598,9 @@ class FeedViewStateData(betterproto.Message):
     """The state of a Feed view."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
-    query: Optional["ExpressionData"] = betterproto.message_field(30, optional=True)
+    node_type: Optional["NodeType"] = betterproto.enum_field(30, optional=True)
+    filter: Optional["ExpressionData"] = betterproto.message_field(31, optional=True)
+    filter_pills: List[str] = betterproto.string_field(99)
 
 
 @dataclass(eq=False, repr=False)
@@ -1998,6 +2000,7 @@ class StartViewStateData(betterproto.Message):
     inputs_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         30, optional=True
     )
+    feed: Optional["FeedViewStateData"] = betterproto.message_field(31, optional=True)
 
 
 @dataclass(eq=False, repr=False)

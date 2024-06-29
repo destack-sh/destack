@@ -8,6 +8,7 @@ import {
   NodeType,
   ObjectType,
   PROPERTY_ENUM_BY_TYPE,
+  PROPERTY_INFOS_BY_TYPE,
   PropertyReferenceData,
   STRUCT_PROPERTY_ENUM_BY_TYPE,
   SomeNodeData,
@@ -17,6 +18,7 @@ import {
   type AnyStructData,
   type AnyTypeMapping,
   type NodeTypeMapping,
+  type PropertyInfo,
   type StructTypeMapping,
 } from "@/proto/wire";
 import { BASED_NODE_TYPES, TIMED_NODE_TYPES, getBaseFromNode, toCamelName } from "@/system/lang";
@@ -315,6 +317,10 @@ export function typeNodeReferenceMaybe<T extends NodeType>(
 
 export function propertyReference<T extends ObjectType>(metatype: T, id: number): PropertyReferenceData {
   return { metatype: ObjectType.PROPERTY_REFERENCE, type: metatype, id };
+}
+
+export function propertyInfo(metatype: ObjectType, id: number): PropertyInfo {
+  return PROPERTY_INFOS_BY_TYPE[metatype]![id];
 }
 
 export function toNodeReference(node: null): null;

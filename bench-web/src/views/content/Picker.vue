@@ -119,7 +119,7 @@ const { results, resultsTotal } = useSearch<PickerItem>({
   query,
   indices: computed(() => ({ main: index.value })),
   isEnabled: computed(() => props.isInline),
-});
+}); 
 
 // auto-select best match when searching
 watch(results, () => {

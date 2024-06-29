@@ -4,6 +4,7 @@ import {
   BoxData,
   ChangeCategory,
   EditType,
+  ExpressionData,
   ExpressionOp,
   IconData,
   LogData,
@@ -20,7 +21,7 @@ import {
   ViewData,
   type AnyNodeData,
 } from "@/proto/wire";
-import { isNode, propertyReference, toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
+import { describeNode, isNode, propertyReference, toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
 import { getAction, type Action } from "@/system/action";
 import { PACKAGE_SCOPE } from "@/system/client";
 import { supergraph, useExistingConnection, useSearchConnection } from "@/system/connection";
@@ -28,12 +29,12 @@ import { makeExpression } from "@/system/expression";
 import { ICON_BY_EDIT_TYPE, ICON_BY_NODE_TYPE, IconInline, getNodeIcon } from "@/system/icon";
 import { EDIT_TYPE_PAST_VERB, toCamelName } from "@/system/lang";
 import { canvas } from "@/system/space";
-import { getTypeIdentityForProperty, packValueSimpleStruct } from "@/system/value";
+import { getPropertyType, packValueSimpleStruct } from "@/system/value";
 import { getElement } from "@/utils/element";
 import { humanizeNumber } from "@/utils/human";
 import { ScrollbarWidth } from "@/utils/layout";
 import { formatRelativeDate } from "@/utils/time";
-import { DEFAULT_HEADER_HEIGHT, useExpansion } from "@/views/canvas";
+import { DEFAULT_HEADER_HEIGHT, useExpansion, useViewState } from "@/views/canvas";
 import { makeViewId, viewEmits, type ViewComponent, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import { computed, ref, toRef, type Ref } from "vue";
@@ -50,7 +51,7 @@ const props = defineProps<
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 const id = makeViewId(props);
-const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self);
+const { graph: spaceGraph } = useExistingConnection(self);
 
 type FeedItemBase = {
   kind: string;
@@ -80,7 +81,14 @@ type RunItem = FeedItemBase & {
 type FeedItem = LogEditItem | LogChangeItem | RunItem;
 
 // NOTE :Incomplete: support generic Feed query instead of just pills (once we have proper expression builders)
-const nodeType = NodeType.LOG;
+const { state, useStateProp } = useViewState({
+  selfPtr: self,
+  graph: spaceGraph,
+  stateType: ObjectType.FEED_VIEW_STATE,
+  props,
+  emit,
+});
+const nodeType = useStateProp("nodeType", NodeType.LOG);
 type FilterPill = {
   key: string;
   name: string;
@@ -89,35 +97,55 @@ type FilterPill = {
   group: string;
   toggle?: () => void;
 };
+// nocheckin: filter pills
 const pills: FilterPill[] = [
   {
-    key: "status-active",
+    key: "log-category-source",
+    name: "Source",
+    isEnabled: true,
+    isActive: true,
+    group: "category",
+  },
+  {
+    key: "run-status-active",
     name: "Active",
     isEnabled: true,
     isActive: true,
     group: "status",
   },
   {
-    key: "status-terminated",
+    key: "run-status-terminated",
     name: "Terminated",
     isEnabled: true,
     isActive: false,
     group: "status",
   },
   {
-    key: "status-failed",
+    key: "run-status-failed",
     name: "Failed",
     isEnabled: true,
     isActive: false,
     group: "status",
   },
 ];
+const effectiveFilter: Ref<ExpressionData> = computed(() => {
+  const clauses: ExpressionData[] = [];
+  // makeExpression({
+  //         op: ExpressionOp.NOT_EQUALS,
+  //         propertyPtr: propertyReference(ObjectType.LOG, LogProperty.category),
+  //         valuePacked: packValueSimpleStruct(
+  //           ChangeCategory.SPACE,
+  //           getPropertyType(PROPERTY_INFOS_BY_TYPE[ObjectType.LOG][LogProperty.category]),
+  //         ),
+  //       }),
+  return makeExpression({ op: ExpressionOp.AND, clauses });
+});
 
 const { roots, graph, connection, page } = useSearchConnection(
-  { name: `feed.${toCamelName(NodeType, nodeType).toLowerCase()}`, live: true },
+  { name: `feed.${toCamelName(NodeType, nodeType.value).toLowerCase()}`, live: true },
   {
     scope: PACKAGE_SCOPE.value,
-    nodeType: nodeType,
+    nodeType: nodeType.value,
     first: 32,
     count: true,
     sort: [
@@ -126,26 +154,15 @@ const { roots, graph, connection, page } = useSearchConnection(
         propertyPtr: propertyReference(nodeType as unknown as ObjectType, LogProperty.createdAt),
       }),
     ],
-    filter: makeExpression({
-      op: ExpressionOp.AND,
-      clauses: [
-        makeExpression({
-          op: ExpressionOp.NOT_EQUALS,
-          propertyPtr: propertyReference(ObjectType.LOG, LogProperty.category),
-          valuePacked: packValueSimpleStruct(
-            ChangeCategory.SPACE,
-            getTypeIdentityForProperty(PROPERTY_INFOS_BY_TYPE[ObjectType.LOG][LogProperty.category]),
-          ),
-        }),
-      ],
-    }),
+    filter: effectiveFilter.value,
   },
 );
 
 const items = computed<FeedItem[]>(() => {
   const items: FeedItem[] = [];
-  if (nodeType == NodeType.LOG) {
+  if (nodeType.value == NodeType.LOG) {
     for (const it of roots.value) {
+      if (!isNode(it, nodeType.value)) throw new Error(`expected ${nodeType.value} but got ${describeNode(it)}`);
       let subject: UserData | RunData | BlockData | StepData | null;
       if (it.createdByPtr != null) {
         if (it.createdByPtr.type == NodeType.RUN) {
@@ -169,6 +186,8 @@ const items = computed<FeedItem[]>(() => {
       };
       items.push(item);
     }
+  } else if (nodeType.value == NodeType.RUN) {
+    // nocheckin
   } else {
     throw new Error(`unsupported feed node type: ${nodeType}`);
   }
@@ -177,7 +196,7 @@ const items = computed<FeedItem[]>(() => {
 const itemRefs: Ref<Record<string, HTMLElement>> = ref({});
 
 // interaction
-const { toggleExpanded, isExpanded } = useExpansion({ graph: spaceGraph, connection: spaceConnection, self });
+const { toggleExpanded, isExpanded } = useExpansion({ graph: spaceGraph, tx: canvas.tx, self });
 const focusedItem = computed(() => {
   if (props.focus?.nodesPtr.length ?? 0 > 0) {
     const focusedId = props.focus!.nodesPtr[0].id;
@@ -241,8 +260,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
       :track-width="ScrollbarWidth.md"
       track-is-overlay
     >
-      <!-- TODO :UX: make feed not so ugly -->
-      <!-- NOTE :Incomplete: support more feed variants (like table) -->
+      <!-- NOTE :UX :Incomplete: make feed not so ugly, support more feed variants (like table) -->
       <ul v-if="connection.isConnected.value" class="flex flex-col gap-y-[3px] py-1">
         <!-- Feed item -->
         <li
@@ -269,7 +287,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
                       ? getNodeIcon(item.subject)
                       : ICON_BY_NODE_TYPE[item.it.metatype as unknown as NodeType]
                   "
-                  class="mr-1.5 text-gray-700"
+                  class="mr-1 w-5 text-gray-700"
                 />
                 <span>{{ (item.subject as any)?.name ?? toCamelName(NodeType, item.it.createdByPtr.type) }}</span>
               </button>
@@ -286,7 +304,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
               >
                 <IconInline
                   v-bind="item.node != null ? getNodeIcon(item.node) : ICON_BY_NODE_TYPE[item.nodeType]"
-                  class="mr-1.5 text-gray-700 group-hover/node:text-primary-900"
+                  class="mr-1 w-5 text-gray-700 group-hover/node:text-primary-900"
                 />
                 <span>{{ (item.node as any)?.name ?? toCamelName(NodeType, item.nodeType) }}</span>
                 <!-- Old name if new name is different -->

@@ -665,9 +665,17 @@ export interface FeedViewStateData {
      */
     metatype: ObjectType;
     /**
-     * @generated from protobuf field: optional symbolx.bench.ExpressionData query = 30;
+     * @generated from protobuf field: optional symbolx.bench.NodeType node_type = 30;
      */
-    query?: ExpressionData;
+    nodeType?: NodeType;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.ExpressionData filter = 31;
+     */
+    filter?: ExpressionData;
+    /**
+     * @generated from protobuf field: repeated string filter_pills = 99;
+     */
+    filterPills: string[];
 }
 /**
  * A reference to a file stored somewhere.
@@ -1582,6 +1590,10 @@ export interface StartViewStateData {
      * @generated from protobuf field: optional google.protobuf.Struct inputs_packed = 30;
      */
     inputsPacked?: Struct;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.FeedViewStateData feed = 31;
+     */
+    feed?: FeedViewStateData;
 }
 /**
  * A connection between two Steps in a FlowBlock.
@@ -12124,12 +12136,15 @@ class FeedViewStateData$Type extends MessageType<FeedViewStateData> {
     constructor() {
         super("symbolx.bench.FeedViewStateData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 30, name: "query", kind: "message", T: () => ExpressionData }
+            { no: 30, name: "node_type", kind: "enum", opt: true, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
+            { no: 31, name: "filter", kind: "message", T: () => ExpressionData },
+            { no: 99, name: "filter_pills", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<FeedViewStateData>): FeedViewStateData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
+        message.filterPills = [];
         if (value !== undefined)
             reflectionMergePartial<FeedViewStateData>(this, message, value);
         return message;
@@ -12142,8 +12157,14 @@ class FeedViewStateData$Type extends MessageType<FeedViewStateData> {
                 case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* optional symbolx.bench.ExpressionData query */ 30:
-                    message.query = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.query);
+                case /* optional symbolx.bench.NodeType node_type */ 30:
+                    message.nodeType = reader.int32();
+                    break;
+                case /* optional symbolx.bench.ExpressionData filter */ 31:
+                    message.filter = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.filter);
+                    break;
+                case /* repeated string filter_pills */ 99:
+                    message.filterPills.push(reader.string());
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -12160,9 +12181,15 @@ class FeedViewStateData$Type extends MessageType<FeedViewStateData> {
         /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional symbolx.bench.ExpressionData query = 30; */
-        if (message.query)
-            ExpressionData.internalBinaryWrite(message.query, writer.tag(30, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeType node_type = 30; */
+        if (message.nodeType !== undefined)
+            writer.tag(30, WireType.Varint).int32(message.nodeType);
+        /* optional symbolx.bench.ExpressionData filter = 31; */
+        if (message.filter)
+            ExpressionData.internalBinaryWrite(message.filter, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
+        /* repeated string filter_pills = 99; */
+        for (let i = 0; i < message.filterPills.length; i++)
+            writer.tag(99, WireType.LengthDelimited).string(message.filterPills[i]);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -14325,7 +14352,8 @@ class StartViewStateData$Type extends MessageType<StartViewStateData> {
     constructor() {
         super("symbolx.bench.StartViewStateData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 30, name: "inputs_packed", kind: "message", T: () => Struct }
+            { no: 30, name: "inputs_packed", kind: "message", T: () => Struct },
+            { no: 31, name: "feed", kind: "message", T: () => FeedViewStateData }
         ]);
     }
     create(value?: PartialMessage<StartViewStateData>): StartViewStateData {
@@ -14346,6 +14374,9 @@ class StartViewStateData$Type extends MessageType<StartViewStateData> {
                 case /* optional google.protobuf.Struct inputs_packed */ 30:
                     message.inputsPacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.inputsPacked);
                     break;
+                case /* optional symbolx.bench.FeedViewStateData feed */ 31:
+                    message.feed = FeedViewStateData.internalBinaryRead(reader, reader.uint32(), options, message.feed);
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -14364,6 +14395,9 @@ class StartViewStateData$Type extends MessageType<StartViewStateData> {
         /* optional google.protobuf.Struct inputs_packed = 30; */
         if (message.inputsPacked)
             Struct.internalBinaryWrite(message.inputsPacked, writer.tag(30, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.FeedViewStateData feed = 31; */
+        if (message.feed)
+            FeedViewStateData.internalBinaryWrite(message.feed, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -26185,11 +26219,14 @@ export enum TransformProperty {
 export enum StartViewStateProperty {
   metatype = 1,
   inputsPacked = 30,
+  feed = 31,
 }
 
 export enum FeedViewStateProperty {
   metatype = 1,
-  query = 30,
+  nodeType = 30,
+  filter = 31,
+  filterPills = 99,
 }
 
 export enum ChartViewStateProperty {
@@ -26914,10 +26951,13 @@ export const TransformDataInfo: Record<TransformProperty, PropertyInfo> = {
 export const StartViewStateDataInfo: Record<StartViewStateProperty, PropertyInfo> = {
   [StartViewStateProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.START_VIEW_STATE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [StartViewStateProperty.inputsPacked]: { id: 30, name: 'inputs_packed', component: ObjectType.START_VIEW_STATE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [StartViewStateProperty.feed]: { id: 31, name: 'feed', component: ObjectType.START_VIEW_STATE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.FEED_VIEW_STATE },
 }
 export const FeedViewStateDataInfo: Record<FeedViewStateProperty, PropertyInfo> = {
   [FeedViewStateProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.FEED_VIEW_STATE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [FeedViewStateProperty.query]: { id: 30, name: 'query', component: ObjectType.FEED_VIEW_STATE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
+  [FeedViewStateProperty.nodeType]: { id: 30, name: 'node_type', component: ObjectType.FEED_VIEW_STATE, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [FeedViewStateProperty.filter]: { id: 31, name: 'filter', component: ObjectType.FEED_VIEW_STATE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
+  [FeedViewStateProperty.filterPills]: { id: 99, name: 'filter_pills', component: ObjectType.FEED_VIEW_STATE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const ChartViewStateDataInfo: Record<ChartViewStateProperty, PropertyInfo> = {
   [ChartViewStateProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.CHART_VIEW_STATE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
