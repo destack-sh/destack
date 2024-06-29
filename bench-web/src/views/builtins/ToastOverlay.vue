@@ -1,8 +1,8 @@
 <script lang="ts" setup>
-import { ICON_BY_LEVEL, IconInline } from "@/system/icon";
+import { ICON_BY_LOG_LEVEL, IconInline } from "@/system/icon";
 import { toaster, type ToastAnchor } from "@/system/toast";
 import { computed } from "vue";
-import { BG_COLOR_BY_LEVEL, ACCENT_COLOR_BY_LEVEL } from "@/utils/style";
+import { BG_COLOR_BY_LOG_LEVEL, ACCENT_COLOR_BY_LOG_LEVEL } from "@/utils/style";
 
 const props = defineProps<{ anchor: ToastAnchor; box: { left: number; top: number; width: number; height: number } }>();
 // default order is most recent bottom
@@ -74,10 +74,10 @@ const absoluteStyle = computed(() => {
         <!-- Icon -->
         <div class="w-4 text-center">
           <IconInline
-            v-bind="toast.icon ?? ICON_BY_LEVEL[toast.level]"
+            v-bind="toast.icon ?? ICON_BY_LOG_LEVEL[toast.level]"
             force-color="inherit"
             class="mt-0.5"
-            :class="[ACCENT_COLOR_BY_LEVEL[toast.level]]"
+            :class="[ACCENT_COLOR_BY_LOG_LEVEL[toast.level]]"
           />
         </div>
         <div class="ml-2.5">

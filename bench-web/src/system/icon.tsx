@@ -24,6 +24,7 @@ import {
   StepType,
   Anchor,
   EditType,
+  RunStatus,
 } from "@/proto/wire";
 import type { FunctionalComponent } from "vue";
 // file is generated with:
@@ -392,7 +393,7 @@ export const ICON_BY_FIELD_ZONE: Partial<Record<FieldZone, IconData>> = _makeIco
   [FieldZone.OPTION]: "fas fa-circle-small",
 });
 
-export const ICON_BY_LEVEL: Record<LogLevel, IconData> = {
+export const ICON_BY_LOG_LEVEL: Record<LogLevel, IconData> = {
   [LogLevel.UNSPECIFIED]: makeIcon({ faName: "fas fa-bug" }),
   [LogLevel.TRACE]: makeIcon({ faName: "fas fa-bug" }),
   [LogLevel.DEBUG]: makeIcon({ faName: "fas fa-bug" }),
@@ -400,6 +401,19 @@ export const ICON_BY_LEVEL: Record<LogLevel, IconData> = {
   [LogLevel.WARNING]: makeIcon({ faName: "fas fa-exclamation-triangle" }),
   [LogLevel.ERROR]: makeIcon({ faName: "fas fa-exclamation-circle" }),
   [LogLevel.CRITICAL]: makeIcon({ faName: "fas fa-skull" }),
+};
+
+export const ICON_BY_RUN_STATUS: Record<RunStatus, IconData> = {
+  [RunStatus.UNSPECIFIED]: makeIcon({ faName: "fas fa-bug" }),
+  [RunStatus.SCHEDULED]: makeIcon({ faName: "fas fa-clock" }),
+  [RunStatus.QUEUED]: makeIcon({ faName: "fas fa-hourglass" }),
+  [RunStatus.RUNNING]: makeIcon({ faName: "fas fa-play" }),
+  [RunStatus.PAUSED]: makeIcon({ faName: "fas fa-pause" }),
+  [RunStatus.SUSPENDED]: makeIcon({ faName: "fas fa-circle-pause" }),
+  [RunStatus.COMPLETED]: makeIcon({ faName: "fas fa-circle-check" }),
+  [RunStatus.CANCELLED]: makeIcon({ faName: "fas fa-circle-xmark" }),
+  [RunStatus.ABORTED]: makeIcon({ faName: "fas fa-skull" }),
+  [RunStatus.FAILED]: makeIcon({ faName: "fas fa-exclamation-triangle" }),
 };
 
 export const ICON_BY_EDIT_TYPE: Partial<Record<EditType, IconData>> = _makeIcons<EditType>({
@@ -426,7 +440,7 @@ export const ENUM_ICONS_BY_TYPE: Partial<Record<EnumType, Record<any, IconData>>
   [EnumType.PRIMITIVE_TYPE]: ICON_BY_PRIMITIVE_TYPE,
   [EnumType.FORMAT_HINT]: ICON_BY_FORMAT_HINT,
   [EnumType.FIELD_ZONE]: ICON_BY_FIELD_ZONE,
-  [EnumType.LOG_LEVEL]: ICON_BY_LEVEL,
+  [EnumType.LOG_LEVEL]: ICON_BY_LOG_LEVEL,
   [EnumType.EDIT_TYPE]: ICON_BY_EDIT_TYPE,
 };
 
