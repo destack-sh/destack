@@ -172,6 +172,7 @@ export const ICON_BY_NODE_TYPE: Partial<Record<NodeType, IconData>> = _makeIcons
 
   // resources
   [NodeType.SERVER]: "fas fa-server",
+  [NodeType.MACHINE]: "fas fa-desktop",
   [NodeType.STORE]: "fas fa-database",
   [NodeType.DRIVE]: "fas fa-hdd",
   [NodeType.BLOB]: "fas fa-file",

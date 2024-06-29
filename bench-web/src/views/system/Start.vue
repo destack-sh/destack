@@ -1,14 +1,37 @@
 <script lang="ts" setup>
-import { BlockData, BoxData, FieldZone, NodeType, Orientation, StepData, ViewData, ViewType } from "@/proto/wire";
-import { isNode, type TypedNodeReferenceData } from "@/proto/wiring";
+import {
+  BlockData,
+  BoxData,
+  ExpressionOp,
+  FeedViewStateData,
+  FieldZone,
+  NodeType,
+  ObjectType,
+  Orientation,
+  RunProperty,
+  StepData,
+  ViewData,
+  ViewType,
+} from "@/proto/wire";
+import { isNode, propertyReference, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
+import { makeExpression } from "@/system/expression";
 import { RUNNABLE_BLOCK_TYPES } from "@/system/lang";
 import { makeRun } from "@/system/session";
 import { canvas, inspectionPtr } from "@/system/space";
+import {
+  getPropertyType,
+  packBuiltinObject,
+  packValue,
+  packValueSimple,
+  packValueSimpleStruct,
+  propertyType,
+} from "@/system/value";
 import { getFieldViews } from "@/system/view";
 import { ScrollbarWidth } from "@/utils/layout";
+import { computedValue } from "@/utils/ref";
 import NodeCrumb from "@/views/builtins/NodeCrumb.vue";
-import { DEFAULT_HEADER_HEIGHT } from "@/views/canvas";
+import { DEFAULT_HEADER_HEIGHT, useViewState } from "@/views/canvas";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import { getViewComponent, hasViewComponent } from "@/views/registry";
@@ -22,15 +45,22 @@ const MAX_WIDTH = 800;
 const props = defineProps<
   { self: TypedNodeReferenceData<NodeType.VIEW>; size: Required<Pick<BoxData, "width" | "height">> } & Pick<
     ViewData,
-    "name" | "title" | "nodePtr"
+    "name" | "title" | "nodePtr" | "valuePacked"
   >
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 
-const focusPtr = computed(() => props.nodePtr ?? inspectionPtr.value);
+const focusPtr = computedValue(() => props.nodePtr ?? inspectionPtr.value);
 const { graph: spaceGraph } = useExistingConnection(self);
 const { graph: pkgGraph, connection: pkgConnection } = useExistingConnection(focusPtr);
+const { state, updateState } = useViewState({
+  selfPtr: self,
+  graph: spaceGraph,
+  stateType: ObjectType.START_VIEW_STATE,
+  props,
+  emit,
+});
 const ancestors = pkgGraph.getAncestorsRef(focusPtr, { includeSelf: true });
 const runnableNode: Ref<BlockData | StepData | null> = computed(() => {
   // for some reason this type checks but ancestors.find doesn't
@@ -133,9 +163,23 @@ defineExpose<ViewExposed>({ self });
       </div>
       <!-- Feed -->
       <div class="mx-auto mt-1 px-5 py-3" :style="{ minWidth: MIN_WIDTH + 'px', maxWidth: MAX_WIDTH + 'px' }">
-        <!-- nocheckin: filter Run feed -->
         <h4 class="font-semibold">Runs</h4>
-        <Feed is-inline />
+        <Feed
+          is-inline
+          :value-packed="
+            // pre-filter to only runs of this node
+            packBuiltinObject({
+              metatype: ObjectType.FEED_VIEW_STATE,
+              nodeType: NodeType.RUN,
+              filter: makeExpression({
+                op: ExpressionOp.EQUALS,
+                propertyPtr: propertyReference(ObjectType.RUN, RunProperty.blockPtr),
+                valuePacked: packValueSimpleStruct(focusPtr, propertyType(ObjectType.RUN, RunProperty.blockPtr)),
+              }),
+            } as FeedViewStateData)
+          "
+          @update:self="(update) => updateState({ feed: update })"
+        />
       </div>
     </Scroll>
   </div>

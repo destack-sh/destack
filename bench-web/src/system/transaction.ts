@@ -36,7 +36,7 @@ import { type ReadNodeGraph, type WriteNodeGraph } from "@/system/graph";
 import { makeIcon } from "@/system/icon";
 import { toaster } from "@/system/toast";
 import {
-  getTypeIdentityForProperty,
+  getPropertyType,
   packBuiltinObject,
   packValue,
   unpackBuiltinObject,
@@ -384,7 +384,7 @@ export class TransactionBuilder implements TransactionMeta, Transaction {
       const oldNodePacked: Record<string, JsonValue> = {};
       const newNodePacked: Record<string, JsonValue> = {};
       for (const prop of properties) {
-        const typeInfo = getTypeIdentityForProperty(prop);
+        const typeInfo = getPropertyType(prop);
         const propName = propertiesEnum[prop.id];
         const oldValue = (node as any)[propName];
         const newValue = (update as any)[propName];
@@ -422,7 +422,7 @@ export class TransactionBuilder implements TransactionMeta, Transaction {
       const newNodePacked = ProtoStruct.toJson(edit.newNodePacked) as Record<string, JsonValue>;
       for (const prop of properties) {
         const propName = propertiesEnum[prop.id];
-        const typeInfo = getTypeIdentityForProperty(prop);
+        const typeInfo = getPropertyType(prop);
         // add to Edit.properties if not there yet
         if (!edit.properties.includes(prop.id)) {
           edit.properties.push(prop.id);

@@ -521,14 +521,18 @@ class StartViewState(ViewState):
     """The state of a Start view."""
 
     inputs_packed: Any = p_value_packed(30)
+    feed: "FeedViewState | None" = p_regular(
+        31, default=None, require=False, struct=StructType.FEED_VIEW_STATE
+    )
 
 
 @struct_(StructType.FEED_VIEW_STATE, inline=True)
 class FeedViewState(ViewState):
     """The state of a Feed view."""
 
-    query: "Expression | None" = p_regular(
-        30, default=None, require=False, struct=StructType.EXPRESSION
+    node_type: NodeType | None = p_regular(30, require=False)
+    filter: "Expression | None" = p_regular(
+        31, default=None, require=False, struct=StructType.EXPRESSION
     )
     filter_pills: list[str] = p_regular(99, array=True)
 

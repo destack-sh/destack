@@ -118,14 +118,17 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
     # User management
     #
 
+    def _get_client_id(self, user: User, client_data: ClientDataIn) -> UUID | None:
+        if client_data.id:
+            return UUID(client_data.id)
+        elif client_data.place_id:
+            return uuid5(user.id, client_data.place_id)
+        else:
+            return None
+
     async def _make_client(self, user: User, client_data: ClientDataIn) -> Client:
         """Maps the given client info to a Client instance, trying to preserve a stable identity."""
-        if client_data.id:
-            client_id = UUID(client_data.id)
-        elif client_data.place_id:
-            client_id = uuid5(user.id, client_data.place_id)
-        else:
-            client_id = None
+        client_id = self._get_client_id(user, client_data)
         name = client_data.name
         if not name:
             name = generate_node_name(NodeType.CLIENT, type=None, siblings=user.clients)
@@ -232,8 +235,9 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
                 raise GRPCError(GRPCStatus.UNAUTHENTICATED, "incorrect password")
 
             user.last_logged_in_at = self.oracle.utc()
-            if request.client.id:  # upsert
-                client = user._supergraph.get(UUID(request.client.id))
+            client_id = self._get_client_id(user, request.client)
+            if client_id:  # upsert
+                client = user._supergraph.get(client_id)
                 if not isinstance(client, Client):
                     raise GRPCError(GRPCStatus.NOT_FOUND, "client not found")
                 self._patch_client(client, request.client)

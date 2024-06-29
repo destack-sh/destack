@@ -44,7 +44,7 @@ import {
 } from "@/system/lang";
 import { canvas, inspectionBasePtr, inspectionPtr } from "@/system/space";
 import { packProtoStruct, unpackProtoStruct, type DebounceLevel, type Transaction } from "@/system/transaction";
-import { packBuiltinObject, unpackBuiltinObject } from "@/system/value";
+import { isProtoJson, packBuiltinObject, unpackBuiltinObject } from "@/system/value";
 import type { SplitAnchor } from "@/utils/drag";
 import { getElement, isFocusableElement } from "@/utils/element";
 import { generateOrderKey } from "@/utils/fractional";
@@ -1142,7 +1142,7 @@ export function collapseSelection(selection: SelectionData, nodes: (AnyNodeData 
 
 export function useExpansion(options: {
   graph: ReadNodeGraph;
-  connection: Connection<any, any>;
+  tx: () => Transaction;
   self: Ref<AnyNodeReferenceData | null | undefined>;
   isDefaultExpanded?: boolean;
 }) {
@@ -1153,17 +1153,11 @@ export function useExpansion(options: {
     if (options.self.value == null) throw new Error("no self node");
     const selfNode = options.graph.getOrError(options.self.value) as ViewData;
     if (isExpanded(node)) {
-      options.connection.tx.update(
-        selfNode,
-        { expansion: collapseSelection(selfNode.expansion!, [node]) },
-        { debounce: "tick" },
-      );
+      options
+        .tx()
+        .update(selfNode, { expansion: collapseSelection(selfNode.expansion!, [node]) }, { debounce: "tick" });
     } else if (!isExpanded(node)) {
-      options.connection.tx.update(
-        selfNode,
-        { expansion: expandSelection(selfNode.expansion, [node]) },
-        { debounce: "tick" },
-      );
+      options.tx().update(selfNode, { expansion: expandSelection(selfNode.expansion, [node]) }, { debounce: "tick" });
     }
   }
 
@@ -1174,39 +1168,61 @@ export function useExpansion(options: {
   return { toggleExpanded, isExpanded: options.isDefaultExpanded ? () => true : isExpanded };
 }
 
-export function useViewState<T extends ObjectType>(
-  selfPtr: Ref<TypedNodeReferenceData<NodeType.VIEW>>,
-  graph: ReadNodeGraph,
-  stateType: T,
-  props: Pick<ViewData, "valuePacked">,
-) {
+/**
+ * Use the typed state in the View.value of a builtin view type.
+ **/
+export function useViewState<T extends ObjectType>(use: {
+  selfPtr: Ref<TypedNodeReferenceData<NodeType.VIEW> | undefined | null>;
+  graph: ReadNodeGraph;
+  stateType: T;
+  props: Pick<ViewData, "valuePacked">;
+  emit: (event: string, ...args: any[]) => void;
+}) {
   const state = computed(() => {
-    if (props.valuePacked == null) {
-      return { metatype: stateType } as AnyTypeMapping[T];
+    if (use.props.valuePacked == null) {
+      return { metatype: use.stateType } as AnyTypeMapping[T];
     } else {
-      const valuePacked = unpackProtoStruct(props.valuePacked);
-      const unpacked = unpackBuiltinObject(valuePacked, stateType);
+      // we don't pack proto json structs inside proto json structs,
+      //  so while valuePacked should be a proto struct (as per the type) it may not be (see :ProtoStructMapping)
+      const valuePacked = isProtoJson(use.props.valuePacked)
+        ? unpackProtoStruct(use.props.valuePacked)
+        : use.props.valuePacked;
+      const unpacked = unpackBuiltinObject(valuePacked, use.stateType);
       return unpacked;
     }
   });
 
-  function update(value: Partial<AnyTypeMapping[T]>, options?: { debounce?: DebounceLevel }) {
-    const tx = canvas.tx();
-    const self = graph.getOrError(selfPtr.value);
-    const newState = { ...state.value, ...value } as AnyTypeMapping[T];
-    const valuePacked = packBuiltinObject(newState);
-    tx.update(self, { valuePacked: packProtoStruct(valuePacked) }, options);
+  function updateState(value: Partial<AnyTypeMapping[T]>, options?: { debounce?: DebounceLevel }) {
+    const valuePacked = packStateUpdate(value);
+    if (use.selfPtr.value != null) {
+      const tx = canvas.tx();
+      const self = use.graph.getOrError(use.selfPtr.value);
+      tx.update(self, { valuePacked: packProtoStruct(valuePacked) }, options);
+    } else {
+      use.emit("update:self", { valuePacked: packProtoStruct(valuePacked) });
+    }
   }
 
+  function packStateUpdate(value: Partial<AnyTypeMapping[T]>) {
+    const newState = { ...state.value, ...value } as AnyTypeMapping[T];
+    const valuePacked = packBuiltinObject(newState);
+    return valuePacked;
+  }
+
+  function useStateProp<P extends keyof AnyTypeMapping[T]>(
+    prop: P,
+    defaultValue: AnyTypeMapping[T][P],
+  ): Ref<Required<AnyTypeMapping[T]>[P]>;
+  function useStateProp<P extends keyof AnyTypeMapping[T]>(prop: P): Ref<AnyTypeMapping[T][P] | undefined>;
   function useStateProp<P extends keyof AnyTypeMapping[T]>(
     prop: P,
     defaultValue?: AnyTypeMapping[T][P],
   ): Ref<AnyTypeMapping[T][P]> {
     return computed({
       get: () => (state.value?.[prop] ?? defaultValue) as any,
-      set: (value: AnyTypeMapping[T][P]) => update({ [prop]: value } as any),
+      set: (value: AnyTypeMapping[T][P]) => updateState({ [prop]: value } as any),
     });
   }
 
-  return { state, updateState: update, useStateProp };
+  return { state, updateState, packStateUpdate, useStateProp };
 }
