@@ -501,8 +501,8 @@ def new_dynamic_node_key(ck_or_id: UUID) -> str:
 class ReferenceKind(IdEnum):
     """A reference to a Node or Struct - usually both have an identity (except for inlined Structs)."""
 
-    NODE_ANCESTOR_ROOT = 1
-    NODE_ANCESTOR_FIRST = 2
+    NODE_ANCESTOR = 1
+    NODE_ANCESTOR_OR_SELF = 2
     NODE_PARENT = 3
     NODE_CHILDREN = 4
     NODE_REGULAR = 5
