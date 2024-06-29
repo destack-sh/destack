@@ -475,7 +475,6 @@ def node_component(
         cls.__passthrough__ = passthrough
 
         # register node properties
-        props = properties.values()
         list_properties: dict[str, Property] = {}
         list_properties_by_child: dict[NodeType, list[Property]] = defaultdict(list)
         for prop in properties.values():
@@ -486,9 +485,6 @@ def node_component(
                 for ref_t in prop.reference_nodes or ():
                     list_properties_by_child[ref_t].append(prop)
         cls.__node_child_properties__ = frozendict(list_properties)
-        cls.__ancestor_properties__ = frozendict(
-            {p.name: p for p in props if p.reference_kind == ReferenceKind.NODE_ANCESTOR_FIRST}
-        )
 
         # register as concrete node class for node_type
         if node_type:
@@ -730,7 +726,7 @@ def _node_ancestor_ref(prop: Property) -> property:
     if prop.reference_kind == ReferenceKind.NODE_ANCESTOR_FIRST:
 
         def get_ancestor_first(self: Node) -> Optional[Node]:
-            parent = self
+            parent = self.parent
             while parent is not None:
                 if prop.reference_nodes and parent.metatype in prop.reference_nodes:
                     return parent
@@ -1294,7 +1290,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     __id_factory__: ClassVar[Callable[[], UUID]] = uuid4
     __ck_factory__: ClassVar[Callable[[], UUID]] = uuid4
 
-    __ancestor_properties__: ClassVar[dict[str, Property]] = {}
     __node_child_properties__: ClassVar[dict[str, Property]] = {}
 
     __roots__: ClassVar[bittuple[NodeType]] = UNSET

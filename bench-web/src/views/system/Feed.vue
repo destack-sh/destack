@@ -323,7 +323,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
       track-is-overlay
     >
       <!-- NOTE :UX :Incomplete: make feed not so ugly, support more feed variants (like table) -->
-      <ul v-if="connection.isConnected.value" class="flex flex-col gap-y-[3px] py-1">
+      <ul v-if="connection.isConnected.value" class="flex mt-1 flex-col gap-y-1 py-1">
         <!-- Feed item -->
         <li
           v-for="item in items"

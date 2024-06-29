@@ -20,7 +20,7 @@ class _Unset:
         return "<UNSET!>"
 
 
-VERSION = "2024.06.29.0"
+VERSION = "2024.06.29.1"
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -1109,7 +1109,7 @@ def get_active_run() -> Optional["Run"]:
 def active_root_run() -> "Run":
     """Gets the root Run of the currently active Session"""
     run = active_run()
-    return run.root
+    return run.root or run
 
 
 def get_active_root_run() -> Optional["Run"]:
@@ -1117,7 +1117,7 @@ def get_active_root_run() -> Optional["Run"]:
     run = get_active_run()
     if run is None:
         return None
-    return run.root
+    return run.root or run
 
 
 def get_region() -> Region:

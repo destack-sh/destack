@@ -116,8 +116,8 @@ class Run(PackageNode[RunData], HasTimeIdentity, HasNodeBase, HasSessionContext,
     # content
     parent: Union["Package", "Run", None] = p_node_parent(4, NodeType.PACKAGE, NodeType.RUN)
     kind: RunKind = p_system(30)
-    root: "Run" = p_node_ancestor_first(
-        32, NodeType.RUN, require=True, store=True, wire=True, is_bench_implicit=True
+    root: "Run | None" = p_node_ancestor_first(
+        32, NodeType.RUN, require=False, store=True, wire=True, is_bench_implicit=True
     )
     if TYPE_CHECKING:
         root_ptr: Optional[NodeReference] = None
@@ -252,6 +252,8 @@ class Run(PackageNode[RunData], HasTimeIdentity, HasNodeBase, HasSessionContext,
     def _validate_component(
         self, properties: Collection[Property], invalid: ValidationHandler
     ) -> None:
+        if self.root_ptr is not None and self.root_ptr.id == self.id:
+            invalid(self, "root points to self", (Run.root, Run.id))
         if self.block_ptr is None and self.code is None and self.text is None:
             invalid(self, "no block, code or text", (Run.block, Run.code, Run.text))
         if self.step_ptr is not None and self.block_ptr is None:
