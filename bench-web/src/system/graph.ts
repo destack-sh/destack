@@ -731,8 +731,11 @@ abstract class FilterBaseNodeGraphMixin extends BaseNodeGraphMixin {
     return roots;
   }
 
+	/** Get the node at the given key without applying any filters */
   abstract getUnfiltered<T extends NodeType>(key: NodeKey<T>): NodeTypeMapping[T] | null;
-  get<T extends NodeType>(key: NodeKey<T>): NodeTypeMapping[T] | null {
+  
+	/** Get the node at the given key (considering filters) */
+	get<T extends NodeType>(key: NodeKey<T>): NodeTypeMapping[T] | null {
     const node = this.getUnfiltered(key);
     if (node == null || !this.isNodeVisibleAbsolute(node)) return null;
     else return node;
@@ -748,7 +751,7 @@ abstract class FilterBaseNodeGraphMixin extends BaseNodeGraphMixin {
     if (!this.isNodeVisibleSelf(node)) return false;
     let parent = node.parentPtr;
     while (parent != null) {
-      const parentNode = this.get(parent);
+      const parentNode = this.getUnfiltered(parent);
       if (parentNode == null) break; // parent not in this graph
       if (!this.isNodeVisibleSelf(parentNode)) return false;
       parent = parentNode.parentPtr;
