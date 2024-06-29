@@ -348,7 +348,6 @@ class SearchConnection(NodeConnection[SearchResultData, WatchSearchUpdate]):
 
     def __init__(self, scope: GraphScopeData, query: QueryBuilder, oracle: Oracle):
         super().__init__(scope, query, oracle)
-        #   and we also need to separate roots from descendants/ancestors (like in Runs).
         self._filter = query._filter
         self._result_roots_ids: set[str] | None = None
 
