@@ -370,6 +370,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
                     added_nodes=[wiring.wrap_some_node(n) for n in update.added_nodes],
                     removed_nodes_ptr=update.removed_nodes_ptr,
                     roots_ptr=update.roots_ptr,
+                    total=update.total,
                     epoch=update.epoch,
                 )
         finally:
