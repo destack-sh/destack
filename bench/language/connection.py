@@ -491,7 +491,6 @@ class Connection[
                             if not retry.on_error(e):
                                 raise
                             await self.session._oracle.sleep(interval)
-                            continue
                 else:
                     raise retry.to_error(operation=self.query)
                 # unpack (should not be retried)
