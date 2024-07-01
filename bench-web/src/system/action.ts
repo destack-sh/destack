@@ -1236,9 +1236,7 @@ contributeActionMap<"space">({
     title: "Open Creator",
     text: "Get relevant building blocks and templates",
     icon: "fas fa-plus",
-    action: () => {
-      canvas.addView({ type: ViewType.CREATE, title: "Create" }, { ifPresent: "upsertAndFocus" });
-    },
+    action: ACTION_COMING_SOON,
   },
   "space.launch.explorer": {
     title: "Open Explorer",
