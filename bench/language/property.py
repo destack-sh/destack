@@ -234,6 +234,8 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
 
     @property
     def is_introspectable(self) -> bool:
+        # NOTE :Cleanup: 'introspectable' has no clear definition and is only used in oddly specific places
+        #  (it used to indicate whether we set it as a property on the object class like Block.type)
         return (
             # exclude our own runtime-only properties
             not self.is_ephemeral
@@ -729,7 +731,12 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
                 self.primitive_type = primitive_type
 
         # derive type info
-        if self.is_introspectable or self.reference_source is not None or self.id == 1:
+        if (
+            self.is_introspectable
+            or self.reference_source is not None
+            or self.reference_nodes
+            or self.id == 1
+        ):
             self._type_info = self._to_type_info()
 
         # sanity check some stuff

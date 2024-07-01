@@ -8,7 +8,7 @@ from bench.language.bench import BenchResourceNode, Drive
 from bench.language.const import EnumType, NodeType, PrimitiveType, StructType, enum_
 from bench.language.node import InlineStruct, node_, struct_
 from bench.language.property import p_internal, p_node_parent, p_regular, p_runtime
-from bench.language.validation import NAME_CONSTRAINT
+from bench.language.validation import NAME_CONSTRAINT, constrain
 from bench.proto.wire import BlobData
 from bench.utils.func import IdEnum
 
@@ -35,9 +35,11 @@ class Blob(BenchResourceNode[BlobData]):
     """The actual file content stored as a Blob in a Drive. De-duped to 1 per sha512."""
 
     parent: Drive | None = p_node_parent(4, NodeType.DRIVE, is_system=True)
-    sha512: str = p_internal(40)
+    sha512: str = p_internal(
+        40, constraint=constrain(min_length=FILE_HASH_LENGTH, max_length=FILE_HASH_LENGTH)
+    )
     size: int = p_internal(41, primitive_type=PrimitiveType.INT64)
-    mime_type: str = p_internal(42)
+    mime_type: str = p_internal(42, constraint=constrain(min_length=1, max_length=255))
     retention: FileRetentionMode = p_regular(43)
     expires_at: Optional[datetime] = p_regular(44)
 

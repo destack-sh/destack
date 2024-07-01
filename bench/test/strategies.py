@@ -91,7 +91,7 @@ STRATEGY_BY_PRIMITIVE_TYPE: dict[PrimitiveType, st.SearchStrategy] = {
     PrimitiveType.DECIMAL: st.decimals(),
     PrimitiveType.FLOAT32: st.floats(allow_nan=False, allow_infinity=False),
     PrimitiveType.FLOAT64: st.floats(allow_nan=False, allow_infinity=False),
-    PrimitiveType.STRING: st.text(),
+    PrimitiveType.STRING: st.text(min_size=1),
     PrimitiveType.UUID: st.uuids(),
     PrimitiveType.JSON: JSON_STRATEGY,
     PrimitiveType.BYTES: st.binary(),
@@ -162,7 +162,7 @@ def from_type_info_scalar(typ: TypeInfoBase) -> st.SearchStrategy[Any]:
                 regex = rf"^{constraint.starts_with or ''}.*{constraint.ends_with or ''}$"
                 return st.from_regex(regex)
             else:
-                return st.text(min_size=constraint.min_length or 0, max_size=constraint.max_length)
+                return st.text(min_size=constraint.min_length or 1, max_size=constraint.max_length)
         else:
             return STRATEGY_BY_PRIMITIVE_TYPE[typ.primitive_type]
     elif typ.kind == TypeKind.ENUM:
@@ -207,7 +207,7 @@ def from_type_info(typ: TypeInfoBase) -> st.SearchStrategy[Any]:
 
 
 @cached({})
-def get_naive_object_strategies(object_type: ObjectType):
+def get_naive_object_strategy(object_type: ObjectType):
     """Gets the default uncorrelated strategies for every (init) property of an object type."""
     object_cls = OBJECT_CLASS_BY_TYPE[object_type]
     object_dict: dict[str, st.SearchStrategy] = {}
@@ -216,10 +216,10 @@ def get_naive_object_strategies(object_type: ObjectType):
             # ignore runtime-only properties
             prop.id is None
             # ignore identity/tracking properties
-            or (prop.id < 30 and prop._type_info is None)
+            or (prop.id < 30 and prop.reference_kind is not None)
             # ignore contributed wired properties (they're derived from the generated one)
             or (prop.reference_source is not None)
-            # ignore autoset properties (id, timestamps)
+            # ignore autoset properties (ids, timestamps)
             or prop.is_autoset
         ):
             continue
@@ -265,7 +265,7 @@ def from_object_type(
         return cast(st.SearchStrategy[BuiltinObject], fields(SIMPLE_TYPE_KINDS))
 
     object_cls = OBJECT_CLASS_BY_TYPE[object_type]
-    object_dict = get_naive_object_strategies(object_type)
+    object_dict = get_naive_object_strategy(object_type)
     if custom_strategies:
         object_dict = {**object_dict}
         object_dict.update(custom_strategies)
@@ -338,7 +338,7 @@ def type_infos(draw: st.DrawFn, kinds: st.SearchStrategy[TypeKind]):
 @st.composite
 def fields(draw: st.DrawFn, kinds: st.SearchStrategy[TypeKind]):
     type_info_base_dict = draw_type_info_base_dict(draw, kinds)
-    naive_base_dict = get_naive_object_strategies(NodeType.FIELD)
+    naive_base_dict = get_naive_object_strategy(NodeType.FIELD)
     combined_dict = {}
     for key in naive_base_dict:
         # prefer type info where set

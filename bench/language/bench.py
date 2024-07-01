@@ -76,7 +76,7 @@ class Bench(BenchNode[BenchData]):
         31, require=False, array=False, references=NodeType.HANDLE, fk=True
     )  # not actually optional but Handle.parent = Bench
     handles: NodeList["Handle"] = p_node_children(NodeType.HANDLE)
-    slug: str = p_system(32, unique=True)  # must match main handle
+    slug: str = p_system(32, unique=True, constraint=SLUG_CONSTRAINT)  # must match main handle
     name: str = p_regular(33, constraint=NAME_CONSTRAINT)
     text: Optional["Text"] = p_regular(
         34, default=None, require=False, array=False, struct=StructType.TEXT
@@ -318,7 +318,7 @@ class BenchResourceNode(BenchNode[NodeDataT], abc.ABC, Generic[NodeDataT]):
     """
 
     parent: Bench | None = p_node_parent(4, NodeType.BENCH, is_system=True)
-    name: str = p_regular(32)
+    name: str = p_regular(32, constraint=NAME_CONSTRAINT)
     text: Optional["Text"] = p_regular(34, default=None, struct=StructType.TEXT)
     region: Region = p_system(35, default_factory=get_region, default_sql=None)
     status: ResourceStatus = p_system(36, default=ResourceStatus.DECLARED)
