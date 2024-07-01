@@ -3,21 +3,29 @@ import { NodeType } from "@/proto/wire";
 import type { NodeReferenceData } from "@/proto/wire";
 import type { ReadNodeGraph } from "@/system/graph";
 import { IconInline, getNodeIcon } from "@/system/icon";
+import { toCamelName } from "@/system/lang";
 import { canvas } from "@/system/space";
 import { startDragging } from "@/utils/drag";
-import { computed } from "vue";
+import { computed, toRef } from "vue";
 
 const props = defineProps<{
-  self?: NodeReferenceData;
+  container?: NodeReferenceData;
   focus?: NodeReferenceData | null;
   graph: ReadNodeGraph;
 }>();
 
-const ancestors = props.graph.getAncestorsRef(
-  computed(() => props.focus ?? props.self),
-  { includeSelf: true, metatypes: [NodeType.BLOCK, NodeType.VIEW, NodeType.STEP, NodeType.FIELD] },
-);
-const path = computed(() => ancestors.value.slice().reverse());
+const METATYPES = [NodeType.BLOCK, NodeType.VIEW, NodeType.STEP, NodeType.FIELD];
+
+const ancestorsFocus = props.graph.getAncestorsRef(toRef(props, "focus"), { includeSelf: true, metatypes: METATYPES });
+const ancestorsSelf = props.graph.getAncestorsRef(toRef(props, "container"), {
+  includeSelf: true,
+  metatypes: METATYPES,
+});
+const path = computed(() => {
+  const ancestors =
+    ancestorsFocus.value.length > ancestorsSelf.value.length ? ancestorsFocus.value : ancestorsSelf.value;
+  return ancestors.slice().reverse();
+});
 </script>
 <template>
   <!-- Breadcrumb -->
@@ -27,13 +35,13 @@ const path = computed(() => ancestors.value.slice().reverse());
       <button
         class="flex cursor-pointer flex-row items-center rounded px-0.5 hover:bg-gray-100 hover:text-primary-900"
         role="button"
-        :class="node.id == self?.id || node.id == focus?.id ? 'text-primary-900' : 'text-gray-600'"
+        :class="node.id == container?.id || node.id == focus?.id ? 'text-primary-900' : 'text-gray-600'"
         :draggable="true"
         @click.stop="canvas.goToNode(node)"
         @dragstart.stop="(e: DragEvent) => startDragging(e, graph, node)"
       >
-        <IconInline v-bind="getNodeIcon(node)" class="w-5 mr-1.5" />
-        <span class="">{{ node.name }}</span>
+        <IconInline v-bind="getNodeIcon(node)" class="mr-1.5 w-5" />
+        <span class="">{{ (node as any).name ?? toCamelName(NodeType, node.metatype) }}</span>
       </button>
       <!-- Separator -->
       <i v-if="i < path.length - 1" class="fas fa-chevron-right text-gray-400" />
