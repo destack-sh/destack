@@ -195,6 +195,7 @@ const effectiveFilter: Ref<ExpressionData> = computed(() => {
   }
   // and any pills
   for (const pill of pills.value) {
+    if (!pill.isEnabled) continue;
     if (activeFilterKeys.value.includes(pill.key)) {
       if (pill.filterIfActive != null) {
         clauses.push(pill.filterIfActive);
@@ -315,7 +316,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
         :key="pill.name"
         :disabled="!pill.isEnabled"
         :data-active="isPillActive(pill)"
-        class="data-[active=true] rounded-2xl border border-gray-200 px-2 py-0.5 enabled:bg-gray-50 enabled:text-gray-700 disabled:text-gray-400 data-[active=true]:border-primary-900 data-[active=true]:text-primary-900 data-[active=true]:hover:bg-gray-100 data-[active=false]:hover:text-primary-900"
+        class="data-[active=true] rounded-2xl border border-gray-200 px-2 enabled:text-gray-700 disabled:text-gray-400 data-[active=true]:border-primary-900 data-[active=true]:text-primary-900 data-[active=false]:hover:text-primary-900"
         @click="togglePill(pill)"
       >
         <span>{{ pill.name }}</span>

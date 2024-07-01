@@ -404,6 +404,7 @@ def assert_graph_equals(graph_a: NodeGraph, graph_b: NodeGraph):
 @dataclass
 class WatchLogsSpec(SingleClientWorkloadSpec):
     type: WorkloadType = WorkloadType.WATCH_LOGS
+    tail_client: str | None = None
     limit: int | SampledInt = 50
     live: bool = True
 
@@ -413,7 +414,12 @@ class WatchLogsWorkload(SingleClientWorkloadBase[WatchLogsSpec]):
     @override
     async def _do_prepare_in_session(self, session: Session):
         self.limit = to_value(self.random, self.spec.limit)
-        self.connection = await Log.order_by("-created_at").first(self.limit).search_live()
+        log_query = Log.order_by("-created_at").first(self.limit)
+        if self.spec.tail_client:
+            tail_client = self.simulation.get_client(self.spec.tail_client)
+            tail_user = tail_client.user
+            log_query = log_query.where(user=tail_user.user_ptr)
+        self.connection = await log_query.search_live()
 
     @property
     def logs(self) -> list[Log]:

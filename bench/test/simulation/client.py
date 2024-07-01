@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, final
 
-from bench.language.const import ClientType
+from bench.language import ClientType, NodeReference
 from bench.proto import wire
 from bench.proto.wire import (
     ClientData,
@@ -12,7 +12,7 @@ from bench.proto.wire import (
     SupervisorClient,
     UserData,
 )
-from bench.proto.wiring import pack_enum, pack_rpc_headers
+from bench.proto.wiring import pack_enum, pack_rpc_headers, unpack_object
 from bench.test.simulation.spec import ClientSpec
 
 if TYPE_CHECKING:
@@ -28,6 +28,7 @@ class UserHandle:
         self.simulation = simulation
         self._clients_by_name: dict[str, ClientHandle] = {}
         self._user_data: UserData | None = None
+        self._user_ptr: NodeReference | None = None
 
     def __str__(self):
         return self.name
@@ -44,6 +45,11 @@ class UserHandle:
         assert self._user_data is not None, f"{self!r} not ready"
         return self._user_data
 
+    @property
+    def user_ptr(self) -> NodeReference:
+        assert self._user_ptr is not None, f"{self!r} not ready"
+        return self._user_ptr
+
     async def prepare(self, supervisor_client: SupervisorClient):
         """Creates the User"""
         client_in = ClientDataIn(
@@ -58,6 +64,9 @@ class UserHandle:
         )
         signup_rep = await supervisor_client.signup_user(signup_req)
         self._user_data = signup_rep.user
+        self._user_ptr = unpack_object(
+            NodeReference.from_node_data(self._user_data), expect=NodeReference, supergraph=None
+        )
 
 
 @final

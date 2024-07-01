@@ -563,7 +563,7 @@ def pack_value_scalar(value: ScalarValue | ScalarValueData, typ: "TypeInfoBase")
             return str(cast(UUID, value))
         elif typ.primitive_type == PrimitiveType.JSON:
             if isinstance(value, ProtoStruct):
-                return cast(JsonValue, value.to_dict())
+                return cast(JsonValue, value.to_dict())  # :ProtoStructMapping
             else:
                 return cast(JsonValue, value)
         elif typ.primitive_type == PrimitiveType.DATETIME:

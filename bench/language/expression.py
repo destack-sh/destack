@@ -22,6 +22,7 @@ from bench.language.node import (
     InlineStruct,
     Node,
     Property,
+    PropertyReference,
     Struct,
     struct_,
 )
@@ -107,6 +108,8 @@ class Expression(Struct, HasValues):
         31, require=False, default=None, array=False, struct=StructType.PROPERTY_REFERENCE
     )
     # field...?
+    if TYPE_CHECKING:
+        property_ptr: Optional[PropertyReference] = None
     clauses: list["Expression"] | None = p_regular(35, array=True, struct=StructType.EXPRESSION)
     value_packed: Any = p_value_packed(36)
     value: Any = p_value_runtime(36, typ=lambda self: cast(Expression, self).value_type)
