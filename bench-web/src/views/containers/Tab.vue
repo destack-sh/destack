@@ -219,7 +219,7 @@ defineExpose<ViewExposed>({ self, actions });
         :class="[
           i == focusedTabIdx ? 'bg-white text-primary-900  ' : 'border-b hover:text-primary-900',
           i == focusedTabIdx && isFocusAbsolute ? 'shadow-inset-md shadow-primary-900' : '',
-          i != focusedTabIdx ? (isFocusAbsolute ? 'text-gray-700' : 'text-gray-600') : '',
+          i != focusedTabIdx ? 'text-gray-600' : '',
         ]"
         :draggable="true"
         @click="focus(tab)"

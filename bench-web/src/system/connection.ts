@@ -84,11 +84,17 @@ export type PageInfo = { size: number; total?: number };
 
 /** The options to the connection supervisor. */
 type ConnectionOptions = {
-  retryOn?: GrpcStatusName[];
+  shouldRetry: (error: RpcError) => boolean;
 };
 
 const DEFAULT_CONNECTION_OPTIONS: ConnectionOptions = {
-  retryOn: ["DEADLINE_EXCEEDED", "UNAVAILABLE", "INTERNAL", "UNKNOWN"],
+  shouldRetry: (error) => {
+    return (
+      ["DEADLINE_EXCEEDED", "UNAVAILABLE", "INTERNAL", "UNKNOWN"].includes(error.code) ||
+      error.message?.includes("missing trailer") ||
+      error.message?.includes("missing header")
+    );
+  },
 };
 
 /** Meta-info about the connection. */
@@ -100,7 +106,7 @@ type ConnectionMetadata = {
   /** Whether to stream in live results/edits. */
   live: boolean;
   /** Further options for the underlying connection. */
-  options: ConnectionOptions;
+  options: Partial<ConnectionOptions>;
   /** Condensed printable current params for debugging. */
   paramsPretty?: Ref<Record<string, any>>;
 };
@@ -373,7 +379,7 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
       if (this.isClosed.value) return false;
       if (!(error as RpcError).code) return true; // unknown error
       const rpcError = error as RpcError;
-      return options!.retryOn!.includes(rpcError.code as GrpcStatusName);
+      return options?.shouldRetry!(rpcError);
     };
 
     const onError = (error: Error) => {
@@ -395,6 +401,7 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
       // (schedule) retry
       if (!retry) {
         log.trace(`graph.${this.kind}.error.unrecoverable`, this.meta.name, error);
+        this.isConnected.value = false;
         this.isClosed.value = true;
       } else if (network.isOnline.value) {
         retryCount++;
