@@ -123,6 +123,13 @@ class Simulation:
         self._errors.append(error)
         self._has_error.set()
 
+    def get_user(self, name: str) -> "UserHandle":
+        user = self._users_by_name.get(name)
+        assert (
+            user is not None
+        ), f"{self!r} has no user: '{name}' (available: {list(self._users_by_name)})"
+        return user
+
     def get_client(self, name: str) -> "ClientHandle":
         client = self._clients_by_name.get(name)
         assert (
@@ -263,11 +270,13 @@ AVAILABLE_SIMULATIONS: list[SimulationSpec] = [
     # empty tests to sanity test simulation setup
     SimulationSpec(
         name="SingleClientEmpty",
+        description="Create a single client with no workloads",
         profile=TestProfile.QUICK,
         clients=(ClientSpec(name="alice-1", username="alice"),),
     ),
     SimulationSpec(
         name="MultiClientEmpty",
+        description="Create multiple clients with no workloads",
         profile=TestProfile.QUICK,
         clients=(
             ClientSpec(name="alice-1", username="alice"),
@@ -277,12 +286,14 @@ AVAILABLE_SIMULATIONS: list[SimulationSpec] = [
     ),
     SimulationSpec(
         name="SingleHostEmpty",
+        description="Create a single host with no workloads",
         profile=TestProfile.QUICK,
         clients=(ClientSpec(name="alice-1", username="alice"),),
         hosts=(HostSpec(bench=BenchSpec(name="alice", owner="alice")),),
     ),
     SimulationSpec(
         name="MultiHostEmpty",
+        description="Create multiple hosts with no workloads",
         profile=TestProfile.QUICK,
         clients=(
             ClientSpec(name="alice-1", username="alice"),
@@ -296,6 +307,7 @@ AVAILABLE_SIMULATIONS: list[SimulationSpec] = [
     # simple
     SimulationSpec(
         name="SingleWriterBlockTree",
+        description="Write a block tree with one client, read with another client",
         clients=(ClientSpec(name="alice-1", username="alice"),),
         hosts=(HostSpec(bench=BenchSpec(name="alice", owner="alice")),),
         workloads=(
@@ -305,6 +317,7 @@ AVAILABLE_SIMULATIONS: list[SimulationSpec] = [
     ),
     SimulationSpec(
         name="SingleWriterMultiReaderBlockTree",
+        description="Write a block tree with one client, read with multiple clients",
         hosts=(HostSpec(bench=BenchSpec(name="alice", owner="alice")),),
         clients=(
             ClientSpec(name="alice-1", username="alice"),
@@ -321,7 +334,8 @@ AVAILABLE_SIMULATIONS: list[SimulationSpec] = [
         ),
     ),
     SimulationSpec(
-        name="SingleWriterLogWatch",
+        name="SingleWriterLogTail",
+        description="Write a block tree with one client, watch logs multiple clients",
         clients=(
             ClientSpec(name="alice-1", username="alice"),
             ClientSpec(name="alice-2", username="alice"),
@@ -329,9 +343,7 @@ AVAILABLE_SIMULATIONS: list[SimulationSpec] = [
         hosts=(HostSpec(bench=BenchSpec(name="alice", owner="alice")),),
         workloads=(
             WriteBlockTreeSpec(bench="alice", client="alice-1", transactions=10),
-            WatchLogsSpec(
-                bench="alice", client="alice-1", tail_client="alice-1", group="alice-0-main"
-            ),
+            WatchLogsSpec(bench="alice", client="alice-1", tail_user="alice", group="alice-0-main"),
             WatchLogsSpec(bench="alice", client="alice-2", group="alice-0-main"),
         ),
     ),

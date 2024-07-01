@@ -16,6 +16,7 @@ class SimulationSpec:
     """A simulation to run."""
 
     name: str
+    description: str
     profile: TestProfile = TestProfile.DEFAULT
     seed: int = 0
     network: "NetworkSpec" = field(default_factory=lambda: NetworkSpec())
@@ -85,13 +86,21 @@ class WorkloadType(enum.StrEnum):
 
 
 @dataclass
+class WorkloadTrigger:
+    workload: str
+    repetition: int | None = None
+
+
+@dataclass
 class WorkloadSpec:
     """Some workload to run"""
 
     type: WorkloadType
     name: str = None  # type: ignore (default to 'type' in __post_init__)
+    start_after: str | list[str] | WorkloadTrigger | list[WorkloadTrigger] | None = None
     repeat: int | SampledInt = 1
     repeat_interval: float | SampledFloat = 0.0
+    duration: float | SampledFloat = 0.0
     group: str | None = None
 
     def __post_init__(self):

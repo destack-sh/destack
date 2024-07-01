@@ -449,7 +449,7 @@ class SearchConnection(NodeConnection[SearchResultData, WatchSearchUpdate]):
                     removed_nodes_ptr.append(NodeReference.from_node_data(node))
                     self._result_data.graph.remove(node)
                     self._result_roots_ids.remove(node.id)
-            self._result_data.roots_ptr = [
+            self._result_data.roots_ptr = [  # .roots_ptr is derived from .roots
                 NodeReference.from_node_data(node) for node in self._result_data.roots
             ]
 

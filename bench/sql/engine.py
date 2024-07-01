@@ -500,17 +500,17 @@ def pg_compile_conditional(
     ) and cond.op in PG_CONDITIONAL_OP_BY_BENCH:
         left = _compile_expression_ref(node, cond)
 
-        if cond.op in (ConditionalOp.IN, ConditionalOp.NOT_IN):
-            # map IN to ANY() construct (IN/NOT IN doesn't work in psycopg)
-            # psycopg also can't handle tuples, so list it is
+        if cond.op == ConditionalOp.IN:
+            # map IN to = ANY() construct (IN/NOT IN doesn't work in psycopg)
+            # see https://www.psycopg.org/psycopg3/docs/basic/from_pg2.html#you-cannot-use-in-s-with-a-tuple
             value = list(cond.value) if not isinstance(cond.value, list) else cond.value
             right = sqlstr("ANY({})").format(sql.Literal(value))
-            op = (
-                PostgresConditionalOp.EQ
-                if cond.op == ConditionalOp.IN
-                else PostgresConditionalOp.NEQ
-            )
-            return SqlComparison(left=left, op=op, right=right)
+            return SqlComparison(left=left, op=PostgresConditionalOp.EQ, right=right)
+        elif cond.op == ConditionalOp.NOT_IN:
+            # and map NOT IN to != ALL() construct (see above)
+            value = list(cond.value) if not isinstance(cond.value, list) else cond.value
+            right = sqlstr("ALL({})").format(sql.Literal(value))
+            return SqlComparison(left=left, op=PostgresConditionalOp.NEQ, right=right)
         elif cond.op == ConditionalOp.STARTS_WITH:
             right = sqlstr("{} || '%'").format(sql.Literal(cond.value))
         elif cond.op == ConditionalOp.ENDS_WITH:
@@ -521,7 +521,7 @@ def pg_compile_conditional(
 
         clause = SqlComparison(left=left, op=PG_CONDITIONAL_OP_BY_BENCH[cond.op], right=right)
 
-        # coerce x != y to (x != y or x IS NULL) if x is nullable
+        # coerce (x != y) -> (x != y or x IS NULL) if x is nullable
         if cond.op == ConditionalOp.NOT_EQUALS and (
             cond.property is not None and not cond.property.is_required
         ):

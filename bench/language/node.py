@@ -954,7 +954,7 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
 
     def _equals_content(self, other: Any) -> bool:
         """Checks if all wired properties of the two structs are equal (recursively)."""
-        if other is None or self.metatype != other.metatype:
+        if other is None or self.metatype != getattr(other, "metatype", None):
             return False
         for prop in self.__wired_properties__.values():
             if prop.id < 30:
