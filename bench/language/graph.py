@@ -447,6 +447,9 @@ class NodeSuperGraph:
 
     __getitem__ = get_or_fail
 
+    def __contains__(self, ptr: "UUID | NodeReference") -> bool:
+        return self.get(ptr) is not None
+
 
 NULL_SUPERGRAPH = NodeSuperGraph(None)
 

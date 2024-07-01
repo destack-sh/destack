@@ -19,6 +19,7 @@ import { makeExpression } from "@/system/expression";
 import { RUNNABLE_BLOCK_TYPES } from "@/system/lang";
 import { makeRun } from "@/system/session";
 import { canvas, inspectionPtr } from "@/system/space";
+import { unpackProtoStruct } from "@/system/transaction";
 import {
   getPropertyType,
   packBuiltinObject,
@@ -26,6 +27,7 @@ import {
   packValueSimple,
   packValueSimpleStruct,
   propertyType,
+  unpackBuiltinObject,
 } from "@/system/value";
 import { getFieldViews } from "@/system/view";
 import { ScrollbarWidth } from "@/utils/layout";
@@ -176,9 +178,12 @@ defineExpose<ViewExposed>({ self });
                 propertyPtr: propertyReference(ObjectType.RUN, RunProperty.blockPtr),
                 valuePacked: packValueSimpleStruct(focusPtr, propertyType(ObjectType.RUN, RunProperty.blockPtr)),
               }),
+              filterPills: state.feed?.filterPills,
             } as FeedViewStateData)
           "
-          @update:self="(update) => updateState({ feed: update })"
+          @update:self="
+            (update) => updateState({ feed: unpackBuiltinObject(update.valuePacked, ObjectType.FEED_VIEW_STATE) })
+          "
         />
       </div>
     </Scroll>

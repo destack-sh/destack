@@ -70,13 +70,13 @@ export function makeTypeInfo(partial: Partial<Omit<TypeInfoData, "metatype">>): 
   return makeDefaultStruct({ ...partial, metatype: StructType.TYPE_INFO });
 }
 
-const _propertyTypeInfos: Record<string, TypeIdentity> = {}
+const _propertyTypeInfos: Record<string, TypeIdentity> = {};
 
 export function getPropertyType(property: PropertyInfo | PropertyReferenceData): TypeIdentity {
   if (isStruct(property, StructType.PROPERTY_REFERENCE)) {
     property = propertyInfo(property.type as unknown as ObjectType, property.id);
   }
-  const cacheKey = `${property.component}.${property.id}`
+  const cacheKey = `${property.component}.${property.id}`;
   const cached = _propertyTypeInfos[cacheKey];
   if (cached == null) {
     let kind: TypeKind;
@@ -244,7 +244,7 @@ export function resolveFields(type: TypeIdentity, graph: ReadNodeGraph): FieldDa
 //   without introducing an entire new layer like in the backend).
 
 export function isProtoJson(value: any): value is ProtoStruct {
-  return typeof value == "object" && "fields" in value;
+  return typeof value == "object" && "fields" in value && !("metatype" in value);
 }
 
 /** Packs a single data value in its robust JSON-able representation. */
@@ -255,26 +255,40 @@ function packValueScalar(value: ScalarValue, type: TypeIdentity): JsonValue {
     } else if (typeof value == "bigint") {
       // NOTE :Robustness: we pack bigints as numbers, which is only safe up to 2^53-1
       //  (should be fine, we only use it for epoch/revision which will last ~300k years at 1000edits/sec)
-      if (value > Number.MAX_SAFE_INTEGER)
+      if (value > Number.MAX_SAFE_INTEGER) {
         throw new Error(`bigint ${value} too large for Number for ${describeTypeIdentity(type)}`);
+      }
       return Number(value);
     } else if (type.primitiveType == PrimitiveType.JSON) {
       // auto-unpack proto json
-      if (isProtoJson(value)) return ProtoStruct.toJson(value);
-      else return value as JsonValue;
+      if (isProtoJson(value)) {
+        return ProtoStruct.toJson(value);
+      } else {
+        return value as JsonValue;
+      }
     } else {
       return value as JsonPrimitive;
     }
   } else if (type.kind == TypeKind.NODE || type.kind == TypeKind.BASED_NODE) {
-    if ((value as NodeReferenceData).metatype != ObjectType.NODE_REFERENCE)
+    if (isProtoJson(value)) {
+      // shortcut if already packed :ProtoStructMapping
+      return ProtoStruct.toJson(value);
+    } else if ((value as NodeReferenceData).metatype != ObjectType.NODE_REFERENCE) {
       throw new Error(`unexpected value ${JSON.stringify(value)} for type ${describeTypeIdentity(type)}`);
-    return packBuiltinObject(value as NodeReferenceData);
+    } else {
+      return packBuiltinObject(value as NodeReferenceData);
+    }
   } else if (type.kind == TypeKind.ENUM) {
     return value as JsonPrimitive;
   } else if (type.kind == TypeKind.STRUCT) {
-    if (!isStruct(value))
+    if (isProtoJson(value)) {
+      // shortcut if already packed :ProtoStructMapping
+      return ProtoStruct.toJson(value);
+    } else if (!isStruct(value)) {
       throw new Error(`unexpected value ${JSON.stringify(value)} for type ${describeTypeIdentity(type)}`);
-    return packBuiltinObject(value);
+    } else {
+      return packBuiltinObject(value);
+    }
   } else {
     throw new Error(`cannot pack value of type ${describeTypeIdentity(type)}`);
   }
