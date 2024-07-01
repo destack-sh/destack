@@ -54,6 +54,7 @@ import {
   computed,
   isRef,
   markRaw,
+  ref,
   shallowRef,
   toRef,
   triggerRef,
@@ -234,7 +235,7 @@ export type Connection<K extends GraphConnectionKind, T extends NodeType> = {
   /** Connected to the underlying graph as specified. */
   readonly isConnected: Readonly<Ref<boolean>>;
   /** Currently fetching (or re-fetching) from the underlying graph.  */
-  readonly isFetching: Readonly<Ref<boolean>>;
+  readonly isConnecting: Readonly<Ref<boolean>>;
   /** Temporarily paused from re-connecting and receiving live updates (for debugging). */
   readonly isPaused: Readonly<Ref<boolean>>;
   /** Closed and will not re-connect again. */
@@ -267,7 +268,7 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
   lastReferencedAt: DateTime | null = null;
 
   readonly isConnected: Ref<boolean> = shallowRef(false);
-  readonly isFetching: Ref<boolean> = shallowRef(false);
+  readonly isConnecting: Ref<boolean> = shallowRef(false);
   readonly isPaused: Ref<boolean> = shallowRef(false);
   readonly isClosed: Ref<boolean> = shallowRef(false);
 
@@ -420,9 +421,9 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
         retrySignal.reset();
         try {
           // (re)connect once
-          if (this.isFetching.value) this.abortController?.abort();
+          if (this.isConnecting.value) this.abortController?.abort();
           log.debug(`graph.${this.kind}`, this.meta.name, this.params);
-          this.isFetching.value = true;
+          this.isConnecting.value = true;
           this.abortController = new AbortController();
           let newResult;
           try {
@@ -444,7 +445,7 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
               this.abortController.abort();
               this.abortController = null;
             }
-            this.isFetching.value = false;
+            this.isConnecting.value = false;
           }
           if (this.result.value != null) {
             this.result.value.subs?.forEach((sub) => sub());
@@ -666,14 +667,14 @@ export class ProxyConnection<K extends GraphConnectionKind, T extends NodeType> 
   connection: ShallowRef<ConnectionBase<K, T> | null>;
   readonly createdAt: DateTime = DateTime.now();
   readonly isConnected: Ref<boolean>;
-  readonly isFetching: Ref<boolean>;
+  readonly isConnecting: Ref<boolean>;
   readonly isPaused: Ref<boolean>;
   readonly isClosed: Ref<boolean>;
 
   constructor(connection: MaybeRef<ConnectionBase<K, T> | null>) {
     this.connection = isRef(connection) ? connection : shallowRef(connection);
     this.isConnected = computed(() => this.connection.value?.isConnected.value ?? false);
-    this.isFetching = computed(() => this.connection.value?.isFetching.value ?? false);
+    this.isConnecting = computed(() => this.connection.value?.isConnecting.value ?? false);
     this.isPaused = computed(() => this.connection.value?.isPaused.value ?? false);
     this.isClosed = computed(() => this.connection.value?.isClosed.value ?? false);
   }
@@ -920,8 +921,16 @@ export function useConnection<K extends GraphConnectionKind, T extends NodeType>
   metaIn: ConnectionMetadataIn,
   params: MaybeRef<ConnectionParamsMapping<T>[K]>,
   match?: ConnectionMatchOptions<K, T>,
-): Ref<ConnectionBase<K, T> | null> {
+): {
+  connection: Ref<ConnectionBase<K, T> | null>;
+  isConnecting: Ref<boolean>;
+  isConnected: Ref<boolean>;
+  isStale: Ref<boolean>;
+} {
   const connection: ShallowRef<ConnectionBase<K, T> | null> = shallowRef(null);
+  const isConnecting = computed(() => connection.value?.isConnecting.value ?? false);
+  const isConnected = ref(false);
+  const isStale = ref(false);
   const paramsRef = toRef(params) as Ref<ConnectionParamsMapping<T>[K]>;
 
   // acquire existing or create new connection
@@ -937,13 +946,19 @@ export function useConnection<K extends GraphConnectionKind, T extends NodeType>
 
       // if the existing connection can support the new query, we'll just acquire it again
       const existing = acquireExistingConnection(kind, paramsRef.value, match);
-      if (existing) connection.value = existing;
-      else connection.value = await acquireNewConnection(kind, metaIn, paramsRef.value);
+      if (existing) {
+        connection.value = existing;
+      } else {
+        isStale.value = true;
+        connection.value = await acquireNewConnection(kind, metaIn, paramsRef.value);
+        isStale.value = false;
+      }
+      isConnected.value = true;
     },
     { immediate: true },
   );
 
-  return connection;
+  return { connection, isConnecting, isConnected, isStale };
 }
 
 /** The graph of a node connection overlaid with its local overlay */
@@ -1037,9 +1052,14 @@ export function useExistingConnection<T extends NodeType = any>(
 export function useGetConnection<T extends NodeType>(
   metaIn: ConnectionMetadataIn,
   params: MaybeRef<GetConnectionParams<T>>,
-): GetConnectionResult<T> & { connection: Connection<"get", T> } {
+): GetConnectionResult<T> & {
+  connection: Connection<"get", T>;
+  isConnecting: Ref<boolean>;
+  isConnected: Ref<boolean>;
+  isStale: Ref<boolean>;
+} {
   const paramsRef = toRef(params) as Ref<GetConnectionParams<T>>;
-  const connection = useConnection<"get", T>("get", metaIn, paramsRef);
+  const { connection, isConnecting, isConnected, isStale } = useConnection<"get", T>("get", metaIn, paramsRef);
 
   // map results
   // NOTE :Cleanup: mapping connection results is a deep ref chain?
@@ -1047,7 +1067,15 @@ export function useGetConnection<T extends NodeType>(
   const roots: Ref<NodeTypeMapping[T][]> = computed(() => connection.value?.result.value?.roots?.value ?? []);
 
   // no overlay because already already overlaid
-  return { graph, overlay: null, connection: new ProxyConnection(connection), roots };
+  return {
+    graph,
+    overlay: null,
+    connection: new ProxyConnection(connection),
+    roots,
+    isConnecting,
+    isConnected,
+    isStale,
+  };
 }
 
 /**
@@ -1058,9 +1086,15 @@ export function useGetConnection<T extends NodeType>(
 export function useSearchConnection<T extends NodeType>(
   metaIn: ConnectionMetadataIn,
   params: MaybeRef<SearchConnectionParams<T>>,
-): SearchConnectionResult<T> & { roots: Ref<NodeTypeMapping[T][]>; connection: Connection<"search", T> } {
+): SearchConnectionResult<T> & {
+  roots: Ref<NodeTypeMapping[T][]>;
+  connection: Connection<"search", T>;
+  isConnecting: Ref<boolean>;
+  isConnected: Ref<boolean>;
+  isStale: Ref<boolean>;
+} {
   const paramsRef = toRef(params) as Ref<SearchConnectionParams<T>>;
-  const connection = useConnection<"search", T>("search", metaIn, paramsRef);
+  const { connection, isConnecting, isConnected, isStale } = useConnection<"search", T>("search", metaIn, paramsRef);
 
   // map results
   const graph = useConnectionOverlayGraph(connection);
@@ -1073,7 +1107,17 @@ export function useSearchConnection<T extends NodeType>(
   );
 
   // no overlay because already already overlaid
-  return { graph, overlay: null, connection: new ProxyConnection(connection), rootsPtr, roots, page };
+  return {
+    graph,
+    overlay: null,
+    connection: new ProxyConnection(connection),
+    rootsPtr,
+    roots,
+    page,
+    isConnecting,
+    isConnected,
+    isStale,
+  };
 }
 
 /**

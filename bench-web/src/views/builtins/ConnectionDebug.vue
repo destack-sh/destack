@@ -3,9 +3,11 @@ import { Orientation } from "@/proto/wire";
 import { isDeveloperMode } from "@/system/client";
 import { connections, hasPendingConnections } from "@/system/connection";
 import { ScrollbarWidth } from "@/utils/layout";
-import Scroll from "@/views/containers/Scroll.vue";
-import Button from "@/views/controls/Button.vue";
 import Popover from "@/views/builtins/Popover.vue";
+import Scroll from "@/views/containers/Scroll.vue";
+import { ref, type Ref } from "vue";
+
+const expandedConnectionId: Ref<number | null> = ref(null);
 </script>
 <template>
   <!-- Connection -->
@@ -39,55 +41,76 @@ import Popover from "@/views/builtins/Popover.vue";
           <span class="font-semibold">Connections ({{ connections.length }})</span>
         </div>
         <Scroll
-          :size="{ width: 480, height: 400 }"
+          :size="{ width: 480, height: 600 }"
           size-is-dynamic
           :orientation="Orientation.VERTICAL"
           :track-width="ScrollbarWidth.sm"
         >
           <ul class="my-1.5 flex min-w-[480px] flex-col gap-y-1 px-3">
-            <li v-for="connection in connections" :key="connection.id" class="flex flex-row py-1">
-              <!-- Metadata -->
-              <span class="h-fit rounded bg-secondary-100 px-2 font-semibold text-secondary-900">
-                {{ connection.kind }}
-              </span>
-              <span class="ml-2 font-semibold truncate">{{ connection.name }}</span>
-              <span class="ml-2 text-gray-500">#{{ connection.id }}</span>
-              <!-- Status -->
-              <span class="ml-auto flex flex-row pl-4 align-top">
-                <span class="mr-2" :class="connection.referenceCount > 0 ? '' : 'text-gray-500'">
-                  {{ connection.referenceCount }}
-                </span>
-                <!-- Connected (status) -->
-                <span class="rounded px-1">
+            <li v-for="connection in connections" :key="connection.id" class="">
+              <!-- Header -->
+              <div class="flex flex-row py-1">
+                <!-- Expand/collapse -->
+                <button
+                  class="text-gray-400 hover:text-primary-900"
+                  @click="expandedConnectionId = expandedConnectionId == connection.id ? null : connection.id"
+                >
                   <i
-                    class="fas"
-                    :class="
-                      connection.isConnected.value
-                        ? 'fa-check text-success-600'
-                        : 'fa-exclamation-circle text-warning-600'
-                    "
-                  />
-                </span>
-                <!-- Down (status & toggle) -->
-                <button class="rounded px-1 hover:bg-primary-200" @click="connection.togglePaused()">
-                  <i
-                    :class="
-                      connection.isFetching.value
-                        ? 'fas fa-spinner-third animate-spin text-gray-500'
-                        : connection.isLive && !connection.isPaused.value
-                          ? 'fas fa-down text-success-600'
-                          : 'fas fa-down text-secondary-500'
-                    "
+                    :class="[
+                      'fa fa-chevron-right transition-transform duration-75',
+                      expandedConnectionId == connection.id ? 'rotate-90' : '',
+                    ]"
                   />
                 </button>
-                <!-- Up (toggle) -->
-                <button class="rounded px-1 hover:bg-primary-200" @click="connection.txBuffer.togglePaused()">
-                  <i
-                    class="fas fa-up"
-                    :class="connection.txBuffer.isPaused.value ? 'text-secondary-500' : 'text-success-600'"
-                  />
-                </button>
-              </span>
+                <!-- Metadata -->
+                <span class="ml-2 h-fit rounded bg-secondary-100 px-2 font-semibold text-secondary-900">
+                  {{ connection.kind }}
+                </span>
+                <span class="ml-2 truncate font-semibold">{{ connection.name }}</span>
+                <span class="ml-2 text-gray-500">#{{ connection.id }}</span>
+                <!-- Status -->
+                <span class="ml-auto flex flex-row pl-4 align-top">
+                  <span class="mr-2" :class="connection.referenceCount > 0 ? '' : 'text-gray-500'">
+                    {{ connection.referenceCount }}
+                  </span>
+                  <!-- Connected (status) -->
+                  <span class="rounded px-1">
+                    <i
+                      class="fas"
+                      :class="
+                        connection.isConnected.value
+                          ? 'fa-check text-success-600'
+                          : 'fa-exclamation-circle text-warning-600'
+                      "
+                    />
+                  </span>
+                  <!-- Down (status & toggle) -->
+                  <button class="rounded px-1 hover:bg-primary-200" @click="connection.togglePaused()">
+                    <i
+                      :class="
+                        connection.isConnecting.value
+                          ? 'fas fa-spinner-third animate-spin text-gray-500'
+                          : connection.isLive && !connection.isPaused.value
+                            ? 'fas fa-down text-success-600'
+                            : 'fas fa-down text-secondary-500'
+                      "
+                    />
+                  </button>
+                  <!-- Up (toggle) -->
+                  <button class="rounded px-1 hover:bg-primary-200" @click="connection.txBuffer.togglePaused()">
+                    <i
+                      class="fas fa-up"
+                      :class="connection.txBuffer.isPaused.value ? 'text-secondary-500' : 'text-success-600'"
+                    />
+                  </button>
+                </span>
+              </div>
+              <div
+                v-if="connection.id == expandedConnectionId"
+                class="rounded-md border border-gray-200 bg-gray-50 p-1 py-0.5"
+              >
+                {{ connection.params }}
+              </div>
             </li>
           </ul>
         </Scroll>

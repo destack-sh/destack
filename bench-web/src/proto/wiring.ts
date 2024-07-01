@@ -420,6 +420,8 @@ export function deepContentEquals(object: any, other: any): boolean {
     return object === other;
   } else if ("metatype" in object && "metatype" in other) {
     return contentEquals(object, other);
+  } else if (Array.isArray(object) && Array.isArray(other)) {
+    return object.length == other.length && object.every((v, i) => deepContentEquals(v, other[i]));
   } else {
     for (const key of Object.keys(object)) {
       if (!deepContentEquals(object[key], other[key])) return false;

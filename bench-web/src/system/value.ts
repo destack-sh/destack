@@ -239,9 +239,7 @@ export function resolveFields(type: TypeIdentity, graph: ReadNodeGraph): FieldDa
 }
 
 // TODO :Architecture :Performance: encode/decode protoStruct/Json in connections (at the fetch/commit boundary) :ProtoStructMapping
-//  (Currently, we have to eagerly encode/decode for every single edit, which is possibly every frame or keystroke,
-//   It's likely possible to just cheat/refactor a little and auto-encode/decode ProtoStruct properties at the boundary
-//   without introducing an entire new layer like in the backend).
+//  Could either fork protobuf-ts or just switch to ts-proto?
 
 export function isProtoJson(value: any): value is ProtoStruct {
   return typeof value == "object" && "fields" in value && !("metatype" in value);
