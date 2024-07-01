@@ -38,10 +38,12 @@ async def system(
     server = GrpcServer(handlers=services)
     if IS_DEV and watch:
         _ = asyncio.create_task(restart_on_file_changes())  # noqa: RUF006
-    with graceful_exit([server]):
-        await server.start(host=host, port=port)
-    await server.wait_closed()
-    logger.info("serve.system.done", uptime=(time_ns() - start) / 1e9)
+    try:
+        with graceful_exit([server]):
+            await server.start(host=host, port=port)
+        await server.wait_closed()
+    finally:
+        logger.info("serve.exit", uptime=(time_ns() - start) / 1e9)
 
 
 @app.command()
@@ -69,7 +71,9 @@ async def runtime(host: str, port: int, watch: bool = False, skip_check: bool = 
 
     if IS_DEV and watch:
         _ = asyncio.create_task(restart_on_file_changes())  # noqa: RUF006
-    with graceful_exit([server]):
-        await server.start(host=host, port=port)
-    await server.wait_closed()
-    logger.info("serve.runtime.done", uptime=(time_ns() - start) / 1e9)
+    try:
+        with graceful_exit([server]):
+            await server.start(host=host, port=port)
+        await server.wait_closed()
+    finally:
+        logger.info("serve.exit", uptime=(time_ns() - start) / 1e9)

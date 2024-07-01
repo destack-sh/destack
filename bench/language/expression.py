@@ -4,6 +4,7 @@ import functools
 import re
 from collections.abc import Collection
 from typing import TYPE_CHECKING, Any, Optional, Sequence, TypeVar, Union, cast
+from uuid import UUID
 
 from bench.language.const import (
     IN_BENCH_NODE_TYPES,
@@ -21,6 +22,7 @@ from bench.language.const import (
 from bench.language.node import (
     InlineStruct,
     Node,
+    NodeReference,
     Property,
     PropertyReference,
     Struct,
@@ -28,7 +30,7 @@ from bench.language.node import (
 )
 from bench.language.property import p_regular, p_value_packed, p_value_runtime
 from bench.language.value import HasValues
-from bench.proto.wire import AnyNodeData
+from bench.proto.wire import AnyNodeData, NodeReferenceData
 from bench.sql.core import PrimitiveType
 from bench.utils.casing import Casing, to_casing
 from bench.utils.func import IdEnum
@@ -391,6 +393,23 @@ def coerce_sort(
     return coerced
 
 
+def _lower_expression_value(cond: Expression, prop: Property, value: Any) -> Any:
+    """
+    'Lowers' the given value to enable direct comparison.
+    This is related to the lower_conditional pass we do in the sql engine backend,
+     but we also down the value into its data format.
+    """
+    # auto lower collections
+    if isinstance(value, Collection):
+        return [_lower_expression_value(cond, prop, v) for v in value]
+
+    if isinstance(value, (NodeReference, NodeReferenceData)):
+        value = value.id
+    if isinstance(value, UUID):
+        value = str(value)
+    return value
+
+
 def evaluate_conditional(cond: Expression, node: Node | AnyNodeData) -> bool:
     """Evaluates the conditional expression against the node."""
     assert cond.kind == ExpressionKind.CONDITIONAL, f"expected Conditional, got {cond!r}"
@@ -411,7 +430,9 @@ def evaluate_conditional(cond: Expression, node: Node | AnyNodeData) -> bool:
     if prop.reference_wired_ptr is not None:
         prop = prop.reference_wired_ptr
     node_value = getattr(node, prop.py_ident)
-    cond_value = cond.value  # NOTE :Broken?: when do we need to unpack condition value here?
+    node_value = _lower_expression_value(cond, prop, node_value)
+    cond_value = cond.value  # do we need to unpack condition value here?
+    cond_value = _lower_expression_value(cond, prop, cond_value)
     # basic comparison
     if cond.op == ConditionalOp.EQUALS:
         return node_value == cond_value

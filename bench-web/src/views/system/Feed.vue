@@ -152,7 +152,7 @@ const pills: Ref<FilterPill[]> = computed(() => {
       name: "Terminated",
       isEnabled: true,
       group: "run-status",
-      filterIfActive: makeExpression({ op: ExpressionOp.NOT_IN, propertyPtr: runStatus, value: TERMINAL_RUN_STATUSES }),
+      filterIfActive: makeExpression({ op: ExpressionOp.IN, propertyPtr: runStatus, value: TERMINAL_RUN_STATUSES }),
     });
     pills.push({
       key: "run-status-failed",
@@ -203,7 +203,7 @@ const effectiveFilter: Ref<ExpressionData> = computed(() => {
 // Feed
 //
 
-const { roots, graph, connection, isStale, isConnecting, page } = useSearchConnection(
+const { roots, graph, connection, isStale, isConnected, isConnecting, page } = useSearchConnection(
   { name: `feed.${toCamelName(NodeType, nodeType.value).toLowerCase()}`, live: true },
   computed(() => ({
     scope: PACKAGE_SCOPE.value,
@@ -335,7 +335,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
       track-is-overlay
     >
       <!-- NOTE :UX :Incomplete: make feed not so ugly, support more feed variants (like table) -->
-      <ul v-if="connection.isConnected.value" class="mt-1 flex flex-col gap-y-1 py-1">
+      <ul v-if="isConnected" class="mt-1 flex flex-col gap-y-1 py-1">
         <!-- Feed item -->
         <li
           v-for="item in items"
