@@ -6,12 +6,13 @@ from hypothesis import given
 from bench.language import Node
 from bench.language.bench import Package
 from bench.language.block import Block
-from bench.language.code import format_code, run_code_eval, run_code_script
+from bench.language.code import format_code
 from bench.language.const import BlockType, NodeType, StructType
 from bench.language.field import Field
 from bench.language.node import BuiltinObject
 from bench.language.projection import render_builtin_object, render_node
 from bench.language.session import Session
+from bench.runtime.code import run_code_eval, run_code_script
 from bench.test.strategies import builtin_objects, examples
 from bench.test.unit.conftest import BUILTIN_OBJECTS_OF_EVERY_TYPE
 

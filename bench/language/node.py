@@ -1480,7 +1480,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         """Hash node identity."""
         return stable_hash((self.metatype, self.id))
 
-    # only allow __hash__ for nodes since their id is constant
+    # only define __hash__ for nodes since their id is constant
     __hash__ = _stable_hash  # type: ignore
 
     @final

@@ -8,19 +8,22 @@ from opentelemetry import trace
 
 from bench.language import Bench, NodeReference, Package
 from bench.language.bench import Client, Machine
-from bench.language.code import Code, run_code_exec
+from bench.language.code import Code
 from bench.language.connection import GraphEngine
 from bench.language.const import BlockType, NodeType, RunKind, RunStatus, _active_run
 from bench.language.graph import NodeSuperGraph
 from bench.language.node import GraphScope
 from bench.language.run import Run, RunError
 from bench.language.session import Session, unsuspend_session
+from bench.language.text import Text
 from bench.language.user import User
 from bench.language.validation import on_invalid_raise
 from bench.language.value import check_value
 from bench.proto import wiring
 from bench.proto.wire import HostClient, RunData, SupervisorClient
+from bench.runtime.code import run_code_exec
 from bench.runtime.core import BENCH_QUERY, PACKAGE_QUERY
+from bench.runtime.text import run_text
 from bench.utils.func import CriticalLock
 from bench.utils.oracle import Oracle
 from bench.utils.task import TaskManager
@@ -204,6 +207,9 @@ class RuntimeThread:
                     if block.type == BlockType.CODE:
                         code = block.code or Code.empty()
                         run_code_exec(code.to_string(), context)
+                    elif block.type == BlockType.TEXT:
+                        text = block.text or Text.empty()
+                        await run_text(block.to_type(as_object=True), text, context)
                     else:
                         raise NotImplementedError(f"unsupported block type {block.type}")
                 else:
