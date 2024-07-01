@@ -23,8 +23,10 @@ import Button from "@/views/controls/Button.vue";
 import { DEFAULT_BAR_POSITION, DEFAULT_HEADER_HEIGHT, createDesktopProSpace } from "@/views/canvas";
 import { user } from "@/system/user";
 
-const BAR_WIDTH = 44;
+const BAR_WIDTH = DEFAULT_HEADER_HEIGHT;
 const BAR_HEIGHT = DEFAULT_HEADER_HEIGHT;
+const TOP_INSET_WITHOUT_BAR = 1;
+
 const spaceRef = ref<HTMLElement | null>(null);
 const barRef = ref<InstanceType<typeof Bar> | null>(null);
 const { width: spaceWidth, height: spaceHeight } = useWindowSize(); // Space must be root element
@@ -36,27 +38,31 @@ const barOrientation = computed(() =>
   barPosition.value == Anchor.TOP || barPosition.value == Anchor.BOTTOM ? Orientation.HORIZONTAL : Orientation.VERTICAL,
 );
 const barOffset = computed(() => {
-  if (barPosition.value == Anchor.LEFT) return { left: 0, top: 0 };
+  if (barPosition.value == Anchor.LEFT) return { left: 0, top: TOP_INSET_WITHOUT_BAR };
   else if (barPosition.value == Anchor.TOP) return { left: 0, top: 0 };
-  else if (barPosition.value == Anchor.RIGHT) return { left: spaceWidth.value - BAR_WIDTH, top: 0 };
-  else if (barPosition.value == Anchor.BOTTOM) return { left: 0, top: spaceHeight.value - BAR_HEIGHT };
-  else return { left: 0, top: 0 };
+  else if (barPosition.value == Anchor.RIGHT) return { left: spaceWidth.value - BAR_WIDTH, top: TOP_INSET_WITHOUT_BAR };
+  else if (barPosition.value == Anchor.BOTTOM)
+    return { left: 0, top: TOP_INSET_WITHOUT_BAR + spaceHeight.value - BAR_HEIGHT };
+  else throw new Error(`unexpected bar position: ${barPosition.value}`);
 });
 const mainOffset = computed(() => {
-  if (barPosition.value == Anchor.LEFT) return { left: BAR_WIDTH, top: 0 };
+  if (barPosition.value == Anchor.LEFT) return { left: BAR_WIDTH, top: TOP_INSET_WITHOUT_BAR };
   else if (barPosition.value == Anchor.TOP) return { left: 0, top: BAR_HEIGHT };
-  else if (barPosition.value == Anchor.RIGHT) return { left: 0, top: 0 };
-  else if (barPosition.value == Anchor.BOTTOM) return { left: 0, top: 0 };
-  else return { left: 0, top: 0 };
+  else if (barPosition.value == Anchor.RIGHT) return { left: 0, top: TOP_INSET_WITHOUT_BAR };
+  else if (barPosition.value == Anchor.BOTTOM) return { left: 0, top: TOP_INSET_WITHOUT_BAR };
+  else throw new Error(`unexpected bar position: ${barPosition.value}`);
 });
-const mainOffsetStyle = computed(() => ({
+const mainBoxStyle = computed(() => ({
   left: mainOffset.value.left + "px",
   top: mainOffset.value.top + "px",
 }));
 const mainBox = computed(() => ({
   ...mainOffset.value,
   width: spaceWidth.value - (barPosition.value == Anchor.LEFT || barPosition.value == Anchor.RIGHT ? BAR_WIDTH : 0),
-  height: spaceHeight.value - (barPosition.value == Anchor.TOP || barPosition.value == Anchor.BOTTOM ? BAR_HEIGHT : 0),
+  height:
+    spaceHeight.value -
+    (barPosition.value == Anchor.TOP || barPosition.value == Anchor.BOTTOM ? BAR_HEIGHT : 0) -
+    (barPosition.value == Anchor.TOP ? 0 : TOP_INSET_WITHOUT_BAR),
 }));
 
 const omnibarRef = ref<InstanceType<typeof Omnibar> | null>(null);
@@ -102,6 +108,13 @@ watch([canvas.focusedViewPtr, bench], () => {
     :style="{ width: spaceWidth + 'px', height: spaceHeight + 'px' }"
     @contextmenu.stop.prevent="() => {} /* suppress generic context menu */"
   >
+    <!-- Top inset if we don't have a bar -->
+    <!-- (to add some spacing so that the space contents don't look 'squished' to the top) -->
+    <div
+      v-if="barPosition != Anchor.TOP"
+      class="absolute top-0 w-full bg-gray-100"
+      :style="{ height: TOP_INSET_WITHOUT_BAR + 'px' }"
+    />
     <!-- Bar -->
     <Bar
       ref="barRef"
@@ -122,7 +135,7 @@ watch([canvas.focusedViewPtr, bench], () => {
     <Split
       v-if="window"
       class="absolute"
-      :style="mainOffsetStyle"
+      :style="mainBoxStyle"
       :type="ViewType.WINDOW"
       :self="toNodeReference(window)"
       :size="mainBox"
@@ -136,11 +149,7 @@ watch([canvas.focusedViewPtr, bench], () => {
     <div
       v-else-if="!spaceConnection.isConnected.value"
       class="absolute bg-white"
-      :style="{
-        width: mainBox.width + 'px',
-        height: mainBox.height + 'px',
-        ...mainOffsetStyle,
-      }"
+      :style="{ width: mainBox.width + 'px', height: mainBox.height + 'px', ...mainBoxStyle }"
     >
       <div class="flex h-full flex-col items-center justify-center">
         <Transition
@@ -157,11 +166,7 @@ watch([canvas.focusedViewPtr, bench], () => {
     <div
       v-else
       class="absolute flex flex-col justify-center bg-white text-center"
-      :style="{
-        width: mainBox.width + 'px',
-        height: mainBox.height + 'px',
-        ...mainOffsetStyle,
-      }"
+      :style="{ width: mainBox.width + 'px', height: mainBox.height + 'px', ...mainBoxStyle }"
     >
       <div v-if="space && bench" class="flex w-fit flex-col gap-y-2 self-center">
         <!-- Space empty for some reason -->
