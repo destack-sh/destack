@@ -457,7 +457,11 @@ def _pg_lower_conditional(node: Union[type[Node], Block], cond: Expression) -> E
             value=cond.value.id if not is_list else [r.id for r in cond.value],
             value_packed={},  # no need to pack
         )
-        if prop.reference_stored_meta and "ck" in prop.reference_stored_meta:
+        if (
+            prop.reference_stored_meta
+            and "ck" in prop.reference_stored_meta
+            and prop.reference_stored_meta["ck"] is not id_prop
+        ):
             ck_prop = prop.reference_stored_meta["ck"]
             ck_clause = C(
                 op=cond.op,
@@ -465,7 +469,7 @@ def _pg_lower_conditional(node: Union[type[Node], Block], cond: Expression) -> E
                 value=cond.value.ck if not is_list else [r.ck for r in cond.value],
                 value_packed={},
             )
-            joint_clause = C(ConditionalOp.AND, clauses=[id_clause, ck_clause])
+            joint_clause = C(ConditionalOp.OR, clauses=[id_clause, ck_clause])
             return joint_clause
         else:
             return id_clause
