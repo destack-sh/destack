@@ -518,9 +518,7 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         filter = coerce_conditional(self._node_cls, filter, kwargs)
         query = self.where(filter) if filter is not None else self
         channel = await query._get_read_channel()
-        connection = await channel.search(
-            query, SearchOptions(live=False, unpack=True, count=False)
-        )
+        connection = await channel.search(query, SearchOptions(live=True, unpack=True, count=False))
         return connection
 
     tolist = search  # type: ignore

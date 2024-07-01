@@ -1,5 +1,6 @@
 import asyncio
 import gc
+from dataclasses import replace
 from itertools import chain
 from random import Random
 from typing import NamedTuple, final
@@ -344,7 +345,7 @@ AVAILABLE_SIMULATIONS: list[SimulationSpec] = [
         workloads=(
             WriteBlockTreeSpec(bench="alice", client="alice-1", transactions=10),
             WatchLogsSpec(bench="alice", client="alice-1", tail_user="alice", group="alice-0-main"),
-            WatchLogsSpec(bench="alice", client="alice-2", group="alice-0-main"),
+            WatchLogsSpec(bench="alice", client="alice-2", tail_user="alice", group="alice-0-main"),
         ),
     ),
     # TODO :Test!: test multi-writer, various write patterns, latency, ...
@@ -369,7 +370,6 @@ async def _do_test_simulation(spec: SimulationSpec):
 
 # NOTE: we lay out the simulation tests like below so so pytest collects them nicely
 #  (organized by category and parameterized by simulation)
-#  Of course, for paranoid testing we'll run the same simulation multiple times.
 
 
 @pytest.mark.quick()
@@ -399,5 +399,7 @@ async def test_simulation_careful(spec: SimulationSpec):
 @pytest.mark.parametrize(
     "spec", SIMULATIONS_BY_PROFILE.get(TestProfile.PARANOID, ()), ids=lambda s: s.name
 )
-async def test_simulation_paranoid(spec: SimulationSpec):
-    await _do_test_simulation(spec)
+async def test_simulation_paranoid(spec: SimulationSpec, num_seeds: int = 1):
+    for i in range(0, num_seeds):
+        subspec = replace(spec, seed=spec.seed + i)
+        await _do_test_simulation(subspec)
