@@ -236,10 +236,10 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
 
             user.last_logged_in_at = self.oracle.utc()
             client_id = self._get_client_id(user, request.client)
-            if client_id:  # upsert
-                client = user._supergraph.get(client_id)
+            if client_id and client_id in user._supergraph:  # upsert
+                client = user._supergraph[client_id]
                 if not isinstance(client, Client):
-                    raise GRPCError(GRPCStatus.NOT_FOUND, "client not found")
+                    raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "invalid client")
                 self._patch_client(client, request.client)
             else:
                 client = await self._make_client(user, request.client)
