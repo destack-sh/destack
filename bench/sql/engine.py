@@ -442,10 +442,42 @@ def pg_compile_conditional_maybe(
     return pg_compile_conditional(node, cond)
 
 
+def _pg_lower_conditional(node: Union[type[Node], Block], cond: Expression) -> Expression:
+    """'Lowers' a conditional expression to a form that can be compiled to SQL."""
+    prop = cond.property
+
+    # translate general pointer queries into underlying id/ck queries
+    if prop is not None and prop.reference_kind is not None and cond.value_packed is not None:
+        assert prop.reference_stored_ids, f"unexpected stored ids: {prop!r}"
+        is_list = cond.op == ConditionalOp.IN or cond.op == ConditionalOp.NOT_IN
+        id_prop = prop.reference_stored_ids[0]
+        id_clause = C(
+            op=cond.op,
+            property=id_prop,
+            value=cond.value.id if not is_list else [r.id for r in cond.value],
+            value_packed={},  # no need to pack
+        )
+        if prop.reference_stored_meta and "ck" in prop.reference_stored_meta:
+            ck_prop = prop.reference_stored_meta["ck"]
+            ck_clause = C(
+                op=cond.op,
+                property=ck_prop,
+                value=cond.value.ck if not is_list else [r.ck for r in cond.value],
+                value_packed={},
+            )
+            joint_clause = C(ConditionalOp.AND, clauses=[id_clause, ck_clause])
+            return joint_clause
+        else:
+            return id_clause
+    else:
+        return cond
+
+
 def pg_compile_conditional(
     node: Union[type[Node], Block],
     cond: Expression,
 ) -> SqlNode:
+    cond = _pg_lower_conditional(node, cond)
     if cond.op == LiteralOp.TRUE:
         return sqlstr("TRUE")
     elif cond.op == LiteralOp.FALSE:
@@ -497,8 +529,7 @@ def pg_compile_conditional(
         return clause
     elif cond.op in ExpressionOps.COND_EXISTENCE:
         clause = SqlUnary(
-            left=_compile_expression_ref(node, cond),
-            op=PG_CONDITIONAL_OP_BY_BENCH[cond.op],
+            left=_compile_expression_ref(node, cond), op=PG_CONDITIONAL_OP_BY_BENCH[cond.op]
         )
         return clause
     raise ChannelIncapableError("postgres", expression=cond, reason="unsupported conditional")

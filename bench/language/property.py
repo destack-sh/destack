@@ -426,7 +426,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
         #   type+id+[ck]+[bench_id]+[base_ck+base_bench_id]
         #  But we don't want to store pointers as structs for efficiency, so we map them to columns.
         #  We want FKs on some id columns (like parent pointers), so those need to be
-        #  distinct id columns, while others can be bunched together into a 'id' + 'ck' + 'type'.
+        #  distinct id columns, while others can be bunched together into (id, ck, type) tuple.
         #  This makes for the rather complex logic here and in unpacking/packing refs into rows.
         #  :StoredPointers
 
@@ -508,7 +508,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
                         prop_name = f"{self.name}_id"
                     else:
                         prop_name = f"{self.name}_{ref_type.name.lower()}_id"
-                    id_ref_prop = Property(
+                    id_prop = Property(
                         id=self.id,
                         name=prop_name,
                         component=self.component,
@@ -527,12 +527,12 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
                         primitive_type=PrimitiveType.UUID,
                         is_indexed_in_pg=self.is_indexed_in_pg,
                     )
-                    stored_ids.append(id_ref_prop)
+                    stored_ids.append(id_prop)
             elif self.reference_nodes:
                 shared_ptr_types.extend(self.reference_nodes)
 
             if shared_ptr_types:
-                id_ref_prop = Property(
+                id_prop = Property(
                     id=self.id,
                     name=self.name + "_id",
                     component=self.component,
@@ -547,13 +547,13 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
                     is_required=is_required,
                     primitive_type=PrimitiveType.UUID,
                 )
-                stored_ids.append(id_ref_prop)
+                stored_ids.append(id_prop)
                 # also remember 'ck' if any of the shared types has one
                 if any(
                     t in SUB_PACKAGE_NODE_TYPES and t not in TIMED_NODE_TYPES
                     for t in shared_ptr_types
                 ):
-                    ck_ref_prop = Property(
+                    ck_prop = Property(
                         id=self.id,
                         name=self.name + "_ck",
                         component=self.component,
@@ -568,7 +568,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
                         is_required=is_required,
                         primitive_type=PrimitiveType.UUID,
                     )
-                    extra_stored_props["ck"] = ck_ref_prop
+                    extra_stored_props["ck"] = ck_prop
                 if len(shared_ptr_types) > 1:
                     # disambiguate type for heterogeneous ck references :HomogeneousListCk
                     extra_stored_props["type"] = Property(

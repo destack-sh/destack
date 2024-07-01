@@ -329,7 +329,9 @@ AVAILABLE_SIMULATIONS: list[SimulationSpec] = [
         hosts=(HostSpec(bench=BenchSpec(name="alice", owner="alice")),),
         workloads=(
             WriteBlockTreeSpec(bench="alice", client="alice-1", transactions=10),
-            WatchLogsSpec(bench="alice", client="alice-1", group="alice-0-main"),
+            WatchLogsSpec(
+                bench="alice", client="alice-1", tail_client="alice-1", group="alice-0-main"
+            ),
             WatchLogsSpec(bench="alice", client="alice-2", group="alice-0-main"),
         ),
     ),
