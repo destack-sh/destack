@@ -6,7 +6,6 @@ import {
   EditType,
   ExpressionData,
   ExpressionOp,
-  IconData,
   LogData,
   LogProperty,
   NodeReferenceData,
@@ -26,14 +25,7 @@ import { type Action } from "@/system/action";
 import { PACKAGE_SCOPE } from "@/system/client";
 import { supergraph, useExistingConnection, useSearchConnection } from "@/system/connection";
 import { makeExpression, resolveSubject, type EditSubject } from "@/system/expression";
-import {
-  ICON_BY_EDIT_TYPE,
-  ICON_BY_NODE_TYPE,
-  ICON_BY_RUN_STATUS,
-  IconInline,
-  getNodeIcon,
-  makeIcon,
-} from "@/system/icon";
+import { ICON_BY_NODE_TYPE, ICON_BY_RUN_STATUS, IconInline, getNodeIcon, makeIcon } from "@/system/icon";
 import { ACTIVE_RUN_STATUSES, EDIT_TYPE_PAST_VERB, TERMINAL_RUN_STATUSES, toCamelName } from "@/system/lang";
 import { canvas } from "@/system/space";
 import { user } from "@/system/user";
@@ -211,7 +203,7 @@ const effectiveFilter: Ref<ExpressionData> = computed(() => {
 // Feed
 //
 
-const { roots, graph, connection, page } = useSearchConnection(
+const { roots, graph, connection, isStale, isConnecting, page } = useSearchConnection(
   { name: `feed.${toCamelName(NodeType, nodeType.value).toLowerCase()}`, live: true },
   computed(() => ({
     scope: PACKAGE_SCOPE.value,
@@ -321,6 +313,10 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
       >
         <span>{{ pill.name }}</span>
       </button>
+      <!-- Staleness -->
+      <span v-if="isStale" class="ml-1">
+        <i class="fas fa-signal-stream animate-pulse text-gray-400" />
+      </span>
       <!-- Date picker -->
       <div class="ml-auto">
         <!-- NOTE :Incomplete: paginate & pick date range in Feed -->

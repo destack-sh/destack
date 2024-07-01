@@ -43,7 +43,7 @@ import {
   updateOrder,
 } from "@/system/lang";
 import { canvas, inspectionBasePtr, inspectionPtr } from "@/system/space";
-import { packProtoStruct, unpackProtoStruct, type DebounceLevel, type Transaction } from "@/system/transaction";
+import { packProtoJson as packProtoJson, unpackProtoJson, type DebounceLevel, type Transaction } from "@/system/transaction";
 import { isProtoJson, packBuiltinObject, unpackBuiltinObject } from "@/system/value";
 import type { SplitAnchor } from "@/utils/drag";
 import { getElement, isFocusableElement } from "@/utils/element";
@@ -1185,7 +1185,7 @@ export function useViewState<T extends ObjectType>(use: {
       // we don't pack proto json structs inside proto json structs,
       //  so while valuePacked should be a proto struct (as per the type) it may not be (see :ProtoStructMapping)
       const valuePacked = isProtoJson(use.props.valuePacked)
-        ? unpackProtoStruct(use.props.valuePacked)
+        ? unpackProtoJson(use.props.valuePacked)
         : use.props.valuePacked;
       const unpacked = unpackBuiltinObject(valuePacked, use.stateType);
       return unpacked;
@@ -1197,9 +1197,9 @@ export function useViewState<T extends ObjectType>(use: {
     if (use.selfPtr.value != null) {
       const tx = canvas.tx();
       const self = use.graph.getOrError(use.selfPtr.value);
-      tx.update(self, { valuePacked: packProtoStruct(valuePacked) }, options);
+      tx.update(self, { valuePacked: packProtoJson(valuePacked) }, options);
     } else {
-      use.emit("update:self", { valuePacked: packProtoStruct(valuePacked) });
+      use.emit("update:self", { valuePacked: packProtoJson(valuePacked) });
     }
   }
 
