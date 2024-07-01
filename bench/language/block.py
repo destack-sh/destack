@@ -184,7 +184,7 @@ class Block(SourceNode[BlockData], HasValues):
 
         if self.type == BlockType.CLASS:
             # NOTE: we turn Class Blocks into Alias Types here for correctness, but that means
-            #  we have to resolve them (unnecessarily) before instantiating.
+            #  we have to resolve them again (unnecessarily) before instantiating.
             typ = TypeInfo(kind=TypeKind.ALIAS, base_type=self)
         elif self.type == BlockType.CHOICE:
             typ = TypeInfo(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.FIELD)

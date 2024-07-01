@@ -52,10 +52,10 @@ if TYPE_CHECKING:
     from bench.language import (
         Code,
         EditContext,
-        Expression,
         Icon,
         Log,
         NodeSuperGraph,
+        QueryInfo,
         ReadOptions,
         Session,
     )
@@ -195,8 +195,8 @@ class Change(Struct):
     logs: list["Log"] = p_internal(
         35, require=False, array=True, references=NodeType.LOG, description="Logs for the change."
     )
-    logs_filter: Optional["Expression"] = p_internal(
-        36, require=False, array=False, struct=StructType.EXPRESSION, description="Filter for logs."
+    logs_query: Optional["QueryInfo"] = p_internal(
+        36, require=False, array=False, struct=StructType.QUERY_INFO, description="Query for logs."
     )
 
 

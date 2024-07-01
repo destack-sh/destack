@@ -879,8 +879,8 @@ enum ReadType {
 // A reference to a Node or Struct - usually both have an identity (except for inlined Structs).
 enum ReferenceKind {
   REFERENCE_KIND_UNSPECIFIED = 0;
-  REFERENCE_KIND_NODE_ANCESTOR_ROOT = 1;
-  REFERENCE_KIND_NODE_ANCESTOR_FIRST = 2;
+  REFERENCE_KIND_NODE_ANCESTOR = 1;
+  REFERENCE_KIND_NODE_ANCESTOR_OR_SELF = 2;
   REFERENCE_KIND_NODE_PARENT = 3;
   REFERENCE_KIND_NODE_CHILDREN = 4;
   REFERENCE_KIND_NODE_REGULAR = 5;
@@ -1340,7 +1340,7 @@ message ChangeData {
   optional CodeData code = 33;
   repeated EditData edits = 34;
   repeated NodeReferenceData logs_ptr = 35;
-  optional ExpressionData logs_filter = 36;
+  optional QueryInfoData logs_query = 36;
 }
 
 // A short non-binding summary of key properties at the time just before the edit.

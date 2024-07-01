@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.06.29.1"
+VERSION = "2024.07.01.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -932,8 +932,8 @@ class ReferenceKind(betterproto.Enum):
     """
 
     UNSPECIFIED = 0
-    NODE_ANCESTOR_ROOT = 1
-    NODE_ANCESTOR_FIRST = 2
+    NODE_ANCESTOR = 1
+    NODE_ANCESTOR_OR_SELF = 2
     NODE_PARENT = 3
     NODE_CHILDREN = 4
     NODE_REGULAR = 5
@@ -1432,7 +1432,7 @@ class ChangeData(betterproto.Message):
     code: Optional["CodeData"] = betterproto.message_field(33, optional=True)
     edits: List["EditData"] = betterproto.message_field(34)
     logs_ptr: List["NodeReferenceData"] = betterproto.message_field(35)
-    logs_filter: Optional["ExpressionData"] = betterproto.message_field(36, optional=True)
+    logs_query: Optional["QueryInfoData"] = betterproto.message_field(36, optional=True)
 
 
 @dataclass(eq=False, repr=False)

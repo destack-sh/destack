@@ -107,7 +107,7 @@ const expandedConnectionId: Ref<number | null> = ref(null);
               </div>
               <div
                 v-if="connection.id == expandedConnectionId"
-                class="rounded-md border border-gray-200 bg-gray-50 p-1 py-0.5"
+                class="max-h-60 overflow-y-auto rounded-md border border-gray-200 bg-gray-50 p-1 py-0.5"
               >
                 {{ connection.params }}
               </div>

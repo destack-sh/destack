@@ -96,7 +96,14 @@ from .notification import Notification
 from .path import Path
 from .projection import Projection
 from .property import Property
-from .query import MultipleNodesFoundError, NodeNotFoundError, Query, QueryBuilder, ReadOptions
+from .query import (
+    MultipleNodesFoundError,
+    NodeNotFoundError,
+    Query,
+    QueryBuilder,
+    QueryInfo,
+    ReadOptions,
+)
 from .record import Record
 from .run import RetryAttempt, Run, RunOptions
 from .session import Context, EditContext, Session, SessionContext
@@ -235,6 +242,7 @@ __all__ = [
     "PropertyReference",
     "Query",
     "QueryBuilder",
+    "QueryInfo",
     "ReadOptions",
     "Record",
     "Region",
