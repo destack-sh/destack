@@ -1303,7 +1303,7 @@ class PostgresChannel(WritableChannel[PostgresEngine]):
 
             try:
                 return await func(self, *args, **kwargs)
-            except SqlConnectionError as e:
+            except (SqlConnectionError, psycopg.OperationalError) as e:
                 raise ChannelUnavailableError(self, args[0] if args else None, reason=str(e)) from e
 
         return wrapper

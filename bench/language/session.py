@@ -316,7 +316,7 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
             self._active_session_token = _active_session.set(self)
         logger.trace("session.open", session=self)
 
-    async def close(self):
+    async def close(self, _suppress_error: bool = False):
         """Closes the session, rolling back uncommitted edits. Prevents further use."""
         assert self.opened_at, f"session not open {self!r}"
         assert not self.closed_at, f"session already closed {self!r}"
@@ -324,11 +324,12 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
         # close connections
         for connection in self._connections:
             connection.close()
-        await asyncio.gather(*(channel.close() for channel in self._channels))
 
         # close transaction
         async with self._tx_lock:
-            await asyncio.gather(*(channel.close() for channel in self._channels))
+            await asyncio.gather(
+                *(channel.close() for channel in self._channels), return_exceptions=_suppress_error
+            )
             self._channels.clear()
             self._tx = None
 
@@ -416,7 +417,7 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
         return self
 
     async def __aexit__(self, exc_type, exc, tb):
-        await self.close()
+        await self.close(_suppress_error=exc is None)
 
     #
     # Tracking
