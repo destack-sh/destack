@@ -407,6 +407,7 @@ class WatchLogsSpec(SingleClientWorkloadSpec):
     tail_user: str | None = None
     limit: int | SampledInt = 50
     live: bool = True
+    min_expected_count: int | None = None
 
 
 @workload(WorkloadType.WATCH_LOGS, WatchLogsSpec)
@@ -431,6 +432,10 @@ class WatchLogsWorkload(SingleClientWorkloadBase[WatchLogsSpec]):
     @override
     async def _do_check(self):
         logs = self.connection.result.roots
+        if self.spec.min_expected_count is not None:
+            assert (
+                len(logs) >= self.spec.min_expected_count
+            ), f"too few logs {len(logs)} < {self.spec.min_expected_count}"
         assert len(logs) <= self.limit, f"too many logs {len(logs)} > {self.limit}"
         assert len(self.connection.result.graph.nodes) == len(logs)
 

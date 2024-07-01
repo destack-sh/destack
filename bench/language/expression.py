@@ -400,7 +400,7 @@ def _lower_expression_value(cond: Expression, prop: Property, value: Any) -> Any
      but we also down the value into its data format.
     """
     # auto lower collections
-    if isinstance(value, Collection):
+    if isinstance(value, (list, tuple)):
         return [_lower_expression_value(cond, prop, v) for v in value]
 
     if isinstance(value, (NodeReference, NodeReferenceData)):
