@@ -29,7 +29,7 @@ def test_get_set_non_existing_property(session: "Session"):
 
 def test_node_pointers_consistency(session: "Session"):
     """Pointers should include the relevant bench/base/base_bench references."""
-    bench_a = Bench(slug="test_a", name="test_b")
+    bench_a = Bench(slug="testa", name="testb")
     assert bench_a.to_ref()._equals_content(
         NodeReference(type=NodeType.BENCH, id=bench_a.id, ck=bench_a.ck, bench_id=bench_a.id)
     )
@@ -98,7 +98,7 @@ def test_node_pointers_consistency(session: "Session"):
     )
 
     # refs pointing to different bench
-    bench_b = Bench(slug="test_b", name="test_b")
+    bench_b = Bench(slug="testb", name="testb")
     server_b = bench_b.servers.create(name="Server", profile=ServerProfile.TINY)
     store_b = bench_b.stores.create(name="Store")
     drive_b = bench_b.drives.create(name="Drive")

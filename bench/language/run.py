@@ -254,7 +254,3 @@ class Run(PackageNode[RunData], HasTimeIdentity, HasNodeBase, HasSessionContext,
     ) -> None:
         if self.root_ptr is not None and self.root_ptr.id == self.id:
             invalid(self, "root points to self", (Run.root, Run.id))
-        if self.block_ptr is None and self.code is None and self.text is None:
-            invalid(self, "no block, code or text", (Run.block, Run.code, Run.text))
-        if self.step_ptr is not None and self.block_ptr is None:
-            invalid(self, "step without block", (Run.step, Run.block))

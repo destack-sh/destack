@@ -162,12 +162,10 @@ def shared_package(shared_session: Session):
 
 
 # init shared builtin objects (in shared session)
-# NOTE :Test :Performance: defer init builtin objects somehow
-#  (unfortunately we need to add hypothesis examples statically, so not sure how)
 with warnings.catch_warnings(action="ignore"):
     _active_session_token = _active_session.set(SHARED_SESSION)
     BUILTIN_OBJECTS_OF_EVERY_TYPE = [
-        draw_direct(from_object_type(object_type, reject_invalid=True))
+        draw_direct(from_object_type(object_type, reject_invalid=False))
         for object_type in OBJECT_TYPES
     ]
     _active_session.reset(_active_session_token)

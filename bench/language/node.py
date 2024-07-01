@@ -1107,7 +1107,8 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
         """Check the integrity of this object."""
         # check properties types
         for prop in properties or self.__tracked_properties__.values():
-            if prop._type_info is not None and prop.reference_source is None:
+            # NOTE: references may be unloaded and there's not much to validate, so we don't
+            if prop._type_info is not None and prop.reference_kind is None:
                 value = getattr(self, prop.name)
                 check_value(value, prop._type_info, invalid=invalid)
         # check components
@@ -1891,9 +1892,8 @@ class NodeReference(InlineStruct[NodeReferenceData]):
     def _validate_component(
         self, properties: Collection[Property], invalid: "ValidationHandler"
     ) -> None:
-        if self.id is None:
-            invalid(self, "id is required", (NodeReference.id,))
-        # NOTE :Robustness: we use to require bench_id for sub-bench types here
+        pass
+        # NOTE :Robustness: we used to require bench_id for sub-bench types here
         #  but sometimes we send around nodes (with references) before they are attached
         # if (
         #     self.type in SUB_BENCH_NODE_TYPES
