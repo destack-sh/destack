@@ -286,7 +286,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
       :style="{ height: HEADER_HEIGHT + 'px' }"
     >
       <!-- Breadcrumb -->
-      <NodePath :self="self" :focus="$props.focus?.nodesPtr[0]" :graph="pkgGraph" />
+      <NodePath :container="nodePtr" :focus="$props.focus?.nodesPtr[0]" :graph="pkgGraph" />
       <!-- Meta & Controls -->
       <div class="ml-auto flex flex-shrink-0 flex-row items-center gap-x-1.5 pl-1">
         <!-- Search -->

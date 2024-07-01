@@ -336,7 +336,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
         <div class="flex flex-shrink-0 flex-row items-center">
           <!-- Context (path) -->
           <template v-if="context != null && context?.metatype != ObjectType.PACKAGE && variant != Variant.COMPACT">
-            <NodePath class="flex-shrink-0" :self="toNodeReference(context)" :graph="pkgGraph" />
+            <NodePath class="flex-shrink-0" :container="toNodeReference(context)" :graph="pkgGraph" />
             <i class="fas fa-chevron-right ml-1 mr-1.5 text-gray-400" />
           </template>
           <!-- Icon / Name -->
