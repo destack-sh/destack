@@ -357,6 +357,7 @@ export function packBuiltinObject(value: AnyStructData | AnyNodeData, options?: 
   return valuePacked;
 }
 
+/** Convenience wrapper around packBuiltinObject and packProtoJson */
 export function packBuiltinObjectJson(value: AnyStructData | AnyNodeData, options?: { only?: string[] }): ProtoStruct {
   return ProtoStruct.fromJson(packBuiltinObject(value, options));
 }
