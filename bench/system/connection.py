@@ -385,6 +385,7 @@ class SearchConnection(NodeConnection[SearchResultData, WatchSearchUpdate]):
         #  are the same type (like when querying Runs with some filter and their descendants).
 
         # filter all edits to figure out new roots
+        before_graph_size = len(self._result_data.graph)
         relevant_edits: list[EditData] = []
         added_nodes: list[AnyNodeData] = []
         removed_nodes_ptr: list[NodeReferenceData] = []
@@ -439,6 +440,21 @@ class SearchConnection(NodeConnection[SearchResultData, WatchSearchUpdate]):
                     self._result_data.total += 1
 
         if relevant_edits or added_nodes or removed_nodes_ptr:
+            if before_graph_size == 0:
+                # ensure ancestors are in graph since we had no results previously
+                #  (and therefore didn't know any any - see above for when we support this properly)
+                for root in self._result_data.roots:
+                    if not root.parent_ptr or not root.parent_ptr.id:
+                        continue
+                    ancestor = graph.get(root.parent_ptr.id)
+                    while ancestor is not None:
+                        if ancestor.id not in self._result_data.graph:
+                            self._result_data.graph.add(ancestor)
+                        if ancestor.parent_ptr and ancestor.parent_ptr.id:
+                            ancestor = graph.get(ancestor.parent_ptr.id)
+                        else:
+                            ancestor = None
+
             # apply sort & limit
             if self.query._sort:
                 apply_sort(self.query._sort, self._result_data.roots)

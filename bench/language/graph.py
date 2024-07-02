@@ -257,7 +257,7 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
         else:
             return True
 
-    def collect_descendants(
+    def get_descendants(
         self, node: V, child_node_type: NodeType | None = None, recursive: bool = False
     ) -> list["V"]:
         """Collects all descendants as filtered in BFS order"""
@@ -287,13 +287,6 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
                     queue.extend(children)
             return descendants
 
-    def get_root(self, node: V) -> V:
-        """Gets the root node for a given node"""
-        root = node
-        while root.parent_ptr is not None:
-            root = self._nodes_by_id[cast(K, root.parent_ptr.id)]
-        return root
-
     def iter_descendants(
         self, node: V, child_node_type: NodeType | None = None, recursive: bool = False
     ) -> Iterable[V]:
@@ -301,7 +294,24 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
         Iterate through filtered descendants in BFS order.
         If recursive, the child node type filter only applies to the first level.
         """
-        return iter(self.collect_descendants(node, child_node_type, recursive))
+        return iter(self.get_descendants(node, child_node_type, recursive))
+
+    def get_root(self, node: V) -> V:
+        """Gets the root node for a given node"""
+        root = node
+        while root.parent_ptr is not None:
+            root = self._nodes_by_id[cast(K, root.parent_ptr.id)]
+        return root
+
+    def get_ancestors(self, node: V) -> list[V]:
+        """Collects all ancestors up"""
+        assert isinstance(node.id, self.key_type), f"expected {self.value_type}, got {node!r}"
+        ancestors: list[V] = []
+        cur = node
+        while cur.parent_ptr is not None:
+            cur = self._nodes_by_id[cast(K, cur.parent_ptr.id)]
+            ancestors.append(cur)
+        return ancestors
 
     # utilities
 
@@ -648,7 +658,7 @@ class GraphNodeList[V: Node](NodeList[V]):
     @property
     def nodes(self) -> tuple[V, ...] | list[V]:
         """Access the computed nodes"""
-        descendants = self._parent._graph.collect_descendants(
+        descendants = self._parent._graph.get_descendants(
             node=self._parent, child_node_type=self._child_node_type, recursive=False
         )
         if (
@@ -681,7 +691,7 @@ class GraphNodeList[V: Node](NodeList[V]):
             assert new_graph.supergraph.has(
                 node._graph.supergraph
             ), f"{node!r} not in same supergraph as {self!r} ({node._graph.supergraph!r} != {new_graph.supergraph!r})"
-            added = node._graph.collect_descendants(node, recursive=True)
+            added = node._graph.get_descendants(node, recursive=True)
             added = (*added, node)
             for n in added:
                 new_graph.add(n)

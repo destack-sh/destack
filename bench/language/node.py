@@ -1464,7 +1464,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     def connection(self):
         """The currently active connection (errors if none)"""
         assert self._connection is not None, f"no connection for {self!r}"
-        return self._connection
+        return self._connection  # type: ignore (class definition "depends on itself" for some reason)
 
     @property
     def _data_graph(self) -> "NodeDataGraph":
@@ -1499,7 +1499,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     def _walk_descendants(self) -> Iterable["Node"]:
         yield self
         if self.metatype in HAS_CHILD_NODE_TYPES:
-            yield from self._graph.collect_descendants(self, recursive=True)
+            yield from self._graph.get_descendants(self, recursive=True)
 
     @final
     def _track_rec(self, session: "Session"):

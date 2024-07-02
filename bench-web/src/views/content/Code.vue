@@ -41,6 +41,7 @@ function makeEditorState(code?: CodeData): EditorState {
       lineNumbers(),
       python(),
       indentUnit.of("    "), // 4 spaces
+      keymap.of([commands.indentWithTab]),
     ],
   });
 }
@@ -136,18 +137,6 @@ const actions: Partial<ActionMapImplementation<"common" | "code">> = {
       commands.moveLineDown({ state: view.state, dispatch: view.dispatch });
     },
   },
-  "common.move.left": {
-    action: () => {
-      if (view == null) return;
-      commands.indentLess({ state: view.state, dispatch: view.dispatch });
-    },
-  },
-  "common.move.right": {
-    action: () => {
-      if (view == null) return;
-      commands.indentMore({ state: view.state, dispatch: view.dispatch });
-    },
-  },
   "code.edit.format": {
     isEnabled: () => false,
     action: () => {
@@ -179,6 +168,7 @@ defineExpose<ViewExposed>({ self, id, actions });
           dontFocus: true, // keep focus on the editor
         })
       "
+      data-suppress-actions="common.move.left,common.move.right"
       class="code rounded px-1 py-1.5 hover:cursor-text"
       :class="[
         variant != Variant.STEALTH
@@ -212,7 +202,7 @@ defineExpose<ViewExposed>({ self, id, actions });
   @apply font-semibold underline underline-offset-2;
 }
 .code .cm-editor .cm-gutters {
-  @apply bg-transparent pr-1.5 mr-0.5 text-gray-400;
+  @apply mr-0.5 bg-transparent pr-1.5 text-gray-400;
 }
 .code:focus-within .cm-editor .cm-gutters {
   @apply border-primary-900 text-gray-700;

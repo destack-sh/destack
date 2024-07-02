@@ -848,7 +848,7 @@ class MemoryGetConnection[T: Node](GetConnection[MemoryChannel, T]):
                     for node in current_parents:
                         child_types = child_types_by_parent[cast(wire.NodeType, node.metatype)]
                         for child_type in child_types:
-                            children = loaded_graph.collect_descendants(node, child_type)
+                            children = loaded_graph.get_descendants(node, child_type)
                             visited_graph.extend(children)
                             for child in children:
                                 if loaded_graph.has_descendants(child):
