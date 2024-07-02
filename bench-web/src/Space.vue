@@ -20,7 +20,7 @@ import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { makeIcon } from "@/system/icon";
 import { assignSpaceInPackage } from "@/system/space";
 import Button from "@/views/controls/Button.vue";
-import { DEFAULT_BAR_POSITION, DEFAULT_HEADER_HEIGHT, createDesktopProSpace } from "@/views/canvas";
+import { DEFAULT_BAR_POSITION, DEFAULT_HEADER_HEIGHT, createDesktopDefaultSpace } from "@/views/canvas";
 import { user } from "@/system/user";
 
 const BAR_WIDTH = DEFAULT_HEADER_HEIGHT;
@@ -178,7 +178,7 @@ watch([canvas.focusedViewPtr, bench], () => {
           name="Create"
           :icon="makeIcon('fas fa-redo-alt')"
           title="Restore Default"
-          @click="() => createDesktopProSpace(canvas.tx(), space!)"
+          @click="() => createDesktopDefaultSpace(canvas.tx(), space!)"
         />
       </div>
       <div v-else-if="bench" class="flex w-fit flex-col gap-y-2 self-center">
