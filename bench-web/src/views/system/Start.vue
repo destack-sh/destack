@@ -13,21 +13,18 @@ import {
   ViewData,
   ViewType,
 } from "@/proto/wire";
-import { isNode, propertyReference, type TypedNodeReferenceData } from "@/proto/wiring";
+import { propertyReference, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
 import { makeExpression } from "@/system/expression";
-import { RUNNABLE_BLOCK_TYPES, isRunnable } from "@/system/lang";
+import { isRunnable } from "@/system/lang";
 import { makeRun } from "@/system/session";
 import { canvas, inspectionPtr } from "@/system/space";
 import { packProtoJson, unpackProtoJson } from "@/system/transaction";
 import {
-  getPropertyType,
   packBuiltinObject,
-  packValue,
-  packValueSimple,
   packValueSimpleStruct,
   propertyType,
-  unpackBuiltinObject,
+  unpackBuiltinObject
 } from "@/system/value";
 import { getFieldViews } from "@/system/view";
 import { ScrollbarWidth } from "@/utils/layout";
@@ -38,7 +35,7 @@ import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import { getViewComponent, hasViewComponent } from "@/views/registry";
 import Feed from "@/views/system/Feed.vue";
-import { computed, ref, toRef, type Ref } from "vue";
+import { computed, toRef, type Ref } from "vue";
 
 const HEADER_HEIGHT = DEFAULT_HEADER_HEIGHT;
 const MIN_WIDTH = 320;
@@ -182,7 +179,7 @@ defineExpose<ViewExposed>({ self });
         <h4 class="font-semibold">Runs</h4>
         <Feed
           is-inline
-          :value-packed="packBuiltinObject(feedState)"
+          :value-packed="packProtoJson(packBuiltinObject(feedState))"
           @update:self="
             (update) =>
               updateState({

@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.07.01.0"
+VERSION = "2024.07.02.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -193,14 +193,16 @@ class BenchType(betterproto.Enum):
     BOX = 1202
     OFFSET = 1203
     TRANSFORM = 1204
-    START_VIEW_STATE = 1250
-    FEED_VIEW_STATE = 1251
-    CHART_VIEW_STATE = 1252
-    HISTORY_VIEW_STATE = 1253
-    TIMELINE_VIEW_STATE = 1254
-    USER_WIZARD_VIEW_STATE = 1255
-    FILE = 1300
-    ICON = 1301
+    START_VIEW_STATE = 1300
+    FEED_VIEW_STATE = 1301
+    CHART_VIEW_STATE = 1302
+    HISTORY_VIEW_STATE = 1303
+    TIMELINE_VIEW_STATE = 1304
+    USER_WIZARD_VIEW_STATE = 1305
+    PAGE_VIEW_STATE = 1306
+    TREE_VIEW_STATE = 1307
+    FILE = 1400
+    ICON = 1401
     ENUM_TYPE = 2001
     NODE_TYPE = 2002
     STRUCT_TYPE = 2003
@@ -270,7 +272,8 @@ class BenchType(betterproto.Enum):
     ANCHOR = 2409
     ORIENTATION = 2410
     ALIGNMENT = 2411
-    USER_WIZARD_STAGE = 2450
+    USER_WIZARD_STAGE = 2500
+    TREE_VIEW_PRESET = 2501
     USER_STATUS = 2800
     ORGANIZATION_STATUS = 2801
 
@@ -491,7 +494,8 @@ class EnumType(betterproto.Enum):
     ANCHOR = 2409
     ORIENTATION = 2410
     ALIGNMENT = 2411
-    USER_WIZARD_STAGE = 2450
+    USER_WIZARD_STAGE = 2500
+    TREE_VIEW_PRESET = 2501
     USER_STATUS = 2800
     ORGANIZATION_STATUS = 2801
 
@@ -831,14 +835,16 @@ class ObjectType(betterproto.Enum):
     BOX = 1202
     OFFSET = 1203
     TRANSFORM = 1204
-    START_VIEW_STATE = 1250
-    FEED_VIEW_STATE = 1251
-    CHART_VIEW_STATE = 1252
-    HISTORY_VIEW_STATE = 1253
-    TIMELINE_VIEW_STATE = 1254
-    USER_WIZARD_VIEW_STATE = 1255
-    FILE = 1300
-    ICON = 1301
+    START_VIEW_STATE = 1300
+    FEED_VIEW_STATE = 1301
+    CHART_VIEW_STATE = 1302
+    HISTORY_VIEW_STATE = 1303
+    TIMELINE_VIEW_STATE = 1304
+    USER_WIZARD_VIEW_STATE = 1305
+    PAGE_VIEW_STATE = 1306
+    TREE_VIEW_STATE = 1307
+    FILE = 1400
+    ICON = 1401
 
 
 class OrganizationStatus(betterproto.Enum):
@@ -1153,14 +1159,16 @@ class StructType(betterproto.Enum):
     BOX = 1202
     OFFSET = 1203
     TRANSFORM = 1204
-    START_VIEW_STATE = 1250
-    FEED_VIEW_STATE = 1251
-    CHART_VIEW_STATE = 1252
-    HISTORY_VIEW_STATE = 1253
-    TIMELINE_VIEW_STATE = 1254
-    USER_WIZARD_VIEW_STATE = 1255
-    FILE = 1300
-    ICON = 1301
+    START_VIEW_STATE = 1300
+    FEED_VIEW_STATE = 1301
+    CHART_VIEW_STATE = 1302
+    HISTORY_VIEW_STATE = 1303
+    TIMELINE_VIEW_STATE = 1304
+    USER_WIZARD_VIEW_STATE = 1305
+    PAGE_VIEW_STATE = 1306
+    TREE_VIEW_STATE = 1307
+    FILE = 1400
+    ICON = 1401
 
 
 class Tenancy(betterproto.Enum):
@@ -1195,6 +1203,12 @@ class TimeInterval(betterproto.Enum):
     WEEK = 6
     MONTH = 7
     YEAR = 8
+
+
+class TreeViewPreset(betterproto.Enum):
+    UNSPECIFIED = 0
+    EXPLORE = 1
+    OUTLINE = 2
 
 
 class TriggerType(betterproto.Enum):
@@ -1275,8 +1289,8 @@ class ViewType(betterproto.Enum):
     VARIABLE = 109
     OBJECT = 110
     RUN = 111
-    EXPLORE = 150
-    OUTLINE = 151
+    LOG = 112
+    TREE = 150
     INSPECT = 153
     CREATE = 154
     CHAT = 155
@@ -1686,6 +1700,13 @@ class OffsetData(betterproto.Message):
     right_relative: Optional[float] = betterproto.float_field(45, optional=True)
     bottom_relative: Optional[float] = betterproto.float_field(46, optional=True)
     left_relative: Optional[float] = betterproto.float_field(47, optional=True)
+
+
+@dataclass(eq=False, repr=False)
+class PageViewStateData(betterproto.Message):
+    """The state of a Page view."""
+
+    metatype: "ObjectType" = betterproto.enum_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -2114,6 +2135,17 @@ class TransformData(betterproto.Message):
     skew_x: Optional[float] = betterproto.float_field(36, optional=True)
     skew_y: Optional[float] = betterproto.float_field(37, optional=True)
     rotate_x: Optional[int] = betterproto.int32_field(40, optional=True)
+
+
+@dataclass(eq=False, repr=False)
+class TreeViewStateData(betterproto.Message):
+    """The state of a Tree view."""
+
+    metatype: "ObjectType" = betterproto.enum_field(1)
+    node_types: List["NodeType"] = betterproto.enum_field(35)
+    filter_is_page: Optional[bool] = betterproto.bool_field(36, optional=True)
+    is_default_expanded: Optional[bool] = betterproto.bool_field(37, optional=True)
+    preset: Optional["TreeViewPreset"] = betterproto.enum_field(99, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -4965,6 +4997,8 @@ AnyStructData = Union[
     HistoryViewStateData,
     TimelineViewStateData,
     UserWizardViewStateData,
+    PageViewStateData,
+    TreeViewStateData,
     FileData,
     IconData,
 ]

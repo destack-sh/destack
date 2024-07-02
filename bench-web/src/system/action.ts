@@ -6,6 +6,8 @@ import {
   FieldZone,
   NodeType,
   ObjectType,
+  TreeViewPreset,
+  TreeViewStateData,
   ViewType,
   type AnyNodeData,
   type IconData,
@@ -18,7 +20,8 @@ import { makeIcon } from "@/system/icon";
 import { EXPOSED_ANCHORS, getRandomEnumOption } from "@/system/lang";
 import { canvas, hasLocalBench, inspectionPtr, pkg, pkgConnection, pkgGraph, space } from "@/system/space";
 import { toaster } from "@/system/toast";
-import { getAllTransactionBuffers } from "@/system/transaction";
+import { getAllTransactionBuffers, packProtoJson } from "@/system/transaction";
+import { packBuiltinObject } from "@/system/value";
 import { generateOrderKey } from "@/utils/fractional";
 import { type FilterPrefix } from "@/utils/functools";
 import { DISCORD_URL, IS_DEV } from "@/utils/globals";
@@ -1243,7 +1246,19 @@ contributeActionMap<"space">({
     text: "Navigate nodes in the space",
     icon: "fas fa-compass",
     action: () => {
-      canvas.addView({ type: ViewType.EXPLORE, title: "Explore" }, { ifPresent: "upsertAndFocus" });
+      canvas.addView(
+        {
+          type: ViewType.TREE,
+          title: "Explore",
+          valuePacked: packProtoJson(
+            packBuiltinObject({
+              metatype: ObjectType.TREE_VIEW_STATE,
+              preset: TreeViewPreset.EXPLORE,
+            } as TreeViewStateData),
+          ),
+        },
+        { ifPresent: "upsertAndFocus", predicate: (view) => view.title != null && view.title.includes("Explore") },
+      );
     },
   },
   "space.launch.outline": {
@@ -1251,7 +1266,19 @@ contributeActionMap<"space">({
     text: "Navigate an outline of nodes",
     icon: "fas fa-list-tree",
     action: () => {
-      canvas.addView({ type: ViewType.OUTLINE, title: "Outline" }, { ifPresent: "upsertAndFocus" });
+      canvas.addView(
+        {
+          type: ViewType.TREE,
+          title: "Outline",
+          valuePacked: packProtoJson(
+            packBuiltinObject({
+              metatype: ObjectType.TREE_VIEW_STATE,
+              preset: TreeViewPreset.OUTLINE,
+            } as TreeViewStateData),
+          ),
+        },
+        { ifPresent: "upsertAndFocus", predicate: (view) => view.title != null && view.title.includes("Outline") },
+      );
     },
   },
   "space.launch.docs": {

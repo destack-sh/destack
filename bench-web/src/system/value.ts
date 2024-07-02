@@ -333,7 +333,7 @@ function unpackValueScalarData(valuePacked: JsonValue, type: TypeIdentity): Scal
 }
 
 /** Packs a single struct/node proto value using proto ids for keys and enums. */
-export function packBuiltinObject(value: AnyStructData | AnyNodeData, options?: { only?: string[] }): any {
+export function packBuiltinObject(value: AnyStructData | AnyNodeData, options?: { only?: string[] }): Record<string, any> {
   const propertyEnum = PROPERTY_ENUM_BY_TYPE[value.metatype];
   const properties = PROPERTY_INFOS_BY_TYPE[value.metatype];
   if (propertyEnum == null || properties == null) throw new Error(`unexpected object type ${value.metatype}`);

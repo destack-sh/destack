@@ -358,6 +358,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
             focusedNode?.id == item.id ? 'border-primary-900' : 'border-transparent',
           ]"
           :style="{ minWidth: MIN_WIDTH + 'px', maxWidth: MAX_WIDTH + 'px' }"
+          @click="toggleExpanded(item.it)"
         >
           <!-- Item header -->
           <div class="flex flex-row flex-nowrap items-center gap-x-1">

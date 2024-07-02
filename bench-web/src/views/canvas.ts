@@ -12,6 +12,8 @@ import {
   SelectionKind,
   SpaceData,
   StructType,
+  TreeViewPreset,
+  TreeViewStateData,
   TypeInfoData,
   TypeKind,
   Variant,
@@ -201,6 +203,7 @@ export type ViewDataIn = Partial<Omit<ViewData, "metatype" | "icon">> &
   Pick<ViewData, "type"> & { icon?: string | IconData };
 
 type OpenViewOptions = {
+  predicate?: (view: ViewData) => boolean;
   where?: "currentRoot" | "nextFrameRoot";
   ifPresent?: "duplicate" | "focus" | "upsertAndFocus";
 };
@@ -634,13 +637,14 @@ export class ViewCanvas {
   }
 
   /** Finds a view with properties exactly like the criteria */
-  findView(like: Pick<ViewData, "type" | "nodePtr">): ViewData | null {
+  findView(like: Pick<ViewData, "type" | "nodePtr"> & { predicate?: (view: ViewData) => boolean }): ViewData | null {
     if (Object.keys(like).length == 0) return null;
     if (this.spacePtr.value == null) return null;
     const views = this.graph.getDescendants(this.spacePtr.value, { metatypes: [NodeType.VIEW] });
     const match = views.find((v) => {
       if (like.type != null && v.type != like.type) return false;
       if (like.nodePtr != null && v.nodePtr?.id != like.nodePtr.id) return false;
+      if (like.predicate != null && !like.predicate(v)) return false;
       return true;
     });
     return match ?? null;
@@ -649,7 +653,7 @@ export class ViewCanvas {
   /** Add a new view to the canvas at the current root.  */
   addView(view: ViewDataIn, options?: OpenViewOptions) {
     const tx = this.tx();
-    const existing = this.findView({ type: view.type, nodePtr: view.nodePtr });
+    const existing = this.findView({ type: view.type, nodePtr: view.nodePtr, predicate: options?.predicate });
     log.debug("canvas.addView", view, { existing, options, focusedRoot: this.focusedRoot });
 
     if (existing == null || options?.ifPresent == null || options?.ifPresent == "duplicate") {
@@ -1000,21 +1004,33 @@ export function createDesktopProSpace(
   });
   tx.create({
     metatype: NodeType.VIEW,
-    type: ViewType.EXPLORE,
+    type: ViewType.TREE,
     parentPtr: toNodeReference(sideTop),
     packagePtr: space.packagePtr,
     orderKey: "a0",
-    name: "Explore1",
+    name: "Tree1",
     title: "Explore",
+    valuePacked: packProtoJson(
+      packBuiltinObject({
+        metatype: ObjectType.TREE_VIEW_STATE,
+        preset: TreeViewPreset.EXPLORE,
+      } as TreeViewStateData),
+    ),
   });
   tx.create({
     metatype: NodeType.VIEW,
-    type: ViewType.OUTLINE,
+    type: ViewType.TREE,
     parentPtr: toNodeReference(sideBottom),
     packagePtr: space.packagePtr,
     orderKey: "a1",
-    name: "Outline1",
+    name: "Tree2",
     title: "Outline",
+    valuePacked: packProtoJson(
+      packBuiltinObject({
+        metatype: ObjectType.TREE_VIEW_STATE,
+        preset: TreeViewPreset.OUTLINE,
+      } as TreeViewStateData),
+    ),
   });
 
   // primary
@@ -1153,6 +1169,13 @@ export function useExpansion(options: {
 }) {
   const selfNode = options.graph.getRef(options.self.value) as Ref<ViewData>;
   const expansion = computed(() => selfNode.value?.expansion);
+  const expandedNodesById = computedValue(() => {
+    const expanded: Record<string, NodeReferenceData> = {};
+    for (const node of expansion.value?.nodesPtr ?? []) {
+      expanded[node.id!] = node;
+    }
+    return expanded;
+  });
 
   function toggleExpanded(node: AnyNodeData | AnyNodeReferenceData) {
     if (options.self.value == null) throw new Error("no self node");
@@ -1167,7 +1190,7 @@ export function useExpansion(options: {
   }
 
   function isExpanded(node: { id?: string; ck?: string }): boolean {
-    return expansion.value?.nodesPtr?.some((n) => n.id == node.id) ?? false;
+    return expandedNodesById.value[node.id!] != null;
   }
 
   return { toggleExpanded, isExpanded: options.isDefaultExpanded ? () => true : isExpanded };

@@ -1,16 +1,16 @@
 <script lang="ts" setup>
 import {
-  ObjectType,
   BlockData,
+  BlockType,
   BoxData,
+  CHILD_NODE_TYPES,
   NodeReferenceData,
   NodeType,
+  ObjectType,
   Orientation,
+  TreeViewPreset,
   ViewData,
-  ViewType,
   type AnyNodeData,
-  CHILD_NODE_TYPES,
-  BlockType,
 } from "@/proto/wire";
 import { isNode, type TypedNodeReferenceData } from "@/proto/wiring";
 import type { ActionContext, ActionMapImplementation } from "@/system/action";
@@ -21,12 +21,11 @@ import { isDescendantOf, walkDescendantsRef, type NodeTreeItem } from "@/system/
 import { DEFAULT_BENCH_ICON, IconInline, getNodeIcon } from "@/system/icon";
 import { createBlock, moveNode } from "@/system/lang";
 import { highlightMatches } from "@/system/search";
-import { inspectionBasePtr, canvas, inspectionPtr, pkg, bench } from "@/system/space";
+import { bench, canvas, inspectionBasePtr, inspectionPtr, pkg } from "@/system/space";
 import { startDragging, useMultiDropZone } from "@/utils/drag";
 import { ScrollbarWidth } from "@/utils/layout";
 import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/utils/menu";
 import { computedValue } from "@/utils/ref";
-import NodeCrumb from "@/views/builtins/NodeCrumb.vue";
 import NodePath from "@/views/builtins/NodePath.vue";
 import {
   DEFAULT_HEADER_HEIGHT,
@@ -34,6 +33,7 @@ import {
   DEFAULT_MIN_WIDTH,
   makeSelection,
   useExpansion,
+  useViewState,
 } from "@/views/canvas";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
@@ -48,7 +48,7 @@ const MAX_WIDTH = DEFAULT_MAX_WIDTH;
 const props = defineProps<
   { self: TypedNodeReferenceData<NodeType.VIEW>; size: Required<Pick<BoxData, "width" | "height">> } & Pick<
     ViewData,
-    "type" | "name" | "title" | "text" | "icon" | "nodePtr" | "focus" | "selection" | "expansion"
+    "type" | "name" | "title" | "text" | "icon" | "nodePtr" | "focus" | "selection" | "expansion" | "valuePacked"
   >
 >();
 
@@ -58,17 +58,37 @@ const queryRef: Ref<HTMLInputElement | null> = ref(null);
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 
-const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self);
+const { graph: spaceGraph } = useExistingConnection(self);
+const { state, useStateProp } = useViewState({
+  selfPtr: self,
+  graph: spaceGraph,
+  stateType: ObjectType.TREE_VIEW_STATE,
+  props,
+  emit,
+});
+const preset = useStateProp("preset");
+const filterIsPage = computed(() => {
+  if (preset.value == TreeViewPreset.EXPLORE) return true;
+  else if (preset.value == TreeViewPreset.OUTLINE) return false;
+  else return state.value.filterIsPage;
+});
+const isDefaultExpanded = computed(() => preset.value == TreeViewPreset.OUTLINE || state.value.isDefaultExpanded);
+const inspectedNodeTypes = computed(() => {
+  if (preset.value == TreeViewPreset.EXPLORE) return [NodeType.BLOCK];
+  else if (preset.value == TreeViewPreset.OUTLINE)
+    return [NodeType.BLOCK, NodeType.FIELD, NodeType.VIEW, NodeType.STEP];
+  else return state.value.nodeTypes;
+});
 
 const rootPtr = computedValue(() => {
   if (props.nodePtr != null) return props.nodePtr;
-  else if (props.type == ViewType.EXPLORE) return packagePtr.value;
-  else if (props.type == ViewType.OUTLINE) return inspectionBasePtr.value;
+  else if (preset.value == TreeViewPreset.EXPLORE) return packagePtr.value;
+  else if (preset.value == TreeViewPreset.OUTLINE) return inspectionBasePtr.value;
   else return null;
 });
 const focusPtr = computedValue(() => {
-  if (props.type == ViewType.EXPLORE) return inspectionBasePtr.value;
-  else if (props.type == ViewType.OUTLINE) return inspectionPtr.value;
+  if (preset.value == TreeViewPreset.EXPLORE) return inspectionBasePtr.value;
+  else if (preset.value == TreeViewPreset.OUTLINE) return inspectionPtr.value;
   else return null;
 });
 
@@ -91,32 +111,26 @@ const { toggleExpanded, isExpanded } = useExpansion({
   graph: spaceGraph,
   tx: canvas.tx,
   self,
-  isDefaultExpanded: props.type == ViewType.OUTLINE,
+  isDefaultExpanded: isDefaultExpanded.value,
 });
-const inspectedNodeTypes = computed(() => {
-  if (props.type == ViewType.EXPLORE) return [NodeType.BLOCK];
-  else if (props.type == ViewType.OUTLINE) return [NodeType.BLOCK, NodeType.FIELD, NodeType.VIEW, NodeType.STEP];
-  else return [];
-});
+
 function isIncludedSelf(node: AnyNodeData) {
-  if (props.type == ViewType.EXPLORE) {
+  if (filterIsPage.value) {
     if (node.metatype == ObjectType.BLOCK) return (node as BlockData).isPage;
     else return true;
-  } else if (props.type == ViewType.OUTLINE) {
-    return true; // include everything
   } else {
-    throw new Error(`unexpected view type: ${props.type}`);
+    return true; // include everything
   }
 }
 function isIncludedChildren(node: AnyNodeData) {
-  if (props.type == ViewType.EXPLORE) {
+  if (filterIsPage.value) {
     return true;
-  } else if (props.type == ViewType.OUTLINE) {
+  } else if (filterIsPage.value === false) {
     // don't descend into pages for outline
     if (node.metatype == ObjectType.BLOCK) return !(node as BlockData).isPage;
     else return true;
   } else {
-    throw new Error(`unexpected view type: ${props.type}`);
+    return true; // include everything
   }
 }
 const { items: expandedItems } = walkDescendantsRef({
@@ -182,7 +196,7 @@ function clear() {
 }
 
 function fire(node: AnyNodeData) {
-  canvas.goToNode(node, { where: "nextFrameRoot", skipSelf: props.type == ViewType.OUTLINE });
+  canvas.goToNode(node, { where: "nextFrameRoot", skipSelf: preset.value == TreeViewPreset.OUTLINE });
 }
 
 /** Navigate horizontally to expand/collapse */
@@ -257,12 +271,12 @@ const actions: Partial<ActionMapImplementation<"common">> = {
   "common.sense.focus": {
     isEnabled: hasFocusedNode,
     action: () =>
-      canvas.goToNode(focusedNode.value!, { where: "currentRoot", skipSelf: props.type == ViewType.OUTLINE }),
+      canvas.goToNode(focusedNode.value!, { where: "currentRoot", skipSelf: preset.value == TreeViewPreset.OUTLINE }),
   },
   "common.sense.focusInSplit": {
     isEnabled: hasFocusedNode,
     action: () =>
-      canvas.goToNode(focusedNode.value!, { where: "nextFrameRoot", skipSelf: props.type == ViewType.OUTLINE }),
+      canvas.goToNode(focusedNode.value!, { where: "nextFrameRoot", skipSelf: preset.value == TreeViewPreset.OUTLINE }),
   },
   // <!-- TODO :Incomplete: Explorer/Outline actions -->
   // common.edit.rename, ...
@@ -296,19 +310,19 @@ defineExpose<ViewExposed>({ self, actions, focus });
       >
         <!-- Location -->
         <!-- NOTE :UX: should probably be only node crumb in explorer header? -->
-        <div v-if="type == ViewType.EXPLORE" class="flex flex-row items-center px-1">
+        <div v-if="preset == TreeViewPreset.EXPLORE" class="flex flex-row items-center px-1">
           <IconInline
             v-bind="bench != null ? getNodeIcon(bench) : DEFAULT_BENCH_ICON"
             class="mr-1.5 w-5 text-gray-600"
           />
           <span class="text-gray-900">{{ bench?.name ?? "???" }}</span>
         </div>
-        <NodePath v-else :focus="rootPtr" :graph="pkgGraph" />
+        <NodePath v-else :focus="rootPtr" :graph="pkgGraph" class="px-0.5" />
         <!-- Controls -->
         <div class="ml-auto flex flex-row items-center pl-1.5">
           <!-- Create -->
           <button
-            v-if="type == ViewType.EXPLORE && pkg != null"
+            v-if="pkg != null"
             class="rounded py-0.5 text-gray-400 hover:text-primary-900"
             @click="
               () => {
@@ -417,7 +431,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
             v-if="hasChildren"
             class="group mr-1 w-5 rounded enabled:hover:text-primary-900"
             :class="focusedNode?.id == node.id ? '' : 'text-gray-400'"
-            :disabled="props.type == ViewType.OUTLINE"
+            :disabled="isDefaultExpanded"
             @click.stop="toggleExpanded(node), doFocus(node)"
           >
             <i
@@ -443,7 +457,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
           <div class="ml-auto flex flex-row gap-x-1 pl-3 pr-0.5">
             <!-- Create inside -->
             <button
-              v-if="type == ViewType.EXPLORE && isNode(node, NodeType.BLOCK)"
+              v-if="isNode(node, NodeType.BLOCK)"
               role="button"
               class="text-gray-400 opacity-0 hover:text-primary-900 group-hover:opacity-100"
               @click.stop="

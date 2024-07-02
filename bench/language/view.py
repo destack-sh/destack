@@ -60,9 +60,9 @@ class ViewType(IdEnum):
     VARIABLE = 109
     OBJECT = 110
     RUN = 111
+    LOG = 112
     # helpers
-    EXPLORE = 150
-    OUTLINE = 151
+    TREE = 150
     INSPECT = 153
     CREATE = 154
     CHAT = 155
@@ -514,6 +514,30 @@ class ViewState(InlineStruct):
     """Builtin special Value as the state of some specific view type (in View.value)."""
 
     pass
+
+
+@struct_(StructType.PAGE_VIEW_STATE, inline=True)
+class PageViewState(ViewState):
+    """The state of a Page view."""
+
+    pass
+
+
+@enum_(EnumType.TREE_VIEW_PRESET)
+class TreeViewPreset(IdEnum):
+    EXPLORE = 1
+    OUTLINE = 2
+
+
+@struct_(StructType.TREE_VIEW_STATE, inline=True)
+class TreeViewState(ViewState):
+    """The state of a Tree view."""
+
+    node_types: list[NodeType] = p_regular(35, array=True)
+    filter_is_page: Optional[bool] = p_regular(36, default=None, require=False)
+    is_default_expanded: Optional[bool] = p_regular(37, default=None, require=False)
+
+    preset: Optional[TreeViewPreset] = p_regular(99, default=None, require=False)
 
 
 @struct_(StructType.START_VIEW_STATE, inline=True)
