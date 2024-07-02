@@ -23,8 +23,7 @@ const COMPONENT_BY_VIEW_TYPE_LAZY = {
   [ViewType.OBJECT]: () => import("@/views/system/Object.vue"),
   // helpers
   [ViewType.EMPTY]: () => import("@/views/system/Empty.vue"),
-  [ViewType.EXPLORE]: () => import("@/views/system/Explore.vue"),
-  [ViewType.OUTLINE]: () => import("@/views/system/Explore.vue"), // shared with Explore
+  [ViewType.TREE]: () => import("@/views/system/Tree.vue"),
   [ViewType.INSPECT]: () => import("@/views/system/Inspect.vue"),
   [ViewType.CREATE]: () => import("@/views/system/Create.vue"),
   [ViewType.CHAT]: () => import("@/views/system/Chat.vue"),

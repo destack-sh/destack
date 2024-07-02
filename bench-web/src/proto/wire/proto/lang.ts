@@ -877,6 +877,17 @@ export interface OffsetData {
     leftRelative?: number;
 }
 /**
+ * The state of a Page view.
+ *
+ * @generated from protobuf message symbolx.bench.PageViewStateData
+ */
+export interface PageViewStateData {
+    /**
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+}
+/**
  * A human-readable Bench path to reference source nodes and their fields/properties. Absolute or relative.
  * Paths are case-insensitive, support alphanum + spaces and use '/' as the primary node separator.
  * Nodes 'below' block-level are prefixed with one ':'. Fields are accessed with '.' separators.
@@ -1891,6 +1902,33 @@ export interface TransformData {
      * @generated from protobuf field: optional int32 rotate_x = 40;
      */
     rotateX?: number;
+}
+/**
+ * The state of a Tree view.
+ *
+ * @generated from protobuf message symbolx.bench.TreeViewStateData
+ */
+export interface TreeViewStateData {
+    /**
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.NodeType node_types = 35;
+     */
+    nodeTypes: NodeType[];
+    /**
+     * @generated from protobuf field: optional bool filter_is_page = 36;
+     */
+    filterIsPage?: boolean;
+    /**
+     * @generated from protobuf field: optional bool is_default_expanded = 37;
+     */
+    isDefaultExpanded?: boolean;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.TreeViewPreset preset = 99;
+     */
+    preset?: TreeViewPreset;
 }
 /**
  * A simple constraint on the values of a type. :TypeConstraint
@@ -6644,37 +6682,45 @@ export enum BenchType {
      */
     TRANSFORM = 1204,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_START_VIEW_STATE = 1250;
+     * @generated from protobuf enum value: BENCH_TYPE_START_VIEW_STATE = 1300;
      */
-    START_VIEW_STATE = 1250,
+    START_VIEW_STATE = 1300,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_FEED_VIEW_STATE = 1251;
+     * @generated from protobuf enum value: BENCH_TYPE_FEED_VIEW_STATE = 1301;
      */
-    FEED_VIEW_STATE = 1251,
+    FEED_VIEW_STATE = 1301,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_CHART_VIEW_STATE = 1252;
+     * @generated from protobuf enum value: BENCH_TYPE_CHART_VIEW_STATE = 1302;
      */
-    CHART_VIEW_STATE = 1252,
+    CHART_VIEW_STATE = 1302,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_HISTORY_VIEW_STATE = 1253;
+     * @generated from protobuf enum value: BENCH_TYPE_HISTORY_VIEW_STATE = 1303;
      */
-    HISTORY_VIEW_STATE = 1253,
+    HISTORY_VIEW_STATE = 1303,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_TIMELINE_VIEW_STATE = 1254;
+     * @generated from protobuf enum value: BENCH_TYPE_TIMELINE_VIEW_STATE = 1304;
      */
-    TIMELINE_VIEW_STATE = 1254,
+    TIMELINE_VIEW_STATE = 1304,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_USER_WIZARD_VIEW_STATE = 1255;
+     * @generated from protobuf enum value: BENCH_TYPE_USER_WIZARD_VIEW_STATE = 1305;
      */
-    USER_WIZARD_VIEW_STATE = 1255,
+    USER_WIZARD_VIEW_STATE = 1305,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_FILE = 1300;
+     * @generated from protobuf enum value: BENCH_TYPE_PAGE_VIEW_STATE = 1306;
      */
-    FILE = 1300,
+    PAGE_VIEW_STATE = 1306,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_ICON = 1301;
+     * @generated from protobuf enum value: BENCH_TYPE_TREE_VIEW_STATE = 1307;
      */
-    ICON = 1301,
+    TREE_VIEW_STATE = 1307,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_FILE = 1400;
+     */
+    FILE = 1400,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_ICON = 1401;
+     */
+    ICON = 1401,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_ENUM_TYPE = 2001;
      */
@@ -6952,9 +6998,13 @@ export enum BenchType {
      */
     ALIGNMENT = 2411,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_USER_WIZARD_STAGE = 2450;
+     * @generated from protobuf enum value: BENCH_TYPE_USER_WIZARD_STAGE = 2500;
      */
-    USER_WIZARD_STAGE = 2450,
+    USER_WIZARD_STAGE = 2500,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_TREE_VIEW_PRESET = 2501;
+     */
+    TREE_VIEW_PRESET = 2501,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_USER_STATUS = 2800;
      */
@@ -7736,9 +7786,13 @@ export enum EnumType {
      */
     ALIGNMENT = 2411,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_USER_WIZARD_STAGE = 2450;
+     * @generated from protobuf enum value: ENUM_TYPE_USER_WIZARD_STAGE = 2500;
      */
-    USER_WIZARD_STAGE = 2450,
+    USER_WIZARD_STAGE = 2500,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_TREE_VIEW_PRESET = 2501;
+     */
+    TREE_VIEW_PRESET = 2501,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_USER_STATUS = 2800;
      */
@@ -8919,37 +8973,45 @@ export enum ObjectType {
      */
     TRANSFORM = 1204,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_START_VIEW_STATE = 1250;
+     * @generated from protobuf enum value: OBJECT_TYPE_START_VIEW_STATE = 1300;
      */
-    START_VIEW_STATE = 1250,
+    START_VIEW_STATE = 1300,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_FEED_VIEW_STATE = 1251;
+     * @generated from protobuf enum value: OBJECT_TYPE_FEED_VIEW_STATE = 1301;
      */
-    FEED_VIEW_STATE = 1251,
+    FEED_VIEW_STATE = 1301,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_CHART_VIEW_STATE = 1252;
+     * @generated from protobuf enum value: OBJECT_TYPE_CHART_VIEW_STATE = 1302;
      */
-    CHART_VIEW_STATE = 1252,
+    CHART_VIEW_STATE = 1302,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_HISTORY_VIEW_STATE = 1253;
+     * @generated from protobuf enum value: OBJECT_TYPE_HISTORY_VIEW_STATE = 1303;
      */
-    HISTORY_VIEW_STATE = 1253,
+    HISTORY_VIEW_STATE = 1303,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_TIMELINE_VIEW_STATE = 1254;
+     * @generated from protobuf enum value: OBJECT_TYPE_TIMELINE_VIEW_STATE = 1304;
      */
-    TIMELINE_VIEW_STATE = 1254,
+    TIMELINE_VIEW_STATE = 1304,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_USER_WIZARD_VIEW_STATE = 1255;
+     * @generated from protobuf enum value: OBJECT_TYPE_USER_WIZARD_VIEW_STATE = 1305;
      */
-    USER_WIZARD_VIEW_STATE = 1255,
+    USER_WIZARD_VIEW_STATE = 1305,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_FILE = 1300;
+     * @generated from protobuf enum value: OBJECT_TYPE_PAGE_VIEW_STATE = 1306;
      */
-    FILE = 1300,
+    PAGE_VIEW_STATE = 1306,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_ICON = 1301;
+     * @generated from protobuf enum value: OBJECT_TYPE_TREE_VIEW_STATE = 1307;
      */
-    ICON = 1301
+    TREE_VIEW_STATE = 1307,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_FILE = 1400;
+     */
+    FILE = 1400,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_ICON = 1401;
+     */
+    ICON = 1401
 }
 /**
  * @generated from protobuf enum symbolx.bench.OrganizationStatus
@@ -9943,37 +10005,45 @@ export enum StructType {
      */
     TRANSFORM = 1204,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_START_VIEW_STATE = 1250;
+     * @generated from protobuf enum value: STRUCT_TYPE_START_VIEW_STATE = 1300;
      */
-    START_VIEW_STATE = 1250,
+    START_VIEW_STATE = 1300,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_FEED_VIEW_STATE = 1251;
+     * @generated from protobuf enum value: STRUCT_TYPE_FEED_VIEW_STATE = 1301;
      */
-    FEED_VIEW_STATE = 1251,
+    FEED_VIEW_STATE = 1301,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_CHART_VIEW_STATE = 1252;
+     * @generated from protobuf enum value: STRUCT_TYPE_CHART_VIEW_STATE = 1302;
      */
-    CHART_VIEW_STATE = 1252,
+    CHART_VIEW_STATE = 1302,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_HISTORY_VIEW_STATE = 1253;
+     * @generated from protobuf enum value: STRUCT_TYPE_HISTORY_VIEW_STATE = 1303;
      */
-    HISTORY_VIEW_STATE = 1253,
+    HISTORY_VIEW_STATE = 1303,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_TIMELINE_VIEW_STATE = 1254;
+     * @generated from protobuf enum value: STRUCT_TYPE_TIMELINE_VIEW_STATE = 1304;
      */
-    TIMELINE_VIEW_STATE = 1254,
+    TIMELINE_VIEW_STATE = 1304,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_USER_WIZARD_VIEW_STATE = 1255;
+     * @generated from protobuf enum value: STRUCT_TYPE_USER_WIZARD_VIEW_STATE = 1305;
      */
-    USER_WIZARD_VIEW_STATE = 1255,
+    USER_WIZARD_VIEW_STATE = 1305,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_FILE = 1300;
+     * @generated from protobuf enum value: STRUCT_TYPE_PAGE_VIEW_STATE = 1306;
      */
-    FILE = 1300,
+    PAGE_VIEW_STATE = 1306,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_ICON = 1301;
+     * @generated from protobuf enum value: STRUCT_TYPE_TREE_VIEW_STATE = 1307;
      */
-    ICON = 1301
+    TREE_VIEW_STATE = 1307,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_FILE = 1400;
+     */
+    FILE = 1400,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_ICON = 1401;
+     */
+    ICON = 1401
 }
 /**
  * How a Resource is shared (if at all).
@@ -10083,6 +10153,23 @@ export enum TimeInterval {
      * @generated from protobuf enum value: TIME_INTERVAL_YEAR = 8;
      */
     YEAR = 8
+}
+/**
+ * @generated from protobuf enum symbolx.bench.TreeViewPreset
+ */
+export enum TreeViewPreset {
+    /**
+     * @generated from protobuf enum value: TREE_VIEW_PRESET_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: TREE_VIEW_PRESET_EXPLORE = 1;
+     */
+    EXPLORE = 1,
+    /**
+     * @generated from protobuf enum value: TREE_VIEW_PRESET_OUTLINE = 2;
+     */
+    OUTLINE = 2
 }
 /**
  * Triggers for blocks (for both actual runs and pre-defined triggers).
@@ -10325,13 +10412,13 @@ export enum ViewType {
      */
     RUN = 111,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_EXPLORE = 150;
+     * @generated from protobuf enum value: VIEW_TYPE_LOG = 112;
      */
-    EXPLORE = 150,
+    LOG = 112,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_OUTLINE = 151;
+     * @generated from protobuf enum value: VIEW_TYPE_TREE = 150;
      */
-    OUTLINE = 151,
+    TREE = 150,
     /**
      * @generated from protobuf enum value: VIEW_TYPE_INSPECT = 153;
      */
@@ -12743,6 +12830,53 @@ class OffsetData$Type extends MessageType<OffsetData> {
  */
 export const OffsetData = new OffsetData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class PageViewStateData$Type extends MessageType<PageViewStateData> {
+    constructor() {
+        super("symbolx.bench.PageViewStateData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] }
+        ]);
+    }
+    create(value?: PartialMessage<PageViewStateData>): PageViewStateData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        if (value !== undefined)
+            reflectionMergePartial<PageViewStateData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PageViewStateData): PageViewStateData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: PageViewStateData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.PageViewStateData
+ */
+export const PageViewStateData = new PageViewStateData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class PathData$Type extends MessageType<PathData> {
     constructor() {
         super("symbolx.bench.PathData", [
@@ -15127,6 +15261,90 @@ class TransformData$Type extends MessageType<TransformData> {
  * @generated MessageType for protobuf message symbolx.bench.TransformData
  */
 export const TransformData = new TransformData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class TreeViewStateData$Type extends MessageType<TreeViewStateData> {
+    constructor() {
+        super("symbolx.bench.TreeViewStateData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 35, name: "node_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
+            { no: 36, name: "filter_is_page", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 37, name: "is_default_expanded", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 99, name: "preset", kind: "enum", opt: true, T: () => ["symbolx.bench.TreeViewPreset", TreeViewPreset, "TREE_VIEW_PRESET_"] }
+        ]);
+    }
+    create(value?: PartialMessage<TreeViewStateData>): TreeViewStateData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.nodeTypes = [];
+        if (value !== undefined)
+            reflectionMergePartial<TreeViewStateData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: TreeViewStateData): TreeViewStateData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* repeated symbolx.bench.NodeType node_types */ 35:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.nodeTypes.push(reader.int32());
+                    else
+                        message.nodeTypes.push(reader.int32());
+                    break;
+                case /* optional bool filter_is_page */ 36:
+                    message.filterIsPage = reader.bool();
+                    break;
+                case /* optional bool is_default_expanded */ 37:
+                    message.isDefaultExpanded = reader.bool();
+                    break;
+                case /* optional symbolx.bench.TreeViewPreset preset */ 99:
+                    message.preset = reader.int32();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: TreeViewStateData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* repeated symbolx.bench.NodeType node_types = 35; */
+        if (message.nodeTypes.length) {
+            writer.tag(35, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.nodeTypes.length; i++)
+                writer.int32(message.nodeTypes[i]);
+            writer.join();
+        }
+        /* optional bool filter_is_page = 36; */
+        if (message.filterIsPage !== undefined)
+            writer.tag(36, WireType.Varint).bool(message.filterIsPage);
+        /* optional bool is_default_expanded = 37; */
+        if (message.isDefaultExpanded !== undefined)
+            writer.tag(37, WireType.Varint).bool(message.isDefaultExpanded);
+        /* optional symbolx.bench.TreeViewPreset preset = 99; */
+        if (message.preset !== undefined)
+            writer.tag(99, WireType.Varint).int32(message.preset);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.TreeViewStateData
+ */
+export const TreeViewStateData = new TreeViewStateData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class TypeConstraintData$Type extends MessageType<TypeConstraintData> {
     constructor() {
@@ -24070,9 +24288,9 @@ export const SomeNodeData = new SomeNodeData$Type();
 
 // Any...
 export type AnyNodeData = BenchData | EnvironmentData | BranchData | PackageData | DependencyData | SpaceData | LinkData | SkipData | IssueData | BlockData | TriggerData | FieldData | QueryData | ViewData | StepData | BadgeData | MembershipData | InviteData | SessionData | RunData | SignalData | LogData | NotificationData | MessageData | RecordData | ServerData | StoreData | MachineData | DriveData | BlobData | HandleData | UserData | OrganizationData | ClientData
-export type AnyStructData = ContextData | SessionContextData | EditContextData | EditData | ChangeData | ChangeVignetteData | GraphScopeData | ClientOriginData | NodeReferenceData | PropertyReferenceData | PathData | PathSegmentData | PathTokenData | PolicyData | PolicyRuleData | SubjectData | AccessZoneData | AccessMatrixData | AccessData | TypeInfoData | TypeConstraintData | ScheduleData | ProjectionData | ExpressionData | AggregationData | SelectionData | QueryInfoData | ReadOptionsData | CodeData | CodeLineData | StepConnectionData | RunErrorData | RunOptionsData | RetryAttemptData | TextData | TextLineData | TextSpanData | ColorData | FontData | BoxData | OffsetData | TransformData | StartViewStateData | FeedViewStateData | ChartViewStateData | HistoryViewStateData | TimelineViewStateData | UserWizardViewStateData | FileData | IconData
+export type AnyStructData = ContextData | SessionContextData | EditContextData | EditData | ChangeData | ChangeVignetteData | GraphScopeData | ClientOriginData | NodeReferenceData | PropertyReferenceData | PathData | PathSegmentData | PathTokenData | PolicyData | PolicyRuleData | SubjectData | AccessZoneData | AccessMatrixData | AccessData | TypeInfoData | TypeConstraintData | ScheduleData | ProjectionData | ExpressionData | AggregationData | SelectionData | QueryInfoData | ReadOptionsData | CodeData | CodeLineData | StepConnectionData | RunErrorData | RunOptionsData | RetryAttemptData | TextData | TextLineData | TextSpanData | ColorData | FontData | BoxData | OffsetData | TransformData | StartViewStateData | FeedViewStateData | ChartViewStateData | HistoryViewStateData | TimelineViewStateData | UserWizardViewStateData | PageViewStateData | TreeViewStateData | FileData | IconData
 export type AnyNodeDataType = typeof BenchData | typeof EnvironmentData | typeof BranchData | typeof PackageData | typeof DependencyData | typeof SpaceData | typeof LinkData | typeof SkipData | typeof IssueData | typeof BlockData | typeof TriggerData | typeof FieldData | typeof QueryData | typeof ViewData | typeof StepData | typeof BadgeData | typeof MembershipData | typeof InviteData | typeof SessionData | typeof RunData | typeof SignalData | typeof LogData | typeof NotificationData | typeof MessageData | typeof RecordData | typeof ServerData | typeof StoreData | typeof MachineData | typeof DriveData | typeof BlobData | typeof HandleData | typeof UserData | typeof OrganizationData | typeof ClientData
-export type AnyStructDataType = typeof ContextData | typeof SessionContextData | typeof EditContextData | typeof EditData | typeof ChangeData | typeof ChangeVignetteData | typeof GraphScopeData | typeof ClientOriginData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof PathData | typeof PathSegmentData | typeof PathTokenData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof TypeInfoData | typeof TypeConstraintData | typeof ScheduleData | typeof ProjectionData | typeof ExpressionData | typeof AggregationData | typeof SelectionData | typeof QueryInfoData | typeof ReadOptionsData | typeof CodeData | typeof CodeLineData | typeof StepConnectionData | typeof RunErrorData | typeof RunOptionsData | typeof RetryAttemptData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof ColorData | typeof FontData | typeof BoxData | typeof OffsetData | typeof TransformData | typeof StartViewStateData | typeof FeedViewStateData | typeof ChartViewStateData | typeof HistoryViewStateData | typeof TimelineViewStateData | typeof UserWizardViewStateData | typeof FileData | typeof IconData
+export type AnyStructDataType = typeof ContextData | typeof SessionContextData | typeof EditContextData | typeof EditData | typeof ChangeData | typeof ChangeVignetteData | typeof GraphScopeData | typeof ClientOriginData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof PathData | typeof PathSegmentData | typeof PathTokenData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof TypeInfoData | typeof TypeConstraintData | typeof ScheduleData | typeof ProjectionData | typeof ExpressionData | typeof AggregationData | typeof SelectionData | typeof QueryInfoData | typeof ReadOptionsData | typeof CodeData | typeof CodeLineData | typeof StepConnectionData | typeof RunErrorData | typeof RunOptionsData | typeof RetryAttemptData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof ColorData | typeof FontData | typeof BoxData | typeof OffsetData | typeof TransformData | typeof StartViewStateData | typeof FeedViewStateData | typeof ChartViewStateData | typeof HistoryViewStateData | typeof TimelineViewStateData | typeof UserWizardViewStateData | typeof PageViewStateData | typeof TreeViewStateData | typeof FileData | typeof IconData
 
 // Ancestry maps
 export const PARENT_NODE_TYPES: Record<NodeType, NodeType[]> = {
@@ -24312,6 +24530,8 @@ export const MESSAGE_TYPE_BY_OBJECT_TYPE: Partial<Record<ObjectType, MessageType
   [ObjectType.HISTORY_VIEW_STATE]: HistoryViewStateData,
   [ObjectType.TIMELINE_VIEW_STATE]: TimelineViewStateData,
   [ObjectType.USER_WIZARD_VIEW_STATE]: UserWizardViewStateData,
+  [ObjectType.PAGE_VIEW_STATE]: PageViewStateData,
+  [ObjectType.TREE_VIEW_STATE]: TreeViewStateData,
   [ObjectType.FILE]: FileData,
   [ObjectType.ICON]: IconData,
 }
@@ -24399,6 +24619,8 @@ export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
   ["symbolx.bench.HistoryViewStateData"]: ObjectType.HISTORY_VIEW_STATE,
   ["symbolx.bench.TimelineViewStateData"]: ObjectType.TIMELINE_VIEW_STATE,
   ["symbolx.bench.UserWizardViewStateData"]: ObjectType.USER_WIZARD_VIEW_STATE,
+  ["symbolx.bench.PageViewStateData"]: ObjectType.PAGE_VIEW_STATE,
+  ["symbolx.bench.TreeViewStateData"]: ObjectType.TREE_VIEW_STATE,
   ["symbolx.bench.FileData"]: ObjectType.FILE,
   ["symbolx.bench.IconData"]: ObjectType.ICON,
 }
@@ -24475,6 +24697,7 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.ORIENTATION]: Orientation,
   [EnumType.ALIGNMENT]: Alignment,
   [EnumType.USER_WIZARD_STAGE]: UserWizardViewStage,
+  [EnumType.TREE_VIEW_PRESET]: TreeViewPreset,
   [EnumType.USER_STATUS]: UserStatus,
   [EnumType.ORGANIZATION_STATUS]: OrganizationStatus,
 }
@@ -24530,6 +24753,8 @@ export interface StructTypeMapping extends Record<StructType, AnyStructData> {
   [StructType.HISTORY_VIEW_STATE]: HistoryViewStateData,
   [StructType.TIMELINE_VIEW_STATE]: TimelineViewStateData,
   [StructType.USER_WIZARD_VIEW_STATE]: UserWizardViewStateData,
+  [StructType.PAGE_VIEW_STATE]: PageViewStateData,
+  [StructType.TREE_VIEW_STATE]: TreeViewStateData,
   [StructType.FILE]: FileData,
   [StructType.ICON]: IconData,
 }
@@ -24654,6 +24879,8 @@ export interface AnyTypeMapping extends Record<ObjectType, AnyStructData | AnyNo
   [ObjectType.HISTORY_VIEW_STATE]: HistoryViewStateData,
   [ObjectType.TIMELINE_VIEW_STATE]: TimelineViewStateData,
   [ObjectType.USER_WIZARD_VIEW_STATE]: UserWizardViewStateData,
+  [ObjectType.PAGE_VIEW_STATE]: PageViewStateData,
+  [ObjectType.TREE_VIEW_STATE]: TreeViewStateData,
   [ObjectType.FILE]: FileData,
   [ObjectType.ICON]: IconData,
 }
@@ -24730,6 +24957,7 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.ORIENTATION]: Orientation,
   [EnumType.ALIGNMENT]: Alignment,
   [EnumType.USER_WIZARD_STAGE]: UserWizardViewStage,
+  [EnumType.TREE_VIEW_PRESET]: TreeViewPreset,
   [EnumType.USER_STATUS]: UserStatus,
   [EnumType.ORGANIZATION_STATUS]: OrganizationStatus,
 }
@@ -26246,6 +26474,18 @@ export enum UserWizardViewStateProperty {
   stage = 30,
 }
 
+export enum PageViewStateProperty {
+  metatype = 1,
+}
+
+export enum TreeViewStateProperty {
+  metatype = 1,
+  nodeTypes = 35,
+  filterIsPage = 36,
+  isDefaultExpanded = 37,
+  preset = 99,
+}
+
 export enum FileProperty {
   metatype = 1,
   type = 31,
@@ -26266,11 +26506,11 @@ export enum IconProperty {
 }
 
 export type AnyNodeProperty = typeof BenchProperty | typeof EnvironmentProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof LinkProperty | typeof SkipProperty | typeof IssueProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof BadgeProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof MessageProperty | typeof RecordProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof BlobProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty
-export type AnyStructProperty = typeof ContextProperty | typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof ReadOptionsProperty | typeof CodeProperty | typeof CodeLineProperty | typeof StepConnectionProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RetryAttemptProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof ChartViewStateProperty | typeof HistoryViewStateProperty | typeof TimelineViewStateProperty | typeof UserWizardViewStateProperty | typeof FileProperty | typeof IconProperty
+export type AnyStructProperty = typeof ContextProperty | typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof ReadOptionsProperty | typeof CodeProperty | typeof CodeLineProperty | typeof StepConnectionProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RetryAttemptProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof ChartViewStateProperty | typeof HistoryViewStateProperty | typeof TimelineViewStateProperty | typeof UserWizardViewStateProperty | typeof PageViewStateProperty | typeof TreeViewStateProperty | typeof FileProperty | typeof IconProperty
 export type AnyProperty = AnyNodeProperty | AnyStructProperty
 export type AnyNodePropertyType = typeof BenchProperty | typeof EnvironmentProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof LinkProperty | typeof SkipProperty | typeof IssueProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof BadgeProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof MessageProperty | typeof RecordProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof BlobProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty
-export type AnyStructPropertyType = typeof ContextProperty | typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof ReadOptionsProperty | typeof CodeProperty | typeof CodeLineProperty | typeof StepConnectionProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RetryAttemptProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof ChartViewStateProperty | typeof HistoryViewStateProperty | typeof TimelineViewStateProperty | typeof UserWizardViewStateProperty | typeof FileProperty | typeof IconProperty
-export type AnyPropertyType = typeof BenchProperty | typeof EnvironmentProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof LinkProperty | typeof SkipProperty | typeof IssueProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof BadgeProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof MessageProperty | typeof RecordProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof BlobProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof ContextProperty | typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof ReadOptionsProperty | typeof CodeProperty | typeof CodeLineProperty | typeof StepConnectionProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RetryAttemptProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof ChartViewStateProperty | typeof HistoryViewStateProperty | typeof TimelineViewStateProperty | typeof UserWizardViewStateProperty | typeof FileProperty | typeof IconProperty
+export type AnyStructPropertyType = typeof ContextProperty | typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof ReadOptionsProperty | typeof CodeProperty | typeof CodeLineProperty | typeof StepConnectionProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RetryAttemptProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof ChartViewStateProperty | typeof HistoryViewStateProperty | typeof TimelineViewStateProperty | typeof UserWizardViewStateProperty | typeof PageViewStateProperty | typeof TreeViewStateProperty | typeof FileProperty | typeof IconProperty
+export type AnyPropertyType = typeof BenchProperty | typeof EnvironmentProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof LinkProperty | typeof SkipProperty | typeof IssueProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof BadgeProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof MessageProperty | typeof RecordProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof BlobProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof ContextProperty | typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof ReadOptionsProperty | typeof CodeProperty | typeof CodeLineProperty | typeof StepConnectionProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RetryAttemptProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof ChartViewStateProperty | typeof HistoryViewStateProperty | typeof TimelineViewStateProperty | typeof UserWizardViewStateProperty | typeof PageViewStateProperty | typeof TreeViewStateProperty | typeof FileProperty | typeof IconProperty
 export const NODE_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyNodePropertyType>> = {
   [ObjectType.BENCH]: BenchProperty,
   [ObjectType.ENVIRONMENT]: EnvironmentProperty,
@@ -26357,6 +26597,8 @@ export const STRUCT_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyStructP
   [ObjectType.HISTORY_VIEW_STATE]: HistoryViewStateProperty,
   [ObjectType.TIMELINE_VIEW_STATE]: TimelineViewStateProperty,
   [ObjectType.USER_WIZARD_VIEW_STATE]: UserWizardViewStateProperty,
+  [ObjectType.PAGE_VIEW_STATE]: PageViewStateProperty,
+  [ObjectType.TREE_VIEW_STATE]: TreeViewStateProperty,
   [ObjectType.FILE]: FileProperty,
   [ObjectType.ICON]: IconProperty,
 }
@@ -26444,6 +26686,8 @@ export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>>
   [ObjectType.HISTORY_VIEW_STATE]: HistoryViewStateProperty,
   [ObjectType.TIMELINE_VIEW_STATE]: TimelineViewStateProperty,
   [ObjectType.USER_WIZARD_VIEW_STATE]: UserWizardViewStateProperty,
+  [ObjectType.PAGE_VIEW_STATE]: PageViewStateProperty,
+  [ObjectType.TREE_VIEW_STATE]: TreeViewStateProperty,
   [ObjectType.FILE]: FileProperty,
   [ObjectType.ICON]: IconProperty,
 }
@@ -26971,6 +27215,16 @@ export const TimelineViewStateDataInfo: Record<TimelineViewStateProperty, Proper
 export const UserWizardViewStateDataInfo: Record<UserWizardViewStateProperty, PropertyInfo> = {
   [UserWizardViewStateProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.USER_WIZARD_VIEW_STATE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [UserWizardViewStateProperty.stage]: { id: 30, name: 'stage', component: ObjectType.USER_WIZARD_VIEW_STATE, enumType: EnumType.USER_WIZARD_STAGE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+}
+export const PageViewStateDataInfo: Record<PageViewStateProperty, PropertyInfo> = {
+  [PageViewStateProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.PAGE_VIEW_STATE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+}
+export const TreeViewStateDataInfo: Record<TreeViewStateProperty, PropertyInfo> = {
+  [TreeViewStateProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.TREE_VIEW_STATE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [TreeViewStateProperty.nodeTypes]: { id: 35, name: 'node_types', component: ObjectType.TREE_VIEW_STATE, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [TreeViewStateProperty.filterIsPage]: { id: 36, name: 'filter_is_page', component: ObjectType.TREE_VIEW_STATE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [TreeViewStateProperty.isDefaultExpanded]: { id: 37, name: 'is_default_expanded', component: ObjectType.TREE_VIEW_STATE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
+  [TreeViewStateProperty.preset]: { id: 99, name: 'preset', component: ObjectType.TREE_VIEW_STATE, enumType: EnumType.TREE_VIEW_PRESET, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
 }
 export const FileDataInfo: Record<FileProperty, PropertyInfo> = {
   [FileProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.FILE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -27985,6 +28239,8 @@ export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo
   [ObjectType.HISTORY_VIEW_STATE]: HistoryViewStateDataInfo,
   [ObjectType.TIMELINE_VIEW_STATE]: TimelineViewStateDataInfo,
   [ObjectType.USER_WIZARD_VIEW_STATE]: UserWizardViewStateDataInfo,
+  [ObjectType.PAGE_VIEW_STATE]: PageViewStateDataInfo,
+  [ObjectType.TREE_VIEW_STATE]: TreeViewStateDataInfo,
   [ObjectType.FILE]: FileDataInfo,
   [ObjectType.ICON]: IconDataInfo,
   [ObjectType.BENCH]: BenchDataInfo,

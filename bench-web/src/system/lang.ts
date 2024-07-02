@@ -619,7 +619,7 @@ export function isRunnableRef(
   fields?: Ref<FieldData[]>,
 ): Ref<boolean> {
   fields = fields ?? graph.getChildrenRef(node, NodeType.FIELD);
-  return computed(() => node.value != null && isRunnable(node.value!, graph, fields.value));
+  return computed(() => node.value != null && isRunnable(node.value!, graph, fields?.value));
 }
 
 //

@@ -14,6 +14,7 @@ import { benchPtr } from "@/system/client";
 import { useExistingConnection } from "@/system/connection";
 import { makeIcon } from "@/system/icon";
 import { canvas, goToBench } from "@/system/space";
+import { packProtoJson } from "@/system/transaction";
 import { logIn, signUp, user } from "@/system/user";
 import { makeTypeInfo } from "@/system/value";
 import { getViewComponentChildren, isVueInstanceOf, useViewState } from "@/views/canvas";
@@ -55,11 +56,17 @@ function switchStage() {
   if (stage.value == UserWizardViewStage.LOG_IN) {
     canvas
       .tx()
-      .update(selfNode, { title: "Sign Up", valuePacked: packStateUpdate({ stage: UserWizardViewStage.SIGN_UP }) });
+      .update(selfNode, {
+        title: "Sign Up",
+        valuePacked: packProtoJson(packStateUpdate({ stage: UserWizardViewStage.SIGN_UP })),
+      });
   } else if (stage.value == UserWizardViewStage.SIGN_UP) {
     canvas
       .tx()
-      .update(selfNode, { title: "Log In", valuePacked: packStateUpdate({ stage: UserWizardViewStage.LOG_IN }) });
+      .update(selfNode, {
+        title: "Log In",
+        valuePacked: packProtoJson(packStateUpdate({ stage: UserWizardViewStage.LOG_IN })),
+      });
   } else {
     throw new Error(`unexpected registration stage: ${stage.value}`);
   }
