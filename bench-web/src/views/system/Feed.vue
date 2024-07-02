@@ -41,11 +41,12 @@ import {
   getPropertyTitle,
   toCamelName,
 } from "@/system/lang";
-import { canvas } from "@/system/space";
+import { canvas, inspectionPtr } from "@/system/space";
 import { user } from "@/system/user";
 import { getElement } from "@/utils/element";
 import { humanizeNumber } from "@/utils/human";
 import { ScrollbarWidth } from "@/utils/layout";
+import { computedValue } from "@/utils/ref";
 import { ACCENT_COLOR_BY_RUN_STATUS } from "@/utils/style";
 import { formatRelativeDate } from "@/utils/time";
 import { DEFAULT_HEADER_HEIGHT, useExpansion, useViewState } from "@/views/canvas";
@@ -58,6 +59,7 @@ import { computed, ref, toRef, type Ref } from "vue";
 const HEADER_HEIGHT = DEFAULT_HEADER_HEIGHT;
 const MIN_WIDTH = 320;
 const MAX_WIDTH = 800;
+const HANDLE_WIDTH = 6;
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; size?: Required<Pick<BoxData, "width" | "height">> } & Partial<
@@ -78,6 +80,7 @@ const { state, useStateProp } = useViewState({
 });
 const nodeType = useStateProp("nodeType", NodeType.LOG);
 const activeFilterKeys = useStateProp("filterPills", []);
+const focusedNodePtr = computedValue(() => props.focus?.nodesPtr[0]);
 
 type MiniAction = {
   id: string;
@@ -313,6 +316,7 @@ function mapToNode(element: HTMLElement | SVGElement | ViewComponent): NodeRefer
   return null;
 }
 
+const isFocusedAbsolute = canvas.isFocusedAbsoluteRef(self);
 canvas.registerView(self, id);
 defineExpose<ViewExposed>({ self, id, mapToNode });
 </script>
@@ -366,21 +370,32 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
       track-is-overlay
     >
       <!-- NOTE :UX :Incomplete: make feed not so ugly, support more feed variants (like table) -->
-      <ul v-if="isConnected" class="mt-1 flex flex-col gap-y-1 py-1">
+      <ul v-if="isConnected" class="mt-1 flex flex-col gap-y-1">
         <!-- Feed item -->
         <li
           v-for="item in items"
           :key="item.id"
           :ref="(ref: any) => (ref != null ? (itemRefs[item.id] = ref) : delete itemRefs[item.id])"
           :data-item-id="item.id"
-          class="group/item mx-auto w-full text-gray-900"
-          :class="[!isInline ? 'mx-auto px-4' : '']"
+          class="group/item mx-auto flex w-full flex-row text-gray-900"
+          :class="[!isInline ? 'mx-auto px-3' : '']"
           :style="{ minWidth: MIN_WIDTH + 'px', maxWidth: MAX_WIDTH + 'px' }"
         >
+          <!-- Handle -->
           <div
-            class="rounded-md border px-2 py-0.5 hover:bg-gray-100"
-            :class="[focusedNode?.id == item.id ? 'border-gray-200' : 'border-transparent']"
-          >
+            class="flex-shrink-0 rounded transition-colors duration-75"
+            :style="{ width: HANDLE_WIDTH + 'px' }"
+            :class="
+              item.id == inspectionPtr?.id
+                ? 'bg-primary-900'
+                : item.id == focusedNodePtr?.id
+                  ? isFocusedAbsolute
+                    ? 'bg-primary-900'
+                    : 'bg-gray-300'
+                  : 'bg-transparent group-hover/item:bg-gray-200'
+            "
+          />
+          <div class="flex-1 rounded-md px-2 py-1 hover:bg-gray-100">
             <!-- Item header -->
             <div
               class="flex max-w-full flex-row flex-wrap items-center gap-x-1 hover:cursor-pointer"
@@ -401,7 +416,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
                 <span>
                   <!-- <IconInline v-bind="item.icon" class="text-gray-700 mr-1" /> -->
                   <span>{{ EDIT_TYPE_PAST_VERB[item.it.type as unknown as EditType] }}</span>
-                </span>
+                </span> 
                 <!-- Properties (if any) -->
                 <template
                   v-if="
@@ -483,7 +498,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
             </div>
 
             <!-- Item body (if expanded) -->
-            <div v-if="isExpanded(item.it)" class="mt-1 max-w-full py-1">
+            <div v-if="isExpanded(item.it)" class="max-w-full px-1 py-1">
               <Log
                 v-if="item.kind == 'log-edit'"
                 is-inline

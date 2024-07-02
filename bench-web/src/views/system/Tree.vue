@@ -278,7 +278,7 @@ const actions: Partial<ActionMapImplementation<"common">> = {
     action: () =>
       canvas.goToNode(focusedNode.value!, { where: "nextFrameRoot", skipSelf: preset.value == TreeViewPreset.OUTLINE }),
   },
-  // <!-- TODO :Incomplete: Explorer/Outline actions -->
+  // <!-- NOTE :Incomplete: Explorer/Outline actions -->
   // common.edit.rename, ...
   "common.edit.archive": {
     isEnabled: hasFocusedNode,
@@ -402,7 +402,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
               };
             }
           "
-          class="group relative mx-1 mt-[1px] flex flex-row items-center rounded border py-0.5 hover:cursor-pointer hover:bg-gray-100 hover:text-primary-900 data-[dragging=true]:opacity-50"
+          class="group relative mx-1 flex flex-row items-center rounded border py-[3px] hover:cursor-pointer hover:bg-gray-100 hover:text-primary-900 data-[dragging=true]:opacity-50"
           :class="[
             focusedNode?.id == node.id && isFocusAbsolute ? 'border-primary-900' : 'border-transparent',
             isFocusedAbsolute(node) ? 'bg-gray-100' : '',
