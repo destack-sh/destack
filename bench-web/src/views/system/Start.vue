@@ -19,7 +19,7 @@ import { makeExpression } from "@/system/expression";
 import { RUNNABLE_BLOCK_TYPES } from "@/system/lang";
 import { makeRun } from "@/system/session";
 import { canvas, inspectionPtr } from "@/system/space";
-import { unpackProtoJson } from "@/system/transaction";
+import { packProtoJson, unpackProtoJson } from "@/system/transaction";
 import {
   getPropertyType,
   packBuiltinObject,
@@ -31,7 +31,7 @@ import {
 } from "@/system/value";
 import { getFieldViews } from "@/system/view";
 import { ScrollbarWidth } from "@/utils/layout";
-import { computedValue } from "@/utils/ref";
+import { computedValue, mapRef } from "@/utils/ref";
 import NodeCrumb from "@/views/builtins/NodeCrumb.vue";
 import { DEFAULT_HEADER_HEIGHT, useViewState } from "@/views/canvas";
 import { viewEmits, type ViewExposed } from "@/views/common";
@@ -90,8 +90,11 @@ const runnableNode: Ref<BlockData | StepData | null> = computed(() => {
   }
   return null;
 });
-// NOTE :UX :Architecture: run inputs should be recorded in view node state somehow
-const inputsPacked: Ref<Record<string, any>> = ref({});
+const inputsPacked: Ref<Record<string, any>> = mapRef(
+  useStateProp("inputsPacked", undefined, { debounce: "short" }), // have to :DebounceNestedValue
+  (packed) => (packed != null ? unpackProtoJson(packed) : {}) as Record<string, any>,
+  (unpacked) => packProtoJson(unpacked),
+);
 const inputFields = pkgGraph.getChildrenRef(runnableNode, NodeType.FIELD); // these need to be resolved later :TypeResolution
 const inputViews = computed(() =>
   getFieldViews(inputFields.value, inputsPacked.value, pkgGraph, { zones: [FieldZone.INPUT], isInput: true }),
@@ -161,7 +164,7 @@ defineExpose<ViewExposed>({ self });
             :style="{ width: isFullWidth ? '100%' : 'calc(90% - 100px)' }"
             v-bind="viewProps"
             :model-value="inputsPacked[storageKey]"
-            @update:model-value="(value: any) => (inputsPacked[storageKey] = value)"
+            @update:model-value="(value: any) => (inputsPacked = { ...inputsPacked, [storageKey]: value })"
           />
           <div v-else class="ml-auto text-warning-600">
             {{ viewType != null ? ViewType[viewType] : "No View for Type" }}

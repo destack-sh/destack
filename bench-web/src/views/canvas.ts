@@ -43,7 +43,12 @@ import {
   updateOrder,
 } from "@/system/lang";
 import { canvas, inspectionBasePtr, inspectionPtr } from "@/system/space";
-import { packProtoJson as packProtoJson, unpackProtoJson, type DebounceLevel, type Transaction } from "@/system/transaction";
+import {
+  packProtoJson as packProtoJson,
+  unpackProtoJson,
+  type DebounceLevel,
+  type Transaction,
+} from "@/system/transaction";
 import { isProtoJson, packBuiltinObject, unpackBuiltinObject } from "@/system/value";
 import type { SplitAnchor } from "@/utils/drag";
 import { getElement, isFocusableElement } from "@/utils/element";
@@ -1212,15 +1217,17 @@ export function useViewState<T extends ObjectType>(use: {
   function useStateProp<P extends keyof AnyTypeMapping[T]>(
     prop: P,
     defaultValue: AnyTypeMapping[T][P],
+    options?: { debounce?: DebounceLevel },
   ): Ref<Required<AnyTypeMapping[T]>[P]>;
   function useStateProp<P extends keyof AnyTypeMapping[T]>(prop: P): Ref<AnyTypeMapping[T][P] | undefined>;
   function useStateProp<P extends keyof AnyTypeMapping[T]>(
     prop: P,
     defaultValue?: AnyTypeMapping[T][P],
+    options?: { debounce?: DebounceLevel },
   ): Ref<AnyTypeMapping[T][P]> {
     return computed({
       get: () => (state.value?.[prop] ?? defaultValue) as any,
-      set: (value: AnyTypeMapping[T][P]) => updateState({ [prop]: value } as any),
+      set: (value: AnyTypeMapping[T][P]) => updateState({ [prop]: value } as any, options),
     });
   }
 
