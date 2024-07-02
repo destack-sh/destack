@@ -61,9 +61,12 @@ import {
   onMounted,
   onUpdated,
   shallowRef,
+  toRef,
   triggerRef,
   watch,
+  watchEffect,
   type ComponentInstance,
+  type MaybeRef,
   type Ref,
 } from "vue";
 
@@ -285,7 +288,7 @@ export class ViewCanvas {
   /** Updates our internal focus state in response to a browser event */
   private onComponentFocused(element: ViewComponent | HTMLElement | null) {
     const component = element instanceof HTMLElement ? findViewComponentUp(element) : element;
-    
+
     // update component focus state
     if (component == null) {
       // reset
@@ -1082,41 +1085,47 @@ export function collapseSelection(selection: SelectionData, nodes: (AnyNodeData 
 export function useExpansion(options: {
   graph: ReadNodeGraph;
   tx: () => Transaction;
-  self: Ref<AnyNodeReferenceData | null | undefined>;
-  isDefaultExpanded?: boolean;
+  self?: Ref<AnyNodeReferenceData | null | undefined>;
+  props: Pick<ViewData, "expansion">;
+  emit: (event: string, ...args: any[]) => void;
+  isDefaultExpanded?: MaybeRef<boolean | undefined>;
   isExclusive?: boolean;
 }) {
-  const selfNode = options.graph.getRef(options.self.value) as Ref<ViewData>;
-  const expansion = computed(() => selfNode.value?.expansion);
+  const isDefaultExpandedRef = toRef(options.isDefaultExpanded) as Ref<boolean>;
   const expandedNodesById = computedValue(() => {
     const expanded: Record<string, NodeReferenceData> = {};
-    for (const node of expansion.value?.nodesPtr ?? []) {
+    for (const node of options.props.expansion?.nodesPtr ?? []) {
       expanded[node.id!] = node;
     }
     return expanded;
   });
 
   function toggleExpanded(node: AnyNodeData | AnyNodeReferenceData) {
-    if (options.self.value == null) throw new Error("no self node");
-    const selfNode = options.graph.getOrError(options.self.value) as ViewData;
+    if (isDefaultExpandedRef.value) return; // nothing to do
+
+    let newExpansion: SelectionData | null;
     if (isExpanded(node)) {
-      options
-        .tx()
-        .update(selfNode, { expansion: collapseSelection(selfNode.expansion!, [node]) }, { debounce: "tick" });
-    } else if (!isExpanded(node)) {
+      newExpansion = collapseSelection(options.props.expansion!, [node]);
+    } else {
       if (options.isExclusive) {
-        options.tx().update(selfNode, { expansion: makeSelection([node]) }, { debounce: "tick" });
+        newExpansion = makeSelection([node]);
       } else {
-        options.tx().update(selfNode, { expansion: expandSelection(selfNode.expansion, [node]) }, { debounce: "tick" });
+        newExpansion = expandSelection(options.props.expansion, [node]);
       }
+    }
+    if (options.self?.value != null) {
+      const self = options.graph.getOrError(options.self.value!);
+      canvas.tx().update(self, { expansion: newExpansion }, { debounce: "tick" });
+    } else {
+      options.emit("update:self", { expansion: newExpansion });
     }
   }
 
   function isExpanded(node: { id?: string; ck?: string }): boolean {
-    return expandedNodesById.value[node.id!] != null;
+    return isDefaultExpandedRef.value || expandedNodesById.value[node.id!] != null;
   }
 
-  return { toggleExpanded, isExpanded: options.isDefaultExpanded ? () => true : isExpanded };
+  return { toggleExpanded, isExpanded };
 }
 
 /**

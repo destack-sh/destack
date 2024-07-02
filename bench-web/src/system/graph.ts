@@ -22,7 +22,6 @@ import { computedValue, manualSubRef, watchValue, type SubRef } from "@/utils/re
 import { tryOnBeforeUnmount } from "@vueuse/core";
 import {
   isRef,
-  ref,
   shallowRef,
   toRef,
   triggerRef,
@@ -30,7 +29,7 @@ import {
   type MaybeRef,
   type Ref,
   type ShallowRef,
-  type WatchSource,
+  type WatchSource
 } from "vue";
 
 /** A NodeReference but with proper typing */

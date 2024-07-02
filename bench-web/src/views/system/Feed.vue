@@ -54,7 +54,7 @@ import { makeViewId, viewEmits, type ViewComponent, type ViewExposed } from "@/v
 import Scroll from "@/views/containers/Scroll.vue";
 import Log from "@/views/system/Log.vue";
 import Run from "@/views/system/Run.vue";
-import { computed, ref, toRef, type Ref } from "vue";
+import { computed, ref, toRef, watchEffect, type Ref } from "vue";
 
 const HEADER_HEIGHT = DEFAULT_HEADER_HEIGHT;
 const MIN_WIDTH = 320;
@@ -63,7 +63,7 @@ const HANDLE_WIDTH = 6;
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; size?: Required<Pick<BoxData, "width" | "height">> } & Partial<
-    Pick<ViewData, "variant" | "focus" | "isInput" | "isInline" | "valueType" | "valuePacked">
+    Pick<ViewData, "variant" | "focus" | "isInput" | "isInline" | "valueType" | "valuePacked" | "expansion">
   >
 >();
 const emit = defineEmits(viewEmits());
@@ -291,7 +291,14 @@ function toSubjectIcon(item: FeedItem) {
 // Interaction
 //
 
-const { toggleExpanded, isExpanded } = useExpansion({ graph: spaceGraph, tx: canvas.tx, self, isExclusive: true });
+const { toggleExpanded, isExpanded } = useExpansion({
+  graph: spaceGraph,
+  tx: canvas.tx,
+  self,
+  props,
+  emit,
+  isExclusive: true,
+});
 const focusedItem = computed(() => {
   if (props.focus?.nodesPtr.length ?? 0 > 0) {
     const focusedId = props.focus!.nodesPtr[0].id;
@@ -325,7 +332,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
     <!-- Header -->
     <div
       class="group flex w-full flex-row items-center gap-x-1.5"
-      :class="[!isInline ? 'mx-auto  px-5' : '']"
+      :class="[!isInline ? 'mx-auto px-5' : '']"
       :style="{ height: HEADER_HEIGHT + 'px', minWidth: MIN_WIDTH + 'px', maxWidth: MAX_WIDTH + 'px' }"
     >
       <!-- Filters -->
@@ -370,7 +377,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
       track-is-overlay
     >
       <!-- NOTE :UX :Incomplete: make feed not so ugly, support more feed variants (like table) -->
-      <ul v-if="isConnected" class="mt-1 flex flex-col gap-y-1">
+      <ul v-if="isConnected" class="flex flex-col gap-y-1 pt-1">
         <!-- Feed item -->
         <li
           v-for="item in items"
@@ -395,7 +402,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
                   : 'bg-transparent group-hover/item:bg-gray-200'
             "
           />
-          <div class="flex-1 rounded-md px-2 py-1 hover:bg-gray-100">
+          <div class="flex-1 rounded-md px-2 py-1 hover:bg-gray-100" :class="[isInline ? '-mx-2' : '']">
             <!-- Item header -->
             <div
               class="flex max-w-full flex-row flex-wrap items-center gap-x-1 hover:cursor-pointer"
@@ -414,9 +421,8 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
                 </button>
                 <!-- Verb -->
                 <span>
-                  <!-- <IconInline v-bind="item.icon" class="text-gray-700 mr-1" /> -->
                   <span>{{ EDIT_TYPE_PAST_VERB[item.it.type as unknown as EditType] }}</span>
-                </span> 
+                </span>
                 <!-- Properties (if any) -->
                 <template
                   v-if="

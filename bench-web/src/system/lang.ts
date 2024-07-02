@@ -3,14 +3,16 @@
  */
 
 import {
+  Anchor,
   BenchType,
   BlockProperty,
   BlockType,
   ColorType,
   ENUM_BY_TYPE,
+  EditType,
   EnumType,
-  FieldZone,
   FieldProperty,
+  FieldZone,
   IconData,
   NodeReferenceData,
   NodeType,
@@ -18,12 +20,15 @@ import {
   ObjectType,
   PROPERTY_ENUM_BY_TYPE,
   PROPERTY_INFOS_BY_TYPE,
+  PackageData,
   PrimitiveType,
   RecordData,
   RunData,
+  RunStatus,
   SignalData,
   StepType,
   StructType,
+  TypeKind,
   ViewProperty,
   ViewType,
   type AnyNodeData,
@@ -32,11 +37,6 @@ import {
   type EnumTypeMapping,
   type FieldData,
   type PropertyInfo,
-  TypeKind,
-  PackageData,
-  Anchor,
-  EditType,
-  RunStatus,
 } from "@/proto/wire";
 import {
   describeNode,
@@ -47,7 +47,7 @@ import {
 } from "@/proto/wiring";
 import { isDescendantOf, resolveNode, type ReadNodeGraph } from "@/system/graph";
 import { ENUM_ICONS_BY_TYPE, getNodeIcon, makeIcon } from "@/system/icon";
-import type { DebounceLevel, Transaction } from "@/system/transaction";
+import type { Transaction } from "@/system/transaction";
 import { makeTypeInfo, type TypeIdentity } from "@/system/value";
 import { getViewForValueType } from "@/system/view";
 import { generateOrderKey, generateOrderKeys, isValidOrderKey } from "@/utils/fractional";
@@ -764,6 +764,7 @@ export function getPropertyTitle(property: PropertyInfo): string {
   let pythonName = property.name;
   if (pythonName.endsWith("_ptr")) pythonName = pythonName.slice(0, -4);
   if (pythonName.startsWith("is_")) pythonName = pythonName.slice(3);
+  if (pythonName.endsWith("_packed")) pythonName = pythonName.slice(0, -7);
   const title = toCasing(pythonName, Casing.CAMEL, true);
   return title;
 }

@@ -99,7 +99,7 @@ defineExpose<ViewExposed>({ self, id });
           <component
             :is="getViewComponent(viewType)"
             v-if="oldValue != null"
-            :class="['ml-auto flex-shrink-0', isFullWidth ? '' : '']"
+            :class="['ml-auto flex-shrink-0', isFullWidth ? '' : 'text-right']"
             :style="{ width: isFullWidth ? '100%' : 'calc(45%)' }"
             v-bind="viewProps"
             :model-value="oldValue"

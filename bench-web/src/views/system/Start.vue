@@ -39,7 +39,7 @@ const MAX_WIDTH = 800;
 const props = defineProps<
   { self: TypedNodeReferenceData<NodeType.VIEW>; size: Required<Pick<BoxData, "width" | "height">> } & Pick<
     ViewData,
-    "name" | "title" | "nodePtr" | "valuePacked"
+    "name" | "title" | "nodePtr" | "valuePacked" | "focus" | "expansion"
   >
 >();
 const emit = defineEmits(viewEmits());
@@ -129,7 +129,7 @@ defineExpose<ViewExposed>({ self });
       track-is-overlay
     >
       <!-- Inputs -->
-      <div class="mx-auto mt-1 px-5" :style="{ minWidth: MIN_WIDTH + 'px', maxWidth: MAX_WIDTH + 'px' }">
+      <div class="mx-auto px-5 pt-1" :style="{ minWidth: MIN_WIDTH + 'px', maxWidth: MAX_WIDTH + 'px' }">
         <h4 class="font-semibold">Inputs</h4>
       </div>
       <ul class="flex flex-col gap-y-2.5 py-3">
@@ -160,7 +160,11 @@ defineExpose<ViewExposed>({ self });
           </div>
         </li>
         <!-- Empty -->
-        <li v-if="inputViews.length === 0" class="mx-auto w-full px-5">
+        <li
+          v-if="inputViews.length === 0"
+          class="mx-auto w-full px-5"
+          :style="{ minWidth: MIN_WIDTH + 'px', maxWidth: MAX_WIDTH + 'px' }"
+        >
           <span class="text-gray-500">No Inputs</span>
         </li>
       </ul>
@@ -174,20 +178,30 @@ defineExpose<ViewExposed>({ self });
         <Feed
           is-inline
           :value-packed="packProtoJson(packBuiltinObject(feedState))"
+          :expansion="expansion"
+          :focus="focus"
           @update:self="
-            (update) =>
-              updateState({
-                feed: {
-                  ...unpackBuiltinObject(unpackProtoJson(update.valuePacked), ObjectType.FEED_VIEW_STATE),
-                  filter: undefined,
-                },
-              })
+            (update) => {
+              if ('expansion' in update) {
+                const selfNode = spaceGraph.getOrError(self);
+                canvas.tx().update(selfNode, { expansion: update.expansion });
+              }
+              if ('valuePacked' in update) {
+                updateState({
+                  feed: {
+                    ...unpackBuiltinObject(unpackProtoJson(update.valuePacked), ObjectType.FEED_VIEW_STATE),
+                    filter: undefined,
+                  },
+                });
+              }
+            }
           "
         />
       </div>
     </Scroll>
   </div>
   <div v-else class="flex h-full w-full flex-col justify-center bg-white text-center">
+    <!-- NOTE :UX: display possible nodes to start in context & all runs if nothing runnable selected -->
     <!-- Empty state -->
     <span>
       <i class="fas fa-empty-set text-gray-500" />
