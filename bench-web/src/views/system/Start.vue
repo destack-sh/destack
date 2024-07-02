@@ -56,13 +56,27 @@ const self = toRef(props, "self");
 const focusPtr = computedValue(() => props.nodePtr ?? inspectionPtr.value);
 const { graph: spaceGraph } = useExistingConnection(self);
 const { graph: pkgGraph, connection: pkgConnection } = useExistingConnection(focusPtr);
-const { state, updateState } = useViewState({
+const { state, updateState, useStateProp } = useViewState({
   selfPtr: self,
   graph: spaceGraph,
   stateType: ObjectType.START_VIEW_STATE,
   props,
   emit,
 });
+const feedState = computed(
+  () =>
+    ({
+      // pre-filter to only runs of this node
+      metatype: ObjectType.FEED_VIEW_STATE,
+      nodeType: NodeType.RUN,
+      filter: makeExpression({
+        op: ExpressionOp.EQUALS,
+        propertyPtr: propertyReference(ObjectType.RUN, RunProperty.blockPtr),
+        valuePacked: packValueSimpleStruct(focusPtr.value, propertyType(ObjectType.RUN, RunProperty.blockPtr)),
+      }),
+      filterPills: state.value.feed?.filterPills,
+    }) as FeedViewStateData,
+);
 const ancestors = pkgGraph.getAncestorsRef(focusPtr, { includeSelf: true });
 const runnableNode: Ref<BlockData | StepData | null> = computed(() => {
   // for some reason this type checks but ancestors.find doesn't
@@ -77,7 +91,6 @@ const runnableNode: Ref<BlockData | StepData | null> = computed(() => {
   return null;
 });
 // NOTE :UX :Architecture: run inputs should be recorded in view node state somehow
-//  (this is a general :Architecture issue, probably put these in View.value with some intrinsic types?)
 const inputsPacked: Ref<Record<string, any>> = ref({});
 const inputFields = pkgGraph.getChildrenRef(runnableNode, NodeType.FIELD); // these need to be resolved later :TypeResolution
 const inputViews = computed(() =>
@@ -168,19 +181,7 @@ defineExpose<ViewExposed>({ self });
         <h4 class="font-semibold">Runs</h4>
         <Feed
           is-inline
-          :value-packed="
-            // pre-filter to only runs of this node
-            packBuiltinObject({
-              metatype: ObjectType.FEED_VIEW_STATE,
-              nodeType: NodeType.RUN,
-              filter: makeExpression({
-                op: ExpressionOp.EQUALS,
-                propertyPtr: propertyReference(ObjectType.RUN, RunProperty.blockPtr),
-                valuePacked: packValueSimpleStruct(focusPtr, propertyType(ObjectType.RUN, RunProperty.blockPtr)),
-              }),
-              filterPills: state.feed?.filterPills,
-            } as FeedViewStateData)
-          "
+          :value-packed="packBuiltinObject(feedState)"
           @update:self="
             (update) =>
               updateState({

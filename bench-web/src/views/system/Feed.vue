@@ -196,7 +196,8 @@ const effectiveFilter: Ref<ExpressionData> = computed(() => {
       clauses.push(pill.filterIfInactive);
     }
   }
-  return makeExpression({ op: ExpressionOp.AND, clauses });
+  const filter = makeExpression({ op: ExpressionOp.AND, clauses });
+  return filter;
 });
 
 //
@@ -314,9 +315,18 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
         <span>{{ pill.name }}</span>
       </button>
       <!-- Staleness -->
-      <span v-if="isStale" class="ml-1">
-        <i class="fas fa-signal-stream animate-pulse text-gray-400" />
-      </span>
+      <Transition
+        enter-active-class="transition-opacity ease-in duration-150"
+        enter-from-class="opacity-0"
+        enter-to-class="opacity-100"
+        leave-active-class="transition-all ease-out duration-150"
+        leave-from-class="opacity-100"
+        leave-to-class="opacity-0"
+      >
+        <span v-if="isStale" class="ml-1">
+          <i class="fas fa-circle-small animate-pulse text-gray-400" />
+        </span>
+      </Transition>
       <!-- Date picker -->
       <div class="ml-auto">
         <!-- NOTE :Incomplete: paginate & pick date range in Feed -->
