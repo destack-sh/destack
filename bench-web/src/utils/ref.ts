@@ -1,18 +1,14 @@
-import { syncRef, type Fn } from "@vueuse/core";
+import { type Fn } from "@vueuse/core";
 import {
   computed,
   customRef,
   getCurrentInstance,
   isRef,
   onUnmounted,
-  ref,
   watch,
   type ComputedGetter,
   type Ref,
   type WatchOptions,
-  toValue,
-  shallowRef,
-  type ShallowRef,
   type WatchSource,
   type WatchStopHandle,
 } from "vue";
@@ -32,6 +28,14 @@ export function pickRef<T, K extends keyof T>(
   return computed({
     get: () => obj.value?.[key] ?? valueFallback,
     set: (value) => (obj.value = { ...(obj.value ?? objFallback), [key]: value } as T),
+  });
+}
+
+/** Maps a computed get/set method with a transform */
+export function mapRef<T, U>(ref: Ref<T>, map: (value: T) => U, reverseMap: (value: U) => T): Ref<U> {
+  return computed({
+    get: () => map(ref.value),
+    set: (value) => (ref.value = reverseMap(value)),
   });
 }
 
