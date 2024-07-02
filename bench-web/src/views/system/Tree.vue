@@ -111,7 +111,9 @@ const { toggleExpanded, isExpanded } = useExpansion({
   graph: spaceGraph,
   tx: canvas.tx,
   self,
-  isDefaultExpanded: isDefaultExpanded.value,
+  props,
+  emit,
+  isDefaultExpanded,
 });
 
 function isIncludedSelf(node: AnyNodeData) {
@@ -454,7 +456,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
             v-html="nodeTitlesMarked[i] ?? (node as any).name ?? node.id"
           />
           <!-- Meta -->
-          <div class="ml-auto flex flex-row gap-x-1 pl-3 pr-0.5">
+          <div class="ml-auto flex flex-row gap-x-1 pl-3 pr-[3px]">
             <!-- Create inside -->
             <button
               v-if="isNode(node, NodeType.BLOCK)"
