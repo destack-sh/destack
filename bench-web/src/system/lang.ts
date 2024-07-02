@@ -55,6 +55,7 @@ import { log } from "@/utils/log";
 import { Casing, toCasing } from "@/utils/string";
 import { getRandomColorType } from "@/utils/style";
 import type { ViewProps } from "@/views/common";
+import { computed, type Ref } from "vue";
 
 export const NODE_TYPES = Object.values(NodeType).filter((v) => typeof v == "number" && v > 0) as NodeType[];
 export const NODE_TYPES_SET = new Set(NODE_TYPES);
@@ -592,6 +593,33 @@ export function createField(
     orderKey,
   });
   return field;
+}
+
+/** Whether the given node is runnable */
+export function isRunnable(node: AnyNodeData, graph: ReadNodeGraph, fields?: FieldData[]): boolean {
+  if (isNode(node, NodeType.STEP)) {
+    return true;
+  } else if (isNode(node, NodeType.BLOCK)) {
+    if (node.type == BlockType.CODE || node.type == BlockType.FLOW) {
+      return true;
+    } else if (node.type == BlockType.TEXT) {
+      fields = fields ?? graph.getChildren(node, NodeType.FIELD);
+      return fields.some((f) => f.zone == FieldZone.INPUT) && fields.some((f) => f.zone == FieldZone.OUTPUT);
+    } else {
+      return false;
+    }
+  } else {
+    return false;
+  }
+}
+
+export function isRunnableRef(
+  node: Ref<AnyNodeData | null | undefined>,
+  graph: ReadNodeGraph,
+  fields?: Ref<FieldData[]>,
+): Ref<boolean> {
+  fields = fields ?? graph.getChildrenRef(node, NodeType.FIELD);
+  return computed(() => node.value != null && isRunnable(node.value!, graph, fields.value));
 }
 
 //

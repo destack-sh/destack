@@ -16,7 +16,7 @@ import {
 import { isNode, propertyReference, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
 import { makeExpression } from "@/system/expression";
-import { RUNNABLE_BLOCK_TYPES } from "@/system/lang";
+import { RUNNABLE_BLOCK_TYPES, isRunnable } from "@/system/lang";
 import { makeRun } from "@/system/session";
 import { canvas, inspectionPtr } from "@/system/space";
 import { packProtoJson, unpackProtoJson } from "@/system/transaction";
@@ -78,14 +78,12 @@ const feedState = computed(
     }) as FeedViewStateData,
 );
 const ancestors = pkgGraph.getAncestorsRef(focusPtr, { includeSelf: true });
+
 const runnableNode: Ref<BlockData | StepData | null> = computed(() => {
   // for some reason this type checks but ancestors.find doesn't
   for (const ancestor of ancestors.value) {
-    if (
-      (isNode(ancestor, NodeType.BLOCK) && RUNNABLE_BLOCK_TYPES.includes(ancestor.type)) ||
-      isNode(ancestor, NodeType.STEP)
-    ) {
-      return ancestor;
+    if (isRunnable(ancestor, pkgGraph)) {
+      return ancestor as BlockData | StepData;
     }
   }
   return null;

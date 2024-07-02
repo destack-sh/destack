@@ -2,8 +2,7 @@
 import { BlockType, FieldZone, NodeType, Orientation, Variant, ViewData, type FieldData } from "@/proto/wire";
 import { isNode, toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
 import type { ActionContext, ActionMapImplementation } from "@/system/action";
-import { PACKAGE_SCOPE } from "@/system/client";
-import { useGetConnection, type PreparedGetConnection } from "@/system/connection";
+import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
 import { RUNNABLE_BLOCK_TYPES, createField, moveNode, onNodeMorphed, toCamelName } from "@/system/lang";
 import { canvas } from "@/system/space";
 import { startDragging, useMultiDropZone, type DraggedData, type MultiAnchor } from "@/utils/drag";
@@ -27,12 +26,7 @@ const leftFieldRefs: Ref<Record<string, InstanceType<typeof Field> | null>> = re
 const rightFieldRefs: Ref<Record<string, InstanceType<typeof Field> | null>> = ref({});
 
 const nodePtr = toRef(props, "nodePtr") as Ref<TypedNodeReferenceData<NodeType.BLOCK>>;
-const { graph: pkgGraph, connection: pkgConnection } =
-  props.preparedConnection ??
-  useGetConnection(
-    { name: `class.${nodePtr.value.id}` },
-    computed(() => ({ scope: PACKAGE_SCOPE.value, roots: [nodePtr.value], isEnabled: nodePtr.value != null })),
-  );
+const { graph: pkgGraph, connection: pkgConnection } = props.preparedConnection ?? useExistingConnection(nodePtr);
 const block = pkgGraph.getRef(nodePtr, { ignoreAncestors: props.self == null });
 const isFunction = computed(() => block.value != null && RUNNABLE_BLOCK_TYPES.includes(block.value.type));
 const shouldHaveFields = computed(() => block.value != null && !isFunction.value);
