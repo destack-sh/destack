@@ -1,5 +1,4 @@
 import {
-  Anchor,
   BlockData,
   BlockType,
   EnumType,
@@ -21,7 +20,7 @@ import { EXPOSED_ANCHORS, getRandomEnumOption } from "@/system/lang";
 import { canvas, hasLocalBench, inspectionPtr, pkg, pkgConnection, pkgGraph, space } from "@/system/space";
 import { toaster } from "@/system/toast";
 import { getAllTransactionBuffers, packProtoJson } from "@/system/transaction";
-import { packBuiltinObject } from "@/system/value";
+import { packBuiltinObject, packBuiltinObjectJson } from "@/system/value";
 import { generateOrderKey } from "@/utils/fractional";
 import { type FilterPrefix } from "@/utils/functools";
 import { DISCORD_URL, IS_DEV } from "@/utils/globals";
@@ -33,7 +32,8 @@ import {
   DEFAULT_BAR_POSITION,
   clearSpace,
   collectViewComponentsUp,
-  createDesktopProSpace,
+  createDesktopAdvancedSpace,
+  createDesktopDefaultSpace,
   createEmptySpace,
 } from "@/views/canvas";
 import type { ViewComponent } from "@/views/common";
@@ -190,8 +190,9 @@ export const ACTION_BUILTIN_IDS = [
   "view.layout.splitLeft",
   "view.layout.splitRight",
   "view.layout.pinSplit",
+  "view.space.resetBlank",
   "view.space.resetDefault",
-  "view.space.resetEmpty",
+  "view.space.resetAdvanced",
   "view.space.rotateBarPosition",
   // user
   "user.auth.signup",
@@ -1029,7 +1030,7 @@ declareActionMap<"view">({
 });
 contributeActionMap<"view">({
   // canvas
-  "view.space.resetEmpty": {
+  "view.space.resetBlank": {
     isEnabled: computed(() => isDeveloperMode.value && space.value != null),
     icon: "fas fa-window",
     title: "Clear Space",
@@ -1048,11 +1049,22 @@ contributeActionMap<"view">({
     text: "Reset the space to the default layout",
     icon: "fas fa-browser",
     action: () => {
-      if (pkg.value == null) return;
-      if (space.value == null) throw new Error(`${describeNode(pkg.value)} has no space`);
+      if (pkg.value == null || space.value == null) return;
       const tx = canvas.tx();
       clearSpace(tx, canvas.graph, space.value);
-      createDesktopProSpace(tx, space.value);
+      createDesktopDefaultSpace(tx, space.value);
+    },
+  },
+  "view.space.resetAdvanced": {
+    isEnabled: hasLocalBench,
+    title: "Restore Advanced Space",
+    text: "Reset the space to the advanced layout",
+    icon: "fas fa-browser",
+    action: () => {
+      if (pkg.value == null || space.value == null) return;
+      const tx = canvas.tx();
+      clearSpace(tx, canvas.graph, space.value);
+      createDesktopAdvancedSpace(tx, space.value);
     },
   },
   "view.space.rotateBarPosition": {
@@ -1250,12 +1262,7 @@ contributeActionMap<"space">({
         {
           type: ViewType.TREE,
           title: "Explore",
-          valuePacked: packProtoJson(
-            packBuiltinObject({
-              metatype: ObjectType.TREE_VIEW_STATE,
-              preset: TreeViewPreset.EXPLORE,
-            } as TreeViewStateData),
-          ),
+          valuePacked: packBuiltinObjectJson({ metatype: ObjectType.TREE_VIEW_STATE, preset: TreeViewPreset.EXPLORE }),
         },
         { ifPresent: "upsertAndFocus", predicate: (view) => view.title != null && view.title.includes("Explore") },
       );
@@ -1270,12 +1277,7 @@ contributeActionMap<"space">({
         {
           type: ViewType.TREE,
           title: "Outline",
-          valuePacked: packProtoJson(
-            packBuiltinObject({
-              metatype: ObjectType.TREE_VIEW_STATE,
-              preset: TreeViewPreset.OUTLINE,
-            } as TreeViewStateData),
-          ),
+          valuePacked: packBuiltinObjectJson({ metatype: ObjectType.TREE_VIEW_STATE, preset: TreeViewPreset.OUTLINE }),
         },
         { ifPresent: "upsertAndFocus", predicate: (view) => view.title != null && view.title.includes("Outline") },
       );

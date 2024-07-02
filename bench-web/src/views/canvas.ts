@@ -1,22 +1,17 @@
 import {
   Anchor,
-  BenchType,
   DESCENDANT_NODE_TYPES,
   IconData,
   NodeReferenceData,
   NodeType,
   ObjectType,
   Orientation,
-  PrimitiveType,
   SelectionData,
   SelectionKind,
   SpaceData,
   StructType,
   TreeViewPreset,
   TreeViewStateData,
-  TypeInfoData,
-  TypeKind,
-  Variant,
   ViewData,
   ViewType,
   type AnyNodeData,
@@ -33,34 +28,29 @@ import {
   type AnyNodeReferenceData,
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
-import type { Connection } from "@/system/connection";
 import { isDescendantOf, type NodeKey, type ReadNodeGraph } from "@/system/graph";
-import { ENUM_ICONS_BY_TYPE, toIconMaybe } from "@/system/icon";
+import { toIconMaybe } from "@/system/icon";
 import {
-  NODE_VIEW_TYPES,
   HELPER_VIEW_TYPES,
+  NODE_VIEW_TYPES,
   ROOT_VIEW_TYPES,
   generateNodeName,
   getOrderKey,
+  toCamelName,
   updateOrder,
 } from "@/system/lang";
 import { canvas, inspectionBasePtr, inspectionPtr } from "@/system/space";
-import {
-  packProtoJson as packProtoJson,
-  unpackProtoJson,
-  type DebounceLevel,
-  type Transaction,
-} from "@/system/transaction";
-import { isProtoJson, packBuiltinObject, unpackBuiltinObject } from "@/system/value";
+import { packProtoJson, unpackProtoJson, type DebounceLevel, type Transaction } from "@/system/transaction";
+import { isProtoJson, packBuiltinObject, packBuiltinObjectJson, unpackBuiltinObject } from "@/system/value";
 import type { SplitAnchor } from "@/utils/drag";
 import { getElement, isFocusableElement } from "@/utils/element";
-import { generateOrderKey } from "@/utils/fractional";
+import { generateOrderKey, generateOrderKeys } from "@/utils/fractional";
 import { IS_DEV, isDeveloperMode } from "@/utils/globals";
 import { DEFAULT_ORIENTATION, splitBox } from "@/utils/layout";
 import { log } from "@/utils/log";
 import { computedValue, deepValueEquals, toValueRef } from "@/utils/ref";
 import { Casing, toCasing } from "@/utils/string";
-import { getViewTypeByComponentName, type FocusAnchor, type ViewComponent, type ViewProps } from "@/views/common";
+import { getViewTypeByComponentName, type FocusAnchor, type ViewComponent } from "@/views/common";
 import { useActiveElement, useEventListener, type MaybeElement } from "@vueuse/core";
 import {
   computed,
@@ -937,180 +927,103 @@ export function clearSpace(tx: Transaction, graph: ReadNodeGraph, space: SpaceDa
 
 // NOTE :Cleanup: defining space/canvas layouts is a bit cumbersome
 
+type ViewLayoutIn = {
+  type: ViewType;
+  children?: ViewLayoutIn[];
+} & Partial<ViewData>;
+
+/** Recursively create the views for a layout */
+function makeLayout(
+  tx: Transaction,
+  root: SpaceData | ViewData,
+  layout: ViewLayoutIn[],
+): {
+  viewsByName: Record<string, ViewData>;
+} {
+  // nocheckin!
+  const viewsByName: Record<string, ViewData> = {};
+  const viewsByType: Partial<Record<ViewType, ViewData[]>> = {};
+
+  function doMakeLayoutRec(parent: SpaceData | ViewData, viewIn: ViewLayoutIn, ancestors: ViewData[]) {
+    const name = viewIn.name ?? generateNodeName(NodeType.VIEW, viewsByType[viewIn.type] ?? [], viewIn.type);
+    const view = tx.create({
+      metatype: NodeType.VIEW,
+      title: viewIn.name ?? toCamelName(ViewType, viewIn.type),
+      ...viewIn,
+      name,
+      parentPtr: toNodeReference(parent),
+      packagePtr: root.packagePtr,
+    });
+    if (viewsByName[view.name] != null) throw new Error(`duplicate view name: ${view.name}`);
+    viewsByName[view.name] = view;
+    if (viewsByType[view.type] == null) viewsByType[view.type] = [];
+    viewsByType[view.type]!.push(view);
+
+    // descend
+    if (viewIn.children != null && viewIn.children.length > 0) {
+      const orderKeys = generateOrderKeys(null, null, viewIn.children.length);
+      for (let i = 0; i < viewIn.children.length; i++) {
+        const child = viewIn.children[i];
+        doMakeLayoutRec(view, { ...child, orderKey: orderKeys[i] }, [...ancestors, view]);
+      }
+    }
+  }
+
+  const orderKeys = generateOrderKeys(null, null, layout.length);
+  for (let i = 0; i < layout.length; i++) {
+    const child = layout[i];
+    doMakeLayoutRec(root, { ...child, orderKey: orderKeys[i] }, []);
+  }
+
+  return { viewsByName };
+}
+
 /** Sets up a minimal empty space with one root tab */
 export function createEmptySpace(tx: Transaction, space: SpaceData): { primary: ViewData } {
   const window = makeMainWindow(space, tx);
-  const primary = makeNode({
-    metatype: NodeType.VIEW,
-    type: ViewType.TAB,
-    parentPtr: toNodeReference(window),
-    packagePtr: space.packagePtr,
-    orderKey: "a0",
-    name: "Primary",
-    title: "Primary",
-  });
-  tx.create(primary);
-  return { primary };
+  const layout = makeLayout(tx, window, [{ type: ViewType.TAB, name: "Primary", children: [] }]);
+  return { primary: layout.viewsByName["Primary"] };
 }
 
-/** Setups up the pro level three-side double split canvas */
-export function createDesktopProSpace(
-  tx: Transaction,
-  space: SpaceData,
-  options: { secondary: "split" | "side" | false } = { secondary: "split" },
-): { side: ViewData; primary: ViewData; secondary: ViewData | null } {
+/** Creates the default three-side canvas */
+export function createDesktopDefaultSpace(tx: Transaction, space: SpaceData): { primary: ViewData } {
   const window = makeMainWindow(space, tx);
-  // root splits
-  const side = tx.create({
-    metatype: NodeType.VIEW,
-    type: ViewType.SPLIT,
-    parentPtr: toNodeReference(window),
-    packagePtr: space.packagePtr,
-    orderKey: "a0",
-    name: "Side",
-    title: "Side",
-    orientation: Orientation.VERTICAL,
-    size: makeStruct({ metatype: StructType.BOX, width: 320 }),
-  });
-  const primary = tx.create({
-    metatype: NodeType.VIEW,
-    type: ViewType.TAB,
-    parentPtr: toNodeReference(window),
-    packagePtr: space.packagePtr,
-    orderKey: "a1",
-    name: "Primary",
-    title: "Primary",
-    size: makeStruct({ metatype: StructType.BOX, widthRelative: 1500 }),
-  });
-
-  // side
-  const sideTop = tx.create({
-    metatype: NodeType.VIEW,
-    type: ViewType.TAB,
-    parentPtr: toNodeReference(side),
-    packagePtr: space.packagePtr,
-    orderKey: "a0",
-    name: "Top",
-    title: "Top",
-  });
-  const sideBottom = tx.create({
-    metatype: NodeType.VIEW,
-    type: ViewType.TAB,
-    parentPtr: toNodeReference(side),
-    packagePtr: space.packagePtr,
-    orderKey: "a1",
-    name: "Bottom",
-    title: "Bottom",
-  });
-  tx.create({
-    metatype: NodeType.VIEW,
-    type: ViewType.TREE,
-    parentPtr: toNodeReference(sideTop),
-    packagePtr: space.packagePtr,
-    orderKey: "a0",
-    name: "Tree1",
-    title: "Explore",
-    valuePacked: packProtoJson(
-      packBuiltinObject({
-        metatype: ObjectType.TREE_VIEW_STATE,
-        preset: TreeViewPreset.EXPLORE,
-      } as TreeViewStateData),
-    ),
-  });
-  tx.create({
-    metatype: NodeType.VIEW,
-    type: ViewType.TREE,
-    parentPtr: toNodeReference(sideBottom),
-    packagePtr: space.packagePtr,
-    orderKey: "a1",
-    name: "Tree2",
-    title: "Outline",
-    valuePacked: packProtoJson(
-      packBuiltinObject({
-        metatype: ObjectType.TREE_VIEW_STATE,
-        preset: TreeViewPreset.OUTLINE,
-      } as TreeViewStateData),
-    ),
-  });
-
-  // primary
-  // ...?
-
-  // secondary
-  let secondary: ViewData | null = null;
-  if (options.secondary == "split" || options.secondary == "side") {
-    if (options.secondary == "split") {
-      secondary = tx.create({
-        metatype: NodeType.VIEW,
-        type: ViewType.SPLIT,
-        parentPtr: toNodeReference(window),
-        packagePtr: space.packagePtr,
-        orderKey: "a2",
-        name: "Secondary",
-        title: "Secondary",
-        orientation: Orientation.VERTICAL,
-        size: makeStruct({ metatype: StructType.BOX, widthRelative: 700 }),
-      });
-    } else {
-      secondary = sideBottom;
-    }
-    const secondaryTop = tx.create({
-      metatype: NodeType.VIEW,
+  const layout = makeLayout(tx, window, [
+    {
       type: ViewType.TAB,
-      parentPtr: toNodeReference(secondary),
-      packagePtr: space.packagePtr,
-      orderKey: "a0",
-      name: "Top",
-      title: "Top",
-    });
-    const secondaryBottom = tx.create({
-      metatype: NodeType.VIEW,
+      name: "Side",
+      orientation: Orientation.VERTICAL,
+      size: makeStruct({ metatype: StructType.BOX, width: 320 }),
+      children: [
+        {
+          type: ViewType.TREE,
+          title: "Explore",
+          valuePacked: packBuiltinObjectJson({ metatype: ObjectType.TREE_VIEW_STATE, preset: TreeViewPreset.EXPLORE }),
+        },
+      ],
+    },
+    {
       type: ViewType.TAB,
-      parentPtr: toNodeReference(secondary),
-      packagePtr: space.packagePtr,
-      orderKey: "a1",
-      name: "Bottom",
-      title: "Bottom",
-    });
-    tx.create({
-      metatype: NodeType.VIEW,
-      type: ViewType.INSPECT,
-      parentPtr: toNodeReference(secondaryTop),
-      packagePtr: space.packagePtr,
-      orderKey: "a0",
-      name: "Inspect1",
-      title: "Inspect",
-    });
-    tx.create({
-      metatype: NodeType.VIEW,
-      type: ViewType.START,
-      parentPtr: toNodeReference(secondaryTop),
-      packagePtr: space.packagePtr,
-      orderKey: "a1",
-      name: "Start1",
-      title: "Start",
-    });
-    tx.create({
-      metatype: NodeType.VIEW,
-      type: ViewType.CREATE,
-      parentPtr: toNodeReference(secondaryBottom),
-      packagePtr: space.packagePtr,
-      orderKey: "a0",
-      name: "Create1",
-      title: "Create",
-    });
-    tx.create({
-      metatype: NodeType.VIEW,
-      type: ViewType.FEED,
-      parentPtr: toNodeReference(secondaryBottom),
-      packagePtr: space.packagePtr,
-      orderKey: "a1",
-      name: "Logs1",
-      title: "Logs",
-    });
-  }
+      name: "Primary",
+      size: makeStruct({ metatype: StructType.BOX, widthRelative: 1500 }),
+    },
+    {
+      type: ViewType.TAB,
+      name: "Secondary",
+      size: makeStruct({ metatype: StructType.BOX, widthRelative: 700 }),
+      children: [
+        { type: ViewType.INSPECT },
+        { type: ViewType.FEED, name: "Logs1", title: "Logs" },
+        { type: ViewType.START },
+      ],
+    },
+  ]);
+  return { primary: layout.viewsByName["Primary"] };
+}
 
-  return { side, primary, secondary };
+/** Creates the advanced three-side double vertical split canvas */
+export function createDesktopAdvancedSpace(tx: Transaction, space: SpaceData): { primary: ViewData } {
+  return createDesktopDefaultSpace(tx, space); // no special space yet
 }
 
 export function makeSelection(

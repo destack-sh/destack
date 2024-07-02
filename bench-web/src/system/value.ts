@@ -357,6 +357,10 @@ export function packBuiltinObject(value: AnyStructData | AnyNodeData, options?: 
   return valuePacked;
 }
 
+export function packBuiltinObjectJson(value: AnyStructData | AnyNodeData, options?: { only?: string[] }): ProtoStruct {
+  return ProtoStruct.fromJson(packBuiltinObject(value, options));
+}
+
 /** Decodes proto value representation of a struct. See encode. */
 export function unpackBuiltinObject<T extends ObjectType>(valuePacked: any, objectType?: T): AnyTypeMapping[T] {
   if (objectType == null) {
