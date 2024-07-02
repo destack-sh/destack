@@ -214,7 +214,6 @@ export class ViewCanvas {
   focusedViewComponent: Ref<ViewComponent | null> = shallowRef(null);
   focusedViewComponentsById: Ref<Record<string, ViewComponent>> = shallowRef({}); // order is bottom up
   focusedViewPtr: Ref<TypedNodeReferenceData<NodeType.VIEW> | null> = shallowRef(null);
-  focusedView: Ref<ViewData | null>;
 
   constructor(
     spacePtr: Ref<TypedNodeReferenceData<NodeType.SPACE> | null>,
@@ -246,8 +245,6 @@ export class ViewCanvas {
         this.onComponentFocused(e.target as HTMLElement);
       }
     });
-
-    this.focusedView = toValueRef(this.graph.getRef(this.focusedViewPtr));
   }
 
   /** Whether there are any active views here */
@@ -261,12 +258,12 @@ export class ViewCanvas {
   }
 
   /** Gets the node ptr of the given view */
-  getViewNodePtr(nodeView: ViewComponent, element?: HTMLElement | ViewComponent | null) {
+  getViewNodePtr(view: ViewComponent, element?: HTMLElement | ViewComponent | null) {
     if (element != null) {
-      const nodePtr = nodeView?.exposed?.mapToNode?.(element);
+      const nodePtr = view?.exposed?.mapToNode?.(element);
       if (nodePtr != null) return nodePtr;
     }
-    return this.graph.getMaybe(getViewComponentPtrMaybe(nodeView))?.nodePtr ?? (nodeView.props as any).nodePtr;
+    return this.graph.getMaybe(getViewComponentPtrMaybe(view))?.nodePtr ?? (view.props as any).nodePtr;
   }
 
   /** Gets the view component for a certain view identity (self.id or anonymous id) */
@@ -288,8 +285,7 @@ export class ViewCanvas {
   /** Updates our internal focus state in response to a browser event */
   private onComponentFocused(element: ViewComponent | HTMLElement | null) {
     const component = element instanceof HTMLElement ? findViewComponentUp(element) : element;
-    if (this.focusedViewComponent.value === component) return;
-
+    
     // update component focus state
     if (component == null) {
       // reset
@@ -307,32 +303,36 @@ export class ViewCanvas {
     });
     this.focusedViewComponentsById.value = componentsById;
     this.focusedViewPtr.value = getViewComponentPtrMaybe(viewComponents.find(isIdentifiedViewComponent));
+    const focusedView = this.graph.getMaybe(this.focusedViewPtr.value);
 
-    // update root/inspection
+    // update root/inspection/base
     const rootViewComponentIdx = viewComponents.findIndex((v) => isViewComponentIn(v, ROOT_VIEW_TYPES));
     const baseView = this.graph.getMaybe(getViewComponentPtrMaybe(viewComponents[rootViewComponentIdx - 1]));
-    const containingNodeView = viewComponents.find((v) => isViewComponentIn(v, NODE_VIEW_TYPES));
-    const linkedNodePtr = containingNodeView && element ? this.getViewNodePtr(containingNodeView, element) : null;
+    let nodePtr: NodeReferenceData | null = null;
+    for (const viewComponent of viewComponents) {
+      nodePtr = this.getViewNodePtr(viewComponent, element as HTMLElement);
+      if (nodePtr != null) break;
+    }
     const keepInspectionInBase =
       getElement(element)?.closest?.("[data-keep-inspection-in-base]") != null &&
       inspectionBasePtr.value != null &&
-      linkedNodePtr != null &&
-      isDescendantOf(this.graph, inspectionBasePtr.value, linkedNodePtr);
+      nodePtr != null &&
+      isDescendantOf(this.graph, inspectionBasePtr.value, nodePtr);
     if (
       !keepInspectionInBase &&
       baseView != null &&
       !HELPER_VIEW_TYPES.has(baseView.type) &&
-      linkedNodePtr != null &&
-      linkedNodePtr != inspectionPtr.value?.id
+      nodePtr != null &&
+      nodePtr.id != inspectionPtr.value?.id
     ) {
-      this.inspect({ node: linkedNodePtr, view: this.focusedViewPtr.value! });
+      this.inspect({ node: nodePtr, view: this.focusedViewPtr.value! });
     }
     if (
       !keepInspectionInBase &&
       this.focusedViewPtr.value != null &&
-      this.focusedView.value?.focus?.nodesPtr[0]?.id != linkedNodePtr?.id
+      focusedView?.focus?.nodesPtr[0]?.id != nodePtr?.id
     ) {
-      this.focusInGraph({ view: this.focusedViewPtr.value, focus: makeSelectionMaybe(linkedNodePtr) });
+      this.focusInGraph({ view: this.focusedViewPtr.value, focus: makeSelectionMaybe(nodePtr) });
     }
   }
 
@@ -1084,6 +1084,7 @@ export function useExpansion(options: {
   tx: () => Transaction;
   self: Ref<AnyNodeReferenceData | null | undefined>;
   isDefaultExpanded?: boolean;
+  isExclusive?: boolean;
 }) {
   const selfNode = options.graph.getRef(options.self.value) as Ref<ViewData>;
   const expansion = computed(() => selfNode.value?.expansion);
@@ -1103,7 +1104,11 @@ export function useExpansion(options: {
         .tx()
         .update(selfNode, { expansion: collapseSelection(selfNode.expansion!, [node]) }, { debounce: "tick" });
     } else if (!isExpanded(node)) {
-      options.tx().update(selfNode, { expansion: expandSelection(selfNode.expansion, [node]) }, { debounce: "tick" });
+      if (options.isExclusive) {
+        options.tx().update(selfNode, { expansion: makeSelection([node]) }, { debounce: "tick" });
+      } else {
+        options.tx().update(selfNode, { expansion: expandSelection(selfNode.expansion, [node]) }, { debounce: "tick" });
+      }
     }
   }
 
