@@ -16,9 +16,9 @@ import { type TypedNodeReferenceData } from "@/proto/wiring";
 import type { ActionMapImplementation } from "@/system/action";
 import { PACKAGE_SCOPE } from "@/system/client";
 import type { PreparedGetConnection } from "@/system/connection";
-import { useGetConnection } from "@/system/connection";
+import { useExistingConnection, useGetConnection } from "@/system/connection";
 import { IconInline, getNodeIcon } from "@/system/icon";
-import { RUNNABLE_BLOCK_TYPES, TYPE_BLOCK_TYPES, createField, isGeneratedNodeName } from "@/system/lang";
+import { RUNNABLE_BLOCK_TYPES, TYPE_BLOCK_TYPES, createField, isGeneratedNodeName, isRunnableRef } from "@/system/lang";
 import { canvas, inspectionPtr } from "@/system/space";
 import { makeTypeInfo, packValue, resolveType, unpackValue, type TypeIdentity } from "@/system/value";
 import { onMouseReleasedOnce } from "@/utils/layout";
@@ -49,29 +49,21 @@ const nameRef = ref<HTMLElement | null>(null);
 const textRef: Ref<InstanceType<typeof Text> | null> = ref(null);
 
 const nodePtr = toRef(props, "nodePtr") as Ref<TypedNodeReferenceData<NodeType.BLOCK>>;
-const pkgGetConnection =
-  props.preparedConnection ??
-  useGetConnection(
-    { name: `block.${nodePtr.value.id}` },
-    computed(() => ({
-      scope: PACKAGE_SCOPE.value,
-      roots: [nodePtr.value],
-      options: { descendantTypes: [NodeType.FIELD, NodeType.VIEW, NodeType.STEP, NodeType.TRIGGER] },
-      isEnabled: nodePtr.value != null,
-    })),
-  );
+const pkgGetConnection = props.preparedConnection ?? useExistingConnection(nodePtr);
 const { graph: pkgGraph, connection: pkgConnection } = pkgGetConnection;
 const block = pkgGraph.getRef(nodePtr, { ignoreAncestors: props.self == null });
 const fields = pkgGraph.getChildrenRef(block, NodeType.FIELD);
 
-const isRunnable = computed(() => RUNNABLE_BLOCK_TYPES.includes(block.value?.type!));
+const isRunnable = isRunnableRef(block, pkgGraph, fields);
 const isGeneratedName = computed(
   () => block.value != null && isGeneratedNodeName(block.value.metatype as unknown as NodeType, block.value.name),
 );
 const isThinTextWrapper = computed(() => isGeneratedName.value && block.value?.type == BlockType.TEXT);
 const hasText = computed(() => block.value?.text != null);
 const hasFunctionFields = computed(
-  () => isRunnable.value && fields.value.some((f) => f.zone == FieldZone.INPUT || f.zone == FieldZone.OUTPUT),
+  () =>
+    RUNNABLE_BLOCK_TYPES.includes(block.value?.type!) &&
+    fields.value.some((f) => f.zone == FieldZone.INPUT || f.zone == FieldZone.OUTPUT),
 );
 const forceShowText: Ref<boolean> = ref(false);
 
@@ -117,7 +109,14 @@ function focus(anchor?: FocusAnchor | NodeReferenceData) {
 }
 
 canvas.registerView(self, id);
-defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALTH], actions, focus });
+defineExpose<ViewExposed & { isRunnable: Ref<boolean> }>({
+  self,
+  id,
+  variants: [Variant.PRIMARY, Variant.STEALTH],
+  actions,
+  focus,
+  isRunnable,
+});
 </script>
 <template>
   <div

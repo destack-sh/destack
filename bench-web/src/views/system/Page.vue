@@ -7,13 +7,11 @@ import {
   NodeReferenceData,
   NodeType,
   Orientation,
-  RunKind,
-  RunStatus,
   Variant,
   ViewData,
-  ViewType,
+  ViewType
 } from "@/proto/wire/";
-import { makeNode, toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
+import { toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
 import { fireActionById, type ActionContext, type ActionMapImplementation } from "@/system/action";
 import { useHierarchicalNodeMoveActions } from "@/system/block";
 import { PACKAGE_SCOPE } from "@/system/client";
@@ -35,7 +33,7 @@ import { DEFAULT_HEADER_HEIGHT } from "@/views/canvas";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Block from "@/views/system/Block.vue";
-import { computed, nextTick, ref, toRef, watch, type Ref } from "vue";
+import { computed, nextTick, ref, toRef, type Ref } from "vue";
 
 const HEADER_HEIGHT = DEFAULT_HEADER_HEIGHT;
 const DEPTH_OFFSET = 40;
@@ -321,7 +319,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
               <!-- Activity / Run / ... -->
               <!-- Run -->
               <button
-                v-if="RUNNABLE_BLOCK_TYPES.includes(block.type)"
+                v-if="expandedBlockRefs[blockPtr.id!]?.isRunnable"
                 class="text-gray-400 hover:text-primary-900"
                 :class="inspectionPtr?.id == blockPtr?.id ? '' : 'opacity-0 group-hover/block-line:opacity-100'"
                 data-keep-inspection-in-base="true"

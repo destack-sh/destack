@@ -1,17 +1,16 @@
 <script lang="ts" setup>
-import { ViewData, NodeType, Variant, ColorShade, FieldZone } from "@/proto/wire";
+import { NodeType, Variant, ViewData } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
-import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
-import { canvas, inspectionPtr } from "@/system/space";
-import { computed, ref, toRef, type Ref } from "vue";
-import { useGetConnection, type PreparedGetConnection } from "@/system/connection";
-import Inaccessible from "@/views/builtins/Inaccessible.vue";
-import { IconInline, getNodeIcon } from "@/system/icon";
 import type { ActionMapImplementation } from "@/system/action";
-import Icon from "@/views/content/Icon.vue";
-import { type PopoverInfo, type PopoverInfoIn } from "@/utils/menu";
+import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
+import { IconInline, getNodeIcon } from "@/system/icon";
+import { canvas, inspectionPtr } from "@/system/space";
+import { type PopoverInfoIn } from "@/utils/menu";
 import type { TooltipInfo } from "@/utils/tooltip";
-import { PACKAGE_SCOPE } from "@/system/client";
+import Inaccessible from "@/views/builtins/Inaccessible.vue";
+import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
+import Icon from "@/views/content/Icon.vue";
+import { ref, toRef, type Ref } from "vue";
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; preparedConnection?: PreparedGetConnection } & Pick<
@@ -27,12 +26,7 @@ const fieldRef = ref<HTMLElement | null>(null);
 const nameRef = ref<HTMLElement | null>(null);
 
 const nodePtr = toRef(props, "nodePtr") as Ref<TypedNodeReferenceData<NodeType.FIELD>>;
-const { graph: pkgGraph, connection: pkgConnection } =
-  props.preparedConnection ??
-  useGetConnection(
-    { name: `field.${nodePtr.value.id}` },
-    computed(() => ({ scope: PACKAGE_SCOPE.value, roots: [nodePtr.value], isEnabled: nodePtr.value != null })),
-  );
+const { graph: pkgGraph, connection: pkgConnection } = props.preparedConnection ?? useExistingConnection(nodePtr);
 const field = pkgGraph.getRef(nodePtr, { ignoreAncestors: props.self == null });
 
 // actions
