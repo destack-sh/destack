@@ -590,19 +590,17 @@ export class ViewCanvas {
     return instance;
   }
 
-  /** Gets the current root view ('lowest' focused root view) */
+  /** Gets the current subroot view ('lowest' focused view within a root) */
   get focusedRoot(): ViewData | null {
     if (this.focusedViewPtr.value == null) return null;
     if (this.spacePtr.value == null) return null;
 
     // traverse focused view up until we find a root
-    let view = this.graph.get(this.focusedViewPtr.value);
+    const view = this.graph.get(this.focusedViewPtr.value);
     if (view == null) return null;
-    while (view.parentPtr?.id != null) {
-      if (ROOT_VIEW_TYPES.has(view.type)) return view;
-      view = this.graph.get(view.parentPtr) as ViewData;
-    }
-    return null; // not found
+    const ancestors = this.graph.getAncestors(view, { metatypes: [NodeType.VIEW], includeSelf: true });
+    if (ROOT_VIEW_TYPES.has(view.type)) return view;
+    return ancestors.find((v) => ROOT_VIEW_TYPES.has(v.type)) ?? null;
   }
 
   isInSpace(node: NodeKey<any>): boolean {
@@ -644,28 +642,30 @@ export class ViewCanvas {
   addView(view: ViewDataIn, options?: OpenViewOptions) {
     const tx = this.tx();
     const existing = this.findView({ type: view.type, nodePtr: view.nodePtr, predicate: options?.predicate });
-    log.debug("canvas.addView", view, { existing, options, focusedRoot: this.focusedRoot });
+    const currentFrameRoot = this.focusedRoot;
+    log.debug("canvas.addView", view, { existing, options, focusedRoot: currentFrameRoot });
 
     if (existing == null || options?.ifPresent == null || options?.ifPresent == "duplicate") {
       // find/make root
       let parent: ViewData | null = null;
       if (options?.where == null || options?.where == "currentRoot") {
-        parent = this.focusedRoot;
-      } else if (options?.where == "nextFrameRoot" && this.focusedRoot != null) {
-        // find root window and root tab below it
-        const ancestors = this.graph.getAncestors(this.focusedRoot, { metatypes: [NodeType.VIEW] });
-        const rootSplit = ancestors[ancestors.length - 2];
-        if (rootSplit != null) {
-          const rootSplitSiblings = this.graph.getChildren(ancestors[ancestors.length - 1], NodeType.VIEW);
-          const nextSplit = rootSplitSiblings[rootSplitSiblings.findIndex((n) => n.id == rootSplit.id) + 1];
-          if (nextSplit != null) parent = nextSplit;
+        parent = currentFrameRoot;
+      } else if (options?.where == "nextFrameRoot" && currentFrameRoot != null) {
+        // find next sibling of current frame root
+        const currentFrameRootParent = this.graph.get(currentFrameRoot.parentPtr!);
+        if (currentFrameRootParent != null) {
+          const currentFrameSiblings = this.graph.getChildren(currentFrameRootParent, NodeType.VIEW);
+          const currentFrameIdx = currentFrameSiblings.findIndex((v) => v.id == currentFrameRoot.id);
+          if (currentFrameIdx != -1) {
+            parent = currentFrameSiblings[(currentFrameIdx + 1) % currentFrameSiblings.length];
+          }
         }
       } else {
         throw new Error(`unexpected where: ${options?.where}`);
       }
       if (parent == null) {
         // no parent so far, just use current
-        parent = this.focusedRoot;
+        parent = currentFrameRoot;
       }
       if (parent == null) {
         // no parent at all, reset space (got messed up somehow)
@@ -940,7 +940,6 @@ function makeLayout(
 ): {
   viewsByName: Record<string, ViewData>;
 } {
-  // nocheckin!
   const viewsByName: Record<string, ViewData> = {};
   const viewsByType: Partial<Record<ViewType, ViewData[]>> = {};
 
