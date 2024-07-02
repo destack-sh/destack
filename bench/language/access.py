@@ -959,7 +959,7 @@ def evaluate_and_adapt_read(
     # evaluate access per node
     with tracer.start_as_current_span("access.evaluate_read", attributes={"nodes": len(graph)}):
         for root in graph.find_roots():
-            descendants = graph.collect_descendants(root, recursive=True)
+            descendants = graph.get_descendants(root, recursive=True)
             for node in chain((root,), descendants):
                 # evaluate access
                 node_type = NodeType(node.metatype)

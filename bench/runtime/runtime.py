@@ -20,9 +20,8 @@ from bench.language.const import (
 )
 from bench.language.graph import NodeSuperGraph
 from bench.language.node import EMPTY_SCOPE
-from bench.language.run import Run
 from bench.language.session import Session, unsuspend_session
-from bench.proto import wire, wiring
+from bench.proto import wire
 from bench.proto.services import ServiceBase
 from bench.proto.wire import (
     GraphScopeData,
@@ -265,21 +264,9 @@ class Runtime(ServiceBase, RuntimeBase):
     async def queue_run(self, request: QueueRunRequest) -> QueueRunResponse:
         assert self._client is not None, f"{self!r} not ready"
 
-        # unpack to ensure it's valid
-        # mark run as queued in this runtime
-        run = wiring.unpack_object(
-            request.run,
-            supergraph=self._supergraph,
-            parent=self.main_package,
-            session=self._session,
-            expect=Run,
-            skip_add_self=False,
-        )
-        # (NOTE: should we mark it as queued? only if the queue is long?)
-
         # just add to main queue
-        self._run_queue.put_nowait(run._to_data())
-        logger.trace("runtime.queue_run", run=run, span="current")
+        self._run_queue.put_nowait(request.run)
+        logger.trace("runtime.queue_run", run=request.run, span="current")
         return QueueRunResponse()
 
 
