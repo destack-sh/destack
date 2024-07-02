@@ -86,7 +86,7 @@ watch(
   async () => {
     await spaceConnection.waitForResult((result) => result?.graph.get({ id: spacePtr.value.id }) != null);
     // NOTE :Robustness :Cleanup: why doesn't nextTick work to restoreComponentFocus on space change?
-    //  (All the views should get rendered immediately, right? Apparently not, since this delay doesn't always work.)
+    //  (all the views should get rendered immediately, right..?)
     setTimeout(() => {
       try {
         canvas.restoreComponentFocus();
@@ -94,7 +94,7 @@ watch(
       } catch (e) {
         log.warn("space.restoreFocus.error", spacePtr.value, spaceConnection.result.value, e);
       }
-    }, 100);
+    }, 250);
   },
   { immediate: true },
 );

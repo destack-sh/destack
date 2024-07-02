@@ -21,6 +21,7 @@ import {
   copyNode,
   describeNode,
   getNodeType,
+  isNode,
   makeNode,
   makeStruct,
   toNodeReference,
@@ -365,6 +366,7 @@ export class ViewCanvas {
     ) & { anchor?: FocusAnchor | NodeReferenceData; ignoreInspection?: boolean },
   ) {
     log.trace("canvas.focus", focus);
+    focus.node = this.graph.getOrError({ id: focus.node.id }); // 'refresh' node in graph since it may have moved
     const nodeType = getNodeType(focus.node);
 
     if (nodeType == NodeType.VIEW && this.isInSpace(focus.node)) {
@@ -425,9 +427,13 @@ export class ViewCanvas {
     let child = this.getViewData(focus.view);
     if (child == null) throw new Error(`no view in graph for ${focus.view}`);
     let parent: ViewData | SpaceData | null = this.getViewData(focus.parent ?? child.parentPtr!);
+    const updated = [];
     while (parent?.metatype == ObjectType.VIEW || parent?.metatype == ObjectType.SPACE) {
       const childFocus = makeSelection([child]);
-      if (!deepValueEquals(parent.focus, childFocus)) tx.update(parent, { focus: childFocus }, { debounce: "short" });
+      if (!deepValueEquals(parent.focus, childFocus)) {
+        tx.update(parent, { focus: childFocus }, { debounce: "short" });
+        updated.push(parent, { focus: childFocus });
+      }
       child = parent as ViewData;
       parent = this.graph.getMaybe(child.parentPtr) as ViewData | SpaceData | null;
     }
@@ -538,7 +544,7 @@ export class ViewCanvas {
       const el = (instance as any).vnode.el as HTMLElement | null;
       if (!el) {
         log.warn("canvas.missingEl", getVueComponentType(instance), instance);
-      } else {
+      } else if ((el as any).__viewComponent == null) {
         (el as any).__viewComponent = instance;
         if ("dataset" in el) el.dataset.view = "true";
         else throw new Error(`invalid root element in ${getVueComponentType(instance)}: ${el}`);

@@ -9,10 +9,10 @@ import { startDragging, useMultiDropZone, useSplitDropZone, type SplitAnchor } f
 import { IS_DEV, isDeveloperMode } from "@/utils/globals";
 import { ScrollbarWidth } from "@/utils/layout";
 import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/utils/menu";
-import { getViewBinding, getViewComponent } from "@/views/registry";
 import Empty from "@/views/builtins/Empty.vue";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
+import { getViewBinding, getViewComponent } from "@/views/registry";
 import { computed, nextTick, ref, toRef, type Ref } from "vue";
 
 const props = defineProps<
@@ -25,7 +25,7 @@ const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 
 // focus
-const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self);
+const { graph: spaceGraph } = useExistingConnection(self);
 const tabs = spaceGraph.getChildrenRef(self, NodeType.VIEW, { ignoreAncestors: true });
 const tabsNodes = spaceGraph.getManyMaybeRef(computed(() => tabs.value.map((t) => t.nodePtr ?? null)));
 const tabsTitles = computed(() => {
@@ -43,7 +43,6 @@ const tabsTitles = computed(() => {
   }
   return tabsTitles;
 });
-
 const focusedTabIdx: Ref<number | null> = computed(() => {
   if (tabs.value.length == 0) {
     return null;
