@@ -925,6 +925,14 @@ export type PreparedGetConnection<T extends NodeType = NodeType> = {
   graph: ReadNodeGraph;
 };
 
+/** Container for providing the results of a Search connection to an inner component */
+export type PreparedSearchConnection<T extends NodeType = NodeType> = {
+  connection: Connection<"search", T>;
+  graph: ReadNodeGraph;
+};
+
+export type PreparedNodeConnection = PreparedGetConnection | PreparedSearchConnection;
+
 /** Gets or acquires a connection given the params, maintaining reference counts and such. */
 export function useConnection<K extends GraphConnectionKind, T extends NodeType>(
   kind: K,

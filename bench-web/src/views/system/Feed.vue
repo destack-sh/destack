@@ -26,7 +26,12 @@ import {
 } from "@/proto/wire";
 import { describeNode, isNode, propertyReference, toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
 import { PACKAGE_SCOPE } from "@/system/client";
-import { supergraph, useExistingConnection, useSearchConnection } from "@/system/connection";
+import {
+  supergraph,
+  useExistingConnection,
+  useSearchConnection,
+  type PreparedSearchConnection,
+} from "@/system/connection";
 import { makeExpression, resolveSubject, type EditSubject } from "@/system/expression";
 import { ICON_BY_NODE_TYPE, ICON_BY_RUN_STATUS, IconInline, getNodeIcon, makeIcon } from "@/system/icon";
 import {
@@ -235,6 +240,7 @@ const { roots, graph, connection, isStale, isConnected, isConnecting, page } = u
     filter: effectiveFilter.value,
   })),
 );
+const preparedConnection: PreparedSearchConnection = { connection, graph };
 const items = computed<FeedItem[]>(() => {
   const items: FeedItem[] = [];
   for (const it of roots.value) {
@@ -373,7 +379,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
         >
           <div
             class="rounded-md border px-2 py-0.5 hover:bg-gray-100"
-            :class="[focusedNode?.id == item.id ? 'bg-gray-100' : 'border-transparent']"
+            :class="[focusedNode?.id == item.id ? 'border-gray-200' : 'border-transparent']"
           >
             <!-- Item header -->
             <div
@@ -483,14 +489,14 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
                 is-inline
                 :variant="Variant.COMPACT"
                 :node-ptr="toNodeReference(item.it)"
-                :node="item.it"
+                :prepared-connection="preparedConnection"
               />
               <Run
                 v-else-if="item.kind == 'run'"
                 is-inline
                 :variant="Variant.COMPACT"
                 :node-ptr="toNodeReference(item.it)"
-                :node="item.it"
+                :prepared-connection="preparedConnection"
               />
               <div v-else>
                 <div class="text-danger-500">???</div>

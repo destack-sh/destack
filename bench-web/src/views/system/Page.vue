@@ -9,7 +9,7 @@ import {
   Orientation,
   Variant,
   ViewData,
-  ViewType
+  ViewType,
 } from "@/proto/wire/";
 import { toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
 import { fireActionById, type ActionContext, type ActionMapImplementation } from "@/system/action";
@@ -492,5 +492,5 @@ defineExpose<ViewExposed>({ self, actions, focus });
       </div>
     </Scroll>
   </div>
-  <Inaccessible v-else class="h-full w-full bg-white" :node="nodePtr" :is-connected="pkgConnection.isConnected.value" />
+  <Inaccessible v-else class="h-full w-full" :node="nodePtr" :is-connected="pkgConnection.isConnected.value" />
 </template>
