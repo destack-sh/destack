@@ -51,7 +51,7 @@ import { generateOrderKey } from "@/utils/fractional";
 import { IS_DEV, isDeveloperMode } from "@/utils/globals";
 import { DEFAULT_ORIENTATION, splitBox } from "@/utils/layout";
 import { log } from "@/utils/log";
-import { deepValueEquals, toValueRef } from "@/utils/ref";
+import { computedValue, deepValueEquals, toValueRef } from "@/utils/ref";
 import { Casing, toCasing } from "@/utils/string";
 import { getViewTypeByComponentName, type FocusAnchor, type ViewComponent, type ViewProps } from "@/views/common";
 import { useActiveElement, useEventListener, type MaybeElement } from "@vueuse/core";
@@ -1178,7 +1178,7 @@ export function useViewState<T extends ObjectType>(use: {
   props: Pick<ViewData, "valuePacked">;
   emit: (event: string, ...args: any[]) => void;
 }) {
-  const state = computed(() => {
+  const state = computedValue(() => {
     if (use.props.valuePacked == null) {
       return { metatype: use.stateType } as AnyTypeMapping[T];
     } else {

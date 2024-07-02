@@ -360,7 +360,7 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
 
   /**
    * Maintain this connection until the end of time (or until closed).
-   * Immediately tries to fetch. If we fail:
+   * Immediately tries to fetch, returns once successfully connected. If we fail:
    *   1. If online, try again after an exponential backoff.
    *   2. If offline, try again when we're online.
    * */
@@ -371,6 +371,7 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
     log.trace(`graph.${this.kind}.connect`, { name: this.meta.name, options });
 
     const retrySignal = new AsyncEvent();
+    const connectedSignal = new AsyncEvent();
     let waitingForOnline = false;
     let retryCount = 0;
     let lastErrorCode: string | null = null;
@@ -444,6 +445,7 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
                 this.abortController?.abort();
               },
             );
+            connectedSignal.set();
             this.abortController = null;
             log.debug(`graph.${this.kind}.completed`, this.meta.name, this.params, newResult);
           } finally {
@@ -480,6 +482,7 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
     };
 
     establishAndMaintainConnection(); // run async
+    await connectedSignal.wait(); // wait for first connection
   }
 
   // NOTE :Robustness: split doFetch into doFetch and doFetchLive?
@@ -944,22 +947,18 @@ export function useConnection<K extends GraphConnectionKind, T extends NodeType>
   watch(
     toValueRef(paramsRef),
     async () => {
-      const old = connection.value;
-      if (old) {
-        releaseConnection(old);
-        connection.value = null;
-      }
       if (paramsRef.value.isEnabled === false) return; // disabled
+      const oldConnection = connection.value;
+      let newConnection = findExistingConnection(kind, paramsRef.value, match);
+      if (oldConnection != null && oldConnection === newConnection) return; // no change
 
-      // if the existing connection can support the new query, we'll just acquire it again
-      const existing = acquireExistingConnection(kind, paramsRef.value, match);
-      if (existing) {
-        connection.value = existing;
-      } else {
-        isStale.value = true;
-        connection.value = await acquireNewConnection(kind, metaIn, paramsRef.value);
-        isStale.value = false;
-      }
+      // acquire new connection
+      if (oldConnection) isStale.value = true;
+      if (newConnection) newConnection.incRefCount();
+      else if (!newConnection) newConnection = await acquireNewConnection(kind, metaIn, paramsRef.value);
+      connection.value = newConnection;
+      if (oldConnection) releaseConnection(oldConnection);
+      isStale.value = false;
       isConnected.value = true;
     },
     { immediate: true },

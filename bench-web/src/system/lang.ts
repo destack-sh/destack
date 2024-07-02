@@ -609,7 +609,7 @@ export const EDIT_TYPE_PRESENT_VERB: Record<EditType, string> = {
   [EditType.DELETE]: "deletes",
   [EditType.RESTORE]: "restores",
   [EditType.ERASE]: "erases",
-}
+};
 export const EDIT_TYPE_PAST_VERB: Record<EditType, string> = {
   [EditType.UNSPECIFIED]: "???",
   [EditType.CREATE]: "created",
@@ -621,7 +621,7 @@ export const EDIT_TYPE_PAST_VERB: Record<EditType, string> = {
   [EditType.DELETE]: "deleted",
   [EditType.RESTORE]: "restored",
   [EditType.ERASE]: "erased",
-}
+};
 
 // NOTE: we soft-limit the subset of available enum options in bench-web
 //  (in code and backend the entire ranges are available)
