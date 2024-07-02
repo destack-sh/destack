@@ -447,6 +447,9 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
             validate_edit(edit, subject, now)
             epoch += 1
             edit.epoch = epoch
+            if edit.properties:
+                # sort the properties for consistency
+                edit.properties.sort()
         return area, epoch
 
     async def _do_commit(

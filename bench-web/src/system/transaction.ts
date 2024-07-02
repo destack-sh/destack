@@ -524,8 +524,9 @@ export function editGraph(
     } else if (edit.type == EditType.ERASE && !(options?.base && !graph.has(edit.nodePtr!))) {
       // remove
       const oldNode = graph.get(edit.nodePtr!);
-      if (!oldNode)
+      if (!oldNode) {
         throw new Error(`missing node for delete: ${describeNode(edit.nodePtr!)} in ${graph.describeSelf()}`);
+      }
       graph.remove(oldNode);
     } else {
       // update

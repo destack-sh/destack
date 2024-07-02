@@ -20,12 +20,7 @@ import { isRunnable } from "@/system/lang";
 import { makeRun } from "@/system/session";
 import { canvas, inspectionPtr } from "@/system/space";
 import { packProtoJson, unpackProtoJson } from "@/system/transaction";
-import {
-  packBuiltinObject,
-  packValueSimpleStruct,
-  propertyType,
-  unpackBuiltinObject
-} from "@/system/value";
+import { packBuiltinObject, packValueSimpleStruct, propertyType, unpackBuiltinObject } from "@/system/value";
 import { getFieldViews } from "@/system/view";
 import { ScrollbarWidth } from "@/utils/layout";
 import { computedValue, mapRef } from "@/utils/ref";
@@ -61,18 +56,17 @@ const { state, updateState, useStateProp } = useViewState({
   emit,
 });
 const feedState = computed(
-  () =>
-    ({
-      // pre-filter to only runs of this node
-      metatype: ObjectType.FEED_VIEW_STATE,
-      nodeType: NodeType.RUN,
-      filter: makeExpression({
-        op: ExpressionOp.EQUALS,
-        propertyPtr: propertyReference(ObjectType.RUN, RunProperty.blockPtr),
-        valuePacked: packValueSimpleStruct(focusPtr.value, propertyType(ObjectType.RUN, RunProperty.blockPtr)),
-      }),
-      filterPills: state.value.feed?.filterPills,
-    }) as FeedViewStateData,
+  (): FeedViewStateData => ({
+    // pre-filter to only runs of this node
+    metatype: ObjectType.FEED_VIEW_STATE,
+    nodeType: NodeType.RUN,
+    filter: makeExpression({
+      op: ExpressionOp.EQUALS,
+      propertyPtr: propertyReference(ObjectType.RUN, RunProperty.blockPtr),
+      valuePacked: packValueSimpleStruct(focusPtr.value, propertyType(ObjectType.RUN, RunProperty.blockPtr)),
+    }),
+    filterPills: state.value.feed?.filterPills ?? [],
+  }),
 );
 const ancestors = pkgGraph.getAncestorsRef(focusPtr, { includeSelf: true });
 
