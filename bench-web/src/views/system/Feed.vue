@@ -1,32 +1,41 @@
 <script lang="ts" setup>
 import {
+  AccessType,
   BlockData,
   BoxData,
   ChangeCategory,
   EditType,
   ExpressionData,
   ExpressionOp,
+  IconData,
   LogData,
   LogProperty,
   NodeReferenceData,
   NodeType,
   ObjectType,
   Orientation,
+  PROPERTY_INFOS_BY_TYPE,
   RunData,
   RunProperty,
   RunStatus,
   StepData,
   Timestamp,
+  Variant,
   ViewData,
   type AnyNodeData,
 } from "@/proto/wire";
 import { describeNode, isNode, propertyReference, toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
-import { type Action } from "@/system/action";
 import { PACKAGE_SCOPE } from "@/system/client";
 import { supergraph, useExistingConnection, useSearchConnection } from "@/system/connection";
 import { makeExpression, resolveSubject, type EditSubject } from "@/system/expression";
 import { ICON_BY_NODE_TYPE, ICON_BY_RUN_STATUS, IconInline, getNodeIcon, makeIcon } from "@/system/icon";
-import { ACTIVE_RUN_STATUSES, EDIT_TYPE_PAST_VERB, TERMINAL_RUN_STATUSES, toCamelName } from "@/system/lang";
+import {
+  ACTIVE_RUN_STATUSES,
+  EDIT_TYPE_PAST_VERB,
+  TERMINAL_RUN_STATUSES,
+  getPropertyTitle,
+  toCamelName,
+} from "@/system/lang";
 import { canvas } from "@/system/space";
 import { user } from "@/system/user";
 import { getElement } from "@/utils/element";
@@ -37,6 +46,8 @@ import { formatRelativeDate } from "@/utils/time";
 import { DEFAULT_HEADER_HEIGHT, useExpansion, useViewState } from "@/views/canvas";
 import { makeViewId, viewEmits, type ViewComponent, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
+import Log from "@/views/system/Log.vue";
+import Run from "@/views/system/Run.vue";
 import { computed, ref, toRef, type Ref } from "vue";
 
 const HEADER_HEIGHT = DEFAULT_HEADER_HEIGHT;
@@ -63,15 +74,16 @@ const { state, useStateProp } = useViewState({
 const nodeType = useStateProp("nodeType", NodeType.LOG);
 const activeFilterKeys = useStateProp("filterPills", []);
 
-//
-// Filter
-//
-
+type MiniAction = {
+  id: string;
+  title: string;
+  icon: IconData;
+};
 type FeedItemBase = {
   kind: string;
   id: string;
   createdAt: Timestamp;
-  actions: Action[];
+  actions: MiniAction[];
   createdBy: EditSubject | null;
 };
 type LogEditItem = FeedItemBase & {
@@ -86,6 +98,9 @@ type RunItem = FeedItemBase & {
   node: BlockData | StepData | null;
 };
 type FeedItem = LogEditItem | RunItem;
+//
+// Filter
+//
 
 // NOTE :Incomplete: support generic Feed query instead of just pills (once we have proper expression builders)
 type FilterPill = {
@@ -267,7 +282,7 @@ function toSubjectIcon(item: FeedItem) {
 // Interaction
 //
 
-const { toggleExpanded, isExpanded } = useExpansion({ graph: spaceGraph, tx: canvas.tx, self });
+const { toggleExpanded, isExpanded } = useExpansion({ graph: spaceGraph, tx: canvas.tx, self, isExclusive: true });
 const focusedItem = computed(() => {
   if (props.focus?.nodesPtr.length ?? 0 > 0) {
     const focusedId = props.focus!.nodesPtr[0].id;
@@ -279,10 +294,10 @@ const focusedItem = computed(() => {
 const focusedNode = computed(() => focusedItem.value?.it);
 
 function mapToNode(element: HTMLElement | SVGElement | ViewComponent): NodeReferenceData | null {
-  // find 'data-message-id' attribute
+  // find 'data-item-id' attribute (set per item in the template)
   let el = getElement(element);
   while (el != null) {
-    const id = el.getAttribute("data-message-id");
+    const id = el.getAttribute("data-item-id");
     if (id != null) {
       const node = supergraph.get({ id });
       if (node != null) return toNodeReference(node);
@@ -352,102 +367,136 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
           :key="item.id"
           :ref="(ref: any) => (ref != null ? (itemRefs[item.id] = ref) : delete itemRefs[item.id])"
           :data-item-id="item.id"
-          class="group/item mx-auto w-full rounded-md border py-0.5 text-gray-900 hover:cursor-pointer hover:bg-gray-100"
-          :class="[
-            !isInline ? 'mx-auto  px-5' : '',
-            focusedNode?.id == item.id ? 'border-primary-900' : 'border-transparent',
-          ]"
+          class="group/item mx-auto w-full text-gray-900"
+          :class="[!isInline ? 'mx-auto px-4' : '']"
           :style="{ minWidth: MIN_WIDTH + 'px', maxWidth: MAX_WIDTH + 'px' }"
-          @click="toggleExpanded(item.it)"
         >
-          <!-- Item header -->
-          <div class="flex flex-row flex-nowrap items-center gap-x-1">
-            <!-- Log -->
-            <template v-if="item.kind == 'log-edit'">
-              <!-- Subject -->
-              <button class="flex-shrink-0">
-                <IconInline v-bind="toSubjectIcon(item)" class="mr-1 w-5 text-gray-700" />
-                <span v-if="item.it.createdByPtr != null">
-                  {{ (item.createdBy as any)?.name ?? toCamelName(NodeType, item.it.createdByPtr.type) }}
+          <div
+            class="rounded-md border px-2 py-0.5 hover:bg-gray-100"
+            :class="[focusedNode?.id == item.id ? 'bg-gray-100' : 'border-transparent']"
+          >
+            <!-- Item header -->
+            <div
+              class="flex max-w-full flex-row flex-wrap items-center gap-x-1 hover:cursor-pointer"
+              :class="[focusedNode?.id == item.id ? ' ' : '']"
+              @click="toggleExpanded(item.it)"
+            >
+              <!-- Log -->
+              <template v-if="item.kind == 'log-edit'">
+                <!-- Subject -->
+                <button class="flex-shrink-0">
+                  <IconInline v-bind="toSubjectIcon(item)" class="mr-1 w-5 text-gray-700" />
+                  <span v-if="item.it.createdByPtr != null">
+                    {{ (item.createdBy as any)?.name ?? toCamelName(NodeType, item.it.createdByPtr.type) }}
+                  </span>
+                  <span v-else class="italic">System</span>
+                </button>
+                <!-- Verb -->
+                <span>
+                  <!-- <IconInline v-bind="item.icon" class="text-gray-700 mr-1" /> -->
+                  <span>{{ EDIT_TYPE_PAST_VERB[item.it.type as unknown as EditType] }}</span>
                 </span>
-                <span v-else class="italic">System</span>
-              </button>
-              <!-- Verb -->
-              <span>
-                <!-- <IconInline v-bind="item.icon" class="text-gray-700 mr-1" /> -->
-                <span>{{ EDIT_TYPE_PAST_VERB[item.it.type as unknown as EditType] }}</span>
-              </span>
-              <!-- Object -->
-              <button
-                class="group/node flex-shrink-0 px-1 hover:bg-primary-100 hover:text-primary-900"
-                @click="item.node && canvas.goToNode(item.node)"
-              >
-                <IconInline
-                  v-bind="item.node != null ? getNodeIcon(item.node) : ICON_BY_NODE_TYPE[item.nodeType]"
-                  class="mr-1 w-5 text-gray-700 group-hover/node:text-primary-900"
-                />
-                <span>{{ (item.node as any)?.name ?? toCamelName(NodeType, item.nodeType) }}</span>
-                <!-- Old name if new name is different -->
-                <span
+                <!-- Properties (if any) -->
+                <template
                   v-if="
-                    item.it.vignette?.name != null &&
-                    item.node != null &&
-                    item.it.vignette?.name != (item.node as any)?.name
+                    item.it.properties != null && item.it.properties.length > 0 && item.it.type == AccessType.UPDATE
                   "
-                  class="text-gray-400"
                 >
-                  ({{ item.it.vignette?.name }})
-                </span>
-              </button>
-            </template>
+                  <span v-for="propId in item.it.properties" :key="propId" class="rounded-md bg-secondary-100 px-2">
+                    {{ getPropertyTitle(PROPERTY_INFOS_BY_TYPE[item.it.nodePtr!.type][propId]) }}
+                  </span>
+                  in
+                </template>
+                <!-- Object -->
+                <button
+                  class="group/node flex-shrink-0 px-1 hover:bg-primary-100 hover:text-primary-900"
+                  @click="item.node && canvas.goToNode(item.node)"
+                >
+                  <IconInline
+                    v-bind="item.node != null ? getNodeIcon(item.node) : ICON_BY_NODE_TYPE[item.nodeType]"
+                    class="mr-1 w-5 text-gray-700 group-hover/node:text-primary-900"
+                  />
+                  <span>{{ (item.node as any)?.name ?? toCamelName(NodeType, item.nodeType) }}</span>
+                  <!-- Old name if new name is different -->
+                  <span
+                    v-if="
+                      item.it.vignette?.name != null &&
+                      item.node != null &&
+                      item.it.vignette?.name != (item.node as any)?.name
+                    "
+                    class="text-gray-400"
+                  >
+                    ({{ item.it.vignette?.name }})
+                  </span>
+                </button>
+              </template>
 
-            <!-- Run -->
-            <template v-else-if="item.kind == 'run'">
-              <!-- Status -->
-              <IconInline
-                class="w-5"
-                :class="ACCENT_COLOR_BY_RUN_STATUS[item.it.status]"
-                v-bind="ICON_BY_RUN_STATUS[item.it.status]"
-              />
-              <!-- Node -->
-              <button>
+              <!-- Run -->
+              <template v-else-if="item.kind == 'run'">
+                <!-- Status -->
                 <IconInline
-                  v-bind="item.node != null ? getNodeIcon(item.node) : makeIcon('fas fa-lambda')"
-                  class="mr-1 w-5 text-gray-700 group-hover/node:text-primary-900"
+                  class="w-5"
+                  :class="ACCENT_COLOR_BY_RUN_STATUS[item.it.status]"
+                  v-bind="ICON_BY_RUN_STATUS[item.it.status]"
                 />
-                <span>{{ (item.node as any)?.name ?? "Lambda" }}</span>
-              </button>
-              <!-- Subject -->
-              by
-              <button class="flex-shrink-0">
-                <IconInline v-bind="toSubjectIcon(item)" class="mr-1 w-5 text-gray-700" />
-                <span>{{ (item.createdBy as any)?.name ?? toCamelName(NodeType, item.it.createdByPtr?.type) }}</span>
-              </button>
-            </template>
-            <span v-else class="text-danger-500">???</span>
+                <!-- Node -->
+                <button>
+                  <IconInline
+                    v-bind="item.node != null ? getNodeIcon(item.node) : makeIcon('fas fa-lambda')"
+                    class="mr-1 w-5 text-gray-700 group-hover/node:text-primary-900"
+                  />
+                  <span>{{ (item.node as any)?.name ?? "Lambda" }}</span>
+                </button>
+                <!-- Subject -->
+                by
+                <button class="flex-shrink-0">
+                  <IconInline v-bind="toSubjectIcon(item)" class="mr-1 w-5 text-gray-700" />
+                  <span>{{ (item.createdBy as any)?.name ?? toCamelName(NodeType, item.it.createdByPtr?.type) }}</span>
+                </button>
+              </template>
+              <span v-else class="text-danger-500">???</span>
 
-            <!-- Extra stuff -->
-            <div class="ml-auto inline-flex flex-row items-center gap-x-2">
-              <!-- Actions -->
-              <button
-                v-for="action in item.actions"
-                :key="action.id"
-                v-tooltip="{ title: action.title, small: true }"
-                class="text-gray-400 hover:text-gray-900 hover:opacity-100 group-hover/item:opacity-100"
-                :class="focusedNode?.id == item.id ? '' : 'opacity-0'"
-              >
-                <IconInline v-bind="action.icon" />
-              </button>
-              <!-- ... -->
-              <!-- Time -->
-              <span class="text-gray-400">
-                {{ formatRelativeDate(item.createdAt, { minUnit: "m", minValue: 1 }) }}
-              </span>
+              <!-- Extra stuff -->
+              <div class="ml-auto inline-flex flex-shrink-0 flex-row items-center gap-x-2">
+                <!-- Actions -->
+                <button
+                  v-for="action in item.actions"
+                  :key="action.id"
+                  v-tooltip="{ title: action.title, small: true }"
+                  class="text-gray-400 hover:text-gray-900 hover:opacity-100 group-hover/item:opacity-100"
+                  :class="focusedNode?.id == item.id ? '' : 'opacity-0'"
+                >
+                  <IconInline v-bind="action.icon" />
+                </button>
+                <!-- ... -->
+                <!-- Time -->
+                <span class="text-gray-400">
+                  {{ formatRelativeDate(item.createdAt, { minUnit: "m", minValue: 1 }) }}
+                </span>
+              </div>
+            </div>
+
+            <!-- Item body (if expanded) -->
+            <div v-if="isExpanded(item.it)" class="mt-1 max-w-full py-1">
+              <Log
+                v-if="item.kind == 'log-edit'"
+                is-inline
+                :variant="Variant.COMPACT"
+                :node-ptr="toNodeReference(item.it)"
+                :node="item.it"
+              />
+              <Run
+                v-else-if="item.kind == 'run'"
+                is-inline
+                :variant="Variant.COMPACT"
+                :node-ptr="toNodeReference(item.it)"
+                :node="item.it"
+              />
+              <div v-else>
+                <div class="text-danger-500">???</div>
+              </div>
             </div>
           </div>
-
-          <!-- Item body (if expanded) -->
-          <!-- ...? -->
         </li>
         <!-- Nothing found -->
         <div v-if="items.length == 0" class="mx-auto my-1 w-full text-center">
