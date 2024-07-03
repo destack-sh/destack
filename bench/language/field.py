@@ -399,6 +399,15 @@ class TypeInfo(Struct, TypeInfoBase):
     pass
 
 
+FREEFORM_VALUE_KEY = "*"
+FREEFORM_VALUE_TYPE = TypeInfo(
+    kind=TypeKind.STRUCT, is_list=True, is_required=False, bench_type=StructType.VALUE
+)
+
+#
+# Convenience to type utilities
+#
+
 TypeIn = Union[
     "TypeInfoBase",
     "Block",

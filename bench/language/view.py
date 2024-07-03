@@ -412,7 +412,7 @@ class View(SourceNode[ViewData], HasValues):
     )
     value_packed: Any = p_value_packed(41)
     value: Any = p_value_runtime(packed=41, typ=None)  # freely typed for now
-    # NOTE :Architecture: View.node should probably just be in builtin View.value
+    # NOTE :Architecture: View.node should probably just be in builtin View.value (ViewState)
     node: Optional["Node"] = p_regular(
         42, default=None, require=False, array=False, references=LINK_TARGET_NODE_TYPES
     )

@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.07.03.0"
+VERSION = "2024.07.03.1"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -151,131 +151,133 @@ class BenchType(betterproto.Enum):
     USER = 221
     ORGANIZATION = 222
     CLIENT = 223
-    CONTEXT = 1000
-    SESSION_CONTEXT = 1001
-    EDIT_CONTEXT = 1002
-    EDIT = 1005
-    CHANGE = 1006
-    CHANGE_VIGNETTE = 1007
-    GRAPH_SCOPE = 1010
-    CLIENT_ORIGIN = 1011
-    NODE_REFERENCE = 1012
-    PROPERTY_REFERENCE = 1013
-    PATH = 1020
-    PATH_SEGMENT = 1021
-    PATH_TOKEN = 1022
-    POLICY = 1030
-    POLICY_RULE = 1031
-    SUBJECT = 1032
-    ACCESS_ZONE = 1034
-    ACCESS_MATRIX = 1035
-    ACCESS = 1037
-    TYPE_INFO = 1040
-    TYPE_CONSTRAINT = 1041
-    SCHEDULE = 1042
-    PROJECTION = 1043
-    EXPRESSION = 1060
-    AGGREGATION = 1061
-    SELECTION = 1070
-    QUERY_INFO = 1080
-    READ_OPTIONS = 1085
-    CODE = 1090
-    CODE_LINE = 1091
-    STEP_CONNECTION = 1100
-    RUN_ERROR = 1110
-    RUN_OPTIONS = 1111
-    RETRY_ATTEMPT = 1113
-    TEXT = 1160
-    TEXT_LINE = 1161
-    TEXT_SPAN = 1162
-    COLOR = 1200
-    FONT = 1201
-    BOX = 1202
-    OFFSET = 1203
-    TRANSFORM = 1204
-    START_VIEW_STATE = 1300
-    FEED_VIEW_STATE = 1301
-    CHART_VIEW_STATE = 1302
-    HISTORY_VIEW_STATE = 1303
-    TIMELINE_VIEW_STATE = 1304
-    USER_WIZARD_VIEW_STATE = 1305
-    PAGE_VIEW_STATE = 1306
-    TREE_VIEW_STATE = 1307
-    FILE = 1400
-    ICON = 1401
-    ENUM_TYPE = 2001
-    NODE_TYPE = 2002
-    STRUCT_TYPE = 2003
-    OBJECT_TYPE = 2004
-    BENCH_TYPE = 2005
-    VISIBILITY = 2010
-    CHANGE_KIND = 2011
-    ACCESS_MODE = 2030
-    ACCESS_KIND = 2031
-    READ_TYPE = 2032
-    EDIT_TYPE = 2033
-    USE_TYPE = 2034
-    ACCESS_TYPE = 2035
-    CHANGE_CATEGORY = 2036
-    POLICY_EFFECT = 2040
-    REGION = 2050
-    TENANCY = 2051
-    SERVER_PROFILE = 2055
-    MACHINE_PROFILE = 2056
-    RESOURCE_STATUS = 2057
-    FILE_RETENTION_MODE = 2058
-    CLIENT_TYPE = 2060
-    PRIMITIVE_TYPE = 2080
-    FORMAT_HINT = 2081
-    FIELD_ZONE = 2082
-    TYPE_KIND = 2083
-    SCHEDULE_TYPE = 2100
-    TIME_INTERVAL = 2101
-    DAY = 2102
-    MONTH = 2103
-    TEXT_LINE_TYPE = 2110
-    ICON_KIND = 2111
-    EXPRESSION_KIND = 2200
-    EXPRESSION_OP = 2201
-    LITERAL_OP = 2202
-    FUNCTIONAL_OP = 2203
-    CONDITIONAL_OP = 2204
-    AGGREGATION_OP = 2205
-    SORT_MODE = 2206
-    SORT_OP = 2207
-    SELECTION_KIND = 2208
-    PATH_TOKEN_TYPE = 2210
-    PATH_SEGMENT_TYPE = 2211
-    BLOCK_TYPE = 2070
-    ISSUE_KIND = 2170
-    ISSUE_TYPE = 2171
-    STEP_TYPE = 2180
-    STEP_CONNECTION_TYPE = 2181
-    LOG_KIND = 2300
-    LOG_LEVEL = 2301
-    RUN_STATUS = 2302
-    RUN_KIND = 2303
-    RUN_ERROR_KIND = 2304
-    RUN_ERROR_TYPE = 2305
-    SESSION_STATUS = 2306
-    TRIGGER_TYPE = 2307
-    NOTIFICATION_KIND = 2308
-    SPACE_TYPE = 2400
-    VIEW_TYPE = 2401
-    VARIANT = 2402
-    COLOR_TYPE = 2403
-    COLOR_SHADE = 2404
-    FONT_TYPE = 2405
-    FONT_WEIGHT = 2406
-    FONT_SIZE = 2407
-    SPACING = 2408
-    ANCHOR = 2409
-    ORIENTATION = 2410
-    ALIGNMENT = 2411
-    USER_WIZARD_STAGE = 2500
-    TREE_VIEW_PRESET = 2501
-    USER_STATUS = 2800
-    ORGANIZATION_STATUS = 2801
+    CONTEXT = 10000
+    SESSION_CONTEXT = 10001
+    EDIT_CONTEXT = 10002
+    EDIT = 10005
+    CHANGE = 10006
+    CHANGE_VIGNETTE = 10007
+    GRAPH_SCOPE = 10050
+    CLIENT_ORIGIN = 10051
+    NODE_REFERENCE = 10052
+    PROPERTY_REFERENCE = 10053
+    PATH = 10060
+    PATH_SEGMENT = 10061
+    PATH_TOKEN = 10062
+    POLICY = 10100
+    POLICY_RULE = 10101
+    SUBJECT = 10102
+    ACCESS_ZONE = 10104
+    ACCESS_MATRIX = 10105
+    ACCESS = 10107
+    TYPE_INFO = 10200
+    TYPE_CONSTRAINT = 10201
+    SCHEDULE = 10202
+    PROJECTION = 10203
+    FILE = 10204
+    ICON = 10205
+    TRIGGER_INFO = 10206
+    EXPRESSION = 10300
+    AGGREGATION = 10301
+    SELECTION = 10302
+    QUERY_INFO = 10303
+    READ_OPTIONS = 10304
+    VALUE = 10305
+    CODE = 10400
+    CODE_LINE = 10401
+    PIPE = 10402
+    RUN_ERROR = 10450
+    RUN_OPTIONS = 10451
+    RETRY_ATTEMPT = 10452
+    TEXT = 10500
+    TEXT_LINE = 10501
+    TEXT_SPAN = 10502
+    COLOR = 11000
+    FONT = 11001
+    BOX = 11002
+    OFFSET = 11003
+    TRANSFORM = 11004
+    START_VIEW_STATE = 11200
+    FEED_VIEW_STATE = 11201
+    CHART_VIEW_STATE = 11202
+    HISTORY_VIEW_STATE = 11203
+    TIMELINE_VIEW_STATE = 11204
+    USER_WIZARD_VIEW_STATE = 11205
+    PAGE_VIEW_STATE = 11206
+    TREE_VIEW_STATE = 11207
+    ENUM_TYPE = 20001
+    NODE_TYPE = 20002
+    STRUCT_TYPE = 20003
+    OBJECT_TYPE = 20004
+    BENCH_TYPE = 20005
+    VISIBILITY = 20010
+    CHANGE_KIND = 20011
+    ACCESS_MODE = 20030
+    ACCESS_KIND = 20031
+    READ_TYPE = 20032
+    EDIT_TYPE = 20033
+    USE_TYPE = 20034
+    ACCESS_TYPE = 20035
+    CHANGE_CATEGORY = 20036
+    POLICY_EFFECT = 20040
+    REGION = 20050
+    TENANCY = 20051
+    SERVER_PROFILE = 20055
+    MACHINE_PROFILE = 20056
+    RESOURCE_STATUS = 20057
+    FILE_RETENTION_MODE = 20058
+    CLIENT_TYPE = 20060
+    PRIMITIVE_TYPE = 20080
+    FORMAT_HINT = 20081
+    FIELD_ZONE = 20082
+    TYPE_KIND = 20083
+    BLOCK_TYPE = 20384
+    SCHEDULE_TYPE = 20100
+    TIME_INTERVAL = 20101
+    DAY = 20102
+    MONTH = 20103
+    TEXT_LINE_TYPE = 20110
+    ICON_KIND = 20111
+    EXPRESSION_KIND = 20200
+    EXPRESSION_OP = 20201
+    LITERAL_OP = 20202
+    FUNCTIONAL_OP = 20203
+    CONDITIONAL_OP = 20204
+    AGGREGATION_OP = 20205
+    SORT_MODE = 20206
+    SORT_OP = 20207
+    SELECTION_KIND = 20208
+    PATH_TOKEN_TYPE = 20210
+    PATH_SEGMENT_TYPE = 20211
+    ISSUE_KIND = 20400
+    ISSUE_TYPE = 20401
+    STEP_TYPE = 20500
+    PIPE_TYPE = 20501
+    LOG_KIND = 20502
+    LOG_LEVEL = 20503
+    RUN_STATUS = 20504
+    RUN_KIND = 20505
+    RUN_ERROR_KIND = 20506
+    RUN_ERROR_TYPE = 20507
+    SESSION_STATUS = 20508
+    TRIGGER_TYPE = 20509
+    NOTIFICATION_KIND = 20510
+    SPACE_TYPE = 21000
+    VIEW_TYPE = 21001
+    VARIANT = 21002
+    COLOR_TYPE = 21003
+    COLOR_SHADE = 21004
+    FONT_TYPE = 21005
+    FONT_WEIGHT = 21006
+    FONT_SIZE = 21007
+    SPACING = 21008
+    ANCHOR = 21009
+    ORIENTATION = 21010
+    ALIGNMENT = 21011
+    USER_WIZARD_STAGE = 21200
+    TREE_VIEW_PRESET = 21201
+    USER_STATUS = 29000
+    ORGANIZATION_STATUS = 29001
 
 
 class BlockType(betterproto.Enum):
@@ -286,8 +288,8 @@ class BlockType(betterproto.Enum):
     BLANK = 4
     CLASS = 10
     CHOICE = 11
-    SIGNAL = 13
     PROTOCOL = 14
+    SIGNAL = 15
     TEXT = 30
     CODE = 31
     FLOW = 32
@@ -425,79 +427,79 @@ class EditType(betterproto.Enum):
 
 class EnumType(betterproto.Enum):
     UNSPECIFIED = 0
-    ENUM_TYPE = 2001
-    NODE_TYPE = 2002
-    STRUCT_TYPE = 2003
-    OBJECT_TYPE = 2004
-    BENCH_TYPE = 2005
-    VISIBILITY = 2010
-    CHANGE_KIND = 2011
-    ACCESS_MODE = 2030
-    ACCESS_KIND = 2031
-    READ_TYPE = 2032
-    EDIT_TYPE = 2033
-    USE_TYPE = 2034
-    ACCESS_TYPE = 2035
-    CHANGE_CATEGORY = 2036
-    POLICY_EFFECT = 2040
-    REGION = 2050
-    TENANCY = 2051
-    SERVER_PROFILE = 2055
-    MACHINE_PROFILE = 2056
-    RESOURCE_STATUS = 2057
-    FILE_RETENTION_MODE = 2058
-    CLIENT_TYPE = 2060
-    PRIMITIVE_TYPE = 2080
-    FORMAT_HINT = 2081
-    FIELD_ZONE = 2082
-    TYPE_KIND = 2083
-    SCHEDULE_TYPE = 2100
-    TIME_INTERVAL = 2101
-    DAY = 2102
-    MONTH = 2103
-    TEXT_LINE_TYPE = 2110
-    ICON_KIND = 2111
-    EXPRESSION_KIND = 2200
-    EXPRESSION_OP = 2201
-    LITERAL_OP = 2202
-    FUNCTIONAL_OP = 2203
-    CONDITIONAL_OP = 2204
-    AGGREGATION_OP = 2205
-    SORT_MODE = 2206
-    SORT_OP = 2207
-    SELECTION_KIND = 2208
-    PATH_TOKEN_TYPE = 2210
-    PATH_SEGMENT_TYPE = 2211
-    BLOCK_TYPE = 2070
-    ISSUE_KIND = 2170
-    ISSUE_TYPE = 2171
-    STEP_TYPE = 2180
-    STEP_CONNECTION_TYPE = 2181
-    LOG_KIND = 2300
-    LOG_LEVEL = 2301
-    RUN_STATUS = 2302
-    RUN_KIND = 2303
-    RUN_ERROR_KIND = 2304
-    RUN_ERROR_TYPE = 2305
-    SESSION_STATUS = 2306
-    TRIGGER_TYPE = 2307
-    NOTIFICATION_KIND = 2308
-    SPACE_TYPE = 2400
-    VIEW_TYPE = 2401
-    VARIANT = 2402
-    COLOR_TYPE = 2403
-    COLOR_SHADE = 2404
-    FONT_TYPE = 2405
-    FONT_WEIGHT = 2406
-    FONT_SIZE = 2407
-    SPACING = 2408
-    ANCHOR = 2409
-    ORIENTATION = 2410
-    ALIGNMENT = 2411
-    USER_WIZARD_STAGE = 2500
-    TREE_VIEW_PRESET = 2501
-    USER_STATUS = 2800
-    ORGANIZATION_STATUS = 2801
+    ENUM_TYPE = 20001
+    NODE_TYPE = 20002
+    STRUCT_TYPE = 20003
+    OBJECT_TYPE = 20004
+    BENCH_TYPE = 20005
+    VISIBILITY = 20010
+    CHANGE_KIND = 20011
+    ACCESS_MODE = 20030
+    ACCESS_KIND = 20031
+    READ_TYPE = 20032
+    EDIT_TYPE = 20033
+    USE_TYPE = 20034
+    ACCESS_TYPE = 20035
+    CHANGE_CATEGORY = 20036
+    POLICY_EFFECT = 20040
+    REGION = 20050
+    TENANCY = 20051
+    SERVER_PROFILE = 20055
+    MACHINE_PROFILE = 20056
+    RESOURCE_STATUS = 20057
+    FILE_RETENTION_MODE = 20058
+    CLIENT_TYPE = 20060
+    PRIMITIVE_TYPE = 20080
+    FORMAT_HINT = 20081
+    FIELD_ZONE = 20082
+    TYPE_KIND = 20083
+    BLOCK_TYPE = 20384
+    SCHEDULE_TYPE = 20100
+    TIME_INTERVAL = 20101
+    DAY = 20102
+    MONTH = 20103
+    TEXT_LINE_TYPE = 20110
+    ICON_KIND = 20111
+    EXPRESSION_KIND = 20200
+    EXPRESSION_OP = 20201
+    LITERAL_OP = 20202
+    FUNCTIONAL_OP = 20203
+    CONDITIONAL_OP = 20204
+    AGGREGATION_OP = 20205
+    SORT_MODE = 20206
+    SORT_OP = 20207
+    SELECTION_KIND = 20208
+    PATH_TOKEN_TYPE = 20210
+    PATH_SEGMENT_TYPE = 20211
+    ISSUE_KIND = 20400
+    ISSUE_TYPE = 20401
+    STEP_TYPE = 20500
+    PIPE_TYPE = 20501
+    LOG_KIND = 20502
+    LOG_LEVEL = 20503
+    RUN_STATUS = 20504
+    RUN_KIND = 20505
+    RUN_ERROR_KIND = 20506
+    RUN_ERROR_TYPE = 20507
+    SESSION_STATUS = 20508
+    TRIGGER_TYPE = 20509
+    NOTIFICATION_KIND = 20510
+    SPACE_TYPE = 21000
+    VIEW_TYPE = 21001
+    VARIANT = 21002
+    COLOR_TYPE = 21003
+    COLOR_SHADE = 21004
+    FONT_TYPE = 21005
+    FONT_WEIGHT = 21006
+    FONT_SIZE = 21007
+    SPACING = 21008
+    ANCHOR = 21009
+    ORIENTATION = 21010
+    ALIGNMENT = 21011
+    USER_WIZARD_STAGE = 21200
+    TREE_VIEW_PRESET = 21201
+    USER_STATUS = 29000
+    ORGANIZATION_STATUS = 29001
 
 
 class ExpressionKind(betterproto.Enum):
@@ -793,58 +795,60 @@ class ObjectType(betterproto.Enum):
     USER = 221
     ORGANIZATION = 222
     CLIENT = 223
-    CONTEXT = 1000
-    SESSION_CONTEXT = 1001
-    EDIT_CONTEXT = 1002
-    EDIT = 1005
-    CHANGE = 1006
-    CHANGE_VIGNETTE = 1007
-    GRAPH_SCOPE = 1010
-    CLIENT_ORIGIN = 1011
-    NODE_REFERENCE = 1012
-    PROPERTY_REFERENCE = 1013
-    PATH = 1020
-    PATH_SEGMENT = 1021
-    PATH_TOKEN = 1022
-    POLICY = 1030
-    POLICY_RULE = 1031
-    SUBJECT = 1032
-    ACCESS_ZONE = 1034
-    ACCESS_MATRIX = 1035
-    ACCESS = 1037
-    TYPE_INFO = 1040
-    TYPE_CONSTRAINT = 1041
-    SCHEDULE = 1042
-    PROJECTION = 1043
-    EXPRESSION = 1060
-    AGGREGATION = 1061
-    SELECTION = 1070
-    QUERY_INFO = 1080
-    READ_OPTIONS = 1085
-    CODE = 1090
-    CODE_LINE = 1091
-    STEP_CONNECTION = 1100
-    RUN_ERROR = 1110
-    RUN_OPTIONS = 1111
-    RETRY_ATTEMPT = 1113
-    TEXT = 1160
-    TEXT_LINE = 1161
-    TEXT_SPAN = 1162
-    COLOR = 1200
-    FONT = 1201
-    BOX = 1202
-    OFFSET = 1203
-    TRANSFORM = 1204
-    START_VIEW_STATE = 1300
-    FEED_VIEW_STATE = 1301
-    CHART_VIEW_STATE = 1302
-    HISTORY_VIEW_STATE = 1303
-    TIMELINE_VIEW_STATE = 1304
-    USER_WIZARD_VIEW_STATE = 1305
-    PAGE_VIEW_STATE = 1306
-    TREE_VIEW_STATE = 1307
-    FILE = 1400
-    ICON = 1401
+    CONTEXT = 10000
+    SESSION_CONTEXT = 10001
+    EDIT_CONTEXT = 10002
+    EDIT = 10005
+    CHANGE = 10006
+    CHANGE_VIGNETTE = 10007
+    GRAPH_SCOPE = 10050
+    CLIENT_ORIGIN = 10051
+    NODE_REFERENCE = 10052
+    PROPERTY_REFERENCE = 10053
+    PATH = 10060
+    PATH_SEGMENT = 10061
+    PATH_TOKEN = 10062
+    POLICY = 10100
+    POLICY_RULE = 10101
+    SUBJECT = 10102
+    ACCESS_ZONE = 10104
+    ACCESS_MATRIX = 10105
+    ACCESS = 10107
+    TYPE_INFO = 10200
+    TYPE_CONSTRAINT = 10201
+    SCHEDULE = 10202
+    PROJECTION = 10203
+    FILE = 10204
+    ICON = 10205
+    TRIGGER_INFO = 10206
+    EXPRESSION = 10300
+    AGGREGATION = 10301
+    SELECTION = 10302
+    QUERY_INFO = 10303
+    READ_OPTIONS = 10304
+    VALUE = 10305
+    CODE = 10400
+    CODE_LINE = 10401
+    PIPE = 10402
+    RUN_ERROR = 10450
+    RUN_OPTIONS = 10451
+    RETRY_ATTEMPT = 10452
+    TEXT = 10500
+    TEXT_LINE = 10501
+    TEXT_SPAN = 10502
+    COLOR = 11000
+    FONT = 11001
+    BOX = 11002
+    OFFSET = 11003
+    TRANSFORM = 11004
+    START_VIEW_STATE = 11200
+    FEED_VIEW_STATE = 11201
+    CHART_VIEW_STATE = 11202
+    HISTORY_VIEW_STATE = 11203
+    TIMELINE_VIEW_STATE = 11204
+    USER_WIZARD_VIEW_STATE = 11205
+    PAGE_VIEW_STATE = 11206
+    TREE_VIEW_STATE = 11207
 
 
 class OrganizationStatus(betterproto.Enum):
@@ -892,6 +896,11 @@ class PathTokenType(betterproto.Enum):
     DOUBLE_DOT = 8
     NAME = 10
     EXPRESSION = 11
+
+
+class PipeType(betterproto.Enum):
+    UNSPECIFIED = 0
+    THEN = 1
 
 
 class PolicyEffect(betterproto.Enum):
@@ -1095,80 +1104,66 @@ class Spacing(betterproto.Enum):
     S256 = 256
 
 
-class StepConnectionType(betterproto.Enum):
-    UNSPECIFIED = 0
-    THEN = 1
-
-
 class StepType(betterproto.Enum):
     UNSPECIFIED = 0
-    START = 1
-    VALUE = 2
-    TRIGGER = 10
-    RUN = 20
-    RUN_DEFERRED = 21
-    SEND = 22
-    COMPLETE = 23
-    BRANCH = 30
-    FILTER = 31
-    LOOP = 32
-    GROUP = 50
 
 
 class StructType(betterproto.Enum):
     UNSPECIFIED = 0
-    CONTEXT = 1000
-    SESSION_CONTEXT = 1001
-    EDIT_CONTEXT = 1002
-    EDIT = 1005
-    CHANGE = 1006
-    CHANGE_VIGNETTE = 1007
-    GRAPH_SCOPE = 1010
-    CLIENT_ORIGIN = 1011
-    NODE_REFERENCE = 1012
-    PROPERTY_REFERENCE = 1013
-    PATH = 1020
-    PATH_SEGMENT = 1021
-    PATH_TOKEN = 1022
-    POLICY = 1030
-    POLICY_RULE = 1031
-    SUBJECT = 1032
-    ACCESS_ZONE = 1034
-    ACCESS_MATRIX = 1035
-    ACCESS = 1037
-    TYPE_INFO = 1040
-    TYPE_CONSTRAINT = 1041
-    SCHEDULE = 1042
-    PROJECTION = 1043
-    EXPRESSION = 1060
-    AGGREGATION = 1061
-    SELECTION = 1070
-    QUERY_INFO = 1080
-    READ_OPTIONS = 1085
-    CODE = 1090
-    CODE_LINE = 1091
-    STEP_CONNECTION = 1100
-    RUN_ERROR = 1110
-    RUN_OPTIONS = 1111
-    RETRY_ATTEMPT = 1113
-    TEXT = 1160
-    TEXT_LINE = 1161
-    TEXT_SPAN = 1162
-    COLOR = 1200
-    FONT = 1201
-    BOX = 1202
-    OFFSET = 1203
-    TRANSFORM = 1204
-    START_VIEW_STATE = 1300
-    FEED_VIEW_STATE = 1301
-    CHART_VIEW_STATE = 1302
-    HISTORY_VIEW_STATE = 1303
-    TIMELINE_VIEW_STATE = 1304
-    USER_WIZARD_VIEW_STATE = 1305
-    PAGE_VIEW_STATE = 1306
-    TREE_VIEW_STATE = 1307
-    FILE = 1400
-    ICON = 1401
+    CONTEXT = 10000
+    SESSION_CONTEXT = 10001
+    EDIT_CONTEXT = 10002
+    EDIT = 10005
+    CHANGE = 10006
+    CHANGE_VIGNETTE = 10007
+    GRAPH_SCOPE = 10050
+    CLIENT_ORIGIN = 10051
+    NODE_REFERENCE = 10052
+    PROPERTY_REFERENCE = 10053
+    PATH = 10060
+    PATH_SEGMENT = 10061
+    PATH_TOKEN = 10062
+    POLICY = 10100
+    POLICY_RULE = 10101
+    SUBJECT = 10102
+    ACCESS_ZONE = 10104
+    ACCESS_MATRIX = 10105
+    ACCESS = 10107
+    TYPE_INFO = 10200
+    TYPE_CONSTRAINT = 10201
+    SCHEDULE = 10202
+    PROJECTION = 10203
+    FILE = 10204
+    ICON = 10205
+    TRIGGER_INFO = 10206
+    EXPRESSION = 10300
+    AGGREGATION = 10301
+    SELECTION = 10302
+    QUERY_INFO = 10303
+    READ_OPTIONS = 10304
+    VALUE = 10305
+    CODE = 10400
+    CODE_LINE = 10401
+    PIPE = 10402
+    RUN_ERROR = 10450
+    RUN_OPTIONS = 10451
+    RETRY_ATTEMPT = 10452
+    TEXT = 10500
+    TEXT_LINE = 10501
+    TEXT_SPAN = 10502
+    COLOR = 11000
+    FONT = 11001
+    BOX = 11002
+    OFFSET = 11003
+    TRANSFORM = 11004
+    START_VIEW_STATE = 11200
+    FEED_VIEW_STATE = 11201
+    CHART_VIEW_STATE = 11202
+    HISTORY_VIEW_STATE = 11203
+    TIMELINE_VIEW_STATE = 11204
+    USER_WIZARD_VIEW_STATE = 11205
+    PAGE_VIEW_STATE = 11206
+    TREE_VIEW_STATE = 11207
 
 
 class Tenancy(betterproto.Enum):
@@ -1792,6 +1787,19 @@ class PathTokenData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class PipeData(betterproto.Message):
+    """A connection between two Steps in a FlowBlock."""
+
+    metatype: "ObjectType" = betterproto.enum_field(1)
+    id: int = betterproto.int32_field(2)
+    parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
+    parent_key: Optional[str] = betterproto.string_field(4, optional=True)
+    order_key: Optional[str] = betterproto.string_field(9, optional=True)
+    type: "PipeType" = betterproto.enum_field(30)
+    source_ptr: "NodeReferenceData" = betterproto.message_field(31)
+
+
+@dataclass(eq=False, repr=False)
 class PolicyData(betterproto.Message):
     """
     A policy regulating access to nodes within its scope.
@@ -1952,19 +1960,23 @@ class RunErrorData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class RunOptionsData(betterproto.Message):
-    """Options for running something."""
+    """
+    Options for running something.
+     Limits are per top level run context (i.e. the root Run in some Session).
+    """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     id: int = betterproto.int32_field(2)
     parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
     parent_key: Optional[str] = betterproto.string_field(4, optional=True)
     order_key: Optional[str] = betterproto.string_field(9, optional=True)
-    max_concurrency: Optional[int] = betterproto.int32_field(30, optional=True)
-    max_attempts: Optional[int] = betterproto.int32_field(31, optional=True)
-    retry_interval: Optional[float] = betterproto.float_field(32, optional=True)
-    backoff: Optional[float] = betterproto.float_field(33, optional=True)
-    max_retry_interval: Optional[float] = betterproto.float_field(34, optional=True)
-    jitter: Optional[float] = betterproto.float_field(35, optional=True)
+    max_runs: Optional[int] = betterproto.int32_field(30, optional=True)
+    max_concurrency: Optional[int] = betterproto.int32_field(31, optional=True)
+    max_attempts: Optional[int] = betterproto.int32_field(32, optional=True)
+    retry_interval: Optional[float] = betterproto.float_field(33, optional=True)
+    backoff: Optional[float] = betterproto.float_field(34, optional=True)
+    max_retry_interval: Optional[float] = betterproto.float_field(35, optional=True)
+    jitter: Optional[float] = betterproto.float_field(36, optional=True)
     retry_on: List["RunErrorType"] = betterproto.enum_field(38)
 
 
@@ -2022,19 +2034,6 @@ class StartViewStateData(betterproto.Message):
         30, optional=True
     )
     feed: Optional["FeedViewStateData"] = betterproto.message_field(31, optional=True)
-
-
-@dataclass(eq=False, repr=False)
-class StepConnectionData(betterproto.Message):
-    """A connection between two Steps in a FlowBlock."""
-
-    metatype: "ObjectType" = betterproto.enum_field(1)
-    id: int = betterproto.int32_field(2)
-    parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
-    parent_key: Optional[str] = betterproto.string_field(4, optional=True)
-    order_key: Optional[str] = betterproto.string_field(9, optional=True)
-    type: "StepConnectionType" = betterproto.enum_field(30)
-    source_ptr: "NodeReferenceData" = betterproto.message_field(31)
 
 
 @dataclass(eq=False, repr=False)
@@ -2149,6 +2148,21 @@ class TreeViewStateData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class TriggerInfoData(betterproto.Message):
+    """The information of a trigger."""
+
+    metatype: "ObjectType" = betterproto.enum_field(1)
+    id: int = betterproto.int32_field(2)
+    parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
+    parent_key: Optional[str] = betterproto.string_field(4, optional=True)
+    order_key: Optional[str] = betterproto.string_field(9, optional=True)
+    processed_epoch: Optional[int] = betterproto.int32_field(40, optional=True)
+    schedule: Optional["ScheduleData"] = betterproto.message_field(50, optional=True)
+    signal_ptr: Optional["NodeReferenceData"] = betterproto.message_field(51, optional=True)
+    condition: Optional["ExpressionData"] = betterproto.message_field(52, optional=True)
+
+
+@dataclass(eq=False, repr=False)
 class TypeConstraintData(betterproto.Message):
     """
     A simple constraint on the values of a type. :TypeConstraint
@@ -2202,6 +2216,26 @@ class UserWizardViewStateData(betterproto.Message):
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     stage: Optional["UserWizardViewStage"] = betterproto.enum_field(30, optional=True)
+
+
+@dataclass(eq=False, repr=False)
+class ValueData(betterproto.Message):
+    """A generic 'freeform' value."""
+
+    metatype: "ObjectType" = betterproto.enum_field(1)
+    id: int = betterproto.int32_field(2)
+    parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
+    parent_key: Optional[str] = betterproto.string_field(4, optional=True)
+    order_key: Optional[str] = betterproto.string_field(9, optional=True)
+    type: "TypeInfoData" = betterproto.message_field(31)
+    name: Optional[str] = betterproto.string_field(32, optional=True)
+    text: Optional["TextData"] = betterproto.message_field(34, optional=True)
+    value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
+        35, optional=True
+    )
+    secret_value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = (
+        betterproto.message_field(36, optional=True)
+    )
 
 
 @dataclass(eq=False, repr=False)
@@ -3013,33 +3047,36 @@ class RunData(betterproto.Message):
     status: "RunStatus" = betterproto.enum_field(40)
     current_status: Optional["RunStatus"] = betterproto.enum_field(41, optional=True)
     duration: Optional[float] = betterproto.float_field(42, optional=True)
-    scheduled_at: Optional[datetime] = betterproto.message_field(43, optional=True)
-    scheduled_epoch: Optional[int] = betterproto.int32_field(44, optional=True)
-    started_at: Optional[datetime] = betterproto.message_field(45, optional=True)
-    started_epoch: Optional[int] = betterproto.int32_field(46, optional=True)
-    paused_at: Optional[datetime] = betterproto.message_field(47, optional=True)
-    terminated_at: Optional[datetime] = betterproto.message_field(48, optional=True)
-    terminated_epoch: Optional[int] = betterproto.int32_field(49, optional=True)
+    attempts: List["RetryAttemptData"] = betterproto.message_field(43)
+    error: Optional["RunErrorData"] = betterproto.message_field(44, optional=True)
+    scheduled_at: Optional[datetime] = betterproto.message_field(45, optional=True)
+    scheduled_epoch: Optional[int] = betterproto.int32_field(46, optional=True)
+    started_at: Optional[datetime] = betterproto.message_field(47, optional=True)
+    started_epoch: Optional[int] = betterproto.int32_field(48, optional=True)
+    halted_at: Optional[datetime] = betterproto.message_field(49, optional=True)
+    halted_epoch: Optional[int] = betterproto.int32_field(50, optional=True)
+    halted_on_run_ptr: Optional["NodeReferenceData"] = betterproto.message_field(51, optional=True)
+    halted_on_trigger: Optional["TriggerInfoData"] = betterproto.message_field(52, optional=True)
+    terminated_at: Optional[datetime] = betterproto.message_field(53, optional=True)
+    terminated_epoch: Optional[int] = betterproto.int32_field(54, optional=True)
     inputs_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
-        50, optional=True
+        60, optional=True
     )
     inputs_secret_packed: Optional["betterproto_lib_google_protobuf.Struct"] = (
-        betterproto.message_field(51, optional=True)
+        betterproto.message_field(61, optional=True)
     )
     outputs_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
-        52, optional=True
+        62, optional=True
     )
     outputs_secret_packed: Optional["betterproto_lib_google_protobuf.Struct"] = (
-        betterproto.message_field(53, optional=True)
+        betterproto.message_field(63, optional=True)
     )
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
-        54, optional=True
+        64, optional=True
     )
     value_secret_packed: Optional["betterproto_lib_google_protobuf.Struct"] = (
-        betterproto.message_field(55, optional=True)
+        betterproto.message_field(65, optional=True)
     )
-    attempts: List["RetryAttemptData"] = betterproto.message_field(56)
-    error: Optional["RunErrorData"] = betterproto.message_field(57, optional=True)
     block_ptr: Optional["NodeReferenceData"] = betterproto.message_field(70, optional=True)
     step_ptr: Optional["NodeReferenceData"] = betterproto.message_field(71, optional=True)
     session_ptr: Optional["NodeReferenceData"] = betterproto.message_field(72, optional=True)
@@ -3214,7 +3251,7 @@ class SpaceData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class StepData(betterproto.Message):
-    """An data or control flow unit in a FlowBlock."""
+    """An data or control flow node in a FlowBlock."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
@@ -3240,7 +3277,7 @@ class StepData(betterproto.Message):
     text: Optional["TextData"] = betterproto.message_field(34, optional=True)
     icon: Optional["IconData"] = betterproto.message_field(35, optional=True)
     run_options: Optional["RunOptionsData"] = betterproto.message_field(36, optional=True)
-    connections: List["StepConnectionData"] = betterproto.message_field(37)
+    connections: List["PipeData"] = betterproto.message_field(37)
     value_type: Optional["TypeInfoData"] = betterproto.message_field(40, optional=True)
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         41, optional=True
@@ -3291,7 +3328,7 @@ class StoreData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class TriggerData(betterproto.Message):
-    """A trigger to run the node it is attached to (like a Block or Step)."""
+    """A trigger to run the node it is attached to (like a Block)."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
@@ -3313,11 +3350,11 @@ class TriggerData(betterproto.Message):
     set_properties: List[int] = betterproto.int32_field(29)
     type: "TriggerType" = betterproto.enum_field(30)
     name: str = betterproto.string_field(31)
-    processed_epoch: Optional[int] = betterproto.int32_field(32, optional=True)
-    schedule: Optional["ScheduleData"] = betterproto.message_field(40, optional=True)
-    signal_ptr: Optional["NodeReferenceData"] = betterproto.message_field(41, optional=True)
-    condition: Optional["ExpressionData"] = betterproto.message_field(42, optional=True)
-    is_paused: bool = betterproto.bool_field(50)
+    processed_epoch: Optional[int] = betterproto.int32_field(40, optional=True)
+    schedule: Optional["ScheduleData"] = betterproto.message_field(50, optional=True)
+    signal_ptr: Optional["NodeReferenceData"] = betterproto.message_field(51, optional=True)
+    condition: Optional["ExpressionData"] = betterproto.message_field(52, optional=True)
+    is_paused: bool = betterproto.bool_field(60)
 
 
 @dataclass(eq=False, repr=False)
@@ -4972,14 +5009,18 @@ AnyStructData = Union[
     TypeConstraintData,
     ScheduleData,
     ProjectionData,
+    FileData,
+    IconData,
+    TriggerInfoData,
     ExpressionData,
     AggregationData,
     SelectionData,
     QueryInfoData,
     ReadOptionsData,
+    ValueData,
     CodeData,
     CodeLineData,
-    StepConnectionData,
+    PipeData,
     RunErrorData,
     RunOptionsData,
     RetryAttemptData,
@@ -4999,6 +5040,4 @@ AnyStructData = Union[
     UserWizardViewStateData,
     PageViewStateData,
     TreeViewStateData,
-    FileData,
-    IconData,
 ]

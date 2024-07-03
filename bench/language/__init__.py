@@ -112,7 +112,7 @@ from .signal import Signal
 from .step import Step, StepType
 from .text import Text, TextSpan
 from .transaction import Change, ChangeCategory, ChangeVignette, Edit, Transaction
-from .trigger import Trigger
+from .trigger import Trigger, TriggerBase, TriggerInfo
 from .user import Handle, Organization, User
 from .validation import ValidationError
 from .value import ValueObject
@@ -277,6 +277,8 @@ __all__ = [
     "TextSpan",
     "Transaction",
     "Trigger",
+    "TriggerBase",
+    "TriggerInfo",
     "TriggerType",
     "TypeConstraint",
     "TypeInfo",

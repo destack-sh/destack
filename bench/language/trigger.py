@@ -7,13 +7,13 @@ from croniter import croniter
 from bench.language.const import NodeType, ScheduleType, StructType, TimeInterval, TriggerType
 from bench.language.graph import NodeList
 from bench.language.issue import Issue
-from bench.language.node import SourceNode, Struct, node_, struct_
+from bench.language.node import BuiltinObject, SourceNode, Struct, node_, object_component, struct_
 from bench.language.property import Property, p_node_children, p_node_parent, p_regular
 from bench.language.validation import NAME_CONSTRAINT, TypeConstraintIn, ValidationHandler
 from bench.proto.wire import TriggerData
 
 if TYPE_CHECKING:
-    from bench.language import Block, Expression, Step
+    from bench.language import Block, Expression
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -57,28 +57,44 @@ class Schedule(Struct):
                 invalid(self, "offset too large ('{self.offset}')", (Schedule.offset,))
 
 
-@node_(NodeType.TRIGGER)
-class Trigger(SourceNode[TriggerData]):
-    """A trigger to run the node it is attached to (like a Block or Step)."""
+@object_component()
+class TriggerBase(BuiltinObject):
+    """A trigger to something."""
 
-    parent: Union["Block", "Step", None] = p_node_parent(4, NodeType.BLOCK, NodeType.STEP)
-    type: TriggerType = p_regular(30, require=True)
-    name: str = p_regular(31, constraint=NAME_CONSTRAINT)
-    processed_epoch: Optional[int] = p_regular(32, default=None)
+    # state
+    processed_epoch: Optional[int] = p_regular(40, default=None)
 
-    # content
+    # trigger
     schedule: Optional[Schedule] = p_regular(
-        40, default=None, require=False, array=False, struct=StructType.SCHEDULE
+        50, default=None, require=False, array=False, struct=StructType.SCHEDULE
     )
     signal: Optional["Block"] = p_regular(
-        41, default=None, require=False, array=False, references=NodeType.BLOCK
+        51, default=None, require=False, array=False, references=NodeType.BLOCK
     )
     condition: Optional["Expression"] = p_regular(
-        42, default=None, require=False, array=False, struct=StructType.EXPRESSION
+        52, default=None, require=False, array=False, struct=StructType.EXPRESSION
     )
 
+
+@struct_(StructType.TRIGGER_INFO)
+class TriggerInfo(Struct, TriggerBase):
+    """The information of a trigger."""
+
+    pass
+
+
+@node_(NodeType.TRIGGER)
+class Trigger(SourceNode[TriggerData], TriggerBase):
+    """A trigger to run the node it is attached to (like a Block)."""
+
+    parent: Union["Block", None] = p_node_parent(4, NodeType.BLOCK)
+    type: TriggerType = p_regular(30, require=True)
+    name: str = p_regular(31, constraint=NAME_CONSTRAINT)
+
+    # ...state/content from TriggerBase
+
     # flags
-    is_paused: bool = p_regular(50, default=False)
+    is_paused: bool = p_regular(60, default=False)
 
     issues: NodeList["Issue"] = p_node_children(NodeType.ISSUE)
 

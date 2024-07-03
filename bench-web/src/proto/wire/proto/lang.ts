@@ -1010,6 +1010,41 @@ export interface PathTokenData {
     content?: string;
 }
 /**
+ * A connection between two Steps in a FlowBlock.
+ *
+ * @generated from protobuf message symbolx.bench.PipeData
+ */
+export interface PipeData {
+    /**
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: int32 id = 2;
+     */
+    id: number;
+    /**
+     * @generated from protobuf field: optional int32 parent_id = 3;
+     */
+    parentId?: number;
+    /**
+     * @generated from protobuf field: optional string parent_key = 4;
+     */
+    parentKey?: string;
+    /**
+     * @generated from protobuf field: optional string order_key = 9;
+     */
+    orderKey?: string;
+    /**
+     * @generated from protobuf field: symbolx.bench.PipeType type = 30;
+     */
+    type: PipeType;
+    /**
+     * @generated from protobuf field: symbolx.bench.NodeReferenceData source_ptr = 31;
+     */
+    sourcePtr?: NodeReferenceData;
+}
+/**
  * A policy regulating access to nodes within its scope.
  * The scope is determined by where its attached, but may be further restricted using 'scopes'.
  *
@@ -1405,6 +1440,7 @@ export interface RunErrorData {
 }
 /**
  * Options for running something.
+ * Limits are per top level run context (i.e. the root Run in some Session).
  *
  * @generated from protobuf message symbolx.bench.RunOptionsData
  */
@@ -1430,27 +1466,31 @@ export interface RunOptionsData {
      */
     orderKey?: string;
     /**
-     * @generated from protobuf field: optional int32 max_concurrency = 30;
+     * @generated from protobuf field: optional int32 max_runs = 30;
+     */
+    maxRuns?: number;
+    /**
+     * @generated from protobuf field: optional int32 max_concurrency = 31;
      */
     maxConcurrency?: number;
     /**
-     * @generated from protobuf field: optional int32 max_attempts = 31;
+     * @generated from protobuf field: optional int32 max_attempts = 32;
      */
     maxAttempts?: number;
     /**
-     * @generated from protobuf field: optional float retry_interval = 32;
+     * @generated from protobuf field: optional float retry_interval = 33;
      */
     retryInterval?: number;
     /**
-     * @generated from protobuf field: optional float backoff = 33;
+     * @generated from protobuf field: optional float backoff = 34;
      */
     backoff?: number;
     /**
-     * @generated from protobuf field: optional float max_retry_interval = 34;
+     * @generated from protobuf field: optional float max_retry_interval = 35;
      */
     maxRetryInterval?: number;
     /**
-     * @generated from protobuf field: optional float jitter = 35;
+     * @generated from protobuf field: optional float jitter = 36;
      */
     jitter?: number;
     /**
@@ -1605,41 +1645,6 @@ export interface StartViewStateData {
      * @generated from protobuf field: optional symbolx.bench.FeedViewStateData feed = 31;
      */
     feed?: FeedViewStateData;
-}
-/**
- * A connection between two Steps in a FlowBlock.
- *
- * @generated from protobuf message symbolx.bench.StepConnectionData
- */
-export interface StepConnectionData {
-    /**
-     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
-     */
-    metatype: ObjectType;
-    /**
-     * @generated from protobuf field: int32 id = 2;
-     */
-    id: number;
-    /**
-     * @generated from protobuf field: optional int32 parent_id = 3;
-     */
-    parentId?: number;
-    /**
-     * @generated from protobuf field: optional string parent_key = 4;
-     */
-    parentKey?: string;
-    /**
-     * @generated from protobuf field: optional string order_key = 9;
-     */
-    orderKey?: string;
-    /**
-     * @generated from protobuf field: symbolx.bench.StepConnectionType type = 30;
-     */
-    type: StepConnectionType;
-    /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData source_ptr = 31;
-     */
-    sourcePtr?: NodeReferenceData;
 }
 /**
  * The <whoever/whatever> issuing a request. Unknown/ignored attributes are unset.
@@ -1931,6 +1936,49 @@ export interface TreeViewStateData {
     preset?: TreeViewPreset;
 }
 /**
+ * The information of a trigger.
+ *
+ * @generated from protobuf message symbolx.bench.TriggerInfoData
+ */
+export interface TriggerInfoData {
+    /**
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: int32 id = 2;
+     */
+    id: number;
+    /**
+     * @generated from protobuf field: optional int32 parent_id = 3;
+     */
+    parentId?: number;
+    /**
+     * @generated from protobuf field: optional string parent_key = 4;
+     */
+    parentKey?: string;
+    /**
+     * @generated from protobuf field: optional string order_key = 9;
+     */
+    orderKey?: string;
+    /**
+     * @generated from protobuf field: optional int32 processed_epoch = 40;
+     */
+    processedEpoch?: number;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.ScheduleData schedule = 50;
+     */
+    schedule?: ScheduleData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData signal_ptr = 51;
+     */
+    signalPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.ExpressionData condition = 52;
+     */
+    condition?: ExpressionData;
+}
+/**
  * A simple constraint on the values of a type. :TypeConstraint
  * Basically a more restricted form of a condition Expression.
  *
@@ -2083,6 +2131,53 @@ export interface UserWizardViewStateData {
      * @generated from protobuf field: optional symbolx.bench.UserWizardViewStage stage = 30;
      */
     stage?: UserWizardViewStage;
+}
+/**
+ * A generic 'freeform' value.
+ *
+ * @generated from protobuf message symbolx.bench.ValueData
+ */
+export interface ValueData {
+    /**
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: int32 id = 2;
+     */
+    id: number;
+    /**
+     * @generated from protobuf field: optional int32 parent_id = 3;
+     */
+    parentId?: number;
+    /**
+     * @generated from protobuf field: optional string parent_key = 4;
+     */
+    parentKey?: string;
+    /**
+     * @generated from protobuf field: optional string order_key = 9;
+     */
+    orderKey?: string;
+    /**
+     * @generated from protobuf field: symbolx.bench.TypeInfoData type = 31;
+     */
+    type?: TypeInfoData;
+    /**
+     * @generated from protobuf field: optional string name = 32;
+     */
+    name?: string;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.TextData text = 34;
+     */
+    text?: TextData;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Struct value_packed = 35;
+     */
+    valuePacked?: Struct;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Struct secret_value_packed = 36;
+     */
+    secretValuePacked?: Struct;
 }
 /**
  * Attach a badge to a node with an inline definition.
@@ -4650,65 +4745,77 @@ export interface RunData {
      */
     duration?: number;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp scheduled_at = 43;
-     */
-    scheduledAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional int32 scheduled_epoch = 44;
-     */
-    scheduledEpoch?: number;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp started_at = 45;
-     */
-    startedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional int32 started_epoch = 46;
-     */
-    startedEpoch?: number;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp paused_at = 47;
-     */
-    pausedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp terminated_at = 48;
-     */
-    terminatedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional int32 terminated_epoch = 49;
-     */
-    terminatedEpoch?: number;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Struct inputs_packed = 50;
-     */
-    inputsPacked?: Struct;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Struct inputs_secret_packed = 51;
-     */
-    inputsSecretPacked?: Struct;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Struct outputs_packed = 52;
-     */
-    outputsPacked?: Struct;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Struct outputs_secret_packed = 53;
-     */
-    outputsSecretPacked?: Struct;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Struct value_packed = 54;
-     */
-    valuePacked?: Struct;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Struct value_secret_packed = 55;
-     */
-    valueSecretPacked?: Struct;
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.RetryAttemptData attempts = 56;
+     * @generated from protobuf field: repeated symbolx.bench.RetryAttemptData attempts = 43;
      */
     attempts: RetryAttemptData[];
     /**
-     * @generated from protobuf field: optional symbolx.bench.RunErrorData error = 57;
+     * @generated from protobuf field: optional symbolx.bench.RunErrorData error = 44;
      */
     error?: RunErrorData;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp scheduled_at = 45;
+     */
+    scheduledAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional int32 scheduled_epoch = 46;
+     */
+    scheduledEpoch?: number;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp started_at = 47;
+     */
+    startedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional int32 started_epoch = 48;
+     */
+    startedEpoch?: number;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp halted_at = 49;
+     */
+    haltedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional int32 halted_epoch = 50;
+     */
+    haltedEpoch?: number;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData halted_on_run_ptr = 51;
+     */
+    haltedOnRunPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.TriggerInfoData halted_on_trigger = 52;
+     */
+    haltedOnTrigger?: TriggerInfoData;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp terminated_at = 53;
+     */
+    terminatedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional int32 terminated_epoch = 54;
+     */
+    terminatedEpoch?: number;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Struct inputs_packed = 60;
+     */
+    inputsPacked?: Struct;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Struct inputs_secret_packed = 61;
+     */
+    inputsSecretPacked?: Struct;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Struct outputs_packed = 62;
+     */
+    outputsPacked?: Struct;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Struct outputs_secret_packed = 63;
+     */
+    outputsSecretPacked?: Struct;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Struct value_packed = 64;
+     */
+    valuePacked?: Struct;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Struct value_secret_packed = 65;
+     */
+    valueSecretPacked?: Struct;
     /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData block_ptr = 70;
      */
@@ -5254,7 +5361,7 @@ export interface SpaceData {
     basePtr?: NodeReferenceData;
 }
 /**
- * An data or control flow unit in a FlowBlock.
+ * An data or control flow node in a FlowBlock.
  *
  * @generated from protobuf message symbolx.bench.StepData
  */
@@ -5356,9 +5463,9 @@ export interface StepData {
      */
     runOptions?: RunOptionsData;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.StepConnectionData connections = 37;
+     * @generated from protobuf field: repeated symbolx.bench.PipeData connections = 37;
      */
-    connections: StepConnectionData[];
+    connections: PipeData[];
     /**
      * @generated from protobuf field: optional symbolx.bench.TypeInfoData value_type = 40;
      */
@@ -5512,7 +5619,7 @@ export interface StoreData {
     connectionUri?: string;
 }
 /**
- * A trigger to run the node it is attached to (like a Block or Step).
+ * A trigger to run the node it is attached to (like a Block).
  *
  * @generated from protobuf message symbolx.bench.TriggerData
  */
@@ -5598,23 +5705,23 @@ export interface TriggerData {
      */
     name: string;
     /**
-     * @generated from protobuf field: optional int32 processed_epoch = 32;
+     * @generated from protobuf field: optional int32 processed_epoch = 40;
      */
     processedEpoch?: number;
     /**
-     * @generated from protobuf field: optional symbolx.bench.ScheduleData schedule = 40;
+     * @generated from protobuf field: optional symbolx.bench.ScheduleData schedule = 50;
      */
     schedule?: ScheduleData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData signal_ptr = 41;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData signal_ptr = 51;
      */
     signalPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.ExpressionData condition = 42;
+     * @generated from protobuf field: optional symbolx.bench.ExpressionData condition = 52;
      */
     condition?: ExpressionData;
     /**
-     * @generated from protobuf field: bool is_paused = 50;
+     * @generated from protobuf field: bool is_paused = 60;
      */
     isPaused: boolean;
 }
@@ -6514,505 +6621,513 @@ export enum BenchType {
      */
     CLIENT = 223,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_CONTEXT = 1000;
+     * @generated from protobuf enum value: BENCH_TYPE_CONTEXT = 10000;
      */
-    CONTEXT = 1000,
+    CONTEXT = 10000,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_SESSION_CONTEXT = 1001;
+     * @generated from protobuf enum value: BENCH_TYPE_SESSION_CONTEXT = 10001;
      */
-    SESSION_CONTEXT = 1001,
+    SESSION_CONTEXT = 10001,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_EDIT_CONTEXT = 1002;
+     * @generated from protobuf enum value: BENCH_TYPE_EDIT_CONTEXT = 10002;
      */
-    EDIT_CONTEXT = 1002,
+    EDIT_CONTEXT = 10002,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_EDIT = 1005;
+     * @generated from protobuf enum value: BENCH_TYPE_EDIT = 10005;
      */
-    EDIT = 1005,
+    EDIT = 10005,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_CHANGE = 1006;
+     * @generated from protobuf enum value: BENCH_TYPE_CHANGE = 10006;
      */
-    CHANGE = 1006,
+    CHANGE = 10006,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_CHANGE_VIGNETTE = 1007;
+     * @generated from protobuf enum value: BENCH_TYPE_CHANGE_VIGNETTE = 10007;
      */
-    CHANGE_VIGNETTE = 1007,
+    CHANGE_VIGNETTE = 10007,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_GRAPH_SCOPE = 1010;
+     * @generated from protobuf enum value: BENCH_TYPE_GRAPH_SCOPE = 10050;
      */
-    GRAPH_SCOPE = 1010,
+    GRAPH_SCOPE = 10050,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_CLIENT_ORIGIN = 1011;
+     * @generated from protobuf enum value: BENCH_TYPE_CLIENT_ORIGIN = 10051;
      */
-    CLIENT_ORIGIN = 1011,
+    CLIENT_ORIGIN = 10051,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_NODE_REFERENCE = 1012;
+     * @generated from protobuf enum value: BENCH_TYPE_NODE_REFERENCE = 10052;
      */
-    NODE_REFERENCE = 1012,
+    NODE_REFERENCE = 10052,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_PROPERTY_REFERENCE = 1013;
+     * @generated from protobuf enum value: BENCH_TYPE_PROPERTY_REFERENCE = 10053;
      */
-    PROPERTY_REFERENCE = 1013,
+    PROPERTY_REFERENCE = 10053,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_PATH = 1020;
+     * @generated from protobuf enum value: BENCH_TYPE_PATH = 10060;
      */
-    PATH = 1020,
+    PATH = 10060,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_PATH_SEGMENT = 1021;
+     * @generated from protobuf enum value: BENCH_TYPE_PATH_SEGMENT = 10061;
      */
-    PATH_SEGMENT = 1021,
+    PATH_SEGMENT = 10061,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_PATH_TOKEN = 1022;
+     * @generated from protobuf enum value: BENCH_TYPE_PATH_TOKEN = 10062;
      */
-    PATH_TOKEN = 1022,
+    PATH_TOKEN = 10062,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_POLICY = 1030;
+     * @generated from protobuf enum value: BENCH_TYPE_POLICY = 10100;
      */
-    POLICY = 1030,
+    POLICY = 10100,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_POLICY_RULE = 1031;
+     * @generated from protobuf enum value: BENCH_TYPE_POLICY_RULE = 10101;
      */
-    POLICY_RULE = 1031,
+    POLICY_RULE = 10101,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_SUBJECT = 1032;
+     * @generated from protobuf enum value: BENCH_TYPE_SUBJECT = 10102;
      */
-    SUBJECT = 1032,
+    SUBJECT = 10102,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_ACCESS_ZONE = 1034;
+     * @generated from protobuf enum value: BENCH_TYPE_ACCESS_ZONE = 10104;
      */
-    ACCESS_ZONE = 1034,
+    ACCESS_ZONE = 10104,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_ACCESS_MATRIX = 1035;
+     * @generated from protobuf enum value: BENCH_TYPE_ACCESS_MATRIX = 10105;
      */
-    ACCESS_MATRIX = 1035,
+    ACCESS_MATRIX = 10105,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_ACCESS = 1037;
+     * @generated from protobuf enum value: BENCH_TYPE_ACCESS = 10107;
      */
-    ACCESS = 1037,
+    ACCESS = 10107,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_TYPE_INFO = 1040;
+     * @generated from protobuf enum value: BENCH_TYPE_TYPE_INFO = 10200;
      */
-    TYPE_INFO = 1040,
+    TYPE_INFO = 10200,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_TYPE_CONSTRAINT = 1041;
+     * @generated from protobuf enum value: BENCH_TYPE_TYPE_CONSTRAINT = 10201;
      */
-    TYPE_CONSTRAINT = 1041,
+    TYPE_CONSTRAINT = 10201,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_SCHEDULE = 1042;
+     * @generated from protobuf enum value: BENCH_TYPE_SCHEDULE = 10202;
      */
-    SCHEDULE = 1042,
+    SCHEDULE = 10202,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_PROJECTION = 1043;
+     * @generated from protobuf enum value: BENCH_TYPE_PROJECTION = 10203;
      */
-    PROJECTION = 1043,
+    PROJECTION = 10203,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_EXPRESSION = 1060;
+     * @generated from protobuf enum value: BENCH_TYPE_FILE = 10204;
      */
-    EXPRESSION = 1060,
+    FILE = 10204,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_AGGREGATION = 1061;
+     * @generated from protobuf enum value: BENCH_TYPE_ICON = 10205;
      */
-    AGGREGATION = 1061,
+    ICON = 10205,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_SELECTION = 1070;
+     * @generated from protobuf enum value: BENCH_TYPE_TRIGGER_INFO = 10206;
      */
-    SELECTION = 1070,
+    TRIGGER_INFO = 10206,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_QUERY_INFO = 1080;
+     * @generated from protobuf enum value: BENCH_TYPE_EXPRESSION = 10300;
      */
-    QUERY_INFO = 1080,
+    EXPRESSION = 10300,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_READ_OPTIONS = 1085;
+     * @generated from protobuf enum value: BENCH_TYPE_AGGREGATION = 10301;
      */
-    READ_OPTIONS = 1085,
+    AGGREGATION = 10301,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_CODE = 1090;
+     * @generated from protobuf enum value: BENCH_TYPE_SELECTION = 10302;
      */
-    CODE = 1090,
+    SELECTION = 10302,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_CODE_LINE = 1091;
+     * @generated from protobuf enum value: BENCH_TYPE_QUERY_INFO = 10303;
      */
-    CODE_LINE = 1091,
+    QUERY_INFO = 10303,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_STEP_CONNECTION = 1100;
+     * @generated from protobuf enum value: BENCH_TYPE_READ_OPTIONS = 10304;
      */
-    STEP_CONNECTION = 1100,
+    READ_OPTIONS = 10304,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_RUN_ERROR = 1110;
+     * @generated from protobuf enum value: BENCH_TYPE_VALUE = 10305;
      */
-    RUN_ERROR = 1110,
+    VALUE = 10305,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_RUN_OPTIONS = 1111;
+     * @generated from protobuf enum value: BENCH_TYPE_CODE = 10400;
      */
-    RUN_OPTIONS = 1111,
+    CODE = 10400,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_RETRY_ATTEMPT = 1113;
+     * @generated from protobuf enum value: BENCH_TYPE_CODE_LINE = 10401;
      */
-    RETRY_ATTEMPT = 1113,
+    CODE_LINE = 10401,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_TEXT = 1160;
+     * @generated from protobuf enum value: BENCH_TYPE_PIPE = 10402;
      */
-    TEXT = 1160,
+    PIPE = 10402,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_TEXT_LINE = 1161;
+     * @generated from protobuf enum value: BENCH_TYPE_RUN_ERROR = 10450;
      */
-    TEXT_LINE = 1161,
+    RUN_ERROR = 10450,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_TEXT_SPAN = 1162;
+     * @generated from protobuf enum value: BENCH_TYPE_RUN_OPTIONS = 10451;
      */
-    TEXT_SPAN = 1162,
+    RUN_OPTIONS = 10451,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_COLOR = 1200;
+     * @generated from protobuf enum value: BENCH_TYPE_RETRY_ATTEMPT = 10452;
      */
-    COLOR = 1200,
+    RETRY_ATTEMPT = 10452,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_FONT = 1201;
+     * @generated from protobuf enum value: BENCH_TYPE_TEXT = 10500;
      */
-    FONT = 1201,
+    TEXT = 10500,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_BOX = 1202;
+     * @generated from protobuf enum value: BENCH_TYPE_TEXT_LINE = 10501;
      */
-    BOX = 1202,
+    TEXT_LINE = 10501,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_OFFSET = 1203;
+     * @generated from protobuf enum value: BENCH_TYPE_TEXT_SPAN = 10502;
      */
-    OFFSET = 1203,
+    TEXT_SPAN = 10502,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_TRANSFORM = 1204;
+     * @generated from protobuf enum value: BENCH_TYPE_COLOR = 11000;
      */
-    TRANSFORM = 1204,
+    COLOR = 11000,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_START_VIEW_STATE = 1300;
+     * @generated from protobuf enum value: BENCH_TYPE_FONT = 11001;
      */
-    START_VIEW_STATE = 1300,
+    FONT = 11001,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_FEED_VIEW_STATE = 1301;
+     * @generated from protobuf enum value: BENCH_TYPE_BOX = 11002;
      */
-    FEED_VIEW_STATE = 1301,
+    BOX = 11002,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_CHART_VIEW_STATE = 1302;
+     * @generated from protobuf enum value: BENCH_TYPE_OFFSET = 11003;
      */
-    CHART_VIEW_STATE = 1302,
+    OFFSET = 11003,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_HISTORY_VIEW_STATE = 1303;
+     * @generated from protobuf enum value: BENCH_TYPE_TRANSFORM = 11004;
      */
-    HISTORY_VIEW_STATE = 1303,
+    TRANSFORM = 11004,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_TIMELINE_VIEW_STATE = 1304;
+     * @generated from protobuf enum value: BENCH_TYPE_START_VIEW_STATE = 11200;
      */
-    TIMELINE_VIEW_STATE = 1304,
+    START_VIEW_STATE = 11200,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_USER_WIZARD_VIEW_STATE = 1305;
+     * @generated from protobuf enum value: BENCH_TYPE_FEED_VIEW_STATE = 11201;
      */
-    USER_WIZARD_VIEW_STATE = 1305,
+    FEED_VIEW_STATE = 11201,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_PAGE_VIEW_STATE = 1306;
+     * @generated from protobuf enum value: BENCH_TYPE_CHART_VIEW_STATE = 11202;
      */
-    PAGE_VIEW_STATE = 1306,
+    CHART_VIEW_STATE = 11202,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_TREE_VIEW_STATE = 1307;
+     * @generated from protobuf enum value: BENCH_TYPE_HISTORY_VIEW_STATE = 11203;
      */
-    TREE_VIEW_STATE = 1307,
+    HISTORY_VIEW_STATE = 11203,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_FILE = 1400;
+     * @generated from protobuf enum value: BENCH_TYPE_TIMELINE_VIEW_STATE = 11204;
      */
-    FILE = 1400,
+    TIMELINE_VIEW_STATE = 11204,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_ICON = 1401;
+     * @generated from protobuf enum value: BENCH_TYPE_USER_WIZARD_VIEW_STATE = 11205;
      */
-    ICON = 1401,
+    USER_WIZARD_VIEW_STATE = 11205,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_ENUM_TYPE = 2001;
+     * @generated from protobuf enum value: BENCH_TYPE_PAGE_VIEW_STATE = 11206;
      */
-    ENUM_TYPE = 2001,
+    PAGE_VIEW_STATE = 11206,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_NODE_TYPE = 2002;
+     * @generated from protobuf enum value: BENCH_TYPE_TREE_VIEW_STATE = 11207;
      */
-    NODE_TYPE = 2002,
+    TREE_VIEW_STATE = 11207,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_STRUCT_TYPE = 2003;
+     * @generated from protobuf enum value: BENCH_TYPE_ENUM_TYPE = 20001;
      */
-    STRUCT_TYPE = 2003,
+    ENUM_TYPE = 20001,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_OBJECT_TYPE = 2004;
+     * @generated from protobuf enum value: BENCH_TYPE_NODE_TYPE = 20002;
      */
-    OBJECT_TYPE = 2004,
+    NODE_TYPE = 20002,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_BENCH_TYPE = 2005;
+     * @generated from protobuf enum value: BENCH_TYPE_STRUCT_TYPE = 20003;
      */
-    BENCH_TYPE = 2005,
+    STRUCT_TYPE = 20003,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_VISIBILITY = 2010;
+     * @generated from protobuf enum value: BENCH_TYPE_OBJECT_TYPE = 20004;
      */
-    VISIBILITY = 2010,
+    OBJECT_TYPE = 20004,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_CHANGE_KIND = 2011;
+     * @generated from protobuf enum value: BENCH_TYPE_BENCH_TYPE = 20005;
      */
-    CHANGE_KIND = 2011,
+    BENCH_TYPE = 20005,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_ACCESS_MODE = 2030;
+     * @generated from protobuf enum value: BENCH_TYPE_VISIBILITY = 20010;
      */
-    ACCESS_MODE = 2030,
+    VISIBILITY = 20010,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_ACCESS_KIND = 2031;
+     * @generated from protobuf enum value: BENCH_TYPE_CHANGE_KIND = 20011;
      */
-    ACCESS_KIND = 2031,
+    CHANGE_KIND = 20011,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_READ_TYPE = 2032;
+     * @generated from protobuf enum value: BENCH_TYPE_ACCESS_MODE = 20030;
      */
-    READ_TYPE = 2032,
+    ACCESS_MODE = 20030,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_EDIT_TYPE = 2033;
+     * @generated from protobuf enum value: BENCH_TYPE_ACCESS_KIND = 20031;
      */
-    EDIT_TYPE = 2033,
+    ACCESS_KIND = 20031,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_USE_TYPE = 2034;
+     * @generated from protobuf enum value: BENCH_TYPE_READ_TYPE = 20032;
      */
-    USE_TYPE = 2034,
+    READ_TYPE = 20032,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_ACCESS_TYPE = 2035;
+     * @generated from protobuf enum value: BENCH_TYPE_EDIT_TYPE = 20033;
      */
-    ACCESS_TYPE = 2035,
+    EDIT_TYPE = 20033,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_CHANGE_CATEGORY = 2036;
+     * @generated from protobuf enum value: BENCH_TYPE_USE_TYPE = 20034;
      */
-    CHANGE_CATEGORY = 2036,
+    USE_TYPE = 20034,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_POLICY_EFFECT = 2040;
+     * @generated from protobuf enum value: BENCH_TYPE_ACCESS_TYPE = 20035;
      */
-    POLICY_EFFECT = 2040,
+    ACCESS_TYPE = 20035,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_REGION = 2050;
+     * @generated from protobuf enum value: BENCH_TYPE_CHANGE_CATEGORY = 20036;
      */
-    REGION = 2050,
+    CHANGE_CATEGORY = 20036,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_TENANCY = 2051;
+     * @generated from protobuf enum value: BENCH_TYPE_POLICY_EFFECT = 20040;
      */
-    TENANCY = 2051,
+    POLICY_EFFECT = 20040,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_SERVER_PROFILE = 2055;
+     * @generated from protobuf enum value: BENCH_TYPE_REGION = 20050;
      */
-    SERVER_PROFILE = 2055,
+    REGION = 20050,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_MACHINE_PROFILE = 2056;
+     * @generated from protobuf enum value: BENCH_TYPE_TENANCY = 20051;
      */
-    MACHINE_PROFILE = 2056,
+    TENANCY = 20051,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_RESOURCE_STATUS = 2057;
+     * @generated from protobuf enum value: BENCH_TYPE_SERVER_PROFILE = 20055;
      */
-    RESOURCE_STATUS = 2057,
+    SERVER_PROFILE = 20055,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_FILE_RETENTION_MODE = 2058;
+     * @generated from protobuf enum value: BENCH_TYPE_MACHINE_PROFILE = 20056;
      */
-    FILE_RETENTION_MODE = 2058,
+    MACHINE_PROFILE = 20056,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_CLIENT_TYPE = 2060;
+     * @generated from protobuf enum value: BENCH_TYPE_RESOURCE_STATUS = 20057;
      */
-    CLIENT_TYPE = 2060,
+    RESOURCE_STATUS = 20057,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_PRIMITIVE_TYPE = 2080;
+     * @generated from protobuf enum value: BENCH_TYPE_FILE_RETENTION_MODE = 20058;
      */
-    PRIMITIVE_TYPE = 2080,
+    FILE_RETENTION_MODE = 20058,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_FORMAT_HINT = 2081;
+     * @generated from protobuf enum value: BENCH_TYPE_CLIENT_TYPE = 20060;
      */
-    FORMAT_HINT = 2081,
+    CLIENT_TYPE = 20060,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_FIELD_ZONE = 2082;
+     * @generated from protobuf enum value: BENCH_TYPE_PRIMITIVE_TYPE = 20080;
      */
-    FIELD_ZONE = 2082,
+    PRIMITIVE_TYPE = 20080,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_TYPE_KIND = 2083;
+     * @generated from protobuf enum value: BENCH_TYPE_FORMAT_HINT = 20081;
      */
-    TYPE_KIND = 2083,
+    FORMAT_HINT = 20081,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_SCHEDULE_TYPE = 2100;
+     * @generated from protobuf enum value: BENCH_TYPE_FIELD_ZONE = 20082;
      */
-    SCHEDULE_TYPE = 2100,
+    FIELD_ZONE = 20082,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_TIME_INTERVAL = 2101;
+     * @generated from protobuf enum value: BENCH_TYPE_TYPE_KIND = 20083;
      */
-    TIME_INTERVAL = 2101,
+    TYPE_KIND = 20083,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_DAY = 2102;
+     * @generated from protobuf enum value: BENCH_TYPE_BLOCK_TYPE = 20384;
      */
-    DAY = 2102,
+    BLOCK_TYPE = 20384,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_MONTH = 2103;
+     * @generated from protobuf enum value: BENCH_TYPE_SCHEDULE_TYPE = 20100;
      */
-    MONTH = 2103,
+    SCHEDULE_TYPE = 20100,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_TEXT_LINE_TYPE = 2110;
+     * @generated from protobuf enum value: BENCH_TYPE_TIME_INTERVAL = 20101;
      */
-    TEXT_LINE_TYPE = 2110,
+    TIME_INTERVAL = 20101,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_ICON_KIND = 2111;
+     * @generated from protobuf enum value: BENCH_TYPE_DAY = 20102;
      */
-    ICON_KIND = 2111,
+    DAY = 20102,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_EXPRESSION_KIND = 2200;
+     * @generated from protobuf enum value: BENCH_TYPE_MONTH = 20103;
      */
-    EXPRESSION_KIND = 2200,
+    MONTH = 20103,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_EXPRESSION_OP = 2201;
+     * @generated from protobuf enum value: BENCH_TYPE_TEXT_LINE_TYPE = 20110;
      */
-    EXPRESSION_OP = 2201,
+    TEXT_LINE_TYPE = 20110,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_LITERAL_OP = 2202;
+     * @generated from protobuf enum value: BENCH_TYPE_ICON_KIND = 20111;
      */
-    LITERAL_OP = 2202,
+    ICON_KIND = 20111,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_FUNCTIONAL_OP = 2203;
+     * @generated from protobuf enum value: BENCH_TYPE_EXPRESSION_KIND = 20200;
      */
-    FUNCTIONAL_OP = 2203,
+    EXPRESSION_KIND = 20200,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_CONDITIONAL_OP = 2204;
+     * @generated from protobuf enum value: BENCH_TYPE_EXPRESSION_OP = 20201;
      */
-    CONDITIONAL_OP = 2204,
+    EXPRESSION_OP = 20201,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_AGGREGATION_OP = 2205;
+     * @generated from protobuf enum value: BENCH_TYPE_LITERAL_OP = 20202;
      */
-    AGGREGATION_OP = 2205,
+    LITERAL_OP = 20202,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_SORT_MODE = 2206;
+     * @generated from protobuf enum value: BENCH_TYPE_FUNCTIONAL_OP = 20203;
      */
-    SORT_MODE = 2206,
+    FUNCTIONAL_OP = 20203,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_SORT_OP = 2207;
+     * @generated from protobuf enum value: BENCH_TYPE_CONDITIONAL_OP = 20204;
      */
-    SORT_OP = 2207,
+    CONDITIONAL_OP = 20204,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_SELECTION_KIND = 2208;
+     * @generated from protobuf enum value: BENCH_TYPE_AGGREGATION_OP = 20205;
      */
-    SELECTION_KIND = 2208,
+    AGGREGATION_OP = 20205,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_PATH_TOKEN_TYPE = 2210;
+     * @generated from protobuf enum value: BENCH_TYPE_SORT_MODE = 20206;
      */
-    PATH_TOKEN_TYPE = 2210,
+    SORT_MODE = 20206,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_PATH_SEGMENT_TYPE = 2211;
+     * @generated from protobuf enum value: BENCH_TYPE_SORT_OP = 20207;
      */
-    PATH_SEGMENT_TYPE = 2211,
+    SORT_OP = 20207,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_BLOCK_TYPE = 2070;
+     * @generated from protobuf enum value: BENCH_TYPE_SELECTION_KIND = 20208;
      */
-    BLOCK_TYPE = 2070,
+    SELECTION_KIND = 20208,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_ISSUE_KIND = 2170;
+     * @generated from protobuf enum value: BENCH_TYPE_PATH_TOKEN_TYPE = 20210;
      */
-    ISSUE_KIND = 2170,
+    PATH_TOKEN_TYPE = 20210,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_ISSUE_TYPE = 2171;
+     * @generated from protobuf enum value: BENCH_TYPE_PATH_SEGMENT_TYPE = 20211;
      */
-    ISSUE_TYPE = 2171,
+    PATH_SEGMENT_TYPE = 20211,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_STEP_TYPE = 2180;
+     * @generated from protobuf enum value: BENCH_TYPE_ISSUE_KIND = 20400;
      */
-    STEP_TYPE = 2180,
+    ISSUE_KIND = 20400,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_STEP_CONNECTION_TYPE = 2181;
+     * @generated from protobuf enum value: BENCH_TYPE_ISSUE_TYPE = 20401;
      */
-    STEP_CONNECTION_TYPE = 2181,
+    ISSUE_TYPE = 20401,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_LOG_KIND = 2300;
+     * @generated from protobuf enum value: BENCH_TYPE_STEP_TYPE = 20500;
      */
-    LOG_KIND = 2300,
+    STEP_TYPE = 20500,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_LOG_LEVEL = 2301;
+     * @generated from protobuf enum value: BENCH_TYPE_PIPE_TYPE = 20501;
      */
-    LOG_LEVEL = 2301,
+    PIPE_TYPE = 20501,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_RUN_STATUS = 2302;
+     * @generated from protobuf enum value: BENCH_TYPE_LOG_KIND = 20502;
      */
-    RUN_STATUS = 2302,
+    LOG_KIND = 20502,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_RUN_KIND = 2303;
+     * @generated from protobuf enum value: BENCH_TYPE_LOG_LEVEL = 20503;
      */
-    RUN_KIND = 2303,
+    LOG_LEVEL = 20503,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_RUN_ERROR_KIND = 2304;
+     * @generated from protobuf enum value: BENCH_TYPE_RUN_STATUS = 20504;
      */
-    RUN_ERROR_KIND = 2304,
+    RUN_STATUS = 20504,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_RUN_ERROR_TYPE = 2305;
+     * @generated from protobuf enum value: BENCH_TYPE_RUN_KIND = 20505;
      */
-    RUN_ERROR_TYPE = 2305,
+    RUN_KIND = 20505,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_SESSION_STATUS = 2306;
+     * @generated from protobuf enum value: BENCH_TYPE_RUN_ERROR_KIND = 20506;
      */
-    SESSION_STATUS = 2306,
+    RUN_ERROR_KIND = 20506,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_TRIGGER_TYPE = 2307;
+     * @generated from protobuf enum value: BENCH_TYPE_RUN_ERROR_TYPE = 20507;
      */
-    TRIGGER_TYPE = 2307,
+    RUN_ERROR_TYPE = 20507,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_NOTIFICATION_KIND = 2308;
+     * @generated from protobuf enum value: BENCH_TYPE_SESSION_STATUS = 20508;
      */
-    NOTIFICATION_KIND = 2308,
+    SESSION_STATUS = 20508,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_SPACE_TYPE = 2400;
+     * @generated from protobuf enum value: BENCH_TYPE_TRIGGER_TYPE = 20509;
      */
-    SPACE_TYPE = 2400,
+    TRIGGER_TYPE = 20509,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_VIEW_TYPE = 2401;
+     * @generated from protobuf enum value: BENCH_TYPE_NOTIFICATION_KIND = 20510;
      */
-    VIEW_TYPE = 2401,
+    NOTIFICATION_KIND = 20510,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_VARIANT = 2402;
+     * @generated from protobuf enum value: BENCH_TYPE_SPACE_TYPE = 21000;
      */
-    VARIANT = 2402,
+    SPACE_TYPE = 21000,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_COLOR_TYPE = 2403;
+     * @generated from protobuf enum value: BENCH_TYPE_VIEW_TYPE = 21001;
      */
-    COLOR_TYPE = 2403,
+    VIEW_TYPE = 21001,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_COLOR_SHADE = 2404;
+     * @generated from protobuf enum value: BENCH_TYPE_VARIANT = 21002;
      */
-    COLOR_SHADE = 2404,
+    VARIANT = 21002,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_FONT_TYPE = 2405;
+     * @generated from protobuf enum value: BENCH_TYPE_COLOR_TYPE = 21003;
      */
-    FONT_TYPE = 2405,
+    COLOR_TYPE = 21003,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_FONT_WEIGHT = 2406;
+     * @generated from protobuf enum value: BENCH_TYPE_COLOR_SHADE = 21004;
      */
-    FONT_WEIGHT = 2406,
+    COLOR_SHADE = 21004,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_FONT_SIZE = 2407;
+     * @generated from protobuf enum value: BENCH_TYPE_FONT_TYPE = 21005;
      */
-    FONT_SIZE = 2407,
+    FONT_TYPE = 21005,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_SPACING = 2408;
+     * @generated from protobuf enum value: BENCH_TYPE_FONT_WEIGHT = 21006;
      */
-    SPACING = 2408,
+    FONT_WEIGHT = 21006,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_ANCHOR = 2409;
+     * @generated from protobuf enum value: BENCH_TYPE_FONT_SIZE = 21007;
      */
-    ANCHOR = 2409,
+    FONT_SIZE = 21007,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_ORIENTATION = 2410;
+     * @generated from protobuf enum value: BENCH_TYPE_SPACING = 21008;
      */
-    ORIENTATION = 2410,
+    SPACING = 21008,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_ALIGNMENT = 2411;
+     * @generated from protobuf enum value: BENCH_TYPE_ANCHOR = 21009;
      */
-    ALIGNMENT = 2411,
+    ANCHOR = 21009,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_USER_WIZARD_STAGE = 2500;
+     * @generated from protobuf enum value: BENCH_TYPE_ORIENTATION = 21010;
      */
-    USER_WIZARD_STAGE = 2500,
+    ORIENTATION = 21010,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_TREE_VIEW_PRESET = 2501;
+     * @generated from protobuf enum value: BENCH_TYPE_ALIGNMENT = 21011;
      */
-    TREE_VIEW_PRESET = 2501,
+    ALIGNMENT = 21011,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_USER_STATUS = 2800;
+     * @generated from protobuf enum value: BENCH_TYPE_USER_WIZARD_STAGE = 21200;
      */
-    USER_STATUS = 2800,
+    USER_WIZARD_STAGE = 21200,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_ORGANIZATION_STATUS = 2801;
+     * @generated from protobuf enum value: BENCH_TYPE_TREE_VIEW_PRESET = 21201;
      */
-    ORGANIZATION_STATUS = 2801
+    TREE_VIEW_PRESET = 21201,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_USER_STATUS = 29000;
+     */
+    USER_STATUS = 29000,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_ORGANIZATION_STATUS = 29001;
+     */
+    ORGANIZATION_STATUS = 29001
 }
 /**
  * @generated from protobuf enum symbolx.bench.BlockType
@@ -7047,13 +7162,13 @@ export enum BlockType {
      */
     CHOICE = 11,
     /**
-     * @generated from protobuf enum value: BLOCK_TYPE_SIGNAL = 13;
-     */
-    SIGNAL = 13,
-    /**
      * @generated from protobuf enum value: BLOCK_TYPE_PROTOCOL = 14;
      */
     PROTOCOL = 14,
+    /**
+     * @generated from protobuf enum value: BLOCK_TYPE_SIGNAL = 15;
+     */
+    SIGNAL = 15,
     /**
      * @generated from protobuf enum value: BLOCK_TYPE_TEXT = 30;
      */
@@ -7510,297 +7625,297 @@ export enum EnumType {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ENUM_TYPE = 2001;
+     * @generated from protobuf enum value: ENUM_TYPE_ENUM_TYPE = 20001;
      */
-    ENUM_TYPE = 2001,
+    ENUM_TYPE = 20001,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_NODE_TYPE = 2002;
+     * @generated from protobuf enum value: ENUM_TYPE_NODE_TYPE = 20002;
      */
-    NODE_TYPE = 2002,
+    NODE_TYPE = 20002,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_STRUCT_TYPE = 2003;
+     * @generated from protobuf enum value: ENUM_TYPE_STRUCT_TYPE = 20003;
      */
-    STRUCT_TYPE = 2003,
+    STRUCT_TYPE = 20003,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_OBJECT_TYPE = 2004;
+     * @generated from protobuf enum value: ENUM_TYPE_OBJECT_TYPE = 20004;
      */
-    OBJECT_TYPE = 2004,
+    OBJECT_TYPE = 20004,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_BENCH_TYPE = 2005;
+     * @generated from protobuf enum value: ENUM_TYPE_BENCH_TYPE = 20005;
      */
-    BENCH_TYPE = 2005,
+    BENCH_TYPE = 20005,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_VISIBILITY = 2010;
+     * @generated from protobuf enum value: ENUM_TYPE_VISIBILITY = 20010;
      */
-    VISIBILITY = 2010,
+    VISIBILITY = 20010,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_CHANGE_KIND = 2011;
+     * @generated from protobuf enum value: ENUM_TYPE_CHANGE_KIND = 20011;
      */
-    CHANGE_KIND = 2011,
+    CHANGE_KIND = 20011,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ACCESS_MODE = 2030;
+     * @generated from protobuf enum value: ENUM_TYPE_ACCESS_MODE = 20030;
      */
-    ACCESS_MODE = 2030,
+    ACCESS_MODE = 20030,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ACCESS_KIND = 2031;
+     * @generated from protobuf enum value: ENUM_TYPE_ACCESS_KIND = 20031;
      */
-    ACCESS_KIND = 2031,
+    ACCESS_KIND = 20031,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_READ_TYPE = 2032;
+     * @generated from protobuf enum value: ENUM_TYPE_READ_TYPE = 20032;
      */
-    READ_TYPE = 2032,
+    READ_TYPE = 20032,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_EDIT_TYPE = 2033;
+     * @generated from protobuf enum value: ENUM_TYPE_EDIT_TYPE = 20033;
      */
-    EDIT_TYPE = 2033,
+    EDIT_TYPE = 20033,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_USE_TYPE = 2034;
+     * @generated from protobuf enum value: ENUM_TYPE_USE_TYPE = 20034;
      */
-    USE_TYPE = 2034,
+    USE_TYPE = 20034,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ACCESS_TYPE = 2035;
+     * @generated from protobuf enum value: ENUM_TYPE_ACCESS_TYPE = 20035;
      */
-    ACCESS_TYPE = 2035,
+    ACCESS_TYPE = 20035,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_CHANGE_CATEGORY = 2036;
+     * @generated from protobuf enum value: ENUM_TYPE_CHANGE_CATEGORY = 20036;
      */
-    CHANGE_CATEGORY = 2036,
+    CHANGE_CATEGORY = 20036,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_POLICY_EFFECT = 2040;
+     * @generated from protobuf enum value: ENUM_TYPE_POLICY_EFFECT = 20040;
      */
-    POLICY_EFFECT = 2040,
+    POLICY_EFFECT = 20040,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_REGION = 2050;
+     * @generated from protobuf enum value: ENUM_TYPE_REGION = 20050;
      */
-    REGION = 2050,
+    REGION = 20050,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_TENANCY = 2051;
+     * @generated from protobuf enum value: ENUM_TYPE_TENANCY = 20051;
      */
-    TENANCY = 2051,
+    TENANCY = 20051,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_SERVER_PROFILE = 2055;
+     * @generated from protobuf enum value: ENUM_TYPE_SERVER_PROFILE = 20055;
      */
-    SERVER_PROFILE = 2055,
+    SERVER_PROFILE = 20055,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_MACHINE_PROFILE = 2056;
+     * @generated from protobuf enum value: ENUM_TYPE_MACHINE_PROFILE = 20056;
      */
-    MACHINE_PROFILE = 2056,
+    MACHINE_PROFILE = 20056,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_RESOURCE_STATUS = 2057;
+     * @generated from protobuf enum value: ENUM_TYPE_RESOURCE_STATUS = 20057;
      */
-    RESOURCE_STATUS = 2057,
+    RESOURCE_STATUS = 20057,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FILE_RETENTION_MODE = 2058;
+     * @generated from protobuf enum value: ENUM_TYPE_FILE_RETENTION_MODE = 20058;
      */
-    FILE_RETENTION_MODE = 2058,
+    FILE_RETENTION_MODE = 20058,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_CLIENT_TYPE = 2060;
+     * @generated from protobuf enum value: ENUM_TYPE_CLIENT_TYPE = 20060;
      */
-    CLIENT_TYPE = 2060,
+    CLIENT_TYPE = 20060,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_PRIMITIVE_TYPE = 2080;
+     * @generated from protobuf enum value: ENUM_TYPE_PRIMITIVE_TYPE = 20080;
      */
-    PRIMITIVE_TYPE = 2080,
+    PRIMITIVE_TYPE = 20080,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FORMAT_HINT = 2081;
+     * @generated from protobuf enum value: ENUM_TYPE_FORMAT_HINT = 20081;
      */
-    FORMAT_HINT = 2081,
+    FORMAT_HINT = 20081,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FIELD_ZONE = 2082;
+     * @generated from protobuf enum value: ENUM_TYPE_FIELD_ZONE = 20082;
      */
-    FIELD_ZONE = 2082,
+    FIELD_ZONE = 20082,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_TYPE_KIND = 2083;
+     * @generated from protobuf enum value: ENUM_TYPE_TYPE_KIND = 20083;
      */
-    TYPE_KIND = 2083,
+    TYPE_KIND = 20083,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_SCHEDULE_TYPE = 2100;
+     * @generated from protobuf enum value: ENUM_TYPE_BLOCK_TYPE = 20384;
      */
-    SCHEDULE_TYPE = 2100,
+    BLOCK_TYPE = 20384,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_TIME_INTERVAL = 2101;
+     * @generated from protobuf enum value: ENUM_TYPE_SCHEDULE_TYPE = 20100;
      */
-    TIME_INTERVAL = 2101,
+    SCHEDULE_TYPE = 20100,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_DAY = 2102;
+     * @generated from protobuf enum value: ENUM_TYPE_TIME_INTERVAL = 20101;
      */
-    DAY = 2102,
+    TIME_INTERVAL = 20101,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_MONTH = 2103;
+     * @generated from protobuf enum value: ENUM_TYPE_DAY = 20102;
      */
-    MONTH = 2103,
+    DAY = 20102,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_TEXT_LINE_TYPE = 2110;
+     * @generated from protobuf enum value: ENUM_TYPE_MONTH = 20103;
      */
-    TEXT_LINE_TYPE = 2110,
+    MONTH = 20103,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ICON_KIND = 2111;
+     * @generated from protobuf enum value: ENUM_TYPE_TEXT_LINE_TYPE = 20110;
      */
-    ICON_KIND = 2111,
+    TEXT_LINE_TYPE = 20110,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_EXPRESSION_KIND = 2200;
+     * @generated from protobuf enum value: ENUM_TYPE_ICON_KIND = 20111;
      */
-    EXPRESSION_KIND = 2200,
+    ICON_KIND = 20111,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_EXPRESSION_OP = 2201;
+     * @generated from protobuf enum value: ENUM_TYPE_EXPRESSION_KIND = 20200;
      */
-    EXPRESSION_OP = 2201,
+    EXPRESSION_KIND = 20200,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_LITERAL_OP = 2202;
+     * @generated from protobuf enum value: ENUM_TYPE_EXPRESSION_OP = 20201;
      */
-    LITERAL_OP = 2202,
+    EXPRESSION_OP = 20201,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FUNCTIONAL_OP = 2203;
+     * @generated from protobuf enum value: ENUM_TYPE_LITERAL_OP = 20202;
      */
-    FUNCTIONAL_OP = 2203,
+    LITERAL_OP = 20202,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_CONDITIONAL_OP = 2204;
+     * @generated from protobuf enum value: ENUM_TYPE_FUNCTIONAL_OP = 20203;
      */
-    CONDITIONAL_OP = 2204,
+    FUNCTIONAL_OP = 20203,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_AGGREGATION_OP = 2205;
+     * @generated from protobuf enum value: ENUM_TYPE_CONDITIONAL_OP = 20204;
      */
-    AGGREGATION_OP = 2205,
+    CONDITIONAL_OP = 20204,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_SORT_MODE = 2206;
+     * @generated from protobuf enum value: ENUM_TYPE_AGGREGATION_OP = 20205;
      */
-    SORT_MODE = 2206,
+    AGGREGATION_OP = 20205,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_SORT_OP = 2207;
+     * @generated from protobuf enum value: ENUM_TYPE_SORT_MODE = 20206;
      */
-    SORT_OP = 2207,
+    SORT_MODE = 20206,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_SELECTION_KIND = 2208;
+     * @generated from protobuf enum value: ENUM_TYPE_SORT_OP = 20207;
      */
-    SELECTION_KIND = 2208,
+    SORT_OP = 20207,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_PATH_TOKEN_TYPE = 2210;
+     * @generated from protobuf enum value: ENUM_TYPE_SELECTION_KIND = 20208;
      */
-    PATH_TOKEN_TYPE = 2210,
+    SELECTION_KIND = 20208,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_PATH_SEGMENT_TYPE = 2211;
+     * @generated from protobuf enum value: ENUM_TYPE_PATH_TOKEN_TYPE = 20210;
      */
-    PATH_SEGMENT_TYPE = 2211,
+    PATH_TOKEN_TYPE = 20210,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_BLOCK_TYPE = 2070;
+     * @generated from protobuf enum value: ENUM_TYPE_PATH_SEGMENT_TYPE = 20211;
      */
-    BLOCK_TYPE = 2070,
+    PATH_SEGMENT_TYPE = 20211,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ISSUE_KIND = 2170;
+     * @generated from protobuf enum value: ENUM_TYPE_ISSUE_KIND = 20400;
      */
-    ISSUE_KIND = 2170,
+    ISSUE_KIND = 20400,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ISSUE_TYPE = 2171;
+     * @generated from protobuf enum value: ENUM_TYPE_ISSUE_TYPE = 20401;
      */
-    ISSUE_TYPE = 2171,
+    ISSUE_TYPE = 20401,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_STEP_TYPE = 2180;
+     * @generated from protobuf enum value: ENUM_TYPE_STEP_TYPE = 20500;
      */
-    STEP_TYPE = 2180,
+    STEP_TYPE = 20500,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_STEP_CONNECTION_TYPE = 2181;
+     * @generated from protobuf enum value: ENUM_TYPE_PIPE_TYPE = 20501;
      */
-    STEP_CONNECTION_TYPE = 2181,
+    PIPE_TYPE = 20501,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_LOG_KIND = 2300;
+     * @generated from protobuf enum value: ENUM_TYPE_LOG_KIND = 20502;
      */
-    LOG_KIND = 2300,
+    LOG_KIND = 20502,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_LOG_LEVEL = 2301;
+     * @generated from protobuf enum value: ENUM_TYPE_LOG_LEVEL = 20503;
      */
-    LOG_LEVEL = 2301,
+    LOG_LEVEL = 20503,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_RUN_STATUS = 2302;
+     * @generated from protobuf enum value: ENUM_TYPE_RUN_STATUS = 20504;
      */
-    RUN_STATUS = 2302,
+    RUN_STATUS = 20504,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_RUN_KIND = 2303;
+     * @generated from protobuf enum value: ENUM_TYPE_RUN_KIND = 20505;
      */
-    RUN_KIND = 2303,
+    RUN_KIND = 20505,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_RUN_ERROR_KIND = 2304;
+     * @generated from protobuf enum value: ENUM_TYPE_RUN_ERROR_KIND = 20506;
      */
-    RUN_ERROR_KIND = 2304,
+    RUN_ERROR_KIND = 20506,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_RUN_ERROR_TYPE = 2305;
+     * @generated from protobuf enum value: ENUM_TYPE_RUN_ERROR_TYPE = 20507;
      */
-    RUN_ERROR_TYPE = 2305,
+    RUN_ERROR_TYPE = 20507,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_SESSION_STATUS = 2306;
+     * @generated from protobuf enum value: ENUM_TYPE_SESSION_STATUS = 20508;
      */
-    SESSION_STATUS = 2306,
+    SESSION_STATUS = 20508,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_TRIGGER_TYPE = 2307;
+     * @generated from protobuf enum value: ENUM_TYPE_TRIGGER_TYPE = 20509;
      */
-    TRIGGER_TYPE = 2307,
+    TRIGGER_TYPE = 20509,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_NOTIFICATION_KIND = 2308;
+     * @generated from protobuf enum value: ENUM_TYPE_NOTIFICATION_KIND = 20510;
      */
-    NOTIFICATION_KIND = 2308,
+    NOTIFICATION_KIND = 20510,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_SPACE_TYPE = 2400;
+     * @generated from protobuf enum value: ENUM_TYPE_SPACE_TYPE = 21000;
      */
-    SPACE_TYPE = 2400,
+    SPACE_TYPE = 21000,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_VIEW_TYPE = 2401;
+     * @generated from protobuf enum value: ENUM_TYPE_VIEW_TYPE = 21001;
      */
-    VIEW_TYPE = 2401,
+    VIEW_TYPE = 21001,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_VARIANT = 2402;
+     * @generated from protobuf enum value: ENUM_TYPE_VARIANT = 21002;
      */
-    VARIANT = 2402,
+    VARIANT = 21002,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_COLOR_TYPE = 2403;
+     * @generated from protobuf enum value: ENUM_TYPE_COLOR_TYPE = 21003;
      */
-    COLOR_TYPE = 2403,
+    COLOR_TYPE = 21003,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_COLOR_SHADE = 2404;
+     * @generated from protobuf enum value: ENUM_TYPE_COLOR_SHADE = 21004;
      */
-    COLOR_SHADE = 2404,
+    COLOR_SHADE = 21004,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FONT_TYPE = 2405;
+     * @generated from protobuf enum value: ENUM_TYPE_FONT_TYPE = 21005;
      */
-    FONT_TYPE = 2405,
+    FONT_TYPE = 21005,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FONT_WEIGHT = 2406;
+     * @generated from protobuf enum value: ENUM_TYPE_FONT_WEIGHT = 21006;
      */
-    FONT_WEIGHT = 2406,
+    FONT_WEIGHT = 21006,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FONT_SIZE = 2407;
+     * @generated from protobuf enum value: ENUM_TYPE_FONT_SIZE = 21007;
      */
-    FONT_SIZE = 2407,
+    FONT_SIZE = 21007,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_SPACING = 2408;
+     * @generated from protobuf enum value: ENUM_TYPE_SPACING = 21008;
      */
-    SPACING = 2408,
+    SPACING = 21008,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ANCHOR = 2409;
+     * @generated from protobuf enum value: ENUM_TYPE_ANCHOR = 21009;
      */
-    ANCHOR = 2409,
+    ANCHOR = 21009,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ORIENTATION = 2410;
+     * @generated from protobuf enum value: ENUM_TYPE_ORIENTATION = 21010;
      */
-    ORIENTATION = 2410,
+    ORIENTATION = 21010,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ALIGNMENT = 2411;
+     * @generated from protobuf enum value: ENUM_TYPE_ALIGNMENT = 21011;
      */
-    ALIGNMENT = 2411,
+    ALIGNMENT = 21011,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_USER_WIZARD_STAGE = 2500;
+     * @generated from protobuf enum value: ENUM_TYPE_USER_WIZARD_STAGE = 21200;
      */
-    USER_WIZARD_STAGE = 2500,
+    USER_WIZARD_STAGE = 21200,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_TREE_VIEW_PRESET = 2501;
+     * @generated from protobuf enum value: ENUM_TYPE_TREE_VIEW_PRESET = 21201;
      */
-    TREE_VIEW_PRESET = 2501,
+    TREE_VIEW_PRESET = 21201,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_USER_STATUS = 2800;
+     * @generated from protobuf enum value: ENUM_TYPE_USER_STATUS = 29000;
      */
-    USER_STATUS = 2800,
+    USER_STATUS = 29000,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ORGANIZATION_STATUS = 2801;
+     * @generated from protobuf enum value: ENUM_TYPE_ORGANIZATION_STATUS = 29001;
      */
-    ORGANIZATION_STATUS = 2801
+    ORGANIZATION_STATUS = 29001
 }
 /**
  * @generated from protobuf enum symbolx.bench.ExpressionKind
@@ -8805,213 +8920,221 @@ export enum ObjectType {
      */
     CLIENT = 223,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_CONTEXT = 1000;
+     * @generated from protobuf enum value: OBJECT_TYPE_CONTEXT = 10000;
      */
-    CONTEXT = 1000,
+    CONTEXT = 10000,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_SESSION_CONTEXT = 1001;
+     * @generated from protobuf enum value: OBJECT_TYPE_SESSION_CONTEXT = 10001;
      */
-    SESSION_CONTEXT = 1001,
+    SESSION_CONTEXT = 10001,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_EDIT_CONTEXT = 1002;
+     * @generated from protobuf enum value: OBJECT_TYPE_EDIT_CONTEXT = 10002;
      */
-    EDIT_CONTEXT = 1002,
+    EDIT_CONTEXT = 10002,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_EDIT = 1005;
+     * @generated from protobuf enum value: OBJECT_TYPE_EDIT = 10005;
      */
-    EDIT = 1005,
+    EDIT = 10005,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_CHANGE = 1006;
+     * @generated from protobuf enum value: OBJECT_TYPE_CHANGE = 10006;
      */
-    CHANGE = 1006,
+    CHANGE = 10006,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_CHANGE_VIGNETTE = 1007;
+     * @generated from protobuf enum value: OBJECT_TYPE_CHANGE_VIGNETTE = 10007;
      */
-    CHANGE_VIGNETTE = 1007,
+    CHANGE_VIGNETTE = 10007,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_GRAPH_SCOPE = 1010;
+     * @generated from protobuf enum value: OBJECT_TYPE_GRAPH_SCOPE = 10050;
      */
-    GRAPH_SCOPE = 1010,
+    GRAPH_SCOPE = 10050,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_CLIENT_ORIGIN = 1011;
+     * @generated from protobuf enum value: OBJECT_TYPE_CLIENT_ORIGIN = 10051;
      */
-    CLIENT_ORIGIN = 1011,
+    CLIENT_ORIGIN = 10051,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_NODE_REFERENCE = 1012;
+     * @generated from protobuf enum value: OBJECT_TYPE_NODE_REFERENCE = 10052;
      */
-    NODE_REFERENCE = 1012,
+    NODE_REFERENCE = 10052,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_PROPERTY_REFERENCE = 1013;
+     * @generated from protobuf enum value: OBJECT_TYPE_PROPERTY_REFERENCE = 10053;
      */
-    PROPERTY_REFERENCE = 1013,
+    PROPERTY_REFERENCE = 10053,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_PATH = 1020;
+     * @generated from protobuf enum value: OBJECT_TYPE_PATH = 10060;
      */
-    PATH = 1020,
+    PATH = 10060,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_PATH_SEGMENT = 1021;
+     * @generated from protobuf enum value: OBJECT_TYPE_PATH_SEGMENT = 10061;
      */
-    PATH_SEGMENT = 1021,
+    PATH_SEGMENT = 10061,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_PATH_TOKEN = 1022;
+     * @generated from protobuf enum value: OBJECT_TYPE_PATH_TOKEN = 10062;
      */
-    PATH_TOKEN = 1022,
+    PATH_TOKEN = 10062,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_POLICY = 1030;
+     * @generated from protobuf enum value: OBJECT_TYPE_POLICY = 10100;
      */
-    POLICY = 1030,
+    POLICY = 10100,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_POLICY_RULE = 1031;
+     * @generated from protobuf enum value: OBJECT_TYPE_POLICY_RULE = 10101;
      */
-    POLICY_RULE = 1031,
+    POLICY_RULE = 10101,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_SUBJECT = 1032;
+     * @generated from protobuf enum value: OBJECT_TYPE_SUBJECT = 10102;
      */
-    SUBJECT = 1032,
+    SUBJECT = 10102,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_ACCESS_ZONE = 1034;
+     * @generated from protobuf enum value: OBJECT_TYPE_ACCESS_ZONE = 10104;
      */
-    ACCESS_ZONE = 1034,
+    ACCESS_ZONE = 10104,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_ACCESS_MATRIX = 1035;
+     * @generated from protobuf enum value: OBJECT_TYPE_ACCESS_MATRIX = 10105;
      */
-    ACCESS_MATRIX = 1035,
+    ACCESS_MATRIX = 10105,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_ACCESS = 1037;
+     * @generated from protobuf enum value: OBJECT_TYPE_ACCESS = 10107;
      */
-    ACCESS = 1037,
+    ACCESS = 10107,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_TYPE_INFO = 1040;
+     * @generated from protobuf enum value: OBJECT_TYPE_TYPE_INFO = 10200;
      */
-    TYPE_INFO = 1040,
+    TYPE_INFO = 10200,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_TYPE_CONSTRAINT = 1041;
+     * @generated from protobuf enum value: OBJECT_TYPE_TYPE_CONSTRAINT = 10201;
      */
-    TYPE_CONSTRAINT = 1041,
+    TYPE_CONSTRAINT = 10201,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_SCHEDULE = 1042;
+     * @generated from protobuf enum value: OBJECT_TYPE_SCHEDULE = 10202;
      */
-    SCHEDULE = 1042,
+    SCHEDULE = 10202,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_PROJECTION = 1043;
+     * @generated from protobuf enum value: OBJECT_TYPE_PROJECTION = 10203;
      */
-    PROJECTION = 1043,
+    PROJECTION = 10203,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_EXPRESSION = 1060;
+     * @generated from protobuf enum value: OBJECT_TYPE_FILE = 10204;
      */
-    EXPRESSION = 1060,
+    FILE = 10204,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_AGGREGATION = 1061;
+     * @generated from protobuf enum value: OBJECT_TYPE_ICON = 10205;
      */
-    AGGREGATION = 1061,
+    ICON = 10205,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_SELECTION = 1070;
+     * @generated from protobuf enum value: OBJECT_TYPE_TRIGGER_INFO = 10206;
      */
-    SELECTION = 1070,
+    TRIGGER_INFO = 10206,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_QUERY_INFO = 1080;
+     * @generated from protobuf enum value: OBJECT_TYPE_EXPRESSION = 10300;
      */
-    QUERY_INFO = 1080,
+    EXPRESSION = 10300,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_READ_OPTIONS = 1085;
+     * @generated from protobuf enum value: OBJECT_TYPE_AGGREGATION = 10301;
      */
-    READ_OPTIONS = 1085,
+    AGGREGATION = 10301,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_CODE = 1090;
+     * @generated from protobuf enum value: OBJECT_TYPE_SELECTION = 10302;
      */
-    CODE = 1090,
+    SELECTION = 10302,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_CODE_LINE = 1091;
+     * @generated from protobuf enum value: OBJECT_TYPE_QUERY_INFO = 10303;
      */
-    CODE_LINE = 1091,
+    QUERY_INFO = 10303,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_STEP_CONNECTION = 1100;
+     * @generated from protobuf enum value: OBJECT_TYPE_READ_OPTIONS = 10304;
      */
-    STEP_CONNECTION = 1100,
+    READ_OPTIONS = 10304,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_RUN_ERROR = 1110;
+     * @generated from protobuf enum value: OBJECT_TYPE_VALUE = 10305;
      */
-    RUN_ERROR = 1110,
+    VALUE = 10305,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_RUN_OPTIONS = 1111;
+     * @generated from protobuf enum value: OBJECT_TYPE_CODE = 10400;
      */
-    RUN_OPTIONS = 1111,
+    CODE = 10400,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_RETRY_ATTEMPT = 1113;
+     * @generated from protobuf enum value: OBJECT_TYPE_CODE_LINE = 10401;
      */
-    RETRY_ATTEMPT = 1113,
+    CODE_LINE = 10401,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_TEXT = 1160;
+     * @generated from protobuf enum value: OBJECT_TYPE_PIPE = 10402;
      */
-    TEXT = 1160,
+    PIPE = 10402,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_TEXT_LINE = 1161;
+     * @generated from protobuf enum value: OBJECT_TYPE_RUN_ERROR = 10450;
      */
-    TEXT_LINE = 1161,
+    RUN_ERROR = 10450,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_TEXT_SPAN = 1162;
+     * @generated from protobuf enum value: OBJECT_TYPE_RUN_OPTIONS = 10451;
      */
-    TEXT_SPAN = 1162,
+    RUN_OPTIONS = 10451,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_COLOR = 1200;
+     * @generated from protobuf enum value: OBJECT_TYPE_RETRY_ATTEMPT = 10452;
      */
-    COLOR = 1200,
+    RETRY_ATTEMPT = 10452,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_FONT = 1201;
+     * @generated from protobuf enum value: OBJECT_TYPE_TEXT = 10500;
      */
-    FONT = 1201,
+    TEXT = 10500,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_BOX = 1202;
+     * @generated from protobuf enum value: OBJECT_TYPE_TEXT_LINE = 10501;
      */
-    BOX = 1202,
+    TEXT_LINE = 10501,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_OFFSET = 1203;
+     * @generated from protobuf enum value: OBJECT_TYPE_TEXT_SPAN = 10502;
      */
-    OFFSET = 1203,
+    TEXT_SPAN = 10502,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_TRANSFORM = 1204;
+     * @generated from protobuf enum value: OBJECT_TYPE_COLOR = 11000;
      */
-    TRANSFORM = 1204,
+    COLOR = 11000,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_START_VIEW_STATE = 1300;
+     * @generated from protobuf enum value: OBJECT_TYPE_FONT = 11001;
      */
-    START_VIEW_STATE = 1300,
+    FONT = 11001,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_FEED_VIEW_STATE = 1301;
+     * @generated from protobuf enum value: OBJECT_TYPE_BOX = 11002;
      */
-    FEED_VIEW_STATE = 1301,
+    BOX = 11002,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_CHART_VIEW_STATE = 1302;
+     * @generated from protobuf enum value: OBJECT_TYPE_OFFSET = 11003;
      */
-    CHART_VIEW_STATE = 1302,
+    OFFSET = 11003,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_HISTORY_VIEW_STATE = 1303;
+     * @generated from protobuf enum value: OBJECT_TYPE_TRANSFORM = 11004;
      */
-    HISTORY_VIEW_STATE = 1303,
+    TRANSFORM = 11004,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_TIMELINE_VIEW_STATE = 1304;
+     * @generated from protobuf enum value: OBJECT_TYPE_START_VIEW_STATE = 11200;
      */
-    TIMELINE_VIEW_STATE = 1304,
+    START_VIEW_STATE = 11200,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_USER_WIZARD_VIEW_STATE = 1305;
+     * @generated from protobuf enum value: OBJECT_TYPE_FEED_VIEW_STATE = 11201;
      */
-    USER_WIZARD_VIEW_STATE = 1305,
+    FEED_VIEW_STATE = 11201,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_PAGE_VIEW_STATE = 1306;
+     * @generated from protobuf enum value: OBJECT_TYPE_CHART_VIEW_STATE = 11202;
      */
-    PAGE_VIEW_STATE = 1306,
+    CHART_VIEW_STATE = 11202,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_TREE_VIEW_STATE = 1307;
+     * @generated from protobuf enum value: OBJECT_TYPE_HISTORY_VIEW_STATE = 11203;
      */
-    TREE_VIEW_STATE = 1307,
+    HISTORY_VIEW_STATE = 11203,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_FILE = 1400;
+     * @generated from protobuf enum value: OBJECT_TYPE_TIMELINE_VIEW_STATE = 11204;
      */
-    FILE = 1400,
+    TIMELINE_VIEW_STATE = 11204,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_ICON = 1401;
+     * @generated from protobuf enum value: OBJECT_TYPE_USER_WIZARD_VIEW_STATE = 11205;
      */
-    ICON = 1401
+    USER_WIZARD_VIEW_STATE = 11205,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_PAGE_VIEW_STATE = 11206;
+     */
+    PAGE_VIEW_STATE = 11206,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_TREE_VIEW_STATE = 11207;
+     */
+    TREE_VIEW_STATE = 11207
 }
 /**
  * @generated from protobuf enum symbolx.bench.OrganizationStatus
@@ -9166,6 +9289,19 @@ export enum PathTokenType {
      * @generated from protobuf enum value: PATH_TOKEN_TYPE_EXPRESSION = 11;
      */
     EXPRESSION = 11
+}
+/**
+ * @generated from protobuf enum symbolx.bench.PipeType
+ */
+export enum PipeType {
+    /**
+     * @generated from protobuf enum value: PIPE_TYPE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: PIPE_TYPE_THEN = 1;
+     */
+    THEN = 1
 }
 /**
  * @generated from protobuf enum symbolx.bench.PolicyEffect
@@ -9763,70 +9899,13 @@ export enum Spacing {
     S256 = 256
 }
 /**
- * @generated from protobuf enum symbolx.bench.StepConnectionType
- */
-export enum StepConnectionType {
-    /**
-     * @generated from protobuf enum value: STEP_CONNECTION_TYPE_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: STEP_CONNECTION_TYPE_THEN = 1;
-     */
-    THEN = 1
-}
-/**
  * @generated from protobuf enum symbolx.bench.StepType
  */
 export enum StepType {
     /**
      * @generated from protobuf enum value: STEP_TYPE_UNSPECIFIED = 0;
      */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: STEP_TYPE_START = 1;
-     */
-    START = 1,
-    /**
-     * @generated from protobuf enum value: STEP_TYPE_VALUE = 2;
-     */
-    VALUE = 2,
-    /**
-     * @generated from protobuf enum value: STEP_TYPE_TRIGGER = 10;
-     */
-    TRIGGER = 10,
-    /**
-     * @generated from protobuf enum value: STEP_TYPE_RUN = 20;
-     */
-    RUN = 20,
-    /**
-     * @generated from protobuf enum value: STEP_TYPE_RUN_DEFERRED = 21;
-     */
-    RUN_DEFERRED = 21,
-    /**
-     * @generated from protobuf enum value: STEP_TYPE_SEND = 22;
-     */
-    SEND = 22,
-    /**
-     * @generated from protobuf enum value: STEP_TYPE_COMPLETE = 23;
-     */
-    COMPLETE = 23,
-    /**
-     * @generated from protobuf enum value: STEP_TYPE_BRANCH = 30;
-     */
-    BRANCH = 30,
-    /**
-     * @generated from protobuf enum value: STEP_TYPE_FILTER = 31;
-     */
-    FILTER = 31,
-    /**
-     * @generated from protobuf enum value: STEP_TYPE_LOOP = 32;
-     */
-    LOOP = 32,
-    /**
-     * @generated from protobuf enum value: STEP_TYPE_GROUP = 50;
-     */
-    GROUP = 50
+    UNSPECIFIED = 0
 }
 /**
  * @generated from protobuf enum symbolx.bench.StructType
@@ -9837,213 +9916,221 @@ export enum StructType {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_CONTEXT = 1000;
+     * @generated from protobuf enum value: STRUCT_TYPE_CONTEXT = 10000;
      */
-    CONTEXT = 1000,
+    CONTEXT = 10000,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_SESSION_CONTEXT = 1001;
+     * @generated from protobuf enum value: STRUCT_TYPE_SESSION_CONTEXT = 10001;
      */
-    SESSION_CONTEXT = 1001,
+    SESSION_CONTEXT = 10001,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_EDIT_CONTEXT = 1002;
+     * @generated from protobuf enum value: STRUCT_TYPE_EDIT_CONTEXT = 10002;
      */
-    EDIT_CONTEXT = 1002,
+    EDIT_CONTEXT = 10002,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_EDIT = 1005;
+     * @generated from protobuf enum value: STRUCT_TYPE_EDIT = 10005;
      */
-    EDIT = 1005,
+    EDIT = 10005,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_CHANGE = 1006;
+     * @generated from protobuf enum value: STRUCT_TYPE_CHANGE = 10006;
      */
-    CHANGE = 1006,
+    CHANGE = 10006,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_CHANGE_VIGNETTE = 1007;
+     * @generated from protobuf enum value: STRUCT_TYPE_CHANGE_VIGNETTE = 10007;
      */
-    CHANGE_VIGNETTE = 1007,
+    CHANGE_VIGNETTE = 10007,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_GRAPH_SCOPE = 1010;
+     * @generated from protobuf enum value: STRUCT_TYPE_GRAPH_SCOPE = 10050;
      */
-    GRAPH_SCOPE = 1010,
+    GRAPH_SCOPE = 10050,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_CLIENT_ORIGIN = 1011;
+     * @generated from protobuf enum value: STRUCT_TYPE_CLIENT_ORIGIN = 10051;
      */
-    CLIENT_ORIGIN = 1011,
+    CLIENT_ORIGIN = 10051,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_NODE_REFERENCE = 1012;
+     * @generated from protobuf enum value: STRUCT_TYPE_NODE_REFERENCE = 10052;
      */
-    NODE_REFERENCE = 1012,
+    NODE_REFERENCE = 10052,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_PROPERTY_REFERENCE = 1013;
+     * @generated from protobuf enum value: STRUCT_TYPE_PROPERTY_REFERENCE = 10053;
      */
-    PROPERTY_REFERENCE = 1013,
+    PROPERTY_REFERENCE = 10053,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_PATH = 1020;
+     * @generated from protobuf enum value: STRUCT_TYPE_PATH = 10060;
      */
-    PATH = 1020,
+    PATH = 10060,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_PATH_SEGMENT = 1021;
+     * @generated from protobuf enum value: STRUCT_TYPE_PATH_SEGMENT = 10061;
      */
-    PATH_SEGMENT = 1021,
+    PATH_SEGMENT = 10061,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_PATH_TOKEN = 1022;
+     * @generated from protobuf enum value: STRUCT_TYPE_PATH_TOKEN = 10062;
      */
-    PATH_TOKEN = 1022,
+    PATH_TOKEN = 10062,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_POLICY = 1030;
+     * @generated from protobuf enum value: STRUCT_TYPE_POLICY = 10100;
      */
-    POLICY = 1030,
+    POLICY = 10100,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_POLICY_RULE = 1031;
+     * @generated from protobuf enum value: STRUCT_TYPE_POLICY_RULE = 10101;
      */
-    POLICY_RULE = 1031,
+    POLICY_RULE = 10101,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_SUBJECT = 1032;
+     * @generated from protobuf enum value: STRUCT_TYPE_SUBJECT = 10102;
      */
-    SUBJECT = 1032,
+    SUBJECT = 10102,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_ACCESS_ZONE = 1034;
+     * @generated from protobuf enum value: STRUCT_TYPE_ACCESS_ZONE = 10104;
      */
-    ACCESS_ZONE = 1034,
+    ACCESS_ZONE = 10104,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_ACCESS_MATRIX = 1035;
+     * @generated from protobuf enum value: STRUCT_TYPE_ACCESS_MATRIX = 10105;
      */
-    ACCESS_MATRIX = 1035,
+    ACCESS_MATRIX = 10105,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_ACCESS = 1037;
+     * @generated from protobuf enum value: STRUCT_TYPE_ACCESS = 10107;
      */
-    ACCESS = 1037,
+    ACCESS = 10107,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_TYPE_INFO = 1040;
+     * @generated from protobuf enum value: STRUCT_TYPE_TYPE_INFO = 10200;
      */
-    TYPE_INFO = 1040,
+    TYPE_INFO = 10200,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_TYPE_CONSTRAINT = 1041;
+     * @generated from protobuf enum value: STRUCT_TYPE_TYPE_CONSTRAINT = 10201;
      */
-    TYPE_CONSTRAINT = 1041,
+    TYPE_CONSTRAINT = 10201,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_SCHEDULE = 1042;
+     * @generated from protobuf enum value: STRUCT_TYPE_SCHEDULE = 10202;
      */
-    SCHEDULE = 1042,
+    SCHEDULE = 10202,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_PROJECTION = 1043;
+     * @generated from protobuf enum value: STRUCT_TYPE_PROJECTION = 10203;
      */
-    PROJECTION = 1043,
+    PROJECTION = 10203,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_EXPRESSION = 1060;
+     * @generated from protobuf enum value: STRUCT_TYPE_FILE = 10204;
      */
-    EXPRESSION = 1060,
+    FILE = 10204,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_AGGREGATION = 1061;
+     * @generated from protobuf enum value: STRUCT_TYPE_ICON = 10205;
      */
-    AGGREGATION = 1061,
+    ICON = 10205,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_SELECTION = 1070;
+     * @generated from protobuf enum value: STRUCT_TYPE_TRIGGER_INFO = 10206;
      */
-    SELECTION = 1070,
+    TRIGGER_INFO = 10206,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_QUERY_INFO = 1080;
+     * @generated from protobuf enum value: STRUCT_TYPE_EXPRESSION = 10300;
      */
-    QUERY_INFO = 1080,
+    EXPRESSION = 10300,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_READ_OPTIONS = 1085;
+     * @generated from protobuf enum value: STRUCT_TYPE_AGGREGATION = 10301;
      */
-    READ_OPTIONS = 1085,
+    AGGREGATION = 10301,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_CODE = 1090;
+     * @generated from protobuf enum value: STRUCT_TYPE_SELECTION = 10302;
      */
-    CODE = 1090,
+    SELECTION = 10302,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_CODE_LINE = 1091;
+     * @generated from protobuf enum value: STRUCT_TYPE_QUERY_INFO = 10303;
      */
-    CODE_LINE = 1091,
+    QUERY_INFO = 10303,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_STEP_CONNECTION = 1100;
+     * @generated from protobuf enum value: STRUCT_TYPE_READ_OPTIONS = 10304;
      */
-    STEP_CONNECTION = 1100,
+    READ_OPTIONS = 10304,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_RUN_ERROR = 1110;
+     * @generated from protobuf enum value: STRUCT_TYPE_VALUE = 10305;
      */
-    RUN_ERROR = 1110,
+    VALUE = 10305,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_RUN_OPTIONS = 1111;
+     * @generated from protobuf enum value: STRUCT_TYPE_CODE = 10400;
      */
-    RUN_OPTIONS = 1111,
+    CODE = 10400,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_RETRY_ATTEMPT = 1113;
+     * @generated from protobuf enum value: STRUCT_TYPE_CODE_LINE = 10401;
      */
-    RETRY_ATTEMPT = 1113,
+    CODE_LINE = 10401,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_TEXT = 1160;
+     * @generated from protobuf enum value: STRUCT_TYPE_PIPE = 10402;
      */
-    TEXT = 1160,
+    PIPE = 10402,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_TEXT_LINE = 1161;
+     * @generated from protobuf enum value: STRUCT_TYPE_RUN_ERROR = 10450;
      */
-    TEXT_LINE = 1161,
+    RUN_ERROR = 10450,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_TEXT_SPAN = 1162;
+     * @generated from protobuf enum value: STRUCT_TYPE_RUN_OPTIONS = 10451;
      */
-    TEXT_SPAN = 1162,
+    RUN_OPTIONS = 10451,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_COLOR = 1200;
+     * @generated from protobuf enum value: STRUCT_TYPE_RETRY_ATTEMPT = 10452;
      */
-    COLOR = 1200,
+    RETRY_ATTEMPT = 10452,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_FONT = 1201;
+     * @generated from protobuf enum value: STRUCT_TYPE_TEXT = 10500;
      */
-    FONT = 1201,
+    TEXT = 10500,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_BOX = 1202;
+     * @generated from protobuf enum value: STRUCT_TYPE_TEXT_LINE = 10501;
      */
-    BOX = 1202,
+    TEXT_LINE = 10501,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_OFFSET = 1203;
+     * @generated from protobuf enum value: STRUCT_TYPE_TEXT_SPAN = 10502;
      */
-    OFFSET = 1203,
+    TEXT_SPAN = 10502,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_TRANSFORM = 1204;
+     * @generated from protobuf enum value: STRUCT_TYPE_COLOR = 11000;
      */
-    TRANSFORM = 1204,
+    COLOR = 11000,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_START_VIEW_STATE = 1300;
+     * @generated from protobuf enum value: STRUCT_TYPE_FONT = 11001;
      */
-    START_VIEW_STATE = 1300,
+    FONT = 11001,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_FEED_VIEW_STATE = 1301;
+     * @generated from protobuf enum value: STRUCT_TYPE_BOX = 11002;
      */
-    FEED_VIEW_STATE = 1301,
+    BOX = 11002,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_CHART_VIEW_STATE = 1302;
+     * @generated from protobuf enum value: STRUCT_TYPE_OFFSET = 11003;
      */
-    CHART_VIEW_STATE = 1302,
+    OFFSET = 11003,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_HISTORY_VIEW_STATE = 1303;
+     * @generated from protobuf enum value: STRUCT_TYPE_TRANSFORM = 11004;
      */
-    HISTORY_VIEW_STATE = 1303,
+    TRANSFORM = 11004,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_TIMELINE_VIEW_STATE = 1304;
+     * @generated from protobuf enum value: STRUCT_TYPE_START_VIEW_STATE = 11200;
      */
-    TIMELINE_VIEW_STATE = 1304,
+    START_VIEW_STATE = 11200,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_USER_WIZARD_VIEW_STATE = 1305;
+     * @generated from protobuf enum value: STRUCT_TYPE_FEED_VIEW_STATE = 11201;
      */
-    USER_WIZARD_VIEW_STATE = 1305,
+    FEED_VIEW_STATE = 11201,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_PAGE_VIEW_STATE = 1306;
+     * @generated from protobuf enum value: STRUCT_TYPE_CHART_VIEW_STATE = 11202;
      */
-    PAGE_VIEW_STATE = 1306,
+    CHART_VIEW_STATE = 11202,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_TREE_VIEW_STATE = 1307;
+     * @generated from protobuf enum value: STRUCT_TYPE_HISTORY_VIEW_STATE = 11203;
      */
-    TREE_VIEW_STATE = 1307,
+    HISTORY_VIEW_STATE = 11203,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_FILE = 1400;
+     * @generated from protobuf enum value: STRUCT_TYPE_TIMELINE_VIEW_STATE = 11204;
      */
-    FILE = 1400,
+    TIMELINE_VIEW_STATE = 11204,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_ICON = 1401;
+     * @generated from protobuf enum value: STRUCT_TYPE_USER_WIZARD_VIEW_STATE = 11205;
      */
-    ICON = 1401
+    USER_WIZARD_VIEW_STATE = 11205,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_PAGE_VIEW_STATE = 11206;
+     */
+    PAGE_VIEW_STATE = 11206,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_TREE_VIEW_STATE = 11207;
+     */
+    TREE_VIEW_STATE = 11207
 }
 /**
  * How a Resource is shared (if at all).
@@ -13092,6 +13179,97 @@ class PathTokenData$Type extends MessageType<PathTokenData> {
  */
 export const PathTokenData = new PathTokenData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class PipeData$Type extends MessageType<PipeData> {
+    constructor() {
+        super("symbolx.bench.PipeData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 9, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.PipeType", PipeType, "PIPE_TYPE_"] },
+            { no: 31, name: "source_ptr", kind: "message", T: () => NodeReferenceData }
+        ]);
+    }
+    create(value?: PartialMessage<PipeData>): PipeData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = 0;
+        message.type = 0;
+        if (value !== undefined)
+            reflectionMergePartial<PipeData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PipeData): PipeData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* int32 id */ 2:
+                    message.id = reader.int32();
+                    break;
+                case /* optional int32 parent_id */ 3:
+                    message.parentId = reader.int32();
+                    break;
+                case /* optional string parent_key */ 4:
+                    message.parentKey = reader.string();
+                    break;
+                case /* optional string order_key */ 9:
+                    message.orderKey = reader.string();
+                    break;
+                case /* symbolx.bench.PipeType type */ 30:
+                    message.type = reader.int32();
+                    break;
+                case /* symbolx.bench.NodeReferenceData source_ptr */ 31:
+                    message.sourcePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.sourcePtr);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: PipeData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* int32 id = 2; */
+        if (message.id !== 0)
+            writer.tag(2, WireType.Varint).int32(message.id);
+        /* optional int32 parent_id = 3; */
+        if (message.parentId !== undefined)
+            writer.tag(3, WireType.Varint).int32(message.parentId);
+        /* optional string parent_key = 4; */
+        if (message.parentKey !== undefined)
+            writer.tag(4, WireType.LengthDelimited).string(message.parentKey);
+        /* optional string order_key = 9; */
+        if (message.orderKey !== undefined)
+            writer.tag(9, WireType.LengthDelimited).string(message.orderKey);
+        /* symbolx.bench.PipeType type = 30; */
+        if (message.type !== 0)
+            writer.tag(30, WireType.Varint).int32(message.type);
+        /* symbolx.bench.NodeReferenceData source_ptr = 31; */
+        if (message.sourcePtr)
+            NodeReferenceData.internalBinaryWrite(message.sourcePtr, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.PipeData
+ */
+export const PipeData = new PipeData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class PolicyData$Type extends MessageType<PolicyData> {
     constructor() {
         super("symbolx.bench.PolicyData", [
@@ -14041,12 +14219,13 @@ class RunOptionsData$Type extends MessageType<RunOptionsData> {
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 9, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 30, name: "max_concurrency", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 31, name: "max_attempts", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 32, name: "retry_interval", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 33, name: "backoff", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 34, name: "max_retry_interval", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 35, name: "jitter", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 30, name: "max_runs", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 31, name: "max_concurrency", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 32, name: "max_attempts", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 33, name: "retry_interval", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 34, name: "backoff", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 35, name: "max_retry_interval", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 36, name: "jitter", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
             { no: 38, name: "retry_on", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.RunErrorType", RunErrorType, "RUN_ERROR_TYPE_"] }
         ]);
     }
@@ -14079,22 +14258,25 @@ class RunOptionsData$Type extends MessageType<RunOptionsData> {
                 case /* optional string order_key */ 9:
                     message.orderKey = reader.string();
                     break;
-                case /* optional int32 max_concurrency */ 30:
+                case /* optional int32 max_runs */ 30:
+                    message.maxRuns = reader.int32();
+                    break;
+                case /* optional int32 max_concurrency */ 31:
                     message.maxConcurrency = reader.int32();
                     break;
-                case /* optional int32 max_attempts */ 31:
+                case /* optional int32 max_attempts */ 32:
                     message.maxAttempts = reader.int32();
                     break;
-                case /* optional float retry_interval */ 32:
+                case /* optional float retry_interval */ 33:
                     message.retryInterval = reader.float();
                     break;
-                case /* optional float backoff */ 33:
+                case /* optional float backoff */ 34:
                     message.backoff = reader.float();
                     break;
-                case /* optional float max_retry_interval */ 34:
+                case /* optional float max_retry_interval */ 35:
                     message.maxRetryInterval = reader.float();
                     break;
-                case /* optional float jitter */ 35:
+                case /* optional float jitter */ 36:
                     message.jitter = reader.float();
                     break;
                 case /* repeated symbolx.bench.RunErrorType retry_on */ 38:
@@ -14131,24 +14313,27 @@ class RunOptionsData$Type extends MessageType<RunOptionsData> {
         /* optional string order_key = 9; */
         if (message.orderKey !== undefined)
             writer.tag(9, WireType.LengthDelimited).string(message.orderKey);
-        /* optional int32 max_concurrency = 30; */
+        /* optional int32 max_runs = 30; */
+        if (message.maxRuns !== undefined)
+            writer.tag(30, WireType.Varint).int32(message.maxRuns);
+        /* optional int32 max_concurrency = 31; */
         if (message.maxConcurrency !== undefined)
-            writer.tag(30, WireType.Varint).int32(message.maxConcurrency);
-        /* optional int32 max_attempts = 31; */
+            writer.tag(31, WireType.Varint).int32(message.maxConcurrency);
+        /* optional int32 max_attempts = 32; */
         if (message.maxAttempts !== undefined)
-            writer.tag(31, WireType.Varint).int32(message.maxAttempts);
-        /* optional float retry_interval = 32; */
+            writer.tag(32, WireType.Varint).int32(message.maxAttempts);
+        /* optional float retry_interval = 33; */
         if (message.retryInterval !== undefined)
-            writer.tag(32, WireType.Bit32).float(message.retryInterval);
-        /* optional float backoff = 33; */
+            writer.tag(33, WireType.Bit32).float(message.retryInterval);
+        /* optional float backoff = 34; */
         if (message.backoff !== undefined)
-            writer.tag(33, WireType.Bit32).float(message.backoff);
-        /* optional float max_retry_interval = 34; */
+            writer.tag(34, WireType.Bit32).float(message.backoff);
+        /* optional float max_retry_interval = 35; */
         if (message.maxRetryInterval !== undefined)
-            writer.tag(34, WireType.Bit32).float(message.maxRetryInterval);
-        /* optional float jitter = 35; */
+            writer.tag(35, WireType.Bit32).float(message.maxRetryInterval);
+        /* optional float jitter = 36; */
         if (message.jitter !== undefined)
-            writer.tag(35, WireType.Bit32).float(message.jitter);
+            writer.tag(36, WireType.Bit32).float(message.jitter);
         /* repeated symbolx.bench.RunErrorType retry_on = 38; */
         if (message.retryOn.length) {
             writer.tag(38, WireType.LengthDelimited).fork();
@@ -14542,97 +14727,6 @@ class StartViewStateData$Type extends MessageType<StartViewStateData> {
  * @generated MessageType for protobuf message symbolx.bench.StartViewStateData
  */
 export const StartViewStateData = new StartViewStateData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class StepConnectionData$Type extends MessageType<StepConnectionData> {
-    constructor() {
-        super("symbolx.bench.StepConnectionData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
-            { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 9, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.StepConnectionType", StepConnectionType, "STEP_CONNECTION_TYPE_"] },
-            { no: 31, name: "source_ptr", kind: "message", T: () => NodeReferenceData }
-        ]);
-    }
-    create(value?: PartialMessage<StepConnectionData>): StepConnectionData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.id = 0;
-        message.type = 0;
-        if (value !== undefined)
-            reflectionMergePartial<StepConnectionData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: StepConnectionData): StepConnectionData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.ObjectType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* int32 id */ 2:
-                    message.id = reader.int32();
-                    break;
-                case /* optional int32 parent_id */ 3:
-                    message.parentId = reader.int32();
-                    break;
-                case /* optional string parent_key */ 4:
-                    message.parentKey = reader.string();
-                    break;
-                case /* optional string order_key */ 9:
-                    message.orderKey = reader.string();
-                    break;
-                case /* symbolx.bench.StepConnectionType type */ 30:
-                    message.type = reader.int32();
-                    break;
-                case /* symbolx.bench.NodeReferenceData source_ptr */ 31:
-                    message.sourcePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.sourcePtr);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: StepConnectionData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.ObjectType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* int32 id = 2; */
-        if (message.id !== 0)
-            writer.tag(2, WireType.Varint).int32(message.id);
-        /* optional int32 parent_id = 3; */
-        if (message.parentId !== undefined)
-            writer.tag(3, WireType.Varint).int32(message.parentId);
-        /* optional string parent_key = 4; */
-        if (message.parentKey !== undefined)
-            writer.tag(4, WireType.LengthDelimited).string(message.parentKey);
-        /* optional string order_key = 9; */
-        if (message.orderKey !== undefined)
-            writer.tag(9, WireType.LengthDelimited).string(message.orderKey);
-        /* symbolx.bench.StepConnectionType type = 30; */
-        if (message.type !== 0)
-            writer.tag(30, WireType.Varint).int32(message.type);
-        /* symbolx.bench.NodeReferenceData source_ptr = 31; */
-        if (message.sourcePtr)
-            NodeReferenceData.internalBinaryWrite(message.sourcePtr, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.StepConnectionData
- */
-export const StepConnectionData = new StepConnectionData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class SubjectData$Type extends MessageType<SubjectData> {
     constructor() {
@@ -15346,6 +15440,110 @@ class TreeViewStateData$Type extends MessageType<TreeViewStateData> {
  */
 export const TreeViewStateData = new TreeViewStateData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class TriggerInfoData$Type extends MessageType<TriggerInfoData> {
+    constructor() {
+        super("symbolx.bench.TriggerInfoData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 9, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 40, name: "processed_epoch", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 50, name: "schedule", kind: "message", T: () => ScheduleData },
+            { no: 51, name: "signal_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 52, name: "condition", kind: "message", T: () => ExpressionData }
+        ]);
+    }
+    create(value?: PartialMessage<TriggerInfoData>): TriggerInfoData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = 0;
+        if (value !== undefined)
+            reflectionMergePartial<TriggerInfoData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: TriggerInfoData): TriggerInfoData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* int32 id */ 2:
+                    message.id = reader.int32();
+                    break;
+                case /* optional int32 parent_id */ 3:
+                    message.parentId = reader.int32();
+                    break;
+                case /* optional string parent_key */ 4:
+                    message.parentKey = reader.string();
+                    break;
+                case /* optional string order_key */ 9:
+                    message.orderKey = reader.string();
+                    break;
+                case /* optional int32 processed_epoch */ 40:
+                    message.processedEpoch = reader.int32();
+                    break;
+                case /* optional symbolx.bench.ScheduleData schedule */ 50:
+                    message.schedule = ScheduleData.internalBinaryRead(reader, reader.uint32(), options, message.schedule);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData signal_ptr */ 51:
+                    message.signalPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.signalPtr);
+                    break;
+                case /* optional symbolx.bench.ExpressionData condition */ 52:
+                    message.condition = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.condition);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: TriggerInfoData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* int32 id = 2; */
+        if (message.id !== 0)
+            writer.tag(2, WireType.Varint).int32(message.id);
+        /* optional int32 parent_id = 3; */
+        if (message.parentId !== undefined)
+            writer.tag(3, WireType.Varint).int32(message.parentId);
+        /* optional string parent_key = 4; */
+        if (message.parentKey !== undefined)
+            writer.tag(4, WireType.LengthDelimited).string(message.parentKey);
+        /* optional string order_key = 9; */
+        if (message.orderKey !== undefined)
+            writer.tag(9, WireType.LengthDelimited).string(message.orderKey);
+        /* optional int32 processed_epoch = 40; */
+        if (message.processedEpoch !== undefined)
+            writer.tag(40, WireType.Varint).int32(message.processedEpoch);
+        /* optional symbolx.bench.ScheduleData schedule = 50; */
+        if (message.schedule)
+            ScheduleData.internalBinaryWrite(message.schedule, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData signal_ptr = 51; */
+        if (message.signalPtr)
+            NodeReferenceData.internalBinaryWrite(message.signalPtr, writer.tag(51, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.ExpressionData condition = 52; */
+        if (message.condition)
+            ExpressionData.internalBinaryWrite(message.condition, writer.tag(52, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.TriggerInfoData
+ */
+export const TriggerInfoData = new TriggerInfoData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class TypeConstraintData$Type extends MessageType<TypeConstraintData> {
     constructor() {
         super("symbolx.bench.TypeConstraintData", [
@@ -15702,6 +15900,117 @@ class UserWizardViewStateData$Type extends MessageType<UserWizardViewStateData> 
  * @generated MessageType for protobuf message symbolx.bench.UserWizardViewStateData
  */
 export const UserWizardViewStateData = new UserWizardViewStateData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class ValueData$Type extends MessageType<ValueData> {
+    constructor() {
+        super("symbolx.bench.ValueData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 9, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 31, name: "type", kind: "message", T: () => TypeInfoData },
+            { no: 32, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 34, name: "text", kind: "message", T: () => TextData },
+            { no: 35, name: "value_packed", kind: "message", T: () => Struct },
+            { no: 36, name: "secret_value_packed", kind: "message", T: () => Struct }
+        ]);
+    }
+    create(value?: PartialMessage<ValueData>): ValueData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = 0;
+        if (value !== undefined)
+            reflectionMergePartial<ValueData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ValueData): ValueData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* int32 id */ 2:
+                    message.id = reader.int32();
+                    break;
+                case /* optional int32 parent_id */ 3:
+                    message.parentId = reader.int32();
+                    break;
+                case /* optional string parent_key */ 4:
+                    message.parentKey = reader.string();
+                    break;
+                case /* optional string order_key */ 9:
+                    message.orderKey = reader.string();
+                    break;
+                case /* symbolx.bench.TypeInfoData type */ 31:
+                    message.type = TypeInfoData.internalBinaryRead(reader, reader.uint32(), options, message.type);
+                    break;
+                case /* optional string name */ 32:
+                    message.name = reader.string();
+                    break;
+                case /* optional symbolx.bench.TextData text */ 34:
+                    message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
+                    break;
+                case /* optional google.protobuf.Struct value_packed */ 35:
+                    message.valuePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.valuePacked);
+                    break;
+                case /* optional google.protobuf.Struct secret_value_packed */ 36:
+                    message.secretValuePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.secretValuePacked);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: ValueData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* int32 id = 2; */
+        if (message.id !== 0)
+            writer.tag(2, WireType.Varint).int32(message.id);
+        /* optional int32 parent_id = 3; */
+        if (message.parentId !== undefined)
+            writer.tag(3, WireType.Varint).int32(message.parentId);
+        /* optional string parent_key = 4; */
+        if (message.parentKey !== undefined)
+            writer.tag(4, WireType.LengthDelimited).string(message.parentKey);
+        /* optional string order_key = 9; */
+        if (message.orderKey !== undefined)
+            writer.tag(9, WireType.LengthDelimited).string(message.orderKey);
+        /* symbolx.bench.TypeInfoData type = 31; */
+        if (message.type)
+            TypeInfoData.internalBinaryWrite(message.type, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
+        /* optional string name = 32; */
+        if (message.name !== undefined)
+            writer.tag(32, WireType.LengthDelimited).string(message.name);
+        /* optional symbolx.bench.TextData text = 34; */
+        if (message.text)
+            TextData.internalBinaryWrite(message.text, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Struct value_packed = 35; */
+        if (message.valuePacked)
+            Struct.internalBinaryWrite(message.valuePacked, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Struct secret_value_packed = 36; */
+        if (message.secretValuePacked)
+            Struct.internalBinaryWrite(message.secretValuePacked, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.ValueData
+ */
+export const ValueData = new ValueData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class BadgeData$Type extends MessageType<BadgeData> {
     constructor() {
@@ -21086,21 +21395,24 @@ class RunData$Type extends MessageType<RunData> {
             { no: 40, name: "status", kind: "enum", T: () => ["symbolx.bench.RunStatus", RunStatus, "RUN_STATUS_"] },
             { no: 41, name: "current_status", kind: "enum", opt: true, T: () => ["symbolx.bench.RunStatus", RunStatus, "RUN_STATUS_"] },
             { no: 42, name: "duration", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 43, name: "scheduled_at", kind: "message", T: () => Timestamp },
-            { no: 44, name: "scheduled_epoch", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 45, name: "started_at", kind: "message", T: () => Timestamp },
-            { no: 46, name: "started_epoch", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 47, name: "paused_at", kind: "message", T: () => Timestamp },
-            { no: 48, name: "terminated_at", kind: "message", T: () => Timestamp },
-            { no: 49, name: "terminated_epoch", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 50, name: "inputs_packed", kind: "message", T: () => Struct },
-            { no: 51, name: "inputs_secret_packed", kind: "message", T: () => Struct },
-            { no: 52, name: "outputs_packed", kind: "message", T: () => Struct },
-            { no: 53, name: "outputs_secret_packed", kind: "message", T: () => Struct },
-            { no: 54, name: "value_packed", kind: "message", T: () => Struct },
-            { no: 55, name: "value_secret_packed", kind: "message", T: () => Struct },
-            { no: 56, name: "attempts", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => RetryAttemptData },
-            { no: 57, name: "error", kind: "message", T: () => RunErrorData },
+            { no: 43, name: "attempts", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => RetryAttemptData },
+            { no: 44, name: "error", kind: "message", T: () => RunErrorData },
+            { no: 45, name: "scheduled_at", kind: "message", T: () => Timestamp },
+            { no: 46, name: "scheduled_epoch", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 47, name: "started_at", kind: "message", T: () => Timestamp },
+            { no: 48, name: "started_epoch", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 49, name: "halted_at", kind: "message", T: () => Timestamp },
+            { no: 50, name: "halted_epoch", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 51, name: "halted_on_run_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 52, name: "halted_on_trigger", kind: "message", T: () => TriggerInfoData },
+            { no: 53, name: "terminated_at", kind: "message", T: () => Timestamp },
+            { no: 54, name: "terminated_epoch", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 60, name: "inputs_packed", kind: "message", T: () => Struct },
+            { no: 61, name: "inputs_secret_packed", kind: "message", T: () => Struct },
+            { no: 62, name: "outputs_packed", kind: "message", T: () => Struct },
+            { no: 63, name: "outputs_secret_packed", kind: "message", T: () => Struct },
+            { no: 64, name: "value_packed", kind: "message", T: () => Struct },
+            { no: 65, name: "value_secret_packed", kind: "message", T: () => Struct },
             { no: 70, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 71, name: "step_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 72, name: "session_ptr", kind: "message", T: () => NodeReferenceData },
@@ -21206,50 +21518,59 @@ class RunData$Type extends MessageType<RunData> {
                 case /* optional float duration */ 42:
                     message.duration = reader.float();
                     break;
-                case /* optional google.protobuf.Timestamp scheduled_at */ 43:
-                    message.scheduledAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.scheduledAt);
-                    break;
-                case /* optional int32 scheduled_epoch */ 44:
-                    message.scheduledEpoch = reader.int32();
-                    break;
-                case /* optional google.protobuf.Timestamp started_at */ 45:
-                    message.startedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.startedAt);
-                    break;
-                case /* optional int32 started_epoch */ 46:
-                    message.startedEpoch = reader.int32();
-                    break;
-                case /* optional google.protobuf.Timestamp paused_at */ 47:
-                    message.pausedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.pausedAt);
-                    break;
-                case /* optional google.protobuf.Timestamp terminated_at */ 48:
-                    message.terminatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.terminatedAt);
-                    break;
-                case /* optional int32 terminated_epoch */ 49:
-                    message.terminatedEpoch = reader.int32();
-                    break;
-                case /* optional google.protobuf.Struct inputs_packed */ 50:
-                    message.inputsPacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.inputsPacked);
-                    break;
-                case /* optional google.protobuf.Struct inputs_secret_packed */ 51:
-                    message.inputsSecretPacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.inputsSecretPacked);
-                    break;
-                case /* optional google.protobuf.Struct outputs_packed */ 52:
-                    message.outputsPacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.outputsPacked);
-                    break;
-                case /* optional google.protobuf.Struct outputs_secret_packed */ 53:
-                    message.outputsSecretPacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.outputsSecretPacked);
-                    break;
-                case /* optional google.protobuf.Struct value_packed */ 54:
-                    message.valuePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.valuePacked);
-                    break;
-                case /* optional google.protobuf.Struct value_secret_packed */ 55:
-                    message.valueSecretPacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.valueSecretPacked);
-                    break;
-                case /* repeated symbolx.bench.RetryAttemptData attempts */ 56:
+                case /* repeated symbolx.bench.RetryAttemptData attempts */ 43:
                     message.attempts.push(RetryAttemptData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* optional symbolx.bench.RunErrorData error */ 57:
+                case /* optional symbolx.bench.RunErrorData error */ 44:
                     message.error = RunErrorData.internalBinaryRead(reader, reader.uint32(), options, message.error);
+                    break;
+                case /* optional google.protobuf.Timestamp scheduled_at */ 45:
+                    message.scheduledAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.scheduledAt);
+                    break;
+                case /* optional int32 scheduled_epoch */ 46:
+                    message.scheduledEpoch = reader.int32();
+                    break;
+                case /* optional google.protobuf.Timestamp started_at */ 47:
+                    message.startedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.startedAt);
+                    break;
+                case /* optional int32 started_epoch */ 48:
+                    message.startedEpoch = reader.int32();
+                    break;
+                case /* optional google.protobuf.Timestamp halted_at */ 49:
+                    message.haltedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.haltedAt);
+                    break;
+                case /* optional int32 halted_epoch */ 50:
+                    message.haltedEpoch = reader.int32();
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData halted_on_run_ptr */ 51:
+                    message.haltedOnRunPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.haltedOnRunPtr);
+                    break;
+                case /* optional symbolx.bench.TriggerInfoData halted_on_trigger */ 52:
+                    message.haltedOnTrigger = TriggerInfoData.internalBinaryRead(reader, reader.uint32(), options, message.haltedOnTrigger);
+                    break;
+                case /* optional google.protobuf.Timestamp terminated_at */ 53:
+                    message.terminatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.terminatedAt);
+                    break;
+                case /* optional int32 terminated_epoch */ 54:
+                    message.terminatedEpoch = reader.int32();
+                    break;
+                case /* optional google.protobuf.Struct inputs_packed */ 60:
+                    message.inputsPacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.inputsPacked);
+                    break;
+                case /* optional google.protobuf.Struct inputs_secret_packed */ 61:
+                    message.inputsSecretPacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.inputsSecretPacked);
+                    break;
+                case /* optional google.protobuf.Struct outputs_packed */ 62:
+                    message.outputsPacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.outputsPacked);
+                    break;
+                case /* optional google.protobuf.Struct outputs_secret_packed */ 63:
+                    message.outputsSecretPacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.outputsSecretPacked);
+                    break;
+                case /* optional google.protobuf.Struct value_packed */ 64:
+                    message.valuePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.valuePacked);
+                    break;
+                case /* optional google.protobuf.Struct value_secret_packed */ 65:
+                    message.valueSecretPacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.valueSecretPacked);
                     break;
                 case /* optional symbolx.bench.NodeReferenceData block_ptr */ 70:
                     message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
@@ -21366,51 +21687,60 @@ class RunData$Type extends MessageType<RunData> {
         /* optional float duration = 42; */
         if (message.duration !== undefined)
             writer.tag(42, WireType.Bit32).float(message.duration);
-        /* optional google.protobuf.Timestamp scheduled_at = 43; */
-        if (message.scheduledAt)
-            Timestamp.internalBinaryWrite(message.scheduledAt, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
-        /* optional int32 scheduled_epoch = 44; */
-        if (message.scheduledEpoch !== undefined)
-            writer.tag(44, WireType.Varint).int32(message.scheduledEpoch);
-        /* optional google.protobuf.Timestamp started_at = 45; */
-        if (message.startedAt)
-            Timestamp.internalBinaryWrite(message.startedAt, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
-        /* optional int32 started_epoch = 46; */
-        if (message.startedEpoch !== undefined)
-            writer.tag(46, WireType.Varint).int32(message.startedEpoch);
-        /* optional google.protobuf.Timestamp paused_at = 47; */
-        if (message.pausedAt)
-            Timestamp.internalBinaryWrite(message.pausedAt, writer.tag(47, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp terminated_at = 48; */
-        if (message.terminatedAt)
-            Timestamp.internalBinaryWrite(message.terminatedAt, writer.tag(48, WireType.LengthDelimited).fork(), options).join();
-        /* optional int32 terminated_epoch = 49; */
-        if (message.terminatedEpoch !== undefined)
-            writer.tag(49, WireType.Varint).int32(message.terminatedEpoch);
-        /* optional google.protobuf.Struct inputs_packed = 50; */
-        if (message.inputsPacked)
-            Struct.internalBinaryWrite(message.inputsPacked, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Struct inputs_secret_packed = 51; */
-        if (message.inputsSecretPacked)
-            Struct.internalBinaryWrite(message.inputsSecretPacked, writer.tag(51, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Struct outputs_packed = 52; */
-        if (message.outputsPacked)
-            Struct.internalBinaryWrite(message.outputsPacked, writer.tag(52, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Struct outputs_secret_packed = 53; */
-        if (message.outputsSecretPacked)
-            Struct.internalBinaryWrite(message.outputsSecretPacked, writer.tag(53, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Struct value_packed = 54; */
-        if (message.valuePacked)
-            Struct.internalBinaryWrite(message.valuePacked, writer.tag(54, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Struct value_secret_packed = 55; */
-        if (message.valueSecretPacked)
-            Struct.internalBinaryWrite(message.valueSecretPacked, writer.tag(55, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.RetryAttemptData attempts = 56; */
+        /* repeated symbolx.bench.RetryAttemptData attempts = 43; */
         for (let i = 0; i < message.attempts.length; i++)
-            RetryAttemptData.internalBinaryWrite(message.attempts[i], writer.tag(56, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.RunErrorData error = 57; */
+            RetryAttemptData.internalBinaryWrite(message.attempts[i], writer.tag(43, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.RunErrorData error = 44; */
         if (message.error)
-            RunErrorData.internalBinaryWrite(message.error, writer.tag(57, WireType.LengthDelimited).fork(), options).join();
+            RunErrorData.internalBinaryWrite(message.error, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp scheduled_at = 45; */
+        if (message.scheduledAt)
+            Timestamp.internalBinaryWrite(message.scheduledAt, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
+        /* optional int32 scheduled_epoch = 46; */
+        if (message.scheduledEpoch !== undefined)
+            writer.tag(46, WireType.Varint).int32(message.scheduledEpoch);
+        /* optional google.protobuf.Timestamp started_at = 47; */
+        if (message.startedAt)
+            Timestamp.internalBinaryWrite(message.startedAt, writer.tag(47, WireType.LengthDelimited).fork(), options).join();
+        /* optional int32 started_epoch = 48; */
+        if (message.startedEpoch !== undefined)
+            writer.tag(48, WireType.Varint).int32(message.startedEpoch);
+        /* optional google.protobuf.Timestamp halted_at = 49; */
+        if (message.haltedAt)
+            Timestamp.internalBinaryWrite(message.haltedAt, writer.tag(49, WireType.LengthDelimited).fork(), options).join();
+        /* optional int32 halted_epoch = 50; */
+        if (message.haltedEpoch !== undefined)
+            writer.tag(50, WireType.Varint).int32(message.haltedEpoch);
+        /* optional symbolx.bench.NodeReferenceData halted_on_run_ptr = 51; */
+        if (message.haltedOnRunPtr)
+            NodeReferenceData.internalBinaryWrite(message.haltedOnRunPtr, writer.tag(51, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.TriggerInfoData halted_on_trigger = 52; */
+        if (message.haltedOnTrigger)
+            TriggerInfoData.internalBinaryWrite(message.haltedOnTrigger, writer.tag(52, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp terminated_at = 53; */
+        if (message.terminatedAt)
+            Timestamp.internalBinaryWrite(message.terminatedAt, writer.tag(53, WireType.LengthDelimited).fork(), options).join();
+        /* optional int32 terminated_epoch = 54; */
+        if (message.terminatedEpoch !== undefined)
+            writer.tag(54, WireType.Varint).int32(message.terminatedEpoch);
+        /* optional google.protobuf.Struct inputs_packed = 60; */
+        if (message.inputsPacked)
+            Struct.internalBinaryWrite(message.inputsPacked, writer.tag(60, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Struct inputs_secret_packed = 61; */
+        if (message.inputsSecretPacked)
+            Struct.internalBinaryWrite(message.inputsSecretPacked, writer.tag(61, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Struct outputs_packed = 62; */
+        if (message.outputsPacked)
+            Struct.internalBinaryWrite(message.outputsPacked, writer.tag(62, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Struct outputs_secret_packed = 63; */
+        if (message.outputsSecretPacked)
+            Struct.internalBinaryWrite(message.outputsSecretPacked, writer.tag(63, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Struct value_packed = 64; */
+        if (message.valuePacked)
+            Struct.internalBinaryWrite(message.valuePacked, writer.tag(64, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Struct value_secret_packed = 65; */
+        if (message.valueSecretPacked)
+            Struct.internalBinaryWrite(message.valueSecretPacked, writer.tag(65, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.NodeReferenceData block_ptr = 70; */
         if (message.blockPtr)
             NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(70, WireType.LengthDelimited).fork(), options).join();
@@ -22564,7 +22894,7 @@ class StepData$Type extends MessageType<StepData> {
             { no: 34, name: "text", kind: "message", T: () => TextData },
             { no: 35, name: "icon", kind: "message", T: () => IconData },
             { no: 36, name: "run_options", kind: "message", T: () => RunOptionsData },
-            { no: 37, name: "connections", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => StepConnectionData },
+            { no: 37, name: "connections", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PipeData },
             { no: 40, name: "value_type", kind: "message", T: () => TypeInfoData },
             { no: 41, name: "value_packed", kind: "message", T: () => Struct },
             { no: 42, name: "secret_value_packed", kind: "message", T: () => Struct },
@@ -22680,8 +23010,8 @@ class StepData$Type extends MessageType<StepData> {
                 case /* optional symbolx.bench.RunOptionsData run_options */ 36:
                     message.runOptions = RunOptionsData.internalBinaryRead(reader, reader.uint32(), options, message.runOptions);
                     break;
-                case /* repeated symbolx.bench.StepConnectionData connections */ 37:
-                    message.connections.push(StepConnectionData.internalBinaryRead(reader, reader.uint32(), options));
+                case /* repeated symbolx.bench.PipeData connections */ 37:
+                    message.connections.push(PipeData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 case /* optional symbolx.bench.TypeInfoData value_type */ 40:
                     message.valueType = TypeInfoData.internalBinaryRead(reader, reader.uint32(), options, message.valueType);
@@ -22807,9 +23137,9 @@ class StepData$Type extends MessageType<StepData> {
         /* optional symbolx.bench.RunOptionsData run_options = 36; */
         if (message.runOptions)
             RunOptionsData.internalBinaryWrite(message.runOptions, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.StepConnectionData connections = 37; */
+        /* repeated symbolx.bench.PipeData connections = 37; */
         for (let i = 0; i < message.connections.length; i++)
-            StepConnectionData.internalBinaryWrite(message.connections[i], writer.tag(37, WireType.LengthDelimited).fork(), options).join();
+            PipeData.internalBinaryWrite(message.connections[i], writer.tag(37, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.TypeInfoData value_type = 40; */
         if (message.valueType)
             TypeInfoData.internalBinaryWrite(message.valueType, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
@@ -23104,11 +23434,11 @@ class TriggerData$Type extends MessageType<TriggerData> {
             { no: 29, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.TriggerType", TriggerType, "TRIGGER_TYPE_"] },
             { no: 31, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 32, name: "processed_epoch", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 40, name: "schedule", kind: "message", T: () => ScheduleData },
-            { no: 41, name: "signal_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 42, name: "condition", kind: "message", T: () => ExpressionData },
-            { no: 50, name: "is_paused", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
+            { no: 40, name: "processed_epoch", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 50, name: "schedule", kind: "message", T: () => ScheduleData },
+            { no: 51, name: "signal_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 52, name: "condition", kind: "message", T: () => ExpressionData },
+            { no: 60, name: "is_paused", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<TriggerData>): TriggerData {
@@ -23196,19 +23526,19 @@ class TriggerData$Type extends MessageType<TriggerData> {
                 case /* string name */ 31:
                     message.name = reader.string();
                     break;
-                case /* optional int32 processed_epoch */ 32:
+                case /* optional int32 processed_epoch */ 40:
                     message.processedEpoch = reader.int32();
                     break;
-                case /* optional symbolx.bench.ScheduleData schedule */ 40:
+                case /* optional symbolx.bench.ScheduleData schedule */ 50:
                     message.schedule = ScheduleData.internalBinaryRead(reader, reader.uint32(), options, message.schedule);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData signal_ptr */ 41:
+                case /* optional symbolx.bench.NodeReferenceData signal_ptr */ 51:
                     message.signalPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.signalPtr);
                     break;
-                case /* optional symbolx.bench.ExpressionData condition */ 42:
+                case /* optional symbolx.bench.ExpressionData condition */ 52:
                     message.condition = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.condition);
                     break;
-                case /* bool is_paused */ 50:
+                case /* bool is_paused */ 60:
                     message.isPaused = reader.bool();
                     break;
                 default:
@@ -23287,21 +23617,21 @@ class TriggerData$Type extends MessageType<TriggerData> {
         /* string name = 31; */
         if (message.name !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.name);
-        /* optional int32 processed_epoch = 32; */
+        /* optional int32 processed_epoch = 40; */
         if (message.processedEpoch !== undefined)
-            writer.tag(32, WireType.Varint).int32(message.processedEpoch);
-        /* optional symbolx.bench.ScheduleData schedule = 40; */
+            writer.tag(40, WireType.Varint).int32(message.processedEpoch);
+        /* optional symbolx.bench.ScheduleData schedule = 50; */
         if (message.schedule)
-            ScheduleData.internalBinaryWrite(message.schedule, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData signal_ptr = 41; */
+            ScheduleData.internalBinaryWrite(message.schedule, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData signal_ptr = 51; */
         if (message.signalPtr)
-            NodeReferenceData.internalBinaryWrite(message.signalPtr, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.ExpressionData condition = 42; */
+            NodeReferenceData.internalBinaryWrite(message.signalPtr, writer.tag(51, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.ExpressionData condition = 52; */
         if (message.condition)
-            ExpressionData.internalBinaryWrite(message.condition, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
-        /* bool is_paused = 50; */
+            ExpressionData.internalBinaryWrite(message.condition, writer.tag(52, WireType.LengthDelimited).fork(), options).join();
+        /* bool is_paused = 60; */
         if (message.isPaused !== false)
-            writer.tag(50, WireType.Varint).bool(message.isPaused);
+            writer.tag(60, WireType.Varint).bool(message.isPaused);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -24288,9 +24618,9 @@ export const SomeNodeData = new SomeNodeData$Type();
 
 // Any...
 export type AnyNodeData = BenchData | EnvironmentData | BranchData | PackageData | DependencyData | SpaceData | LinkData | SkipData | IssueData | BlockData | TriggerData | FieldData | QueryData | ViewData | StepData | BadgeData | MembershipData | InviteData | SessionData | RunData | SignalData | LogData | NotificationData | MessageData | RecordData | ServerData | StoreData | MachineData | DriveData | BlobData | HandleData | UserData | OrganizationData | ClientData
-export type AnyStructData = ContextData | SessionContextData | EditContextData | EditData | ChangeData | ChangeVignetteData | GraphScopeData | ClientOriginData | NodeReferenceData | PropertyReferenceData | PathData | PathSegmentData | PathTokenData | PolicyData | PolicyRuleData | SubjectData | AccessZoneData | AccessMatrixData | AccessData | TypeInfoData | TypeConstraintData | ScheduleData | ProjectionData | ExpressionData | AggregationData | SelectionData | QueryInfoData | ReadOptionsData | CodeData | CodeLineData | StepConnectionData | RunErrorData | RunOptionsData | RetryAttemptData | TextData | TextLineData | TextSpanData | ColorData | FontData | BoxData | OffsetData | TransformData | StartViewStateData | FeedViewStateData | ChartViewStateData | HistoryViewStateData | TimelineViewStateData | UserWizardViewStateData | PageViewStateData | TreeViewStateData | FileData | IconData
+export type AnyStructData = ContextData | SessionContextData | EditContextData | EditData | ChangeData | ChangeVignetteData | GraphScopeData | ClientOriginData | NodeReferenceData | PropertyReferenceData | PathData | PathSegmentData | PathTokenData | PolicyData | PolicyRuleData | SubjectData | AccessZoneData | AccessMatrixData | AccessData | TypeInfoData | TypeConstraintData | ScheduleData | ProjectionData | FileData | IconData | TriggerInfoData | ExpressionData | AggregationData | SelectionData | QueryInfoData | ReadOptionsData | ValueData | CodeData | CodeLineData | PipeData | RunErrorData | RunOptionsData | RetryAttemptData | TextData | TextLineData | TextSpanData | ColorData | FontData | BoxData | OffsetData | TransformData | StartViewStateData | FeedViewStateData | ChartViewStateData | HistoryViewStateData | TimelineViewStateData | UserWizardViewStateData | PageViewStateData | TreeViewStateData
 export type AnyNodeDataType = typeof BenchData | typeof EnvironmentData | typeof BranchData | typeof PackageData | typeof DependencyData | typeof SpaceData | typeof LinkData | typeof SkipData | typeof IssueData | typeof BlockData | typeof TriggerData | typeof FieldData | typeof QueryData | typeof ViewData | typeof StepData | typeof BadgeData | typeof MembershipData | typeof InviteData | typeof SessionData | typeof RunData | typeof SignalData | typeof LogData | typeof NotificationData | typeof MessageData | typeof RecordData | typeof ServerData | typeof StoreData | typeof MachineData | typeof DriveData | typeof BlobData | typeof HandleData | typeof UserData | typeof OrganizationData | typeof ClientData
-export type AnyStructDataType = typeof ContextData | typeof SessionContextData | typeof EditContextData | typeof EditData | typeof ChangeData | typeof ChangeVignetteData | typeof GraphScopeData | typeof ClientOriginData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof PathData | typeof PathSegmentData | typeof PathTokenData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof TypeInfoData | typeof TypeConstraintData | typeof ScheduleData | typeof ProjectionData | typeof ExpressionData | typeof AggregationData | typeof SelectionData | typeof QueryInfoData | typeof ReadOptionsData | typeof CodeData | typeof CodeLineData | typeof StepConnectionData | typeof RunErrorData | typeof RunOptionsData | typeof RetryAttemptData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof ColorData | typeof FontData | typeof BoxData | typeof OffsetData | typeof TransformData | typeof StartViewStateData | typeof FeedViewStateData | typeof ChartViewStateData | typeof HistoryViewStateData | typeof TimelineViewStateData | typeof UserWizardViewStateData | typeof PageViewStateData | typeof TreeViewStateData | typeof FileData | typeof IconData
+export type AnyStructDataType = typeof ContextData | typeof SessionContextData | typeof EditContextData | typeof EditData | typeof ChangeData | typeof ChangeVignetteData | typeof GraphScopeData | typeof ClientOriginData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof PathData | typeof PathSegmentData | typeof PathTokenData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof TypeInfoData | typeof TypeConstraintData | typeof ScheduleData | typeof ProjectionData | typeof FileData | typeof IconData | typeof TriggerInfoData | typeof ExpressionData | typeof AggregationData | typeof SelectionData | typeof QueryInfoData | typeof ReadOptionsData | typeof ValueData | typeof CodeData | typeof CodeLineData | typeof PipeData | typeof RunErrorData | typeof RunOptionsData | typeof RetryAttemptData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof ColorData | typeof FontData | typeof BoxData | typeof OffsetData | typeof TransformData | typeof StartViewStateData | typeof FeedViewStateData | typeof ChartViewStateData | typeof HistoryViewStateData | typeof TimelineViewStateData | typeof UserWizardViewStateData | typeof PageViewStateData | typeof TreeViewStateData
 
 // Ancestry maps
 export const PARENT_NODE_TYPES: Record<NodeType, NodeType[]> = {
@@ -24305,7 +24635,7 @@ export const PARENT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.SKIP]: [NodeType.PACKAGE, NodeType.BLOCK],
   [NodeType.ISSUE]: [NodeType.FIELD, NodeType.VIEW, NodeType.STEP, NodeType.BLOCK],
   [NodeType.BLOCK]: [NodeType.PACKAGE, NodeType.BLOCK],
-  [NodeType.TRIGGER]: [NodeType.STEP, NodeType.BLOCK],
+  [NodeType.TRIGGER]: [NodeType.BLOCK],
   [NodeType.FIELD]: [NodeType.STEP, NodeType.BLOCK],
   [NodeType.QUERY]: [NodeType.BLOCK],
   [NodeType.VIEW]: [NodeType.VIEW, NodeType.BLOCK, NodeType.SPACE],
@@ -24347,7 +24677,7 @@ export const CHILD_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.FIELD]: [NodeType.ISSUE],
   [NodeType.QUERY]: [],
   [NodeType.VIEW]: [NodeType.ISSUE, NodeType.VIEW],
-  [NodeType.STEP]: [NodeType.FIELD, NodeType.ISSUE, NodeType.STEP, NodeType.TRIGGER],
+  [NodeType.STEP]: [NodeType.FIELD, NodeType.ISSUE, NodeType.STEP],
   [NodeType.BADGE]: [],
   [NodeType.MEMBERSHIP]: [],
   [NodeType.INVITE]: [],
@@ -24381,7 +24711,7 @@ export const ANCESTOR_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.SKIP]: [NodeType.BENCH, NodeType.BRANCH, NodeType.PACKAGE, NodeType.BLOCK],
   [NodeType.ISSUE]: [NodeType.FIELD, NodeType.BENCH, NodeType.VIEW, NodeType.BRANCH, NodeType.STEP, NodeType.PACKAGE, NodeType.SPACE, NodeType.BLOCK],
   [NodeType.BLOCK]: [NodeType.BENCH, NodeType.BRANCH, NodeType.PACKAGE, NodeType.BLOCK],
-  [NodeType.TRIGGER]: [NodeType.BENCH, NodeType.BRANCH, NodeType.PACKAGE, NodeType.STEP, NodeType.BLOCK],
+  [NodeType.TRIGGER]: [NodeType.BENCH, NodeType.BRANCH, NodeType.PACKAGE, NodeType.BLOCK],
   [NodeType.FIELD]: [NodeType.BENCH, NodeType.BRANCH, NodeType.PACKAGE, NodeType.STEP, NodeType.BLOCK],
   [NodeType.QUERY]: [NodeType.BENCH, NodeType.BRANCH, NodeType.PACKAGE, NodeType.BLOCK],
   [NodeType.VIEW]: [NodeType.BENCH, NodeType.VIEW, NodeType.BRANCH, NodeType.PACKAGE, NodeType.SPACE, NodeType.BLOCK],
@@ -24423,7 +24753,7 @@ export const DESCENDANT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.FIELD]: [NodeType.ISSUE],
   [NodeType.QUERY]: [],
   [NodeType.VIEW]: [NodeType.VIEW, NodeType.ISSUE],
-  [NodeType.STEP]: [NodeType.FIELD, NodeType.STEP, NodeType.ISSUE, NodeType.TRIGGER],
+  [NodeType.STEP]: [NodeType.FIELD, NodeType.ISSUE, NodeType.STEP],
   [NodeType.BADGE]: [],
   [NodeType.MEMBERSHIP]: [],
   [NodeType.INVITE]: [],
@@ -24505,14 +24835,18 @@ export const MESSAGE_TYPE_BY_OBJECT_TYPE: Partial<Record<ObjectType, MessageType
   [ObjectType.TYPE_CONSTRAINT]: TypeConstraintData,
   [ObjectType.SCHEDULE]: ScheduleData,
   [ObjectType.PROJECTION]: ProjectionData,
+  [ObjectType.FILE]: FileData,
+  [ObjectType.ICON]: IconData,
+  [ObjectType.TRIGGER_INFO]: TriggerInfoData,
   [ObjectType.EXPRESSION]: ExpressionData,
   [ObjectType.AGGREGATION]: AggregationData,
   [ObjectType.SELECTION]: SelectionData,
   [ObjectType.QUERY_INFO]: QueryInfoData,
   [ObjectType.READ_OPTIONS]: ReadOptionsData,
+  [ObjectType.VALUE]: ValueData,
   [ObjectType.CODE]: CodeData,
   [ObjectType.CODE_LINE]: CodeLineData,
-  [ObjectType.STEP_CONNECTION]: StepConnectionData,
+  [ObjectType.PIPE]: PipeData,
   [ObjectType.RUN_ERROR]: RunErrorData,
   [ObjectType.RUN_OPTIONS]: RunOptionsData,
   [ObjectType.RETRY_ATTEMPT]: RetryAttemptData,
@@ -24532,8 +24866,6 @@ export const MESSAGE_TYPE_BY_OBJECT_TYPE: Partial<Record<ObjectType, MessageType
   [ObjectType.USER_WIZARD_VIEW_STATE]: UserWizardViewStateData,
   [ObjectType.PAGE_VIEW_STATE]: PageViewStateData,
   [ObjectType.TREE_VIEW_STATE]: TreeViewStateData,
-  [ObjectType.FILE]: FileData,
-  [ObjectType.ICON]: IconData,
 }
 
 export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
@@ -24594,14 +24926,18 @@ export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
   ["symbolx.bench.TypeConstraintData"]: ObjectType.TYPE_CONSTRAINT,
   ["symbolx.bench.ScheduleData"]: ObjectType.SCHEDULE,
   ["symbolx.bench.ProjectionData"]: ObjectType.PROJECTION,
+  ["symbolx.bench.FileData"]: ObjectType.FILE,
+  ["symbolx.bench.IconData"]: ObjectType.ICON,
+  ["symbolx.bench.TriggerInfoData"]: ObjectType.TRIGGER_INFO,
   ["symbolx.bench.ExpressionData"]: ObjectType.EXPRESSION,
   ["symbolx.bench.AggregationData"]: ObjectType.AGGREGATION,
   ["symbolx.bench.SelectionData"]: ObjectType.SELECTION,
   ["symbolx.bench.QueryInfoData"]: ObjectType.QUERY_INFO,
   ["symbolx.bench.ReadOptionsData"]: ObjectType.READ_OPTIONS,
+  ["symbolx.bench.ValueData"]: ObjectType.VALUE,
   ["symbolx.bench.CodeData"]: ObjectType.CODE,
   ["symbolx.bench.CodeLineData"]: ObjectType.CODE_LINE,
-  ["symbolx.bench.StepConnectionData"]: ObjectType.STEP_CONNECTION,
+  ["symbolx.bench.PipeData"]: ObjectType.PIPE,
   ["symbolx.bench.RunErrorData"]: ObjectType.RUN_ERROR,
   ["symbolx.bench.RunOptionsData"]: ObjectType.RUN_OPTIONS,
   ["symbolx.bench.RetryAttemptData"]: ObjectType.RETRY_ATTEMPT,
@@ -24621,8 +24957,6 @@ export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
   ["symbolx.bench.UserWizardViewStateData"]: ObjectType.USER_WIZARD_VIEW_STATE,
   ["symbolx.bench.PageViewStateData"]: ObjectType.PAGE_VIEW_STATE,
   ["symbolx.bench.TreeViewStateData"]: ObjectType.TREE_VIEW_STATE,
-  ["symbolx.bench.FileData"]: ObjectType.FILE,
-  ["symbolx.bench.IconData"]: ObjectType.ICON,
 }
 
 export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | string>> = {
@@ -24653,6 +24987,7 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.FORMAT_HINT]: FormatHint,
   [EnumType.FIELD_ZONE]: FieldZone,
   [EnumType.TYPE_KIND]: TypeKind,
+  [EnumType.BLOCK_TYPE]: BlockType,
   [EnumType.SCHEDULE_TYPE]: ScheduleType,
   [EnumType.TIME_INTERVAL]: TimeInterval,
   [EnumType.DAY]: Day,
@@ -24670,11 +25005,10 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.SELECTION_KIND]: SelectionKind,
   [EnumType.PATH_TOKEN_TYPE]: PathTokenType,
   [EnumType.PATH_SEGMENT_TYPE]: PathSegmentType,
-  [EnumType.BLOCK_TYPE]: BlockType,
   [EnumType.ISSUE_KIND]: IssueKind,
   [EnumType.ISSUE_TYPE]: IssueType,
   [EnumType.STEP_TYPE]: StepType,
-  [EnumType.STEP_CONNECTION_TYPE]: StepConnectionType,
+  [EnumType.PIPE_TYPE]: PipeType,
   [EnumType.LOG_KIND]: LogKind,
   [EnumType.LOG_LEVEL]: LogLevel,
   [EnumType.RUN_STATUS]: RunStatus,
@@ -24728,14 +25062,18 @@ export interface StructTypeMapping extends Record<StructType, AnyStructData> {
   [StructType.TYPE_CONSTRAINT]: TypeConstraintData,
   [StructType.SCHEDULE]: ScheduleData,
   [StructType.PROJECTION]: ProjectionData,
+  [StructType.FILE]: FileData,
+  [StructType.ICON]: IconData,
+  [StructType.TRIGGER_INFO]: TriggerInfoData,
   [StructType.EXPRESSION]: ExpressionData,
   [StructType.AGGREGATION]: AggregationData,
   [StructType.SELECTION]: SelectionData,
   [StructType.QUERY_INFO]: QueryInfoData,
   [StructType.READ_OPTIONS]: ReadOptionsData,
+  [StructType.VALUE]: ValueData,
   [StructType.CODE]: CodeData,
   [StructType.CODE_LINE]: CodeLineData,
-  [StructType.STEP_CONNECTION]: StepConnectionData,
+  [StructType.PIPE]: PipeData,
   [StructType.RUN_ERROR]: RunErrorData,
   [StructType.RUN_OPTIONS]: RunOptionsData,
   [StructType.RETRY_ATTEMPT]: RetryAttemptData,
@@ -24755,8 +25093,6 @@ export interface StructTypeMapping extends Record<StructType, AnyStructData> {
   [StructType.USER_WIZARD_VIEW_STATE]: UserWizardViewStateData,
   [StructType.PAGE_VIEW_STATE]: PageViewStateData,
   [StructType.TREE_VIEW_STATE]: TreeViewStateData,
-  [StructType.FILE]: FileData,
-  [StructType.ICON]: IconData,
 }
 
 export interface NodeTypeMapping extends Record<NodeType, AnyNodeData> {
@@ -24854,14 +25190,18 @@ export interface AnyTypeMapping extends Record<ObjectType, AnyStructData | AnyNo
   [ObjectType.TYPE_CONSTRAINT]: TypeConstraintData,
   [ObjectType.SCHEDULE]: ScheduleData,
   [ObjectType.PROJECTION]: ProjectionData,
+  [ObjectType.FILE]: FileData,
+  [ObjectType.ICON]: IconData,
+  [ObjectType.TRIGGER_INFO]: TriggerInfoData,
   [ObjectType.EXPRESSION]: ExpressionData,
   [ObjectType.AGGREGATION]: AggregationData,
   [ObjectType.SELECTION]: SelectionData,
   [ObjectType.QUERY_INFO]: QueryInfoData,
   [ObjectType.READ_OPTIONS]: ReadOptionsData,
+  [ObjectType.VALUE]: ValueData,
   [ObjectType.CODE]: CodeData,
   [ObjectType.CODE_LINE]: CodeLineData,
-  [ObjectType.STEP_CONNECTION]: StepConnectionData,
+  [ObjectType.PIPE]: PipeData,
   [ObjectType.RUN_ERROR]: RunErrorData,
   [ObjectType.RUN_OPTIONS]: RunOptionsData,
   [ObjectType.RETRY_ATTEMPT]: RetryAttemptData,
@@ -24881,8 +25221,6 @@ export interface AnyTypeMapping extends Record<ObjectType, AnyStructData | AnyNo
   [ObjectType.USER_WIZARD_VIEW_STATE]: UserWizardViewStateData,
   [ObjectType.PAGE_VIEW_STATE]: PageViewStateData,
   [ObjectType.TREE_VIEW_STATE]: TreeViewStateData,
-  [ObjectType.FILE]: FileData,
-  [ObjectType.ICON]: IconData,
 }
 
 export interface EnumTypeMapping extends Record<EnumType, any> {
@@ -24913,6 +25251,7 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.FORMAT_HINT]: FormatHint,
   [EnumType.FIELD_ZONE]: FieldZone,
   [EnumType.TYPE_KIND]: TypeKind,
+  [EnumType.BLOCK_TYPE]: BlockType,
   [EnumType.SCHEDULE_TYPE]: ScheduleType,
   [EnumType.TIME_INTERVAL]: TimeInterval,
   [EnumType.DAY]: Day,
@@ -24930,11 +25269,10 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.SELECTION_KIND]: SelectionKind,
   [EnumType.PATH_TOKEN_TYPE]: PathTokenType,
   [EnumType.PATH_SEGMENT_TYPE]: PathSegmentType,
-  [EnumType.BLOCK_TYPE]: BlockType,
   [EnumType.ISSUE_KIND]: IssueKind,
   [EnumType.ISSUE_TYPE]: IssueType,
   [EnumType.STEP_TYPE]: StepType,
-  [EnumType.STEP_CONNECTION_TYPE]: StepConnectionType,
+  [EnumType.PIPE_TYPE]: PipeType,
   [EnumType.LOG_KIND]: LogKind,
   [EnumType.LOG_LEVEL]: LogLevel,
   [EnumType.RUN_STATUS]: RunStatus,
@@ -25250,11 +25588,11 @@ export enum TriggerProperty {
   setProperties = 29,
   type = 30,
   name = 31,
-  processedEpoch = 32,
-  schedule = 40,
-  signalPtr = 41,
-  condition = 42,
-  isPaused = 50,
+  processedEpoch = 40,
+  schedule = 50,
+  signalPtr = 51,
+  condition = 52,
+  isPaused = 60,
 }
 
 export enum FieldProperty {
@@ -25539,21 +25877,24 @@ export enum RunProperty {
   status = 40,
   currentStatus = 41,
   duration = 42,
-  scheduledAt = 43,
-  scheduledEpoch = 44,
-  startedAt = 45,
-  startedEpoch = 46,
-  pausedAt = 47,
-  terminatedAt = 48,
-  terminatedEpoch = 49,
-  inputsPacked = 50,
-  inputsSecretPacked = 51,
-  outputsPacked = 52,
-  outputsSecretPacked = 53,
-  valuePacked = 54,
-  valueSecretPacked = 55,
-  attempts = 56,
-  error = 57,
+  attempts = 43,
+  error = 44,
+  scheduledAt = 45,
+  scheduledEpoch = 46,
+  startedAt = 47,
+  startedEpoch = 48,
+  haltedAt = 49,
+  haltedEpoch = 50,
+  haltedOnRunPtr = 51,
+  haltedOnTrigger = 52,
+  terminatedAt = 53,
+  terminatedEpoch = 54,
+  inputsPacked = 60,
+  inputsSecretPacked = 61,
+  outputsPacked = 62,
+  outputsSecretPacked = 63,
+  valuePacked = 64,
+  valueSecretPacked = 65,
   blockPtr = 70,
   stepPtr = 71,
   sessionPtr = 72,
@@ -26231,6 +26572,37 @@ export enum ProjectionProperty {
   orderKey = 9,
 }
 
+export enum FileProperty {
+  metatype = 1,
+  type = 31,
+  name = 33,
+  size = 34,
+  sha512 = 35,
+  blobPtr = 36,
+  externalUrl = 37,
+}
+
+export enum IconProperty {
+  metatype = 1,
+  kind = 30,
+  emoji = 31,
+  file = 32,
+  faName = 33,
+  color = 40,
+}
+
+export enum TriggerInfoProperty {
+  metatype = 1,
+  id = 2,
+  parentId = 3,
+  parentKey = 4,
+  orderKey = 9,
+  processedEpoch = 40,
+  schedule = 50,
+  signalPtr = 51,
+  condition = 52,
+}
+
 export enum ExpressionProperty {
   metatype = 1,
   id = 2,
@@ -26289,6 +26661,19 @@ export enum ReadOptionsProperty {
   includeHidden = 50,
 }
 
+export enum ValueProperty {
+  metatype = 1,
+  id = 2,
+  parentId = 3,
+  parentKey = 4,
+  orderKey = 9,
+  type = 31,
+  name = 32,
+  text = 34,
+  valuePacked = 35,
+  secretValuePacked = 36,
+}
+
 export enum CodeProperty {
   metatype = 1,
   id = 2,
@@ -26307,7 +26692,7 @@ export enum CodeLineProperty {
   content = 32,
 }
 
-export enum StepConnectionProperty {
+export enum PipeProperty {
   metatype = 1,
   id = 2,
   parentId = 3,
@@ -26336,12 +26721,13 @@ export enum RunOptionsProperty {
   parentId = 3,
   parentKey = 4,
   orderKey = 9,
-  maxConcurrency = 30,
-  maxAttempts = 31,
-  retryInterval = 32,
-  backoff = 33,
-  maxRetryInterval = 34,
-  jitter = 35,
+  maxRuns = 30,
+  maxConcurrency = 31,
+  maxAttempts = 32,
+  retryInterval = 33,
+  backoff = 34,
+  maxRetryInterval = 35,
+  jitter = 36,
   retryOn = 38,
 }
 
@@ -26486,31 +26872,12 @@ export enum TreeViewStateProperty {
   preset = 99,
 }
 
-export enum FileProperty {
-  metatype = 1,
-  type = 31,
-  name = 33,
-  size = 34,
-  sha512 = 35,
-  blobPtr = 36,
-  externalUrl = 37,
-}
-
-export enum IconProperty {
-  metatype = 1,
-  kind = 30,
-  emoji = 31,
-  file = 32,
-  faName = 33,
-  color = 40,
-}
-
 export type AnyNodeProperty = typeof BenchProperty | typeof EnvironmentProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof LinkProperty | typeof SkipProperty | typeof IssueProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof BadgeProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof MessageProperty | typeof RecordProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof BlobProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty
-export type AnyStructProperty = typeof ContextProperty | typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof ReadOptionsProperty | typeof CodeProperty | typeof CodeLineProperty | typeof StepConnectionProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RetryAttemptProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof ChartViewStateProperty | typeof HistoryViewStateProperty | typeof TimelineViewStateProperty | typeof UserWizardViewStateProperty | typeof PageViewStateProperty | typeof TreeViewStateProperty | typeof FileProperty | typeof IconProperty
+export type AnyStructProperty = typeof ContextProperty | typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof FileProperty | typeof IconProperty | typeof TriggerInfoProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof ReadOptionsProperty | typeof ValueProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PipeProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RetryAttemptProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof ChartViewStateProperty | typeof HistoryViewStateProperty | typeof TimelineViewStateProperty | typeof UserWizardViewStateProperty | typeof PageViewStateProperty | typeof TreeViewStateProperty
 export type AnyProperty = AnyNodeProperty | AnyStructProperty
 export type AnyNodePropertyType = typeof BenchProperty | typeof EnvironmentProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof LinkProperty | typeof SkipProperty | typeof IssueProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof BadgeProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof MessageProperty | typeof RecordProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof BlobProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty
-export type AnyStructPropertyType = typeof ContextProperty | typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof ReadOptionsProperty | typeof CodeProperty | typeof CodeLineProperty | typeof StepConnectionProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RetryAttemptProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof ChartViewStateProperty | typeof HistoryViewStateProperty | typeof TimelineViewStateProperty | typeof UserWizardViewStateProperty | typeof PageViewStateProperty | typeof TreeViewStateProperty | typeof FileProperty | typeof IconProperty
-export type AnyPropertyType = typeof BenchProperty | typeof EnvironmentProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof LinkProperty | typeof SkipProperty | typeof IssueProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof BadgeProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof MessageProperty | typeof RecordProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof BlobProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof ContextProperty | typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof ReadOptionsProperty | typeof CodeProperty | typeof CodeLineProperty | typeof StepConnectionProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RetryAttemptProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof ChartViewStateProperty | typeof HistoryViewStateProperty | typeof TimelineViewStateProperty | typeof UserWizardViewStateProperty | typeof PageViewStateProperty | typeof TreeViewStateProperty | typeof FileProperty | typeof IconProperty
+export type AnyStructPropertyType = typeof ContextProperty | typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof FileProperty | typeof IconProperty | typeof TriggerInfoProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof ReadOptionsProperty | typeof ValueProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PipeProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RetryAttemptProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof ChartViewStateProperty | typeof HistoryViewStateProperty | typeof TimelineViewStateProperty | typeof UserWizardViewStateProperty | typeof PageViewStateProperty | typeof TreeViewStateProperty
+export type AnyPropertyType = typeof BenchProperty | typeof EnvironmentProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof LinkProperty | typeof SkipProperty | typeof IssueProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof BadgeProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof MessageProperty | typeof RecordProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof BlobProperty | typeof HandleProperty | typeof UserProperty | typeof OrganizationProperty | typeof ClientProperty | typeof ContextProperty | typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof FileProperty | typeof IconProperty | typeof TriggerInfoProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof ReadOptionsProperty | typeof ValueProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PipeProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RetryAttemptProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof ChartViewStateProperty | typeof HistoryViewStateProperty | typeof TimelineViewStateProperty | typeof UserWizardViewStateProperty | typeof PageViewStateProperty | typeof TreeViewStateProperty
 export const NODE_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyNodePropertyType>> = {
   [ObjectType.BENCH]: BenchProperty,
   [ObjectType.ENVIRONMENT]: EnvironmentProperty,
@@ -26572,14 +26939,18 @@ export const STRUCT_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyStructP
   [ObjectType.TYPE_CONSTRAINT]: TypeConstraintProperty,
   [ObjectType.SCHEDULE]: ScheduleProperty,
   [ObjectType.PROJECTION]: ProjectionProperty,
+  [ObjectType.FILE]: FileProperty,
+  [ObjectType.ICON]: IconProperty,
+  [ObjectType.TRIGGER_INFO]: TriggerInfoProperty,
   [ObjectType.EXPRESSION]: ExpressionProperty,
   [ObjectType.AGGREGATION]: AggregationProperty,
   [ObjectType.SELECTION]: SelectionProperty,
   [ObjectType.QUERY_INFO]: QueryInfoProperty,
   [ObjectType.READ_OPTIONS]: ReadOptionsProperty,
+  [ObjectType.VALUE]: ValueProperty,
   [ObjectType.CODE]: CodeProperty,
   [ObjectType.CODE_LINE]: CodeLineProperty,
-  [ObjectType.STEP_CONNECTION]: StepConnectionProperty,
+  [ObjectType.PIPE]: PipeProperty,
   [ObjectType.RUN_ERROR]: RunErrorProperty,
   [ObjectType.RUN_OPTIONS]: RunOptionsProperty,
   [ObjectType.RETRY_ATTEMPT]: RetryAttemptProperty,
@@ -26599,8 +26970,6 @@ export const STRUCT_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyStructP
   [ObjectType.USER_WIZARD_VIEW_STATE]: UserWizardViewStateProperty,
   [ObjectType.PAGE_VIEW_STATE]: PageViewStateProperty,
   [ObjectType.TREE_VIEW_STATE]: TreeViewStateProperty,
-  [ObjectType.FILE]: FileProperty,
-  [ObjectType.ICON]: IconProperty,
 }
 
 export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>> = {
@@ -26661,14 +27030,18 @@ export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>>
   [ObjectType.TYPE_CONSTRAINT]: TypeConstraintProperty,
   [ObjectType.SCHEDULE]: ScheduleProperty,
   [ObjectType.PROJECTION]: ProjectionProperty,
+  [ObjectType.FILE]: FileProperty,
+  [ObjectType.ICON]: IconProperty,
+  [ObjectType.TRIGGER_INFO]: TriggerInfoProperty,
   [ObjectType.EXPRESSION]: ExpressionProperty,
   [ObjectType.AGGREGATION]: AggregationProperty,
   [ObjectType.SELECTION]: SelectionProperty,
   [ObjectType.QUERY_INFO]: QueryInfoProperty,
   [ObjectType.READ_OPTIONS]: ReadOptionsProperty,
+  [ObjectType.VALUE]: ValueProperty,
   [ObjectType.CODE]: CodeProperty,
   [ObjectType.CODE_LINE]: CodeLineProperty,
-  [ObjectType.STEP_CONNECTION]: StepConnectionProperty,
+  [ObjectType.PIPE]: PipeProperty,
   [ObjectType.RUN_ERROR]: RunErrorProperty,
   [ObjectType.RUN_OPTIONS]: RunOptionsProperty,
   [ObjectType.RETRY_ATTEMPT]: RetryAttemptProperty,
@@ -26688,8 +27061,6 @@ export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>>
   [ObjectType.USER_WIZARD_VIEW_STATE]: UserWizardViewStateProperty,
   [ObjectType.PAGE_VIEW_STATE]: PageViewStateProperty,
   [ObjectType.TREE_VIEW_STATE]: TreeViewStateProperty,
-  [ObjectType.FILE]: FileProperty,
-  [ObjectType.ICON]: IconProperty,
 }
 
 
@@ -26998,6 +27369,34 @@ export const ProjectionDataInfo: Record<ProjectionProperty, PropertyInfo> = {
   [ProjectionProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.PROJECTION, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [ProjectionProperty.orderKey]: { id: 9, name: 'order_key', component: ObjectType.PROJECTION, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
 }
+export const FileDataInfo: Record<FileProperty, PropertyInfo> = {
+  [FileProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.FILE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [FileProperty.type]: { id: 31, name: 'type', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.name]: { id: 33, name: 'name', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.size]: { id: 34, name: 'size', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.sha512]: { id: 35, name: 'sha512', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.blobPtr]: { id: 36, name: 'blob_ptr', component: ObjectType.FILE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOB], referenceStruct: StructType.NODE_REFERENCE },
+  [FileProperty.externalUrl]: { id: 37, name: 'external_url', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+}
+export const IconDataInfo: Record<IconProperty, PropertyInfo> = {
+  [IconProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.ICON, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [IconProperty.kind]: { id: 30, name: 'kind', component: ObjectType.ICON, enumType: EnumType.ICON_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [IconProperty.emoji]: { id: 31, name: 'emoji', component: ObjectType.ICON, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [IconProperty.file]: { id: 32, name: 'file', component: ObjectType.ICON, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.FILE },
+  [IconProperty.faName]: { id: 33, name: 'fa_name', component: ObjectType.ICON, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [IconProperty.color]: { id: 40, name: 'color', component: ObjectType.ICON, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.COLOR },
+}
+export const TriggerInfoDataInfo: Record<TriggerInfoProperty, PropertyInfo> = {
+  [TriggerInfoProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.TRIGGER_INFO, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [TriggerInfoProperty.id]: { id: 2, name: 'id', component: ObjectType.TRIGGER_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [TriggerInfoProperty.parentId]: { id: 3, name: 'parent_id', component: ObjectType.TRIGGER_INFO, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
+  [TriggerInfoProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.TRIGGER_INFO, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
+  [TriggerInfoProperty.orderKey]: { id: 9, name: 'order_key', component: ObjectType.TRIGGER_INFO, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [TriggerInfoProperty.processedEpoch]: { id: 40, name: 'processed_epoch', component: ObjectType.TRIGGER_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [TriggerInfoProperty.schedule]: { id: 50, name: 'schedule', component: ObjectType.TRIGGER_INFO, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SCHEDULE },
+  [TriggerInfoProperty.signalPtr]: { id: 51, name: 'signal_ptr', component: ObjectType.TRIGGER_INFO, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [TriggerInfoProperty.condition]: { id: 52, name: 'condition', component: ObjectType.TRIGGER_INFO, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
+}
 export const ExpressionDataInfo: Record<ExpressionProperty, PropertyInfo> = {
   [ExpressionProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.EXPRESSION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [ExpressionProperty.id]: { id: 2, name: 'id', component: ObjectType.EXPRESSION, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -27051,6 +27450,18 @@ export const ReadOptionsDataInfo: Record<ReadOptionsProperty, PropertyInfo> = {
   [ReadOptionsProperty.selectAllProperties]: { id: 43, name: 'select_all_properties', component: ObjectType.READ_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ReadOptionsProperty.includeHidden]: { id: 50, name: 'include_hidden', component: ObjectType.READ_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
+export const ValueDataInfo: Record<ValueProperty, PropertyInfo> = {
+  [ValueProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.VALUE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [ValueProperty.id]: { id: 2, name: 'id', component: ObjectType.VALUE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ValueProperty.parentId]: { id: 3, name: 'parent_id', component: ObjectType.VALUE, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
+  [ValueProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.VALUE, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
+  [ValueProperty.orderKey]: { id: 9, name: 'order_key', component: ObjectType.VALUE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ValueProperty.type]: { id: 31, name: 'type', component: ObjectType.VALUE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_INFO },
+  [ValueProperty.name]: { id: 32, name: 'name', component: ObjectType.VALUE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [ValueProperty.text]: { id: 34, name: 'text', component: ObjectType.VALUE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
+  [ValueProperty.valuePacked]: { id: 35, name: 'value_packed', component: ObjectType.VALUE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [ValueProperty.secretValuePacked]: { id: 36, name: 'secret_value_packed', component: ObjectType.VALUE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
+}
 export const CodeDataInfo: Record<CodeProperty, PropertyInfo> = {
   [CodeProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.CODE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [CodeProperty.id]: { id: 2, name: 'id', component: ObjectType.CODE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -27067,14 +27478,14 @@ export const CodeLineDataInfo: Record<CodeLineProperty, PropertyInfo> = {
   [CodeLineProperty.orderKey]: { id: 9, name: 'order_key', component: ObjectType.CODE_LINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [CodeLineProperty.content]: { id: 32, name: 'content', component: ObjectType.CODE_LINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
 }
-export const StepConnectionDataInfo: Record<StepConnectionProperty, PropertyInfo> = {
-  [StepConnectionProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.STEP_CONNECTION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [StepConnectionProperty.id]: { id: 2, name: 'id', component: ObjectType.STEP_CONNECTION, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StepConnectionProperty.parentId]: { id: 3, name: 'parent_id', component: ObjectType.STEP_CONNECTION, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
-  [StepConnectionProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.STEP_CONNECTION, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
-  [StepConnectionProperty.orderKey]: { id: 9, name: 'order_key', component: ObjectType.STEP_CONNECTION, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [StepConnectionProperty.type]: { id: 30, name: 'type', component: ObjectType.STEP_CONNECTION, enumType: EnumType.STEP_CONNECTION_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [StepConnectionProperty.sourcePtr]: { id: 31, name: 'source_ptr', component: ObjectType.STEP_CONNECTION, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.STEP], referenceStruct: StructType.NODE_REFERENCE },
+export const PipeDataInfo: Record<PipeProperty, PropertyInfo> = {
+  [PipeProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.PIPE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [PipeProperty.id]: { id: 2, name: 'id', component: ObjectType.PIPE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [PipeProperty.parentId]: { id: 3, name: 'parent_id', component: ObjectType.PIPE, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
+  [PipeProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.PIPE, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
+  [PipeProperty.orderKey]: { id: 9, name: 'order_key', component: ObjectType.PIPE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [PipeProperty.type]: { id: 30, name: 'type', component: ObjectType.PIPE, enumType: EnumType.PIPE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [PipeProperty.sourcePtr]: { id: 31, name: 'source_ptr', component: ObjectType.PIPE, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.STEP], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const RunErrorDataInfo: Record<RunErrorProperty, PropertyInfo> = {
   [RunErrorProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.RUN_ERROR, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -27094,12 +27505,13 @@ export const RunOptionsDataInfo: Record<RunOptionsProperty, PropertyInfo> = {
   [RunOptionsProperty.parentId]: { id: 3, name: 'parent_id', component: ObjectType.RUN_OPTIONS, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [RunOptionsProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.RUN_OPTIONS, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [RunOptionsProperty.orderKey]: { id: 9, name: 'order_key', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [RunOptionsProperty.maxConcurrency]: { id: 30, name: 'max_concurrency', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
-  [RunOptionsProperty.maxAttempts]: { id: 31, name: 'max_attempts', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
-  [RunOptionsProperty.retryInterval]: { id: 32, name: 'retry_interval', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [RunOptionsProperty.backoff]: { id: 33, name: 'backoff', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [RunOptionsProperty.maxRetryInterval]: { id: 34, name: 'max_retry_interval', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [RunOptionsProperty.jitter]: { id: 35, name: 'jitter', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [RunOptionsProperty.maxRuns]: { id: 30, name: 'max_runs', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [RunOptionsProperty.maxConcurrency]: { id: 31, name: 'max_concurrency', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [RunOptionsProperty.maxAttempts]: { id: 32, name: 'max_attempts', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [RunOptionsProperty.retryInterval]: { id: 33, name: 'retry_interval', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [RunOptionsProperty.backoff]: { id: 34, name: 'backoff', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [RunOptionsProperty.maxRetryInterval]: { id: 35, name: 'max_retry_interval', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [RunOptionsProperty.jitter]: { id: 36, name: 'jitter', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
   [RunOptionsProperty.retryOn]: { id: 38, name: 'retry_on', component: ObjectType.RUN_OPTIONS, enumType: EnumType.RUN_ERROR_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const RetryAttemptDataInfo: Record<RetryAttemptProperty, PropertyInfo> = {
@@ -27225,23 +27637,6 @@ export const TreeViewStateDataInfo: Record<TreeViewStateProperty, PropertyInfo> 
   [TreeViewStateProperty.filterIsPage]: { id: 36, name: 'filter_is_page', component: ObjectType.TREE_VIEW_STATE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
   [TreeViewStateProperty.isDefaultExpanded]: { id: 37, name: 'is_default_expanded', component: ObjectType.TREE_VIEW_STATE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
   [TreeViewStateProperty.preset]: { id: 99, name: 'preset', component: ObjectType.TREE_VIEW_STATE, enumType: EnumType.TREE_VIEW_PRESET, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-}
-export const FileDataInfo: Record<FileProperty, PropertyInfo> = {
-  [FileProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.FILE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [FileProperty.type]: { id: 31, name: 'type', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.name]: { id: 33, name: 'name', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.size]: { id: 34, name: 'size', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.sha512]: { id: 35, name: 'sha512', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.blobPtr]: { id: 36, name: 'blob_ptr', component: ObjectType.FILE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOB], referenceStruct: StructType.NODE_REFERENCE },
-  [FileProperty.externalUrl]: { id: 37, name: 'external_url', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-}
-export const IconDataInfo: Record<IconProperty, PropertyInfo> = {
-  [IconProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.ICON, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [IconProperty.kind]: { id: 30, name: 'kind', component: ObjectType.ICON, enumType: EnumType.ICON_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [IconProperty.emoji]: { id: 31, name: 'emoji', component: ObjectType.ICON, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [IconProperty.file]: { id: 32, name: 'file', component: ObjectType.ICON, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.FILE },
-  [IconProperty.faName]: { id: 33, name: 'fa_name', component: ObjectType.ICON, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [IconProperty.color]: { id: 40, name: 'color', component: ObjectType.ICON, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.COLOR },
 }
 export const BenchDataInfo: Record<BenchProperty, PropertyInfo> = {
   [BenchProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.BENCH, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -27502,7 +27897,7 @@ export const TriggerDataInfo: Record<TriggerProperty, PropertyInfo> = {
   [TriggerProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.TRIGGER, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [TriggerProperty.id]: { id: 2, name: 'id', component: ObjectType.TRIGGER, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [TriggerProperty.ck]: { id: 3, name: 'ck', component: ObjectType.TRIGGER, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [TriggerProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.TRIGGER, kind: 'reference', isRequired: true, isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BLOCK, NodeType.STEP], referenceStruct: StructType.NODE_REFERENCE },
+  [TriggerProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.TRIGGER, kind: 'reference', isRequired: true, isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [TriggerProperty.packagePtr]: { id: 5, name: 'package_ptr', component: ObjectType.TRIGGER, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
   [TriggerProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.TRIGGER, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [TriggerProperty.templatePtr]: { id: 7, name: 'template_ptr', component: ObjectType.TRIGGER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.TRIGGER], referenceStruct: StructType.NODE_REFERENCE },
@@ -27519,11 +27914,11 @@ export const TriggerDataInfo: Record<TriggerProperty, PropertyInfo> = {
   [TriggerProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.TRIGGER, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [TriggerProperty.type]: { id: 30, name: 'type', component: ObjectType.TRIGGER, enumType: EnumType.TRIGGER_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [TriggerProperty.name]: { id: 31, name: 'name', component: ObjectType.TRIGGER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [TriggerProperty.processedEpoch]: { id: 32, name: 'processed_epoch', component: ObjectType.TRIGGER, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
-  [TriggerProperty.schedule]: { id: 40, name: 'schedule', component: ObjectType.TRIGGER, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SCHEDULE },
-  [TriggerProperty.signalPtr]: { id: 41, name: 'signal_ptr', component: ObjectType.TRIGGER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [TriggerProperty.condition]: { id: 42, name: 'condition', component: ObjectType.TRIGGER, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
-  [TriggerProperty.isPaused]: { id: 50, name: 'is_paused', component: ObjectType.TRIGGER, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [TriggerProperty.processedEpoch]: { id: 40, name: 'processed_epoch', component: ObjectType.TRIGGER, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [TriggerProperty.schedule]: { id: 50, name: 'schedule', component: ObjectType.TRIGGER, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SCHEDULE },
+  [TriggerProperty.signalPtr]: { id: 51, name: 'signal_ptr', component: ObjectType.TRIGGER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [TriggerProperty.condition]: { id: 52, name: 'condition', component: ObjectType.TRIGGER, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
+  [TriggerProperty.isPaused]: { id: 60, name: 'is_paused', component: ObjectType.TRIGGER, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const FieldDataInfo: Record<FieldProperty, PropertyInfo> = {
   [FieldProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.FIELD, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -27663,7 +28058,7 @@ export const StepDataInfo: Record<StepProperty, PropertyInfo> = {
   [StepProperty.text]: { id: 34, name: 'text', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [StepProperty.icon]: { id: 35, name: 'icon', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [StepProperty.runOptions]: { id: 36, name: 'run_options', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_OPTIONS },
-  [StepProperty.connections]: { id: 37, name: 'connections', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.STEP_CONNECTION },
+  [StepProperty.connections]: { id: 37, name: 'connections', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.PIPE },
   [StepProperty.valueType]: { id: 40, name: 'value_type', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_INFO },
   [StepProperty.valuePacked]: { id: 41, name: 'value_packed', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [StepProperty.secretValuePacked]: { id: 42, name: 'secret_value_packed', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
@@ -27799,21 +28194,24 @@ export const RunDataInfo: Record<RunProperty, PropertyInfo> = {
   [RunProperty.status]: { id: 40, name: 'status', component: ObjectType.RUN, enumType: EnumType.RUN_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [RunProperty.currentStatus]: { id: 41, name: 'current_status', component: ObjectType.RUN, enumType: EnumType.RUN_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [RunProperty.duration]: { id: 42, name: 'duration', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.scheduledAt]: { id: 43, name: 'scheduled_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.scheduledEpoch]: { id: 44, name: 'scheduled_epoch', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.startedAt]: { id: 45, name: 'started_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.startedEpoch]: { id: 46, name: 'started_epoch', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.pausedAt]: { id: 47, name: 'paused_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.terminatedAt]: { id: 48, name: 'terminated_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.terminatedEpoch]: { id: 49, name: 'terminated_epoch', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.inputsPacked]: { id: 50, name: 'inputs_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [RunProperty.inputsSecretPacked]: { id: 51, name: 'inputs_secret_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
-  [RunProperty.outputsPacked]: { id: 52, name: 'outputs_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [RunProperty.outputsSecretPacked]: { id: 53, name: 'outputs_secret_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
-  [RunProperty.valuePacked]: { id: 54, name: 'value_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [RunProperty.valueSecretPacked]: { id: 55, name: 'value_secret_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
-  [RunProperty.attempts]: { id: 56, name: 'attempts', component: ObjectType.RUN, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RETRY_ATTEMPT },
-  [RunProperty.error]: { id: 57, name: 'error', component: ObjectType.RUN, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_ERROR },
+  [RunProperty.attempts]: { id: 43, name: 'attempts', component: ObjectType.RUN, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RETRY_ATTEMPT },
+  [RunProperty.error]: { id: 44, name: 'error', component: ObjectType.RUN, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_ERROR },
+  [RunProperty.scheduledAt]: { id: 45, name: 'scheduled_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.scheduledEpoch]: { id: 46, name: 'scheduled_epoch', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.startedAt]: { id: 47, name: 'started_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.startedEpoch]: { id: 48, name: 'started_epoch', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.haltedAt]: { id: 49, name: 'halted_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.haltedEpoch]: { id: 50, name: 'halted_epoch', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.haltedOnRunPtr]: { id: 51, name: 'halted_on_run_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [RunProperty.haltedOnTrigger]: { id: 52, name: 'halted_on_trigger', component: ObjectType.RUN, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TRIGGER_INFO },
+  [RunProperty.terminatedAt]: { id: 53, name: 'terminated_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.terminatedEpoch]: { id: 54, name: 'terminated_epoch', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.inputsPacked]: { id: 60, name: 'inputs_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [RunProperty.inputsSecretPacked]: { id: 61, name: 'inputs_secret_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
+  [RunProperty.outputsPacked]: { id: 62, name: 'outputs_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [RunProperty.outputsSecretPacked]: { id: 63, name: 'outputs_secret_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
+  [RunProperty.valuePacked]: { id: 64, name: 'value_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [RunProperty.valueSecretPacked]: { id: 65, name: 'value_secret_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
   [RunProperty.blockPtr]: { id: 70, name: 'block_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [RunProperty.stepPtr]: { id: 71, name: 'step_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.STEP], referenceStruct: StructType.NODE_REFERENCE },
   [RunProperty.sessionPtr]: { id: 72, name: 'session_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SESSION], referenceStruct: StructType.NODE_REFERENCE },
@@ -28214,14 +28612,18 @@ export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo
   [ObjectType.TYPE_CONSTRAINT]: TypeConstraintDataInfo,
   [ObjectType.SCHEDULE]: ScheduleDataInfo,
   [ObjectType.PROJECTION]: ProjectionDataInfo,
+  [ObjectType.FILE]: FileDataInfo,
+  [ObjectType.ICON]: IconDataInfo,
+  [ObjectType.TRIGGER_INFO]: TriggerInfoDataInfo,
   [ObjectType.EXPRESSION]: ExpressionDataInfo,
   [ObjectType.AGGREGATION]: AggregationDataInfo,
   [ObjectType.SELECTION]: SelectionDataInfo,
   [ObjectType.QUERY_INFO]: QueryInfoDataInfo,
   [ObjectType.READ_OPTIONS]: ReadOptionsDataInfo,
+  [ObjectType.VALUE]: ValueDataInfo,
   [ObjectType.CODE]: CodeDataInfo,
   [ObjectType.CODE_LINE]: CodeLineDataInfo,
-  [ObjectType.STEP_CONNECTION]: StepConnectionDataInfo,
+  [ObjectType.PIPE]: PipeDataInfo,
   [ObjectType.RUN_ERROR]: RunErrorDataInfo,
   [ObjectType.RUN_OPTIONS]: RunOptionsDataInfo,
   [ObjectType.RETRY_ATTEMPT]: RetryAttemptDataInfo,
@@ -28241,8 +28643,6 @@ export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo
   [ObjectType.USER_WIZARD_VIEW_STATE]: UserWizardViewStateDataInfo,
   [ObjectType.PAGE_VIEW_STATE]: PageViewStateDataInfo,
   [ObjectType.TREE_VIEW_STATE]: TreeViewStateDataInfo,
-  [ObjectType.FILE]: FileDataInfo,
-  [ObjectType.ICON]: IconDataInfo,
   [ObjectType.BENCH]: BenchDataInfo,
   [ObjectType.ENVIRONMENT]: EnvironmentDataInfo,
   [ObjectType.BRANCH]: BranchDataInfo,

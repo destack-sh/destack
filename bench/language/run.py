@@ -43,22 +43,30 @@ from bench.proto.wire import AnyNodeData, NodeReferenceData, RunData
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
-    from bench.language import Block, NodeReference, Package, TypeInfoBase, ValueObject
+    from bench.language import Block, NodeReference, Package, TriggerInfo, TypeInfoBase, ValueObject
 
 # pyright: reportIncompatibleVariableOverride=false
 
 
 @struct_(StructType.RUN_OPTIONS)
 class RunOptions(Struct):
-    """Options for running something."""
+    """
+    Options for running something.
+    Limits are per top level run context (i.e. the root Run in some Session).
+    """
 
-    max_concurrency: Optional[int] = p_regular(30, constraint=TypeConstraintIn(min_value=0))
-    max_attempts: Optional[int] = p_regular(31, constraint=TypeConstraintIn(min_value=-1))
-    retry_interval: Optional[float] = p_regular(32, constraint=TypeConstraintIn(min_value=0))
-    backoff: Optional[float] = p_regular(33, constraint=TypeConstraintIn(min_value=1))
-    max_retry_interval: Optional[float] = p_regular(34, constraint=TypeConstraintIn(min_value=0))
-    jitter: Optional[float] = p_regular(35, constraint=TypeConstraintIn(min_value=0, max_value=1))
+    # general
+    max_runs: Optional[int] = p_regular(30, constraint=TypeConstraintIn(min_value=0))
+    max_concurrency: Optional[int] = p_regular(31, constraint=TypeConstraintIn(min_value=0))
+    max_attempts: Optional[int] = p_regular(32, constraint=TypeConstraintIn(min_value=-1))
+    retry_interval: Optional[float] = p_regular(33, constraint=TypeConstraintIn(min_value=0))
+    backoff: Optional[float] = p_regular(34, constraint=TypeConstraintIn(min_value=1))
+    max_retry_interval: Optional[float] = p_regular(35, constraint=TypeConstraintIn(min_value=0))
+    jitter: Optional[float] = p_regular(36, constraint=TypeConstraintIn(min_value=0, max_value=1))
     retry_on: list["RunErrorType"] = p_regular(38, array=True)
+
+    # flow
+    ...
 
 
 @struct_(StructType.RETRY_ATTEMPT)
@@ -137,33 +145,40 @@ class Run(PackageNode[RunData], HasTimeIdentity, HasNodeBase, HasSessionContext,
         default=None,
         description="Duration in seconds from first attempt start to last attempt termination.",
     )
-    scheduled_at: Optional[datetime] = p_regular(43, default=None)
-    scheduled_epoch: Optional[int] = p_regular(44, default=None)
-    started_at: Optional[datetime] = p_regular(45, default=None)
-    started_epoch: Optional[int] = p_regular(46, default=None)
-    paused_at: Optional[datetime] = p_regular(47, default=None)
-    terminated_at: Optional[datetime] = p_regular(48, default=None)
-    terminated_epoch: Optional[int] = p_regular(49, default=None)
+    attempts: list[RetryAttempt] = p_internal(43, array=True, struct=StructType.RETRY_ATTEMPT)
+    error: Optional["RunError"] = p_internal(
+        44, default=None, require=False, array=False, struct=StructType.RUN_ERROR
+    )
+    scheduled_at: Optional[datetime] = p_regular(45, default=None)
+    scheduled_epoch: Optional[int] = p_regular(46, default=None)
+    started_at: Optional[datetime] = p_regular(47, default=None)
+    started_epoch: Optional[int] = p_regular(48, default=None)
+    halted_at: Optional[datetime] = p_regular(49, default=None)
+    halted_epoch: Optional[int] = p_regular(50, default=None)
+    halted_on_run: Optional["Run"] = p_regular(
+        51, require=False, array=False, same_bench=True, references=NodeType.RUN
+    )
+    halted_on_trigger: Optional["TriggerInfo"] = p_regular(
+        52, require=False, array=False, same_bench=True, struct=StructType.TRIGGER_INFO
+    )
+    terminated_at: Optional[datetime] = p_regular(53, default=None)
+    terminated_epoch: Optional[int] = p_regular(54, default=None)
     # attempts is populated if the first attempt is not successful
 
     # content
-    inputs_packed: Any = p_value_packed(50)
-    inputs_secret_packed: Any = p_secret_value_packed(51)
+    inputs_packed: Any = p_value_packed(60)
+    inputs_secret_packed: Any = p_secret_value_packed(61)
     inputs: "ValueObject | None" = p_value_runtime(
-        50, 51, typ=lambda self: cast("Run", self).input_type
+        60, 61, typ=lambda self: cast("Run", self).input_type
     )
-    outputs_packed: Any = p_value_packed(52)
-    outputs_secret_packed: Any = p_secret_value_packed(53)
+    outputs_packed: Any = p_value_packed(62)
+    outputs_secret_packed: Any = p_secret_value_packed(63)
     outputs: "ValueObject | None" = p_value_runtime(
-        52, 53, typ=lambda self: cast("Run", self).output_type
+        62, 63, typ=lambda self: cast("Run", self).output_type
     )
-    value_packed: Any = p_value_packed(54)
-    value_secret_packed: Any = p_secret_value_packed(55)
-    value: "ValueObject | None" = p_value_runtime(54, 55, typ=None)  # freely typed
-    attempts: list[RetryAttempt] = p_internal(56, array=True, struct=StructType.RETRY_ATTEMPT)
-    error: Optional["RunError"] = p_internal(
-        57, default=None, require=False, array=False, struct=StructType.RUN_ERROR
-    )
+    value_packed: Any = p_value_packed(64)
+    value_secret_packed: Any = p_secret_value_packed(65)
+    value: "ValueObject | None" = p_value_runtime(64, 65, typ=None)  # freely typed
 
     # ...HasSessionContext[70-79]
 

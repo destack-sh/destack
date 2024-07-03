@@ -21,9 +21,7 @@ from bench.language.validation import on_invalid_raise
 from bench.language.value import check_value
 from bench.proto import wiring
 from bench.proto.wire import HostClient, RunData, SupervisorClient
-from bench.runtime.code import run_code_exec
 from bench.runtime.core import BENCH_QUERY, PACKAGE_QUERY
-from bench.runtime.text import run_text
 from bench.utils.func import CriticalLock
 from bench.utils.oracle import Oracle
 from bench.utils.task import TaskManager
@@ -37,8 +35,8 @@ tracer = trace.get_tracer(__name__)
 
 class RuntimeThread:
     """
-    A thread for actually executing untrusted Runs in a Runtime in a specific Session.
-    Should be isolated in a separate Process for both security and snapshotting.
+    A thread for actually executing Runs in a Runtime in some Session with its own state.
+    Should be isolated in a separate Process for security and snapshotting.
     """
 
     def __init__(

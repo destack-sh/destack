@@ -29,9 +29,15 @@ from bench.language.const import (
     TypeKind,
     new_struct_id,
 )
-from bench.language.property import Property
+from bench.language.property import (
+    Property,
+    p_regular,
+    p_secret_value_packed,
+    p_value_packed,
+    p_value_runtime,
+)
 from bench.language.setup import ENUM_CLASS_BY_TYPE, OBJECT_CLASS_BY_TYPE
-from bench.language.validation import on_invalid_raise
+from bench.language.validation import NAME_CONSTRAINT, on_invalid_raise
 from bench.proto.wire import AnyNodeData, AnyStructData
 
 if TYPE_CHECKING:
@@ -41,9 +47,14 @@ if TYPE_CHECKING:
         Node,
         NodeReference,
         Struct,
+        Text,
+        TypeInfo,
         TypeInfoBase,
     )
     from bench.language.validation import ValidationHandler
+
+
+# pyright: reportIncompatibleVariableOverride=false
 
 logger = structlog.get_logger(__name__)
 
@@ -63,7 +74,7 @@ JsonValue = Union[JsonPrimitive, dict[str, "JsonValue"], list["JsonValue"]]
 ValueParent = Union["ValueObject", "BuiltinObject"]
 ValueProperty = Union["Property", "Field"]
 
-# NOTE :Incomplete: handle :SecretValues and :FreeformValues
+# NOTE :Incomplete: handle :SecretValues somehow
 
 
 class ValueObject(Mapping[str, Any]):
@@ -899,7 +910,13 @@ def unpack_value(
 
 
 # import later to avoid circular imports (Object is used in node.py)
-from bench.language.node import BuiltinObject, HasNodeBase, object_component  # noqa: E402
+from bench.language.node import (  # noqa: E402
+    BuiltinObject,
+    HasNodeBase,
+    Struct,
+    object_component,
+    struct_,
+)
 
 
 @object_component()
@@ -978,3 +995,17 @@ class HasValues(BuiltinObject):
                     self._do_set(prop.value_packed_ptr.name, value_packed, track=False)
             else:
                 self._do_set(prop.value_packed_ptr.name, None, track=False)
+
+
+@struct_(StructType.VALUE)
+class Value(Struct, HasValues):
+    """A generic 'freeform' value."""
+
+    type: "TypeInfo" = p_regular(31, struct=StructType.TYPE_INFO)
+    name: str | None = p_regular(32, constraint=NAME_CONSTRAINT)
+    text: Optional["Text"] = p_regular(
+        34, default=None, require=False, array=False, struct=StructType.TEXT
+    )
+    value_packed: Any = p_value_packed(35)
+    secret_value_packed: Any = p_secret_value_packed(36)
+    value: Any = p_value_runtime(35, 36, typ=lambda self: cast("Value", self).type)

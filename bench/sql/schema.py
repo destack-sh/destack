@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.07.03.0"
+VERSION = "2024.07.03.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -469,7 +469,6 @@ TRIGGER_TABLE = Table(
         Column("ck", PrimitiveType.UUID),
         Column("parent_id", PrimitiveType.UUID),
         Column("parent_ck", PrimitiveType.UUID),
-        Column("parent_type", PrimitiveType.INT16),
         Column("package_id", PrimitiveType.UUID),
         Column("bench_id", PrimitiveType.UUID),
         Column("template_id", PrimitiveType.UUID, is_nullable=True),
@@ -929,11 +928,17 @@ RUN_TABLE = Table(
         Column("status", PrimitiveType.INT16, default="1"),
         Column("current_status", PrimitiveType.INT16, is_nullable=True),
         Column("duration", PrimitiveType.FLOAT32, is_nullable=True),
+        Column("attempts", PrimitiveType.JSON, is_array=True),
+        Column("error", PrimitiveType.JSON, is_nullable=True),
         Column("scheduled_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("scheduled_epoch", PrimitiveType.INT32, is_nullable=True),
         Column("started_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("started_epoch", PrimitiveType.INT32, is_nullable=True),
-        Column("paused_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("halted_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("halted_epoch", PrimitiveType.INT32, is_nullable=True),
+        Column("halted_on_run_id", PrimitiveType.UUID, is_nullable=True),
+        Column("halted_on_run_base_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("halted_on_trigger", PrimitiveType.JSON, is_nullable=True),
         Column("terminated_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("terminated_epoch", PrimitiveType.INT32, is_nullable=True),
         Column("inputs_packed", PrimitiveType.JSON, is_nullable=True),
@@ -942,8 +947,6 @@ RUN_TABLE = Table(
         Column("outputs_secret_packed", PrimitiveType.JSON, is_nullable=True, is_encrypted=True),
         Column("value_packed", PrimitiveType.JSON, is_nullable=True),
         Column("value_secret_packed", PrimitiveType.JSON, is_nullable=True, is_encrypted=True),
-        Column("attempts", PrimitiveType.JSON, is_array=True),
-        Column("error", PrimitiveType.JSON, is_nullable=True),
         Column("block_id", PrimitiveType.UUID, is_nullable=True),
         Column("block_ck", PrimitiveType.UUID, is_nullable=True),
         Column("block_bench_id", PrimitiveType.UUID, is_nullable=True),

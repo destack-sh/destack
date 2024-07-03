@@ -391,13 +391,13 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
       if (errorCode != lastErrorCode) {
         const op = `${this.kind}:${this.meta.name}`;
         toaster.error({
-          title: `'${op}' connection failed`,
+          title: `'${op}' connection lost`,
           text: `'${op}' failed: ${IS_DEV ? error.message : (error as RpcError).code}`,
           override: `connection:${this.meta.id}`,
           summarize: {
             key: "connection.error",
             info: [{ op, error: error as RpcError }],
-            title: (infos) => `${infos.length} connections failed`,
+            title: (infos) => `${infos.length} connections lost`,
             text: (infos) => {
               // distinct errors
               const errors = new Set(infos.map((info) => HUMANIZED_OPERATION_STATUS[info.error.code]));
