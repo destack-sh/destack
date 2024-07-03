@@ -91,10 +91,10 @@ class QueueRunPlugin(HostPlugin[Run]):
         if not op.retry.should_retry:
             # give up and mark run as failed
             error = RunError(
-                kind=RunErrorKind.INTERNAL,
+                kind=RunErrorKind.RUNTIME,
                 type=RunErrorType.RUNTIME_UNAVAILABLE,
                 title="Failed to queue run",
-                text=Text.from_markdown("Failed to queue run on *any* available machine."),
+                text=Text.from_markdown("Could not contact any currently available machine."),
             )
             async with self.host.session(autocommit=True):
                 run.fail(error)

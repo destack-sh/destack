@@ -1,5 +1,4 @@
 import asyncio
-from contextlib import asynccontextmanager
 from typing import cast, override
 from urllib.parse import urlparse
 from uuid import UUID, uuid4
@@ -8,8 +7,8 @@ import structlog
 from grpclib.client import Channel
 from opentelemetry import trace
 
-from bench.language import Bench, NodeReference, Package
-from bench.language.bench import Client, Machine, Server
+from bench.language import NodeReference
+from bench.language.bench import Machine
 from bench.language.connection import RemoteEngine
 from bench.language.const import (
     BENCH_NODE_TYPES,
@@ -18,9 +17,7 @@ from bench.language.const import (
     ClientType,
     NodeType,
 )
-from bench.language.graph import NodeSuperGraph
 from bench.language.node import EMPTY_SCOPE
-from bench.language.session import Session, unsuspend_session
 from bench.proto import wire
 from bench.proto.services import ServiceBase
 from bench.proto.wire import (
@@ -35,12 +32,9 @@ from bench.proto.wire import (
     SupervisorClient,
 )
 from bench.runtime.core import (
-    BENCH_QUERY,
-    PACKAGE_QUERY,
     RUNTIME_CONCURRENCY,
 )
 from bench.runtime.thread import RuntimeThread
-from bench.utils.func import CriticalLock
 from bench.utils.oracle import Oracle
 from bench.utils.tenacity import RETRY_GRPC_FOREVER
 
@@ -88,35 +82,21 @@ class Runtime(ServiceBase, RuntimeBase):
             client_id=str(self._client_id),
             client_access_token=self._client_access_token,
         )
-        self._client: Client | None = None
         self._machine_id = machine_id
         self._machine: Machine | None = None
         self._engines: tuple[RemoteEngine, ...] = ()
-
-        # bench stuff
         self._host: HostClient | None = None
         self._bench_id = bench_id
         self._bench_ptr = NodeReference(
             type=NodeType.BENCH, id=bench_id, ck=bench_id, bench_id=bench_id
         )
-        self._supergraph = NodeSuperGraph(self._bench_ptr)
-        self._bench: Bench | None = None
-        self._main_package: Package | None = None
-        self._packages: dict[UUID, Package] = {}
-        self._packages_lock = asyncio.Lock()
 
         # processing
-        self._session: Session | None = None
-        self._tx_lock: asyncio.Lock = CriticalLock(
-            name=f"{self.__class__.__name__}_{bench_id or ''}"
-        )
         self._run_queue: asyncio.Queue[RunData] = asyncio.Queue()
         self._threads: list[RuntimeThread] = []
 
     def __str__(self):
-        bench_str = repr(self._bench) if self._bench else self._bench_id
-        client_str = repr(self._client) if self._client else self._client_id
-        return f"{client_str} on {bench_str}"
+        return f"{self._client_id} on {self._bench_id}"
 
     def __repr__(self):
         return f"<{self.__class__.__name__} {self}>"
@@ -125,35 +105,6 @@ class Runtime(ServiceBase, RuntimeBase):
     def host(self) -> HostClient:
         assert self._host is not None, f"no host for {self!r}"
         return self._host
-
-    @property
-    def bench(self) -> Bench:
-        assert self._bench is not None, f"no bench for {self!r}"
-        return self._bench
-
-    @property
-    def client(self) -> Client:
-        assert self._client is not None, f"no client for {self!r}"
-        return self._client
-
-    @property
-    def server(self) -> Server:
-        assert isinstance(self.client.parent, Server), f"no server for {self!r}"
-        return self.client.parent
-
-    @property
-    def main_package(self) -> Package:
-        assert self._main_package is not None, f"no main package for {self!r}"
-        return self._main_package
-
-    @asynccontextmanager
-    async def session(self, *, readonly: bool = False, autocommit: bool = False):
-        """Gets exclusive query and edit access to the main session."""
-        assert self._session is not None, f"no session for {self!r}"
-        async with self._tx_lock, unsuspend_session(
-            self._session, readonly=readonly, autocommit=autocommit
-        ):
-            yield self._session
 
     @tracer.start_as_current_span("runtime.start")
     async def start(self):
@@ -180,50 +131,6 @@ class Runtime(ServiceBase, RuntimeBase):
                 rpc_metadata=self._rpc_metadata,
             ),
         )
-        self._session = Session(
-            _is_readonly=False,
-            _default_scope=bench_scope,
-            _engines=self._engines,
-            _supervisor=self._supervisor,
-            _host=self._host,
-            _supergraph=self._supergraph,
-            _oracle=self.oracle,
-        )
-        await self._session.open(set_in_context=False)
-
-        # connect
-        # NOTE :Performance: share query connections between runtime/threads?
-        async with self.session(readonly=True):
-            # connect bench
-            self._bench = await BENCH_QUERY.get(self._bench_ptr, live=True)
-            main_environment = self._bench.main_environment
-            assert main_environment is not None, f"{self._bench!r} has no main environment"
-            main_branch = self._bench.main_branch
-            assert main_branch is not None, f"{self._bench!r} has no main branch"
-            assert main_branch.main_package_id is not None, f"{main_branch!r} has no main package"
-
-            # get client in Bench (and check that it's valid & belongs there)
-            self._client = main_environment.server.clients.get(self._client_id)
-            assert self._client is not None, f"{main_environment!r} has no client {self._client_id}"
-            # and machine (if specified)
-            if self._machine_id is not None:
-                self._machine = main_environment.server.machines.get(self._machine_id)
-                assert (
-                    self._machine is not None
-                ), f"{main_environment.server!r} has no machine {self._machine_id}"
-            self._session.machine = self._machine
-            self._session.client = self._client
-            if isinstance(self._client.parent, Server):
-                self._session.server = self._client.parent
-            else:
-                self._session.user = self._client.parent
-            self._session._subject = self._client.parent
-            self._session._origin = self._client.to_origin(nonce=self._nonce)._to_data()
-
-            # connect main package
-            self._main_package = await PACKAGE_QUERY.get(main_branch.main_package_ptr, live=True)
-            self._packages[main_branch.main_package_id] = self._main_package
-            self._session.parent = self._main_package
 
         # start threads
         for i in range(RUNTIME_CONCURRENCY):
@@ -241,29 +148,13 @@ class Runtime(ServiceBase, RuntimeBase):
             self._threads.append(thread)
             await thread.start()
 
-        logger.info(
-            "runtime.start",
-            runtime=self,
-            bench=self._bench,
-            client=self._client,
-            span="current",
-        )
+        logger.info("runtime.start", runtime=self, span="current")
 
     def close(self):
         super().close()
 
-    async def wait_closed(self):
-        await super().wait_closed()
-        if self._session:
-            await self._session.close()
-        self._bench = None
-        self._main_package = None
-        self._packages.clear()
-
     @override
     async def queue_run(self, request: QueueRunRequest) -> QueueRunResponse:
-        assert self._client is not None, f"{self!r} not ready"
-
         # just add to main queue
         self._run_queue.put_nowait(request.run)
         logger.trace("runtime.queue_run", run=request.run, span="current")

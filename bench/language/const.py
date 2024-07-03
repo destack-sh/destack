@@ -20,11 +20,14 @@ class _Unset:
         return "<UNSET!>"
 
 
-VERSION = "2024.07.03.0"
+# forever constants
+VERSION = "2024.07.03.1"  # auto change via version script
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
+
+# runtime constants
 UNSET = cast(Any, _Unset())
 EMPTY_LIST: list = []
 EMPTY_SET: frozenset = frozenset()
@@ -58,107 +61,104 @@ def enum_(enum_type: "EnumType"):
 
 #
 # Enums
+# NOTE: enum/struct id 'regions' should be roughly in sync with each other
 #
 
 
 class EnumType(IdEnum):
     # intrinsic
-    ENUM_TYPE = 2001  # so meta
-    NODE_TYPE = 2002
-    STRUCT_TYPE = 2003
-    OBJECT_TYPE = 2004  # NodeType | StructType
-    BENCH_TYPE = 2005  # NodeType | StructType | EnumType
-    VISIBILITY = 2010
-    CHANGE_KIND = 2011
+    ENUM_TYPE = 20001  # so meta
+    NODE_TYPE = 20002
+    STRUCT_TYPE = 20003
+    OBJECT_TYPE = 20004  # NodeType | StructType
+    BENCH_TYPE = 20005  # NodeType | StructType | EnumType
+    VISIBILITY = 20010
+    CHANGE_KIND = 20011
 
     # access
-    ACCESS_MODE = 2030
-    ACCESS_KIND = 2031
-    READ_TYPE = 2032
-    EDIT_TYPE = 2033
-    USE_TYPE = 2034
-    ACCESS_TYPE = 2035  # ReadType | EditType | UseType
-    CHANGE_CATEGORY = 2036
-    POLICY_EFFECT = 2040
+    ACCESS_MODE = 20030
+    ACCESS_KIND = 20031
+    READ_TYPE = 20032
+    EDIT_TYPE = 20033
+    USE_TYPE = 20034
+    ACCESS_TYPE = 20035  # ReadType | EditType | UseType
+    CHANGE_CATEGORY = 20036
+    POLICY_EFFECT = 20040
 
     # bench
-    REGION = 2050
-    TENANCY = 2051
-    SERVER_PROFILE = 2055
-    MACHINE_PROFILE = 2056
-    RESOURCE_STATUS = 2057
-    FILE_RETENTION_MODE = 2058
-    CLIENT_TYPE = 2060
+    REGION = 20050
+    TENANCY = 20051
+    SERVER_PROFILE = 20055
+    MACHINE_PROFILE = 20056
+    RESOURCE_STATUS = 20057
+    FILE_RETENTION_MODE = 20058
+    CLIENT_TYPE = 20060
 
     # type
-    PRIMITIVE_TYPE = 2080
-    FORMAT_HINT = 2081
-    FIELD_ZONE = 2082
-    TYPE_KIND = 2083
+    PRIMITIVE_TYPE = 20080
+    FORMAT_HINT = 20081
+    FIELD_ZONE = 20082
+    TYPE_KIND = 20083
+    BLOCK_TYPE = 20384
 
     # basic
-    SCHEDULE_TYPE = 2100
-    TIME_INTERVAL = 2101
-    DAY = 2102
-    MONTH = 2103
-    TEXT_LINE_TYPE = 2110
-    ICON_KIND = 2111
+    SCHEDULE_TYPE = 20100
+    TIME_INTERVAL = 20101
+    DAY = 20102
+    MONTH = 20103
+    TEXT_LINE_TYPE = 20110
+    ICON_KIND = 20111
 
     # expression
-    EXPRESSION_KIND = 2200
-    EXPRESSION_OP = 2201
-    LITERAL_OP = 2202
-    FUNCTIONAL_OP = 2203
-    CONDITIONAL_OP = 2204
-    AGGREGATION_OP = 2205
-    SORT_MODE = 2206
-    SORT_OP = 2207
-    SELECTION_KIND = 2208
-    PATH_TOKEN_TYPE = 2210
-    PATH_SEGMENT_TYPE = 2211
-
-    # block
-    BLOCK_TYPE = 2070
+    EXPRESSION_KIND = 20200
+    EXPRESSION_OP = 20201
+    LITERAL_OP = 20202
+    FUNCTIONAL_OP = 20203
+    CONDITIONAL_OP = 20204
+    AGGREGATION_OP = 20205
+    SORT_MODE = 20206
+    SORT_OP = 20207
+    SELECTION_KIND = 20208
+    PATH_TOKEN_TYPE = 20210
+    PATH_SEGMENT_TYPE = 20211
 
     # issue
-    ISSUE_KIND = 2170
-    ISSUE_TYPE = 2171
-
-    # flow
-    STEP_TYPE = 2180
-    STEP_CONNECTION_TYPE = 2181
+    ISSUE_KIND = 20400
+    ISSUE_TYPE = 20401
 
     # session
-    LOG_KIND = 2300
-    LOG_LEVEL = 2301
-    RUN_STATUS = 2302
-    RUN_KIND = 2303
-    RUN_ERROR_KIND = 2304
-    RUN_ERROR_TYPE = 2305
-    SESSION_STATUS = 2306
-    TRIGGER_TYPE = 2307
-    NOTIFICATION_KIND = 2308
+    STEP_TYPE = 20500
+    PIPE_TYPE = 20501
+    LOG_KIND = 20502
+    LOG_LEVEL = 20503
+    RUN_STATUS = 20504
+    RUN_KIND = 20505
+    RUN_ERROR_KIND = 20506
+    RUN_ERROR_TYPE = 20507
+    SESSION_STATUS = 20508
+    TRIGGER_TYPE = 20509
+    NOTIFICATION_KIND = 20510
 
     # view
-    SPACE_TYPE = 2400
-    VIEW_TYPE = 2401
-    VARIANT = 2402
-    COLOR_TYPE = 2403
-    COLOR_SHADE = 2404
-    FONT_TYPE = 2405
-    FONT_WEIGHT = 2406
-    FONT_SIZE = 2407
-    SPACING = 2408
-    ANCHOR = 2409
-    ORIENTATION = 2410
-    ALIGNMENT = 2411
+    SPACE_TYPE = 21000
+    VIEW_TYPE = 21001
+    VARIANT = 21002
+    COLOR_TYPE = 21003
+    COLOR_SHADE = 21004
+    FONT_TYPE = 21005
+    FONT_WEIGHT = 21006
+    FONT_SIZE = 21007
+    SPACING = 21008
+    ANCHOR = 21009
+    ORIENTATION = 21010
+    ALIGNMENT = 21011
     # view states
-    USER_WIZARD_STAGE = 2500
-    TREE_VIEW_PRESET = 2501
+    USER_WIZARD_STAGE = 21200
+    TREE_VIEW_PRESET = 21201
 
     # user
-    USER_STATUS = 2800
-    ORGANIZATION_STATUS = 2801
+    USER_STATUS = 29000
+    ORGANIZATION_STATUS = 29001
 
 
 enum_(EnumType.ENUM_TYPE)(EnumType)
@@ -166,7 +166,7 @@ ENUM_TYPES: bittuple[EnumType] = bittuple(*EnumType)
 ENUM_TYPES_SET: frozenset[EnumType] = frozenset(ENUM_TYPES)
 
 #
-# Struct/Node metatypes
+# Node metatypes
 #
 
 
@@ -277,84 +277,92 @@ LOADED_BENCH_NODE_TYPES = bittuple(*(nt for nt in BENCH_NODE_TYPES if nt != Node
 PUBLIC_NODE_TYPES = bittuple(NodeType.USER, NodeType.ORGANIZATION)
 USER_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if nt.id >= 200))
 
+#
+# Struct metatypes
+# NOTE: enum/struct id 'regions' should be roughly in sync with each other
+#
+
 
 @enum_(EnumType.STRUCT_TYPE)
 class StructType(IdEnum):
     # transaction
-    CONTEXT = 1000
-    SESSION_CONTEXT = 1001
-    EDIT_CONTEXT = 1002
-    # TRANSACTION ?
-    EDIT = 1005
-    CHANGE = 1006
-    CHANGE_VIGNETTE = 1007
+    CONTEXT = 10000
+    SESSION_CONTEXT = 10001
+    EDIT_CONTEXT = 10002
+    EDIT = 10005
+    CHANGE = 10006
+    CHANGE_VIGNETTE = 10007
 
     # utility
-    GRAPH_SCOPE = 1010
-    CLIENT_ORIGIN = 1011
-    NODE_REFERENCE = 1012
-    PROPERTY_REFERENCE = 1013
-
-    # path
-    PATH = 1020
-    PATH_SEGMENT = 1021
-    PATH_TOKEN = 1022
+    GRAPH_SCOPE = 10050
+    CLIENT_ORIGIN = 10051
+    NODE_REFERENCE = 10052
+    PROPERTY_REFERENCE = 10053
+    PATH = 10060
+    PATH_SEGMENT = 10061
+    PATH_TOKEN = 10062
 
     # access
-    POLICY = 1030
-    POLICY_RULE = 1031
-    SUBJECT = 1032
-    ACCESS_ZONE = 1034
-    ACCESS_MATRIX = 1035
-    ACCESS = 1037
+    POLICY = 10100
+    POLICY_RULE = 10101
+    SUBJECT = 10102
+    ACCESS_ZONE = 10104
+    ACCESS_MATRIX = 10105
+    ACCESS = 10107
     ...
 
     # type
-    TYPE_INFO = 1040
-    TYPE_CONSTRAINT = 1041
-    SCHEDULE = 1042
-    PROJECTION = 1043
+    TYPE_INFO = 10200
+    TYPE_CONSTRAINT = 10201
+    SCHEDULE = 10202
+    PROJECTION = 10203
+    FILE = 10204
+    ICON = 10205
+    TRIGGER_INFO = 10206
 
     # expressions
-    EXPRESSION = 1060
-    AGGREGATION = 1061
-    SELECTION = 1070
-    QUERY_INFO = 1080
-    READ_OPTIONS = 1085
+    EXPRESSION = 10300
+    AGGREGATION = 10301
+    SELECTION = 10302
+    QUERY_INFO = 10303
+    READ_OPTIONS = 10304
+    VALUE = 10305
 
-    # code
-    CODE = 1090
-    CODE_LINE = 1091
-    # flow
-    STEP_CONNECTION = 1100
-    RUN_ERROR = 1110
-    RUN_OPTIONS = 1111
-    RETRY_ATTEMPT = 1113
-
-    # text
-    TEXT = 1160
-    TEXT_LINE = 1161
-    TEXT_SPAN = 1162
+    # run
+    CODE = 10400
+    CODE_LINE = 10401
+    PIPE = 10402
+    RUN_ERROR = 10450
+    RUN_OPTIONS = 10451
+    RETRY_ATTEMPT = 10452
+    TEXT = 10500
+    TEXT_LINE = 10501
+    TEXT_SPAN = 10502
 
     # space/views
-    COLOR = 1200
-    FONT = 1201
-    BOX = 1202
-    OFFSET = 1203
-    TRANSFORM = 1204
+    COLOR = 11000
+    FONT = 11001
+    BOX = 11002
+    OFFSET = 11003
+    TRANSFORM = 11004
     ...
-    START_VIEW_STATE = 1300
-    FEED_VIEW_STATE = 1301
-    CHART_VIEW_STATE = 1302
-    HISTORY_VIEW_STATE = 1303
-    TIMELINE_VIEW_STATE = 1304
-    USER_WIZARD_VIEW_STATE = 1305
-    PAGE_VIEW_STATE = 1306
-    TREE_VIEW_STATE = 1307
+    START_VIEW_STATE = 11200
+    FEED_VIEW_STATE = 11201
+    CHART_VIEW_STATE = 11202
+    HISTORY_VIEW_STATE = 11203
+    TIMELINE_VIEW_STATE = 11204
+    USER_WIZARD_VIEW_STATE = 11205
+    PAGE_VIEW_STATE = 11206
+    TREE_VIEW_STATE = 11207
 
-    # files
-    FILE = 1400
-    ICON = 1401
+    # steps
+    ...
+
+    # signals
+    ...
+
+    # notifications
+    ...
 
 
 STRUCT_TYPES: bittuple[StructType] = bittuple(*StructType)
@@ -422,16 +430,16 @@ class BlockType(IdEnum):
     CLASS = 10  # define a class type with fields
     CHOICE = 11  # define a choice type with fields (as literal options)
     # TAG = 12  # define a tag type with fields
-    SIGNAL = 13  # define a signal type with fields
     PROTOCOL = 14  # define a 'protocol' for a block graph/template with fields
-    # NOTICE = ...  # define a new notice type
+    SIGNAL = 15  # define a signal type with fields
+    # ISSUE = ...  # define a new issue type
     # NOTIFICATION = ...  # define a new notification type
-    # METRIC = ...  # define a new metric type
+    # METRIC = ...  # define a new metric type?
     # BLOCK = ...  # define a new block type?
 
     # runnable
-    TEXT = 30  # define a 'paragraph' of text/prompt with fields (incl. input/output)
-    CODE = 31  # define a code function with fields (incl. input/output)
+    TEXT = 30  # define a 'paragraph' of text/prompt with fields (optionally incl. input/output)
+    CODE = 31  # define a code function/script with fields (optionally incl. input/output)
     FLOW = 32  # define a flow with steps and fields (optionally incl. input/output)
 
     # state
@@ -646,7 +654,7 @@ class AccessMode(IdEnum):
 class PolicyEffect(IdEnum):
     ALLOW = 1
     DENY = 2
-    # DEFER?, METER, LIMIT, ...
+    # YIELD?, METER, LIMIT, ...
 
 
 @enum_(EnumType.PRIMITIVE_TYPE)

@@ -40,38 +40,44 @@ if TYPE_CHECKING:
 
 @enum_(EnumType.STEP_TYPE)
 class StepType(IdEnum):
-    # source
-    START = 1
-    VALUE = 2
-    TRIGGER = 10
-    RUN = 20
-    RUN_DEFERRED = 21
-    SEND = 22
-    COMPLETE = 23
-    BRANCH = 30
-    FILTER = 31
-    LOOP = 32
-    GROUP = 50
+    # START = 1
+    # COMPLETE = 2
+
+    # TRIGGER = 10
+
+    # MAP = 3
+    # RUN = 20
+    # SEND = 22
+    # VALUE = 2
+    # YIELD
+
+    # BRANCH = 30
+    # FILTER = 31
+    # LOOP = 32
+
+    # GROUP = 50
+
+    ...
 
 
-@enum_(EnumType.STEP_CONNECTION_TYPE)
-class StepConnectionType(IdEnum):
+@enum_(EnumType.PIPE_TYPE)
+class PipeType(IdEnum):
     THEN = 1
     # ... not sure yet
 
 
-@struct_(StructType.STEP_CONNECTION)
-class StepConnection(Struct):
+@struct_(StructType.PIPE)
+class Pipe(Struct):
     """A connection between two Steps in a FlowBlock."""
 
-    type: StepConnectionType = p_internal(30)
+    type: PipeType = p_internal(30)
     source: "Step" = p_regular(31, require=True, references=(NodeType.STEP,))
 
 
 @node_(NodeType.STEP)
 class Step(SourceNode[StepData], HasValues):
     """
-    An data or control flow unit in a FlowBlock.
+    An data or control flow node in a FlowBlock.
     """
 
     parent: Union["Block", "Step", None] = p_node_parent(4, NodeType.BLOCK, NodeType.STEP)
@@ -89,7 +95,7 @@ class Step(SourceNode[StepData], HasValues):
     run_options: Optional["RunOptions"] = p_regular(
         36, default=None, require=False, array=False, struct=StructType.RUN_OPTIONS
     )
-    connections: list[StepConnection] = p_regular(37, array=True, struct=StructType.STEP_CONNECTION)
+    connections: list[Pipe] = p_regular(37, array=True, struct=StructType.PIPE)
 
     # content
     value_type: Optional["TypeInfo"] = p_regular(40, default=None, struct=StructType.TYPE_INFO)
@@ -122,7 +128,6 @@ class Step(SourceNode[StepData], HasValues):
 
     steps: NodeList["Step"] = p_node_children(NodeType.STEP)
     fields: NodeList["Field"] = p_node_children(NodeType.FIELD)
-    triggers: NodeList["Trigger"] = p_node_children(NodeType.TRIGGER)
     issues: NodeList["Issue"] = p_node_children(NodeType.ISSUE)
 
     @final
