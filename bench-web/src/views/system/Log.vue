@@ -1,5 +1,13 @@
 <script lang="ts" setup>
-import { LogData, NodeType, PROPERTY_INFOS_BY_TYPE, ViewData, ViewType, type PropertyInfo } from "@/proto/wire";
+import {
+  LogData,
+  NodeType,
+  PROPERTY_ENUM_BY_TYPE,
+  PROPERTY_INFOS_BY_TYPE,
+  ViewData,
+  ViewType,
+  type PropertyInfo,
+} from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { PACKAGE_SCOPE } from "@/system/client";
 import { useGetConnection, type PreparedNodeConnection } from "@/system/connection";
@@ -60,19 +68,19 @@ const properties = computed(() => {
   const changedProperties: ChangedProperty[] = [];
   for (const property of properties) {
     const propertyType = getPropertyType(property);
+    const propertyName = PROPERTY_ENUM_BY_TYPE[log.value?.nodePtr!.type!]![property.id];
     const propertyView = getViewForValueType(propertyType);
     const changedProperty: ChangedProperty = {
       property,
       type: propertyType,
       viewType: propertyView?.viewType,
-      viewProps: propertyView?.props,
+      viewProps: { ...propertyView?.props, isInput: false },
       isFullWidth: propertyView != null && FULL_WIDTH_VIEW_TYPES.includes(propertyView?.viewType),
-      oldValue: (oldNode.value as any)[property.name],
-      newValue: (newNode.value as any)[property.name],
+      oldValue: (oldNode.value as any)[propertyName],
+      newValue: (newNode.value as any)[propertyName],
     };
     changedProperties.push(changedProperty);
   }
-
   return changedProperties;
 });
 
@@ -89,7 +97,7 @@ defineExpose<ViewExposed>({ self, id });
         v-for="{ property, viewType, viewProps, isFullWidth, oldValue, newValue } in properties"
         :key="property.id"
         class="py-1"
-        :class="[isFullWidth ? 'flex flex-col gap-y-1' : 'flex flex-row  items-center gap-x-2.5']"
+        :class="[isFullWidth ? 'flex flex-col gap-y-1' : 'flex flex-row flex-wrap items-center gap-x-2.5']"
       >
         <!-- Title -->
         <span class="font-medium">{{ getPropertyTitle(property) }}</span>
@@ -99,23 +107,23 @@ defineExpose<ViewExposed>({ self, id });
           <component
             :is="getViewComponent(viewType)"
             v-if="oldValue != null"
-            :class="['ml-auto flex-shrink-0', isFullWidth ? '' : 'text-right']"
-            :style="{ width: isFullWidth ? '100%' : 'calc(45%)' }"
+            :class="[isFullWidth ? '' : 'ml-auto']"
+            :style="{ width: isFullWidth ? '100%' : '' }"
             v-bind="viewProps"
             :model-value="oldValue"
           />
-          <div v-else><span class="text-gray-500">Unset</span></div>
+          <div v-else :class="[isFullWidth ? '' : 'ml-auto']"><span class="text-gray-500"></span></div>
           <!-- Arrow -->
           <i
             class="fas fa-arrow-right-long text-sm text-gray-400"
-            :class="[isFullWidth ? 'rotate-90 text-center' : '']"
+            :class="[isFullWidth ? 'my-0.5 rotate-90 text-center' : '']"
           />
           <!-- New -->
           <component
             :is="getViewComponent(viewType)"
             v-if="newValue != null"
-            :class="['ml-auto flex-shrink-0', isFullWidth ? '' : '']"
-            :style="{ width: isFullWidth ? '100%' : 'calc(45%)' }"
+            :class="[isFullWidth ? '' : '']"
+            :style="{ width: isFullWidth ? '100%' : '' }"
             v-bind="viewProps"
             :model-value="newValue"
           />
@@ -129,7 +137,7 @@ defineExpose<ViewExposed>({ self, id });
     </div>
     <div v-else>
       <!-- maybe show full node? paths? -->
-      <span class="text-gray-500">No Changes</span>
+      <span class="text-gray-600">No Changes</span>
     </div>
     <!-- ... context, details, etc. -->
   </div>

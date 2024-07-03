@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.07.02.0"
+VERSION = "2024.07.03.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -986,7 +986,7 @@ class RunErrorKind(betterproto.Enum):
 
 class RunErrorType(betterproto.Enum):
     UNSPECIFIED = 0
-    NO_RUNTIME_AVAILABLE = 1
+    RUNTIME_UNAVAILABLE = 1
 
 
 class RunKind(betterproto.Enum):

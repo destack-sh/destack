@@ -929,7 +929,7 @@ enum RunErrorKind {
 
 enum RunErrorType {
   RUN_ERROR_TYPE_UNSPECIFIED = 0;
-  RUN_ERROR_TYPE_NO_RUNTIME_AVAILABLE = 1;
+  RUN_ERROR_TYPE_RUNTIME_UNAVAILABLE = 1;
 }
 
 enum RunKind {
