@@ -117,16 +117,9 @@ class Block(SourceNode[BlockData], HasValues):
     is_page: bool = p_regular(
         61, default=False, description="Whether to consider this block to be its own page."
     )
-    is_protocol: bool = p_regular(
-        62, default=False, description="Whether this block defines a protocol to conform to."
-    )
-    is_template: bool = p_regular(
-        63, default=False, description="Whether this as a template to instantiate."
-    )
     is_paused: bool = p_regular(
         64, default=False, description="Whether to pause any runtime activity within this block."
     )
-    is_materialized: bool = p_regular(65, default=False)
     # is_method? (bound to instances of parent)
     # is_unique? (by name in parent module, like in Godot)
     # is_frozen? (read-only in instances of template)
@@ -143,10 +136,6 @@ class Block(SourceNode[BlockData], HasValues):
     ) -> None:
         if self.type == BlockType.PAGE and not self.is_page:
             invalid(self, "type=Page must have is_page=True", (Block.type, Block.is_page))
-        elif self.type == BlockType.PROTOCOL and not self.is_protocol:
-            invalid(
-                self, "type=Protocol must have is_protocol=True", (Block.type, Block.is_protocol)
-            )
 
     def __content_str__(self):
         return ""  # implemented by dynamic components

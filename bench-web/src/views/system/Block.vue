@@ -83,19 +83,6 @@ const actions: Partial<ActionMapImplementation<"common">> & ActionMapImplementat
     isChecked: () => block.value?.isPage ?? false,
     action: () => pkgConnection.tx.update(block.value!, { isPage: !block.value!.isPage }, { debounce: "tick" }),
   },
-  "block.edit.isProtocol": {
-    isChecked: () => block.value?.isProtocol ?? false,
-    action: () => pkgConnection.tx.update(block.value!, { isProtocol: !block.value!.isProtocol }, { debounce: "tick" }),
-  },
-  "block.edit.isTemplate": {
-    isChecked: () => block.value?.isTemplate ?? false,
-    action: () => pkgConnection.tx.update(block.value!, { isTemplate: !block.value!.isTemplate }, { debounce: "tick" }),
-  },
-  "block.edit.isMaterialized": {
-    isChecked: () => block.value?.isMaterialized ?? false,
-    action: () =>
-      pkgConnection.tx.update(block.value!, { isMaterialized: !block.value!.isMaterialized }, { debounce: "tick" }),
-  },
   "block.edit.isPaused": {
     isChecked: () => block.value?.isPaused ?? false,
     action: () => pkgConnection.tx.update(block.value!, { isPaused: !block.value!.isPaused }, { debounce: "tick" }),

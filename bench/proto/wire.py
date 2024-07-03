@@ -170,6 +170,9 @@ class BenchType(betterproto.Enum):
     ACCESS_ZONE = 10104
     ACCESS_MATRIX = 10105
     ACCESS = 10107
+    TEXT = 10150
+    TEXT_LINE = 10151
+    TEXT_SPAN = 10152
     TYPE_INFO = 10200
     TYPE_CONSTRAINT = 10201
     SCHEDULE = 10202
@@ -189,9 +192,7 @@ class BenchType(betterproto.Enum):
     RUN_ERROR = 10450
     RUN_OPTIONS = 10451
     RETRY_ATTEMPT = 10452
-    TEXT = 10500
-    TEXT_LINE = 10501
-    TEXT_SPAN = 10502
+    BREAKPOINT = 10453
     COLOR = 11000
     FONT = 11001
     BOX = 11002
@@ -262,6 +263,8 @@ class BenchType(betterproto.Enum):
     SESSION_STATUS = 20508
     TRIGGER_TYPE = 20509
     NOTIFICATION_KIND = 20510
+    BREAKPOINT_KIND = 20511
+    BREAKPOINT_ACTION = 20512
     SPACE_TYPE = 21000
     VIEW_TYPE = 21001
     VARIANT = 21002
@@ -299,6 +302,19 @@ class BlockType(betterproto.Enum):
     VIEW = 70
     ROLE = 90
     IDENTITY = 91
+
+
+class BreakpointAction(betterproto.Enum):
+    UNSPECIFIED = 0
+    SUSPEND = 1
+
+
+class BreakpointKind(betterproto.Enum):
+    UNSPECIFIED = 0
+    START_RUN = 1
+    FAIL_RUN = 2
+    COMPLETE_RUN = 3
+    CODE_LINE = 20
 
 
 class ChangeCategory(betterproto.Enum):
@@ -484,6 +500,8 @@ class EnumType(betterproto.Enum):
     SESSION_STATUS = 20508
     TRIGGER_TYPE = 20509
     NOTIFICATION_KIND = 20510
+    BREAKPOINT_KIND = 20511
+    BREAKPOINT_ACTION = 20512
     SPACE_TYPE = 21000
     VIEW_TYPE = 21001
     VARIANT = 21002
@@ -562,6 +580,7 @@ class FieldZone(betterproto.Enum):
     INPUT = 3
     OUTPUT = 4
     OPTION = 5
+    RUNTIME = 6
 
 
 class FileRetentionMode(betterproto.Enum):
@@ -814,6 +833,9 @@ class ObjectType(betterproto.Enum):
     ACCESS_ZONE = 10104
     ACCESS_MATRIX = 10105
     ACCESS = 10107
+    TEXT = 10150
+    TEXT_LINE = 10151
+    TEXT_SPAN = 10152
     TYPE_INFO = 10200
     TYPE_CONSTRAINT = 10201
     SCHEDULE = 10202
@@ -833,9 +855,7 @@ class ObjectType(betterproto.Enum):
     RUN_ERROR = 10450
     RUN_OPTIONS = 10451
     RETRY_ATTEMPT = 10452
-    TEXT = 10500
-    TEXT_LINE = 10501
-    TEXT_SPAN = 10502
+    BREAKPOINT = 10453
     COLOR = 11000
     FONT = 11001
     BOX = 11002
@@ -1106,6 +1126,20 @@ class Spacing(betterproto.Enum):
 
 class StepType(betterproto.Enum):
     UNSPECIFIED = 0
+    START = 1
+    COMPLETE = 2
+    RUN = 20
+    CODE = 21
+    TEXT = 22
+    SEND = 23
+    BRANCH = 40
+    FILTER = 41
+    LOOP = 42
+    MERGE = 43
+    SPLIT = 44
+    FLATTEN = 46
+    ACCUMULATE = 47
+    REDUCE = 48
 
 
 class StructType(betterproto.Enum):
@@ -1129,6 +1163,9 @@ class StructType(betterproto.Enum):
     ACCESS_ZONE = 10104
     ACCESS_MATRIX = 10105
     ACCESS = 10107
+    TEXT = 10150
+    TEXT_LINE = 10151
+    TEXT_SPAN = 10152
     TYPE_INFO = 10200
     TYPE_CONSTRAINT = 10201
     SCHEDULE = 10202
@@ -1148,9 +1185,7 @@ class StructType(betterproto.Enum):
     RUN_ERROR = 10450
     RUN_OPTIONS = 10451
     RETRY_ATTEMPT = 10452
-    TEXT = 10500
-    TEXT_LINE = 10501
-    TEXT_SPAN = 10502
+    BREAKPOINT = 10453
     COLOR = 11000
     FONT = 11001
     BOX = 11002
@@ -1420,6 +1455,20 @@ class BoxData(betterproto.Message):
     height: Optional[int] = betterproto.int32_field(51, optional=True)
     width_relative: Optional[float] = betterproto.float_field(52, optional=True)
     height_relative: Optional[float] = betterproto.float_field(53, optional=True)
+
+
+@dataclass(eq=False, repr=False)
+class BreakpointData(betterproto.Message):
+    """A breakpoint in some context."""
+
+    metatype: "ObjectType" = betterproto.enum_field(1)
+    id: int = betterproto.int32_field(2)
+    parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
+    parent_key: Optional[str] = betterproto.string_field(4, optional=True)
+    order_key: Optional[str] = betterproto.string_field(9, optional=True)
+    kind: "BreakpointKind" = betterproto.enum_field(30)
+    action: "BreakpointAction" = betterproto.enum_field(31)
+    condition: Optional["ExpressionData"] = betterproto.message_field(40, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -1978,6 +2027,7 @@ class RunOptionsData(betterproto.Message):
     max_retry_interval: Optional[float] = betterproto.float_field(35, optional=True)
     jitter: Optional[float] = betterproto.float_field(36, optional=True)
     retry_on: List["RunErrorType"] = betterproto.enum_field(38)
+    breakpoints: List["BreakpointData"] = betterproto.message_field(39)
 
 
 @dataclass(eq=False, repr=False)
@@ -2384,10 +2434,7 @@ class BlockData(betterproto.Message):
     delegated_policies: List["PolicyData"] = betterproto.message_field(49)
     is_builtin: bool = betterproto.bool_field(60)
     is_page: bool = betterproto.bool_field(61)
-    is_protocol: bool = betterproto.bool_field(62)
-    is_template: bool = betterproto.bool_field(63)
     is_paused: bool = betterproto.bool_field(64)
-    is_materialized: bool = betterproto.bool_field(65)
 
 
 @dataclass(eq=False, repr=False)
@@ -3056,7 +3103,6 @@ class RunData(betterproto.Message):
     halted_at: Optional[datetime] = betterproto.message_field(49, optional=True)
     halted_epoch: Optional[int] = betterproto.int32_field(50, optional=True)
     halted_on_run_ptr: Optional["NodeReferenceData"] = betterproto.message_field(51, optional=True)
-    halted_on_trigger: Optional["TriggerInfoData"] = betterproto.message_field(52, optional=True)
     terminated_at: Optional[datetime] = betterproto.message_field(53, optional=True)
     terminated_epoch: Optional[int] = betterproto.int32_field(54, optional=True)
     inputs_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
@@ -3277,7 +3323,7 @@ class StepData(betterproto.Message):
     text: Optional["TextData"] = betterproto.message_field(34, optional=True)
     icon: Optional["IconData"] = betterproto.message_field(35, optional=True)
     run_options: Optional["RunOptionsData"] = betterproto.message_field(36, optional=True)
-    connections: List["PipeData"] = betterproto.message_field(37)
+    incoming_pipes: List["PipeData"] = betterproto.message_field(37)
     value_type: Optional["TypeInfoData"] = betterproto.message_field(40, optional=True)
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         41, optional=True
@@ -3291,9 +3337,8 @@ class StepData(betterproto.Message):
     roles_ptr: List["NodeReferenceData"] = betterproto.message_field(46)
     identity_ptr: Optional["NodeReferenceData"] = betterproto.message_field(47, optional=True)
     policies: List["PolicyData"] = betterproto.message_field(48)
-    position: Optional["OffsetData"] = betterproto.message_field(50, optional=True)
-    background_color: Optional["ColorData"] = betterproto.message_field(51, optional=True)
-    is_template: bool = betterproto.bool_field(60)
+    position: Optional["OffsetData"] = betterproto.message_field(60, optional=True)
+    size: Optional["BoxData"] = betterproto.message_field(61, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -3435,7 +3480,6 @@ class ViewData(betterproto.Message):
     is_disabled: Optional[bool] = betterproto.bool_field(81, optional=True)
     is_input: Optional[bool] = betterproto.bool_field(82, optional=True)
     is_inline: Optional[bool] = betterproto.bool_field(83, optional=True)
-    is_template: Optional[bool] = betterproto.bool_field(84, optional=True)
     is_loading: Optional[bool] = betterproto.bool_field(90, optional=True)
 
 
@@ -5005,6 +5049,9 @@ AnyStructData = Union[
     AccessZoneData,
     AccessMatrixData,
     AccessData,
+    TextData,
+    TextLineData,
+    TextSpanData,
     TypeInfoData,
     TypeConstraintData,
     ScheduleData,
@@ -5024,9 +5071,7 @@ AnyStructData = Union[
     RunErrorData,
     RunOptionsData,
     RetryAttemptData,
-    TextData,
-    TextLineData,
-    TextSpanData,
+    BreakpointData,
     ColorData,
     FontData,
     BoxData,

@@ -152,9 +152,6 @@ export const ACTION_BUILTIN_IDS = [
   "type.edit.isSecret",
   // block
   "block.edit.isPage",
-  "block.edit.isProtocol",
-  "block.edit.isTemplate",
-  "block.edit.isMaterialized",
   "block.edit.isPaused",
   // message
   "message.handle.startThread",
@@ -812,24 +809,6 @@ declareActionMap<"block">({
     title: "Page",
     text: "Mark this block as a page",
   },
-  "block.edit.isProtocol": {
-    type: "toggle",
-    icon: "fas fa-list-check",
-    title: "Protocol",
-    text: "Mark this block as a protocol",
-  },
-  "block.edit.isTemplate": {
-    type: "toggle",
-    icon: "fas fa-puzzle-piece",
-    title: "Template",
-    text: "Mark this block as a template",
-  },
-  "block.edit.isMaterialized": {
-    type: "toggle",
-    icon: "fas fa-cube",
-    title: "Materialized",
-    text: "Mark this block as materialized",
-  },
   "block.edit.isPaused": {
     type: "toggle",
     icon: "fas fa-pause",
@@ -1184,7 +1163,6 @@ contributeActionMap<"developer">({
           packagePtr: packagePtr.value!,
           type,
           isPage: type == BlockType.PAGE,
-          isProtocol: type == BlockType.PROTOCOL,
           name,
           orderKey: generateOrderKey(prevOrderKey, null),
         });

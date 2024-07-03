@@ -18,14 +18,20 @@ from bench.language.value import HasValues
 from bench.proto.wire import AnyNodeData, MessageData, NodeReferenceData
 
 if TYPE_CHECKING:
-    from bench.language import Block, NodeReference, Package, Path, Text, ValueObject
+    from bench.language import Block, NodeReference, Package, Path, Step, Text, ValueObject, View
 
 # pyright: reportIncompatibleVariableOverride=false
 
 logger = structlog.get_logger(__name__)
 
-MessageParent = Union["Package", "Block", "Message"]
-MESSAGE_PARENT_TYPES: tuple[NodeType, ...] = (NodeType.PACKAGE, NodeType.BLOCK, NodeType.MESSAGE)
+MessageParent = Union["Package", "Block", "View", "Step", "Message"]
+MESSAGE_PARENT_TYPES: tuple[NodeType, ...] = (
+    NodeType.PACKAGE,
+    NodeType.BLOCK,
+    NodeType.VIEW,
+    NodeType.STEP,
+    NodeType.MESSAGE,
+)
 
 
 @timed_node(NodeType.MESSAGE)

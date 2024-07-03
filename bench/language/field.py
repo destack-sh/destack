@@ -474,7 +474,7 @@ class Field(SourceNode[FieldData], HasNodeBase, TypeInfoBase, _TypeQueryBuilder)
     value: Any = p_value_runtime(35, typ=None)  # freely typed?
 
     # type identity
-    # ...TypeInfo
+    # ...TypeInfo[40-69]
 
     # field-only flags
     # is_indexed: bool = ... # for database fields
@@ -579,3 +579,7 @@ class Field(SourceNode[FieldData], HasNodeBase, TypeInfoBase, _TypeQueryBuilder)
     @staticmethod
     def output(name: str, typ: TypeIn, **kwargs) -> "Field":
         return Field.new(name, typ, zone=FieldZone.OUTPUT, **kwargs)
+
+    @staticmethod
+    def runtime(name: str, typ: TypeIn, **kwargs) -> "Field":
+        return Field.new(name, typ, zone=FieldZone.RUNTIME, **kwargs)

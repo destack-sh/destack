@@ -460,7 +460,7 @@ class View(SourceNode[ViewData], HasValues):
     is_disabled: Optional[bool] = p_regular(81, default=False)
     is_input: Optional[bool] = p_regular(82, default=False)
     is_inline: Optional[bool] = p_regular(83, default=False)
-    is_template: Optional[bool] = p_regular(84, default=False)
+    ...
     is_loading: Optional[bool] = p_regular(90, default=False)
 
     views: NodeList["View"] = p_node_children(NodeType.VIEW)

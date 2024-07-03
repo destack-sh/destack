@@ -11,7 +11,9 @@ from bench.language.node import (
     HasNodeBase,
     HasPersistentIdentity,
     HasTimeIdentity,
+    InlineStruct,
     PackageNode,
+    object_component,
     timed_node,
 )
 from bench.language.property import (
@@ -80,3 +82,15 @@ class Notification(
     @staticmethod
     def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]:
         return (cast(NotificationData, data)).type_ptr
+
+
+#
+# Custom notification states
+#
+
+
+@object_component()
+class NotificationState(InlineStruct):
+    """Builtin special Value as the state of some specific notification type (in Notification.value)."""
+
+    pass

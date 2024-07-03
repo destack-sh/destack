@@ -366,7 +366,7 @@ export function typeIndex(options: {
         metatypes: [NodeType.BLOCK],
         filter: (node) => {
           const block = node as BlockData;
-          return TYPE_BLOCK_TYPES.includes(block.type) || block.isProtocol || block.isTemplate;
+          return TYPE_BLOCK_TYPES.includes(block.type);
         },
         skipDepth: options.skipDepth,
         maxDepth: options.maxDepth,
