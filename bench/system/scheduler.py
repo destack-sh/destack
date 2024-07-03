@@ -10,6 +10,7 @@ from bench.language.const import NodeType, RunStatus
 from bench.language.run import Run, RunError, RunErrorKind, RunErrorType
 from bench.language.session import Session
 from bench.language.signal import Signal
+from bench.language.text import Text
 from bench.language.trigger import Trigger
 from bench.proto.services import get_channel_cached
 from bench.proto.wire import QueueRunRequest, RuntimeClient
@@ -89,7 +90,12 @@ class QueueRunPlugin(HostPlugin[Run]):
         # failed to queue run
         if not op.retry.should_retry:
             # give up and mark run as failed
-            error = RunError(kind=RunErrorKind.INTERNAL, type=RunErrorType.NO_RUNTIME_AVAILABLE)
+            error = RunError(
+                kind=RunErrorKind.INTERNAL,
+                type=RunErrorType.RUNTIME_UNAVAILABLE,
+                title="Failed to queue run",
+                text=Text.from_markdown("Failed to queue run on *any* available machine."),
+            )
             async with self.host.session(autocommit=True):
                 run.fail(error)
             log.error(

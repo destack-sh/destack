@@ -3,9 +3,9 @@ import { ViewData, NodeType, CodeData, Variant } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { ViewContentWrapper, makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import { canvas } from "@/system/space";
-import { onBeforeUnmount, ref, toRef, watch } from "vue";
+import { computed, onBeforeUnmount, ref, toRef, watch } from "vue";
 import { EditorView, keymap, lineNumbers } from "@codemirror/view";
-import { EditorState } from "@codemirror/state";
+import { EditorState, StateEffect } from "@codemirror/state";
 import { useDropZone } from "@/utils/drag";
 import type { ActionMapImplementation } from "@/system/action";
 import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/utils/menu";
@@ -32,18 +32,35 @@ let view: EditorView | null = null;
 let lastAppliedModelValue: CodeData | null = null;
 
 function makeEditorState(code?: CodeData): EditorState {
-  return EditorState.create({
-    doc: code != null ? mapCodeToCmDoc(code) : undefined,
-    extensions: [
-      EditorView.lineWrapping,
-      syntaxHighlighting(defaultHighlightStyle),
-      autocompletion({}),
-      lineNumbers(),
-      python(),
-      indentUnit.of("    "), // 4 spaces
-      keymap.of([commands.indentWithTab]),
-    ],
+  const baseExtensions = [
+    EditorView.lineWrapping,
+    syntaxHighlighting(defaultHighlightStyle),
+    autocompletion({}),
+    lineNumbers(),
+    python(),
+    indentUnit.of("    "), // 4 spaces
+    keymap.of([commands.indentWithTab]),
+  ];
+  const dynamicExtensions = computed(() => {
+    const extensions = [];
+    if (!props.isInput) {
+      extensions.push(EditorView.editable.of(false));
+    }
+    return extensions;
   });
+
+  const state = EditorState.create({
+    doc: code != null ? mapCodeToCmDoc(code) : undefined,
+    extensions: baseExtensions.concat(dynamicExtensions.value),
+  });
+  watch(dynamicExtensions, () => {
+    if (view?.state !== state) return;
+    view.dispatch({
+      effects: StateEffect.reconfigure.of(baseExtensions.concat(dynamicExtensions.value)),
+    });
+  });
+
+  return state;
 }
 
 function makeEditorView(): EditorView {

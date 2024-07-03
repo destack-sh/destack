@@ -9418,9 +9418,9 @@ export enum RunErrorType {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: RUN_ERROR_TYPE_NO_RUNTIME_AVAILABLE = 1;
+     * @generated from protobuf enum value: RUN_ERROR_TYPE_RUNTIME_UNAVAILABLE = 1;
      */
-    NO_RUNTIME_AVAILABLE = 1
+    RUNTIME_UNAVAILABLE = 1
 }
 /**
  * @generated from protobuf enum symbolx.bench.RunKind

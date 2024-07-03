@@ -280,7 +280,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
 </script>
 <template>
   <ViewContentWrapper v-bind="props">
-    <!-- TODO :UX: Text menus (insert, morph, bubble, etc.) -->
+    <!-- NOTE :UX :Incomplete: Text menus (insert, morph, bubble, etc.) -->
     <!-- NOTE: textRef must be in a stable fragment to mount the editor view -->
     <div
       ref="textRef"

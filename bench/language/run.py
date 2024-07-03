@@ -79,7 +79,7 @@ class RetryAttempt(Struct):
 
 @enum_(EnumType.RUN_ERROR_TYPE)
 class RunErrorType(IdEnum):
-    NO_RUNTIME_AVAILABLE = 1
+    RUNTIME_UNAVAILABLE = 1
 
 
 @struct_(StructType.RUN_ERROR)
