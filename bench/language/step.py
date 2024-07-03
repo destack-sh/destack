@@ -1,9 +1,9 @@
-from typing import TYPE_CHECKING, Any, Optional, Union, final
+from typing import TYPE_CHECKING, Any, Optional, Union, cast, final
 
 from bench.language.const import EnumType, FieldZone, NodeType, StructType, enum_
 from bench.language.graph import NodeList
 from bench.language.issue import Issue
-from bench.language.node import SourceNode, Struct, node_, struct_
+from bench.language.node import InlineStruct, SourceNode, Struct, node_, object_component, struct_
 from bench.language.property import (
     p_internal,
     p_node_children,
@@ -22,8 +22,8 @@ from bench.utils.func import IdEnum
 if TYPE_CHECKING:
     from bench.language import (
         Block,
+        Box,
         Code,
-        Color,
         Expression,
         Field,
         Icon,
@@ -40,22 +40,38 @@ if TYPE_CHECKING:
 
 @enum_(EnumType.STEP_TYPE)
 class StepType(IdEnum):
-    # START = 1
-    # COMPLETE = 2
+    # terminal
+    START = 1
+    COMPLETE = 2
+    # TRIGGER
+    # VALUE
 
-    # TRIGGER = 10
+    # run
+    RUN = 20  # (block)
+    CODE = 21
+    TEXT = 22
+    SEND = 23  # (signal)
+    # YIELD/SUSPEND
+    # APPLY
+    # WAIT/DELAY?
 
-    # MAP = 3
-    # RUN = 20
-    # SEND = 22
-    # VALUE = 2
-    # YIELD
+    # logical
+    BRANCH = 40
+    FILTER = 41
+    LOOP = 42
+    MERGE = 43
+    SPLIT = 44
+    # GROUP?
+    FLATTEN = 46
+    ACCUMULATE = 47
+    REDUCE = 48
 
-    # BRANCH = 30
-    # FILTER = 31
-    # LOOP = 32
+    # TELEPORT?
+    # DEBOUNCE?
+    # THROTTLE?
 
-    # GROUP = 50
+    # organization
+    # GROUP
 
     ...
 
@@ -95,13 +111,13 @@ class Step(SourceNode[StepData], HasValues):
     run_options: Optional["RunOptions"] = p_regular(
         36, default=None, require=False, array=False, struct=StructType.RUN_OPTIONS
     )
-    connections: list[Pipe] = p_regular(37, array=True, struct=StructType.PIPE)
+    incoming_pipes: list[Pipe] = p_regular(37, array=True, struct=StructType.PIPE)
 
     # content
     value_type: Optional["TypeInfo"] = p_regular(40, default=None, struct=StructType.TYPE_INFO)
     value_packed: Any = p_value_packed(41)
     secret_value_packed: Any = p_secret_value_packed(42)
-    value: Any = p_value_runtime(41, 42, typ=None)  # freely typed?
+    value: Any = p_value_runtime(41, 42, typ=lambda self: cast("Step", self).value_type)
     node: Union["Block", "Step", "Trigger", None] = p_regular(
         43, require=False, references=(NodeType.BLOCK, NodeType.STEP, NodeType.TRIGGER)
     )
@@ -115,16 +131,16 @@ class Step(SourceNode[StepData], HasValues):
     identity: Optional["Block"] = p_regular(47, require=False, references=NodeType.BLOCK)
     policies: list["Policy"] = p_regular(48, require=False, array=True, struct=StructType.POLICY)
 
-    # layout/style ('view')
+    # layout/style ('mini-view')
     position: Optional["Offset"] = p_regular(
-        50, default=None, require=False, array=False, struct=StructType.OFFSET
+        60, default=None, require=False, array=False, struct=StructType.OFFSET
     )
-    background_color: Optional["Color"] = p_regular(
-        51, default=None, require=False, array=False, struct=StructType.COLOR
+    size: Optional["Box"] = p_regular(
+        61, default=None, require=False, array=False, struct=StructType.BOX
     )
 
     # flags
-    is_template: bool = p_regular(60, default=False)
+    ...
 
     steps: NodeList["Step"] = p_node_children(NodeType.STEP)
     fields: NodeList["Field"] = p_node_children(NodeType.FIELD)
@@ -137,3 +153,15 @@ class Step(SourceNode[StepData], HasValues):
     def to_type(self, as_object: bool = True, zone: FieldZone | None = None):
         """Gets a type represented by this Step (if any)"""
         raise NotImplementedError
+
+
+#
+# Custom view states
+#
+
+
+@object_component()
+class StepState(InlineStruct):
+    """Builtin special Value as the state of some specific step type (in Step.value)."""
+
+    pass

@@ -4,7 +4,14 @@ import structlog
 
 from bench.language.const import NodeType
 from bench.language.field import TypeInfoBase
-from bench.language.node import HasNodeBase, HasTimeIdentity, PackageNode, timed_node
+from bench.language.node import (
+    HasNodeBase,
+    HasTimeIdentity,
+    InlineStruct,
+    PackageNode,
+    object_component,
+    timed_node,
+)
 from bench.language.property import (
     p_internal,
     p_node_parent,
@@ -57,3 +64,15 @@ class Signal(PackageNode[SignalData], HasTimeIdentity, HasNodeBase, HasSessionCo
     @staticmethod
     def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]:
         return (cast(SignalData, data)).type_ptr
+
+
+#
+# Custom signal states
+#
+
+
+@object_component()
+class SignalState(InlineStruct):
+    """Builtin special Value as the state of some specific signal type (in Signal.value)."""
+
+    pass

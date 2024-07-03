@@ -455,10 +455,7 @@ BLOCK_TABLE = Table(
         Column("delegated_policies", PrimitiveType.JSON, is_array=True, is_nullable=True),
         Column("is_builtin", PrimitiveType.BOOLEAN, default="false"),
         Column("is_page", PrimitiveType.BOOLEAN, default="false"),
-        Column("is_protocol", PrimitiveType.BOOLEAN, default="false"),
-        Column("is_template", PrimitiveType.BOOLEAN, default="false"),
         Column("is_paused", PrimitiveType.BOOLEAN, default="false"),
-        Column("is_materialized", PrimitiveType.BOOLEAN, default="false"),
     ),
 )
 
@@ -661,7 +658,6 @@ VIEW_TABLE = Table(
         Column("is_disabled", PrimitiveType.BOOLEAN, is_nullable=True, default="false"),
         Column("is_input", PrimitiveType.BOOLEAN, is_nullable=True, default="false"),
         Column("is_inline", PrimitiveType.BOOLEAN, is_nullable=True, default="false"),
-        Column("is_template", PrimitiveType.BOOLEAN, is_nullable=True, default="false"),
         Column("is_loading", PrimitiveType.BOOLEAN, is_nullable=True, default="false"),
     ),
 )
@@ -702,7 +698,7 @@ STEP_TABLE = Table(
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("icon", PrimitiveType.JSON, is_nullable=True),
         Column("run_options", PrimitiveType.JSON, is_nullable=True),
-        Column("connections", PrimitiveType.JSON, is_array=True),
+        Column("incoming_pipes", PrimitiveType.JSON, is_array=True),
         Column("value_type", PrimitiveType.JSON, is_nullable=True),
         Column("value_packed", PrimitiveType.JSON, is_nullable=True),
         Column("secret_value_packed", PrimitiveType.JSON, is_nullable=True, is_encrypted=True),
@@ -720,8 +716,7 @@ STEP_TABLE = Table(
         Column("identity_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("policies", PrimitiveType.JSON, is_array=True, is_nullable=True),
         Column("position", PrimitiveType.JSON, is_nullable=True),
-        Column("background_color", PrimitiveType.JSON, is_nullable=True),
-        Column("is_template", PrimitiveType.BOOLEAN, default="false"),
+        Column("size", PrimitiveType.JSON, is_nullable=True),
     ),
 )
 
@@ -938,7 +933,6 @@ RUN_TABLE = Table(
         Column("halted_epoch", PrimitiveType.INT32, is_nullable=True),
         Column("halted_on_run_id", PrimitiveType.UUID, is_nullable=True),
         Column("halted_on_run_base_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("halted_on_trigger", PrimitiveType.JSON, is_nullable=True),
         Column("terminated_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("terminated_epoch", PrimitiveType.INT32, is_nullable=True),
         Column("inputs_packed", PrimitiveType.JSON, is_nullable=True),

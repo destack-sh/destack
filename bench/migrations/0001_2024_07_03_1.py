@@ -1,8 +1,8 @@
-# This migration was automatically generated on 2024.06.27. Edit as needed.
+# This migration was automatically generated on 2024.07.03. Edit as needed.
 import psycopg
 
 ID = 1
-VERSION = "2024.06.27.0"
+VERSION = "2024.07.03.1"
 HAS_GLOBAL = True
 HAS_LOCAL = True
 
@@ -13,9 +13,9 @@ HAS_LOCAL = True
 
 
 async def upgrade_global(cur: psycopg.AsyncCursor):
+    await cur.execute('CREATE EXTENSION IF NOT EXISTS "bloom"')
     await cur.execute('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"')
     await cur.execute('CREATE EXTENSION IF NOT EXISTS "pgcrypto"')
-    await cur.execute('CREATE EXTENSION IF NOT EXISTS "bloom"')
 
     # bench_migration
     await cur.execute(
@@ -200,42 +200,6 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         "dependency_scopes_id" uuid[] NOT NULL,
         "dependency_scopes_ck" uuid[] NOT NULL,
         "dependency_scopes_bench_id" uuid[] NOT NULL
-    )
-    """
-    )
-
-    # bench_upgrade
-    await cur.execute(
-        """
-    CREATE TABLE "bench_upgrade" (
-        "id" uuid NOT NULL PRIMARY KEY,
-        "ck" uuid NOT NULL,
-        "parent_id" uuid NOT NULL,
-        "package_id" uuid NOT NULL,
-        "bench_id" uuid NOT NULL,
-        "template_id" uuid,
-        "template_ck" uuid,
-        "template_bench_id" uuid,
-        "templated_epoch" bigint,
-        "revision" bigint NOT NULL,
-        "created_at" timestamp NOT NULL,
-        "created_epoch" bigint NOT NULL,
-        "updated_at" timestamp NOT NULL,
-        "updated_epoch" bigint NOT NULL,
-        "deleted_at" timestamp,
-        "archived_at" timestamp,
-        "created_by_id" uuid,
-        "created_by_ck" uuid,
-        "created_by_type" smallint,
-        "created_by_base_ck" uuid,
-        "updated_by_id" uuid,
-        "updated_by_ck" uuid,
-        "updated_by_type" smallint,
-        "updated_by_base_ck" uuid,
-        "set_properties" integer[] NOT NULL,
-        "name" varchar NOT NULL,
-        "title" varchar,
-        "text" jsonb
     )
     """
     )
@@ -431,10 +395,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         "delegated_policies" jsonb[],
         "is_builtin" boolean NOT NULL DEFAULT false,
         "is_page" boolean NOT NULL DEFAULT false,
-        "is_protocol" boolean NOT NULL DEFAULT false,
-        "is_template" boolean NOT NULL DEFAULT false,
-        "is_paused" boolean NOT NULL DEFAULT false,
-        "is_materialized" boolean NOT NULL DEFAULT false
+        "is_paused" boolean NOT NULL DEFAULT false
     )
     """
     )
@@ -447,7 +408,6 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         "ck" uuid NOT NULL,
         "parent_id" uuid NOT NULL,
         "parent_ck" uuid NOT NULL,
-        "parent_type" smallint NOT NULL,
         "package_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
         "template_id" uuid,
@@ -646,7 +606,6 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         "is_disabled" boolean DEFAULT false,
         "is_input" boolean DEFAULT false,
         "is_inline" boolean DEFAULT false,
-        "is_template" boolean DEFAULT false,
         "is_loading" boolean DEFAULT false
     )
     """
@@ -689,7 +648,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         "text" jsonb,
         "icon" jsonb,
         "run_options" jsonb,
-        "connections" jsonb[] NOT NULL,
+        "incoming_pipes" jsonb[] NOT NULL,
         "value_type" jsonb,
         "value_packed" jsonb,
         "secret_value_packed" bytea,
@@ -699,9 +658,15 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         "node_bench_id" uuid,
         "code" jsonb,
         "condition" jsonb,
+        "roles_id" uuid[],
+        "roles_ck" uuid[],
+        "roles_bench_id" uuid[],
+        "identity_id" uuid,
+        "identity_ck" uuid,
+        "identity_bench_id" uuid,
+        "policies" jsonb[],
         "position" jsonb,
-        "background_color" jsonb,
-        "is_template" boolean NOT NULL DEFAULT false
+        "size" jsonb
     )
     """
     )
@@ -1279,12 +1244,12 @@ async def downgrade_global(cur: psycopg.AsyncCursor):
 
 
 async def upgrade_local(cur: psycopg.AsyncCursor):
-    await cur.execute('CREATE EXTENSION IF NOT EXISTS "timescaledb"')
-    await cur.execute('CREATE EXTENSION IF NOT EXISTS "bloom"')
-    await cur.execute('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"')
-    await cur.execute('CREATE EXTENSION IF NOT EXISTS "pg_trgm"')
-    await cur.execute('CREATE EXTENSION IF NOT EXISTS "plpgsql"')
     await cur.execute('CREATE EXTENSION IF NOT EXISTS "pgcrypto"')
+    await cur.execute('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"')
+    await cur.execute('CREATE EXTENSION IF NOT EXISTS "bloom"')
+    await cur.execute('CREATE EXTENSION IF NOT EXISTS "plpgsql"')
+    await cur.execute('CREATE EXTENSION IF NOT EXISTS "pg_trgm"')
+    await cur.execute('CREATE EXTENSION IF NOT EXISTS "timescaledb"')
 
     # bench_migration
     await cur.execute(
@@ -1385,7 +1350,7 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         "updated_by_type" smallint,
         "updated_by_base_ck" uuid,
         "kind" smallint NOT NULL,
-        "root_id" uuid NOT NULL,
+        "root_id" uuid,
         "root_base_ck" uuid,
         "code" jsonb,
         "text" jsonb,
@@ -1393,11 +1358,16 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         "status" smallint NOT NULL DEFAULT 1,
         "current_status" smallint,
         "duration" real,
+        "attempts" jsonb[] NOT NULL,
+        "error" jsonb,
         "scheduled_at" timestamp,
         "scheduled_epoch" integer,
         "started_at" timestamp,
         "started_epoch" integer,
-        "paused_at" timestamp,
+        "halted_at" timestamp,
+        "halted_epoch" integer,
+        "halted_on_run_id" uuid,
+        "halted_on_run_base_ck" uuid,
         "terminated_at" timestamp,
         "terminated_epoch" integer,
         "inputs_packed" jsonb,
@@ -1406,8 +1376,6 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         "outputs_secret_packed" bytea,
         "value_packed" jsonb,
         "value_secret_packed" bytea,
-        "attempts" jsonb[] NOT NULL,
-        "error" jsonb,
         "block_id" uuid,
         "block_ck" uuid,
         "block_bench_id" uuid,
@@ -1505,6 +1473,7 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         "updated_by_base_ck" uuid,
         "kind" smallint NOT NULL,
         "level" smallint NOT NULL DEFAULT 3,
+        "change_id" uuid,
         "type" smallint,
         "node_id" uuid,
         "node_ck" uuid,
@@ -1516,11 +1485,8 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         "new_node_packed" jsonb,
         "new_node_secret_packed" bytea,
         "new_revision" bigint,
-        "change_id" uuid,
-        "nodes_id" uuid[],
-        "nodes_ck" uuid[],
-        "nodes_type" smallint[],
-        "nodes_base_ck" uuid[],
+        "category" smallint,
+        "vignette" jsonb,
         "block_id" uuid,
         "block_ck" uuid,
         "block_bench_id" uuid,

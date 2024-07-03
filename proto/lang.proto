@@ -135,6 +135,9 @@ enum BenchType {
   BENCH_TYPE_ACCESS_ZONE = 10104;
   BENCH_TYPE_ACCESS_MATRIX = 10105;
   BENCH_TYPE_ACCESS = 10107;
+  BENCH_TYPE_TEXT = 10150;
+  BENCH_TYPE_TEXT_LINE = 10151;
+  BENCH_TYPE_TEXT_SPAN = 10152;
   BENCH_TYPE_TYPE_INFO = 10200;
   BENCH_TYPE_TYPE_CONSTRAINT = 10201;
   BENCH_TYPE_SCHEDULE = 10202;
@@ -154,9 +157,7 @@ enum BenchType {
   BENCH_TYPE_RUN_ERROR = 10450;
   BENCH_TYPE_RUN_OPTIONS = 10451;
   BENCH_TYPE_RETRY_ATTEMPT = 10452;
-  BENCH_TYPE_TEXT = 10500;
-  BENCH_TYPE_TEXT_LINE = 10501;
-  BENCH_TYPE_TEXT_SPAN = 10502;
+  BENCH_TYPE_BREAKPOINT = 10453;
   BENCH_TYPE_COLOR = 11000;
   BENCH_TYPE_FONT = 11001;
   BENCH_TYPE_BOX = 11002;
@@ -227,6 +228,8 @@ enum BenchType {
   BENCH_TYPE_SESSION_STATUS = 20508;
   BENCH_TYPE_TRIGGER_TYPE = 20509;
   BENCH_TYPE_NOTIFICATION_KIND = 20510;
+  BENCH_TYPE_BREAKPOINT_KIND = 20511;
+  BENCH_TYPE_BREAKPOINT_ACTION = 20512;
   BENCH_TYPE_SPACE_TYPE = 21000;
   BENCH_TYPE_VIEW_TYPE = 21001;
   BENCH_TYPE_VARIANT = 21002;
@@ -264,6 +267,19 @@ enum BlockType {
   BLOCK_TYPE_VIEW = 70;
   BLOCK_TYPE_ROLE = 90;
   BLOCK_TYPE_IDENTITY = 91;
+}
+
+enum BreakpointAction {
+  BREAKPOINT_ACTION_UNSPECIFIED = 0;
+  BREAKPOINT_ACTION_SUSPEND = 1;
+}
+
+enum BreakpointKind {
+  BREAKPOINT_KIND_UNSPECIFIED = 0;
+  BREAKPOINT_KIND_START_RUN = 1;
+  BREAKPOINT_KIND_FAIL_RUN = 2;
+  BREAKPOINT_KIND_COMPLETE_RUN = 3;
+  BREAKPOINT_KIND_CODE_LINE = 20;
 }
 
 // Optional classification for edits.
@@ -444,6 +460,8 @@ enum EnumType {
   ENUM_TYPE_SESSION_STATUS = 20508;
   ENUM_TYPE_TRIGGER_TYPE = 20509;
   ENUM_TYPE_NOTIFICATION_KIND = 20510;
+  ENUM_TYPE_BREAKPOINT_KIND = 20511;
+  ENUM_TYPE_BREAKPOINT_ACTION = 20512;
   ENUM_TYPE_SPACE_TYPE = 21000;
   ENUM_TYPE_VIEW_TYPE = 21001;
   ENUM_TYPE_VARIANT = 21002;
@@ -521,6 +539,7 @@ enum FieldZone {
   FIELD_ZONE_INPUT = 3;
   FIELD_ZONE_OUTPUT = 4;
   FIELD_ZONE_OPTION = 5;
+  FIELD_ZONE_RUNTIME = 6;
 }
 
 enum FileRetentionMode {
@@ -769,6 +788,9 @@ enum ObjectType {
   OBJECT_TYPE_ACCESS_ZONE = 10104;
   OBJECT_TYPE_ACCESS_MATRIX = 10105;
   OBJECT_TYPE_ACCESS = 10107;
+  OBJECT_TYPE_TEXT = 10150;
+  OBJECT_TYPE_TEXT_LINE = 10151;
+  OBJECT_TYPE_TEXT_SPAN = 10152;
   OBJECT_TYPE_TYPE_INFO = 10200;
   OBJECT_TYPE_TYPE_CONSTRAINT = 10201;
   OBJECT_TYPE_SCHEDULE = 10202;
@@ -788,9 +810,7 @@ enum ObjectType {
   OBJECT_TYPE_RUN_ERROR = 10450;
   OBJECT_TYPE_RUN_OPTIONS = 10451;
   OBJECT_TYPE_RETRY_ATTEMPT = 10452;
-  OBJECT_TYPE_TEXT = 10500;
-  OBJECT_TYPE_TEXT_LINE = 10501;
-  OBJECT_TYPE_TEXT_SPAN = 10502;
+  OBJECT_TYPE_BREAKPOINT = 10453;
   OBJECT_TYPE_COLOR = 11000;
   OBJECT_TYPE_FONT = 11001;
   OBJECT_TYPE_BOX = 11002;
@@ -1046,6 +1066,20 @@ enum Spacing {
 
 enum StepType {
   STEP_TYPE_UNSPECIFIED = 0;
+  STEP_TYPE_START = 1;
+  STEP_TYPE_COMPLETE = 2;
+  STEP_TYPE_RUN = 20;
+  STEP_TYPE_CODE = 21;
+  STEP_TYPE_TEXT = 22;
+  STEP_TYPE_SEND = 23;
+  STEP_TYPE_BRANCH = 40;
+  STEP_TYPE_FILTER = 41;
+  STEP_TYPE_LOOP = 42;
+  STEP_TYPE_MERGE = 43;
+  STEP_TYPE_SPLIT = 44;
+  STEP_TYPE_FLATTEN = 46;
+  STEP_TYPE_ACCUMULATE = 47;
+  STEP_TYPE_REDUCE = 48;
 }
 
 enum StructType {
@@ -1069,6 +1103,9 @@ enum StructType {
   STRUCT_TYPE_ACCESS_ZONE = 10104;
   STRUCT_TYPE_ACCESS_MATRIX = 10105;
   STRUCT_TYPE_ACCESS = 10107;
+  STRUCT_TYPE_TEXT = 10150;
+  STRUCT_TYPE_TEXT_LINE = 10151;
+  STRUCT_TYPE_TEXT_SPAN = 10152;
   STRUCT_TYPE_TYPE_INFO = 10200;
   STRUCT_TYPE_TYPE_CONSTRAINT = 10201;
   STRUCT_TYPE_SCHEDULE = 10202;
@@ -1088,9 +1125,7 @@ enum StructType {
   STRUCT_TYPE_RUN_ERROR = 10450;
   STRUCT_TYPE_RUN_OPTIONS = 10451;
   STRUCT_TYPE_RETRY_ATTEMPT = 10452;
-  STRUCT_TYPE_TEXT = 10500;
-  STRUCT_TYPE_TEXT_LINE = 10501;
-  STRUCT_TYPE_TEXT_SPAN = 10502;
+  STRUCT_TYPE_BREAKPOINT = 10453;
   STRUCT_TYPE_COLOR = 11000;
   STRUCT_TYPE_FONT = 11001;
   STRUCT_TYPE_BOX = 11002;
@@ -1332,6 +1367,18 @@ message BoxData {
   optional int32 height = 51;
   optional float width_relative = 52;
   optional float height_relative = 53;
+}
+
+// A breakpoint in some context.
+message BreakpointData {
+  ObjectType metatype = 1;
+  int32 id = 2;
+  optional int32 parent_id = 3;
+  optional string parent_key = 4;
+  optional string order_key = 9;
+  BreakpointKind kind = 30;
+  BreakpointAction action = 31;
+  optional ExpressionData condition = 40;
 }
 
 // A change is a sequence of related edits.
@@ -1792,6 +1839,7 @@ message RunOptionsData {
   optional float max_retry_interval = 35;
   optional float jitter = 36;
   repeated RunErrorType retry_on = 38;
+  repeated BreakpointData breakpoints = 39;
 }
 
 // The time-based schedule of something.
@@ -2130,10 +2178,7 @@ message BlockData {
   repeated PolicyData delegated_policies = 49;
   bool is_builtin = 60;
   bool is_page = 61;
-  bool is_protocol = 62;
-  bool is_template = 63;
   bool is_paused = 64;
-  bool is_materialized = 65;
 }
 
 // A branch is a lineage of Bench history.
@@ -2720,7 +2765,6 @@ message RunData {
   optional google.protobuf.Timestamp halted_at = 49;
   optional int32 halted_epoch = 50;
   optional NodeReferenceData halted_on_run_ptr = 51;
-  optional TriggerInfoData halted_on_trigger = 52;
   optional google.protobuf.Timestamp terminated_at = 53;
   optional int32 terminated_epoch = 54;
   optional google.protobuf.Struct inputs_packed = 60;
@@ -2907,7 +2951,7 @@ message StepData {
   optional TextData text = 34;
   optional IconData icon = 35;
   optional RunOptionsData run_options = 36;
-  repeated PipeData connections = 37;
+  repeated PipeData incoming_pipes = 37;
   optional TypeInfoData value_type = 40;
   optional google.protobuf.Struct value_packed = 41;
   optional google.protobuf.Struct secret_value_packed = 42;
@@ -2917,9 +2961,8 @@ message StepData {
   repeated NodeReferenceData roles_ptr = 46;
   optional NodeReferenceData identity_ptr = 47;
   repeated PolicyData policies = 48;
-  optional OffsetData position = 50;
-  optional ColorData background_color = 51;
-  bool is_template = 60;
+  optional OffsetData position = 60;
+  optional BoxData size = 61;
 }
 
 // A trusty Postgres database.
@@ -3051,7 +3094,6 @@ message ViewData {
   optional bool is_disabled = 81;
   optional bool is_input = 82;
   optional bool is_inline = 83;
-  optional bool is_template = 84;
   optional bool is_loading = 90;
 }
 

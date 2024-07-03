@@ -138,6 +138,8 @@ class EnumType(IdEnum):
     SESSION_STATUS = 20508
     TRIGGER_TYPE = 20509
     NOTIFICATION_KIND = 20510
+    BREAKPOINT_KIND = 20511
+    BREAKPOINT_ACTION = 20512
 
     # view
     SPACE_TYPE = 21000
@@ -311,6 +313,11 @@ class StructType(IdEnum):
     ACCESS = 10107
     ...
 
+    # text
+    TEXT = 10150
+    TEXT_LINE = 10151
+    TEXT_SPAN = 10152
+
     # type
     TYPE_INFO = 10200
     TYPE_CONSTRAINT = 10201
@@ -335,9 +342,7 @@ class StructType(IdEnum):
     RUN_ERROR = 10450
     RUN_OPTIONS = 10451
     RETRY_ATTEMPT = 10452
-    TEXT = 10500
-    TEXT_LINE = 10501
-    TEXT_SPAN = 10502
+    BREAKPOINT = 10453
 
     # space/views
     COLOR = 11000
@@ -758,6 +763,7 @@ class FieldZone(IdEnum):
     INPUT = 3
     OUTPUT = 4
     OPTION = 5
+    RUNTIME = 6
 
 
 @enum_(EnumType.TRIGGER_TYPE)
@@ -839,10 +845,12 @@ class RunErrorKind(IdEnum):
 class RunStatus(IdEnum):
     SCHEDULED = 1
     QUEUED = 2
+    # active
     RUNNING = 3
+    # active+halted
     PAUSED = 4
     SUSPENDED = 5
-    # terminal statuses
+    # terminal
     CANCELLED = 6
     ABORTED = 7
     FAILED = 8
@@ -853,17 +861,22 @@ class RunStatus(IdEnum):
         return self in ACTIVE_RUN_STATUSES
 
     @property
+    def is_halted(self) -> bool:
+        return self in HALTED_RUN_STATUSES
+
+    @property
     def is_terminal(self) -> bool:
         return self in TERMINAL_RUN_STATUSES
 
 
+ACTIVE_RUN_STATUSES = bittuple(RunStatus.RUNNING, RunStatus.PAUSED, RunStatus.SUSPENDED)
+HALTED_RUN_STATUSES = bittuple(RunStatus.PAUSED, RunStatus.SUSPENDED)
 TERMINAL_RUN_STATUSES: bittuple[RunStatus] = bittuple(
     RunStatus.CANCELLED,
     RunStatus.ABORTED,
     RunStatus.FAILED,
     RunStatus.COMPLETED,
 )
-ACTIVE_RUN_STATUSES = bittuple(RunStatus.RUNNING, RunStatus.PAUSED, RunStatus.SUSPENDED)
 
 
 @enum_(EnumType.SESSION_STATUS)

@@ -43,7 +43,7 @@ from bench.proto.wire import AnyNodeData, NodeReferenceData, RunData
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
-    from bench.language import Block, NodeReference, Package, TriggerInfo, TypeInfoBase, ValueObject
+    from bench.language import Block, Expression, NodeReference, Package, TypeInfoBase, ValueObject
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -64,9 +64,42 @@ class RunOptions(Struct):
     max_retry_interval: Optional[float] = p_regular(35, constraint=TypeConstraintIn(min_value=0))
     jitter: Optional[float] = p_regular(36, constraint=TypeConstraintIn(min_value=0, max_value=1))
     retry_on: list["RunErrorType"] = p_regular(38, array=True)
+    breakpoints: list["Breakpoint"] = p_regular(39, array=True, struct=StructType.BREAKPOINT)
 
     # flow
     ...
+
+
+@enum_(EnumType.BREAKPOINT_KIND)
+class BreakpointKind(IdEnum):
+    # run
+    START_RUN = 1
+    FAIL_RUN = 2
+    COMPLETE_RUN = 3
+    ...
+    # text
+    ...
+    # code
+    CODE_LINE = 20
+    # step
+    ...
+
+
+@enum_(EnumType.BREAKPOINT_ACTION)
+class BreakpointAction(IdEnum):
+    SUSPEND = 1
+
+
+@struct_(StructType.BREAKPOINT)
+class Breakpoint(Struct):
+    """A breakpoint in some context."""
+
+    kind: BreakpointKind = p_regular(30)
+    action: BreakpointAction = p_regular(31, default=BreakpointAction.SUSPEND)
+
+    condition: Optional["Expression"] = p_regular(
+        40, require=False, array=False, struct=StructType.EXPRESSION
+    )
 
 
 @struct_(StructType.RETRY_ATTEMPT)
@@ -158,9 +191,7 @@ class Run(PackageNode[RunData], HasTimeIdentity, HasNodeBase, HasSessionContext,
     halted_on_run: Optional["Run"] = p_regular(
         51, require=False, array=False, same_bench=True, references=NodeType.RUN
     )
-    halted_on_trigger: Optional["TriggerInfo"] = p_regular(
-        52, require=False, array=False, same_bench=True, struct=StructType.TRIGGER_INFO
-    )
+    # halted_on_trigger: ...
     terminated_at: Optional[datetime] = p_regular(53, default=None)
     terminated_epoch: Optional[int] = p_regular(54, default=None)
     # attempts is populated if the first attempt is not successful

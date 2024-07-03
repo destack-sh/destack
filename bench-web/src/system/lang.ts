@@ -118,6 +118,7 @@ export const CLASSY_BLOCK_TYPES = [
 
 export const TERMINAL_RUN_STATUSES = [RunStatus.CANCELLED, RunStatus.ABORTED, RunStatus.FAILED, RunStatus.COMPLETED];
 export const ACTIVE_RUN_STATUSES = [RunStatus.RUNNING, RunStatus.PAUSED, RunStatus.SUSPENDED];
+export const HALTED_RUN_STATUSES = [RunStatus.PAUSED, RunStatus.SUSPENDED];
 
 export const VIEW_TYPES = Object.values(ViewType).filter((v) => typeof v == "number" && v > 0) as ViewType[];
 export const ROOT_VIEW_TYPES = new Set([ViewType.WINDOW, ViewType.TAB, ViewType.SPLIT]);
@@ -411,8 +412,6 @@ export function onNodeMorphed(tx: Transaction, graph: ReadNodeGraph, node: AnyNo
   // auto update block flags
   if (isNode(node, NodeType.BLOCK)) {
     if (node.type == BlockType.PAGE && !node.isPage) tx.update(node, { isPage: true }, { debounce: "tick" });
-    if (node.type == BlockType.PROTOCOL && !node.isProtocol)
-      tx.update(node, { isProtocol: true }, { debounce: "tick" });
   }
 }
 
@@ -505,7 +504,6 @@ export function createBlock(
     packagePtr,
     type: blockIn.type,
     isPage: blockIn.isPage || blockIn.type == BlockType.PAGE,
-    isProtocol: blockIn.isProtocol || blockIn.type == BlockType.PROTOCOL,
     orderKey,
     name: makeNodeName(graph, { metatype: ObjectType.BLOCK, type: blockIn.type, parentPtr }),
   });
@@ -685,7 +683,7 @@ export const EXPOSED_STRUCT_TYPES = [
   StructType.POLICY,
   StructType.POLICY_RULE,
   // flow
-  StructType.STEP_CONNECTION,
+  StructType.PIPE,
   // text
   StructType.TEXT,
 ];

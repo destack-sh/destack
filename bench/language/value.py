@@ -75,6 +75,7 @@ ValueParent = Union["ValueObject", "BuiltinObject"]
 ValueProperty = Union["Property", "Field"]
 
 # NOTE :Incomplete: handle :SecretValues somehow
+# TODO :Incomplete: handle :FreeformValues
 
 
 class ValueObject(Mapping[str, Any]):

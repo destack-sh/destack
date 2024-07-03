@@ -206,7 +206,7 @@ export const ICON_BY_STRUCT_TYPE: Partial<Record<StructType, IconData>> = _makeI
   [StructType.OFFSET]: "fas fa-arrows-alt",
   [StructType.BOX]: "fas fa-box",
   // flow
-  [StructType.STEP_CONNECTION]: "fas fa-arrow-right",
+  [StructType.PIPE]: "fas fa-arrow-right",
   // text
   [StructType.TEXT]: "fas fa-text",
   [StructType.TEXT_LINE]: "fas fa-grip-lines",
