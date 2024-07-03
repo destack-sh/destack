@@ -70,11 +70,10 @@ const omnibarRef = ref<InstanceType<typeof Omnibar> | null>(null);
 // suppress save everywhere
 const unbind = keytrap.bind(["ctrl+s", "mod+s"], () => {
   toaster.info({
-    key: "space.suppressSave",
+    override: "space.suppressSave",
     icon: "fas fa-floppy-disk",
     title: "No need to save",
     text: "Bench synchronizes automatically.",
-    debounce: true,
   });
   return true;
 });

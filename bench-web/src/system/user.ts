@@ -11,7 +11,14 @@ import {
   UserStatus,
   ViewType,
 } from "@/proto/wire";
-import { EMPTY_SCOPE, makeNode, nodeReference, propertyReference, toNodeReferenceRef, toProtoOneOf } from "@/proto/wiring";
+import {
+  EMPTY_SCOPE,
+  makeNode,
+  nodeReference,
+  propertyReference,
+  toNodeReferenceRef,
+  toProtoOneOf,
+} from "@/proto/wiring";
 import { ACTION_COMING_SOON, contributeActionMap } from "@/system/action";
 import local, { persistentInfo } from "@/system/client";
 import { clearConnections, useGetConnection } from "@/system/connection";
@@ -226,11 +233,10 @@ contributeActionMap<"user">({
     action: async () => {
       if (bench.value?.id == user.value!.mainBenchPtr?.id) {
         toaster.info({
-          key: "user.misc.goToHome",
           icon: "fas fa-home",
           title: "Already Home",
           text: "You are already on your Bench.",
-          debounce: true,
+          override: "user.misc.goToHome",
         });
       } else {
         await goToBench({ bench: user.value!.mainBenchPtr! });

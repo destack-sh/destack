@@ -133,7 +133,8 @@ const operationsTracker = {
     };
     const onError = async (error: RpcError) => {
       const code = error.code;
-      if (!(op.options as OperationMetadata<any>).suppressErrors) {
+      const meta = op.options as OperationMetadata<any>
+      if (!meta.suppressErrors) {
         log.error(rpcName, code, error, op);
         toaster.error(humanizeError(error));
       }

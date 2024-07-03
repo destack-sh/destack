@@ -909,10 +909,9 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
     this.isPaused.value = !this.isPaused.value;
     log.debug("transaction.togglePaused", { scope: this.scope, paused: this.isPaused.value });
     toaster.debug({
-      key: `transaction.togglePaused.${this.id}`,
       title: this.isPaused.value ? "Buffer paused" : "Buffer resumed",
       text: `Buffer ${this.id} is ${this.isPaused.value ? "pausing transactions" : "resuming transactions"}.`,
-      override: true,
+      override: `transaction.togglePaused.${this.id}`,
     });
   }
 

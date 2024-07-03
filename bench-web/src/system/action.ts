@@ -1093,8 +1093,7 @@ contributeActionMap<"developer">({
     action: () => {
       isDeveloperMode.value = !isDeveloperMode.value;
       toaster.info({
-        key: "developer.toggleDeveloperMode",
-        override: true,
+        override: 'developer.toggleDeveloperMode',
         title: isDeveloperMode.value ? "Developer Mode Enabled" : "Developer Mode Disabled",
         text: isDeveloperMode.value ? "Welcome to the dark side." : "Back to the normal side.",
         icon: "fas fa-binary",

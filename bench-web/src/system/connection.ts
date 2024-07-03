@@ -324,10 +324,9 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
     this.isPaused.value = !this.isPaused.value;
     log.debug(`graph.${this.kind}.togglePaused`, { name: this.meta.name, id: this.id, paused: this.isPaused.value });
     toaster.debug({
-      key: `connection.togglePaused:${this.meta.id}`,
       title: this.isPaused.value ? "Connection paused" : "Connection resumed",
       text: `'${this.kind}:${this.meta.name}' is ${this.isPaused.value ? "disconnected" : "reconnected"}.`,
-      override: true,
+      override: `connection.togglePaused:${this.meta.id}`,
     });
   }
 
@@ -390,11 +389,22 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
       if (errorCode) this.onErrorSubs.forEach((sub) => sub(errorCode as GrpcStatusName));
       const retry = shouldRetry(error);
       if (errorCode != lastErrorCode) {
+        const op = `${this.kind}:${this.meta.name}`;
         toaster.error({
-          key: `connection:${this.meta.id}`,
-          title: HUMANIZED_OPERATION_STATUS[(error as RpcError).code] ?? "Server error",
-          text: `'${this.kind}:${this.meta.name}' failed: ${IS_DEV ? error.message : (error as RpcError).code}`,
-          override: true,
+          title: `'${op}' connection failed`,
+          text: `'${op}' failed: ${IS_DEV ? error.message : (error as RpcError).code}`,
+          override: `connection:${this.meta.id}`,
+          summarize: {
+            key: "connection.error",
+            info: [{ op, error: error as RpcError }],
+            title: (infos) => `${infos.length} connections failed`,
+            text: (infos) => {
+              // distinct errors
+              const errors = new Set(infos.map((info) => HUMANIZED_OPERATION_STATUS[info.error.code]));
+              const errorStr = [...errors].join(", ");
+              return `${errorStr}: ${infos.map((info) => `'${info.op}'`).join(", ")}`;
+            },
+          },
         });
         lastErrorCode = errorCode;
       }
@@ -464,10 +474,17 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
           // retry if needed
           if (retryCount > 0) {
             toaster.info({
-              key: `connection:${this.meta.id}`,
               title: "Reconnected",
-              text: `'${this.kind}:${this.meta.name}' reconnected.`,
-              override: true,
+              text: `'${this.kind}:${this.meta.name}' connection restored.`,
+              override: `connection:${this.meta.id}`,
+              summarize: {
+                key: "connection.reconnected",
+                info: [{ name: this.meta.name }],
+                title: (infos) => `${infos.length} connections restored`,
+                text: (infos) => {
+                  return infos.map((info) => `'${info.name}'`).join(", ");
+                },
+              },
             });
             retryCount = 0;
             lastErrorCode = null;
