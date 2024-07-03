@@ -14,6 +14,13 @@ export type ToastAction = {
   action: () => void;
 };
 
+export type ToastSummaryInfo<T> = {
+  key: string;
+  info: T[];
+  title: (infos: T[]) => string;
+  text: (infos: T[]) => string;
+}
+
 // how long toasts remain alive for animations after they expire
 const ZOMBIE_TOAST_DURATION = 1000; // ms
 
@@ -22,7 +29,6 @@ const ZOMBIE_TOAST_DURATION = 1000; // ms
  */
 export type Toast = {
   id: string;
-  key?: string;
   icon?: IconData;
   title: string;
   text?: string | TextData;
@@ -31,6 +37,8 @@ export type Toast = {
   remainingDurationMs: number;
   createdAt: DateTime;
   actions: ToastAction[];
+  override?: string;
+  summarize?: ToastSummaryInfo<any>;
 };
 
 export enum ToastDuration {
@@ -51,11 +59,12 @@ export const DEFAULT_TOAST_DURATION_BY_LEVEL: Record<LogLevel, ToastDuration> = 
   [LogLevel.CRITICAL]: ToastDuration["2xl"],
 };
 
-export type ToastIn = Pick<Toast, "title" | "text" | "level"> &
-  Partial<Pick<Toast, "key" | "actions" | "durationMs">> & {
+export type ToastIn<T> = Pick<Toast, "title" | "text" | "level"> &
+  Partial<Pick<Toast, "actions" | "durationMs">> & {
     icon?: string | IconData;
     debounce?: boolean;
-    override?: boolean;
+    override?: string;
+    summarize?: ToastSummaryInfo<T>;
   };
 
 /** The official container of Toasts */
@@ -70,13 +79,21 @@ export class Toaster {
     return this.toasts.value.filter((t) => t.remainingDurationMs > 0);
   }
 
-  hasActiveKey(key: string): boolean {
-    return this.activeToasts.some((t) => t.key === key);
-  }
-
-  add(toast: ToastIn) {
-    if (toast.debounce && this.hasActiveKey(toast.key!)) return;
-    else if (toast.override) this.toasts.value = this.toasts.value.filter((t) => t.key !== toast.key);
+  add(toast: ToastIn<any>) {
+    if (toast.override) {
+      // remove existing with same override key
+      this.toasts.value = this.toasts.value.filter((t) => t.override != toast.override);
+    }
+    if (toast.summarize) {
+      // augment existing with same summarize key
+      const existing = this.toasts.value.find((t) => t.summarize?.key == toast.summarize?.key);
+      if (existing != null) {
+        existing.summarize!.info.push(...toast.summarize.info);
+        existing.title = toast.summarize.title(existing.summarize!.info);
+        existing.text = toast.summarize.text(existing.summarize!.info);
+        return;
+      }
+    }
     const id = Math.random().toString(36).substring(2);
     const createdAt = DateTime.now();
     const durationMs = toast.durationMs ?? DEFAULT_TOAST_DURATION_BY_LEVEL[toast.level];
@@ -86,27 +103,27 @@ export class Toaster {
     this.toasts.value.push({ ...toast, icon, durationMs, actions, id, createdAt, remainingDurationMs });
   }
 
-  trace(toast: Omit<ToastIn, "level">) {
+  trace(toast: Omit<ToastIn<any>, "level">) {
     this.add({ ...toast, level: LogLevel.TRACE });
   }
 
-  debug(toast: Omit<ToastIn, "level">) {
+  debug(toast: Omit<ToastIn<any>, "level">) {
     this.add({ ...toast, level: LogLevel.DEBUG });
   }
 
-  info(toast: Omit<ToastIn, "level">) {
+  info(toast: Omit<ToastIn<any>, "level">) {
     this.add({ ...toast, level: LogLevel.INFO });
   }
 
-  warning(toast: Omit<ToastIn, "level">) {
+  warning(toast: Omit<ToastIn<any>, "level">) {
     this.add({ ...toast, level: LogLevel.WARNING });
   }
 
-  error(toast: Omit<ToastIn, "level">) {
+  error(toast: Omit<ToastIn<any>, "level">) {
     this.add({ ...toast, level: LogLevel.ERROR });
   }
 
-  critical(toast: Omit<ToastIn, "level">) {
+  critical(toast: Omit<ToastIn<any>, "level">) {
     this.add({ ...toast, level: LogLevel.CRITICAL });
   }
 
