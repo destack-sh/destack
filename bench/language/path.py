@@ -1,7 +1,7 @@
 import re
 from typing import TYPE_CHECKING, Mapping, Optional
 
-from bench.language.const import EnumType, NodeType, StructType, enum_
+from bench.language.const import NODE_TYPES, EnumType, StructType, enum_
 from bench.language.node import InlineStruct, Struct, struct_
 from bench.language.property import p_regular
 from bench.utils.func import IdEnum
@@ -89,15 +89,7 @@ class PathSegment(InlineStruct):
         require=False,
         array=False,
         default=None,
-        references=(
-            NodeType.BENCH,
-            NodeType.ENVIRONMENT,
-            NodeType.BRANCH,
-            NodeType.PACKAGE,
-            NodeType.BLOCK,
-            NodeType.FIELD,
-            NodeType.VIEW,
-        ),
+        references=NODE_TYPES.tuple,
     )
 
 

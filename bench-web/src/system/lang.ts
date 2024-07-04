@@ -93,7 +93,7 @@ export const BASED_NODE_TYPES = [
   NodeType.SIGNAL,
   NodeType.NOTIFICATION,
 ];
-export const RUNTIME_NODE_TYPES = NODE_TYPES.filter((nt) => nt >= 80 && nt < 100);
+export const RUNTIME_NODE_TYPES = NODE_TYPES.filter((nt) => nt >= 1200 && nt < 1300);
 export const TIMED_NODE_TYPES = [
   NodeType.SESSION,
   NodeType.RUN,
@@ -103,8 +103,8 @@ export const TIMED_NODE_TYPES = [
   NodeType.MESSAGE,
 ];
 export const ETERNAL_NODE_TYPES = [NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG];
-export const LOCAL_NODE_TYPES = [...RUNTIME_NODE_TYPES];
-export const SOURCE_NODE_TYPES = NODE_TYPES.filter((nt) => nt >= 20 && nt < 80);
+export const RESOURCE_NODE_TYPES = NODE_TYPES.filter((nt) => nt >= 500 && nt < 600);
+export const SOURCE_NODE_TYPES = NODE_TYPES.filter((nt) => nt >= 1000 && nt < 1200);
 
 export const TYPE_BLOCK_TYPES = [BlockType.CLASS, BlockType.CHOICE, BlockType.SIGNAL, BlockType.DATABASE];
 export const RUNNABLE_BLOCK_TYPES = [BlockType.TEXT, BlockType.CODE, BlockType.FLOW];
@@ -122,8 +122,8 @@ export const HALTED_RUN_STATUSES = [RunStatus.PAUSED, RunStatus.SUSPENDED];
 
 export const VIEW_TYPES = Object.values(ViewType).filter((v) => typeof v == "number" && v > 0) as ViewType[];
 export const ROOT_VIEW_TYPES = new Set([ViewType.WINDOW, ViewType.TAB, ViewType.SPLIT]);
-export const NODE_VIEW_TYPES = new Set(VIEW_TYPES.filter((vt) => vt >= 100 && vt < 150));
-export const HELPER_VIEW_TYPES = new Set(VIEW_TYPES.filter((vt) => vt >= 150 && vt < 200));
+export const NODE_VIEW_TYPES = new Set(VIEW_TYPES.filter((vt) => vt >= 200 && vt < 400));
+export const HELPER_VIEW_TYPES = new Set(VIEW_TYPES.filter((vt) => vt >= 400 && vt < 600));
 
 /**
  * Gets the 'base' node defining a certain node. See :HasBase.

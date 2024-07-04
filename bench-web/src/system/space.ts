@@ -24,7 +24,7 @@ export const { graph: benchGraph, connection: benchConnection } = useGetConnecti
   computed(() => ({
     scope: BENCH_SCOPE.value,
     roots: [local.benchPtr.value!],
-    options: { descendantTypes: [NodeType.ENVIRONMENT, NodeType.BRANCH, NodeType.PACKAGE] },
+    options: { descendantTypes: [NodeType.BRANCH, NodeType.PACKAGE] },
     isEnabled: local.benchPtr.value != null,
   })),
 );

@@ -35,7 +35,7 @@ from bench.language.node import (
     Node,
     SourceNode,
     Struct,
-    node_,
+    local_node,
     object_component,
     struct_,
 )
@@ -633,7 +633,7 @@ class QueryInfo(Struct, QueryInfoBase):
     pass
 
 
-@node_(NodeType.QUERY)
+@local_node(NodeType.QUERY)
 class Query(SourceNode[QueryData], QueryInfoBase):
     """A stored query with identity."""
 

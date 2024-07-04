@@ -66,12 +66,11 @@ class QueueRunPlugin(HostPlugin[Run]):
         op.retry.on_attempt()
         run = op.run
         assert run.package_id is not None, f"missing package id for run {run!r}"
-        environment = self.bench.main_environment
-        assert environment, f"missing main environment for bench {self.bench!r}"
-        log = logger.bind(host=self, run=run, server=environment.server, retry=op.retry)
+        assert self.bench.main_server, f"missing main server for {self.bench!r}"
+        log = logger.bind(host=self, run=run, server=self.bench.main_server, retry=op.retry)
 
         # find machine to queue run on
-        for machine in environment.server.machines:
+        for machine in self.bench.main_server.machines:
             if machine.status != ResourceStatus.HEALTHY:
                 continue
             assert machine.connection_uri, f"missing connection uri for machine {machine!r}"
@@ -100,7 +99,7 @@ class QueueRunPlugin(HostPlugin[Run]):
                 run.fail(error)
             log.error(
                 "scheduler.queue.failed",
-                machines=environment.server.machines,
+                machines=self.bench.main_server.machines,
                 error=error,
                 span="current",
             )
@@ -111,7 +110,7 @@ class QueueRunPlugin(HostPlugin[Run]):
             )
             log.debug(
                 "scheduler.queue.retry",
-                machines=environment.server.machines,
+                machines=self.bench.main_server.machines,
                 interval=op.retry.get_wait_interval,
                 retry=op.retry,
                 span="current",

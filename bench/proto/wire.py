@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.07.04.0"
+VERSION = "2024.07.04.1"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -118,39 +118,38 @@ class Anchor(betterproto.Enum):
 class BenchType(betterproto.Enum):
     UNSPECIFIED = 0
     BENCH = 1
-    ENVIRONMENT = 2
-    BRANCH = 3
-    PACKAGE = 20
-    DEPENDENCY = 21
-    SPACE = 23
-    LINK = 24
-    SKIP = 25
-    ISSUE = 26
-    BLOCK = 30
-    TRIGGER = 31
-    FIELD = 32
-    QUERY = 33
-    VIEW = 34
-    STEP = 35
-    BADGE = 60
-    MEMBERSHIP = 61
-    INVITE = 62
-    SESSION = 80
-    RUN = 81
-    SIGNAL = 82
-    LOG = 83
-    NOTIFICATION = 84
-    MESSAGE = 85
-    RECORD = 86
-    SERVER = 160
-    STORE = 161
-    MACHINE = 162
-    DRIVE = 163
-    BLOB = 164
-    HANDLE = 220
-    USER = 221
-    ORGANIZATION = 222
-    CLIENT = 223
+    USER = 2
+    ORGANIZATION = 3
+    HANDLE = 4
+    CLIENT = 5
+    SERVER = 500
+    STORE = 501
+    MACHINE = 502
+    DRIVE = 503
+    BLOB = 504
+    BRANCH = 1000
+    PACKAGE = 1001
+    DEPENDENCY = 1002
+    SPACE = 1003
+    LINK = 1004
+    SKIP = 1005
+    ISSUE = 1006
+    BLOCK = 1010
+    TRIGGER = 1011
+    FIELD = 1012
+    QUERY = 1013
+    VIEW = 1014
+    STEP = 1015
+    BADGE = 1100
+    MEMBERSHIP = 1101
+    INVITE = 1102
+    SESSION = 1200
+    RUN = 1201
+    SIGNAL = 1202
+    LOG = 1203
+    NOTIFICATION = 1204
+    MESSAGE = 1205
+    RECORD = 1206
     CONTEXT = 10000
     SESSION_CONTEXT = 10001
     EDIT_CONTEXT = 10002
@@ -748,39 +747,38 @@ class Month(betterproto.Enum):
 class NodeType(betterproto.Enum):
     UNSPECIFIED = 0
     BENCH = 1
-    ENVIRONMENT = 2
-    BRANCH = 3
-    PACKAGE = 20
-    DEPENDENCY = 21
-    SPACE = 23
-    LINK = 24
-    SKIP = 25
-    ISSUE = 26
-    BLOCK = 30
-    TRIGGER = 31
-    FIELD = 32
-    QUERY = 33
-    VIEW = 34
-    STEP = 35
-    BADGE = 60
-    MEMBERSHIP = 61
-    INVITE = 62
-    SESSION = 80
-    RUN = 81
-    SIGNAL = 82
-    LOG = 83
-    NOTIFICATION = 84
-    MESSAGE = 85
-    RECORD = 86
-    SERVER = 160
-    STORE = 161
-    MACHINE = 162
-    DRIVE = 163
-    BLOB = 164
-    HANDLE = 220
-    USER = 221
-    ORGANIZATION = 222
-    CLIENT = 223
+    USER = 2
+    ORGANIZATION = 3
+    HANDLE = 4
+    CLIENT = 5
+    SERVER = 500
+    STORE = 501
+    MACHINE = 502
+    DRIVE = 503
+    BLOB = 504
+    BRANCH = 1000
+    PACKAGE = 1001
+    DEPENDENCY = 1002
+    SPACE = 1003
+    LINK = 1004
+    SKIP = 1005
+    ISSUE = 1006
+    BLOCK = 1010
+    TRIGGER = 1011
+    FIELD = 1012
+    QUERY = 1013
+    VIEW = 1014
+    STEP = 1015
+    BADGE = 1100
+    MEMBERSHIP = 1101
+    INVITE = 1102
+    SESSION = 1200
+    RUN = 1201
+    SIGNAL = 1202
+    LOG = 1203
+    NOTIFICATION = 1204
+    MESSAGE = 1205
+    RECORD = 1206
 
 
 class NotificationKind(betterproto.Enum):
@@ -795,39 +793,38 @@ class NotificationKind(betterproto.Enum):
 class ObjectType(betterproto.Enum):
     UNSPECIFIED = 0
     BENCH = 1
-    ENVIRONMENT = 2
-    BRANCH = 3
-    PACKAGE = 20
-    DEPENDENCY = 21
-    SPACE = 23
-    LINK = 24
-    SKIP = 25
-    ISSUE = 26
-    BLOCK = 30
-    TRIGGER = 31
-    FIELD = 32
-    QUERY = 33
-    VIEW = 34
-    STEP = 35
-    BADGE = 60
-    MEMBERSHIP = 61
-    INVITE = 62
-    SESSION = 80
-    RUN = 81
-    SIGNAL = 82
-    LOG = 83
-    NOTIFICATION = 84
-    MESSAGE = 85
-    RECORD = 86
-    SERVER = 160
-    STORE = 161
-    MACHINE = 162
-    DRIVE = 163
-    BLOB = 164
-    HANDLE = 220
-    USER = 221
-    ORGANIZATION = 222
-    CLIENT = 223
+    USER = 2
+    ORGANIZATION = 3
+    HANDLE = 4
+    CLIENT = 5
+    SERVER = 500
+    STORE = 501
+    MACHINE = 502
+    DRIVE = 503
+    BLOB = 504
+    BRANCH = 1000
+    PACKAGE = 1001
+    DEPENDENCY = 1002
+    SPACE = 1003
+    LINK = 1004
+    SKIP = 1005
+    ISSUE = 1006
+    BLOCK = 1010
+    TRIGGER = 1011
+    FIELD = 1012
+    QUERY = 1013
+    VIEW = 1014
+    STEP = 1015
+    BADGE = 1100
+    MEMBERSHIP = 1101
+    INVITE = 1102
+    SESSION = 1200
+    RUN = 1201
+    SIGNAL = 1202
+    LOG = 1203
+    NOTIFICATION = 1204
+    MESSAGE = 1205
+    RECORD = 1206
     CONTEXT = 10000
     SESSION_CONTEXT = 10001
     EDIT_CONTEXT = 10002
@@ -1327,65 +1324,65 @@ class ViewType(betterproto.Enum):
     USER_WIZARD = 1
     BENCH_WIZARD = 2
     EMPTY = 80
-    PAGE = 101
-    BLOCK = 102
-    FIELD = 103
-    DATABASE = 104
-    VIEW = 105
-    FLOW = 106
-    STEP = 107
-    TYPE = 108
-    VARIABLE = 109
-    OBJECT = 110
-    RUN = 111
-    LOG = 112
-    TREE = 150
-    INSPECT = 153
-    CREATE = 154
-    CHAT = 155
-    START = 156
-    FEED = 157
-    TIMELINE = 158
-    HISTORY = 159
-    WINDOW = 500
-    TAB = 502
-    SPLIT = 503
-    SPLIT_DRAWER = 504
-    STACK = 510
-    DRAWER = 511
-    SCROLL = 512
-    GRID = 513
-    LIST = 520
-    TABLE = 521
-    GROUP = 530
-    SECTION = 531
-    SPACER = 540
-    DIVIDER = 541
-    SHAPE = 543
-    PROGRESS = 544
-    AVATAR = 545
-    BADGE = 546
-    CHART = 547
-    BUTTON = 600
-    MULTI_BUTTON = 601
-    LINK = 610
-    VALUE = 620
-    NUMBER = 632
-    SLIDER = 633
-    STRING = 640
-    TEXT = 641
-    CODE = 642
-    JSON = 643
-    TOGGLE = 650
-    PICKER = 653
-    CALENDAR = 656
-    MAP = 658
-    COLOR = 660
-    FILE = 670
-    ICON = 672
-    IMAGE = 673
-    VIDEO = 674
-    AUDIO = 675
+    PAGE = 201
+    BLOCK = 202
+    FIELD = 203
+    DATABASE = 204
+    VIEW = 205
+    FLOW = 206
+    STEP = 207
+    TYPE = 208
+    VARIABLE = 209
+    OBJECT = 210
+    RUN = 211
+    LOG = 212
+    TREE = 400
+    INSPECT = 403
+    CREATE = 404
+    CHAT = 405
+    START = 406
+    FEED = 407
+    TIMELINE = 408
+    HISTORY = 409
+    WINDOW = 1000
+    TAB = 1002
+    SPLIT = 1003
+    SPLIT_DRAWER = 1004
+    STACK = 1010
+    DRAWER = 1011
+    SCROLL = 1012
+    GRID = 1013
+    LIST = 1020
+    TABLE = 1021
+    GROUP = 1030
+    SECTION = 1031
+    SPACER = 1050
+    DIVIDER = 1051
+    SHAPE = 1053
+    PROGRESS = 1054
+    AVATAR = 1055
+    BADGE = 1056
+    CHART = 1057
+    BUTTON = 1100
+    MULTI_BUTTON = 1101
+    LINK = 1110
+    VALUE = 1220
+    NUMBER = 1232
+    SLIDER = 1233
+    STRING = 1240
+    TEXT = 1241
+    CODE = 1242
+    JSON = 1243
+    TOGGLE = 1250
+    PICKER = 1253
+    CALENDAR = 1256
+    MAP = 1258
+    COLOR = 1260
+    FILE = 1270
+    ICON = 1272
+    IMAGE = 1273
+    VIDEO = 1274
+    AUDIO = 1275
 
 
 class Visibility(betterproto.Enum):
@@ -1585,7 +1582,6 @@ class ContextData(betterproto.Message):
     parent_key: Optional[str] = betterproto.string_field(4, optional=True)
     order_key: Optional[str] = betterproto.string_field(9, optional=True)
     bench_ptr: Optional["NodeReferenceData"] = betterproto.message_field(30, optional=True)
-    environment_ptr: Optional["NodeReferenceData"] = betterproto.message_field(31, optional=True)
     branch_ptr: Optional["NodeReferenceData"] = betterproto.message_field(32, optional=True)
     package_ptr: Optional["NodeReferenceData"] = betterproto.message_field(33, optional=True)
     module_ptr: Optional["NodeReferenceData"] = betterproto.message_field(34, optional=True)
@@ -2371,10 +2367,10 @@ class BenchData(betterproto.Message):
     region: "Region" = betterproto.enum_field(37)
     encryption_key: Optional[str] = betterproto.string_field(38, optional=True)
     policies: List["PolicyData"] = betterproto.message_field(39)
-    main_environment_ptr: Optional["NodeReferenceData"] = betterproto.message_field(
-        40, optional=True
-    )
-    main_branch_ptr: Optional["NodeReferenceData"] = betterproto.message_field(41, optional=True)
+    main_store_ptr: Optional["NodeReferenceData"] = betterproto.message_field(40, optional=True)
+    main_server_ptr: Optional["NodeReferenceData"] = betterproto.message_field(41, optional=True)
+    main_drive_ptr: Optional["NodeReferenceData"] = betterproto.message_field(42, optional=True)
+    main_branch_ptr: Optional["NodeReferenceData"] = betterproto.message_field(50, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2571,33 +2567,6 @@ class DriveData(betterproto.Message):
     region: "Region" = betterproto.enum_field(35)
     status: "ResourceStatus" = betterproto.enum_field(36)
     current_status: Optional["ResourceStatus"] = betterproto.enum_field(37, optional=True)
-
-
-@dataclass(eq=False, repr=False)
-class EnvironmentData(betterproto.Message):
-    """An environment of resources for a Bench's packages."""
-
-    metatype: "ObjectType" = betterproto.enum_field(1)
-    id: str = betterproto.string_field(2)
-    parent_ptr: Optional["NodeReferenceData"] = betterproto.message_field(4, optional=True)
-    bench_ptr: "NodeReferenceData" = betterproto.message_field(6)
-    revision: int = betterproto.int64_field(10)
-    created_at: datetime = betterproto.message_field(11)
-    created_epoch: int = betterproto.int64_field(12)
-    updated_at: datetime = betterproto.message_field(13)
-    updated_epoch: int = betterproto.int64_field(14)
-    deleted_at: Optional[datetime] = betterproto.message_field(15, optional=True)
-    archived_at: Optional[datetime] = betterproto.message_field(16, optional=True)
-    created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(21, optional=True)
-    updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(22, optional=True)
-    set_properties: List[int] = betterproto.int32_field(29)
-    name: str = betterproto.string_field(32)
-    text: Optional["TextData"] = betterproto.message_field(34, optional=True)
-    icon: Optional["IconData"] = betterproto.message_field(35, optional=True)
-    policies: List["PolicyData"] = betterproto.message_field(36)
-    server_ptr: "NodeReferenceData" = betterproto.message_field(40)
-    store_ptr: "NodeReferenceData" = betterproto.message_field(41)
-    drive_ptr: "NodeReferenceData" = betterproto.message_field(42)
 
 
 @dataclass(eq=False, repr=False)
@@ -3012,8 +2981,7 @@ class PackageData(betterproto.Message):
     text: Optional["TextData"] = betterproto.message_field(34, optional=True)
     icon: Optional["IconData"] = betterproto.message_field(35, optional=True)
     policies: List["PolicyData"] = betterproto.message_field(36)
-    environment_ptr: "NodeReferenceData" = betterproto.message_field(40)
-    base_ptr: Optional["NodeReferenceData"] = betterproto.message_field(41, optional=True)
+    base_ptr: Optional["NodeReferenceData"] = betterproto.message_field(40, optional=True)
     is_snapshot: bool = betterproto.bool_field(60)
     is_overlay: bool = betterproto.bool_field(61)
     is_paused: bool = betterproto.bool_field(65)
@@ -3505,39 +3473,38 @@ class ViewData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class SomeNodeData(betterproto.Message):
     bench: "BenchData" = betterproto.message_field(1, group="node")
-    environment: "EnvironmentData" = betterproto.message_field(2, group="node")
-    branch: "BranchData" = betterproto.message_field(3, group="node")
-    package: "PackageData" = betterproto.message_field(4, group="node")
-    dependency: "DependencyData" = betterproto.message_field(5, group="node")
-    space: "SpaceData" = betterproto.message_field(6, group="node")
-    link: "LinkData" = betterproto.message_field(7, group="node")
-    skip: "SkipData" = betterproto.message_field(8, group="node")
-    issue: "IssueData" = betterproto.message_field(9, group="node")
-    block: "BlockData" = betterproto.message_field(10, group="node")
-    trigger: "TriggerData" = betterproto.message_field(11, group="node")
-    field: "FieldData" = betterproto.message_field(12, group="node")
-    query: "QueryData" = betterproto.message_field(13, group="node")
-    view: "ViewData" = betterproto.message_field(14, group="node")
-    step: "StepData" = betterproto.message_field(15, group="node")
-    badge: "BadgeData" = betterproto.message_field(16, group="node")
-    membership: "MembershipData" = betterproto.message_field(17, group="node")
-    invite: "InviteData" = betterproto.message_field(18, group="node")
-    session: "SessionData" = betterproto.message_field(19, group="node")
-    run: "RunData" = betterproto.message_field(20, group="node")
-    signal: "SignalData" = betterproto.message_field(21, group="node")
-    log: "LogData" = betterproto.message_field(22, group="node")
-    notification: "NotificationData" = betterproto.message_field(23, group="node")
-    message: "MessageData" = betterproto.message_field(24, group="node")
-    record: "RecordData" = betterproto.message_field(25, group="node")
-    server: "ServerData" = betterproto.message_field(26, group="node")
-    store: "StoreData" = betterproto.message_field(27, group="node")
-    machine: "MachineData" = betterproto.message_field(28, group="node")
-    drive: "DriveData" = betterproto.message_field(29, group="node")
-    blob: "BlobData" = betterproto.message_field(30, group="node")
-    handle: "HandleData" = betterproto.message_field(31, group="node")
-    user: "UserData" = betterproto.message_field(32, group="node")
-    organization: "OrganizationData" = betterproto.message_field(33, group="node")
-    client: "ClientData" = betterproto.message_field(34, group="node")
+    user: "UserData" = betterproto.message_field(2, group="node")
+    organization: "OrganizationData" = betterproto.message_field(3, group="node")
+    handle: "HandleData" = betterproto.message_field(4, group="node")
+    client: "ClientData" = betterproto.message_field(5, group="node")
+    server: "ServerData" = betterproto.message_field(6, group="node")
+    store: "StoreData" = betterproto.message_field(7, group="node")
+    machine: "MachineData" = betterproto.message_field(8, group="node")
+    drive: "DriveData" = betterproto.message_field(9, group="node")
+    blob: "BlobData" = betterproto.message_field(10, group="node")
+    branch: "BranchData" = betterproto.message_field(11, group="node")
+    package: "PackageData" = betterproto.message_field(12, group="node")
+    dependency: "DependencyData" = betterproto.message_field(13, group="node")
+    space: "SpaceData" = betterproto.message_field(14, group="node")
+    link: "LinkData" = betterproto.message_field(15, group="node")
+    skip: "SkipData" = betterproto.message_field(16, group="node")
+    issue: "IssueData" = betterproto.message_field(17, group="node")
+    block: "BlockData" = betterproto.message_field(18, group="node")
+    trigger: "TriggerData" = betterproto.message_field(19, group="node")
+    field: "FieldData" = betterproto.message_field(20, group="node")
+    query: "QueryData" = betterproto.message_field(21, group="node")
+    view: "ViewData" = betterproto.message_field(22, group="node")
+    step: "StepData" = betterproto.message_field(23, group="node")
+    badge: "BadgeData" = betterproto.message_field(24, group="node")
+    membership: "MembershipData" = betterproto.message_field(25, group="node")
+    invite: "InviteData" = betterproto.message_field(26, group="node")
+    session: "SessionData" = betterproto.message_field(27, group="node")
+    run: "RunData" = betterproto.message_field(28, group="node")
+    signal: "SignalData" = betterproto.message_field(29, group="node")
+    log: "LogData" = betterproto.message_field(30, group="node")
+    notification: "NotificationData" = betterproto.message_field(31, group="node")
+    message: "MessageData" = betterproto.message_field(32, group="node")
+    record: "RecordData" = betterproto.message_field(33, group="node")
 
 
 @dataclass(eq=False, repr=False)
@@ -5014,7 +4981,15 @@ import bench.proto.monkey  # noqa
 # extra utility types
 AnyNodeData = Union[
     BenchData,
-    EnvironmentData,
+    UserData,
+    OrganizationData,
+    HandleData,
+    ClientData,
+    ServerData,
+    StoreData,
+    MachineData,
+    DriveData,
+    BlobData,
     BranchData,
     PackageData,
     DependencyData,
@@ -5038,15 +5013,6 @@ AnyNodeData = Union[
     NotificationData,
     MessageData,
     RecordData,
-    ServerData,
-    StoreData,
-    MachineData,
-    DriveData,
-    BlobData,
-    HandleData,
-    UserData,
-    OrganizationData,
-    ClientData,
 ]
 AnyStructData = Union[
     ContextData,

@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.07.04.0"  # auto change via version script
+VERSION = "2024.07.04.1"  # auto change via version script
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -175,65 +175,69 @@ ENUM_TYPES_SET: frozenset[EnumType] = frozenset(ENUM_TYPES)
 
 @enum_(EnumType.NODE_TYPE)
 class NodeType(IdEnum):
-    # root
-    BENCH = 1
-    ENVIRONMENT = 2
-    BRANCH = 3
+    #
+    # Global
+    #
 
-    # source
-    PACKAGE = 20
-    DEPENDENCY = 21
-    SPACE = 23
-    LINK = 24
-    SKIP = 25
-    ISSUE = 26
-    BLOCK = 30
-    TRIGGER = 31
-    FIELD = 32  # (based)
-    QUERY = 33
-    VIEW = 34
-    STEP = 35
+    # universe (global)
+    BENCH = 1
+    USER = 2
+    ORGANIZATION = 3
+    HANDLE = 4
+    CLIENT = 5
+    # CHALLENGE?
+
+    # resource (global, later maybe regional, per Bench)
+    SERVER = 500
+    STORE = 501  # our trusted postgres store
+    MACHINE = 502  # actual machine providing compute and such
+    DRIVE = 503  # object store like S3/MinIO, maybe block storage later
+    BLOB = 504  # in a Drive (deferred)
+    # CACHE, DOMAIN, EMAIL, PHONE, ...
+
+    #
+    # Local (per Bench)
+    #
+
+    # source (local)
+    BRANCH = 1000
+    PACKAGE = 1001
+    DEPENDENCY = 1002
+    SPACE = 1003
+    LINK = 1004
+    SKIP = 1005
+    ISSUE = 1006
+    BLOCK = 1010
+    TRIGGER = 1011
+    FIELD = 1012  # (based)
+    QUERY = 1013
+    VIEW = 1014
+    STEP = 1015
     # TAG?
     # REACTION?
     # LOCK?
-    # BREAKPOINT?
-    # source (auth)
-    BADGE = 60
-    MEMBERSHIP = 61
-    INVITE = 62
+    BADGE = 1100
+    MEMBERSHIP = 1101
+    INVITE = 1102
 
-    # runtime
-    SESSION = 80  # (local, timed)
-    RUN = 81  # (local, based, timed)
-    SIGNAL = 82  # (local, based, timed)
-    LOG = 83  # (local, timed)
-    NOTIFICATION = 84  # (local, based, timed)
-    MESSAGE = 85  # (local, based, timed)
-    RECORD = 86  # (local, based)
-
-    # resources (compute/storage/external/etc.)
-    SERVER = 160
-    STORE = 161  # our trusted postgres store
-    MACHINE = 162  # actual machine providing compute and such
-    DRIVE = 163  # object store like S3/MinIO, maybe block storage later
-    BLOB = 164  # in a Drive
-    # CACHE = ...  # KV memory store (Redis/Memcached)
-    # DOMAIN, EMAIL, PHONE, ...
-
-    # user
-    HANDLE = 220
-    USER = 221
-    ORGANIZATION = 222
-    CLIENT = 223
+    # runtime (local)
+    SESSION = 1200  # (timed)
+    RUN = 1201  # (based, timed)
+    SIGNAL = 1202  # (based, timed)
+    LOG = 1203  # (timed)
+    NOTIFICATION = 1204  # (based, timed)
+    MESSAGE = 1205  # (based, timed)
+    RECORD = 1206  # (based)
 
 
 # :NodeTypes
 NODE_TYPES = bittuple(*NodeType)
 NODE_TYPES_SET: frozenset[NodeType] = frozenset(NODE_TYPES)
 ROOT_NODE_TYPES = bittuple(NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION)
-LOCAL_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if 80 <= nt.id < 100))
-GLOBAL_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if nt not in LOCAL_NODE_TYPES))
-SOURCE_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if 20 <= nt.id < 80))
+UNIVERSE_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if nt.id < 100))
+GLOBAL_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if nt.id < 1000))
+LOCAL_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if nt.id >= 1000))
+SOURCE_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if nt.id >= 1000 and nt.id < 1200))
 
 BASED_NODE_TYPES = bittuple(  # :HasBase
     NodeType.FIELD,
@@ -254,22 +258,23 @@ TIMED_NODE_TYPES = bittuple(
 ETERNAL_NODE_TYPES: bittuple[NodeType] = bittuple(
     NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG
 )
-IN_PACKAGE_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if 20 <= nt.id < 100))
-SUB_PACKAGE_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if 20 < nt.id < 100))
+IN_PACKAGE_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if nt.id >= 1001))
+SUB_PACKAGE_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if nt.id > 1001))
 IN_BENCH_NODE_TYPES = bittuple(
-    *(*tuple(nt for nt in NODE_TYPES if nt.id < 200), NodeType.CLIENT, NodeType.HANDLE)
+    *(
+        *tuple(nt for nt in NODE_TYPES if nt.id >= 500),
+        NodeType.BENCH,
+        NodeType.CLIENT,
+        NodeType.HANDLE,
+    )
 )
 IN_BENCH_GLOBAL_NODE_TYPES = bittuple(
     *tuple(nt for nt in IN_BENCH_NODE_TYPES if nt not in LOCAL_NODE_TYPES)
 )
 SUB_BENCH_NODE_TYPES = bittuple(*tuple(nt for nt in IN_BENCH_NODE_TYPES if nt != NodeType.BENCH))
-RESOURCE_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if 160 <= nt.id < 200))
-ROOT_RESOURCE_NODE_TYPES = bittuple(
-    NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE
-)
+RESOURCE_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if nt.id >= 500 and nt.id < 600))
 BENCH_NODE_TYPES = bittuple(
     NodeType.BENCH,
-    NodeType.ENVIRONMENT,
     NodeType.BRANCH,
     NodeType.PACKAGE,
     NodeType.HANDLE,
@@ -278,7 +283,7 @@ BENCH_NODE_TYPES = bittuple(
 )
 LOADED_BENCH_NODE_TYPES = bittuple(*(nt for nt in BENCH_NODE_TYPES if nt != NodeType.BLOB))
 PUBLIC_NODE_TYPES = bittuple(NodeType.USER, NodeType.ORGANIZATION)
-USER_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if nt.id >= 200))
+USER_NODE_TYPES = bittuple(NodeType.USER, NodeType.ORGANIZATION, NodeType.CLIENT, NodeType.HANDLE)
 
 #
 # Struct metatypes

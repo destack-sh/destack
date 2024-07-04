@@ -11,7 +11,6 @@ import {
   SpaceData,
   StructType,
   TreeViewPreset,
-  TreeViewStateData,
   ViewData,
   ViewType,
   type AnyNodeData,
@@ -21,7 +20,6 @@ import {
   copyNode,
   describeNode,
   getNodeType,
-  isNode,
   makeNode,
   makeStruct,
   toNodeReference,
@@ -33,7 +31,6 @@ import { isDescendantOf, type NodeKey, type ReadNodeGraph } from "@/system/graph
 import { toIconMaybe } from "@/system/icon";
 import {
   HELPER_VIEW_TYPES,
-  NODE_VIEW_TYPES,
   ROOT_VIEW_TYPES,
   generateNodeName,
   getOrderKey,
@@ -49,7 +46,7 @@ import { generateOrderKey, generateOrderKeys } from "@/utils/fractional";
 import { IS_DEV, isDeveloperMode } from "@/utils/globals";
 import { DEFAULT_ORIENTATION, splitBox } from "@/utils/layout";
 import { log } from "@/utils/log";
-import { computedValue, deepValueEquals, toValueRef } from "@/utils/ref";
+import { computedValue, deepValueEquals } from "@/utils/ref";
 import { Casing, toCasing } from "@/utils/string";
 import { getViewTypeByComponentName, type FocusAnchor, type ViewComponent } from "@/views/common";
 import { useActiveElement, useEventListener, type MaybeElement } from "@vueuse/core";
@@ -64,7 +61,6 @@ import {
   toRef,
   triggerRef,
   watch,
-  watchEffect,
   type ComponentInstance,
   type MaybeRef,
   type Ref,

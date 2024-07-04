@@ -368,8 +368,7 @@ class Host(GraphIoServiceBase, HostApi, HostBase):
         #  (in different session because we don't have the actual engines yet)
         async with self.global_session() as session:
             self._bench = await BENCH_QUERY.get(self.bench_ptr)
-            assert self._bench.main_environment, f"{self._bench!r} has no main environment"
-            assert self._bench.main_environment.store, f"{self._bench!r} has no main store"
+            assert self._bench.main_store, f"{self._bench!r} has no main environment"
             assert self._bench.main_branch, f"{self._bench!r} has no main branch"
             self._bench._untrack_rec()
             session.parent = self._bench.main_branch.main_package  # add bench hack for pg context
@@ -388,7 +387,7 @@ class Host(GraphIoServiceBase, HostApi, HostBase):
             node_types=IN_BENCH_GLOBAL_NODE_TYPES,
         )
         self._local_pg_engine = PostgresEngine(
-            store=self._bench.main_environment.store,
+            store=self._bench.main_store,
             bench=self._bench,
             scope=self._scope,
             node_types=LOCAL_NODE_TYPES,

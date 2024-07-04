@@ -17,7 +17,15 @@ from bench.language.const import (
     get_region,
 )
 from bench.language.graph import NodeList
-from bench.language.node import BenchNode, ClientOrigin, Node, SourceNode, node_, node_component
+from bench.language.node import (
+    BenchNode,
+    ClientOrigin,
+    Node,
+    SourceNode,
+    local_node,
+    node_,
+    node_component,
+)
 from bench.language.property import (
     p_internal,
     p_kernel,
@@ -34,7 +42,6 @@ from bench.proto.wire import (
     ClientData,
     DependencyData,
     DriveData,
-    EnvironmentData,
     MachineData,
     PackageData,
     ServerData,
@@ -99,30 +106,30 @@ class Bench(BenchNode[BenchData]):
     )
     policies: list["Policy"] = p_regular(39, struct=StructType.POLICY, array=True)
 
-    # source
-    main_environment: Optional["Environment"] = p_regular(
-        40,
-        require=False,
-        array=False,
-        references=NodeType.ENVIRONMENT,
-        fk=True,
-        same_bench=True,
+    # resources
+    main_store: Optional["Store"] = p_system(
+        40, require=False, array=False, references=NodeType.STORE, fk=True, same_bench=True
     )
+    main_server: Optional["Server"] = p_system(
+        41, require=False, array=False, references=NodeType.SERVER, fk=True, same_bench=True
+    )
+    main_drive: Optional["Drive"] = p_system(
+        42, require=False, array=False, references=NodeType.DRIVE, fk=True, same_bench=True
+    )
+    stores: NodeList["Store"] = p_node_children(NodeType.STORE)
+    servers: NodeList["Server"] = p_node_children(NodeType.SERVER)
+    drives: NodeList["Drive"] = p_node_children(NodeType.DRIVE)
+
+    # source
     main_branch: Optional["Branch"] = p_regular(
-        41,
+        50,
         require=False,
         array=False,
         references=NodeType.BRANCH,
         fk=True,
         same_bench=True,
     )
-    environments: NodeList["Environment"] = p_node_children(NodeType.ENVIRONMENT)
     branches: NodeList["Branch"] = p_node_children(NodeType.BRANCH)
-
-    # resources
-    servers: NodeList["Server"] = p_node_children(NodeType.SERVER)
-    stores: NodeList["Store"] = p_node_children(NodeType.STORE)
-    drives: NodeList["Drive"] = p_node_children(NodeType.DRIVE)
 
     @property
     def _is_attached(self) -> bool:
@@ -138,28 +145,7 @@ class Bench(BenchNode[BenchData]):
         )
 
 
-@node_(NodeType.ENVIRONMENT, identifier=IdentifierType.VARIABLE)
-class Environment(BenchNode[EnvironmentData]):
-    """An environment of resources for a Bench's packages."""
-
-    parent: Bench | None = p_node_parent(4, NodeType.BENCH)
-    name: str = p_regular(32, constraint=NAME_CONSTRAINT)
-    text: Optional["Text"] = p_regular(34, require=False, array=False, struct=StructType.TEXT)
-    icon: Optional["Icon"] = p_regular(35, require=False, array=False, struct=StructType.ICON)
-    policies: list["Policy"] = p_regular(36, struct=StructType.POLICY, array=True)
-
-    server: "Server" = p_system(
-        40, require=True, array=False, references=NodeType.SERVER, fk=True, same_bench=True
-    )
-    store: "Store" = p_system(
-        41, require=True, array=False, references=NodeType.STORE, fk=True, same_bench=True
-    )
-    drive: "Drive" = p_system(
-        42, require=True, array=False, references=NodeType.DRIVE, fk=True, same_bench=True
-    )
-
-
-@node_(
+@local_node(
     NodeType.BRANCH,
     identifier=IdentifierType.VARIABLE,
     unique=(("bench_id", "slug"),),
@@ -191,7 +177,7 @@ class Branch(BenchNode[BranchData]):
     packages: NodeList["Package"] = p_node_children(NodeType.PACKAGE)
 
 
-@node_(
+@local_node(
     NodeType.PACKAGE,
     identifier=IdentifierType.VARIABLE,
     unique=(("bench_id", "slug"),),
@@ -205,16 +191,8 @@ class Package(BenchNode[PackageData]):
     icon: Optional["Icon"] = p_regular(35, require=False, array=False, struct=StructType.ICON)
     policies: list["Policy"] = p_regular(36, struct=StructType.POLICY, array=True)
 
-    environment: Environment = p_system(
-        40,
-        require=True,
-        array=False,
-        references=NodeType.ENVIRONMENT,
-        fk=True,
-        same_bench=True,
-    )
     base: Optional["Package"] = p_system(
-        41, require=False, array=False, references=NodeType.PACKAGE, fk=True, same_bench=True
+        40, require=False, array=False, references=NodeType.PACKAGE, fk=True, same_bench=True
     )
 
     # flags
@@ -259,7 +237,7 @@ class Package(BenchNode[PackageData]):
         return ", ".join(parts)
 
 
-@node_(NodeType.DEPENDENCY, identifier=IdentifierType.VARIABLE)
+@local_node(NodeType.DEPENDENCY, identifier=IdentifierType.VARIABLE)
 class Dependency(SourceNode[DependencyData]):
     """
     A dependency on another Bench (pointing to a specific Package).

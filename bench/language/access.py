@@ -44,7 +44,7 @@ from bench.language.node import (
     NodeReference,
     SourceNode,
     Struct,
-    node_,
+    local_node,
     struct_,
 )
 from bench.language.property import (
@@ -76,7 +76,6 @@ tracer = trace.get_tracer(__name__)
 #  (not delegated node types, which delegate via subject)
 LEGISLATIVE_NODE_TYPES: bittuple[NodeType] = bittuple(
     NodeType.BENCH,
-    NodeType.ENVIRONMENT,
     NodeType.BRANCH,
     NodeType.PACKAGE,
     NodeType.SPACE,
@@ -102,7 +101,7 @@ OWNABLE_NODE_TYPES: bittuple[NodeType] = bittuple(
 )
 
 
-@node_(NodeType.BADGE)
+@local_node(NodeType.BADGE)
 class Badge(SourceNode):
     """
     Attach a badge to a node with an inline definition.

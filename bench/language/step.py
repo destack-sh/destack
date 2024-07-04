@@ -3,7 +3,14 @@ from typing import TYPE_CHECKING, Any, Optional, Union, cast, final
 from bench.language.const import EnumType, FieldZone, NodeType, StructType, enum_
 from bench.language.graph import NodeList
 from bench.language.issue import Issue
-from bench.language.node import InlineStruct, SourceNode, Struct, node_, object_component, struct_
+from bench.language.node import (
+    InlineStruct,
+    SourceNode,
+    Struct,
+    local_node,
+    object_component,
+    struct_,
+)
 from bench.language.property import (
     p_internal,
     p_node_children,
@@ -91,7 +98,7 @@ class Pipe(Struct):
     source: "Step" = p_regular(31, require=True, references=(NodeType.STEP,))
 
 
-@node_(NodeType.STEP)
+@local_node(NodeType.STEP)
 class Step(SourceNode[StepData], HasValues):
     """
     An data or control flow node in a FlowBlock.

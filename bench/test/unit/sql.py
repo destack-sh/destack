@@ -322,15 +322,14 @@ async def test_crud_node_pointers(global_real_session: Session):
         client = server.clients.create(
             type=ClientType.BENCH_MOBILE, seen_at=session._oracle.utc(), name="Testificate's iPhone"
         )
-        environment = bench.environments.create(
-            name="main a", server=server, store=store, drive=drive
-        )
         branch = bench.branches.create(name="main a")
-        package = branch.packages.create(environment=environment)
+        package = branch.packages.create()
         await session.flush()
         session.parent = package
         branch.main_package = package
-        bench.main_environment = environment
+        bench.main_server = server
+        bench.main_store = store
+        bench.main_drive = drive
         bench.main_branch = branch
         await session.commit()
         bench._untrack_rec()

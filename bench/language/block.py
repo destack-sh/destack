@@ -11,7 +11,7 @@ from bench.language.const import (
 )
 from bench.language.field import TypeInfoBase
 from bench.language.graph import NodeList
-from bench.language.node import SourceNode, node_
+from bench.language.node import SourceNode, local_node
 from bench.language.property import (
     p_internal,
     p_node_children,
@@ -75,7 +75,7 @@ assert len(IDENTIFIER_TYPE_BY_BLOCK_TYPE) == len(BlockType)
 #  see :AutoNaming
 
 
-@node_(NodeType.BLOCK, passthrough="value")
+@local_node(NodeType.BLOCK, passthrough="value")
 class Block(SourceNode[BlockData], HasValues):
     """A building block with logic, types, UI, data, auth, AI, ..."""
 
