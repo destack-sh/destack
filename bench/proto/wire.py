@@ -3330,7 +3330,7 @@ class StepData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class StoreData(betterproto.Message):
-    """A trusty Postgres database."""
+    """A trusty Postgres-compatible database."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)

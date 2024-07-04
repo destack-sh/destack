@@ -212,7 +212,7 @@ class NeonStoreProvisioner(StoreProvisioner):
             resource.status = ResourceStatus.DECOMMISSIONED
 
 
-class LocalhostPostgresStoreProvisioner(StoreProvisioner):
+class LocalhostStoreProvisioner(StoreProvisioner):
     """Provision Stores as local Postgres databases (in the existing database)."""
 
     @override
@@ -372,10 +372,10 @@ def get_provisioners_for(host: HostApi, bench: Bench) -> list[Provisioner]:
     """Gets all available provisioners for that Bench in *this* environment"""
     from bench.system.neon import neon_api
 
-    if ENV == Env.TEST:
+    if ENV == Env.TEST:  # noqa: SIM114
         assert LOCAL_NACHINE_URL, "no LOCAL_MACHINE_URL"
         return [
-            LocalhostPostgresStoreProvisioner(host, bench),
+            LocalhostStoreProvisioner(host, bench),
             ElasticServerProvisioner(host, bench),
             LocalhostMachineProvisioner(host, bench, LOCAL_NACHINE_URL),
             S3DriveProvisioner(host, bench),
@@ -383,7 +383,7 @@ def get_provisioners_for(host: HostApi, bench: Bench) -> list[Provisioner]:
     elif ENV == Env.DEV:
         assert LOCAL_NACHINE_URL, "no LOCAL_MACHINE_URL"
         return [
-            NeonStoreProvisioner(host, bench, neon_api),
+            LocalhostStoreProvisioner(host, bench),
             ElasticServerProvisioner(host, bench),
             LocalhostMachineProvisioner(host, bench, LOCAL_NACHINE_URL),
             S3DriveProvisioner(host, bench),

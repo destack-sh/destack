@@ -5448,7 +5448,7 @@ export interface StepData {
     size?: BoxData;
 }
 /**
- * A trusty Postgres database.
+ * A trusty Postgres-compatible database.
  *
  * @generated from protobuf message symbolx.bench.StoreData
  */
