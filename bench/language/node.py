@@ -1044,6 +1044,9 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
                 if self.__is_node__:
                     node = cast("Node", self)
                     if not node._is_new:
+                        # TODO :Broken: nodes don't update if they're new
+                        #  (which means creating and immediately updating a node doesn't work
+                        #   if you don't flush in between, which is a bit weird)
                         session = node._session
                         assert session, f"no session for {node!r}"
                         if self._updated_properties is None:
@@ -1355,7 +1358,9 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         created_by_type: NodeType | None = None
         updated_by_id: Optional[UUID] = None
         updated_by_type: NodeType | None = None
-    set_properties: list[int] = p_regular(29, array=True, store=False)
+
+    # computed_properties: dict[int, "ComputedValue"] = p_internal(28, array=True, store=False)
+    set_properties: list[int] = p_internal(29, array=True, store=False)
 
     # 30+ for 'user' node/struct properties
     # <... defined in concrete type ...>
@@ -1799,7 +1804,6 @@ class SourceNode[NodeDataT: AnyNodeData](PackageNode[NodeDataT], HasPersistentId
     if TYPE_CHECKING:
         template_id: Optional[UUID] = None
         template_ptr: Optional[NodeReference] = None
-    set_properties: list[int] = p_regular(29, array=True, store=True)
 
 
 @node_component()

@@ -64,6 +64,9 @@ async def runtime(host: str, port: int, watch: bool = False, skip_check: bool = 
         machine_id=get_from_env_maybe(
             "MACHINE_ID", typ=UUID, description="Node id of current machine"
         ),
+        max_threads=get_from_env(
+            "RUNTIME_THREADS", typ=int, description="Maximum number of runtime threads"
+        ),
         oracle=REAL_ORACLE,
     )
     services = [server]

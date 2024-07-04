@@ -36,7 +36,7 @@ from bench.utils.casing import Casing, to_casing
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
-    from bench.language import Block, Field, TypeInfoBase
+    from bench.language import Block, Code, Field, TypeInfoBase
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -750,3 +750,13 @@ class _TypeQueryBuilder:
     #
 
     ...
+
+
+@struct_(StructType.COMPUTED_VALUE)
+class ComputedValue(Struct, HasValues):
+    """A value computed from an expression or code snippet."""
+
+    expression: "Expression | None" = p_regular(
+        35, require=False, array=False, struct=StructType.EXPRESSION
+    )
+    code: Optional["Code"] = p_regular(36, require=False, array=False, struct=StructType.CODE)
