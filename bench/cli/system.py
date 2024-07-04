@@ -14,9 +14,9 @@ from bench.language.const import (
 )
 from bench.system.access import ACCESS_TOKEN_LENGTH
 from bench.system.core import (
-    global_pg_engine_from_store,
     global_session,
-    global_store_from_env,
+    pg_engine_from_store,
+    system_store_from_env,
 )
 from bench.system.supervisor import create_default_bench
 from bench.utils.func import generate_access_token
@@ -36,8 +36,8 @@ async def check(check_db: bool = False):
 @app.command(help="create 'bench' and 'system' Benches (owned by 'system' User)")
 @async_to_sync_blocking
 async def bootstrap(region: Region = Region.EUROPE_CENTRAL):
-    global_store = global_store_from_env()
-    global_pg_engine = global_pg_engine_from_store(global_store)
+    global_store = system_store_from_env()
+    global_pg_engine = pg_engine_from_store(global_store)
     async with global_session(global_store, (global_pg_engine,), REAL_ORACLE, epoch=0) as session:
         system_user = User(
             name="System", slug="system", email="system@bench.com", status=UserStatus.REGISTERED
@@ -72,8 +72,8 @@ async def bootstrap(region: Region = Region.EUROPE_CENTRAL):
 @app.command(name="make-server-client", help="gets or creates a server Client for a Bench")
 @async_to_sync_blocking
 async def make_server_client(bench_slug: str, name: str = "Localhost"):
-    global_store = global_store_from_env()
-    global_pg_engine = global_pg_engine_from_store(global_store)
+    global_store = system_store_from_env()
+    global_pg_engine = pg_engine_from_store(global_store)
     async with global_session(global_store, (global_pg_engine,), REAL_ORACLE, epoch=0) as session:
         bench = (
             await Bench.descendants(NodeType.SERVER, NodeType.MACHINE, NodeType.CLIENT)

@@ -6,9 +6,7 @@ from uuid import UUID
 import grpclib
 import pytest
 
-from bench.language.node import EMPTY_SCOPE
 from bench.test.conftest import _setup_test_env
-from bench.utils.oracle import Oracle
 
 # NOTE: must run setup before importing from bench
 _setup_test_env()
@@ -18,21 +16,20 @@ from bench.language import VERSION, NodeReference, Store
 from bench.language.bench import Bench
 from bench.language.const import NodeType, Region
 from bench.language.graph import NodeSuperGraph
-from bench.language.session import Session
 from bench.sql.client import GLOBAL_PG_CRYPTO_KEY, pg_store_connection
 from bench.sql.core import Schema
-from bench.sql.engine import sqlstr
+from bench.sql.engine import GLOBAL_SCHEMA, OMNI_SCHEMA, sqlstr
 from bench.sql.migration import (
     apply_sql_migration_ops,
     generate_sql_migration_ops,
     introspect_sql_schema,
 )
-from bench.system.core import BEGINNING_OF_TIME, global_pg_cursor, global_pg_engine_from_store
+from bench.system.core import BEGINNING_OF_TIME, global_pg_cursor
 from bench.utils.utils import get_from_env
 
 
-def make_global_store(name: str):
-    """Creates a global store for testing. Like global store in system/core."""
+def make_system_store(name: str):
+    """Creates a system store for testing. Like global store in system/core."""
 
     host = get_from_env("GLOBAL_PG_HOST", description="Global Postgres host")
     username = get_from_env("GLOBAL_PG_USERNAME", description="Global Postgres username")
@@ -50,7 +47,6 @@ def make_global_store(name: str):
         created_at=BEGINNING_OF_TIME,
         updated_at=BEGINNING_OF_TIME,
     )
-
     store = Store(
         parent=system_bench_stub,
         name=name,
@@ -83,19 +79,31 @@ async def create_test_db(store: Store, schema: Schema):
         await cur.connection.commit()
 
 
-def create_global_session(global_store: Store, oracle: Oracle):
-    """Gets direct access to a per test global engine"""
+@pytest.fixture()
+async def blank_store(request: pytest.FixtureRequest):
+    """Gets the per test function blank store"""
 
-    global_pg_engine = global_pg_engine_from_store(global_store)
-    session = Session(
-        parent=None,
-        _default_scope=EMPTY_SCOPE._to_data(),
-        _engines=(global_pg_engine,),
-        _epoch=0,
-        _oracle=oracle,
-        _supergraph=NodeSuperGraph(root_ptr=None),
-    )
-    return session
+    store = make_system_store(f"test-{request.node.name}")
+    await create_blank_test_db(store)
+    return store
+
+
+@pytest.fixture()
+async def global_store(request: pytest.FixtureRequest):
+    """Gets the per test function global store"""
+
+    store = make_system_store(f"test-{request.node.name}")
+    await create_test_db(store, GLOBAL_SCHEMA)
+    return store
+
+
+@pytest.fixture()
+async def omni_store(request: pytest.FixtureRequest):
+    """Gets the per test function global store"""
+
+    store = make_system_store(f"test-{request.node.name}")
+    await create_test_db(store, OMNI_SCHEMA)
+    return store
 
 
 @contextmanager

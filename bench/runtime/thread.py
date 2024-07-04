@@ -134,15 +134,15 @@ class RuntimeThread:
         async with self.session(readonly=True):
             # connect bench
             self._bench = await BENCH_QUERY.get(self._bench_ptr, live=True)
-            main_environment = self._bench.main_environment
-            assert main_environment is not None, f"{self._bench!r} has no main environment"
             main_branch = self._bench.main_branch
-            assert main_branch is not None, f"{self._bench!r} has no main branch"
-            assert main_branch.main_package_id is not None, f"{main_branch!r} has no main package"
-            self._client = main_environment.server.clients.get(self._client_id)
-            assert self._client, f"{main_environment!r} has no client {self._client_id}"
+            assert main_branch, f"{self._bench!r} has no main branch"
+            assert main_branch.main_package_id, f"{main_branch!r} has no main package"
+            main_server = self._bench.main_server
+            assert main_server, f"{self._bench!r} has no main server"
+            self._client = main_server.clients.get(self._client_id)
+            assert self._client, f"{main_server!r} has no client {self._client_id}"
             if self._machine_id:
-                self._machine = main_environment.server.machines.get(self._machine_id)
+                self._machine = main_server.machines.get(self._machine_id)
 
             # connect main package
             self._main_package = await PACKAGE_QUERY.get(main_branch.main_package_ptr, live=True)

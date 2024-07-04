@@ -273,6 +273,7 @@ IN_BENCH_GLOBAL_NODE_TYPES = bittuple(
 )
 SUB_BENCH_NODE_TYPES = bittuple(*tuple(nt for nt in IN_BENCH_NODE_TYPES if nt != NodeType.BENCH))
 RESOURCE_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if nt.id >= 500 and nt.id < 600))
+DEFERRED_RESOURCE_NODE_TYPES = bittuple(NodeType.BLOB)
 BENCH_NODE_TYPES = bittuple(
     NodeType.BENCH,
     NodeType.BRANCH,
@@ -281,7 +282,9 @@ BENCH_NODE_TYPES = bittuple(
     NodeType.CLIENT,
     *RESOURCE_NODE_TYPES,
 )
-LOADED_BENCH_NODE_TYPES = bittuple(*(nt for nt in BENCH_NODE_TYPES if nt != NodeType.BLOB))
+LOADED_BENCH_NODE_TYPES = bittuple(
+    *(nt for nt in BENCH_NODE_TYPES if nt not in DEFERRED_RESOURCE_NODE_TYPES)
+)
 PUBLIC_NODE_TYPES = bittuple(NodeType.USER, NodeType.ORGANIZATION)
 USER_NODE_TYPES = bittuple(NodeType.USER, NodeType.ORGANIZATION, NodeType.CLIENT, NodeType.HANDLE)
 

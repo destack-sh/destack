@@ -10,7 +10,7 @@ from bench.cli.utils import async_to_sync_blocking, check_is_consistent
 from bench.language.const import ClientType
 from bench.proto.services import GrpcServer, ServiceBase
 from bench.runtime.runtime import Runtime
-from bench.system.core import global_store_from_env
+from bench.system.core import system_store_from_env
 from bench.system.host import HostRouter
 from bench.system.supervisor import Supervisor
 from bench.utils.env import ENV, IS_DEV
@@ -31,7 +31,7 @@ async def system(
         await check_is_consistent(check_db=True)
     start = time_ns()
     logger.info("serve.system", host=host, port=port, env=ENV)
-    global_store = global_store_from_env()
+    global_store = system_store_from_env()
     services: list[ServiceBase] = [HostRouter(global_store=global_store, oracle=REAL_ORACLE)]
     if not no_supervisor:
         services.append(Supervisor(global_store=global_store, oracle=REAL_ORACLE))

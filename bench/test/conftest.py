@@ -90,3 +90,6 @@ def pytest_sessionstart(session: pytest.Session):
 
 def pytest_sessionfinish(session: pytest.Session, exitstatus):
     pass
+
+
+from .fixtures import *  # noqa: E402, F403

@@ -41,7 +41,12 @@ from bench.system.access import (
     hash_password,
     purge_client_caches,
 )
-from bench.system.core import HostProxy, global_pg_engine_from_store, global_session
+from bench.system.core import (
+    HostProxy,
+    global_session,
+    local_pg_engine_from_store,
+    pg_engine_from_store,
+)
 from bench.system.graph import GraphIoServiceBase
 from bench.system.provisioner import provision
 from bench.utils.func import generate_access_token, generate_salt, to_uuid
@@ -64,7 +69,7 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
             oracle=oracle,
         )
         self._global_store = global_store
-        self._global_pg_engine = global_pg_engine_from_store(global_store)
+        self._global_pg_engine = pg_engine_from_store(global_store)
 
     def __str__(self):
         return "shards=[*]"
@@ -398,18 +403,21 @@ async def create_default_bench(
     )
     store = bench.stores.create(region=bench.region, name="Store")
     drive = bench.drives.create(region=bench.region, name="Drive")
+    await session.flush()  # create before assigning FKs
+    bench.main_server = server
+    bench.main_store = store
+    bench.main_drive = drive
+    await session.flush()
 
-    # create main environment/branch/package
+    # immediately provision local store
+    await provision(HostProxy(global_store, session), bench, (store, drive))
+
+    # create main branch/package
+    session._engines += (local_pg_engine_from_store(store),)  # sneakily add engine
     main_branch = bench.branches.create(name="Main", slug="main")
     main_package = main_branch.packages.create()
     await session.flush()
     main_branch.main_package = main_package
     bench.main_branch = main_branch
-    bench.main_server = server
-    bench.main_store = store
-    bench.main_drive = drive
-
-    # immediately provision main store (must be ready for Host)
-    await provision(HostProxy(global_store, session), bench, (store,))
 
     return bench
