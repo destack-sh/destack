@@ -33,9 +33,9 @@ from bench.sql.migration import (
 from bench.sql.migration import sql_migrate as _migrate
 from bench.system.core import (
     global_pg_cursor,
-    global_pg_engine_from_store,
     global_session,
-    global_store_from_env,
+    pg_engine_from_store,
+    system_store_from_env,
 )
 from bench.utils.oracle import REAL_ORACLE
 from bench.utils.utils import format_python
@@ -56,8 +56,8 @@ async def make(
     from_scratch: bool = typer.Option(default=False, help="generate migration from scratch"),
 ):
     start = time.time()
-    global_store = global_store_from_env()
-    global_pg_engine = global_pg_engine_from_store(global_store)
+    global_store = system_store_from_env()
+    global_pg_engine = pg_engine_from_store(global_store)
 
     # check existing migrations for inconsistencies
     file_migrations = read_migrations_from_fs()
@@ -144,8 +144,8 @@ async def apply(
     dry_run: bool = typer.Option(default=False, help="only try, don't commit"),
 ):
     start = time.time()
-    global_store = global_store_from_env()
-    global_pg_engine = global_pg_engine_from_store(global_store)
+    global_store = system_store_from_env()
+    global_pg_engine = pg_engine_from_store(global_store)
 
     # resolve local_pg_name (determine local/global migration)
     if bench is not None:
@@ -174,8 +174,8 @@ async def apply(
 @async_to_sync_blocking
 async def clear(from_id: int, to_id: int):
     start = time.time()
-    global_store = global_store_from_env()
-    global_pg_engine = global_pg_engine_from_store(global_store)
+    global_store = system_store_from_env()
+    global_pg_engine = pg_engine_from_store(global_store)
 
     delete_migrations_in_fs(from_id, to_id)
     async with global_pg_cursor(global_store) as cur:
@@ -197,8 +197,8 @@ async def clear(from_id: int, to_id: int):
 async def introspect(bench: Optional[str] = None):  # type: ignore
     """Introspect the current schema of the Postgres instance."""
     start = time.perf_counter()
-    global_store = global_store_from_env()
-    global_pg_engine = global_pg_engine_from_store(global_store)
+    global_store = system_store_from_env()
+    global_pg_engine = pg_engine_from_store(global_store)
 
     if bench is not None:
         async with global_session(global_store, (global_pg_engine,), REAL_ORACLE):

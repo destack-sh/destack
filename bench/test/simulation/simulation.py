@@ -16,7 +16,7 @@ from bench.proto.wire import (
 )
 from bench.sql.engine import GLOBAL_SCHEMA
 from bench.test.conftest import TestProfile
-from bench.test.fixtures import create_test_db, make_global_store
+from bench.test.fixtures import create_test_db, make_system_store
 from bench.test.simulation.client import ClientHandle, UserHandle
 from bench.test.simulation.oracle import SimulatedEventLoop, SimulatedOracle
 from bench.test.simulation.service import HostHandle, ServiceHandle, SupervisorHandle
@@ -355,7 +355,7 @@ SIMULATIONS_BY_PROFILE = group_by(AVAILABLE_SIMULATIONS, lambda s: s.profile)
 
 async def _do_test_simulation(spec: SimulationSpec):
     simulation_id = get_simulation_id(spec)
-    global_store = make_global_store(f"test_{simulation_id}")
+    global_store = make_system_store(f"test_{simulation_id}")
     await create_test_db(global_store, GLOBAL_SCHEMA)
     simulation = Simulation(simulation_id, spec, global_store)
     try:

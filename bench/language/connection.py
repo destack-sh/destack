@@ -23,20 +23,24 @@ from uuid import UUID
 
 import psycopg
 import structlog
+from more_itertools import first
 from opentelemetry import trace
 
 from bench.language.const import (
     AggregationOp,
     BenchError,
+    ConditionalOp,
     NodeType,
     ReadType,
 )
+from bench.language.expression import C
 from bench.language.graph import NodeDataGraph, NodeGraph
 from bench.language.node import Node
-from bench.language.setup import CHILD_NODE_TYPES
+from bench.language.setup import CHILD_NODE_TYPES, DESCENDANT_NODE_TYPES, NODE_CLASS_BY_TYPE
 from bench.proto.wire import (
     AggregationData,
     AnyNodeData,
+    BenchData,
     ClientOriginData,
     EditData,
     ExpressionData,
@@ -893,33 +897,68 @@ class SplitConnection(Connection):
         from bench.proto import wiring
 
         assert query._options is not None, f"{query!r} has no options"
-        remaining_ancestors = [t for t in query._options.ancestor_types if t not in initial_types]
-        remaining_descendants = [
+        remaining_ancestors_types = [
+            t for t in query._options.ancestor_types if t not in initial_types
+        ]
+        remaining_descendants_types = [
             t for t in query._options.descendant_types if t not in initial_types
         ]
-        if not remaining_ancestors and not remaining_descendants:
-            return initial_result.graph  # nothing more to read
+        if not remaining_ancestors_types and not remaining_descendants_types:
+            return initial_result.graph  # nothing more to read (full result)
 
         combined_graph = NodeDataGraph(
             scope=self.scope,
             node_types=tuple(query.all_node_types),
             nodes=initial_result.graph.nodes,
         )
-        actual_roots = combined_graph.find_roots()
-        if not actual_roots:
-            return initial_result.graph  # nothing more to read
+        inner_roots = combined_graph.find_roots()
+        if not inner_roots:
+            return initial_result.graph  # nothing more to read (empty graph)
 
-        if remaining_ancestors:
-            # just select our way up
-            actual_roots_parents = tuple(n.parent_ptr for n in actual_roots if n.parent_ptr)
-            actual_roots_parents_by_type = group_by(actual_roots_parents, lambda n: n.type)
+        # select down for each potential parent in all nodes
+        if remaining_descendants_types:
+            remaining_descendants_types = bittuple(*remaining_descendants_types)
+            bench = first((n for n in combined_graph.nodes if isinstance(n, BenchData)), None)
+            descendants_scope = GraphScopeData(bench_id=bench.id) if bench else self.scope
+            inner_nodes_by_type = group_by(combined_graph.nodes, lambda n: NodeType(n.metatype))
+            descendants_engine = self.session._get_engine_for(
+                descendants_scope, remaining_descendants_types, is_readonly=True
+            )
+            descendants_channel = await self.session._get_channel(descendants_engine)
+            for parent_type, parents in inner_nodes_by_type.items():
+                child_types = remaining_descendants_types & CHILD_NODE_TYPES[parent_type]
+                for child_type in child_types:
+                    child_cls = NODE_CLASS_BY_TYPE[child_type]
+                    descendant_types = (
+                        remaining_descendants_types & DESCENDANT_NODE_TYPES[child_type]
+                    )
+                    parent_ids = [n.id for n in parents if n.id]
+                    descendant_query = QueryBuilder(
+                        read_type=ReadType.SEARCH,
+                        node_type=child_type,
+                        filter=C(
+                            ConditionalOp.IN,
+                            property=child_cls._prop("parent_id"),
+                            value=parent_ids,
+                            value_packed={},
+                        ),
+                        options=ReadOptions(descendant_types=list(descendant_types)),
+                    )
+                    descendant_connection = await descendants_channel.search(
+                        descendant_query, SearchOptions(live=False, unpack=False, count=False)
+                    )
+                    combined_graph.extend(descendant_connection.result_data.graph.nodes)
+
+        # select up for each parent in current roots
+        if remaining_ancestors_types:
+            inner_roots_parents = tuple(n.parent_ptr for n in inner_roots if n.parent_ptr)
+            inner_roots_parents_by_type = group_by(inner_roots_parents, lambda n: n.type)
             ancestor_engine = self.session._get_engine_for(
-                self.scope, remaining_ancestors, is_readonly=True
+                self.scope, remaining_ancestors_types, is_readonly=True
             )
             ancestor_channel = await self.session._get_channel(ancestor_engine)
-
-            for parent_type, parents in actual_roots_parents_by_type.items():
-                if parent_type not in remaining_ancestors:
+            for parent_type, parents in inner_roots_parents_by_type.items():
+                if parent_type not in remaining_ancestors_types:
                     continue
                 ancestor_query = QueryBuilder(
                     read_type=ReadType.GET,
@@ -928,14 +967,11 @@ class SplitConnection(Connection):
                         wiring.unpack_object(p, supergraph=None, expect=NodeReference)
                         for p in parents
                     ],
-                    options=ReadOptions(ancestor_types=remaining_ancestors),
+                    options=ReadOptions(ancestor_types=remaining_ancestors_types),
                 )
                 ancestor_connection = await ancestor_channel.get(ancestor_query, self.options)
                 combined_graph.extend(ancestor_connection.result_data.graph.nodes)
 
-        if remaining_descendants:
-            # not sure how to handle this yet because there's so many queries (not needed for now)
-            raise RuntimeError(f"descendants split: {remaining_descendants!r} for {query!r}")
         return combined_graph
 
 

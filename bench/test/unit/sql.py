@@ -239,10 +239,10 @@ async def test_stored_migrations_local(blank_cur: psycopg.AsyncCursor):
     await _do_test_stored_migrations(blank_cur, is_global=False)
 
 
-async def test_cascade_edits(global_real_session: Session):
+async def test_cascade_edits(omni_session: Session):
     """Ensure basic cascading works. A simpler, isolated version of the simulation workloads."""
 
-    async with global_real_session as session:
+    async with omni_session as session:
         user_1 = User(
             name="Rabbit", slug="rabbit", status=UserStatus.REGISTERED, email="rabbit@symbolx.com"
         )
@@ -304,9 +304,9 @@ async def test_cascade_edits(global_real_session: Session):
         assert await Client.get(id=client_1_c.id)
 
 
-async def test_crud_node_pointers(global_real_session: Session):
+async def test_crud_node_pointers(omni_session: Session):
     """Ensures that node pointers (parent, regular, ancestor) roundtrip correctly."""
-    async with global_real_session as session:
+    async with omni_session as session:
         # write
         bench: Bench = Bench(
             slug="test",

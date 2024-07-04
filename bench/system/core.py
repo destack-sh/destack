@@ -12,19 +12,20 @@ import structlog
 from opentelemetry import trace
 
 from bench.language import Bench, Node, NodeReference, NodeType, Store
-from bench.language.connection import PostgresEngine
+from bench.language.connection import GraphEngine, PostgresEngine
 from bench.language.const import (
     GLOBAL_NODE_TYPES,
+    LOCAL_NODE_TYPES,
     VERSION,
     EditType,
     Region,
 )
 from bench.language.graph import NodeGraphLike, NodeSuperGraph
-from bench.language.node import EMPTY_SCOPE
+from bench.language.node import EMPTY_SCOPE, GraphScope
 from bench.language.session import Session
 from bench.language.transaction import unpack_node_delta
 from bench.proto import wiring
-from bench.proto.wire import EditData
+from bench.proto.wire import EditData, GraphScopeData
 from bench.sql.client import PgStoreConnection
 from bench.utils.func import bittuple
 from bench.utils.oracle import Oracle
@@ -37,7 +38,7 @@ tracer = trace.get_tracer(__name__)
 BEGINNING_OF_TIME = datetime.fromisoformat("1970-01-01T00:00:00+00:00")
 
 
-def global_store_from_env() -> Store:
+def system_store_from_env() -> Store:
     """Get the default global store configured in the environment"""
     host = get_from_env("GLOBAL_PG_HOST", description="Global Postgres host")
     name = get_from_env("GLOBAL_PG_NAME", description="Global Postgres database name")
@@ -72,24 +73,34 @@ def global_store_from_env() -> Store:
     return store
 
 
-def global_pg_engine_from_store(store: Store):
-    """Get the global postgres engine for a global store"""
+def pg_engine_from_store(
+    store: Store,
+    *,
+    scope: GraphScopeData = EMPTY_SCOPE._to_data(),
+    node_types: bittuple[NodeType] = GLOBAL_NODE_TYPES,
+):
+    """Get the postgres engine for a store"""
     assert store.parent is not None, f"missing parent for {store!r}"
-    return PostgresEngine(
-        store=store,
-        bench=store.parent,
-        scope=EMPTY_SCOPE._to_data(),
-        node_types=GLOBAL_NODE_TYPES,
+    return PostgresEngine(store=store, bench=store.parent, scope=scope, node_types=node_types)
+
+
+def local_pg_engine_from_store(store: Store):
+    """Get the postgres engine for a local store"""
+    assert store.bench is not None, f"missing bench for {store!r}"
+    return pg_engine_from_store(
+        store, scope=GraphScope(bench_id=store.bench.id)._to_data(), node_types=LOCAL_NODE_TYPES
     )
 
 
 def global_session(
     store: Store,
-    engines: tuple[PostgresEngine, ...],
+    engines: tuple[GraphEngine, ...],
     oracle: Oracle,
     *,
     supergraph: NodeSuperGraph | None = None,
     epoch: Optional[int] = None,
+    readonly: bool = False,
+    split_read: bool = True,
 ):
     """Create a Session in a global store"""
     assert store.parent is not None, f"missing parent for {store!r}"
@@ -100,6 +111,8 @@ def global_session(
         _epoch=epoch,
         _supergraph=supergraph or store.parent._supergraph.instance(),
         _oracle=oracle,
+        _is_readonly=readonly,
+        _split_read=split_read,
     )
 
 

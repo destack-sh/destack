@@ -610,6 +610,10 @@ LOCAL_EXTENSIONS = (
     Extension("timescaledb"),
 )
 GLOBAL_EXTENSIONS = (*BASE_EXTENSIONS,)
+ALL_EXTENSIONS = (
+    *LOCAL_EXTENSIONS,
+    *(ex for ex in GLOBAL_EXTENSIONS if not any(ex.name == e.name for e in LOCAL_EXTENSIONS)),
+)
 
 
 MIGRATION_TABLE = Table(  # see bench/sql/migration.py

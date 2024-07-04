@@ -60,6 +60,7 @@ from bench.proto.wiring import PROTO_CLASS_BY_TYPE
 from bench.sql import schema
 from bench.sql.client import get_pg_crypto_key
 from bench.sql.core import (
+    ALL_EXTENSIONS,
     DEFAULT_GLOBAL_TABLES,
     DEFAULT_LOCAL_TABLES,
     GLOBAL_EXTENSIONS,
@@ -2002,6 +2003,10 @@ LOCAL_TABLES: tuple[Table, ...] = DEFAULT_LOCAL_TABLES + tuple(
     and not node.__is_stored_custom__
     and node.metatype in TABLE_BY_NODE_TYPE
 )
-ALL_TABLES: tuple[Table, ...] = GLOBAL_TABLES + LOCAL_TABLES
+ALL_TABLES: tuple[Table, ...] = (
+    *GLOBAL_TABLES,
+    *(t for t in LOCAL_TABLES if not any(t.name == g.name for g in GLOBAL_TABLES)),
+)
 GLOBAL_SCHEMA = Schema(GLOBAL_EXTENSIONS, GLOBAL_TABLES)
 LOCAL_SCHEMA = Schema(LOCAL_EXTENSIONS, LOCAL_TABLES)
+OMNI_SCHEMA = Schema(ALL_EXTENSIONS, ALL_TABLES)

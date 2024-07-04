@@ -15,7 +15,7 @@ from opentelemetry import trace
 
 from bench.language import Bench, NodeReference, Package, Run, Server, Store, Subject
 from bench.language.access import Badge, Ownable
-from bench.language.bench import Client
+from bench.language.bench import Branch, Client
 from bench.language.connection import GraphEngine, MemoryEngine, PostgresEngine
 from bench.language.const import (
     ETERNAL_NODE_TYPES,
@@ -54,8 +54,9 @@ from bench.system.access import CLIENT_CACHE_ENABLED, ClientCache, get_client
 from bench.system.core import (
     HostApi,
     HostPlugin,
-    global_pg_engine_from_store,
     global_session,
+    local_pg_engine_from_store,
+    pg_engine_from_store,
     unpack_commit,
 )
 from bench.system.graph import CommitArea, GraphIoServiceBase, parse_commit_area, validate_edit
@@ -78,7 +79,12 @@ HOST_MEMORY_ENGINE_ENABLED = get_from_env(
 
 LOADED_HOST_NODE_TYPES = LOADED_BENCH_NODE_TYPES | SOURCE_NODE_TYPES
 BENCH_QUERY = Bench.descendants(*LOADED_BENCH_NODE_TYPES).select_all()
-PACKAGE_QUERY = Package.descendants(*SOURCE_NODE_TYPES).select_all().exclude(Bench.encryption_key)
+PACKAGE_QUERY = (
+    Package.ancestors(Branch)
+    .descendants(*SOURCE_NODE_TYPES)
+    .select_all()
+    .exclude(Bench.encryption_key)
+)
 
 
 class HostRouter(ServiceBase, HostBase):
@@ -95,7 +101,7 @@ class HostRouter(ServiceBase, HostBase):
         self.hosts: dict[UUID, Host] = {}
         self.hosts_lock = asyncio.Lock()
         self._global_store = global_store
-        self._global_pg_engine = global_pg_engine_from_store(global_store)
+        self._global_pg_engine = pg_engine_from_store(global_store)
 
     def __str__(self):
         return "shards=[*]"
@@ -204,7 +210,7 @@ class Host(GraphIoServiceBase, HostApi, HostBase):
             type=NodeType.BENCH, id=bench_id, ck=bench_id, bench_id=bench_id
         )
         self._global_store = global_store
-        self._global_pg_engine_unscoped = global_pg_engine_from_store(global_store)
+        self._global_pg_engine_unscoped = pg_engine_from_store(global_store)
         self._supergraph = NodeSuperGraph(self.bench_ptr)
         self._client_cache = ClientCache()
         self._bench: Bench | None = None
@@ -264,12 +270,13 @@ class Host(GraphIoServiceBase, HostApi, HostBase):
     def global_store(self) -> Store:
         return self._global_store
 
-    def global_session(self):
+    def global_session(self, readonly: bool = False):
         return global_session(
             store=self.global_store,
             engines=(self._global_pg_engine_unscoped,),
             supergraph=self._supergraph,
             oracle=self.oracle,
+            readonly=readonly,
         )
 
     @override
@@ -366,20 +373,32 @@ class Host(GraphIoServiceBase, HostApi, HostBase):
 
         # load bench
         #  (in different session because we don't have the actual engines yet)
-        async with self.global_session() as session:
-            self._bench = await BENCH_QUERY.get(self.bench_ptr)
-            assert self._bench.main_store, f"{self._bench!r} has no main environment"
-            assert self._bench.main_branch, f"{self._bench!r} has no main branch"
-            self._bench._untrack_rec()
-            session.parent = self._bench.main_branch.main_package  # add bench hack for pg context
+        async with self.global_session(readonly=True) as session:
+            # get bench main store so we can get all bench data (some of which is local)
+            tmp_bench = await Bench.descendants(Store).select_all().get(self.bench_ptr)
+            assert tmp_bench.main_store, f"{tmp_bench!r} has no main store"
+            tmp_bench._untrack_rec()
+            session._engines += (local_pg_engine_from_store(tmp_bench.main_store),)
 
-            # preload main packages
+            # load full bench
+            self._bench = await BENCH_QUERY.get(self.bench_ptr)
+            assert self._bench.main_store, f"{self._bench!r} has no main store"
+            assert self._bench.main_branch, f"{self._bench!r} has no main branch"
+            assert self._bench.main_branch.main_package, f"{self._bench!r} has no main package"
+            session.parent = self._bench.main_branch.main_package  # patch in bench for pg context
+            session._default_scope = GraphScope(bench_id=self.bench_id)._to_data()
+
+            # load packages
             self._main_package = await PACKAGE_QUERY.get(self._bench.main_branch.main_package_ptr)
+
+            # cleanup
+            self._supergraph.remove_graph(tmp_bench._graph)
+            del tmp_bench
+            self._bench._untrack_rec()
             self._main_package._untrack_rec()
-        trace.get_current_span().set_attribute("bench", self._bench.slug)
 
         # setup main engines
-        # (overwrite global pg engine now that we have the specific bench as context)
+        # (overwrite global pg engine now that we have the full bench as context)
         self._global_pg_engine = PostgresEngine(
             store=self.global_store,
             bench=self._bench,

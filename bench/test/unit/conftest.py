@@ -5,7 +5,6 @@ import warnings
 import pytest
 import uvloop
 
-from bench.language.node import EMPTY_SCOPE
 from bench.test.conftest import _setup_test_env
 
 # NOTE: must run setup before importing from bench
@@ -16,10 +15,9 @@ from bench.language.bench import Bench, ServerProfile
 from bench.language.connection import NullEngine
 from bench.language.const import NODE_TYPES, OBJECT_TYPES, UserStatus, _active_session
 from bench.language.graph import NodeGraph, NodeSuperGraph
+from bench.language.node import EMPTY_SCOPE
 from bench.language.user import User
-from bench.sql.engine import GLOBAL_SCHEMA
-from bench.system.core import global_pg_engine_from_store
-from bench.test.fixtures import create_blank_test_db, create_test_db, make_global_store
+from bench.system.core import pg_engine_from_store
 from bench.test.strategies import draw_direct, from_object_type
 from bench.utils.oracle import REAL_ORACLE, Oracle
 
@@ -30,28 +28,10 @@ def event_loop_policy():
     return uvloop.EventLoopPolicy()
 
 
-@pytest.fixture()
-async def blank_store(request: pytest.FixtureRequest):
-    """Gets the per test function blank store"""
-
-    store = make_global_store(f"test-{request.node.name}")
-    await create_blank_test_db(store)
-    return store
-
-
-@pytest.fixture()
-async def global_store(request: pytest.FixtureRequest):
-    """Gets the per test function global store"""
-
-    store = make_global_store(f"test-{request.node.name}")
-    await create_test_db(store, GLOBAL_SCHEMA)
-    return store
-
-
-def create_global_session(global_store: Store, oracle: Oracle):
+def create_omni_session(omni_store: Store, oracle: Oracle):
     """Gets direct access to a per test global engine"""
 
-    global_pg_engine = global_pg_engine_from_store(global_store)
+    global_pg_engine = pg_engine_from_store(omni_store, node_types=NODE_TYPES)
     session = Session(
         parent=None,
         _default_scope=EMPTY_SCOPE._to_data(),
@@ -64,7 +44,7 @@ def create_global_session(global_store: Store, oracle: Oracle):
 
 
 @pytest.fixture()
-def global_real_session(global_store: Store):
+def omni_session(omni_store: Store):
     """
     Gets the per test function global real session.
     Unfortunately we can't set this session as the active session in context because
@@ -72,7 +52,7 @@ def global_real_session(global_store: Store):
     (see https://github.com/pytest-dev/pytest-asyncio/issues/127#issuecomment-1777004844)
     """
 
-    return create_global_session(global_store, REAL_ORACLE)
+    return create_omni_session(omni_store, REAL_ORACLE)
 
 
 def make_session(name: str):
@@ -98,7 +78,7 @@ def make_session(name: str):
     return session
 
 
-# NOTE :Cleanup: manually set session sync context since it's not propagated across pytest tasks
+# NOTE :Cleanup: manually set session sync context since it's not propagated across pytest tasks (see above)
 # https://github.com/pytest-dev/pytest-asyncio/issues/127#issuecomment-862817549
 
 

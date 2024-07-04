@@ -247,6 +247,10 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
             if node.parent_ptr is None or node.parent_ptr.id not in self._nodes_by_id
         )
 
+    def find_leaves(self) -> tuple[V, ...]:
+        """Finds all leaf nodes in *this* graph"""
+        return tuple(node for node in self._nodes_by_id.values() if not self.has_descendants(node))
+
     def has_descendants(self, node: V, child_node_type: NodeType | None = None) -> bool:
         """Checks if a node has descendants of a certain type"""
         if node.id not in self._nodes_by_parent:
