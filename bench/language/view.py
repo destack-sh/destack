@@ -9,7 +9,7 @@ from bench.language.node import (
     InlineStruct,
     Node,
     SourceNode,
-    node_,
+    local_node,
     object_component,
     struct_,
 )
@@ -49,86 +49,86 @@ class ViewType(IdEnum):
 
     # 'system'
     # nodes
-    PAGE = 101
-    BLOCK = 102
-    FIELD = 103
-    DATABASE = 104
-    VIEW = 105
-    FLOW = 106
-    STEP = 107
-    TYPE = 108
-    VARIABLE = 109
-    OBJECT = 110
-    RUN = 111
-    LOG = 112
+    PAGE = 201
+    BLOCK = 202
+    FIELD = 203
+    DATABASE = 204
+    VIEW = 205
+    FLOW = 206
+    STEP = 207
+    TYPE = 208
+    VARIABLE = 209
+    OBJECT = 210
+    RUN = 211
+    LOG = 212
     # helpers
-    TREE = 150
-    INSPECT = 153
-    CREATE = 154
-    CHAT = 155
-    START = 156
-    FEED = 157
-    TIMELINE = 158
-    HISTORY = 159
+    TREE = 400
+    INSPECT = 403
+    CREATE = 404
+    CHAT = 405
+    START = 406
+    FEED = 407
+    TIMELINE = 408
+    HISTORY = 409
 
     #
     # General
     #
 
     # containers (root)
-    WINDOW = 500
-    TAB = 502
-    SPLIT = 503
-    SPLIT_DRAWER = 504
+    WINDOW = 1000
+    TAB = 1002
+    SPLIT = 1003
+    SPLIT_DRAWER = 1004
     # containers (layout)
-    STACK = 510
-    DRAWER = 511
-    SCROLL = 512
-    GRID = 513
+    STACK = 1010
+    DRAWER = 1011
+    SCROLL = 1012
+    GRID = 1013
     # ROW, COLUMN, ...?
     # containers (data)
-    LIST = 520
-    TABLE = 521
+    LIST = 1020
+    TABLE = 1021
     # containers (group)
-    GROUP = 530
-    SECTION = 531
+    GROUP = 1030
+    SECTION = 1031
 
     # presentation
-    SPACER = 540
-    DIVIDER = 541
-    SHAPE = 543
-    PROGRESS = 544
-    AVATAR = 545
-    BADGE = 546
-    CHART = 547
+    SPACER = 1050
+    DIVIDER = 1051
+    SHAPE = 1053
+    PROGRESS = 1054
+    AVATAR = 1055
+    BADGE = 1056
+    CHART = 1057
 
     # controls
-    BUTTON = 600
-    MULTI_BUTTON = 601
-    LINK = 610
+    BUTTON = 1100
+    MULTI_BUTTON = 1101
+    LINK = 1110
 
     # content
-    VALUE = 620  # (generic content routed according to value type)
+    VALUE = 1220  # (generic content routed according to value type)
     # numeric
-    NUMBER = 632
-    SLIDER = 633
+    NUMBER = 1232
+    SLIDER = 1233
     # stringy
-    STRING = 640
-    TEXT = 641
-    CODE = 642
-    JSON = 643
+    STRING = 1240
+    TEXT = 1241
+    CODE = 1242
+    JSON = 1243
     # selection
-    TOGGLE = 650
-    PICKER = 653
-    CALENDAR = 656
-    MAP = 658
-    COLOR = 660
+    TOGGLE = 1250
+    PICKER = 1253
+    CALENDAR = 1256
+    MAP = 1258
+    COLOR = 1260
     # file
-    FILE = 670
-    ICON = 672
-    IMAGE = 673
-    VIDEO = 674
-    AUDIO = 675
+    FILE = 1270
+    ICON = 1272
+    IMAGE = 1273
+    VIDEO = 1274
+    AUDIO = 1275
     ...
 
 
@@ -388,7 +388,7 @@ class Alignment(IdEnum):
     SPACE_BETWEEN = 4
 
 
-@node_(NodeType.VIEW, identifier=IdentifierType.VARIABLE)
+@local_node(NodeType.VIEW, identifier=IdentifierType.VARIABLE)
 class View(SourceNode[ViewData], HasValues):
     """A view of a user interface in a Bench."""
 
@@ -478,7 +478,7 @@ class SpaceType(IdEnum):
     EXTENSION = 30
 
 
-@node_(NodeType.SPACE, identifier=IdentifierType.VARIABLE)
+@local_node(NodeType.SPACE, identifier=IdentifierType.VARIABLE)
 class Space(SourceNode[SpaceData]):
     """A space for a user to interact with the Bench."""
 

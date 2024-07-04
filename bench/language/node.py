@@ -571,6 +571,11 @@ def node_(
     return decorate
 
 
+local_node = functools.partial(node_, local=True)
+if TYPE_CHECKING:
+    local_node = node_
+
+
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
 def timed_node(
     node_type: NodeType,
@@ -578,7 +583,7 @@ def timed_node(
     indexes: tuple[Index | tuple[str, ...], ...] = (),
 ):
     """Register a class as a concrete node for the given node type."""
-    return node_(
+    return local_node(
         node_type=node_type,
         passthrough=passthrough,
         local=True,
@@ -2063,7 +2068,7 @@ LINK_TARGET_NODE_TYPES: tuple[NodeType, ...] = tuple(
 LINK_PARENT_NODE_TYPES: tuple[NodeType, ...] = (NodeType.PACKAGE, NodeType.BLOCK)
 
 
-@node_(NodeType.LINK)
+@local_node(NodeType.LINK)
 class Link(SourceNode):
     """
     A reference to another node in some graph.
@@ -2078,7 +2083,7 @@ class Link(SourceNode):
     order_key: Optional[str] = p_internal(32, default=None)
 
 
-@node_(NodeType.SKIP, stored=False)
+@local_node(NodeType.SKIP, stored=False)
 class Skip(Node):
     """A reference to another node in some graph that wasn't available for some reason (usually permissions)."""
 

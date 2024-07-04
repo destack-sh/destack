@@ -112,14 +112,11 @@ async def session_async(request):
 
 def make_package(session: Session):
     bench = Bench(name="test", slug="test")
-    server = bench.servers.create(name="Server", profile=ServerProfile.TINY)
-    store = bench.stores.create(name="Store")
-    drive = bench.drives.create(name="Drive")
-    environment = bench.environments.create(
-        name="Environment", server=server, store=store, drive=drive
-    )
+    bench.main_server = bench.servers.create(name="Server", profile=ServerProfile.TINY)
+    bench.main_store = bench.stores.create(name="Store")
+    bench.main_drive = bench.drives.create(name="Drive")
     branch = bench.branches.create(name="Branch")
-    package = branch.packages.create(environment=environment)
+    package = branch.packages.create()
     session.parent = package
     session._graph.update(session, _force_update_parent=True)
     return package

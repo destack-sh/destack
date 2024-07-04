@@ -32,7 +32,7 @@ from bench.language.node import (
     Struct,
     get_tk_b64_from_ck,
     get_tk_b64_from_ptr,
-    node_,
+    local_node,
     object_component,
     pad_ck_from_tk_b64,
     struct_,
@@ -455,7 +455,7 @@ def to_type(typ: TypeIn, *, as_object: bool = False, zone: FieldZone | None = No
 
 
 # pyright: reportIncompatibleMethodOverride=false
-@node_(NodeType.FIELD)
+@local_node(NodeType.FIELD)
 class Field(SourceNode[FieldData], HasNodeBase, TypeInfoBase, _TypeQueryBuilder):
     """
     A used-defined attribute of some value

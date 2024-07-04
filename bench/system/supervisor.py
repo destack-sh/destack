@@ -400,15 +400,14 @@ async def create_default_bench(
     drive = bench.drives.create(region=bench.region, name="Drive")
 
     # create main environment/branch/package
-    main_environment = bench.environments.create(
-        name="Main", server=server, store=store, drive=drive
-    )
     main_branch = bench.branches.create(name="Main", slug="main")
-    main_package = main_branch.packages.create(environment=main_environment)
+    main_package = main_branch.packages.create()
     await session.flush()
     main_branch.main_package = main_package
-    bench.main_environment = main_environment
     bench.main_branch = main_branch
+    bench.main_server = server
+    bench.main_store = store
+    bench.main_drive = drive
 
     # immediately provision main store (must be ready for Host)
     await provision(HostProxy(global_store, session), bench, (store,))

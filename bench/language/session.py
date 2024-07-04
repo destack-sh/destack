@@ -66,7 +66,6 @@ if TYPE_CHECKING:
         Block,
         Branch,
         Client,
-        Environment,
         Machine,
         NodeReference,
         Package,
@@ -680,9 +679,6 @@ class Context(Struct):
 
     # location
     bench: Optional["Bench"] = p_internal(30, require=False, array=False, references=NodeType.BENCH)
-    environment: Optional["Environment"] = p_internal(
-        31, require=False, array=False, references=NodeType.ENVIRONMENT
-    )
     branch: Optional["Branch"] = p_internal(
         32, require=False, array=False, references=NodeType.BRANCH
     )

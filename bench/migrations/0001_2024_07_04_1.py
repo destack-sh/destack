@@ -1,20 +1,20 @@
-# This migration was automatically generated on 2024.07.03. Edit as needed.
+# This migration was automatically generated on 2024.07.04. Edit as needed.
 import psycopg
 
 ID = 1
-VERSION = "2024.07.03.1"
+VERSION = "2024.07.04.1"
 HAS_GLOBAL = True
 HAS_LOCAL = True
 
 
 #
-# Global DB for core Bench nodes (runs once)
+# Global DB
 #
 
 
 async def upgrade_global(cur: psycopg.AsyncCursor):
-    await cur.execute('CREATE EXTENSION IF NOT EXISTS "bloom"')
     await cur.execute('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"')
+    await cur.execute('CREATE EXTENSION IF NOT EXISTS "bloom"')
     await cur.execute('CREATE EXTENSION IF NOT EXISTS "pgcrypto"')
 
     # bench_migration
@@ -60,15 +60,147 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         "owner_type" smallint,
         "region" smallint NOT NULL,
         "encryption_key" bytea NOT NULL,
-        "policies" jsonb[] NOT NULL
+        "policies" jsonb[] NOT NULL,
+        "main_branch_id" uuid
     )
     """
     )
 
-    # bench_environment
+    # bench_user
     await cur.execute(
         """
-    CREATE TABLE "bench_environment" (
+    CREATE TABLE "bench_user" (
+        "id" uuid NOT NULL PRIMARY KEY,
+        "revision" bigint NOT NULL,
+        "created_at" timestamp NOT NULL,
+        "updated_at" timestamp NOT NULL,
+        "deleted_at" timestamp,
+        "archived_at" timestamp,
+        "created_by_id" uuid,
+        "created_by_ck" uuid,
+        "created_by_type" smallint,
+        "created_by_base_ck" uuid,
+        "updated_by_id" uuid,
+        "updated_by_ck" uuid,
+        "updated_by_type" smallint,
+        "updated_by_base_ck" uuid,
+        "main_handle_bench_id" uuid,
+        "slug" varchar,
+        "name" varchar NOT NULL,
+        "text" jsonb,
+        "email" varchar NOT NULL,
+        "icon" jsonb,
+        "status" smallint NOT NULL,
+        "password_salt" bytea,
+        "password_hash" bytea,
+        "last_logged_in_at" timestamp,
+        "is_staff" boolean NOT NULL DEFAULT false
+    )
+    """
+    )
+
+    # bench_organization
+    await cur.execute(
+        """
+    CREATE TABLE "bench_organization" (
+        "id" uuid NOT NULL PRIMARY KEY,
+        "revision" bigint NOT NULL,
+        "created_at" timestamp NOT NULL,
+        "updated_at" timestamp NOT NULL,
+        "deleted_at" timestamp,
+        "archived_at" timestamp,
+        "created_by_id" uuid,
+        "created_by_ck" uuid,
+        "created_by_type" smallint,
+        "created_by_base_ck" uuid,
+        "updated_by_id" uuid,
+        "updated_by_ck" uuid,
+        "updated_by_type" smallint,
+        "updated_by_base_ck" uuid,
+        "main_handle_bench_id" uuid,
+        "slug" varchar,
+        "name" varchar NOT NULL,
+        "text" jsonb,
+        "icon" jsonb,
+        "status" smallint NOT NULL
+    )
+    """
+    )
+
+    # bench_handle
+    await cur.execute(
+        """
+    CREATE TABLE "bench_handle" (
+        "id" uuid NOT NULL PRIMARY KEY,
+        "parent_id" uuid NOT NULL,
+        "parent_type" smallint NOT NULL,
+        "bench_id" uuid,
+        "revision" bigint NOT NULL,
+        "created_at" timestamp NOT NULL,
+        "created_epoch" bigint NOT NULL,
+        "updated_at" timestamp NOT NULL,
+        "updated_epoch" bigint NOT NULL,
+        "deleted_at" timestamp,
+        "archived_at" timestamp,
+        "created_by_id" uuid,
+        "created_by_ck" uuid,
+        "created_by_type" smallint,
+        "created_by_base_ck" uuid,
+        "updated_by_id" uuid,
+        "updated_by_ck" uuid,
+        "updated_by_type" smallint,
+        "updated_by_base_ck" uuid,
+        "slug" varchar NOT NULL
+    )
+    """
+    )
+
+    # bench_client
+    await cur.execute(
+        """
+    CREATE TABLE "bench_client" (
+        "id" uuid NOT NULL PRIMARY KEY,
+        "parent_id" uuid NOT NULL,
+        "parent_type" smallint NOT NULL,
+        "bench_id" uuid,
+        "revision" bigint NOT NULL,
+        "created_at" timestamp NOT NULL,
+        "created_epoch" bigint NOT NULL,
+        "updated_at" timestamp NOT NULL,
+        "updated_epoch" bigint NOT NULL,
+        "deleted_at" timestamp,
+        "archived_at" timestamp,
+        "created_by_id" uuid,
+        "created_by_ck" uuid,
+        "created_by_type" smallint,
+        "created_by_base_ck" uuid,
+        "updated_by_id" uuid,
+        "updated_by_ck" uuid,
+        "updated_by_type" smallint,
+        "updated_by_base_ck" uuid,
+        "type" smallint NOT NULL,
+        "name" varchar NOT NULL,
+        "device_type" varchar,
+        "device_name" varchar,
+        "operating_system" varchar,
+        "browser_name" varchar,
+        "browser_version" varchar,
+        "place_id" varchar,
+        "access_token" varchar,
+        "seen_at" timestamp NOT NULL,
+        "logged_in_at" timestamp,
+        "space_id" uuid,
+        "space_ck" uuid,
+        "space_bench_id" uuid,
+        "machine_bench_id" uuid
+    )
+    """
+    )
+
+    # bench_server
+    await cur.execute(
+        """
+    CREATE TABLE "bench_server" (
         "id" uuid NOT NULL PRIMARY KEY,
         "parent_id" uuid NOT NULL,
         "bench_id" uuid NOT NULL,
@@ -89,8 +221,296 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         "updated_by_base_ck" uuid,
         "name" varchar NOT NULL,
         "text" jsonb,
-        "icon" jsonb,
-        "policies" jsonb[] NOT NULL
+        "region" smallint NOT NULL,
+        "status" smallint NOT NULL DEFAULT 1,
+        "current_status" smallint,
+        "profile" smallint NOT NULL,
+        "current_profile" smallint,
+        "version" varchar,
+        "current_version" varchar,
+        "active_at" timestamp,
+        "bumped_at" timestamp
+    )
+    """
+    )
+
+    # bench_store
+    await cur.execute(
+        """
+    CREATE TABLE "bench_store" (
+        "id" uuid NOT NULL PRIMARY KEY,
+        "parent_id" uuid NOT NULL,
+        "bench_id" uuid NOT NULL,
+        "revision" bigint NOT NULL,
+        "created_at" timestamp NOT NULL,
+        "created_epoch" bigint NOT NULL,
+        "updated_at" timestamp NOT NULL,
+        "updated_epoch" bigint NOT NULL,
+        "deleted_at" timestamp,
+        "archived_at" timestamp,
+        "created_by_id" uuid,
+        "created_by_ck" uuid,
+        "created_by_type" smallint,
+        "created_by_base_ck" uuid,
+        "updated_by_id" uuid,
+        "updated_by_ck" uuid,
+        "updated_by_type" smallint,
+        "updated_by_base_ck" uuid,
+        "name" varchar NOT NULL,
+        "text" jsonb,
+        "region" smallint NOT NULL,
+        "status" smallint NOT NULL DEFAULT 1,
+        "current_status" smallint,
+        "version" varchar,
+        "current_version" varchar,
+        "external_name" varchar,
+        "external_id" varchar,
+        "connection_uri" bytea
+    )
+    """
+    )
+
+    # bench_machine
+    await cur.execute(
+        """
+    CREATE TABLE "bench_machine" (
+        "id" uuid NOT NULL PRIMARY KEY,
+        "parent_id" uuid NOT NULL,
+        "bench_id" uuid NOT NULL,
+        "revision" bigint NOT NULL,
+        "created_at" timestamp NOT NULL,
+        "created_epoch" bigint NOT NULL,
+        "updated_at" timestamp NOT NULL,
+        "updated_epoch" bigint NOT NULL,
+        "deleted_at" timestamp,
+        "archived_at" timestamp,
+        "created_by_id" uuid,
+        "created_by_ck" uuid,
+        "created_by_type" smallint,
+        "created_by_base_ck" uuid,
+        "updated_by_id" uuid,
+        "updated_by_ck" uuid,
+        "updated_by_type" smallint,
+        "updated_by_base_ck" uuid,
+        "name" varchar NOT NULL,
+        "text" jsonb,
+        "region" smallint NOT NULL,
+        "status" smallint NOT NULL DEFAULT 1,
+        "current_status" smallint,
+        "profile" smallint NOT NULL,
+        "current_profile" smallint,
+        "version" varchar,
+        "current_version" varchar,
+        "external_name" varchar,
+        "external_id" varchar,
+        "connection_uri" bytea,
+        "started_at" timestamp,
+        "terminated_at" timestamp,
+        "active_at" timestamp
+    )
+    """
+    )
+
+    # bench_drive
+    await cur.execute(
+        """
+    CREATE TABLE "bench_drive" (
+        "id" uuid NOT NULL PRIMARY KEY,
+        "parent_id" uuid NOT NULL,
+        "bench_id" uuid NOT NULL,
+        "revision" bigint NOT NULL,
+        "created_at" timestamp NOT NULL,
+        "created_epoch" bigint NOT NULL,
+        "updated_at" timestamp NOT NULL,
+        "updated_epoch" bigint NOT NULL,
+        "deleted_at" timestamp,
+        "archived_at" timestamp,
+        "created_by_id" uuid,
+        "created_by_ck" uuid,
+        "created_by_type" smallint,
+        "created_by_base_ck" uuid,
+        "updated_by_id" uuid,
+        "updated_by_ck" uuid,
+        "updated_by_type" smallint,
+        "updated_by_base_ck" uuid,
+        "name" varchar NOT NULL,
+        "text" jsonb,
+        "region" smallint NOT NULL,
+        "status" smallint NOT NULL DEFAULT 1,
+        "current_status" smallint
+    )
+    """
+    )
+
+    # bench_blob
+    await cur.execute(
+        """
+    CREATE TABLE "bench_blob" (
+        "id" uuid NOT NULL PRIMARY KEY,
+        "parent_id" uuid NOT NULL,
+        "bench_id" uuid NOT NULL,
+        "revision" bigint NOT NULL,
+        "created_at" timestamp NOT NULL,
+        "created_epoch" bigint NOT NULL,
+        "updated_at" timestamp NOT NULL,
+        "updated_epoch" bigint NOT NULL,
+        "deleted_at" timestamp,
+        "archived_at" timestamp,
+        "created_by_id" uuid,
+        "created_by_ck" uuid,
+        "created_by_type" smallint,
+        "created_by_base_ck" uuid,
+        "updated_by_id" uuid,
+        "updated_by_ck" uuid,
+        "updated_by_type" smallint,
+        "updated_by_base_ck" uuid,
+        "name" varchar NOT NULL,
+        "text" jsonb,
+        "region" smallint NOT NULL,
+        "status" smallint NOT NULL DEFAULT 1,
+        "current_status" smallint,
+        "sha512" varchar NOT NULL,
+        "size" bigint NOT NULL,
+        "mime_type" varchar NOT NULL,
+        "retention" smallint NOT NULL,
+        "expires_at" timestamp
+    )
+    """
+    )
+
+    # bench_bench
+    await cur.execute(
+        'ALTER TABLE "bench_bench" ADD COLUMN "main_handle_id" uuid REFERENCES bench_handle ON DELETE SET NULL'
+    )
+    await cur.execute(
+        'ALTER TABLE "bench_bench" ADD COLUMN "main_store_id" uuid REFERENCES bench_store ON DELETE SET NULL'
+    )
+    await cur.execute(
+        'ALTER TABLE "bench_bench" ADD COLUMN "main_server_id" uuid REFERENCES bench_server ON DELETE SET NULL'
+    )
+    await cur.execute(
+        'ALTER TABLE "bench_bench" ADD COLUMN "main_drive_id" uuid REFERENCES bench_drive ON DELETE SET NULL'
+    )
+    await cur.execute(
+        'CREATE UNIQUE INDEX "bench_bench_bench_idx_slug" ON bench_bench USING BTREE (slug)'
+    )
+    await cur.execute(
+        'ALTER TABLE "bench_bench" ADD CONSTRAINT "bench_bench_bench_idx_slug" UNIQUE USING INDEX bench_bench_bench_idx_slug'
+    )
+
+    # bench_user
+    await cur.execute(
+        'ALTER TABLE "bench_user" ADD COLUMN "main_handle_id" uuid REFERENCES bench_handle ON DELETE SET NULL'
+    )
+    await cur.execute(
+        'ALTER TABLE "bench_user" ADD COLUMN "main_bench_id" uuid REFERENCES bench_bench ON DELETE SET NULL'
+    )
+    await cur.execute(
+        'CREATE UNIQUE INDEX "bench_user_bench_idx_slug" ON bench_user USING BTREE (slug)'
+    )
+    await cur.execute(
+        'CREATE UNIQUE INDEX "bench_user_bench_idx_email" ON bench_user USING BTREE (email)'
+    )
+    await cur.execute(
+        'ALTER TABLE "bench_user" ADD CONSTRAINT "bench_user_bench_idx_slug" UNIQUE USING INDEX bench_user_bench_idx_slug'
+    )
+    await cur.execute(
+        'ALTER TABLE "bench_user" ADD CONSTRAINT "bench_user_bench_idx_email" UNIQUE USING INDEX bench_user_bench_idx_email'
+    )
+
+    # bench_organization
+    await cur.execute(
+        'ALTER TABLE "bench_organization" ADD COLUMN "main_handle_id" uuid REFERENCES bench_handle ON DELETE SET NULL'
+    )
+    await cur.execute(
+        'ALTER TABLE "bench_organization" ADD COLUMN "main_bench_id" uuid REFERENCES bench_bench ON DELETE SET NULL'
+    )
+    await cur.execute(
+        'CREATE UNIQUE INDEX "bench_organization_bench_idx_slug" ON bench_organization USING BTREE (slug)'
+    )
+    await cur.execute(
+        'ALTER TABLE "bench_organization" ADD CONSTRAINT "bench_organization_bench_idx_slug" UNIQUE USING INDEX bench_organization_bench_idx_slug'
+    )
+
+    # bench_handle
+    await cur.execute(
+        'CREATE UNIQUE INDEX "bench_handle_bench_idx_slug" ON bench_handle USING BTREE (slug)'
+    )
+    await cur.execute(
+        'ALTER TABLE "bench_handle" ADD CONSTRAINT "bench_handle_bench_slug_is_slug" CHECK (((slug)::text ~ \'^[a-z0-9-]{3,}$\'::text))'
+    )
+    await cur.execute(
+        'ALTER TABLE "bench_handle" ADD CONSTRAINT "bench_handle_bench_idx_slug" UNIQUE USING INDEX bench_handle_bench_idx_slug'
+    )
+
+    # bench_client
+    await cur.execute(
+        'ALTER TABLE "bench_client" ADD COLUMN "machine_id" uuid REFERENCES bench_machine ON DELETE SET NULL'
+    )
+    await cur.execute(
+        'CREATE UNIQUE INDEX "bench_client_bench_idx_access_token" ON bench_client USING BTREE (access_token)'
+    )
+    await cur.execute(
+        'ALTER TABLE "bench_client" ADD CONSTRAINT "bench_client_bench_idx_access_token" UNIQUE USING INDEX bench_client_bench_idx_access_token'
+    )
+
+    # bench_blob
+    await cur.execute(
+        'CREATE UNIQUE INDEX "bench_blob_bench_idx_parent_id_sha512" ON bench_blob USING BTREE (parent_id, sha512)'
+    )
+    await cur.execute(
+        'ALTER TABLE "bench_blob" ADD CONSTRAINT "bench_blob_bench_idx_parent_id_sha512" UNIQUE USING INDEX bench_blob_bench_idx_parent_id_sha512'
+    )
+
+
+async def downgrade_global(cur: psycopg.AsyncCursor):
+    raise NotImplementedError
+
+
+#
+# Local DB
+#
+
+
+async def upgrade_local(cur: psycopg.AsyncCursor):
+    await cur.execute('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"')
+    await cur.execute('CREATE EXTENSION IF NOT EXISTS "timescaledb"')
+    await cur.execute('CREATE EXTENSION IF NOT EXISTS "plpgsql"')
+    await cur.execute('CREATE EXTENSION IF NOT EXISTS "pgcrypto"')
+    await cur.execute('CREATE EXTENSION IF NOT EXISTS "pg_trgm"')
+    await cur.execute('CREATE EXTENSION IF NOT EXISTS "bloom"')
+
+    # bench_migration
+    await cur.execute(
+        """
+    CREATE TABLE "bench_migration" (
+        "id" integer NOT NULL PRIMARY KEY,
+        "version" varchar NOT NULL,
+        "has_global" boolean NOT NULL,
+        "has_local" boolean NOT NULL,
+        "applied_at" timestamp
+    )
+    """
+    )
+
+    # bench_record_shared
+    await cur.execute(
+        """
+    CREATE TABLE "bench_record_shared" (
+        "id" uuid NOT NULL PRIMARY KEY,
+        "ck" uuid NOT NULL,
+        "revision" bigint NOT NULL DEFAULT 0,
+        "created_at" timestamp NOT NULL DEFAULT now(),
+        "created_epoch" bigint NOT NULL,
+        "updated_at" timestamp NOT NULL DEFAULT now(),
+        "updated_epoch" bigint NOT NULL,
+        "deleted_at" timestamp,
+        "archived_at" timestamp,
+        "block_tk" uuid NOT NULL,
+        "block_ck" uuid NOT NULL,
+        "block_id" uuid NOT NULL,
+        "value_packed" jsonb,
+        "secret_value_packed" bytea
     )
     """
     )
@@ -122,6 +542,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         "text" jsonb,
         "icon" jsonb,
         "policies" jsonb[] NOT NULL,
+        "main_package_id" uuid,
         "is_overlay" boolean NOT NULL DEFAULT false,
         "is_light" boolean NOT NULL DEFAULT false
     )
@@ -787,505 +1208,6 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     """
     )
 
-    # bench_server
-    await cur.execute(
-        """
-    CREATE TABLE "bench_server" (
-        "id" uuid NOT NULL PRIMARY KEY,
-        "parent_id" uuid NOT NULL,
-        "bench_id" uuid NOT NULL,
-        "revision" bigint NOT NULL,
-        "created_at" timestamp NOT NULL,
-        "created_epoch" bigint NOT NULL,
-        "updated_at" timestamp NOT NULL,
-        "updated_epoch" bigint NOT NULL,
-        "deleted_at" timestamp,
-        "archived_at" timestamp,
-        "created_by_id" uuid,
-        "created_by_ck" uuid,
-        "created_by_type" smallint,
-        "created_by_base_ck" uuid,
-        "updated_by_id" uuid,
-        "updated_by_ck" uuid,
-        "updated_by_type" smallint,
-        "updated_by_base_ck" uuid,
-        "name" varchar NOT NULL,
-        "text" jsonb,
-        "region" smallint NOT NULL,
-        "status" smallint NOT NULL DEFAULT 1,
-        "current_status" smallint,
-        "profile" smallint NOT NULL,
-        "current_profile" smallint,
-        "version" varchar,
-        "current_version" varchar,
-        "active_at" timestamp,
-        "bumped_at" timestamp
-    )
-    """
-    )
-
-    # bench_store
-    await cur.execute(
-        """
-    CREATE TABLE "bench_store" (
-        "id" uuid NOT NULL PRIMARY KEY,
-        "parent_id" uuid NOT NULL,
-        "bench_id" uuid NOT NULL,
-        "revision" bigint NOT NULL,
-        "created_at" timestamp NOT NULL,
-        "created_epoch" bigint NOT NULL,
-        "updated_at" timestamp NOT NULL,
-        "updated_epoch" bigint NOT NULL,
-        "deleted_at" timestamp,
-        "archived_at" timestamp,
-        "created_by_id" uuid,
-        "created_by_ck" uuid,
-        "created_by_type" smallint,
-        "created_by_base_ck" uuid,
-        "updated_by_id" uuid,
-        "updated_by_ck" uuid,
-        "updated_by_type" smallint,
-        "updated_by_base_ck" uuid,
-        "name" varchar NOT NULL,
-        "text" jsonb,
-        "region" smallint NOT NULL,
-        "status" smallint NOT NULL DEFAULT 1,
-        "current_status" smallint,
-        "version" varchar,
-        "current_version" varchar,
-        "external_name" varchar,
-        "external_id" varchar,
-        "connection_uri" bytea
-    )
-    """
-    )
-
-    # bench_machine
-    await cur.execute(
-        """
-    CREATE TABLE "bench_machine" (
-        "id" uuid NOT NULL PRIMARY KEY,
-        "parent_id" uuid NOT NULL,
-        "bench_id" uuid NOT NULL,
-        "revision" bigint NOT NULL,
-        "created_at" timestamp NOT NULL,
-        "created_epoch" bigint NOT NULL,
-        "updated_at" timestamp NOT NULL,
-        "updated_epoch" bigint NOT NULL,
-        "deleted_at" timestamp,
-        "archived_at" timestamp,
-        "created_by_id" uuid,
-        "created_by_ck" uuid,
-        "created_by_type" smallint,
-        "created_by_base_ck" uuid,
-        "updated_by_id" uuid,
-        "updated_by_ck" uuid,
-        "updated_by_type" smallint,
-        "updated_by_base_ck" uuid,
-        "name" varchar NOT NULL,
-        "text" jsonb,
-        "region" smallint NOT NULL,
-        "status" smallint NOT NULL DEFAULT 1,
-        "current_status" smallint,
-        "profile" smallint NOT NULL,
-        "current_profile" smallint,
-        "version" varchar,
-        "current_version" varchar,
-        "external_name" varchar,
-        "external_id" varchar,
-        "connection_uri" bytea,
-        "started_at" timestamp,
-        "terminated_at" timestamp,
-        "active_at" timestamp
-    )
-    """
-    )
-
-    # bench_drive
-    await cur.execute(
-        """
-    CREATE TABLE "bench_drive" (
-        "id" uuid NOT NULL PRIMARY KEY,
-        "parent_id" uuid NOT NULL,
-        "bench_id" uuid NOT NULL,
-        "revision" bigint NOT NULL,
-        "created_at" timestamp NOT NULL,
-        "created_epoch" bigint NOT NULL,
-        "updated_at" timestamp NOT NULL,
-        "updated_epoch" bigint NOT NULL,
-        "deleted_at" timestamp,
-        "archived_at" timestamp,
-        "created_by_id" uuid,
-        "created_by_ck" uuid,
-        "created_by_type" smallint,
-        "created_by_base_ck" uuid,
-        "updated_by_id" uuid,
-        "updated_by_ck" uuid,
-        "updated_by_type" smallint,
-        "updated_by_base_ck" uuid,
-        "name" varchar NOT NULL,
-        "text" jsonb,
-        "region" smallint NOT NULL,
-        "status" smallint NOT NULL DEFAULT 1,
-        "current_status" smallint
-    )
-    """
-    )
-
-    # bench_blob
-    await cur.execute(
-        """
-    CREATE TABLE "bench_blob" (
-        "id" uuid NOT NULL PRIMARY KEY,
-        "parent_id" uuid NOT NULL,
-        "bench_id" uuid NOT NULL,
-        "revision" bigint NOT NULL,
-        "created_at" timestamp NOT NULL,
-        "created_epoch" bigint NOT NULL,
-        "updated_at" timestamp NOT NULL,
-        "updated_epoch" bigint NOT NULL,
-        "deleted_at" timestamp,
-        "archived_at" timestamp,
-        "created_by_id" uuid,
-        "created_by_ck" uuid,
-        "created_by_type" smallint,
-        "created_by_base_ck" uuid,
-        "updated_by_id" uuid,
-        "updated_by_ck" uuid,
-        "updated_by_type" smallint,
-        "updated_by_base_ck" uuid,
-        "name" varchar NOT NULL,
-        "text" jsonb,
-        "region" smallint NOT NULL,
-        "status" smallint NOT NULL DEFAULT 1,
-        "current_status" smallint,
-        "sha512" varchar NOT NULL,
-        "size" bigint NOT NULL,
-        "mime_type" varchar NOT NULL,
-        "retention" smallint NOT NULL,
-        "expires_at" timestamp
-    )
-    """
-    )
-
-    # bench_handle
-    await cur.execute(
-        """
-    CREATE TABLE "bench_handle" (
-        "id" uuid NOT NULL PRIMARY KEY,
-        "parent_id" uuid NOT NULL,
-        "parent_type" smallint NOT NULL,
-        "bench_id" uuid,
-        "revision" bigint NOT NULL,
-        "created_at" timestamp NOT NULL,
-        "created_epoch" bigint NOT NULL,
-        "updated_at" timestamp NOT NULL,
-        "updated_epoch" bigint NOT NULL,
-        "deleted_at" timestamp,
-        "archived_at" timestamp,
-        "created_by_id" uuid,
-        "created_by_ck" uuid,
-        "created_by_type" smallint,
-        "created_by_base_ck" uuid,
-        "updated_by_id" uuid,
-        "updated_by_ck" uuid,
-        "updated_by_type" smallint,
-        "updated_by_base_ck" uuid,
-        "slug" varchar NOT NULL
-    )
-    """
-    )
-
-    # bench_user
-    await cur.execute(
-        """
-    CREATE TABLE "bench_user" (
-        "id" uuid NOT NULL PRIMARY KEY,
-        "revision" bigint NOT NULL,
-        "created_at" timestamp NOT NULL,
-        "updated_at" timestamp NOT NULL,
-        "deleted_at" timestamp,
-        "archived_at" timestamp,
-        "created_by_id" uuid,
-        "created_by_ck" uuid,
-        "created_by_type" smallint,
-        "created_by_base_ck" uuid,
-        "updated_by_id" uuid,
-        "updated_by_ck" uuid,
-        "updated_by_type" smallint,
-        "updated_by_base_ck" uuid,
-        "main_handle_bench_id" uuid,
-        "slug" varchar,
-        "name" varchar NOT NULL,
-        "text" jsonb,
-        "email" varchar NOT NULL,
-        "icon" jsonb,
-        "status" smallint NOT NULL,
-        "password_salt" bytea,
-        "password_hash" bytea,
-        "last_logged_in_at" timestamp,
-        "is_staff" boolean NOT NULL DEFAULT false
-    )
-    """
-    )
-
-    # bench_organization
-    await cur.execute(
-        """
-    CREATE TABLE "bench_organization" (
-        "id" uuid NOT NULL PRIMARY KEY,
-        "revision" bigint NOT NULL,
-        "created_at" timestamp NOT NULL,
-        "updated_at" timestamp NOT NULL,
-        "deleted_at" timestamp,
-        "archived_at" timestamp,
-        "created_by_id" uuid,
-        "created_by_ck" uuid,
-        "created_by_type" smallint,
-        "created_by_base_ck" uuid,
-        "updated_by_id" uuid,
-        "updated_by_ck" uuid,
-        "updated_by_type" smallint,
-        "updated_by_base_ck" uuid,
-        "main_handle_bench_id" uuid,
-        "slug" varchar,
-        "name" varchar NOT NULL,
-        "text" jsonb,
-        "icon" jsonb,
-        "status" smallint NOT NULL
-    )
-    """
-    )
-
-    # bench_client
-    await cur.execute(
-        """
-    CREATE TABLE "bench_client" (
-        "id" uuid NOT NULL PRIMARY KEY,
-        "parent_id" uuid NOT NULL,
-        "parent_type" smallint NOT NULL,
-        "bench_id" uuid,
-        "revision" bigint NOT NULL,
-        "created_at" timestamp NOT NULL,
-        "created_epoch" bigint NOT NULL,
-        "updated_at" timestamp NOT NULL,
-        "updated_epoch" bigint NOT NULL,
-        "deleted_at" timestamp,
-        "archived_at" timestamp,
-        "created_by_id" uuid,
-        "created_by_ck" uuid,
-        "created_by_type" smallint,
-        "created_by_base_ck" uuid,
-        "updated_by_id" uuid,
-        "updated_by_ck" uuid,
-        "updated_by_type" smallint,
-        "updated_by_base_ck" uuid,
-        "type" smallint NOT NULL,
-        "name" varchar NOT NULL,
-        "device_type" varchar,
-        "device_name" varchar,
-        "operating_system" varchar,
-        "browser_name" varchar,
-        "browser_version" varchar,
-        "place_id" varchar,
-        "access_token" varchar,
-        "seen_at" timestamp NOT NULL,
-        "logged_in_at" timestamp,
-        "space_id" uuid,
-        "space_ck" uuid,
-        "space_bench_id" uuid,
-        "machine_bench_id" uuid
-    )
-    """
-    )
-
-    # bench_bench
-    await cur.execute(
-        'ALTER TABLE "bench_bench" ADD COLUMN "main_handle_id" uuid REFERENCES bench_handle ON DELETE SET NULL'
-    )
-    await cur.execute(
-        'ALTER TABLE "bench_bench" ADD COLUMN "main_environment_id" uuid REFERENCES bench_environment ON DELETE SET NULL'
-    )
-    await cur.execute(
-        'ALTER TABLE "bench_bench" ADD COLUMN "main_branch_id" uuid REFERENCES bench_branch ON DELETE SET NULL'
-    )
-    await cur.execute(
-        'CREATE UNIQUE INDEX "bench_bench_bench_idx_slug" ON bench_bench USING BTREE (slug)'
-    )
-    await cur.execute(
-        'ALTER TABLE "bench_bench" ADD CONSTRAINT "bench_bench_bench_idx_slug" UNIQUE USING INDEX bench_bench_bench_idx_slug'
-    )
-
-    # bench_environment
-    await cur.execute(
-        'ALTER TABLE "bench_environment" ADD COLUMN "server_id" uuid NOT NULL REFERENCES bench_server ON DELETE SET NULL'
-    )
-    await cur.execute(
-        'ALTER TABLE "bench_environment" ADD COLUMN "store_id" uuid NOT NULL REFERENCES bench_store ON DELETE SET NULL'
-    )
-    await cur.execute(
-        'ALTER TABLE "bench_environment" ADD COLUMN "drive_id" uuid NOT NULL REFERENCES bench_drive ON DELETE SET NULL'
-    )
-
-    # bench_branch
-    await cur.execute(
-        'ALTER TABLE "bench_branch" ADD COLUMN "main_package_id" uuid REFERENCES bench_package ON DELETE SET NULL'
-    )
-    await cur.execute(
-        'ALTER TABLE "bench_branch" ADD COLUMN "base_branch_id" uuid REFERENCES bench_branch ON DELETE SET NULL'
-    )
-    await cur.execute(
-        'CREATE UNIQUE INDEX "bench_branch_bench_idx_bench_id_slug" ON bench_branch USING BTREE (bench_id, slug)'
-    )
-    await cur.execute(
-        'ALTER TABLE "bench_branch" ADD CONSTRAINT "bench_branch_bench_idx_bench_id_slug" UNIQUE USING INDEX bench_branch_bench_idx_bench_id_slug'
-    )
-
-    # bench_package
-    await cur.execute(
-        'ALTER TABLE "bench_package" ADD COLUMN "environment_id" uuid NOT NULL REFERENCES bench_environment ON DELETE SET NULL'
-    )
-    await cur.execute(
-        'ALTER TABLE "bench_package" ADD COLUMN "base_package_id" uuid REFERENCES bench_package ON DELETE SET NULL'
-    )
-    await cur.execute(
-        'CREATE UNIQUE INDEX "bench_package_bench_idx_bench_id_slug" ON bench_package USING BTREE (bench_id, slug)'
-    )
-    await cur.execute(
-        'ALTER TABLE "bench_package" ADD CONSTRAINT "bench_package_bench_idx_bench_id_slug" UNIQUE USING INDEX bench_package_bench_idx_bench_id_slug'
-    )
-
-    # bench_badge
-    await cur.execute(
-        'CREATE UNIQUE INDEX "bench_badge_bench_idx_key" ON bench_badge USING BTREE (key)'
-    )
-    await cur.execute(
-        'CREATE UNIQUE INDEX "bench_badge_bench_idx_key_hash" ON bench_badge USING BTREE (key_hash)'
-    )
-    await cur.execute(
-        'ALTER TABLE "bench_badge" ADD CONSTRAINT "bench_badge_bench_idx_key" UNIQUE USING INDEX bench_badge_bench_idx_key'
-    )
-    await cur.execute(
-        'ALTER TABLE "bench_badge" ADD CONSTRAINT "bench_badge_bench_idx_key_hash" UNIQUE USING INDEX bench_badge_bench_idx_key_hash'
-    )
-
-    # bench_blob
-    await cur.execute(
-        'CREATE UNIQUE INDEX "bench_blob_bench_idx_parent_id_sha512" ON bench_blob USING BTREE (parent_id, sha512)'
-    )
-    await cur.execute(
-        'ALTER TABLE "bench_blob" ADD CONSTRAINT "bench_blob_bench_idx_parent_id_sha512" UNIQUE USING INDEX bench_blob_bench_idx_parent_id_sha512'
-    )
-
-    # bench_handle
-    await cur.execute(
-        'CREATE UNIQUE INDEX "bench_handle_bench_idx_slug" ON bench_handle USING BTREE (slug)'
-    )
-    await cur.execute(
-        'ALTER TABLE "bench_handle" ADD CONSTRAINT "bench_handle_bench_slug_is_slug" CHECK (((slug)::text ~ \'^[a-z0-9-]{3,}$\'::text))'
-    )
-    await cur.execute(
-        'ALTER TABLE "bench_handle" ADD CONSTRAINT "bench_handle_bench_idx_slug" UNIQUE USING INDEX bench_handle_bench_idx_slug'
-    )
-
-    # bench_user
-    await cur.execute(
-        'ALTER TABLE "bench_user" ADD COLUMN "main_handle_id" uuid REFERENCES bench_handle ON DELETE SET NULL'
-    )
-    await cur.execute(
-        'ALTER TABLE "bench_user" ADD COLUMN "main_bench_id" uuid REFERENCES bench_bench ON DELETE SET NULL'
-    )
-    await cur.execute(
-        'CREATE UNIQUE INDEX "bench_user_bench_idx_slug" ON bench_user USING BTREE (slug)'
-    )
-    await cur.execute(
-        'CREATE UNIQUE INDEX "bench_user_bench_idx_email" ON bench_user USING BTREE (email)'
-    )
-    await cur.execute(
-        'ALTER TABLE "bench_user" ADD CONSTRAINT "bench_user_bench_idx_slug" UNIQUE USING INDEX bench_user_bench_idx_slug'
-    )
-    await cur.execute(
-        'ALTER TABLE "bench_user" ADD CONSTRAINT "bench_user_bench_idx_email" UNIQUE USING INDEX bench_user_bench_idx_email'
-    )
-
-    # bench_organization
-    await cur.execute(
-        'ALTER TABLE "bench_organization" ADD COLUMN "main_handle_id" uuid REFERENCES bench_handle ON DELETE SET NULL'
-    )
-    await cur.execute(
-        'ALTER TABLE "bench_organization" ADD COLUMN "main_bench_id" uuid REFERENCES bench_bench ON DELETE SET NULL'
-    )
-    await cur.execute(
-        'CREATE UNIQUE INDEX "bench_organization_bench_idx_slug" ON bench_organization USING BTREE (slug)'
-    )
-    await cur.execute(
-        'ALTER TABLE "bench_organization" ADD CONSTRAINT "bench_organization_bench_idx_slug" UNIQUE USING INDEX bench_organization_bench_idx_slug'
-    )
-
-    # bench_client
-    await cur.execute(
-        'ALTER TABLE "bench_client" ADD COLUMN "machine_id" uuid REFERENCES bench_machine ON DELETE SET NULL'
-    )
-    await cur.execute(
-        'CREATE UNIQUE INDEX "bench_client_bench_idx_access_token" ON bench_client USING BTREE (access_token)'
-    )
-    await cur.execute(
-        'ALTER TABLE "bench_client" ADD CONSTRAINT "bench_client_bench_idx_access_token" UNIQUE USING INDEX bench_client_bench_idx_access_token'
-    )
-
-
-async def downgrade_global(cur: psycopg.AsyncCursor):
-    raise NotImplementedError
-
-
-#
-# Local DB for Bench-local nodes (records, runs, signals, etc.) (runs for every Bench)
-#
-
-
-async def upgrade_local(cur: psycopg.AsyncCursor):
-    await cur.execute('CREATE EXTENSION IF NOT EXISTS "pgcrypto"')
-    await cur.execute('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"')
-    await cur.execute('CREATE EXTENSION IF NOT EXISTS "bloom"')
-    await cur.execute('CREATE EXTENSION IF NOT EXISTS "plpgsql"')
-    await cur.execute('CREATE EXTENSION IF NOT EXISTS "pg_trgm"')
-    await cur.execute('CREATE EXTENSION IF NOT EXISTS "timescaledb"')
-
-    # bench_migration
-    await cur.execute(
-        """
-    CREATE TABLE "bench_migration" (
-        "id" integer NOT NULL PRIMARY KEY,
-        "version" varchar NOT NULL,
-        "has_global" boolean NOT NULL,
-        "has_local" boolean NOT NULL,
-        "applied_at" timestamp
-    )
-    """
-    )
-
-    # bench_record_shared
-    await cur.execute(
-        """
-    CREATE TABLE "bench_record_shared" (
-        "id" uuid NOT NULL PRIMARY KEY,
-        "ck" uuid NOT NULL,
-        "revision" bigint NOT NULL DEFAULT 0,
-        "created_at" timestamp NOT NULL DEFAULT now(),
-        "created_epoch" bigint NOT NULL,
-        "updated_at" timestamp NOT NULL DEFAULT now(),
-        "updated_epoch" bigint NOT NULL,
-        "deleted_at" timestamp,
-        "archived_at" timestamp,
-        "block_tk" uuid NOT NULL,
-        "block_ck" uuid NOT NULL,
-        "block_id" uuid NOT NULL,
-        "value_packed" jsonb,
-        "secret_value_packed" bytea
-    )
-    """
-    )
-
     # bench_session
     await cur.execute(
         """
@@ -1590,6 +1512,42 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         "is_pinned" boolean NOT NULL DEFAULT false
     )
     """
+    )
+
+    # bench_branch
+    await cur.execute(
+        'ALTER TABLE "bench_branch" ADD COLUMN "base_branch_id" uuid REFERENCES bench_branch ON DELETE SET NULL'
+    )
+    await cur.execute(
+        'CREATE UNIQUE INDEX "bench_branch_bench_idx_bench_id_slug" ON bench_branch USING BTREE (bench_id, slug)'
+    )
+    await cur.execute(
+        'ALTER TABLE "bench_branch" ADD CONSTRAINT "bench_branch_bench_idx_bench_id_slug" UNIQUE USING INDEX bench_branch_bench_idx_bench_id_slug'
+    )
+
+    # bench_package
+    await cur.execute(
+        'ALTER TABLE "bench_package" ADD COLUMN "base_package_id" uuid REFERENCES bench_package ON DELETE SET NULL'
+    )
+    await cur.execute(
+        'CREATE UNIQUE INDEX "bench_package_bench_idx_bench_id_slug" ON bench_package USING BTREE (bench_id, slug)'
+    )
+    await cur.execute(
+        'ALTER TABLE "bench_package" ADD CONSTRAINT "bench_package_bench_idx_bench_id_slug" UNIQUE USING INDEX bench_package_bench_idx_bench_id_slug'
+    )
+
+    # bench_badge
+    await cur.execute(
+        'CREATE UNIQUE INDEX "bench_badge_bench_idx_key" ON bench_badge USING BTREE (key)'
+    )
+    await cur.execute(
+        'CREATE UNIQUE INDEX "bench_badge_bench_idx_key_hash" ON bench_badge USING BTREE (key_hash)'
+    )
+    await cur.execute(
+        'ALTER TABLE "bench_badge" ADD CONSTRAINT "bench_badge_bench_idx_key" UNIQUE USING INDEX bench_badge_bench_idx_key'
+    )
+    await cur.execute(
+        'ALTER TABLE "bench_badge" ADD CONSTRAINT "bench_badge_bench_idx_key_hash" UNIQUE USING INDEX bench_badge_bench_idx_key_hash'
     )
 
     # bench_session

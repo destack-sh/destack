@@ -19,9 +19,9 @@ const TEST_TYPE_IDENTITIES: (Partial<TypeIdentity> & { kind: TypeKind, identityK
     isList: false,
     identityKey: "pe",
   },
-  { kind: TypeKind.NODE, benchType: BenchType.USER, isSecret: false, isList: true, identityKey: "NdD" },
-  { kind: TypeKind.STRUCT, benchType: BenchType.TEXT, isSecret: false, isList: false, identityKey: "sIS" },
-  { kind: TypeKind.ENUM, benchType: BenchType.OBJECT_TYPE, isSecret: true, isList: false, identityKey: "!eUf" },
+  { kind: TypeKind.NODE, benchType: BenchType.USER, isSecret: false, isList: true, identityKey: "NC" },
+  { kind: TypeKind.STRUCT, benchType: BenchType.TEXT, isSecret: false, isList: false, identityKey: "smeC" },
+  { kind: TypeKind.ENUM, benchType: BenchType.OBJECT_TYPE, isSecret: true, isList: false, identityKey: "!ek4E" },
   {
     kind: TypeKind.BASED_NODE,
     benchType: BenchType.FIELD,
@@ -32,7 +32,7 @@ const TEST_TYPE_IDENTITIES: (Partial<TypeIdentity> & { kind: TypeKind, identityK
     },
     isSecret: true,
     isList: true,
-    identityKey: "!BEjRWeP//AAA=g",
+    identityKey: "!BEjRWeP//AAA=0P",
   },
   {
     kind: TypeKind.OBJECT,

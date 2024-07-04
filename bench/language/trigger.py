@@ -7,7 +7,14 @@ from croniter import croniter
 from bench.language.const import NodeType, ScheduleType, StructType, TimeInterval, TriggerType
 from bench.language.graph import NodeList
 from bench.language.issue import Issue
-from bench.language.node import BuiltinObject, SourceNode, Struct, node_, object_component, struct_
+from bench.language.node import (
+    BuiltinObject,
+    SourceNode,
+    Struct,
+    local_node,
+    object_component,
+    struct_,
+)
 from bench.language.property import Property, p_node_children, p_node_parent, p_regular
 from bench.language.validation import NAME_CONSTRAINT, TypeConstraintIn, ValidationHandler
 from bench.proto.wire import TriggerData
@@ -83,7 +90,7 @@ class TriggerInfo(Struct, TriggerBase):
     pass
 
 
-@node_(NodeType.TRIGGER)
+@local_node(NodeType.TRIGGER)
 class Trigger(SourceNode[TriggerData], TriggerBase):
     """A trigger to run the node it is attached to (like a Block)."""
 

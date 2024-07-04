@@ -7,7 +7,7 @@ from bench.language.node import (
     Node,
     PackageNode,
     Property,
-    node_,
+    local_node,
 )
 from bench.language.property import p_node_parent, p_regular
 from bench.language.text import Text
@@ -70,7 +70,7 @@ ISSUE_PARENT_TYPES: tuple[NodeType, ...] = (
 )
 
 
-@node_(NodeType.ISSUE)
+@local_node(NodeType.ISSUE)
 class Issue(PackageNode[IssueData]):
     """
     A diagnostic regarding something in the Bench source.

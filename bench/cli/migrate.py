@@ -10,7 +10,7 @@ from rich import print
 from rich.console import Console
 
 from bench.cli.utils import async_to_sync_blocking
-from bench.language import Bench, Environment, Store
+from bench.language import Bench, Store
 from bench.language.const import VERSION, NodeType
 from bench.sql.client import pg_store_connection
 from bench.sql.core import Schema
@@ -86,11 +86,9 @@ async def make(
         if not from_scratch:
             try:
                 async with global_session(global_store, (global_pg_engine,), REAL_ORACLE):
-                    bench_node = (
-                        await Bench.descendants(Environment, Store).select_all().get(slug=bench)
-                    )
-                    assert bench_node.main_environment, f"{bench!r} has no main environment"
-                    async with pg_store_connection(bench_node.main_environment.store) as cur:
+                    bench_node = await Bench.descendants(Store).select_all().get(slug=bench)
+                    assert bench_node.main_store, f"{bench!r} has no main store"
+                    async with pg_store_connection(bench_node.main_store) as cur:
                         old_local_schema = await introspect_sql_schema(cur)
             except SqlUndefinedObjectError as e:
                 # missing from_scratch flag?
@@ -153,13 +151,11 @@ async def apply(
     if bench is not None:
         async with global_session(global_store, (global_pg_engine,), REAL_ORACLE):
             if bench != "*":
-                bench_node = (
-                    await Bench.descendants(Environment, Store).select_all().get(slug=bench)
-                )
-                stores = tuple(e.store for e in bench_node.environments)
+                bench_node = await Bench.descendants(Store).select_all().get(slug=bench)
+                stores = (*bench_node.stores,)
             else:
-                benches = await Bench.descendants(Environment, Store).select_all().tolist()
-                stores = tuple(e.store for b in benches for e in b.environments)
+                benches = await Bench.descendants(Store).select_all().tolist()
+                stores = tuple(store for bench in benches for store in bench.stores)
     else:
         stores = (global_store,)
 
@@ -188,8 +184,7 @@ async def clear(from_id: int, to_id: int):
     async with global_session(global_store, (global_pg_engine,), REAL_ORACLE):
         benches = await Bench.search()
         for bench in benches:
-            stores = tuple(e.store for e in bench.environments)
-            for store in stores:
+            for store in bench.stores:
                 async with pg_store_connection(store) as cur:
                     await delete_migrations_in_pg(cur, from_id=from_id, to_id=to_id)
                     await cur.connection.commit()
@@ -207,11 +202,9 @@ async def introspect(bench: Optional[str] = None):  # type: ignore
 
     if bench is not None:
         async with global_session(global_store, (global_pg_engine,), REAL_ORACLE):
-            bench_node = await Bench.descendants(NodeType.ENVIRONMENT, NodeType.STORE).get(
-                slug=bench
-            )
-            assert bench_node.main_environment, f"{bench!r} has no main environment"
-        async with pg_store_connection(bench_node.main_environment.store) as cur:
+            bench_node = await Bench.descendants(NodeType.STORE).get(slug=bench)
+            assert bench_node.main_store, f"{bench!r} has no main environment"
+        async with pg_store_connection(bench_node.main_store) as cur:
             schema = await introspect_sql_schema(
                 cur, include_columns=True, include_indexes=True, include_constraints=True
             )

@@ -8,7 +8,7 @@ HAS_LOCAL = "<HAS_LOCAL>"
 
 
 #
-# Global DB for core Bench nodes (runs once)
+# Global DB
 #
 
 
@@ -21,7 +21,7 @@ async def downgrade_global(cur: psycopg.AsyncCursor):
 
 
 #
-# Local DB for Bench-local nodes (records, runs, signals, etc.) (runs for every Bench)
+# Local DB
 #
 
 

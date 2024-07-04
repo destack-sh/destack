@@ -138,12 +138,22 @@ export const DEFAULT_BENCH_ICON = makeIcon({ faName: "fas fa-circle-dot" });
 export const DEFAULT_ENUM_ICON = makeIcon({ faName: "fas fa-caret-circle-down" });
 
 export const ICON_BY_NODE_TYPE: Partial<Record<NodeType, IconData>> = _makeIcons<NodeType>({
-  // root
+  // universe
   [NodeType.BENCH]: "fas fa-circle-dot",
-  [NodeType.ENVIRONMENT]: "fas fa-globe",
-  [NodeType.BRANCH]: "fas fa-code-branch",
+  [NodeType.HANDLE]: "fas fa-at",
+  [NodeType.USER]: "fas fa-user",
+  [NodeType.ORGANIZATION]: "fas fa-building",
+  [NodeType.CLIENT]: "fas fa-desktop",
+
+  // resources
+  [NodeType.SERVER]: "fas fa-server",
+  [NodeType.MACHINE]: "fas fa-desktop",
+  [NodeType.STORE]: "fas fa-database",
+  [NodeType.DRIVE]: "fas fa-hdd",
+  [NodeType.BLOB]: "fas fa-file",
 
   // source
+  [NodeType.BRANCH]: "fas fa-code-branch",
   [NodeType.PACKAGE]: "fas fa-box-open",
   [NodeType.DEPENDENCY]: "fas fa-turn-down-right",
   [NodeType.SPACE]: "fas fa-galaxy",
@@ -156,8 +166,6 @@ export const ICON_BY_NODE_TYPE: Partial<Record<NodeType, IconData>> = _makeIcons
   [NodeType.QUERY]: "fas fa-magnifying-glass",
   [NodeType.VIEW]: "fas fa-browser",
   [NodeType.STEP]: "fas fa-step-forward",
-
-  // auth
   [NodeType.BADGE]: "fas fa-id-badge",
   [NodeType.MEMBERSHIP]: "fas fa-book-user",
   [NodeType.INVITE]: "fas fa-circle-nodes",
@@ -170,19 +178,6 @@ export const ICON_BY_NODE_TYPE: Partial<Record<NodeType, IconData>> = _makeIcons
   [NodeType.NOTIFICATION]: "fas fa-bell",
   [NodeType.MESSAGE]: "fas fa-message",
   [NodeType.RECORD]: "fas fa-database",
-
-  // resources
-  [NodeType.SERVER]: "fas fa-server",
-  [NodeType.MACHINE]: "fas fa-desktop",
-  [NodeType.STORE]: "fas fa-database",
-  [NodeType.DRIVE]: "fas fa-hdd",
-  [NodeType.BLOB]: "fas fa-file",
-
-  // user
-  [NodeType.HANDLE]: "fas fa-at",
-  [NodeType.USER]: "fas fa-user",
-  [NodeType.ORGANIZATION]: "fas fa-building",
-  [NodeType.CLIENT]: "fas fa-desktop",
 });
 
 export const ICON_BY_STRUCT_TYPE: Partial<Record<StructType, IconData>> = _makeIcons<StructType>({

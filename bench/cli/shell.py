@@ -6,7 +6,7 @@ import structlog
 import typer
 
 from bench.cli.utils import async_to_sync_blocking
-from bench.language import Bench, Environment, Store
+from bench.language import Bench, Store
 from bench.sql.client import get_pg_connection_uri
 from bench.system.core import global_pg_engine_from_store, global_session, global_store_from_env
 from bench.utils.func import sanitize_connection_uri
@@ -25,9 +25,9 @@ async def shell(bench: Optional[str] = None):  # type: ignore
     global_pg_engine = global_pg_engine_from_store(global_store)
     if bench is not None:
         async with global_session(global_store, (global_pg_engine,), REAL_ORACLE):
-            bench_node = await Bench.descendants(Environment, Store).select_all().get(slug=bench)
-            assert bench_node.main_environment, f"{bench!r} has no main environment"
-            store = bench_node.main_environment.store
+            bench_node = await Bench.descendants(Store).select_all().get(slug=bench)
+            assert bench_node.main_store, f"{bench!r} has no main store"
+            store = bench_node.main_store
     else:
         bench_node = None
         store = global_store

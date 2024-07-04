@@ -2,7 +2,7 @@ from itertools import chain
 
 import pytest
 
-from bench.language import Bench, Environment, NodeReference, Property, Server, Signal
+from bench.language import Bench, NodeReference, Property, Server, Signal
 from bench.language.bench import Client, ServerProfile
 from bench.language.const import BlockType, ClientType, NodeType
 from bench.language.session import Session
@@ -33,20 +33,13 @@ def test_node_pointers_consistency(session: "Session"):
     assert bench_a.to_ref()._equals_content(
         NodeReference(type=NodeType.BENCH, id=bench_a.id, ck=bench_a.ck, bench_id=bench_a.id)
     )
-    server_a = bench_a.servers.create(name="Server", profile=ServerProfile.TINY)
-    store_a = bench_a.stores.create(name="Store")
-    drive_a = bench_a.drives.create(name="Drive")
+    bench_a.main_server = server_a = bench_a.servers.create(
+        name="Server", profile=ServerProfile.TINY
+    )
+    bench_a.main_store = bench_a.stores.create(name="Store")
+    bench_a.main_drive = bench_a.drives.create(name="Drive")
 
     # sub bench, above package pointers
-    environment_a = bench_a.environments.create(
-        name="Production A", server=server_a, store=store_a, drive=drive_a
-    )
-    assert environment_a.bench_id == bench_a.id
-    assert environment_a.to_ref()._equals_content(
-        NodeReference(
-            type=NodeType.ENVIRONMENT, id=environment_a.id, ck=environment_a.ck, bench_id=bench_a.id
-        )
-    )
     branch_a = bench_a.branches.create(name="main a")
     assert branch_a.bench_id == bench_a.id
     assert branch_a.to_ref()._equals_content(
@@ -73,7 +66,7 @@ def test_node_pointers_consistency(session: "Session"):
 
     # sub package nested pointers
     branch_a = bench_a.branches.create(name="main a")
-    package_a = branch_a.packages.create(environment=environment_a)
+    package_a = branch_a.packages.create()
     assert package_a.bench_id == bench_a.id
     block_a_1 = package_a.blocks.create(type=BlockType.CODE)
     assert block_a_1.bench_id == bench_a.id
@@ -99,14 +92,11 @@ def test_node_pointers_consistency(session: "Session"):
 
     # refs pointing to different bench
     bench_b = Bench(slug="testb", name="testb")
-    server_b = bench_b.servers.create(name="Server", profile=ServerProfile.TINY)
-    store_b = bench_b.stores.create(name="Store")
-    drive_b = bench_b.drives.create(name="Drive")
-    environment_b = Environment(
-        parent=bench_b, name="Production B", server=server_b, store=store_b, drive=drive_b
-    )
+    bench_b.main_server = bench_b.servers.create(name="Server", profile=ServerProfile.TINY)
+    bench_b.main_store = bench_b.stores.create(name="Store")
+    bench_b.main_drive = bench_b.drives.create(name="Drive")
     branch_b = bench_b.branches.create(name="main b")
-    package_b = branch_b.packages.create(environment=environment_b)
+    package_b = branch_b.packages.create()
     block_b = package_b.blocks.create(type=BlockType.CODE, bases=[block_a_1])
     assert block_b.bench_id == bench_b.id
     assert block_b.bases
