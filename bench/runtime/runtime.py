@@ -55,6 +55,7 @@ class Runtime(ServiceBase, RuntimeBase):
         client_id: UUID,
         client_access_token: str,
         machine_id: UUID | None,
+        max_threads: int,
         oracle: Oracle,
     ):
         super().__init__(logger=logger, tracer=tracer, oracle=oracle)
@@ -90,6 +91,7 @@ class Runtime(ServiceBase, RuntimeBase):
 
         # processing
         self._run_queue: asyncio.Queue[RunData] = asyncio.Queue()
+        self._max_threads = max_threads
         self._threads: list[RuntimeThread] = []
 
     def __str__(self):
@@ -130,7 +132,9 @@ class Runtime(ServiceBase, RuntimeBase):
         )
 
         # start threads
-        for i in range(RUNTIME_CONCURRENCY):
+        # NOTE :Incomplete: start threads as actual threads/processes (if not WASM)
+        assert self._max_threads > 0, f"no threads for {self!r}"
+        for i in range(self._max_threads):
             thread = RuntimeThread(
                 id=i,
                 bench_id=self._bench_id,

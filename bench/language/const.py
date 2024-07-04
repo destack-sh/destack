@@ -9,7 +9,7 @@ from bench.utils.func import IdEnum, bittuple, cyrb53a
 from bench.utils.utils import frozendict, get_from_env
 
 if typing.TYPE_CHECKING:
-    from bench.language import Bench, Run, Session, Transaction
+    from bench.language import Bench, Session, Transaction
 
 
 class _Unset:
@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.07.04.1"  # auto change via version script
+VERSION = "2024.07.04.2"  # auto change via version script
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -343,15 +343,16 @@ class StructType(IdEnum):
     QUERY_INFO = 10303
     READ_OPTIONS = 10304
     VALUE = 10305
+    COMPUTED_VALUE = 10306
 
     # run
     CODE = 10400
     CODE_LINE = 10401
-    PIPE = 10402
-    RUN_ERROR = 10450
-    RUN_OPTIONS = 10451
-    RETRY_ATTEMPT = 10452
-    BREAKPOINT = 10453
+    PIPE = 10450
+    RUN_ERROR = 10500
+    RUN_OPTIONS = 10501
+    RUN_ATTEMPT = 10502
+    BREAKPOINT = 10503
 
     # space/views
     COLOR = 11000
@@ -1078,9 +1079,6 @@ class BenchError(Exception):
 _active_session: contextvars.ContextVar[Optional["Session"]] = contextvars.ContextVar(
     "active_session", default=None
 )
-_active_run: contextvars.ContextVar[Optional["Run"]] = contextvars.ContextVar(
-    "active_run", default=None
-)
 
 
 def active_session() -> "Session":
@@ -1125,32 +1123,6 @@ def get_active_tx() -> Optional["Transaction"]:
     if session is None:
         return None
     return session._tx
-
-
-def active_run() -> "Run":
-    """Gets the Run of the currently active Session"""
-    run = _active_run.get()
-    assert run is not None, "no active run"
-    return run
-
-
-def get_active_run() -> Optional["Run"]:
-    """Gets the Run of the currently active Session (if any)."""
-    return _active_run.get()
-
-
-def active_root_run() -> "Run":
-    """Gets the root Run of the currently active Session"""
-    run = active_run()
-    return run.root or run
-
-
-def get_active_root_run() -> Optional["Run"]:
-    """Gets the root Run of the currently active Session (if any)."""
-    run = get_active_run()
-    if run is None:
-        return None
-    return run.root or run
 
 
 def get_region() -> Region:

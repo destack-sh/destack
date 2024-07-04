@@ -1,6 +1,6 @@
 import asyncio
 from contextlib import asynccontextmanager
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 import structlog
@@ -8,20 +8,17 @@ from opentelemetry import trace
 
 from bench.language import Bench, NodeReference, Package
 from bench.language.bench import Client, Machine
-from bench.language.code import Code
 from bench.language.connection import GraphEngine
-from bench.language.const import BlockType, NodeType, RunKind, RunStatus, _active_run
+from bench.language.const import NodeType
 from bench.language.graph import NodeSuperGraph
 from bench.language.node import GraphScope
-from bench.language.run import Run, RunError
+from bench.language.run import Run
 from bench.language.session import Session, unsuspend_session
-from bench.language.text import Text
 from bench.language.user import User
-from bench.language.validation import on_invalid_raise
-from bench.language.value import check_value
 from bench.proto import wiring
 from bench.proto.wire import HostClient, RunData, SupervisorClient
 from bench.runtime.core import BENCH_QUERY, PACKAGE_QUERY
+from bench.runtime.runner import RuntimeRunner, RuntimeState
 from bench.utils.func import CriticalLock
 from bench.utils.oracle import Oracle
 from bench.utils.task import TaskManager
@@ -76,6 +73,8 @@ class RuntimeThread:
 
         # processing
         self._session: Session | None = None
+        self._state: RuntimeState | None = None
+        self._runner: RuntimeRunner | None = None
         self._tx_lock: asyncio.Lock = CriticalLock(
             name=f"{self.__class__.__name__}_{self._bench_id or ''}_{self.id}"
         )
@@ -128,6 +127,8 @@ class RuntimeThread:
             _supergraph=self._supergraph,
             _oracle=self._oracle,
         )
+        self._state = RuntimeState(session=self._session)
+        self._runner = RuntimeRunner(state=self._state, session=self._session, oracle=self._oracle)
         await self._session.open(set_in_context=False)
 
         # connect
@@ -164,64 +165,26 @@ class RuntimeThread:
         )
         logger.info("thread.start", process=self, bench=self._bench, span="current")
 
+    @tracer.start_as_current_span("thread.process_run")
     async def _process_run(self, run_data: RunData):
         # TODO :Incomplete :Architecture!: process run in steps/ticks somehow
         #  (also: flush run/session state independent from other nodes, handle pausing, ...)
+        assert self._runner is not None, f"no runner for {self!r}"
         assert self._main_package is not None, f"no main package for {self!r}"
         package = self._main_package
         assert (
-            run_data.parent_ptr and UUID(run_data.parent_ptr.id) == package.id
+            run_data.parent_ptr and UUID(run_data.package_ptr.id) == package.id
         ), f"{run_data!r} not in {package!r}"
-
-        async with self.session(readonly=False, autocommit=True) as session:
-            run = wiring.unpack_object_validate(
-                run_data,
-                supergraph=self._supergraph,
-                parent=package,
-                session=self._session,
-                expect=Run,
-            )
-            run._unpack_values_inplace()  # values are a bit crummy :NoFakeComputed
-            run.client = self._client
-            run.server = self._machine.parent if self._machine else None
-            run.machine = self._machine
-            run.status = RunStatus.RUNNING
-            run.started_at = session._oracle.utc()
-            run.started_epoch = self.epoch
-            run_token = _active_run.set(run)
-            logger.info("run.start", thread=self, run=run)
-            try:
-                if run.kind == RunKind.BLOCK:
-                    block = run.block
-                    assert block is not None, f"no block for {run!r}"
-                    if block.input_type is not None:
-                        check_value(run.inputs, block.input_type, on_invalid_raise)
-                    context: dict[str, Any] = {"self": block, "run": run}
-                    if run.inputs:
-                        for field in run.inputs.fields:
-                            field_value = run.inputs._do_get(field)
-                            assert field.py_ident is not None, f"{field!r} has no py_ident"
-                            context[field.py_ident] = context[field.name] = field_value
-                    if block.type == BlockType.CODE:
-                        code = block.code or Code.empty()
-                        run_code_exec(code.to_string(), context)
-                    elif block.type == BlockType.TEXT:
-                        text = block.text or Text.empty()
-                        await run_text(block.to_type(as_object=True), text, context)
-                    else:
-                        raise NotImplementedError(f"unsupported block type {block.type}")
-                else:
-                    raise NotImplementedError(f"unsupported run kind {run.kind}")
-                run.status = RunStatus.COMPLETED
-                logger.info("run.complete", thread=self, run=run)
-            except Exception as e:
-                run.fail(RunError.from_exception(e))
-                logger.error("run.fail", thread=self, run=run, error=e, exc_info=e)
-            finally:
-                run.terminated_at = session._oracle.utc()
-                run.terminated_epoch = self.epoch
-                run.duration = (run.terminated_at - run.started_at).total_seconds()
-                _active_run.reset(run_token)
+        run = wiring.unpack_object_validate(
+            run_data,
+            supergraph=self._supergraph,
+            parent=package,
+            session=self._session,
+            expect=Run,
+        )
+        run._unpack_values_inplace()
+        await self._runner.start_run(run)
+        logger.info("thread.process_run", process=self, run=run, span="current")
 
     def close(self):
         self._tasks.close()

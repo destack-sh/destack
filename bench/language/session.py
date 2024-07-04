@@ -26,7 +26,6 @@ from bench.language.const import (
     SessionStatus,
     StructType,
     _active_session,
-    get_active_run,
 )
 from bench.language.node import (
     EMPTY_SCOPE,
@@ -124,7 +123,7 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
     _is_readonly: bool = p_runtime(default=False)
     _is_suspended: bool = p_runtime(default=False)
 
-    # runtime
+    # transaction
     _split_read: bool = p_runtime(default=False)
     _split_read_channel: Channel | None = p_runtime(default=None)
     _engines: tuple["GraphEngine", ...] = p_runtime(default_factory=tuple)
@@ -136,13 +135,16 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
     _tx_lock: asyncio.Lock = p_runtime(default_factory=lambda: CriticalLock(name="session"))
     _edited_nodes_by_id: dict[UUID, Node] = p_runtime(default_factory=dict)
     _default_scope: GraphScopeData = p_runtime(default_factory=lambda: EMPTY_SCOPE._to_data())
-    _active_session_token: contextvars.Token | None = p_runtime(default=None)
-    _supervisor: Optional["SupervisorClient"] = p_runtime(default=None)
-    _host: Optional["HostClient"] = p_runtime(default=None)
-    _oracle: Oracle = p_runtime()
     _epoch: int | None = p_runtime(default=None)
     _on_error: Callable[[Exception], None] | None = p_runtime(default=None)
     _custom_commit: CustomCommit | None = p_runtime(default=None)
+
+    # runtime
+    _oracle: Oracle = p_runtime()
+    _active_session_token: contextvars.Token | None = p_runtime(default=None)
+    _active_run: "Run | None" = p_runtime(default=None)
+    _supervisor: Optional["SupervisorClient"] = p_runtime(default=None)
+    _host: Optional["HostClient"] = p_runtime(default=None)
 
     def __content_str__(self):
         status_strs = []
@@ -466,7 +468,7 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
     def _get_edit_context(self) -> tuple[NodeReferenceData | None, EditContextData | None]:
         """Gathers current context for a specific edit"""
         # NOTE :Performance: gathering the context for every edit seems a bit expensive
-        subject = get_active_run() or self._subject
+        subject = self._active_run or self._subject
 
         if subject is None:
             return None, None

@@ -63,7 +63,7 @@ from .const import (
     TriggerType,
     Visibility,
 )
-from .expression import A, Aggregation, C, Expression, S, coerce_conditional
+from .expression import A, Aggregation, C, ComputedValue, Expression, S, coerce_conditional
 from .field import Field, FieldZone, TypeConstraint, TypeInfo, TypeInfoBase
 from .file import Blob, File, Icon
 from .graph import (
@@ -104,7 +104,7 @@ from .query import (
     ReadOptions,
 )
 from .record import Record
-from .run import RetryAttempt, Run, RunOptions
+from .run import Run, RunAttempt, RunOptions
 from .session import Context, EditContext, Session, SessionContext
 from .setup import _complete_bench_setup
 from .signal import Signal
@@ -114,7 +114,7 @@ from .transaction import Change, ChangeCategory, ChangeVignette, Edit, Transacti
 from .trigger import Trigger, TriggerBase, TriggerInfo
 from .user import Handle, Organization, User
 from .validation import ValidationError
-from .value import ValueObject
+from .value import Value, ValueObject
 from .view import (
     Alignment,
     Anchor,
@@ -175,6 +175,7 @@ __all__ = [
     "ColorShade",
     "ColorType",
     "ColorType",
+    "ComputedValue",
     "ConditionalOp",
     "Connection",
     "Context",
@@ -245,8 +246,8 @@ __all__ = [
     "Record",
     "Region",
     "ResourceStatus",
-    "RetryAttempt",
     "Run",
+    "RunAttempt",
     "RunOptions",
     "S",
     "ScheduleType",
@@ -283,6 +284,7 @@ __all__ = [
     "TypeInfoBase",
     "User",
     "ValidationError",
+    "Value",
     "ValueList",
     "ValueObject",
     "Variant",

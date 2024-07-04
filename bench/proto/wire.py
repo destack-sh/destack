@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.07.04.1"
+VERSION = "2024.07.04.2"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -185,13 +185,14 @@ class BenchType(betterproto.Enum):
     QUERY_INFO = 10303
     READ_OPTIONS = 10304
     VALUE = 10305
+    COMPUTED_VALUE = 10306
     CODE = 10400
     CODE_LINE = 10401
-    PIPE = 10402
-    RUN_ERROR = 10450
-    RUN_OPTIONS = 10451
-    RETRY_ATTEMPT = 10452
-    BREAKPOINT = 10453
+    PIPE = 10450
+    RUN_ERROR = 10500
+    RUN_OPTIONS = 10501
+    RETRY_ATTEMPT = 10502
+    BREAKPOINT = 10503
     COLOR = 11000
     FONT = 11001
     BOX = 11002
@@ -322,6 +323,7 @@ class ChangeCategory(betterproto.Enum):
 
     UNSPECIFIED = 0
     SPACE = 10
+    SESSION = 20
 
 
 class ChangeKind(betterproto.Enum):
@@ -860,13 +862,14 @@ class ObjectType(betterproto.Enum):
     QUERY_INFO = 10303
     READ_OPTIONS = 10304
     VALUE = 10305
+    COMPUTED_VALUE = 10306
     CODE = 10400
     CODE_LINE = 10401
-    PIPE = 10402
-    RUN_ERROR = 10450
-    RUN_OPTIONS = 10451
-    RETRY_ATTEMPT = 10452
-    BREAKPOINT = 10453
+    PIPE = 10450
+    RUN_ERROR = 10500
+    RUN_OPTIONS = 10501
+    RETRY_ATTEMPT = 10502
+    BREAKPOINT = 10503
     COLOR = 11000
     FONT = 11001
     BOX = 11002
@@ -1195,13 +1198,14 @@ class StructType(betterproto.Enum):
     QUERY_INFO = 10303
     READ_OPTIONS = 10304
     VALUE = 10305
+    COMPUTED_VALUE = 10306
     CODE = 10400
     CODE_LINE = 10401
-    PIPE = 10402
-    RUN_ERROR = 10450
-    RUN_OPTIONS = 10451
-    RETRY_ATTEMPT = 10452
-    BREAKPOINT = 10453
+    PIPE = 10450
+    RUN_ERROR = 10500
+    RUN_OPTIONS = 10501
+    RETRY_ATTEMPT = 10502
+    BREAKPOINT = 10503
     COLOR = 11000
     FONT = 11001
     BOX = 11002
@@ -1570,6 +1574,19 @@ class ColorData(betterproto.Message):
     type: Optional["ColorType"] = betterproto.enum_field(31, optional=True)
     shade: Optional["ColorShade"] = betterproto.enum_field(32, optional=True)
     hex: Optional[str] = betterproto.string_field(33, optional=True)
+
+
+@dataclass(eq=False, repr=False)
+class ComputedValueData(betterproto.Message):
+    """A value computed from an expression or code snippet."""
+
+    metatype: "ObjectType" = betterproto.enum_field(1)
+    id: int = betterproto.int32_field(2)
+    parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
+    parent_key: Optional[str] = betterproto.string_field(4, optional=True)
+    order_key: Optional[str] = betterproto.string_field(9, optional=True)
+    expression: Optional["ExpressionData"] = betterproto.message_field(35, optional=True)
+    code: Optional["CodeData"] = betterproto.message_field(36, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -5050,6 +5067,7 @@ AnyStructData = Union[
     QueryInfoData,
     ReadOptionsData,
     ValueData,
+    ComputedValueData,
     CodeData,
     CodeLineData,
     PipeData,

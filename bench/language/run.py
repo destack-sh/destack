@@ -102,8 +102,8 @@ class Breakpoint(Struct):
     )
 
 
-@struct_(StructType.RETRY_ATTEMPT)
-class RetryAttempt(Struct):
+@struct_(StructType.RUN_ATTEMPT)
+class RunAttempt(Struct):
     """A single attempt at a Run."""
 
     status: RunStatus = p_internal(30, default=RunStatus.SCHEDULED)
@@ -178,7 +178,7 @@ class Run(PackageNode[RunData], HasTimeIdentity, HasNodeBase, HasSessionContext,
         default=None,
         description="Duration in seconds from first attempt start to last attempt termination.",
     )
-    attempts: list[RetryAttempt] = p_internal(43, array=True, struct=StructType.RETRY_ATTEMPT)
+    attempts: list[RunAttempt] = p_internal(43, array=True, struct=StructType.RUN_ATTEMPT)
     error: Optional["RunError"] = p_internal(
         44, default=None, require=False, array=False, struct=StructType.RUN_ERROR
     )

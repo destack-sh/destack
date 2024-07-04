@@ -21,9 +21,9 @@ class CodeKind(IdEnum):
     We don't set this explicitly in Code because it depends on where the Code is used.
     """
 
-    SNIPPET = 1  # can import
-    SCRIPT = 2  # can import and export
-    FUNCTION = 3  # can import, take inputs and produce outputs
+    SNIPPET = 1  # for inline expressions and procedures anywhere (import only)
+    SCRIPT = 2  # for defining Python-level commons in Block 'scripts' (import & export)
+    FUNCTION = 3  # for Python functions in Blocks/Steps (import only)
 
 
 @struct_(StructType.CODE_LINE)

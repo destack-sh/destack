@@ -434,6 +434,41 @@ export interface ColorData {
     hex?: string;
 }
 /**
+ * A value computed from an expression or code snippet.
+ *
+ * @generated from protobuf message symbolx.bench.ComputedValueData
+ */
+export interface ComputedValueData {
+    /**
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: int32 id = 2;
+     */
+    id: number;
+    /**
+     * @generated from protobuf field: optional int32 parent_id = 3;
+     */
+    parentId?: number;
+    /**
+     * @generated from protobuf field: optional string parent_key = 4;
+     */
+    parentKey?: string;
+    /**
+     * @generated from protobuf field: optional string order_key = 9;
+     */
+    orderKey?: string;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.ExpressionData expression = 35;
+     */
+    expression?: ExpressionData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.CodeData code = 36;
+     */
+    code?: CodeData;
+}
+/**
  * The context at some point and time in the Bench tree.
  *
  * @generated from protobuf message symbolx.bench.ContextData
@@ -6679,6 +6714,10 @@ export enum BenchType {
      */
     VALUE = 10305,
     /**
+     * @generated from protobuf enum value: BENCH_TYPE_COMPUTED_VALUE = 10306;
+     */
+    COMPUTED_VALUE = 10306,
+    /**
      * @generated from protobuf enum value: BENCH_TYPE_CODE = 10400;
      */
     CODE = 10400,
@@ -6687,25 +6726,25 @@ export enum BenchType {
      */
     CODE_LINE = 10401,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_PIPE = 10402;
+     * @generated from protobuf enum value: BENCH_TYPE_PIPE = 10450;
      */
-    PIPE = 10402,
+    PIPE = 10450,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_RUN_ERROR = 10450;
+     * @generated from protobuf enum value: BENCH_TYPE_RUN_ERROR = 10500;
      */
-    RUN_ERROR = 10450,
+    RUN_ERROR = 10500,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_RUN_OPTIONS = 10451;
+     * @generated from protobuf enum value: BENCH_TYPE_RUN_OPTIONS = 10501;
      */
-    RUN_OPTIONS = 10451,
+    RUN_OPTIONS = 10501,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_RETRY_ATTEMPT = 10452;
+     * @generated from protobuf enum value: BENCH_TYPE_RETRY_ATTEMPT = 10502;
      */
-    RETRY_ATTEMPT = 10452,
+    RETRY_ATTEMPT = 10502,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_BREAKPOINT = 10453;
+     * @generated from protobuf enum value: BENCH_TYPE_BREAKPOINT = 10503;
      */
-    BREAKPOINT = 10453,
+    BREAKPOINT = 10503,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_COLOR = 11000;
      */
@@ -7191,7 +7230,11 @@ export enum ChangeCategory {
     /**
      * @generated from protobuf enum value: CHANGE_CATEGORY_SPACE = 10;
      */
-    SPACE = 10
+    SPACE = 10,
+    /**
+     * @generated from protobuf enum value: CHANGE_CATEGORY_SESSION = 20;
+     */
+    SESSION = 20
 }
 /**
  * The kind of Change.
@@ -9064,6 +9107,10 @@ export enum ObjectType {
      */
     VALUE = 10305,
     /**
+     * @generated from protobuf enum value: OBJECT_TYPE_COMPUTED_VALUE = 10306;
+     */
+    COMPUTED_VALUE = 10306,
+    /**
      * @generated from protobuf enum value: OBJECT_TYPE_CODE = 10400;
      */
     CODE = 10400,
@@ -9072,25 +9119,25 @@ export enum ObjectType {
      */
     CODE_LINE = 10401,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_PIPE = 10402;
+     * @generated from protobuf enum value: OBJECT_TYPE_PIPE = 10450;
      */
-    PIPE = 10402,
+    PIPE = 10450,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_RUN_ERROR = 10450;
+     * @generated from protobuf enum value: OBJECT_TYPE_RUN_ERROR = 10500;
      */
-    RUN_ERROR = 10450,
+    RUN_ERROR = 10500,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_RUN_OPTIONS = 10451;
+     * @generated from protobuf enum value: OBJECT_TYPE_RUN_OPTIONS = 10501;
      */
-    RUN_OPTIONS = 10451,
+    RUN_OPTIONS = 10501,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_RETRY_ATTEMPT = 10452;
+     * @generated from protobuf enum value: OBJECT_TYPE_RETRY_ATTEMPT = 10502;
      */
-    RETRY_ATTEMPT = 10452,
+    RETRY_ATTEMPT = 10502,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_BREAKPOINT = 10453;
+     * @generated from protobuf enum value: OBJECT_TYPE_BREAKPOINT = 10503;
      */
-    BREAKPOINT = 10453,
+    BREAKPOINT = 10503,
     /**
      * @generated from protobuf enum value: OBJECT_TYPE_COLOR = 11000;
      */
@@ -10140,6 +10187,10 @@ export enum StructType {
      */
     VALUE = 10305,
     /**
+     * @generated from protobuf enum value: STRUCT_TYPE_COMPUTED_VALUE = 10306;
+     */
+    COMPUTED_VALUE = 10306,
+    /**
      * @generated from protobuf enum value: STRUCT_TYPE_CODE = 10400;
      */
     CODE = 10400,
@@ -10148,25 +10199,25 @@ export enum StructType {
      */
     CODE_LINE = 10401,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_PIPE = 10402;
+     * @generated from protobuf enum value: STRUCT_TYPE_PIPE = 10450;
      */
-    PIPE = 10402,
+    PIPE = 10450,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_RUN_ERROR = 10450;
+     * @generated from protobuf enum value: STRUCT_TYPE_RUN_ERROR = 10500;
      */
-    RUN_ERROR = 10450,
+    RUN_ERROR = 10500,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_RUN_OPTIONS = 10451;
+     * @generated from protobuf enum value: STRUCT_TYPE_RUN_OPTIONS = 10501;
      */
-    RUN_OPTIONS = 10451,
+    RUN_OPTIONS = 10501,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_RETRY_ATTEMPT = 10452;
+     * @generated from protobuf enum value: STRUCT_TYPE_RETRY_ATTEMPT = 10502;
      */
-    RETRY_ATTEMPT = 10452,
+    RETRY_ATTEMPT = 10502,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_BREAKPOINT = 10453;
+     * @generated from protobuf enum value: STRUCT_TYPE_BREAKPOINT = 10503;
      */
-    BREAKPOINT = 10453,
+    BREAKPOINT = 10503,
     /**
      * @generated from protobuf enum value: STRUCT_TYPE_COLOR = 11000;
      */
@@ -11918,6 +11969,96 @@ class ColorData$Type extends MessageType<ColorData> {
  * @generated MessageType for protobuf message symbolx.bench.ColorData
  */
 export const ColorData = new ColorData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class ComputedValueData$Type extends MessageType<ComputedValueData> {
+    constructor() {
+        super("symbolx.bench.ComputedValueData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 2, name: "id", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 9, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 35, name: "expression", kind: "message", T: () => ExpressionData },
+            { no: 36, name: "code", kind: "message", T: () => CodeData }
+        ]);
+    }
+    create(value?: PartialMessage<ComputedValueData>): ComputedValueData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = 0;
+        if (value !== undefined)
+            reflectionMergePartial<ComputedValueData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ComputedValueData): ComputedValueData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* int32 id */ 2:
+                    message.id = reader.int32();
+                    break;
+                case /* optional int32 parent_id */ 3:
+                    message.parentId = reader.int32();
+                    break;
+                case /* optional string parent_key */ 4:
+                    message.parentKey = reader.string();
+                    break;
+                case /* optional string order_key */ 9:
+                    message.orderKey = reader.string();
+                    break;
+                case /* optional symbolx.bench.ExpressionData expression */ 35:
+                    message.expression = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.expression);
+                    break;
+                case /* optional symbolx.bench.CodeData code */ 36:
+                    message.code = CodeData.internalBinaryRead(reader, reader.uint32(), options, message.code);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: ComputedValueData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* int32 id = 2; */
+        if (message.id !== 0)
+            writer.tag(2, WireType.Varint).int32(message.id);
+        /* optional int32 parent_id = 3; */
+        if (message.parentId !== undefined)
+            writer.tag(3, WireType.Varint).int32(message.parentId);
+        /* optional string parent_key = 4; */
+        if (message.parentKey !== undefined)
+            writer.tag(4, WireType.LengthDelimited).string(message.parentKey);
+        /* optional string order_key = 9; */
+        if (message.orderKey !== undefined)
+            writer.tag(9, WireType.LengthDelimited).string(message.orderKey);
+        /* optional symbolx.bench.ExpressionData expression = 35; */
+        if (message.expression)
+            ExpressionData.internalBinaryWrite(message.expression, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.CodeData code = 36; */
+        if (message.code)
+            CodeData.internalBinaryWrite(message.code, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.ComputedValueData
+ */
+export const ComputedValueData = new ComputedValueData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ContextData$Type extends MessageType<ContextData> {
     constructor() {
@@ -24555,9 +24696,9 @@ export const SomeNodeData = new SomeNodeData$Type();
 
 // Any...
 export type AnyNodeData = BenchData | UserData | OrganizationData | HandleData | ClientData | ServerData | StoreData | MachineData | DriveData | BlobData | BranchData | PackageData | DependencyData | SpaceData | LinkData | SkipData | IssueData | BlockData | TriggerData | FieldData | QueryData | ViewData | StepData | BadgeData | MembershipData | InviteData | SessionData | RunData | SignalData | LogData | NotificationData | MessageData | RecordData
-export type AnyStructData = ContextData | SessionContextData | EditContextData | EditData | ChangeData | ChangeVignetteData | GraphScopeData | ClientOriginData | NodeReferenceData | PropertyReferenceData | PathData | PathSegmentData | PathTokenData | PolicyData | PolicyRuleData | SubjectData | AccessZoneData | AccessMatrixData | AccessData | TextData | TextLineData | TextSpanData | TypeInfoData | TypeConstraintData | ScheduleData | ProjectionData | FileData | IconData | TriggerInfoData | ExpressionData | AggregationData | SelectionData | QueryInfoData | ReadOptionsData | ValueData | CodeData | CodeLineData | PipeData | RunErrorData | RunOptionsData | RetryAttemptData | BreakpointData | ColorData | FontData | BoxData | OffsetData | TransformData | StartViewStateData | FeedViewStateData | ChartViewStateData | HistoryViewStateData | TimelineViewStateData | UserWizardViewStateData | PageViewStateData | TreeViewStateData
+export type AnyStructData = ContextData | SessionContextData | EditContextData | EditData | ChangeData | ChangeVignetteData | GraphScopeData | ClientOriginData | NodeReferenceData | PropertyReferenceData | PathData | PathSegmentData | PathTokenData | PolicyData | PolicyRuleData | SubjectData | AccessZoneData | AccessMatrixData | AccessData | TextData | TextLineData | TextSpanData | TypeInfoData | TypeConstraintData | ScheduleData | ProjectionData | FileData | IconData | TriggerInfoData | ExpressionData | AggregationData | SelectionData | QueryInfoData | ReadOptionsData | ValueData | ComputedValueData | CodeData | CodeLineData | PipeData | RunErrorData | RunOptionsData | RetryAttemptData | BreakpointData | ColorData | FontData | BoxData | OffsetData | TransformData | StartViewStateData | FeedViewStateData | ChartViewStateData | HistoryViewStateData | TimelineViewStateData | UserWizardViewStateData | PageViewStateData | TreeViewStateData
 export type AnyNodeDataType = typeof BenchData | typeof UserData | typeof OrganizationData | typeof HandleData | typeof ClientData | typeof ServerData | typeof StoreData | typeof MachineData | typeof DriveData | typeof BlobData | typeof BranchData | typeof PackageData | typeof DependencyData | typeof SpaceData | typeof LinkData | typeof SkipData | typeof IssueData | typeof BlockData | typeof TriggerData | typeof FieldData | typeof QueryData | typeof ViewData | typeof StepData | typeof BadgeData | typeof MembershipData | typeof InviteData | typeof SessionData | typeof RunData | typeof SignalData | typeof LogData | typeof NotificationData | typeof MessageData | typeof RecordData
-export type AnyStructDataType = typeof ContextData | typeof SessionContextData | typeof EditContextData | typeof EditData | typeof ChangeData | typeof ChangeVignetteData | typeof GraphScopeData | typeof ClientOriginData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof PathData | typeof PathSegmentData | typeof PathTokenData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof TypeInfoData | typeof TypeConstraintData | typeof ScheduleData | typeof ProjectionData | typeof FileData | typeof IconData | typeof TriggerInfoData | typeof ExpressionData | typeof AggregationData | typeof SelectionData | typeof QueryInfoData | typeof ReadOptionsData | typeof ValueData | typeof CodeData | typeof CodeLineData | typeof PipeData | typeof RunErrorData | typeof RunOptionsData | typeof RetryAttemptData | typeof BreakpointData | typeof ColorData | typeof FontData | typeof BoxData | typeof OffsetData | typeof TransformData | typeof StartViewStateData | typeof FeedViewStateData | typeof ChartViewStateData | typeof HistoryViewStateData | typeof TimelineViewStateData | typeof UserWizardViewStateData | typeof PageViewStateData | typeof TreeViewStateData
+export type AnyStructDataType = typeof ContextData | typeof SessionContextData | typeof EditContextData | typeof EditData | typeof ChangeData | typeof ChangeVignetteData | typeof GraphScopeData | typeof ClientOriginData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof PathData | typeof PathSegmentData | typeof PathTokenData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof TypeInfoData | typeof TypeConstraintData | typeof ScheduleData | typeof ProjectionData | typeof FileData | typeof IconData | typeof TriggerInfoData | typeof ExpressionData | typeof AggregationData | typeof SelectionData | typeof QueryInfoData | typeof ReadOptionsData | typeof ValueData | typeof ComputedValueData | typeof CodeData | typeof CodeLineData | typeof PipeData | typeof RunErrorData | typeof RunOptionsData | typeof RetryAttemptData | typeof BreakpointData | typeof ColorData | typeof FontData | typeof BoxData | typeof OffsetData | typeof TransformData | typeof StartViewStateData | typeof FeedViewStateData | typeof ChartViewStateData | typeof HistoryViewStateData | typeof TimelineViewStateData | typeof UserWizardViewStateData | typeof PageViewStateData | typeof TreeViewStateData
 
 // Ancestry maps
 export const PARENT_NODE_TYPES: Record<NodeType, NodeType[]> = {
@@ -24779,6 +24920,7 @@ export const MESSAGE_TYPE_BY_OBJECT_TYPE: Partial<Record<ObjectType, MessageType
   [ObjectType.QUERY_INFO]: QueryInfoData,
   [ObjectType.READ_OPTIONS]: ReadOptionsData,
   [ObjectType.VALUE]: ValueData,
+  [ObjectType.COMPUTED_VALUE]: ComputedValueData,
   [ObjectType.CODE]: CodeData,
   [ObjectType.CODE_LINE]: CodeLineData,
   [ObjectType.PIPE]: PipeData,
@@ -24870,6 +25012,7 @@ export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
   ["symbolx.bench.QueryInfoData"]: ObjectType.QUERY_INFO,
   ["symbolx.bench.ReadOptionsData"]: ObjectType.READ_OPTIONS,
   ["symbolx.bench.ValueData"]: ObjectType.VALUE,
+  ["symbolx.bench.ComputedValueData"]: ObjectType.COMPUTED_VALUE,
   ["symbolx.bench.CodeData"]: ObjectType.CODE,
   ["symbolx.bench.CodeLineData"]: ObjectType.CODE_LINE,
   ["symbolx.bench.PipeData"]: ObjectType.PIPE,
@@ -25010,6 +25153,7 @@ export interface StructTypeMapping extends Record<StructType, AnyStructData> {
   [StructType.QUERY_INFO]: QueryInfoData,
   [StructType.READ_OPTIONS]: ReadOptionsData,
   [StructType.VALUE]: ValueData,
+  [StructType.COMPUTED_VALUE]: ComputedValueData,
   [StructType.CODE]: CodeData,
   [StructType.CODE_LINE]: CodeLineData,
   [StructType.PIPE]: PipeData,
@@ -25137,6 +25281,7 @@ export interface AnyTypeMapping extends Record<ObjectType, AnyStructData | AnyNo
   [ObjectType.QUERY_INFO]: QueryInfoData,
   [ObjectType.READ_OPTIONS]: ReadOptionsData,
   [ObjectType.VALUE]: ValueData,
+  [ObjectType.COMPUTED_VALUE]: ComputedValueData,
   [ObjectType.CODE]: CodeData,
   [ObjectType.CODE_LINE]: CodeLineData,
   [ObjectType.PIPE]: PipeData,
@@ -26621,6 +26766,16 @@ export enum ValueProperty {
   secretValuePacked = 36,
 }
 
+export enum ComputedValueProperty {
+  metatype = 1,
+  id = 2,
+  parentId = 3,
+  parentKey = 4,
+  orderKey = 9,
+  expression = 35,
+  code = 36,
+}
+
 export enum CodeProperty {
   metatype = 1,
   id = 2,
@@ -26794,11 +26949,11 @@ export enum TreeViewStateProperty {
 }
 
 export type AnyNodeProperty = typeof BenchProperty | typeof UserProperty | typeof OrganizationProperty | typeof HandleProperty | typeof ClientProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof BlobProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof LinkProperty | typeof SkipProperty | typeof IssueProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof BadgeProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof MessageProperty | typeof RecordProperty
-export type AnyStructProperty = typeof ContextProperty | typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof FileProperty | typeof IconProperty | typeof TriggerInfoProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof ReadOptionsProperty | typeof ValueProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PipeProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RetryAttemptProperty | typeof BreakpointProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof ChartViewStateProperty | typeof HistoryViewStateProperty | typeof TimelineViewStateProperty | typeof UserWizardViewStateProperty | typeof PageViewStateProperty | typeof TreeViewStateProperty
+export type AnyStructProperty = typeof ContextProperty | typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof FileProperty | typeof IconProperty | typeof TriggerInfoProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof ReadOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PipeProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RetryAttemptProperty | typeof BreakpointProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof ChartViewStateProperty | typeof HistoryViewStateProperty | typeof TimelineViewStateProperty | typeof UserWizardViewStateProperty | typeof PageViewStateProperty | typeof TreeViewStateProperty
 export type AnyProperty = AnyNodeProperty | AnyStructProperty
 export type AnyNodePropertyType = typeof BenchProperty | typeof UserProperty | typeof OrganizationProperty | typeof HandleProperty | typeof ClientProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof BlobProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof LinkProperty | typeof SkipProperty | typeof IssueProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof BadgeProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof MessageProperty | typeof RecordProperty
-export type AnyStructPropertyType = typeof ContextProperty | typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof FileProperty | typeof IconProperty | typeof TriggerInfoProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof ReadOptionsProperty | typeof ValueProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PipeProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RetryAttemptProperty | typeof BreakpointProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof ChartViewStateProperty | typeof HistoryViewStateProperty | typeof TimelineViewStateProperty | typeof UserWizardViewStateProperty | typeof PageViewStateProperty | typeof TreeViewStateProperty
-export type AnyPropertyType = typeof BenchProperty | typeof UserProperty | typeof OrganizationProperty | typeof HandleProperty | typeof ClientProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof BlobProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof LinkProperty | typeof SkipProperty | typeof IssueProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof BadgeProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof MessageProperty | typeof RecordProperty | typeof ContextProperty | typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof FileProperty | typeof IconProperty | typeof TriggerInfoProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof ReadOptionsProperty | typeof ValueProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PipeProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RetryAttemptProperty | typeof BreakpointProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof ChartViewStateProperty | typeof HistoryViewStateProperty | typeof TimelineViewStateProperty | typeof UserWizardViewStateProperty | typeof PageViewStateProperty | typeof TreeViewStateProperty
+export type AnyStructPropertyType = typeof ContextProperty | typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof FileProperty | typeof IconProperty | typeof TriggerInfoProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof ReadOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PipeProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RetryAttemptProperty | typeof BreakpointProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof ChartViewStateProperty | typeof HistoryViewStateProperty | typeof TimelineViewStateProperty | typeof UserWizardViewStateProperty | typeof PageViewStateProperty | typeof TreeViewStateProperty
+export type AnyPropertyType = typeof BenchProperty | typeof UserProperty | typeof OrganizationProperty | typeof HandleProperty | typeof ClientProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof BlobProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof LinkProperty | typeof SkipProperty | typeof IssueProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof BadgeProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof MessageProperty | typeof RecordProperty | typeof ContextProperty | typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof FileProperty | typeof IconProperty | typeof TriggerInfoProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof ReadOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PipeProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RetryAttemptProperty | typeof BreakpointProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof ChartViewStateProperty | typeof HistoryViewStateProperty | typeof TimelineViewStateProperty | typeof UserWizardViewStateProperty | typeof PageViewStateProperty | typeof TreeViewStateProperty
 export const NODE_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyNodePropertyType>> = {
   [ObjectType.BENCH]: BenchProperty,
   [ObjectType.USER]: UserProperty,
@@ -26871,6 +27026,7 @@ export const STRUCT_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyStructP
   [ObjectType.QUERY_INFO]: QueryInfoProperty,
   [ObjectType.READ_OPTIONS]: ReadOptionsProperty,
   [ObjectType.VALUE]: ValueProperty,
+  [ObjectType.COMPUTED_VALUE]: ComputedValueProperty,
   [ObjectType.CODE]: CodeProperty,
   [ObjectType.CODE_LINE]: CodeLineProperty,
   [ObjectType.PIPE]: PipeProperty,
@@ -26962,6 +27118,7 @@ export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>>
   [ObjectType.QUERY_INFO]: QueryInfoProperty,
   [ObjectType.READ_OPTIONS]: ReadOptionsProperty,
   [ObjectType.VALUE]: ValueProperty,
+  [ObjectType.COMPUTED_VALUE]: ComputedValueProperty,
   [ObjectType.CODE]: CodeProperty,
   [ObjectType.CODE_LINE]: CodeLineProperty,
   [ObjectType.PIPE]: PipeProperty,
@@ -27417,6 +27574,15 @@ export const ValueDataInfo: Record<ValueProperty, PropertyInfo> = {
   [ValueProperty.valuePacked]: { id: 35, name: 'value_packed', component: ObjectType.VALUE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [ValueProperty.secretValuePacked]: { id: 36, name: 'secret_value_packed', component: ObjectType.VALUE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
 }
+export const ComputedValueDataInfo: Record<ComputedValueProperty, PropertyInfo> = {
+  [ComputedValueProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.COMPUTED_VALUE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [ComputedValueProperty.id]: { id: 2, name: 'id', component: ObjectType.COMPUTED_VALUE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ComputedValueProperty.parentId]: { id: 3, name: 'parent_id', component: ObjectType.COMPUTED_VALUE, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
+  [ComputedValueProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.COMPUTED_VALUE, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
+  [ComputedValueProperty.orderKey]: { id: 9, name: 'order_key', component: ObjectType.COMPUTED_VALUE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [ComputedValueProperty.expression]: { id: 35, name: 'expression', component: ObjectType.COMPUTED_VALUE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
+  [ComputedValueProperty.code]: { id: 36, name: 'code', component: ObjectType.COMPUTED_VALUE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
+}
 export const CodeDataInfo: Record<CodeProperty, PropertyInfo> = {
   [CodeProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.CODE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [CodeProperty.id]: { id: 2, name: 'id', component: ObjectType.CODE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -27583,7 +27749,7 @@ export const BenchDataInfo: Record<BenchProperty, PropertyInfo> = {
   [BenchProperty.archivedAt]: { id: 16, name: 'archived_at', component: ObjectType.BENCH, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [BenchProperty.createdByPtr]: { id: 21, name: 'created_by_ptr', component: ObjectType.BENCH, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [BenchProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.BENCH, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [BenchProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.BENCH, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true },
+  [BenchProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.BENCH, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
   [BenchProperty.mainHandlePtr]: { id: 31, name: 'main_handle_ptr', component: ObjectType.BENCH, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.HANDLE], referenceStruct: StructType.NODE_REFERENCE },
   [BenchProperty.slug]: { id: 32, name: 'slug', component: ObjectType.BENCH, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isUnique: true },
   [BenchProperty.name]: { id: 33, name: 'name', component: ObjectType.BENCH, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
@@ -27609,7 +27775,7 @@ export const UserDataInfo: Record<UserProperty, PropertyInfo> = {
   [UserProperty.archivedAt]: { id: 16, name: 'archived_at', component: ObjectType.USER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [UserProperty.createdByPtr]: { id: 21, name: 'created_by_ptr', component: ObjectType.USER, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [UserProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.USER, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [UserProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.USER, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true },
+  [UserProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.USER, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
   [UserProperty.mainHandlePtr]: { id: 31, name: 'main_handle_ptr', component: ObjectType.USER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.HANDLE], referenceStruct: StructType.NODE_REFERENCE },
   [UserProperty.slug]: { id: 32, name: 'slug', component: ObjectType.USER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isUnique: true },
   [UserProperty.name]: { id: 33, name: 'name', component: ObjectType.USER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
@@ -27634,7 +27800,7 @@ export const OrganizationDataInfo: Record<OrganizationProperty, PropertyInfo> = 
   [OrganizationProperty.archivedAt]: { id: 16, name: 'archived_at', component: ObjectType.ORGANIZATION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [OrganizationProperty.createdByPtr]: { id: 21, name: 'created_by_ptr', component: ObjectType.ORGANIZATION, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [OrganizationProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.ORGANIZATION, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [OrganizationProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.ORGANIZATION, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true },
+  [OrganizationProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.ORGANIZATION, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
   [OrganizationProperty.mainHandlePtr]: { id: 31, name: 'main_handle_ptr', component: ObjectType.ORGANIZATION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.HANDLE], referenceStruct: StructType.NODE_REFERENCE },
   [OrganizationProperty.slug]: { id: 32, name: 'slug', component: ObjectType.ORGANIZATION, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isUnique: true },
   [OrganizationProperty.name]: { id: 33, name: 'name', component: ObjectType.ORGANIZATION, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
@@ -27657,7 +27823,7 @@ export const HandleDataInfo: Record<HandleProperty, PropertyInfo> = {
   [HandleProperty.archivedAt]: { id: 16, name: 'archived_at', component: ObjectType.HANDLE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [HandleProperty.createdByPtr]: { id: 21, name: 'created_by_ptr', component: ObjectType.HANDLE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [HandleProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.HANDLE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [HandleProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.HANDLE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true },
+  [HandleProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.HANDLE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
   [HandleProperty.slug]: { id: 30, name: 'slug', component: ObjectType.HANDLE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isUnique: true },
 }
 export const ClientDataInfo: Record<ClientProperty, PropertyInfo> = {
@@ -27674,7 +27840,7 @@ export const ClientDataInfo: Record<ClientProperty, PropertyInfo> = {
   [ClientProperty.archivedAt]: { id: 16, name: 'archived_at', component: ObjectType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [ClientProperty.createdByPtr]: { id: 21, name: 'created_by_ptr', component: ObjectType.CLIENT, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [ClientProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.CLIENT, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [ClientProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true },
+  [ClientProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
   [ClientProperty.type]: { id: 30, name: 'type', component: ObjectType.CLIENT, enumType: EnumType.CLIENT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ClientProperty.name]: { id: 32, name: 'name', component: ObjectType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ClientProperty.deviceType]: { id: 40, name: 'device_type', component: ObjectType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
@@ -27703,7 +27869,7 @@ export const ServerDataInfo: Record<ServerProperty, PropertyInfo> = {
   [ServerProperty.archivedAt]: { id: 16, name: 'archived_at', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.createdByPtr]: { id: 21, name: 'created_by_ptr', component: ObjectType.SERVER, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [ServerProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.SERVER, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [ServerProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true },
+  [ServerProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
   [ServerProperty.name]: { id: 32, name: 'name', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.text]: { id: 34, name: 'text', component: ObjectType.SERVER, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [ServerProperty.region]: { id: 35, name: 'region', component: ObjectType.SERVER, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -27730,7 +27896,7 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.archivedAt]: { id: 16, name: 'archived_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.createdByPtr]: { id: 21, name: 'created_by_ptr', component: ObjectType.STORE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [StoreProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.STORE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [StoreProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true },
+  [StoreProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
   [StoreProperty.name]: { id: 32, name: 'name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.text]: { id: 34, name: 'text', component: ObjectType.STORE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [StoreProperty.region]: { id: 35, name: 'region', component: ObjectType.STORE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -27756,7 +27922,7 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.archivedAt]: { id: 16, name: 'archived_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.createdByPtr]: { id: 21, name: 'created_by_ptr', component: ObjectType.MACHINE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [MachineProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.MACHINE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [MachineProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true },
+  [MachineProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
   [MachineProperty.name]: { id: 32, name: 'name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.text]: { id: 34, name: 'text', component: ObjectType.MACHINE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [MachineProperty.region]: { id: 35, name: 'region', component: ObjectType.MACHINE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -27787,7 +27953,7 @@ export const DriveDataInfo: Record<DriveProperty, PropertyInfo> = {
   [DriveProperty.archivedAt]: { id: 16, name: 'archived_at', component: ObjectType.DRIVE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [DriveProperty.createdByPtr]: { id: 21, name: 'created_by_ptr', component: ObjectType.DRIVE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [DriveProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.DRIVE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [DriveProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.DRIVE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true },
+  [DriveProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.DRIVE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
   [DriveProperty.name]: { id: 32, name: 'name', component: ObjectType.DRIVE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [DriveProperty.text]: { id: 34, name: 'text', component: ObjectType.DRIVE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [DriveProperty.region]: { id: 35, name: 'region', component: ObjectType.DRIVE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -27808,7 +27974,7 @@ export const BlobDataInfo: Record<BlobProperty, PropertyInfo> = {
   [BlobProperty.archivedAt]: { id: 16, name: 'archived_at', component: ObjectType.BLOB, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [BlobProperty.createdByPtr]: { id: 21, name: 'created_by_ptr', component: ObjectType.BLOB, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [BlobProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.BLOB, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [BlobProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.BLOB, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true },
+  [BlobProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.BLOB, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
   [BlobProperty.name]: { id: 32, name: 'name', component: ObjectType.BLOB, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [BlobProperty.text]: { id: 34, name: 'text', component: ObjectType.BLOB, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [BlobProperty.region]: { id: 35, name: 'region', component: ObjectType.BLOB, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -27834,7 +28000,7 @@ export const BranchDataInfo: Record<BranchProperty, PropertyInfo> = {
   [BranchProperty.archivedAt]: { id: 16, name: 'archived_at', component: ObjectType.BRANCH, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [BranchProperty.createdByPtr]: { id: 21, name: 'created_by_ptr', component: ObjectType.BRANCH, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [BranchProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.BRANCH, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [BranchProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.BRANCH, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true },
+  [BranchProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.BRANCH, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
   [BranchProperty.name]: { id: 32, name: 'name', component: ObjectType.BRANCH, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [BranchProperty.slug]: { id: 33, name: 'slug', component: ObjectType.BRANCH, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [BranchProperty.text]: { id: 34, name: 'text', component: ObjectType.BRANCH, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
@@ -27859,7 +28025,7 @@ export const PackageDataInfo: Record<PackageProperty, PropertyInfo> = {
   [PackageProperty.archivedAt]: { id: 16, name: 'archived_at', component: ObjectType.PACKAGE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [PackageProperty.createdByPtr]: { id: 21, name: 'created_by_ptr', component: ObjectType.PACKAGE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [PackageProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.PACKAGE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [PackageProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.PACKAGE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true },
+  [PackageProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.PACKAGE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
   [PackageProperty.slug]: { id: 33, name: 'slug', component: ObjectType.PACKAGE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [PackageProperty.text]: { id: 34, name: 'text', component: ObjectType.PACKAGE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [PackageProperty.icon]: { id: 35, name: 'icon', component: ObjectType.PACKAGE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
@@ -27887,7 +28053,7 @@ export const DependencyDataInfo: Record<DependencyProperty, PropertyInfo> = {
   [DependencyProperty.archivedAt]: { id: 16, name: 'archived_at', component: ObjectType.DEPENDENCY, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [DependencyProperty.createdByPtr]: { id: 21, name: 'created_by_ptr', component: ObjectType.DEPENDENCY, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [DependencyProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.DEPENDENCY, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [DependencyProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.DEPENDENCY, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [DependencyProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.DEPENDENCY, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
   [DependencyProperty.scopesPtr]: { id: 30, name: 'scopes_ptr', component: ObjectType.DEPENDENCY, kind: 'reference', isList: true, isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [DependencyProperty.dependencyPtr]: { id: 40, name: 'dependency_ptr', component: ObjectType.DEPENDENCY, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
   [DependencyProperty.dependencyScopesPtr]: { id: 41, name: 'dependency_scopes_ptr', component: ObjectType.DEPENDENCY, kind: 'reference', isList: true, isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
@@ -27910,7 +28076,7 @@ export const SpaceDataInfo: Record<SpaceProperty, PropertyInfo> = {
   [SpaceProperty.archivedAt]: { id: 16, name: 'archived_at', component: ObjectType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [SpaceProperty.createdByPtr]: { id: 21, name: 'created_by_ptr', component: ObjectType.SPACE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [SpaceProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.SPACE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [SpaceProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [SpaceProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
   [SpaceProperty.type]: { id: 30, name: 'type', component: ObjectType.SPACE, enumType: EnumType.SPACE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [SpaceProperty.name]: { id: 31, name: 'name', component: ObjectType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [SpaceProperty.text]: { id: 32, name: 'text', component: ObjectType.SPACE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
@@ -27939,7 +28105,7 @@ export const LinkDataInfo: Record<LinkProperty, PropertyInfo> = {
   [LinkProperty.archivedAt]: { id: 16, name: 'archived_at', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [LinkProperty.createdByPtr]: { id: 21, name: 'created_by_ptr', component: ObjectType.LINK, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [LinkProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.LINK, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [LinkProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [LinkProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
   [LinkProperty.referencePtr]: { id: 30, name: 'reference_ptr', component: ObjectType.LINK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.DEPENDENCY, NodeType.SPACE, NodeType.SKIP, NodeType.ISSUE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.MEMBERSHIP, NodeType.INVITE], referenceStruct: StructType.NODE_REFERENCE },
   [LinkProperty.orderKey]: { id: 32, name: 'order_key', component: ObjectType.LINK, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
 }
@@ -27954,7 +28120,7 @@ export const SkipDataInfo: Record<SkipProperty, PropertyInfo> = {
   [SkipProperty.archivedAt]: { id: 16, name: 'archived_at', component: ObjectType.SKIP, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [SkipProperty.createdByPtr]: { id: 21, name: 'created_by_ptr', component: ObjectType.SKIP, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [SkipProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.SKIP, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [SkipProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.SKIP, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true },
+  [SkipProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.SKIP, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
   [SkipProperty.referencePtr]: { id: 30, name: 'reference_ptr', component: ObjectType.SKIP, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.DEPENDENCY, NodeType.SPACE, NodeType.SKIP, NodeType.ISSUE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.MEMBERSHIP, NodeType.INVITE], referenceStruct: StructType.NODE_REFERENCE },
   [SkipProperty.orderKey]: { id: 31, name: 'order_key', component: ObjectType.SKIP, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
 }
@@ -27973,7 +28139,7 @@ export const IssueDataInfo: Record<IssueProperty, PropertyInfo> = {
   [IssueProperty.archivedAt]: { id: 16, name: 'archived_at', component: ObjectType.ISSUE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [IssueProperty.createdByPtr]: { id: 21, name: 'created_by_ptr', component: ObjectType.ISSUE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [IssueProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.ISSUE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [IssueProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.ISSUE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true },
+  [IssueProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.ISSUE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
   [IssueProperty.kind]: { id: 30, name: 'kind', component: ObjectType.ISSUE, enumType: EnumType.ISSUE_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [IssueProperty.type]: { id: 31, name: 'type', component: ObjectType.ISSUE, enumType: EnumType.ISSUE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [IssueProperty.subjectPtr]: { id: 33, name: 'subject_ptr', component: ObjectType.ISSUE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.DEPENDENCY, NodeType.SPACE, NodeType.SKIP, NodeType.ISSUE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.MEMBERSHIP, NodeType.INVITE], referenceStruct: StructType.NODE_REFERENCE },
@@ -28000,7 +28166,7 @@ export const BlockDataInfo: Record<BlockProperty, PropertyInfo> = {
   [BlockProperty.archivedAt]: { id: 16, name: 'archived_at', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [BlockProperty.createdByPtr]: { id: 21, name: 'created_by_ptr', component: ObjectType.BLOCK, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [BlockProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.BLOCK, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [BlockProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [BlockProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
   [BlockProperty.type]: { id: 30, name: 'type', component: ObjectType.BLOCK, enumType: EnumType.BLOCK_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [BlockProperty.name]: { id: 32, name: 'name', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [BlockProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -28039,7 +28205,7 @@ export const TriggerDataInfo: Record<TriggerProperty, PropertyInfo> = {
   [TriggerProperty.archivedAt]: { id: 16, name: 'archived_at', component: ObjectType.TRIGGER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [TriggerProperty.createdByPtr]: { id: 21, name: 'created_by_ptr', component: ObjectType.TRIGGER, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [TriggerProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.TRIGGER, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [TriggerProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.TRIGGER, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [TriggerProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.TRIGGER, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
   [TriggerProperty.type]: { id: 30, name: 'type', component: ObjectType.TRIGGER, enumType: EnumType.TRIGGER_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [TriggerProperty.name]: { id: 31, name: 'name', component: ObjectType.TRIGGER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [TriggerProperty.processedEpoch]: { id: 40, name: 'processed_epoch', component: ObjectType.TRIGGER, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
@@ -28066,7 +28232,7 @@ export const FieldDataInfo: Record<FieldProperty, PropertyInfo> = {
   [FieldProperty.archivedAt]: { id: 16, name: 'archived_at', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.createdByPtr]: { id: 21, name: 'created_by_ptr', component: ObjectType.FIELD, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [FieldProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.FIELD, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [FieldProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [FieldProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
   [FieldProperty.name]: { id: 30, name: 'name', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.orderKey]: { id: 31, name: 'order_key', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.zone]: { id: 32, name: 'zone', component: ObjectType.FIELD, enumType: EnumType.FIELD_ZONE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -28105,7 +28271,7 @@ export const QueryDataInfo: Record<QueryProperty, PropertyInfo> = {
   [QueryProperty.archivedAt]: { id: 16, name: 'archived_at', component: ObjectType.QUERY, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [QueryProperty.createdByPtr]: { id: 21, name: 'created_by_ptr', component: ObjectType.QUERY, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [QueryProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.QUERY, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [QueryProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.QUERY, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [QueryProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.QUERY, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
   [QueryProperty.name]: { id: 30, name: 'name', component: ObjectType.QUERY, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [QueryProperty.orderKey]: { id: 31, name: 'order_key', component: ObjectType.QUERY, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [QueryProperty.readType]: { id: 40, name: 'read_type', component: ObjectType.QUERY, enumType: EnumType.READ_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
@@ -28132,7 +28298,7 @@ export const ViewDataInfo: Record<ViewProperty, PropertyInfo> = {
   [ViewProperty.archivedAt]: { id: 16, name: 'archived_at', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [ViewProperty.createdByPtr]: { id: 21, name: 'created_by_ptr', component: ObjectType.VIEW, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [ViewProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.VIEW, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [ViewProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ViewProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
   [ViewProperty.type]: { id: 30, name: 'type', component: ObjectType.VIEW, enumType: EnumType.VIEW_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ViewProperty.name]: { id: 31, name: 'name', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ViewProperty.title]: { id: 32, name: 'title', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
@@ -28178,7 +28344,7 @@ export const StepDataInfo: Record<StepProperty, PropertyInfo> = {
   [StepProperty.archivedAt]: { id: 16, name: 'archived_at', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [StepProperty.createdByPtr]: { id: 21, name: 'created_by_ptr', component: ObjectType.STEP, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [StepProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.STEP, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [StepProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [StepProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
   [StepProperty.type]: { id: 30, name: 'type', component: ObjectType.STEP, enumType: EnumType.STEP_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StepProperty.name]: { id: 32, name: 'name', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [StepProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -28216,7 +28382,7 @@ export const BadgeDataInfo: Record<BadgeProperty, PropertyInfo> = {
   [BadgeProperty.archivedAt]: { id: 16, name: 'archived_at', component: ObjectType.BADGE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [BadgeProperty.createdByPtr]: { id: 21, name: 'created_by_ptr', component: ObjectType.BADGE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [BadgeProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.BADGE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [BadgeProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.BADGE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [BadgeProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.BADGE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
   [BadgeProperty.name]: { id: 31, name: 'name', component: ObjectType.BADGE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [BadgeProperty.delegatedPolicies]: { id: 32, name: 'delegated_policies', component: ObjectType.BADGE, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY },
   [BadgeProperty.expiresAt]: { id: 33, name: 'expires_at', component: ObjectType.BADGE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRuntime: true, isWired: true, isStored: true },
@@ -28243,7 +28409,7 @@ export const MembershipDataInfo: Record<MembershipProperty, PropertyInfo> = {
   [MembershipProperty.archivedAt]: { id: 16, name: 'archived_at', component: ObjectType.MEMBERSHIP, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [MembershipProperty.createdByPtr]: { id: 21, name: 'created_by_ptr', component: ObjectType.MEMBERSHIP, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [MembershipProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.MEMBERSHIP, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [MembershipProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.MEMBERSHIP, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [MembershipProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.MEMBERSHIP, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
   [MembershipProperty.userPtr]: { id: 30, name: 'user_ptr', component: ObjectType.MEMBERSHIP, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
   [MembershipProperty.isOwner]: { id: 31, name: 'is_owner', component: ObjectType.MEMBERSHIP, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
@@ -28265,7 +28431,7 @@ export const InviteDataInfo: Record<InviteProperty, PropertyInfo> = {
   [InviteProperty.archivedAt]: { id: 16, name: 'archived_at', component: ObjectType.INVITE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [InviteProperty.createdByPtr]: { id: 21, name: 'created_by_ptr', component: ObjectType.INVITE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [InviteProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.INVITE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [InviteProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.INVITE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [InviteProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.INVITE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
   [InviteProperty.userPtr]: { id: 30, name: 'user_ptr', component: ObjectType.INVITE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
   [InviteProperty.userEmail]: { id: 31, name: 'user_email', component: ObjectType.INVITE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [InviteProperty.isOwner]: { id: 32, name: 'is_owner', component: ObjectType.INVITE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
@@ -28286,7 +28452,7 @@ export const SessionDataInfo: Record<SessionProperty, PropertyInfo> = {
   [SessionProperty.archivedAt]: { id: 16, name: 'archived_at', component: ObjectType.SESSION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [SessionProperty.createdByPtr]: { id: 21, name: 'created_by_ptr', component: ObjectType.SESSION, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [SessionProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.SESSION, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [SessionProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.SESSION, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true },
+  [SessionProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.SESSION, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
   [SessionProperty.status]: { id: 40, name: 'status', component: ObjectType.SESSION, enumType: EnumType.SESSION_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [SessionProperty.duration]: { id: 41, name: 'duration', component: ObjectType.SESSION, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [SessionProperty.openedAt]: { id: 42, name: 'opened_at', component: ObjectType.SESSION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -28311,7 +28477,7 @@ export const RunDataInfo: Record<RunProperty, PropertyInfo> = {
   [RunProperty.archivedAt]: { id: 16, name: 'archived_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [RunProperty.createdByPtr]: { id: 21, name: 'created_by_ptr', component: ObjectType.RUN, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [RunProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.RUN, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [RunProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true },
+  [RunProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
   [RunProperty.kind]: { id: 30, name: 'kind', component: ObjectType.RUN, enumType: EnumType.RUN_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [RunProperty.rootPtr]: { id: 32, name: 'root_ptr', component: ObjectType.RUN, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [RunProperty.code]: { id: 36, name: 'code', component: ObjectType.RUN, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
@@ -28363,7 +28529,7 @@ export const SignalDataInfo: Record<SignalProperty, PropertyInfo> = {
   [SignalProperty.archivedAt]: { id: 16, name: 'archived_at', component: ObjectType.SIGNAL, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [SignalProperty.createdByPtr]: { id: 21, name: 'created_by_ptr', component: ObjectType.SIGNAL, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [SignalProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.SIGNAL, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [SignalProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.SIGNAL, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true },
+  [SignalProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.SIGNAL, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
   [SignalProperty.typePtr]: { id: 32, name: 'type_ptr', component: ObjectType.SIGNAL, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [SignalProperty.valuePacked]: { id: 42, name: 'value_packed', component: ObjectType.SIGNAL, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [SignalProperty.secretValuePacked]: { id: 43, name: 'secret_value_packed', component: ObjectType.SIGNAL, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
@@ -28393,7 +28559,7 @@ export const LogDataInfo: Record<LogProperty, PropertyInfo> = {
   [LogProperty.archivedAt]: { id: 16, name: 'archived_at', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [LogProperty.createdByPtr]: { id: 21, name: 'created_by_ptr', component: ObjectType.LOG, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [LogProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.LOG, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [LogProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true },
+  [LogProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
   [LogProperty.kind]: { id: 30, name: 'kind', component: ObjectType.LOG, enumType: EnumType.LOG_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [LogProperty.level]: { id: 31, name: 'level', component: ObjectType.LOG, enumType: EnumType.LOG_LEVEL, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [LogProperty.changePtr]: { id: 32, name: 'change_ptr', component: ObjectType.LOG, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.LOG], referenceStruct: StructType.NODE_REFERENCE },
@@ -28434,7 +28600,7 @@ export const NotificationDataInfo: Record<NotificationProperty, PropertyInfo> = 
   [NotificationProperty.archivedAt]: { id: 16, name: 'archived_at', component: ObjectType.NOTIFICATION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [NotificationProperty.createdByPtr]: { id: 21, name: 'created_by_ptr', component: ObjectType.NOTIFICATION, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [NotificationProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.NOTIFICATION, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [NotificationProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.NOTIFICATION, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true },
+  [NotificationProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.NOTIFICATION, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
   [NotificationProperty.kind]: { id: 30, name: 'kind', component: ObjectType.NOTIFICATION, enumType: EnumType.NOTIFICATION_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [NotificationProperty.typePtr]: { id: 32, name: 'type_ptr', component: ObjectType.NOTIFICATION, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [NotificationProperty.expiresAt]: { id: 33, name: 'expires_at', component: ObjectType.NOTIFICATION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -28460,7 +28626,7 @@ export const MessageDataInfo: Record<MessageProperty, PropertyInfo> = {
   [MessageProperty.archivedAt]: { id: 16, name: 'archived_at', component: ObjectType.MESSAGE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [MessageProperty.createdByPtr]: { id: 21, name: 'created_by_ptr', component: ObjectType.MESSAGE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [MessageProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.MESSAGE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [MessageProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.MESSAGE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true },
+  [MessageProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.MESSAGE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
   [MessageProperty.originPtr]: { id: 32, name: 'origin_ptr', component: ObjectType.MESSAGE, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.DEPENDENCY, NodeType.SPACE, NodeType.SKIP, NodeType.ISSUE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.MEMBERSHIP, NodeType.INVITE], referenceStruct: StructType.NODE_REFERENCE },
   [MessageProperty.path]: { id: 33, name: 'path', component: ObjectType.MESSAGE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.PATH },
   [MessageProperty.replyToPtr]: { id: 34, name: 'reply_to_ptr', component: ObjectType.MESSAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MESSAGE], referenceStruct: StructType.NODE_REFERENCE },
@@ -28486,7 +28652,7 @@ export const RecordDataInfo: Record<RecordProperty, PropertyInfo> = {
   [RecordProperty.archivedAt]: { id: 16, name: 'archived_at', component: ObjectType.RECORD, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [RecordProperty.createdByPtr]: { id: 21, name: 'created_by_ptr', component: ObjectType.RECORD, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [RecordProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.RECORD, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [RecordProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.RECORD, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isRuntime: true, isWired: true },
+  [RecordProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.RECORD, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
   [RecordProperty.valuePacked]: { id: 30, name: 'value_packed', component: ObjectType.RECORD, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [RecordProperty.secretValuePacked]: { id: 31, name: 'secret_value_packed', component: ObjectType.RECORD, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
 }
@@ -28527,6 +28693,7 @@ export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo
   [ObjectType.QUERY_INFO]: QueryInfoDataInfo,
   [ObjectType.READ_OPTIONS]: ReadOptionsDataInfo,
   [ObjectType.VALUE]: ValueDataInfo,
+  [ObjectType.COMPUTED_VALUE]: ComputedValueDataInfo,
   [ObjectType.CODE]: CodeDataInfo,
   [ObjectType.CODE_LINE]: CodeLineDataInfo,
   [ObjectType.PIPE]: PipeDataInfo,

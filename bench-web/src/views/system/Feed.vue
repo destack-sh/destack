@@ -164,6 +164,13 @@ const pills: Ref<FilterPill[]> = computed(() => {
   } else if (nodeType.value == NodeType.RUN) {
     const runStatus = propertyReference(ObjectType.RUN, RunProperty.status);
     pills.push({
+      key: "run-status-scheduled",
+      name: "Scheduled",
+      isEnabled: true,
+      group: "run-status",
+      filterIfActive: makeExpression({ op: ExpressionOp.IN, propertyPtr: runStatus, value: [RunStatus.SCHEDULED] }),
+    });
+    pills.push({
       key: "run-status-active",
       name: "Active",
       isEnabled: true,
