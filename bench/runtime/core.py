@@ -7,7 +7,6 @@ from bench.language.const import LOADED_BENCH_NODE_TYPES, SOURCE_NODE_TYPES
 if TYPE_CHECKING:
     pass
 
-
 BENCH_QUERY = Bench.descendants(*LOADED_BENCH_NODE_TYPES).select_all()
 PACKAGE_QUERY = (
     Package.descendants(*SOURCE_NODE_TYPES)
@@ -15,5 +14,3 @@ PACKAGE_QUERY = (
     .select_all()
     .exclude(Bench.encryption_key)
 )
-
-RUNTIME_CONCURRENCY = 1

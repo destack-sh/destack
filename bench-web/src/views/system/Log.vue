@@ -53,6 +53,7 @@ const oldNode = computed(() => {
 type ChangedProperty = {
   property: PropertyInfo;
   type: TypeIdentity;
+  isKernel: boolean;
   viewType: ViewType | undefined;
   viewProps: any | undefined;
   isFullWidth: boolean;
@@ -73,6 +74,7 @@ const properties = computed(() => {
     const changedProperty: ChangedProperty = {
       property,
       type: propertyType,
+      isKernel: property.isKernel ?? false,
       viewType: propertyView?.viewType,
       viewProps: { ...propertyView?.props, isInput: false },
       isFullWidth: propertyView != null && FULL_WIDTH_VIEW_TYPES.includes(propertyView?.viewType),
@@ -94,7 +96,7 @@ defineExpose<ViewExposed>({ self, id });
     <div v-if="properties.length > 0" class="flex flex-col">
       <!-- Changed property -->
       <div
-        v-for="{ property, viewType, viewProps, isFullWidth, oldValue, newValue } in properties"
+        v-for="{ property, viewType, viewProps, isFullWidth, isKernel, oldValue, newValue } in properties"
         :key="property.id"
         class="py-1"
         :class="[isFullWidth ? 'flex flex-col gap-y-1' : 'flex flex-row flex-wrap items-center gap-x-2.5']"
@@ -102,7 +104,10 @@ defineExpose<ViewExposed>({ self, id });
         <!-- Title -->
         <span class="font-medium">{{ getPropertyTitle(property) }}</span>
         <!-- Diff -->
-        <template v-if="viewType != null && hasViewComponent(viewType)">
+        <div v-if="isKernel" class="flex-1 text-right">
+          <span class="italic text-gray-500">Hidden</span>
+        </div>
+        <template v-else-if="viewType != null && hasViewComponent(viewType)">
           <!-- Old -->
           <component
             :is="getViewComponent(viewType)"
@@ -129,7 +134,7 @@ defineExpose<ViewExposed>({ self, id });
           />
           <div v-else><span class="text-gray-500">Unset</span></div>
         </template>
-        <div v-else class="flex flex-row items-center px-1 py-0.5 text-warning-600">
+        <div v-else class="flex flex-1 flex-row items-center justify-end px-1 py-0.5 text-warning-600">
           <i class="fas fa-empty-set" />
           <span class="ml-1.5">No View for Type Type</span>
         </div>

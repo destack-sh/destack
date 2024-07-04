@@ -119,7 +119,7 @@ const { results, resultsTotal } = useSearch<PickerItem>({
   query,
   indices: computed(() => ({ main: index.value })),
   isEnabled: computed(() => props.isInline),
-}); 
+});
 
 // auto-select best match when searching
 watch(results, () => {
@@ -184,8 +184,8 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
           onApply: (value: any) => apply(value),
         })
       "
-      :disabled="props.isDisabled"
-      class="group flex w-full flex-row items-center rounded border border-gray-200 px-2.5 py-1 hover:border-gray-300 disabled:bg-gray-100 data-[popover=true]:border-gray-300"
+      :disabled="props.isDisabled || !props.isInput"
+      class="group flex w-full flex-row items-center rounded border border-gray-200 px-2.5 py-1 hover:border-gray-300 data-[popover=true]:border-gray-300"
     >
       <!-- Current value -->
       <template v-if="modelValue != null">
@@ -194,7 +194,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
       </template>
       <span v-else class="truncate text-gray-400 group-hover:text-gray-700">{{ facetName ?? "Select" }}</span>
       <!-- Controls -->
-      <div class="ml-auto flex-shrink-0 pl-1.5">
+      <div v-if="!props.isDisabled && props.isInput" class="ml-auto flex-shrink-0 pl-1.5">
         <!-- Clear -->
         <i
           v-if="modelValue != null && !valueType?.isRequired"

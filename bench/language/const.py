@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.07.03.1"  # auto change via version script
+VERSION = "2024.07.04.0"  # auto change via version script
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -126,7 +126,7 @@ class EnumType(IdEnum):
     ISSUE_KIND = 20400
     ISSUE_TYPE = 20401
 
-    # session
+    # run
     STEP_TYPE = 20500
     PIPE_TYPE = 20501
     LOG_KIND = 20502
@@ -140,6 +140,7 @@ class EnumType(IdEnum):
     NOTIFICATION_KIND = 20510
     BREAKPOINT_KIND = 20511
     BREAKPOINT_ACTION = 20512
+    CODE_KIND = 20513
 
     # view
     SPACE_TYPE = 21000

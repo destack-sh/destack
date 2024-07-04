@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.07.03.1"
+VERSION = "2024.07.04.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -265,6 +265,7 @@ class BenchType(betterproto.Enum):
     NOTIFICATION_KIND = 20510
     BREAKPOINT_KIND = 20511
     BREAKPOINT_ACTION = 20512
+    CODE_KIND = 20513
     SPACE_TYPE = 21000
     VIEW_TYPE = 21001
     VARIANT = 21002
@@ -341,6 +342,18 @@ class ClientType(betterproto.Enum):
     BENCH_DESKTOP = 3
     BENCH_MOBILE = 4
     BENCH_SERVER = 10
+
+
+class CodeKind(betterproto.Enum):
+    """
+    The implicit 'kind' of some Code.
+     We don't set this explicitly in Code because it depends on where the Code is used.
+    """
+
+    UNSPECIFIED = 0
+    SNIPPET = 1
+    SCRIPT = 2
+    FUNCTION = 3
 
 
 class ColorShade(betterproto.Enum):
@@ -502,6 +515,7 @@ class EnumType(betterproto.Enum):
     NOTIFICATION_KIND = 20510
     BREAKPOINT_KIND = 20511
     BREAKPOINT_ACTION = 20512
+    CODE_KIND = 20513
     SPACE_TYPE = 21000
     VIEW_TYPE = 21001
     VARIANT = 21002
@@ -1128,18 +1142,23 @@ class StepType(betterproto.Enum):
     UNSPECIFIED = 0
     START = 1
     COMPLETE = 2
+    VALUE = 3
+    TRIGGER = 4
     RUN = 20
     CODE = 21
     TEXT = 22
     SEND = 23
-    BRANCH = 40
+    PASS = 30
+    MATCH = 40
     FILTER = 41
     LOOP = 42
     MERGE = 43
     SPLIT = 44
-    FLATTEN = 46
-    ACCUMULATE = 47
-    REDUCE = 48
+    FLATTEN = 45
+    ACCUMULATE = 46
+    REDUCE = 47
+    ZIP = 48
+    GROUP = 60
 
 
 class StructType(betterproto.Enum):

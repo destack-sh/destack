@@ -40,38 +40,39 @@ if TYPE_CHECKING:
 
 @enum_(EnumType.STEP_TYPE)
 class StepType(IdEnum):
-    # terminal
-    START = 1
-    COMPLETE = 2
-    # TRIGGER
-    # VALUE
+    # source/sinks
+    START = 1  # at most one per Flow
+    COMPLETE = 2  # at most one per Flow
+    VALUE = 3  # source with just(value)
+    TRIGGER = 4  # source with just(trigger)
 
     # run
     RUN = 20  # (block)
     CODE = 21
     TEXT = 22
-    SEND = 23  # (signal)
+    SEND = 23  # (signal/notification)
     # YIELD/SUSPEND
     # APPLY
+    # CREATE
+    PASS = 30  # noop, output = input
+
+    # control
+    MATCH = 40  #
+    FILTER = 41  # X -> | X -> X | None | -> X
+    LOOP = 42  # X[] -> | X -> ... -> Y | -> Y[]
+    MERGE = 43  # X1, X2, ... -> X
+    SPLIT = 44  # X -> X1, X2, ...
+    FLATTEN = 45  # X[] -> X
+    ACCUMULATE = 46  # X -> X[]
+    REDUCE = 47  # X[] -> Y
+    ZIP = 48  # X1[], X2[], ... -> (X1, X2, ...)[]
     # WAIT/DELAY?
-
-    # logical
-    BRANCH = 40
-    FILTER = 41
-    LOOP = 42
-    MERGE = 43
-    SPLIT = 44
-    # GROUP?
-    FLATTEN = 46
-    ACCUMULATE = 47
-    REDUCE = 48
-
-    # TELEPORT?
     # DEBOUNCE?
     # THROTTLE?
+    # TELEPORT?
 
-    # organization
-    # GROUP
+    # organize
+    GROUP = 60
 
     ...
 
@@ -79,7 +80,7 @@ class StepType(IdEnum):
 @enum_(EnumType.PIPE_TYPE)
 class PipeType(IdEnum):
     THEN = 1
-    # ... not sure yet
+    ...
 
 
 @struct_(StructType.PIPE)
