@@ -3,14 +3,27 @@ from typing import TYPE_CHECKING
 import black
 import structlog
 
-from bench.language.const import StructType
+from bench.language.const import EnumType, StructType, enum_
 from bench.language.node import Struct, struct_
 from bench.language.property import p_regular
+from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
     pass
 
 logger = structlog.get_logger(__name__)
+
+
+@enum_(EnumType.CODE_KIND)
+class CodeKind(IdEnum):
+    """
+    The implicit 'kind' of some Code.
+    We don't set this explicitly in Code because it depends on where the Code is used.
+    """
+
+    SNIPPET = 1  # can import
+    SCRIPT = 2  # can import and export
+    FUNCTION = 3  # can import, take inputs and produce outputs
 
 
 @struct_(StructType.CODE_LINE)

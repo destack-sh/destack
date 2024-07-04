@@ -411,7 +411,7 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
 
       // (schedule) retry
       if (!retry) {
-        log.trace(`graph.${this.kind}.error.unrecoverable`, this.meta.name, error);
+        log.error(`graph.${this.kind}.error.unrecoverable`, this.meta.name, error);
         this.isConnected.value = false;
         this.isClosed.value = true;
       } else if (network.isOnline.value) {

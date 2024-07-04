@@ -9,7 +9,7 @@ import {
   FieldZone,
 } from "@/proto/wire";
 import type { ReadNodeGraph } from "@/system/graph";
-import { ENUM_ICONS_BY_TYPE } from "@/system/icon";
+import { ENUM_ICONS_BY_TYPE, ICON_BY_ALIGNMENT } from "@/system/icon";
 import { isEnumType, getEnumOptions, isNodeType, FULL_WIDTH_VIEW_TYPES } from "@/system/lang";
 import { type TypeIdentity, makeTypeInfo, resolveType, getStorageKey } from "@/system/value";
 import type { ViewProps } from "@/views/common";
@@ -43,7 +43,7 @@ export function getViewForValueType(type: Omit<TypeIdentity, "kind"> & Partial<T
       return { viewType: VIEW_TYPE_BY_BENCH_TYPE[type.benchType]! };
     } else if (isEnumType(type.benchType)) {
       // prefer inline picker if it fits
-      if (getEnumOptions(type.benchType).length <= 5) {
+      if (getEnumOptions(type.benchType).length <= 6 && ENUM_ICONS_BY_TYPE[type.benchType] != null) {
         const variant = ENUM_ICONS_BY_TYPE[type.benchType] != null ? Variant.STEALTH : Variant.COMPACT;
         return {
           viewType: ViewType.PICKER,

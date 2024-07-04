@@ -31,9 +31,6 @@ from bench.proto.wire import (
     ServiceKind,
     SupervisorClient,
 )
-from bench.runtime.core import (
-    RUNTIME_CONCURRENCY,
-)
 from bench.runtime.thread import RuntimeThread
 from bench.utils.oracle import Oracle
 from bench.utils.tenacity import RETRY_GRPC_FOREVER

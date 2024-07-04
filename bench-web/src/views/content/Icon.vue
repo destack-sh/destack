@@ -113,7 +113,8 @@ defineExpose<ViewExposed>({ self, id, focus });
           onApply: (value) => apply(value),
         })
       "
-      class="group flex w-full flex-row items-center rounded border border-gray-200 px-2 py-1 hover:border-gray-300 data-[popover=true]:border-gray-300 data-[popover=true]:text-primary-900"
+      :disabled="isDisabled || !isInput"
+      class="group flex w-full flex-row items-center rounded border border-gray-200 px-2 py-1 enabled:hover:border-gray-300 data-[popover=true]:border-gray-300 data-[popover=true]:text-primary-900"
     >
       <template v-if="modelValue != null">
         <IconInline v-bind="modelValue" />
@@ -123,7 +124,7 @@ defineExpose<ViewExposed>({ self, id, focus });
         <i class="fas fa-icons text-gray-400 group-hover:text-gray-700" />
         <span class="ml-1.5 text-gray-400 group-hover:text-gray-700">Select Icon</span>
       </template>
-      <i class="fas fa-caret-down ml-auto pl-1.5 text-gray-400" />
+      <i v-if="!isDisabled && isInput" class="fas fa-caret-down ml-auto pl-1.5 text-gray-400" />
     </button>
 
     <!-- Inline Combobox -->
@@ -164,7 +165,8 @@ defineExpose<ViewExposed>({ self, id, focus });
               onApply: (value) => (color = value),
             })
           "
-          class="rounded px-0.5 hover:bg-gray-100"
+          :disabled="isDisabled || !isInput"
+          class="rounded px-0.5 enabled:hover:bg-gray-100"
         >
           <i class="fas fa-circle small" :style="{ color: effectiveColorHex }" />
         </button>

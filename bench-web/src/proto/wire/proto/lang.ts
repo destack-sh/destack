@@ -7096,6 +7096,10 @@ export enum BenchType {
      */
     BREAKPOINT_ACTION = 20512,
     /**
+     * @generated from protobuf enum value: BENCH_TYPE_CODE_KIND = 20513;
+     */
+    CODE_KIND = 20513,
+    /**
      * @generated from protobuf enum value: BENCH_TYPE_SPACE_TYPE = 21000;
      */
     SPACE_TYPE = 21000,
@@ -7345,6 +7349,30 @@ export enum ClientType {
      * @generated from protobuf enum value: CLIENT_TYPE_BENCH_SERVER = 10;
      */
     BENCH_SERVER = 10
+}
+/**
+ * The implicit 'kind' of some Code.
+ * We don't set this explicitly in Code because it depends on where the Code is used.
+ *
+ * @generated from protobuf enum symbolx.bench.CodeKind
+ */
+export enum CodeKind {
+    /**
+     * @generated from protobuf enum value: CODE_KIND_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: CODE_KIND_SNIPPET = 1;
+     */
+    SNIPPET = 1,
+    /**
+     * @generated from protobuf enum value: CODE_KIND_SCRIPT = 2;
+     */
+    SCRIPT = 2,
+    /**
+     * @generated from protobuf enum value: CODE_KIND_FUNCTION = 3;
+     */
+    FUNCTION = 3
 }
 /**
  * Built-in color shades a la Tailwind.
@@ -7929,6 +7957,10 @@ export enum EnumType {
      * @generated from protobuf enum value: ENUM_TYPE_BREAKPOINT_ACTION = 20512;
      */
     BREAKPOINT_ACTION = 20512,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_CODE_KIND = 20513;
+     */
+    CODE_KIND = 20513,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_SPACE_TYPE = 21000;
      */
@@ -10000,6 +10032,14 @@ export enum StepType {
      */
     COMPLETE = 2,
     /**
+     * @generated from protobuf enum value: STEP_TYPE_VALUE = 3;
+     */
+    VALUE = 3,
+    /**
+     * @generated from protobuf enum value: STEP_TYPE_TRIGGER = 4;
+     */
+    TRIGGER = 4,
+    /**
      * @generated from protobuf enum value: STEP_TYPE_RUN = 20;
      */
     RUN = 20,
@@ -10016,9 +10056,13 @@ export enum StepType {
      */
     SEND = 23,
     /**
-     * @generated from protobuf enum value: STEP_TYPE_BRANCH = 40;
+     * @generated from protobuf enum value: STEP_TYPE_PASS = 30;
      */
-    BRANCH = 40,
+    PASS = 30,
+    /**
+     * @generated from protobuf enum value: STEP_TYPE_MATCH = 40;
+     */
+    MATCH = 40,
     /**
      * @generated from protobuf enum value: STEP_TYPE_FILTER = 41;
      */
@@ -10036,17 +10080,25 @@ export enum StepType {
      */
     SPLIT = 44,
     /**
-     * @generated from protobuf enum value: STEP_TYPE_FLATTEN = 46;
+     * @generated from protobuf enum value: STEP_TYPE_FLATTEN = 45;
      */
-    FLATTEN = 46,
+    FLATTEN = 45,
     /**
-     * @generated from protobuf enum value: STEP_TYPE_ACCUMULATE = 47;
+     * @generated from protobuf enum value: STEP_TYPE_ACCUMULATE = 46;
      */
-    ACCUMULATE = 47,
+    ACCUMULATE = 46,
     /**
-     * @generated from protobuf enum value: STEP_TYPE_REDUCE = 48;
+     * @generated from protobuf enum value: STEP_TYPE_REDUCE = 47;
      */
-    REDUCE = 48
+    REDUCE = 47,
+    /**
+     * @generated from protobuf enum value: STEP_TYPE_ZIP = 48;
+     */
+    ZIP = 48,
+    /**
+     * @generated from protobuf enum value: STEP_TYPE_GROUP = 60;
+     */
+    GROUP = 60
 }
 /**
  * @generated from protobuf enum symbolx.bench.StructType
@@ -25228,6 +25280,7 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.NOTIFICATION_KIND]: NotificationKind,
   [EnumType.BREAKPOINT_KIND]: BreakpointKind,
   [EnumType.BREAKPOINT_ACTION]: BreakpointAction,
+  [EnumType.CODE_KIND]: CodeKind,
   [EnumType.SPACE_TYPE]: SpaceType,
   [EnumType.VIEW_TYPE]: ViewType,
   [EnumType.VARIANT]: Variant,
@@ -25496,6 +25549,7 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.NOTIFICATION_KIND]: NotificationKind,
   [EnumType.BREAKPOINT_KIND]: BreakpointKind,
   [EnumType.BREAKPOINT_ACTION]: BreakpointAction,
+  [EnumType.CODE_KIND]: CodeKind,
   [EnumType.SPACE_TYPE]: SpaceType,
   [EnumType.VIEW_TYPE]: ViewType,
   [EnumType.VARIANT]: Variant,
