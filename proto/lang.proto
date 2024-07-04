@@ -2953,7 +2953,7 @@ message StepData {
   optional BoxData size = 61;
 }
 
-// A trusty Postgres database.
+// A trusty Postgres-compatible database.
 message StoreData {
   ObjectType metatype = 1;
   string id = 2;

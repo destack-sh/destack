@@ -761,7 +761,6 @@ export function getRandomEnumOption<T extends EnumType>(enumType: T): EnumTypeMa
 export function getPropertyTitle(property: PropertyInfo): string {
   let pythonName = property.name;
   if (pythonName.endsWith("_ptr")) pythonName = pythonName.slice(0, -4);
-  if (pythonName.startsWith("is_")) pythonName = pythonName.slice(3);
   if (pythonName.endsWith("_packed")) pythonName = pythonName.slice(0, -7);
   const title = toCasing(pythonName, Casing.CAMEL, true);
   return title;

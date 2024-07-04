@@ -372,7 +372,7 @@ export function unpackBuiltinObject<T extends ObjectType>(valuePacked: any, obje
   const properties = PROPERTY_INFOS_BY_TYPE[objectType];
   if (propertyEnum == null || properties == null) throw new Error(`unexpected object type ${objectType}`);
 
-  const value = { metatype: objectType } as AnyTypeMapping[T];
+  const value = {  } as AnyTypeMapping[T];
   for (const prop of Object.values(properties)) {
     const propName = propertyEnum[prop.id];
     const propType = getPropertyType(prop);
@@ -397,7 +397,7 @@ export function unpackBuiltinObject<T extends ObjectType>(valuePacked: any, obje
     }
     (value as any)[propName] = propValue;
   }
-
+  value.metatype = objectType;
   return value;
 }
 
