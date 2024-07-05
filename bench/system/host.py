@@ -287,7 +287,7 @@ class Host(GraphIoServiceBase, HostApi, HostBase):
         async with self.tx_lock, unsuspend_session(
             self._session, readonly=readonly, autocommit=autocommit
         ):
-            self._session._epoch = self.epoch
+            self._session._system_epoch = self.epoch
             yield self._session
 
     @tracer.start_as_current_span("host.get_request_subject")

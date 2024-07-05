@@ -159,7 +159,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
             _is_readonly=readonly,
             _default_scope=self.scope,
             _engines=engines if engines is not None else self.get_engines(),
-            _epoch=self.epoch,
+            _system_epoch=self.epoch,
             _custom_commit=self._commit_system_session if system_commit else None,
             _supergraph=supergraph,
             _split_read=self.split_reads,
@@ -607,6 +607,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
         """
         Commits a system session (outside a request context).
         This is like GraphIo.commit_transaction but without validation.
+        TODO :Robustness: also retry system commits if channel is unavailable
         """
         assert session._tx is not None, f"no active tx in {session!r}"
         edit_graph = NodeDict(session._edited_nodes_by_id)
@@ -638,7 +639,8 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
             raise
 
         # handle on commit
-        self.epoch = session.epoch
+        assert session._system_epoch is not None, f"no system epoch in {session!r}"
+        self.epoch = session._system_epoch
         await self.on_commit(
             supergraph=session._supergraph,
             graph=edit_graph,

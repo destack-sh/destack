@@ -176,7 +176,7 @@ class RunError(Struct, BenchError):
     def from_exception(e: Exception) -> "RunError":
         # NOTE :Incomplete: get run error trace/frames/node/...
         title = to_casing(e.__class__.__name__, Casing.CAMEL, allow_whitespace=True)
-        return RunError(kind=RunErrorKind.INTERNAL, title=title, text=Text.from_markdown(str(e)))
+        return RunError(kind=RunErrorKind.INTERNAL, title=title, text=Text.plain(str(e)))
 
 
 @timed_node(NodeType.RUN)
@@ -294,12 +294,12 @@ class Run(PackageNode[RunData], HasTimeIdentity, HasNodeBase, HasSessionContext,
 
     def pause(self):
         """Pauses the Run."""
-        assert self.status == RunStatus.RUNNING, f"cannot pause {self.status} run {self!r}"
+        assert self.current_status == RunStatus.RUNNING, f"cannot pause {self!r}"
         self.status = RunStatus.PAUSED
 
     def resume(self):
         """Resumes the Run."""
-        assert self.status == RunStatus.PAUSED, f"cannot resume {self.status} run {self!r}"
+        assert self.current_status == RunStatus.PAUSED, f"cannot resume {self!r}"
         self.status = RunStatus.RUNNING
 
     def cancel(self):
@@ -322,7 +322,7 @@ class Run(PackageNode[RunData], HasTimeIdentity, HasNodeBase, HasSessionContext,
 
     def fail(self, error: "RunError"):
         """Fails the Run with the given error."""
-        assert not self.status.is_terminal, f"cannot fail {self.status} run {self!r}"
+        assert not self.status.is_terminal, f"cannot fail {self!r}"
         self.status = RunStatus.FAILED
         self.error = error
 

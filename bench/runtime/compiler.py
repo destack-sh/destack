@@ -2,8 +2,10 @@
 
 
 import ast
+import inspect
 import linecache
 import textwrap
+import types
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any, Mapping, override
@@ -588,6 +590,11 @@ class CodeAnalysisVisitor(ast.NodeVisitor):
         )
 
 
+def _is_coroutine(co: types.CodeType) -> bool:
+    """Check if a code object is a coroutine."""
+    return co is not None and inspect.CO_COROUTINE & co.co_flags == inspect.CO_COROUTINE
+
+
 @dataclass
 class CodeCompilation:
     # NOTE: code is assumed to be :AsyncCode (even if it isn't)
@@ -595,10 +602,15 @@ class CodeCompilation:
     code: str
     transformed_code: str
     transformation: "CodeTransformation | None"
-    body: ast.Module | None  # the entire parsed AST (excl. last_expr if kind=snippet)
-    last_expr: ast.expr | None  # for snippets
     definitions: Mapping[str, "CodeDefinition"]
     references: Mapping[str, "CodeReference"]
+    imports: Mapping[str, "CodeImport"]
+    module: ast.Module | None  # the entire parsed AST
+    body_co: types.CodeType | None  # the compiled code object (excl. last_expr if kind=snippet)
+    last_expr: ast.Expression | None  # for snippets
+    last_expr_co: types.CodeType | None  # for snippets
+    function_name: str | None  # for functions
+    is_coroutine: bool
 
     @property
     def cache_key(self):
@@ -627,8 +639,9 @@ def _cache_in_linecache(filename: str, code: str) -> None:
     )
 
 
+# nocheckin: cache code compilation
 def compiled_code(
-    code_id: int, code: str, kind: CodeKind, glbls: dict[str, Any]
+    code_id: int, code: str, kind: CodeKind, glbls: Mapping[str, Any]
 ) -> CodeCompilation:
     """
     Parse, analyze and compile code.
@@ -639,9 +652,9 @@ def compiled_code(
     code = code.replace("\u00a0", " ")
 
     # wrap code in function if it's a function
-    code_function_name = f"_code_{code_id}"
+    function_name = f"_code_{code_id}"
     if kind == CodeKind.FUNCTION:
-        transformed_code = f"async def {code_function_name}():\n{textwrap.indent(code, 4 * " ")}"
+        transformed_code = f"async def {function_name}():\n{textwrap.indent(code, 4 * " ")}"
         transformation = CodeTransformation(line_offset=1, column_offset=4)
     else:
         transformed_code = code
@@ -660,10 +673,15 @@ def compiled_code(
             code=code,
             transformed_code=transformed_code,
             transformation=None,
-            body=None,
-            last_expr=None,
+            imports={},
             definitions={},
             references={},
+            module=module,
+            body_co=None,
+            last_expr=None,
+            last_expr_co=None,
+            function_name=None,
+            is_coroutine=False,
         )
 
     # analyze
@@ -671,39 +689,51 @@ def compiled_code(
     analysis.visit(module)
     if kind == CodeKind.FUNCTION:
         # remove the wrapped function definition from the analysis
-        analysis._block_stack[0].definitions.pop(code_function_name)
+        analysis._block_stack[0].definitions.pop(function_name)
 
     # store the code in Python's linecache so debuggers can find it
     body_filename = _get_filename(code_id)
     _cache_in_linecache(body_filename, transformed_code)
-    body = compile(module, body_filename, mode="exec", flags=ast.PyCF_ALLOW_TOP_LEVEL_AWAIT)
+    body_co = compile(module, body_filename, mode="exec", flags=ast.PyCF_ALLOW_TOP_LEVEL_AWAIT)
 
     # parse out last expression for snippets
+    last_expr: ast.Expression | None
     if kind == CodeKind.SNIPPET:
         if isinstance(module.body[-1], ast.Expr):
             last_expr = ast.Expression(module.body.pop().value)
         else:
-            last_expr = "None"
+            last_expr = ast.Expression(ast.Constant(None))
         last_expr_filename = _get_filename(code_id, suffix="_output")
         _cache_in_linecache(
             last_expr_filename,
             ast.unparse(last_expr) if not isinstance(last_expr, str) else "None",
         )
-        last_expr = compile(
+        last_expr_co = compile(
             last_expr, last_expr_filename, mode="eval", flags=ast.PyCF_ALLOW_TOP_LEVEL_AWAIT
         )
+        is_coroutine = _is_coroutine(body_co) or _is_coroutine(last_expr_co)
     else:
         last_expr = None
+        last_expr_co = None
+        is_coroutine = _is_coroutine(body_co)
 
     # remove globals from references (they are references)
+    definitions = analysis.definitions
     references = {k: v for k, v in analysis.references.items() if k not in glbls}
+    imports = {k: v.import_ for k, v in definitions.items() if v.import_ is not None}
+
     return CodeCompilation(
         kind=kind,
         code=code,
         transformed_code=transformed_code,
         transformation=transformation,
-        body=body,
-        last_expr=last_expr,
-        definitions=analysis.definitions,
+        definitions=definitions,
         references=references,
+        imports=imports,
+        module=module,
+        body_co=body_co,
+        last_expr=last_expr,
+        last_expr_co=last_expr_co,
+        function_name=function_name,
+        is_coroutine=is_coroutine,
     )

@@ -541,9 +541,9 @@ class Transaction:
         if node is not None:
             self._pending_nodes_by_ck[node.ck] = node
         # bump epoch if we have one
-        if self.session._epoch is not None:
-            self.session._epoch += 1
-            edit.epoch = self.session._epoch
+        if self.session._system_epoch is not None:
+            self.session._system_epoch += 1
+            edit.epoch = self.session._system_epoch
         return engine
 
     def _add_pending_edits(self, edits: Collection[EditData]):

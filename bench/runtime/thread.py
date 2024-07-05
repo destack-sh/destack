@@ -172,6 +172,8 @@ class RuntimeThread:
 
     @tracer.start_as_current_span("thread.start_run")
     async def _process_start_queue(self, run_data: RunData):
+        # NOTE :Robustness: Run's epoch may be ahead of our own if the sync takes longer to
+        #  arrive than the request from the scheduler (both from Host).
         assert self._runner is not None, f"no runner for {self!r}"
         assert self._main_package is not None, f"no main package for {self!r}"
         package = self._main_package

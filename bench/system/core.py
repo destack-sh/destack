@@ -76,7 +76,7 @@ def system_store_from_env() -> Store:
 def pg_engine_from_store(
     store: Store,
     *,
-    scope: GraphScopeData = EMPTY_SCOPE._to_data(),
+    scope: GraphScopeData = EMPTY_SCOPE._to_data(),  # noqa: B008
     node_types: bittuple[NodeType] = GLOBAL_NODE_TYPES,
 ):
     """Get the postgres engine for a store"""
@@ -108,7 +108,7 @@ def global_session(
         parent=None,
         _default_scope=EMPTY_SCOPE._to_data(),
         _engines=engines,
-        _epoch=epoch,
+        _system_epoch=epoch,
         _supergraph=supergraph or store.parent._supergraph.instance(),
         _oracle=oracle,
         _is_readonly=readonly,
