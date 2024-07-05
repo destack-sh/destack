@@ -36,7 +36,7 @@ def create_omni_session(omni_store: Store, oracle: Oracle):
         parent=None,
         _default_scope=EMPTY_SCOPE._to_data(),
         _engines=(global_pg_engine,),
-        _epoch=0,
+        _system_epoch=0,
         _oracle=oracle,
         _supergraph=NodeSuperGraph(root_ptr=None),
     )

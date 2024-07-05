@@ -170,7 +170,7 @@ class Text(Struct):
 
     @staticmethod
     def plain(text: str) -> "Text":
-        return Text(lines=[TextLine.plain(text)])
+        return Text(lines=[TextLine.plain(line) for line in text.splitlines(keepends=False)])
 
     @staticmethod
     def from_markdown(markdown: str) -> "Text":

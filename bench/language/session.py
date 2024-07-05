@@ -135,7 +135,9 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
     _tx_lock: asyncio.Lock = p_runtime(default_factory=lambda: CriticalLock(name="session"))
     _edited_nodes_by_id: dict[UUID, Node] = p_runtime(default_factory=dict)
     _default_scope: GraphScopeData = p_runtime(default_factory=lambda: EMPTY_SCOPE._to_data())
-    _epoch: int | None = p_runtime(default=None)
+
+    # in-system transaction
+    _system_epoch: int | None = p_runtime(default=None)
     _on_error: Callable[[Exception], None] | None = p_runtime(default=None)
     _custom_commit: CustomCommit | None = p_runtime(default=None)
 
@@ -177,11 +179,6 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
     def has_pending_edits(self):
         """Whether this session has any pending (unflushed) edits."""
         return self._tx is not None and self._tx.has_pending_edits
-
-    @property
-    def epoch(self) -> int:
-        assert self._epoch is not None, f"epoch not available in {self!r}"
-        return self._epoch
 
     @property
     def is_open(self) -> bool:
@@ -736,7 +733,7 @@ async def unsuspend_session(session: Session, readonly: bool = False, autocommit
         yield session
         if autocommit:
             await session.commit()
-        elif len(session.tx.edits) > num_edits_before:
+        elif readonly and len(session.tx.edits) > num_edits_before:
             raise RuntimeError(f"new uncommitted edits in {session!r}: {session.tx.edits!r}")
     finally:
         session.suspend()  # suspend by default
