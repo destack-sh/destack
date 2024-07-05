@@ -46,7 +46,7 @@ class RuntimeThread:
         client_id: UUID,
         machine_id: UUID | None,
         engines: tuple[GraphEngine, ...],
-        queue: asyncio.Queue[RunData],
+        start_queue: asyncio.Queue[RunData],
         oracle: Oracle,
     ):
         self.id = id
@@ -78,11 +78,13 @@ class RuntimeThread:
         self._tx_lock: asyncio.Lock = CriticalLock(
             name=f"{self.__class__.__name__}_{self._bench_id or ''}_{self.id}"
         )
-        self._queue = queue
+        self._start_queue = start_queue
         self._tasks = TaskManager(owner=self, logger=logger, oracle=oracle)
 
     def __str__(self):
-        return f"{self.id} on {repr(self.bench) if self.bench else self._bench_id}"
+        bench_str = repr(self.bench) if self.bench else self._bench_id
+        client_str = repr(self._client) if self._client else self._client_id
+        return f"{self.id} as {client_str} on {bench_str}"
 
     def __repr__(self):
         return f"<{self.__class__.__name__} {self}>"
@@ -133,7 +135,7 @@ class RuntimeThread:
 
         # connect
         async with self.session(readonly=True):
-            # connect bench
+            # get bench
             self._bench = await BENCH_QUERY.get(self._bench_ptr, live=True)
             main_branch = self._bench.main_branch
             assert main_branch, f"{self._bench!r} has no main branch"
@@ -145,7 +147,7 @@ class RuntimeThread:
             if self._machine_id:
                 self._machine = main_server.machines.get(self._machine_id)
 
-            # connect main package
+            # get package
             self._main_package = await PACKAGE_QUERY.get(main_branch.main_package_ptr, live=True)
             self._session.parent = self._main_package
 
@@ -161,12 +163,15 @@ class RuntimeThread:
 
         # finally, start processing runs
         self._tasks.start_queue(
-            self._queue, self._process_run, f"{self.bench.slug}_run{self.id}", skip_errors=True
+            self._start_queue,
+            self._process_start_queue,
+            f"{self.bench.slug}_run{self.id}",
+            skip_errors=True,
         )
         logger.info("thread.start", process=self, bench=self._bench, span="current")
 
-    @tracer.start_as_current_span("thread.process_run")
-    async def _process_run(self, run_data: RunData):
+    @tracer.start_as_current_span("thread.start_run")
+    async def _process_start_queue(self, run_data: RunData):
         # TODO :Incomplete :Architecture!: process run in steps/ticks somehow
         #  (also: flush run/session state independent from other nodes, handle pausing, ...)
         assert self._runner is not None, f"no runner for {self!r}"
@@ -184,7 +189,7 @@ class RuntimeThread:
         )
         run._unpack_values_inplace()
         await self._runner.start_run(run)
-        logger.info("thread.process_run", process=self, run=run, span="current")
+        logger.info("thread.start_run", process=self, run=run, span="current")
 
     def close(self):
         self._tasks.close()

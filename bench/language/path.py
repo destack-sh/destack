@@ -53,7 +53,7 @@ class PathToken(InlineStruct):
     """A lexical token in a Bench path."""
 
     type: PathTokenType = p_regular(31)
-    content: Optional[str] = p_regular(32, default=None)
+    name: Optional[str] = p_regular(32, default=None)
 
 
 @enum_(EnumType.PATH_SEGMENT_TYPE)
@@ -96,9 +96,10 @@ class PathSegment(InlineStruct):
 @struct_(StructType.PATH)
 class Path(Struct):
     """
-    A human-readable Bench path to reference source nodes and their fields/properties. Absolute or relative.
+    A human-readable Bench path to reference nodes and their fields/properties. Absolute or relative.
     Paths are case-insensitive, support alphanum + spaces and use '/' as the primary node separator.
-    Nodes 'below' block-level are prefixed with one ':'. Fields are accessed with '.' separators.
+    Nodes 'below' block-level are prefixed with one ':'.
+    Fields are accessed with '.' separators.
 
     flotothemoon/Mirror/Notion/Databases/Landscape
     ^ bench      ^ blocks
@@ -129,9 +130,9 @@ class Path(Struct):
     ^ bench ^ branch     ^ package  ^ blocks                     ^ sub-nodes     ^ field
 
     also relative:
-    / -> package (=Package)
+    / -> package root (=Package)
     ^ -> page (=Block)
-    $User -> module-unique node (=Block|View)
+    $User -> module-unique node (=Block|View|Step)
     ~ -> source module root (like $ but for templated)
     [<expr like ck=...>] -> dynamic Expression filter
 

@@ -16,7 +16,7 @@ from bench.language.session import Session
 from bench.language.setup import BENCH_CLASS_BY_NAME
 from bench.language.text import Text
 from bench.language.value import ValueObject
-from bench.runtime.compiler import CompiledCode, compiled_code
+from bench.runtime.compiler import CodeCompilation, compiled_code
 from bench.utils.oracle import Oracle
 
 DEFAULT_CODE_RUN_OPTIONS = RunOptions(max_attempts=1)
@@ -37,7 +37,7 @@ class RunContext:
     scope: Node
     options: RunOptions
     attempts: list[RunAttempt] = dataclasses.field(default_factory=list)
-    compiled: CompiledCode | None = None
+    compiled: CodeCompilation | None = None
     variables: ValueObject | None = None
     inputs: ValueObject | None = None
     run: Run | None = None
@@ -88,14 +88,15 @@ class RuntimeRunner:
     # Direct running
     #
 
-    async def run_code_snippet(self, code: Code, context: RunContext):
+    async def run_code_snippet(self, code: Code, context: RunContext) -> Any:
         """
         Runs Code as a snippet in some context, respecting the run options.
-        Snippet runs are lightweight and do not generate tracked Runs.
+        Snippet runs are lightweight and do not generate tracked Runs by themself.
+        Returns the last expression value.
         """
         raise NotImplementedError
 
-    async def run_code_script(self, code: Code, context: RunContext):
+    async def run_code_script(self, code: Code, context: RunContext) -> None:
         """Runs Code as a script to store its definitions for reuse, respecting the run options."""
         raise NotImplementedError
 
