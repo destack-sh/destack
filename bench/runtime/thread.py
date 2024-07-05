@@ -172,8 +172,6 @@ class RuntimeThread:
 
     @tracer.start_as_current_span("thread.start_run")
     async def _process_start_queue(self, run_data: RunData):
-        # TODO :Incomplete :Architecture!: process run in steps/ticks somehow
-        #  (also: flush run/session state independent from other nodes, handle pausing, ...)
         assert self._runner is not None, f"no runner for {self!r}"
         assert self._main_package is not None, f"no main package for {self!r}"
         package = self._main_package

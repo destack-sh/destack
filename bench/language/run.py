@@ -40,7 +40,9 @@ from bench.language.text import Text
 from bench.language.validation import TITLE_CONSTRAINT, TypeConstraintIn, ValidationHandler
 from bench.language.value import HasValues
 from bench.proto.wire import AnyNodeData, NodeReferenceData, RunData
+from bench.utils.casing import Casing, to_casing
 from bench.utils.func import IdEnum
+from bench.utils.tenacity import RetryOptions
 
 if TYPE_CHECKING:
     from bench.language import Block, Expression, NodeReference, Package, TypeInfoBase, ValueObject
@@ -68,6 +70,16 @@ class RunOptions(Struct):
 
     # flow
     ...
+
+    def to_retry(self) -> RetryOptions:
+        """Turns the options into our RetryOptions."""
+        return RetryOptions(
+            max_attempts=self.max_attempts or 1,
+            retry_interval=self.retry_interval or 1,
+            backoff=self.backoff or 2,
+            max_retry_interval=self.max_retry_interval or 30,
+            jitter=self.jitter,
+        )
 
 
 @enum_(EnumType.BREAKPOINT_KIND)
@@ -110,17 +122,34 @@ class RunAttempt(Struct):
     duration: Optional[float] = p_internal(31, default=None)
     started_at: Optional[datetime] = p_internal(32, default=None)
     started_epoch: Optional[int] = p_internal(33, default=None)
-    paused_at: Optional[datetime] = p_internal(34, default=None)
     terminated_at: Optional[datetime] = p_internal(35, default=None)
     terminated_epoch: Optional[int] = p_internal(36, default=None)
     error: Optional["RunError"] = p_internal(
         37, require=False, array=False, struct=StructType.RUN_ERROR
     )
 
+    def __content_str__(self) -> str:
+        return f"{self.status.bench_name}, {self.duration:.3f}s"
+
+
+@struct_(StructType.RUN_TRACE)
+class RunTrace(Struct):
+    """A stacktrace for a Run."""
+
+    frames: list["RunFrame"] = p_regular(30, array=True, struct=StructType.RUN_FRAME)
+
+
+@struct_(StructType.RUN_FRAME)
+class RunFrame(Struct):
+    """A single frame in a stacktrace."""
+
+    pass
+
 
 @enum_(EnumType.RUN_ERROR_TYPE)
 class RunErrorType(IdEnum):
     RUNTIME_UNAVAILABLE = 1
+    NOT_RUNNABLE = 2
 
 
 @struct_(StructType.RUN_ERROR)
@@ -132,6 +161,9 @@ class RunError(Struct, BenchError):
     title: Optional[str] = p_internal(32, default=None, constraint=TITLE_CONSTRAINT)
     text: Optional["Text"] = p_internal(33, default=None, struct=StructType.TEXT)
     node: Optional["Node"] = p_internal(34, require=False, array=False, references=NodeType.BLOCK)
+    trace: Optional[RunTrace] = p_internal(
+        35, require=False, array=False, struct=StructType.RUN_TRACE
+    )
 
     def __content_str__(self) -> str:
         parts = [self.kind.bench_name]
@@ -142,7 +174,9 @@ class RunError(Struct, BenchError):
 
     @staticmethod
     def from_exception(e: Exception) -> "RunError":
-        return RunError(kind=RunErrorKind.INTERNAL, title=str(e))
+        # NOTE :Incomplete: get run error trace/frames/node/...
+        title = to_casing(e.__class__.__name__, Casing.CAMEL, allow_whitespace=True)
+        return RunError(kind=RunErrorKind.INTERNAL, title=title, text=Text.from_markdown(str(e)))
 
 
 @timed_node(NodeType.RUN)
@@ -194,7 +228,6 @@ class Run(PackageNode[RunData], HasTimeIdentity, HasNodeBase, HasSessionContext,
     # halted_on_trigger: ...
     terminated_at: Optional[datetime] = p_regular(53, default=None)
     terminated_epoch: Optional[int] = p_regular(54, default=None)
-    # attempts is populated if the first attempt is not successful
 
     # content
     inputs_packed: Any = p_value_packed(60)
@@ -263,13 +296,11 @@ class Run(PackageNode[RunData], HasTimeIdentity, HasNodeBase, HasSessionContext,
         """Pauses the Run."""
         assert self.status == RunStatus.RUNNING, f"cannot pause {self.status} run {self!r}"
         self.status = RunStatus.PAUSED
-        self.paused_at = self.active_session._oracle.utc()
 
     def resume(self):
         """Resumes the Run."""
         assert self.status == RunStatus.PAUSED, f"cannot resume {self.status} run {self!r}"
         self.status = RunStatus.RUNNING
-        self.paused_at = None
 
     def cancel(self):
         """Cancels the Run before it happens."""

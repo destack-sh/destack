@@ -18,7 +18,7 @@ class RetryOptions:
     max_attempts: int = 3  # < 0 for infinite
     retry_interval: float = 1.0  # seconds
     backoff: float = 2.0  # exponential backoff
-    max_retry_interval: float = 60.0  # seconds
+    max_retry_interval: float = 30.0  # seconds
     jitter: float | None = None  # [0, 1] percentage of randomness
     retry_on: Union[Type[Exception], tuple[Type[Exception], ...]] = Exception
     retry_if: Callable[[Exception], bool] | None = None
@@ -35,8 +35,8 @@ class RetryOptions:
             interval *= 1 + self.jitter * (2 * oracle.random.random() - 1)
         return interval
 
-    def new(self, oracle: Oracle):
-        return RetryState(options=self, start_ns=oracle.time_ns(), oracle=oracle)
+    def new(self, oracle: Oracle, attempt: int = 0):
+        return RetryState(options=self, start_ns=oracle.time_ns(), oracle=oracle, attempt=attempt)
 
 
 class RetryError(Exception):
@@ -68,7 +68,7 @@ class RetryState:
 
     def __repr__(self) -> str:
         return f"<RetryState {self}>"
-    
+
     def on_success(self):
         self.attempt = 0
         self.errors = None

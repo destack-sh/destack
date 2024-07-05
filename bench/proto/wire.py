@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.07.05.0"
+VERSION = "2024.07.05.1"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -192,7 +192,9 @@ class BenchType(betterproto.Enum):
     RUN_ERROR = 10500
     RUN_OPTIONS = 10501
     RUN_ATTEMPT = 10502
-    BREAKPOINT = 10503
+    RUN_TRACE = 10503
+    RUN_FRAME = 10504
+    BREAKPOINT = 10520
     COLOR = 11000
     FONT = 11001
     BOX = 11002
@@ -869,7 +871,9 @@ class ObjectType(betterproto.Enum):
     RUN_ERROR = 10500
     RUN_OPTIONS = 10501
     RUN_ATTEMPT = 10502
-    BREAKPOINT = 10503
+    RUN_TRACE = 10503
+    RUN_FRAME = 10504
+    BREAKPOINT = 10520
     COLOR = 11000
     FONT = 11001
     BOX = 11002
@@ -1030,6 +1034,7 @@ class RunErrorKind(betterproto.Enum):
 class RunErrorType(betterproto.Enum):
     UNSPECIFIED = 0
     RUNTIME_UNAVAILABLE = 1
+    NOT_RUNNABLE = 2
 
 
 class RunKind(betterproto.Enum):
@@ -1205,7 +1210,9 @@ class StructType(betterproto.Enum):
     RUN_ERROR = 10500
     RUN_OPTIONS = 10501
     RUN_ATTEMPT = 10502
-    BREAKPOINT = 10503
+    RUN_TRACE = 10503
+    RUN_FRAME = 10504
+    BREAKPOINT = 10520
     COLOR = 11000
     FONT = 11001
     BOX = 11002
@@ -1788,9 +1795,10 @@ class PageViewStateData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class PathData(betterproto.Message):
     """
-    A human-readable Bench path to reference source nodes and their fields/properties. Absolute or relative.
+    A human-readable Bench path to reference nodes and their fields/properties. Absolute or relative.
      Paths are case-insensitive, support alphanum + spaces and use '/' as the primary node separator.
-     Nodes 'below' block-level are prefixed with one ':'. Fields are accessed with '.' separators.
+     Nodes 'below' block-level are prefixed with one ':'.
+     Fields are accessed with '.' separators.
 
      flotothemoon/Mirror/Notion/Databases/Landscape
      ^ bench      ^ blocks
@@ -1821,10 +1829,9 @@ class PathData(betterproto.Message):
      ^ bench ^ branch     ^ package  ^ blocks                     ^ sub-nodes     ^ field
 
      also relative:
-     / -> package (=Package)
-     $ -> module (=Block|Package)
+     / -> package root (=Package)
      ^ -> page (=Block)
-     $User -> module-unique node (=Block|View)
+     $User -> module-unique node (=Block|View|Step)
      ~ -> source module root (like $ but for templated)
      [<expr like ck=...>] -> dynamic Expression filter
 
@@ -1864,7 +1871,7 @@ class PathTokenData(betterproto.Message):
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     type: "PathTokenType" = betterproto.enum_field(31)
-    content: Optional[str] = betterproto.string_field(32, optional=True)
+    name: Optional[str] = betterproto.string_field(32, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2017,7 +2024,6 @@ class RunAttemptData(betterproto.Message):
     duration: Optional[float] = betterproto.float_field(31, optional=True)
     started_at: Optional[datetime] = betterproto.message_field(32, optional=True)
     started_epoch: Optional[int] = betterproto.int32_field(33, optional=True)
-    paused_at: Optional[datetime] = betterproto.message_field(34, optional=True)
     terminated_at: Optional[datetime] = betterproto.message_field(35, optional=True)
     terminated_epoch: Optional[int] = betterproto.int32_field(36, optional=True)
     error: Optional["RunErrorData"] = betterproto.message_field(37, optional=True)
@@ -2037,6 +2043,18 @@ class RunErrorData(betterproto.Message):
     title: Optional[str] = betterproto.string_field(32, optional=True)
     text: Optional["TextData"] = betterproto.message_field(33, optional=True)
     node_ptr: Optional["NodeReferenceData"] = betterproto.message_field(34, optional=True)
+    trace: Optional["RunTraceData"] = betterproto.message_field(35, optional=True)
+
+
+@dataclass(eq=False, repr=False)
+class RunFrameData(betterproto.Message):
+    """A single frame in a stacktrace."""
+
+    metatype: "ObjectType" = betterproto.enum_field(1)
+    id: int = betterproto.int32_field(2)
+    parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
+    parent_key: Optional[str] = betterproto.string_field(4, optional=True)
+    order_key: Optional[str] = betterproto.string_field(9, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2060,6 +2078,18 @@ class RunOptionsData(betterproto.Message):
     jitter: Optional[float] = betterproto.float_field(36, optional=True)
     retry_on: List["RunErrorType"] = betterproto.enum_field(38)
     breakpoints: List["BreakpointData"] = betterproto.message_field(39)
+
+
+@dataclass(eq=False, repr=False)
+class RunTraceData(betterproto.Message):
+    """A stacktrace for a Run."""
+
+    metatype: "ObjectType" = betterproto.enum_field(1)
+    id: int = betterproto.int32_field(2)
+    parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
+    parent_key: Optional[str] = betterproto.string_field(4, optional=True)
+    order_key: Optional[str] = betterproto.string_field(9, optional=True)
+    frames: List["RunFrameData"] = betterproto.message_field(30)
 
 
 @dataclass(eq=False, repr=False)
@@ -5074,6 +5104,8 @@ AnyStructData = Union[
     RunErrorData,
     RunOptionsData,
     RunAttemptData,
+    RunTraceData,
+    RunFrameData,
     BreakpointData,
     ColorData,
     FontData,

@@ -157,7 +157,9 @@ enum BenchType {
   BENCH_TYPE_RUN_ERROR = 10500;
   BENCH_TYPE_RUN_OPTIONS = 10501;
   BENCH_TYPE_RUN_ATTEMPT = 10502;
-  BENCH_TYPE_BREAKPOINT = 10503;
+  BENCH_TYPE_RUN_TRACE = 10503;
+  BENCH_TYPE_RUN_FRAME = 10504;
+  BENCH_TYPE_BREAKPOINT = 10520;
   BENCH_TYPE_COLOR = 11000;
   BENCH_TYPE_FONT = 11001;
   BENCH_TYPE_BOX = 11002;
@@ -821,7 +823,9 @@ enum ObjectType {
   OBJECT_TYPE_RUN_ERROR = 10500;
   OBJECT_TYPE_RUN_OPTIONS = 10501;
   OBJECT_TYPE_RUN_ATTEMPT = 10502;
-  OBJECT_TYPE_BREAKPOINT = 10503;
+  OBJECT_TYPE_RUN_TRACE = 10503;
+  OBJECT_TYPE_RUN_FRAME = 10504;
+  OBJECT_TYPE_BREAKPOINT = 10520;
   OBJECT_TYPE_COLOR = 11000;
   OBJECT_TYPE_FONT = 11001;
   OBJECT_TYPE_BOX = 11002;
@@ -970,6 +974,7 @@ enum RunErrorKind {
 enum RunErrorType {
   RUN_ERROR_TYPE_UNSPECIFIED = 0;
   RUN_ERROR_TYPE_RUNTIME_UNAVAILABLE = 1;
+  RUN_ERROR_TYPE_NOT_RUNNABLE = 2;
 }
 
 enum RunKind {
@@ -1142,7 +1147,9 @@ enum StructType {
   STRUCT_TYPE_RUN_ERROR = 10500;
   STRUCT_TYPE_RUN_OPTIONS = 10501;
   STRUCT_TYPE_RUN_ATTEMPT = 10502;
-  STRUCT_TYPE_BREAKPOINT = 10503;
+  STRUCT_TYPE_RUN_TRACE = 10503;
+  STRUCT_TYPE_RUN_FRAME = 10504;
+  STRUCT_TYPE_BREAKPOINT = 10520;
   STRUCT_TYPE_COLOR = 11000;
   STRUCT_TYPE_FONT = 11001;
   STRUCT_TYPE_BOX = 11002;
@@ -1632,9 +1639,10 @@ message PageViewStateData {
   ObjectType metatype = 1;
 }
 
-// A human-readable Bench path to reference source nodes and their fields/properties. Absolute or relative.
+// A human-readable Bench path to reference nodes and their fields/properties. Absolute or relative.
 // Paths are case-insensitive, support alphanum + spaces and use '/' as the primary node separator.
-// Nodes 'below' block-level are prefixed with one ':'. Fields are accessed with '.' separators.
+// Nodes 'below' block-level are prefixed with one ':'.
+// Fields are accessed with '.' separators.
 // 
 // flotothemoon/Mirror/Notion/Databases/Landscape
 // ^ bench      ^ blocks
@@ -1665,10 +1673,9 @@ message PageViewStateData {
 // ^ bench ^ branch     ^ package  ^ blocks                     ^ sub-nodes     ^ field
 // 
 // also relative:
-// / -> package (=Package)
-// $ -> module (=Block|Package)
+// / -> package root (=Package)
 // ^ -> page (=Block)
-// $User -> module-unique node (=Block|View)
+// $User -> module-unique node (=Block|View|Step)
 // ~ -> source module root (like $ but for templated)
 // [<expr like ck=...>] -> dynamic Expression filter
 // 
@@ -1703,7 +1710,7 @@ message PathSegmentData {
 message PathTokenData {
   ObjectType metatype = 1;
   PathTokenType type = 31;
-  optional string content = 32;
+  optional string name = 32;
 }
 
 // A connection between two Steps in a FlowBlock.
@@ -1830,7 +1837,6 @@ message RunAttemptData {
   optional float duration = 31;
   optional google.protobuf.Timestamp started_at = 32;
   optional int32 started_epoch = 33;
-  optional google.protobuf.Timestamp paused_at = 34;
   optional google.protobuf.Timestamp terminated_at = 35;
   optional int32 terminated_epoch = 36;
   optional RunErrorData error = 37;
@@ -1848,6 +1854,16 @@ message RunErrorData {
   optional string title = 32;
   optional TextData text = 33;
   optional NodeReferenceData node_ptr = 34;
+  optional RunTraceData trace = 35;
+}
+
+// A single frame in a stacktrace.
+message RunFrameData {
+  ObjectType metatype = 1;
+  int32 id = 2;
+  optional int32 parent_id = 3;
+  optional string parent_key = 4;
+  optional string order_key = 9;
 }
 
 // Options for running something.
@@ -1867,6 +1883,16 @@ message RunOptionsData {
   optional float jitter = 36;
   repeated RunErrorType retry_on = 38;
   repeated BreakpointData breakpoints = 39;
+}
+
+// A stacktrace for a Run.
+message RunTraceData {
+  ObjectType metatype = 1;
+  int32 id = 2;
+  optional int32 parent_id = 3;
+  optional string parent_key = 4;
+  optional string order_key = 9;
+  repeated RunFrameData frames = 30;
 }
 
 // The time-based schedule of something.
