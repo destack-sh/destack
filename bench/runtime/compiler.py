@@ -3,11 +3,13 @@
 
 import ast
 import linecache
+import textwrap
 from dataclasses import dataclass, field
-from typing import Any, Literal, Mapping, override
-from uuid import uuid4
+from enum import StrEnum
+from typing import Any, Mapping, override
 
 from bench.language.code import CodeKind
+from bench.language.const import new_struct_id
 
 # NOTE: some of the analysis logic was adapted from marimo (Apache 2 licensed)
 #  see https://github.com/marimo-team/marimo/blob/fec7d780488ab1478984468598d00d283e8c1c9d/marimo/_ast/visitor.py
@@ -27,9 +29,16 @@ class CodeImport:
         self.namespace = self.module.split(".")[0]
 
 
+class CodeDefinitionKind(StrEnum):
+    FUNCTION = "function"
+    CLASS = "class"
+    IMPORT = "import"
+    VARIABLE = "variable"
+
+
 @dataclass
 class CodeDefinition:
-    kind: Literal["function", "class", "import", "variable"] = "variable"
+    kind: CodeDefinitionKind
 
     # If kind == function or class, it may be dependent on externally defined
     # variables.
@@ -41,7 +50,7 @@ class CodeDefinition:
     # >> x = foo + bar
     # x has the required refs foo and bar, and ref_stack holds that context
     # while traversing the tree.
-    required_refs: set[str] = field(default_factory=set)
+    references: set[str] = field(default_factory=set)
     import_: CodeImport | None = None  # for imports
 
 
@@ -85,30 +94,40 @@ def is_local_name(name: str):
 class CodeAnalysisVisitor(ast.NodeVisitor):
     """An AST visitor to do our code analysis."""
 
-    def __init__(self, *, mangle_prefix: str | None = None) -> None:
-        self.block_stack: list[CodeBlock] = [CodeBlock()]
-        # names to be loaded into a variable required_refs
-        self.ref_stack: list[set[str]] = [set()]
-        self.obscured_defn_stack: list[CodeObscuredDefinition] = []
-        # mapping from referenced names to their metadata
-        self.references: dict[str, CodeReference] = {}
-        # unique prefix used to mangle local variable names
-        self.mangle_prefix = (
-            str(uuid4()).replace("-", "_") if mangle_prefix is None else mangle_prefix
-        )
+    def __init__(self, *, kind: CodeKind, code_id: int | None = None) -> None:
+        self._kind = kind
+        self._code_id = code_id or new_struct_id()
+        self._block_stack: list[CodeBlock] = [CodeBlock()]
+        self._ref_stack: list[set[str]] = [set()]  # names for CodeDefinition.references
+        self._obscured_defn_stack: list[CodeObscuredDefinition] = []
+        self._references: dict[str, CodeReference] = {}
+
+    def __str__(self) -> str:
+        return f"kind={self._kind}, code_id={self._code_id}, definitions={self.definitions}, references={self.references}"
+
+    def __repr__(self) -> str:
+        return f"<{self.__class__.__name__} {self}>"
+
+    @property
+    def references(self) -> Mapping[str, CodeReference]:
+        """Get all the references."""
+        return self._references
 
     @property
     def definitions(self) -> Mapping[str, CodeDefinition]:
         """Get top level definitions."""
-        return self.block_stack[0].definitions
+        return self._block_stack[0].definitions
 
-    def _mangle_if_local(self, name: str, ignore_scope: bool = False) -> str:
+    def _mangle_if_needed(self, name: str, ignore_scope: bool = False) -> str:
         """
-        Mangle local variable name declared at top-level scope.
-        NOTE :Architecture: not sure yet if we need to keep mangling for our snippets & scripts
+        Mangle local variable name declared at top-level scope if not in a function.
         """
-        if is_local_name(name) and (len(self.block_stack) == 1 or ignore_scope):
-            return f"_{self.mangle_prefix}{name}"
+        if (
+            self._kind != CodeKind.FUNCTION
+            and is_local_name(name)
+            and (len(self._block_stack) == 1 or ignore_scope)
+        ):
+            return f"_{self._code_id}_{name}"
         else:
             return name
 
@@ -132,24 +151,26 @@ class CodeAnalysisVisitor(ast.NodeVisitor):
                 raise SyntaxError(f"{line} SyntaxError: `import *` is not allowed.")
             return basename
         else:
-            return self._mangle_if_local(node.asname)
+            return self._mangle_if_needed(node.asname)
 
     def _is_defined(self, identifier: str) -> bool:
         """Check if `identifier` is defined in any block."""
-        return any(block.is_defined(identifier) for block in self.block_stack)
+        return any(block.is_defined(identifier) for block in self._block_stack)
 
     def _add_ref(self, name: str, deleted: bool) -> None:
         """Register a referenced name."""
-        self.references[name] = CodeReference(deleted=deleted, parent_blocks=self.block_stack[:-1])
-        self.ref_stack[-1].add(name)
+        self._references[name] = CodeReference(
+            deleted=deleted, parent_blocks=self._block_stack[:-1]
+        )
+        self._ref_stack[-1].add(name)
 
     def _remove_ref(self, name: str) -> None:
         """Remove a referenced name."""
-        del self.references[name]
+        del self._references[name]
 
     def _define_in_block(self, name: str, variable_data: CodeDefinition, block_idx: int) -> None:
         """Define a name in a given block."""
-        self.block_stack[block_idx].definitions[name] = variable_data
+        self._block_stack[block_idx].definitions[name] = variable_data
         # If `name` is added to the top-level block, it is also evicted from
         # any captured refs (if present) --- this handles cases where a name is
         # encountered and captured before it is declared, such as in
@@ -160,8 +181,8 @@ class CodeAnalysisVisitor(ast.NodeVisitor):
         # x = 0
         # ```
         if (
-            name in self.references
-            and self.block_stack[block_idx] in self.references[name].parent_blocks
+            name in self._references
+            and self._block_stack[block_idx] in self._references[name].parent_blocks
         ):
             # `name` was used as a capture, not a reference
             self._remove_ref(name)
@@ -173,24 +194,24 @@ class CodeAnalysisVisitor(ast.NodeVisitor):
         Names created with the global keyword are added to the top-level
         (global scope) block.
         """
-        block_idx = 0 if name in self.block_stack[-1].global_names else -1
+        block_idx = 0 if name in self._block_stack[-1].global_names else -1
         self._define_in_block(name, variable, block_idx=block_idx)
 
     def _push_block(self, is_comprehension: bool) -> None:
         """Push a block onto the block stack."""
-        self.block_stack.append(CodeBlock(is_comprehension=is_comprehension))
+        self._block_stack.append(CodeBlock(is_comprehension=is_comprehension))
 
     def _pop_block(self) -> None:
         """Pop a block from the block stack."""
-        self.block_stack.pop()
+        self._block_stack.pop()
 
     def _push_obscured_definition(self, name: str | None) -> None:
         """Push scope onto the stack."""
-        self.obscured_defn_stack.append(CodeObscuredDefinition(name=name))
+        self._obscured_defn_stack.append(CodeObscuredDefinition(name=name))
 
     def _pop_obscured_definition(self) -> None:
         """Pop scope from the stack."""
-        self.obscured_defn_stack.pop()
+        self._obscured_defn_stack.pop()
 
     def _visit_and_get_refs(self, node: ast.AST) -> set[str]:
         """
@@ -198,9 +219,9 @@ class CodeAnalysisVisitor(ast.NodeVisitor):
         class), visit the children the node, propagate the refs to the higher
         scope and then return the refs.
         """
-        self.ref_stack.append(set())
+        self._ref_stack.append(set())
         self.generic_visit(node)
-        refs = self.ref_stack.pop()
+        refs = self._ref_stack.pop()
         # The scope a level up from the one just investigated also is dependent
         # on these refs. Consider the case:
         # >> def foo():
@@ -209,7 +230,7 @@ class CodeAnalysisVisitor(ast.NodeVisitor):
         #
         # the variable `foo` needs to be aware that it may require the ref `x`
         # during execution.
-        self.ref_stack[-1].update(refs)
+        self._ref_stack[-1].update(refs)
         return refs
 
     @override
@@ -286,29 +307,29 @@ class CodeAnalysisVisitor(ast.NodeVisitor):
     # ClassDef and FunctionDef nodes don't have ast.Name nodes as children
     @override
     def visit_ClassDef(self, node: ast.ClassDef) -> None:
-        node.name = self._mangle_if_local(node.name)
+        node.name = self._mangle_if_needed(node.name)
         refs = self._visit_and_get_refs(node)
         self._define(
             node.name,
-            CodeDefinition(kind="class", required_refs=refs),
+            CodeDefinition(kind=CodeDefinitionKind.CLASS, references=refs),
         )
 
     @override
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
-        node.name = self._mangle_if_local(node.name)
+        node.name = self._mangle_if_needed(node.name)
         refs = self._visit_and_get_refs(node)
         self._define(
             node.name,
-            CodeDefinition(kind="function", required_refs=refs),
+            CodeDefinition(kind=CodeDefinitionKind.FUNCTION, references=refs),
         )
 
     @override
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
-        node.name = self._mangle_if_local(node.name)
+        node.name = self._mangle_if_needed(node.name)
         refs = self._visit_and_get_refs(node)
         self._define(
             node.name,
-            CodeDefinition(kind="function", required_refs=refs),
+            CodeDefinition(kind=CodeDefinitionKind.FUNCTION, references=refs),
         )
 
     @override
@@ -322,13 +343,13 @@ class CodeAnalysisVisitor(ast.NodeVisitor):
     def visit_Lambda(self, node: ast.Lambda) -> None:
         # Inject the dummy name `_lambda` into ref scope to denote there's a
         # callable that might require additional refs.
-        self.ref_stack[-1].add("_lambda")
+        self._ref_stack[-1].add("_lambda")
         self.generic_visit(node)
 
     @override
     def visit_arg(self, node: ast.arg) -> None:
-        node.arg = self._mangle_if_local(node.arg)
-        self._define(node.arg, CodeDefinition(kind="variable"))
+        node.arg = self._mangle_if_needed(node.arg)
+        self._define(node.arg, CodeDefinition(kind=CodeDefinitionKind.VARIABLE))
         if node.annotation is not None:
             self.visit(node.annotation)
 
@@ -364,50 +385,50 @@ class CodeAnalysisVisitor(ast.NodeVisitor):
         #   x = x
         #
         # Handling value first is required to register `x` as a ref.
-        self.ref_stack.append(set())
+        self._ref_stack.append(set())
         self.visit(node.value)
         for target in node.targets:
             self.visit(target)
-        refs = self.ref_stack.pop()
-        self.ref_stack[-1].update(refs)
+        refs = self._ref_stack.pop()
+        self._ref_stack[-1].update(refs)
 
     @override
     def visit_AugAssign(self, node: ast.AugAssign) -> None:
         # Augmented assign (has op)
         # e.g., x += 1
-        self.ref_stack.append(set())
+        self._ref_stack.append(set())
         self.visit(node.value)
         self.visit(node.target)
-        refs = self.ref_stack.pop()
-        self.ref_stack[-1].update(refs)
+        refs = self._ref_stack.pop()
+        self._ref_stack[-1].update(refs)
 
     @override
     def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
         # Annotated assign
         # e.g., x: int = 0
-        self.ref_stack.append(set())
+        self._ref_stack.append(set())
         if node.value is not None:
             self.visit(node.value)
         self.visit(node.annotation)
         self.visit(node.target)
-        refs = self.ref_stack.pop()
-        self.ref_stack[-1].update(refs)
+        refs = self._ref_stack.pop()
+        self._ref_stack[-1].update(refs)
 
     @override
     def visit_NamedExpr(self, node: ast.NamedExpr) -> None:
         self.visit(node.value)
-        if self.block_stack[-1].is_comprehension and isinstance(node.target, ast.Name):
-            for block_idx, block in reversed(list(enumerate(self.block_stack))):
+        if self._block_stack[-1].is_comprehension and isinstance(node.target, ast.Name):
+            for block_idx, block in reversed(list(enumerate(self._block_stack))):
                 # go up the block stack until we find the first
                 # non-comprehension block
                 if not block.is_comprehension:
-                    node.target.id = self._mangle_if_local(
+                    node.target.id = self._mangle_if_needed(
                         node.target.id,
-                        ignore_scope=(block == self.block_stack[0]),
+                        ignore_scope=(block == self._block_stack[0]),
                     )
                     self._define_in_block(
                         node.target.id,
-                        CodeDefinition(kind="variable"),
+                        CodeDefinition(kind=CodeDefinitionKind.VARIABLE),
                         block_idx=block_idx,
                     )
                     break
@@ -434,16 +455,16 @@ class CodeAnalysisVisitor(ast.NodeVisitor):
         # beyond their inner scope. We traverse blocks to see if the name is
         # "obscured" in this way.
 
-        for scope in self.obscured_defn_stack:
+        for scope in self._obscured_defn_stack:
             if node.id == scope.name:
                 self.generic_visit(node)
                 return
 
         if isinstance(node.ctx, ast.Store):
-            node.id = self._mangle_if_local(node.id)
+            node.id = self._mangle_if_needed(node.id)
             self._define(
                 node.id,
-                CodeDefinition(kind="variable", required_refs=self.ref_stack[-1]),
+                CodeDefinition(kind=CodeDefinitionKind.VARIABLE, references=self._ref_stack[-1]),
             )
         elif (
             isinstance(node.ctx, ast.Load)
@@ -458,9 +479,9 @@ class CodeAnalysisVisitor(ast.NodeVisitor):
         ):
             self._add_ref(node.id, deleted=True)
         elif is_local_name(node.id):
-            mangled_name = self._mangle_if_local(node.id, ignore_scope=True)
-            for block in reversed(self.block_stack):
-                if block == self.block_stack[0] and block.is_defined(mangled_name):
+            mangled_name = self._mangle_if_needed(node.id, ignore_scope=True)
+            for block in reversed(self._block_stack):
+                if block == self._block_stack[0] and block.is_defined(mangled_name):
                     node.id = mangled_name
                 elif block.is_defined(node.id):
                     break
@@ -469,18 +490,18 @@ class CodeAnalysisVisitor(ast.NodeVisitor):
         if (
             isinstance(node.ctx, ast.Load)
             and self._is_defined(node.id)
-            and node.id not in self.ref_stack[-1]
-            and (node.id not in self.block_stack[-1].definitions or len(self.block_stack) == 1)
+            and node.id not in self._ref_stack[-1]
+            and (node.id not in self._block_stack[-1].definitions or len(self._block_stack) == 1)
         ):
-            self.ref_stack[-1].add(node.id)
+            self._ref_stack[-1].add(node.id)
 
         self.generic_visit(node)
 
     @override
     def visit_Global(self, node: ast.Global) -> None:
-        node.names = [self._mangle_if_local(name, ignore_scope=True) for name in node.names]
+        node.names = [self._mangle_if_needed(name, ignore_scope=True) for name in node.names]
         for name in node.names:
-            self.block_stack[-1].global_names.add(name)
+            self._block_stack[-1].global_names.add(name)
             self._add_ref(name, deleted=False)
 
     @override
@@ -488,7 +509,9 @@ class CodeAnalysisVisitor(ast.NodeVisitor):
         for alias_node in node.names:
             variable_name = self._get_alias_name(alias_node)
             import_ = CodeImport(module=alias_node.name, imported_symbol=None)
-            self._define(variable_name, CodeDefinition(kind="import", import_=import_))
+            self._define(
+                variable_name, CodeDefinition(kind=CodeDefinitionKind.IMPORT, import_=import_)
+            )
 
     @override
     def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
@@ -503,13 +526,15 @@ class CodeAnalysisVisitor(ast.NodeVisitor):
                 imported_symbol=module + "." + original_name,
                 import_level=node.level,
             )
-            self._define(variable_name, CodeDefinition(kind="import", import_=import_))
+            self._define(
+                variable_name, CodeDefinition(kind=CodeDefinitionKind.IMPORT, import_=import_)
+            )
 
     @override
     def visit_MatchAs(self, node: ast.MatchAs) -> None:
         if node.name is not None:
-            node.name = self._mangle_if_local(node.name)
-            self._define(node.name, CodeDefinition(kind="variable"))
+            node.name = self._mangle_if_needed(node.name)
+            self._define(node.name, CodeDefinition(kind=CodeDefinitionKind.VARIABLE))
         if node.pattern is not None:
             # pattern may contain additional MatchAs statements in it
             self.visit(node.pattern)
@@ -517,8 +542,8 @@ class CodeAnalysisVisitor(ast.NodeVisitor):
     @override
     def visit_MatchMapping(self, node: ast.MatchMapping) -> None:
         if node.rest is not None:
-            node.rest = self._mangle_if_local(node.rest)
-            self._define(node.rest, CodeDefinition(kind="variable"))
+            node.rest = self._mangle_if_needed(node.rest)
+            self._define(node.rest, CodeDefinition(kind=CodeDefinitionKind.VARIABLE))
         for key in node.keys:
             self.visit(key)
         for pattern in node.patterns:
@@ -527,16 +552,19 @@ class CodeAnalysisVisitor(ast.NodeVisitor):
     @override
     def visit_MatchStar(self, node: ast.MatchStar) -> None:
         if node.name is not None:
-            node.name = self._mangle_if_local(node.name)
+            node.name = self._mangle_if_needed(node.name)
             self._define(
                 node.name,
-                CodeDefinition(kind="variable"),
+                CodeDefinition(kind=CodeDefinitionKind.VARIABLE),
             )
 
     @override
     def visit_TypeVar(self, node: ast.TypeVar) -> None:
         # node.name is a str, not an ast.Name node
-        self._define(node.name, CodeDefinition(kind="variable", required_refs=self.ref_stack[-1]))
+        self._define(
+            node.name,
+            CodeDefinition(kind=CodeDefinitionKind.VARIABLE, references=self._ref_stack[-1]),
+        )
         if isinstance(node.bound, tuple):
             for name in node.bound:
                 self.visit(name)
@@ -546,23 +574,44 @@ class CodeAnalysisVisitor(ast.NodeVisitor):
     @override
     def visit_ParamSpec(self, node: ast.ParamSpec) -> None:
         # node.name is a str, not an ast.Name node
-        self._define(node.name, CodeDefinition(kind="variable", required_refs=self.ref_stack[-1]))
+        self._define(
+            node.name,
+            CodeDefinition(kind=CodeDefinitionKind.VARIABLE, references=self._ref_stack[-1]),
+        )
 
     @override
     def visit_TypeVarTuple(self, node: ast.TypeVarTuple) -> None:
         # node.name is a str, not an ast.Name node
-        self._define(node.name, CodeDefinition(kind="variable", required_refs=self.ref_stack[-1]))
+        self._define(
+            node.name,
+            CodeDefinition(kind=CodeDefinitionKind.VARIABLE, references=self._ref_stack[-1]),
+        )
 
 
 @dataclass
-class CompiledCode:
-    code: str
+class CodeCompilation:
+    # NOTE: code is assumed to be :AsyncCode (even if it isn't)
     kind: CodeKind
-    body: ast.Module | None  # the entire parsed AST (if not snippet)
+    code: str
+    transformed_code: str
+    transformation: "CodeTransformation | None"
+    body: ast.Module | None  # the entire parsed AST (excl. last_expr if kind=snippet)
     last_expr: ast.expr | None  # for snippets
-    wrapped_function: ast.FunctionDef | None  # for functions
     definitions: Mapping[str, "CodeDefinition"]
     references: Mapping[str, "CodeReference"]
+
+    @property
+    def cache_key(self):
+        return hash((self.kind, self.code))
+
+
+@dataclass
+class CodeTransformation:
+    line_offset: int
+    column_offset: int
+
+    def reverse(self, line: int, column: int) -> tuple[int, int]:
+        return line - self.line_offset, column - self.column_offset
 
 
 def _get_filename(code_id: int, suffix: str = "") -> str:
@@ -578,39 +627,59 @@ def _cache_in_linecache(filename: str, code: str) -> None:
     )
 
 
-def compiled_code(code_id: int, code: str, kind: CodeKind, glbls: dict[str, Any]) -> CompiledCode:
-    """Parse, analyze and compile code."""
+def compiled_code(
+    code_id: int, code: str, kind: CodeKind, glbls: dict[str, Any]
+) -> CodeCompilation:
+    """
+    Parse, analyze and compile code.
+    NOTE: everything is considered async for now :AsyncCode
+    """
 
     # replace non-breaking spaces with regular spaces
     code = code.replace("\u00a0", " ")
+
+    # wrap code in function if it's a function
+    code_function_name = f"_code_{code_id}"
+    if kind == CodeKind.FUNCTION:
+        transformed_code = f"async def {code_function_name}():\n{textwrap.indent(code, 4 * " ")}"
+        transformation = CodeTransformation(line_offset=1, column_offset=4)
+    else:
+        transformed_code = code
+        transformation = None
+
+    # compile into AST
     module = compile(
-        code,
+        transformed_code,
         "<unknown>",
         mode="exec",
         flags=ast.PyCF_ONLY_AST | ast.PyCF_ALLOW_TOP_LEVEL_AWAIT,
     )
     if not module.body:
-        # either empty code or just comments
-        return CompiledCode(
-            code=code,
+        return CodeCompilation(
             kind=kind,
+            code=code,
+            transformed_code=transformed_code,
+            transformation=None,
             body=None,
             last_expr=None,
-            wrapped_function=None,
             definitions={},
             references={},
         )
 
-    v = CodeAnalysisVisitor(mangle_prefix=_get_filename(code_id))
-    v.visit(module)
+    # analyze
+    analysis = CodeAnalysisVisitor(kind=kind, code_id=code_id)
+    analysis.visit(module)
+    if kind == CodeKind.FUNCTION:
+        # remove the wrapped function definition from the analysis
+        analysis._block_stack[0].definitions.pop(code_function_name)
 
-    # store the code's code in Python's linecache so debuggers can find it
+    # store the code in Python's linecache so debuggers can find it
     body_filename = _get_filename(code_id)
-    _cache_in_linecache(body_filename, code)
+    _cache_in_linecache(body_filename, transformed_code)
     body = compile(module, body_filename, mode="exec", flags=ast.PyCF_ALLOW_TOP_LEVEL_AWAIT)
 
+    # parse out last expression for snippets
     if kind == CodeKind.SNIPPET:
-        # parse out last expression for snippets
         if isinstance(module.body[-1], ast.Expr):
             last_expr = ast.Expression(module.body.pop().value)
         else:
@@ -623,39 +692,18 @@ def compiled_code(code_id: int, code: str, kind: CodeKind, glbls: dict[str, Any]
         last_expr = compile(
             last_expr, last_expr_filename, mode="eval", flags=ast.PyCF_ALLOW_TOP_LEVEL_AWAIT
         )
-        wrapped_function = None
-    elif kind == CodeKind.FUNCTION:
-        # wrap body in function signature for functions
-        wrapped_function = ast.FunctionDef(
-            name=body_filename,
-            args=ast.arguments(
-                posonlyargs=[],
-                args=[],
-                vararg=None,
-                kwonlyargs=[],
-                kw_defaults=[],
-                kwarg=None,
-                defaults=[],
-            ),
-            body=module.body,
-            decorator_list=[],
-            returns=None,
-            type_comment=None,
-            type_params=[],
-        )
-        last_expr = None
     else:
         last_expr = None
-        wrapped_function = None
 
-    # remove globals from references
-    references = {k: v for k, v in v.references.items() if k not in glbls}
-    return CompiledCode(
-        code=code,
+    # remove globals from references (they are references)
+    references = {k: v for k, v in analysis.references.items() if k not in glbls}
+    return CodeCompilation(
         kind=kind,
+        code=code,
+        transformed_code=transformed_code,
+        transformation=transformation,
         body=body,
         last_expr=last_expr,
-        wrapped_function=wrapped_function,
-        definitions=v.definitions,
+        definitions=analysis.definitions,
         references=references,
     )

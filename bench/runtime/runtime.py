@@ -90,7 +90,7 @@ class Runtime(ServiceBase, RuntimeBase):
         )
 
         # processing
-        self._run_queue: asyncio.Queue[RunData] = asyncio.Queue()
+        self._start_queue: asyncio.Queue[RunData] = asyncio.Queue()
         self._max_threads = max_threads
         self._threads: list[RuntimeThread] = []
 
@@ -143,7 +143,7 @@ class Runtime(ServiceBase, RuntimeBase):
                 client_id=self._client_id,
                 machine_id=self._machine_id,
                 engines=self._engines,
-                queue=self._run_queue,
+                start_queue=self._start_queue,
                 oracle=self.oracle,
             )
             self._threads.append(thread)
@@ -156,8 +156,8 @@ class Runtime(ServiceBase, RuntimeBase):
 
     @override
     async def queue_run(self, request: QueueRunRequest) -> QueueRunResponse:
-        # just add to main queue
-        self._run_queue.put_nowait(request.run)
+        # just add to start queue
+        self._start_queue.put_nowait(request.run)
         logger.trace("runtime.queue_run", run=request.run, span="current")
         return QueueRunResponse()
 
