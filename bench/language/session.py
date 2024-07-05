@@ -726,17 +726,18 @@ class Context(Struct):
 
 
 @asynccontextmanager
-async def unsuspend_session(session: Session, readonly: bool, autocommit: bool):
+async def unsuspend_session(session: Session, readonly: bool = False, autocommit: bool = False):
     """Gets exclusive query and edit access to the main session."""
     was_readonly = session._is_readonly
+    num_edits_before = len(session._edited_nodes_by_id)
     session._is_readonly = readonly
     session.unsuspend()
     try:
         yield session
         if autocommit:
             await session.commit()
-        elif session.tx.edits:
-            raise RuntimeError(f"uncommitted edits in {session!r}: {session.tx.edits!r}")
+        elif len(session.tx.edits) > num_edits_before:
+            raise RuntimeError(f"new uncommitted edits in {session!r}: {session.tx.edits!r}")
     finally:
         session.suspend()  # suspend by default
         session._is_readonly = was_readonly

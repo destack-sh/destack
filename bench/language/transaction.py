@@ -310,6 +310,7 @@ class Transaction:
         )
         return edit
 
+    @tracer.start_as_current_span("transaction.create")
     def create(
         self,
         node: Node,
@@ -323,6 +324,7 @@ class Transaction:
         )
         self._add_pending_edit(edit, node)
 
+    @tracer.start_as_current_span("transaction.upsert")
     def upsert(
         self,
         node: Node,
@@ -388,7 +390,7 @@ class Transaction:
             self._pending_updates_idx[node] = engine.id, edit_idx
         else:
             # update existing edit in place ('debounce') :DebouncedUpdate
-            # NOTE :Performance: unpacking/repacking proto json is obviously inefficient
+            # TODO :Performance: unpacking/repacking proto json is obviously inefficient
             assert node._updated_properties is not None, f"missing property mask for {node!r}"
             engine_id, current_update_idx = existing_edit_idx
             edit = self._pending_edits_by_engine_id[engine_id][current_update_idx]
@@ -417,6 +419,7 @@ class Transaction:
                 edit.type = wiring.pack_enum(EditType, EditType.MOVE)
             edit.edited_at = now
 
+    @tracer.start_as_current_span("transaction.update")
     def update(
         self,
         node: Node,
@@ -431,6 +434,7 @@ class Transaction:
             EditType.UPDATE, node, subject, origin, context, properties, old_values, now
         )
 
+    @tracer.start_as_current_span("transaction.move")
     def move(
         self,
         node: Node,
@@ -443,6 +447,7 @@ class Transaction:
     ):
         self._do_update(EditType.MOVE, node, subject, origin, context, properties, old_values, now)
 
+    @tracer.start_as_current_span("transaction.delete")
     def delete(
         self,
         node: Node,
@@ -456,6 +461,7 @@ class Transaction:
         )
         self._add_pending_edit(edit, node)
 
+    @tracer.start_as_current_span("transaction.restore")
     def restore(
         self,
         node: Node,
@@ -469,6 +475,7 @@ class Transaction:
         )
         self._add_pending_edit(edit, node)
 
+    @tracer.start_as_current_span("transaction.archive")
     def archive(
         self,
         node: Node,
@@ -482,6 +489,7 @@ class Transaction:
         )
         self._add_pending_edit(edit, node)
 
+    @tracer.start_as_current_span("transaction.unarchive")
     def unarchive(
         self,
         node: Node,
@@ -500,6 +508,7 @@ class Transaction:
         )
         self._add_pending_edit(edit, node)
 
+    @tracer.start_as_current_span("transaction.erase")
     def erase(
         self,
         node: Node,

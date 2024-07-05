@@ -131,11 +131,14 @@ defineExpose<ViewExposed>({ self, id });
       <div class="">
         <!-- Header -->
         <div class="flex flex-row">
-          <span class="font-medium text-danger-600">{{ run.error.title ?? "Error" }}</span>
-          <div class="ml-auto text-gray-400">
+          <!-- Title -->
+          <span class="max-w-60 truncate font-medium">{{ run.error.title ?? "Error" }}</span>
+          <!-- Details -->
+          <div class="ml-auto pl-4 flex-shrink-0 text-gray-400">
             <span>{{ toCamelName(RunErrorKind, run.error.kind) }}</span>
-            /
-            <span>{{ run.error.type != null ? toCamelName(RunErrorType, run.error.type) : "???" }}</span>
+            <template v-if="run.error.type"
+              >/<span>{{ toCamelName(RunErrorType, run.error.type) }}</span></template
+            >
           </div>
         </div>
         <!-- Text -->
@@ -147,5 +150,8 @@ defineExpose<ViewExposed>({ self, id });
         </div>
       </div>
     </div>
+
+    <!-- Attempts/Timeline/Inner runs/etc. (see above) -->
+    <!-- ... -->
   </div>
 </template>
