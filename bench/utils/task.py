@@ -106,11 +106,13 @@ class TaskManager:
                     await process(item)
                 finally:
                     queue.task_done()
-            except (asyncio.CancelledError, RuntimeError):
-                # queue throws RuntimeError if event loop is closed (happens when pytest shuts down)
-                self._logger.trace("task.cancel", owner=self._owner, task_id=task_id)
-                break
             except Exception as e:
+                # queue throws RuntimeError if event loop is closed (happens when pytest shuts down)
+                if isinstance(e, asyncio.CancelledError) or (
+                    isinstance(e, RuntimeError) and "event loop is closed" in str(e).lower()
+                ):
+                    self._logger.trace("task.cancel", owner=self._owner, task_id=task_id)
+                    break
                 self._logger.exception(
                     "task.error",
                     owner=self._owner,
@@ -154,10 +156,13 @@ class TaskManager:
                 ret = process()
                 if ret is not None:
                     await ret
-            except (asyncio.CancelledError, RuntimeError):
-                self._logger.trace("task.cancel", owner=self._owner, task_id=task_id)
-                break
             except Exception as e:
+                # sleep throws RuntimeError if event loop is closed (happens when pytest shuts down)
+                if isinstance(e, asyncio.CancelledError) or (
+                    isinstance(e, RuntimeError) and "event loop is closed" in str(e).lower()
+                ):
+                    self._logger.trace("task.cancel", owner=self._owner, task_id=task_id)
+                    break
                 self._logger.exception(
                     "task.error",
                     owner=self._owner,
