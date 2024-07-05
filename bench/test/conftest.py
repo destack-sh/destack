@@ -92,4 +92,4 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus):
     pass
 
 
-from .fixtures import *  # noqa: E402, F403
+from bench.test.fixtures import *  # noqa: E402, F403

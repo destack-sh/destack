@@ -73,6 +73,7 @@ log_cli = true
 addopts = [
 	'-rP',
 	"-vv",
+	"--import-mode=importlib",
 	"--color=yes",
 	'--strict-markers',
 	'--hypothesis-show-statistics',

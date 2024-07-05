@@ -152,6 +152,8 @@ class Provisioner[PT: BenchResourceNode, WT: BenchResourceNode](DeferredHostPlug
 
 
 class StoreProvisioner(Provisioner[Store, Store]):
+    """Base for provisioning Stores."""
+
     watch_types = bittuple(NodeType.STORE)
     provision_types = bittuple(NodeType.STORE)
 
@@ -250,7 +252,7 @@ class ElasticServerProvisioner(Provisioner[Server, Server | Machine]):
     watch_types = bittuple(NodeType.SERVER, NodeType.MACHINE)
     provision_types = bittuple(NodeType.SERVER)
 
-    async def _tick(self, server: Server):
+    async def _reconcile(self, server: Server):
         # TODO :Incomplete: scale ElasticServerProvisioner properly (up/down/sleep/...)
         machines = server.machines.tolist()
 
@@ -287,15 +289,15 @@ class ElasticServerProvisioner(Provisioner[Server, Server | Machine]):
         # and check/update them
         for server in servers:
             if server.status != ResourceStatus.DECOMMISSIONED:
-                await self._tick(server)
+                await self._reconcile(server)
 
     @override
     async def _do_provision(self, resource: Server):
-        await self._tick(resource)
+        await self._reconcile(resource)
 
     @override
     async def _do_update(self, resource: Server):
-        await self._tick(resource)
+        await self._reconcile(resource)
 
     @override
     async def _do_decommission(self, resource: Server):

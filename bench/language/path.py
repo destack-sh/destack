@@ -130,7 +130,6 @@ class Path(Struct):
 
     also relative:
     / -> package (=Package)
-    $ -> module (=Block|Package)
     ^ -> page (=Block)
     $User -> module-unique node (=Block|View)
     ~ -> source module root (like $ but for templated)

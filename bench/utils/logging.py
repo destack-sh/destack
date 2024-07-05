@@ -273,7 +273,14 @@ def _trace(self, msg, *args, **kw):
     return self.log(TRACE, msg, *args, **kw)
 
 
+_setup_logging = False
+
+
 def setup_logging(apply_logging: bool = True, apply_structlog: bool = True):
+    global _setup_logging
+    if _setup_logging:
+        return
+
     # add trace logging level
     _add_logging_level("TRACE", logging.DEBUG - TRACE, "trace")
     structlog.stdlib.TRACE = TRACE  # type: ignore
@@ -314,6 +321,8 @@ def setup_logging(apply_logging: bool = True, apply_structlog: bool = True):
             wrapper_class=structlog.make_filtering_bound_logger(PYTHON_LOG_LEVEL),
             cache_logger_on_first_use=True,
         )
+
+    _setup_logging = True
 
 
 _UNSET = object()

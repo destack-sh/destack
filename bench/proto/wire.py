@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.07.04.2"
+VERSION = "2024.07.05.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -191,7 +191,7 @@ class BenchType(betterproto.Enum):
     PIPE = 10450
     RUN_ERROR = 10500
     RUN_OPTIONS = 10501
-    RETRY_ATTEMPT = 10502
+    RUN_ATTEMPT = 10502
     BREAKPOINT = 10503
     COLOR = 11000
     FONT = 11001
@@ -868,7 +868,7 @@ class ObjectType(betterproto.Enum):
     PIPE = 10450
     RUN_ERROR = 10500
     RUN_OPTIONS = 10501
-    RETRY_ATTEMPT = 10502
+    RUN_ATTEMPT = 10502
     BREAKPOINT = 10503
     COLOR = 11000
     FONT = 11001
@@ -1204,7 +1204,7 @@ class StructType(betterproto.Enum):
     PIPE = 10450
     RUN_ERROR = 10500
     RUN_OPTIONS = 10501
-    RETRY_ATTEMPT = 10502
+    RUN_ATTEMPT = 10502
     BREAKPOINT = 10503
     COLOR = 11000
     FONT = 11001
@@ -2005,7 +2005,7 @@ class ReadOptionsData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class RetryAttemptData(betterproto.Message):
+class RunAttemptData(betterproto.Message):
     """A single attempt at a Run."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
@@ -3098,7 +3098,7 @@ class RunData(betterproto.Message):
     status: "RunStatus" = betterproto.enum_field(40)
     current_status: Optional["RunStatus"] = betterproto.enum_field(41, optional=True)
     duration: Optional[float] = betterproto.float_field(42, optional=True)
-    attempts: List["RetryAttemptData"] = betterproto.message_field(43)
+    attempts: List["RunAttemptData"] = betterproto.message_field(43)
     error: Optional["RunErrorData"] = betterproto.message_field(44, optional=True)
     scheduled_at: Optional[datetime] = betterproto.message_field(45, optional=True)
     scheduled_epoch: Optional[int] = betterproto.int32_field(46, optional=True)
@@ -5073,7 +5073,7 @@ AnyStructData = Union[
     PipeData,
     RunErrorData,
     RunOptionsData,
-    RetryAttemptData,
+    RunAttemptData,
     BreakpointData,
     ColorData,
     FontData,

@@ -156,7 +156,7 @@ enum BenchType {
   BENCH_TYPE_PIPE = 10450;
   BENCH_TYPE_RUN_ERROR = 10500;
   BENCH_TYPE_RUN_OPTIONS = 10501;
-  BENCH_TYPE_RETRY_ATTEMPT = 10502;
+  BENCH_TYPE_RUN_ATTEMPT = 10502;
   BENCH_TYPE_BREAKPOINT = 10503;
   BENCH_TYPE_COLOR = 11000;
   BENCH_TYPE_FONT = 11001;
@@ -820,7 +820,7 @@ enum ObjectType {
   OBJECT_TYPE_PIPE = 10450;
   OBJECT_TYPE_RUN_ERROR = 10500;
   OBJECT_TYPE_RUN_OPTIONS = 10501;
-  OBJECT_TYPE_RETRY_ATTEMPT = 10502;
+  OBJECT_TYPE_RUN_ATTEMPT = 10502;
   OBJECT_TYPE_BREAKPOINT = 10503;
   OBJECT_TYPE_COLOR = 11000;
   OBJECT_TYPE_FONT = 11001;
@@ -1141,7 +1141,7 @@ enum StructType {
   STRUCT_TYPE_PIPE = 10450;
   STRUCT_TYPE_RUN_ERROR = 10500;
   STRUCT_TYPE_RUN_OPTIONS = 10501;
-  STRUCT_TYPE_RETRY_ATTEMPT = 10502;
+  STRUCT_TYPE_RUN_ATTEMPT = 10502;
   STRUCT_TYPE_BREAKPOINT = 10503;
   STRUCT_TYPE_COLOR = 11000;
   STRUCT_TYPE_FONT = 11001;
@@ -1820,7 +1820,7 @@ message ReadOptionsData {
 }
 
 // A single attempt at a Run.
-message RetryAttemptData {
+message RunAttemptData {
   ObjectType metatype = 1;
   int32 id = 2;
   optional int32 parent_id = 3;
@@ -2759,7 +2759,7 @@ message RunData {
   RunStatus status = 40;
   optional RunStatus current_status = 41;
   optional float duration = 42;
-  repeated RetryAttemptData attempts = 43;
+  repeated RunAttemptData attempts = 43;
   optional RunErrorData error = 44;
   optional google.protobuf.Timestamp scheduled_at = 45;
   optional int32 scheduled_epoch = 46;
