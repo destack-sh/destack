@@ -8,7 +8,7 @@ from uuid import UUID
 
 from bench import language
 from bench.language.block import Block
-from bench.language.code import Code
+from bench.language.code import Code, CodeKind
 from bench.language.const import BlockType, RunKind
 from bench.language.node import Node
 from bench.language.run import Run, RunAttempt, RunOptions
@@ -16,7 +16,7 @@ from bench.language.session import Session
 from bench.language.setup import BENCH_CLASS_BY_NAME
 from bench.language.text import Text
 from bench.language.value import ValueObject
-from bench.runtime.analyzer import AnalyzedCode
+from bench.runtime.compiler import CompiledCode, compiled_code
 from bench.utils.oracle import Oracle
 
 DEFAULT_CODE_RUN_OPTIONS = RunOptions(max_attempts=1)
@@ -37,7 +37,7 @@ class RunContext:
     scope: Node
     options: RunOptions
     attempts: list[RunAttempt] = dataclasses.field(default_factory=list)
-    analysis: AnalyzedCode | None = None
+    compiled: CompiledCode | None = None
     variables: ValueObject | None = None
     inputs: ValueObject | None = None
     run: Run | None = None
@@ -50,16 +50,33 @@ class RuntimeState:
         self.session = session
 
 
+class FlowState:
+    """The state of a specific Flow run."""
+
+    def __init__(self, *, flow: Block, run: Run, context: RunContext):
+        self.flow = flow
+        self.run = run
+        self.context = context
+
+
 class RuntimeRunner:
     """
     A runner processes one top-level Run (or mini run for snippets) at a time.
     Caches analyzed/compiled code, maintains outputs, computed expressions, etc..
     """
 
-    def __init__(self, *, state: RuntimeState, session: Session, oracle: Oracle):
+    def __init__(
+        self,
+        *,
+        state: RuntimeState,
+        session: Session,
+        oracle: Oracle,
+        glbls: dict[str, Any] = CODE_GLOBALS,
+    ):
         self.state = state
         self.session = session
         self.oracle = oracle
+        self.glbls = glbls
 
     #
     # Low level stuff
@@ -84,6 +101,10 @@ class RuntimeRunner:
 
     async def run_code_function(self, code: Code, context: RunContext) -> ValueObject:
         """Runs Code with some arguments to produce outputs, respecting the run options."""
+        if context.compiled is None:
+            context.compiled = compiled_code(
+                code.id, code.to_string(), CodeKind.FUNCTION, self.glbls
+            )
         raise NotImplementedError("nocheckin: run_code_function")
 
     async def run_text_function(self, text: Text, context: RunContext) -> ValueObject:

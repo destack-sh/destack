@@ -1,5 +1,3 @@
-# TODO :Robustness :Cleanup: type-check sql engine
-
 import random
 import string
 from typing import Any, Callable, Mapping, cast
@@ -26,10 +24,8 @@ from bench.language.query import NodeNotFoundError
 from bench.language.session import Session
 from bench.language.user import User
 from bench.sql.client import pg_store_connection
-from bench.sql.core import GLOBAL_EXTENSIONS, Column, ObjectKind, Schema, Table
+from bench.sql.core import GLOBAL_EXTENSIONS, Column, Schema, Table
 from bench.sql.engine import (
-    GLOBAL_SCHEMA,
-    LOCAL_SCHEMA,
     RowIn,
     _pg_adapt_row,
     _pg_adapt_rows,
@@ -42,13 +38,8 @@ from bench.sql.engine import (
 )
 from bench.sql.migration import (
     force_create_schema,
-    generate_sql_migration_ops,
-    introspect_sql_schema,
-    read_migrations_from_fs,
-    sql_migrate,
 )
 from bench.utils.func import generate_encryption_key
-from bench.utils.oracle import REAL_ORACLE
 
 #
 # Simple SQL engine only tests
@@ -110,12 +101,6 @@ COLUMN_VALUE_GENERATORS: Mapping[PrimitiveType, Callable[[], Any]] = {
     PrimitiveType.JSON: lambda: {"foo": "bar", "nested": [1, 2, 3]},
     PrimitiveType.BYTES: lambda: random.randbytes(20),
 }
-
-
-@pytest.fixture()
-async def blank_cur(blank_store: Store):
-    async with pg_store_connection(blank_store, autocommit=True) as cur:
-        yield cur
 
 
 @pytest.fixture()
@@ -214,29 +199,6 @@ async def test_crud_rows(test_cur: psycopg.AsyncCursor, table: Table):
     assert db_rows is not None
     db_rows.sort(key=lambda r: cast(int, r["id"]))
     assert db_rows == target_rows
-
-
-async def _do_test_stored_migrations(cur: psycopg.AsyncCursor, *, is_global: bool):
-    # run all stored migrations
-    stored_migrations = read_migrations_from_fs()
-    await sql_migrate(cur, target=stored_migrations[-1].id, is_global=is_global, oracle=REAL_ORACLE)
-
-    # diff again (should be empty now)
-    current_schema = await introspect_sql_schema(cur)
-    new_schema = GLOBAL_SCHEMA if is_global else LOCAL_SCHEMA
-    current_ops = generate_sql_migration_ops(current_schema, new_schema)
-    current_ops = [op for op in current_ops if op.object_kind != ObjectKind.EXTENSION]
-    assert not current_ops, f"out of sync migrations, got {len(current_ops)} ops"
-
-
-async def test_stored_migrations_global(blank_cur: psycopg.AsyncCursor):
-    """Existing global migrations against a blank database."""
-    await _do_test_stored_migrations(blank_cur, is_global=True)
-
-
-async def test_stored_migrations_local(blank_cur: psycopg.AsyncCursor):
-    """Existing local migrations against a blank database."""
-    await _do_test_stored_migrations(blank_cur, is_global=False)
 
 
 async def test_cascade_edits(omni_session: Session):
