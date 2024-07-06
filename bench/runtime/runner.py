@@ -242,6 +242,8 @@ class RuntimeRunner:
                 await self._do_run_tracked(runner.run(), handle)
             else:
                 await self._do_run(runner.run(), handle)
+            # TODO :Performance: support optimistic run-ahead and commit in background
+            #  (rewind on failure or just fail the originating run?)
             await self.session.commit()
 
     #

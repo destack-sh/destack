@@ -1,21 +1,16 @@
 import dataclasses
 from collections import defaultdict
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Collection, Literal, Optional, cast
+from typing import TYPE_CHECKING, Any, Collection, Optional, cast
 from uuid import UUID
 
 import structlog
 from betterproto.lib.google.protobuf import Struct as ProtoStruct
 from opentelemetry import trace
 
-from bench.language.connection import (
-    Channel,
-    GraphEngine,
-    WritableChannel,
-)
+from bench.language.connection import Channel, WritableChannel
 from bench.language.const import (
     NODE_TYPES,
-    UNSET,
     EditType,
     EnumType,
     NodeType,
@@ -37,6 +32,7 @@ from bench.language.node import (
 )
 from bench.language.property import p_internal, p_system
 from bench.language.setup import NODE_CLASS_BY_TYPE
+from bench.language.value import pack_value
 from bench.proto.wire import (
     AnyNodeData,
     ChangeVignetteData,
@@ -202,6 +198,20 @@ class Change(Struct):
 
 
 @dataclasses.dataclass(slots=True)
+class MiniEdit:
+    """A tiny representation of an edit we summarize into actual Edits."""
+
+    node: Node
+    type: EditType
+    subject: NodeReferenceData | None
+    origin: ClientOriginData | None
+    context: EditContextData | None
+    now: datetime
+    properties: tuple[int, ...] | None = None
+    old_values: dict[int, Any] | None = None
+
+
+@dataclasses.dataclass(slots=True)
 class Transaction:
     """
     A transaction is an atomic list of Edits (may be multiple sets of changes).
@@ -214,103 +224,55 @@ class Transaction:
     _channels: list[Channel] = dataclasses.field(default_factory=list)
 
     """All edits from this transaction (since the previous commit)."""
-    edits: list[EditData] = dataclasses.field(default_factory=list)
-    cascaded_edits: list[EditData] = dataclasses.field(default_factory=list)
-    _used_engine_ids: set[Any] = dataclasses.field(default_factory=set)
+    _edits: list[EditData] = dataclasses.field(default_factory=list)
+    _cascaded_edits: list[EditData] = dataclasses.field(default_factory=list)
+    _touched_engine_ids: set[Any] = dataclasses.field(default_factory=set)
 
     """Pending (unflushed) edits."""
-    pending_edits: list[EditData] = dataclasses.field(default_factory=list)
-    _pending_edits_by_engine_id: dict[Any, list[EditData]] = dataclasses.field(
-        default_factory=lambda: defaultdict(list)
-    )
-    _pending_updates_idx: dict[Node, tuple[Any, int]] = dataclasses.field(default_factory=dict)
-    _pending_nodes_by_ck: dict[UUID, Node] = dataclasses.field(default_factory=dict)
+    _pending_edits: list[MiniEdit] = dataclasses.field(default_factory=list)
+    _pending_changed_nodes_by_id: dict[UUID, Node] = dataclasses.field(default_factory=dict)
 
     def __str__(self):
-        return f"[id={self.id}] ({len(self.edits)} edits, {len(self.cascaded_edits)} cascaded, {len(self.pending_edits)} pending)"
+        return f"[id={self.id}] ({len(self._edits)} edits, {len(self._cascaded_edits)} cascaded, {len(self._pending_edits)} pending)"
 
     def __repr__(self):
         return f"<Transaction {self}>"
 
     @property
     def has_edits(self) -> bool:
-        return len(self.edits) > 0
+        return len(self._edits) > 0 or len(self._pending_edits) > 0
 
     @property
     def has_pending_edits(self) -> bool:
-        return any(self._pending_edits_by_engine_id.values())
+        return len(self._pending_edits) > 0
 
     #
     # Edits
     #
 
-    def _make_simple_edit(
+    def _add_pending_edit(
         self,
-        edit_type: Literal[
-            EditType.CREATE,
-            EditType.UPSERT,
-            EditType.ARCHIVE,
-            EditType.UNARCHIVE,
-            EditType.DELETE,
-            EditType.RESTORE,
-            EditType.ERASE,
-        ],
+        edit_type: EditType,
         node: Node,
         subject: NodeReferenceData | None,
         origin: ClientOriginData | None,
         context: EditContextData | None,
         now: datetime,
-    ) -> EditData:
-        """Creates a simple non-update/move edit and adds it to the pending edits."""
-        from bench.proto import wire, wiring
-
-        assert self.session is not None, f"no session for {self!r}"
-        if self.is_readonly:
-            raise RuntimeError(
-                f"cannot {edit_type.bench_name} {node!r} in read-only {self.session}"
-            )
-
-        # pack 'old' and 'new' node deltas
-        old_node_packed = None
-        new_node_packed = None
-        if edit_type in (EditType.CREATE, EditType.UPSERT):
-            new_node_packed = pack_node_delta(node._to_data())
-        elif edit_type in (EditType.ARCHIVE, EditType.DELETE, EditType.ERASE):
-            old_node_packed = pack_node_delta(node._to_data())
-        elif edit_type == EditType.UNARCHIVE:
-            # put old archived_at in 'old', put full restored node in new
-            assert node.archived_at, f"cannot unarchive {node!r} that is not archived"
-            new_node = node._to_data()
-            old_node_packed = pack_node_delta(new_node, only=(type(node).archived_at,))
-            new_node.archived_at = None
-            new_node_packed = pack_node_delta(new_node)
-        elif edit_type == EditType.RESTORE:
-            # put old deleted_at in 'old', put full restored node in new
-            assert node.deleted_at, f"cannot restore {node!r} that is not deleted"
-            new_node = node._to_data()
-            old_node_packed = pack_node_delta(new_node, only=(type(node).deleted_at,))
-            new_node.deleted_at = None
-            new_node_packed = pack_node_delta(new_node)
-        else:
-            raise ValueError(f"unexpected edit type for {node!r}: {edit_type.name}")
-
-        # make edit
-        edit = EditData(
-            metatype=wire.ObjectType.EDIT,
-            id=new_edit_id(),
-            type=wiring.pack_enum(EditType, edit_type),
-            node_ptr=node._to_ref_data(),
-            new_node_packed=new_node_packed,
-            old_node_packed=old_node_packed,
-            scope=self.session._get_scope_for_node(node),
+        properties: Collection[Property] | None = None,
+        old_values: dict[int, Any] | None = None,
+    ):
+        edit = MiniEdit(
+            node=node,
+            type=edit_type,
+            subject=subject,
             origin=origin,
-            subject_ptr=subject,
             context=context,
-            edited_at=now,
+            now=now,
+            properties=tuple(p.id for p in properties) if properties is not None else None,
+            old_values=old_values,
         )
-        return edit
+        self._pending_edits.append(edit)
 
-    @tracer.start_as_current_span("transaction.create")
     def create(
         self,
         node: Node,
@@ -319,12 +281,10 @@ class Transaction:
         context: EditContextData | None,
         now: datetime,
     ):
-        edit = self._make_simple_edit(
+        self._add_pending_edit(
             EditType.CREATE, node, subject=subject, origin=origin, context=context, now=now
         )
-        self._add_pending_edit(edit, node)
 
-    @tracer.start_as_current_span("transaction.upsert")
     def upsert(
         self,
         node: Node,
@@ -333,93 +293,10 @@ class Transaction:
         context: EditContextData | None,
         now: datetime,
     ):
-        edit = self._make_simple_edit(
+        self._add_pending_edit(
             EditType.UPSERT, node, subject=subject, origin=origin, context=context, now=now
         )
-        self._add_pending_edit(edit, node)
 
-    def _do_update(
-        self,
-        edit_type: Literal[EditType.UPDATE, EditType.MOVE],
-        node: Node,
-        subject: NodeReferenceData | None,
-        origin: ClientOriginData | None,
-        context: EditContextData | None,
-        properties: Collection[Property],
-        old_values: dict[int, Any],
-        now: datetime,
-    ):
-        """Update or move a node."""
-        from bench.language.value import pack_value
-        from bench.proto import wire, wiring
-
-        existing_edit_idx = self._pending_updates_idx.get(node)
-        if existing_edit_idx is None:
-            # new update/move
-            old_node_packed = {}
-            new_node_packed = {}
-            for prop in properties:
-                if prop.reference_wired_ptr is not None:
-                    prop = prop.reference_wired_ptr
-                old_value = old_values.get(prop.id, UNSET)
-                assert old_value is not UNSET, f"missing old value for {prop!r} in {node!r}"
-                prop_type = prop.type_info
-                old_node_packed[prop.id_as_str], _ = pack_value(
-                    old_value, prop_type, wrap_primitive=False
-                )
-                new_value = getattr(node, prop.name)
-                new_node_packed[prop.id_as_str], _ = pack_value(
-                    new_value, prop_type, wrap_primitive=False
-                )
-            edit = EditData(
-                metatype=wire.ObjectType.EDIT,
-                id=new_edit_id(),
-                type=wiring.pack_enum(EditType, edit_type),
-                node_ptr=node._to_ref_data(),
-                properties=[prop.id for prop in properties],
-                old_node_packed=wiring.pack_proto_json(old_node_packed),
-                new_node_packed=wiring.pack_proto_json(new_node_packed),
-                scope=self.session._get_scope_for_node(node),
-                subject_ptr=subject,
-                origin=origin,
-                context=context,
-                edited_at=now,
-            )
-            engine = self._add_pending_edit(edit, node)
-            edit_idx = len(self._pending_edits_by_engine_id[engine.id]) - 1
-            self._pending_updates_idx[node] = engine.id, edit_idx
-        else:
-            # update existing edit in place ('debounce') :DebouncedUpdate
-            # TODO :Performance: unpacking/repacking proto json is obviously inefficient
-            assert node._updated_properties is not None, f"missing property mask for {node!r}"
-            engine_id, current_update_idx = existing_edit_idx
-            edit = self._pending_edits_by_engine_id[engine_id][current_update_idx]
-            edit.properties = list(node._unmask_properties_ids(node._updated_properties))
-            assert edit.new_node_packed and edit.old_node_packed, f"missing node data for {edit!r}"
-            new_node_packed = wiring.unpack_proto_json(edit.new_node_packed)
-            old_node_packed = wiring.unpack_proto_json(edit.old_node_packed)
-            for prop in properties:
-                if prop.reference_wired_ptr is not None:
-                    prop = prop.reference_wired_ptr
-                if prop.id_as_str not in old_node_packed:
-                    # add old value if it doesn't already exist
-                    old_value = old_values.get(prop.id, UNSET)
-                    assert old_value is not UNSET, f"missing old value for {prop!r} in {node!r}"
-                    old_node_packed[prop.id_as_str], _ = pack_value(
-                        old_value, prop.type_info, wrap_primitive=False
-                    )
-                # and update new value
-                new_value = getattr(node, prop.name)
-                new_node_packed[prop.id_as_str], _ = pack_value(
-                    new_value, prop.type_info, wrap_primitive=False
-                )
-            edit.new_node_packed = wiring.pack_proto_json(new_node_packed)
-            edit.old_node_packed = wiring.pack_proto_json(old_node_packed)
-            if edit_type == EditType.MOVE and edit.type != EditType.MOVE:
-                edit.type = wiring.pack_enum(EditType, EditType.MOVE)
-            edit.edited_at = now
-
-    @tracer.start_as_current_span("transaction.update")
     def update(
         self,
         node: Node,
@@ -430,11 +307,17 @@ class Transaction:
         old_values: dict[int, Any],
         now: datetime,
     ):
-        self._do_update(
-            EditType.UPDATE, node, subject, origin, context, properties, old_values, now
+        self._add_pending_edit(
+            EditType.UPDATE,
+            node,
+            subject=subject,
+            origin=origin,
+            context=context,
+            properties=properties,
+            old_values=old_values,
+            now=now,
         )
 
-    @tracer.start_as_current_span("transaction.move")
     def move(
         self,
         node: Node,
@@ -445,9 +328,17 @@ class Transaction:
         old_values: dict[int, Any],
         now: datetime,
     ):
-        self._do_update(EditType.MOVE, node, subject, origin, context, properties, old_values, now)
+        self._add_pending_edit(
+            EditType.MOVE,
+            node,
+            subject=subject,
+            origin=origin,
+            context=context,
+            properties=properties,
+            old_values=old_values,
+            now=now,
+        )
 
-    @tracer.start_as_current_span("transaction.delete")
     def delete(
         self,
         node: Node,
@@ -456,12 +347,10 @@ class Transaction:
         context: EditContextData | None,
         now: datetime,
     ):
-        edit = self._make_simple_edit(
+        self._add_pending_edit(
             EditType.DELETE, node, subject=subject, origin=origin, context=context, now=now
         )
-        self._add_pending_edit(edit, node)
 
-    @tracer.start_as_current_span("transaction.restore")
     def restore(
         self,
         node: Node,
@@ -470,12 +359,10 @@ class Transaction:
         context: EditContextData | None,
         now: datetime,
     ):
-        edit = self._make_simple_edit(
+        self._add_pending_edit(
             EditType.RESTORE, node, subject=subject, origin=origin, context=context, now=now
         )
-        self._add_pending_edit(edit, node)
 
-    @tracer.start_as_current_span("transaction.archive")
     def archive(
         self,
         node: Node,
@@ -484,12 +371,10 @@ class Transaction:
         context: EditContextData | None,
         now: datetime,
     ):
-        edit = self._make_simple_edit(
+        self._add_pending_edit(
             EditType.ARCHIVE, node, subject=subject, origin=origin, context=context, now=now
         )
-        self._add_pending_edit(edit, node)
 
-    @tracer.start_as_current_span("transaction.unarchive")
     def unarchive(
         self,
         node: Node,
@@ -498,17 +383,10 @@ class Transaction:
         context: EditContextData | None,
         now: datetime,
     ):
-        edit = self._make_simple_edit(
-            EditType.UNARCHIVE,
-            node=node,
-            subject=subject,
-            origin=origin,
-            context=context,
-            now=now,
+        self._add_pending_edit(
+            EditType.UNARCHIVE, node, subject=subject, origin=origin, context=context, now=now
         )
-        self._add_pending_edit(edit, node)
 
-    @tracer.start_as_current_span("transaction.erase")
     def erase(
         self,
         node: Node,
@@ -517,102 +395,206 @@ class Transaction:
         context: EditContextData | None,
         now: datetime,
     ):
-        edit = self._make_simple_edit(
+        self._add_pending_edit(
             EditType.ERASE, node, subject=subject, origin=origin, context=context, now=now
         )
-        self._add_pending_edit(edit, node)
 
     #
     # Transaction management
     #
 
     async def open(self):
-        pass
+        pass  # nothing to do?
 
-    def _add_pending_edit(self, edit: EditData, node: Optional[Node]) -> GraphEngine:
-        """Adds an edit to the pending (unflushed, uncommitted)"""
-        from bench.proto import wiring
+    @tracer.start_as_current_span("transaction.accumulate_edits")
+    def _accumulate_edits(self, mini_edits: list[MiniEdit]) -> list[EditData]:
+        """
+        Turns a series of mini edits into real edits, attempting to coalesce them.
+        Specifically, we coalesce sequential updates/moves to the same node (coalescing into moves),
+         all other edit types are kept separate.
+        NOTE :Performance :Architecture: revisit how we coalesce edits in sessions (updates/moves)
+         Right now, something like:
+          node1.a = 1
+          node2.a = 2
+          node1.a = 1
+         will result in 3 edits, but depending on interpretation, it could be 2. Maybe.
+        """
+        from bench.proto import wire, wiring
 
-        node_type = wiring.unpack_enum(NodeType, edit.node_ptr.type)
-        engine = self.session._get_engine_for(edit.scope, node_type, is_readonly=False)
-        self.edits.append(edit)
-        self.pending_edits.append(edit)
-        self._pending_edits_by_engine_id[engine.id].append(edit)
-        if node is not None:
-            self._pending_nodes_by_ck[node.ck] = node
-        # bump epoch if we have one
-        if self.session._system_epoch is not None:
-            self.session._system_epoch += 1
-            edit.epoch = self.session._system_epoch
-        return engine
+        edits: list[EditData] = []
+        batch: list[MiniEdit] = []
+        for i, mini_edit in enumerate(mini_edits):
+            edit_type = mini_edit.type
+            node = mini_edit.node
+            next_mini_edit = mini_edits[i + 1] if i + 1 < len(mini_edits) else None
+            batch.append(mini_edit)
+            if (
+                next_mini_edit is not None
+                and mini_edit.node == next_mini_edit.node
+                and edit_type in (EditType.UPDATE, EditType.MOVE)
+                and next_mini_edit.type in (EditType.UPDATE, EditType.MOVE)
+            ):
+                continue  # coalesce
 
-    def _add_pending_edits(self, edits: Collection[EditData]):
-        for edit in edits:
-            self._add_pending_edit(edit, node=None)
+            # make edit
+            old_node_packed = None
+            new_node_packed = None
+            properties: list[int] = []
+            if edit_type in (EditType.UPDATE, EditType.MOVE):
+                # coalesce any move/update sequence into move
+                if any(e.type == EditType.MOVE for e in batch):
+                    edit_type = EditType.MOVE
+                # accumulate old values (keep oldest)
+                old_values: dict[int, Any] = {}
+                for e in batch:
+                    assert e.old_values is not None, f"missing old values for {e!r}"
+                    for prop_id, old_value in e.old_values.items():
+                        if prop_id not in old_values:
+                            old_values[prop_id] = old_value
+                properties = list(old_values.keys())
+                properties.sort()  # ascending
+                # pack old/new
+                old_node_packed = {}
+                new_node_packed = {}
+                for prop_id, old_value in old_values.items():
+                    prop = node.__properties_by_id__.get(prop_id)
+                    assert prop is not None, f"no property {prop_id} for {node!r} in {batch!r}"
+                    prop_type = prop.type_info
+                    old_node_packed[prop.id_as_str], _ = pack_value(
+                        old_value, prop_type, wrap_primitive=False
+                    )
+                    new_value = getattr(node, prop.name)
+                    new_node_packed[prop.id_as_str], _ = pack_value(
+                        new_value, prop_type, wrap_primitive=False
+                    )
+                old_node_packed = wiring.pack_proto_json(old_node_packed)
+                new_node_packed = wiring.pack_proto_json(new_node_packed)
+            elif edit_type in (EditType.CREATE, EditType.UPSERT):
+                new_node_packed = pack_node_delta(node._to_data())
+            elif edit_type in (EditType.ARCHIVE, EditType.DELETE, EditType.ERASE):
+                old_node_packed = pack_node_delta(node._to_data())
+            elif edit_type == EditType.UNARCHIVE:
+                # put old archived_at in 'old', put full restored node in new
+                assert node.archived_at, f"cannot unarchive {node!r} that is not archived"
+                new_node = node._to_data()
+                old_node_packed = pack_node_delta(new_node, only=(type(node).archived_at,))
+                new_node.archived_at = None
+                new_node_packed = pack_node_delta(new_node)
+            elif edit_type == EditType.RESTORE:
+                # put old deleted_at in 'old', put full restored node in new
+                assert node.deleted_at, f"cannot restore {node!r} that is not deleted"
+                new_node = node._to_data()
+                old_node_packed = pack_node_delta(new_node, only=(type(node).deleted_at,))
+                new_node.deleted_at = None
+                new_node_packed = pack_node_delta(new_node)
+            else:
+                raise ValueError(f"unexpected edit type for {node!r}: {edit_type.name}")
 
-    async def _do_flush(self, *, commit: bool):
+            edit = EditData(
+                metatype=wire.ObjectType.EDIT,
+                id=new_edit_id(),
+                type=wiring.pack_enum(EditType, edit_type),
+                node_ptr=node._to_ref_data(),
+                properties=properties,
+                new_node_packed=new_node_packed,
+                old_node_packed=old_node_packed,
+                scope=self.session._get_scope_for_node(node),
+                origin=mini_edit.origin,
+                subject_ptr=mini_edit.subject,
+                context=mini_edit.context,
+                edited_at=mini_edit.now,
+            )
+            edits.append(edit)
+
+        return edits
+
+    async def _do_flush(self, *, is_commit: bool, _extra_edits: list[EditData] | None = None):
         assert self.session is not None, f"no session for {self!r}"
-        log = logger.bind(edits=len(self.edits), transaction=self)
+        log = logger.bind(
+            mini_edits=len(self._pending_edits),
+            extra_edits=len(_extra_edits or ()),
+            transaction=self,
+        )
 
-        # TODO :Robustness!: use :2PC in Transaction.commit (if there are more than 2 channels)
+        # turn pending mini edits into real edits
+        edits = self._accumulate_edits(self._pending_edits)
+        if _extra_edits:
+            edits.extend(_extra_edits)
+        log = log.bind(edits=len(edits))
+        self._edits.extend(edits)
+        self._pending_edits = []
+
+        # assign system epoch if we have one
+        # NOTE :Cleanup: handling system epoch in transaction feels clumsy
+        if self.session._system_epoch is not None:
+            for edit in edits:
+                edit.epoch = self.session._system_epoch
+                self.session._system_epoch += 1
+
+        # TODO :Robustness: use :2PC in Transaction.commit (if there are more than 2 channels)
+        edits_by_engine_id: dict[Any, list[EditData]] = defaultdict(list)
+        for edit in edits:
+            engine = self.session._get_engine_for(
+                edit.scope, NodeType(edit.node_ptr.type), is_readonly=False
+            )
+            edits_by_engine_id[engine.id].append(edit)
         for engine in self.session._engines:
             # prepare edits & channel
-            pending_edits = self._pending_edits_by_engine_id.get(engine.id, [])
-            if not (pending_edits or (commit and engine.id in self._used_engine_ids)):
+            engine_edits = edits_by_engine_id.get(engine.id, [])
+            if not (engine_edits or (is_commit and engine.id in self._touched_engine_ids)):
                 continue  # nothing to do
             channel = await self.session._get_channel(engine)
             assert isinstance(channel, WritableChannel), f"read-only {channel!r} for {engine!r}"
 
             # flush/commit
-            message = "transaction.commit.engine" if commit else "transaction.flush.engine"
+            message = "transaction.commit.engine" if is_commit else "transaction.flush.engine"
             with tracer.start_as_current_span(
                 message, attributes={"engine": engine.__class__.__name__}
             ):
-                if commit:
-                    flush = await channel.commit(pending_edits)
+                if is_commit:
+                    flush = await channel.commit(engine_edits)
                 else:
-                    flush = await channel.flush(pending_edits)
-                log.trace(message, engine=engine, edits=len(pending_edits))
-            assert len(flush.revisions or ()) == len(pending_edits), "revisions mismatch"
-            for edit, new_revision in zip(pending_edits, cast(list[int], flush.revisions)):
+                    flush = await channel.flush(engine_edits)
+                log.trace(message, engine=engine, edits=len(engine_edits))
+            assert len(flush.revisions or ()) == len(engine_edits), "revisions mismatch"
+            for edit, new_revision in zip(engine_edits, cast(list[int], flush.revisions)):
                 edit.revision = new_revision
-            pending_edits.clear()
-            self.cascaded_edits.extend(flush.cascaded_edits)
-            self._used_engine_ids.add(engine.id)
-        self.pending_edits.clear()
-        self._pending_edits_by_engine_id.clear()
-        self._pending_updates_idx.clear()
+            self._cascaded_edits.extend(flush.cascaded_edits)
+            self._touched_engine_ids.add(engine.id)
 
-        # mark nodes as flushed
-        for n in self._pending_nodes_by_ck.values():
+        # notify nodes on flushed
+        for n in self._pending_changed_nodes_by_id.values():
             n._flushed_self()
-        self._pending_nodes_by_ck.clear()
-        log.trace("transaction.commit" if commit else "transaction.flush")
+        self._pending_changed_nodes_by_id.clear()
+        log.trace("transaction.commit" if is_commit else "transaction.flush")
 
     @tracer.start_as_current_span("transaction.flush")
-    async def flush(self) -> tuple[list[EditData], list[EditData]]:
+    async def flush(
+        self, _extra_edits: list[EditData] | None = None
+    ) -> tuple[list[EditData], list[EditData]]:
         """Canonicalizes and flushes any pending edits (without committing)."""
-        await self._do_flush(commit=False)
-        return self.edits, self.cascaded_edits
+        await self._do_flush(is_commit=False, _extra_edits=_extra_edits)
+        return self._edits, self._cascaded_edits
 
     @tracer.start_as_current_span("transaction.commit")
-    async def commit(self) -> tuple[list[EditData], list[EditData]]:
+    async def commit(
+        self, _extra_edits: list[EditData] | None = None
+    ) -> tuple[list[EditData], list[EditData]]:
         """Commits the transaction (also flushing any pending edits)."""
-        await self._do_flush(commit=True)
-        edits, cascaded_edits = self.edits, self.cascaded_edits
-        self.edits, self.cascaded_edits = [], []
-        self._used_engine_ids.clear()
+        await self._do_flush(is_commit=True, _extra_edits=_extra_edits)
+        edits, cascaded_edits = self._edits, self._cascaded_edits
+        self._edits = []
+        self._cascaded_edits = []
+        self._touched_engine_ids.clear()
         return edits, cascaded_edits
 
     async def reset(self):
         """Resets the transaction, any edits and channels (without closing)."""
-        self.edits.clear()
-        self.cascaded_edits.clear()
-        self.pending_edits.clear()
-        self._pending_edits_by_engine_id.clear()
-        self._pending_updates_idx.clear()
-        self._pending_nodes_by_ck.clear()
-        self._used_engine_ids.clear()
+        self._edits = []
+        self._cascaded_edits = []
+        self._pending_edits = []
+        self._pending_changed_nodes_by_id.clear()
+        self._touched_engine_ids.clear()
 
 
 def pack_node_delta(

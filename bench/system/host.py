@@ -619,7 +619,6 @@ class Host(GraphIoServiceBase, HostApi, HostBase):
 
         # add edits to session
         extended_edits.extend(log_edits)
-        session.tx._add_pending_edits(log_edits)
 
         return extended_edits
 

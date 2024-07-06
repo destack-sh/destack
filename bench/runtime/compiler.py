@@ -651,7 +651,6 @@ def _cache_in_linecache(filename: str, code: str) -> None:
     )
 
 
-# nocheckin: cache code compilation
 @tracer.start_as_current_span("compiler.compile_code")
 def compile_code(code_id: str, code: str, kind: CodeKind, glbls: Mapping[str, Any]) -> CompiledCode:
     """

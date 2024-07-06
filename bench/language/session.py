@@ -2,7 +2,17 @@ import asyncio
 import contextvars
 from contextlib import asynccontextmanager
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Awaitable, Callable, Collection, Iterable, Optional, cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Awaitable,
+    Callable,
+    Collection,
+    Iterable,
+    Optional,
+    Sequence,
+    cast,
+)
 from uuid import UUID
 
 import structlog
@@ -173,6 +183,14 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
     def tx(self) -> Transaction:
         assert self._tx is not None, f"no active transaction in {self!r}"
         return self._tx
+
+    @property
+    def edits(self) -> Sequence[EditData]:
+        return self._tx._edits if self._tx is not None else ()
+
+    @property
+    def cascaded_edits(self) -> Sequence[EditData]:
+        return self._tx._cascaded_edits if self._tx is not None else ()
 
     @property
     def has_edits(self) -> bool:
@@ -372,15 +390,12 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
         """Gets exclusive query and edit access to the main session."""
         was_readonly = self._is_readonly
         was_suspended = self._is_suspended
-        num_edits_before = len(self._edited_nodes_by_id)
         self._is_readonly = readonly
         self.unsuspend()
         try:
             yield self
             if autocommit:
                 await self.commit()
-            elif readonly and len(self.tx.edits) > num_edits_before:
-                raise RuntimeError(f"new uncommitted edits in {self!r}: {self.tx.edits!r}")
         finally:
             if was_suspended:
                 self.suspend()
@@ -394,7 +409,9 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
     #  (need to replay all previous edits, maybe do some other stuff?)
 
     @tracer.start_as_current_span("session.flush")
-    async def flush(self, *, _skip_lock: bool = False) -> tuple[list[EditData], list[EditData]]:
+    async def flush(
+        self, *, _skip_lock: bool = False, _extra_edits: list[EditData] | None = None
+    ) -> tuple[list[EditData], list[EditData]]:
         """Flushes the current pending edits. Returns *all* uncommitted edits / cascaded edits."""
         assert self.is_open, f"cannot flush {self!r} when closed"
         assert self._tx is not None, f"no active transaction in {self!r}"
@@ -402,8 +419,8 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
         try:
             if not _skip_lock:
                 await self._tx_lock.acquire()
-            await self._tx.flush()
-            return self._tx.edits, self._tx.cascaded_edits
+            await self._tx.flush(_extra_edits=_extra_edits)
+            return self._tx._edits, self._tx._cascaded_edits
         except ChannelUnavailableError as e:
             logger.error("session.flush.error", session=self, error=e)
             await self._tx.reset()
@@ -413,12 +430,14 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
                 self._tx_lock.release()
 
     @tracer.start_as_current_span("session.flush")
-    async def commit(self, *, _skip_lock: bool = False) -> tuple[list[EditData], list[EditData]]:
+    async def commit(
+        self, *, _skip_lock: bool = False, _extra_edits: list[EditData] | None = None
+    ) -> tuple[list[EditData], list[EditData]]:
         """Commits all edits. Returns *all* committed edits / cascaded edits *and* resets them."""
         assert self.is_open, f"cannot commit {self!r} when closed"
         assert self._tx is not None, f"no active transaction in {self!r}"
 
-        if not self._tx.edits:
+        if not self._tx.has_edits:
             return [], []  # nothing to do
 
         # TODO :Robustness :Broken: rollback edits to in-memory Nodes on session commit error
@@ -427,7 +446,7 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
                 await self._tx_lock.acquire()
             if self._custom_commit is None:
                 # simple commit
-                return await self._tx.commit()
+                return await self._tx.commit(_extra_edits=_extra_edits)
             else:
                 # custom commit (in system)
                 return await self._custom_commit(self)

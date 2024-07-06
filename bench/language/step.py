@@ -50,8 +50,9 @@ class StepType(IdEnum):
     # source/sinks
     START = 1  # source with inputs (at most one per Flow)
     COMPLETE = 2  # terminate with outputs (at most one per Flow)
-    VALUE = 3  # source with just(value)
-    TRIGGER = 4  # source with just(trigger)
+    FAIL = 3  # terminate with error (at most one per Flow)
+    VALUE = 10  # source with just(value)
+    TRIGGER = 11  # source with just(trigger)
 
     # run
     RUN = 20  # (block)
