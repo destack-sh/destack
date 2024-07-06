@@ -827,8 +827,8 @@ def validate_edit(edit: EditData, subject: Subject, now: datetime) -> None:
     if edit.type in (EditType.UPDATE, EditType.MOVE):
         # check that properties are in both old and new
         assert edit.old_node_packed and edit.new_node_packed
-        old_node_packed = edit.old_node_packed.to_dict()
-        new_node_packed = edit.new_node_packed.to_dict()
+        old_node_packed = wiring.unpack_proto_json(edit.old_node_packed)
+        new_node_packed = wiring.unpack_proto_json(edit.new_node_packed)
         for p in edit.properties:
             if str(p) not in old_node_packed:
                 raise GRPCError(

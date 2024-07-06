@@ -916,8 +916,8 @@ return Input1 + 1
     assert compiled.code == code.to_string()
     assert (
         compiled.transformed_code
-        == f"""\
-async def _code_{code.id}():
+        == """\
+async def _code_anon():
     x = 1
     return Input1 + 1
 """

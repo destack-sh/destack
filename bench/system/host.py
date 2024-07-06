@@ -49,7 +49,7 @@ from bench.proto.wire import (
     ServiceKind,
     SessionContextData,
 )
-from bench.proto.wiring import unpack_proto_json
+from bench.proto.wiring import pack_proto_json, unpack_proto_json
 from bench.system.access import CLIENT_CACHE_ENABLED, ClientCache, get_client
 from bench.system.core import (
     HostApi,
@@ -539,10 +539,10 @@ class Host(GraphIoServiceBase, HostApi, HostBase):
                 del node_packed[prop_key]
             # only keep secret properties if there are any
             if len(node_secret_packed) > 0:
-                node_secret_packed_struct = ProtoStruct.from_dict(node_secret_packed)
+                node_secret_packed_struct = pack_proto_json(node_secret_packed)
             else:
                 node_secret_packed_struct = None
-            return ProtoStruct.from_dict(node_packed), node_secret_packed_struct
+            return pack_proto_json(node_packed), node_secret_packed_struct
 
         # add logs
         context_data: SessionContextData = (
