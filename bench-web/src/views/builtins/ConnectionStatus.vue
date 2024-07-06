@@ -13,8 +13,8 @@ const expandedConnectionId: Ref<number | null> = ref(null);
   <!-- Connection -->
   <Popover placement="bottom" :reference-margin="8" :container-margin="4">
     <template #trigger="{ toggle }">
+      <!-- Current status -->
       <button
-        v-if="isDeveloperMode || hasPendingConnections"
         class="select-none rounded border-2 px-1 py-1 transition-colors"
         :class="
           connections.some((c) => c.isPaused.value || c.txBuffer.isPaused.value)
@@ -28,14 +28,14 @@ const expandedConnectionId: Ref<number | null> = ref(null);
           :class="
             !hasPendingConnections
               ? 'fa-cloud text-gray-700 hover:text-primary-900'
-              : 'fa-cloud-slash text-warning-600 hover:text-primary-700'
+              : 'fa-cloud-slash animate-pulse text-warning-600 hover:text-warning-500'
           "
         />
       </button>
     </template>
     <template #content="{ close }">
-      <!-- Connection summary -->
-      <!-- will probably move this to a Connections View (maybe keep summary on hover) -->
+      <!-- Individual connections -->
+      <!-- (will probably move this to a Connections View (maybe keep summary on hover)) -->
       <div v-outside.click.stop="close" class="p z-50 rounded border border-gray-300 bg-white text-gray-900">
         <div class="my-1 border-b border-gray-300 px-3 py-1">
           <span class="font-semibold">Connections ({{ connections.length }})</span>

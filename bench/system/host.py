@@ -31,7 +31,7 @@ from bench.language.graph import NodeDataGraphLike, NodeGraphLike, NodeSuperGrap
 from bench.language.log import Log
 from bench.language.node import GraphScope
 from bench.language.property import Property
-from bench.language.session import Session, SessionContext, unsuspend_session
+from bench.language.session import Session, SessionContext
 from bench.language.setup import NODE_CLASS_BY_TYPE
 from bench.language.transaction import (
     edit_data_graph,
@@ -284,8 +284,8 @@ class Host(GraphIoServiceBase, HostApi, HostBase):
     async def session(self, *, readonly: bool = False, autocommit: bool = False):
         """Gets exclusive query and edit access to the main session. :ExclusiveHostSession"""
         assert self._session is not None, f"no session for {self!r}"
-        async with self.tx_lock, unsuspend_session(
-            self._session, readonly=readonly, autocommit=autocommit
+        async with self.tx_lock, self._session.unsuspended(
+            readonly=readonly, autocommit=autocommit
         ):
             self._session._system_epoch = self.epoch
             yield self._session

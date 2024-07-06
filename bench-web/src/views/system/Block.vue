@@ -58,7 +58,12 @@ const isRunnable = isRunnableRef(block, pkgGraph, fields);
 const isGeneratedName = computed(
   () => block.value != null && isGeneratedNodeName(block.value.metatype as unknown as NodeType, block.value.name),
 );
-const isThinTextWrapper = computed(() => isGeneratedName.value && block.value?.type == BlockType.TEXT);
+const isQuasiAnonymous = computed(
+  () =>
+    isGeneratedName.value &&
+    (block.value?.type == BlockType.TEXT || block.value?.type == BlockType.CODE) &&
+    !hasFunctionFields.value,
+);
 const hasText = computed(() => block.value?.text != null);
 const hasFunctionFields = computed(
   () =>
@@ -141,12 +146,12 @@ defineExpose<ViewExposed & { isRunnable: Ref<boolean> }>({
           "
           v-bind="getNodeIcon(block)"
           class="w-5 rounded py-0.5 hover:cursor-pointer hover:bg-gray-100 data-[popover=true]:bg-gray-100"
-          :class="isThinTextWrapper ? 'text-gray-500' : 'text-gray-700'"
+          :class="isQuasiAnonymous ? 'text-gray-500' : 'text-gray-700'"
         />
         <input
           ref="nameRef"
           class="w-fit min-w-fit max-w-fit rounded border-0 px-1 outline-none ring-0 hover:bg-gray-100 focus:ring-0"
-          :class="[isThinTextWrapper ? 'px-0.5 text-gray-500' : 'ml-0.5 px-1 font-medium']"
+          :class="[isQuasiAnonymous ? 'px-0.5 text-gray-500' : 'ml-0.5 px-1 font-medium']"
           spellcheck="false"
           :value="block.name"
           :size="Math.max(block.name.length, 5)"

@@ -10,22 +10,27 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any, Mapping, override
 
+import structlog
+from opentelemetry import trace
+
 from bench.language.code import CodeKind
 from bench.language.const import new_struct_id
 
 # NOTE: some of the analysis logic was adapted from marimo (Apache 2 licensed)
 #  see https://github.com/marimo-team/marimo/blob/fec7d780488ab1478984468598d00d283e8c1c9d/marimo/_ast/visitor.py
 
+logger = structlog.get_logger(__name__)
+tracer = trace.get_tracer(__name__)
+
 
 @dataclass
 class CodeImport:
-    module: str  # full module name (e.g., a.b.c.)
-    # fully qualified import symbol:
-    # import a.b => symbol == None
-    # from a.b import c => symbol == a.b.c
-    imported_symbol: str | None = None  # fully qualified import symbol
-    import_level: int | None = None
     namespace: str | None = field(init=False)
+    module: str  # full module name (e.g., a.b.c.)
+    original_name: str | None = None  # `import a.b.c import d as e` -> d
+    as_name: str | None = None  # `import a.b.c import d as e` -> e
+    fully_qualified_name: str | None = None  # fully qualified name
+    relative_level: int | None = None
 
     def __post_init__(self) -> None:
         self.namespace = self.module.split(".")[0]
@@ -40,20 +45,21 @@ class CodeDefinitionKind(StrEnum):
 
 @dataclass
 class CodeDefinition:
-    kind: CodeDefinitionKind
+    """A definition of a name in a block."""
 
+    kind: CodeDefinitionKind
     # If kind == function or class, it may be dependent on externally defined
     # variables.
     #
     # NOTE: This is populated by `ScopedVisitor.ref_stack`. Ref stack holds the
-    # references required for the current context, it's more general than a
-    # "block", since it covers all variable level interactions.
+    #  references required for the current context, it's more general than a
+    #  "block", since it covers all variable level interactions.
     # e.g.
     # >> x = foo + bar
-    # x has the required refs foo and bar, and ref_stack holds that context
-    # while traversing the tree.
+    # x has the required refs foo and bar, and references holds that context
+    #  while traversing the tree.
     references: set[str] = field(default_factory=set)
-    import_: CodeImport | None = None  # for imports
+    imprt: CodeImport | None = None  # for imports
 
 
 @dataclass
@@ -510,10 +516,8 @@ class CodeAnalysisVisitor(ast.NodeVisitor):
     def visit_Import(self, node: ast.Import) -> None:
         for alias_node in node.names:
             variable_name = self._get_alias_name(alias_node)
-            import_ = CodeImport(module=alias_node.name, imported_symbol=None)
-            self._define(
-                variable_name, CodeDefinition(kind=CodeDefinitionKind.IMPORT, import_=import_)
-            )
+            imprt = CodeImport(module=alias_node.name, fully_qualified_name=None)
+            self._define(variable_name, CodeDefinition(kind=CodeDefinitionKind.IMPORT, imprt=imprt))
 
     @override
     def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
@@ -521,16 +525,16 @@ class CodeAnalysisVisitor(ast.NodeVisitor):
         # we don't recurse into the alias nodes, since we define the
         # aliases here
         for alias_node in node.names:
-            variable_name = self._get_alias_name(alias_node)
+            alias_name = self._get_alias_name(alias_node)
             original_name = alias_node.name
-            import_ = CodeImport(
+            imprt = CodeImport(
                 module=module,
-                imported_symbol=module + "." + original_name,
-                import_level=node.level,
+                fully_qualified_name=module + "." + original_name,
+                original_name=original_name,
+                as_name=alias_name,
+                relative_level=node.level,
             )
-            self._define(
-                variable_name, CodeDefinition(kind=CodeDefinitionKind.IMPORT, import_=import_)
-            )
+            self._define(alias_name, CodeDefinition(kind=CodeDefinitionKind.IMPORT, imprt=imprt))
 
     @override
     def visit_MatchAs(self, node: ast.MatchAs) -> None:
@@ -597,6 +601,8 @@ def _is_coroutine(co: types.CodeType) -> bool:
 
 @dataclass
 class CodeCompilation:
+    """Compiled and analysed Code."""
+
     # NOTE: code is assumed to be :AsyncCode (even if it isn't)
     kind: CodeKind
     code: str
@@ -619,8 +625,13 @@ class CodeCompilation:
 
 @dataclass
 class CodeTransformation:
+    """Simple source mapping for transformed code."""
+
     line_offset: int
     column_offset: int
+
+    def forward(self, line: int, column: int) -> tuple[int, int]:
+        return line + self.line_offset, column + self.column_offset
 
     def reverse(self, line: int, column: int) -> tuple[int, int]:
         return line - self.line_offset, column - self.column_offset
@@ -640,7 +651,8 @@ def _cache_in_linecache(filename: str, code: str) -> None:
 
 
 # nocheckin: cache code compilation
-def compiled_code(
+@tracer.start_as_current_span("compiler.compile_code")
+def compile_code(
     code_id: int, code: str, kind: CodeKind, glbls: Mapping[str, Any]
 ) -> CodeCompilation:
     """
@@ -720,7 +732,7 @@ def compiled_code(
     # remove globals from references (they are references)
     definitions = analysis.definitions
     references = {k: v for k, v in analysis.references.items() if k not in glbls}
-    imports = {k: v.import_ for k, v in definitions.items() if v.import_ is not None}
+    imports = {k: v.imprt for k, v in definitions.items() if v.imprt is not None}
 
     return CodeCompilation(
         kind=kind,

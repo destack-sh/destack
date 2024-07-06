@@ -166,6 +166,10 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
             return f"{', '.join(status_strs)}, tx={self._tx or '<no tx>'}"
 
     @property
+    def epoch(self) -> int:
+        return max(c.epoch for c in self._connections)
+
+    @property
     def tx(self) -> Transaction:
         assert self._tx is not None, f"no active transaction in {self!r}"
         return self._tx
@@ -348,6 +352,8 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
 
         logger.trace("session.close", session=self)
 
+    # NOTE :Cleanup: Session suspend/unsuspend is pretty clumsy
+
     def suspend(self):
         """Suspend the session, *erroring* on further edits. Deactivates context (if active)."""
         self._is_suspended = True
@@ -360,6 +366,29 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
         assert self._active_session_token is None, f"session already active {self!r}"
         self._is_suspended = False
         self._active_session_token = _active_session.set(self)
+
+    @asynccontextmanager
+    async def unsuspended(self, readonly: bool = False, autocommit: bool = False):
+        """Gets exclusive query and edit access to the main session."""
+        was_readonly = self._is_readonly
+        was_suspended = self._is_suspended
+        num_edits_before = len(self._edited_nodes_by_id)
+        self._is_readonly = readonly
+        self.unsuspend()
+        try:
+            yield self
+            if autocommit:
+                await self.commit()
+            elif readonly and len(self.tx.edits) > num_edits_before:
+                raise RuntimeError(f"new uncommitted edits in {self!r}: {self.tx.edits!r}")
+        finally:
+            if was_suspended:
+                self.suspend()
+            else:
+                assert self._active_session_token is not None, f"session not active {self!r}"
+                _active_session.reset(self._active_session_token)
+                self._active_session_token = None
+            self._is_readonly = was_readonly
 
     # TODO :Robustness!: auto re-connect Session.flush/commit/...? on error
     #  (need to replay all previous edits, maybe do some other stuff?)
@@ -720,21 +749,3 @@ class Context(Struct):
     # value_packed: Any = p_value_packed(60)
     # secret_value_packed: Any = p_secret_value_packed(61)
     # value: Any = p_value_runtime(60, 61)
-
-
-@asynccontextmanager
-async def unsuspend_session(session: Session, readonly: bool = False, autocommit: bool = False):
-    """Gets exclusive query and edit access to the main session."""
-    was_readonly = session._is_readonly
-    num_edits_before = len(session._edited_nodes_by_id)
-    session._is_readonly = readonly
-    session.unsuspend()
-    try:
-        yield session
-        if autocommit:
-            await session.commit()
-        elif readonly and len(session.tx.edits) > num_edits_before:
-            raise RuntimeError(f"new uncommitted edits in {session!r}: {session.tx.edits!r}")
-    finally:
-        session.suspend()  # suspend by default
-        session._is_readonly = was_readonly

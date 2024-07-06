@@ -1,91 +1,25 @@
-import base64
-import contextvars
-import dataclasses
-import datetime
-from dataclasses import dataclass
-from datetime import timedelta
-from typing import Any, Awaitable, Mapping
-from uuid import UUID
+from typing import Any, Awaitable
 
 import structlog
 from opentelemetry import trace
 
-from bench import language
-from bench.language.block import Block
-from bench.language.code import Code, CodeKind
-from bench.language.const import BlockType, FieldZone, RunKind, RunStatus
-from bench.language.node import Node
-from bench.language.run import Run, RunAttempt, RunError, RunOptions
-from bench.language.session import Session, unsuspend_session
-from bench.language.setup import BENCH_CLASS_BY_NAME
-from bench.language.step import Step
+from bench.language.code import Code
+from bench.language.const import BenchError, BlockType, FieldZone, RunErrorKind, RunKind, RunStatus
+from bench.language.run import Run, RunAttempt, RunError
+from bench.language.session import Session
 from bench.language.text import Text
 from bench.language.value import ValueObject
-from bench.runtime.compiler import CodeCompilation, compiled_code
-from bench.runtime.core import NotRunnableError
+from bench.runtime.core import (
+    DEFAULT_CODE_RUN_OPTIONS,
+    NotRunnableError,
+    RunHandle,
+    RunnableState,
+    RuntimeState,
+)
 from bench.utils.oracle import Oracle
-from bench.utils.uuidt import UUIDT
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
-
-DEFAULT_CODE_RUN_OPTIONS = RunOptions(max_attempts=1)
-DEFAULT_TEXT_RUN_OPTIONS = RunOptions(max_attempts=3, retry_interval=3, backoff=2)
-DEFAULT_FLOW_RUN_OPTIONS = RunOptions(max_attempts=1)
-
-# all bench types
-CODE_GLOBALS: dict[str, Any] = {**vars(language), **BENCH_CLASS_BY_NAME}
-# and some general stuff
-for t in (datetime, timedelta, UUID, base64):
-    CODE_GLOBALS[t.__name__] = t
-
-
-@dataclass(slots=True)
-class RunContext:
-    """The context for any single run (tracked or untracked)."""
-
-    id: UUID
-    scope: Node
-    options: RunOptions
-    attempts: list[RunAttempt] = dataclasses.field(default_factory=list)
-    parent: "RunContext | None" = None
-    compiled: CodeCompilation | None = None
-    variables: ValueObject | None = None
-    inputs: ValueObject | None = None
-    run: Run | None = None  # if tracked
-
-    def __str__(self):
-        context_parts: list[str] = [f"scope={self.scope!r}", f"options={self.options!r}"]
-        if self.attempts:
-            context_parts.append(f"attempts={self.attempts}")
-        if self.compiled:
-            context_parts.append(f"compiled={self.compiled}")
-        if self.run:
-            context_parts.append(f"run={self.run}")
-        return ", ".join(context_parts)
-
-    def __repr__(self):
-        return f"<{self.__class__.__name__} {self}"
-
-    @property
-    def attempt(self) -> RunAttempt | None:
-        return self.attempts[-1] if self.attempts else None
-
-
-class RuntimeState:
-    """
-    The state of a specific runtime.
-    Encapsulates the current stack, any defined exports, .. to figure out what to run & where.
-    """
-
-    def __init__(self, *, session: Session, glbls: Mapping[str, Any] = CODE_GLOBALS):
-        self.session = session
-        self.glbls = glbls
-
-        self.run_stack: contextvars.ContextVar[list[RunContext]] = contextvars.ContextVar(
-            "run_stack"
-        )
-        self.active_runs: dict[UUIDT, RunContext] = {}
 
 
 class RuntimeRunner:
@@ -111,18 +45,14 @@ class RuntimeRunner:
     # Internals
     #
 
-    async def _prepare_code_context(self, context: RunContext):
-        """Prepares references and such to assemble the globals for a Run (recursively)."""
-        pass  # nocheckin
-
-    async def _wrap_tracked_run[R](self, coro: Awaitable[R], context: RunContext) -> R:
+    async def _wrap_tracked_run[R](self, coro: Awaitable[R], handle: RunHandle) -> R:
         """
         Runs a coroutine as a tracked Run with some options for retrying attempts.
-        NOTE :Incomplete: track Run started/terminated/... epochs
-         (not sure how, since we don't have the absolute epoch in a Runtime)
+        NOTE :Architecture: Run started/terminated/... epochs are relative to session
+         (meaning if we make local edits during a Run, the terminated_epoch is still the same)
         """
-        run = context.run
-        assert run is not None, f"missing run for context {context!r}"
+        run = handle.run
+        assert run is not None, f"missing run for context {handle!r}"
 
         # update context
         run.client = self.session.client
@@ -132,72 +62,76 @@ class RuntimeRunner:
 
         # start if not yet started
         if not run.started_at:
+            run.started_epoch = self.session.epoch
             run.started_at = self.oracle.utc()
         run.status = run.current_status = RunStatus.RUNNING
 
         # actually attempt Run
-        retry = context.options.to_retry().new(self.oracle, attempt=len(context.attempts))
+        retry = handle.options.to_retry().new(self.oracle, attempt=len(handle.attempts))
         try:
             while retry.should_retry:
                 retry.on_attempt()
                 attempt = RunAttempt(
                     status=RunStatus.RUNNING,
                     started_at=self.oracle.utc(),
+                    started_epoch=self.session.epoch,
                 )
-                context.attempts.append(attempt)
+                handle.attempts.append(attempt)
                 try:
                     result = await coro
                     attempt.status = RunStatus.COMPLETED
                     return result
                 except Exception as e:
-                    attempt.error = RunError.from_exception(e)
+                    attempt.error = RunError.from_exception(RunErrorKind.RUNTIME, e)
                     attempt.status = RunStatus.FAILED
                     if not retry.on_error(e):
                         raise
                 finally:
                     attempt.terminated_at = self.oracle.utc()
+                    attempt.terminated_epoch = self.session.epoch
                     assert attempt.started_at, f"missing started_at for attempt {attempt!r}"
                     attempt.duration = (attempt.terminated_at - attempt.started_at).total_seconds()
             else:
                 raise retry.to_error()
         finally:
             # run outcome = status of last attempt
-            last_attempt = context.attempt
-            assert last_attempt is not None, f"missing last attempt for run {context!r}"
-            run.attempts = context.attempts
+            last_attempt = handle.attempt
+            assert last_attempt is not None, f"missing last attempt for run {handle!r}"
+            run.attempts = handle.attempts
             run.error = last_attempt.error
             run.status = run.current_status = last_attempt.status
             run.terminated_at = last_attempt.terminated_at
             run.terminated_epoch = last_attempt.terminated_epoch
 
     @tracer.start_as_current_span("runner.run_code_snippet")
-    async def _do_run_code_snippet(self, code: Code, context: RunContext) -> None:
+    async def _do_run_code_snippet(self, code: Code, handle: RunHandle) -> None:
         raise NotImplementedError
 
     @tracer.start_as_current_span("runner.run_code_script")
-    async def _do_run_code_script(self, code: Code, context: RunContext) -> None:
+    async def _do_run_code_script(self, code: Code, handle: RunHandle) -> None:
         """
         Attempts to run a code script once in a prepared context.
         """
-        compiled = context.compiled
-        assert compiled, f"missing compiled code for context {context!r}"
-        assert compiled.body_co is not None, f"missing compiled body for context {context!r}"
-        tmp_glbls = {**self.glbls, "self": context.scope}  # nocheckin: assemble context properly
+        compiled = handle.compiled
+        assert compiled, f"missing compiled code for {handle!r}"
+        assert compiled.body_co is not None, f"missing compiled body for {handle!r}"
+        tmp_glbls = {**self.glbls, "self": handle.scope}  # nocheckin: assemble context properly
         if compiled.is_coroutine:
             await eval(compiled.body_co, tmp_glbls)
         else:
             exec(compiled.body_co, tmp_glbls)
 
     @tracer.start_as_current_span("runner.run_code_function")
-    async def _do_run_code_function(self, code: Code, context: RunContext) -> ValueObject:
+    async def _do_run_code_function(self, code: Code, handle: RunHandle) -> ValueObject:
         raise NotImplementedError("nocheckin: _do_run_code_function")
 
     #
     # Run stuff directly
     # NOTE :Robustness :Architecture: should we separate transactions for session and user edits?
+    # NOTE :Incomplete: respect RunOptions.max_concurrency
     #
 
-    async def run_code_snippet(self, code: Code, context: RunContext) -> Any:
+    async def run_code_snippet(self, code: Code, handle: RunHandle) -> Any:
         """
         Runs Code as a snippet in some context, respecting the run options.
         Snippet runs are lightweight and do not generate tracked Runs by themself.
@@ -205,35 +139,17 @@ class RuntimeRunner:
         """
         raise NotImplementedError
 
-    async def run_code_script(self, code: Code, context: RunContext) -> None:
+    async def run_code_script(self, code: Code, handle: RunHandle) -> None:
         """Runs Code as a script to store its definitions for reuse, respecting the run options."""
-        if context.compiled is None:
-            context.compiled = compiled_code(code.id, code.to_string(), CodeKind.SCRIPT, self.glbls)
-        await self._prepare_code_context(context)
-        async with unsuspend_session(self.session):
-            await self._wrap_tracked_run(self._do_run_code_script(code, context), context)
+        raise NotImplementedError("nocheckin: run_code_script")
 
-    async def run_code_function(self, code: Code, context: RunContext) -> ValueObject:
+    async def run_code_function(self, code: Code, handle: RunHandle) -> ValueObject:
         """Runs Code with some arguments to produce outputs, respecting the run options."""
-        if context.compiled is None:
-            context.compiled = compiled_code(
-                code.id, code.to_string(), CodeKind.FUNCTION, self.glbls
-            )
-        await self._prepare_code_context(context)
-        async with unsuspend_session(self.session):
-            return await self._wrap_tracked_run(self._do_run_code_function(code, context), context)
+        raise NotImplementedError("nocheckin: run_code_function")
 
-    async def run_text_function(self, text: Text, context: RunContext) -> ValueObject:
+    async def run_text_function(self, text: Text, handle: RunHandle) -> ValueObject:
         """Runs Text with inputs, respecting the run options."""
         raise NotImplementedError("nocheckin: run_text_function")
-
-    async def run_flow(self, flow: Block, context: RunContext) -> ValueObject:
-        """Runs a Flow (Block) with some inputs to produce outputs, respecting the run options."""
-        raise NotImplementedError
-
-    async def run_step(self, step: Step, context: RunContext) -> ValueObject:
-        """Runs a Step with some inputs to produce outputs, respecting the run options."""
-        raise NotImplementedError
 
     #
     # High level Run helpers
@@ -241,46 +157,56 @@ class RuntimeRunner:
 
     async def start_run(self, run: Run):
         """Starts a new top-level Run in this Runner. Returns on termination (?)."""
+        # NOTE: Robustness: don't commit the entire session on failure?
         try:
             if run.kind == RunKind.BLOCK:
                 block = run.block
-                assert block is not None, f"run {run!r} has no block"
+                if block is None:
+                    raise NotRunnableError(f"run {run!r} has no block")
                 if block.type == BlockType.CODE:
-                    context = RunContext(
-                        id=run.id,
-                        scope=block,
-                        options=run.options or DEFAULT_CODE_RUN_OPTIONS,
-                        inputs=run.inputs,
-                        run=run,
-                    )
                     code = block.code or Code.empty()
+                    runnable = RunnableState(id=block.id, scope=block, code=code, text=None)
+                    handle = RunHandle(
+                        id=run.id,
+                        runnable=runnable,
+                        options=run.options or DEFAULT_CODE_RUN_OPTIONS,
+                        parent=None,
+                        status=run.status,
+                        inputs=run.inputs,
+                        attempts=list(run.attempts),
+                    )
                     if any(
                         f.zone == FieldZone.INPUT or f.zone == FieldZone.OUTPUT
                         for f in block.fields
                     ):
-                        await self.run_code_function(code, context)
+                        await self.run_code_function(code, handle)
                     else:
-                        await self.run_code_script(code, context)
+                        await self.run_code_script(code, handle)
                 else:
                     raise NotRunnableError(f"block is not runnable: {block!r}")
             else:
                 raise NotRunnableError(f"unexpected run: {run!r}")
-        except Exception as e:
-            # failed to even attempt or re-raised inner error
-            # NOTE :Robustness: do we really want to turn *every* error into a failed Run?
-            # NOTE: Robustness: do we really want to commit the entire session on failure?
-            async with unsuspend_session(self.session, readonly=False):
+        except BenchError as e:
+            # re-raised inner error
+            async with self.session.unsuspended():
                 if run.current_status != RunStatus.FAILED:  # failed to attempt
-                    run.fail(RunError.from_exception(e))
+                    run.fail(RunError.from_exception(RunErrorKind.RUNTIME, e))
                 await self.session.commit()
             logger.error("runner.start_run.error", run=run, exc_info=e)
+        except Exception as e:
+            # some internal error
+            async with self.session.unsuspended():
+                if run.current_status != RunStatus.FAILED:  # failed to attempt
+                    run.fail(RunError.from_exception(RunErrorKind.INTERNAL, e))
+                await self.session.commit()
+            logger.error("runner.start_run.internal_error", run=run, exc_info=e)
 
     async def pause_run(self, run: Run):
-        """Pause a Run currently executing in this Runner. Currently only for top-level or nested Flows."""
+        """Pause a Run currently executing in this Runner."""
         raise NotImplementedError
 
     async def resume_run(self, run: Run):
-        """Resume a paused Run in this Runner (maybe from elsewhere). See pause_run."""
+        """Resume a paused Run in this Runner (maybe from elsewhere)."""
         raise NotImplementedError
 
     async def abort_run(self, run: Run):

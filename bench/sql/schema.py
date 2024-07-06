@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.07.05.1"
+VERSION = "2024.07.06.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1236,7 +1236,6 @@ RUN_TABLE = Table(
         Column("root_id", PrimitiveType.UUID, is_nullable=True),
         Column("root_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("code", PrimitiveType.JSON, is_nullable=True),
-        Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("options", PrimitiveType.JSON, is_nullable=True),
         Column("status", PrimitiveType.INT16, default="1"),
         Column("current_status", PrimitiveType.INT16, is_nullable=True),

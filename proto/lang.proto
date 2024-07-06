@@ -2780,7 +2780,6 @@ message RunData {
   RunKind kind = 30;
   optional NodeReferenceData root_ptr = 32;
   optional CodeData code = 36;
-  optional TextData text = 37;
   optional RunOptionsData options = 38;
   RunStatus status = 40;
   optional RunStatus current_status = 41;

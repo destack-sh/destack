@@ -22,7 +22,7 @@ from bench.language.const import (
 from bench.language.graph import NodeGraph, NodeSuperGraph
 from bench.language.log import Log
 from bench.language.node import EMPTY_SCOPE, GraphScope
-from bench.language.session import Session, unsuspend_session
+from bench.language.session import Session
 from bench.language.user import User
 from bench.proto.wire import HostClient, SupervisorClient
 from bench.proto.wiring import unpack_object
@@ -272,7 +272,7 @@ class SingleClientWorkloadBase[SpecT: SingleClientWorkloadSpec](WorkloadBase[Spe
             self.bench_id, self.client, self.host, self.oracle, self.simulation
         )
         await self.session.open(set_in_context=False)
-        async with unsuspend_session(self.session, readonly=False, autocommit=True):
+        async with self.session.unsuspended(readonly=False, autocommit=True):
             await self._do_prepare_in_session(self.session)
 
     async def _do_prepare_in_session(self, session: Session):
@@ -282,7 +282,7 @@ class SingleClientWorkloadBase[SpecT: SingleClientWorkloadSpec](WorkloadBase[Spe
     @override
     @final
     async def _do_run(self):
-        async with unsuspend_session(self.session, readonly=False, autocommit=True):
+        async with self.session.unsuspended(readonly=False, autocommit=True):
             await self._do_run_in_session(self.session)
 
     @abc.abstractmethod
