@@ -597,16 +597,19 @@ class Transaction:
         self._touched_engine_ids.clear()
 
 
+@tracer.start_as_current_span("graph.pack_node_delta")
 def pack_node_delta(
     node_data: AnyNodeData, *, only: Collection[Property | Any] | None = None
 ) -> ProtoStruct:
     """Packs a node into its edit representation. If 'only' is set, only those properties are packed."""
     from bench.language.value import pack_builtin_object_data
+    from bench.proto import wiring
 
     node_packed = pack_builtin_object_data(node_data, only=only)
-    return ProtoStruct.from_dict(node_packed)  # type: ignore
+    return wiring.pack_proto_json(node_packed)  # type: ignore
 
 
+@tracer.start_as_current_span("graph.unpack_node_delta")
 def unpack_node_delta(
     node_packed: dict[str, Any] | ProtoStruct,
     *,
@@ -618,7 +621,7 @@ def unpack_node_delta(
     from bench.proto import wiring
 
     if not isinstance(node_packed, dict):
-        node_packed = node_packed.to_dict()
+        node_packed = wiring.unpack_proto_json(node_packed)
 
     proto_cls = wiring.PROTO_CLASS_BY_TYPE[node_type] if node_type is not None else None
     node_data = unpack_builtin_object_data(node_packed, expect=proto_cls, only=only)

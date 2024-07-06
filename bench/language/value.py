@@ -575,7 +575,9 @@ def pack_value_scalar(value: ScalarValue | ScalarValueData, typ: "TypeInfoBase")
             return str(cast(UUID, value))
         elif typ.primitive_type == PrimitiveType.JSON:
             if isinstance(value, ProtoStruct):
-                return cast(JsonValue, value.to_dict())  # :ProtoStructMapping
+                from bench.proto import wiring
+
+                return cast(JsonValue, wiring.unpack_proto_json(value))  # :ProtoStructMapping
             else:
                 return cast(JsonValue, value)
         elif typ.primitive_type == PrimitiveType.DATETIME:
@@ -645,7 +647,9 @@ def unpack_value_scalar_data(value_packed: JsonValue, typ: "TypeInfoBase") -> Sc
         elif typ.primitive_type == PrimitiveType.UUID:
             return cast(str, value_packed)  # leave as string
         elif typ.primitive_type == PrimitiveType.JSON:
-            return ProtoStruct.from_dict(cast(dict, value_packed))
+            from bench.proto import wiring
+
+            return wiring.pack_proto_json(cast(dict, value_packed))
         elif typ.primitive_type == PrimitiveType.DATETIME:
             return datetime.fromisoformat(cast(str, value_packed))
         elif typ.primitive_type == PrimitiveType.INTERVAL:

@@ -21,7 +21,6 @@ import cachetools
 import psycopg
 import pytz
 import structlog
-from betterproto.lib.google.protobuf import Struct as ProtoStruct
 from bitarray import bitarray
 from opentelemetry import trace
 from psycopg import OperationalError, sql
@@ -1138,7 +1137,7 @@ def _pack_struct_data_prop(prop: Property, value: Any, ignore_array: bool) -> Sq
     elif prop.primitive_type == PrimitiveType.UUID:
         return to_uuid(value)
     elif prop.primitive_type == PrimitiveType.JSON:
-        return Jsonb(value.to_dict())  # type: ignore
+        return Jsonb(wiring.unpack_proto_json(value))  # type: ignore
     else:
         return value
 
@@ -1161,7 +1160,7 @@ def _unpack_struct_data_prop(prop: Property, value: Any, ignore_array: bool) -> 
     elif prop.primitive_type == PrimitiveType.UUID:
         return str(value)
     elif prop.primitive_type == PrimitiveType.JSON:
-        return ProtoStruct.from_dict(value)
+        return wiring.pack_proto_json(value)
     else:
         return value
 

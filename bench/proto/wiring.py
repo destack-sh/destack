@@ -81,10 +81,12 @@ def copy_struct_prop(prop: Property, value: Any) -> Any:
         return value
 
 
+@tracer.start_as_current_span("wiring.pack_proto_json")
 def pack_proto_json(value: dict[str, Any]) -> ProtoStruct:
     return ProtoStruct.from_dict(value)
 
 
+@tracer.start_as_current_span("wiring.unpack_proto_json")
 def unpack_proto_json(value: ProtoStruct) -> dict[str, Any]:
     return value.to_dict()
 
@@ -122,7 +124,7 @@ def pack_object_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
     elif prop.primitive_type == PrimitiveType.UUID:
         return str(value)  # uuids are wired as strings
     elif prop.primitive_type == PrimitiveType.JSON:
-        return ProtoStruct.from_dict(value)
+        return pack_proto_json(value)
     else:
         return value
 
@@ -151,7 +153,7 @@ def unpack_object_prop(
         elif prop.primitive_type == PrimitiveType.UUID:
             return UUID(value)  # uuids are wired as strings
         elif prop.primitive_type == PrimitiveType.JSON:
-            return value.to_dict()
+            return unpack_proto_json(value)
         else:
             return value
     except (AttributeError, TypeError, ValueError, KeyError) as e:
