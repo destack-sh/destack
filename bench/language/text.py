@@ -181,10 +181,11 @@ class Text(Struct):
         return Text(lines=[])
 
 
-TextIn = Text | str
+text = Text.plain
+md = Text.from_markdown
 
 
-def to_text(text: TextIn) -> Text:
+def to_text(text: Text | str) -> Text:
     if isinstance(text, str):
         return Text.from_markdown(text)
     else:

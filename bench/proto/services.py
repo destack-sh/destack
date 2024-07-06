@@ -253,9 +253,8 @@ class GrpcServer(grpclib.server.Server):
     async def start(self, host: str | None = None, port: int | None = None, **kwargs) -> None:
         self._host = host
         self._port = port
-        with tracer.start_as_current_span("server.start"):
-            await asyncio.gather(*(h.start() for h in self._services))
-            logger.info("server.start", server=self, span="current")
+        await asyncio.gather(*(h.start() for h in self._services))
+        logger.info("server.start", server=self)
         await super().start(host=host, port=port, **kwargs)
 
     def close(self) -> None:

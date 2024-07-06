@@ -48,8 +48,8 @@ if TYPE_CHECKING:
 @enum_(EnumType.STEP_TYPE)
 class StepType(IdEnum):
     # source/sinks
-    START = 1  # at most one per Flow
-    COMPLETE = 2  # at most one per Flow
+    START = 1  # source with inputs (at most one per Flow)
+    COMPLETE = 2  # terminate with outputs (at most one per Flow)
     VALUE = 3  # source with just(value)
     TRIGGER = 4  # source with just(trigger)
 
