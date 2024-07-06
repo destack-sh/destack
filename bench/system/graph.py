@@ -514,9 +514,8 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
                 node._validate_self(properties=(), invalid=on_invalid_raise)
 
             # flush edits to get cascaded edits for extend
-            assert len(session.tx.edits) == 0, f"unexpected edits in {session.tx!r}"
-            session.tx._add_pending_edits(edits)
-            _, cascaded_edits = await session.flush()
+            assert len(session.edits) == 0, f"unexpected edits in {session.tx!r}"
+            _, cascaded_edits = await session.flush(_extra_edits=edits)
 
             # extend commit
             new_edits = await self.extend_commit(
@@ -529,7 +528,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
             )
 
             # actually commit (with new edits)
-            edits, cascaded_edits = await session.commit()
+            edits, cascaded_edits = await session.commit(_extra_edits=new_edits)
         session.untrack_many(*unpacked_graph.nodes)
 
         # handle on commit
@@ -622,7 +621,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
             edits, cascaded_edits = await session._tx.flush()
 
             # extend commit
-            await self.extend_commit(
+            extended_edits = await self.extend_commit(
                 supergraph=session._supergraph,
                 session=session,
                 context=None,
@@ -632,7 +631,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
             )
 
             # commit
-            edits, cascaded_edits = await session._tx.commit()
+            edits, cascaded_edits = await session._tx.commit(_extra_edits=extended_edits)
         except ChannelUnavailableError as e:
             self.logger.error("graph.commit.error", session=session, error=e)
             await session._tx.reset()
@@ -660,7 +659,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
         edits: list[EditData],
         cascaded_edits: list[EditData],
     ) -> list[EditData]:
-        """Extend a commit in a request session. Returns any new edits, but must add them to session."""
+        """Extend a commit in a request session. Returns any new edits."""
         return []  # do nothing by default
 
     async def on_commit(

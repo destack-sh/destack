@@ -343,9 +343,6 @@ class WriteBlockTreeWorkload(SingleClientWorkloadBase[WriteBlockTreeSpec]):
                     block.delete()
                 else:
                     raise NotImplementedError(f"unexpected edit type {edit_type}")
-            assert (
-                len(self.session.tx.pending_edits) <= max_edits
-            ), f"{self.session!s} has too many pending edits for {self!r} ({self.session.tx.pending_edits})"
             await self.session.commit()
             n_transactions += 1
 

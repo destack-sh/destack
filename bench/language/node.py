@@ -1044,9 +1044,6 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
                 if self.__is_node__:
                     node = cast("Node", self)
                     if not node._is_new:
-                        # TODO :Broken: nodes don't update if they're new
-                        #  (which means creating and immediately updating a node doesn't work
-                        #   if you don't flush in between, which is a bit weird)
                         session = node._session
                         assert session, f"no session for {node!r}"
                         if self._updated_properties is None:
@@ -1054,7 +1051,7 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
                         self._updated_properties[prop.ord] = True
                         session._update(node, properties=(prop,), old_values={prop.id: old_value})
                 else:
-                    pass  # TODO :Broken: handle in struct updates!
+                    pass  # TODO :Broken: handle in struct updates
             return
         elif is_tracked and self.__passthrough__ is not None:
             # try passthrough target (if any)
