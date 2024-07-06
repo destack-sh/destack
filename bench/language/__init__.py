@@ -23,7 +23,7 @@ from .bench import (
     Tenancy,
 )
 from .block import Block
-from .code import Code, CodeLine
+from .code import Code, CodeLine, code
 from .connection import (
     AggregateConnection,
     AggregateOptions,
@@ -104,12 +104,12 @@ from .query import (
     ReadOptions,
 )
 from .record import Record
-from .run import Run, RunAttempt, RunOptions
+from .run import CodeKind, Run, RunAttempt, RunnableKind, RunOptions
 from .session import Context, EditContext, Session, SessionContext
 from .setup import _complete_bench_setup
 from .signal import Signal
 from .step import Step, StepType
-from .text import Text, TextSpan
+from .text import Text, TextSpan, md, text
 from .transaction import Change, ChangeCategory, ChangeVignette, Edit, Transaction
 from .trigger import Trigger, TriggerBase, TriggerInfo
 from .user import Handle, Organization, User
@@ -168,6 +168,7 @@ __all__ = [
     "Client",
     "ClientType",
     "Code",
+    "CodeKind",
     "CodeLine",
     "Color",
     "Color",
@@ -249,6 +250,7 @@ __all__ = [
     "Run",
     "RunAttempt",
     "RunOptions",
+    "RunnableKind",
     "S",
     "ScheduleType",
     "SearchConnection",
@@ -294,7 +296,10 @@ __all__ = [
     "WatchAggregateUpdate",
     "WatchGetUpdate",
     "WatchSearchUpdate",
+    "code",
     "coerce_conditional",
+    "md",
+    "text",
 ]
 
 # after all the imports, we can finalize

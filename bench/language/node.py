@@ -1211,6 +1211,15 @@ class InlineStruct[StructDataT: AnyStructData](BuiltinObject[StructDataT], abc.A
         parent_id: int | None = None
         parent_key: str | None = None
 
+    def __content_str__(self) -> str:
+        # default __content_str__ for structs where we're too lazy to define one
+        value_strs = []
+        for prop in self.__declared_properties__.values():
+            prop_value = getattr(self, prop.name)
+            if prop_value is not None and not (isinstance(prop_value, list) and not prop_value):
+                value_strs.append(f"{prop.name}={prop_value!r}")
+        return ", ".join(value_strs)
+
     @final
     def __repr__(self):
         content_str = str(self)

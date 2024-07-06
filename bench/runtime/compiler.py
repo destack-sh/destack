@@ -13,8 +13,8 @@ from typing import Any, Mapping, override
 import structlog
 from opentelemetry import trace
 
-from bench.language.code import CodeKind
 from bench.language.const import new_struct_id
+from bench.language.run import CodeKind
 
 # NOTE: some of the analysis logic was adapted from marimo (Apache 2 licensed)
 #  see https://github.com/marimo-team/marimo/blob/fec7d780488ab1478984468598d00d283e8c1c9d/marimo/_ast/visitor.py
@@ -102,7 +102,7 @@ def is_local_name(name: str):
 class CodeAnalysisVisitor(ast.NodeVisitor):
     """An AST visitor to do our code analysis."""
 
-    def __init__(self, *, kind: CodeKind, code_id: int | None = None) -> None:
+    def __init__(self, *, kind: CodeKind, code_id: str | None = None) -> None:
         self._kind = kind
         self._code_id = code_id or new_struct_id()
         self._block_stack: list[CodeBlock] = [CodeBlock()]
@@ -600,7 +600,7 @@ def _is_coroutine(co: types.CodeType) -> bool:
 
 
 @dataclass
-class CodeCompilation:
+class CompiledCode:
     """Compiled and analysed Code."""
 
     # NOTE: code is assumed to be :AsyncCode (even if it isn't)
@@ -611,6 +611,7 @@ class CodeCompilation:
     definitions: Mapping[str, "CodeDefinition"]
     references: Mapping[str, "CodeReference"]
     imports: Mapping[str, "CodeImport"]
+    syntax_error: SyntaxError | None  # in case code is not valid
     module: ast.Module | None  # the entire parsed AST
     body_co: types.CodeType | None  # the compiled code object (excl. last_expr if kind=snippet)
     last_expr: ast.Expression | None  # for snippets
@@ -637,7 +638,7 @@ class CodeTransformation:
         return line - self.line_offset, column - self.column_offset
 
 
-def _get_filename(code_id: int, suffix: str = "") -> str:
+def _get_filename(code_id: str, suffix: str = "") -> str:
     return f"code_{code_id}{suffix}"
 
 
@@ -652,13 +653,13 @@ def _cache_in_linecache(filename: str, code: str) -> None:
 
 # nocheckin: cache code compilation
 @tracer.start_as_current_span("compiler.compile_code")
-def compile_code(
-    code_id: int, code: str, kind: CodeKind, glbls: Mapping[str, Any]
-) -> CodeCompilation:
+def compile_code(code_id: str, code: str, kind: CodeKind, glbls: Mapping[str, Any]) -> CompiledCode:
     """
     Parse, analyze and compile code.
     NOTE: everything is considered async for now :AsyncCode
     """
+
+    assert code_id.isalnum(), f"code_id must be alphanumeric: {code_id}"
 
     # replace non-breaking spaces with regular spaces
     code = code.replace("\u00a0", " ")
@@ -673,14 +674,19 @@ def compile_code(
         transformation = None
 
     # compile into AST
-    module = compile(
-        transformed_code,
-        "<unknown>",
-        mode="exec",
-        flags=ast.PyCF_ONLY_AST | ast.PyCF_ALLOW_TOP_LEVEL_AWAIT,
-    )
-    if not module.body:
-        return CodeCompilation(
+    try:
+        module = compile(
+            transformed_code,
+            "<unknown>",
+            mode="exec",
+            flags=ast.PyCF_ONLY_AST | ast.PyCF_ALLOW_TOP_LEVEL_AWAIT,
+        )
+        syntax_error = None
+    except SyntaxError as e:
+        module = None
+        syntax_error = e
+    if not module or not module.body:
+        return CompiledCode(
             kind=kind,
             code=code,
             transformed_code=transformed_code,
@@ -688,6 +694,7 @@ def compile_code(
             imports={},
             definitions={},
             references={},
+            syntax_error=syntax_error,
             module=module,
             body_co=None,
             last_expr=None,
@@ -734,7 +741,7 @@ def compile_code(
     references = {k: v for k, v in analysis.references.items() if k not in glbls}
     imports = {k: v.imprt for k, v in definitions.items() if v.imprt is not None}
 
-    return CodeCompilation(
+    return CompiledCode(
         kind=kind,
         code=code,
         transformed_code=transformed_code,
@@ -742,6 +749,7 @@ def compile_code(
         definitions=definitions,
         references=references,
         imports=imports,
+        syntax_error=syntax_error,
         module=module,
         body_co=body_co,
         last_expr=last_expr,

@@ -105,7 +105,6 @@ class Runtime(ServiceBase, RuntimeBase):
         assert self._host is not None, f"no host for {self!r}"
         return self._host
 
-    @tracer.start_as_current_span("runtime.start")
     async def start(self):
         # setup host
         self._host = await get_host_client(self._bench_id, self._supervisor)
@@ -149,7 +148,7 @@ class Runtime(ServiceBase, RuntimeBase):
             self._threads.append(thread)
             await thread.start()
 
-        logger.info("runtime.start", runtime=self, span="current")
+        logger.info("runtime.start", runtime=self)
 
     def close(self):
         super().close()

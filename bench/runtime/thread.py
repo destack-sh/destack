@@ -17,7 +17,8 @@ from bench.language.session import Session
 from bench.language.user import User
 from bench.proto import wiring
 from bench.proto.wire import HostClient, RunData, SupervisorClient
-from bench.runtime.runner import RuntimeRunner, RuntimeState
+from bench.runtime.core import CODE_GLOBALS
+from bench.runtime.runner import RuntimeRunner
 from bench.utils.func import CriticalLock
 from bench.utils.oracle import Oracle
 from bench.utils.task import TaskManager
@@ -80,12 +81,11 @@ class RuntimeThread:
 
         # processing
         self._session: Session | None = None
-        self._state: RuntimeState | None = None
         self._runner: RuntimeRunner | None = None
         self._tx_lock: asyncio.Lock = CriticalLock(
             name=f"{self.__class__.__name__}_{self._bench_id or ''}_{self.id}"
         )
-        self._start_queue = start_queue
+        self._run_queue = start_queue
         self._tasks = TaskManager(owner=self, logger=logger, oracle=oracle)
 
     def __str__(self):
@@ -123,7 +123,6 @@ class RuntimeThread:
         ):
             yield self._session
 
-    @tracer.start_as_current_span("thread.start")
     async def start(self):
         # setup thread
         self._session = Session(
@@ -136,8 +135,7 @@ class RuntimeThread:
             _supergraph=self._supergraph,
             _oracle=self._oracle,
         )
-        self._state = RuntimeState(session=self._session)
-        self._runner = RuntimeRunner(state=self._state, session=self._session, oracle=self._oracle)
+        self._runner = RuntimeRunner(session=self._session, oracle=self._oracle, glbls=CODE_GLOBALS)
         await self._session.open(set_in_context=False)
 
         # connect
@@ -170,15 +168,15 @@ class RuntimeThread:
 
         # finally, start processing runs
         self._tasks.start_queue(
-            self._start_queue,
-            self._process_start_queue,
+            self._run_queue,
+            self._process_run_queue,
             f"{self.bench.slug}_run{self.id}",
             skip_errors=True,
         )
-        logger.info("thread.start", process=self, bench=self._bench, span="current")
+        logger.info("thread.start", process=self, bench=self._bench)
 
-    @tracer.start_as_current_span("thread.start_run")
-    async def _process_start_queue(self, run_data: RunData):
+    @tracer.start_as_current_span("thread.process_run")
+    async def _process_run_queue(self, run_data: RunData):
         # NOTE :Robustness: Run's epoch may be ahead of our own if the sync takes longer to
         #  arrive than the request from the scheduler (both from Host).
         assert self._runner is not None, f"no runner for {self!r}"
@@ -195,8 +193,8 @@ class RuntimeThread:
             expect=Run,
         )
         run._unpack_values_inplace()
-        await self._runner.start_run(run)
-        logger.info("thread.start_run", process=self, run=run, span="current")
+        await self._runner.process_run(run)
+        logger.info("thread.process_run", process=self, run=run, span="current")
 
     def close(self):
         self._tasks.close()

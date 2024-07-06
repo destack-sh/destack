@@ -366,7 +366,6 @@ class Host(GraphIoServiceBase, HostApi, HostBase):
         )
         return subject
 
-    @tracer.start_as_current_span("host.start")
     async def start(self) -> None:
         trace.get_current_span().set_attribute("bench_id", str(self.bench_id))
         await super().start()
@@ -469,7 +468,6 @@ class Host(GraphIoServiceBase, HostApi, HostBase):
             epoch=self.epoch,
             plugins=self._plugins,
             memory=HOST_MEMORY_ENGINE_ENABLED,
-            span="current",
         )
 
     def close(self) -> None:

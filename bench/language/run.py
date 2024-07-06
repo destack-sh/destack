@@ -50,6 +50,28 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
+@enum_(EnumType.CODE_KIND)
+class CodeKind(IdEnum):
+    """
+    The implicit 'kind' of some Code.
+    We don't set this explicitly in Code because it depends on where the Code is used.
+    """
+
+    SNIPPET = 2  # for inline expressions and procedures anywhere (import only)
+    SCRIPT = 4  # for defining Python-level commons in Block 'scripts' (import & export)
+    FUNCTION = 6  # for Python functions in Blocks/Steps (import only)
+
+
+@enum_(EnumType.RUNNABLE_KIND)
+class RunnableKind(IdEnum):
+    """The kind of some runnable."""
+
+    CODE = 1
+    TEXT = 2
+    STEP = 3
+    FLOW = 4
+
+
 @struct_(StructType.RUN_OPTIONS)
 class RunOptions(Struct):
     """
@@ -129,7 +151,8 @@ class RunAttempt(Struct):
     )
 
     def __content_str__(self) -> str:
-        return f"{self.status.bench_name}, {self.duration:.3f}s"
+        duration_str = f"{self.duration:.3f}" if self.duration else "<running>"
+        return f"{self.status.bench_name}, {duration_str}s"
 
 
 @struct_(StructType.RUN_TRACE)

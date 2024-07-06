@@ -141,6 +141,7 @@ class EnumType(IdEnum):
     BREAKPOINT_KIND = 20511
     BREAKPOINT_ACTION = 20512
     CODE_KIND = 20513
+    RUNNABLE_KIND = 20514
 
     # view
     SPACE_TYPE = 21000
