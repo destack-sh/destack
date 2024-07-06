@@ -11,7 +11,7 @@ from bench.runtime.compiler import (
     CodeDefinition,
     CodeDefinitionKind,
     CodeImport,
-    compiled_code,
+    compile_code,
 )
 
 # NOTE: some of the analysis logic was adapted from marimo (Apache 2 licensed, also see analysis)
@@ -680,7 +680,7 @@ def test_import_nested():
     assert v.defs == {"a"}
     assert v.refs == set()
     assert v.definitions["a"] == CodeDefinition(
-        kind=CodeDefinitionKind.IMPORT, import_=CodeImport(module="a.b.c", imported_symbol=None)
+        kind=CodeDefinitionKind.IMPORT, imprt=CodeImport(module="a.b.c", fully_qualified_name=None)
     )
 
 
@@ -692,7 +692,7 @@ def test_import_as():
     assert v.defs == {"d"}
     assert v.refs == set()
     assert v.definitions["d"] == CodeDefinition(
-        kind=CodeDefinitionKind.IMPORT, import_=CodeImport(module="a.b.c", imported_symbol=None)
+        kind=CodeDefinitionKind.IMPORT, imprt=CodeImport(module="a.b.c", fully_qualified_name=None)
     )
 
 
@@ -704,10 +704,10 @@ def test_import_multiple():
     assert v.defs == {"a", "d"}
     assert v.refs == set()
     assert v.definitions["a"] == CodeDefinition(
-        kind=CodeDefinitionKind.IMPORT, import_=CodeImport(module="a.b.c", imported_symbol=None)
+        kind=CodeDefinitionKind.IMPORT, imprt=CodeImport(module="a.b.c", fully_qualified_name=None)
     )
     assert v.definitions["d"] == CodeDefinition(
-        kind=CodeDefinitionKind.IMPORT, import_=CodeImport(module="d", imported_symbol=None)
+        kind=CodeDefinitionKind.IMPORT, imprt=CodeImport(module="d", fully_qualified_name=None)
     )
 
 
@@ -720,20 +720,32 @@ def test_from_import():
     assert v.refs == set()
     assert v.definitions["d"] == CodeDefinition(
         kind=CodeDefinitionKind.IMPORT,
-        import_=CodeImport(module="a.b.c", imported_symbol="a.b.c.d", import_level=0),
+        imprt=CodeImport(
+            module="a.b.c",
+            fully_qualified_name="a.b.c.d",
+            original_name="d",
+            as_name="d",
+            relative_level=0,
+        ),
     )
 
 
 def test_relative_from_import():
-    expr = "from ..a.b.c import d"
+    expr = "from ..a.b.c import d as e"
     v = _TestVisitorHandle()
     mod = ast.parse(expr)
     v.visit(mod)
-    assert v.defs == {"d"}
+    assert v.defs == {"e"}
     assert v.refs == set()
-    assert v.definitions["d"] == CodeDefinition(
+    assert v.definitions["e"] == CodeDefinition(
         kind=CodeDefinitionKind.IMPORT,
-        import_=CodeImport(module="a.b.c", imported_symbol="a.b.c.d", import_level=2),
+        imprt=CodeImport(
+            module="a.b.c",
+            fully_qualified_name="a.b.c.d",
+            original_name="d",
+            as_name="e",
+            relative_level=2,
+        ),
     )
 
 
@@ -873,7 +885,7 @@ x = 1 + y + CONST
 _y = x + 1
 _y
 """)
-    compiled = compiled_code(code.id, code.to_string(), CodeKind.SNIPPET, {"CONST": 0})
+    compiled = compile_code(code.id, code.to_string(), CodeKind.SNIPPET, {"CONST": 0})
     assert compiled.code == code.to_string()
     assert compiled.transformed_code == compiled.code  # no transformation
     assert set(compiled.references.keys()) == {"y"}  # exclude global refs
@@ -885,7 +897,7 @@ x = y + 1
 def a():
     pass
 """)
-    compiled = compiled_code(code.id, code.to_string(), CodeKind.SCRIPT, {})
+    compiled = compile_code(code.id, code.to_string(), CodeKind.SCRIPT, {})
     assert compiled.code == code.to_string()
     assert compiled.transformed_code == compiled.code  # no transformation
     assert set(compiled.references.keys()) == {"y"}
@@ -900,7 +912,7 @@ def test_compile_code_function():
 x = 1
 return Input1 + 1
 """)
-    compiled = compiled_code(code.id, code.to_string(), CodeKind.FUNCTION, {})
+    compiled = compile_code(code.id, code.to_string(), CodeKind.FUNCTION, {})
     assert compiled.code == code.to_string()
     assert (
         compiled.transformed_code

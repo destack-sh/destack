@@ -7,17 +7,16 @@ import structlog
 from opentelemetry import trace
 
 from bench.language import Bench, NodeReference, Package
-from bench.language.bench import Client, Machine
+from bench.language.bench import Branch, Client, Machine
 from bench.language.connection import GraphEngine
-from bench.language.const import NodeType
+from bench.language.const import LOADED_BENCH_NODE_TYPES, SOURCE_NODE_TYPES, NodeType
 from bench.language.graph import NodeSuperGraph
 from bench.language.node import GraphScope
 from bench.language.run import Run
-from bench.language.session import Session, unsuspend_session
+from bench.language.session import Session
 from bench.language.user import User
 from bench.proto import wiring
 from bench.proto.wire import HostClient, RunData, SupervisorClient
-from bench.runtime.core import BENCH_QUERY, PACKAGE_QUERY
 from bench.runtime.runner import RuntimeRunner, RuntimeState
 from bench.utils.func import CriticalLock
 from bench.utils.oracle import Oracle
@@ -28,6 +27,14 @@ if TYPE_CHECKING:
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
+
+BENCH_QUERY = Bench.descendants(*LOADED_BENCH_NODE_TYPES).select_all()
+PACKAGE_QUERY = (
+    Package.descendants(*SOURCE_NODE_TYPES)
+    .ancestors(Bench, Branch)
+    .select_all()
+    .exclude(Bench.encryption_key)
+)
 
 
 class RuntimeThread:
@@ -111,8 +118,8 @@ class RuntimeThread:
     async def session(self, *, readonly: bool = False, autocommit: bool = False):
         """Gets exclusive query and edit access to the main session."""
         assert self._session is not None, f"no session for {self!r}"
-        async with self._tx_lock, unsuspend_session(
-            self._session, readonly=readonly, autocommit=autocommit
+        async with self._tx_lock, self._session.unsuspended(
+            readonly=readonly, autocommit=autocommit
         ):
             yield self._session
 

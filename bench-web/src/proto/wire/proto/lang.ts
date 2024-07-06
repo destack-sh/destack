@@ -4758,10 +4758,6 @@ export interface RunData {
      */
     code?: CodeData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.TextData text = 37;
-     */
-    text?: TextData;
-    /**
      * @generated from protobuf field: optional symbolx.bench.RunOptionsData options = 38;
      */
     options?: RunOptionsData;
@@ -21746,7 +21742,6 @@ class RunData$Type extends MessageType<RunData> {
             { no: 30, name: "kind", kind: "enum", T: () => ["symbolx.bench.RunKind", RunKind, "RUN_KIND_"] },
             { no: 32, name: "root_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 36, name: "code", kind: "message", T: () => CodeData },
-            { no: 37, name: "text", kind: "message", T: () => TextData },
             { no: 38, name: "options", kind: "message", T: () => RunOptionsData },
             { no: 40, name: "status", kind: "enum", T: () => ["symbolx.bench.RunStatus", RunStatus, "RUN_STATUS_"] },
             { no: 41, name: "current_status", kind: "enum", opt: true, T: () => ["symbolx.bench.RunStatus", RunStatus, "RUN_STATUS_"] },
@@ -21857,9 +21852,6 @@ class RunData$Type extends MessageType<RunData> {
                     break;
                 case /* optional symbolx.bench.CodeData code */ 36:
                     message.code = CodeData.internalBinaryRead(reader, reader.uint32(), options, message.code);
-                    break;
-                case /* optional symbolx.bench.TextData text */ 37:
-                    message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
                     break;
                 case /* optional symbolx.bench.RunOptionsData options */ 38:
                     message.options = RunOptionsData.internalBinaryRead(reader, reader.uint32(), options, message.options);
@@ -22024,9 +22016,6 @@ class RunData$Type extends MessageType<RunData> {
         /* optional symbolx.bench.CodeData code = 36; */
         if (message.code)
             CodeData.internalBinaryWrite(message.code, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.TextData text = 37; */
-        if (message.text)
-            TextData.internalBinaryWrite(message.text, writer.tag(37, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.RunOptionsData options = 38; */
         if (message.options)
             RunOptionsData.internalBinaryWrite(message.options, writer.tag(38, WireType.LengthDelimited).fork(), options).join();
@@ -26413,7 +26402,6 @@ export enum RunProperty {
   kind = 30,
   rootPtr = 32,
   code = 36,
-  text = 37,
   options = 38,
   status = 40,
   currentStatus = 41,
@@ -28771,7 +28759,6 @@ export const RunDataInfo: Record<RunProperty, PropertyInfo> = {
   [RunProperty.kind]: { id: 30, name: 'kind', component: ObjectType.RUN, enumType: EnumType.RUN_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [RunProperty.rootPtr]: { id: 32, name: 'root_ptr', component: ObjectType.RUN, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [RunProperty.code]: { id: 36, name: 'code', component: ObjectType.RUN, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
-  [RunProperty.text]: { id: 37, name: 'text', component: ObjectType.RUN, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [RunProperty.options]: { id: 38, name: 'options', component: ObjectType.RUN, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_OPTIONS },
   [RunProperty.status]: { id: 40, name: 'status', component: ObjectType.RUN, enumType: EnumType.RUN_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [RunProperty.currentStatus]: { id: 41, name: 'current_status', component: ObjectType.RUN, enumType: EnumType.RUN_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },

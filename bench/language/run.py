@@ -173,10 +173,10 @@ class RunError(Struct, BenchError):
         return ", ".join(parts)
 
     @staticmethod
-    def from_exception(e: Exception) -> "RunError":
+    def from_exception(kind: RunErrorKind, e: Exception) -> "RunError":
         # NOTE :Incomplete: get run error trace/frames/node/...
         title = to_casing(e.__class__.__name__, Casing.CAMEL, allow_whitespace=True)
-        return RunError(kind=RunErrorKind.INTERNAL, title=title, text=Text.plain(str(e)))
+        return RunError(kind=kind, title=title, text=Text.plain(str(e)))
 
 
 @timed_node(NodeType.RUN)
@@ -198,7 +198,6 @@ class Run(PackageNode[RunData], HasTimeIdentity, HasNodeBase, HasSessionContext,
         root_ptr: Optional[NodeReference] = None
 
     code: Optional["Code"] = p_internal(36, require=False, array=False, struct=StructType.CODE)
-    text: Optional["Text"] = p_internal(37, require=False, array=False, struct=StructType.TEXT)
     # extra run options if different from base or it's a lambda
     options: Optional["RunOptions"] = p_regular(
         38, require=False, array=False, struct=StructType.RUN_OPTIONS
@@ -256,7 +255,7 @@ class Run(PackageNode[RunData], HasTimeIdentity, HasNodeBase, HasSessionContext,
         elif self.kind == RunKind.STEP:
             content_str = self.step.absolute_path if self.step else str(self.step_ptr)
         else:
-            content_str = repr(self.code or self.text)
+            content_str = repr(self.code) if self.code else "<no code>"
         if self.duration is not None:
             return f"{content_str}, {self.status.bench_name}, duration={self.duration:.3f}s"
         else:

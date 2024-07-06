@@ -535,6 +535,9 @@ class Connection[
                     retry.on_success()
                     # subscribe
                     async for update in self._do_subscribe(self.query, self._result_data):
+                        assert (
+                            update.epoch > self.epoch
+                        ), f"epoch regression: {update!r} in {self!r}"
                         self.log.trace(f"connect.{self.type_name}.update", update=update)
                         self._apply_update(self._result_data, self._result, update)
                         for callback in self._update_subscribers:

@@ -122,6 +122,7 @@ type GetConnectionResult<T extends NodeType> = {
   graph: ReadNodeGraph;
   overlay: ReadNodeGraph | null;
   roots: Ref<NodeTypeMapping[T][]>;
+  epoch: Ref<bigint>;
 };
 
 // search connection
@@ -143,6 +144,7 @@ type SearchConnectionResult<T extends NodeType> = {
   overlay: ReadNodeGraph | null;
   rootsPtr: Ref<TypedNodeReferenceData<T>[]>;
   page: Ref<PageInfo>;
+  epoch: Ref<bigint>;
 };
 
 // aggregate connection
@@ -157,6 +159,7 @@ type AggregateConnectionParams = {
 };
 type AggregateConnectionResult = {
   aggregation: Ref<AggregationData>;
+  epoch: Ref<bigint>;
 };
 
 export type GraphConnectionKind = "get" | "search" | "aggregate";
@@ -273,10 +276,10 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
   readonly createdAt: DateTime = DateTime.now();
   lastReferencedAt: DateTime | null = null;
 
-  readonly isConnected: Ref<boolean> = shallowRef(false);
-  readonly isConnecting: Ref<boolean> = shallowRef(false);
-  readonly isPaused: Ref<boolean> = shallowRef(false);
-  readonly isClosed: Ref<boolean> = shallowRef(false);
+  readonly isConnected: Ref<boolean> = ref(false);
+  readonly isConnecting: Ref<boolean> = ref(false);
+  readonly isPaused: Ref<boolean> = ref(false);
+  readonly isClosed: Ref<boolean> = ref(false);
 
   private onErrorSubs: ((status: GrpcStatusName) => void)[] = [];
   private abortController: AbortController | null = null; // for active fetch
@@ -302,6 +305,10 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
 
   get tx(): Transaction {
     return this.txBuffer.tx.with({ connectionId: this.meta.id });
+  }
+
+  get epoch(): bigint | null {
+    return this.result.value?.epoch.value ?? null;
   }
 
   incRefCount(): void {
@@ -504,7 +511,6 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
 
   // NOTE :Robustness: split doFetch into doFetch and doFetchLive?
   //  so we can retry doFetchLive if that connection breaks without refetching everything?
-  //  but how would we know where to resume the watch (the epoch is local to the server, so it has to be the same server)?
 
   /** Actually fetch in the relevant connection type. */
   protected abstract doConnect(
@@ -564,18 +570,21 @@ export class RemoteGetConnection<T extends NodeType> extends ConnectionBase<"get
 
     // fetch nodes
     const {
-      response: { epoch, nodes, connectionToken },
+      response: { epoch: initialEpoch, nodes, connectionToken },
     } = await client.getNodes({ scope: graph.scope, roots: params.roots, options }, { abort, ...this.operationMeta });
     graph.extend(...nodes.map(unwrapSomeNode));
+    const epoch = ref(initialEpoch);
 
     // watch edits if live
     if (this.isLive) {
       const editStream = client.watchGet(
-        { scope: graph.scope, connectionToken, sinceEpoch: epoch },
+        { scope: graph.scope, connectionToken, sinceEpoch: initialEpoch },
         { abort, ...this.operationMeta },
       );
       editStream.responses.onNext((rep) => {
         if (rep == null) return;
+        if (rep.epoch < epoch.value) throw new Error(`epoch regression: ${epoch.value} -> ${rep.epoch}`); // sanity check
+        epoch.value = rep.epoch;
         editGraph(graph, rep.edits);
         this.txBuffer.accept(rep.edits);
       });
@@ -586,7 +595,7 @@ export class RemoteGetConnection<T extends NodeType> extends ConnectionBase<"get
     }
 
     const overlay = makeConnectionOverlayGraph(graph, this, subs);
-    return { graph, overlay, roots: graph.getManyRef(params.roots), subs };
+    return { graph, overlay, roots: graph.getManyRef(params.roots), epoch, subs };
   }
 }
 
@@ -607,7 +616,7 @@ export class RemoteSearchConnection<T extends NodeType> extends ConnectionBase<"
 
     // fetch nodes
     const {
-      response: { epoch, nodes, rootsPtr: rootsInitial, total: totalInitial, connectionToken },
+      response: { epoch: initialEpoch, nodes, rootsPtr: rootsInitial, total: totalInitial, connectionToken },
     } = await client.searchNodes(
       {
         ...params,
@@ -620,6 +629,7 @@ export class RemoteSearchConnection<T extends NodeType> extends ConnectionBase<"
       { abort, ...this.operationMeta },
     );
     graph.extend(...nodes.map(unwrapSomeNode));
+    const epoch = ref(initialEpoch);
 
     const rootsPtr = shallowRef(rootsInitial as TypedNodeReferenceData<T>[]);
     const page: Ref<PageInfo> = shallowRef({ size: rootsInitial.length, total: totalInitial });
@@ -628,11 +638,13 @@ export class RemoteSearchConnection<T extends NodeType> extends ConnectionBase<"
     // NOTE :UX: search should react to current overlay graph (including 'phantom' edits like Logs)
     if (this.isLive) {
       const editStream = client.watchSearch(
-        { connectionToken, sinceEpoch: epoch, scope: graph.scope },
+        { connectionToken, sinceEpoch: initialEpoch, scope: graph.scope },
         { abort, ...this.operationMeta },
       );
       editStream.responses.onNext((rep) => {
         if (rep == null) return;
+        if (rep.epoch < epoch.value) throw new Error(`epoch regression: ${epoch.value} -> ${rep.epoch}`); // sanity check
+        epoch.value = rep.epoch;
         this.txBuffer.accept(rep.edits);
         editGraph(graph, rep.edits);
         // apply other added/removed nodes
@@ -651,7 +663,7 @@ export class RemoteSearchConnection<T extends NodeType> extends ConnectionBase<"
     }
 
     const overlay = makeConnectionOverlayGraph(graph, this, subs);
-    return { graph, overlay, rootsPtr, page, subs };
+    return { graph, overlay, rootsPtr, page, subs, epoch };
   }
 }
 
@@ -672,7 +684,12 @@ export class LocalGetConnection<T extends NodeType> extends ConnectionBase<"get"
     // 'fuse' the connection
     // (no overlay because the local connection is instant)
     this.isConnected.value = true;
-    this.result.value = { graph: this.graph, overlay: null, roots: this.graph.getManyRef(params.roots) };
+    this.result.value = {
+      graph: this.graph,
+      overlay: null,
+      roots: this.graph.getManyRef(params.roots),
+      epoch: ref(-1n),
+    };
   }
 
   connect(options?: Partial<ConnectionOptions> | undefined): Promise<void> {
@@ -685,7 +702,7 @@ export class LocalGetConnection<T extends NodeType> extends ConnectionBase<"get"
     nodeTypes: NodeType[],
     params: GetConnectionParams<T>,
   ): Promise<GetConnectionResult<T>> {
-    return { graph: this.graph, overlay: null, roots: this.graph.getManyRef(params.roots) };
+    return { graph: this.graph, overlay: null, roots: this.graph.getManyRef(params.roots), epoch: ref(-1n) };
   }
 }
 
@@ -1103,6 +1120,7 @@ export function useGetConnection<T extends NodeType>(
     overlay: null,
     connection: new ProxyConnection(connection),
     roots,
+    epoch: computed(() => connection.value?.epoch ?? -1n),
     isConnecting,
     isConnected,
     isStale,
@@ -1144,6 +1162,7 @@ export function useSearchConnection<T extends NodeType>(
     connection: new ProxyConnection(connection),
     rootsPtr,
     roots,
+    epoch: computed(() => connection.value?.epoch ?? -1n),
     page,
     isConnecting,
     isConnected,

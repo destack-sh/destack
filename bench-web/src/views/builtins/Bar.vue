@@ -11,7 +11,7 @@ import Button from "@/views/controls/Button.vue";
 import Menu from "@/views/builtins/Menu.vue";
 import Popover from "@/views/builtins/Popover.vue";
 import { computed, ref, type Ref } from "vue";
-import ConnectionDebug from "./ConnectionDebug.vue";
+import ConnectionStatus from "./ConnectionStatus.vue";
 import { tooltipFromAction } from "@/utils/tooltip";
 import type { FloatingPlacement } from "@/utils/floating";
 import { useElementSize } from "@vueuse/core";
@@ -222,7 +222,7 @@ const dockActions: Ref<Action[]> = computed(
       :class="[orientation == Orientation.HORIZONTAL ? 'ml-auto flex-row pr-1' : 'mt-auto flex-col pb-1']"
     >
       <!-- Connection -->
-      <ConnectionDebug />
+      <ConnectionStatus />
       <!-- Notifications -->
       <!-- Main Clients/Places (browser plugin, mobile, etc.) -->
       <!-- User Menu -->
