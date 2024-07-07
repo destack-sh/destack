@@ -545,6 +545,7 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
         for n in nodes:
             self._edited_nodes_by_id[n.id] = n
             self._tx.create(n, subject, self._origin, context, self._oracle.utc())
+            n._is_new = False
 
     def _upsert(self, *nodes: Node):
         """Creates or updates a node. Any non-id properties will be overwritten."""

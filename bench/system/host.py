@@ -658,12 +658,13 @@ class Host(GraphIoServiceBase, HostApi, HostBase):
             node_type = NodeType(edit.node_ptr.type)
             if node_type not in LOADED_HOST_NODE_TYPES:
                 continue  # not loaded
-            if edit.scope.package_id:
+            if node_type in LOADED_BENCH_NODE_TYPES:
+                bench_edits.append(edit)
+            if node_type in SOURCE_NODE_TYPES:
+                assert edit.scope.package_id, f"no package id in {edit!r}"
                 package_id = to_uuid(edit.scope.package_id)
                 assert package_id == self._main_package.id, f"bad package id: {package_id!r}"
                 package_edits.append(edit)
-            else:
-                bench_edits.append(edit)
         for root_node, options, subedits in (
             (self._bench, BENCH_QUERY._options, bench_edits),
             (self._main_package, PACKAGE_QUERY._options, package_edits),

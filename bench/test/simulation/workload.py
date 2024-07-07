@@ -19,13 +19,14 @@ from bench.language.const import (
     EditType,
     NodeType,
 )
-from bench.language.graph import NodeGraph, NodeSuperGraph
+from bench.language.graph import NodeSuperGraph
 from bench.language.log import Log
 from bench.language.node import EMPTY_SCOPE, GraphScope
 from bench.language.session import Session
 from bench.language.user import User
 from bench.proto.wire import HostClient, SupervisorClient
 from bench.proto.wiring import unpack_object
+from bench.test.simulation.conftest import assert_graph_equals
 from bench.test.simulation.spec import WorkloadSpec, WorkloadType
 from bench.test.simulation.utils import SampledFloat, SampledInt, to_value
 from bench.utils.casing import Casing, to_casing
@@ -312,6 +313,8 @@ class WriteBlockTreeWorkload(SingleClientWorkloadBase[WriteBlockTreeSpec]):
     @override
     def _do_init(self):
         self.pkg: Package | None = None
+        self.block_num = 0
+        self.all_edits: list[tuple[EditType, Block]] = []
 
     @override
     async def _do_prepare_in_session(self, session: Session):
@@ -323,6 +326,7 @@ class WriteBlockTreeWorkload(SingleClientWorkloadBase[WriteBlockTreeSpec]):
         max_transactions = to_value(self.random, self.spec.transactions)
         n_transactions = 0
         while n_transactions < max_transactions:
+            # make random edits
             max_edits = to_value(self.random, self.spec.edits_per_transaction)
             for _ in range(max_edits):
                 edit_type = self.random.choice(self.spec.edit_types)
@@ -330,10 +334,8 @@ class WriteBlockTreeWorkload(SingleClientWorkloadBase[WriteBlockTreeSpec]):
                 if edit_type == EditType.CREATE:
                     block_type = self.random.choice(self.spec.block_types)
                     parent = self.random.choice((self.pkg, *blocks))
-                    num_blocks_of_type = len([b for b in blocks if b.type == block_type])
-                    block = Block.new(
-                        block_type, name=f"{block_type.bench_name}{num_blocks_of_type + 1}"
-                    )
+                    block = Block.new(block_type, name=f"{block_type.bench_name}{self.block_num}")
+                    self.block_num += 1
                     parent.blocks.append(block)
                 elif edit_type == EditType.DELETE:
                     if not blocks:
@@ -342,9 +344,19 @@ class WriteBlockTreeWorkload(SingleClientWorkloadBase[WriteBlockTreeSpec]):
                     block.delete()
                 else:
                     raise NotImplementedError(f"unexpected edit type {edit_type}")
+                self.all_edits.append((edit_type, block))
             await self.session.commit()
             n_transactions += 1
 
+            # check we're in sync with host
+            host = self.simulation.get_host(self.spec.bench)
+            assert_graph_equals(
+                self.pkg._graph,
+                host.service.main_package._graph,
+                ignore_node_types=(NodeType.BENCH,),  # not in host package graph
+            )
+
+            # and wait for next tx
             wait = to_value(self.random, self.spec.transactions_interval)
             await self.oracle.sleep(wait)
 
@@ -384,17 +396,6 @@ class ReadPackageWorkload(SingleClientWorkloadBase[ReadPackageSpec]):
             pkg = getattr(other, "pkg", None)
             assert isinstance(pkg, Package), f"{other!r} has no package"
             assert_graph_equals(self.pkg._graph, pkg._graph)
-
-
-def assert_graph_equals(graph_a: NodeGraph, graph_b: NodeGraph):
-    for node_a in graph_a.nodes:
-        node_b = graph_b.get(node_a.id)
-        assert node_b is not None, f"missing node {node_a!r} in {graph_b!r}"
-        assert node_a == node_b, f"node {node_a!r} != {node_b!r}"
-        assert node_a._equals_content(node_b), f"node {node_a!r} != {node_b!r}"
-    for node_b in graph_b.nodes:
-        node_a = graph_a.get(node_b.id)
-        assert node_a is not None, f"missing node {node_b!r} in {graph_a!r}"
 
 
 @dataclass

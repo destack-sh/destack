@@ -759,7 +759,14 @@ def _is_allowable_drift(dt: datetime, now: datetime) -> bool:
 def validate_edit(edit: EditData, subject: Subject, now: datetime) -> None:
     """Checks the given (non-system) edit for basic validity."""
     assert subject.client, f"{subject!r} has no client"
-    node_cls = NODE_CLASS_BY_TYPE[cast(NodeType, edit.node_ptr.type)]
+    node_type = NodeType(edit.node_ptr.type)
+    node_cls = NODE_CLASS_BY_TYPE[node_type]
+
+    # scope
+    if node_cls.__is_in_bench__ and not edit.scope.bench_id:
+        raise GRPCError(GRPCStatus.INVALID_ARGUMENT, f"missing bench_id in {edit!r}")
+    if node_cls.__is_in_package__ and not edit.scope.package_id:
+        raise GRPCError(GRPCStatus.INVALID_ARGUMENT, f"missing package_id in {edit!r}")
 
     # subject
     if subject.client.parent_type == NodeType.USER:
@@ -774,8 +781,7 @@ def validate_edit(edit: EditData, subject: Subject, now: datetime) -> None:
         # subject must be a Run/Server
         if not edit.subject_ptr or edit.subject_ptr.type not in EDIT_SUBJECT_TYPES:
             raise GRPCError(
-                GRPCStatus.PERMISSION_DENIED,
-                f"bad created_by in {edit!r}: {edit.subject_ptr!r}",
+                GRPCStatus.PERMISSION_DENIED, f"bad created_by in {edit!r}: {edit.subject_ptr!r}"
             )
     # origin
     if not edit.origin or UUID(edit.origin.id) != subject.client.id:
