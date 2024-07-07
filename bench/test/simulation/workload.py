@@ -326,9 +326,9 @@ class WriteBlockTreeWorkload(SingleClientWorkloadBase[WriteBlockTreeSpec]):
             max_edits = to_value(self.random, self.spec.edits_per_transaction)
             for _ in range(max_edits):
                 edit_type = self.random.choice(self.spec.edit_types)
+                blocks = self.pkg._graph.nodes_of_type(Block)
                 if edit_type == EditType.CREATE:
                     block_type = self.random.choice(self.spec.block_types)
-                    blocks = self.pkg._graph.nodes_of_type(Block)
                     parent = self.random.choice((self.pkg, *blocks))
                     num_blocks_of_type = len([b for b in blocks if b.type == block_type])
                     block = Block.new(
@@ -336,7 +336,6 @@ class WriteBlockTreeWorkload(SingleClientWorkloadBase[WriteBlockTreeSpec]):
                     )
                     parent.blocks.append(block)
                 elif edit_type == EditType.DELETE:
-                    blocks = self.pkg._graph.nodes_of_type(Block)
                     if not blocks:
                         continue  # no blocks to delete yet
                     block = self.random.choice(blocks)

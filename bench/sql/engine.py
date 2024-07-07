@@ -13,6 +13,7 @@ from typing import (
     Optional,
     TypeVar,
     Union,
+    assert_never,
     cast,
 )
 from uuid import UUID
@@ -1715,8 +1716,8 @@ async def _pg_edit_cascade(
             elif edit_type == EditType.RESTORE:
                 removed_at = old_node.deleted_at
             else:
-                raise RuntimeError(f"unexpected edit type: {edit_type!r}")
-            assert removed_at is not None, f"no removed at for {root_edit!r}"
+                assert_never(edit_type)
+            assert removed_at is not None, f"no removed_at for {root_edit!r}"
             removed_dts.append(removed_at)
         extra_filter = C(
             op=ConditionalOp.IN,
