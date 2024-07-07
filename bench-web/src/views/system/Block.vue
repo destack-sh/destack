@@ -140,7 +140,7 @@ defineExpose<ViewExposed & { isRunnable: Ref<boolean> }>({
               component: Icon,
               placement: 'bottom-right',
               offset: '-referenceWidth',
-              props: { modelValue: block!.icon },
+              props: { modelValue: block!.icon, isInput: true },
               onApply: (newIcon) => pkgConnection.tx.update(block!, { icon: newIcon }),
             })
           "

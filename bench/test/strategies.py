@@ -239,6 +239,8 @@ def get_naive_object_strategy(object_type: ObjectType):
             object_dict[prop.name] = wrap_value_scalar(
                 properties(), is_required=prop.is_required, is_list=prop.is_list
             )
+        elif prop.reference_is_node_data:
+            object_dict[prop.name] = st.none()  # nothing meaningful to generate?
         elif prop.is_value_runtime or prop.is_value_packed:
             object_dict[prop.name] = st.none()  # TODO :Test :Incomplete: add strategy for Values
         else:

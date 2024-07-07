@@ -104,13 +104,21 @@ def unpack_enum[EnumT: IdEnumOrUnion](enum_cls: type[EnumT], value: Any) -> Enum
     return enum_cls(value)
 
 
-def pack_object_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
+#
+# NOTE :Performance: we could generate static pack/unpack functions for each object type
+#  (all this non-linear dynamic dispatch is not very fast)
+#
+
+
+def pack_object_prop(prop: Property, value: Any, ignore_array: bool = False) -> Any:
     if value is None:
         return None
     elif prop.is_list and not ignore_array:
         return [pack_object_prop(prop, v, ignore_array=True) for v in value]
     elif prop.is_struct:
         return pack_object(value)
+    elif prop.reference_is_node_data:
+        return wrap_some_node(value)
     elif prop.is_enum:
         return pack_enum(prop.py_type_stripped, value)
     elif prop.reference_kind is not None and not prop.reference_kind.is_struct_tree:
@@ -141,6 +149,8 @@ def unpack_object_prop(
             ]
         elif prop.is_struct:
             return unpack_object(value, supergraph=supergraph)
+        elif prop.reference_is_node_data:
+            return unwrap_some_node(value)
         elif prop.is_enum:
             return unpack_enum(prop.py_type_stripped, value)
         elif prop.reference_kind is not None and not prop.reference_kind.is_struct_tree:
@@ -180,7 +190,7 @@ def pack_object[T: AnyStructData | AnyNodeData](
 
 
 def pack_object_maybe[T: AnyStructData | AnyNodeData](
-    obj: BuiltinObject | None, expect: type[T]
+    obj: BuiltinObject | None, expect: type[T] | None = None
 ) -> T | None:
     if obj is None:
         return None

@@ -15,11 +15,11 @@ from bench.language.node import HasTimeIdentity, Node, PackageNode, timed_node
 from bench.language.property import p_node_parent, p_system
 from bench.language.session import HasSessionContext
 from bench.language.value import HasValues
-from bench.proto.wire import EditData, LogData
+from bench.proto.wire import LogData
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
-    from bench.language import ChangeCategory, ChangeVignette, NodeReference, Package
+    from bench.language import ChangeCategory, ChangeVignette, Edit, NodeReference, Package
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -88,34 +88,5 @@ class Log(PackageNode[LogData], HasTimeIdentity, HasSessionContext, HasValues):
     def __content_str__(self):
         return f"[{self.kind.bench_name}:{self.level.bench_name}] ({self.created_at})"
 
-    def to_edit(self) -> EditData:
-        """Restores the edit of an access Log"""
-        from bench.proto import wire, wiring
-
-        assert self.type is not None, f"{self!r} has no type"
-        assert self.node_ptr is not None, f"{self!r} has no node"
-        assert self.new_revision is not None, f"{self!r} has no new revision"
-
-        # NOTE :Incomplete: we ignore :SecretValues in edit Log for now
-        old_node_packed = (
-            wiring.pack_proto_json(self.old_node_packed)
-            if self.old_node_packed is not None
-            else None
-        )
-        new_node_packed = (
-            wiring.pack_proto_json(self.new_node_packed)
-            if self.new_node_packed is not None
-            else None
-        )
-        edit = EditData(
-            id=str(self.id),
-            type=wire.EditType(self.type),
-            node_ptr=self.node_ptr._to_data(),
-            properties=self.properties,
-            old_node_packed=old_node_packed,
-            new_node_packed=new_node_packed,
-            revision=self.new_revision,
-            epoch=self.created_epoch,
-            edited_at=self.created_at,
-        )
-        return edit
+    def to_edit(self) -> "Edit":
+        raise NotImplementedError

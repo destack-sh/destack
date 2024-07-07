@@ -28,7 +28,7 @@ from bench.language import ValidationError
 from bench.language.access import AccessError, Subject
 from bench.language.const import BenchError
 from bench.language.query import NodeNotFoundError
-from bench.proto.wire import RpcMetadata, ServiceKind
+from bench.proto.wire import EditData, RpcMetadata, ServiceKind
 from bench.proto.wiring import BENCH_CLASS_BY_PROTO_CLASS, unpack_rpc_headers
 from bench.sql.engine import SqlAlreadyExistsError, SqlNotExistsError
 from bench.utils.casing import Casing, to_casing
@@ -134,6 +134,8 @@ class ServiceBase:
                 )
 
         # walk message recursively
+        if type(message) is EditData:
+            return  # skip Edit since it contains partial messages
         defaults = message._betterproto.default_gen
         for field_name, field in message._betterproto_meta.meta_by_field_name.items():
             field_is_repeated = defaults[field_name] is list

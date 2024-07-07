@@ -7,6 +7,7 @@ from typing import (
     Any,
     Collection,
     Optional,
+    Sequence,
     TypeGuard,
     Union,
     cast,
@@ -668,7 +669,7 @@ def unpack_value_scalar_data(value_packed: JsonValue, typ: "TypeInfoBase") -> Sc
 
 def pack_builtin_object_data(
     value: AnyStructData | AnyNodeData,
-    only: Collection[Property | Any] | None = None,
+    only: Sequence[Property] | None = None,
 ) -> dict[str, JsonValue]:
     """Packs a single struct/node data value using typed proto ids as keys and enum values."""
     value_packed: dict[str, JsonValue] = {}

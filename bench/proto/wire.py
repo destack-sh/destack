@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.07.06.0"
+VERSION = "2024.07.07.1"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -268,6 +268,7 @@ class BenchType(betterproto.Enum):
     BREAKPOINT_KIND = 20511
     BREAKPOINT_ACTION = 20512
     CODE_KIND = 20513
+    RUNNABLE_KIND = 20514
     SPACE_TYPE = 21000
     VIEW_TYPE = 21001
     VARIANT = 21002
@@ -354,9 +355,9 @@ class CodeKind(betterproto.Enum):
     """
 
     UNSPECIFIED = 0
-    SNIPPET = 1
-    SCRIPT = 2
-    FUNCTION = 3
+    SNIPPET = 2
+    SCRIPT = 4
+    FUNCTION = 6
 
 
 class ColorShade(betterproto.Enum):
@@ -519,6 +520,7 @@ class EnumType(betterproto.Enum):
     BREAKPOINT_KIND = 20511
     BREAKPOINT_ACTION = 20512
     CODE_KIND = 20513
+    RUNNABLE_KIND = 20514
     SPACE_TYPE = 21000
     VIEW_TYPE = 21001
     VARIANT = 21002
@@ -1057,6 +1059,16 @@ class RunStatus(betterproto.Enum):
     COMPLETED = 9
 
 
+class RunnableKind(betterproto.Enum):
+    """The kind of some runnable."""
+
+    UNSPECIFIED = 0
+    CODE = 1
+    TEXT = 2
+    STEP = 3
+    FLOW = 4
+
+
 class ScheduleType(betterproto.Enum):
     UNSPECIFIED = 0
     INTERVAL = 1
@@ -1147,8 +1159,9 @@ class StepType(betterproto.Enum):
     UNSPECIFIED = 0
     START = 1
     COMPLETE = 2
-    VALUE = 3
-    TRIGGER = 4
+    FAIL = 3
+    VALUE = 10
+    TRIGGER = 11
     RUN = 20
     CODE = 21
     TEXT = 22
@@ -1626,34 +1639,31 @@ class ContextData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class EditData(betterproto.Message):
     """
-    An edit to a Node.
+    An edit to a Node. Currently, edits are always on the property level (no sub-properties or values).
+
      For updates/moves, the old/new node values are just the edited properties.
-     For 'remove's, the old node is the full node.
-     (technically we don't *need* if for non-hard deletes, but it's very convenient)
-     Similarly, for 'adds', the new node is the full node.
+     For archive/delete/erase, the old node is the full node.
+     (technically we don't *need* the old node if it's not an erase, but it's very convenient)
+     Similarly, for create/upsert/unarchive/restore, the new node is the full node.
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
     type: "EditType" = betterproto.enum_field(30)
     node_ptr: "NodeReferenceData" = betterproto.message_field(31)
-    properties: List[int] = betterproto.int32_field(32)
-    old_node_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
-        33, optional=True
-    )
-    new_node_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
-        34, optional=True
-    )
-    vignette: Optional["ChangeVignetteData"] = betterproto.message_field(35, optional=True)
-    scope: "GraphScopeData" = betterproto.message_field(40)
-    change_key: Optional[str] = betterproto.string_field(41, optional=True)
-    category: Optional["ChangeCategory"] = betterproto.enum_field(42, optional=True)
-    subject_ptr: Optional["NodeReferenceData"] = betterproto.message_field(43, optional=True)
-    origin: Optional["ClientOriginData"] = betterproto.message_field(44, optional=True)
-    context: Optional["EditContextData"] = betterproto.message_field(45, optional=True)
-    edited_at: datetime = betterproto.message_field(46)
-    revision: Optional[int] = betterproto.int64_field(47, optional=True)
-    epoch: Optional[int] = betterproto.int64_field(48, optional=True)
+    vignette: Optional["ChangeVignetteData"] = betterproto.message_field(32, optional=True)
+    properties: List[int] = betterproto.int32_field(40)
+    old_node_partial: Optional["SomeNodeData"] = betterproto.message_field(41, optional=True)
+    new_node_partial: Optional["SomeNodeData"] = betterproto.message_field(42, optional=True)
+    scope: "GraphScopeData" = betterproto.message_field(60)
+    change_key: Optional[str] = betterproto.string_field(61, optional=True)
+    category: Optional["ChangeCategory"] = betterproto.enum_field(62, optional=True)
+    subject_ptr: Optional["NodeReferenceData"] = betterproto.message_field(63, optional=True)
+    origin: Optional["ClientOriginData"] = betterproto.message_field(64, optional=True)
+    context: Optional["EditContextData"] = betterproto.message_field(65, optional=True)
+    edited_at: datetime = betterproto.message_field(66)
+    revision: Optional[int] = betterproto.int64_field(67, optional=True)
+    epoch: Optional[int] = betterproto.int64_field(68, optional=True)
 
 
 @dataclass(eq=False, repr=False)

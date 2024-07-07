@@ -1044,7 +1044,6 @@ def evaluate_edit(
     TODO :Broken :Security: verify equivalent 'use' access for the edits
      (e.g. create Run with base=Block <=> run Block, create Signal with base=Block <=> emit Block)
     """
-    from bench.language.transaction import unpack_node_delta
     from bench.proto import wiring
 
     # when creating nested nodes in one transaction, the graph only knows about their 'root',
@@ -1061,10 +1060,8 @@ def evaluate_edit(
         if node_cls.__roots__:
             # regular non-root node: scope = parent if creating, else scope = node :NodeEditScope
             if edit.type in (EditType.CREATE, EditType.UPSERT):
-                assert edit.new_node_packed, f"no new node for {edit!r}"
-                node_data = unpack_node_delta(
-                    edit.new_node_packed, node_type=node_type, only=(node_cls.__parent_property__,)
-                )
+                assert edit.new_node_partial, f"no new node for {edit!r}"
+                node_data = wiring.unwrap_some_node(edit.new_node_partial)
                 assert node_data.parent_ptr, f"no parent for {edit!r}"
                 scope_id = cast(str, node_data.parent_ptr.id)
                 while scope_id in new_node_scopes_by_child_id:

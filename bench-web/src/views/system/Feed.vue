@@ -367,7 +367,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
         </span>
       </Transition>
       <!-- Date picker -->
-      <div class="ml-auto">
+      <div class="ml-auto flex-shrink-0">
         <!-- NOTE :Incomplete: paginate & pick date range in Feed -->
         <button disabled class="enabled:text-gray-700 disabled:text-gray-400">
           <i class="fas fa-calendar-alt mr-1.5 w-5 text-center text-gray-400" />

@@ -1,8 +1,8 @@
 import { HUMANIZED_OPERATION_STATUS, getHostClient, supervisor } from "@/proto/services";
 import {
   BlockProperty,
-  CommitTransactionRequest,
   ChangeCategory,
+  CommitTransactionRequest,
   EditType,
   GraphScopeData,
   NODE_PROPERTY_ENUM_BY_TYPE,
@@ -24,18 +24,20 @@ import {
   EMPTY_SCOPE,
   describeEdit,
   describeNode,
-  isNode,
+  makeDefaultObject,
   makeNode,
   makeScope,
   nodeReference,
   toNodeReference,
-  type TypedNodeReferenceData,
+  unwrapSomeNode,
+  wrapSomeNode,
+  type TypedNodeReferenceData
 } from "@/proto/wiring";
 import { nonce, origin, userOrNullPtr, userPtr } from "@/system/client";
 import { type ReadNodeGraph, type WriteNodeGraph } from "@/system/graph";
 import { makeIcon } from "@/system/icon";
 import { toaster } from "@/system/toast";
-import { getPropertyType, packBuiltinObject, packValue, unpackBuiltinObject, type JsonValue } from "@/system/value";
+import { type JsonValue } from "@/system/value";
 import { AsyncEvent } from "@/utils/functools";
 import { IS_DEV } from "@/utils/globals";
 import { log } from "@/utils/log";
@@ -267,23 +269,30 @@ export class TransactionBuilder implements TransactionMeta, Transaction {
     this._checkInScope(node);
 
     // pack 'old' and 'new' node delta
-    let newNodePacked = undefined;
-    let oldNodePacked = undefined;
+    let newNode: AnyNodeData | undefined = undefined;
+    let oldNode: AnyNodeData | undefined = undefined;
     if (editType == EditType.CREATE || editType == EditType.UPSERT) {
-      newNodePacked = packNodeDelta(node);
+      newNode = node;
     } else if (editType == EditType.ERASE || editType == EditType.ARCHIVE || editType == EditType.DELETE) {
       if (node.deletedAt != null || node.archivedAt != null) {
-        node = { ...node, deletedAt: undefined, archivedAt: undefined };
+        oldNode = { ...node, deletedAt: undefined, archivedAt: undefined };
+      } else {
+        oldNode = node;
       }
-      oldNodePacked = packNodeDelta(node);
     } else if (editType == EditType.UNARCHIVE) {
       // remember old 'archived_at' in old node, put full restored node in new node
-      oldNodePacked = packNodeDelta(node, { only: ["archivedAt"] });
-      newNodePacked = packNodeDelta({ ...node, archivedAt: undefined });
+      oldNode = makeDefaultObject({
+        metatype: node.metatype as any,
+        archivedAt: node.archivedAt,
+      }) as AnyNodeData;
+      newNode = { ...node, archivedAt: undefined };
     } else if (editType == EditType.RESTORE) {
       // remember old 'deleted_at' in old node, put full restored node in new node
-      oldNodePacked = packNodeDelta(node, { only: ["deletedAt"] });
-      newNodePacked = packNodeDelta({ ...node, deletedAt: undefined });
+      oldNode = makeDefaultObject({
+        metatype: node.metatype as any,
+        deletedAt: node.deletedAt,
+      }) as AnyNodeData;
+      newNode = { ...node, deletedAt: undefined };
     }
 
     // make edit & notify
@@ -293,8 +302,8 @@ export class TransactionBuilder implements TransactionMeta, Transaction {
       type: editType,
       nodePtr: toNodeReference(node),
       scope: this._getScope(node),
-      oldNodePacked,
-      newNodePacked,
+      oldNodePartial: oldNode != null ? wrapSomeNode(oldNode) : undefined,
+      newNodePartial: newNode != null ? wrapSomeNode(newNode) : undefined,
       properties: [],
       origin: origin.value,
       subjectPtr: this.subject,
@@ -375,17 +384,12 @@ export class TransactionBuilder implements TransactionMeta, Transaction {
 
     if (!options?.debounce || !this.state._debouncedUpdates[node.id]) {
       // create new edit
-      const oldNodePacked: Record<string, JsonValue> = {};
-      const newNodePacked: Record<string, JsonValue> = {};
+      const oldNode = { ...node } as T;
+      const newNode = { ...oldNode, ...update } as T;
       for (const prop of properties) {
-        const typeInfo = getPropertyType(prop);
         const propName = propertiesEnum[prop.id];
-        const oldValue = (node as any)[propName];
-        const newValue = (update as any)[propName];
-        const { valuePacked: oldValuePacked } = packValue(oldValue, typeInfo, null, { wrapPrimitive: false });
-        const { valuePacked: newValuePacked } = packValue(newValue, typeInfo, null, { wrapPrimitive: false });
-        oldNodePacked[prop.id.toString()] = oldValuePacked;
-        newNodePacked[prop.id.toString()] = newValuePacked;
+        (oldNode as any)[propName] = (node as any)[propName];
+        (newNode as any)[propName] = (update as any)[propName];
       }
       const edit: EditData = {
         metatype: ObjectType.EDIT,
@@ -394,8 +398,8 @@ export class TransactionBuilder implements TransactionMeta, Transaction {
         nodePtr: toNodeReference(node),
         scope: this._getScope(node),
         properties: properties.map((p) => p.id),
-        oldNodePacked: ProtoStruct.fromJson(oldNodePacked),
-        newNodePacked: ProtoStruct.fromJson(newNodePacked),
+        oldNodePartial: wrapSomeNode(oldNode),
+        newNodePartial: wrapSomeNode(newNode),
         origin: origin.value,
         subjectPtr: this.subject,
         category: this.category,
@@ -409,31 +413,22 @@ export class TransactionBuilder implements TransactionMeta, Transaction {
     } else {
       // merge into existing edit & notify directly :DebouncedUpdate
       const edit = this.state._debouncedUpdates[node.id];
-      if (edit.oldNodePacked == null || edit.newNodePacked == null) {
+      if (edit.oldNodePartial == null || edit.newNodePartial == null) {
         throw new Error(`missing old/new node in debounced edit: ${describeEdit(edit)}`);
       }
-      const oldNodePacked = ProtoStruct.toJson(edit.oldNodePacked) as Record<string, JsonValue>;
-      const newNodePacked = ProtoStruct.toJson(edit.newNodePacked) as Record<string, JsonValue>;
+      const oldNodePartial = unwrapSomeNode(edit.oldNodePartial);
+      const newNodePartial = unwrapSomeNode(edit.newNodePartial);
       for (const prop of properties) {
         const propName = propertiesEnum[prop.id];
-        const typeInfo = getPropertyType(prop);
-        // add to Edit.properties if not there yet
+        // add to Edit.properties if not there @yet
         if (!edit.properties.includes(prop.id)) {
+          // and old value since it doesn't already exist
           edit.properties.push(prop.id);
-        }
-        // add old value if it doesn't already exist
-        if (oldNodePacked[prop.id.toString()] == null) {
-          const oldValue = (node as any)[propName];
-          const { valuePacked: oldValuePacked } = packValue(oldValue, typeInfo, null, { wrapPrimitive: false });
-          oldNodePacked[prop.id.toString()] = oldValuePacked;
+          (oldNodePartial as any)[propName] = (node as any)[propName];
         }
         // and update new value
-        const newValue = (update as any)[propName];
-        const { valuePacked: newValuePacked } = packValue(newValue, typeInfo, null, { wrapPrimitive: false });
-        newNodePacked[prop.id.toString()] = newValuePacked;
+        (newNodePartial as any)[propName] = (update as any)[propName];
       }
-      edit.oldNodePacked = ProtoStruct.fromJson(oldNodePacked);
-      edit.newNodePacked = ProtoStruct.fromJson(newNodePacked);
       // coalesce successive move/update into move edit
       if (editType == EditType.MOVE && edit.type != EditType.MOVE) {
         edit.type = EditType.MOVE;
@@ -475,18 +470,6 @@ export class TransactionBuilder implements TransactionMeta, Transaction {
   }
 }
 
-export function packNodeDelta(node: AnyNodeData, options?: { only?: string[] }): ProtoStruct {
-  const nodePacked = packBuiltinObject(node, options);
-  return ProtoStruct.fromJson(nodePacked);
-}
-
-export function unpackNodeDelta(nodePackedStruct: ProtoStruct, nodeType?: NodeType): AnyNodeData {
-  const nodePacked = ProtoStruct.toJson(nodePackedStruct);
-  const node = unpackBuiltinObject(nodePacked, nodeType as unknown as ObjectType);
-  if (!isNode(node)) throw new Error(`unexpected node data: ${node.metatype}`);
-  return node;
-}
-
 export function packProtoJson(value: JsonValue | null | undefined): ProtoStruct {
   return ProtoStruct.fromJson(value ?? null);
 }
@@ -508,18 +491,18 @@ export function editGraph(
     const nodeType = edit.nodePtr!.type;
     if (edit.type == EditType.CREATE || edit.type == EditType.UPSERT) {
       // add
-      if (edit.newNodePacked == null) throw new Error(`missing newNodePacked in edit: ${describeEdit(edit)}`);
-      const newNodeData = unpackNodeDelta(edit.newNodePacked);
+      if (edit.newNodePartial == null) throw new Error(`missing newNodePacked in edit: ${describeEdit(edit)}`);
+      const newNode = unwrapSomeNode(edit.newNodePartial);
       // implicit metadata
-      newNodeData.createdAt = newNodeData.updatedAt = edit.editedAt;
-      if (edit.epoch != null && "createdEpoch" in newNodeData && "updatedEpoch" in newNodeData) {
-        newNodeData.createdEpoch = newNodeData.updatedEpoch = edit.epoch;
+      newNode.createdAt = newNode.updatedAt = edit.editedAt;
+      if (edit.epoch != null && "createdEpoch" in newNode && "updatedEpoch" in newNode) {
+        newNode.createdEpoch = newNode.updatedEpoch = edit.epoch;
       }
-      newNodeData.createdByPtr = newNodeData.updatedByPtr = edit.subjectPtr;
-      if (edit.type == EditType.CREATE || !graph.has(newNodeData)) {
-        graph.add(newNodeData);
+      newNode.createdByPtr = newNode.updatedByPtr = edit.subjectPtr;
+      if (edit.type == EditType.CREATE || !graph.has(newNode)) {
+        graph.add(newNode);
       } else {
-        graph.update(newNodeData);
+        graph.update(newNode);
       }
     } else if (edit.type == EditType.ERASE && !(options?.base && !graph.has(edit.nodePtr!))) {
       // remove
@@ -532,9 +515,9 @@ export function editGraph(
       // update
       let updatedNode: AnyNodeData | null;
       if (edit.type == EditType.UNARCHIVE || edit.type == EditType.RESTORE) {
-        if (edit.oldNodePacked == null)
+        if (edit.oldNodePartial == null)
           throw new Error(`missing old node in edit: ${describeEdit(edit)} in ${graph.describeSelf()}`);
-        updatedNode = unpackNodeDelta(edit.oldNodePacked, nodeType);
+        updatedNode = unwrapSomeNode(edit.oldNodePartial);
       } else {
         updatedNode = graph.get(edit.nodePtr!);
         if (!updatedNode && options?.base) {
@@ -548,9 +531,9 @@ export function editGraph(
 
       // directly edited properties
       if (edit.type == EditType.UPDATE || edit.type == EditType.MOVE) {
-        if (edit.newNodePacked == null)
+        if (edit.newNodePartial == null)
           throw new Error(`missing new node in edit: ${describeEdit(edit)} in ${graph.describeSelf()}`);
-        const newNode = unpackNodeDelta(edit.newNodePacked, nodeType);
+        const newNode = unwrapSomeNode(edit.newNodePartial);
         const propertyEnum = NODE_PROPERTY_ENUM_BY_TYPE[nodeType]!;
         const allProperties = PROPERTY_INFOS_BY_TYPE[nodeType]!;
         for (const propId of edit.properties) {
