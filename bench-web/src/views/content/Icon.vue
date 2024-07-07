@@ -160,7 +160,7 @@ defineExpose<ViewExposed>({ self, id, focus });
               component: ViewType.COLOR,
               placement: 'top',
               reference: headerRef!,
-              props: { modelValue: color },
+              props: { modelValue: color, isInput: true },
               // NOTE :UX: not sure whether changing Color in Icon picker should instantly apply to current icon
               onApply: (value) => (color = value),
             })

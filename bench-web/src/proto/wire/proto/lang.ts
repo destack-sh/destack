@@ -12,8 +12,8 @@ import type { PartialMessage } from "@protobuf-ts/runtime";
 import { reflectionMergePartial } from "@protobuf-ts/runtime";
 import { MessageType } from "@protobuf-ts/runtime";
 import { Duration } from "../google/protobuf/duration";
-import { Timestamp } from "../google/protobuf/timestamp";
 import { Struct } from "../google/protobuf/struct";
+import { Timestamp } from "../google/protobuf/timestamp";
 /**
  * An evaluated access on some objects as part of a larger request (by the same subject).
  *
@@ -560,11 +560,12 @@ export interface ContextData {
     signalPtr?: NodeReferenceData;
 }
 /**
- * An edit to a Node.
+ * An edit to a Node. Currently, edits are always on the property level (no sub-properties or values).
+ *
  * For updates/moves, the old/new node values are just the edited properties.
- * For 'remove's, the old node is the full node.
- * (technically we don't *need* if for non-hard deletes, but it's very convenient)
- * Similarly, for 'adds', the new node is the full node.
+ * For archive/delete/erase, the old node is the full node.
+ * (technically we don't *need* the old node if it's not an erase, but it's very convenient)
+ * Similarly, for create/upsert/unarchive/restore, the new node is the full node.
  *
  * @generated from protobuf message symbolx.bench.EditData
  */
@@ -586,55 +587,55 @@ export interface EditData {
      */
     nodePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: repeated int32 properties = 32;
-     */
-    properties: number[];
-    /**
-     * @generated from protobuf field: optional google.protobuf.Struct old_node_packed = 33;
-     */
-    oldNodePacked?: Struct;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Struct new_node_packed = 34;
-     */
-    newNodePacked?: Struct;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.ChangeVignetteData vignette = 35;
+     * @generated from protobuf field: optional symbolx.bench.ChangeVignetteData vignette = 32;
      */
     vignette?: ChangeVignetteData;
     /**
-     * @generated from protobuf field: symbolx.bench.GraphScopeData scope = 40;
+     * @generated from protobuf field: repeated int32 properties = 40;
+     */
+    properties: number[];
+    /**
+     * @generated from protobuf field: optional symbolx.bench.SomeNodeData old_node_partial = 41;
+     */
+    oldNodePartial?: SomeNodeData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.SomeNodeData new_node_partial = 42;
+     */
+    newNodePartial?: SomeNodeData;
+    /**
+     * @generated from protobuf field: symbolx.bench.GraphScopeData scope = 60;
      */
     scope?: GraphScopeData;
     /**
-     * @generated from protobuf field: optional string change_key = 41;
+     * @generated from protobuf field: optional string change_key = 61;
      */
     changeKey?: string;
     /**
-     * @generated from protobuf field: optional symbolx.bench.ChangeCategory category = 42;
+     * @generated from protobuf field: optional symbolx.bench.ChangeCategory category = 62;
      */
     category?: ChangeCategory;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData subject_ptr = 43;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData subject_ptr = 63;
      */
     subjectPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.ClientOriginData origin = 44;
+     * @generated from protobuf field: optional symbolx.bench.ClientOriginData origin = 64;
      */
     origin?: ClientOriginData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.EditContextData context = 45;
+     * @generated from protobuf field: optional symbolx.bench.EditContextData context = 65;
      */
     context?: EditContextData;
     /**
-     * @generated from protobuf field: google.protobuf.Timestamp edited_at = 46;
+     * @generated from protobuf field: google.protobuf.Timestamp edited_at = 66;
      */
     editedAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional int64 revision = 47;
+     * @generated from protobuf field: optional int64 revision = 67;
      */
     revision?: bigint;
     /**
-     * @generated from protobuf field: optional int64 epoch = 48;
+     * @generated from protobuf field: optional int64 epoch = 68;
      */
     epoch?: bigint;
 }
@@ -7100,6 +7101,10 @@ export enum BenchType {
      */
     CODE_KIND = 20513,
     /**
+     * @generated from protobuf enum value: BENCH_TYPE_RUNNABLE_KIND = 20514;
+     */
+    RUNNABLE_KIND = 20514,
+    /**
      * @generated from protobuf enum value: BENCH_TYPE_SPACE_TYPE = 21000;
      */
     SPACE_TYPE = 21000,
@@ -7366,17 +7371,17 @@ export enum CodeKind {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: CODE_KIND_SNIPPET = 1;
+     * @generated from protobuf enum value: CODE_KIND_SNIPPET = 2;
      */
-    SNIPPET = 1,
+    SNIPPET = 2,
     /**
-     * @generated from protobuf enum value: CODE_KIND_SCRIPT = 2;
+     * @generated from protobuf enum value: CODE_KIND_SCRIPT = 4;
      */
-    SCRIPT = 2,
+    SCRIPT = 4,
     /**
-     * @generated from protobuf enum value: CODE_KIND_FUNCTION = 3;
+     * @generated from protobuf enum value: CODE_KIND_FUNCTION = 6;
      */
-    FUNCTION = 3
+    FUNCTION = 6
 }
 /**
  * Built-in color shades a la Tailwind.
@@ -7965,6 +7970,10 @@ export enum EnumType {
      * @generated from protobuf enum value: ENUM_TYPE_CODE_KIND = 20513;
      */
     CODE_KIND = 20513,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_RUNNABLE_KIND = 20514;
+     */
+    RUNNABLE_KIND = 20514,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_SPACE_TYPE = 21000;
      */
@@ -9754,6 +9763,33 @@ export enum RunStatus {
     COMPLETED = 9
 }
 /**
+ * The kind of some runnable.
+ *
+ * @generated from protobuf enum symbolx.bench.RunnableKind
+ */
+export enum RunnableKind {
+    /**
+     * @generated from protobuf enum value: RUNNABLE_KIND_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: RUNNABLE_KIND_CODE = 1;
+     */
+    CODE = 1,
+    /**
+     * @generated from protobuf enum value: RUNNABLE_KIND_TEXT = 2;
+     */
+    TEXT = 2,
+    /**
+     * @generated from protobuf enum value: RUNNABLE_KIND_STEP = 3;
+     */
+    STEP = 3,
+    /**
+     * @generated from protobuf enum value: RUNNABLE_KIND_FLOW = 4;
+     */
+    FLOW = 4
+}
+/**
  * @generated from protobuf enum symbolx.bench.ScheduleType
  */
 export enum ScheduleType {
@@ -10044,13 +10080,17 @@ export enum StepType {
      */
     COMPLETE = 2,
     /**
-     * @generated from protobuf enum value: STEP_TYPE_VALUE = 3;
+     * @generated from protobuf enum value: STEP_TYPE_FAIL = 3;
      */
-    VALUE = 3,
+    FAIL = 3,
     /**
-     * @generated from protobuf enum value: STEP_TYPE_TRIGGER = 4;
+     * @generated from protobuf enum value: STEP_TYPE_VALUE = 10;
      */
-    TRIGGER = 4,
+    VALUE = 10,
+    /**
+     * @generated from protobuf enum value: STEP_TYPE_TRIGGER = 11;
+     */
+    TRIGGER = 11,
     /**
      * @generated from protobuf enum value: STEP_TYPE_RUN = 20;
      */
@@ -12337,19 +12377,19 @@ class EditData$Type extends MessageType<EditData> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.EditType", EditType, "EDIT_TYPE_"] },
             { no: 31, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 32, name: "properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
-            { no: 33, name: "old_node_packed", kind: "message", T: () => Struct },
-            { no: 34, name: "new_node_packed", kind: "message", T: () => Struct },
-            { no: 35, name: "vignette", kind: "message", T: () => ChangeVignetteData },
-            { no: 40, name: "scope", kind: "message", T: () => GraphScopeData },
-            { no: 41, name: "change_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 42, name: "category", kind: "enum", opt: true, T: () => ["symbolx.bench.ChangeCategory", ChangeCategory, "CHANGE_CATEGORY_"] },
-            { no: 43, name: "subject_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 44, name: "origin", kind: "message", T: () => ClientOriginData },
-            { no: 45, name: "context", kind: "message", T: () => EditContextData },
-            { no: 46, name: "edited_at", kind: "message", T: () => Timestamp },
-            { no: 47, name: "revision", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 48, name: "epoch", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ }
+            { no: 32, name: "vignette", kind: "message", T: () => ChangeVignetteData },
+            { no: 40, name: "properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
+            { no: 41, name: "old_node_partial", kind: "message", T: () => SomeNodeData },
+            { no: 42, name: "new_node_partial", kind: "message", T: () => SomeNodeData },
+            { no: 60, name: "scope", kind: "message", T: () => GraphScopeData },
+            { no: 61, name: "change_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 62, name: "category", kind: "enum", opt: true, T: () => ["symbolx.bench.ChangeCategory", ChangeCategory, "CHANGE_CATEGORY_"] },
+            { no: 63, name: "subject_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 64, name: "origin", kind: "message", T: () => ClientOriginData },
+            { no: 65, name: "context", kind: "message", T: () => EditContextData },
+            { no: 66, name: "edited_at", kind: "message", T: () => Timestamp },
+            { no: 67, name: "revision", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 68, name: "epoch", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ }
         ]);
     }
     create(value?: PartialMessage<EditData>): EditData {
@@ -12379,47 +12419,47 @@ class EditData$Type extends MessageType<EditData> {
                 case /* symbolx.bench.NodeReferenceData node_ptr */ 31:
                     message.nodePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
-                case /* repeated int32 properties */ 32:
+                case /* optional symbolx.bench.ChangeVignetteData vignette */ 32:
+                    message.vignette = ChangeVignetteData.internalBinaryRead(reader, reader.uint32(), options, message.vignette);
+                    break;
+                case /* repeated int32 properties */ 40:
                     if (wireType === WireType.LengthDelimited)
                         for (let e = reader.int32() + reader.pos; reader.pos < e;)
                             message.properties.push(reader.int32());
                     else
                         message.properties.push(reader.int32());
                     break;
-                case /* optional google.protobuf.Struct old_node_packed */ 33:
-                    message.oldNodePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.oldNodePacked);
+                case /* optional symbolx.bench.SomeNodeData old_node_partial */ 41:
+                    message.oldNodePartial = SomeNodeData.internalBinaryRead(reader, reader.uint32(), options, message.oldNodePartial);
                     break;
-                case /* optional google.protobuf.Struct new_node_packed */ 34:
-                    message.newNodePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.newNodePacked);
+                case /* optional symbolx.bench.SomeNodeData new_node_partial */ 42:
+                    message.newNodePartial = SomeNodeData.internalBinaryRead(reader, reader.uint32(), options, message.newNodePartial);
                     break;
-                case /* optional symbolx.bench.ChangeVignetteData vignette */ 35:
-                    message.vignette = ChangeVignetteData.internalBinaryRead(reader, reader.uint32(), options, message.vignette);
-                    break;
-                case /* symbolx.bench.GraphScopeData scope */ 40:
+                case /* symbolx.bench.GraphScopeData scope */ 60:
                     message.scope = GraphScopeData.internalBinaryRead(reader, reader.uint32(), options, message.scope);
                     break;
-                case /* optional string change_key */ 41:
+                case /* optional string change_key */ 61:
                     message.changeKey = reader.string();
                     break;
-                case /* optional symbolx.bench.ChangeCategory category */ 42:
+                case /* optional symbolx.bench.ChangeCategory category */ 62:
                     message.category = reader.int32();
                     break;
-                case /* optional symbolx.bench.NodeReferenceData subject_ptr */ 43:
+                case /* optional symbolx.bench.NodeReferenceData subject_ptr */ 63:
                     message.subjectPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.subjectPtr);
                     break;
-                case /* optional symbolx.bench.ClientOriginData origin */ 44:
+                case /* optional symbolx.bench.ClientOriginData origin */ 64:
                     message.origin = ClientOriginData.internalBinaryRead(reader, reader.uint32(), options, message.origin);
                     break;
-                case /* optional symbolx.bench.EditContextData context */ 45:
+                case /* optional symbolx.bench.EditContextData context */ 65:
                     message.context = EditContextData.internalBinaryRead(reader, reader.uint32(), options, message.context);
                     break;
-                case /* google.protobuf.Timestamp edited_at */ 46:
+                case /* google.protobuf.Timestamp edited_at */ 66:
                     message.editedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.editedAt);
                     break;
-                case /* optional int64 revision */ 47:
+                case /* optional int64 revision */ 67:
                     message.revision = reader.int64().toBigInt();
                     break;
-                case /* optional int64 epoch */ 48:
+                case /* optional int64 epoch */ 68:
                     message.epoch = reader.int64().toBigInt();
                     break;
                 default:
@@ -12446,49 +12486,49 @@ class EditData$Type extends MessageType<EditData> {
         /* symbolx.bench.NodeReferenceData node_ptr = 31; */
         if (message.nodePtr)
             NodeReferenceData.internalBinaryWrite(message.nodePtr, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
-        /* repeated int32 properties = 32; */
+        /* optional symbolx.bench.ChangeVignetteData vignette = 32; */
+        if (message.vignette)
+            ChangeVignetteData.internalBinaryWrite(message.vignette, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
+        /* repeated int32 properties = 40; */
         if (message.properties.length) {
-            writer.tag(32, WireType.LengthDelimited).fork();
+            writer.tag(40, WireType.LengthDelimited).fork();
             for (let i = 0; i < message.properties.length; i++)
                 writer.int32(message.properties[i]);
             writer.join();
         }
-        /* optional google.protobuf.Struct old_node_packed = 33; */
-        if (message.oldNodePacked)
-            Struct.internalBinaryWrite(message.oldNodePacked, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Struct new_node_packed = 34; */
-        if (message.newNodePacked)
-            Struct.internalBinaryWrite(message.newNodePacked, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.ChangeVignetteData vignette = 35; */
-        if (message.vignette)
-            ChangeVignetteData.internalBinaryWrite(message.vignette, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.GraphScopeData scope = 40; */
+        /* optional symbolx.bench.SomeNodeData old_node_partial = 41; */
+        if (message.oldNodePartial)
+            SomeNodeData.internalBinaryWrite(message.oldNodePartial, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.SomeNodeData new_node_partial = 42; */
+        if (message.newNodePartial)
+            SomeNodeData.internalBinaryWrite(message.newNodePartial, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.GraphScopeData scope = 60; */
         if (message.scope)
-            GraphScopeData.internalBinaryWrite(message.scope, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* optional string change_key = 41; */
+            GraphScopeData.internalBinaryWrite(message.scope, writer.tag(60, WireType.LengthDelimited).fork(), options).join();
+        /* optional string change_key = 61; */
         if (message.changeKey !== undefined)
-            writer.tag(41, WireType.LengthDelimited).string(message.changeKey);
-        /* optional symbolx.bench.ChangeCategory category = 42; */
+            writer.tag(61, WireType.LengthDelimited).string(message.changeKey);
+        /* optional symbolx.bench.ChangeCategory category = 62; */
         if (message.category !== undefined)
-            writer.tag(42, WireType.Varint).int32(message.category);
-        /* optional symbolx.bench.NodeReferenceData subject_ptr = 43; */
+            writer.tag(62, WireType.Varint).int32(message.category);
+        /* optional symbolx.bench.NodeReferenceData subject_ptr = 63; */
         if (message.subjectPtr)
-            NodeReferenceData.internalBinaryWrite(message.subjectPtr, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.ClientOriginData origin = 44; */
+            NodeReferenceData.internalBinaryWrite(message.subjectPtr, writer.tag(63, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.ClientOriginData origin = 64; */
         if (message.origin)
-            ClientOriginData.internalBinaryWrite(message.origin, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.EditContextData context = 45; */
+            ClientOriginData.internalBinaryWrite(message.origin, writer.tag(64, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.EditContextData context = 65; */
         if (message.context)
-            EditContextData.internalBinaryWrite(message.context, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
-        /* google.protobuf.Timestamp edited_at = 46; */
+            EditContextData.internalBinaryWrite(message.context, writer.tag(65, WireType.LengthDelimited).fork(), options).join();
+        /* google.protobuf.Timestamp edited_at = 66; */
         if (message.editedAt)
-            Timestamp.internalBinaryWrite(message.editedAt, writer.tag(46, WireType.LengthDelimited).fork(), options).join();
-        /* optional int64 revision = 47; */
+            Timestamp.internalBinaryWrite(message.editedAt, writer.tag(66, WireType.LengthDelimited).fork(), options).join();
+        /* optional int64 revision = 67; */
         if (message.revision !== undefined)
-            writer.tag(47, WireType.Varint).int64(message.revision);
-        /* optional int64 epoch = 48; */
+            writer.tag(67, WireType.Varint).int64(message.revision);
+        /* optional int64 epoch = 68; */
         if (message.epoch !== undefined)
-            writer.tag(48, WireType.Varint).int64(message.epoch);
+            writer.tag(68, WireType.Varint).int64(message.epoch);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -25336,6 +25376,7 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.BREAKPOINT_KIND]: BreakpointKind,
   [EnumType.BREAKPOINT_ACTION]: BreakpointAction,
   [EnumType.CODE_KIND]: CodeKind,
+  [EnumType.RUNNABLE_KIND]: RunnableKind,
   [EnumType.SPACE_TYPE]: SpaceType,
   [EnumType.VIEW_TYPE]: ViewType,
   [EnumType.VARIANT]: Variant,
@@ -25609,6 +25650,7 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.BREAKPOINT_KIND]: BreakpointKind,
   [EnumType.BREAKPOINT_ACTION]: BreakpointAction,
   [EnumType.CODE_KIND]: CodeKind,
+  [EnumType.RUNNABLE_KIND]: RunnableKind,
   [EnumType.SPACE_TYPE]: SpaceType,
   [EnumType.VIEW_TYPE]: ViewType,
   [EnumType.VARIANT]: Variant,
@@ -26635,19 +26677,19 @@ export enum EditProperty {
   id = 2,
   type = 30,
   nodePtr = 31,
-  properties = 32,
-  oldNodePacked = 33,
-  newNodePacked = 34,
-  vignette = 35,
-  scope = 40,
-  changeKey = 41,
-  category = 42,
-  subjectPtr = 43,
-  origin = 44,
-  context = 45,
-  editedAt = 46,
-  revision = 47,
-  epoch = 48,
+  vignette = 32,
+  properties = 40,
+  oldNodePartial = 41,
+  newNodePartial = 42,
+  scope = 60,
+  changeKey = 61,
+  category = 62,
+  subjectPtr = 63,
+  origin = 64,
+  context = 65,
+  editedAt = 66,
+  revision = 67,
+  epoch = 68,
 }
 
 export enum ChangeProperty {
@@ -27496,19 +27538,19 @@ export const EditDataInfo: Record<EditProperty, PropertyInfo> = {
   [EditProperty.id]: { id: 2, name: 'id', component: ObjectType.EDIT, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [EditProperty.type]: { id: 30, name: 'type', component: ObjectType.EDIT, enumType: EnumType.EDIT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [EditProperty.nodePtr]: { id: 31, name: 'node_ptr', component: ObjectType.EDIT, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.BLOB, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.LINK, NodeType.SKIP, NodeType.ISSUE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.NOTIFICATION, NodeType.MESSAGE, NodeType.RECORD], referenceStruct: StructType.NODE_REFERENCE },
-  [EditProperty.properties]: { id: 32, name: 'properties', component: ObjectType.EDIT, kind: 'primitive', primitiveType: PrimitiveType.INT16, isList: true, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [EditProperty.oldNodePacked]: { id: 33, name: 'old_node_packed', component: ObjectType.EDIT, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [EditProperty.newNodePacked]: { id: 34, name: 'new_node_packed', component: ObjectType.EDIT, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [EditProperty.vignette]: { id: 35, name: 'vignette', component: ObjectType.EDIT, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CHANGE_VIGNETTE },
-  [EditProperty.scope]: { id: 40, name: 'scope', component: ObjectType.EDIT, kind: 'reference', primitiveType: PrimitiveType.JSON, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.GRAPH_SCOPE },
-  [EditProperty.changeKey]: { id: 41, name: 'change_key', component: ObjectType.EDIT, kind: 'primitive', primitiveType: PrimitiveType.UUID, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [EditProperty.category]: { id: 42, name: 'category', component: ObjectType.EDIT, enumType: EnumType.CHANGE_CATEGORY, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [EditProperty.subjectPtr]: { id: 43, name: 'subject_ptr', component: ObjectType.EDIT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [EditProperty.origin]: { id: 44, name: 'origin', component: ObjectType.EDIT, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CLIENT_ORIGIN },
-  [EditProperty.context]: { id: 45, name: 'context', component: ObjectType.EDIT, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EDIT_CONTEXT },
-  [EditProperty.editedAt]: { id: 46, name: 'edited_at', component: ObjectType.EDIT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [EditProperty.revision]: { id: 47, name: 'revision', component: ObjectType.EDIT, kind: 'primitive', primitiveType: PrimitiveType.INT64, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [EditProperty.epoch]: { id: 48, name: 'epoch', component: ObjectType.EDIT, kind: 'primitive', primitiveType: PrimitiveType.INT64, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [EditProperty.vignette]: { id: 32, name: 'vignette', component: ObjectType.EDIT, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CHANGE_VIGNETTE },
+  [EditProperty.properties]: { id: 40, name: 'properties', component: ObjectType.EDIT, kind: 'primitive', primitiveType: PrimitiveType.INT16, isList: true, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [EditProperty.oldNodePartial]: { id: 41, name: 'old_node_partial', component: ObjectType.EDIT, kind: 'primitive', isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [EditProperty.newNodePartial]: { id: 42, name: 'new_node_partial', component: ObjectType.EDIT, kind: 'primitive', isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [EditProperty.scope]: { id: 60, name: 'scope', component: ObjectType.EDIT, kind: 'reference', primitiveType: PrimitiveType.JSON, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.GRAPH_SCOPE },
+  [EditProperty.changeKey]: { id: 61, name: 'change_key', component: ObjectType.EDIT, kind: 'primitive', primitiveType: PrimitiveType.UUID, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [EditProperty.category]: { id: 62, name: 'category', component: ObjectType.EDIT, enumType: EnumType.CHANGE_CATEGORY, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [EditProperty.subjectPtr]: { id: 63, name: 'subject_ptr', component: ObjectType.EDIT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [EditProperty.origin]: { id: 64, name: 'origin', component: ObjectType.EDIT, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CLIENT_ORIGIN },
+  [EditProperty.context]: { id: 65, name: 'context', component: ObjectType.EDIT, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EDIT_CONTEXT },
+  [EditProperty.editedAt]: { id: 66, name: 'edited_at', component: ObjectType.EDIT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [EditProperty.revision]: { id: 67, name: 'revision', component: ObjectType.EDIT, kind: 'primitive', primitiveType: PrimitiveType.INT64, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [EditProperty.epoch]: { id: 68, name: 'epoch', component: ObjectType.EDIT, kind: 'primitive', primitiveType: PrimitiveType.INT64, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const ChangeDataInfo: Record<ChangeProperty, PropertyInfo> = {
   [ChangeProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.CHANGE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },

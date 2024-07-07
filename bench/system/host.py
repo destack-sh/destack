@@ -2,7 +2,7 @@ import asyncio
 import functools
 from contextlib import asynccontextmanager
 from itertools import chain
-from typing import Callable, cast, override
+from typing import Any, Callable, cast, override
 from uuid import UUID
 
 import betterproto
@@ -36,9 +36,9 @@ from bench.language.setup import NODE_CLASS_BY_TYPE
 from bench.language.transaction import (
     edit_data_graph,
     edit_graph,
-    pack_node_delta,
 )
 from bench.language.user import User
+from bench.language.value import pack_builtin_object_data
 from bench.proto import wire
 from bench.proto.services import RpcCallable, ServiceBase
 from bench.proto.wire import (
@@ -49,7 +49,7 @@ from bench.proto.wire import (
     ServiceKind,
     SessionContextData,
 )
-from bench.proto.wiring import pack_proto_json, unpack_proto_json
+from bench.proto.wiring import pack_proto_json, unwrap_some_node, wrap_some_node
 from bench.system.access import CLIENT_CACHE_ENABLED, ClientCache, get_client
 from bench.system.core import (
     HostApi,
@@ -521,13 +521,12 @@ class Host(GraphIoServiceBase, HostApi, HostBase):
         ...
 
         def _split_node_packed_secret(
-            node_type: NodeType, node_packed_struct: ProtoStruct | None
+            node_type: NodeType, node_packed: dict[str, Any] | None
         ) -> tuple[ProtoStruct | None, ProtoStruct | None]:
             # NOTE :Incomplete: we ignore nested :SecretValues (inside value properties) for now
-            if node_packed_struct is None:
+            if node_packed is None:
                 return None, None
             node_cls = NODE_CLASS_BY_TYPE[node_type]
-            node_packed = unpack_proto_json(node_packed_struct)
             node_secret_packed = {}
             for prop_key, prop_value in node_packed.items():
                 prop = node_cls.__properties_by_id__.get(int(prop_key))
@@ -557,12 +556,25 @@ class Host(GraphIoServiceBase, HostApi, HostBase):
                 continue
             assert edit.revision is not None, f"revision not set in {edit!r}"
             assert edit.epoch is not None, f"epoch not set in {edit!r}"
+            # pack old/new node
+            node_cls = NODE_CLASS_BY_TYPE[node_type]
+            properties = tuple(node_cls.__properties_by_id__[p] for p in edit.properties)
+            if edit.old_node_partial:
+                old_node = unwrap_some_node(edit.old_node_partial)
+                old_node_packed = pack_builtin_object_data(old_node, only=properties)
+            else:
+                old_node_packed = None
+            if edit.new_node_partial:
+                new_node = unwrap_some_node(edit.new_node_partial)
+                new_node_packed = pack_builtin_object_data(new_node, only=properties)
+            else:
+                new_node_packed = None
             # break out secret properties
             old_node_packed, old_node_secret_packed = _split_node_packed_secret(
-                node_type, edit.old_node_packed
+                node_type, old_node_packed
             )
             new_node_packed, new_node_secret_packed = _split_node_packed_secret(
-                node_type, edit.new_node_packed
+                node_type, new_node_packed
             )
             log_data = LogData(
                 metatype=wire.ObjectType.LOG,
@@ -611,7 +623,7 @@ class Host(GraphIoServiceBase, HostApi, HostBase):
                 origin=None,
                 epoch=edit.epoch,
                 revision=log_data.revision,
-                new_node_packed=pack_node_delta(log_data),
+                new_node_partial=wrap_some_node(log_data),
                 edited_at=log_data.created_at,
                 subject_ptr=edit.subject_ptr,
             )

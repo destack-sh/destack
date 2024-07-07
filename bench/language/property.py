@@ -112,7 +112,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
     secret_value_packed_ptr: Union[int, "Property", None] = None  # the secret packed value
     value_type_info_getter: Callable[["BuiltinObject"], "TypeInfoBase | None"] | None = None
 
-    # references (nodes and struct/value)
+    # references to nodes or structs
     reference_kind: ReferenceKind | None = None
     reference_nodes: tuple[NodeType, ...] | None = None  # for node relations
     reference_wired_ptr: Optional["Property"] = None  # wired representation
@@ -123,6 +123,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
     reference_source: Optional["Property"] = None
     reference_on_delete: CascadeAction | None = UNSET
     reference_struct: StructType | None = None  # for struct child types
+    reference_is_node_data: bool = False
     reference_list_type: type["NodeList"] | type["ValueList"] | None = None
     reference_is_bench_implicit: bool = False
     reference_force_fk: bool = False
@@ -243,6 +244,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
             and not (self.reference_kind is not None and self.reference_kind.is_node)
             and self.reference_kind != ReferenceKind.PROPERTY
             and self.reference_kind != ReferenceKind.STRUCT_PARENT
+            and not self.reference_is_node_data
             # exclude contributed reference properties (like parent_id)
             and not self.reference_source
         )
@@ -781,9 +783,10 @@ def p_property(
     fk: bool = False,
     same_bench: bool = False,
     struct: StructType | None = None,
+    is_node_data: bool = False,
     store: bool = True,
     wire: bool = True,
-    primitive_type: PrimitiveType = UNSET,
+    primitive_type: PrimitiveType | None = UNSET,
     index_in_pg: bool = False,
     array: bool = False,
     defer: bool = False,
@@ -826,6 +829,7 @@ def p_property(
         reference_kind=reference_kind,
         reference_nodes=try_tuple(references),
         reference_struct=struct,
+        reference_is_node_data=is_node_data,
         reference_list_type=custom_list,
         reference_is_bench_implicit=same_bench,
         reference_force_fk=fk,

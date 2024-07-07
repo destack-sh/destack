@@ -20,7 +20,7 @@ import {
   type PropertyInfo,
   type TypeInfoData,
 } from "@/proto/wire";
-import { describeNode, isStruct, makeDefaultStruct, propertyInfo } from "@/proto/wiring";
+import { describeNode, isStruct, makeDefaultObject, propertyInfo } from "@/proto/wiring";
 import type { ReadNodeGraph } from "@/system/graph";
 import {
   CLASSY_BLOCK_TYPES,
@@ -67,7 +67,7 @@ export type ScalarValue = PrimitiveValue | ProtoStruct | AnyStructData | AnyNode
 export type SomeValue = ScalarValue | SomeValue[] | { [key: string]: SomeValue };
 
 export function makeTypeInfo(partial: Partial<Omit<TypeInfoData, "metatype">>): TypeInfoData {
-  return makeDefaultStruct({ ...partial, metatype: StructType.TYPE_INFO });
+  return makeDefaultObject({ ...partial, metatype: ObjectType.TYPE_INFO });
 }
 
 const _propertyTypeInfos: Record<string, TypeIdentity> = {};

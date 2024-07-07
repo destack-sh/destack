@@ -40,7 +40,6 @@ from bench.language.node import (
     EDIT_SUBJECT_TYPES,
     EMPTY_SCOPE,
     GraphScope,
-    HasNodeBase,
     Node,
     is_implicit_node_property,
 )
@@ -48,7 +47,7 @@ from bench.language.property import Property
 from bench.language.query import QueryBuilder
 from bench.language.session import SessionContext
 from bench.language.setup import NODE_CLASS_BY_TYPE
-from bench.language.transaction import edit_data_graph, unpack_node_delta
+from bench.language.transaction import edit_data_graph
 from bench.language.validation import ValidationError, on_invalid_raise
 from bench.proto import wiring
 from bench.proto.services import ServiceBase
@@ -580,7 +579,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
                     break
                 except Exception as e:
                     # this is most likely a temporary error (i.e. channel unavailable)
-                    self.logger.warning("graph.commit.error", subject=subject, exc_info=e)
+                    self.logger.error("graph.commit.error", subject=subject, exc_info=e)
                     if not retry.on_error(e):
                         raise
                     await self.oracle.sleep(retry.get_wait_interval())
@@ -697,13 +696,10 @@ def parse_commit_area(edits: list[EditData], base_graph: NodeDataGraph | None) -
         node_type = NodeType(edit.node_ptr.type)
         assert edit.node_ptr.id, f"missing id for {edit!r}"
         node_id = edit.node_ptr.id
-        node_cls = NODE_CLASS_BY_TYPE[node_type]
         edited_node_ids.add(node_id)
         if edit.type == EditType.CREATE or edit.type == EditType.UPSERT:
-            assert edit.new_node_packed
-            new_node = unpack_node_delta(
-                edit.new_node_packed, node_type=node_type, only=(node_cls.__parent_property__,)
-            )
+            assert edit.new_node_partial, f"missing new node for {edit!r}"
+            new_node = wiring.unwrap_some_node(edit.new_node_partial)
             # node scope is parent since we don't have this node yet
             if new_node.parent_ptr is None:
                 raise ValidationError(new_node, "can't create orphan")
@@ -719,10 +715,8 @@ def parse_commit_area(edits: list[EditData], base_graph: NodeDataGraph | None) -
             node_scope = edit.node_ptr
             if edit.type == EditType.MOVE:
                 # also add new parent to scope
-                assert edit.new_node_packed, f"missing new node for {edit!r}"
-                new_node = unpack_node_delta(
-                    edit.new_node_packed, node_type=node_type, only=(node_cls.__parent_property__,)
-                )
+                assert edit.new_node_partial, f"missing new node for {edit!r}"
+                new_node = wiring.unwrap_some_node(edit.new_node_partial)
                 assert (
                     new_node.parent_ptr is not None
                 ), f"missing parent for {new_node!r} in {edit!r}"
@@ -731,7 +725,6 @@ def parse_commit_area(edits: list[EditData], base_graph: NodeDataGraph | None) -
         if node_type in BASED_NODE_TYPES and edit.node_ptr.base_ck is not None:
             # also add base as node scope
             assert base_graph is not None, f"missing base graph for {edit!r}"
-            node_cls = cast(type[HasNodeBase], NODE_CLASS_BY_TYPE[node_type])
             # add current base (base is immutable)
             old_base_node = base_graph.get(edit.node_ptr.base_ck)
             if old_base_node is not None:
@@ -814,32 +807,21 @@ def validate_edit(edit: EditData, subject: Subject, now: datetime) -> None:
         EditType.ARCHIVE,
         EditType.ERASE,
     )
-    if should_set_new != (edit.new_node_packed is not None):
+    if should_set_new != (edit.new_node_partial is not None):
         raise GRPCError(
-            GRPCStatus.INVALID_ARGUMENT, f"bad new_node_packed in {edit!r}: {edit.new_node_packed}"
+            GRPCStatus.INVALID_ARGUMENT,
+            f"bad new_node_partial in {edit!r}: {edit.new_node_partial}",
         )
-    if should_set_old != (edit.old_node_packed is not None):
+    if should_set_old != (edit.old_node_partial is not None):
         raise GRPCError(
-            GRPCStatus.INVALID_ARGUMENT, f"bad old_node_packed in {edit!r}: {edit.old_node_packed}"
+            GRPCStatus.INVALID_ARGUMENT,
+            f"bad old_node_partial in {edit!r}: {edit.old_node_partial}",
         )
 
     # properties
     if edit.type in (EditType.UPDATE, EditType.MOVE):
         # check that properties are in both old and new
-        assert edit.old_node_packed and edit.new_node_packed
-        old_node_packed = wiring.unpack_proto_json(edit.old_node_packed)
-        new_node_packed = wiring.unpack_proto_json(edit.new_node_packed)
-        for p in edit.properties:
-            if str(p) not in old_node_packed:
-                raise GRPCError(
-                    GRPCStatus.INVALID_ARGUMENT,
-                    f"missing property in {edit!r}: {p} not in {tuple(old_node_packed.keys())}",
-                )
-            if str(p) not in new_node_packed:
-                raise GRPCError(
-                    GRPCStatus.INVALID_ARGUMENT,
-                    f"missing property in {edit!r}: {p} not in {tuple(new_node_packed.keys())}",
-                )
+        assert edit.old_node_partial and edit.new_node_partial
         # no forbidden properties
         if any(is_implicit_node_property(p) for p in edit.properties):
             bad_properties = [

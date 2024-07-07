@@ -23,7 +23,6 @@ from bench.language.const import (
 from bench.language.graph import NodeGraphLike, NodeSuperGraph
 from bench.language.node import EMPTY_SCOPE, GraphScope
 from bench.language.session import Session
-from bench.language.transaction import unpack_node_delta
 from bench.proto import wiring
 from bench.proto.wire import EditData, GraphScopeData
 from bench.sql.client import PgStoreConnection
@@ -236,11 +235,11 @@ def unpack_commit(
         edited_types[node_type.ord] = True
         # unpack
         if edit.type in (EditType.ARCHIVE, EditType.DELETE, EditType.ERASE):
-            assert edit.old_node_packed, f"missing old node data for {edit!r}"
-            node = unpack_node_delta(edit.old_node_packed, node_type=node_type)
+            assert edit.old_node_partial, f"missing old node data for {edit!r}"
+            node = wiring.unwrap_some_node(edit.old_node_partial)
         elif edit.type in (EditType.UNARCHIVE, EditType.RESTORE):
-            assert edit.new_node_packed, f"missing new node data for {edit!r}"
-            node = unpack_node_delta(edit.new_node_packed, node_type=node_type)
+            assert edit.new_node_partial, f"missing new node data for {edit!r}"
+            node = wiring.unwrap_some_node(edit.new_node_partial)
         else:
             raise RuntimeError(f"unexpected cascaded edit type {edit.type} in {edit!r}")
         assert node.parent_ptr, f"missing parent ptr for {node!r} in {edit!r}"

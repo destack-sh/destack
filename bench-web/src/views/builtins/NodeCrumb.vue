@@ -23,7 +23,7 @@ const nodeProperties = computed(() => (nodeMetatype.value != null ? PROPERTY_ENU
           component: ViewType.ICON,
           placement: 'bottom-right',
           offset: '-referenceWidth',
-          props: { modelValue: getNodeIcon(node!) },
+          props: { modelValue: getNodeIcon(node!), isInput: true },
           isEnabled: nodeProperties != null && 'icon' in nodeProperties,
           onApply: (newIcon) => connection.tx.update(node!, { icon: newIcon }),
         })

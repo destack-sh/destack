@@ -233,6 +233,7 @@ enum BenchType {
   BENCH_TYPE_BREAKPOINT_KIND = 20511;
   BENCH_TYPE_BREAKPOINT_ACTION = 20512;
   BENCH_TYPE_CODE_KIND = 20513;
+  BENCH_TYPE_RUNNABLE_KIND = 20514;
   BENCH_TYPE_SPACE_TYPE = 21000;
   BENCH_TYPE_VIEW_TYPE = 21001;
   BENCH_TYPE_VARIANT = 21002;
@@ -314,9 +315,9 @@ enum ClientType {
 // We don't set this explicitly in Code because it depends on where the Code is used.
 enum CodeKind {
   CODE_KIND_UNSPECIFIED = 0;
-  CODE_KIND_SNIPPET = 1;
-  CODE_KIND_SCRIPT = 2;
-  CODE_KIND_FUNCTION = 3;
+  CODE_KIND_SNIPPET = 2;
+  CODE_KIND_SCRIPT = 4;
+  CODE_KIND_FUNCTION = 6;
 }
 
 // Built-in color shades a la Tailwind.
@@ -476,6 +477,7 @@ enum EnumType {
   ENUM_TYPE_BREAKPOINT_KIND = 20511;
   ENUM_TYPE_BREAKPOINT_ACTION = 20512;
   ENUM_TYPE_CODE_KIND = 20513;
+  ENUM_TYPE_RUNNABLE_KIND = 20514;
   ENUM_TYPE_SPACE_TYPE = 21000;
   ENUM_TYPE_VIEW_TYPE = 21001;
   ENUM_TYPE_VARIANT = 21002;
@@ -997,6 +999,15 @@ enum RunStatus {
   RUN_STATUS_COMPLETED = 9;
 }
 
+// The kind of some runnable.
+enum RunnableKind {
+  RUNNABLE_KIND_UNSPECIFIED = 0;
+  RUNNABLE_KIND_CODE = 1;
+  RUNNABLE_KIND_TEXT = 2;
+  RUNNABLE_KIND_STEP = 3;
+  RUNNABLE_KIND_FLOW = 4;
+}
+
 enum ScheduleType {
   SCHEDULE_TYPE_UNSPECIFIED = 0;
   SCHEDULE_TYPE_INTERVAL = 1;
@@ -1084,8 +1095,9 @@ enum StepType {
   STEP_TYPE_UNSPECIFIED = 0;
   STEP_TYPE_START = 1;
   STEP_TYPE_COMPLETE = 2;
-  STEP_TYPE_VALUE = 3;
-  STEP_TYPE_TRIGGER = 4;
+  STEP_TYPE_FAIL = 3;
+  STEP_TYPE_VALUE = 10;
+  STEP_TYPE_TRIGGER = 11;
   STEP_TYPE_RUN = 20;
   STEP_TYPE_CODE = 21;
   STEP_TYPE_TEXT = 22;
@@ -1508,29 +1520,30 @@ message ContextData {
   optional NodeReferenceData signal_ptr = 55;
 }
 
-// An edit to a Node.
+// An edit to a Node. Currently, edits are always on the property level (no sub-properties or values).
+// 
 // For updates/moves, the old/new node values are just the edited properties.
-// For 'remove's, the old node is the full node.
-// (technically we don't *need* if for non-hard deletes, but it's very convenient)
-// Similarly, for 'adds', the new node is the full node.
+// For archive/delete/erase, the old node is the full node.
+// (technically we don't *need* the old node if it's not an erase, but it's very convenient)
+// Similarly, for create/upsert/unarchive/restore, the new node is the full node.
 message EditData {
   ObjectType metatype = 1;
   string id = 2;
   EditType type = 30;
   NodeReferenceData node_ptr = 31;
-  repeated int32 properties = 32;
-  optional google.protobuf.Struct old_node_packed = 33;
-  optional google.protobuf.Struct new_node_packed = 34;
-  optional ChangeVignetteData vignette = 35;
-  GraphScopeData scope = 40;
-  optional string change_key = 41;
-  optional ChangeCategory category = 42;
-  optional NodeReferenceData subject_ptr = 43;
-  optional ClientOriginData origin = 44;
-  optional EditContextData context = 45;
-  google.protobuf.Timestamp edited_at = 46;
-  optional int64 revision = 47;
-  optional int64 epoch = 48;
+  optional ChangeVignetteData vignette = 32;
+  repeated int32 properties = 40;
+  optional SomeNodeData old_node_partial = 41;
+  optional SomeNodeData new_node_partial = 42;
+  GraphScopeData scope = 60;
+  optional string change_key = 61;
+  optional ChangeCategory category = 62;
+  optional NodeReferenceData subject_ptr = 63;
+  optional ClientOriginData origin = 64;
+  optional EditContextData context = 65;
+  google.protobuf.Timestamp edited_at = 66;
+  optional int64 revision = 67;
+  optional int64 epoch = 68;
 }
 
 // Additional context for a specific edit (per-edit variable subset of Session context).

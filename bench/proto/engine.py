@@ -70,6 +70,14 @@ def map_bench_property_to_proto(prop: "Property", cache: dict[_ThingType, ProtoT
             optional=prop.is_optional or prop.is_deferred or prop.is_sensitive,
             repeated=prop.is_list,
         )
+    elif prop.reference_is_node_data:
+        return Field(
+            id=prop.id,
+            name=prop.name,
+            type="SomeNodeData",
+            optional=prop.is_optional,
+            repeated=prop.is_list,
+        )
     else:
         raise TypeError(f"cannot map to proto type: {prop!r}")
 

@@ -115,16 +115,16 @@ export function makeStruct<T extends StructType>(
   return struct as unknown as StructTypeMapping[T];
 }
 
-/** Makes a struct from partial properties */
-export function makeDefaultStruct<T extends StructType>(
-  data: Partial<Omit<StructTypeMapping[T], "metatype" | "id">> & { metatype: T },
-): StructTypeMapping[T] {
+/** Makes an object from partial properties */
+export function makeDefaultObject<T extends ObjectType>(
+  data: Partial<Omit<AnyTypeMapping[T], "metatype" | "id">> & { metatype: T },
+): AnyTypeMapping[T] {
   const allProperties = STRUCT_PROPERTY_ENUM_BY_TYPE[data.metatype as unknown as ObjectType];
   if (allProperties == null)
     throw new Error(`missing properties for struct type: ${data.metatype} (${typeof data.metatype})`);
   const messageType = MESSAGE_TYPE_BY_OBJECT_TYPE[data.metatype as unknown as ObjectType]!;
   let ord = 1; // skip metatype
-  const struct = { ...data } as unknown as StructTypeMapping[T];
+  const struct = { ...data } as unknown as AnyTypeMapping[T];
   for (const propName of Object.keys(allProperties)) {
     if (!isNaN(Number(propName))) continue; // skip numeric keys
     if (propName == "metatype") continue; // already set

@@ -22,13 +22,13 @@ from bench.language.const import EditType, NodeType, ReadType
 from bench.language.expression import apply_sort, evaluate_conditional
 from bench.language.graph import NodeDataGraphLike
 from bench.language.query import DEFAULT_READ_OPTIONS, QueryBuilder
-from bench.language.transaction import unpack_node_delta
 from bench.proto.wire import (
     AnyNodeData,
     EditData,
     GraphScopeData,
     NodeReferenceData,
 )
+from bench.proto.wiring import unwrap_some_node
 from bench.utils.func import bittuple, generate_access_token
 from bench.utils.oracle import Oracle
 from bench.utils.utils import get_from_env
@@ -221,20 +221,16 @@ class NodeConnection[
         updated_node = updated_graph.get(node_id)
         if updated_node is None:
             if edit.type in (EditType.ARCHIVE, EditType.DELETE, EditType.ERASE):
-                assert edit.old_node_packed, f"missing old node data for {edit!r}"
-                updated_node = unpack_node_delta(
-                    edit.old_node_packed, node_type=NodeType(edit.node_ptr.type)
-                )
+                assert edit.old_node_partial, f"missing old node data for {edit!r}"
+                updated_node = unwrap_some_node(edit.old_node_partial)
             elif edit.type in (
                 EditType.UNARCHIVE,
                 EditType.RESTORE,
                 EditType.CREATE,
                 EditType.UPSERT,
             ):
-                assert edit.new_node_packed, f"missing new node data for {edit!r}"
-                updated_node = unpack_node_delta(
-                    edit.new_node_packed, node_type=NodeType(edit.node_ptr.type)
-                )
+                assert edit.new_node_partial, f"missing new node data for {edit!r}"
+                updated_node = unwrap_some_node(edit.new_node_partial)
             else:
                 raise RuntimeError(f"unexpected empty edit type {edit.type} in {edit!r}")
         assert updated_node is not None, f"missing node data for {edit.node_ptr!r}"
