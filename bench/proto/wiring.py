@@ -382,6 +382,13 @@ def wrap_some_node(node: AnyNodeData) -> wire.SomeNodeData:
     return wrapper
 
 
+def wrap_some_node_maybe(node: AnyNodeData | None) -> wire.SomeNodeData | None:
+    if node is None:
+        return None
+    else:
+        return wrap_some_node(node)
+
+
 def unwrap_some_node(node: wire.SomeNodeData) -> AnyNodeData:
     """Unwraps a generic node type into a concrete node type."""
     _, wrapped_node = betterproto.which_one_of(node, "node")

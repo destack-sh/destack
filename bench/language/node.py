@@ -1143,7 +1143,7 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
         self._updated_properties = None
 
     def __bool__(self):
-        return True  # allow truthy checks for objects
+        return True  # support truthy checks for objects
 
     @final
     def _to_data(self) -> ObjectDataT:

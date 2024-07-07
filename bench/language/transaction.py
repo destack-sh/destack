@@ -1,7 +1,7 @@
 import dataclasses
 from collections import defaultdict
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Collection, Optional, cast
+from typing import TYPE_CHECKING, Any, Collection, Optional, assert_never, cast
 from uuid import UUID
 
 import structlog
@@ -25,7 +25,6 @@ from bench.language.node import (
     GraphScope,
     InlineStruct,
     Node,
-    NodeReference,
     Property,
     Struct,
     struct_,
@@ -38,6 +37,7 @@ from bench.proto.wire import (
     ClientOriginData,
     EditContextData,
     EditData,
+    GraphScopeData,
     NodeReferenceData,
 )
 from bench.utils.func import IdEnum
@@ -201,9 +201,15 @@ class Change(Struct):
     )
 
 
+_COALESCED_EDIT_TYPES = (EditType.UPDATE, EditType.MOVE)
+
+
 @dataclasses.dataclass(slots=True)
 class EditEvent:
-    """A tiny representation of an edit we summarize into actual Edits on flush."""
+    """
+    A tiny representation of an edit we summarize into actual Edits on flush.
+    Mainly for 'debouncing' updates/moves into single Edits.
+    """
 
     node: Node
     type: EditType
@@ -211,12 +217,10 @@ class EditEvent:
     origin: ClientOriginData | None
     context: EditContextData | None
     now: datetime
+    scope: GraphScopeData
     properties: tuple[int, ...] | None = None
-    # remember old values since node is edited in place
-    old_bench_ptr: NodeReference | None = None
-    old_package_ptr: NodeReference | None = None
-    old_archived_at: datetime | None = None
-    old_deleted_at: datetime | None = None
+    node_data: AnyNodeData | None = None
+    # remember old values (since node is edited in place)
     old_values: dict[int, Any] | None = None
 
     def __str__(self):
@@ -265,7 +269,8 @@ class Transaction:
     # Edits
     #
 
-    def _add_pending_edit(
+    @tracer.start_as_current_span("transaction.record_edit")
+    def _record_edit(
         self,
         edit_type: EditType,
         node: Node,
@@ -277,13 +282,7 @@ class Transaction:
         properties: Collection[Property] | None = None,
         old_values: dict[int, Any] | None = None,
     ):
-        if edit_type != EditType.UPDATE and edit_type != EditType.MOVE:
-            # need to remember old context in case an ancestor is deleted for full node
-            old_bench_ptr = getattr(node, "bench_ptr", None)
-            old_package_ptr = getattr(node, "package_ptr", None)
-        else:
-            old_bench_ptr = None
-            old_package_ptr = None
+        scope = self.session._get_scope_for_node(node)
         edit = EditEvent(
             node=node,
             type=edit_type,
@@ -291,13 +290,12 @@ class Transaction:
             origin=origin,
             context=context,
             now=now,
-            old_bench_ptr=old_bench_ptr,
-            old_package_ptr=old_package_ptr,
-            old_archived_at=node.archived_at,
-            old_deleted_at=node.deleted_at,
+            scope=scope,
             properties=tuple(p.id for p in properties) if properties is not None else None,
             old_values=old_values,
         )
+        if edit_type not in (EditType.UPDATE, EditType.MOVE):
+            edit.node_data = node._to_data()
         self._pending_edits.append(edit)
         self._pending_changed_nodes_by_id[node.id] = node
 
@@ -309,7 +307,7 @@ class Transaction:
         context: EditContextData | None,
         now: datetime,
     ):
-        self._add_pending_edit(
+        self._record_edit(
             EditType.CREATE, node, subject=subject, origin=origin, context=context, now=now
         )
 
@@ -321,7 +319,7 @@ class Transaction:
         context: EditContextData | None,
         now: datetime,
     ):
-        self._add_pending_edit(
+        self._record_edit(
             EditType.UPSERT, node, subject=subject, origin=origin, context=context, now=now
         )
 
@@ -335,7 +333,7 @@ class Transaction:
         old_values: dict[int, Any],
         now: datetime,
     ):
-        self._add_pending_edit(
+        self._record_edit(
             EditType.UPDATE,
             node,
             subject=subject,
@@ -356,7 +354,7 @@ class Transaction:
         old_values: dict[int, Any],
         now: datetime,
     ):
-        self._add_pending_edit(
+        self._record_edit(
             EditType.MOVE,
             node,
             subject=subject,
@@ -375,7 +373,7 @@ class Transaction:
         context: EditContextData | None,
         now: datetime,
     ):
-        self._add_pending_edit(
+        self._record_edit(
             EditType.DELETE, node, subject=subject, origin=origin, context=context, now=now
         )
 
@@ -387,7 +385,7 @@ class Transaction:
         context: EditContextData | None,
         now: datetime,
     ):
-        self._add_pending_edit(
+        self._record_edit(
             EditType.RESTORE, node, subject=subject, origin=origin, context=context, now=now
         )
 
@@ -399,7 +397,7 @@ class Transaction:
         context: EditContextData | None,
         now: datetime,
     ):
-        self._add_pending_edit(
+        self._record_edit(
             EditType.ARCHIVE, node, subject=subject, origin=origin, context=context, now=now
         )
 
@@ -411,7 +409,7 @@ class Transaction:
         context: EditContextData | None,
         now: datetime,
     ):
-        self._add_pending_edit(
+        self._record_edit(
             EditType.UNARCHIVE, node, subject=subject, origin=origin, context=context, now=now
         )
 
@@ -423,7 +421,7 @@ class Transaction:
         context: EditContextData | None,
         now: datetime,
     ):
-        self._add_pending_edit(
+        self._record_edit(
             EditType.ERASE, node, subject=subject, origin=origin, context=context, now=now
         )
 
@@ -453,22 +451,22 @@ class Transaction:
         batch: list[EditEvent] = []
         for i, edit_event in enumerate(edit_events):
             edit_type = edit_event.type
-            node = edit_event.node
+            node: Node[AnyNodeData] = edit_event.node
             next_edit_event = edit_events[i + 1] if i + 1 < len(edit_events) else None
             batch.append(edit_event)
             if (
                 next_edit_event is not None
                 and edit_event.node == next_edit_event.node
-                and edit_type in (EditType.UPDATE, EditType.MOVE)
-                and next_edit_event.type in (EditType.UPDATE, EditType.MOVE)
+                and edit_type in _COALESCED_EDIT_TYPES
+                and next_edit_event.type in _COALESCED_EDIT_TYPES
             ):
                 continue  # coalesce
 
             # make edit
-            old_node_partial = None
-            new_node_partial = None
+            old_node_partial: AnyNodeData | None = None
+            new_node_partial: AnyNodeData | None = None
             properties: list[int] = []
-            if edit_type in (EditType.UPDATE, EditType.MOVE):
+            if edit_type in _COALESCED_EDIT_TYPES:
                 # coalesce any move/update sequence into move
                 if any(e.type == EditType.MOVE for e in batch):
                     edit_type = EditType.MOVE
@@ -482,7 +480,7 @@ class Transaction:
                 properties = list(old_values.keys())
                 properties.sort()  # ascending
                 # pack old/new
-                proto_cls = wiring.PROTO_CLASS_BY_TYPE[node.metatype]
+                proto_cls = cast(type[AnyNodeData], wiring.PROTO_CLASS_BY_TYPE[node.metatype])
                 old_node_partial = proto_cls(metatype=wire.ObjectType(node.metatype))
                 new_node_partial = proto_cls(metatype=wire.ObjectType(node.metatype))
                 for prop_id, old_value in old_values.items():
@@ -493,34 +491,26 @@ class Transaction:
                     setattr(old_node_partial, prop.name, wiring.pack_object_prop(prop, old_value))
                     new_value = getattr(node, prop.name)
                     setattr(new_node_partial, prop.name, wiring.pack_object_prop(prop, new_value))
-            elif edit_type in (EditType.CREATE, EditType.UPSERT):
-                new_node_partial = node._to_data()
-                if edit_event.old_bench_ptr:
-                    new_node_partial.bench_ptr = wiring.pack_object(edit_event.old_bench_ptr)
-                if edit_event.old_package_ptr:
-                    new_node_partial.package_ptr = wiring.pack_object(edit_event.old_package_ptr)
-            elif edit_type in (EditType.ARCHIVE, EditType.DELETE, EditType.ERASE):
-                old_node_partial = node._to_data()
-                if edit_event.old_bench_ptr:
-                    old_node_partial.bench_ptr = wiring.pack_object(edit_event.old_bench_ptr)
-                if edit_event.old_package_ptr:
-                    old_node_partial.package_ptr = wiring.pack_object(edit_event.old_package_ptr)
-            elif edit_type == EditType.UNARCHIVE:
-                # put old archived_at in 'old', put full restored node in new
-                assert edit_event.old_archived_at, f"cannot unarchive {node!r} (not archived)"
-                old_node_partial = node._to_data()
-                old_node_partial.archived_at = edit_event.old_archived_at
-                new_node_partial = wiring.copy_struct(old_node_partial)
-                new_node_partial.archived_at = None
-            elif edit_type == EditType.RESTORE:
-                # put old deleted_at in 'old', put full restored node in new
-                assert edit_event.old_deleted_at, f"cannot restore {node!r} (not deleted)"
-                old_node_partial = node._to_data()
-                old_node_partial.deleted_at = edit_event.old_deleted_at
-                new_node_partial = wiring.copy_struct(old_node_partial)
-                new_node_partial.deleted_at = None
             else:
-                raise ValueError(f"unexpected edit type for {node!r}: {edit_type.name}")
+                assert edit_event.node_data is not None, f"missing node data for {edit_event!r}"
+                if edit_type in (EditType.CREATE, EditType.UPSERT):
+                    new_node_partial = edit_event.node_data
+                elif edit_type in (EditType.ARCHIVE, EditType.DELETE, EditType.ERASE):
+                    old_node_partial = edit_event.node_data
+                elif edit_type == EditType.UNARCHIVE:
+                    # put old archived_at in 'old', put full restored node in new
+                    assert edit_event.node_data.archived_at, f"cannot unarchive {node!r}"
+                    old_node_partial = edit_event.node_data
+                    new_node_partial = wiring.copy_struct(old_node_partial)
+                    new_node_partial.archived_at = None
+                elif edit_type == EditType.RESTORE:
+                    # put old deleted_at in 'old', put full restored node in new
+                    assert edit_event.node_data.deleted_at, f"cannot restore {node!r}"
+                    old_node_partial = edit_event.node_data
+                    new_node_partial = wiring.copy_struct(old_node_partial)
+                    new_node_partial.deleted_at = None
+                else:
+                    assert_never(edit_type)
 
             edit = EditData(
                 metatype=wire.ObjectType.EDIT,
@@ -528,13 +518,9 @@ class Transaction:
                 type=wiring.pack_enum(EditType, edit_type),
                 node_ptr=node._to_ref_data(),
                 properties=properties,
-                new_node_partial=wiring.wrap_some_node(cast(AnyNodeData, new_node_partial))
-                if new_node_partial
-                else None,
-                old_node_partial=wiring.wrap_some_node(cast(AnyNodeData, old_node_partial))
-                if old_node_partial
-                else None,
-                scope=self.session._get_scope_for_node(node),
+                new_node_partial=wiring.wrap_some_node_maybe(new_node_partial),
+                old_node_partial=wiring.wrap_some_node_maybe(old_node_partial),
+                scope=edit_event.scope,
                 origin=edit_event.origin,
                 subject_ptr=edit_event.subject,
                 context=edit_event.context,
@@ -668,8 +654,8 @@ def edit_graph(
             # inline implicit metadata
             new_node_data.created_at = new_node_data.updated_at = edit.edited_at
             if hasattr(new_node_data, "created_epoch"):
-                setattr(new_node_data, "created_epoch", edit.edited_at)
-                setattr(new_node_data, "updated_epoch", edit.edited_at)
+                setattr(new_node_data, "created_epoch", edit.epoch)
+                setattr(new_node_data, "updated_epoch", edit.epoch)
             new_node_data.created_by_ptr = new_node_data.updated_by_ptr = edit.subject_ptr
             # unpack
             node = wiring.unpack_object(
@@ -807,7 +793,7 @@ def edit_data_graph(
             # directly edited properties
             proto_cls = wiring.PROTO_CLASS_BY_TYPE[node_cls.metatype]
             old_node_data = proto_cls(metatype=wire.ObjectType(node_cls.metatype))
-            if edit_type in (EditType.UPDATE, EditType.MOVE):
+            if edit_type in _COALESCED_EDIT_TYPES:
                 for prop_id in edit.properties:
                     prop = node_cls.__properties_by_id__.get(prop_id)
                     assert prop is not None, f"missing property {prop_id} for update: {edit!r}"
@@ -821,7 +807,7 @@ def edit_data_graph(
 
             # prepass: 'reset' externally provided data to known ground truth (from graph)
             if is_prepass:
-                if edit_type in (EditType.UPDATE, EditType.MOVE):
+                if edit_type in _COALESCED_EDIT_TYPES:
                     # reset only partial old data
                     edit.old_node_partial = wiring.wrap_some_node(cast(AnyNodeData, old_node_data))
                 elif edit_type in (EditType.ARCHIVE, EditType.DELETE, EditType.ERASE):
