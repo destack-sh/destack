@@ -198,8 +198,8 @@ class Change(Struct):
 
 
 @dataclasses.dataclass(slots=True)
-class MiniEdit:
-    """A tiny representation of an edit we summarize into actual Edits."""
+class EditEvent:
+    """A tiny representation of an edit we summarize into actual Edits on flush."""
 
     node: Node
     type: EditType
@@ -208,7 +208,16 @@ class MiniEdit:
     context: EditContextData | None
     now: datetime
     properties: tuple[int, ...] | None = None
+    # remember old values since node is edited in place
+    old_archived_at: datetime | None = None
+    old_deleted_at: datetime | None = None
     old_values: dict[int, Any] | None = None
+
+    def __str__(self):
+        return f"{self.type.bench_name} {self.node!r}"
+
+    def __repr__(self):
+        return f"<EditEvent {self}>"
 
 
 @dataclasses.dataclass(slots=True)
@@ -229,7 +238,7 @@ class Transaction:
     _touched_engine_ids: set[Any] = dataclasses.field(default_factory=set)
 
     """Pending (unflushed) edits."""
-    _pending_edits: list[MiniEdit] = dataclasses.field(default_factory=list)
+    _pending_edits: list[EditEvent] = dataclasses.field(default_factory=list)
     _pending_changed_nodes_by_id: dict[UUID, Node] = dataclasses.field(default_factory=dict)
 
     def __str__(self):
@@ -254,6 +263,7 @@ class Transaction:
         self,
         edit_type: EditType,
         node: Node,
+        *,
         subject: NodeReferenceData | None,
         origin: ClientOriginData | None,
         context: EditContextData | None,
@@ -261,17 +271,20 @@ class Transaction:
         properties: Collection[Property] | None = None,
         old_values: dict[int, Any] | None = None,
     ):
-        edit = MiniEdit(
+        edit = EditEvent(
             node=node,
             type=edit_type,
             subject=subject,
             origin=origin,
             context=context,
             now=now,
+            old_archived_at=node.archived_at,
+            old_deleted_at=node.deleted_at,
             properties=tuple(p.id for p in properties) if properties is not None else None,
             old_values=old_values,
         )
         self._pending_edits.append(edit)
+        self._pending_changed_nodes_by_id[node.id] = node
 
     def create(
         self,
@@ -407,7 +420,7 @@ class Transaction:
         pass  # nothing to do?
 
     @tracer.start_as_current_span("transaction.accumulate_edits")
-    def _accumulate_edits(self, mini_edits: list[MiniEdit]) -> list[EditData]:
+    def _accumulate_edits(self, edit_events: list[EditEvent]) -> list[EditData]:
         """
         Turns a series of mini edits into real edits, attempting to coalesce them.
         Specifically, we coalesce sequential updates/moves to the same node (coalescing into moves),
@@ -422,17 +435,17 @@ class Transaction:
         from bench.proto import wire, wiring
 
         edits: list[EditData] = []
-        batch: list[MiniEdit] = []
-        for i, mini_edit in enumerate(mini_edits):
-            edit_type = mini_edit.type
-            node = mini_edit.node
-            next_mini_edit = mini_edits[i + 1] if i + 1 < len(mini_edits) else None
-            batch.append(mini_edit)
+        batch: list[EditEvent] = []
+        for i, edit_event in enumerate(edit_events):
+            edit_type = edit_event.type
+            node = edit_event.node
+            next_edit_event = edit_events[i + 1] if i + 1 < len(edit_events) else None
+            batch.append(edit_event)
             if (
-                next_mini_edit is not None
-                and mini_edit.node == next_mini_edit.node
+                next_edit_event is not None
+                and edit_event.node == next_edit_event.node
                 and edit_type in (EditType.UPDATE, EditType.MOVE)
-                and next_mini_edit.type in (EditType.UPDATE, EditType.MOVE)
+                and next_edit_event.type in (EditType.UPDATE, EditType.MOVE)
             ):
                 continue  # coalesce
 
@@ -475,15 +488,17 @@ class Transaction:
                 old_node_packed = pack_node_delta(node._to_data())
             elif edit_type == EditType.UNARCHIVE:
                 # put old archived_at in 'old', put full restored node in new
-                assert node.archived_at, f"cannot unarchive {node!r} that is not archived"
+                assert edit_event.old_archived_at, f"cannot unarchive {node!r} (not archived)"
                 new_node = node._to_data()
+                new_node.archived_at = edit_event.old_archived_at  # for old_node_packed
                 old_node_packed = pack_node_delta(new_node, only=(type(node).archived_at,))
                 new_node.archived_at = None
                 new_node_packed = pack_node_delta(new_node)
             elif edit_type == EditType.RESTORE:
                 # put old deleted_at in 'old', put full restored node in new
-                assert node.deleted_at, f"cannot restore {node!r} that is not deleted"
+                assert edit_event.old_deleted_at, f"cannot restore {node!r} (not deleted)"
                 new_node = node._to_data()
+                new_node.deleted_at = edit_event.old_deleted_at  # for old_node_packed
                 old_node_packed = pack_node_delta(new_node, only=(type(node).deleted_at,))
                 new_node.deleted_at = None
                 new_node_packed = pack_node_delta(new_node)
@@ -499,19 +514,20 @@ class Transaction:
                 new_node_packed=new_node_packed,
                 old_node_packed=old_node_packed,
                 scope=self.session._get_scope_for_node(node),
-                origin=mini_edit.origin,
-                subject_ptr=mini_edit.subject,
-                context=mini_edit.context,
-                edited_at=mini_edit.now,
+                origin=edit_event.origin,
+                subject_ptr=edit_event.subject,
+                context=edit_event.context,
+                edited_at=edit_event.now,
             )
             edits.append(edit)
+            batch.clear()  # reset
 
         return edits
 
     async def _do_flush(self, *, is_commit: bool, _extra_edits: list[EditData] | None = None):
         assert self.session is not None, f"no session for {self!r}"
         log = logger.bind(
-            mini_edits=len(self._pending_edits),
+            edit_events=len(self._pending_edits),
             extra_edits=len(_extra_edits or ()),
             transaction=self,
         )
