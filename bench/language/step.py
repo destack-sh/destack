@@ -166,6 +166,18 @@ class Step(SourceNode[StepData], HasValues):
     def __repr__(self):  # type: ignore we want to override the default repr
         return f"<{self.type.bench_name}Step {self}>"
 
+    @property
+    def block(self) -> "Block | None":
+        """Gets the containing ancestor Block (if any)"""
+        from bench.language.block import Block
+
+        parent = self.parent
+        while parent is not None:
+            if isinstance(parent, Block):
+                return parent
+            parent = parent.parent
+        return None
+
     def to_type(self, as_object: bool = True, zone: FieldZone | None = None):
         """Gets a type represented by this Step (if any)"""
         raise NotImplementedError

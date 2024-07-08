@@ -1,6 +1,7 @@
-from typing import override
+from typing import Any, override
 
 from bench.language.run import CodeKind, RunnableKind
+from bench.language.value import ValueObject, coerce_value_object
 from bench.runtime.compiler import CompiledCode, compile_code
 from bench.runtime.runner import Runner, runner
 
@@ -8,8 +9,10 @@ from bench.runtime.runner import Runner, runner
 
 
 class CodeRunnerBase(Runner):
+    """Common base for compiling and running code."""
+
     async def _compile_code(self, kind: CodeKind) -> CompiledCode:
-        """Prepares valid compiled code."""
+        """Prepares valid compiled code (raises SyntaxError if invalid)."""
         assert self.runnable.code, f"no code for {self!r}"
         compiled = self.runnable.compiled
         if compiled is None:
@@ -23,9 +26,16 @@ class CodeRunnerBase(Runner):
             raise compiled.syntax_error  # re-raise
         return compiled
 
+    def _coerce_outputs(self, outputs_raw: Any) -> ValueObject:
+        assert self.handle.run and self.handle.run.output_type, f"no output type for {self!r}"
+        outputs = coerce_value_object(self.handle.run.output_type, outputs_raw)
+        return outputs
+
 
 @runner((RunnableKind.CODE, CodeKind.SNIPPET))
 class CodeSnippetRunner(CodeRunnerBase):
+    """Run a code snippet and updates the value of its last expression."""
+
     @override
     async def run(self) -> None:
         raise NotImplementedError
@@ -33,6 +43,8 @@ class CodeSnippetRunner(CodeRunnerBase):
 
 @runner((RunnableKind.CODE, CodeKind.SCRIPT))
 class CodeScriptRunner(CodeRunnerBase):
+    """Run a code script and updates its exported definitions."""
+
     @override
     async def run(self) -> None:
         # compile
@@ -54,6 +66,8 @@ class CodeScriptRunner(CodeRunnerBase):
 
 @runner((RunnableKind.CODE, CodeKind.FUNCTION))
 class CodeFunctionRunner(CodeRunnerBase):
+    """Run a code function and update its outputs."""
+
     @override
     async def run(self) -> None:
         # compile
@@ -75,8 +89,8 @@ class CodeFunctionRunner(CodeRunnerBase):
         exec(compiled.body_co, glbls)
         func = glbls[compiled.function_name]
         if compiled.is_coroutine:
-            outputs = await func()
+            outputs_raw = await func()
         else:
-            outputs = func()
+            outputs_raw = func()
 
-        # nocheckin: check/coerce/set function outputs
+        self.handle.outputs = self._coerce_outputs(outputs_raw)

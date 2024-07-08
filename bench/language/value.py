@@ -1015,3 +1015,18 @@ class Value(Struct, HasValues):
     value_packed: Any = p_value_packed(35)
     secret_value_packed: Any = p_secret_value_packed(36)
     value: Any = p_value_runtime(35, 36, typ=lambda self: cast("Value", self).type)
+
+
+def coerce_value_object(typ: "TypeInfoBase", value_raw: Any) -> ValueObject:
+    """
+    Tries to coerce a value object from a given raw value.
+    We support 4 coercions:
+     1. Single return value if there is one field.
+     2. Tuple of return values if there are multiple fields (with same length)
+     3. Dict of return values with { FieldName: Value }
+     4. ValueObject (checked and then returned as is)
+
+    If this doesn't work, we raise ValueError/TypeError accordingly.
+    """
+
+    raise NotImplementedError("nocheckin: coerce_value_object")

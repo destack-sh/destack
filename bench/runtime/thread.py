@@ -195,7 +195,7 @@ class RuntimeThread:
                 expect=Run,
             )
             run._unpack_values_inplace()
-        await self._runner.process_run(run)
+        await self._runner.process_run(run, suppress_error=True)
         logger.info("thread.process_run", process=self, run=run, span="current")
 
     def close(self):

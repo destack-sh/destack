@@ -27,7 +27,7 @@ class ServiceStatus(enum.Enum):
 
 
 class ServiceHandle[SpecT: ServiceSpec, S: ServiceBase, C: ServiceStub](abc.ABC):
-    """Wrapper for a simulated  service we can monkey around with"""
+    """Wrapper for a simulated service we can monkey around with"""
 
     service_cls: type[S]
     client_cls: type[C]
