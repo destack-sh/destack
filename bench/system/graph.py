@@ -85,6 +85,9 @@ from bench.utils.func import CriticalLock, bittuple, group_by, to_uuid
 from bench.utils.oracle import Oracle
 from bench.utils.tenacity import RetryOptions
 
+logger = structlog.get_logger(__name__)
+tracer = trace.get_tracer(__name__)
+
 COMMIT_RETRY = RetryOptions(max_attempts=3, retry_on=(ChannelUnavailableError,))
 
 
@@ -439,7 +442,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
         self, subject: Subject, context: SessionContext, edits: list[EditData]
     ) -> tuple["CommitArea", int]:
         """Prepares and validates the edits for a commit."""
-        area = parse_commit_area(edits, base_graph=None)
+        area = parse_commit_scope(edits, base_graph=None)
         now = self.oracle.utc()
         epoch = self.epoch
         for edit in edits:
@@ -682,7 +685,8 @@ class CommitArea(NamedTuple):
     graph_scopes: tuple[GraphScopeData, ...]
 
 
-def parse_commit_area(edits: list[EditData], base_graph: NodeDataGraph | None) -> CommitArea:
+@tracer.start_as_current_span(name="graph.parse_commit_scope")
+def parse_commit_scope(edits: list[EditData], base_graph: NodeDataGraph | None) -> CommitArea:
     """
     Gets the specific nodes (scopes) and related nodes that are edited. :NodeEditScope
     """
@@ -692,13 +696,14 @@ def parse_commit_area(edits: list[EditData], base_graph: NodeDataGraph | None) -
     node_scopes_by_id: dict[str, NodeReferenceData] = {}
     graph_scopes: dict[int, GraphScopeData] = {}
     in_tx_created_nodes_ids: set[str] = set()
+
     for edit in edits:
         node_type = NodeType(edit.node_ptr.type)
         assert edit.node_ptr.id, f"missing id for {edit!r}"
         node_id = edit.node_ptr.id
         edited_node_ids.add(node_id)
         if edit.type == EditType.CREATE or edit.type == EditType.UPSERT:
-            assert edit.new_node_partial, f"missing new node for {edit!r}"
+            assert edit.new_node_partial is not None, f"missing new node for {edit!r}"
             new_node = wiring.unwrap_some_node(edit.new_node_partial)
             # node scope is parent since we don't have this node yet
             if new_node.parent_ptr is None:
@@ -715,7 +720,7 @@ def parse_commit_area(edits: list[EditData], base_graph: NodeDataGraph | None) -
             node_scope = edit.node_ptr
             if edit.type == EditType.MOVE:
                 # also add new parent to scope
-                assert edit.new_node_partial, f"missing new node for {edit!r}"
+                assert edit.new_node_partial is not None, f"missing new node for {edit!r}"
                 new_node = wiring.unwrap_some_node(edit.new_node_partial)
                 assert (
                     new_node.parent_ptr is not None

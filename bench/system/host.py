@@ -59,7 +59,7 @@ from bench.system.core import (
     pg_engine_from_store,
     unpack_commit,
 )
-from bench.system.graph import CommitArea, GraphIoServiceBase, parse_commit_area, validate_edit
+from bench.system.graph import CommitArea, GraphIoServiceBase, parse_commit_scope, validate_edit
 from bench.system.provisioner import Provisioner, get_provisioners_for
 from bench.system.scheduler import QueueRunPlugin
 from bench.utils.func import to_uuid
@@ -490,7 +490,7 @@ class Host(GraphIoServiceBase, HostApi, HostBase):
         assert self._main_package is not None, f"package not loaded in {self!r}"
 
         # prepare commit
-        scope = parse_commit_area(edits, base_graph=self._main_package._data_graph)
+        scope = parse_commit_scope(edits, base_graph=self._main_package._data_graph)
         now = self.oracle.utc()
         epoch = self.epoch
         for edit in edits:
@@ -728,6 +728,7 @@ class Host(GraphIoServiceBase, HostApi, HostBase):
         )
 
 
+@tracer.start_as_current_span("host.validate_context")
 def validate_context(subject: Subject, context: SessionContext, edits: list[EditData]):
     """Checks the session context and per edit context for consistency."""
     assert subject.client and subject.client_ptr, f"no client for {subject!r}"
