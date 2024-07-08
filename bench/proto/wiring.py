@@ -81,12 +81,10 @@ def copy_struct_prop(prop: Property, value: Any) -> Any:
         return value
 
 
-@tracer.start_as_current_span("wiring.pack_proto_json")
 def pack_proto_json(value: dict[str, Any]) -> ProtoStruct:
     return ProtoStruct.from_dict(value)
 
 
-@tracer.start_as_current_span("wiring.unpack_proto_json")
 def unpack_proto_json(value: ProtoStruct) -> dict[str, Any]:
     return value.to_dict()
 
