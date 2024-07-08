@@ -1,119 +1,92 @@
-from dataclasses import dataclass
-from uuid import UUID
-
 import pytest
 
-from bench.language import NodeReference, Store
-from bench.proto import wire
-from bench.proto.wire import (
-    ClientDataIn,
-    CreateBenchRequest,
-    HostClient,
-    NodeReferenceData,
-    RpcMetadata,
-    SignupUserRequest,
-    SupervisorClient,
-)
-from bench.proto.wiring import pack_rpc_headers
-from bench.sql.engine import GLOBAL_SCHEMA
-from bench.system.host import Host
-from bench.system.supervisor import Supervisor
-from bench.test.fixtures import create_test_db, make_system_store
-from bench.test.simulation.transport import SimulatedChannel
-from bench.utils.oracle import REAL_ORACLE
-
-# NOTE: The runtime tests are basically smaller, more focused simulation tests,
-#  so some of the setup logic is similar but I didn't want to introduce cross-dependencies.
+from bench.language import Bench, Session, Store
+from bench.language.bench import Client
+from bench.language.block import Block
+from bench.language.const import BlockType, ClientType, Region, UserStatus, _active_session
+from bench.language.graph import NodeSuperGraph
+from bench.language.node import EMPTY_SCOPE
+from bench.language.user import User
+from bench.runtime.runner import RuntimeRunner
+from bench.system.core import pg_engine_from_store
+from bench.system.supervisor import create_default_bench
+from bench.utils.oracle import REAL_ORACLE, Oracle
 
 
-@pytest.fixture()
-async def global_store(request: pytest.FixtureRequest):
-    global_store = make_system_store(f"test-{request.node.name}")
-    await create_test_db(global_store, GLOBAL_SCHEMA)
-    return global_store
+def create_global_session(global_store: Store, oracle: Oracle):
+    """Gets direct access to a per test global engine"""
 
-
-@pytest.fixture()
-async def supervisor_service(global_store: Store):
-    service = Supervisor(global_store, REAL_ORACLE)
-    await service.start()
-    yield service
-    service.close()
-    await service.wait_closed()
-
-
-@pytest.fixture()
-async def supervisor_client(supervisor_service: Supervisor):
-    async with SimulatedChannel(services=(supervisor_service,), oracle=REAL_ORACLE) as channel:
-        supervisor_client = SupervisorClient(channel)
-        yield supervisor_client
-
-
-@dataclass
-class ClientHandle:
-    user_ptr: NodeReferenceData
-    user_data: wire.UserData
-    client_data: wire.ClientData
-    rpc_metadata: RpcMetadata
-    rpc_headers: dict[str, str]
-
-
-@pytest.fixture()
-async def client(supervisor_client: SupervisorClient, request: pytest.FixtureRequest):
-    # make per-test client to create bench
-    name = request.node.name
-    client_in = ClientDataIn(type=wire.ClientType.BENCH_SERVER, name=name, device_name="test")
-    signup_req = SignupUserRequest(
-        slug=name,
-        name=name,
-        email=f"{name}@test.com",
-        password=name,
-        client=client_in,
+    global_pg_engine = pg_engine_from_store(global_store)
+    session = Session(
+        parent=None,
+        _default_scope=EMPTY_SCOPE._to_data(),
+        _engines=(global_pg_engine,),
+        _system_epoch=0,
+        _oracle=oracle,
+        _supergraph=NodeSuperGraph(root_ptr=None),
     )
-    signup_rep = await supervisor_client.signup_user(signup_req)
-    user_ptr = NodeReference.from_node_data(signup_rep.user)
-    client_data = signup_rep.client
-    rpc_metadata = RpcMetadata(
-        client_type=client_data.type,
-        client_id=client_data.id,
-        client_nonce=client_data.id,
-        client_access_token=signup_rep.access_token,
-    )
-    rpc_headers = pack_rpc_headers(rpc_metadata)
-    return ClientHandle(
-        user_ptr=user_ptr,
-        user_data=signup_rep.user,
-        client_data=client_data,
-        rpc_metadata=rpc_metadata,
-        rpc_headers=rpc_headers,
-    )
+    return session
 
 
 @pytest.fixture()
-async def host_service(
-    global_store: Store, client: ClientHandle, supervisor_client: SupervisorClient
-):
-    # create bench in supervisor
-    create_bench_req = CreateBenchRequest(
-        owner=client.user_ptr,
-        is_main=True,
-        slug=client.user_data.name,
-        region=wire.Region.EUROPE_CENTRAL,
-    )
-    create_bench_rep = await supervisor_client.create_bench(
-        create_bench_req, metadata=client.rpc_headers
-    )
-    bench_id = UUID(create_bench_rep.bench.id)
-
-    # start host service
-    service = Host(bench_id=bench_id, global_store=global_store, oracle=REAL_ORACLE)
-    await service.start()
-    yield service
-    service.close()
-    await service.wait_closed()
+def global_session(global_store: Store):
+    return create_global_session(global_store, REAL_ORACLE)
 
 
 @pytest.fixture()
-async def host_client(host_service: Host):
-    async with SimulatedChannel(services=(host_service,), oracle=REAL_ORACLE) as channel:
-        yield HostClient(channel=channel)
+async def omni_bench_async(global_store: Store, global_session, request: pytest.FixtureRequest):
+    async with global_session as session:
+        # setup user/client
+        user = User(
+            slug="user",
+            name="test",
+            email="test@test.com",
+            status=UserStatus.REGISTERED,
+            last_logged_in_at=REAL_ORACLE.utc(),
+            _is_new=True,  # force create
+        )
+        session._create(user)
+        await session.flush()
+        client = Client(
+            parent=user,
+            name="test",
+            type=ClientType.BENCH_SERVER,
+            seen_at=REAL_ORACLE.utc(),
+        )
+        session._create(client)
+        await session.flush()
+        user.main_handle = user.handles.create(slug=user.slug)
+        await session.commit()
+
+        # create bench
+        bench = await create_default_bench(
+            main_handle=user.main_handle,
+            owner=user,
+            region=Region.EUROPE_CENTRAL,
+            global_store=global_store,
+            session=session,
+        )
+        global_session.parent = bench.main_package  # patch in main package
+        yield bench
+
+
+@pytest.fixture()
+def omni_bench(omni_bench_async: Bench):
+    session = omni_bench_async.active_session
+    active_session_token = _active_session.set(session)
+    yield omni_bench_async
+    _active_session.reset(active_session_token)
+
+
+@pytest.fixture()
+def page(omni_bench: Bench):
+    package = omni_bench.main_package
+    page = Block.new(BlockType.PAGE, name="Page", is_page=True)
+    package.blocks.append(page)
+    return page
+
+
+@pytest.fixture()
+def runner(omni_bench: Bench):
+    runner = RuntimeRunner(session=omni_bench.active_session, oracle=REAL_ORACLE)
+    return runner

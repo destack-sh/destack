@@ -667,7 +667,7 @@ def compile_code(code_id: str, code: str, kind: CodeKind, glbls: Mapping[str, An
         # compile to figure out if it's a coroutine (simple string matching wouldn't work)
         # NOTE :Performance: we compile twice to figure out if functions are async before wrapping
         module = compile(
-            code.replace("return ", "raise SystemExit"),  # can't return at top level
+            code.replace("return", "pass # "),  # can't return at top level
             "<unknown>",
             mode="exec",
             flags=ast.PyCF_ALLOW_TOP_LEVEL_AWAIT,

@@ -1029,4 +1029,25 @@ def coerce_value_object(typ: "TypeInfoBase", value_raw: Any) -> ValueObject:
     If this doesn't work, we raise ValueError/TypeError accordingly.
     """
 
-    raise NotImplementedError("nocheckin: coerce_value_object")
+    typ = typ._to_resolved()
+    assert typ.kind == TypeKind.OBJECT, f"{typ!r} is not an Object"
+
+    fields = typ._fields
+    coerced = ValueObject(typ, _value={})
+    if isinstance(value_raw, tuple):
+        if len(value_raw) != len(fields):
+            raise ValueError(f"expected {len(fields)} values for {typ!r}, got {len(value_raw)}")
+        for i, field in enumerate(fields):
+            setattr(coerced, field.name, value_raw[i])
+    elif isinstance(value_raw, dict):
+        for field in fields:
+            setattr(coerced, field.name, value_raw.get(field.name))
+    elif isinstance(value_raw, ValueObject):
+        for field in fields:
+            setattr(coerced, field.name, getattr(value_raw, field.name))
+    else:
+        assert len(fields) == 1, f"expected single field for {typ!r}, have {len(fields)}"
+        check_value(value_raw, typ, invalid=on_invalid_raise)
+        setattr(coerced, fields[0].name, value_raw)
+
+    return coerced

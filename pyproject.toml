@@ -43,6 +43,8 @@ ignore = [
 	"PT018",
 	# exception too broad
 	"PT011",
+	# pytest.raises should contain a single statement
+	"PT012",
 	# single if instead of nested ifs
 	"SIM102",
 	# non lowercase variable in function

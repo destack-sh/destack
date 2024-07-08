@@ -297,12 +297,14 @@ class RuntimeRunner:
     # High level Run helpers
     #
 
-    async def run(self, run: Run | Block | Step, *, suppress_error: bool = False):
+    async def run(
+        self, run: Run | Block | Step, *, inputs: Any | None = None, suppress_error: bool = False
+    ):
         """Auto-run whatever runnable node."""
         if not isinstance(run, Run):
-            run = Run.from_runnable(run)
+            run = Run.from_runnable(run, inputs=inputs)
         await self.process_run(run, suppress_error=suppress_error)
-        return run.outputs
+        return run
 
     @tracer.start_as_current_span("runner.process_run")
     async def process_run(self, run: Run, *, suppress_error: bool):
