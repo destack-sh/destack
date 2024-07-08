@@ -47,7 +47,16 @@ from bench.utils.tenacity import RetryOptions
 if TYPE_CHECKING:
     from bench.language import Block, Expression, NodeReference, Package, TypeInfoBase, ValueObject
 
+
 # pyright: reportIncompatibleVariableOverride=false
+@enum_(EnumType.RUNNABLE_KIND)
+class RunnableKind(IdEnum):
+    """The kind of some runnable."""
+
+    CODE = 1
+    TEXT = 2
+    STEP = 3
+    FLOW = 4
 
 
 @enum_(EnumType.CODE_KIND)
@@ -57,19 +66,9 @@ class CodeKind(IdEnum):
     We don't set this explicitly in Code because it depends on where the Code is used.
     """
 
-    SNIPPET = 2  # for inline expressions and procedures anywhere (import only)
-    SCRIPT = 4  # for defining Python-level commons in Block 'scripts' (import & export)
-    FUNCTION = 6  # for Python functions in Blocks/Steps (import only)
-
-
-@enum_(EnumType.RUNNABLE_KIND)
-class RunnableKind(IdEnum):
-    """The kind of some runnable."""
-
-    CODE = 1
-    TEXT = 2
-    STEP = 3
-    FLOW = 4
+    SNIPPET = 1  # for inline expressions and procedures anywhere (import only)
+    SCRIPT = 2  # for defining Python-level commons in Block 'scripts' (import & export)
+    FUNCTION = 3  # for Python functions in Blocks/Steps (import only)
 
 
 @struct_(StructType.RUN_OPTIONS)
@@ -83,15 +82,17 @@ class RunOptions(Struct):
     max_runs: Optional[int] = p_regular(30, constraint=TypeConstraintIn(min_value=0))
     max_concurrency: Optional[int] = p_regular(31, constraint=TypeConstraintIn(min_value=0))
     max_attempts: Optional[int] = p_regular(32, constraint=TypeConstraintIn(min_value=-1))
-    retry_interval: Optional[float] = p_regular(33, constraint=TypeConstraintIn(min_value=0))
-    backoff: Optional[float] = p_regular(34, constraint=TypeConstraintIn(min_value=1))
-    max_retry_interval: Optional[float] = p_regular(35, constraint=TypeConstraintIn(min_value=0))
-    jitter: Optional[float] = p_regular(36, constraint=TypeConstraintIn(min_value=0, max_value=1))
-    retry_on: list["RunErrorType"] = p_regular(38, array=True)
-    breakpoints: list["Breakpoint"] = p_regular(39, array=True, struct=StructType.BREAKPOINT)
+    timeout: Optional[float] = p_regular(33, constraint=TypeConstraintIn(min_value=0))
 
-    # flow
-    ...
+    # retry
+    retry_interval: Optional[float] = p_regular(40, constraint=TypeConstraintIn(min_value=0))
+    backoff: Optional[float] = p_regular(41, constraint=TypeConstraintIn(min_value=1))
+    max_retry_interval: Optional[float] = p_regular(42, constraint=TypeConstraintIn(min_value=0))
+    jitter: Optional[float] = p_regular(43, constraint=TypeConstraintIn(min_value=0, max_value=1))
+    retry_on: list["RunErrorType"] = p_regular(44, array=True)
+
+    # debug
+    breakpoints: list["Breakpoint"] = p_regular(50, array=True, struct=StructType.BREAKPOINT)
 
     def to_retry(self) -> RetryOptions:
         """Turns the options into our RetryOptions."""

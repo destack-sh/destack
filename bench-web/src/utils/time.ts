@@ -79,9 +79,9 @@ type FormatDurationOptions = {
  * Formats a duration into the nearest (ideally >1, less then <1 of next available unit)
  * Like 3.7s, 48m, 2d, 1w, 3y.
  */
-export function formatDuration(duration: Duration, options?: FormatDurationOptions): string {
+export function formatDuration(duration: Duration | number, options?: FormatDurationOptions): string {
   const { minUnit = "ms", maxUnit = "y", minValue, tooSmall = "now", precision, short = true } = options ?? {};
-  const durationMs = duration.as("milliseconds");
+  const durationMs = typeof duration == "number" ? duration * 1000 : duration.as("milliseconds");
 
   // find largest unit that fits
   let currentUnit: TimeUnit = minUnit;
@@ -106,6 +106,27 @@ export function formatDuration(duration: Duration, options?: FormatDurationOptio
     const unitName = roundedValue === 1 ? TIME_UNIT_NAMES[currentUnit] : TIME_UNIT_NAMES[currentUnit] + "s";
     return `${roundedValue} ${unitName}`;
   }
+}
+
+/** Gets the absolute duration from now */
+export function getDurationfromNow(dt: Timestamp | DateTime, options?: { updateInterval?: TimeUpdateInterval }) {
+  if (!(dt instanceof DateTime)) dt = tsToDt(dt);
+  const interval = options?.updateInterval ?? TimeUpdateInterval.MINUTE;
+  const now = getNow(interval);
+  let duration = dt.diff(now.value, "milliseconds");
+  if (duration.as("milliseconds") < 0) {
+    duration = duration.negate();
+  }
+  return duration;
+}
+
+/** Formats a duration from a date relative to now (as an absolute value) */
+export function formatDurationFromNow(
+  dt: Timestamp | DateTime,
+  options?: FormatDurationOptions & { updateInterval?: TimeUpdateInterval },
+) {
+  const duration = getDurationfromNow(dt, options);
+  return formatDuration(duration, options);
 }
 
 /** Formats a duration implied by a datetime in the past relative to now */
@@ -148,7 +169,6 @@ export function formatAbsoluteDate(dt: Timestamp | DateTime) {
     return dt.toLocaleString(DateTime.DATETIME_MED);
   }
 }
-
 
 /** Convert a proto Timestamp to a Luxon DateTime */
 export function tsToDt(timestamp: Timestamp): DateTime {
