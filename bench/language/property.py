@@ -126,6 +126,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
     reference_is_node_data: bool = False
     reference_list_type: type["NodeList"] | type["ValueList"] | None = None
     reference_is_bench_implicit: bool = False
+    reference_is_baseless: bool = False
     reference_force_fk: bool = False
 
     _cached_as_ref: Optional["PropertyReference"] = None
@@ -614,7 +615,10 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
                 )
 
             # we also need a base and _its_ bench if this is a 'based' node (node with a base node)
-            if any(t in BASED_NODE_TYPES for t in shared_ptr_types):
+            if (
+                any(t in BASED_NODE_TYPES for t in shared_ptr_types)
+                and not self.reference_is_baseless
+            ):
                 extra_stored_props["base_ck"] = Property(
                     id=self.id,
                     name=self.name + "_base_ck",
@@ -782,6 +786,7 @@ def p_property(
     references: tuple[NodeType, ...] | NodeType | None = None,
     fk: bool = False,
     same_bench: bool = False,
+    baseless: bool = False,
     struct: StructType | None = None,
     is_node_data: bool = False,
     store: bool = True,
@@ -832,6 +837,7 @@ def p_property(
         reference_is_node_data=is_node_data,
         reference_list_type=custom_list,
         reference_is_bench_implicit=same_bench,
+        reference_is_baseless=baseless,
         reference_force_fk=fk,
         is_internal=internal,
         is_system=system,
