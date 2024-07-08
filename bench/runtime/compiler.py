@@ -603,7 +603,6 @@ def _is_coroutine(co: types.CodeType) -> bool:
 class CompiledCode:
     """Compiled and analysed Code."""
 
-    # NOTE: code is assumed to be :AsyncCode (even if it isn't)
     kind: CodeKind
     code: str
     transformed_code: str
@@ -655,7 +654,6 @@ def _cache_in_linecache(filename: str, code: str) -> None:
 def compile_code(code_id: str, code: str, kind: CodeKind, glbls: Mapping[str, Any]) -> CompiledCode:
     """
     Parse, analyze and compile code.
-    NOTE: everything is considered async for now :AsyncCode
     """
 
     assert code_id.isalnum(), f"code_id must be alphanumeric: {code_id}"
@@ -666,9 +664,22 @@ def compile_code(code_id: str, code: str, kind: CodeKind, glbls: Mapping[str, An
     # wrap code in function if it's a function
     function_name = f"_code_{code_id}"
     if kind == CodeKind.FUNCTION:
-        transformed_code = f"async def {function_name}():\n{textwrap.indent(code, 4 * " ")}"
+        # compile to figure out if it's a coroutine (simple string matching wouldn't work)
+        # NOTE :Performance: we compile twice to figure out if functions are async before wrapping
+        module = compile(
+            code.replace("return ", "raise SystemExit"),  # can't return at top level
+            "<unknown>",
+            mode="exec",
+            flags=ast.PyCF_ALLOW_TOP_LEVEL_AWAIT,
+        )
+        is_coroutine = _is_coroutine(module)
+        if is_coroutine:
+            transformed_code = f"async def {function_name}():\n{textwrap.indent(code, 4 * " ")}"
+        else:
+            transformed_code = f"def {function_name}():\n{textwrap.indent(code, 4 * " ")}"
         transformation = CodeTransformation(line_offset=1, column_offset=4)
     else:
+        is_coroutine = None
         transformed_code = code
         transformation = None
 
@@ -733,7 +744,8 @@ def compile_code(code_id: str, code: str, kind: CodeKind, glbls: Mapping[str, An
     else:
         last_expr = None
         last_expr_co = None
-        is_coroutine = _is_coroutine(body_co)
+        if is_coroutine is None:
+            is_coroutine = _is_coroutine(body_co)
 
     # remove globals from references (they are references)
     definitions = analysis.definitions

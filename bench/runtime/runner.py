@@ -35,7 +35,7 @@ class RunnableState[T: Node]:
 
     id: UUID
     typ: RunnableType
-    scope: T
+    node: T
     code: Code | None
     text: Text | None
     compiled: "CompiledCode | None" = None
@@ -51,7 +51,7 @@ class RunnableState[T: Node]:
             if self.typ[1]
             else self.typ[0].bench_name
         )
-        return f"{typ_str}: {self.id} (in {self.scope})"
+        return f"{typ_str}: {self.id} (in {self.node})"
 
     def __repr__(self):
         return f"<{self.__class__.__name__} {self}"
@@ -111,8 +111,8 @@ class Runner[T: Node](abc.ABC):
         )
 
     @property
-    def scope(self) -> T:
-        return self.runnable.scope
+    def node(self) -> T:
+        return self.runnable.node
 
     @property
     def code(self) -> Code | None:
@@ -123,20 +123,8 @@ class Runner[T: Node](abc.ABC):
         return self.runnable.text
 
     @property
-    def compiled(self) -> CompiledCode | None:
-        return self.runnable.compiled
-
-    @property
     def variables(self) -> ValueObject | None:
         return self.runnable.variables
-
-    @property
-    def exports(self) -> Mapping[str, Any] | None:
-        return self.runnable.exports
-
-    @property
-    def last_expr_value(self) -> Any | None:
-        return self.runnable.last_expr_value
 
     @property
     def status(self) -> RunStatus:
@@ -296,7 +284,7 @@ class RuntimeRunner:
                 await self._do_run_tracked(runner.run(), handle)
             else:
                 await self._do_run_untracked(runner.run(), handle)
-            # TODO :Performance: support optimistic run-ahead and commit in background
+            # TODO :Performance!: support optimistic run-ahead and commit in background
             #  (rewind on failure or just fail the originating run?)
             await self.session.commit()
 
@@ -321,7 +309,7 @@ class RuntimeRunner:
                     runnable = RunnableState(
                         id=block.id,
                         typ=(RunnableKind.CODE, code_kind),
-                        scope=block,
+                        node=block,
                         code=block.code,
                         text=block.text,
                     )
