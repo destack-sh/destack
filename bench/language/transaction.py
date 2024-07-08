@@ -218,7 +218,6 @@ class EditEvent:
     context: EditContextData | None
     now: datetime
     scope: GraphScopeData
-    properties: tuple[int, ...] | None = None
     node_data: AnyNodeData | None = None
     # remember old values (since node is edited in place)
     old_values: dict[int, Any] | None = None
@@ -282,6 +281,22 @@ class Transaction:
         properties: Collection[Property] | None = None,
         old_values: dict[int, Any] | None = None,
     ):
+        # peephole optimization for successive updates to same node:
+        #  if the last edit was also an update to the same node, merge immediately
+        if (
+            edit_type == EditType.UPDATE
+            and len(self._pending_edits) > 0
+            and self._pending_edits[-1].node == node
+            and self._pending_edits[-1].type == EditType.UPDATE
+        ):
+            prev_edit = self._pending_edits[-1]
+            assert prev_edit.old_values is not None, f"missing old values for {prev_edit!r}"
+            assert old_values is not None, f"missing old values for {edit_type} {node!r}"
+            for prop_id, old_value in old_values.items():
+                if prop_id not in prev_edit.old_values:
+                    prev_edit.old_values[prop_id] = old_value
+            return
+
         scope = self.session._get_scope_for_node(node)
         edit = EditEvent(
             node=node,
@@ -291,7 +306,6 @@ class Transaction:
             context=context,
             now=now,
             scope=scope,
-            properties=tuple(p.id for p in properties) if properties is not None else None,
             old_values=old_values,
         )
         if edit_type not in (EditType.UPDATE, EditType.MOVE):
