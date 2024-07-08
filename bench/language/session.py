@@ -1,6 +1,6 @@
 import asyncio
 import contextvars
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from datetime import datetime
 from typing import (
     TYPE_CHECKING,
@@ -358,9 +358,10 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
         self.closed_at = self._oracle.utc()
         self.duration = (self.closed_at - self.opened_at).total_seconds()
         if self._active_session_token is not None:
-            _active_session.reset(self._active_session_token)
-            self._active_session_token = None
-
+            with suppress(ValueError):
+                # ignore token from other session
+                _active_session.reset(self._active_session_token)
+                self._active_session_token = None
         # remove dangling graph if this was a solo session
         # NOTE :Cleanup: not sure how to prune graphs from temporary objects like request sessions
         if self._is_new:
