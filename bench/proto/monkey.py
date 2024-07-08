@@ -99,6 +99,9 @@ class _PatchedMessage(ProtoMessage):
             return f"<{self.__class__.__name__}>"
 
 
+# NOTE: betterproto has a very annoying default __bool__ where it checks for non-default fields
+#  (recursively!, which is very flow and leads to weird performance regressions)
+betterproto.Message.__bool__ = lambda self: True  # type: ignore
 betterproto.Message.__str__ = _PatchedMessage.__str__  # type: ignore
 betterproto.Message.__repr__ = _PatchedMessage.__repr__  # type: ignore
 
