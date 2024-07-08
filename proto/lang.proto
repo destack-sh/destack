@@ -126,8 +126,7 @@ enum BenchType {
   BENCH_TYPE_NODE_REFERENCE = 10052;
   BENCH_TYPE_PROPERTY_REFERENCE = 10053;
   BENCH_TYPE_PATH = 10060;
-  BENCH_TYPE_PATH_SEGMENT = 10061;
-  BENCH_TYPE_PATH_TOKEN = 10062;
+  BENCH_TYPE_PATH_TOKEN = 10061;
   BENCH_TYPE_POLICY = 10100;
   BENCH_TYPE_POLICY_RULE = 10101;
   BENCH_TYPE_SUBJECT = 10102;
@@ -216,7 +215,6 @@ enum BenchType {
   BENCH_TYPE_SORT_OP = 20207;
   BENCH_TYPE_SELECTION_KIND = 20208;
   BENCH_TYPE_PATH_TOKEN_TYPE = 20210;
-  BENCH_TYPE_PATH_SEGMENT_TYPE = 20211;
   BENCH_TYPE_ISSUE_KIND = 20400;
   BENCH_TYPE_ISSUE_TYPE = 20401;
   BENCH_TYPE_STEP_TYPE = 20500;
@@ -460,7 +458,6 @@ enum EnumType {
   ENUM_TYPE_SORT_OP = 20207;
   ENUM_TYPE_SELECTION_KIND = 20208;
   ENUM_TYPE_PATH_TOKEN_TYPE = 20210;
-  ENUM_TYPE_PATH_SEGMENT_TYPE = 20211;
   ENUM_TYPE_ISSUE_KIND = 20400;
   ENUM_TYPE_ISSUE_TYPE = 20401;
   ENUM_TYPE_STEP_TYPE = 20500;
@@ -794,8 +791,7 @@ enum ObjectType {
   OBJECT_TYPE_NODE_REFERENCE = 10052;
   OBJECT_TYPE_PROPERTY_REFERENCE = 10053;
   OBJECT_TYPE_PATH = 10060;
-  OBJECT_TYPE_PATH_SEGMENT = 10061;
-  OBJECT_TYPE_PATH_TOKEN = 10062;
+  OBJECT_TYPE_PATH_TOKEN = 10061;
   OBJECT_TYPE_POLICY = 10100;
   OBJECT_TYPE_POLICY_RULE = 10101;
   OBJECT_TYPE_SUBJECT = 10102;
@@ -856,37 +852,15 @@ enum Orientation {
   ORIENTATION_VERTICAL = 11;
 }
 
-enum PathSegmentType {
-  PATH_SEGMENT_TYPE_UNSPECIFIED = 0;
-  PATH_SEGMENT_TYPE_BENCH = 1;
-  PATH_SEGMENT_TYPE_ENVIRONMENT = 2;
-  PATH_SEGMENT_TYPE_BRANCH = 3;
-  PATH_SEGMENT_TYPE_PACKAGE = 4;
-  PATH_SEGMENT_TYPE_BLOCK = 5;
-  PATH_SEGMENT_TYPE_SUB_BLOCK = 6;
-  PATH_SEGMENT_TYPE_PROPERTY = 7;
-  PATH_SEGMENT_TYPE_CURRENT = 10;
-  PATH_SEGMENT_TYPE_CURRENT_PARENT = 11;
-  PATH_SEGMENT_TYPE_CURRENT_PACKAGE = 12;
-  PATH_SEGMENT_TYPE_CURRENT_MODULE = 13;
-  PATH_SEGMENT_TYPE_CURRENT_PAGE = 14;
-  PATH_SEGMENT_TYPE_CURRENT_SOURCE_MODULE = 15;
-  PATH_SEGMENT_TYPE_CURRENT_UNIQUE = 16;
-  PATH_SEGMENT_TYPE_FILTER = 20;
-}
-
 enum PathTokenType {
   PATH_TOKEN_TYPE_UNSPECIFIED = 0;
-  PATH_TOKEN_TYPE_SLASH = 1;
-  PATH_TOKEN_TYPE_COLON = 2;
-  PATH_TOKEN_TYPE_DOT = 3;
-  PATH_TOKEN_TYPE_AT = 4;
-  PATH_TOKEN_TYPE_DOLLAR = 5;
-  PATH_TOKEN_TYPE_CARET = 6;
-  PATH_TOKEN_TYPE_TILDE = 7;
-  PATH_TOKEN_TYPE_DOUBLE_DOT = 8;
-  PATH_TOKEN_TYPE_NAME = 10;
-  PATH_TOKEN_TYPE_EXPRESSION = 11;
+  PATH_TOKEN_TYPE_BENCH = 1;
+  PATH_TOKEN_TYPE_NODE = 2;
+  PATH_TOKEN_TYPE_UNIQUE_NODE = 3;
+  PATH_TOKEN_TYPE_PROPERTY = 5;
+  PATH_TOKEN_TYPE_ROOT = 10;
+  PATH_TOKEN_TYPE_CURRENT = 11;
+  PATH_TOKEN_TYPE_PARENT = 12;
 }
 
 enum PipeType {
@@ -1129,8 +1103,7 @@ enum StructType {
   STRUCT_TYPE_NODE_REFERENCE = 10052;
   STRUCT_TYPE_PROPERTY_REFERENCE = 10053;
   STRUCT_TYPE_PATH = 10060;
-  STRUCT_TYPE_PATH_SEGMENT = 10061;
-  STRUCT_TYPE_PATH_TOKEN = 10062;
+  STRUCT_TYPE_PATH_TOKEN = 10061;
   STRUCT_TYPE_POLICY = 10100;
   STRUCT_TYPE_POLICY_RULE = 10101;
   STRUCT_TYPE_SUBJECT = 10102;
@@ -1653,78 +1626,33 @@ message PageViewStateData {
   ObjectType metatype = 1;
 }
 
-// A human-readable Bench path to reference nodes and their fields/properties. Absolute or relative.
+// A human-readable Bench path to reference nodes and their properties.
 // Paths are case-insensitive, support alphanum + spaces and use '/' as the primary node separator.
-// Nodes 'below' block-level are prefixed with one ':'.
-// Fields are accessed with '.' separators.
+// Properties must be accessed with '.' separators (also works for Fields for consistency).
 // 
-// flotothemoon/Mirror/Notion/Databases/Landscape
-// ^ bench      ^ blocks
-// flotothemoon/Applications/Birdy/MainScreen:Dashboard/Big Graphs/Graph1.name
-// ^ bench      ^ blocks                      ^ sub-block nod            ^ field
-// flotothemoon/Sandbox/Sales/Pipeline/Scraping/WebsiteSamples/Replit.document.title
-// ^ bench      ^ blocks                                              ^ field  ^ field
+// / -> root of this package
+// ./ -> current node
+// ../.. -> parent of parent of current node
+// Name -> ./Name -> Name relative to current node
+// Node1/Node2.property -> property of Node2 (there must not be anything after .property)
 // 
-// flotothemoon
-// ^ bench
-// flotothemoon.name
-// ^ bench      ^ field
-// flotothemoon-tests/Tests/Databases/TestPopulate.code
-// ^ bench            ^ blocks                     ^ field
-// 
-// .
-// ^ current
-// ..
-// ^ parent
-// ../../Header Screen:Header/Title.theme.primary.color
-// ^ blocks           ^ sub-nodes  ^ field
-// ../../../../Graphs
-// ^ parents
-// 
-// symbolx@2024-01-01/Library/Common/Utils/DateUtils
-// ^ bench ^ package  ^ blocks
-// symbolx@MyNewFeature:2024-01-01/Applications/Chat/MainScreen:ChatInput/Input.text
-// ^ bench ^ branch     ^ package  ^ blocks                     ^ sub-nodes     ^ field
-// 
-// also relative:
-// / -> package root (=Package)
-// ^ -> page (=Block)
-// $User -> module-unique node (=Block|View|Step)
-// ~ -> source module root (like $ but for templated)
-// [<expr like ck=...>] -> dynamic Expression filter
-// 
-// ''
-// ERROR (invalid, empty path)
-// '../'
-// ERROR (invalid, trailing slash)
-// ../../Something/../SomethingElse
-// ERROR (invalid, cannot go up and down in the same path)
-// 
-// The general syntax is:
-// [bench-name][@branch-name][:package-name][/[block-name][:sub-node-name]][.field-name]
-// For absolute paths, the bench name is required.
+// @bench -> absolute reference to bench
+// @bench/Node1/Node2/Node3 -> absolute reference to Node3 in package
 message PathData {
   ObjectType metatype = 1;
   int32 id = 2;
   optional int32 parent_id = 3;
   optional string parent_key = 4;
   optional string order_key = 9;
-  repeated PathSegmentData segments = 31;
+  repeated PathTokenData tokens = 31;
 }
 
 // A semantic part of a Bench path.
-message PathSegmentData {
-  ObjectType metatype = 1;
-  PathSegmentType type = 31;
-  optional string name = 32;
-  optional NodeReferenceData reference_ptr = 33;
-}
-
-// A lexical token in a Bench path.
 message PathTokenData {
   ObjectType metatype = 1;
   PathTokenType type = 31;
   optional string name = 32;
+  optional NodeReferenceData node_ptr = 33;
 }
 
 // A connection between two Steps in a FlowBlock.

@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.07.08.1"  # auto change via version script
+VERSION = "2024.07.08.2"  # auto change via version script
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -120,7 +120,6 @@ class EnumType(IdEnum):
     SORT_OP = 20207
     SELECTION_KIND = 20208
     PATH_TOKEN_TYPE = 20210
-    PATH_SEGMENT_TYPE = 20211
 
     # issue
     ISSUE_KIND = 20400
@@ -311,8 +310,7 @@ class StructType(IdEnum):
     NODE_REFERENCE = 10052
     PROPERTY_REFERENCE = 10053
     PATH = 10060
-    PATH_SEGMENT = 10061
-    PATH_TOKEN = 10062
+    PATH_TOKEN = 10061
 
     # access
     POLICY = 10100
