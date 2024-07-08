@@ -403,7 +403,7 @@ async def create_default_bench(
     )
     store = bench.stores.create(region=bench.region, name="Store")
     drive = bench.drives.create(region=bench.region, name="Drive")
-    await session.flush()  # create before assigning FKs
+    await session.flush()
     bench.main_server = server
     bench.main_store = store
     bench.main_drive = drive

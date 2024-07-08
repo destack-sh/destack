@@ -178,7 +178,7 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
 
     @property
     def epoch(self) -> int:
-        return max(c.epoch for c in self._connections)
+        return max((*(c.epoch for c in self._connections), -1))
 
     @property
     def tx(self) -> Transaction:
@@ -382,15 +382,15 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
 
     def unsuspend(self):
         """Stop suspending the session, allowing further edits. Activates context."""
-        assert self._active_session_token is None, f"session already active {self!r}"
         self._is_suspended = False
         self._active_session_token = _active_session.set(self)
 
     @asynccontextmanager
     async def unsuspended(self, readonly: bool = False, autocommit: bool = False):
-        """Gets exclusive query and edit access to the main session."""
+        """Get active (not suspended) access to this session."""
         was_readonly = self._is_readonly
         was_suspended = self._is_suspended
+        was_active = self._active_session_token is not None
         self._is_readonly = readonly
         self.unsuspend()
         try:
@@ -400,8 +400,7 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
         finally:
             if was_suspended:
                 self.suspend()
-            else:
-                assert self._active_session_token is not None, f"session not active {self!r}"
+            elif not was_active and self._active_session_token is not None:
                 _active_session.reset(self._active_session_token)
                 self._active_session_token = None
             self._is_readonly = was_readonly

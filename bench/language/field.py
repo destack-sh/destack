@@ -1,5 +1,5 @@
 import typing
-from typing import TYPE_CHECKING, Any, Collection, Optional, Type, Union, cast, override
+from typing import TYPE_CHECKING, Any, Collection, Optional, Sequence, Type, Union, cast, override
 from uuid import UUID
 
 import structlog
@@ -301,7 +301,7 @@ class TypeInfoBase(HasValues):
             info_str += f" from {self._from_property!s}"
 
         if self.base_field_zone:
-            info_str += f" [{self.base_field_zone.name}]"
+            info_str += f" [{self.base_field_zone.bench_name}]"
 
         return info_str
 
@@ -383,6 +383,16 @@ class TypeInfoBase(HasValues):
         assert self._resolved_type is not None, f"unresolved type {self!r}"
         assert self._resolved_type.base_type is not None, f"missing base type {self!r}"
         return self._resolved_type.base_type.fields
+
+    @property
+    def _fields(self) -> NodeList["Field"] | Sequence["Field"]:
+        assert self._resolved_type is not None, f"unresolved type {self!r}"
+        if self._resolved_type.base_field_zone is None:
+            return self._base_fields
+        else:
+            return tuple(
+                f for f in self._base_fields if f.zone == self._resolved_type.base_field_zone
+            )
 
     def _get_field(self, ident: str) -> Optional["Field"]:
         """Resolves a field in this type by an identifier (name or py_ident)"""

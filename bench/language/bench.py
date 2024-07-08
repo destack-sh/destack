@@ -136,6 +136,14 @@ class Bench(BenchNode[BenchData]):
         return True
 
     @property
+    def main_package(self) -> "Package":
+        main_branch = self.main_branch
+        assert main_branch is not None, f"{self!r} has no main branch"
+        main_package = main_branch.main_package
+        assert main_package is not None, f"{self!r} has no main package"
+        return main_package
+
+    @property
     def resources(self) -> Iterable["BenchResourceNode"]:
         return chain(
             self.servers,
