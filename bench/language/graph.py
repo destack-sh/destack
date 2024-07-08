@@ -672,9 +672,7 @@ class GraphNodeList[V: Node](NodeList[V]):
             descendants.sort(key=lambda n: n.order_key)  # type: ignore
         return cast(list[V], descendants)
 
-    def append(  # type: ignore
-        self, node: V, after: V | None = None, before: V | None = None
-    ) -> tuple[V, ...]:
+    def append(self, node: V, after: V | None = None, before: V | None = None) -> V:
         from bench.language.node import Node
 
         assert isinstance(node, Node), f"cannot append {node!r} to {self!r}"
@@ -687,6 +685,12 @@ class GraphNodeList[V: Node](NodeList[V]):
         # validate
         if self._parent._session is not None:
             node._validate_self((), invalid=on_invalid_raise)
+            if not self._parent._is_attached:
+                # NOTE :Broken :Architecture: creating detached subtrees is currently not possible
+                #  (because we immediately create edit events for every node, even detached,
+                #   so 1) the child create would appear before the parent create
+                #   and 2) the edit event scope may even be wrong if we don't know the package)
+                raise ValueError(f"cannot attach {node!r} to {self!r}: parent is not attached")
 
         # add node (and descendants) to this parent's graph
         new_graph = self._parent._graph
@@ -714,7 +718,7 @@ class GraphNodeList[V: Node](NodeList[V]):
             self._parent._session._create(*added)
             self._parent._session.track_many(*added)
 
-        return cast(tuple[V, ...], added)
+        return node
 
     def extend(self, *nodes: V, after: V | None = None, before: V | None = None) -> None:  # type: ignore
         if not nodes:
