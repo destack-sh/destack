@@ -88,6 +88,7 @@ if TYPE_CHECKING:
     from bench.language import (
         Bench,
         Block,
+        Branch,
         Expression,
         Field,
         GetConnection,
@@ -1568,11 +1569,14 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         return None
 
     @property
-    def bench_path_key(self) -> Optional[str]:
+    def _path_key(self) -> str:
         """The Bench *path* identifier of this node (prefers bench_ident, ck/id filter otherwise)"""
         bench_ident = self.bench_ident
         if bench_ident is not None:
-            return bench_ident
+            if self.metatype == NodeType.BENCH:
+                return f"@{bench_ident}"
+            else:
+                return bench_ident
         elif "ck" in self.__properties__:
             return f"[ck={self.ck}]"
         else:
@@ -1601,37 +1605,17 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
             assert ident is not None, f"no bench ident for {self!r}"
             return ident
         elif self._supergraph is None or self.parent is None:
-            return f"<detached>/{self.bench_path_key}"
+            return f"<detached>/{self._path_key}"
         else:
-            # NOTE :Broken: Node.absolute_path is a mess & incorrect
-            path_segments: list[str] = []
-            current = self
-            while current is not None:
-                path_key = current.bench_path_key
-                assert path_key is not None, f"no path key for {current!r}"
-                path_segments.append(path_key)
-                next_parent = current.parent
-                if next_parent is None:
-                    break
-                elif next_parent.metatype == NodeType.PACKAGE:
-                    next_parent = cast("Package", next_parent).bench
-                elif next_parent.metatype == NodeType.BRANCH:
-                    next_parent = next_parent.parent
-                # skip bench & branch (same path as pkg)
-                elif current.metatype == NodeType.FIELD:
-                    path_segments.append(".")
-                elif (
-                    current.metatype != NodeType.BLOCK
-                    and cast(Node, next_parent).metatype == NodeType.BLOCK
-                ):
-                    path_segments.append(":")
-                else:
-                    path_segments.append("/")
-                current = next_parent
-
-            path_segments.reverse()
-            path = "".join(path_segments)
-            return path
+            # this is a mini version of Path.render
+            path_parts: list[str] = [self._path_key]
+            parent = self.parent
+            while parent is not None:
+                if parent.metatype == NodeType.BRANCH or parent.metatype == NodeType.PACKAGE:
+                    parent = cast("Branch | Package", parent).bench
+                path_parts.append(parent._path_key)
+                parent = parent.parent
+            return "/".join(reversed(path_parts))
 
     def to_ref(self) -> "NodeReference":
         """Gets a reference to this node."""

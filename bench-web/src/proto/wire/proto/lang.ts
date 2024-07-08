@@ -959,56 +959,18 @@ export interface PageViewStateData {
     metatype: ObjectType;
 }
 /**
- * A human-readable Bench path to reference nodes and their fields/properties. Absolute or relative.
+ * A human-readable Bench path to reference nodes and their properties.
  * Paths are case-insensitive, support alphanum + spaces and use '/' as the primary node separator.
- * Nodes 'below' block-level are prefixed with one ':'.
- * Fields are accessed with '.' separators.
+ * Properties must be accessed with '.' separators (also works for Fields for consistency).
  *
- * flotothemoon/Mirror/Notion/Databases/Landscape
- * ^ bench      ^ blocks
- * flotothemoon/Applications/Birdy/MainScreen:Dashboard/Big Graphs/Graph1.name
- * ^ bench      ^ blocks                      ^ sub-block nod            ^ field
- * flotothemoon/Sandbox/Sales/Pipeline/Scraping/WebsiteSamples/Replit.document.title
- * ^ bench      ^ blocks                                              ^ field  ^ field
+ * / -> root of this package
+ * ./ -> current node
+ * ../.. -> parent of parent of current node
+ * Name -> ./Name -> Name relative to current node
+ * Node1/Node2.property -> property of Node2 (there must not be anything after .property)
  *
- * flotothemoon
- * ^ bench
- * flotothemoon.name
- * ^ bench      ^ field
- * flotothemoon-tests/Tests/Databases/TestPopulate.code
- * ^ bench            ^ blocks                     ^ field
- *
- * .
- * ^ current
- * ..
- * ^ parent
- * ../../Header Screen:Header/Title.theme.primary.color
- * ^ blocks           ^ sub-nodes  ^ field
- * ../../../../Graphs
- * ^ parents
- *
- * symbolx@2024-01-01/Library/Common/Utils/DateUtils
- * ^ bench ^ package  ^ blocks
- * symbolx@MyNewFeature:2024-01-01/Applications/Chat/MainScreen:ChatInput/Input.text
- * ^ bench ^ branch     ^ package  ^ blocks                     ^ sub-nodes     ^ field
- *
- * also relative:
- * / -> package root (=Package)
- * ^ -> page (=Block)
- * $User -> module-unique node (=Block|View|Step)
- * ~ -> source module root (like $ but for templated)
- * [<expr like ck=...>] -> dynamic Expression filter
- *
- * ''
- * ERROR (invalid, empty path)
- * '../'
- * ERROR (invalid, trailing slash)
- * ../../Something/../SomethingElse
- * ERROR (invalid, cannot go up and down in the same path)
- *
- * The general syntax is:
- * [bench-name][@branch-name][:package-name][/[block-name][:sub-node-name]][.field-name]
- * For absolute paths, the bench name is required.
+ * @bench -> absolute reference to bench
+ * @bench/Node1/Node2/Node3 -> absolute reference to Node3 in package
  *
  * @generated from protobuf message symbolx.bench.PathData
  */
@@ -1034,35 +996,12 @@ export interface PathData {
      */
     orderKey?: string;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.PathSegmentData segments = 31;
+     * @generated from protobuf field: repeated symbolx.bench.PathTokenData tokens = 31;
      */
-    segments: PathSegmentData[];
+    tokens: PathTokenData[];
 }
 /**
  * A semantic part of a Bench path.
- *
- * @generated from protobuf message symbolx.bench.PathSegmentData
- */
-export interface PathSegmentData {
-    /**
-     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
-     */
-    metatype: ObjectType;
-    /**
-     * @generated from protobuf field: symbolx.bench.PathSegmentType type = 31;
-     */
-    type: PathSegmentType;
-    /**
-     * @generated from protobuf field: optional string name = 32;
-     */
-    name?: string;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData reference_ptr = 33;
-     */
-    referencePtr?: NodeReferenceData;
-}
-/**
- * A lexical token in a Bench path.
  *
  * @generated from protobuf message symbolx.bench.PathTokenData
  */
@@ -1079,6 +1018,10 @@ export interface PathTokenData {
      * @generated from protobuf field: optional string name = 32;
      */
     name?: string;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData node_ptr = 33;
+     */
+    nodePtr?: NodeReferenceData;
 }
 /**
  * A connection between two Steps in a FlowBlock.
@@ -6677,13 +6620,9 @@ export enum BenchType {
      */
     PATH = 10060,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_PATH_SEGMENT = 10061;
+     * @generated from protobuf enum value: BENCH_TYPE_PATH_TOKEN = 10061;
      */
-    PATH_SEGMENT = 10061,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_PATH_TOKEN = 10062;
-     */
-    PATH_TOKEN = 10062,
+    PATH_TOKEN = 10061,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_POLICY = 10100;
      */
@@ -7036,10 +6975,6 @@ export enum BenchType {
      * @generated from protobuf enum value: BENCH_TYPE_PATH_TOKEN_TYPE = 20210;
      */
     PATH_TOKEN_TYPE = 20210,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_PATH_SEGMENT_TYPE = 20211;
-     */
-    PATH_SEGMENT_TYPE = 20211,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_ISSUE_KIND = 20400;
      */
@@ -7906,10 +7841,6 @@ export enum EnumType {
      * @generated from protobuf enum value: ENUM_TYPE_PATH_TOKEN_TYPE = 20210;
      */
     PATH_TOKEN_TYPE = 20210,
-    /**
-     * @generated from protobuf enum value: ENUM_TYPE_PATH_SEGMENT_TYPE = 20211;
-     */
-    PATH_SEGMENT_TYPE = 20211,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_ISSUE_KIND = 20400;
      */
@@ -9086,13 +9017,9 @@ export enum ObjectType {
      */
     PATH = 10060,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_PATH_SEGMENT = 10061;
+     * @generated from protobuf enum value: OBJECT_TYPE_PATH_TOKEN = 10061;
      */
-    PATH_SEGMENT = 10061,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_PATH_TOKEN = 10062;
-     */
-    PATH_TOKEN = 10062,
+    PATH_TOKEN = 10061,
     /**
      * @generated from protobuf enum value: OBJECT_TYPE_POLICY = 10100;
      */
@@ -9311,75 +9238,6 @@ export enum Orientation {
     VERTICAL = 11
 }
 /**
- * @generated from protobuf enum symbolx.bench.PathSegmentType
- */
-export enum PathSegmentType {
-    /**
-     * @generated from protobuf enum value: PATH_SEGMENT_TYPE_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: PATH_SEGMENT_TYPE_BENCH = 1;
-     */
-    BENCH = 1,
-    /**
-     * @generated from protobuf enum value: PATH_SEGMENT_TYPE_ENVIRONMENT = 2;
-     */
-    ENVIRONMENT = 2,
-    /**
-     * @generated from protobuf enum value: PATH_SEGMENT_TYPE_BRANCH = 3;
-     */
-    BRANCH = 3,
-    /**
-     * @generated from protobuf enum value: PATH_SEGMENT_TYPE_PACKAGE = 4;
-     */
-    PACKAGE = 4,
-    /**
-     * @generated from protobuf enum value: PATH_SEGMENT_TYPE_BLOCK = 5;
-     */
-    BLOCK = 5,
-    /**
-     * @generated from protobuf enum value: PATH_SEGMENT_TYPE_SUB_BLOCK = 6;
-     */
-    SUB_BLOCK = 6,
-    /**
-     * @generated from protobuf enum value: PATH_SEGMENT_TYPE_PROPERTY = 7;
-     */
-    PROPERTY = 7,
-    /**
-     * @generated from protobuf enum value: PATH_SEGMENT_TYPE_CURRENT = 10;
-     */
-    CURRENT = 10,
-    /**
-     * @generated from protobuf enum value: PATH_SEGMENT_TYPE_CURRENT_PARENT = 11;
-     */
-    CURRENT_PARENT = 11,
-    /**
-     * @generated from protobuf enum value: PATH_SEGMENT_TYPE_CURRENT_PACKAGE = 12;
-     */
-    CURRENT_PACKAGE = 12,
-    /**
-     * @generated from protobuf enum value: PATH_SEGMENT_TYPE_CURRENT_MODULE = 13;
-     */
-    CURRENT_MODULE = 13,
-    /**
-     * @generated from protobuf enum value: PATH_SEGMENT_TYPE_CURRENT_PAGE = 14;
-     */
-    CURRENT_PAGE = 14,
-    /**
-     * @generated from protobuf enum value: PATH_SEGMENT_TYPE_CURRENT_SOURCE_MODULE = 15;
-     */
-    CURRENT_SOURCE_MODULE = 15,
-    /**
-     * @generated from protobuf enum value: PATH_SEGMENT_TYPE_CURRENT_UNIQUE = 16;
-     */
-    CURRENT_UNIQUE = 16,
-    /**
-     * @generated from protobuf enum value: PATH_SEGMENT_TYPE_FILTER = 20;
-     */
-    FILTER = 20
-}
-/**
  * @generated from protobuf enum symbolx.bench.PathTokenType
  */
 export enum PathTokenType {
@@ -9388,45 +9246,33 @@ export enum PathTokenType {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: PATH_TOKEN_TYPE_SLASH = 1;
+     * @generated from protobuf enum value: PATH_TOKEN_TYPE_BENCH = 1;
      */
-    SLASH = 1,
+    BENCH = 1,
     /**
-     * @generated from protobuf enum value: PATH_TOKEN_TYPE_COLON = 2;
+     * @generated from protobuf enum value: PATH_TOKEN_TYPE_NODE = 2;
      */
-    COLON = 2,
+    NODE = 2,
     /**
-     * @generated from protobuf enum value: PATH_TOKEN_TYPE_DOT = 3;
+     * @generated from protobuf enum value: PATH_TOKEN_TYPE_UNIQUE_NODE = 3;
      */
-    DOT = 3,
+    UNIQUE_NODE = 3,
     /**
-     * @generated from protobuf enum value: PATH_TOKEN_TYPE_AT = 4;
+     * @generated from protobuf enum value: PATH_TOKEN_TYPE_PROPERTY = 5;
      */
-    AT = 4,
+    PROPERTY = 5,
     /**
-     * @generated from protobuf enum value: PATH_TOKEN_TYPE_DOLLAR = 5;
+     * @generated from protobuf enum value: PATH_TOKEN_TYPE_ROOT = 10;
      */
-    DOLLAR = 5,
+    ROOT = 10,
     /**
-     * @generated from protobuf enum value: PATH_TOKEN_TYPE_CARET = 6;
+     * @generated from protobuf enum value: PATH_TOKEN_TYPE_CURRENT = 11;
      */
-    CARET = 6,
+    CURRENT = 11,
     /**
-     * @generated from protobuf enum value: PATH_TOKEN_TYPE_TILDE = 7;
+     * @generated from protobuf enum value: PATH_TOKEN_TYPE_PARENT = 12;
      */
-    TILDE = 7,
-    /**
-     * @generated from protobuf enum value: PATH_TOKEN_TYPE_DOUBLE_DOT = 8;
-     */
-    DOUBLE_DOT = 8,
-    /**
-     * @generated from protobuf enum value: PATH_TOKEN_TYPE_NAME = 10;
-     */
-    NAME = 10,
-    /**
-     * @generated from protobuf enum value: PATH_TOKEN_TYPE_EXPRESSION = 11;
-     */
-    EXPRESSION = 11
+    PARENT = 12
 }
 /**
  * @generated from protobuf enum symbolx.bench.PipeType
@@ -10213,13 +10059,9 @@ export enum StructType {
      */
     PATH = 10060,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_PATH_SEGMENT = 10061;
+     * @generated from protobuf enum value: STRUCT_TYPE_PATH_TOKEN = 10061;
      */
-    PATH_SEGMENT = 10061,
-    /**
-     * @generated from protobuf enum value: STRUCT_TYPE_PATH_TOKEN = 10062;
-     */
-    PATH_TOKEN = 10062,
+    PATH_TOKEN = 10061,
     /**
      * @generated from protobuf enum value: STRUCT_TYPE_POLICY = 10100;
      */
@@ -13423,14 +13265,14 @@ class PathData$Type extends MessageType<PathData> {
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 9, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 31, name: "segments", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PathSegmentData }
+            { no: 31, name: "tokens", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PathTokenData }
         ]);
     }
     create(value?: PartialMessage<PathData>): PathData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = 0;
-        message.segments = [];
+        message.tokens = [];
         if (value !== undefined)
             reflectionMergePartial<PathData>(this, message, value);
         return message;
@@ -13455,8 +13297,8 @@ class PathData$Type extends MessageType<PathData> {
                 case /* optional string order_key */ 9:
                     message.orderKey = reader.string();
                     break;
-                case /* repeated symbolx.bench.PathSegmentData segments */ 31:
-                    message.segments.push(PathSegmentData.internalBinaryRead(reader, reader.uint32(), options));
+                case /* repeated symbolx.bench.PathTokenData tokens */ 31:
+                    message.tokens.push(PathTokenData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -13485,9 +13327,9 @@ class PathData$Type extends MessageType<PathData> {
         /* optional string order_key = 9; */
         if (message.orderKey !== undefined)
             writer.tag(9, WireType.LengthDelimited).string(message.orderKey);
-        /* repeated symbolx.bench.PathSegmentData segments = 31; */
-        for (let i = 0; i < message.segments.length; i++)
-            PathSegmentData.internalBinaryWrite(message.segments[i], writer.tag(31, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.PathTokenData tokens = 31; */
+        for (let i = 0; i < message.tokens.length; i++)
+            PathTokenData.internalBinaryWrite(message.tokens[i], writer.tag(31, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -13499,81 +13341,13 @@ class PathData$Type extends MessageType<PathData> {
  */
 export const PathData = new PathData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class PathSegmentData$Type extends MessageType<PathSegmentData> {
-    constructor() {
-        super("symbolx.bench.PathSegmentData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 31, name: "type", kind: "enum", T: () => ["symbolx.bench.PathSegmentType", PathSegmentType, "PATH_SEGMENT_TYPE_"] },
-            { no: 32, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "reference_ptr", kind: "message", T: () => NodeReferenceData }
-        ]);
-    }
-    create(value?: PartialMessage<PathSegmentData>): PathSegmentData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.type = 0;
-        if (value !== undefined)
-            reflectionMergePartial<PathSegmentData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PathSegmentData): PathSegmentData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.ObjectType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* symbolx.bench.PathSegmentType type */ 31:
-                    message.type = reader.int32();
-                    break;
-                case /* optional string name */ 32:
-                    message.name = reader.string();
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData reference_ptr */ 33:
-                    message.referencePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.referencePtr);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: PathSegmentData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.ObjectType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* symbolx.bench.PathSegmentType type = 31; */
-        if (message.type !== 0)
-            writer.tag(31, WireType.Varint).int32(message.type);
-        /* optional string name = 32; */
-        if (message.name !== undefined)
-            writer.tag(32, WireType.LengthDelimited).string(message.name);
-        /* optional symbolx.bench.NodeReferenceData reference_ptr = 33; */
-        if (message.referencePtr)
-            NodeReferenceData.internalBinaryWrite(message.referencePtr, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.PathSegmentData
- */
-export const PathSegmentData = new PathSegmentData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
 class PathTokenData$Type extends MessageType<PathTokenData> {
     constructor() {
         super("symbolx.bench.PathTokenData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 31, name: "type", kind: "enum", T: () => ["symbolx.bench.PathTokenType", PathTokenType, "PATH_TOKEN_TYPE_"] },
-            { no: 32, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
+            { no: 32, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "node_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<PathTokenData>): PathTokenData {
@@ -13598,6 +13372,9 @@ class PathTokenData$Type extends MessageType<PathTokenData> {
                 case /* optional string name */ 32:
                     message.name = reader.string();
                     break;
+                case /* optional symbolx.bench.NodeReferenceData node_ptr */ 33:
+                    message.nodePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -13619,6 +13396,9 @@ class PathTokenData$Type extends MessageType<PathTokenData> {
         /* optional string name = 32; */
         if (message.name !== undefined)
             writer.tag(32, WireType.LengthDelimited).string(message.name);
+        /* optional symbolx.bench.NodeReferenceData node_ptr = 33; */
+        if (message.nodePtr)
+            NodeReferenceData.internalBinaryWrite(message.nodePtr, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -24986,9 +24766,9 @@ export const SomeNodeData = new SomeNodeData$Type();
 
 // Any...
 export type AnyNodeData = BenchData | UserData | OrganizationData | HandleData | ClientData | ServerData | StoreData | MachineData | DriveData | BlobData | BranchData | PackageData | DependencyData | SpaceData | LinkData | SkipData | IssueData | BlockData | TriggerData | FieldData | QueryData | ViewData | StepData | BadgeData | MembershipData | InviteData | SessionData | RunData | SignalData | LogData | NotificationData | MessageData | RecordData
-export type AnyStructData = ContextData | SessionContextData | EditContextData | EditData | ChangeData | ChangeVignetteData | GraphScopeData | ClientOriginData | NodeReferenceData | PropertyReferenceData | PathData | PathSegmentData | PathTokenData | PolicyData | PolicyRuleData | SubjectData | AccessZoneData | AccessMatrixData | AccessData | TextData | TextLineData | TextSpanData | TypeInfoData | TypeConstraintData | ScheduleData | ProjectionData | FileData | IconData | TriggerInfoData | ExpressionData | AggregationData | SelectionData | QueryInfoData | ReadOptionsData | ValueData | ComputedValueData | CodeData | CodeLineData | PipeData | RunErrorData | RunOptionsData | RunAttemptData | RunTraceData | RunFrameData | BreakpointData | ColorData | FontData | BoxData | OffsetData | TransformData | StartViewStateData | FeedViewStateData | ChartViewStateData | HistoryViewStateData | TimelineViewStateData | UserWizardViewStateData | PageViewStateData | TreeViewStateData
+export type AnyStructData = ContextData | SessionContextData | EditContextData | EditData | ChangeData | ChangeVignetteData | GraphScopeData | ClientOriginData | NodeReferenceData | PropertyReferenceData | PathData | PathTokenData | PolicyData | PolicyRuleData | SubjectData | AccessZoneData | AccessMatrixData | AccessData | TextData | TextLineData | TextSpanData | TypeInfoData | TypeConstraintData | ScheduleData | ProjectionData | FileData | IconData | TriggerInfoData | ExpressionData | AggregationData | SelectionData | QueryInfoData | ReadOptionsData | ValueData | ComputedValueData | CodeData | CodeLineData | PipeData | RunErrorData | RunOptionsData | RunAttemptData | RunTraceData | RunFrameData | BreakpointData | ColorData | FontData | BoxData | OffsetData | TransformData | StartViewStateData | FeedViewStateData | ChartViewStateData | HistoryViewStateData | TimelineViewStateData | UserWizardViewStateData | PageViewStateData | TreeViewStateData
 export type AnyNodeDataType = typeof BenchData | typeof UserData | typeof OrganizationData | typeof HandleData | typeof ClientData | typeof ServerData | typeof StoreData | typeof MachineData | typeof DriveData | typeof BlobData | typeof BranchData | typeof PackageData | typeof DependencyData | typeof SpaceData | typeof LinkData | typeof SkipData | typeof IssueData | typeof BlockData | typeof TriggerData | typeof FieldData | typeof QueryData | typeof ViewData | typeof StepData | typeof BadgeData | typeof MembershipData | typeof InviteData | typeof SessionData | typeof RunData | typeof SignalData | typeof LogData | typeof NotificationData | typeof MessageData | typeof RecordData
-export type AnyStructDataType = typeof ContextData | typeof SessionContextData | typeof EditContextData | typeof EditData | typeof ChangeData | typeof ChangeVignetteData | typeof GraphScopeData | typeof ClientOriginData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof PathData | typeof PathSegmentData | typeof PathTokenData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof TypeInfoData | typeof TypeConstraintData | typeof ScheduleData | typeof ProjectionData | typeof FileData | typeof IconData | typeof TriggerInfoData | typeof ExpressionData | typeof AggregationData | typeof SelectionData | typeof QueryInfoData | typeof ReadOptionsData | typeof ValueData | typeof ComputedValueData | typeof CodeData | typeof CodeLineData | typeof PipeData | typeof RunErrorData | typeof RunOptionsData | typeof RunAttemptData | typeof RunTraceData | typeof RunFrameData | typeof BreakpointData | typeof ColorData | typeof FontData | typeof BoxData | typeof OffsetData | typeof TransformData | typeof StartViewStateData | typeof FeedViewStateData | typeof ChartViewStateData | typeof HistoryViewStateData | typeof TimelineViewStateData | typeof UserWizardViewStateData | typeof PageViewStateData | typeof TreeViewStateData
+export type AnyStructDataType = typeof ContextData | typeof SessionContextData | typeof EditContextData | typeof EditData | typeof ChangeData | typeof ChangeVignetteData | typeof GraphScopeData | typeof ClientOriginData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof PathData | typeof PathTokenData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof TypeInfoData | typeof TypeConstraintData | typeof ScheduleData | typeof ProjectionData | typeof FileData | typeof IconData | typeof TriggerInfoData | typeof ExpressionData | typeof AggregationData | typeof SelectionData | typeof QueryInfoData | typeof ReadOptionsData | typeof ValueData | typeof ComputedValueData | typeof CodeData | typeof CodeLineData | typeof PipeData | typeof RunErrorData | typeof RunOptionsData | typeof RunAttemptData | typeof RunTraceData | typeof RunFrameData | typeof BreakpointData | typeof ColorData | typeof FontData | typeof BoxData | typeof OffsetData | typeof TransformData | typeof StartViewStateData | typeof FeedViewStateData | typeof ChartViewStateData | typeof HistoryViewStateData | typeof TimelineViewStateData | typeof UserWizardViewStateData | typeof PageViewStateData | typeof TreeViewStateData
 
 // Ancestry maps
 export const PARENT_NODE_TYPES: Record<NodeType, NodeType[]> = {
@@ -25186,7 +24966,6 @@ export const MESSAGE_TYPE_BY_OBJECT_TYPE: Partial<Record<ObjectType, MessageType
   [ObjectType.NODE_REFERENCE]: NodeReferenceData,
   [ObjectType.PROPERTY_REFERENCE]: PropertyReferenceData,
   [ObjectType.PATH]: PathData,
-  [ObjectType.PATH_SEGMENT]: PathSegmentData,
   [ObjectType.PATH_TOKEN]: PathTokenData,
   [ObjectType.POLICY]: PolicyData,
   [ObjectType.POLICY_RULE]: PolicyRuleData,
@@ -25280,7 +25059,6 @@ export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
   ["symbolx.bench.NodeReferenceData"]: ObjectType.NODE_REFERENCE,
   ["symbolx.bench.PropertyReferenceData"]: ObjectType.PROPERTY_REFERENCE,
   ["symbolx.bench.PathData"]: ObjectType.PATH,
-  ["symbolx.bench.PathSegmentData"]: ObjectType.PATH_SEGMENT,
   ["symbolx.bench.PathTokenData"]: ObjectType.PATH_TOKEN,
   ["symbolx.bench.PolicyData"]: ObjectType.POLICY,
   ["symbolx.bench.PolicyRuleData"]: ObjectType.POLICY_RULE,
@@ -25374,7 +25152,6 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.SORT_OP]: SortOp,
   [EnumType.SELECTION_KIND]: SelectionKind,
   [EnumType.PATH_TOKEN_TYPE]: PathTokenType,
-  [EnumType.PATH_SEGMENT_TYPE]: PathSegmentType,
   [EnumType.ISSUE_KIND]: IssueKind,
   [EnumType.ISSUE_TYPE]: IssueType,
   [EnumType.STEP_TYPE]: StepType,
@@ -25424,7 +25201,6 @@ export interface StructTypeMapping extends Record<StructType, AnyStructData> {
   [StructType.NODE_REFERENCE]: NodeReferenceData,
   [StructType.PROPERTY_REFERENCE]: PropertyReferenceData,
   [StructType.PATH]: PathData,
-  [StructType.PATH_SEGMENT]: PathSegmentData,
   [StructType.PATH_TOKEN]: PathTokenData,
   [StructType.POLICY]: PolicyData,
   [StructType.POLICY_RULE]: PolicyRuleData,
@@ -25554,7 +25330,6 @@ export interface AnyTypeMapping extends Record<ObjectType, AnyStructData | AnyNo
   [ObjectType.NODE_REFERENCE]: NodeReferenceData,
   [ObjectType.PROPERTY_REFERENCE]: PropertyReferenceData,
   [ObjectType.PATH]: PathData,
-  [ObjectType.PATH_SEGMENT]: PathSegmentData,
   [ObjectType.PATH_TOKEN]: PathTokenData,
   [ObjectType.POLICY]: PolicyData,
   [ObjectType.POLICY_RULE]: PolicyRuleData,
@@ -25648,7 +25423,6 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.SORT_OP]: SortOp,
   [EnumType.SELECTION_KIND]: SelectionKind,
   [EnumType.PATH_TOKEN_TYPE]: PathTokenType,
-  [EnumType.PATH_SEGMENT_TYPE]: PathSegmentType,
   [EnumType.ISSUE_KIND]: IssueKind,
   [EnumType.ISSUE_TYPE]: IssueType,
   [EnumType.STEP_TYPE]: StepType,
@@ -26764,20 +26538,14 @@ export enum PathProperty {
   parentId = 3,
   parentKey = 4,
   orderKey = 9,
-  segments = 31,
-}
-
-export enum PathSegmentProperty {
-  metatype = 1,
-  type = 31,
-  name = 32,
-  referencePtr = 33,
+  tokens = 31,
 }
 
 export enum PathTokenProperty {
   metatype = 1,
   type = 31,
   name = 32,
+  nodePtr = 33,
 }
 
 export enum PolicyProperty {
@@ -27266,11 +27034,11 @@ export enum TreeViewStateProperty {
 }
 
 export type AnyNodeProperty = typeof BenchProperty | typeof UserProperty | typeof OrganizationProperty | typeof HandleProperty | typeof ClientProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof BlobProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof LinkProperty | typeof SkipProperty | typeof IssueProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof BadgeProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof MessageProperty | typeof RecordProperty
-export type AnyStructProperty = typeof ContextProperty | typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof FileProperty | typeof IconProperty | typeof TriggerInfoProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof ReadOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PipeProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof BreakpointProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof ChartViewStateProperty | typeof HistoryViewStateProperty | typeof TimelineViewStateProperty | typeof UserWizardViewStateProperty | typeof PageViewStateProperty | typeof TreeViewStateProperty
+export type AnyStructProperty = typeof ContextProperty | typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof FileProperty | typeof IconProperty | typeof TriggerInfoProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof ReadOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PipeProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof BreakpointProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof ChartViewStateProperty | typeof HistoryViewStateProperty | typeof TimelineViewStateProperty | typeof UserWizardViewStateProperty | typeof PageViewStateProperty | typeof TreeViewStateProperty
 export type AnyProperty = AnyNodeProperty | AnyStructProperty
 export type AnyNodePropertyType = typeof BenchProperty | typeof UserProperty | typeof OrganizationProperty | typeof HandleProperty | typeof ClientProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof BlobProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof LinkProperty | typeof SkipProperty | typeof IssueProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof BadgeProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof MessageProperty | typeof RecordProperty
-export type AnyStructPropertyType = typeof ContextProperty | typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof FileProperty | typeof IconProperty | typeof TriggerInfoProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof ReadOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PipeProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof BreakpointProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof ChartViewStateProperty | typeof HistoryViewStateProperty | typeof TimelineViewStateProperty | typeof UserWizardViewStateProperty | typeof PageViewStateProperty | typeof TreeViewStateProperty
-export type AnyPropertyType = typeof BenchProperty | typeof UserProperty | typeof OrganizationProperty | typeof HandleProperty | typeof ClientProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof BlobProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof LinkProperty | typeof SkipProperty | typeof IssueProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof BadgeProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof MessageProperty | typeof RecordProperty | typeof ContextProperty | typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathSegmentProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof FileProperty | typeof IconProperty | typeof TriggerInfoProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof ReadOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PipeProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof BreakpointProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof ChartViewStateProperty | typeof HistoryViewStateProperty | typeof TimelineViewStateProperty | typeof UserWizardViewStateProperty | typeof PageViewStateProperty | typeof TreeViewStateProperty
+export type AnyStructPropertyType = typeof ContextProperty | typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof FileProperty | typeof IconProperty | typeof TriggerInfoProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof ReadOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PipeProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof BreakpointProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof ChartViewStateProperty | typeof HistoryViewStateProperty | typeof TimelineViewStateProperty | typeof UserWizardViewStateProperty | typeof PageViewStateProperty | typeof TreeViewStateProperty
+export type AnyPropertyType = typeof BenchProperty | typeof UserProperty | typeof OrganizationProperty | typeof HandleProperty | typeof ClientProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof BlobProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof LinkProperty | typeof SkipProperty | typeof IssueProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof BadgeProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof MessageProperty | typeof RecordProperty | typeof ContextProperty | typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof ProjectionProperty | typeof FileProperty | typeof IconProperty | typeof TriggerInfoProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof ReadOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PipeProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof BreakpointProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof ChartViewStateProperty | typeof HistoryViewStateProperty | typeof TimelineViewStateProperty | typeof UserWizardViewStateProperty | typeof PageViewStateProperty | typeof TreeViewStateProperty
 export const NODE_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyNodePropertyType>> = {
   [ObjectType.BENCH]: BenchProperty,
   [ObjectType.USER]: UserProperty,
@@ -27319,7 +27087,6 @@ export const STRUCT_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyStructP
   [ObjectType.NODE_REFERENCE]: NodeReferenceProperty,
   [ObjectType.PROPERTY_REFERENCE]: PropertyReferenceProperty,
   [ObjectType.PATH]: PathProperty,
-  [ObjectType.PATH_SEGMENT]: PathSegmentProperty,
   [ObjectType.PATH_TOKEN]: PathTokenProperty,
   [ObjectType.POLICY]: PolicyProperty,
   [ObjectType.POLICY_RULE]: PolicyRuleProperty,
@@ -27413,7 +27180,6 @@ export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>>
   [ObjectType.NODE_REFERENCE]: NodeReferenceProperty,
   [ObjectType.PROPERTY_REFERENCE]: PropertyReferenceProperty,
   [ObjectType.PATH]: PathProperty,
-  [ObjectType.PATH_SEGMENT]: PathSegmentProperty,
   [ObjectType.PATH_TOKEN]: PathTokenProperty,
   [ObjectType.POLICY]: PolicyProperty,
   [ObjectType.POLICY_RULE]: PolicyRuleProperty,
@@ -27619,18 +27385,13 @@ export const PathDataInfo: Record<PathProperty, PropertyInfo> = {
   [PathProperty.parentId]: { id: 3, name: 'parent_id', component: ObjectType.PATH, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [PathProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.PATH, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [PathProperty.orderKey]: { id: 9, name: 'order_key', component: ObjectType.PATH, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [PathProperty.segments]: { id: 31, name: 'segments', component: ObjectType.PATH, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.PATH_SEGMENT },
-}
-export const PathSegmentDataInfo: Record<PathSegmentProperty, PropertyInfo> = {
-  [PathSegmentProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.PATH_SEGMENT, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [PathSegmentProperty.type]: { id: 31, name: 'type', component: ObjectType.PATH_SEGMENT, enumType: EnumType.PATH_SEGMENT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [PathSegmentProperty.name]: { id: 32, name: 'name', component: ObjectType.PATH_SEGMENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [PathSegmentProperty.referencePtr]: { id: 33, name: 'reference_ptr', component: ObjectType.PATH_SEGMENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.BLOB, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.LINK, NodeType.SKIP, NodeType.ISSUE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.NOTIFICATION, NodeType.MESSAGE, NodeType.RECORD], referenceStruct: StructType.NODE_REFERENCE },
+  [PathProperty.tokens]: { id: 31, name: 'tokens', component: ObjectType.PATH, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.PATH_TOKEN },
 }
 export const PathTokenDataInfo: Record<PathTokenProperty, PropertyInfo> = {
   [PathTokenProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.PATH_TOKEN, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [PathTokenProperty.type]: { id: 31, name: 'type', component: ObjectType.PATH_TOKEN, enumType: EnumType.PATH_TOKEN_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [PathTokenProperty.name]: { id: 32, name: 'name', component: ObjectType.PATH_TOKEN, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [PathTokenProperty.nodePtr]: { id: 33, name: 'node_ptr', component: ObjectType.PATH_TOKEN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.BLOB, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.LINK, NodeType.SKIP, NodeType.ISSUE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.NOTIFICATION, NodeType.MESSAGE, NodeType.RECORD], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const PolicyDataInfo: Record<PolicyProperty, PropertyInfo> = {
   [PolicyProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.POLICY, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -29005,7 +28766,6 @@ export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo
   [ObjectType.NODE_REFERENCE]: NodeReferenceDataInfo,
   [ObjectType.PROPERTY_REFERENCE]: PropertyReferenceDataInfo,
   [ObjectType.PATH]: PathDataInfo,
-  [ObjectType.PATH_SEGMENT]: PathSegmentDataInfo,
   [ObjectType.PATH_TOKEN]: PathTokenDataInfo,
   [ObjectType.POLICY]: PolicyDataInfo,
   [ObjectType.POLICY_RULE]: PolicyRuleDataInfo,

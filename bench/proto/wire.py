@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.07.08.1"
+VERSION = "2024.07.08.2"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -161,8 +161,7 @@ class BenchType(betterproto.Enum):
     NODE_REFERENCE = 10052
     PROPERTY_REFERENCE = 10053
     PATH = 10060
-    PATH_SEGMENT = 10061
-    PATH_TOKEN = 10062
+    PATH_TOKEN = 10061
     POLICY = 10100
     POLICY_RULE = 10101
     SUBJECT = 10102
@@ -251,7 +250,6 @@ class BenchType(betterproto.Enum):
     SORT_OP = 20207
     SELECTION_KIND = 20208
     PATH_TOKEN_TYPE = 20210
-    PATH_SEGMENT_TYPE = 20211
     ISSUE_KIND = 20400
     ISSUE_TYPE = 20401
     STEP_TYPE = 20500
@@ -503,7 +501,6 @@ class EnumType(betterproto.Enum):
     SORT_OP = 20207
     SELECTION_KIND = 20208
     PATH_TOKEN_TYPE = 20210
-    PATH_SEGMENT_TYPE = 20211
     ISSUE_KIND = 20400
     ISSUE_TYPE = 20401
     STEP_TYPE = 20500
@@ -842,8 +839,7 @@ class ObjectType(betterproto.Enum):
     NODE_REFERENCE = 10052
     PROPERTY_REFERENCE = 10053
     PATH = 10060
-    PATH_SEGMENT = 10061
-    PATH_TOKEN = 10062
+    PATH_TOKEN = 10061
     POLICY = 10100
     POLICY_RULE = 10101
     SUBJECT = 10102
@@ -905,37 +901,15 @@ class Orientation(betterproto.Enum):
     VERTICAL = 11
 
 
-class PathSegmentType(betterproto.Enum):
-    UNSPECIFIED = 0
-    BENCH = 1
-    ENVIRONMENT = 2
-    BRANCH = 3
-    PACKAGE = 4
-    BLOCK = 5
-    SUB_BLOCK = 6
-    PROPERTY = 7
-    CURRENT = 10
-    CURRENT_PARENT = 11
-    CURRENT_PACKAGE = 12
-    CURRENT_MODULE = 13
-    CURRENT_PAGE = 14
-    CURRENT_SOURCE_MODULE = 15
-    CURRENT_UNIQUE = 16
-    FILTER = 20
-
-
 class PathTokenType(betterproto.Enum):
     UNSPECIFIED = 0
-    SLASH = 1
-    COLON = 2
-    DOT = 3
-    AT = 4
-    DOLLAR = 5
-    CARET = 6
-    TILDE = 7
-    DOUBLE_DOT = 8
-    NAME = 10
-    EXPRESSION = 11
+    BENCH = 1
+    NODE = 2
+    UNIQUE_NODE = 3
+    PROPERTY = 5
+    ROOT = 10
+    CURRENT = 11
+    PARENT = 12
 
 
 class PipeType(betterproto.Enum):
@@ -1193,8 +1167,7 @@ class StructType(betterproto.Enum):
     NODE_REFERENCE = 10052
     PROPERTY_REFERENCE = 10053
     PATH = 10060
-    PATH_SEGMENT = 10061
-    PATH_TOKEN = 10062
+    PATH_TOKEN = 10061
     POLICY = 10100
     POLICY_RULE = 10101
     SUBJECT = 10102
@@ -1806,56 +1779,18 @@ class PageViewStateData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class PathData(betterproto.Message):
     """
-    A human-readable Bench path to reference nodes and their fields/properties. Absolute or relative.
+    A human-readable Bench path to reference nodes and their properties.
      Paths are case-insensitive, support alphanum + spaces and use '/' as the primary node separator.
-     Nodes 'below' block-level are prefixed with one ':'.
-     Fields are accessed with '.' separators.
+     Properties must be accessed with '.' separators (also works for Fields for consistency).
 
-     flotothemoon/Mirror/Notion/Databases/Landscape
-     ^ bench      ^ blocks
-     flotothemoon/Applications/Birdy/MainScreen:Dashboard/Big Graphs/Graph1.name
-     ^ bench      ^ blocks                      ^ sub-block nod            ^ field
-     flotothemoon/Sandbox/Sales/Pipeline/Scraping/WebsiteSamples/Replit.document.title
-     ^ bench      ^ blocks                                              ^ field  ^ field
+     / -> root of this package
+     ./ -> current node
+     ../.. -> parent of parent of current node
+     Name -> ./Name -> Name relative to current node
+     Node1/Node2.property -> property of Node2 (there must not be anything after .property)
 
-     flotothemoon
-     ^ bench
-     flotothemoon.name
-     ^ bench      ^ field
-     flotothemoon-tests/Tests/Databases/TestPopulate.code
-     ^ bench            ^ blocks                     ^ field
-
-     .
-     ^ current
-     ..
-     ^ parent
-     ../../Header Screen:Header/Title.theme.primary.color
-     ^ blocks           ^ sub-nodes  ^ field
-     ../../../../Graphs
-     ^ parents
-
-     symbolx@2024-01-01/Library/Common/Utils/DateUtils
-     ^ bench ^ package  ^ blocks
-     symbolx@MyNewFeature:2024-01-01/Applications/Chat/MainScreen:ChatInput/Input.text
-     ^ bench ^ branch     ^ package  ^ blocks                     ^ sub-nodes     ^ field
-
-     also relative:
-     / -> package root (=Package)
-     ^ -> page (=Block)
-     $User -> module-unique node (=Block|View|Step)
-     ~ -> source module root (like $ but for templated)
-     [<expr like ck=...>] -> dynamic Expression filter
-
-     ''
-     ERROR (invalid, empty path)
-     '../'
-     ERROR (invalid, trailing slash)
-     ../../Something/../SomethingElse
-     ERROR (invalid, cannot go up and down in the same path)
-
-     The general syntax is:
-     [bench-name][@branch-name][:package-name][/[block-name][:sub-node-name]][.field-name]
-     For absolute paths, the bench name is required.
+     @bench -> absolute reference to bench
+     @bench/Node1/Node2/Node3 -> absolute reference to Node3 in package
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
@@ -1863,26 +1798,17 @@ class PathData(betterproto.Message):
     parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
     parent_key: Optional[str] = betterproto.string_field(4, optional=True)
     order_key: Optional[str] = betterproto.string_field(9, optional=True)
-    segments: List["PathSegmentData"] = betterproto.message_field(31)
-
-
-@dataclass(eq=False, repr=False)
-class PathSegmentData(betterproto.Message):
-    """A semantic part of a Bench path."""
-
-    metatype: "ObjectType" = betterproto.enum_field(1)
-    type: "PathSegmentType" = betterproto.enum_field(31)
-    name: Optional[str] = betterproto.string_field(32, optional=True)
-    reference_ptr: Optional["NodeReferenceData"] = betterproto.message_field(33, optional=True)
+    tokens: List["PathTokenData"] = betterproto.message_field(31)
 
 
 @dataclass(eq=False, repr=False)
 class PathTokenData(betterproto.Message):
-    """A lexical token in a Bench path."""
+    """A semantic part of a Bench path."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     type: "PathTokenType" = betterproto.enum_field(31)
     name: Optional[str] = betterproto.string_field(32, optional=True)
+    node_ptr: Optional["NodeReferenceData"] = betterproto.message_field(33, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -5084,7 +5010,6 @@ AnyStructData = Union[
     NodeReferenceData,
     PropertyReferenceData,
     PathData,
-    PathSegmentData,
     PathTokenData,
     PolicyData,
     PolicyRuleData,
