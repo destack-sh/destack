@@ -379,6 +379,8 @@ def _process_object_cls[ObjectT: BuiltinObject](
     cls.__runtime_properties__ = frozendict(
         {p.name: p for p in cls.__properties__.values() if p.is_runtime is True}
     )
+
+    # assign ords
     cls.__properties_in_order__ = tuple(sorted(properties_by_id.values(), key=lambda p: p.id))
     for i, prop in enumerate(cls.__properties_in_order__):
         prop.ord = i
@@ -1049,8 +1051,20 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
                         assert session, f"no session for {node!r}"
                         if self._updated_properties is None:
                             self._updated_properties = bitarray(self.__max_property_ord__ + 1)
-                        self._updated_properties[prop.ord] = True
-                        session._update(node, properties=(prop,), old_values={prop.id: old_value})
+                        if not prop.is_value_runtime:
+                            self._updated_properties[prop.ord] = True
+                            session._update(
+                                node, properties=(prop,), old_values={prop.id: old_value}
+                            )
+                        else:
+                            # 'spread' value packed update into _packed (:SecretValues not handled yet)
+                            value_packed_ptr = cast(Property, prop.value_packed_ptr)
+                            self._updated_properties[value_packed_ptr.ord] = True
+                            session._update(
+                                node,
+                                properties=(value_packed_ptr,),
+                                old_values={value_packed_ptr.id: old_value},
+                            )
                 else:
                     pass  # TODO :Broken: handle in struct updates
             return

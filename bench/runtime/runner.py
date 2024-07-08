@@ -342,17 +342,17 @@ class RuntimeRunner:
                     raise NotRunnableError(f"block is not runnable: {block!r}")
             else:
                 raise NotRunnableError(f"unexpected run: {run!r}")
-            logger.info("runner.start_run", run=run, span="current")
+            logger.info("runner.process_run", run=run, span="current")
         except RunHaltedError:
             # nothing to do?
-            logger.info("runner.start_run.halt", run=run, span="current")
+            logger.info("runner.process_run.halt", run=run, span="current")
         except BenchError as e:
             # re-raised inner error
             async with self.session.unsuspended():
                 if run.current_status != RunStatus.FAILED:
                     run.fail(RunError.from_exception(RunErrorKind.RUNTIME, e))
                 await self.session.commit()
-            logger.error("runner.start_run.error", run=run, exc_info=e, span="current")
+            logger.error("runner.process_run.error", run=run, exc_info=e, span="current")
             if not suppress_error:
                 raise
         except Exception as e:
@@ -361,7 +361,7 @@ class RuntimeRunner:
                 if run.current_status != RunStatus.FAILED:
                     run.fail(RunError.from_exception(RunErrorKind.INTERNAL, e))
                 await self.session.commit()
-            logger.error("runner.start_run.internal_error", run=run, exc_info=e, span="current")
+            logger.error("runner.process_run.internal_error", run=run, exc_info=e, span="current")
             if not suppress_error:
                 raise
 

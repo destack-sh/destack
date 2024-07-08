@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ast
 from inspect import cleandoc
+from typing import Any
 
 import pytest
 
@@ -910,16 +911,15 @@ def a():
 def test_compile_code_function():
     code = Code.from_string("""\
 x = 1
-return Input1 + 1
+return Input1 + y + 1
 """)
     compiled = compile_code("anon", code.to_string(), CodeKind.FUNCTION, {})
     assert compiled.code == code.to_string()
-    assert (
-        compiled.transformed_code
-        == """\
-async def _code_anon():
-    x = 1
-    return Input1 + 1
-"""
-    )
-    assert set(compiled.references.keys()) == {"Input1"}
+    assert set(compiled.references.keys()) == {"Input1", "y"}
+
+    # run it to check function definition
+    glbls: dict[str, Any] = {"Input1": 1, "y": 1}
+    assert compiled.body_co, f"no code object for {compiled!r}"
+    exec(compiled.body_co, glbls)
+    func = glbls["_code_anon"]
+    assert func() == 3
