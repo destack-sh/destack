@@ -179,20 +179,22 @@ class RuntimeThread:
     async def _process_run_queue(self, run_data: RunData):
         # NOTE :Robustness: Run's epoch may be ahead of our own if the sync takes longer to
         #  arrive than the request from the scheduler (both from Host).
+        assert self._session is not None, f"no session for {self!r}"
         assert self._runner is not None, f"no runner for {self!r}"
         assert self._main_package is not None, f"no main package for {self!r}"
         package = self._main_package
         assert (
             run_data.parent_ptr and UUID(run_data.package_ptr.id) == package.id
         ), f"{run_data!r} not in {package!r}"
-        run = wiring.unpack_object_validate(
-            run_data,
-            supergraph=self._supergraph,
-            parent=package,
-            session=self._session,
-            expect=Run,
-        )
-        run._unpack_values_inplace()
+        async with self._session.unsuspended(readonly=True):
+            run = wiring.unpack_object_validate(
+                run_data,
+                supergraph=self._supergraph,
+                parent=package,
+                session=self._session,
+                expect=Run,
+            )
+            run._unpack_values_inplace()
         await self._runner.process_run(run)
         logger.info("thread.process_run", process=self, run=run, span="current")
 

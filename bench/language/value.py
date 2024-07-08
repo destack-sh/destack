@@ -19,6 +19,7 @@ import structlog
 from betterproto.lib.google.protobuf import Struct as ProtoStruct
 
 from bench.language.const import (
+    EMPTY_DICT,
     FLOAT_EPSILON,
     PY_TYPE_BY_PRIMITIVE_TYPE,
     UNSET,
@@ -927,7 +928,7 @@ from bench.language.node import (  # noqa: E402
 
 @object_component()
 class HasValues(BuiltinObject):
-    # TODO :Robustness :Architecture: turn value into computed property? :NoFakeComputed
+    # NOTE :Robustness :Architecture: turn value into computed property? :NoFakeComputed
 
     @override
     def _init_component(self):
@@ -972,13 +973,12 @@ class HasValues(BuiltinObject):
                 continue
             assert type(prop.value_packed_ptr) is Property, f"{prop!r} has no value_packed_ptr"
             value_packed = getattr(self, prop.value_packed_ptr.name)
-            if value_packed is not None:
-                value_type = (
-                    prop.value_type_info_getter(self) if prop.value_type_info_getter else None
-                )
-                if value_type is not None:
-                    value = unpack_value(value_packed, None, value_type)
-                    self._do_set(prop.name, value, track=False)
+            value_type = prop.value_type_info_getter(self) if prop.value_type_info_getter else None
+            if value_type is not None:
+                if value_packed is None:
+                    value_packed = EMPTY_DICT
+                value = unpack_value(value_packed, None, value_type)
+                self._do_set(prop.name, value, track=False)
 
     def _pack_values_inplace(
         self, properties: Collection[Property] = (), skip_already_set: bool = False
