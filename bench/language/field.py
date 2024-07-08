@@ -396,7 +396,7 @@ class TypeInfoBase(HasValues):
 class TypeInfo(Struct, TypeInfoBase):
     """A type from the type system."""
 
-    pass
+    __content_str__ = TypeInfoBase.__content_str__  # type: ignore
 
 
 FREEFORM_VALUE_KEY = "*"

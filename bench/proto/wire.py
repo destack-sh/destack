@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.07.07.1"
+VERSION = "2024.07.08.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -355,9 +355,9 @@ class CodeKind(betterproto.Enum):
     """
 
     UNSPECIFIED = 0
-    SNIPPET = 2
-    SCRIPT = 4
-    FUNCTION = 6
+    SNIPPET = 1
+    SCRIPT = 2
+    FUNCTION = 3
 
 
 class ColorShade(betterproto.Enum):
@@ -941,6 +941,7 @@ class PathTokenType(betterproto.Enum):
 class PipeType(betterproto.Enum):
     UNSPECIFIED = 0
     THEN = 1
+    WITH = 2
 
 
 class PolicyEffect(betterproto.Enum):
@@ -2082,12 +2083,13 @@ class RunOptionsData(betterproto.Message):
     max_runs: Optional[int] = betterproto.int32_field(30, optional=True)
     max_concurrency: Optional[int] = betterproto.int32_field(31, optional=True)
     max_attempts: Optional[int] = betterproto.int32_field(32, optional=True)
-    retry_interval: Optional[float] = betterproto.float_field(33, optional=True)
-    backoff: Optional[float] = betterproto.float_field(34, optional=True)
-    max_retry_interval: Optional[float] = betterproto.float_field(35, optional=True)
-    jitter: Optional[float] = betterproto.float_field(36, optional=True)
-    retry_on: List["RunErrorType"] = betterproto.enum_field(38)
-    breakpoints: List["BreakpointData"] = betterproto.message_field(39)
+    timeout: Optional[float] = betterproto.float_field(33, optional=True)
+    retry_interval: Optional[float] = betterproto.float_field(40, optional=True)
+    backoff: Optional[float] = betterproto.float_field(41, optional=True)
+    max_retry_interval: Optional[float] = betterproto.float_field(42, optional=True)
+    jitter: Optional[float] = betterproto.float_field(43, optional=True)
+    retry_on: List["RunErrorType"] = betterproto.enum_field(44)
+    breakpoints: List["BreakpointData"] = betterproto.message_field(50)
 
 
 @dataclass(eq=False, repr=False)
@@ -2936,10 +2938,10 @@ class MessageData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class BaseNodeData(betterproto.Message):
     """
-    A basic Node with properties like a Struct and a global identity in our graph.
-     Conceptually, all nodes live together happily in a single big graph family.
-     In practice and at runtime, there are multiple smaller NodeGraphs we load via Connections.
-     Nodes resolve references to each through a super graph composed of currently loaded NodeGraphs.
+    A Node with properties like a Struct and a global identity in our graph.
+     Conceptually, all nodes live together happily in a single giant supergraph.
+     In practice, there are multiple stores and we load smaller subgraphs at runtime.
+     Nodes resolve references to each through a super graph composed of *currently loaded* NodeGraphs.
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)

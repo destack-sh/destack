@@ -35,6 +35,7 @@ if TYPE_CHECKING:
         Field,
         Icon,
         Issue,
+        NodeReference,
         Package,
         Policy,
         Property,
@@ -109,6 +110,9 @@ class Block(SourceNode[BlockData], HasValues):
     delegated_policies: list["Policy"] = p_regular(
         49, require=False, array=True, struct=StructType.POLICY
     )
+    if TYPE_CHECKING:
+        roles_ptr: tuple["NodeReference", ...] = ()
+        identity_ptr: Optional["NodeReference"] = None
 
     # flags
     is_builtin: bool = p_system(
@@ -121,7 +125,7 @@ class Block(SourceNode[BlockData], HasValues):
         64, default=False, description="Whether to pause any runtime activity within this block."
     )
     # is_method? (bound to instances of parent)
-    # is_unique? (by name in parent module, like in Godot)
+    # is_unique? (by name in some scope, like in Godot)
     # is_frozen? (read-only in instances of template)
 
     blocks: NodeList["Block"] = p_node_children(NodeType.BLOCK)

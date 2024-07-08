@@ -99,6 +99,7 @@ if TYPE_CHECKING:
         SearchConnection,
         Server,
         Session,
+        Step,
         User,
         ValueObject,
     )
@@ -1280,8 +1281,8 @@ FieldOrProperty = Union[
     Field if TYPE_CHECKING else "Field", Property if TYPE_CHECKING else "Property", Any
 ]
 NodeTypeOrClass = Union[NodeType, type["Node"]]
-EditSubject = Union["User", "Server", "Block", "Run"]
-EDIT_SUBJECT_TYPES = (NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.RUN)
+EditSubject = Union["User", "Server", "Block", "Step", "Run"]
+EDIT_SUBJECT_TYPES = (NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN)
 
 
 def is_implicit_node_property(prop_id: int) -> bool:
@@ -1291,10 +1292,10 @@ def is_implicit_node_property(prop_id: int) -> bool:
 @node_component()
 class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     """
-    A basic Node with properties like a Struct and a global identity in our graph.
-    Conceptually, all nodes live together happily in a single big graph family.
-    In practice and at runtime, there are multiple smaller NodeGraphs we load via Connections.
-    Nodes resolve references to each through a super graph composed of currently loaded NodeGraphs.
+    A Node with properties like a Struct and a global identity in our graph.
+    Conceptually, all nodes live together happily in a single giant supergraph.
+    In practice, there are multiple stores and we load smaller subgraphs at runtime.
+    Nodes resolve references to each through a super graph composed of *currently loaded* NodeGraphs.
     """
 
     metatype: ClassVar[NodeType]  # type: ignore

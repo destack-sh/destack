@@ -54,7 +54,7 @@ class RuntimeThread:
         client_id: UUID,
         machine_id: UUID | None,
         engines: tuple[GraphEngine, ...],
-        start_queue: asyncio.Queue[RunData],
+        process_queue: asyncio.Queue[RunData],
         oracle: Oracle,
     ):
         self.id = id
@@ -85,7 +85,7 @@ class RuntimeThread:
         self._tx_lock: asyncio.Lock = CriticalLock(
             name=f"{self.__class__.__name__}_{self._bench_id or ''}_{self.id}"
         )
-        self._run_queue = start_queue
+        self._run_queue = process_queue
         self._tasks = TaskManager(owner=self, logger=logger, oracle=oracle)
 
     def __str__(self):

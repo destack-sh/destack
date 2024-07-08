@@ -89,6 +89,8 @@ class RunHandle[T: Node]:
 
 
 class Runner[T: Node](abc.ABC):
+    """A runner to process a single runnable unit once."""
+
     __slots__ = ("handle", "runnable", "runner", "session")
 
     def __init__(self, runner: "RuntimeRunner", session: Session, handle: RunHandle[T]):
@@ -107,6 +109,46 @@ class Runner[T: Node](abc.ABC):
             if content_str
             else f"<{self.__class__.__name__}>"
         )
+
+    @property
+    def scope(self) -> T:
+        return self.runnable.scope
+
+    @property
+    def code(self) -> Code | None:
+        return self.runnable.code
+
+    @property
+    def text(self) -> Text | None:
+        return self.runnable.text
+
+    @property
+    def compiled(self) -> CompiledCode | None:
+        return self.runnable.compiled
+
+    @property
+    def variables(self) -> ValueObject | None:
+        return self.runnable.variables
+
+    @property
+    def exports(self) -> Mapping[str, Any] | None:
+        return self.runnable.exports
+
+    @property
+    def last_expr_value(self) -> Any | None:
+        return self.runnable.last_expr_value
+
+    @property
+    def status(self) -> RunStatus:
+        return self.handle.status
+
+    @property
+    def inputs(self) -> ValueObject | None:
+        return self.handle.inputs
+
+    @property
+    def attempts(self) -> list[RunAttempt]:
+        return self.handle.attempts
 
     @abc.abstractmethod
     async def run(self) -> None:
@@ -138,9 +180,8 @@ def _import_runners():
 
 class RuntimeRunner:
     """
-    A runner processes one top-level Run (or mini run for snippets) at a time (for now).
-    Nested runs may run in parallel if they are ready and read-only.
-    Caches analyzed/compiled code, maintains outputs, computed expressions, etc..
+    The runtime processes one top-level Run (or mini run for snippets) at a time.
+    Inner runs may run in parallel if they are ready and read-only.
 
     NOTE :Robustness :Architecture: separate transactions for session and user edits?
     NOTE :Incomplete: respect RunOptions.max_concurrency
@@ -165,10 +206,10 @@ class RuntimeRunner:
         assert run is not None, f"missing run in {handle!r}"
 
         # update context
-        run.client = self.session.client
-        run.machine = self.session.machine
-        run.server = self.session.server
-        run.user = self.session.user
+        run.client_ptr = self.session.client_ptr
+        run.machine_ptr = self.session.machine_ptr
+        run.server_ptr = self.session.server_ptr
+        run.user_ptr = self.session.user_ptr
 
         # start if not yet started
         if not run.started_at:
@@ -178,7 +219,7 @@ class RuntimeRunner:
 
         # actually attempt Run
         try:
-            await self._do_run(coro, handle)
+            await self._do_run_untracked(coro, handle)
         finally:
             last_attempt = handle.current_attempt
             assert last_attempt is not None, f"no last attempt for run {handle!r}"
@@ -189,12 +230,18 @@ class RuntimeRunner:
             run.terminated_at = last_attempt.terminated_at
             run.terminated_epoch = last_attempt.terminated_epoch
 
-    async def _do_run(self, coro: Awaitable, handle: RunHandle):
+    async def _do_run_untracked(self, coro: Awaitable, handle: RunHandle):
         """
         Runs a coroutine as an untracked run, retrying automatically.
         """
         handle.status = RunStatus.RUNNING
         retry = handle.options.to_retry().new(self.oracle, attempt=len(handle.attempts))
+        # set active run
+        if handle.run is not None:
+            active_run_token = self.session._active_run.set(handle.run)
+        else:
+            active_run_token = None
+        # run in attempt loop
         try:
             while retry.should_retry:
                 retry.on_attempt()
@@ -225,6 +272,10 @@ class RuntimeRunner:
             last_attempt = handle.current_attempt
             assert last_attempt is not None, f"missing last attempt for run {handle!r}"
             handle.status = last_attempt.status
+            handle.error = last_attempt.error
+            # reset active run
+            if active_run_token is not None:
+                self.session._active_run.reset(active_run_token)
 
     @tracer.start_as_current_span("runner.run")
     async def run(self, handle: RunHandle):
@@ -244,7 +295,7 @@ class RuntimeRunner:
             if handle.run:
                 await self._do_run_tracked(runner.run(), handle)
             else:
-                await self._do_run(runner.run(), handle)
+                await self._do_run_untracked(runner.run(), handle)
             # TODO :Performance: support optimistic run-ahead and commit in background
             #  (rewind on failure or just fail the originating run?)
             await self.session.commit()
@@ -255,7 +306,7 @@ class RuntimeRunner:
 
     @tracer.start_as_current_span("runner.process_run")
     async def process_run(self, run: Run):
-        """Starts a new top-level Run in this Runner. Returns on halt or termination."""
+        """Start or resumes a new top-level Run in this Runner. Returns on halt or termination."""
         # NOTE: Robustness: don't commit the entire session on failure?
         try:
             if run.kind == RunKind.BLOCK:

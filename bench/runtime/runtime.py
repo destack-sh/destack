@@ -131,7 +131,7 @@ class Runtime(ServiceBase, RuntimeBase):
         )
 
         # start threads
-        # NOTE :Incomplete: start threads as actual threads/processes (if not WASM)
+        # NOTE :Incomplete: start threads as actual threads/processes (if available i.e. not WASM)
         assert self._max_threads > 0, f"no threads for {self!r}"
         for i in range(self._max_threads):
             thread = RuntimeThread(
@@ -142,7 +142,7 @@ class Runtime(ServiceBase, RuntimeBase):
                 client_id=self._client_id,
                 machine_id=self._machine_id,
                 engines=self._engines,
-                start_queue=self._start_queue,
+                process_queue=self._start_queue,
                 oracle=self.oracle,
             )
             self._threads.append(thread)
