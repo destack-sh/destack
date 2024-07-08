@@ -26,9 +26,9 @@ from bench.language.session import Session
 from bench.language.user import User
 from bench.proto.wire import HostClient, SupervisorClient
 from bench.proto.wiring import unpack_object
-from bench.test.simulation.conftest import assert_graph_equals
 from bench.test.simulation.spec import WorkloadSpec, WorkloadType
 from bench.test.simulation.utils import SampledFloat, SampledInt, to_value
+from bench.test.utils import assert_graph_equals
 from bench.utils.casing import Casing, to_casing
 from bench.utils.func import repr_enums
 from bench.utils.oracle import Oracle

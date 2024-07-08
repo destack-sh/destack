@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Collection, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Collection, Optional, Union, assert_never, cast
 
 from bench.language.code import Code
 from bench.language.const import (
@@ -45,7 +45,15 @@ from bench.utils.func import IdEnum
 from bench.utils.tenacity import RetryOptions
 
 if TYPE_CHECKING:
-    from bench.language import Block, Expression, NodeReference, Package, TypeInfoBase, ValueObject
+    from bench.language import (
+        Block,
+        Expression,
+        NodeReference,
+        Package,
+        Step,
+        TypeInfoBase,
+        ValueObject,
+    )
 
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -354,3 +362,28 @@ class Run(PackageNode[RunData], HasTimeIdentity, HasNodeBase, HasSessionContext,
     ) -> None:
         if self.root_ptr is not None and self.root_ptr.id == self.id:
             invalid(self, "root points to self", (Run.root, Run.id))
+
+    @staticmethod
+    def from_runnable(node: "Block | Step", *, inputs: Any | None = None) -> "Run":
+        """Creates a Run from a Block."""
+        from bench.language import Block, Step
+        from bench.language.value import coerce_value_object
+
+        assert node.package is not None, f"no package for {node!r}"
+
+        if isinstance(node, Block):
+            step = None
+            block = node
+            kind = RunKind.BLOCK
+        elif isinstance(node, Step):
+            step = node
+            block = step.block
+            kind = RunKind.STEP
+        else:
+            assert_never(node)
+
+        run = Run(parent=node.package, kind=kind, block=block, step=step)
+        if inputs is not None:
+            assert run.input_type is not None, f"no input type for {run!r}"
+            run.inputs = coerce_value_object(run.input_type, inputs)
+        return run
