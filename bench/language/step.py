@@ -88,6 +88,7 @@ class StepType(IdEnum):
 @enum_(EnumType.PIPE_TYPE)
 class PipeType(IdEnum):
     THEN = 1
+    WITH = 2
     ...
 
 
@@ -97,6 +98,7 @@ class Pipe(Struct):
 
     type: PipeType = p_internal(30)
     source: "Step" = p_regular(31, require=True, references=(NodeType.STEP,))
+    # mapping/...?
 
 
 @local_node(NodeType.STEP)

@@ -48,7 +48,7 @@ import { humanizeNumber } from "@/utils/human";
 import { ScrollbarWidth } from "@/utils/layout";
 import { computedValue } from "@/utils/ref";
 import { ACCENT_COLOR_BY_RUN_STATUS } from "@/utils/style";
-import { formatRelativeDate } from "@/utils/time";
+import { formatDuration, formatDurationFromNow, formatRelativeDate, getDurationfromNow, TimeUpdateInterval } from "@/utils/time";
 import { DEFAULT_HEADER_HEIGHT, useExpansion, useViewState } from "@/views/canvas";
 import { makeViewId, viewEmits, type ViewComponent, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
@@ -487,6 +487,15 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
                   <IconInline v-bind="toSubjectIcon(item)" class="mr-1 w-5 text-gray-700" />
                   <span>{{ (item.createdBy as any)?.name ?? toCamelName(NodeType, item.it.createdByPtr?.type) }}</span>
                 </button>
+                <!-- Duration -->
+                <template v-if="item.it.startedAt != null">
+                  in
+                  <span>
+                    {{
+                      formatDuration(item.it.duration ?? getDurationfromNow(item.it.startedAt))
+                    }}
+                  </span>
+                </template>
               </template>
               <span v-else class="text-danger-500">???</span>
 

@@ -748,7 +748,7 @@ declareActionMap<"common">({
     icon: "fas fa-play",
     title: "Run",
     text: "Run this node",
-    shortcuts: ["ctrl+r", "f5"],
+    shortcuts: ["ctrl+r", "cmd+enter"],
   },
   "common.session.pause": {
     icon: "fas fa-pause",
@@ -1072,7 +1072,7 @@ contributeActionMap<"developer">({
     action: () => {
       isDeveloperMode.value = !isDeveloperMode.value;
       toaster.info({
-        override: 'developer.toggleDeveloperMode',
+        override: "developer.toggleDeveloperMode",
         title: isDeveloperMode.value ? "Developer Mode Enabled" : "Developer Mode Disabled",
         text: isDeveloperMode.value ? "Welcome to the dark side." : "Back to the normal side.",
         icon: "fas fa-binary",

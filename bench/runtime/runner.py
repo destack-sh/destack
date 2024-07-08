@@ -177,14 +177,17 @@ class RuntimeRunner:
         run.status = run.current_status = RunStatus.RUNNING
 
         # actually attempt Run
-        await self._do_run(coro, handle)
-        last_attempt = handle.current_attempt
-        assert last_attempt is not None, f"no last attempt for run {handle!r}"
-        run.attempts = handle.attempts
-        run.error = handle.error
-        run.status = run.current_status = handle.status
-        run.terminated_at = last_attempt.terminated_at
-        run.terminated_epoch = last_attempt.terminated_epoch
+        try:
+            await self._do_run(coro, handle)
+        finally:
+            last_attempt = handle.current_attempt
+            assert last_attempt is not None, f"no last attempt for run {handle!r}"
+            run.attempts = handle.attempts
+            run.error = handle.error
+            run.status = run.current_status = handle.status
+            run.duration = last_attempt.duration
+            run.terminated_at = last_attempt.terminated_at
+            run.terminated_epoch = last_attempt.terminated_epoch
 
     async def _do_run(self, coro: Awaitable, handle: RunHandle):
         """

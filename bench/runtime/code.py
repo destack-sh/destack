@@ -31,7 +31,12 @@ class CodeScriptRunner(Runner):
             pass  # empty code
         else:
             assert compiled.body_co, f"no compiled code for {self!r}"
-            exec(compiled.body_co, {**self.runner.glbls})
+            glbls = {**self.runner.glbls}
+            if compiled.is_coroutine:
+                coro = eval(compiled.body_co, glbls)
+                await coro
+            else:
+                exec(compiled.body_co, glbls)
 
 
 @runner((RunnableKind.CODE, CodeKind.FUNCTION))
