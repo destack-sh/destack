@@ -11,7 +11,6 @@ from typing import (
     Iterable,
     Optional,
     Sequence,
-    cast,
 )
 from uuid import UUID
 
@@ -154,7 +153,9 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
     # runtime
     _oracle: Oracle = p_runtime()
     _active_session_token: contextvars.Token | None = p_runtime(default=None)
-    _active_run: "Run | None" = p_runtime(default=None)
+    _active_run: contextvars.ContextVar["Run | None"] = p_runtime(
+        default_factory=lambda: contextvars.ContextVar("_active_run", default=None)
+    )
     _supervisor: Optional["SupervisorClient"] = p_runtime(default=None)
     _host: Optional["HostClient"] = p_runtime(default=None)
 
@@ -512,12 +513,28 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
 
     def _get_edit_context(self) -> tuple[NodeReferenceData | None, EditContextData | None]:
         """Gathers current context for a specific edit"""
-        # NOTE :Performance: gathering the context for every edit seems a bit expensive
-        subject = self._active_run or self._subject
+        # NOTE :Performance: gathering the context for every edit seems a bit expensive?
+        # but it could change..
 
+        # if we have an active run, that's the subject
+        run = self._active_run.get()
+        if run is not None:
+            # if run has a step/block, use that
+            if run.step_ptr:
+                subject = run.step
+            elif run.block_ptr:
+                subject = run.block
+            else:
+                subject = run
+            # if subject has an identity, use that
+            if subject is not None and subject.identity_ptr:
+                subject = subject.identity
+        else:
+            subject = self._subject
         if subject is None:
             return None, None
 
+        # map into edit-specific context
         subject_ptr = subject._to_ref_data()
         context = EditContextData(metatype=wire.ObjectType.EDIT_CONTEXT)
         if self.client_ptr is not None:
@@ -528,12 +545,14 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
             context.server_ptr = self.server_ptr._to_data()
         if self.user_ptr is not None:
             context.user_ptr = self.user_ptr._to_data()
-        if subject.metatype == NodeType.RUN:
-            run = cast("Run", subject)
+        if run is not None:
             context.run_ptr = subject_ptr
             context.run_root_ptr = run.root_ptr._to_data() if run.root_ptr is not None else None
             context.block_ptr = run.block_ptr._to_data() if run.block_ptr is not None else None
             context.step_ptr = run.step_ptr._to_data() if run.step_ptr is not None else None
+            context.identity_ptr = (
+                run.identity_ptr._to_data() if run.identity_ptr is not None else None
+            )
 
         return subject_ptr, context
 

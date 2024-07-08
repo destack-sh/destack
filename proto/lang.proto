@@ -315,9 +315,9 @@ enum ClientType {
 // We don't set this explicitly in Code because it depends on where the Code is used.
 enum CodeKind {
   CODE_KIND_UNSPECIFIED = 0;
-  CODE_KIND_SNIPPET = 2;
-  CODE_KIND_SCRIPT = 4;
-  CODE_KIND_FUNCTION = 6;
+  CODE_KIND_SNIPPET = 1;
+  CODE_KIND_SCRIPT = 2;
+  CODE_KIND_FUNCTION = 3;
 }
 
 // Built-in color shades a la Tailwind.
@@ -892,6 +892,7 @@ enum PathTokenType {
 enum PipeType {
   PIPE_TYPE_UNSPECIFIED = 0;
   PIPE_TYPE_THEN = 1;
+  PIPE_TYPE_WITH = 2;
 }
 
 enum PolicyEffect {
@@ -1890,12 +1891,13 @@ message RunOptionsData {
   optional int32 max_runs = 30;
   optional int32 max_concurrency = 31;
   optional int32 max_attempts = 32;
-  optional float retry_interval = 33;
-  optional float backoff = 34;
-  optional float max_retry_interval = 35;
-  optional float jitter = 36;
-  repeated RunErrorType retry_on = 38;
-  repeated BreakpointData breakpoints = 39;
+  optional float timeout = 33;
+  optional float retry_interval = 40;
+  optional float backoff = 41;
+  optional float max_retry_interval = 42;
+  optional float jitter = 43;
+  repeated RunErrorType retry_on = 44;
+  repeated BreakpointData breakpoints = 50;
 }
 
 // A stacktrace for a Run.
@@ -2623,10 +2625,10 @@ message MessageData {
   bool is_pinned = 50;
 }
 
-// A basic Node with properties like a Struct and a global identity in our graph.
-// Conceptually, all nodes live together happily in a single big graph family.
-// In practice and at runtime, there are multiple smaller NodeGraphs we load via Connections.
-// Nodes resolve references to each through a super graph composed of currently loaded NodeGraphs.
+// A Node with properties like a Struct and a global identity in our graph.
+// Conceptually, all nodes live together happily in a single giant supergraph.
+// In practice, there are multiple stores and we load smaller subgraphs at runtime.
+// Nodes resolve references to each through a super graph composed of *currently loaded* NodeGraphs.
 message BaseNodeData {
   ObjectType metatype = 1;
   string id = 2;

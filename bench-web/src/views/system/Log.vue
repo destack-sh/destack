@@ -14,6 +14,7 @@ import { PACKAGE_SCOPE } from "@/system/client";
 import { useGetConnection, type PreparedNodeConnection } from "@/system/connection";
 import { FULL_WIDTH_VIEW_TYPES, getPropertyTitle } from "@/system/lang";
 import { canvas } from "@/system/space";
+import { unpackProtoJson } from "@/system/transaction";
 import { getPropertyType, unpackBuiltinObject, type TypeIdentity } from "@/system/value";
 import { getViewForValueType } from "@/system/view";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
@@ -43,11 +44,19 @@ const { connection, graph } =
 const log = graph.getRef(props.nodePtr, { ignoreAncestors: true }) as Ref<LogData | undefined>;
 const newNode = computed(() => {
   if (log.value?.newNodePacked == null || log.value.nodePtr == null) return null;
-  else return unpackBuiltinObject(log.value.newNodePacked, log.value.nodePtr.type as unknown as ObjectType);
+  else
+    return unpackBuiltinObject(
+      unpackProtoJson(log.value.newNodePacked),
+      log.value.nodePtr.type as unknown as ObjectType,
+    );
 });
 const oldNode = computed(() => {
   if (log.value?.oldNodePacked == null || log.value.nodePtr == null) return null;
-  else return unpackBuiltinObject(log.value.oldNodePacked, log.value.nodePtr.type as unknown as ObjectType);
+  else
+    return unpackBuiltinObject(
+      unpackProtoJson(log.value.oldNodePacked),
+      log.value.nodePtr.type as unknown as ObjectType,
+    );
 });
 
 type ChangedProperty = {

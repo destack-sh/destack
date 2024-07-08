@@ -639,7 +639,7 @@ class CodeTransformation:
 
 
 def _get_filename(code_id: str, suffix: str = "") -> str:
-    return f"code_{code_id}{suffix}"
+    return f"_code_{code_id}{suffix}"
 
 
 def _cache_in_linecache(filename: str, code: str) -> None:
@@ -721,7 +721,7 @@ def compile_code(code_id: str, code: str, kind: CodeKind, glbls: Mapping[str, An
             last_expr = ast.Expression(module.body.pop().value)
         else:
             last_expr = ast.Expression(ast.Constant(None))
-        last_expr_filename = _get_filename(code_id, suffix="_output")
+        last_expr_filename = _get_filename(code_id, suffix="_last_expr")
         _cache_in_linecache(
             last_expr_filename,
             ast.unparse(last_expr) if not isinstance(last_expr, str) else "None",

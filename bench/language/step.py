@@ -34,6 +34,7 @@ if TYPE_CHECKING:
         Expression,
         Field,
         Icon,
+        NodeReference,
         Offset,
         Policy,
         RunOptions,
@@ -141,6 +142,10 @@ class Step(SourceNode[StepData], HasValues):
     roles: list["Block"] = p_regular(46, require=False, array=True, references=NodeType.BLOCK)
     identity: Optional["Block"] = p_regular(47, require=False, references=NodeType.BLOCK)
     policies: list["Policy"] = p_regular(48, require=False, array=True, struct=StructType.POLICY)
+    if TYPE_CHECKING:
+        node_ptr: Optional["NodeReference"] = None
+        roles_ptr: tuple["NodeReference", ...] = ()
+        identity_ptr: Optional["NodeReference"] = None
 
     # layout/style ('mini-view')
     position: Optional["Offset"] = p_regular(
