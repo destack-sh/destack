@@ -1341,7 +1341,8 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     updated_at: datetime = p_system(13, default=None, require=True, autoset=True)
     deleted_at: Optional[datetime] = p_system(15, default=None, autoset=True)
     archived_at: Optional[datetime] = p_system(16, default=None, autoset=True)
-    # changed_at (for nested), active_at (for runnables), ...?
+    # NOTE: created_by/updated_by are 'baseless' because Run can only be a subject if it's a lambda
+    #  (and otherwise we attribute the change to the Run's block/step/identity)
     created_by: EditSubject | None = p_system(
         21,
         default=None,
@@ -1350,6 +1351,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         autoset=True,
         references=EDIT_SUBJECT_TYPES,
         same_bench=True,
+        baseless=True,
     )
     updated_by: EditSubject | None = p_system(
         22,
@@ -1359,6 +1361,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         autoset=True,
         references=EDIT_SUBJECT_TYPES,
         same_bench=True,
+        baseless=True,
     )
     if TYPE_CHECKING:
         created_by_id: Optional[UUID] = None
