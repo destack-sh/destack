@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.07.09.2"
+VERSION = "2024.07.09.3"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -907,11 +907,12 @@ class PathTokenType(betterproto.Enum):
     UNSPECIFIED = 0
     BENCH = 1
     NODE = 2
-    UNIQUE_NODE = 3
-    PROPERTY = 5
-    ROOT = 10
-    CURRENT = 11
-    PARENT = 12
+    SIBLING_NODE = 3
+    UNIQUE_NODE = 4
+    PROPERTY = 10
+    ROOT = 20
+    CURRENT = 21
+    PARENT = 22
 
 
 class PipeType(betterproto.Enum):
@@ -1746,7 +1747,8 @@ class LogInfoData(betterproto.Message):
 
      Conveniently, we can make this tiny because the containing Run already has all the context.
 
-     NOTE: Incomplete: copy Run.logs into Logs somewhere
+     NOTE :Incomplete: also capture edit events as mini logs?
+     NOTE :Incomplete: copy Run.logs into Logs somewhere
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
@@ -1807,12 +1809,16 @@ class PathData(betterproto.Message):
      Paths are case-insensitive, support alphanum + spaces and use '/' as the primary node separator.
      Properties must be accessed with '.' separators (also works for Fields for consistency).
 
+     Relative:
      / -> root of this package
      ./ -> current node
      ../.. -> parent of parent of current node
      Name -> ./Name -> Name relative to current node
      Node1/Node2.property -> property of Node2 (there must not be anything after .property)
+     >S -> sibling of current node
+     ^Name -> unique node
 
+     Absolute:
      @bench -> absolute reference to bench
      @bench/Node1/Node2/Node3 -> absolute reference to Node3 in package
     """

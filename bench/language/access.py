@@ -910,7 +910,7 @@ def adapt_read_options(
     Does NOT fully evaluate access yet, but avoids loading data that will be denied anyway.
     """
 
-    options = options.copy()
+    options = options.clone()
 
     # query ancestors up to root
     for ancestor_type in ANCESTOR_NODE_TYPES[root_node_type]:

@@ -6,6 +6,7 @@ from uuid import UUID
 import grpclib
 import pytest
 
+from bench.language.validation import clean_name
 from bench.test.conftest import _setup_test_env
 
 # NOTE: must run setup before importing from bench
@@ -83,7 +84,7 @@ async def create_test_db(store: Store, schema: Schema):
 async def blank_store(request: pytest.FixtureRequest):
     """Gets the per test function blank store"""
 
-    store = make_system_store(f"test-{request.node.name}")
+    store = make_system_store(f"test-{clean_name(request.node.name)}")
     await create_blank_test_db(store)
     return store
 
@@ -92,7 +93,7 @@ async def blank_store(request: pytest.FixtureRequest):
 async def global_store(request: pytest.FixtureRequest):
     """Gets the per test function global store"""
 
-    store = make_system_store(f"test-{request.node.name}")
+    store = make_system_store(f"test-{clean_name(request.node.name)}")
     await create_test_db(store, GLOBAL_SCHEMA)
     return store
 
@@ -101,7 +102,7 @@ async def global_store(request: pytest.FixtureRequest):
 async def omni_store(request: pytest.FixtureRequest):
     """Gets the per test function global store"""
 
-    store = make_system_store(f"test-{request.node.name}")
+    store = make_system_store(f"test-{clean_name(request.node.name)}")
     await create_test_db(store, OMNI_SCHEMA)
     return store
 

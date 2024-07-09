@@ -1,3 +1,4 @@
+import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Callable, Collection, Optional, TypedDict, Union
 
@@ -70,11 +71,16 @@ class TypeConstraintIn:
 
 SLUG_REGEX = r"^[a-z0-9-]{3,}$"
 EMAIL_REGEX = r"^[a-zA-Z0-9_.+\-]+@[a-zA-Z0-9\-]+\.[a-zA-Z0-9\-.]+$"
-NAME_REGEX = r"^[a-zA-Z0-9_\- ]+$"
+NAME_REGEX = r"^[a-zA-Z0-9_\-'`˚ ]+$"
 NAME_CONSTRAINT = TypeConstraintIn(regex=NAME_REGEX, min_length=1, max_length=128)
 TITLE_CONSTRAINT = TypeConstraintIn(min_length=1, max_length=256)
 SLUG_CONSTRAINT = TypeConstraintIn(regex=SLUG_REGEX)
 EMAIL_CONSTRAINT = TypeConstraintIn(regex=EMAIL_REGEX)
+
+
+def clean_name(name: str, sub="-") -> str:
+    """Strip any invalid characters from a name."""
+    return re.sub(r"[^a-zA-Z0-9_\- ]", sub, name)
 
 
 def constrain(

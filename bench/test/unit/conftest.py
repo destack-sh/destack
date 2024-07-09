@@ -5,6 +5,7 @@ import warnings
 import pytest
 import uvloop
 
+from bench.language.validation import clean_name
 from bench.test.conftest import _setup_test_env
 
 # NOTE: must run setup before importing from bench
@@ -84,7 +85,7 @@ def make_session(name: str):
 
 @pytest.fixture()
 async def session_async(request):
-    session = make_session(request.node.name)
+    session = make_session(clean_name(request.node.name))
     await session.open(set_in_context=False)
     yield session
     await session.close()
