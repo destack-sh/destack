@@ -42,11 +42,6 @@ class PathTokenType(IdEnum):
     PARENT = 22
 
 
-BENCH_CHAR = "@"
-UNIQUE_CHAR = "^"
-SIBLING_CHAR = ">"
-
-
 @struct_(StructType.PATH_TOKEN, inline=True)
 class PathToken(InlineStruct):
     """A semantic part of a Bench path."""
@@ -84,6 +79,9 @@ class Path(Struct):
     def __content_str__(self) -> str:
         return self.render()
 
+    def __len__(self) -> int:
+        return len(self.tokens)
+
     @property
     def is_absolute(self) -> bool:
         """Whether the path is absolute from a Bench root."""
@@ -104,10 +102,11 @@ class Path(Struct):
         return parse_path(path)
 
 
+# see NAME_REGEX in validationl
 BENCH_PATTERN = re.compile(r"^@([^/]+)")
-NODE_PATTERN = re.compile(r"^([a-zA-Z0-9_\s\.]+)")
-SIBLING_NODE_PATTERN = re.compile(r"^>([a-zA-Z0-9_\s\.]+)")
-UNIQUE_NODE_PATTERN = re.compile(r"^\^([a-zA-Z0-9_\s\.]+)")
+NODE_PATTERN = re.compile(r"^([a-zA-Z0-9_\- \.]+)")
+SIBLING_NODE_PATTERN = re.compile(r"^>([a-zA-Z0-9_\- \.]+)")
+UNIQUE_NODE_PATTERN = re.compile(r"^\^([a-zA-Z0-9_\- \.]+)")
 
 
 @cached(LRUCache(maxsize=1024 * 10))

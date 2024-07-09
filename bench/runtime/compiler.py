@@ -4,6 +4,7 @@
 import ast
 import inspect
 import linecache
+import re
 import textwrap
 import types
 from dataclasses import dataclass, field
@@ -90,7 +91,7 @@ class CodeReference:
     """Metadata about variables referenced but not defined."""
 
     # Whether the ref was deleted
-    deleted: bool
+    is_delete: bool
     # Ancestors of the block in which this ref was used
     parent_blocks: list[CodeBlock]
 
@@ -165,10 +166,10 @@ class CodeAnalysisVisitor(ast.NodeVisitor):
         """Check if `identifier` is defined in any block."""
         return any(block.is_defined(identifier) for block in self._block_stack)
 
-    def _add_ref(self, name: str, deleted: bool) -> None:
+    def _add_ref(self, name: str, is_delete: bool) -> None:
         """Register a referenced name."""
         self._references[name] = CodeReference(
-            deleted=deleted, parent_blocks=self._block_stack[:-1]
+            is_delete=is_delete, parent_blocks=self._block_stack[:-1]
         )
         self._ref_stack[-1].add(name)
 
@@ -479,13 +480,13 @@ class CodeAnalysisVisitor(ast.NodeVisitor):
             and not self._is_defined(node.id)
             and not is_local_name(node.id)
         ):
-            self._add_ref(node.id, deleted=False)
+            self._add_ref(node.id, is_delete=False)
         elif (
             isinstance(node.ctx, ast.Del)
             and not self._is_defined(node.id)
             and not is_local_name(node.id)
         ):
-            self._add_ref(node.id, deleted=True)
+            self._add_ref(node.id, is_delete=True)
         elif is_local_name(node.id):
             mangled_name = self._mangle_if_needed(node.id, ignore_scope=True)
             for block in reversed(self._block_stack):
@@ -510,7 +511,7 @@ class CodeAnalysisVisitor(ast.NodeVisitor):
         node.names = [self._mangle_if_needed(name, ignore_scope=True) for name in node.names]
         for name in node.names:
             self._block_stack[-1].global_names.add(name)
-            self._add_ref(name, deleted=False)
+            self._add_ref(name, is_delete=False)
 
     @override
     def visit_Import(self, node: ast.Import) -> None:
@@ -634,11 +635,21 @@ class CodeTransformation:
     line_offset: int
     column_offset: int
 
+    def __add__(self, other: "CodeTransformation") -> "CodeTransformation":
+        return CodeTransformation(
+            line_offset=self.line_offset + other.line_offset,
+            column_offset=self.column_offset + other.column_offset,
+        )
+
     def forward(self, line: int, column: int) -> tuple[int, int]:
         return line + self.line_offset, column + self.column_offset
 
     def reverse(self, line: int, column: int) -> tuple[int, int]:
         return line - self.line_offset, column - self.column_offset
+
+    @staticmethod
+    def identity() -> "CodeTransformation":
+        return CodeTransformation(line_offset=0, column_offset=0)
 
 
 def _get_filename(code_id: str, suffix: str = "") -> str:
@@ -646,12 +657,26 @@ def _get_filename(code_id: str, suffix: str = "") -> str:
 
 
 def _cache_in_linecache(filename: str, code: str) -> None:
-    linecache.cache[filename] = (
-        len(code),
-        None,
-        code.splitlines(True),
-        filename,
-    )
+    linecache.cache[filename] = (len(code), None, code.splitlines(True), filename)
+
+
+# pattern for path-like strings (may not be valid paths)
+PATH_PATTERN_NO_SPACE = re.compile(r"^([a-zA-Z0-9_\-\.\/]+)")
+PATH_PATTERN_WITH_SPACE = re.compile(r"^\"([a-zA-Z0-9_\-\.\/ ]+)\"")
+
+
+def desugar_code(code: str) -> tuple[str, CodeTransformation]:
+    """
+    Statically impute our *syntactic* sugar (e.g., for Paths) with code transformations.
+
+    Paths:
+     1. Turn $"PATH" into get_node("PATH")
+     2. Turn $PATH into get_node("PATH")
+     3. Turn >PATH into get_node(">PATH") (same for ^, @, / prefix)
+     where PATH is any valid Path (no spaces except in "PATH", see Path)
+    """
+
+    return code, CodeTransformation.identity()  # NOTE :Incomplete: desugar_code
 
 
 @tracer.start_as_current_span("compiler.compile_code")
@@ -662,9 +687,12 @@ def compile_code(
     glbls: Mapping[str, Any],
 ) -> CompiledCode:
     """
-    Parse, analyze and compile code.
+    Desugar, parse, analyze and compile code.
     """
     assert code_id.isalnum(), f"code_id must be alphanumeric: {code_id}"
+
+    # desugar code
+    code, transformation = desugar_code(code)
 
     # wrap code in function if it's a function
     function_name = f"_code_{code_id}"
@@ -683,11 +711,10 @@ def compile_code(
             transformed_code = f"async def {function_name}():\n{textwrap.indent(code, 4 * " ")}"
         else:
             transformed_code = f"def {function_name}():\n{textwrap.indent(code, 4 * " ")}"
-        transformation = CodeTransformation(line_offset=1, column_offset=4)
+        transformation = transformation + CodeTransformation(line_offset=1, column_offset=4)
     else:
         is_coroutine = None
         transformed_code = code
-        transformation = None
 
     # store the code in Python's linecache so debuggers can find it
     body_filename = _get_filename(code_id)
