@@ -56,6 +56,10 @@ class Handle(BenchNode[HandleData]):
     )
     slug: str = p_system(30, unique=True, constraint=SLUG_CONSTRAINT)
 
+    @property
+    def _is_attached(self) -> bool:
+        return self.parent is not None  # bench may not be present if it's not in a bench
+
 
 @node_(NodeType.USER, roots=(), identifier=IdentifierType.VARIABLE)
 class User(Node[UserData]):

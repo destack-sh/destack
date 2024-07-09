@@ -185,9 +185,7 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
 
         logger.info("supervisor.signup_user", user=user, client=client, span="current")
         return SignupUserResponse(
-            user=user._to_data(),
-            client=client._to_data(),
-            access_token=client.access_token,
+            user=user._to_data(), client=client._to_data(), access_token=client.access_token
         )
 
     @override
