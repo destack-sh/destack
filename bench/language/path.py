@@ -1,10 +1,10 @@
 import re
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, assert_never
 
 from cachetools import LRUCache, cached
 
 from bench.language.const import NODE_TYPES, BenchError, EnumType, StructType, enum_
-from bench.language.node import InlineStruct, Node, Struct, struct_
+from bench.language.node import BenchNode, InlineStruct, Node, Struct, struct_
 from bench.language.property import p_regular
 from bench.utils.func import IdEnum
 
@@ -74,6 +74,16 @@ class Path(Struct):
     def __content_str__(self) -> str:
         return self.render()
 
+    @property
+    def is_absolute(self) -> bool:
+        """Whether the path is absolute from a Bench root."""
+        return len(self.tokens) > 0 and self.tokens[0].type == PathTokenType.ROOT
+
+    @property
+    def is_relative(self) -> bool:
+        """Whether the path is relative to another node."""
+        return not self.is_absolute
+
     def render(self) -> str:
         """Renders the path to a string."""
         return render_path(self)
@@ -86,7 +96,7 @@ class Path(Struct):
 
 BENCH_PATTERN = re.compile(r"^@([^/]+)")
 NODE_PATTERN = re.compile(r"^([a-zA-Z0-9_\s\.]+)")
-UNIQUE_NODE_PATTERN = re.compile(r"^#([a-zA-Z0-9_\s\.]+)")
+UNIQUE_NODE_PATTERN = re.compile(r"^\^([a-zA-Z0-9_\s\.]+)")
 
 
 @cached(LRUCache(maxsize=1024 * 10))
@@ -142,6 +152,13 @@ def parse_path(path: str) -> Path:
                     raise PathSyntaxError(f"cannot nest properties: '{segment}' in '{path}'")
                 if i < len(segments) - 1:
                     raise PathSyntaxError(f"property must be the last segment in '{path}'")
+                if node_name == "":
+                    if i > 0:
+                        raise PathSyntaxError(
+                            f"property shorthand must be first segment in '{path}'"
+                        )
+                    tokens.pop()
+
                 property_token = PathToken(type=PathTokenType.PROPERTY, name=property_name)
                 tokens.append(property_token)
                 token.name = node_name
@@ -166,16 +183,62 @@ def render_path(path: Path) -> str:
         elif token.type == PathTokenType.BENCH:
             path_parts.append(f"@{token.name}")
         elif token.type == PathTokenType.UNIQUE_NODE:
-            path_parts.append(f"#{token.name}")
+            path_parts.append(f"^{token.name}")
         elif token.type == PathTokenType.NODE:
             path_parts.append(token.name)
         elif token.type == PathTokenType.PROPERTY:
-            path_parts[-1] += f".{token.name}"
+            if path_parts:
+                path_parts[-1] += f".{token.name}"
+            else:  # property shorthand
+                path_parts.append(f".{token.name}")
         else:
             raise PathLogicError(f"unknown token type: {token.type}")
     return "/".join(path_parts)
 
 
-def get_node(path: str | Path, scope: Node):
-    """Resolves a node against the given scope."""
-    raise NotImplementedError("nocheckin: get_node")
+def get_node(path: str | Path, scope: Node) -> Node | None:
+    """
+    Resolves a node against the given scope.
+    We try to be forgiving and just return None if we can't find the node / the path is weird.
+    """
+    if isinstance(path, str):
+        path = parse_path(path)
+    if len(path.tokens) == 0:
+        return None
+    current = scope
+    for token in path.tokens:
+        if token.type == PathTokenType.ROOT:
+            if not isinstance(scope, BenchNode):
+                raise PathLogicError(f"root references are only valid for bench nodes: {path}")
+            current = scope.bench
+        elif token.type == PathTokenType.CURRENT:
+            pass
+        elif token.type == PathTokenType.PARENT:
+            current = current.parent
+        elif token.type == PathTokenType.BENCH:
+            if not isinstance(scope, BenchNode):
+                raise PathLogicError(f"bench references are only valid for bench nodes: {path}")
+            if token.name != scope.bench.name:
+                raise PathLogicError(f"references to other benches are not supported: {path}")
+            else:
+                current = scope.bench
+        elif token.type == PathTokenType.UNIQUE_NODE:
+            raise NotImplementedError(f"unique node references are not yet supported: {path}")
+        elif token.type == PathTokenType.NODE:
+            for child in current._graph.iter_descendants(current):
+                if getattr(child, "name", None) == token.name:
+                    current = child
+                    break
+            else:
+                return None
+        elif token.type == PathTokenType.PROPERTY:
+            fields = getattr(current, "fields", None)
+            if fields is not None:
+                current = fields.get(token.name)
+            if current is None:
+                return current.__properties__.get(token.name)
+        else:
+            assert_never(token.type)
+        if current is None:
+            return None
+    return current
