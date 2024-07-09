@@ -1796,9 +1796,8 @@ class HasPersistentIdentity(Node, abc.ABC):
     ck: UUID = p_system(3, default=None, require=True, autoset=True)  # type: ignore
 
 
-# NOTE :Architecture: to get proper branching for Messages/Records/Notifications/...
-#  we'll have to swap use ck as primary key (swapping ck/id, but only in spirit, not literally)
-#  (same for any local nodes with persistent identity)
+# NOTE :Architecture: to get proper branching for local nodes with persistent identity
+#  we'll have to swap id/ck and use ck as primary key (for all or excluding source nodes?)
 
 
 @node_component()

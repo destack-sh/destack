@@ -16,10 +16,23 @@ DEFAULT_TEXT_RUN_OPTIONS = RunOptions(max_attempts=3, retry_interval=3, backoff=
 DEFAULT_FLOW_RUN_OPTIONS = RunOptions(max_attempts=1)
 
 # all bench types
-CODE_GLOBALS: dict[str, Any] = {**vars(language), **BENCH_CLASS_BY_NAME}
+STATIC_CODE_GLOBALS: dict[str, Any] = {**vars(language), **BENCH_CLASS_BY_NAME}
 # and some general stuff
 for t in (datetime, timedelta, UUID, base64):
-    CODE_GLOBALS[t.__name__] = t
+    STATIC_CODE_GLOBALS[t.__name__] = t
+DYNAMIC_CODE_GLOBALS = {
+    # dynamic globals are set per code run :CodeGlobals
+    "self",
+    "get_node",
+    "log",
+    "trace",
+    "debug",
+    "info",
+    "warn",
+    "error",
+    "fatal",
+    "print",
+}
 
 
 class BenchRuntimeError(BenchError, RuntimeError):

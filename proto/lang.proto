@@ -159,6 +159,7 @@ enum BenchType {
   BENCH_TYPE_RUN_TRACE = 10503;
   BENCH_TYPE_RUN_FRAME = 10504;
   BENCH_TYPE_BREAKPOINT = 10520;
+  BENCH_TYPE_LOG_INFO = 10550;
   BENCH_TYPE_COLOR = 11000;
   BENCH_TYPE_FONT = 11001;
   BENCH_TYPE_BOX = 11002;
@@ -824,6 +825,7 @@ enum ObjectType {
   OBJECT_TYPE_RUN_TRACE = 10503;
   OBJECT_TYPE_RUN_FRAME = 10504;
   OBJECT_TYPE_BREAKPOINT = 10520;
+  OBJECT_TYPE_LOG_INFO = 10550;
   OBJECT_TYPE_COLOR = 11000;
   OBJECT_TYPE_FONT = 11001;
   OBJECT_TYPE_BOX = 11002;
@@ -1136,6 +1138,7 @@ enum StructType {
   STRUCT_TYPE_RUN_TRACE = 10503;
   STRUCT_TYPE_RUN_FRAME = 10504;
   STRUCT_TYPE_BREAKPOINT = 10520;
+  STRUCT_TYPE_LOG_INFO = 10550;
   STRUCT_TYPE_COLOR = 11000;
   STRUCT_TYPE_FONT = 11001;
   STRUCT_TYPE_BOX = 11002;
@@ -1593,6 +1596,21 @@ message IconData {
   optional FileData file = 32;
   optional string fa_name = 33;
   optional ColorData color = 40;
+}
+
+// A simple log for user-generated logs at runtime.
+// This is like a mini-Log that we can attach to Runs and also copy into the combined Log.
+// 
+// Conveniently, we can make this tiny because the containing Run already has all the context.
+// 
+// NOTE: Incomplete: copy Run.logs into Logs somewhere
+message LogInfoData {
+  ObjectType metatype = 1;
+  google.protobuf.Timestamp created_at = 11;
+  LogLevel level = 31;
+  optional TextData text = 61;
+  optional string text_plain = 62;
+  optional google.protobuf.Struct value_packed = 65;
 }
 
 // A reference to a Node.
@@ -2744,6 +2762,7 @@ message RunData {
   optional google.protobuf.Struct outputs_secret_packed = 63;
   optional google.protobuf.Struct value_packed = 64;
   optional google.protobuf.Struct value_secret_packed = 65;
+  repeated LogInfoData logs = 66;
   optional NodeReferenceData block_ptr = 70;
   optional NodeReferenceData step_ptr = 71;
   optional NodeReferenceData session_ptr = 72;

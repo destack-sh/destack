@@ -10,7 +10,7 @@ from opentelemetry import trace
 from bench.language.block import Block
 from bench.language.code import Code
 from bench.language.const import BenchError, BlockType, FieldZone, RunErrorKind, RunKind, RunStatus
-from bench.language.node import Node
+from bench.language.log import LogInfo
 from bench.language.run import CodeKind, Run, RunAttempt, RunError, RunnableKind, RunOptions
 from bench.language.session import Session
 from bench.language.step import Step, StepType
@@ -18,21 +18,21 @@ from bench.language.text import Text
 from bench.language.value import ValueObject
 from bench.runtime.compiler import CompiledCode
 from bench.runtime.core import (
-    CODE_GLOBALS,
     DEFAULT_CODE_RUN_OPTIONS,
+    STATIC_CODE_GLOBALS,
     NotRunnableError,
-    RunHaltedError,
 )
 from bench.utils.oracle import Oracle
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
+RunnableNode = Block | Step
 RunnableType = tuple[RunnableKind, CodeKind | StepType | None]
 
 
 @dataclass(slots=True)
-class RunnableState[T: Node]:
+class RunnableState[T: RunnableNode]:
     """The state of some runnable unit (Node or something within)."""
 
     id: UUID
@@ -60,7 +60,7 @@ class RunnableState[T: Node]:
 
 
 @dataclass(slots=True)
-class RunHandle[T: Node]:
+class RunHandle[T: RunnableNode]:
     """A specific run (tracked or untracked)."""
 
     id: UUID  # Run.id if tracked, new otherwise
@@ -72,6 +72,7 @@ class RunHandle[T: Node]:
     outputs: ValueObject | None = None
     error: RunError | None = None
     attempts: list[RunAttempt] = dataclasses.field(default_factory=list)
+    logs: list[LogInfo] = dataclasses.field(default_factory=list)
     run: Run | None = None  # if tracked
 
     def __str__(self):
@@ -90,16 +91,16 @@ class RunHandle[T: Node]:
         return self.attempts[-1] if self.attempts else None
 
 
-class Runner[T: Node](abc.ABC):
+class Runner[T: RunnableNode](abc.ABC):
     """A runner to process a single runnable unit once."""
 
-    __slots__ = ("handle", "runnable", "runner", "session")
+    __slots__ = ("handle", "runner", "session", "state")
 
     def __init__(self, runner: "RuntimeRunner", session: Session, handle: RunHandle[T]):
         self.runner = runner
         self.session = session
         self.handle = handle
-        self.runnable = handle.runnable
+        self.state = handle.runnable
 
     def __str__(self):
         return f"{self.handle!r}"
@@ -114,19 +115,19 @@ class Runner[T: Node](abc.ABC):
 
     @property
     def node(self) -> T:
-        return self.runnable.node
+        return self.state.node
 
     @property
     def code(self) -> Code | None:
-        return self.runnable.code
+        return self.state.code
 
     @property
     def text(self) -> Text | None:
-        return self.runnable.text
+        return self.state.text
 
     @property
     def variables(self) -> ValueObject | None:
-        return self.runnable.variables
+        return self.state.variables
 
     @property
     def status(self) -> RunStatus:
@@ -173,7 +174,7 @@ class RuntimeRunner:
     """
 
     def __init__(
-        self, *, session: Session, oracle: Oracle, glbls: Mapping[str, Any] = CODE_GLOBALS
+        self, *, session: Session, oracle: Oracle, glbls: Mapping[str, Any] = STATIC_CODE_GLOBALS
     ):
         self.session = session
         self.oracle = oracle
@@ -211,6 +212,7 @@ class RuntimeRunner:
             last_attempt = handle.current_attempt
             assert last_attempt is not None, f"no last attempt for run {handle!r}"
             run.attempts = handle.attempts
+            run.logs = handle.logs
             run.outputs = handle.outputs
             run.error = handle.error
             run.status = run.current_status = handle.status
@@ -299,17 +301,19 @@ class RuntimeRunner:
 
     async def run(
         self, run: Run | Block | Step, *, inputs: Any | None = None, suppress_error: bool = False
-    ):
+    ) -> RunHandle:
         """Auto-run whatever runnable node."""
         if not isinstance(run, Run):
             run = Run.from_runnable(run, inputs=inputs)
-        await self.process_run(run, suppress_error=suppress_error)
-        return run
+        handle = await self.process_run(run, suppress_error=suppress_error)
+        assert handle is not None, f"no handle for {run!r}"
+        return handle
 
     @tracer.start_as_current_span("runner.process_run")
-    async def process_run(self, run: Run, *, suppress_error: bool):
+    async def process_run(self, run: Run, *, suppress_error: bool) -> RunHandle | None:
         """Start or resumes a new top-level Run in this Runner. Returns on halt or termination."""
         # NOTE: Robustness: don't commit the entire session on failure?
+        handle = None
         try:
             if run.kind == RunKind.BLOCK:
                 block = run.block
@@ -343,9 +347,6 @@ class RuntimeRunner:
             else:
                 raise NotRunnableError(f"unexpected run: {run!r}")
             logger.info("runner.process_run", run=run, span="current")
-        except RunHaltedError:
-            # nothing to do?
-            logger.info("runner.process_run.halt", run=run, span="current")
         except BenchError as e:
             # re-raised inner error
             async with self.session.unsuspended():
@@ -364,6 +365,7 @@ class RuntimeRunner:
             logger.error("runner.process_run.internal_error", run=run, exc_info=e, span="current")
             if not suppress_error:
                 raise
+        return handle
 
     async def pause_run(self, run: Run):
         """Pause a Run currently executing in this Runner."""

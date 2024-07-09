@@ -17,7 +17,7 @@ from bench.language.session import Session
 from bench.language.user import User
 from bench.proto import wiring
 from bench.proto.wire import HostClient, RunData, SupervisorClient
-from bench.runtime.core import CODE_GLOBALS
+from bench.runtime.core import STATIC_CODE_GLOBALS
 from bench.runtime.runner import RuntimeRunner
 from bench.utils.func import CriticalLock
 from bench.utils.oracle import Oracle
@@ -135,7 +135,9 @@ class RuntimeThread:
             _supergraph=self._supergraph,
             _oracle=self._oracle,
         )
-        self._runner = RuntimeRunner(session=self._session, oracle=self._oracle, glbls=CODE_GLOBALS)
+        self._runner = RuntimeRunner(
+            session=self._session, oracle=self._oracle, glbls=STATIC_CODE_GLOBALS
+        )
         await self._session.open(set_in_context=False)
 
         # connect
