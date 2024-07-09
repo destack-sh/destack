@@ -27,6 +27,7 @@ DYNAMIC_CODE_GLOBALS: dict[str, Any] = {
     # dynamic globals are set per code run, these are just the types :CodeGlobals
     "self": Node,
     "get_node": get_node,
+    "g": get_node,
     "log": LogSink.log,
     "trace": LogSink.trace,
     "debug": LogSink.debug,

@@ -13,6 +13,7 @@ from bench.runtime.compiler import (
     CodeDefinitionKind,
     CodeImport,
     compile_code,
+    desugar_code,
 )
 
 # NOTE: some of the analysis logic was adapted from marimo (Apache 2 licensed, also see analysis)
@@ -946,3 +947,30 @@ else:
     assert compiled.code == code.to_string()
     assert set(compiled.references.keys()) == {"x", "a", "c", "z", "boomify"}
     assert compiled.body_co, f"no code object for {compiled!r}"
+
+
+@pytest.mark.skip(":Incomplete")
+def test_desugar_code_paths():
+    code = """\
+my_node = >Node/Something
+my_grandchild = $ThisChild/ThatGrandchild
+other_node = $"/OtherNode/Child With Space"
+if ^unique_node/child:
+    for child in (^unique_node/child).fields:
+        print(child)
+print("unrelated/path/dont/replace/me")
+\"\"\"
+"""
+    desugared, _ = desugar_code(code)
+    assert (
+        desugared
+        == """\
+my_node = get_node("Node/Something")
+my_grandchild = get_node("ThisChild/ThatGrandchild")
+other_node = get_node("/OtherNode/Child With Space")
+if get_node("^unique_node/child"):
+    for child in get_node("^unique_node/child").fields:
+        print(child)
+print("unrelated/^path/dont/@replace/me")
+"""
+    )
