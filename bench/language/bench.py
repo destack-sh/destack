@@ -440,6 +440,13 @@ class Client(BenchNode[ClientData]):
         61, array=False, require=False, references=NodeType.MACHINE, fk=True
     )
 
+    @property
+    def _is_attached(self) -> bool:
+        parent = self.parent
+        if parent is None:
+            return False
+        return parent._is_attached
+
     def __content_str__(self) -> str:
         value_parts = []
         for prop in (

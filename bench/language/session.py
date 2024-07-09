@@ -560,105 +560,114 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
         assert self._tx is not None, f"no active transaction in {self!r}"
         assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
         subject, context = self._get_edit_context()
-        for n in nodes:
-            self._edited_nodes_by_id[n.id] = n
-            self._tx.create(n, subject, self._origin, context, self._oracle.utc())
-            n._is_new = False
+        for node in nodes:
+            if node._is_attached:  # ignore detached create (is created on attach)
+                self._edited_nodes_by_id[node.id] = node
+                self._tx.create(node, subject, self._origin, context, self._oracle.utc())
+                node._is_new = False
 
     def _upsert(self, *nodes: Node):
         """Creates or updates a node. Any non-id properties will be overwritten."""
         assert self._tx is not None, f"no active transaction in {self!r}"
         assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
         subject, context = self._get_edit_context()
-        for n in nodes:
-            self._edited_nodes_by_id[n.id] = n
-            self._tx.upsert(n, subject, self._origin, context, self._oracle.utc())
+        for node in nodes:
+            assert node._is_attached, f"cannot upsert detached node {node!r}"
+            self._edited_nodes_by_id[node.id] = node
+            self._tx.upsert(node, subject, self._origin, context, self._oracle.utc())
 
     def _update(self, node: Node, properties: Collection[Property], old_values: dict[int, Any]):
         """Updates an existing node. Cannot move. The given properties are overwritten."""
         assert self._tx is not None, f"no active transaction in {self!r}"
         assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
-        self._edited_nodes_by_id[node.id] = node
-        subject, context = self._get_edit_context()
-        self._tx.update(
-            node, subject, self._origin, context, properties, old_values, self._oracle.utc()
-        )
+        if node._is_attached:  # ignore detached updates
+            self._edited_nodes_by_id[node.id] = node
+            subject, context = self._get_edit_context()
+            self._tx.update(
+                node, subject, self._origin, context, properties, old_values, self._oracle.utc()
+            )
 
     def _move(self, node: Node, properties: Collection[Property], old_values: dict[int, Any]):
         """Moves and updates an existing node."""
         assert self._tx is not None, f"no active transaction in {self!r}"
         assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
-        self._edited_nodes_by_id[node.id] = node
-        subject, context = self._get_edit_context()
-        self._tx.move(
-            node, subject, self._origin, context, properties, old_values, self._oracle.utc()
-        )
+        if node._is_attached:  # ignore detached moves
+            self._edited_nodes_by_id[node.id] = node
+            subject, context = self._get_edit_context()
+            self._tx.move(
+                node, subject, self._origin, context, properties, old_values, self._oracle.utc()
+            )
 
     def _archive(self, *nodes: Node):
         """Marks a node as archived, so it will be hidden by default."""
         assert self._tx is not None, f"no active transaction in {self!r}"
         assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
         subject, context = self._get_edit_context()
-        for n in nodes:
+        for node in nodes:
+            assert node._is_attached, f"cannot archive detached node {node!r}"
             now = self._oracle.utc()
-            self._edited_nodes_by_id[n.id] = n
+            self._edited_nodes_by_id[node.id] = node
             # descendants will be removed from graph, so track them manually
-            for descendant in n._graph.iter_descendants(n, recursive=True):
+            for descendant in node._graph.iter_descendants(node, recursive=True):
                 self._edited_nodes_by_id[descendant.id] = descendant
-            self._tx.archive(n, subject, self._origin, context, now)
-            n.archived_at = now
-            n._graph.remove(n)
+            self._tx.archive(node, subject, self._origin, context, now)
+            node.archived_at = now
+            node._graph.remove(node)
 
     def _unarchive(self, *nodes: Node):
         """Restore a node from the archive in its original place."""
         assert self._tx is not None, f"no active transaction in {self!r}"
         assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
         subject, context = self._get_edit_context()
-        for n in nodes:
-            self._edited_nodes_by_id[n.id] = n
-            self._tx.unarchive(n, subject, self._origin, context, self._oracle.utc())
-            n.archived_at = None
+        for node in nodes:
+            assert node._is_attached, f"cannot unarchive detached node {node!r}"
+            self._edited_nodes_by_id[node.id] = node
+            self._tx.unarchive(node, subject, self._origin, context, self._oracle.utc())
+            node.archived_at = None
 
     def _delete(self, *nodes: Node):
         """Deletes a node with the option to recover it for a limited time."""
         assert self._tx is not None, f"no active transaction in {self!r}"
         assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
         subject, context = self._get_edit_context()
-        for n in nodes:
+        for node in nodes:
+            assert node._is_attached, f"cannot delete detached node {node!r}"
             now = self._oracle.utc()
-            self._edited_nodes_by_id[n.id] = n
+            self._edited_nodes_by_id[node.id] = node
             # descendants will be removed from graph, so track them manually
-            for descendant in n._graph.iter_descendants(n, recursive=True):
+            for descendant in node._graph.iter_descendants(node, recursive=True):
                 self._edited_nodes_by_id[descendant.id] = descendant
-            self._tx.delete(n, subject, self._origin, context, now)
-            n.deleted_at = now
-            n._graph.remove(n)
+            self._tx.delete(node, subject, self._origin, context, now)
+            node.deleted_at = now
+            node._graph.remove(node)
 
     def _restore(self, *nodes: Node):
         """Restore a deleted node."""
         assert self._tx is not None, f"no active  transaction in {self!r}"
         assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
         subject, context = self._get_edit_context()
-        for n in nodes:
+        for node in nodes:
+            assert node._is_attached, f"cannot restore detached node {node!r}"
             now = self._oracle.utc()
-            self._edited_nodes_by_id[n.id] = n
-            self._tx.restore(n, subject, self._origin, context, now)
-            n.deleted_at = None
+            self._edited_nodes_by_id[node.id] = node
+            self._tx.restore(node, subject, self._origin, context, now)
+            node.deleted_at = None
 
     def _erase(self, *nodes: Node):
         """Irreversibly wipe a node and its descendants from the graph."""
         assert self._tx is not None, f"no active transaction in {self!r}"
         assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
         subject, context = self._get_edit_context()
-        for n in nodes:
+        for node in nodes:
+            assert node._is_attached, f"cannot erase detached node {node!r}"
             now = self._oracle.utc()
-            self._edited_nodes_by_id[n.id] = n
+            self._edited_nodes_by_id[node.id] = node
             # descendants will be removed from graph, so track them manually
-            for descendant in n._graph.iter_descendants(n, recursive=True):
+            for descendant in node._graph.iter_descendants(node, recursive=True):
                 self._edited_nodes_by_id[descendant.id] = descendant
-            self._tx.erase(n, subject, self._origin, context, now)
-            n.deleted_at = now
-            n._graph.remove(n)
+            self._tx.erase(node, subject, self._origin, context, now)
+            node.deleted_at = now
+            node._graph.remove(node)
 
 
 @struct_(StructType.EDIT_CONTEXT, inline=True)

@@ -685,12 +685,6 @@ class GraphNodeList[V: Node](NodeList[V]):
         # validate
         if self._parent._session is not None:
             node._validate_self((), invalid=on_invalid_raise)
-            if not self._parent._is_attached:
-                # NOTE :Broken :Architecture: creating detached subtrees is currently not possible
-                #  (because we immediately create edit events for every node, even detached,
-                #   so 1) the child create would appear before the parent create
-                #   and 2) the edit event scope may even be wrong if we don't know the package)
-                raise ValueError(f"cannot attach {node!r} to {self!r}: parent is not attached")
 
         # add node (and descendants) to this parent's graph
         new_graph = self._parent._graph
@@ -700,7 +694,7 @@ class GraphNodeList[V: Node](NodeList[V]):
                 node._graph.supergraph
             ), f"{node!r} not in same supergraph as {self!r} ({node._graph.supergraph!r} != {new_graph.supergraph!r})"
             added = node._graph.get_descendants(node, recursive=True)
-            added = (*added, node)
+            added = (node, *added)
             for n in added:
                 new_graph.add(n)
                 n._graph = new_graph
