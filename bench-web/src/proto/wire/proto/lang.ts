@@ -873,7 +873,8 @@ export interface IconData {
  *
  * Conveniently, we can make this tiny because the containing Run already has all the context.
  *
- * NOTE: Incomplete: copy Run.logs into Logs somewhere
+ * NOTE :Incomplete: also capture edit events as mini logs?
+ * NOTE :Incomplete: copy Run.logs into Logs somewhere
  *
  * @generated from protobuf message symbolx.bench.LogInfoData
  */
@@ -999,12 +1000,16 @@ export interface PageViewStateData {
  * Paths are case-insensitive, support alphanum + spaces and use '/' as the primary node separator.
  * Properties must be accessed with '.' separators (also works for Fields for consistency).
  *
+ * Relative:
  * / -> root of this package
  * ./ -> current node
  * ../.. -> parent of parent of current node
  * Name -> ./Name -> Name relative to current node
  * Node1/Node2.property -> property of Node2 (there must not be anything after .property)
+ * >S -> sibling of current node
+ * ^Name -> unique node
  *
+ * Absolute:
  * @bench -> absolute reference to bench
  * @bench/Node1/Node2/Node3 -> absolute reference to Node3 in package
  *
@@ -9302,25 +9307,29 @@ export enum PathTokenType {
      */
     NODE = 2,
     /**
-     * @generated from protobuf enum value: PATH_TOKEN_TYPE_UNIQUE_NODE = 3;
+     * @generated from protobuf enum value: PATH_TOKEN_TYPE_SIBLING_NODE = 3;
      */
-    UNIQUE_NODE = 3,
+    SIBLING_NODE = 3,
     /**
-     * @generated from protobuf enum value: PATH_TOKEN_TYPE_PROPERTY = 5;
+     * @generated from protobuf enum value: PATH_TOKEN_TYPE_UNIQUE_NODE = 4;
      */
-    PROPERTY = 5,
+    UNIQUE_NODE = 4,
     /**
-     * @generated from protobuf enum value: PATH_TOKEN_TYPE_ROOT = 10;
+     * @generated from protobuf enum value: PATH_TOKEN_TYPE_PROPERTY = 10;
      */
-    ROOT = 10,
+    PROPERTY = 10,
     /**
-     * @generated from protobuf enum value: PATH_TOKEN_TYPE_CURRENT = 11;
+     * @generated from protobuf enum value: PATH_TOKEN_TYPE_ROOT = 20;
      */
-    CURRENT = 11,
+    ROOT = 20,
     /**
-     * @generated from protobuf enum value: PATH_TOKEN_TYPE_PARENT = 12;
+     * @generated from protobuf enum value: PATH_TOKEN_TYPE_CURRENT = 21;
      */
-    PARENT = 12
+    CURRENT = 21,
+    /**
+     * @generated from protobuf enum value: PATH_TOKEN_TYPE_PARENT = 22;
+     */
+    PARENT = 22
 }
 /**
  * @generated from protobuf enum symbolx.bench.PipeType

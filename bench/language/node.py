@@ -1084,17 +1084,32 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
         __getattr__ = _do_get
         __setattr__ = _do_set
 
+    def clone(self) -> Self:
+        """Create a clone of this object and its descendants (structs/nodes) with the same content."""
+        copy_kwargs = {}
+        for prop in self.__wired_properties__.values():
+            prop_value = getattr(self, prop.name)
+            if prop.id < 30:
+                continue  # ignore tracking/autoset properties
+            if prop.is_struct:
+                if prop.is_list:
+                    if prop_value:
+                        copy_kwargs[prop.name] = [item.clone() for item in prop_value]
+                elif prop_value is not None:
+                    copy_kwargs[prop.name] = prop_value.clone()
+            else:
+                if prop.is_list:
+                    if prop_value:
+                        copy_kwargs[prop.name] = list(prop_value)
+                else:
+                    copy_kwargs[prop.name] = prop_value
+        return self.__class__(**copy_kwargs)
+
     @property
     def active_session(self) -> "Session":
         """The currently active session (errors if none)"""
         assert self._session is not None, f"no session for {self!r}"
         return self._session
-
-    def _copy(self, **update) -> "Self":
-        kwargs = {p.name: getattr(self, p.name) for p in self.__wired_properties__.values()}
-        kwargs.update(update)
-        copy = self.__class__(**kwargs)
-        return copy
 
     def _walk_struct(self) -> Iterable["BuiltinObject"]:
         yield self
@@ -1494,6 +1509,16 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     @property
     def _is_attached(self) -> bool:
         return True
+
+    @override
+    def clone(self) -> Self:
+        clone = super().clone()
+        for child_prop in self.__node_child_properties__.values():
+            child_list = getattr(self, child_prop.name)
+            clone_list = getattr(clone, child_prop.name)
+            for child in child_list:
+                clone_list.append(child.clone())
+        return clone
 
     @property
     def connection(self):

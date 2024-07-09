@@ -152,7 +152,8 @@ class Expression(Struct, HasValues):
             return None
         # wrap as list if needed
         if not typ.is_list and (self.op == ConditionalOp.IN or self.op == ConditionalOp.NOT_IN):
-            typ = typ._copy(is_list=True)
+            typ = typ.clone()
+            typ.is_list = True
         return typ
 
     def __bool__(self):

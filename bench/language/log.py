@@ -10,6 +10,7 @@ from bench.language.const import (
     NodeType,
     PrimitiveType,
     StructType,
+    active_session,
     enum_,
 )
 from bench.language.node import (
@@ -71,7 +72,7 @@ class LogInfo(InlineStruct, HasValues):
     NOTE :Incomplete: copy Run.logs into Logs somewhere
     """
 
-    created_at: datetime = p_internal(11)
+    created_at: datetime = p_internal(11, default_factory=lambda: active_session()._oracle.utc())
     level: LogLevel = p_internal(31)
 
     text: "Text | None" = p_internal(61, require=False, array=False, struct=StructType.TEXT)

@@ -1,12 +1,15 @@
 from itertools import chain
 
 import pytest
+from hypothesis import given
 
 from bench.language import Bench, NodeReference, Property, Server, Signal
 from bench.language.bench import Client, ServerProfile
 from bench.language.const import BlockType, ClientType, NodeType
+from bench.language.node import BuiltinObject
 from bench.language.session import Session
 from bench.language.setup import NODE_CLASSES, STRUCT_CLASSES
+from bench.test.strategies import structs
 
 
 def test_struct_regular_properties_are_available():
@@ -115,3 +118,9 @@ def test_node_pointers_consistency(session: "Session"):
     )
     assert signal_b.parent_ptr
     assert signal_b.parent_ptr.bench_id == bench_b.id
+
+
+@given(obj=structs)
+def test_struct_clone(obj: BuiltinObject, shared_session):
+    obj_clone = obj.clone()
+    assert obj_clone._equals_content(obj)

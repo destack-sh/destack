@@ -125,22 +125,11 @@ class ReadOptions(InlineStruct):
     def all_node_types(self) -> Iterable[NodeType]:
         return chain(self.ancestor_types, self.descendant_types)
 
-    def copy(self) -> "ReadOptions":
-        return ReadOptions(
-            ancestor_types=list(self.ancestor_types),
-            descendant_types=list(self.descendant_types),
-            include_properties=list(self.include_properties),
-            exclude_properties=list(self.exclude_properties),
-            select_properties=list(self.select_properties),
-            select_all_properties=self.select_all_properties,
-            include_hidden=self.include_hidden,
-        )
-
     def trim_to(self, node_types: Collection[NodeType]) -> "ReadOptions":
-        copy = self.copy()
-        copy.ancestor_types = [t for t in self.ancestor_types if t in node_types]
-        copy.descendant_types = [t for t in self.descendant_types if t in node_types]
-        return copy
+        clone = self.clone()
+        clone.ancestor_types = [t for t in self.ancestor_types if t in node_types]
+        clone.descendant_types = [t for t in self.descendant_types if t in node_types]
+        return clone
 
     def select(self, node_type: NodeType) -> list[Property] | tuple[Property, ...]:
         # NOTE :Performance: if len(exclude_properties) gets larger this will be pretty inefficient
@@ -316,7 +305,7 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
     # Builder
     #
 
-    def copy(self):
+    def clone(self):
         """Clones the query (the properties are immutable)."""
         return QueryBuilder(
             read_type=self._read_type,
@@ -331,19 +320,19 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
             options=self._options,
         )
 
-    def _copy_options(self) -> "ReadOptions":
+    def _clone_options(self) -> "ReadOptions":
         if self._options is None:
             return ReadOptions()
         else:
-            return self._options.copy()
+            return self._options.clone()
 
     def trim_to(self, node_types: Collection[NodeType]) -> "QueryBuilder[NodeT, NodeDataT]":
         assert self._node_type in node_types
-        copy = self.copy()
+        clone = self.clone()
         if not self._options:
-            return copy
-        copy._options = self._options.trim_to(node_types)
-        return copy
+            return clone
+        clone._options = self._options.trim_to(node_types)
+        return clone
 
     def where(
         self, filter: Optional["Expression"] = None, **kwargs
@@ -352,11 +341,11 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         from bench.language.expression import coerce_conditional
 
         filter = coerce_conditional(self._node_cls, filter, kwargs)
-        copy = self.copy()
-        copy._filter = (
+        clone = self.clone()
+        clone._filter = (
             filter & self._filter if filter is not None and self._filter is not None else filter
         )
-        return copy
+        return clone
 
     def order_by(
         self,
@@ -366,51 +355,51 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         """Sorts the query results by the given sort criteria."""
         from bench.language.expression import coerce_sort
 
-        copy = self.copy()
-        copy._sort = coerce_sort(self._node_cls, sort, *args)
-        return copy
+        clone = self.clone()
+        clone._sort = coerce_sort(self._node_cls, sort, *args)
+        return clone
 
     def first(self, count: int) -> "QueryBuilder[NodeT, NodeDataT]":
         """Returns the first N results."""
-        copy = self.copy()
-        copy._first = count
-        return copy
+        clone = self.clone()
+        clone._first = count
+        return clone
 
     limit = first
 
     def skip(self, count: int) -> "QueryBuilder[NodeT, NodeDataT]":
         """Skips the first N results."""
-        copy = self.copy()
-        copy._skip = count
-        return copy
+        clone = self.clone()
+        clone._skip = count
+        return clone
 
     def aggregate(self, aggregation: "Expression") -> "QueryBuilder[NodeT, NodeDataT]":
         """Aggregates the query results."""
         assert aggregation.kind == ExpressionKind.AGGREGATION, f"not an aggregation: {aggregation}"
-        copy = self.copy()
-        copy._aggregation = aggregation
-        return copy
+        clone = self.clone()
+        clone._aggregation = aggregation
+        return clone
 
     def include(self, *properties: FieldOrProperty) -> "QueryBuilder[NodeT, NodeDataT]":
         """Includes given default-excluded properties in the results."""
-        copy = self.copy()
-        copy._options = self._copy_options()
-        copy._options.include_properties += self._to_properties(properties)
-        return copy
+        clone = self.clone()
+        clone._options = self._clone_options()
+        clone._options.include_properties += self._to_properties(properties)
+        return clone
 
     def select_all(self) -> "QueryBuilder[NodeT, NodeDataT]":
         """Includes all (non-relational) properties in the results."""
-        copy = self.copy()
-        copy._options = self._copy_options()
-        copy._options.select_all_properties = True
-        return copy
+        clone = self.clone()
+        clone._options = self._clone_options()
+        clone._options.select_all_properties = True
+        return clone
 
     def exclude(self, *properties: FieldOrProperty) -> "QueryBuilder[NodeT, NodeDataT]":
         """Excludes given default-included properties from the results."""
-        copy = self.copy()
-        copy._options = self._copy_options()
-        copy._options.exclude_properties += self._to_properties(properties)
-        return copy
+        clone = self.clone()
+        clone._options = self._clone_options()
+        clone._options.exclude_properties += self._to_properties(properties)
+        return clone
 
     def include_ancestors(self) -> "QueryBuilder[NodeT, NodeDataT]":
         """Includes all ancestors in the results."""
@@ -420,17 +409,17 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
 
     def ancestors(self, *node_types: NodeTypeOrClass) -> "QueryBuilder[NodeT, NodeDataT]":
         """Joins the given ancestors in the results."""
-        copy = self.copy()
-        copy._options = self._copy_options()
-        copy._options.ancestor_types = self._to_node_types(node_types)
-        return copy
+        clone = self.clone()
+        clone._options = self._clone_options()
+        clone._options.ancestor_types = self._to_node_types(node_types)
+        return clone
 
     def descendants(self, *node_types: NodeTypeOrClass) -> "QueryBuilder[NodeT, NodeDataT]":
         """Joins the given descendants in the results."""
-        copy = self.copy()
-        copy._options = self._copy_options()
-        copy._options.descendant_types = self._to_node_types(node_types)
-        return copy
+        clone = self.clone()
+        clone._options = self._clone_options()
+        clone._options.descendant_types = self._to_node_types(node_types)
+        return clone
 
     #
     # Read
@@ -471,7 +460,7 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         if isinstance(filter, NodeReference):
             # true get request (with node pointers)
             assert self._filter is None, f"cannot combine filter and roots in {self!r}"
-            query = self.copy()
+            query = self.clone()
             query._roots = [filter]
             query._read_type = ReadType.GET
             channel = await query._get_read_channel()
@@ -486,7 +475,7 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         else:
             # search which should only have one result
             filter = coerce_conditional(self._node_cls, filter, kwargs)
-            query = self.where(filter) if filter is not None else self.copy()
+            query = self.where(filter) if filter is not None else self.clone()
             results = await query.search()
             if len(results) != 1:
                 if len(results) == 0:

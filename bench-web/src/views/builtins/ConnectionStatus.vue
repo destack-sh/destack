@@ -2,6 +2,7 @@
 import { Orientation } from "@/proto/wire";
 import { isDeveloperMode } from "@/system/client";
 import { connections, hasPendingConnections } from "@/system/connection";
+import { IS_DEV } from "@/utils/globals";
 import { ScrollbarWidth } from "@/utils/layout";
 import Popover from "@/views/builtins/Popover.vue";
 import Scroll from "@/views/containers/Scroll.vue";
@@ -52,7 +53,8 @@ const expandedConnectionId: Ref<number | null> = ref(null);
               <div class="flex flex-row py-1">
                 <!-- Expand/collapse -->
                 <button
-                  class="text-gray-400 hover:text-primary-900"
+                  v-if="isDeveloperMode"
+                  class="mr-2 text-gray-400 hover:text-primary-900"
                   @click="expandedConnectionId = expandedConnectionId == connection.id ? null : connection.id"
                 >
                   <i
@@ -63,16 +65,21 @@ const expandedConnectionId: Ref<number | null> = ref(null);
                   />
                 </button>
                 <!-- Metadata -->
-                <span class="ml-2 h-fit rounded bg-secondary-100 px-2 font-semibold text-secondary-900">
+                <span class="h-fit rounded bg-secondary-100 px-2 font-semibold text-secondary-900">
                   {{ connection.kind }}
                 </span>
                 <span class="ml-2 truncate font-semibold">{{ connection.name }}</span>
                 <span class="ml-2 text-gray-500">#{{ connection.id }}</span>
                 <!-- Status -->
                 <span class="ml-auto flex flex-row pl-4 align-top">
-                  <span class="mr-2" :class="connection.referenceCount > 0 ? '' : 'text-gray-500'">
-                    {{ connection.referenceCount }}
-                  </span>
+                  <template v-if="isDeveloperMode">
+                    <span class="mr-2" :class="connection.referenceCount > 0 ? '' : 'text-gray-500'">
+                      {{ connection.referenceCount }}
+                    </span>
+                    <span class="mr-2">
+                      {{ connection.epoch }}
+                    </span>
+                  </template>
                   <!-- Connected (status) -->
                   <span class="rounded px-1">
                     <i
@@ -84,25 +91,27 @@ const expandedConnectionId: Ref<number | null> = ref(null);
                       "
                     />
                   </span>
-                  <!-- Down (status & toggle) -->
-                  <button class="rounded px-1 hover:bg-primary-200" @click="connection.togglePaused()">
-                    <i
-                      :class="
-                        connection.isConnecting.value
-                          ? 'fas fa-spinner-third animate-spin text-gray-500'
-                          : connection.isLive && !connection.isPaused.value
-                            ? 'fas fa-down text-success-600'
-                            : 'fas fa-down text-secondary-500'
-                      "
-                    />
-                  </button>
-                  <!-- Up (toggle) -->
-                  <button class="rounded px-1 hover:bg-primary-200" @click="connection.txBuffer.togglePaused()">
-                    <i
-                      class="fas fa-up"
-                      :class="connection.txBuffer.isPaused.value ? 'text-secondary-500' : 'text-success-600'"
-                    />
-                  </button>
+                  <template v-if="isDeveloperMode">
+                    <!-- Down (status & toggle) -->
+                    <button class="rounded px-1 hover:bg-primary-200" @click="connection.togglePaused()">
+                      <i
+                        :class="
+                          connection.isConnecting.value
+                            ? 'fas fa-spinner-third animate-spin text-gray-500'
+                            : connection.isLive && !connection.isPaused.value
+                              ? 'fas fa-down text-success-600'
+                              : 'fas fa-down text-secondary-500'
+                        "
+                      />
+                    </button>
+                    <!-- Up (toggle) -->
+                    <button class="rounded px-1 hover:bg-primary-200" @click="connection.txBuffer.togglePaused()">
+                      <i
+                        class="fas fa-up"
+                        :class="connection.txBuffer.isPaused.value ? 'text-secondary-500' : 'text-success-600'"
+                      />
+                    </button>
+                  </template>
                 </span>
               </div>
               <div
