@@ -29,7 +29,7 @@ import {
   type MaybeRef,
   type Ref,
   type ShallowRef,
-  type WatchSource
+  type WatchSource,
 } from "vue";
 
 /** A NodeReference but with proper typing */
@@ -714,27 +714,20 @@ abstract class FilterBaseNodeGraphMixin extends BaseNodeGraphMixin {
       if (node.parentPtr == null) {
         roots.push(node);
       } else {
-        let parent: NodeReferenceData | undefined = node.parentPtr;
-        let isRoot = false;
-        while (parent != null) {
-          const parentNode: AnyNodeData | null = this.get(parent);
-          if (parentNode == null || !this.isNodeVisibleSelf(parentNode)) {
-            isRoot = true;
-            break;
-          }
-          parent = parentNode.parentPtr;
+        const parentNode = this.getUnfiltered(node.parentPtr);
+        if (parentNode == null || !this.isNodeVisibleSelf(parentNode)) {
+          roots.push(node);
         }
-        if (isRoot) roots.push(node);
       }
     }
     return roots;
   }
 
-	/** Get the node at the given key without applying any filters */
+  /** Get the node at the given key without applying any filters */
   abstract getUnfiltered<T extends NodeType>(key: NodeKey<T>): NodeTypeMapping[T] | null;
-  
-	/** Get the node at the given key (considering filters) */
-	get<T extends NodeType>(key: NodeKey<T>): NodeTypeMapping[T] | null {
+
+  /** Get the node at the given key (considering filters) */
+  get<T extends NodeType>(key: NodeKey<T>): NodeTypeMapping[T] | null {
     const node = this.getUnfiltered(key);
     if (node == null || !this.isNodeVisibleAbsolute(node)) return null;
     else return node;

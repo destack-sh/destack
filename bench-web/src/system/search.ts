@@ -19,13 +19,14 @@ import type { NodeKey, ReadNodeGraph } from "@/system/graph";
 import { AVAILABLE_FA_ICONS, DEFAULT_ENUM_ICON, getNodeIcon, type IconMetadata } from "@/system/icon";
 import { TYPE_BLOCK_TYPES, getEnumOptions, isStructType, type EnumOption } from "@/system/lang";
 import type { TypeIdentity } from "@/system/value";
+import { log } from "@/utils/log";
 import uFuzzy from "@leeoniya/ufuzzy";
 import { tryOnBeforeUnmount } from "@vueuse/core";
 import { markRaw, shallowRef, toRef, toValue, watch, type MaybeRef, type Ref } from "vue";
 
 export type NodeItem = Omit<NodeReferenceData, "metatype" | "id"> & {
   metatype: "node";
-  localId: string; // per index
+  itemId: string; // per index
   node: AnyNodeData;
   id: string;
   icon: IconData;
@@ -36,27 +37,27 @@ export type NodeItem = Omit<NodeReferenceData, "metatype" | "id"> & {
 };
 export type ActionItem = Omit<Action, "title"> & {
   metatype: "action";
-  localId: string; // per index
+  itemId: string; // per index
   title: string;
   path?: string;
   pathToIndex?: string;
 };
 export type EnumOptionItem = EnumOption & {
   metatype: "enum-option";
-  localId: string; // per index
+  itemId: string; // per index
 };
 export type TypeItem = TypeIdentity & {
   metatype: "type";
-  localId: string; // per index
+  itemId: string; // per index
   id: string;
   icon?: IconData;
   title: string;
   path?: string;
   pathToIndex?: string;
 };
-export type IconItem = IconMetadata & { localId: string; metatype: "icon"; path?: string; pathToIndex?: string };
+export type IconItem = IconMetadata & { itemId: string; metatype: "icon"; path?: string; pathToIndex?: string };
 export type SearchItem = (NodeItem | ActionItem | EnumOptionItem | TypeItem | IconItem) & {
-  localId: string; // per index
+  itemId: string; // per index
   title: string;
   category?: string;
 };
@@ -67,11 +68,11 @@ export type SearchResultInfo = {
   titleMarked?: string;
 };
 
-/** An index of searchable items. */
+/** An index of searchable items (usually wrappers around some 'values'). */
 export type SearchIndex<T extends SearchItem> = {
   /** Id and prefix */
   id: string;
-  /** Maps a value to a candidate. To reverse lookup existing values. */
+  /** Maps a value to a candidate (to reverse lookup existing values). */
   fromValue: (value: any) => T | null;
   /** Gets the value from a candidate */
   toValue: (candidate: T) => any;
@@ -94,8 +95,8 @@ const DEFAULT_SEARCH_OPTIONS: Required<SearchOptions> = {
   highlight: true,
 };
 
-const HIDDEN_SEPARATOR = ` ; `;
 const VISIBLE_SEPARATOR = ` / `;
+const HIDDEN_SEPARATOR = ` ; `;
 const VISIBLE_UNNAMED = `...`;
 const HIDDEN_UNNAMED = ` \\ `;
 
@@ -111,10 +112,12 @@ function walkGraph(options: {
   maxDepth?: number;
   filter?: (node: AnyNodeData, ancestors: NodeItem[]) => boolean;
 }): NodeItem[] {
+  const items: NodeItem[] = [];
+
   /**
    * Walks the descendants from a node.
    */
-  function walkNode(node: AnyNodeData, ancestors: NodeItem[]): NodeItem[] {
+  function walkNode(node: AnyNodeData, ancestors: NodeItem[]) {
     // title is composed of nodes in path
     const pathParts = [];
     for (let i = ancestors.length - 1 - (options.skipDepth ?? 0); i >= 0; i--) {
@@ -130,7 +133,7 @@ function walkGraph(options: {
     const item: NodeItem = {
       ...(ref as NodeReferenceData & { id: string }),
       metatype: "node",
-      localId: `${options.id}-${ref.id}`,
+      itemId: `${options.id}-${ref.id}`,
       node,
       path,
       pathToIndex,
@@ -138,30 +141,30 @@ function walkGraph(options: {
       icon: getNodeIcon(node),
       ancestors: ancestors,
     };
-    const items = [];
+
+    // add this item if it matches
     if (
       options.metatypes.includes(node.metatype as unknown as NodeType) &&
       (options.filter == null || options.filter(node, ancestors)) &&
       (options.skipDepth == null || ancestors.length >= options.skipDepth)
-    )
+    ) {
       items.push(item);
+    }
 
-    // descend
+    // descend if possible
     const nextAncestors = [item, ...ancestors];
     if (options.maxDepth == null || ancestors.length < options.maxDepth) {
       for (const child of options.graph.getChildren(node)) {
-        items.push(...walkNode(child, nextAncestors));
+        walkNode(child, nextAncestors);
       }
     }
-
-    return items;
   }
 
   const roots = options.roots ?? options.graph.roots;
-  const items = [];
   for (const root of roots) {
-    items.push(...walkNode(root, []));
+    walkNode(root, []);
   }
+
   return items;
 }
 
@@ -171,7 +174,7 @@ function itemFromNode(indexId: string, graph: ReadNodeGraph, value: NodeKey<any>
   const item: NodeItem = {
     ...(toNodeReference(node)! as NodeReferenceData & { id: string }),
     metatype: "node",
-    localId: `${indexId}-${value.id}`,
+    itemId: `${indexId}-${value.id}`,
     node,
     title: (node as any).title ?? (node as any).name ?? "",
     icon: getNodeIcon(node),
@@ -210,7 +213,7 @@ export function graphIndex(options: {
  */
 export function actionIndex(options: { id: string } = { id: "action" }): SearchIndex<ActionItem> {
   function map(value: Action): ActionItem {
-    return { ...value, title: toValue(value.title), metatype: "action", localId: `${options.id}-${value.id}` };
+    return { ...value, title: toValue(value.title), metatype: "action", itemId: `${options.id}-${value.id}` };
   }
   const index: SearchIndex<ActionItem> = {
     id: options.id,
@@ -232,14 +235,14 @@ export function actionIndex(options: { id: string } = { id: "action" }): SearchI
 export function enumIndex(options: { id: string; enumTypes: EnumType[] }): SearchIndex<EnumOptionItem> {
   function itemFromEnumOption(enumTypes: EnumType[], value: EnumOption | number): EnumOptionItem | null {
     if (typeof value == "object") {
-      return { ...value, metatype: "enum-option", localId: value.id };
+      return { ...value, metatype: "enum-option", itemId: value.id };
     } else {
       // find enum option
       for (const enumType of enumTypes) {
         if (ENUM_BY_TYPE[enumType][value] != null) {
           const enumOption = getEnumOptions(enumType).find((o) => o.value === value);
           if (enumOption != null)
-            return { ...enumOption, metatype: "enum-option", localId: `${options.id}-${enumOption.id}` };
+            return { ...enumOption, metatype: "enum-option", itemId: `${options.id}-${enumOption.id}` };
         }
       }
     }
@@ -305,7 +308,7 @@ export function typeIndex(options: {
       isList: false,
       isSecret: false,
       metatype: "type",
-      localId: `${options.id}-${option.id}`,
+      itemId: `${options.id}-${option.id}`,
     };
     if (item.icon == null) item.icon = DEFAULT_ENUM_ICON;
     if (enumType == EnumType.PRIMITIVE_TYPE) {
@@ -379,7 +382,7 @@ export function typeIndex(options: {
 }
 
 function itemFromIcon(value: IconMetadata): IconItem {
-  return { ...value, metatype: "icon", localId: `icon-${value.id}`, path: value.alias.join(HIDDEN_SEPARATOR) };
+  return { ...value, metatype: "icon", itemId: `icon-${value.id}`, path: value.alias.join(HIDDEN_SEPARATOR) };
 }
 const AVAILABLE_FA_ICONS_ITEMS: IconItem[] = AVAILABLE_FA_ICONS.map(itemFromIcon);
 /*
