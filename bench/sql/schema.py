@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.07.09.0"
+VERSION = "2024.07.09.2"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1204,6 +1204,7 @@ RUN_TABLE = Table(
         Column("outputs_secret_packed", PrimitiveType.JSON, is_nullable=True, is_encrypted=True),
         Column("value_packed", PrimitiveType.JSON, is_nullable=True),
         Column("value_secret_packed", PrimitiveType.JSON, is_nullable=True, is_encrypted=True),
+        Column("logs", PrimitiveType.JSON, is_array=True),
         Column("block_id", PrimitiveType.UUID, is_nullable=True),
         Column("block_ck", PrimitiveType.UUID, is_nullable=True),
         Column("block_bench_id", PrimitiveType.UUID, is_nullable=True),

@@ -48,6 +48,7 @@ if TYPE_CHECKING:
     from bench.language import (
         Block,
         Expression,
+        LogInfo,
         NodeReference,
         Package,
         Step,
@@ -274,6 +275,7 @@ class Run(PackageNode[RunData], HasTimeIdentity, HasNodeBase, HasSessionContext,
     value_packed: Any = p_value_packed(64)
     value_secret_packed: Any = p_secret_value_packed(65)
     value: "ValueObject | None" = p_value_runtime(64, 65, typ=None)  # freely typed
+    logs: list["LogInfo"] = p_internal(66, array=True, struct=StructType.LOG_INFO)
 
     # ...HasSessionContext[70-79]
 

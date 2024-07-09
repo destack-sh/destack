@@ -12,7 +12,7 @@ from bench.language.field import Field
 from bench.language.node import BuiltinObject
 from bench.language.projection import render_builtin_object, render_node
 from bench.language.session import Session
-from bench.runtime.core import CODE_GLOBALS
+from bench.runtime.core import STATIC_CODE_GLOBALS
 from bench.test.strategies import builtin_objects, examples
 from bench.test.unit.conftest import BUILTIN_OBJECTS_OF_EVERY_TYPE
 
@@ -23,7 +23,7 @@ from bench.test.unit.conftest import BUILTIN_OBJECTS_OF_EVERY_TYPE
 def test_render_struct(obj: BuiltinObject, shared_session: Session, shared_package: Package):
     rendered = render_builtin_object(obj)
     rendered = format_code(rendered)
-    exec(rendered, {**CODE_GLOBALS})
+    exec(rendered, {**STATIC_CODE_GLOBALS})
     # assert cast(Struct, ret)._equals_content(obj) # TODO :Robustness :Test: assert
 
 
@@ -53,7 +53,7 @@ def test_render_nested(session: Session, package: Package):
     # render
     rendered = render_node([Choice1, ClassInner, ClassOuter])
     rendered = format_code(rendered)
-    glbls = {**CODE_GLOBALS}
+    glbls = {**STATIC_CODE_GLOBALS}
     exec(rendered, glbls)
     for key, value in (
         ("Choice1", Choice1),

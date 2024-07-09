@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional
 
 import structlog
@@ -11,15 +12,28 @@ from bench.language.const import (
     StructType,
     enum_,
 )
-from bench.language.node import HasTimeIdentity, Node, PackageNode, timed_node
-from bench.language.property import p_node_parent, p_system
+from bench.language.node import (
+    HasTimeIdentity,
+    InlineStruct,
+    Node,
+    PackageNode,
+    struct_,
+    timed_node,
+)
+from bench.language.property import (
+    p_internal,
+    p_node_parent,
+    p_system,
+    p_value_packed,
+    p_value_runtime,
+)
 from bench.language.session import HasSessionContext
 from bench.language.value import HasValues
 from bench.proto.wire import LogData
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
-    from bench.language import ChangeCategory, ChangeVignette, Edit, NodeReference, Package
+    from bench.language import ChangeCategory, ChangeVignette, Edit, NodeReference, Package, Text
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -43,6 +57,27 @@ class LogLevel(IdEnum):  # :LogLevel
     WARNING = 4
     ERROR = 5
     CRITICAL = 6
+
+
+@struct_(StructType.LOG_INFO, inline=True)
+class LogInfo(InlineStruct, HasValues):
+    """
+    A simple log for user-generated logs at runtime.
+    This is like a mini-Log that we can attach to Runs and also copy into the combined Log.
+
+    Conveniently, we can make this tiny because the containing Run already has all the context.
+
+    NOTE :Incomplete: also capture edit events as mini logs?
+    NOTE :Incomplete: copy Run.logs into Logs somewhere
+    """
+
+    created_at: datetime = p_internal(11)
+    level: LogLevel = p_internal(31)
+
+    text: "Text | None" = p_internal(61, require=False, array=False, struct=StructType.TEXT)
+    text_plain: str | None = p_internal(62)  # small optimization to avoid large Text instances
+    value_packed: Any | None = p_value_packed(65)
+    value: Any = p_value_runtime(65, typ=None)  # freeform value only
 
 
 @timed_node(NodeType.LOG)

@@ -1,9 +1,15 @@
+import functools
+from contextlib import contextmanager
 from typing import Any, override
 
+from bench.language.path import get_node
 from bench.language.run import CodeKind, RunnableKind
+from bench.language.session import Session
 from bench.language.value import ValueObject, coerce_value_object
+from bench.runtime.capture import LogSink, capture_logs
 from bench.runtime.compiler import CompiledCode, compile_code
-from bench.runtime.runner import Runner, runner
+from bench.runtime.core import DYNAMIC_CODE_GLOBALS
+from bench.runtime.runner import RunHandle, Runner, RuntimeRunner, runner
 
 # NOTE :Performance :Robustness: run (some?) sync code in a separate thread?
 
@@ -11,20 +17,50 @@ from bench.runtime.runner import Runner, runner
 class CodeRunnerBase(Runner):
     """Common base for compiling and running code."""
 
+    def __init__(self, runner: RuntimeRunner, session: Session, handle: RunHandle):
+        super().__init__(runner, session, handle)
+        self.log_sink = LogSink(self.runner.oracle)
+
     async def _compile_code(self, kind: CodeKind) -> CompiledCode:
         """Prepares valid compiled code (raises SyntaxError if invalid)."""
-        assert self.runnable.code, f"no code for {self!r}"
-        compiled = self.runnable.compiled
+        assert self.state.code, f"no code for {self!r}"
+        compiled = self.state.compiled
         if compiled is None:
-            self.runnable.compiled = compiled = compile_code(
-                str(self.runnable.code.id),
-                self.runnable.code.to_string(),
+            self.state.compiled = compiled = compile_code(
+                str(self.state.code.id),
+                self.state.code.to_string(),
                 kind,
                 self.runner.glbls,
+                DYNAMIC_CODE_GLOBALS,
             )
         if compiled.syntax_error:
             raise compiled.syntax_error  # re-raise
         return compiled
+
+    @contextmanager
+    def _capture_logs(self):
+        """Capture logs into this run."""
+        with capture_logs(self.log_sink):
+            yield self.log_sink
+            self.handle.logs.extend(self.log_sink.logs)
+
+    def _prepare_glbls(self) -> dict[str, Any]:
+        """Prepares the context for running the code."""
+        glbls = {
+            # :CodeGlobals
+            **self.runner.glbls,
+            "self": self.node,
+            "get_node": functools.partial(get_node, scope=self.node),
+            "log": self.log_sink,
+            "trace": self.log_sink.trace,
+            "debug": self.log_sink.debug,
+            "info": self.log_sink.info,
+            "warn": self.log_sink.warn,
+            "error": self.log_sink.error,
+            "critical": self.log_sink.critical,
+            "print": self.log_sink.print,
+        }
+        return glbls
 
     def _coerce_outputs(self, outputs_raw: Any) -> ValueObject:
         assert self.handle.run and self.handle.run.output_type, f"no output type for {self!r}"
@@ -34,7 +70,7 @@ class CodeRunnerBase(Runner):
 
 @runner((RunnableKind.CODE, CodeKind.SNIPPET))
 class CodeSnippetRunner(CodeRunnerBase):
-    """Run a code snippet and updates the value of its last expression."""
+    """Run a code snippet and updates the value of the state's last expression."""
 
     @override
     async def run(self) -> None:
@@ -43,7 +79,7 @@ class CodeSnippetRunner(CodeRunnerBase):
 
 @runner((RunnableKind.CODE, CodeKind.SCRIPT))
 class CodeScriptRunner(CodeRunnerBase):
-    """Run a code script and updates its exported definitions."""
+    """Run a code script and updates the state's exported definitions."""
 
     @override
     async def run(self) -> None:
@@ -53,20 +89,22 @@ class CodeScriptRunner(CodeRunnerBase):
             return  # empty
 
         # context
-        # nocheckin: proper context
+        glbls = self._prepare_glbls()
 
-        # run it
-        glbls = {**self.runner.glbls, "self": self.node}
-        if compiled.is_coroutine:
-            coro = eval(compiled.body_co, glbls)
-            await coro
-        else:
-            exec(compiled.body_co, glbls)
+        # run
+        with self._capture_logs():
+            if compiled.is_coroutine:
+                coro = eval(compiled.body_co, glbls)
+                await coro
+            else:
+                exec(compiled.body_co, glbls)
+        exports = {defn: glbls[defn] for defn in compiled.definitions}
+        self.state.exports = exports
 
 
 @runner((RunnableKind.CODE, CodeKind.FUNCTION))
 class CodeFunctionRunner(CodeRunnerBase):
-    """Run a code function and update its outputs."""
+    """Run a code function and update the run's outputs."""
 
     @override
     async def run(self) -> None:
@@ -77,7 +115,7 @@ class CodeFunctionRunner(CodeRunnerBase):
         assert compiled.function_name, f"no function name for {self!r}"
 
         # context
-        glbls = {**self.runner.glbls, "self": self.node}
+        glbls = self._prepare_glbls()
         assert self.inputs is not None, f"no inputs for {self!r}"
         for field in self.inputs.fields:
             value = self.inputs._do_get(field)
@@ -85,12 +123,12 @@ class CodeFunctionRunner(CodeRunnerBase):
             if field.py_ident:
                 glbls[field.py_ident] = value
 
-        # run it
+        # run
         exec(compiled.body_co, glbls)
         func = glbls[compiled.function_name]
-        if compiled.is_coroutine:
-            outputs_raw = await func()
-        else:
-            outputs_raw = func()
-
+        with self._capture_logs():
+            if compiled.is_coroutine:
+                outputs_raw = await func()
+            else:
+                outputs_raw = func()
         self.handle.outputs = self._coerce_outputs(outputs_raw)

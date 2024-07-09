@@ -75,7 +75,7 @@ from .graph import (
     ValueList,
 )
 from .issue import Issue, IssueError, IssueKind, IssueType
-from .log import Log, LogKind, LogLevel
+from .log import Log, LogInfo, LogKind, LogLevel
 from .message import Message
 from .node import (
     BenchNode,
@@ -208,6 +208,7 @@ __all__ = [
     "IssueType",
     "Link",
     "Log",
+    "LogInfo",
     "LogKind",
     "LogLevel",
     "Machine",

@@ -8,7 +8,7 @@ import textwrap
 import types
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Any, Mapping, override
+from typing import Any, Collection, Mapping, override
 
 import structlog
 from opentelemetry import trace
@@ -651,11 +651,18 @@ def _cache_in_linecache(filename: str, code: str) -> None:
 
 
 @tracer.start_as_current_span("compiler.compile_code")
-def compile_code(code_id: str, code: str, kind: CodeKind, glbls: Mapping[str, Any]) -> CompiledCode:
+def compile_code(
+    code_id: str,
+    code: str,
+    kind: CodeKind,
+    glbls: Mapping[str, Any],
+    other_glbls: Collection[str] | None = None,
+) -> CompiledCode:
     """
     Parse, analyze and compile code.
     """
-
+    if other_glbls is None:
+        other_glbls = ()
     assert code_id.isalnum(), f"code_id must be alphanumeric: {code_id}"
 
     # replace non-breaking spaces with regular spaces
@@ -667,7 +674,8 @@ def compile_code(code_id: str, code: str, kind: CodeKind, glbls: Mapping[str, An
         # compile to figure out if it's a coroutine (simple string matching wouldn't work)
         # NOTE :Performance: we compile twice to figure out if functions are async before wrapping
         module = compile(
-            code.replace("return", "pass # "),  # can't return at top level
+            # can't return at top level
+            code.replace("return ", "_____ =").replace("return", "pass"),
             "<unknown>",
             mode="exec",
             flags=ast.PyCF_ALLOW_TOP_LEVEL_AWAIT,
@@ -749,7 +757,9 @@ def compile_code(code_id: str, code: str, kind: CodeKind, glbls: Mapping[str, An
 
     # remove globals from references (they are references)
     definitions = analysis.definitions
-    references = {k: v for k, v in analysis.references.items() if k not in glbls}
+    references = {
+        k: v for k, v in analysis.references.items() if k not in glbls and k not in other_glbls
+    }
     imports = {k: v.imprt for k, v in definitions.items() if v.imprt is not None}
 
     return CompiledCode(

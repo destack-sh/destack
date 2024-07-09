@@ -923,3 +923,26 @@ return Input1 + y + 1
     exec(compiled.body_co, glbls)
     func = glbls["_code_anon"]
     assert func() == 3
+
+
+def test_compile_code_function_with_multiple_returns():
+    code = Code.from_string("""\
+if not x:
+    return
+if a or c:
+    return 1, 2, 3
+elif c > 5:
+    pass
+else:
+    while not z:
+        _x = boomify(a)
+    return (
+        1,
+        2,
+        3,
+    )
+""")
+    compiled = compile_code("anon", code.to_string(), CodeKind.FUNCTION, {})
+    assert compiled.code == code.to_string()
+    assert set(compiled.references.keys()) == {"x", "a", "c", "z", "boomify"}
+    assert compiled.body_co, f"no code object for {compiled!r}"

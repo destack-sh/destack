@@ -134,7 +134,7 @@ defineExpose<ViewExposed>({ self, id });
           <!-- Title -->
           <span class="max-w-60 truncate font-medium">{{ run.error.title ?? "Error" }}</span>
           <!-- Details -->
-          <div class="ml-auto pl-4 flex-shrink-0 text-gray-400">
+          <div class="ml-auto flex-shrink-0 pl-4 text-gray-400">
             <span>{{ toCamelName(RunErrorKind, run.error.kind) }}</span>
             <template v-if="run.error.type"
               >/<span>{{ toCamelName(RunErrorType, run.error.type) }}</span></template
@@ -149,6 +149,15 @@ defineExpose<ViewExposed>({ self, id });
           <span class="text-gray-400">No Error Message</span>
         </div>
       </div>
+    </div>
+
+    <!-- Logs -->
+    <div v-if="run?.logs" class="mt-2 flex flex-col gap-y-1 font-mono">
+      <span v-for="(log, i) in run?.logs" :key="i" class="text-gray-500">
+        <span v-if="log.textPlain">{{ log.textPlain }}</span>
+        <Text v-else-if="log.text" :model-value="log.text" :variant="Variant.STEALTH" />
+        <span v-else class="italic">empty log</span>
+      </span>
     </div>
 
     <!-- Attempts/Timeline/Inner runs/etc. (see above) -->

@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.07.09.0"
+VERSION = "2024.07.09.2"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -194,6 +194,7 @@ class BenchType(betterproto.Enum):
     RUN_TRACE = 10503
     RUN_FRAME = 10504
     BREAKPOINT = 10520
+    LOG_INFO = 10550
     COLOR = 11000
     FONT = 11001
     BOX = 11002
@@ -872,6 +873,7 @@ class ObjectType(betterproto.Enum):
     RUN_TRACE = 10503
     RUN_FRAME = 10504
     BREAKPOINT = 10520
+    LOG_INFO = 10550
     COLOR = 11000
     FONT = 11001
     BOX = 11002
@@ -1200,6 +1202,7 @@ class StructType(betterproto.Enum):
     RUN_TRACE = 10503
     RUN_FRAME = 10504
     BREAKPOINT = 10520
+    LOG_INFO = 10550
     COLOR = 11000
     FONT = 11001
     BOX = 11002
@@ -1733,6 +1736,27 @@ class IconData(betterproto.Message):
     file: Optional["FileData"] = betterproto.message_field(32, optional=True)
     fa_name: Optional[str] = betterproto.string_field(33, optional=True)
     color: Optional["ColorData"] = betterproto.message_field(40, optional=True)
+
+
+@dataclass(eq=False, repr=False)
+class LogInfoData(betterproto.Message):
+    """
+    A simple log for user-generated logs at runtime.
+     This is like a mini-Log that we can attach to Runs and also copy into the combined Log.
+
+     Conveniently, we can make this tiny because the containing Run already has all the context.
+
+     NOTE: Incomplete: copy Run.logs into Logs somewhere
+    """
+
+    metatype: "ObjectType" = betterproto.enum_field(1)
+    created_at: datetime = betterproto.message_field(11)
+    level: "LogLevel" = betterproto.enum_field(31)
+    text: Optional["TextData"] = betterproto.message_field(61, optional=True)
+    text_plain: Optional[str] = betterproto.string_field(62, optional=True)
+    value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
+        65, optional=True
+    )
 
 
 @dataclass(eq=False, repr=False)
@@ -3094,6 +3118,7 @@ class RunData(betterproto.Message):
     value_secret_packed: Optional["betterproto_lib_google_protobuf.Struct"] = (
         betterproto.message_field(65, optional=True)
     )
+    logs: List["LogInfoData"] = betterproto.message_field(66)
     block_ptr: Optional["NodeReferenceData"] = betterproto.message_field(70, optional=True)
     step_ptr: Optional["NodeReferenceData"] = betterproto.message_field(71, optional=True)
     session_ptr: Optional["NodeReferenceData"] = betterproto.message_field(72, optional=True)
@@ -5043,6 +5068,7 @@ AnyStructData = Union[
     RunTraceData,
     RunFrameData,
     BreakpointData,
+    LogInfoData,
     ColorData,
     FontData,
     BoxData,

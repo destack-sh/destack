@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.07.09.0"  # auto change via version script
+VERSION = "2024.07.09.2"  # auto change via version script
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -354,6 +354,7 @@ class StructType(IdEnum):
     RUN_TRACE = 10503
     RUN_FRAME = 10504
     BREAKPOINT = 10520
+    LOG_INFO = 10550
 
     # space/views
     COLOR = 11000
