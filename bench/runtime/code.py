@@ -8,7 +8,6 @@ from bench.language.session import Session
 from bench.language.value import ValueObject, coerce_value_object
 from bench.runtime.capture import LogSink, capture_logs
 from bench.runtime.compiler import CompiledCode, compile_code
-from bench.runtime.core import DYNAMIC_CODE_GLOBALS
 from bench.runtime.runner import RunHandle, Runner, RuntimeRunner, runner
 
 # NOTE :Performance :Robustness: run (some?) sync code in a separate thread?
@@ -30,8 +29,7 @@ class CodeRunnerBase(Runner):
                 str(self.state.code.id),
                 self.state.code.to_string(),
                 kind,
-                self.runner.glbls,
-                DYNAMIC_CODE_GLOBALS,
+                self.runner.combined_glbls,
             )
         if compiled.syntax_error:
             raise compiled.syntax_error  # re-raise
@@ -48,7 +46,7 @@ class CodeRunnerBase(Runner):
         """Prepares the context for running the code."""
         glbls = {
             # :CodeGlobals
-            **self.runner.glbls,
+            **self.runner.static_glbls,
             "self": self.node,
             "get_node": functools.partial(get_node, scope=self.node),
             "log": self.log_sink,

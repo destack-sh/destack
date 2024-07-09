@@ -92,7 +92,7 @@ from .node import (
     Struct,
 )
 from .notification import Notification
-from .path import Path, get_node, parse_path, render_path
+from .path import Path, get_node, get_node_or_error, parse_path, render_path
 from .projection import Projection
 from .property import Property
 from .query import (
@@ -300,6 +300,7 @@ __all__ = [
     "code",
     "coerce_conditional",
     "get_node",
+    "get_node_or_error",
     "md",
     "parse_path",
     "render_path",

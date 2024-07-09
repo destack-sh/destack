@@ -33,12 +33,18 @@ class PathTokenType(IdEnum):
     # named
     BENCH = 1
     NODE = 2
-    UNIQUE_NODE = 3
-    PROPERTY = 5  # or field
+    SIBLING_NODE = 3
+    UNIQUE_NODE = 4
+    PROPERTY = 10  # or field
     # relative
-    ROOT = 10
-    CURRENT = 11
-    PARENT = 12
+    ROOT = 20
+    CURRENT = 21
+    PARENT = 22
+
+
+BENCH_CHAR = "@"
+UNIQUE_CHAR = "^"
+SIBLING_CHAR = ">"
 
 
 @struct_(StructType.PATH_TOKEN, inline=True)
@@ -59,14 +65,18 @@ class Path(Struct):
     Paths are case-insensitive, support alphanum + spaces and use '/' as the primary node separator.
     Properties must be accessed with '.' separators (also works for Fields for consistency).
 
-    / -> root of this package
-    ./ -> current node
-    ../.. -> parent of parent of current node
-    Name -> ./Name -> Name relative to current node
-    Node1/Node2.property -> property of Node2 (there must not be anything after .property)
+    Relative:
+      / -> root of this package
+      ./ -> current node
+      ../.. -> parent of parent of current node
+      Name -> ./Name -> Name relative to current node
+      Node1/Node2.property -> property of Node2 (there must not be anything after .property)
+      >S -> sibling of current node
+      ^Name -> unique node
 
-    @bench -> absolute reference to bench
-    @bench/Node1/Node2/Node3 -> absolute reference to Node3 in package
+    Absolute:
+      @bench -> absolute reference to bench
+      @bench/Node1/Node2/Node3 -> absolute reference to Node3 in package
     """
 
     tokens: list[PathToken] = p_regular(31, require=True, array=True, struct=StructType.PATH_TOKEN)
@@ -96,6 +106,7 @@ class Path(Struct):
 
 BENCH_PATTERN = re.compile(r"^@([^/]+)")
 NODE_PATTERN = re.compile(r"^([a-zA-Z0-9_\s\.]+)")
+SIBLING_NODE_PATTERN = re.compile(r"^>([a-zA-Z0-9_\s\.]+)")
 UNIQUE_NODE_PATTERN = re.compile(r"^\^([a-zA-Z0-9_\s\.]+)")
 
 
@@ -133,6 +144,10 @@ def parse_path(path: str) -> Path:
                 token = PathToken(type=PathTokenType.BENCH, name=match.group(1))
                 if len(match.group(1)) != len(segment) - 1:
                     raise PathSyntaxError(f"invalid bench name '{segment}' in '{path}'")
+            elif match := SIBLING_NODE_PATTERN.match(segment):
+                token = PathToken(type=PathTokenType.SIBLING_NODE, name=match.group(1))
+                if len(match.group(1)) != len(segment) - 1:
+                    raise PathSyntaxError(f"invalid node name '{segment}' in '{path}'")
             elif match := UNIQUE_NODE_PATTERN.match(segment):
                 token = PathToken(type=PathTokenType.UNIQUE_NODE, name=match.group(1))
                 if len(match.group(1)) != len(segment) - 1:
@@ -182,6 +197,8 @@ def render_path(path: Path) -> str:
             path_parts.append("..")
         elif token.type == PathTokenType.BENCH:
             path_parts.append(f"@{token.name}")
+        elif token.type == PathTokenType.SIBLING_NODE:
+            path_parts.append(f">{token.name}")
         elif token.type == PathTokenType.UNIQUE_NODE:
             path_parts.append(f"^{token.name}")
         elif token.type == PathTokenType.NODE:
@@ -222,15 +239,19 @@ def get_node(path: str | Path, scope: Node) -> Node | None:
                 raise PathLogicError(f"references to other benches are not supported: {path}")
             else:
                 current = scope.bench
-        elif token.type == PathTokenType.UNIQUE_NODE:
-            raise NotImplementedError(f"unique node references are not yet supported: {path}")
-        elif token.type == PathTokenType.NODE:
+        elif token.type == PathTokenType.NODE or token.type == PathTokenType.SIBLING_NODE:
+            if token.type == PathTokenType.SIBLING_NODE:
+                current = current.parent
+                if current is None:
+                    return None
             for child in current._graph.iter_descendants(current):
                 if getattr(child, "name", None) == token.name:
                     current = child
                     break
             else:
                 return None
+        elif token.type == PathTokenType.UNIQUE_NODE:
+            raise NotImplementedError(f"unique node references are not yet supported: {path}")
         elif token.type == PathTokenType.PROPERTY:
             fields = getattr(current, "fields", None)
             if fields is not None:
@@ -242,3 +263,11 @@ def get_node(path: str | Path, scope: Node) -> Node | None:
         if current is None:
             return None
     return current
+
+
+def get_node_or_error(path: str | Path, scope: Node) -> Node:
+    """Resolves a node against the given scope or raises an error."""
+    node = get_node(path, scope)
+    if node is None:
+        raise PathLookupError(f"node at {path} not found in {scope!r}")
+    return node

@@ -8,7 +8,7 @@ import textwrap
 import types
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Any, Collection, Mapping, override
+from typing import Any, Mapping, override
 
 import structlog
 from opentelemetry import trace
@@ -625,7 +625,11 @@ class CompiledCode:
 
 @dataclass
 class CodeTransformation:
-    """Simple source mapping for transformed code."""
+    """
+    Simple source mapping for transformed code.
+    NOTE :Incomplete: CodeTransformation should contain all transformations (like async, paths, etc.)
+     (more like a source map so we can attribute every line/column perfectly to the original code)
+    """
 
     line_offset: int
     column_offset: int
@@ -638,7 +642,7 @@ class CodeTransformation:
 
 
 def _get_filename(code_id: str, suffix: str = "") -> str:
-    return f"_code_{code_id}{suffix}"
+    return f"<_code_{code_id}{suffix}>"
 
 
 def _cache_in_linecache(filename: str, code: str) -> None:
@@ -656,17 +660,11 @@ def compile_code(
     code: str,
     kind: CodeKind,
     glbls: Mapping[str, Any],
-    other_glbls: Collection[str] | None = None,
 ) -> CompiledCode:
     """
     Parse, analyze and compile code.
     """
-    if other_glbls is None:
-        other_glbls = ()
     assert code_id.isalnum(), f"code_id must be alphanumeric: {code_id}"
-
-    # replace non-breaking spaces with regular spaces
-    code = code.replace("\u00a0", " ")
 
     # wrap code in function if it's a function
     function_name = f"_code_{code_id}"
@@ -676,7 +674,7 @@ def compile_code(
         module = compile(
             # can't return at top level
             code.replace("return ", "_____ =").replace("return", "pass"),
-            "<unknown>",
+            "<code>",
             mode="exec",
             flags=ast.PyCF_ALLOW_TOP_LEVEL_AWAIT,
         )
@@ -691,11 +689,15 @@ def compile_code(
         transformed_code = code
         transformation = None
 
+    # store the code in Python's linecache so debuggers can find it
+    body_filename = _get_filename(code_id)
+    _cache_in_linecache(body_filename, transformed_code)
+
     # compile into AST
     try:
         module = compile(
             transformed_code,
-            "<unknown>",
+            body_filename,
             mode="exec",
             flags=ast.PyCF_ONLY_AST | ast.PyCF_ALLOW_TOP_LEVEL_AWAIT,
         )
@@ -728,12 +730,10 @@ def compile_code(
         # remove the wrapped function definition from the analysis
         analysis._block_stack[0].definitions.pop(function_name)
 
-    # store the code in Python's linecache so debuggers can find it
-    body_filename = _get_filename(code_id)
-    _cache_in_linecache(body_filename, transformed_code)
+    # compile into code object
     body_co = compile(module, body_filename, mode="exec", flags=ast.PyCF_ALLOW_TOP_LEVEL_AWAIT)
 
-    # parse out last expression for snippets
+    # parse out last expression for snippets (and compile that)
     last_expr: ast.Expression | None
     if kind == CodeKind.SNIPPET:
         if isinstance(module.body[-1], ast.Expr):
@@ -757,9 +757,7 @@ def compile_code(
 
     # remove globals from references (they are references)
     definitions = analysis.definitions
-    references = {
-        k: v for k, v in analysis.references.items() if k not in glbls and k not in other_glbls
-    }
+    references = {k: v for k, v in analysis.references.items() if k not in glbls}
     imports = {k: v.imprt for k, v in definitions.items() if v.imprt is not None}
 
     return CompiledCode(
