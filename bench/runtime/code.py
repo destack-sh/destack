@@ -46,8 +46,8 @@ class CodeRunnerBase(Runner):
         """Prepares the context for running the code."""
         _get_node = functools.partial(get_node, scope=self.node)
         glbls = {
-            # :CodeGlobals
             **self.runner.static_glbls,
+            # add dynamic :CodeGlobals
             "self": self.node,
             "get_node": _get_node,
             "g": _get_node,
@@ -63,6 +63,7 @@ class CodeRunnerBase(Runner):
         return glbls
 
     def _coerce_outputs(self, outputs_raw: Any) -> ValueObject:
+        """Coerves raw outputs into the output type for this run."""
         assert self.handle.run and self.handle.run.output_type, f"no output type for {self!r}"
         outputs = coerce_value_object(self.handle.run.output_type, outputs_raw)
         return outputs

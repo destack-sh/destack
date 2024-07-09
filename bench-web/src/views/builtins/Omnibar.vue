@@ -77,7 +77,7 @@ function go() {
 
 /** Fires the action associated with the given result  */
 async function fire(id: string) {
-  const result = candidates.value.find((r) => r.localId === id);
+  const result = candidates.value.find((r) => r.itemId === id);
   // fire
   if (result != null) {
     if (result.metatype == "action") fireAction(result);
@@ -94,12 +94,12 @@ function select(option: string | number | null) {
   if (typeof option === "string" || option == null) {
     activeResultLocalId.value = option;
   } else {
-    const index = results.value.findIndex((r) => r.localId === activeResultLocalId.value);
+    const index = results.value.findIndex((r) => r.itemId === activeResultLocalId.value);
     if (index === -1) {
-      activeResultLocalId.value = results.value[0].localId ?? null;
+      activeResultLocalId.value = results.value[0].itemId ?? null;
     } else {
       activeResultLocalId.value =
-        results.value[(index + option + results.value.length) % results.value.length].localId ?? null;
+        results.value[(index + option + results.value.length) % results.value.length].itemId ?? null;
     }
   }
   if (activeResultLocalId.value != null) {
@@ -110,7 +110,7 @@ function select(option: string | number | null) {
 // auto-select best match while searching
 watch(results, () => {
   if (results.value.length > 0) {
-    activeResultLocalId.value = results.value[0].localId;
+    activeResultLocalId.value = results.value[0].itemId;
   }
 });
 
@@ -124,7 +124,7 @@ function open(inMode: OmnibarMode = "everywhere") {
   clear();
   mode.value = inMode;
   updateCandidates();
-  select(candidates.value[0]?.localId ?? null);
+  select(candidates.value[0]?.itemId ?? null);
   nextTick(focus);
 }
 
@@ -281,11 +281,11 @@ defineExpose({ isActive, open });
                 </div>
                 <!-- Result -->
                 <li
-                  :ref="(ref: any | undefined) => (ref != null ? (resultsRefs[item.localId] = ref) : delete resultsRefs[item.localId])"
+                  :ref="(ref: any | undefined) => (ref != null ? (resultsRefs[item.itemId] = ref) : delete resultsRefs[item.itemId])"
                   role="button"
-                  :data-selected="item.localId === activeResultLocalId"
+                  :data-selected="item.itemId === activeResultLocalId"
                   class="fleyx-row my-0.5 flex w-full items-center rounded border border-transparent px-2 py-1 hover:bg-primary-300 data-[selected=true]:border-gray-900 data-[selected=true]:bg-primary-300"
-                  @click.stop.prevent="() => fire(item.localId)"
+                  @click.stop.prevent="() => fire(item.itemId)"
                 >
                   <!-- Content -->
                   <IconInline v-bind="item.icon ?? DEFAULT_ACTION_ICON" class="w-5 text-gray-700" />
