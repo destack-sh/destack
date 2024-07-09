@@ -438,7 +438,7 @@ def check_value_scalar(value: SomeValue, typ: "TypeInfoBase", invalid: "Validati
         expected_type = PY_TYPE_BY_PRIMITIVE_TYPE.get(cast(PrimitiveType, typ.primitive_type))
         if expected_type is None:
             return  # nothing to check?
-        elif type(value) is not expected_type:
+        elif type(value) is not expected_type and not isinstance(value, expected_type):
             invalid(value, "not of type", typ)
             return  # also nothing to do
         # check constraint
