@@ -1511,13 +1511,28 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         return True
 
     @override
-    def clone(self) -> Self:
+    def clone(self, detach: bool = False) -> Self:
+        # clone self
         clone = super().clone()
+
+        # clone children and append to self (recursive)
         for child_prop in self.__node_child_properties__.values():
             child_list = getattr(self, child_prop.name)
             clone_list = getattr(clone, child_prop.name)
             for child in child_list:
-                clone_list.append(child.clone())
+                child_clone = child.clone(detach=True)
+                clone_list.append(child_clone)  # re-attach
+        parent = self.parent
+
+        # append to our parent to re-attach
+        if not detach and parent:
+            for prop in parent.__node_child_properties__.values():
+                if prop.reference_nodes and self.metatype in prop.reference_nodes:
+                    parent_list = getattr(parent, prop.name)
+                    parent_list.append(clone)
+                    break
+            else:
+                raise RuntimeError(f"no parent property for {self!r} in {parent!r}")
         return clone
 
     @property
