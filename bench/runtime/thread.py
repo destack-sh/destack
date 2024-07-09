@@ -182,7 +182,7 @@ class RuntimeThread:
 
     @tracer.start_as_current_span("thread.process_run")
     async def _process_run_queue(self, run_data: RunData):
-        # NOTE :Robustness: Run's epoch may be ahead of our own if the sync takes longer to
+        # TODO :Robustness!: Run's epoch may be ahead of our own if the sync takes longer to
         #  arrive than the request from the scheduler (both from Host).
         assert self._session is not None, f"no session for {self!r}"
         assert self._runner is not None, f"no runner for {self!r}"
