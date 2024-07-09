@@ -67,8 +67,8 @@ def make_session(name: str):
     )
     user = User(
         status=UserStatus.REGISTERED,
-        slug=f"test-{name}",
-        email=f"test-{name}@symbolx.com",
+        slug="test",
+        email="test@symbolx.com",
         name=name,
         _graph=graph,
         _supergraph=supergraph,

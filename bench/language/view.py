@@ -489,7 +489,6 @@ class Space(SourceNode[SpaceData]):
     text: Optional["Text"] = p_regular(32, default=None, struct=StructType.TEXT)
     order_key: str = p_internal(33, default=INTEGER_ZERO)
     policies: list["Policy"] | None = p_regular(34, struct=StructType.POLICY, array=True)
-    views: list["View"] = p_node_children(NodeType.VIEW)
 
     bar_position: Optional[Anchor] = p_regular(40, default=Anchor.TOP)
 
@@ -502,6 +501,8 @@ class Space(SourceNode[SpaceData]):
     base: Optional[Node] = p_regular(
         76, default=None, require=False, array=False, references=tuple(NODE_TYPES)
     )
+
+    views: NodeList["View"] = p_node_children(NodeType.VIEW)
 
 
 #

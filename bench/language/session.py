@@ -358,8 +358,7 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
         self.closed_at = self._oracle.utc()
         self.duration = (self.closed_at - self.opened_at).total_seconds()
         if self._active_session_token is not None:
-            with suppress(ValueError):
-                # ignore token from other session
+            with suppress(ValueError):  # ignore error if token is from other context
                 _active_session.reset(self._active_session_token)
                 self._active_session_token = None
         # remove dangling graph if this was a solo session

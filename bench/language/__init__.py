@@ -92,7 +92,7 @@ from .node import (
     Struct,
 )
 from .notification import Notification
-from .path import Path
+from .path import Path, get_node, parse_path, render_path
 from .projection import Projection
 from .property import Property
 from .query import (
@@ -298,7 +298,10 @@ __all__ = [
     "WatchSearchUpdate",
     "code",
     "coerce_conditional",
+    "get_node",
     "md",
+    "parse_path",
+    "render_path",
     "text",
 ]
 
