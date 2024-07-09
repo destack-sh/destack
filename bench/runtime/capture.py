@@ -1,6 +1,6 @@
 import contextlib
 import io
-from typing import Any, Iterable
+from typing import Any, Iterable, override
 
 from bench.language.log import LogInfo, LogLevel
 from bench.language.text import Text
@@ -23,6 +23,8 @@ TextIn = str | Text | Any
 
 
 class LogSink:
+    """A sink for capturing logs."""
+
     __slots__ = ["logs", "oracle"]
 
     def __init__(self, oracle: Oracle):
@@ -44,11 +46,16 @@ class LogSink:
         self.logs.append(log)
         return log
 
+    def bind(self, **kwargs) -> "BoundLogSink":
+        """Bind additional kwargs to this log sink."""
+        return BoundLogSink(self, kwargs)
+
     #
     # Log methods
     #
 
     def log(self, _arg1: TextIn | LogLevel, _arg2: TextIn | LogLevel = LogLevel.INFO, **kwargs):
+        """Log a message at the given level with optional kwargs."""
         if isinstance(_arg1, LogLevel):
             level = _arg1
             assert not isinstance(_arg2, LogLevel), "cannot have two LogLevel arguments"
@@ -62,23 +69,29 @@ class LogSink:
     __call__ = log
 
     def trace(self, text: TextIn, **kwargs) -> LogInfo:
+        """Log a trace message."""
         return self._capture(level=LogLevel.TRACE, text_in=text, **kwargs)
 
     def debug(self, text: TextIn, **kwargs) -> LogInfo:
+        """Log a debug message."""
         return self._capture(level=LogLevel.DEBUG, text_in=text, **kwargs)
 
     def info(self, text: TextIn, **kwargs) -> LogInfo:
+        """Log an info message."""
         return self._capture(level=LogLevel.INFO, text_in=text, **kwargs)
 
     def warn(self, text: TextIn, **kwargs) -> LogInfo:
+        """Log a warning message."""
         return self._capture(level=LogLevel.WARNING, text_in=text, **kwargs)
 
     warning = warn
 
     def error(self, text: TextIn, **kwargs) -> LogInfo:
+        """Log an error message."""
         return self._capture(level=LogLevel.ERROR, text_in=text, **kwargs)
 
     def critical(self, text: TextIn, **kwargs) -> LogInfo:
+        """Log a critical message."""
         return self._capture(level=LogLevel.CRITICAL, text_in=text, **kwargs)
 
     #
@@ -86,22 +99,41 @@ class LogSink:
     # We try to support most print arguments and put an entire print into one log.
     #
 
-    def print(self, *args, sep=" ", end="\n", file=None, flush=False, **kwargs) -> LogInfo:
+    def print(
+        self,
+        *args,
+        sep=" ",
+        end="\n",
+        file=None,
+        flush=False,
+        level: LogLevel = LogLevel.INFO,
+        **kwargs,
+    ) -> LogInfo:
+        """Print to the log."""
         assert file is None, "cannot specify file for print"
         assert not flush, "cannot specify flush for print"
         text = sep.join(repr(arg) if not isinstance(arg, str) else arg for arg in args) + end
-        return self._capture(level=LogLevel.INFO, text_in=text, **kwargs)
+        return self._capture(level=level, text_in=text, **kwargs)
 
 
 class BoundLogSink(LogSink):
+    """A log sink with bound kwargs."""
+
     def __init__(self, sink: LogSink, kwargs: dict[str, Any]):
         self.sink = sink
         self.kwargs = kwargs
 
+    @override
+    def bind(self, **kwargs) -> "BoundLogSink":
+        combined_kwargs = {**self.kwargs}
+        combined_kwargs.update(kwargs)
+        return BoundLogSink(self.sink, combined_kwargs)
+
+    @override
     def _capture(self, *, level: LogLevel, text_in: TextIn, **kwargs) -> LogInfo:
-        kwargs = {**self.kwargs}
-        kwargs.update(kwargs)
-        return self.sink._capture(level=level, text_in=text_in, **kwargs)
+        combined_kwargs = {**self.kwargs}
+        combined_kwargs.update(kwargs)
+        return self.sink._capture(level=level, text_in=text_in, **combined_kwargs)
 
 
 class LogStringIO(io.StringIO):
@@ -127,6 +159,7 @@ class LogStringIO(io.StringIO):
 
 @contextlib.contextmanager
 def capture_logs(sink: LogSink):
+    """Redirect stdout/stderr to the given log sink."""
     stdout_sink = LogStringIO(sink, LogLevel.INFO)
     stderr_sink = LogStringIO(sink, LogLevel.ERROR)
     with contextlib.redirect_stdout(stdout_sink), contextlib.redirect_stderr(stderr_sink):

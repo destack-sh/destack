@@ -38,6 +38,15 @@ from bench.language.view import SpaceType, ViewType
         ),
         ("../parent", [(PathTokenType.PARENT, None), (PathTokenType.NODE, "parent")]),
         ("^unique_node", [(PathTokenType.UNIQUE_NODE, "unique_node")]),
+        (">block", [(PathTokenType.SIBLING_NODE, "block")]),
+        (
+            "some/>block/^unique",
+            [
+                (PathTokenType.NODE, "some"),
+                (PathTokenType.SIBLING_NODE, "block"),
+                (PathTokenType.UNIQUE_NODE, "unique"),
+            ],
+        ),
         ("node.property", [(PathTokenType.NODE, "node"), (PathTokenType.PROPERTY, "property")]),
         (
             "@bench/node1/^unique2/node3.property",
@@ -130,6 +139,7 @@ def mock_package(session: Session):
         ("Page11", "..", "Page1"),
         ("Page11", "../..", "testbench"),
         ("Page11", "../Page11/../../Page2/Page21/Code2111", "Code2111"),
+        ("Page21", "../>Page1/Page11/Choice111", "Choice111"),
     ],
 )
 def test_get_node(mock_package: Bench, scope_name: str, path: str, expected_node_name: str | None):

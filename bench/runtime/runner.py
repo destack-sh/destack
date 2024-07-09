@@ -19,6 +19,7 @@ from bench.language.value import ValueObject
 from bench.runtime.compiler import CompiledCode
 from bench.runtime.core import (
     DEFAULT_CODE_RUN_OPTIONS,
+    DYNAMIC_CODE_GLOBALS,
     STATIC_CODE_GLOBALS,
     NotRunnableError,
 )
@@ -174,11 +175,18 @@ class RuntimeRunner:
     """
 
     def __init__(
-        self, *, session: Session, oracle: Oracle, glbls: Mapping[str, Any] = STATIC_CODE_GLOBALS
+        self,
+        *,
+        session: Session,
+        oracle: Oracle,
+        static_glbls: Mapping[str, Any] = STATIC_CODE_GLOBALS,
+        dynamic_glbls: Mapping[str, Any] = DYNAMIC_CODE_GLOBALS,
     ):
         self.session = session
         self.oracle = oracle
-        self.glbls = glbls
+        self.static_glbls = static_glbls
+        self.dynamic_glbls = dynamic_glbls
+        self.combined_glbls = {**static_glbls, **dynamic_glbls}
 
         # ensure runners are imported
         if not _runners:
