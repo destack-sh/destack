@@ -14,6 +14,7 @@ from bench.language.const import (
     ExpressionKind,
     ExpressionOp,
     NodeType,
+    PrimitiveType,
     SortMode,
     SortOp,
     StructType,
@@ -31,7 +32,6 @@ from bench.language.node import (
 from bench.language.property import p_regular, p_value_packed, p_value_runtime
 from bench.language.value import HasValues
 from bench.proto.wire import AnyNodeData, NodeReferenceData
-from bench.sql.core import PrimitiveType
 from bench.utils.casing import Casing, to_casing
 from bench.utils.func import IdEnum
 

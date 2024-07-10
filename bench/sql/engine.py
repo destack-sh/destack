@@ -39,6 +39,7 @@ from bench.language.const import (
     EnumType,
     LiteralOp,
     NodeType,
+    PrimitiveType,
     ReferenceKind,
     SortOp,
 )
@@ -71,7 +72,6 @@ from bench.sql.core import (
     ConstraintType,
     Index,
     IndexType,
-    PrimitiveType,
     Schema,
     SqlPrimitive,
     Table,
