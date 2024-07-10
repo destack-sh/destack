@@ -35,7 +35,7 @@ class CodeImport:
     namespace: str | None = field(init=False)
     module: str  # full module name (e.g., a.b.c.)
     original_name: str | None = None  # `import a.b.c import d as e` -> d
-    as_name: str | None = None  # `import a.b.c import d as e` -> e
+    name: str | None = None  # `import a.b.c import d as e` -> e
     fully_qualified_name: str | None = None  # fully qualified name
     relative_level: int | None = None
 
@@ -54,6 +54,7 @@ class CodeDefinitionKind(StrEnum):
 class CodeDefinition:
     """A definition of a name in a block."""
 
+    name: str
     kind: CodeDefinitionKind
     # If kind == function or class, it may be dependent on externally defined
     # variables.
@@ -96,6 +97,7 @@ class CodeObscuredDefinition:
 class CodeReference:
     """Metadata about variables referenced but not defined."""
 
+    name: str
     # Whether the ref was deleted
     is_delete: bool
     # Ancestors of the block in which this ref was used
@@ -185,7 +187,7 @@ class CodeAnalysisVisitor(ast.NodeVisitor):
         if name in self._builtins:
             return  # ignore builtins
         self._references[name] = CodeReference(
-            is_delete=is_delete, parent_blocks=self._block_stack[:-1]
+            name=name, is_delete=is_delete, parent_blocks=self._block_stack[:-1]
         )
         self._ref_stack[-1].add(name)
 
@@ -212,15 +214,22 @@ class CodeAnalysisVisitor(ast.NodeVisitor):
             # `name` was used as a capture, not a reference
             self._remove_ref(name)
 
-    def _define(self, name: str, variable: CodeDefinition) -> None:
+    def _define(
+        self,
+        name: str,
+        kind: CodeDefinitionKind,
+        references: set[str] | None = None,
+        imprt: CodeImport | None = None,
+    ) -> None:
         """
         Define a name in the current block.
 
         Names created with the global keyword are added to the top-level
         (global scope) block.
         """
+        defn = CodeDefinition(name=name, kind=kind, references=references or set(), imprt=imprt)
         block_idx = 0 if name in self._block_stack[-1].global_names else -1
-        self._define_in_block(name, variable, block_idx=block_idx)
+        self._define_in_block(name, defn, block_idx=block_idx)
 
     def _push_block(self, is_comprehension: bool) -> None:
         """Push a block onto the block stack."""
@@ -334,28 +343,19 @@ class CodeAnalysisVisitor(ast.NodeVisitor):
     def visit_ClassDef(self, node: ast.ClassDef) -> None:
         node.name = self._mangle_if_needed(node.name)
         refs = self._visit_and_get_refs(node)
-        self._define(
-            node.name,
-            CodeDefinition(kind=CodeDefinitionKind.CLASS, references=refs),
-        )
+        self._define(node.name, kind=CodeDefinitionKind.CLASS, references=refs)
 
     @override
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
         node.name = self._mangle_if_needed(node.name)
         refs = self._visit_and_get_refs(node)
-        self._define(
-            node.name,
-            CodeDefinition(kind=CodeDefinitionKind.FUNCTION, references=refs),
-        )
+        self._define(node.name, kind=CodeDefinitionKind.FUNCTION, references=refs)
 
     @override
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         node.name = self._mangle_if_needed(node.name)
         refs = self._visit_and_get_refs(node)
-        self._define(
-            node.name,
-            CodeDefinition(kind=CodeDefinitionKind.FUNCTION, references=refs),
-        )
+        self._define(node.name, kind=CodeDefinitionKind.FUNCTION, references=refs)
 
     @override
     def visit_Call(self, node: ast.Call) -> None:
@@ -374,7 +374,7 @@ class CodeAnalysisVisitor(ast.NodeVisitor):
     @override
     def visit_arg(self, node: ast.arg) -> None:
         node.arg = self._mangle_if_needed(node.arg)
-        self._define(node.arg, CodeDefinition(kind=CodeDefinitionKind.VARIABLE))
+        self._define(node.arg, CodeDefinitionKind.VARIABLE)
         if node.annotation is not None:
             self.visit(node.annotation)
 
@@ -453,7 +453,7 @@ class CodeAnalysisVisitor(ast.NodeVisitor):
                     )
                     self._define_in_block(
                         node.target.id,
-                        CodeDefinition(kind=CodeDefinitionKind.VARIABLE),
+                        CodeDefinition(name=node.target.id, kind=CodeDefinitionKind.VARIABLE),
                         block_idx=block_idx,
                     )
                     break
@@ -487,10 +487,7 @@ class CodeAnalysisVisitor(ast.NodeVisitor):
 
         if isinstance(node.ctx, ast.Store):
             node.id = self._mangle_if_needed(node.id)
-            self._define(
-                node.id,
-                CodeDefinition(kind=CodeDefinitionKind.VARIABLE, references=self._ref_stack[-1]),
-            )
+            self._define(node.id, CodeDefinitionKind.VARIABLE, references=self._ref_stack[-1])
         elif (
             isinstance(node.ctx, ast.Load)
             and not self._is_defined(node.id)
@@ -534,7 +531,7 @@ class CodeAnalysisVisitor(ast.NodeVisitor):
         for alias_node in node.names:
             variable_name = self._get_alias_name(alias_node)
             imprt = CodeImport(module=alias_node.name, fully_qualified_name=None)
-            self._define(variable_name, CodeDefinition(kind=CodeDefinitionKind.IMPORT, imprt=imprt))
+            self._define(variable_name, CodeDefinitionKind.IMPORT, imprt=imprt)
 
     @override
     def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
@@ -548,16 +545,16 @@ class CodeAnalysisVisitor(ast.NodeVisitor):
                 module=module,
                 fully_qualified_name=module + "." + original_name,
                 original_name=original_name,
-                as_name=alias_name,
+                name=alias_name,
                 relative_level=node.level,
             )
-            self._define(alias_name, CodeDefinition(kind=CodeDefinitionKind.IMPORT, imprt=imprt))
+            self._define(alias_name, CodeDefinitionKind.IMPORT, imprt=imprt)
 
     @override
     def visit_MatchAs(self, node: ast.MatchAs) -> None:
         if node.name is not None:
             node.name = self._mangle_if_needed(node.name)
-            self._define(node.name, CodeDefinition(kind=CodeDefinitionKind.VARIABLE))
+            self._define(node.name, CodeDefinitionKind.VARIABLE)
         if node.pattern is not None:
             # pattern may contain additional MatchAs statements in it
             self.visit(node.pattern)
@@ -566,7 +563,7 @@ class CodeAnalysisVisitor(ast.NodeVisitor):
     def visit_MatchMapping(self, node: ast.MatchMapping) -> None:
         if node.rest is not None:
             node.rest = self._mangle_if_needed(node.rest)
-            self._define(node.rest, CodeDefinition(kind=CodeDefinitionKind.VARIABLE))
+            self._define(node.rest, kind=CodeDefinitionKind.VARIABLE)
         for key in node.keys:
             self.visit(key)
         for pattern in node.patterns:
@@ -576,18 +573,12 @@ class CodeAnalysisVisitor(ast.NodeVisitor):
     def visit_MatchStar(self, node: ast.MatchStar) -> None:
         if node.name is not None:
             node.name = self._mangle_if_needed(node.name)
-            self._define(
-                node.name,
-                CodeDefinition(kind=CodeDefinitionKind.VARIABLE),
-            )
+            self._define(node.name, kind=CodeDefinitionKind.VARIABLE)
 
     @override
     def visit_TypeVar(self, node: ast.TypeVar) -> None:
         # node.name is a str, not an ast.Name node
-        self._define(
-            node.name,
-            CodeDefinition(kind=CodeDefinitionKind.VARIABLE, references=self._ref_stack[-1]),
-        )
+        self._define(node.name, CodeDefinitionKind.VARIABLE, references=self._ref_stack[-1])
         if isinstance(node.bound, tuple):
             for name in node.bound:
                 self.visit(name)
@@ -597,18 +588,12 @@ class CodeAnalysisVisitor(ast.NodeVisitor):
     @override
     def visit_ParamSpec(self, node: ast.ParamSpec) -> None:
         # node.name is a str, not an ast.Name node
-        self._define(
-            node.name,
-            CodeDefinition(kind=CodeDefinitionKind.VARIABLE, references=self._ref_stack[-1]),
-        )
+        self._define(node.name, CodeDefinitionKind.VARIABLE, references=self._ref_stack[-1])
 
     @override
     def visit_TypeVarTuple(self, node: ast.TypeVarTuple) -> None:
         # node.name is a str, not an ast.Name node
-        self._define(
-            node.name,
-            CodeDefinition(kind=CodeDefinitionKind.VARIABLE, references=self._ref_stack[-1]),
-        )
+        self._define(node.name, CodeDefinitionKind.VARIABLE, references=self._ref_stack[-1])
 
 
 def _is_coroutine(co: types.CodeType) -> bool:
