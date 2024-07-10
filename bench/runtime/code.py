@@ -11,6 +11,7 @@ from bench.language.session import Session
 from bench.language.value import ValueObject, coerce_value_object
 from bench.runtime.capture import LogSink, capture_logs
 from bench.runtime.compiler import CompiledCode, compile_code
+from bench.runtime.core import CodeSyntaxError
 from bench.runtime.runner import RunHandle, Runner, RuntimeRunner, runner
 
 logger = structlog.get_logger(__name__)
@@ -39,15 +40,17 @@ class CodeRunnerBase(Runner):
                 self.runner.combined_glbls,
             )
         if compiled.syntax_error:
-            raise compiled.syntax_error  # re-raise
+            raise CodeSyntaxError(repr(self)) from compiled.syntax_error  # re-raise
         return compiled
 
     @contextmanager
     def _capture_logs(self):
         """Capture logs into this run."""
         with capture_logs(self.log_sink):
-            yield self.log_sink
-            self.handle.logs.extend(self.log_sink.logs)
+            try:
+                yield self.log_sink
+            finally:
+                self.handle.logs.extend(self.log_sink.logs)
 
     @tracer.start_as_current_span("code.prepare_context")
     def _prepare_glbls(self) -> dict[str, Any]:
@@ -145,7 +148,7 @@ class CodeFunctionRunner(CodeRunnerBase):
                 glbls[field.py_ident] = value
 
         # run
-        exec(compiled.body_co, glbls)
+        exec(compiled.body_co, glbls)  # shouldn't error
         func = glbls[compiled.function_name]
         with self._capture_logs():
             if compiled.is_coroutine:

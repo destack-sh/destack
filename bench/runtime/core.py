@@ -50,5 +50,9 @@ class NotRunnableError(BenchRuntimeError):
     run_error_type = RunErrorType.NOT_RUNNABLE
 
 
+class CodeSyntaxError(NotRunnableError, SyntaxError):
+    pass
+
+
 class RunHaltedError(BenchRuntimeError):
     pass
