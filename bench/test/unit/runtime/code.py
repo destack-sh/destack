@@ -6,20 +6,19 @@ from bench.runtime.runner import RuntimeRunner
 
 
 async def test_run_code_with_syntax_error(runner: RuntimeRunner, page: Block):
-    block = Block.new(BlockType.CODE, "Invalid", code=code("!!invalid!!"))
-    page.blocks.append(block)
+    InvalidCode = Block.new_code("InvalidCode", "!!invalid!!")
+    page.blocks.append(InvalidCode)
     await runner.session.commit()
 
     with pytest.raises(SyntaxError):
-        run = await runner.run(block)
+        run = await runner.run(InvalidCode)
         assert run.status == RunStatus.FAILED
 
 
 async def test_run_code_capture_logs(runner: RuntimeRunner, page: Block):
-    block = Block.new(
-        BlockType.CODE,
+    Logs101 = Block.new_code(
         "Logs101",
-        code=code("""\
+        """\
 import builtins
 print('print1', 'print2') # our own print (injected)
 builtins.print('print3') # python print
@@ -32,12 +31,12 @@ info('info1')
 warn('warn1')
 error('error1')
 critical('critical1')        
-"""),
+""",
     )
-    page.blocks.append(block)
+    page.blocks.append(Logs101)
     await runner.session.commit()
 
-    run = await runner.run(block)
+    run = await runner.run(Logs101)
     assert run.status == RunStatus.COMPLETED
     assert run.logs and len(run.logs) == 11
     for s, log in zip(
@@ -59,40 +58,39 @@ critical('critical1')
         assert log.text_plain == s
 
 
-async def test_run_code_function_coerce_single(runner: RuntimeRunner, page: Block):
-    block = Block.new(
+async def test_run_code_function_coerce_output_scalar(runner: RuntimeRunner, page: Block):
+    Function = Block.new(
         BlockType.CODE,
-        "Function1",
+        "Function",
         code=code("""\
 return Input1 * 4
 """),
+        fields=(Field.input("Input1", int), Field.output("Result1", int, is_required=True)),
     )
-    block.fields.extend(Field.input("Input1", int), Field.output("Result1", int, is_required=True))
-    page.blocks.append(block)
+    page.blocks.append(Function)
     await runner.session.commit()
 
-    run = await runner.run(block, inputs={"Input1": 3})
+    run = await runner.run(Function, inputs={"Input1": 3})
     assert run.outputs and run.outputs.Result1 == 12
 
 
-async def test_run_code_function_coerce_tuple(runner: RuntimeRunner, page: Block):
-    block = Block.new(
-        BlockType.CODE,
-        "Function2",
-        code=code("""\
+async def test_run_code_function_coerce_output_tuple(runner: RuntimeRunner, page: Block):
+    Function = Block.new_code(
+        "Function",
+        """\
 return Input1 > 10, Input1 * 4, None
-"""),
+""",
+        fields=(
+            Field.input("Input1", int),
+            Field.output("Result1", bool, is_required=True),
+            Field.output("Result2", int),
+            Field.output("Result3", int),
+        ),
     )
-    block.fields.extend(
-        Field.input("Input1", int),
-        Field.output("Result1", bool, is_required=True),
-        Field.output("Result2", int),
-        Field.output("Result3", int),
-    )
-    page.blocks.append(block)
+    page.blocks.append(Function)
     await runner.session.commit()
 
-    run = await runner.run(block, inputs={"Input1": 3})
+    run = await runner.run(Function, inputs={"Input1": 3})
     assert (
         run.outputs
         and run.outputs.Result1 is False
@@ -101,19 +99,51 @@ return Input1 > 10, Input1 * 4, None
     )
 
 
-async def test_run_code_function_coerce_dict(runner: RuntimeRunner, page: Block):
-    block = Block.new(
-        BlockType.CODE,
-        "Function3",
-        code=code("""\
+async def test_run_code_function_coerce_output_dict(runner: RuntimeRunner, page: Block):
+    Function = Block.new_code(
+        "Function",
+        """\
 return dict(Result1=Input1 > 10, Result2=Input1 * 4)
-"""),
+""",
     )
-    block.fields.extend(
+    Function.fields.extend(
         Field.input("Input1", int), Field.output("Result1", bool), Field.output("Result2", int)
     )
-    page.blocks.append(block)
+    page.blocks.append(Function)
     await runner.session.commit()
 
-    run = await runner.run(block, inputs={"Input1": 3})
+    run = await runner.run(Function, inputs={"Input1": 3})
     assert run.outputs and run.outputs.Result1 is False and run.outputs.Result2 == 12
+
+
+async def test_run_code_resolve_references(runner: RuntimeRunner, page: Block):
+    subpage = page.blocks.append(Block.new(BlockType.PAGE, "Subpage"))
+    ShapeKind = Block.new(
+        BlockType.CHOICE,
+        "ShapeKind",
+        fields=[
+            Field.option("Rectangle"),
+            Field.option("Circle"),
+            Field.option("Triangle"),
+            Field.option("Square"),
+        ],
+    )
+    Shape = Block.new(
+        BlockType.CLASS,
+        "Shape",
+        fields=[Field.member("kind", ShapeKind)],
+    )
+    subpage.blocks.extend(ShapeKind, Shape)
+    await runner.session.commit()
+
+    Function = Block.new_code(
+        "Function",
+        """\
+ShapeKind
+ShapeKind.fields.Circle
+Shape(kind=ShapeKind.fields.Circle)
+""",
+    )
+    subpage.blocks.append(Function)
+
+    _ = await runner.run(Function)

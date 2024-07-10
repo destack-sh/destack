@@ -44,6 +44,19 @@ class CodeRunnerBase(Runner):
 
     def _prepare_glbls(self) -> dict[str, Any]:
         """Prepares the context for running the code."""
+        assert self.state.compiled, f"no compiled code for {self!r}"
+
+        # references
+        # NOTE :Incomplete: handle references to exported definitions (not just node references)
+        resolved_references = {}
+        for reference_name in self.state.compiled.references:
+            reference = get_node(self.node, f"^{reference_name}")
+            if reference:
+                resolved_references[reference_name] = reference
+            else:
+                pass  # error?
+
+        # assemble globals
         _get_node = functools.partial(get_node, self.node)
         glbls = {  # :CodeGlobals
             # static
@@ -59,9 +72,9 @@ class CodeRunnerBase(Runner):
             "error": self.log_sink.error,
             "critical": self.log_sink.critical,
             "print": self.log_sink.print,
-            # references (nodes/exports)
-            # nocheckin
         }
+        # references (nodes/exports)
+        glbls.update(resolved_references)
         return glbls
 
     def _coerce_outputs(self, outputs_raw: Any) -> ValueObject:
