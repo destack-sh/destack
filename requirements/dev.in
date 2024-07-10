@@ -14,4 +14,5 @@ pytest-xdist==3.6.1
 pytest==8.2.0
 py-spy==0.3.14
 ruff==0.4.5
+tach==0.6.9
 watchdog==3.0.0

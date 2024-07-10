@@ -2,9 +2,9 @@ import enum
 from itertools import chain
 from typing import TYPE_CHECKING, Any, Collection, Union, cast
 
+from bench.language.const import PrimitiveType
 from bench.language.node import BuiltinObject, InlineStruct
 from bench.proto.core import Enum, EnumValue, Field, FieldType, Message, ProtoSchema, ProtoThing
-from bench.sql.core import PrimitiveType
 from bench.utils.casing import Casing, to_casing
 from bench.utils.func import IdEnum
 

@@ -8,6 +8,7 @@ beautifulsoup4==4.11.1
 black==23.7.0
 dateparser==1.1.8
 dropbox==11.36.2
+duckdb==1.0.0
 feedparser==6.0.10
 gitpython==3.1.32
 google-api-python-client==2.129.0
@@ -33,7 +34,7 @@ psutil==5.9.2
 psycopg[binary,pool]==3.1.12
 pyairtable==2.3.3
 pyarrow==16.0.0
-pydantic>=1.10.7,<2
+pydantic>=2
 PyGithub>=2.3.0
 pypdf>=3.16.0
 pytest==8.2.0

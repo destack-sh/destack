@@ -13,6 +13,7 @@ from bench.language.const import (
     FieldZone,
     FormatHint,
     NodeType,
+    PrimitiveType,
     PrimitiveValue,
     StructType,
     TypeKind,
@@ -51,7 +52,6 @@ from bench.language.setup import OBJECT_TYPE_BY_CLASS
 from bench.language.validation import NAME_CONSTRAINT, ValidationHandler
 from bench.language.value import HasValues, SomeValue, coerce_object_scalar
 from bench.proto.wire import AnyNodeData, FieldData, NodeReferenceData
-from bench.sql.core import PrimitiveType
 from bench.utils.casing import IdentifierType
 from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import decode_b64vlq, encode_b64vlq

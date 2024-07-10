@@ -1,0 +1,56 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/gauge-sh/tach/v0.6.9/public/tach-yml-schema.json
+# TODO :Robustness: enforce module boundaries
+modules:
+  - path: bench
+    depends_on:
+      - bench.utils
+  - path: bench.cli
+    depends_on:
+      - bench.language
+      - bench.proto
+      - bench.runtime
+      - bench.sql
+      - bench.system
+      - bench.utils
+  - path: bench.language
+    depends_on:
+      - bench.proto
+      - bench.utils
+  - path: bench.proto
+    depends_on:
+      - bench.cli
+      - bench.language
+      - bench.utils
+  - path: bench.runtime
+    depends_on:
+      - bench.language
+      - bench.proto
+      - bench.utils
+  - path: bench.sql
+    depends_on:
+      - bench.language
+      - bench.proto
+      - bench.utils
+  - path: bench.system
+    depends_on:
+      - bench.language
+      - bench.proto
+      - bench.sql
+      - bench.utils
+  - path: bench.test
+    depends_on:
+      - bench.language
+      - bench.proto
+      - bench.runtime
+      - bench.sql
+      - bench.system
+      - bench.utils
+  - path: bench.utils
+    depends_on: []
+exclude:
+  - .*__pycache__
+  - .*egg-info
+  - docs
+  - tests
+  - venv
+source_root: .

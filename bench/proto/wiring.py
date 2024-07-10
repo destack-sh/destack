@@ -11,7 +11,7 @@ from betterproto.lib.google.protobuf import Struct as ProtoStruct
 from opentelemetry import trace
 
 from bench.language.connection import Connection
-from bench.language.const import NodeType, ObjectType
+from bench.language.const import NodeType, ObjectType, PrimitiveType
 from bench.language.graph import NULL_SUPERGRAPH, NodeDataGraph, NodeSuperGraph
 from bench.language.node import BuiltinObject, Node, NodeGraph, NodeReference
 from bench.language.property import Property
@@ -26,7 +26,6 @@ from bench.proto.wire import (
     RpcMetadata,
     RpcMetadataBadgeInfo,
 )
-from bench.sql.core import PrimitiveType
 from bench.utils.casing import Casing, to_casing
 from bench.utils.func import IdEnum, IdEnumOrUnion, to_uuid
 
