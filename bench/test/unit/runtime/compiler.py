@@ -27,8 +27,9 @@ class _TestVisitorHandle:
         self,
         kind: CodeKind = CodeKind.SCRIPT,
         visitor: CodeAnalysisVisitor | None = None,
+        code_id: str = "test",
     ):
-        self.visitor = visitor or CodeAnalysisVisitor(kind=kind)
+        self.visitor = visitor or CodeAnalysisVisitor(kind=kind, code_id=code_id)
 
     @property
     def definitions(self):
@@ -55,7 +56,7 @@ def test_assign_simple():
     v.visit(mod)
     assert v.defs == {"x"}
     assert v.refs == set()
-    assert v.definitions == {"x": CodeDefinition(kind=CodeDefinitionKind.VARIABLE)}
+    assert v.definitions == {"x": CodeDefinition("x", kind=CodeDefinitionKind.VARIABLE)}
 
 
 def test_multiple_assign():
@@ -66,8 +67,8 @@ def test_multiple_assign():
     assert v.defs == {"x", "y"}
     assert v.refs == set()
     assert v.definitions == {
-        "x": CodeDefinition(kind=CodeDefinitionKind.VARIABLE),
-        "y": CodeDefinition(kind=CodeDefinitionKind.VARIABLE),
+        "x": CodeDefinition("x", kind=CodeDefinitionKind.VARIABLE),
+        "y": CodeDefinition("y", kind=CodeDefinitionKind.VARIABLE),
     }
 
 
@@ -79,8 +80,8 @@ def test_assign_multiple_statements():
     assert v.defs == {"x", "y"}
     assert v.refs == set()
     assert v.definitions == {
-        "x": CodeDefinition(kind=CodeDefinitionKind.VARIABLE),
-        "y": CodeDefinition(kind=CodeDefinitionKind.VARIABLE),
+        "x": CodeDefinition("x", kind=CodeDefinitionKind.VARIABLE),
+        "y": CodeDefinition("y", kind=CodeDefinitionKind.VARIABLE),
     }
 
 
@@ -111,7 +112,7 @@ def test_read_attr_of_defined_variable():
     v.visit(mod)
     assert v.defs == {"x"}
     assert v.refs == set()
-    assert v.definitions == {"x": CodeDefinition(kind=CodeDefinitionKind.VARIABLE)}
+    assert v.definitions == {"x": CodeDefinition("x", kind=CodeDefinitionKind.VARIABLE)}
 
 
 def test_assign_nested_attr():
@@ -142,7 +143,7 @@ def test_assign_same_name():
     assert v.defs == {"x"}
     assert v.refs == {"x"}
     assert v.definitions == {
-        "x": CodeDefinition(kind=CodeDefinitionKind.VARIABLE, references={"x"})
+        "x": CodeDefinition("x", kind=CodeDefinitionKind.VARIABLE, references={"x"})
     }
 
     expr = "x=1; x = x"
@@ -152,7 +153,7 @@ def test_assign_same_name():
     assert v.defs == {"x"}
     assert v.refs == set()
     assert v.definitions == {
-        "x": CodeDefinition(kind=CodeDefinitionKind.VARIABLE, references={"x"})
+        "x": CodeDefinition("x", kind=CodeDefinitionKind.VARIABLE, references={"x"})
     }
 
     expr = "(x := x)"
@@ -162,7 +163,7 @@ def test_assign_same_name():
     assert v.defs == {"x"}
     assert v.refs == {"x"}
     assert v.definitions == {
-        "x": CodeDefinition(kind=CodeDefinitionKind.VARIABLE, references={"x"})
+        "x": CodeDefinition("x", kind=CodeDefinitionKind.VARIABLE, references={"x"})
     }
 
     expr = "x += x"
@@ -172,7 +173,7 @@ def test_assign_same_name():
     assert v.defs == {"x"}
     assert v.refs == {"x"}
     assert v.definitions == {
-        "x": CodeDefinition(kind=CodeDefinitionKind.VARIABLE, references={"x"})
+        "x": CodeDefinition("x", kind=CodeDefinitionKind.VARIABLE, references={"x"})
     }
 
     expr = "def f(): x = x; return x"
@@ -182,7 +183,7 @@ def test_assign_same_name():
     assert v.defs == {"f"}
     assert v.refs == {"x"}
     assert v.definitions == {
-        "f": CodeDefinition(kind=CodeDefinitionKind.FUNCTION, references={"x"})
+        "f": CodeDefinition("f", kind=CodeDefinitionKind.FUNCTION, references={"x"})
     }
 
     expr = "class F(): x = x"
@@ -191,7 +192,9 @@ def test_assign_same_name():
     v.visit(mod)
     assert v.defs == {"F"}
     assert v.refs == {"x"}
-    assert v.definitions == {"F": CodeDefinition(kind=CodeDefinitionKind.CLASS, references={"x"})}
+    assert v.definitions == {
+        "F": CodeDefinition("F", kind=CodeDefinitionKind.CLASS, references={"x"})
+    }
 
     expr = "{x: x}"
     v = _TestVisitorHandle()
@@ -221,14 +224,14 @@ def test_structured_assignment():
     assert v.defs == names
     assert v.refs == set()
     assert v.definitions == {
-        "a": CodeDefinition(kind=CodeDefinitionKind.VARIABLE),
-        "b": CodeDefinition(kind=CodeDefinitionKind.VARIABLE),
-        "c": CodeDefinition(kind=CodeDefinitionKind.VARIABLE),
-        "d": CodeDefinition(kind=CodeDefinitionKind.VARIABLE),
-        "e": CodeDefinition(kind=CodeDefinitionKind.VARIABLE),
-        "f": CodeDefinition(kind=CodeDefinitionKind.VARIABLE),
-        "g": CodeDefinition(kind=CodeDefinitionKind.VARIABLE),
-        "h": CodeDefinition(kind=CodeDefinitionKind.VARIABLE),
+        "a": CodeDefinition("a", kind=CodeDefinitionKind.VARIABLE),
+        "b": CodeDefinition("b", kind=CodeDefinitionKind.VARIABLE),
+        "c": CodeDefinition("c", kind=CodeDefinitionKind.VARIABLE),
+        "d": CodeDefinition("d", kind=CodeDefinitionKind.VARIABLE),
+        "e": CodeDefinition("e", kind=CodeDefinitionKind.VARIABLE),
+        "f": CodeDefinition("f", kind=CodeDefinitionKind.VARIABLE),
+        "g": CodeDefinition("g", kind=CodeDefinitionKind.VARIABLE),
+        "h": CodeDefinition("h", kind=CodeDefinitionKind.VARIABLE),
     }
 
 
@@ -240,8 +243,8 @@ def test_starred_assignment():
     assert v.defs == {"a", "b"}
     assert v.refs == set()
     assert v.definitions == {
-        "a": CodeDefinition(kind=CodeDefinitionKind.VARIABLE),
-        "b": CodeDefinition(kind=CodeDefinitionKind.VARIABLE),
+        "a": CodeDefinition("a", kind=CodeDefinitionKind.VARIABLE),
+        "b": CodeDefinition("b", kind=CodeDefinitionKind.VARIABLE),
     }
 
 
@@ -259,7 +262,7 @@ def test_scope_does_not_leak():
     assert v.defs == {"foo"}
     assert v.refs == set("z")
     assert v.definitions == {
-        "foo": CodeDefinition(kind=CodeDefinitionKind.FUNCTION),
+        "foo": CodeDefinition("foo", kind=CodeDefinitionKind.FUNCTION),
     }
 
 
@@ -295,11 +298,11 @@ def test_walrus_leaks_to_global_in_comprehension():
     # "a" should not be a ref!
     assert v.refs == {"myrange"}
     assert v.definitions == {
-        "a": CodeDefinition(kind=CodeDefinitionKind.VARIABLE),
-        "b": CodeDefinition(kind=CodeDefinitionKind.VARIABLE),
-        "c": CodeDefinition(kind=CodeDefinitionKind.VARIABLE),
-        "d": CodeDefinition(kind=CodeDefinitionKind.VARIABLE),
-        "foo": CodeDefinition(kind=CodeDefinitionKind.FUNCTION, references={"a"}),
+        "a": CodeDefinition("a", kind=CodeDefinitionKind.VARIABLE),
+        "b": CodeDefinition("b", kind=CodeDefinitionKind.VARIABLE),
+        "c": CodeDefinition("c", kind=CodeDefinitionKind.VARIABLE),
+        "d": CodeDefinition("d", kind=CodeDefinitionKind.VARIABLE),
+        "foo": CodeDefinition("foo", kind=CodeDefinitionKind.FUNCTION, references={"a"}),
     }
 
 
@@ -311,8 +314,8 @@ def test_nested_walrus_leaks_to_global_in_comprehension():
     assert v.defs == {"a", "b"}
     assert v.refs == {"myrange"}
     assert v.definitions == {
-        "a": CodeDefinition(kind=CodeDefinitionKind.VARIABLE),
-        "b": CodeDefinition(kind=CodeDefinitionKind.VARIABLE),
+        "a": CodeDefinition("a", kind=CodeDefinitionKind.VARIABLE),
+        "b": CodeDefinition("b", kind=CodeDefinitionKind.VARIABLE),
     }
 
 
@@ -324,7 +327,7 @@ def test_pep572_walrus_comprehension_examples():
     assert v.defs == {"y"}
     assert v.refs == {"input_data", "f"}
     assert v.definitions == {
-        "y": CodeDefinition(kind=CodeDefinitionKind.VARIABLE),
+        "y": CodeDefinition("y", kind=CodeDefinitionKind.VARIABLE),
     }
 
     code = "[[y := f(x), x/y] for x in range(5)]"
@@ -334,7 +337,7 @@ def test_pep572_walrus_comprehension_examples():
     assert v.defs == {"y"}
     assert v.refs == {"f"}
     assert v.definitions == {
-        "y": CodeDefinition(kind=CodeDefinitionKind.VARIABLE),
+        "y": CodeDefinition("y", kind=CodeDefinitionKind.VARIABLE),
     }
 
 
@@ -350,7 +353,7 @@ def f():
     assert v.defs == {"f"}  # x should _not_ leak to global scope
     assert v.refs == {"myrange"}  # x should leak to f's scope
     assert v.definitions == {
-        "f": CodeDefinition(kind=CodeDefinitionKind.FUNCTION, references={"myrange"}),
+        "f": CodeDefinition("f", kind=CodeDefinitionKind.FUNCTION, references={"myrange"}),
     }
 
 
@@ -370,9 +373,9 @@ e = 0
     assert v.defs == {"a", "e", "foo"}
     assert v.refs == set()
     assert v.definitions == {
-        "a": CodeDefinition(kind=CodeDefinitionKind.VARIABLE),
-        "e": CodeDefinition(kind=CodeDefinitionKind.VARIABLE),
-        "foo": CodeDefinition(kind=CodeDefinitionKind.FUNCTION),
+        "a": CodeDefinition("a", kind=CodeDefinitionKind.VARIABLE),
+        "e": CodeDefinition("e", kind=CodeDefinitionKind.VARIABLE),
+        "foo": CodeDefinition("foo", kind=CodeDefinitionKind.FUNCTION),
     }
 
 
@@ -390,7 +393,7 @@ def test_function_with_args():
     assert v.defs == {"foo"}
     assert v.refs == set("z")
     assert v.definitions == {
-        "foo": CodeDefinition(kind=CodeDefinitionKind.FUNCTION, references={"z"}),
+        "foo": CodeDefinition("foo", kind=CodeDefinitionKind.FUNCTION, references={"z"}),
     }
 
 
@@ -408,7 +411,7 @@ def test_function_with_defaults():
     assert v.refs == {"x", "y", "a"}
     # TODO: Are these required refs?
     assert v.definitions == {
-        "foo": CodeDefinition(kind=CodeDefinitionKind.FUNCTION, references={"x", "y", "a"}),
+        "foo": CodeDefinition("foo", kind=CodeDefinitionKind.FUNCTION, references={"x", "y", "a"}),
     }
 
 
@@ -427,8 +430,8 @@ def test_async_function_def():
     assert v.defs == {"foo", "x"}
     assert v.refs == set("z")
     assert v.definitions == {
-        "foo": CodeDefinition(kind=CodeDefinitionKind.FUNCTION, references={"z"}),
-        "x": CodeDefinition(kind=CodeDefinitionKind.VARIABLE),
+        "foo": CodeDefinition("foo", kind=CodeDefinitionKind.FUNCTION, references={"z"}),
+        "x": CodeDefinition("x", kind=CodeDefinitionKind.VARIABLE),
     }
 
 
@@ -446,8 +449,8 @@ def test_global_def():
     assert v.defs == {"foo", "x"}
     assert v.refs == set()
     assert v.definitions == {
-        "foo": CodeDefinition(kind=CodeDefinitionKind.FUNCTION, references={"x"}),
-        "x": CodeDefinition(kind=CodeDefinitionKind.VARIABLE),
+        "foo": CodeDefinition("foo", kind=CodeDefinitionKind.FUNCTION, references={"x"}),
+        "x": CodeDefinition("x", kind=CodeDefinitionKind.VARIABLE),
     }
 
 
@@ -465,7 +468,7 @@ def test_global_ref():
     assert v.defs == {"foo"}
     assert v.refs == {"x"}
     assert v.definitions == {
-        "foo": CodeDefinition(kind=CodeDefinitionKind.FUNCTION, references={"x"}),
+        "foo": CodeDefinition("foo", kind=CodeDefinitionKind.FUNCTION, references={"x"}),
     }
 
 
@@ -485,7 +488,7 @@ def test_nested_local_def_and_global_ref():
     assert v.defs == {"foo"}
     assert v.refs == {"x"}
     assert v.definitions == {
-        "foo": CodeDefinition(kind=CodeDefinitionKind.FUNCTION, references={"x"}),
+        "foo": CodeDefinition("foo", kind=CodeDefinitionKind.FUNCTION, references={"x"}),
     }
 
 
@@ -513,7 +516,7 @@ def test_call_defined():
     assert v.defs == {"foo"}
     assert v.refs == set()
     assert v.definitions == {
-        "foo": CodeDefinition(kind=CodeDefinitionKind.FUNCTION),
+        "foo": CodeDefinition("foo", kind=CodeDefinitionKind.FUNCTION),
     }
 
 
@@ -525,7 +528,7 @@ def test_mutation_generates_def():
     assert v.defs == {"x"}
     assert v.refs == set()
     assert v.definitions == {
-        "x": CodeDefinition(kind=CodeDefinitionKind.VARIABLE),
+        "x": CodeDefinition("x", kind=CodeDefinitionKind.VARIABLE),
     }
 
 
@@ -624,12 +627,12 @@ def test_matchas():
     assert v.defs == {"a", "b", "c", "d", "e", "f"}
     assert v.refs == {"value"}
     assert v.definitions == {
-        "a": CodeDefinition(kind=CodeDefinitionKind.VARIABLE),
-        "b": CodeDefinition(kind=CodeDefinitionKind.VARIABLE),
-        "c": CodeDefinition(kind=CodeDefinitionKind.VARIABLE),
-        "d": CodeDefinition(kind=CodeDefinitionKind.VARIABLE),
-        "e": CodeDefinition(kind=CodeDefinitionKind.VARIABLE),
-        "f": CodeDefinition(kind=CodeDefinitionKind.VARIABLE),
+        "a": CodeDefinition("a", kind=CodeDefinitionKind.VARIABLE),
+        "b": CodeDefinition("b", kind=CodeDefinitionKind.VARIABLE),
+        "c": CodeDefinition("c", kind=CodeDefinitionKind.VARIABLE),
+        "d": CodeDefinition("d", kind=CodeDefinitionKind.VARIABLE),
+        "e": CodeDefinition("e", kind=CodeDefinitionKind.VARIABLE),
+        "f": CodeDefinition("f", kind=CodeDefinitionKind.VARIABLE),
     }
 
 
@@ -648,7 +651,7 @@ def test_matchstar():
     v.visit(mod)
     assert v.defs == {"rest"}
     assert v.refs == {"value"}
-    assert v.definitions == {"rest": CodeDefinition(kind=CodeDefinitionKind.VARIABLE)}
+    assert v.definitions == {"rest": CodeDefinition("rest", kind=CodeDefinitionKind.VARIABLE)}
 
 
 def test_matchmapping():
@@ -669,8 +672,8 @@ def test_matchmapping():
     assert v.defs == {"a", "b"}
     assert v.refs == {"value"}
     assert v.definitions == {
-        "a": CodeDefinition(kind=CodeDefinitionKind.VARIABLE),
-        "b": CodeDefinition(kind=CodeDefinitionKind.VARIABLE),
+        "a": CodeDefinition("a", kind=CodeDefinitionKind.VARIABLE),
+        "b": CodeDefinition("b", kind=CodeDefinitionKind.VARIABLE),
     }
 
 
@@ -682,7 +685,9 @@ def test_import_nested():
     assert v.defs == {"a"}
     assert v.refs == set()
     assert v.definitions["a"] == CodeDefinition(
-        kind=CodeDefinitionKind.IMPORT, imprt=CodeImport(module="a.b.c", fully_qualified_name=None)
+        "a",
+        kind=CodeDefinitionKind.IMPORT,
+        imprt=CodeImport(module="a.b.c", fully_qualified_name=None),
     )
 
 
@@ -694,7 +699,9 @@ def test_import_as():
     assert v.defs == {"d"}
     assert v.refs == set()
     assert v.definitions["d"] == CodeDefinition(
-        kind=CodeDefinitionKind.IMPORT, imprt=CodeImport(module="a.b.c", fully_qualified_name=None)
+        "d",
+        kind=CodeDefinitionKind.IMPORT,
+        imprt=CodeImport(module="a.b.c", fully_qualified_name=None),
     )
 
 
@@ -706,10 +713,12 @@ def test_import_multiple():
     assert v.defs == {"a", "d"}
     assert v.refs == set()
     assert v.definitions["a"] == CodeDefinition(
-        kind=CodeDefinitionKind.IMPORT, imprt=CodeImport(module="a.b.c", fully_qualified_name=None)
+        "a",
+        kind=CodeDefinitionKind.IMPORT,
+        imprt=CodeImport(module="a.b.c", fully_qualified_name=None),
     )
     assert v.definitions["d"] == CodeDefinition(
-        kind=CodeDefinitionKind.IMPORT, imprt=CodeImport(module="d", fully_qualified_name=None)
+        "d", kind=CodeDefinitionKind.IMPORT, imprt=CodeImport(module="d", fully_qualified_name=None)
     )
 
 
@@ -721,12 +730,13 @@ def test_from_import():
     assert v.defs == {"d"}
     assert v.refs == set()
     assert v.definitions["d"] == CodeDefinition(
+        name="d",
         kind=CodeDefinitionKind.IMPORT,
         imprt=CodeImport(
             module="a.b.c",
             fully_qualified_name="a.b.c.d",
             original_name="d",
-            as_name="d",
+            name="d",
             relative_level=0,
         ),
     )
@@ -740,12 +750,13 @@ def test_relative_from_import():
     assert v.defs == {"e"}
     assert v.refs == set()
     assert v.definitions["e"] == CodeDefinition(
+        name="e",
         kind=CodeDefinitionKind.IMPORT,
         imprt=CodeImport(
             module="a.b.c",
             fully_qualified_name="a.b.c.d",
             original_name="d",
-            as_name="e",
+            name="e",
             relative_level=2,
         ),
     )
@@ -865,7 +876,7 @@ _x = 1
 def foo():
     z = _x + x + X
 """
-    v = _TestVisitorHandle()
+    v = _TestVisitorHandle(code_id="test")
     mod = ast.parse(code)
     v.visit(mod)
     assert len(v.defs & {"foo", "x"}) == 2
@@ -875,9 +886,11 @@ def foo():
     assert private.endswith("_x")
     assert v.refs == {"X"}
     assert v.definitions == {
-        private: CodeDefinition(kind=CodeDefinitionKind.VARIABLE),
-        "x": CodeDefinition(kind=CodeDefinitionKind.VARIABLE),
-        "foo": CodeDefinition(kind=CodeDefinitionKind.FUNCTION, references={"X", "x", private}),
+        private: CodeDefinition(name=private, kind=CodeDefinitionKind.VARIABLE),
+        "x": CodeDefinition(name="x", kind=CodeDefinitionKind.VARIABLE),
+        "foo": CodeDefinition(
+            name="foo", kind=CodeDefinitionKind.FUNCTION, references={"X", "x", private}
+        ),
     }
 
 
@@ -918,8 +931,8 @@ def a():
     assert compiled.transformed_code == compiled.code  # no transformation
     assert set(compiled.references.keys()) == {"y"}
     assert compiled.definitions == {
-        "x": CodeDefinition(kind=CodeDefinitionKind.VARIABLE, references={"y"}),
-        "a": CodeDefinition(kind=CodeDefinitionKind.FUNCTION),
+        "x": CodeDefinition("x", kind=CodeDefinitionKind.VARIABLE, references={"y"}),
+        "a": CodeDefinition("a", kind=CodeDefinitionKind.FUNCTION),
     }
 
 
