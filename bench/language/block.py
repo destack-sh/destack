@@ -77,7 +77,7 @@ assert len(IDENTIFIER_TYPE_BY_BLOCK_TYPE) == len(BlockType)
 #  see :AutoNaming
 
 
-@local_node(NodeType.BLOCK, passthrough="value")
+@local_node(NodeType.BLOCK, passthrough=("value", "fields"))
 class Block(SourceNode[BlockData], HasValues):
     """A building block with logic, types, UI, data, auth, AI, ..."""
 

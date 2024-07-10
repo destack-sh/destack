@@ -461,12 +461,14 @@ def struct_(struct_type: StructType, inline: bool = False):
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
 def node_component(
     node_type: NodeType | None = None,
-    passthrough: str | None = None,
+    passthrough: str | tuple[str, ...] | None = None,
     is_root: bool = False,
     is_variable_root: bool = False,
     is_final: bool = False,
 ):
     """Mark a class as a node component (or concrete node for a NodeType)."""
+    if isinstance(passthrough, str):
+        passthrough = (passthrough,)
 
     def decorate(cls: Type["Node"]) -> Type["Node"]:
         cls, properties = _process_object_cls(
@@ -508,7 +510,7 @@ def node_component(
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
 def node_(
     node_type: NodeType,
-    passthrough: str | None = None,
+    passthrough: str | tuple[str, ...] | None = None,
     stored: bool = True,
     stored_custom: bool = False,
     local: bool = False,
@@ -791,7 +793,7 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
 
     metatype: ClassVar[ObjectType]
     __components__: ClassVar[tuple[type["BuiltinObject"], ...]] = ()
-    __passthrough__: ClassVar[str | None] = None
+    __passthrough__: ClassVar[tuple[str, ...] | None] = None
 
     __is_struct__: ClassVar[bool] = False
     __is_struct_inlined__: ClassVar[bool] = False
@@ -1006,12 +1008,17 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
 
         # check passthrough (if 'live' in session)
         if self.__passthrough__ is not None and self._session is not None:
-            target = getattr(self, self.__passthrough__)
-            attr = getattr(target, key, UNSET)
-            if attr is not UNSET:
-                return attr
+            for passthrough_key in self.__passthrough__:
+                target = getattr(self, passthrough_key, UNSET)
+                attr = getattr(target, key, UNSET)
+                if attr is not UNSET:
+                    return attr
 
-        raise AttributeError(f"{self.__class__.__name__} has no attribute '{key}'")
+        try:
+            self_str = repr(self)
+        except Exception:
+            self_str = self.__class__.__name__
+        raise AttributeError(f"{self_str} has no attribute '{key}'")
 
     def _do_set(self, key: str, value, *, track: bool = True, validate: bool = True):
         """Sets *any* attribute on this node."""
@@ -1071,12 +1078,17 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
             return
         elif is_tracked and self.__passthrough__ is not None:
             # try passthrough target (if any)
-            target = getattr(self, self.__passthrough__, UNSET)
-            if target is not UNSET:
-                setattr(target, key, value)
-                return
+            for passthrough_key in self.__passthrough__:
+                target = getattr(self, passthrough_key, UNSET)
+                if target is not UNSET:
+                    setattr(target, key, value)
+                    return
 
-        raise AttributeError(f"{self.__class__.__name__} has no attribute '{key}'")
+        try:
+            self_str = repr(self)
+        except Exception:
+            self_str = self.__class__.__name__
+        raise AttributeError(f"{self_str} has no attribute '{key}'")
 
     if not TYPE_CHECKING:
         # NOTE: __setattr__/__getattr__ confuses type checking, so only define it at runtime

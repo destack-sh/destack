@@ -388,7 +388,7 @@ class Alignment(IdEnum):
     SPACE_BETWEEN = 4
 
 
-@local_node(NodeType.VIEW, identifier=IdentifierType.VARIABLE)
+@local_node(NodeType.VIEW, identifier=IdentifierType.VARIABLE, passthrough="value")
 class View(SourceNode[ViewData], HasValues):
     """A view of a user interface in a Bench."""
 

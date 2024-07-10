@@ -34,7 +34,7 @@ MESSAGE_PARENT_TYPES: tuple[NodeType, ...] = (
 )
 
 
-@timed_node(NodeType.MESSAGE)
+@timed_node(NodeType.MESSAGE, passthrough="value")
 class Message(
     PackageNode[MessageData],
     HasTimeIdentity,

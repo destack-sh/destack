@@ -5,7 +5,7 @@ from typing import Any, override
 import structlog
 from opentelemetry import trace
 
-from bench.language.path import get_node
+from bench.language.path import get_node, get_node_or_error
 from bench.language.run import CodeKind, RunnableKind
 from bench.language.session import Session
 from bench.language.value import ValueObject, coerce_value_object
@@ -58,11 +58,8 @@ class CodeRunnerBase(Runner):
         # NOTE :Incomplete: handle references to exported definitions (not just node references)
         resolved_references = {}
         for reference_name in self.state.compiled.references:
-            reference = get_node(self.node, f"^{reference_name}")
-            if reference:
-                resolved_references[reference_name] = reference
-            else:
-                pass  # error?
+            reference = get_node_or_error(self.node, f"^{reference_name}")
+            resolved_references[reference_name] = reference
 
         # assemble globals
         _get_node = functools.partial(get_node, self.node)
