@@ -141,7 +141,8 @@ async def test_run_code_resolve_references(runner: RuntimeRunner, page: Block):
         """\
 ShapeKind
 ShapeKind.fields.Circle
-Shape(kind=ShapeKind.fields.Circle)
+ShapeKind.Rectangle
+Shape(kind=ShapeKind.Square)
 """,
     )
     subpage.blocks.append(Function)
