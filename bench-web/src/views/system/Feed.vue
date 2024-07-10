@@ -403,6 +403,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
         >
           <!-- Handle -->
           <div
+            v-if="!isInline"
             class="flex-shrink-0 rounded transition-colors duration-75"
             :style="{ width: HANDLE_WIDTH + 'px' }"
             :class="
@@ -415,7 +416,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
                   : 'bg-transparent group-hover/item:bg-gray-200'
             "
           />
-          <div class="flex-1 rounded-md px-2 py-1 hover:bg-gray-100" :class="[isInline ? '-mx-2' : '']">
+          <div class="flex-1 rounded-md py-1 hover:bg-gray-100" :class="[!isInline ? 'px-2' : 'px-1']">
             <!-- Item header -->
             <div
               class="flex max-w-full flex-row flex-wrap items-center gap-x-1 hover:cursor-pointer"

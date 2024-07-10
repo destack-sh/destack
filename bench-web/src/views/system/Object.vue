@@ -1,6 +1,11 @@
 <script lang="ts" setup>
-import { ViewData, NodeType, ViewType, ObjectType, BlockType, FieldData, BoxData, FieldZone } from "@/proto/wire";
+import { BlockType, BoxData, FieldZone, NodeType, ObjectType, ViewData, ViewType } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
+import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
+import { ICON_BY_BLOCK_TYPE, IconInline } from "@/system/icon";
+import { canvas } from "@/system/space";
+import { getFieldViews } from "@/system/view";
+import type { PopoverInfoIn } from "@/utils/menu";
 import {
   ViewContentWrapper,
   makeViewId,
@@ -9,15 +14,8 @@ import {
   type ViewExposed,
   type ViewProps,
 } from "@/views/common";
-import { canvas } from "@/system/space";
-import { computed, ref, toRef, type Ref } from "vue";
-import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
-import type { PopoverInfoIn } from "@/utils/menu";
-import { ICON_BY_BLOCK_TYPE, IconInline } from "@/system/icon";
-import { getStorageKey, resolveType, type TypeIdentity } from "@/system/value";
 import { getViewComponent, hasViewComponent } from "@/views/registry";
-import { FULL_WIDTH_VIEW_TYPES } from "@/system/lang";
-import { getFieldViews, getViewForValueType } from "@/system/view";
+import { computed, ref, toRef, type Ref } from "vue";
 
 const MIN_WIDTH = 320;
 const DEFAULT_WIDTH = 280;
@@ -46,7 +44,7 @@ const { graph: pkgGraph } = props.preparedConnection ?? useExistingConnection(ba
 const baseType = pkgGraph.getRef(baseTypePtr);
 const fields = pkgGraph.getChildrenRef(baseType, NodeType.FIELD); // these need to be resolved later :TypeResolution
 const fieldViews = computed(() =>
-  getFieldViews(fields.value, props.modelValue, pkgGraph, { zones: [FieldZone.MEMBER], isInput: true }),
+  getFieldViews(fields.value, props.modelValue, pkgGraph, { zones: [FieldZone.MEMBER], isInput: props.isInput }),
 );
 
 function focus() {
@@ -104,7 +102,7 @@ defineExpose<ViewExposed>({ self, id, focus });
       <div class="ml-auto flex-shrink-0 pl-2">
         <!-- Clear -->
         <i
-          v-if="hasValue"
+          v-if="hasValue && isInput && !isDisabled"
           role="button"
           class="fas fa-xmark text-gray-400 opacity-0 hover:text-primary-900 group-hover:opacity-100"
           @click.stop="emit('update:modelValue', undefined)"
