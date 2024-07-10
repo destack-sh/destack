@@ -94,6 +94,9 @@ export function getPropertyType(property: PropertyInfo | PropertyReferenceData):
     } else if (property.primitiveType != null) {
       kind = TypeKind.PRIMITIVE;
       primitiveType = property.primitiveType;
+    } else if (property.referenceIsNodeData) {
+      kind = TypeKind.PRIMITIVE;
+      primitiveType = PrimitiveType.JSON; // not sure what to put here, this is inaccessible outside of the system
     } else {
       throw new Error(`cannot determine type info for ${JSON.stringify(property)}`);
     }

@@ -958,7 +958,7 @@ other_node = $"/OtherNode/Child With Space"
 if ^unique_node/child:
     for child in (^unique_node/child).fields:
         print(child)
-print("unrelated/path/dont/replace/me")
+print("unrelated/^path/dont/@replace/me")
 \"\"\"
 """
     desugared, _ = desugar_code(code)
