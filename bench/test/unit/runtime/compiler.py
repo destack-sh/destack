@@ -266,7 +266,7 @@ def test_scope_does_not_leak():
 def test_nested_comprehensions():
     code = "\n".join(
         [
-            "[(i, j) for i in range(10) for j in range(i)]",
+            "[(i, j) for i in range(10) for j in myrange(i)]",
             "{(i, j) for i in range(10) for j in range(i)}",
             "{i: j for i in range(10) for j in range(i)}",
         ]
@@ -275,7 +275,7 @@ def test_nested_comprehensions():
     mod = ast.parse(code)
     v.visit(mod)
     assert v.defs == set()
-    assert v.refs == {"range"}
+    assert v.refs == {"myrange"}
     assert not v.definitions
 
 
@@ -283,7 +283,7 @@ def test_walrus_leaks_to_global_in_comprehension():
     code = "\n".join(
         [
             "def foo(): a",
-            "[(a := (i, (b := j))) for i in range(10) for j in range(i)]",
+            "[(a := (i, (b := j))) for i in range(10) for j in myrange(i)]",
             "{(c := (i, j)) for i in range(10) for j in range(i)}",
             "{i: (d := j) for i in range(10) for j in range(i)}",
         ]
@@ -293,7 +293,7 @@ def test_walrus_leaks_to_global_in_comprehension():
     v.visit(mod)
     assert v.defs == {"a", "b", "c", "d", "foo"}
     # "a" should not be a ref!
-    assert v.refs == {"range"}
+    assert v.refs == {"myrange"}
     assert v.definitions == {
         "a": CodeDefinition(kind=CodeDefinitionKind.VARIABLE),
         "b": CodeDefinition(kind=CodeDefinitionKind.VARIABLE),
@@ -304,12 +304,12 @@ def test_walrus_leaks_to_global_in_comprehension():
 
 
 def test_nested_walrus_leaks_to_global_in_comprehension():
-    code = "[[(a := (i, (b := j))) for j in range(i)] for i in range(10)]"
+    code = "[[(a := (i, (b := j))) for j in range(i)] for i in myrange(10)]"
     v = _TestVisitorHandle()
     mod = ast.parse(code)
     v.visit(mod)
     assert v.defs == {"a", "b"}
-    assert v.refs == {"range"}
+    assert v.refs == {"myrange"}
     assert v.definitions == {
         "a": CodeDefinition(kind=CodeDefinitionKind.VARIABLE),
         "b": CodeDefinition(kind=CodeDefinitionKind.VARIABLE),
@@ -332,7 +332,7 @@ def test_pep572_walrus_comprehension_examples():
     mod = ast.parse(code)
     v.visit(mod)
     assert v.defs == {"y"}
-    assert v.refs == {"f", "range"}
+    assert v.refs == {"f"}
     assert v.definitions == {
         "y": CodeDefinition(kind=CodeDefinitionKind.VARIABLE),
     }
@@ -341,16 +341,16 @@ def test_pep572_walrus_comprehension_examples():
 def test_walrus_in_comp_in_fn_block_does_not_leak_to_global():
     code = """\
 def f():
-    [(x := 0) for i in range(5)]
+    [(x := 0) for i in myrange(5)]
     y = x + 1
 """
     v = _TestVisitorHandle()
     mod = ast.parse(code)
     v.visit(mod)
     assert v.defs == {"f"}  # x should _not_ leak to global scope
-    assert v.refs == {"range"}  # x should leak to f's scope
+    assert v.refs == {"myrange"}  # x should leak to f's scope
     assert v.definitions == {
-        "f": CodeDefinition(kind=CodeDefinitionKind.FUNCTION, references={"range"}),
+        "f": CodeDefinition(kind=CodeDefinitionKind.FUNCTION, references={"myrange"}),
     }
 
 
@@ -463,9 +463,9 @@ def test_global_ref():
     mod = ast.parse(code)
     v.visit(mod)
     assert v.defs == {"foo"}
-    assert v.refs == {"x", "print"}
+    assert v.refs == {"x"}
     assert v.definitions == {
-        "foo": CodeDefinition(kind=CodeDefinitionKind.FUNCTION, references={"x", "print"}),
+        "foo": CodeDefinition(kind=CodeDefinitionKind.FUNCTION, references={"x"}),
     }
 
 
@@ -483,9 +483,9 @@ def test_nested_local_def_and_global_ref():
     mod = ast.parse(code)
     v.visit(mod)
     assert v.defs == {"foo"}
-    assert v.refs == {"x", "print"}
+    assert v.refs == {"x"}
     assert v.definitions == {
-        "foo": CodeDefinition(kind=CodeDefinitionKind.FUNCTION, references={"x", "print"}),
+        "foo": CodeDefinition(kind=CodeDefinitionKind.FUNCTION, references={"x"}),
     }
 
 
@@ -818,13 +818,13 @@ finally:
 
 
 def test_type_alias_scoped():
-    expr = "type alias[T] = list[T]"
+    expr = "type alias[T] = mylist[T]"
     v = _TestVisitorHandle()
     mod = ast.parse(expr)
     v.visit(mod)
     # T should not be among the refs or defs
     assert v.defs == {"alias"}
-    assert v.refs == {"list"}
+    assert v.refs == {"mylist"}
 
 
 def test_type_var_generic_class():
@@ -879,6 +879,20 @@ def foo():
         "x": CodeDefinition(kind=CodeDefinitionKind.VARIABLE),
         "foo": CodeDefinition(kind=CodeDefinitionKind.FUNCTION, references={"X", "x", private}),
     }
+
+
+def test_builtin_ref_excluded():
+    code = """\
+x = getattr(ValueError, 'name')
+for _i in iter([]):
+    pass
+locals()
+globals()
+"""
+    v = _TestVisitorHandle()
+    mod = ast.parse(code)
+    v.visit(mod)
+    assert v.refs == set()
 
 
 def test_compile_code_snippet():

@@ -58,6 +58,26 @@ critical('critical1')
         assert log.text_plain == s
 
 
+async def test_run_code_capture_logs_on_error(runner: RuntimeRunner, page: Block):
+    Logs102 = Block.new_code(
+        "Logs102",
+        """\
+print('print1')
+print('print2')
+raise ValueError('error1')
+print('print3')
+""",
+    )
+    page.blocks.append(Logs102)
+    await runner.session.commit()
+
+    run = await runner.run(Logs102, suppress_error=True)
+    assert run.status == RunStatus.FAILED
+    assert run.logs and len(run.logs) == 2
+    for s, log in zip(("print1", "print2"), run.logs):
+        assert log.text_plain == s
+
+
 async def test_run_code_function_coerce_output_scalar(runner: RuntimeRunner, page: Block):
     Function = Block.new(
         BlockType.CODE,
