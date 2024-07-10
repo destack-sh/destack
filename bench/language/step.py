@@ -182,6 +182,11 @@ class Step(SourceNode[StepData], HasValues):
         """Gets a type represented by this Step (if any)"""
         raise NotImplementedError
 
+    @staticmethod
+    def new(typ: StepType, name: str, **kwargs):
+        """Creates a new Step of the given type."""
+        return Step(type=typ, name=name, **kwargs)
+
 
 #
 # Custom view states

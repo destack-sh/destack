@@ -470,6 +470,10 @@ class View(SourceNode[ViewData], HasValues):
     def __repr__(self):  # type: ignore we want to override the default repr
         return f"<{self.type.bench_name}View {self}>"
 
+    @staticmethod
+    def new(typ: ViewType, name: str, **kwargs) -> "View":
+        return View(type=typ, name=name, **kwargs)
+
 
 @enum_(EnumType.SPACE_TYPE)
 class SpaceType(IdEnum):

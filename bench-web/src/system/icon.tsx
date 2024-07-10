@@ -184,7 +184,6 @@ export const ICON_BY_STRUCT_TYPE: Partial<Record<StructType, IconData>> = _makeI
   // core
   [StructType.PATH]: "fas fa-path",
   [StructType.TYPE_INFO]: "fas fa-tilde",
-  [StructType.CONTEXT]: "fas fa-ellipsis-h",
   [StructType.SCHEDULE]: "fas fa-calendar",
   [StructType.PROJECTION]: "fas fa-project-diagram",
   // files

@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.07.10.0"  # auto change via version script
+VERSION = "2024.07.10.1"  # auto change via version script
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -188,7 +188,7 @@ class NodeType(IdEnum):
     # CHALLENGE?
 
     # resource (global, later maybe regional, per Bench)
-    SERVER = 500
+    SERVER = 500  # virtual infinitely scalable server
     STORE = 501  # our trusted postgres store
     MACHINE = 502  # actual machine providing compute and such
     DRIVE = 503  # object store like S3/MinIO, maybe block storage later
@@ -297,7 +297,6 @@ USER_NODE_TYPES = bittuple(NodeType.USER, NodeType.ORGANIZATION, NodeType.CLIENT
 @enum_(EnumType.STRUCT_TYPE)
 class StructType(IdEnum):
     # transaction
-    CONTEXT = 10000
     SESSION_CONTEXT = 10001
     EDIT_CONTEXT = 10002
     EDIT = 10005
