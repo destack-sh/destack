@@ -200,7 +200,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
           v-if="modelValue != null && !valueType?.isRequired"
           role="button"
           class="fas fa-xmark mr-2 text-gray-400 opacity-0 hover:text-primary-900 group-hover:opacity-100"
-          @click.stop="emit('update:modelValue', null)"
+          @click.stop="emit('update:modelValue', undefined)"
         />
         <i class="fas fa-caret-down ml-auto text-gray-400 hover:text-primary-900" />
       </div>

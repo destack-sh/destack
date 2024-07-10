@@ -69,7 +69,7 @@ function fire(item: IconMetadata) {
   const icon = metadataToIcon(item, color.value ?? undefined);
   apply(icon);
 }
-function apply(icon: IconData | null) {
+function apply(icon: IconData | undefined) {
   emit("update:modelValue", icon);
   emit("apply", icon);
 }
@@ -150,7 +150,7 @@ defineExpose<ViewExposed>({ self, id, focus });
           v-if="modelValue != null && !valueType?.isRequired"
           role="button"
           class="fas fa-xmark mr-2 text-gray-400 hover:text-primary-900"
-          @click.stop="apply(null)"
+          @click.stop="apply(undefined)"
         />
         <!-- Color -->
         <button

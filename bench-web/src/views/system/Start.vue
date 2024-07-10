@@ -13,7 +13,7 @@ import {
   ViewData,
   ViewType,
 } from "@/proto/wire";
-import { propertyReference, type TypedNodeReferenceData } from "@/proto/wiring";
+import { propertyReference, toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
 import { makeExpression } from "@/system/expression";
 import { isRunnable } from "@/system/lang";
@@ -63,7 +63,7 @@ const feedState = computed(
     filter: makeExpression({
       op: ExpressionOp.EQUALS,
       propertyPtr: propertyReference(ObjectType.RUN, RunProperty.blockPtr),
-      valuePacked: packValueSimpleStruct(focusPtr.value, propertyType(ObjectType.RUN, RunProperty.blockPtr)),
+      valuePacked: packValueSimpleStruct(runnablePtr.value, propertyType(ObjectType.RUN, RunProperty.blockPtr)),
     }),
     filterPills: state.value.feed?.filterPills ?? [],
   }),
@@ -79,6 +79,7 @@ const runnableNode: Ref<BlockData | StepData | null> = computed(() => {
   }
   return null;
 });
+const runnablePtr = computed(() => (runnableNode.value != null ? toNodeReference(runnableNode.value) : null));
 const inputsPacked: Ref<Record<string, any>> = mapRef(
   useStateProp("inputsPacked", undefined, { debounce: "short" }), // have to :DebounceNestedValue
   (packed) => (packed != null ? unpackProtoJson(packed) : {}) as Record<string, any>,

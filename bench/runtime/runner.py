@@ -361,7 +361,7 @@ class RuntimeRunner:
                 if run.current_status != RunStatus.FAILED:
                     run.fail(RunError.from_exception(RunErrorKind.RUNTIME, e))
                 await self.session.commit()
-            logger.error("runner.process_run.error", run=run, exc_info=e, span="current")
+            logger.info("runner.process_run.error", run=run, exc_info=e, span="current")
             if not suppress_error:
                 raise
         except Exception as e:

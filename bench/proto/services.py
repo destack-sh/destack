@@ -213,19 +213,19 @@ class ServiceBase:
             except GRPCError as e:
                 # pass through GRPC errors
                 sentry_capture(e)
-                log.exception(f"{rpc_name}.error", error=e, span="current")
+                log.info(f"{rpc_name}.error", error=e, span="current")
                 raise
 
             except BenchError as e:
                 # wrap error
-                log.exception(f"{rpc_name}.error", error=e, span="current")
+                log.info(f"{rpc_name}.error", error=e, span="current")
                 status = get_grpc_status_from_bench_error(e)
                 raise GRPCError(status, str(e)) from e
 
             except Exception as e:
                 # internal error
                 sentry_capture(e)
-                log.exception(f"{rpc_name}.internal_error", error=e, span="current")
+                log.error(f"{rpc_name}.internal_error", error=e, span="current")
                 if IS_DEV or IS_TEST:
                     details = f"{e.__class__.__name__}: {e}"
                 else:
