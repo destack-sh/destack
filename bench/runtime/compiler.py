@@ -2,6 +2,7 @@
 
 
 import ast
+import builtins
 import inspect
 import io
 import linecache
@@ -24,6 +25,9 @@ from bench.language.run import CodeKind
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
+
+# standard python builtins (usually available everywhere)
+BUILTIN_GLOBALS = {k: v for k, v in builtins.__dict__.items() if not k.startswith("_")}
 
 
 @dataclass
@@ -105,9 +109,17 @@ def is_local_name(name: str):
 class CodeAnalysisVisitor(ast.NodeVisitor):
     """An AST visitor to do our code analysis."""
 
-    def __init__(self, *, kind: CodeKind, code_id: str | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        kind: CodeKind,
+        code_id: str | None = None,
+        builtins: Mapping[str, Any] = BUILTIN_GLOBALS,
+    ) -> None:
         self._kind = kind
         self._code_id = code_id or new_struct_id()
+        self._builtins = builtins
+
         self._block_stack: list[CodeBlock] = [CodeBlock()]
         self._ref_stack: list[set[str]] = [set()]  # names for CodeDefinition.references
         self._obscured_defn_stack: list[CodeObscuredDefinition] = []
@@ -170,6 +182,8 @@ class CodeAnalysisVisitor(ast.NodeVisitor):
 
     def _add_ref(self, name: str, is_delete: bool) -> None:
         """Register a referenced name."""
+        if name in self._builtins:
+            return  # ignore builtins
         self._references[name] = CodeReference(
             is_delete=is_delete, parent_blocks=self._block_stack[:-1]
         )
@@ -694,6 +708,7 @@ def compile_code(
     code: str,
     kind: CodeKind,
     glbls: Mapping[str, Any],
+    builtins: Mapping[str, Any] = BUILTIN_GLOBALS,
 ) -> CompiledCode:
     """
     Desugar, parse, analyze and compile code.
@@ -760,7 +775,7 @@ def compile_code(
         )
 
     # analyze
-    analysis = CodeAnalysisVisitor(kind=kind, code_id=code_id)
+    analysis = CodeAnalysisVisitor(kind=kind, code_id=code_id, builtins=builtins)
     analysis.visit(module)
     if kind == CodeKind.FUNCTION:
         # remove the wrapped function definition from the analysis
