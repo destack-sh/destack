@@ -10,7 +10,7 @@ from bench.language.code import format_code
 from bench.language.const import BlockType, NodeType, StructType
 from bench.language.field import Field
 from bench.language.node import BuiltinObject
-from bench.language.projection import render_builtin_object, render_node
+from bench.language.render import render_builtin_object, render_node
 from bench.language.session import Session
 from bench.runtime.core import STATIC_CODE_GLOBALS
 from bench.test.strategies import builtin_objects, examples

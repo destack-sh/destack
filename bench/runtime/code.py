@@ -2,6 +2,9 @@ import functools
 from contextlib import contextmanager
 from typing import Any, override
 
+import structlog
+from opentelemetry import trace
+
 from bench.language.path import get_node
 from bench.language.run import CodeKind, RunnableKind
 from bench.language.session import Session
@@ -9,6 +12,9 @@ from bench.language.value import ValueObject, coerce_value_object
 from bench.runtime.capture import LogSink, capture_logs
 from bench.runtime.compiler import CompiledCode, compile_code
 from bench.runtime.runner import RunHandle, Runner, RuntimeRunner, runner
+
+logger = structlog.get_logger(__name__)
+tracer = trace.get_tracer(__name__)
 
 # NOTE :Performance :Robustness: run (some?) sync code in a separate thread?
 
@@ -20,6 +26,7 @@ class CodeRunnerBase(Runner):
         super().__init__(runner, session, handle)
         self.log_sink = LogSink(self.runner.oracle)
 
+    @tracer.start_as_current_span("code.compile")
     async def _compile_code(self, kind: CodeKind) -> CompiledCode:
         """Prepares valid compiled code (raises SyntaxError if invalid)."""
         assert self.state.code, f"no code for {self!r}"
@@ -42,6 +49,7 @@ class CodeRunnerBase(Runner):
             yield self.log_sink
             self.handle.logs.extend(self.log_sink.logs)
 
+    @tracer.start_as_current_span("code.prepare_context")
     def _prepare_glbls(self) -> dict[str, Any]:
         """Prepares the context for running the code."""
         assert self.state.compiled, f"no compiled code for {self!r}"
