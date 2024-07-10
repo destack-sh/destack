@@ -42,6 +42,8 @@ class LogSink:
         else:
             text = None
             text_plain = repr(text_in)
+        if text_plain is not None and len(text_plain) == 0:
+            text_plain = None  # we can't have empty strings
         log = LogInfo(created_at=self.oracle.utc(), level=level, text=text, text_plain=text_plain)
         self.logs.append(log)
         return log
@@ -147,9 +149,17 @@ class LogStringIO(io.StringIO):
         super().__init__()
         self.sink = sink
         self.level = level
+        self._current_line_parts: list[str] = []
 
     def write(self, s: str) -> int:
-        self.sink.log(self.level, s)
+        # accumulate s into current line until we find a newline (if it doesn't have one)
+        if "\n" in s:
+            if len(s) > 1 or self._current_line_parts:
+                line = "\n".join(self._current_line_parts) + s.strip()
+                self._current_line_parts.clear()
+                self.sink.log(self.level, line)
+        elif s:
+            self._current_line_parts.append(s)
         return super().write(s)
 
     def writelines(self, lines: Iterable[str]):
