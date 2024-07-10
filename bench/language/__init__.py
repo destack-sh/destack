@@ -105,7 +105,7 @@ from .query import (
 )
 from .record import Record
 from .run import CodeKind, Run, RunAttempt, RunnableKind, RunOptions
-from .session import Context, EditContext, Session, SessionContext
+from .session import EditContext, Session, SessionContext
 from .setup import _complete_bench_setup
 from .signal import Signal
 from .step import Step, StepType
@@ -179,7 +179,6 @@ __all__ = [
     "ComputedValue",
     "ConditionalOp",
     "Connection",
-    "Context",
     "Dependency",
     "Drive",
     "Edit",

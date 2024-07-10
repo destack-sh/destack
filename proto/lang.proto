@@ -115,7 +115,6 @@ enum BenchType {
   BENCH_TYPE_NOTIFICATION = 1204;
   BENCH_TYPE_MESSAGE = 1205;
   BENCH_TYPE_RECORD = 1206;
-  BENCH_TYPE_CONTEXT = 10000;
   BENCH_TYPE_SESSION_CONTEXT = 10001;
   BENCH_TYPE_EDIT_CONTEXT = 10002;
   BENCH_TYPE_EDIT = 10005;
@@ -781,7 +780,6 @@ enum ObjectType {
   OBJECT_TYPE_NOTIFICATION = 1204;
   OBJECT_TYPE_MESSAGE = 1205;
   OBJECT_TYPE_RECORD = 1206;
-  OBJECT_TYPE_CONTEXT = 10000;
   OBJECT_TYPE_SESSION_CONTEXT = 10001;
   OBJECT_TYPE_EDIT_CONTEXT = 10002;
   OBJECT_TYPE_EDIT = 10005;
@@ -856,14 +854,15 @@ enum Orientation {
 
 enum PathTokenType {
   PATH_TOKEN_TYPE_UNSPECIFIED = 0;
-  PATH_TOKEN_TYPE_BENCH = 1;
-  PATH_TOKEN_TYPE_NODE = 2;
-  PATH_TOKEN_TYPE_SIBLING_NODE = 3;
-  PATH_TOKEN_TYPE_UNIQUE_NODE = 4;
+  PATH_TOKEN_TYPE_ROOT = 1;
+  PATH_TOKEN_TYPE_CURRENT = 2;
+  PATH_TOKEN_TYPE_PARENT = 3;
+  PATH_TOKEN_TYPE_BENCH = 4;
+  PATH_TOKEN_TYPE_NAMED_NODE = 5;
+  PATH_TOKEN_TYPE_SIBLING_NODE = 6;
+  PATH_TOKEN_TYPE_CONTAINING_NODE = 7;
+  PATH_TOKEN_TYPE_UNIQUE_NODE = 8;
   PATH_TOKEN_TYPE_PROPERTY = 10;
-  PATH_TOKEN_TYPE_ROOT = 20;
-  PATH_TOKEN_TYPE_CURRENT = 21;
-  PATH_TOKEN_TYPE_PARENT = 22;
 }
 
 enum PipeType {
@@ -1095,7 +1094,6 @@ enum StepType {
 
 enum StructType {
   STRUCT_TYPE_UNSPECIFIED = 0;
-  STRUCT_TYPE_CONTEXT = 10000;
   STRUCT_TYPE_SESSION_CONTEXT = 10001;
   STRUCT_TYPE_EDIT_CONTEXT = 10002;
   STRUCT_TYPE_EDIT = 10005;
@@ -1473,31 +1471,6 @@ message ComputedValueData {
   optional CodeData code = 36;
 }
 
-// The context at some point and time in the Bench tree.
-message ContextData {
-  ObjectType metatype = 1;
-  int32 id = 2;
-  optional int32 parent_id = 3;
-  optional string parent_key = 4;
-  optional string order_key = 9;
-  optional NodeReferenceData bench_ptr = 30;
-  optional NodeReferenceData branch_ptr = 32;
-  optional NodeReferenceData package_ptr = 33;
-  optional NodeReferenceData module_ptr = 34;
-  optional NodeReferenceData page_ptr = 35;
-  optional NodeReferenceData block_ptr = 36;
-  optional NodeReferenceData step_ptr = 37;
-  optional NodeReferenceData client_ptr = 40;
-  optional NodeReferenceData server_ptr = 41;
-  optional NodeReferenceData user_ptr = 42;
-  optional int64 epoch = 50;
-  optional NodeReferenceData session_ptr = 51;
-  optional NodeReferenceData run_ptr = 52;
-  optional NodeReferenceData run_root_ptr = 53;
-  optional NodeReferenceData trigger_ptr = 54;
-  optional NodeReferenceData signal_ptr = 55;
-}
-
 // An edit to a Node. Currently, edits are always on the property level (no sub-properties or values).
 // 
 // For updates/moves, the old/new node values are just the edited properties.
@@ -1646,22 +1619,28 @@ message PageViewStateData {
   ObjectType metatype = 1;
 }
 
-// A human-readable Bench path to reference nodes and their properties.
-// Paths are case-insensitive, support alphanum + spaces and use '/' as the primary node separator.
-// Properties must be accessed with '.' separators (also works for Fields for consistency).
+// A human-readable Bench path to reference nodes.
+// Paths names and special operators combined with slashes.
+// Fields may also be accessed with '.' separators.
 // 
 // Relative:
 // / -> root of this package
-// ./ -> current node
+// . -> current node
+// .. -> parent of current node
 // ../.. -> parent of parent of current node
-// Name -> ./Name -> Name relative to current node
-// Node1/Node2.property -> property of Node2 (there must not be anything after .property)
-// >S -> sibling of current node
-// ^Name -> unique node
 // 
-// Absolute:
-// @bench -> absolute reference to bench
-// @bench/Node1/Node2/Node3 -> absolute reference to Node3 in package
+// Node -> ./Node -> node 'Node' relative to current node
+// >Sibling -> sibling 'Sibling' of current node
+// ~ -> closest container
+// ~Node -> closest container with node 'Node'
+// ^Name -> uniquely named node or child in closest container
+// .property -> 'property' of current node
+// 
+// Node2.property -> 'property' of 'Node2' (there must not be anything after .property)
+// Node1/Node2/Node3 -> child 'Node3' of child 'Node2' of child 'Node1' of current node
+// 
+// @bench -> absolute reference to bench 'bench'
+// @bench/Node1/Node2/Node3 -> absolute reference to 'Node3' in current package of @bench
 message PathData {
   ObjectType metatype = 1;
   int32 id = 2;
@@ -1676,7 +1655,6 @@ message PathTokenData {
   ObjectType metatype = 1;
   PathTokenType type = 31;
   optional string name = 32;
-  optional NodeReferenceData node_ptr = 33;
 }
 
 // A connection between two Steps in a FlowBlock.

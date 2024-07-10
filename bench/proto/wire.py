@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.07.10.0"
+VERSION = "2024.07.10.1"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -150,7 +150,6 @@ class BenchType(betterproto.Enum):
     NOTIFICATION = 1204
     MESSAGE = 1205
     RECORD = 1206
-    CONTEXT = 10000
     SESSION_CONTEXT = 10001
     EDIT_CONTEXT = 10002
     EDIT = 10005
@@ -829,7 +828,6 @@ class ObjectType(betterproto.Enum):
     NOTIFICATION = 1204
     MESSAGE = 1205
     RECORD = 1206
-    CONTEXT = 10000
     SESSION_CONTEXT = 10001
     EDIT_CONTEXT = 10002
     EDIT = 10005
@@ -905,14 +903,15 @@ class Orientation(betterproto.Enum):
 
 class PathTokenType(betterproto.Enum):
     UNSPECIFIED = 0
-    BENCH = 1
-    NODE = 2
-    SIBLING_NODE = 3
-    UNIQUE_NODE = 4
+    ROOT = 1
+    CURRENT = 2
+    PARENT = 3
+    BENCH = 4
+    NAMED_NODE = 5
+    SIBLING_NODE = 6
+    CONTAINING_NODE = 7
+    UNIQUE_NODE = 8
     PROPERTY = 10
-    ROOT = 20
-    CURRENT = 21
-    PARENT = 22
 
 
 class PipeType(betterproto.Enum):
@@ -1159,7 +1158,6 @@ class StepType(betterproto.Enum):
 
 class StructType(betterproto.Enum):
     UNSPECIFIED = 0
-    CONTEXT = 10000
     SESSION_CONTEXT = 10001
     EDIT_CONTEXT = 10002
     EDIT = 10005
@@ -1588,33 +1586,6 @@ class ComputedValueData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class ContextData(betterproto.Message):
-    """The context at some point and time in the Bench tree."""
-
-    metatype: "ObjectType" = betterproto.enum_field(1)
-    id: int = betterproto.int32_field(2)
-    parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
-    parent_key: Optional[str] = betterproto.string_field(4, optional=True)
-    order_key: Optional[str] = betterproto.string_field(9, optional=True)
-    bench_ptr: Optional["NodeReferenceData"] = betterproto.message_field(30, optional=True)
-    branch_ptr: Optional["NodeReferenceData"] = betterproto.message_field(32, optional=True)
-    package_ptr: Optional["NodeReferenceData"] = betterproto.message_field(33, optional=True)
-    module_ptr: Optional["NodeReferenceData"] = betterproto.message_field(34, optional=True)
-    page_ptr: Optional["NodeReferenceData"] = betterproto.message_field(35, optional=True)
-    block_ptr: Optional["NodeReferenceData"] = betterproto.message_field(36, optional=True)
-    step_ptr: Optional["NodeReferenceData"] = betterproto.message_field(37, optional=True)
-    client_ptr: Optional["NodeReferenceData"] = betterproto.message_field(40, optional=True)
-    server_ptr: Optional["NodeReferenceData"] = betterproto.message_field(41, optional=True)
-    user_ptr: Optional["NodeReferenceData"] = betterproto.message_field(42, optional=True)
-    epoch: Optional[int] = betterproto.int64_field(50, optional=True)
-    session_ptr: Optional["NodeReferenceData"] = betterproto.message_field(51, optional=True)
-    run_ptr: Optional["NodeReferenceData"] = betterproto.message_field(52, optional=True)
-    run_root_ptr: Optional["NodeReferenceData"] = betterproto.message_field(53, optional=True)
-    trigger_ptr: Optional["NodeReferenceData"] = betterproto.message_field(54, optional=True)
-    signal_ptr: Optional["NodeReferenceData"] = betterproto.message_field(55, optional=True)
-
-
-@dataclass(eq=False, repr=False)
 class EditData(betterproto.Message):
     """
     An edit to a Node. Currently, edits are always on the property level (no sub-properties or values).
@@ -1805,22 +1776,28 @@ class PageViewStateData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class PathData(betterproto.Message):
     """
-    A human-readable Bench path to reference nodes and their properties.
-     Paths are case-insensitive, support alphanum + spaces and use '/' as the primary node separator.
-     Properties must be accessed with '.' separators (also works for Fields for consistency).
+    A human-readable Bench path to reference nodes.
+     Paths names and special operators combined with slashes.
+     Fields may also be accessed with '.' separators.
 
      Relative:
      / -> root of this package
-     ./ -> current node
+     . -> current node
+     .. -> parent of current node
      ../.. -> parent of parent of current node
-     Name -> ./Name -> Name relative to current node
-     Node1/Node2.property -> property of Node2 (there must not be anything after .property)
-     >S -> sibling of current node
-     ^Name -> unique node
 
-     Absolute:
-     @bench -> absolute reference to bench
-     @bench/Node1/Node2/Node3 -> absolute reference to Node3 in package
+     Node -> ./Node -> node 'Node' relative to current node
+     >Sibling -> sibling 'Sibling' of current node
+     ~ -> closest container
+     ~Node -> closest container with node 'Node'
+     ^Name -> uniquely named node or child in closest container
+     .property -> 'property' of current node
+
+     Node2.property -> 'property' of 'Node2' (there must not be anything after .property)
+     Node1/Node2/Node3 -> child 'Node3' of child 'Node2' of child 'Node1' of current node
+
+     @bench -> absolute reference to bench 'bench'
+     @bench/Node1/Node2/Node3 -> absolute reference to 'Node3' in current package of @bench
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
@@ -1838,7 +1815,6 @@ class PathTokenData(betterproto.Message):
     metatype: "ObjectType" = betterproto.enum_field(1)
     type: "PathTokenType" = betterproto.enum_field(31)
     name: Optional[str] = betterproto.string_field(32, optional=True)
-    node_ptr: Optional["NodeReferenceData"] = betterproto.message_field(33, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -5030,7 +5006,6 @@ AnyNodeData = Union[
     RecordData,
 ]
 AnyStructData = Union[
-    ContextData,
     SessionContextData,
     EditContextData,
     EditData,

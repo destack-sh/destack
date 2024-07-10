@@ -31,7 +31,6 @@ from bench.language.const import (
     NODE_TYPES,
     BenchError,
     NodeType,
-    PrimitiveType,
     SessionStatus,
     StructType,
     _active_session,
@@ -45,7 +44,6 @@ from bench.language.node import (
     InlineStruct,
     Node,
     PackageNode,
-    Struct,
     object_component,
     struct_,
     timed_node,
@@ -70,9 +68,7 @@ from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
     from bench.language import (
-        Bench,
         Block,
-        Branch,
         Client,
         Machine,
         NodeReference,
@@ -80,9 +76,7 @@ if TYPE_CHECKING:
         QueryBuilder,
         Run,
         Server,
-        Signal,
         Step,
-        Trigger,
         User,
     )
 
@@ -746,53 +740,3 @@ class SessionContext(InlineStruct, HasSessionContext):
     """Context information for runtime nodes created in a session."""
 
     pass
-
-
-@struct_(StructType.CONTEXT)
-class Context(Struct):
-    """The context at some point and time in the Bench tree."""
-
-    # location
-    bench: Optional["Bench"] = p_internal(30, require=False, array=False, references=NodeType.BENCH)
-    branch: Optional["Branch"] = p_internal(
-        32, require=False, array=False, references=NodeType.BRANCH
-    )
-    package: Optional["Package"] = p_internal(
-        33, require=False, array=False, references=NodeType.PACKAGE
-    )
-    module: Optional["Block"] = p_internal(
-        34, require=False, array=False, references=NodeType.BLOCK
-    )
-    page: Optional["Block"] = p_internal(35, require=False, array=False, references=NodeType.BLOCK)
-    block: Optional["Block"] = p_internal(36, require=False, array=False, references=NodeType.BLOCK)
-    step: Optional["Step"] = p_internal(37, require=False, array=False, references=NodeType.STEP)
-
-    # runtime
-    client: Optional["Client"] = p_internal(
-        40, require=False, array=False, references=NodeType.CLIENT
-    )
-    server: Optional["Server"] = p_internal(
-        41, require=False, array=False, references=NodeType.SERVER
-    )
-    user: Optional["User"] = p_internal(42, require=False, array=False, references=NodeType.USER)
-
-    # session
-    epoch: Optional[int] = p_internal(
-        50, require=False, array=False, primitive_type=PrimitiveType.INT64
-    )
-    session: Optional["Session"] = p_internal(
-        51, require=False, array=False, references=NodeType.SESSION
-    )
-    run: Optional["Run"] = p_internal(52, require=False, array=False, references=NodeType.RUN)
-    run_root: Optional["Run"] = p_internal(53, require=False, array=False, references=NodeType.RUN)
-    trigger: Optional["Trigger"] = p_internal(
-        54, require=False, array=False, references=NodeType.TRIGGER
-    )
-    signal: Optional["Signal"] = p_internal(
-        55, require=False, array=False, references=NodeType.SIGNAL
-    )
-
-    # custom
-    # value_packed: Any = p_value_packed(60)
-    # secret_value_packed: Any = p_secret_value_packed(61)
-    # value: Any = p_value_runtime(60, 61)

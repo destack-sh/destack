@@ -262,15 +262,18 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
             return True
 
     def get_descendants(
-        self, node: V, child_node_type: NodeType | None = None, recursive: bool = False
+        self,
+        node: V,
+        node_type: NodeType | None = None,
+        recursive: bool = False,
     ) -> list["V"]:
         """Collects all descendants as filtered in BFS order"""
         assert isinstance(node.id, self.key_type), f"expected {self.value_type}, got {node!r}"
         if node.id not in self._nodes_by_parent:
             return EMPTY_LIST
         if not recursive:
-            if child_node_type is not None:
-                return self._nodes_by_parent[node.id].get(child_node_type, [])
+            if node_type is not None:
+                return self._nodes_by_parent[node.id].get(node_type, [])
             else:
                 all_children: list[V] = []
                 for children in self._nodes_by_parent[node.id].values():
@@ -278,8 +281,8 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
                 return all_children
         else:
             descendants: list[V] = []
-            if child_node_type:
-                queue = deque(self._nodes_by_parent[node.id].get(child_node_type, []))
+            if node_type:
+                queue = deque(self._nodes_by_parent[node.id].get(node_type, []))
             else:
                 queue = deque()
                 for children in self._nodes_by_parent[node.id].values():
@@ -287,18 +290,24 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
             while queue:
                 cur = queue.popleft()
                 descendants.append(cur)
-                for children in self._nodes_by_parent.get(cast(K, cur.id), {}).values():
-                    queue.extend(children)
+                if node_type:
+                    queue.extend(self._nodes_by_parent.get(cast(K, cur.id), {}).get(node_type, ()))
+                else:
+                    for children in self._nodes_by_parent.get(cast(K, cur.id), {}).values():
+                        queue.extend(children)
             return descendants
 
     def iter_descendants(
-        self, node: V, child_node_type: NodeType | None = None, recursive: bool = False
+        self,
+        node: V,
+        node_type: NodeType | None = None,
+        recursive: bool = False,
     ) -> Iterable[V]:
         """
         Iterate through filtered descendants in BFS order.
         If recursive, the child node type filter only applies to the first level.
         """
-        return iter(self.get_descendants(node, child_node_type, recursive))
+        return iter(self.get_descendants(node, node_type=node_type, recursive=recursive))
 
     def get_root(self, node: V) -> V:
         """Gets the root node for a given node"""
@@ -663,7 +672,7 @@ class GraphNodeList[V: Node](NodeList[V]):
     def nodes(self) -> tuple[V, ...] | list[V]:
         """Access the computed nodes"""
         descendants = self._parent._graph.get_descendants(
-            node=self._parent, child_node_type=self._child_node_type, recursive=False
+            node=self._parent, node_type=self._child_node_type, recursive=False
         )
         if (
             len(descendants) > 1

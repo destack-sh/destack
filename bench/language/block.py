@@ -44,6 +44,7 @@ if TYPE_CHECKING:
         Text,
         Trigger,
         TypeInfo,
+        View,
     )
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -134,6 +135,7 @@ class Block(SourceNode[BlockData], HasValues):
     steps: NodeList["Step"] = p_node_children(NodeType.STEP)
     triggers: NodeList["Trigger"] = p_node_children(NodeType.TRIGGER)
     issues: NodeList["Issue"] = p_node_children(NodeType.ISSUE)
+    views: NodeList["View"] = p_node_children(NodeType.VIEW)
 
     def _validate_component(
         self, properties: Collection["Property"], invalid: "ValidationHandler"

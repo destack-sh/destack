@@ -663,7 +663,6 @@ export const EXPOSED_STRUCT_TYPES = [
   // core
   StructType.PATH,
   StructType.TYPE_INFO,
-  StructType.CONTEXT,
   StructType.SCHEDULE,
   StructType.PROJECTION,
   // files

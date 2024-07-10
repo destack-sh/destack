@@ -13,6 +13,7 @@ import { getViewComponent, hasViewComponent } from "@/views/registry";
 import { toCamelName } from "@/system/lang";
 import Text from "@/views/content/Text.vue";
 import { unpackValue } from "@/system/value";
+import { formatAbsoluteDate, tsToDt } from "@/utils/time";
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; preparedConnection?: PreparedNodeConnection } & Partial<
@@ -153,7 +154,9 @@ defineExpose<ViewExposed>({ self, id });
 
     <!-- Logs -->
     <div v-if="run?.logs" class="mt-2 flex flex-col gap-y-1 font-mono">
-      <span v-for="(log, i) in run?.logs" :key="i" class="text-gray-500">
+      <span class="font-medium">Logs</span>
+      <span v-for="(log, i) in run?.logs" :key="i" class="text-gray-700">
+        <span class="mr-2 text-gray-400">{{ tsToDt(log.createdAt!).toFormat("HH:mm:ss:SSS") }}</span>
         <span v-if="log.textPlain">{{ log.textPlain }}</span>
         <Text v-else-if="log.text" :model-value="log.text" :variant="Variant.STEALTH" />
         <span v-else class="italic">empty log</span>
