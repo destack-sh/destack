@@ -20,10 +20,14 @@ async def test_run_code_capture_logs(runner: RuntimeRunner, page: Block):
         BlockType.CODE,
         "Logs101",
         code=code("""\
-print('print1', 'print2')
+import builtins
+print('print1', 'print2') # our own print (injected)
+builtins.print('print3') # python print
 log('log1')
 trace('trace1')
+builtins.print('print4') # python print
 debug('debug1')
+builtins.print('print5\\nwith newline') # python print
 info('info1')
 warn('warn1')
 error('error1')
@@ -35,9 +39,21 @@ critical('critical1')
 
     run = await runner.run(block)
     assert run.status == RunStatus.COMPLETED
-    assert run.logs and len(run.logs) == 8
+    assert run.logs and len(run.logs) == 11
     for s, log in zip(
-        ("print1 print2", "log1", "trace1", "debug1", "info1", "warn1", "error1", "critical1"),
+        (
+            "print1 print2",
+            "print3",
+            "log1",
+            "trace1",
+            "print4",
+            "debug1",
+            "print5\nwith newline",
+            "info1",
+            "warn1",
+            "error1",
+            "critical1",
+        ),
         run.logs,
     ):
         assert log.text_plain == s
