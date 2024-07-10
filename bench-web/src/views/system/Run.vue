@@ -84,7 +84,7 @@ defineExpose<ViewExposed>({ self, id });
               v-bind="viewProps"
               :model-value="unpackValue({ valuePacked: inputsPacked[storageKey] }, field, { unwrapScalar: false })"
             />
-            <div v-else class="w-full text-right"><span class="text-gray-400">Unset</span></div>
+            <div v-else class="w-full text-right"><span class="italic text-gray-400">Unset</span></div>
           </template>
           <div v-else class="flex flex-row items-center px-1 py-0.5 text-warning-600">
             <i class="fas fa-empty-set" />
@@ -115,7 +115,7 @@ defineExpose<ViewExposed>({ self, id });
               v-bind="viewProps"
               :model-value="unpackValue({ valuePacked: outputsPacked[storageKey] }, field, { unwrapScalar: false })"
             />
-            <div v-else class="w-full text-right"><span class="text-gray-400">Unset</span></div>
+            <div v-else class="w-full text-right"><span class="italic text-gray-400">Unset</span></div>
           </template>
           <div v-else class="flex flex-row items-center px-1 py-0.5 text-warning-600">
             <i class="fas fa-empty-set" />

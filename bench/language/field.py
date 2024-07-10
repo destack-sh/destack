@@ -508,7 +508,7 @@ class Field(SourceNode[FieldData], HasNodeBase, TypeInfoBase, _TypeQueryBuilder)
         else:
             info_str = "<no type>"
         if self.format_hint:
-            info_str += f" as {self.format_hint}"
+            info_str += f" as {self.format_hint.bench_name}"
         if self.condition is not None:
             info_str += f" [{self.condition!r}]"
 

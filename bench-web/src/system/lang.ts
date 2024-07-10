@@ -939,31 +939,26 @@ export function getInspectionLayout(
         seenProperties[property.id] = property;
 
         // map properties to components
-        let pythonName = property.name;
-        if (pythonName.endsWith("_ptr")) pythonName = pythonName.slice(0, -4);
-        if (pythonName.startsWith("is_")) pythonName = pythonName.slice(3);
-        const title = toCasing(pythonName, Casing.CAMEL, true);
+        const title = getPropertyTitle(property);
         const protoName = allProperties[property.id];
         const inspectedProperty: InspectedProperty = { title, protoName, category, property };
-        try {
-          const valueView = getViewForValueType({
-            primitiveType: property.primitiveType,
-            benchType: (property.enumType ?? property.referenceNodes?.[0] ?? property.referenceStruct) as unknown as
-              | BenchType
-              | undefined,
-            isRequired: property.isRequired ?? false,
-            isList: property.isList ?? false,
-            isSecret: property.isEncrypted ?? false,
-          });
-          if (valueView == null) throw new Error(`no view for property ${property.id}`);
-          const { viewType, props } = valueView;
-          inspectedProperty.viewType = viewType;
-          inspectedProperty.props = { ...props, isInput: true };
-          inspectedProperty.isFullWidth = FULL_WIDTH_VIEW_TYPES.includes(viewType);
-        } catch (e) {
-          // will show missing component
-          log.warn("lang.missingView", property, e);
+        const valueView = getViewForValueType({
+          primitiveType: property.primitiveType,
+          benchType: (property.enumType ?? property.referenceNodes?.[0] ?? property.referenceStruct) as unknown as
+            | BenchType
+            | undefined,
+          isRequired: property.isRequired ?? false,
+          isList: property.isList ?? false,
+          isSecret: property.isEncrypted ?? false,
+        });
+        if (valueView == null) {
+          log.warn("lang.missingView", property); // will indicate no view for value in UI
+          continue;
         }
+        const { viewType, props } = valueView;
+        inspectedProperty.viewType = viewType;
+        inspectedProperty.props = props;
+        inspectedProperty.isFullWidth = FULL_WIDTH_VIEW_TYPES.includes(viewType);
         inspectedProperties.push(inspectedProperty);
       }
     }

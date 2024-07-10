@@ -271,12 +271,12 @@ defineExpose<ViewExposed & { isRunnable: Ref<boolean> }>({
                     block?.secretValuePacked == null ? null : ProtoStruct.toJson(block.secretValuePacked),
                 },
                 block!.valueType,
-                pkgGraph,
+                { graph: pkgGraph, unwrapScalar: true },
               )
         "
         @update:model-value="
           (newValue) => {
-            const packed = packValue(newValue, block?.valueType!, pkgGraph);
+            const packed = packValue(newValue, block?.valueType!, { graph: pkgGraph, wrapScalar: true });
             if (packed.secretValuePacked != null) {
               pkgConnection.tx.update(
                 block!,

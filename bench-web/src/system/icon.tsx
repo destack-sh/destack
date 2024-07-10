@@ -162,7 +162,7 @@ export const ICON_BY_NODE_TYPE: Partial<Record<NodeType, IconData>> = _makeIcons
   [NodeType.ISSUE]: "fas fa-square-exclamation",
   [NodeType.BLOCK]: "fas fa-cube",
   [NodeType.TRIGGER]: "fas fa-bolt",
-  [NodeType.FIELD]: "fas fa-font",
+  [NodeType.FIELD]: "fas fa-triangle",
   [NodeType.QUERY]: "fas fa-magnifying-glass",
   [NodeType.VIEW]: "fas fa-browser",
   [NodeType.STEP]: "fas fa-step-forward",
@@ -460,11 +460,11 @@ export function getNodeIcon(
   } else if (node.metatype == ObjectType.FIELD) {
     if ((node as FieldData).zone == FieldZone.OPTION) {
       return ICON_BY_FIELD_ZONE[FieldZone.OPTION];
-    } else if ("primitiveType" in node) {
-      const icon = ICON_BY_PRIMITIVE_TYPE[node.primitiveType!];
+    } else if ((node as any).primitiveType != null) {
+      const icon = ICON_BY_PRIMITIVE_TYPE[(node as any).primitiveType as PrimitiveType];
       if (icon != null) return icon;
-    } else if ("benchType" in node) {
-      const icon = ICON_BY_BENCH_TYPE[node.benchType!];
+    } else if ((node as any).benchType != null) {
+      const icon = ICON_BY_BENCH_TYPE[(node as any).benchType as BenchType];
       if (icon != null) return icon;
     }
   }
