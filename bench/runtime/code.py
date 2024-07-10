@@ -50,7 +50,7 @@ class CodeRunnerBase(Runner):
             # add dynamic :CodeGlobals
             "self": self.node,
             "get_node": _get_node,
-            "g": _get_node,
+            "n": _get_node,
             "log": self.log_sink,
             "trace": self.log_sink.trace,
             "debug": self.log_sink.debug,
