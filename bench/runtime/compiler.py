@@ -3,13 +3,15 @@
 
 import ast
 import inspect
+import io
 import linecache
 import re
 import textwrap
 import types
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Any, Mapping, override
+from tokenize import TokenInfo, tokenize
+from typing import Any, Iterator, Mapping, override
 
 import structlog
 from opentelemetry import trace
@@ -663,6 +665,13 @@ def _cache_in_linecache(filename: str, code: str) -> None:
 # pattern for path-like strings (may not be valid paths)
 PATH_PATTERN_NO_SPACE = re.compile(r"^([a-zA-Z0-9_\-\.\/]+)")
 PATH_PATTERN_WITH_SPACE = re.compile(r"^\"([a-zA-Z0-9_\-\.\/ ]+)\"")
+
+
+def tokenize_code(code: str) -> list[TokenInfo]:
+    """Tokenizes a code string (may be invalid) into Python tokens."""
+
+    tokens: Iterator[TokenInfo] = tokenize(io.BytesIO(code.encode("utf-8")).readline)
+    return list(tokens)
 
 
 def desugar_code(code: str) -> tuple[str, CodeTransformation]:
