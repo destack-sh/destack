@@ -520,14 +520,24 @@ def _check_is_list(
     return True
 
 
+def _check_is_object(
+    value: SomeValue, typ: "TypeInfoBase", invalid: "ValidationHandler"
+) -> TypeGuard[ValueObject]:
+    if not isinstance(value, ValueObject):
+        invalid(value, "not an object", typ)
+        return False
+    return True
+
+
 def check_object_scalar(
     value: SomeValue, typ: "TypeInfoBase", invalid: "ValidationHandler"
 ) -> None:
     """Checks whether the given object value has the expected type (recursively)."""
-    for field in typ._base_fields:
-        field_type = field._to_resolved()
-        field_value = cast(SomeValue, getattr(value, field.name, None))
-        check_value(field_value, field_type, invalid)
+    if _check_is_object(value, typ, invalid):
+        for field in typ._base_fields:
+            field_type = field._to_resolved()
+            field_value = cast(SomeValue, getattr(value, field.name, None))
+            check_value(field_value, field_type, invalid)
 
 
 def check_value(value: Any, typ: "TypeInfoBase", invalid: "ValidationHandler") -> None:
@@ -1047,7 +1057,7 @@ def coerce_value_object(typ: "TypeInfoBase", value_raw: Any) -> ValueObject:
             setattr(coerced, field.name, getattr(value_raw, field.name))
     else:
         assert len(fields) == 1, f"expected single field for {typ!r}, have {len(fields)}"
-        check_value(value_raw, typ, invalid=on_invalid_raise)
+        check_value(value_raw, fields[0], invalid=on_invalid_raise)
         setattr(coerced, fields[0].name, value_raw)
 
     return coerced

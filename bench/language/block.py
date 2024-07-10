@@ -220,6 +220,4 @@ class Block(SourceNode[BlockData], HasValues):
     def new(typ: BlockType, name: str, **kwargs) -> "Block":
         if typ == BlockType.PAGE:
             kwargs.setdefault("is_page", True)
-        elif typ == BlockType.PROTOCOL:
-            kwargs.setdefault("is_protocol", True)
         return Block(type=typ, name=name, **kwargs)

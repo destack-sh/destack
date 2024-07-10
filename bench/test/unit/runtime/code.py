@@ -51,7 +51,7 @@ async def test_run_code_function_coerce_single(runner: RuntimeRunner, page: Bloc
 return Input1 * 4
 """),
     )
-    block.fields.extend(Field.input("Input1", int), Field.output("Result1", int))
+    block.fields.extend(Field.input("Input1", int), Field.output("Result1", int, is_required=True))
     page.blocks.append(block)
     await runner.session.commit()
 
@@ -64,17 +64,25 @@ async def test_run_code_function_coerce_tuple(runner: RuntimeRunner, page: Block
         BlockType.CODE,
         "Function2",
         code=code("""\
-return Input1 > 10, Input1 * 4
+return Input1 > 10, Input1 * 4, None
 """),
     )
     block.fields.extend(
-        Field.input("Input1", int), Field.output("Result1", bool), Field.output("Result2", int)
+        Field.input("Input1", int),
+        Field.output("Result1", bool, is_required=True),
+        Field.output("Result2", int),
+        Field.output("Result3", int),
     )
     page.blocks.append(block)
     await runner.session.commit()
 
     run = await runner.run(block, inputs={"Input1": 3})
-    assert run.outputs and run.outputs.Result1 is False and run.outputs.Result2 == 12
+    assert (
+        run.outputs
+        and run.outputs.Result1 is False
+        and run.outputs.Result2 == 12
+        and run.outputs.Result3 is None
+    )
 
 
 async def test_run_code_function_coerce_dict(runner: RuntimeRunner, page: Block):

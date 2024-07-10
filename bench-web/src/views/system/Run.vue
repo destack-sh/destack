@@ -12,6 +12,7 @@ import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import { getViewComponent, hasViewComponent } from "@/views/registry";
 import { toCamelName } from "@/system/lang";
 import Text from "@/views/content/Text.vue";
+import { unpackValue } from "@/system/value";
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; preparedConnection?: PreparedNodeConnection } & Partial<
@@ -54,7 +55,6 @@ const outputFields = pkgGraph.getChildrenRef(runnableNode, NodeType.FIELD); // r
 const outputViews = computed(() =>
   getFieldViews(outputFields.value, outputsPacked.value, pkgGraph, { zones: [FieldZone.OUTPUT], isInput: false }),
 );
-
 canvas.registerView(self, id);
 defineExpose<ViewExposed>({ self, id });
 </script>
@@ -82,7 +82,7 @@ defineExpose<ViewExposed>({ self, id });
               :class="['ml-auto flex-shrink-0', isFullWidth ? '' : 'text-right']"
               :style="{ width: isFullWidth ? '100%' : 'calc(45%)' }"
               v-bind="viewProps"
-              :model-value="inputsPacked[storageKey]"
+              :model-value="unpackValue({ valuePacked: inputsPacked[storageKey] }, field, { unwrapScalar: false })"
             />
             <div v-else class="w-full text-right"><span class="text-gray-400">Unset</span></div>
           </template>
@@ -113,7 +113,7 @@ defineExpose<ViewExposed>({ self, id });
               :class="['ml-auto flex-shrink-0', isFullWidth ? '' : 'text-right']"
               :style="{ width: isFullWidth ? '100%' : 'calc(45%)' }"
               v-bind="viewProps"
-              :model-value="outputsPacked[storageKey]"
+              :model-value="unpackValue({ valuePacked: outputsPacked[storageKey] }, field, { unwrapScalar: false })"
             />
             <div v-else class="w-full text-right"><span class="text-gray-400">Unset</span></div>
           </template>

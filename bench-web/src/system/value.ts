@@ -333,7 +333,10 @@ function unpackValueScalarData(valuePacked: JsonValue, type: TypeIdentity): Scal
 }
 
 /** Packs a single struct/node proto value using proto ids for keys and enums. */
-export function packBuiltinObject(value: AnyStructData | AnyNodeData, options?: { only?: string[] }): Record<string, any> {
+export function packBuiltinObject(
+  value: AnyStructData | AnyNodeData,
+  options?: { only?: string[] },
+): Record<string, any> {
   const propertyEnum = PROPERTY_ENUM_BY_TYPE[value.metatype];
   const properties = PROPERTY_INFOS_BY_TYPE[value.metatype];
   if (propertyEnum == null || properties == null) throw new Error(`unexpected object type ${value.metatype}`);
@@ -372,7 +375,7 @@ export function unpackBuiltinObject<T extends ObjectType>(valuePacked: any, obje
   const properties = PROPERTY_INFOS_BY_TYPE[objectType];
   if (propertyEnum == null || properties == null) throw new Error(`unexpected object type ${objectType}`);
 
-  const value = {  } as AnyTypeMapping[T];
+  const value = {} as AnyTypeMapping[T];
   for (const prop of Object.values(properties)) {
     const propName = propertyEnum[prop.id];
     const propType = getPropertyType(prop);
@@ -418,7 +421,7 @@ function packValueObject(
     if (fieldValue == null) {
       continue;
     } else if (fieldType.kind == TypeKind.OBJECT) {
-      valuePacked[fieldStorageKey] = packValue(fieldValue, fieldType, graph).valuePacked; // :SecretValues
+      valuePacked[fieldStorageKey] = packValue(fieldValue, fieldType, { graph, wrapScalar: false }).valuePacked; // :SecretValues
     } else if (!fieldType.isList) {
       valuePacked[fieldStorageKey] = packValueScalar(fieldValue, fieldType);
     } else {
@@ -444,7 +447,10 @@ function unpackValueObject(
     if (fieldValuePacked == null) {
       continue;
     } else if (fieldType.kind == TypeKind.OBJECT) {
-      const fieldValue = unpackValue({ valuePacked: fieldValuePacked, secretValuePacked }, fieldType, graph);
+      const fieldValue = unpackValue({ valuePacked: fieldValuePacked, secretValuePacked }, fieldType, {
+        graph,
+        unwrapScalar: false,
+      });
       if (fieldValue != null) {
         value[fieldStorageKey] = fieldValue;
       }
@@ -466,28 +472,27 @@ function unpackValueObject(
 export function packValue(
   value: any,
   type: TypeIdentity,
-  graph?: ReadNodeGraph | null,
-  options: { wrapPrimitive: boolean } = { wrapPrimitive: true },
+  options: { graph?: ReadNodeGraph; wrapScalar: boolean } = { wrapScalar: true },
   previous?: { valuePacked?: JsonValue; secretValuePacked?: JsonValue | undefined },
 ): { valuePacked: JsonValue; secretValuePacked: JsonValue | undefined } {
   if (type.kind == TypeKind.ALIAS) {
-    if (graph == null) throw new Error(`missing graph to resolve ${describeTypeIdentity(type)}`);
-    type = resolveType(type, graph);
+    if (options.graph == null) throw new Error(`missing graph to resolve ${describeTypeIdentity(type)}`);
+    type = resolveType(type, options.graph);
   }
   if (type.kind == TypeKind.ALIAS) {
     throw new Error(`unresolved type ${describeTypeIdentity(type)}`);
   } else if (type.kind == TypeKind.OBJECT) {
     // nested object
-    if (graph == null) throw new Error(`missing graph to pack object type ${describeTypeIdentity(type)}`);
+    if (options.graph == null) throw new Error(`missing graph to pack object type ${describeTypeIdentity(type)}`);
     if (value == null) {
       return { valuePacked: null, secretValuePacked: undefined };
     } else if (!type.isList) {
-      return packValueObject(value, type, graph);
+      return packValueObject(value, type, options.graph);
     } else {
       const valuePacked: JsonValue[] = [];
       const secretValuePacked: JsonValue[] = [];
       for (let i = 0; i < value.length; i++) {
-        const packed = packValueObject(value[i], type, graph);
+        const packed = packValueObject(value[i], type, options.graph);
         valuePacked.push(packed.valuePacked);
         if (packed.secretValuePacked != null) secretValuePacked.push(packed.secretValuePacked);
       }
@@ -503,7 +508,7 @@ export function packValue(
     } else {
       valuePacked = value.map((v: any) => packValueScalar(v, type));
     }
-    if (options.wrapPrimitive) {
+    if (options.wrapScalar) {
       valuePacked = { [encodeTypeIdentity(type)]: valuePacked };
     }
     return { valuePacked, secretValuePacked: undefined };
@@ -513,19 +518,17 @@ export function packValue(
 export function packValueSimple(
   value: any,
   type: TypeIdentity,
-  graph?: ReadNodeGraph,
-  options: { wrapPrimitive: boolean } = { wrapPrimitive: true },
+  options: { graph?: ReadNodeGraph; wrapScalar: boolean } = { wrapScalar: true },
 ): JsonValue {
-  return packValue(value, type, graph, options).valuePacked;
+  return packValue(value, type, options).valuePacked;
 }
 
 export function packValueSimpleStruct(
   value: any,
   type: TypeIdentity,
-  graph?: ReadNodeGraph,
-  options: { wrapPrimitive: boolean } = { wrapPrimitive: true },
+  options: { graph?: ReadNodeGraph; wrapScalar: boolean } = { wrapScalar: true },
 ): ProtoStruct {
-  return ProtoStruct.fromJson(packValueSimple(value, type, graph, options));
+  return ProtoStruct.fromJson(packValueSimple(value, type, options));
 }
 
 /**
@@ -535,28 +538,30 @@ export function packValueSimpleStruct(
 export function unpackValue(
   packed: { valuePacked?: JsonValue; secretValuePacked?: JsonValue },
   type: TypeIdentity,
-  graph?: ReadNodeGraph,
+  options: { graph?: ReadNodeGraph; unwrapScalar: boolean } = { unwrapScalar: true },
 ): any {
   if (type.kind == TypeKind.ALIAS) {
-    if (graph == null) throw new Error(`missing graph to resolve ${describeTypeIdentity(type)}`);
-    type = resolveType(type, graph);
+    if (options.graph == null) throw new Error(`missing graph to resolve ${describeTypeIdentity(type)}`);
+    type = resolveType(type, options.graph);
   }
 
   if (type.kind == TypeKind.ALIAS) {
     throw new Error(`unresolved type ${describeTypeIdentity(type)}`);
   } else if (type.kind == TypeKind.OBJECT) {
     // nested object
-    if (graph == null) throw new Error(`missing graph to unpack object type ${describeTypeIdentity(type)}`);
+    if (options.graph == null) {
+      throw new Error(`missing graph to unpack object type ${describeTypeIdentity(type)}`);
+    }
     if (packed.valuePacked == null) {
       return null;
     } else if (!type.isList) {
-      return unpackValueObject(packed.valuePacked, packed.secretValuePacked, type, graph);
+      return unpackValueObject(packed.valuePacked, packed.secretValuePacked, type, options.graph);
     } else {
       if (!Array.isArray(packed.valuePacked)) {
         throw new Error(`expected array for list type ${describeTypeIdentity(type)}`);
       }
       return packed.valuePacked!.map((v: any, i: number) =>
-        unpackValueObject(v, (packed.secretValuePacked as Array<JsonValue>)?.[i], type, graph),
+        unpackValueObject(v, (packed.secretValuePacked as Array<JsonValue>)?.[i], type, options.graph!),
       );
     }
   } else {
@@ -566,7 +571,7 @@ export function unpackValue(
     } else if (typeof packed.valuePacked !== "object" || Array.isArray(packed.valuePacked)) {
       throw new Error(`expected object for scalar type ${describeTypeIdentity(type)}`);
     }
-    const valuePacked = packed.valuePacked[encodeTypeIdentity(type)];
+    const valuePacked = options?.unwrapScalar ? packed.valuePacked[encodeTypeIdentity(type)] : packed.valuePacked;
     if (valuePacked == null) {
       return null;
     } else if (!type.isList) {

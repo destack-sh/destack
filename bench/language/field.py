@@ -552,23 +552,10 @@ class Field(SourceNode[FieldData], HasNodeBase, TypeInfoBase, _TypeQueryBuilder)
     @staticmethod
     def new(name: str, typ: TypeIn, **kwargs) -> "Field":
         typ = to_type(typ)
-        return Field(
-            name=name,
-            kind=typ.kind,
-            primitive_type=typ.primitive_type,
-            bench_type=typ.bench_type,
-            base_type=typ.base_type,
-            base_field_zone=typ.base_field_zone,
-            default_packed=typ.default_packed,
-            visibility=typ.visibility,
-            format_hint=typ.format_hint,
-            condition=typ.condition,
-            constraint=typ.constraint,
-            is_list=typ.is_list,
-            is_secret=typ.is_secret,
-            is_required=typ.is_required,
-            **kwargs,
-        )
+        for prop in TypeInfoBase.__declared_properties__.values():
+            kwargs.setdefault(prop.name, getattr(typ, prop.name))
+        field = Field(name=name, **kwargs)
+        return field
 
     @staticmethod
     def option(name: str, **kwargs) -> "Field":
