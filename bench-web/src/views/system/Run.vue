@@ -62,6 +62,7 @@ defineExpose<ViewExposed>({ self, id });
 <template>
   <div>
     <!-- NOTE :Incomplete :UX: Run View is currently only intended for inline display in Feed -->
+    <!--  (also :Architecture views like Run should respond to their size) -->
     <!-- IO -->
     <div v-if="runnableNode">
       <!-- Inputs -->
@@ -83,7 +84,9 @@ defineExpose<ViewExposed>({ self, id });
               :class="['ml-auto flex-shrink-0', isFullWidth ? '' : 'text-right']"
               :style="{ width: isFullWidth ? '100%' : 'calc(45%)' }"
               v-bind="viewProps"
-              :model-value="unpackValue({ valuePacked: inputsPacked[storageKey] }, field, { unwrapScalar: false })"
+              :model-value="
+                unpackValue({ valuePacked: inputsPacked[storageKey] }, field, { graph: pkgGraph, unwrapScalar: false })
+              "
             />
             <div v-else class="w-full text-right"><span class="italic text-gray-400">Unset</span></div>
           </template>
@@ -114,7 +117,9 @@ defineExpose<ViewExposed>({ self, id });
               :class="['ml-auto flex-shrink-0', isFullWidth ? '' : 'text-right']"
               :style="{ width: isFullWidth ? '100%' : 'calc(45%)' }"
               v-bind="viewProps"
-              :model-value="unpackValue({ valuePacked: outputsPacked[storageKey] }, field, { unwrapScalar: false })"
+              :model-value="
+                unpackValue({ valuePacked: outputsPacked[storageKey] }, field, { graph: pkgGraph, unwrapScalar: false })
+              "
             />
             <div v-else class="w-full text-right"><span class="italic text-gray-400">Unset</span></div>
           </template>
