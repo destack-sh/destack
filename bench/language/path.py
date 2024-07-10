@@ -166,16 +166,16 @@ def parse_path(path: str) -> Path:
                     raise PathSyntaxError(f"cannot nest properties: '{segment}' in '{path}'")
                 if i < len(segments) - 1:
                     raise PathSyntaxError(f"property must be the last segment in '{path}'")
-                if node_name == "":
+                if not node_name:
                     if i > 0:
                         raise PathSyntaxError(
                             f"property shorthand must be first segment in '{path}'"
                         )
                     tokens.pop()
-
+                else:
+                    token.name = node_name
                 property_token = PathToken(type=PathTokenType.PROPERTY, name=property_name)
                 tokens.append(property_token)
-                token.name = node_name
             elif "." in segment:
                 raise PathSyntaxError(f"invalid property syntax: '{segment}' in '{path}'")
 
