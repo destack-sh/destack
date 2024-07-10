@@ -71,7 +71,7 @@ class CodeRunnerBase(Runner):
 
 @runner((RunnableKind.CODE, CodeKind.SNIPPET))
 class CodeSnippetRunner(CodeRunnerBase):
-    """Run a code snippet and updates the value of the state's last expression."""
+    """Run a code snippet and update the value of the state's last expression."""
 
     @override
     async def run(self) -> None:
@@ -80,7 +80,7 @@ class CodeSnippetRunner(CodeRunnerBase):
 
 @runner((RunnableKind.CODE, CodeKind.SCRIPT))
 class CodeScriptRunner(CodeRunnerBase):
-    """Run a code script and updates the state's exported definitions."""
+    """Run a code script and update the state's exported definitions."""
 
     @override
     async def run(self) -> None:
