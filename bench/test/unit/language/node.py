@@ -6,6 +6,7 @@ from hypothesis import given
 from bench.language import Bench, NodeReference, Property, Server, Signal
 from bench.language.bench import Client, ServerProfile
 from bench.language.const import BlockType, ClientType, NodeType
+from bench.language.field import Field
 from bench.language.node import BuiltinObject
 from bench.language.session import Session
 from bench.language.setup import NODE_CLASSES, STRUCT_CLASSES
@@ -28,6 +29,25 @@ def test_get_set_non_existing_property(session: "Session"):
         node.wadabadaboo = "wadabadaboo"  # type: ignore
     with pytest.raises(AttributeError):
         _ = node.wadabadaboo  # type: ignore
+
+
+def test_node_passthrough(session: "Session"):
+    bench = Bench(slug="test", name="Test")
+    branch = bench.branches.create(name="main")
+    package = branch.packages.create()
+
+    WeatherCondition = package.blocks.create(
+        type=BlockType.CHOICE,
+        name="WeatherCondition",
+        fields=[
+            Field.option("Sunny"),
+            Field.option("Rainy"),
+            Field.option("Cloudy"),
+            Field.option("Snowy"),
+        ],
+    )
+    assert WeatherCondition.fields.Sunny is WeatherCondition.fields.get("Sunny")
+    assert WeatherCondition.Sunny is WeatherCondition.fields.get("Sunny")  # type: ignore
 
 
 def test_node_pointers_consistency(session: "Session"):

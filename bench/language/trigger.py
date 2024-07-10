@@ -85,7 +85,7 @@ class TriggerBase(BuiltinObject):
 
 @struct_(StructType.TRIGGER_INFO)
 class TriggerInfo(Struct, TriggerBase):
-    """The information of a trigger."""
+    """The basic information describing a trigger."""
 
     pass
 
@@ -98,7 +98,7 @@ class Trigger(SourceNode[TriggerData], TriggerBase):
     type: TriggerType = p_regular(30, require=True)
     name: str = p_regular(31, constraint=NAME_CONSTRAINT)
 
-    # ...state/content from TriggerBase
+    # ...TriggerBase[40-59]
 
     # flags
     is_paused: bool = p_regular(60, default=False)

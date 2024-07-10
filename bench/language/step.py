@@ -102,7 +102,7 @@ class Pipe(Struct):
     # mapping/...?
 
 
-@local_node(NodeType.STEP)
+@local_node(NodeType.STEP, passthrough=("value", "fields"))
 class Step(SourceNode[StepData], HasValues):
     """
     An data or control flow node in a FlowBlock.
