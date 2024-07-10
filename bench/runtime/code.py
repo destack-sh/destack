@@ -45,9 +45,10 @@ class CodeRunnerBase(Runner):
     def _prepare_glbls(self) -> dict[str, Any]:
         """Prepares the context for running the code."""
         _get_node = functools.partial(get_node, scope=self.node)
-        glbls = {
+        glbls = {  # :CodeGlobals
+            # static
             **self.runner.static_glbls,
-            # add dynamic :CodeGlobals
+            # dynamic
             "self": self.node,
             "get_node": _get_node,
             "n": _get_node,
@@ -59,6 +60,7 @@ class CodeRunnerBase(Runner):
             "error": self.log_sink.error,
             "critical": self.log_sink.critical,
             "print": self.log_sink.print,
+            # references
         }
         return glbls
 

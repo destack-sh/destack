@@ -69,9 +69,12 @@ class TypeConstraintIn:
         )
 
 
-SLUG_REGEX = r"^[a-z0-9-]{3,}$"
+SLUG_REGEX_CHAR = r"a-z0-9-"
+SLUG_REGEX = rf"^[{SLUG_REGEX_CHAR}]{{3,}}$"
 EMAIL_REGEX = r"^[a-zA-Z0-9_.+\-]+@[a-zA-Z0-9\-]+\.[a-zA-Z0-9\-.]+$"
-NAME_REGEX = r"^[a-zA-Z0-9_\-'`˚ ]+$"
+NAME_REGEX_CHAR = r"a-zA-Z0-9_\-'`˚ "
+NAME_REGEX_INLINE = rf"[{NAME_REGEX_CHAR}]+"
+NAME_REGEX = rf"^{NAME_REGEX_INLINE}$"
 NAME_CONSTRAINT = TypeConstraintIn(regex=NAME_REGEX, min_length=1, max_length=128)
 TITLE_CONSTRAINT = TypeConstraintIn(min_length=1, max_length=256)
 SLUG_CONSTRAINT = TypeConstraintIn(regex=SLUG_REGEX)

@@ -6,6 +6,7 @@ from cachetools import LRUCache, cached
 from bench.language.const import NODE_TYPES, BenchError, EnumType, StructType, enum_
 from bench.language.node import BenchNode, InlineStruct, Node, Struct, struct_
 from bench.language.property import p_regular
+from bench.language.validation import NAME_REGEX_CHAR, SLUG_REGEX_CHAR
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
@@ -30,16 +31,15 @@ class PathLookupError(PathError, LookupError):
 
 @enum_(EnumType.PATH_TOKEN_TYPE)
 class PathTokenType(IdEnum):
-    # named
-    BENCH = 1
-    NODE = 2
-    SIBLING_NODE = 3
-    UNIQUE_NODE = 4
+    ROOT = 1
+    CURRENT = 2
+    PARENT = 3
+    BENCH = 4
+    NAMED_NODE = 5
+    SIBLING_NODE = 6
+    UNIQUE_NODE = 7
+    CONTAINING_NODE = 8
     PROPERTY = 10  # or field
-    # relative
-    ROOT = 20
-    CURRENT = 21
-    PARENT = 22
 
 
 @struct_(StructType.PATH_TOKEN, inline=True)
@@ -61,17 +61,23 @@ class Path(Struct):
     Properties must be accessed with '.' separators (also works for Fields for consistency).
 
     Relative:
-      / -> root of this package
-      ./ -> current node
-      ../.. -> parent of parent of current node
-      Name -> ./Name -> Name relative to current node
-      Node1/Node2.property -> property of Node2 (there must not be anything after .property)
-      >S -> sibling of current node
-      ^Name -> unique node
+        / -> root of this package
+        . -> current node
+        .. -> parent of current node
+        ../.. -> parent of parent of current node
 
-    Absolute:
-      @bench -> absolute reference to bench
-      @bench/Node1/Node2/Node3 -> absolute reference to Node3 in package
+        Node -> ./Node -> node 'Node' relative to current node
+        >Sibling -> sibling 'Sibling' of current node
+        ~ -> closest container
+        ~Node -> closest container with node 'Node'
+        ^Name -> uniquely named node or child in closest container
+        .property -> 'property' of current node
+
+        Node2.property -> 'property' of 'Node2' (there must not be anything after .property)
+        Node1/Node2/Node3 -> child 'Node3' of child 'Node2' of child 'Node1' of current node
+
+        @bench -> absolute reference to bench 'bench'
+        @bench/Node1/Node2/Node3 -> absolute reference to 'Node3' in current package of @bench
     """
 
     tokens: list[PathToken] = p_regular(31, require=True, array=True, struct=StructType.PATH_TOKEN)
@@ -103,10 +109,8 @@ class Path(Struct):
 
 
 # see NAME_REGEX in validationl
-BENCH_PATTERN = re.compile(r"^@([^/]+)")
-NODE_PATTERN = re.compile(r"^([a-zA-Z0-9_\- \.]+)")
-SIBLING_NODE_PATTERN = re.compile(r"^>([a-zA-Z0-9_\- \.]+)")
-UNIQUE_NODE_PATTERN = re.compile(r"^\^([a-zA-Z0-9_\- \.]+)")
+BENCH_PATTERN = re.compile(rf"^@([{SLUG_REGEX_CHAR}]+)$")
+NODE_PATTERN = re.compile(rf"^([>\^~])?([{NAME_REGEX_CHAR}\.]*)$")
 
 
 @cached(LRUCache(maxsize=1024 * 10))
@@ -143,18 +147,18 @@ def parse_path(path: str) -> Path:
                 token = PathToken(type=PathTokenType.BENCH, name=match.group(1))
                 if len(match.group(1)) != len(segment) - 1:
                     raise PathSyntaxError(f"invalid bench name '{segment}' in '{path}'")
-            elif match := SIBLING_NODE_PATTERN.match(segment):
-                token = PathToken(type=PathTokenType.SIBLING_NODE, name=match.group(1))
-                if len(match.group(1)) != len(segment) - 1:
-                    raise PathSyntaxError(f"invalid node name '{segment}' in '{path}'")
-            elif match := UNIQUE_NODE_PATTERN.match(segment):
-                token = PathToken(type=PathTokenType.UNIQUE_NODE, name=match.group(1))
-                if len(match.group(1)) != len(segment) - 1:
-                    raise PathSyntaxError(f"invalid node name '{segment}' in '{path}'")
             elif match := NODE_PATTERN.match(segment):
-                token = PathToken(type=PathTokenType.NODE, name=match.group(1))
-                if len(match.group(1)) != len(segment):
-                    raise PathSyntaxError(f"invalid node name '{segment}' in '{path}'")
+                node_type = PathTokenType.NAMED_NODE
+                if match.group(1) == ">":
+                    node_type = PathTokenType.SIBLING_NODE
+                elif match.group(1) == "^":
+                    node_type = PathTokenType.UNIQUE_NODE
+                elif match.group(1) == "~":
+                    node_type = PathTokenType.CONTAINING_NODE
+                name = match.group(2)
+                if not name and node_type != PathTokenType.CONTAINING_NODE:
+                    raise PathSyntaxError(f"empty name in '{segment}' in '{path}'")
+                token = PathToken(type=node_type, name=name or None)
             else:
                 raise PathSyntaxError(f"invalid path: '{segment}' in '{path}'")
             tokens.append(token)
@@ -197,10 +201,12 @@ def render_path(path: Path) -> str:
         elif token.type == PathTokenType.BENCH:
             path_parts.append(f"@{token.name}")
         elif token.type == PathTokenType.SIBLING_NODE:
-            path_parts.append(f">{token.name}")
+            path_parts.append(f">{token.name or ''}")
         elif token.type == PathTokenType.UNIQUE_NODE:
-            path_parts.append(f"^{token.name}")
-        elif token.type == PathTokenType.NODE:
+            path_parts.append(f"^{token.name or ''}")
+        elif token.type == PathTokenType.CONTAINING_NODE:
+            path_parts.append(f"~{token.name or ''}")
+        elif token.type == PathTokenType.NAMED_NODE:
             path_parts.append(token.name)
         elif token.type == PathTokenType.PROPERTY:
             if path_parts:
@@ -238,7 +244,7 @@ def get_node(path: str | Path, scope: Node) -> Node | None:
                 raise PathLogicError(f"references to other benches are not supported: {path}")
             else:
                 current = scope.bench
-        elif token.type == PathTokenType.NODE or token.type == PathTokenType.SIBLING_NODE:
+        elif token.type == PathTokenType.NAMED_NODE or token.type == PathTokenType.SIBLING_NODE:
             if token.type == PathTokenType.SIBLING_NODE:
                 current = current.parent
                 if current is None:
@@ -251,6 +257,8 @@ def get_node(path: str | Path, scope: Node) -> Node | None:
                 return None
         elif token.type == PathTokenType.UNIQUE_NODE:
             raise NotImplementedError(f"unique node references are not yet supported: {path}")
+        elif token.type == PathTokenType.CONTAINING_NODE:
+            raise NotImplementedError(f"containing node references are not yet supported: {path}")
         elif token.type == PathTokenType.PROPERTY:
             fields = getattr(current, "fields", None)
             if fields is not None:
