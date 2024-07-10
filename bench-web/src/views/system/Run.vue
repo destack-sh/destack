@@ -155,7 +155,7 @@ defineExpose<ViewExposed>({ self, id });
     <!-- Logs -->
     <div v-if="run?.logs" class="mt-2 flex flex-col gap-y-1 font-mono">
       <span class="font-medium">Logs</span>
-      <span v-for="(log, i) in run?.logs" :key="i" class="text-gray-700">
+      <span v-for="(log, i) in run?.logs" :key="i" class="text-gray-900">
         <span class="mr-2 text-gray-400">{{ tsToDt(log.createdAt!).toFormat("HH:mm:ss:SSS") }}</span>
         <span v-if="log.textPlain">{{ log.textPlain }}</span>
         <Text v-else-if="log.text" :model-value="log.text" :variant="Variant.STEALTH" />

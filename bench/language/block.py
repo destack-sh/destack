@@ -223,3 +223,19 @@ class Block(SourceNode[BlockData], HasValues):
         if typ == BlockType.PAGE:
             kwargs.setdefault("is_page", True)
         return Block(type=typ, name=name, **kwargs)
+
+    @staticmethod
+    def new_code(name: str, code: "str | Code", **kwargs) -> "Block":
+        if isinstance(code, str):
+            from bench.language.code import Code
+
+            code = Code.from_string(code)
+        return Block.new(BlockType.CODE, name, code=code, **kwargs)
+
+    @staticmethod
+    def new_text(name: str, text: "str | Text", **kwargs) -> "Block":
+        if isinstance(text, str):
+            from bench.language.text import Text
+
+            text = Text.plain(text)
+        return Block.new(BlockType.TEXT, name, text=text, **kwargs)

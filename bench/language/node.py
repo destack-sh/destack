@@ -1466,7 +1466,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
             self.__dict__[name] = node_list
             existing = kwargs.get(name, UNSET)
             if existing is not UNSET:
-                node_list.extend(existing)
+                node_list.extend(*existing)
 
         # init session context
         if self._session is not None:

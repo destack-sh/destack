@@ -712,7 +712,7 @@ class GraphNodeList[V: Node](NodeList[V]):
             added = (node,)  # already in the graph
 
         # assign order key to ordered nodes
-        if hasattr(node, "order_key") and getattr(node, "order_key") is None:
+        if hasattr(node, "order_key"):
             ok = get_order_key(*get_key_bounds(self.nodes, after, before))
             setattr(node, "order_key", ok)
 
@@ -728,7 +728,7 @@ class GraphNodeList[V: Node](NodeList[V]):
             return
 
         # pre-assign order keys since we don't trigger between appends (meaning last_ok is wrong)
-        if hasattr(nodes[0], "order_key") and getattr(nodes[0], "order_key") is None:
+        if hasattr(nodes[0], "order_key"):
             oks = get_order_keys(*get_key_bounds(self.nodes, after, before), n=len(nodes))
             for node, ok in zip(nodes, oks):
                 setattr(node, "order_key", ok)
