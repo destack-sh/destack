@@ -1,14 +1,13 @@
-import io
 from datetime import datetime
-from typing import TYPE_CHECKING, BinaryIO, Optional
+from typing import TYPE_CHECKING, Optional
 
 import structlog
 
 from bench.language.bench import BenchResourceNode, Drive
 from bench.language.const import EnumType, NodeType, PrimitiveType, StructType, enum_
 from bench.language.node import InlineStruct, node_, struct_
-from bench.language.property import p_internal, p_node_parent, p_regular, p_runtime
-from bench.language.validation import NAME_CONSTRAINT, constrain
+from bench.language.property import p_internal, p_node_parent, p_regular
+from bench.language.validation import TITLE_CONSTRAINT, constrain
 from bench.proto.wire import BlobData
 from bench.utils.func import IdEnum
 
@@ -21,6 +20,12 @@ FILE_HASH_LENGTH = 128  # 512 bits
 FILE_MAX_SIZE = 1024 * 1024 * 1024  # 1GB
 
 # pyright: reportIncompatibleVariableOverride=false
+
+
+@enum_(EnumType.FILE_KIND)
+class FileKind(IdEnum):
+    BLOB = 1
+    EXTERNAL = 2
 
 
 @enum_(EnumType.FILE_RETENTION_MODE)
@@ -48,35 +53,16 @@ class Blob(BenchResourceNode[BlobData]):
 class File(InlineStruct):
     """A reference to a file stored somewhere."""
 
+    # meta
+    kind: FileKind = p_internal(30)
     type: Optional[str] = p_internal(31)
-    name: str = p_regular(33, constraint=NAME_CONSTRAINT)
-    size: Optional[int] = p_internal(34)
-    sha512: Optional[str] = p_internal(35)
-    blob: Optional["Blob"] = p_internal(36, require=False, array=False, references=NodeType.BLOB)
-    external_url: Optional[str] = p_internal(37)
+    title: str = p_regular(33, constraint=TITLE_CONSTRAINT)
+    size: Optional[int] = p_internal(35)
+    sha512: Optional[str] = p_internal(36)
 
-    _cached_bytes: Optional[bytes] = p_runtime(default=None)
-
-    async def download(self) -> bytes:
-        """Read the object from the remote storage."""
-        raise NotImplementedError
-
-    async def get_url(self):
-        raise NotImplementedError
-
-    async def io(self) -> BinaryIO:
-        """Get a native file-like object for the file."""
-        return io.BytesIO(await self.download())
-
-    async def text(self) -> str:
-        """Interprets the file contents as text."""
-        content = self._cached_bytes or await self.download()
-        return content.decode()
-
-    async def lines(self) -> list[str]:
-        """Splits the interpreted text content into lines."""
-        content = self._cached_bytes or await self.download()
-        return content.decode().splitlines()
+    # content
+    blob: Optional["Blob"] = p_internal(40, require=False, array=False, references=NodeType.BLOB)
+    external_url: Optional[str] = p_internal(41)
 
 
 @enum_(EnumType.ICON_KIND)

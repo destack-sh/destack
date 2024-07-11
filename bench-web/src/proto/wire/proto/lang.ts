@@ -668,27 +668,31 @@ export interface FileData {
      */
     metatype: ObjectType;
     /**
+     * @generated from protobuf field: symbolx.bench.FileKind kind = 30;
+     */
+    kind: FileKind;
+    /**
      * @generated from protobuf field: optional string type = 31;
      */
     type?: string;
     /**
-     * @generated from protobuf field: string name = 33;
+     * @generated from protobuf field: string title = 33;
      */
-    name: string;
+    title: string;
     /**
-     * @generated from protobuf field: optional int32 size = 34;
+     * @generated from protobuf field: optional int32 size = 35;
      */
     size?: number;
     /**
-     * @generated from protobuf field: optional string sha512 = 35;
+     * @generated from protobuf field: optional string sha512 = 36;
      */
     sha512?: string;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData blob_ptr = 36;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData blob_ptr = 40;
      */
     blobPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional string external_url = 37;
+     * @generated from protobuf field: optional string external_url = 41;
      */
     externalUrl?: string;
 }
@@ -1968,7 +1972,7 @@ export interface TreeViewStateData {
     preset?: TreeViewPreset;
 }
 /**
- * The information of a trigger.
+ * The basic information describing a trigger.
  *
  * @generated from protobuf message symbolx.bench.TriggerInfoData
  */
@@ -6840,13 +6844,17 @@ export enum BenchType {
      */
     RESOURCE_STATUS = 20057,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_FILE_RETENTION_MODE = 20058;
+     * @generated from protobuf enum value: BENCH_TYPE_FILE_RETENTION_MODE = 2060;
      */
-    FILE_RETENTION_MODE = 20058,
+    FILE_RETENTION_MODE = 2060,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_CLIENT_TYPE = 20060;
+     * @generated from protobuf enum value: BENCH_TYPE_FILE_KIND = 2061;
      */
-    CLIENT_TYPE = 20060,
+    FILE_KIND = 2061,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_CLIENT_TYPE = 20070;
+     */
+    CLIENT_TYPE = 20070,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_PRIMITIVE_TYPE = 20080;
      */
@@ -7706,13 +7714,17 @@ export enum EnumType {
      */
     RESOURCE_STATUS = 20057,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FILE_RETENTION_MODE = 20058;
+     * @generated from protobuf enum value: ENUM_TYPE_FILE_RETENTION_MODE = 2060;
      */
-    FILE_RETENTION_MODE = 20058,
+    FILE_RETENTION_MODE = 2060,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_CLIENT_TYPE = 20060;
+     * @generated from protobuf enum value: ENUM_TYPE_FILE_KIND = 2061;
      */
-    CLIENT_TYPE = 20060,
+    FILE_KIND = 2061,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_CLIENT_TYPE = 20070;
+     */
+    CLIENT_TYPE = 20070,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_PRIMITIVE_TYPE = 20080;
      */
@@ -8154,6 +8166,23 @@ export enum FieldZone {
      * @generated from protobuf enum value: FIELD_ZONE_RUNTIME = 6;
      */
     RUNTIME = 6
+}
+/**
+ * @generated from protobuf enum symbolx.bench.FileKind
+ */
+export enum FileKind {
+    /**
+     * @generated from protobuf enum value: FILE_KIND_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: FILE_KIND_BLOB = 1;
+     */
+    BLOB = 1,
+    /**
+     * @generated from protobuf enum value: FILE_KIND_EXTERNAL = 2;
+     */
+    EXTERNAL = 2
 }
 /**
  * @generated from protobuf enum symbolx.bench.FileRetentionMode
@@ -12448,18 +12477,20 @@ class FileData$Type extends MessageType<FileData> {
     constructor() {
         super("symbolx.bench.FileData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 30, name: "kind", kind: "enum", T: () => ["symbolx.bench.FileKind", FileKind, "FILE_KIND_"] },
             { no: 31, name: "type", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 33, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 34, name: "size", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 35, name: "sha512", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 36, name: "blob_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 37, name: "external_url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
+            { no: 33, name: "title", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 35, name: "size", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 36, name: "sha512", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 40, name: "blob_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 41, name: "external_url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<FileData>): FileData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
-        message.name = "";
+        message.kind = 0;
+        message.title = "";
         if (value !== undefined)
             reflectionMergePartial<FileData>(this, message, value);
         return message;
@@ -12472,22 +12503,25 @@ class FileData$Type extends MessageType<FileData> {
                 case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
+                case /* symbolx.bench.FileKind kind */ 30:
+                    message.kind = reader.int32();
+                    break;
                 case /* optional string type */ 31:
                     message.type = reader.string();
                     break;
-                case /* string name */ 33:
-                    message.name = reader.string();
+                case /* string title */ 33:
+                    message.title = reader.string();
                     break;
-                case /* optional int32 size */ 34:
+                case /* optional int32 size */ 35:
                     message.size = reader.int32();
                     break;
-                case /* optional string sha512 */ 35:
+                case /* optional string sha512 */ 36:
                     message.sha512 = reader.string();
                     break;
-                case /* optional symbolx.bench.NodeReferenceData blob_ptr */ 36:
+                case /* optional symbolx.bench.NodeReferenceData blob_ptr */ 40:
                     message.blobPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blobPtr);
                     break;
-                case /* optional string external_url */ 37:
+                case /* optional string external_url */ 41:
                     message.externalUrl = reader.string();
                     break;
                 default:
@@ -12505,24 +12539,27 @@ class FileData$Type extends MessageType<FileData> {
         /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* symbolx.bench.FileKind kind = 30; */
+        if (message.kind !== 0)
+            writer.tag(30, WireType.Varint).int32(message.kind);
         /* optional string type = 31; */
         if (message.type !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.type);
-        /* string name = 33; */
-        if (message.name !== "")
-            writer.tag(33, WireType.LengthDelimited).string(message.name);
-        /* optional int32 size = 34; */
+        /* string title = 33; */
+        if (message.title !== "")
+            writer.tag(33, WireType.LengthDelimited).string(message.title);
+        /* optional int32 size = 35; */
         if (message.size !== undefined)
-            writer.tag(34, WireType.Varint).int32(message.size);
-        /* optional string sha512 = 35; */
+            writer.tag(35, WireType.Varint).int32(message.size);
+        /* optional string sha512 = 36; */
         if (message.sha512 !== undefined)
-            writer.tag(35, WireType.LengthDelimited).string(message.sha512);
-        /* optional symbolx.bench.NodeReferenceData blob_ptr = 36; */
+            writer.tag(36, WireType.LengthDelimited).string(message.sha512);
+        /* optional symbolx.bench.NodeReferenceData blob_ptr = 40; */
         if (message.blobPtr)
-            NodeReferenceData.internalBinaryWrite(message.blobPtr, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
-        /* optional string external_url = 37; */
+            NodeReferenceData.internalBinaryWrite(message.blobPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* optional string external_url = 41; */
         if (message.externalUrl !== undefined)
-            writer.tag(37, WireType.LengthDelimited).string(message.externalUrl);
+            writer.tag(41, WireType.LengthDelimited).string(message.externalUrl);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -24990,6 +25027,7 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.MACHINE_PROFILE]: MachineProfile,
   [EnumType.RESOURCE_STATUS]: ResourceStatus,
   [EnumType.FILE_RETENTION_MODE]: FileRetentionMode,
+  [EnumType.FILE_KIND]: FileKind,
   [EnumType.CLIENT_TYPE]: ClientType,
   [EnumType.PRIMITIVE_TYPE]: PrimitiveType,
   [EnumType.FORMAT_HINT]: FormatHint,
@@ -25261,6 +25299,7 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.MACHINE_PROFILE]: MachineProfile,
   [EnumType.RESOURCE_STATUS]: ResourceStatus,
   [EnumType.FILE_RETENTION_MODE]: FileRetentionMode,
+  [EnumType.FILE_KIND]: FileKind,
   [EnumType.CLIENT_TYPE]: ClientType,
   [EnumType.PRIMITIVE_TYPE]: PrimitiveType,
   [EnumType.FORMAT_HINT]: FormatHint,
@@ -26569,12 +26608,13 @@ export enum ProjectionProperty {
 
 export enum FileProperty {
   metatype = 1,
+  kind = 30,
   type = 31,
-  name = 33,
-  size = 34,
-  sha512 = 35,
-  blobPtr = 36,
-  externalUrl = 37,
+  title = 33,
+  size = 35,
+  sha512 = 36,
+  blobPtr = 40,
+  externalUrl = 41,
 }
 
 export enum IconProperty {
@@ -27387,12 +27427,13 @@ export const ProjectionDataInfo: Record<ProjectionProperty, PropertyInfo> = {
 }
 export const FileDataInfo: Record<FileProperty, PropertyInfo> = {
   [FileProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.FILE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [FileProperty.kind]: { id: 30, name: 'kind', component: ObjectType.FILE, enumType: EnumType.FILE_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.type]: { id: 31, name: 'type', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.name]: { id: 33, name: 'name', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.size]: { id: 34, name: 'size', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.sha512]: { id: 35, name: 'sha512', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.blobPtr]: { id: 36, name: 'blob_ptr', component: ObjectType.FILE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOB], referenceStruct: StructType.NODE_REFERENCE },
-  [FileProperty.externalUrl]: { id: 37, name: 'external_url', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.title]: { id: 33, name: 'title', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.size]: { id: 35, name: 'size', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.sha512]: { id: 36, name: 'sha512', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.blobPtr]: { id: 40, name: 'blob_ptr', component: ObjectType.FILE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOB], referenceStruct: StructType.NODE_REFERENCE },
+  [FileProperty.externalUrl]: { id: 41, name: 'external_url', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const IconDataInfo: Record<IconProperty, PropertyInfo> = {
   [IconProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.ICON, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },

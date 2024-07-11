@@ -192,8 +192,9 @@ enum BenchType {
   BENCH_TYPE_SERVER_PROFILE = 20055;
   BENCH_TYPE_MACHINE_PROFILE = 20056;
   BENCH_TYPE_RESOURCE_STATUS = 20057;
-  BENCH_TYPE_FILE_RETENTION_MODE = 20058;
-  BENCH_TYPE_CLIENT_TYPE = 20060;
+  BENCH_TYPE_FILE_RETENTION_MODE = 2060;
+  BENCH_TYPE_FILE_KIND = 2061;
+  BENCH_TYPE_CLIENT_TYPE = 20070;
   BENCH_TYPE_PRIMITIVE_TYPE = 20080;
   BENCH_TYPE_FORMAT_HINT = 20081;
   BENCH_TYPE_FIELD_ZONE = 20082;
@@ -435,8 +436,9 @@ enum EnumType {
   ENUM_TYPE_SERVER_PROFILE = 20055;
   ENUM_TYPE_MACHINE_PROFILE = 20056;
   ENUM_TYPE_RESOURCE_STATUS = 20057;
-  ENUM_TYPE_FILE_RETENTION_MODE = 20058;
-  ENUM_TYPE_CLIENT_TYPE = 20060;
+  ENUM_TYPE_FILE_RETENTION_MODE = 2060;
+  ENUM_TYPE_FILE_KIND = 2061;
+  ENUM_TYPE_CLIENT_TYPE = 20070;
   ENUM_TYPE_PRIMITIVE_TYPE = 20080;
   ENUM_TYPE_FORMAT_HINT = 20081;
   ENUM_TYPE_FIELD_ZONE = 20082;
@@ -553,6 +555,12 @@ enum FieldZone {
   FIELD_ZONE_OUTPUT = 4;
   FIELD_ZONE_OPTION = 5;
   FIELD_ZONE_RUNTIME = 6;
+}
+
+enum FileKind {
+  FILE_KIND_UNSPECIFIED = 0;
+  FILE_KIND_BLOB = 1;
+  FILE_KIND_EXTERNAL = 2;
 }
 
 enum FileRetentionMode {
@@ -1534,12 +1542,13 @@ message FeedViewStateData {
 // A reference to a file stored somewhere.
 message FileData {
   ObjectType metatype = 1;
+  FileKind kind = 30;
   optional string type = 31;
-  string name = 33;
-  optional int32 size = 34;
-  optional string sha512 = 35;
-  optional NodeReferenceData blob_ptr = 36;
-  optional string external_url = 37;
+  string title = 33;
+  optional int32 size = 35;
+  optional string sha512 = 36;
+  optional NodeReferenceData blob_ptr = 40;
+  optional string external_url = 41;
 }
 
 // A font value.
@@ -1977,7 +1986,7 @@ message TreeViewStateData {
   optional TreeViewPreset preset = 99;
 }
 
-// The information of a trigger.
+// The basic information describing a trigger.
 message TriggerInfoData {
   ObjectType metatype = 1;
   int32 id = 2;
