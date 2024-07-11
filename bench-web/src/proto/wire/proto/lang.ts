@@ -673,31 +673,51 @@ export interface FileReferenceData {
      */
     metatype: ObjectType;
     /**
-     * @generated from protobuf field: symbolx.bench.FileKind kind = 30;
+     * @generated from protobuf field: symbolx.bench.NodeType type = 30;
+     */
+    type: NodeType;
+    /**
+     * @generated from protobuf field: optional string id = 31;
+     */
+    id?: string;
+    /**
+     * @generated from protobuf field: optional string ck = 32;
+     */
+    ck?: string;
+    /**
+     * @generated from protobuf field: optional string bench_id = 33;
+     */
+    benchId?: string;
+    /**
+     * @generated from protobuf field: optional string base_ck = 34;
+     */
+    baseCk?: string;
+    /**
+     * @generated from protobuf field: optional string base_bench_id = 35;
+     */
+    baseBenchId?: string;
+    /**
+     * @generated from protobuf field: symbolx.bench.FileKind kind = 40;
      */
     kind: FileKind;
     /**
-     * @generated from protobuf field: string title = 33;
+     * @generated from protobuf field: string title = 43;
      */
     title: string;
     /**
-     * @generated from protobuf field: optional int32 size = 34;
+     * @generated from protobuf field: optional int32 size = 44;
      */
     size?: number;
     /**
-     * @generated from protobuf field: optional string sha512 = 35;
+     * @generated from protobuf field: optional string sha512 = 45;
      */
     sha512?: string;
     /**
-     * @generated from protobuf field: optional string mime_type = 36;
+     * @generated from protobuf field: optional string mime_type = 46;
      */
     mimeType?: string;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData file_ptr = 40;
-     */
-    filePtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional string external_url = 41;
+     * @generated from protobuf field: optional string external_url = 47;
      */
     externalUrl?: string;
 }
@@ -854,7 +874,7 @@ export interface ModelOptionsData {
     model: ModelType;
 }
 /**
- * A reference to a Node.
+ * A plain reference to a Node.
  * We include the Bench and 'ck' where available.
  * Base = the node is 'based' on (like Record.parent->Block, Signal.type->Block).
  *
@@ -1606,17 +1626,41 @@ export interface SecretReferenceData {
      */
     metatype: ObjectType;
     /**
-     * @generated from protobuf field: string title = 33;
+     * @generated from protobuf field: symbolx.bench.NodeType type = 30;
+     */
+    type: NodeType;
+    /**
+     * @generated from protobuf field: optional string id = 31;
+     */
+    id?: string;
+    /**
+     * @generated from protobuf field: optional string ck = 32;
+     */
+    ck?: string;
+    /**
+     * @generated from protobuf field: optional string bench_id = 33;
+     */
+    benchId?: string;
+    /**
+     * @generated from protobuf field: optional string base_ck = 34;
+     */
+    baseCk?: string;
+    /**
+     * @generated from protobuf field: optional string base_bench_id = 35;
+     */
+    baseBenchId?: string;
+    /**
+     * @generated from protobuf field: string title = 43;
      */
     title: string;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData secret_ptr = 40;
-     */
-    secretPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.TypeInfoData value_type = 41;
+     * @generated from protobuf field: optional symbolx.bench.TypeInfoData value_type = 44;
      */
     valueType?: TypeInfoData;
+    /**
+     * @generated from protobuf field: symbolx.bench.NodeReferenceData secret_ptr = 45;
+     */
+    secretPtr?: NodeReferenceData;
 }
 /**
  * A selection of nodes/values.
@@ -12617,18 +12661,24 @@ class FileReferenceData$Type extends MessageType<FileReferenceData> {
     constructor() {
         super("symbolx.bench.FileReferenceData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 30, name: "kind", kind: "enum", T: () => ["symbolx.bench.FileKind", FileKind, "FILE_KIND_"] },
-            { no: 33, name: "title", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 34, name: "size", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 35, name: "sha512", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 36, name: "mime_type", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 40, name: "file_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 41, name: "external_url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
+            { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
+            { no: 31, name: "id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 32, name: "ck", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "bench_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 34, name: "base_ck", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 35, name: "base_bench_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 40, name: "kind", kind: "enum", T: () => ["symbolx.bench.FileKind", FileKind, "FILE_KIND_"] },
+            { no: 43, name: "title", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 44, name: "size", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 45, name: "sha512", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 46, name: "mime_type", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 47, name: "external_url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<FileReferenceData>): FileReferenceData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
+        message.type = 0;
         message.kind = 0;
         message.title = "";
         if (value !== undefined)
@@ -12643,25 +12693,40 @@ class FileReferenceData$Type extends MessageType<FileReferenceData> {
                 case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* symbolx.bench.FileKind kind */ 30:
+                case /* symbolx.bench.NodeType type */ 30:
+                    message.type = reader.int32();
+                    break;
+                case /* optional string id */ 31:
+                    message.id = reader.string();
+                    break;
+                case /* optional string ck */ 32:
+                    message.ck = reader.string();
+                    break;
+                case /* optional string bench_id */ 33:
+                    message.benchId = reader.string();
+                    break;
+                case /* optional string base_ck */ 34:
+                    message.baseCk = reader.string();
+                    break;
+                case /* optional string base_bench_id */ 35:
+                    message.baseBenchId = reader.string();
+                    break;
+                case /* symbolx.bench.FileKind kind */ 40:
                     message.kind = reader.int32();
                     break;
-                case /* string title */ 33:
+                case /* string title */ 43:
                     message.title = reader.string();
                     break;
-                case /* optional int32 size */ 34:
+                case /* optional int32 size */ 44:
                     message.size = reader.int32();
                     break;
-                case /* optional string sha512 */ 35:
+                case /* optional string sha512 */ 45:
                     message.sha512 = reader.string();
                     break;
-                case /* optional string mime_type */ 36:
+                case /* optional string mime_type */ 46:
                     message.mimeType = reader.string();
                     break;
-                case /* optional symbolx.bench.NodeReferenceData file_ptr */ 40:
-                    message.filePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.filePtr);
-                    break;
-                case /* optional string external_url */ 41:
+                case /* optional string external_url */ 47:
                     message.externalUrl = reader.string();
                     break;
                 default:
@@ -12679,27 +12744,42 @@ class FileReferenceData$Type extends MessageType<FileReferenceData> {
         /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* symbolx.bench.FileKind kind = 30; */
+        /* symbolx.bench.NodeType type = 30; */
+        if (message.type !== 0)
+            writer.tag(30, WireType.Varint).int32(message.type);
+        /* optional string id = 31; */
+        if (message.id !== undefined)
+            writer.tag(31, WireType.LengthDelimited).string(message.id);
+        /* optional string ck = 32; */
+        if (message.ck !== undefined)
+            writer.tag(32, WireType.LengthDelimited).string(message.ck);
+        /* optional string bench_id = 33; */
+        if (message.benchId !== undefined)
+            writer.tag(33, WireType.LengthDelimited).string(message.benchId);
+        /* optional string base_ck = 34; */
+        if (message.baseCk !== undefined)
+            writer.tag(34, WireType.LengthDelimited).string(message.baseCk);
+        /* optional string base_bench_id = 35; */
+        if (message.baseBenchId !== undefined)
+            writer.tag(35, WireType.LengthDelimited).string(message.baseBenchId);
+        /* symbolx.bench.FileKind kind = 40; */
         if (message.kind !== 0)
-            writer.tag(30, WireType.Varint).int32(message.kind);
-        /* string title = 33; */
+            writer.tag(40, WireType.Varint).int32(message.kind);
+        /* string title = 43; */
         if (message.title !== "")
-            writer.tag(33, WireType.LengthDelimited).string(message.title);
-        /* optional int32 size = 34; */
+            writer.tag(43, WireType.LengthDelimited).string(message.title);
+        /* optional int32 size = 44; */
         if (message.size !== undefined)
-            writer.tag(34, WireType.Varint).int32(message.size);
-        /* optional string sha512 = 35; */
+            writer.tag(44, WireType.Varint).int32(message.size);
+        /* optional string sha512 = 45; */
         if (message.sha512 !== undefined)
-            writer.tag(35, WireType.LengthDelimited).string(message.sha512);
-        /* optional string mime_type = 36; */
+            writer.tag(45, WireType.LengthDelimited).string(message.sha512);
+        /* optional string mime_type = 46; */
         if (message.mimeType !== undefined)
-            writer.tag(36, WireType.LengthDelimited).string(message.mimeType);
-        /* optional symbolx.bench.NodeReferenceData file_ptr = 40; */
-        if (message.filePtr)
-            NodeReferenceData.internalBinaryWrite(message.filePtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* optional string external_url = 41; */
+            writer.tag(46, WireType.LengthDelimited).string(message.mimeType);
+        /* optional string external_url = 47; */
         if (message.externalUrl !== undefined)
-            writer.tag(41, WireType.LengthDelimited).string(message.externalUrl);
+            writer.tag(47, WireType.LengthDelimited).string(message.externalUrl);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -14927,14 +15007,21 @@ class SecretReferenceData$Type extends MessageType<SecretReferenceData> {
     constructor() {
         super("symbolx.bench.SecretReferenceData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 33, name: "title", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 40, name: "secret_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 41, name: "value_type", kind: "message", T: () => TypeInfoData }
+            { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
+            { no: 31, name: "id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 32, name: "ck", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "bench_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 34, name: "base_ck", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 35, name: "base_bench_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 43, name: "title", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 44, name: "value_type", kind: "message", T: () => TypeInfoData },
+            { no: 45, name: "secret_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<SecretReferenceData>): SecretReferenceData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
+        message.type = 0;
         message.title = "";
         if (value !== undefined)
             reflectionMergePartial<SecretReferenceData>(this, message, value);
@@ -14948,14 +15035,32 @@ class SecretReferenceData$Type extends MessageType<SecretReferenceData> {
                 case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* string title */ 33:
+                case /* symbolx.bench.NodeType type */ 30:
+                    message.type = reader.int32();
+                    break;
+                case /* optional string id */ 31:
+                    message.id = reader.string();
+                    break;
+                case /* optional string ck */ 32:
+                    message.ck = reader.string();
+                    break;
+                case /* optional string bench_id */ 33:
+                    message.benchId = reader.string();
+                    break;
+                case /* optional string base_ck */ 34:
+                    message.baseCk = reader.string();
+                    break;
+                case /* optional string base_bench_id */ 35:
+                    message.baseBenchId = reader.string();
+                    break;
+                case /* string title */ 43:
                     message.title = reader.string();
                     break;
-                case /* symbolx.bench.NodeReferenceData secret_ptr */ 40:
-                    message.secretPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.secretPtr);
-                    break;
-                case /* optional symbolx.bench.TypeInfoData value_type */ 41:
+                case /* optional symbolx.bench.TypeInfoData value_type */ 44:
                     message.valueType = TypeInfoData.internalBinaryRead(reader, reader.uint32(), options, message.valueType);
+                    break;
+                case /* symbolx.bench.NodeReferenceData secret_ptr */ 45:
+                    message.secretPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.secretPtr);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -14972,15 +15077,33 @@ class SecretReferenceData$Type extends MessageType<SecretReferenceData> {
         /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* string title = 33; */
+        /* symbolx.bench.NodeType type = 30; */
+        if (message.type !== 0)
+            writer.tag(30, WireType.Varint).int32(message.type);
+        /* optional string id = 31; */
+        if (message.id !== undefined)
+            writer.tag(31, WireType.LengthDelimited).string(message.id);
+        /* optional string ck = 32; */
+        if (message.ck !== undefined)
+            writer.tag(32, WireType.LengthDelimited).string(message.ck);
+        /* optional string bench_id = 33; */
+        if (message.benchId !== undefined)
+            writer.tag(33, WireType.LengthDelimited).string(message.benchId);
+        /* optional string base_ck = 34; */
+        if (message.baseCk !== undefined)
+            writer.tag(34, WireType.LengthDelimited).string(message.baseCk);
+        /* optional string base_bench_id = 35; */
+        if (message.baseBenchId !== undefined)
+            writer.tag(35, WireType.LengthDelimited).string(message.baseBenchId);
+        /* string title = 43; */
         if (message.title !== "")
-            writer.tag(33, WireType.LengthDelimited).string(message.title);
-        /* symbolx.bench.NodeReferenceData secret_ptr = 40; */
-        if (message.secretPtr)
-            NodeReferenceData.internalBinaryWrite(message.secretPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.TypeInfoData value_type = 41; */
+            writer.tag(43, WireType.LengthDelimited).string(message.title);
+        /* optional symbolx.bench.TypeInfoData value_type = 44; */
         if (message.valueType)
-            TypeInfoData.internalBinaryWrite(message.valueType, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+            TypeInfoData.internalBinaryWrite(message.valueType, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.NodeReferenceData secret_ptr = 45; */
+        if (message.secretPtr)
+            NodeReferenceData.internalBinaryWrite(message.secretPtr, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -26922,13 +27045,18 @@ export enum ScheduleProperty {
 
 export enum FileReferenceProperty {
   metatype = 1,
-  kind = 30,
-  title = 33,
-  size = 34,
-  sha512 = 35,
-  mimeType = 36,
-  filePtr = 40,
-  externalUrl = 41,
+  type = 30,
+  id = 31,
+  ck = 32,
+  benchId = 33,
+  baseCk = 34,
+  baseBenchId = 35,
+  kind = 40,
+  title = 43,
+  size = 44,
+  sha512 = 45,
+  mimeType = 46,
+  externalUrl = 47,
 }
 
 export enum IconProperty {
@@ -26942,9 +27070,15 @@ export enum IconProperty {
 
 export enum SecretReferenceProperty {
   metatype = 1,
-  title = 33,
-  secretPtr = 40,
-  valueType = 41,
+  type = 30,
+  id = 31,
+  ck = 32,
+  benchId = 33,
+  baseCk = 34,
+  baseBenchId = 35,
+  title = 43,
+  valueType = 44,
+  secretPtr = 45,
 }
 
 export enum TriggerInfoProperty {
@@ -27754,13 +27888,18 @@ export const ScheduleDataInfo: Record<ScheduleProperty, PropertyInfo> = {
 }
 export const FileReferenceDataInfo: Record<FileReferenceProperty, PropertyInfo> = {
   [FileReferenceProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.FILE_REFERENCE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [FileReferenceProperty.kind]: { id: 30, name: 'kind', component: ObjectType.FILE_REFERENCE, enumType: EnumType.FILE_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileReferenceProperty.title]: { id: 33, name: 'title', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [FileReferenceProperty.size]: { id: 34, name: 'size', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileReferenceProperty.sha512]: { id: 35, name: 'sha512', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileReferenceProperty.mimeType]: { id: 36, name: 'mime_type', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileReferenceProperty.filePtr]: { id: 40, name: 'file_ptr', component: ObjectType.FILE_REFERENCE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FILE], referenceStruct: StructType.NODE_REFERENCE },
-  [FileReferenceProperty.externalUrl]: { id: 41, name: 'external_url', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileReferenceProperty.type]: { id: 30, name: 'type', component: ObjectType.FILE_REFERENCE, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileReferenceProperty.id]: { id: 31, name: 'id', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileReferenceProperty.ck]: { id: 32, name: 'ck', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileReferenceProperty.benchId]: { id: 33, name: 'bench_id', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileReferenceProperty.baseCk]: { id: 34, name: 'base_ck', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileReferenceProperty.baseBenchId]: { id: 35, name: 'base_bench_id', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileReferenceProperty.kind]: { id: 40, name: 'kind', component: ObjectType.FILE_REFERENCE, enumType: EnumType.FILE_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileReferenceProperty.title]: { id: 43, name: 'title', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [FileReferenceProperty.size]: { id: 44, name: 'size', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileReferenceProperty.sha512]: { id: 45, name: 'sha512', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileReferenceProperty.mimeType]: { id: 46, name: 'mime_type', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileReferenceProperty.externalUrl]: { id: 47, name: 'external_url', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const IconDataInfo: Record<IconProperty, PropertyInfo> = {
   [IconProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.ICON, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -27772,9 +27911,15 @@ export const IconDataInfo: Record<IconProperty, PropertyInfo> = {
 }
 export const SecretReferenceDataInfo: Record<SecretReferenceProperty, PropertyInfo> = {
   [SecretReferenceProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SECRET_REFERENCE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [SecretReferenceProperty.title]: { id: 33, name: 'title', component: ObjectType.SECRET_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [SecretReferenceProperty.secretPtr]: { id: 40, name: 'secret_ptr', component: ObjectType.SECRET_REFERENCE, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SECRET], referenceStruct: StructType.NODE_REFERENCE },
-  [SecretReferenceProperty.valueType]: { id: 41, name: 'value_type', component: ObjectType.SECRET_REFERENCE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_INFO },
+  [SecretReferenceProperty.type]: { id: 30, name: 'type', component: ObjectType.SECRET_REFERENCE, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [SecretReferenceProperty.id]: { id: 31, name: 'id', component: ObjectType.SECRET_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [SecretReferenceProperty.ck]: { id: 32, name: 'ck', component: ObjectType.SECRET_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [SecretReferenceProperty.benchId]: { id: 33, name: 'bench_id', component: ObjectType.SECRET_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [SecretReferenceProperty.baseCk]: { id: 34, name: 'base_ck', component: ObjectType.SECRET_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [SecretReferenceProperty.baseBenchId]: { id: 35, name: 'base_bench_id', component: ObjectType.SECRET_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [SecretReferenceProperty.title]: { id: 43, name: 'title', component: ObjectType.SECRET_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [SecretReferenceProperty.valueType]: { id: 44, name: 'value_type', component: ObjectType.SECRET_REFERENCE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_INFO },
+  [SecretReferenceProperty.secretPtr]: { id: 45, name: 'secret_ptr', component: ObjectType.SECRET_REFERENCE, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SECRET], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const TriggerInfoDataInfo: Record<TriggerInfoProperty, PropertyInfo> = {
   [TriggerInfoProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.TRIGGER_INFO, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },

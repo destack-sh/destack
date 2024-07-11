@@ -3,11 +3,11 @@ from typing import Any, cast
 from bench.language.bench import Bench
 from bench.language.const import NodeType, StructType
 from bench.language.field import TypeInfo
-from bench.language.node import BenchNode, InlineStruct, node_, struct_
+from bench.language.node import BenchNode, InlineStruct, NodeReferenceBase, node_, struct_
 from bench.language.property import p_node_parent, p_regular, p_value_packed, p_value_runtime
 from bench.language.validation import TITLE_CONSTRAINT
 from bench.language.value import HasValues
-from bench.proto.wire import SecretData
+from bench.proto.wire import SecretData, SecretReferenceData
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -28,12 +28,17 @@ class Secret(BenchNode[SecretData], HasValues):
 
 
 @struct_(StructType.SECRET_REFERENCE, inline=True)
-class SecretReference(InlineStruct):
+class SecretReference(
+    InlineStruct[SecretReferenceData],
+    NodeReferenceBase[Secret, SecretData, "SecretReference", SecretReferenceData],
+):
     """
     A reference to a Secret.
     Like a NodeReference with secret-specific metadata.
     """
 
-    title: str = p_regular(33, constraint=TITLE_CONSTRAINT)
-    value_type: TypeInfo | None = p_regular(41, struct=StructType.TYPE_INFO)
-    secret: Secret = p_regular(40, require=True, array=False, references=NodeType.SECRET)
+    # ...NodeReferenceBase[30-39]
+
+    title: str = p_regular(43, constraint=TITLE_CONSTRAINT)
+    value_type: TypeInfo | None = p_regular(44, struct=StructType.TYPE_INFO)
+    secret: Secret = p_regular(45, require=True, array=False, references=NodeType.SECRET)

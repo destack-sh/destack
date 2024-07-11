@@ -1920,13 +1920,11 @@ class ClientOrigin(InlineStruct[ClientOriginData]):
     nonce: Optional[UUID] = p_internal(32, default=None)
 
 
-@struct_(StructType.NODE_REFERENCE, inline=True)
-class NodeReference(InlineStruct[NodeReferenceData]):
-    """
-    A reference to a Node.
-    We include the Bench and 'ck' where available.
-    Base = the node is 'based' on (like Record.parent->Block, Signal.type->Block).
-    """
+@object_component()
+class NodeReferenceBase[NT: Node, ND: AnyNodeData, RT: NodeReferenceBase, RD: AnyStructData](
+    BuiltinObject
+):
+    """A base for node references for extension in richer references (Files, Secrets, ...)"""
 
     type: NodeType = p_internal(30, require=True)
     id: Optional[UUID] = p_internal(31, default=None)
@@ -1935,6 +1933,32 @@ class NodeReference(InlineStruct[NodeReferenceData]):
     base_ck: Optional[UUID] = p_internal(34, default=None)
     # base could be in a different Bench (e.g. a Signal in Bench A with a type from Bench B)
     base_bench_id: Optional[UUID] = p_internal(35, default=None)
+
+    @staticmethod
+    @abc.abstractmethod
+    def from_node(node: NT) -> RT:
+        raise NotImplementedError
+
+    @staticmethod
+    @abc.abstractmethod
+    def from_node_data(node_data: ND) -> RD:
+        raise NotImplementedError
+
+    @staticmethod
+    @abc.abstractmethod
+    def data_from_node(node: NT) -> RD:
+        raise NotImplementedError
+
+
+@struct_(StructType.NODE_REFERENCE, inline=True)
+class NodeReference(InlineStruct[NodeReferenceData], NodeReferenceBase):
+    """
+    A plain reference to a Node.
+    We include the Bench and 'ck' where available.
+    Base = the node is 'based' on (like Record.parent->Block, Signal.type->Block).
+    """
+
+    # ...NodeReferenceBase[30-39]
 
     def __content_str__(self):
         content_parts = []
@@ -1967,6 +1991,7 @@ class NodeReference(InlineStruct[NodeReferenceData]):
         # ):
         #     invalid(self, "bench_id is required", (NodeReference.bench_id,))
 
+    @override
     @staticmethod
     def from_node(node: Node) -> "NodeReference":
         """Turn a node into a reference to that node."""
@@ -1999,6 +2024,7 @@ class NodeReference(InlineStruct[NodeReferenceData]):
 
         return reference
 
+    @override
     @staticmethod
     def from_node_data(node_data: AnyNodeData) -> "NodeReferenceData":
         """Turn a data node into a data node reference to that node."""
@@ -2026,6 +2052,7 @@ class NodeReference(InlineStruct[NodeReferenceData]):
 
         return reference
 
+    @override
     @staticmethod
     def data_from_node(node: Node) -> "NodeReferenceData":
         """Turn a node straight to a data node reference."""

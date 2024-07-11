@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.07.11.6"
+VERSION = "2024.07.11.7"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -1699,13 +1699,18 @@ class FileReferenceData(betterproto.Message):
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
-    kind: "FileKind" = betterproto.enum_field(30)
-    title: str = betterproto.string_field(33)
-    size: Optional[int] = betterproto.int32_field(34, optional=True)
-    sha512: Optional[str] = betterproto.string_field(35, optional=True)
-    mime_type: Optional[str] = betterproto.string_field(36, optional=True)
-    file_ptr: Optional["NodeReferenceData"] = betterproto.message_field(40, optional=True)
-    external_url: Optional[str] = betterproto.string_field(41, optional=True)
+    type: "NodeType" = betterproto.enum_field(30)
+    id: Optional[str] = betterproto.string_field(31, optional=True)
+    ck: Optional[str] = betterproto.string_field(32, optional=True)
+    bench_id: Optional[str] = betterproto.string_field(33, optional=True)
+    base_ck: Optional[str] = betterproto.string_field(34, optional=True)
+    base_bench_id: Optional[str] = betterproto.string_field(35, optional=True)
+    kind: "FileKind" = betterproto.enum_field(40)
+    title: str = betterproto.string_field(43)
+    size: Optional[int] = betterproto.int32_field(44, optional=True)
+    sha512: Optional[str] = betterproto.string_field(45, optional=True)
+    mime_type: Optional[str] = betterproto.string_field(46, optional=True)
+    external_url: Optional[str] = betterproto.string_field(47, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -1783,7 +1788,7 @@ class ModelOptionsData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class NodeReferenceData(betterproto.Message):
     """
-    A reference to a Node.
+    A plain reference to a Node.
      We include the Bench and 'ck' where available.
      Base = the node is 'based' on (like Record.parent->Block, Signal.type->Block).
     """
@@ -2093,9 +2098,15 @@ class SecretReferenceData(betterproto.Message):
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
-    title: str = betterproto.string_field(33)
-    secret_ptr: "NodeReferenceData" = betterproto.message_field(40)
-    value_type: Optional["TypeInfoData"] = betterproto.message_field(41, optional=True)
+    type: "NodeType" = betterproto.enum_field(30)
+    id: Optional[str] = betterproto.string_field(31, optional=True)
+    ck: Optional[str] = betterproto.string_field(32, optional=True)
+    bench_id: Optional[str] = betterproto.string_field(33, optional=True)
+    base_ck: Optional[str] = betterproto.string_field(34, optional=True)
+    base_bench_id: Optional[str] = betterproto.string_field(35, optional=True)
+    title: str = betterproto.string_field(43)
+    value_type: Optional["TypeInfoData"] = betterproto.message_field(44, optional=True)
+    secret_ptr: "NodeReferenceData" = betterproto.message_field(45)
 
 
 @dataclass(eq=False, repr=False)
