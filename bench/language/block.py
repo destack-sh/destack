@@ -156,6 +156,10 @@ class Block(SourceNode[BlockData], HasValues):
     def is_runnable(self) -> bool:
         return self.type.is_runnable
 
+    @property
+    def has_function_fields(self) -> bool:
+        return any(f.zone == FieldZone.INPUT or f.zone == FieldZone.OUTPUT for f in self.fields)
+
     def __call__(self, *args, **kwargs) -> Any:
         if self.type.is_runnable:
             raise NotImplementedError

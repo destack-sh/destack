@@ -11,8 +11,7 @@ async def test_run_code_with_syntax_error(runner: RuntimeRunner, page: Block):
     await runner.session.commit()
 
     with pytest.raises(SyntaxError):
-        run = await runner.run(InvalidCode)
-        assert run.status == RunStatus.FAILED
+        _ = await runner.run(InvalidCode)
 
 
 async def test_run_code_capture_logs(runner: RuntimeRunner, page: Block):

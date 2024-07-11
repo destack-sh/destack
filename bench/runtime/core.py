@@ -16,6 +16,7 @@ if TYPE_CHECKING:
 
 DEFAULT_CODE_RUN_OPTIONS = RunOptions(max_attempts=1)
 DEFAULT_TEXT_RUN_OPTIONS = RunOptions(max_attempts=3, retry_interval=3, backoff=2)
+DEFAULT_STEP_RUN_OPTIONS = RunOptions(max_attempts=1)
 DEFAULT_FLOW_RUN_OPTIONS = RunOptions(max_attempts=1)
 
 # all bench types

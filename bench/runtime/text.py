@@ -5,7 +5,17 @@ from bench.runtime.runner import Runner, runner
 
 
 @runner((RunnableKind.TEXT, None))
-class TextFunctionRunner(Runner):
+class TextRunner(Runner):
+    """The router and base for text function runners."""
+
     @override
     async def run(self) -> None:
         raise NotImplementedError
+
+
+class OpenaiRunner(TextRunner):
+    pass
+
+
+class AnthropicRunner(TextRunner):
+    pass

@@ -135,12 +135,6 @@ class RuntimeThread:
             _supergraph=self._supergraph,
             _oracle=self._oracle,
         )
-        self._runner = RuntimeRunner(
-            session=self._session,
-            oracle=self._oracle,
-            static_glbls=STATIC_CODE_GLOBALS,
-            dynamic_glbls=DYNAMIC_CODE_GLOBALS,
-        )
         await self._session.open(set_in_context=False)
 
         # connect
@@ -172,6 +166,12 @@ class RuntimeThread:
         )
 
         # finally, start processing runs
+        self._runner = RuntimeRunner(
+            session=self._session,
+            oracle=self._oracle,
+            static_glbls=STATIC_CODE_GLOBALS,
+            dynamic_glbls=DYNAMIC_CODE_GLOBALS,
+        )
         self._tasks.start_queue(
             self._run_queue,
             self._process_run_queue,

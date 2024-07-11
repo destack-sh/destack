@@ -2,7 +2,7 @@
 #    uv pip compile requirements/runtime.in --output-file requirements/runtime.txt
 annotated-types==0.7.0
     # via pydantic
-anthropic==0.29.0
+anthropic==0.31.0
 anyio==4.3.0
     # via
     #   anthropic
@@ -73,28 +73,43 @@ fsspec==2024.6.0
 gitdb==4.0.11
     # via gitpython
 gitpython==3.1.32
+google-ai-generativelanguage==0.6.6
+    # via google-generativeai
 google-api-core==2.19.0
-    # via google-api-python-client
+    # via
+    #   google-ai-generativelanguage
+    #   google-api-python-client
+    #   google-generativeai
 google-api-python-client==2.129.0
+    # via google-generativeai
 google-auth==2.29.0
     # via
+    #   google-ai-generativelanguage
     #   google-api-core
     #   google-api-python-client
     #   google-auth-httplib2
     #   google-auth-oauthlib
+    #   google-generativeai
 google-auth-httplib2==0.2.0
     # via google-api-python-client
 google-auth-oauthlib==1.2.0
+google-generativeai==0.7.2
 google-search-results==2.4.2
 googleapis-common-protos==1.63.0
     # via
     #   google-api-core
+    #   grpcio-status
     #   opentelemetry-exporter-otlp-proto-grpc
 googlemaps==4.10.0
 greenlet==3.0.3
     # via playwright
 grpcio==1.63.0
-    # via opentelemetry-exporter-otlp-proto-grpc
+    # via
+    #   google-api-core
+    #   grpcio-status
+    #   opentelemetry-exporter-otlp-proto-grpc
+grpcio-status==1.62.2
+    # via google-api-core
 grpclib==0.4.7
     # via betterproto
 h11==0.14.0
@@ -175,7 +190,7 @@ oauthlib==3.2.2
     # via
     #   atlassian-python-api
     #   requests-oauthlib
-openai==1.19.0
+openai==1.35.13
 opentelemetry-api==1.24.0
     # via
     #   opentelemetry-exporter-otlp-proto-grpc
@@ -210,11 +225,16 @@ pluggy==1.5.0
 ply==3.11
     # via stone
 proto-plus==1.23.0
-    # via google-api-core
+    # via
+    #   google-ai-generativelanguage
+    #   google-api-core
 protobuf==4.24.3
     # via
+    #   google-ai-generativelanguage
     #   google-api-core
+    #   google-generativeai
     #   googleapis-common-protos
+    #   grpcio-status
     #   opentelemetry-proto
     #   proto-plus
 psutil==5.9.2
@@ -236,6 +256,7 @@ pycparser==2.22
 pydantic==2.8.2
     # via
     #   anthropic
+    #   google-generativeai
     #   openai
     #   pyairtable
 pydantic-core==2.20.1
@@ -325,6 +346,7 @@ tokenizers==0.19.1
     # via anthropic
 tqdm==4.66.4
     # via
+    #   google-generativeai
     #   huggingface-hub
     #   openai
 typer==0.12.3
@@ -332,6 +354,7 @@ typing-extensions==4.11.0
     # via
     #   anthropic
     #   betterproto
+    #   google-generativeai
     #   huggingface-hub
     #   openai
     #   opentelemetry-sdk
