@@ -1567,13 +1567,18 @@ message FeedViewStateData {
 // Like a NodeReference with file-specific metadata.
 message FileReferenceData {
   ObjectType metatype = 1;
-  FileKind kind = 30;
-  string title = 33;
-  optional int32 size = 34;
-  optional string sha512 = 35;
-  optional string mime_type = 36;
-  optional NodeReferenceData file_ptr = 40;
-  optional string external_url = 41;
+  NodeType type = 30;
+  optional string id = 31;
+  optional string ck = 32;
+  optional string bench_id = 33;
+  optional string base_ck = 34;
+  optional string base_bench_id = 35;
+  FileKind kind = 40;
+  string title = 43;
+  optional int32 size = 44;
+  optional string sha512 = 45;
+  optional string mime_type = 46;
+  optional string external_url = 47;
 }
 
 // A font value.
@@ -1632,7 +1637,7 @@ message ModelOptionsData {
   ModelType model = 31;
 }
 
-// A reference to a Node.
+// A plain reference to a Node.
 // We include the Bench and 'ck' where available.
 // Base = the node is 'based' on (like Record.parent->Block, Signal.type->Block).
 message NodeReferenceData {
@@ -1891,9 +1896,15 @@ message ScheduleData {
 // Like a NodeReference with secret-specific metadata.
 message SecretReferenceData {
   ObjectType metatype = 1;
-  string title = 33;
-  NodeReferenceData secret_ptr = 40;
-  optional TypeInfoData value_type = 41;
+  NodeType type = 30;
+  optional string id = 31;
+  optional string ck = 32;
+  optional string bench_id = 33;
+  optional string base_ck = 34;
+  optional string base_bench_id = 35;
+  string title = 43;
+  optional TypeInfoData value_type = 44;
+  NodeReferenceData secret_ptr = 45;
 }
 
 // A selection of nodes/values.

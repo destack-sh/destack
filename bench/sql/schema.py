@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.07.11.6"
+VERSION = "2024.07.11.7"
 
 BENCH_TABLE = Table(
     "bench_bench",

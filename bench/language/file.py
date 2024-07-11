@@ -5,7 +5,7 @@ import structlog
 
 from bench.language.bench import Drive
 from bench.language.const import EnumType, NodeType, PrimitiveType, StructType, enum_
-from bench.language.node import BenchNode, InlineStruct, node_, struct_
+from bench.language.node import BenchNode, InlineStruct, NodeReferenceBase, node_, struct_
 from bench.language.property import p_internal, p_node_parent, p_regular
 from bench.language.validation import TITLE_CONSTRAINT, constrain
 from bench.proto.wire import FileData, FileReferenceData
@@ -60,22 +60,23 @@ class File(BenchNode[FileData]):
 
 
 @struct_(StructType.FILE_REFERENCE, inline=True)
-class FileReference(InlineStruct[FileReferenceData]):
+class FileReference(
+    InlineStruct[FileReferenceData],
+    NodeReferenceBase[File, FileData, "FileReference", FileReferenceData],
+):
     """
     A reference to a file stored somewhere.
     Like a NodeReference with file-specific metadata.
     """
 
-    # meta
-    kind: FileKind = p_internal(30)
-    title: str = p_regular(33, constraint=TITLE_CONSTRAINT)
-    size: Optional[int] = p_internal(34)
-    sha512: Optional[str] = p_internal(35)
-    mime_type: Optional[str] = p_internal(36)
+    # ...NodeReferenceBase[30-39]
 
-    # content
-    file: Optional["File"] = p_internal(40, require=False, array=False, references=NodeType.FILE)
-    external_url: Optional[str] = p_internal(41)
+    kind: FileKind = p_internal(40)
+    title: str = p_regular(43, constraint=TITLE_CONSTRAINT)
+    size: Optional[int] = p_internal(44)
+    sha512: Optional[str] = p_internal(45)
+    mime_type: Optional[str] = p_internal(46)
+    external_url: Optional[str] = p_internal(47)
 
 
 @enum_(EnumType.ICON_KIND)
