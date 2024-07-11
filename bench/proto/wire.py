@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.07.11.2"
+VERSION = "2024.07.11.4"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -126,7 +126,8 @@ class BenchType(betterproto.Enum):
     STORE = 501
     MACHINE = 502
     DRIVE = 503
-    BLOB = 504
+    FILE = 504
+    SECRET = 505
     BRANCH = 1000
     PACKAGE = 1001
     DEPENDENCY = 1002
@@ -174,9 +175,10 @@ class BenchType(betterproto.Enum):
     TYPE_CONSTRAINT = 10201
     SCHEDULE = 10202
     PROJECTION = 10203
-    FILE = 10204
+    FILE_REFERENCE = 10204
     ICON = 10205
-    TRIGGER_INFO = 10206
+    SECRET_REFERENCE = 10206
+    TRIGGER_INFO = 10210
     EXPRESSION = 10300
     AGGREGATION = 10301
     SELECTION = 10302
@@ -662,9 +664,6 @@ class FormatHint(betterproto.Enum):
     PHONE = 20
     RATING = 21
     SLIDER = 22
-    IMAGE = 60
-    VIDEO = 61
-    AUDIO = 62
 
 
 class FunctionalOp(betterproto.Enum):
@@ -766,7 +765,8 @@ class NodeType(betterproto.Enum):
     STORE = 501
     MACHINE = 502
     DRIVE = 503
-    BLOB = 504
+    FILE = 504
+    SECRET = 505
     BRANCH = 1000
     PACKAGE = 1001
     DEPENDENCY = 1002
@@ -812,7 +812,8 @@ class ObjectType(betterproto.Enum):
     STORE = 501
     MACHINE = 502
     DRIVE = 503
-    BLOB = 504
+    FILE = 504
+    SECRET = 505
     BRANCH = 1000
     PACKAGE = 1001
     DEPENDENCY = 1002
@@ -860,9 +861,10 @@ class ObjectType(betterproto.Enum):
     TYPE_CONSTRAINT = 10201
     SCHEDULE = 10202
     PROJECTION = 10203
-    FILE = 10204
+    FILE_REFERENCE = 10204
     ICON = 10205
-    TRIGGER_INFO = 10206
+    SECRET_REFERENCE = 10206
+    TRIGGER_INFO = 10210
     EXPRESSION = 10300
     AGGREGATION = 10301
     SELECTION = 10302
@@ -1190,9 +1192,10 @@ class StructType(betterproto.Enum):
     TYPE_CONSTRAINT = 10201
     SCHEDULE = 10202
     PROJECTION = 10203
-    FILE = 10204
+    FILE_REFERENCE = 10204
     ICON = 10205
-    TRIGGER_INFO = 10206
+    SECRET_REFERENCE = 10206
+    TRIGGER_INFO = 10210
     EXPRESSION = 10300
     AGGREGATION = 10301
     SELECTION = 10302
@@ -1526,7 +1529,8 @@ class ChangeVignetteData(betterproto.Message):
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     name: Optional[str] = betterproto.string_field(30, optional=True)
-    icon: Optional["IconData"] = betterproto.message_field(31, optional=True)
+    title: Optional[str] = betterproto.string_field(31, optional=True)
+    icon: Optional["IconData"] = betterproto.message_field(35, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -1668,16 +1672,19 @@ class FeedViewStateData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class FileData(betterproto.Message):
-    """A reference to a file stored somewhere."""
+class FileReferenceData(betterproto.Message):
+    """
+    A reference to a file stored somewhere.
+     Like a NodeReference with file-specific metadata.
+    """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     kind: "FileKind" = betterproto.enum_field(30)
-    type: Optional[str] = betterproto.string_field(31, optional=True)
     title: str = betterproto.string_field(33)
-    size: Optional[int] = betterproto.int32_field(35, optional=True)
-    sha512: Optional[str] = betterproto.string_field(36, optional=True)
-    blob_ptr: Optional["NodeReferenceData"] = betterproto.message_field(40, optional=True)
+    size: Optional[int] = betterproto.int32_field(34, optional=True)
+    sha512: Optional[str] = betterproto.string_field(35, optional=True)
+    mime_type: Optional[str] = betterproto.string_field(36, optional=True)
+    file_ptr: Optional["NodeReferenceData"] = betterproto.message_field(40, optional=True)
     external_url: Optional[str] = betterproto.string_field(41, optional=True)
 
 
@@ -1714,7 +1721,7 @@ class IconData(betterproto.Message):
     metatype: "ObjectType" = betterproto.enum_field(1)
     kind: "IconKind" = betterproto.enum_field(30)
     emoji: Optional[str] = betterproto.string_field(31, optional=True)
-    file: Optional["FileData"] = betterproto.message_field(32, optional=True)
+    file_ptr: Optional["NodeReferenceData"] = betterproto.message_field(32, optional=True)
     fa_name: Optional[str] = betterproto.string_field(33, optional=True)
     color: Optional["ColorData"] = betterproto.message_field(40, optional=True)
 
@@ -2063,6 +2070,19 @@ class ScheduleData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class SecretReferenceData(betterproto.Message):
+    """
+    A reference to a Secret.
+     Like a NodeReference with secret-specific metadata.
+    """
+
+    metatype: "ObjectType" = betterproto.enum_field(1)
+    title: str = betterproto.string_field(33)
+    secret_ptr: "NodeReferenceData" = betterproto.message_field(40)
+    value_type: Optional["TypeInfoData"] = betterproto.message_field(41, optional=True)
+
+
+@dataclass(eq=False, repr=False)
 class SelectionData(betterproto.Message):
     """A selection of nodes/values."""
 
@@ -2371,38 +2391,6 @@ class BenchData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class BlobData(betterproto.Message):
-    """
-    The actual file content stored as a Blob in a Drive. De-duped to 1 per sha512.
-    """
-
-    metatype: "ObjectType" = betterproto.enum_field(1)
-    id: str = betterproto.string_field(2)
-    parent_ptr: Optional["NodeReferenceData"] = betterproto.message_field(4, optional=True)
-    bench_ptr: "NodeReferenceData" = betterproto.message_field(6)
-    revision: int = betterproto.int64_field(10)
-    created_at: datetime = betterproto.message_field(11)
-    created_epoch: int = betterproto.int64_field(12)
-    updated_at: datetime = betterproto.message_field(13)
-    updated_epoch: int = betterproto.int64_field(14)
-    deleted_at: Optional[datetime] = betterproto.message_field(15, optional=True)
-    archived_at: Optional[datetime] = betterproto.message_field(16, optional=True)
-    created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(21, optional=True)
-    updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(22, optional=True)
-    set_properties: List[int] = betterproto.int32_field(29)
-    name: str = betterproto.string_field(32)
-    text: Optional["TextData"] = betterproto.message_field(34, optional=True)
-    region: "Region" = betterproto.enum_field(35)
-    status: "ResourceStatus" = betterproto.enum_field(36)
-    current_status: Optional["ResourceStatus"] = betterproto.enum_field(37, optional=True)
-    sha512: str = betterproto.string_field(40)
-    size: int = betterproto.int64_field(41)
-    mime_type: str = betterproto.string_field(42)
-    retention: "FileRetentionMode" = betterproto.enum_field(43)
-    expires_at: Optional[datetime] = betterproto.message_field(44, optional=True)
-
-
-@dataclass(eq=False, repr=False)
 class BlockData(betterproto.Message):
     """A building block with logic, types, UI, data, auth, AI, ..."""
 
@@ -2611,6 +2599,35 @@ class FieldData(betterproto.Message):
     is_list: bool = betterproto.bool_field(60)
     is_secret: bool = betterproto.bool_field(61)
     is_required: bool = betterproto.bool_field(62)
+
+
+@dataclass(eq=False, repr=False)
+class FileData(betterproto.Message):
+    """
+    A file stored in a Drive.
+     De-duplicated so that there's only one File per unique file content (sha512).
+    """
+
+    metatype: "ObjectType" = betterproto.enum_field(1)
+    id: str = betterproto.string_field(2)
+    parent_ptr: Optional["NodeReferenceData"] = betterproto.message_field(4, optional=True)
+    bench_ptr: "NodeReferenceData" = betterproto.message_field(6)
+    revision: int = betterproto.int64_field(10)
+    created_at: datetime = betterproto.message_field(11)
+    created_epoch: int = betterproto.int64_field(12)
+    updated_at: datetime = betterproto.message_field(13)
+    updated_epoch: int = betterproto.int64_field(14)
+    deleted_at: Optional[datetime] = betterproto.message_field(15, optional=True)
+    archived_at: Optional[datetime] = betterproto.message_field(16, optional=True)
+    created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(21, optional=True)
+    updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(22, optional=True)
+    set_properties: List[int] = betterproto.int32_field(29)
+    title: str = betterproto.string_field(33)
+    size: int = betterproto.int64_field(34)
+    sha512: str = betterproto.string_field(35)
+    mime_type: str = betterproto.string_field(36)
+    retention: "FileRetentionMode" = betterproto.enum_field(37)
+    expires_at: Optional[datetime] = betterproto.message_field(38, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -3099,6 +3116,31 @@ class RunData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class SecretData(betterproto.Message):
+    """A secret value."""
+
+    metatype: "ObjectType" = betterproto.enum_field(1)
+    id: str = betterproto.string_field(2)
+    parent_ptr: Optional["NodeReferenceData"] = betterproto.message_field(4, optional=True)
+    bench_ptr: "NodeReferenceData" = betterproto.message_field(6)
+    revision: int = betterproto.int64_field(10)
+    created_at: datetime = betterproto.message_field(11)
+    created_epoch: int = betterproto.int64_field(12)
+    updated_at: datetime = betterproto.message_field(13)
+    updated_epoch: int = betterproto.int64_field(14)
+    deleted_at: Optional[datetime] = betterproto.message_field(15, optional=True)
+    archived_at: Optional[datetime] = betterproto.message_field(16, optional=True)
+    created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(21, optional=True)
+    updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(22, optional=True)
+    set_properties: List[int] = betterproto.int32_field(29)
+    title: str = betterproto.string_field(33)
+    value_type: "TypeInfoData" = betterproto.message_field(40)
+    value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
+        41, optional=True
+    )
+
+
+@dataclass(eq=False, repr=False)
 class ServerData(betterproto.Message):
     """
     A server provides some compute for a Bench's Runtime.
@@ -3451,30 +3493,31 @@ class SomeNodeData(betterproto.Message):
     store: "StoreData" = betterproto.message_field(7, group="node")
     machine: "MachineData" = betterproto.message_field(8, group="node")
     drive: "DriveData" = betterproto.message_field(9, group="node")
-    blob: "BlobData" = betterproto.message_field(10, group="node")
-    branch: "BranchData" = betterproto.message_field(11, group="node")
-    package: "PackageData" = betterproto.message_field(12, group="node")
-    dependency: "DependencyData" = betterproto.message_field(13, group="node")
-    space: "SpaceData" = betterproto.message_field(14, group="node")
-    link: "LinkData" = betterproto.message_field(15, group="node")
-    skip: "SkipData" = betterproto.message_field(16, group="node")
-    issue: "IssueData" = betterproto.message_field(17, group="node")
-    block: "BlockData" = betterproto.message_field(18, group="node")
-    trigger: "TriggerData" = betterproto.message_field(19, group="node")
-    field: "FieldData" = betterproto.message_field(20, group="node")
-    query: "QueryData" = betterproto.message_field(21, group="node")
-    view: "ViewData" = betterproto.message_field(22, group="node")
-    step: "StepData" = betterproto.message_field(23, group="node")
-    badge: "BadgeData" = betterproto.message_field(24, group="node")
-    membership: "MembershipData" = betterproto.message_field(25, group="node")
-    invite: "InviteData" = betterproto.message_field(26, group="node")
-    session: "SessionData" = betterproto.message_field(27, group="node")
-    run: "RunData" = betterproto.message_field(28, group="node")
-    signal: "SignalData" = betterproto.message_field(29, group="node")
-    log: "LogData" = betterproto.message_field(30, group="node")
-    notification: "NotificationData" = betterproto.message_field(31, group="node")
-    message: "MessageData" = betterproto.message_field(32, group="node")
-    record: "RecordData" = betterproto.message_field(33, group="node")
+    file: "FileData" = betterproto.message_field(10, group="node")
+    secret: "SecretData" = betterproto.message_field(11, group="node")
+    branch: "BranchData" = betterproto.message_field(12, group="node")
+    package: "PackageData" = betterproto.message_field(13, group="node")
+    dependency: "DependencyData" = betterproto.message_field(14, group="node")
+    space: "SpaceData" = betterproto.message_field(15, group="node")
+    link: "LinkData" = betterproto.message_field(16, group="node")
+    skip: "SkipData" = betterproto.message_field(17, group="node")
+    issue: "IssueData" = betterproto.message_field(18, group="node")
+    block: "BlockData" = betterproto.message_field(19, group="node")
+    trigger: "TriggerData" = betterproto.message_field(20, group="node")
+    field: "FieldData" = betterproto.message_field(21, group="node")
+    query: "QueryData" = betterproto.message_field(22, group="node")
+    view: "ViewData" = betterproto.message_field(23, group="node")
+    step: "StepData" = betterproto.message_field(24, group="node")
+    badge: "BadgeData" = betterproto.message_field(25, group="node")
+    membership: "MembershipData" = betterproto.message_field(26, group="node")
+    invite: "InviteData" = betterproto.message_field(27, group="node")
+    session: "SessionData" = betterproto.message_field(28, group="node")
+    run: "RunData" = betterproto.message_field(29, group="node")
+    signal: "SignalData" = betterproto.message_field(30, group="node")
+    log: "LogData" = betterproto.message_field(31, group="node")
+    notification: "NotificationData" = betterproto.message_field(32, group="node")
+    message: "MessageData" = betterproto.message_field(33, group="node")
+    record: "RecordData" = betterproto.message_field(34, group="node")
 
 
 @dataclass(eq=False, repr=False)
@@ -4959,7 +5002,8 @@ AnyNodeData = Union[
     StoreData,
     MachineData,
     DriveData,
-    BlobData,
+    FileData,
+    SecretData,
     BranchData,
     PackageData,
     DependencyData,
@@ -5009,8 +5053,9 @@ AnyStructData = Union[
     TypeConstraintData,
     ScheduleData,
     ProjectionData,
-    FileData,
+    FileReferenceData,
     IconData,
+    SecretReferenceData,
     TriggerInfoData,
     ExpressionData,
     AggregationData,

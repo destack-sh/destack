@@ -60,7 +60,7 @@ export const AVAILABLE_ICONS_BY_ID: Record<string, IconMetadata> = Object.fromEn
   AVAILABLE_FA_ICONS.map((i) => [i.id, i]),
 );
 
-type IconInlineProps = Pick<IconData, "emoji" | "file" | "faName"> & {
+type IconInlineProps = Pick<IconData, "emoji" | "filePtr" | "faName"> & {
   color?: ColorType | ColorData;
   shade?: ColorShade;
   forceColor?: "inherit" | ColorType;
@@ -100,14 +100,14 @@ export function newIconId(): number {
 }
 
 type ColorIn = ColorData | ColorType;
-type IconIn = string | (Pick<IconData, "emoji" | "file" | "faName"> & { color?: ColorIn });
+type IconIn = string | (Pick<IconData, "emoji" | "filePtr" | "faName"> & { color?: ColorIn });
 export function makeIcon(icon: IconIn): IconData {
   let kind: IconKind;
   if (typeof icon == "string") {
     return { metatype: ObjectType.ICON, kind: IconKind.FONT_AWESOME, faName: icon };
   } else if (icon.emoji) {
     kind = IconKind.EMOJI;
-  } else if (icon.file) {
+  } else if (icon.filePtr) {
     kind = IconKind.FILE;
   } else if (icon.faName) {
     kind = IconKind.FONT_AWESOME;
@@ -150,7 +150,7 @@ export const ICON_BY_NODE_TYPE: Partial<Record<NodeType, IconData>> = _makeIcons
   [NodeType.MACHINE]: "fas fa-desktop",
   [NodeType.STORE]: "fas fa-database",
   [NodeType.DRIVE]: "fas fa-hdd",
-  [NodeType.BLOB]: "fas fa-file",
+  [NodeType.FILE]: "fas fa-file",
 
   // source
   [NodeType.BRANCH]: "fas fa-code-branch",
@@ -186,8 +186,9 @@ export const ICON_BY_STRUCT_TYPE: Partial<Record<StructType, IconData>> = _makeI
   [StructType.TYPE_INFO]: "fas fa-tilde",
   [StructType.SCHEDULE]: "fas fa-calendar",
   [StructType.PROJECTION]: "fas fa-project-diagram",
+  [StructType.SECRET_REFERENCE]: "fas fa-key",
   // files
-  [StructType.FILE]: "fas fa-file",
+  [StructType.FILE_REFERENCE]: "fas fa-file",
   [StructType.ICON]: "fas fa-icons",
   // code
   [StructType.CODE]: "fas fa-code",
@@ -372,10 +373,6 @@ export const ICON_BY_FORMAT_HINT: Partial<Record<FormatHint, IconData>> = _makeI
   [FormatHint.PHONE]: "fas fa-phone",
   [FormatHint.RATING]: "fas fa-star",
   [FormatHint.SLIDER]: "fas fa-slider",
-  // files
-  [FormatHint.IMAGE]: "fas fa-image",
-  [FormatHint.VIDEO]: "fas fa-video",
-  [FormatHint.AUDIO]: "fas fa-volume",
 });
 
 export const ICON_BY_FIELD_ZONE: Partial<Record<FieldZone, IconData>> = _makeIcons({

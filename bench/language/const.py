@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.07.11.2"  # auto change via version script
+VERSION = "2024.07.11.4"  # auto change via version script
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -193,7 +193,8 @@ class NodeType(IdEnum):
     STORE = 501  # our trusted postgres store
     MACHINE = 502  # actual machine providing compute and such
     DRIVE = 503  # object store like S3/MinIO, maybe block storage later
-    BLOB = 504  # in a Drive (deferred)
+    FILE = 504  # in a Drive (deferred)
+    SECRET = 505
     # CACHE, DOMAIN, EMAIL, PHONE, ...
 
     #
@@ -274,7 +275,7 @@ IN_BENCH_GLOBAL_NODE_TYPES = bittuple(
 )
 SUB_BENCH_NODE_TYPES = bittuple(*tuple(nt for nt in IN_BENCH_NODE_TYPES if nt != NodeType.BENCH))
 RESOURCE_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if nt.id >= 500 and nt.id < 600))
-DEFERRED_RESOURCE_NODE_TYPES = bittuple(NodeType.BLOB)
+DEFERRED_RESOURCE_NODE_TYPES = bittuple(NodeType.FILE, NodeType.SECRET)
 BENCH_NODE_TYPES = bittuple(
     NodeType.BENCH,
     NodeType.BRANCH,
@@ -331,9 +332,10 @@ class StructType(IdEnum):
     TYPE_CONSTRAINT = 10201
     SCHEDULE = 10202
     PROJECTION = 10203
-    FILE = 10204
+    FILE_REFERENCE = 10204
     ICON = 10205
-    TRIGGER_INFO = 10206
+    SECRET_REFERENCE = 10206
+    TRIGGER_INFO = 10210
 
     # expressions
     EXPRESSION = 10300
@@ -746,10 +748,6 @@ class FormatHint(IdEnum):
     PHONE = 20
     RATING = 21
     SLIDER = 22
-    # files
-    IMAGE = 60
-    VIDEO = 61
-    AUDIO = 62
 
 
 @enum_(EnumType.TYPE_KIND)

@@ -666,7 +666,7 @@ export const EXPOSED_STRUCT_TYPES = [
   StructType.SCHEDULE,
   StructType.PROJECTION,
   // files
-  StructType.FILE,
+  StructType.FILE_REFERENCE,
   StructType.ICON,
   // code
   StructType.CODE,

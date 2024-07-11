@@ -3,12 +3,12 @@ from typing import TYPE_CHECKING, Optional
 
 import structlog
 
-from bench.language.bench import BenchResourceNode, Drive
+from bench.language.bench import Drive
 from bench.language.const import EnumType, NodeType, PrimitiveType, StructType, enum_
-from bench.language.node import InlineStruct, node_, struct_
+from bench.language.node import BenchNode, InlineStruct, node_, struct_
 from bench.language.property import p_internal, p_node_parent, p_regular
 from bench.language.validation import TITLE_CONSTRAINT, constrain
-from bench.proto.wire import BlobData
+from bench.proto.wire import FileData, FileReferenceData
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
@@ -17,6 +17,8 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 FILE_HASH_LENGTH = 128  # 512 bits
+MIME_TYPE_CONSTRAINT = constrain(min_length=1, max_length=255)
+SHA512_CONSTRAINT = constrain(min_length=FILE_HASH_LENGTH, max_length=FILE_HASH_LENGTH)
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -34,33 +36,45 @@ class FileRetentionMode(IdEnum):
     TIMED = 3  # delete after a certain time
 
 
-@node_(NodeType.BLOB, unique=(("parent_id", "sha512"),))
-class Blob(BenchResourceNode[BlobData]):
-    """A file stored as a Blob in a Drive. De-duped to 1 per sha512."""
+@node_(NodeType.FILE, unique=(("parent_id", "sha512"),))
+class File(BenchNode[FileData]):
+    """
+    A file stored in a Drive.
+    De-duplicated so that there's only one File per unique file content (sha512).
+    """
 
     parent: Drive | None = p_node_parent(4, NodeType.DRIVE, is_system=True)
+
+    # meta
+    title: str = p_regular(33, constraint=TITLE_CONSTRAINT)
+    size: int = p_internal(34, primitive_type=PrimitiveType.INT64)
     sha512: str = p_internal(
-        40, constraint=constrain(min_length=FILE_HASH_LENGTH, max_length=FILE_HASH_LENGTH)
+        35, constraint=constrain(min_length=FILE_HASH_LENGTH, max_length=FILE_HASH_LENGTH)
     )
-    size: int = p_internal(41, primitive_type=PrimitiveType.INT64)
-    mime_type: str = p_internal(42, constraint=constrain(min_length=1, max_length=255))
-    retention: FileRetentionMode = p_regular(43)
-    expires_at: Optional[datetime] = p_regular(44)
+    mime_type: str = p_internal(36, constraint=MIME_TYPE_CONSTRAINT)
+    retention: FileRetentionMode = p_regular(37)
+    expires_at: Optional[datetime] = p_regular(38)
+
+    # type-specific metadata (image size, audio/video length, thumbnail, ...)
+    ...
 
 
-@struct_(StructType.FILE, inline=True)
-class File(InlineStruct):
-    """A reference to a file stored somewhere."""
+@struct_(StructType.FILE_REFERENCE, inline=True)
+class FileReference(InlineStruct[FileReferenceData]):
+    """
+    A reference to a file stored somewhere.
+    Like a NodeReference with file-specific metadata.
+    """
 
     # meta
     kind: FileKind = p_internal(30)
-    type: Optional[str] = p_internal(31)
     title: str = p_regular(33, constraint=TITLE_CONSTRAINT)
-    size: Optional[int] = p_internal(35)
-    sha512: Optional[str] = p_internal(36)
+    size: Optional[int] = p_internal(34)
+    sha512: Optional[str] = p_internal(35)
+    mime_type: Optional[str] = p_internal(36)
 
     # content
-    blob: Optional["Blob"] = p_internal(40, require=False, array=False, references=NodeType.BLOB)
+    file: Optional["File"] = p_internal(40, require=False, array=False, references=NodeType.FILE)
     external_url: Optional[str] = p_internal(41)
 
 
@@ -78,7 +92,7 @@ class Icon(InlineStruct):
     kind: IconKind = p_internal(30, default=False)
     # content
     emoji: Optional[str] = p_internal(31, require=False)
-    file: Optional["File"] = p_internal(32, require=False, array=False, struct=StructType.FILE)
+    file: Optional["File"] = p_internal(32, require=False, array=False, references=NodeType.FILE)
     fa_name: Optional[str] = p_internal(33, require=False)
     # style
     color: Optional["Color"] = p_internal(40, require=False, array=False, struct=StructType.COLOR)

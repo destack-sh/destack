@@ -20,7 +20,6 @@ from bench.language.graph import NodeList
 from bench.language.node import (
     BenchNode,
     ClientOrigin,
-    Node,
     SourceNode,
     local_node,
     node_,
@@ -68,7 +67,6 @@ if TYPE_CHECKING:
         User,
     )
 
-NodeT = Union[Node, "Node"]
 # pyright: reportIncompatibleVariableOverride=false
 
 

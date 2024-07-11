@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.07.11.2"
+VERSION = "2024.07.11.4"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -396,8 +396,8 @@ DRIVE_TABLE = Table(
     ),
 )
 
-BLOB_TABLE = Table(
-    "bench_blob",
+FILE_TABLE = Table(
+    "bench_file",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column("parent_id", PrimitiveType.UUID),
@@ -415,13 +415,9 @@ BLOB_TABLE = Table(
         Column("updated_by_id", PrimitiveType.UUID, is_nullable=True),
         Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
         Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
-        Column("name", PrimitiveType.STRING),
-        Column("text", PrimitiveType.JSON, is_nullable=True),
-        Column("region", PrimitiveType.INT16),
-        Column("status", PrimitiveType.INT16, default="1"),
-        Column("current_status", PrimitiveType.INT16, is_nullable=True),
-        Column("sha512", PrimitiveType.STRING),
+        Column("title", PrimitiveType.STRING),
         Column("size", PrimitiveType.INT64),
+        Column("sha512", PrimitiveType.STRING),
         Column("mime_type", PrimitiveType.STRING),
         Column("retention", PrimitiveType.INT16),
         Column("expires_at", PrimitiveType.DATETIME, is_nullable=True),
@@ -438,6 +434,31 @@ BLOB_TABLE = Table(
             columns=("parent_id", "sha512"),
             index="bench_idx_parent_id_sha512",
         ),
+    ),
+)
+
+SECRET_TABLE = Table(
+    "bench_secret",
+    (
+        Column("id", PrimitiveType.UUID, is_primary_key=True),
+        Column("parent_id", PrimitiveType.UUID),
+        Column("bench_id", PrimitiveType.UUID),
+        Column("revision", PrimitiveType.INT64),
+        Column("created_at", PrimitiveType.DATETIME),
+        Column("created_epoch", PrimitiveType.INT64),
+        Column("updated_at", PrimitiveType.DATETIME),
+        Column("updated_epoch", PrimitiveType.INT64),
+        Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("archived_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
+        Column("created_by_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("created_by_type", PrimitiveType.INT16, is_nullable=True),
+        Column("updated_by_id", PrimitiveType.UUID, is_nullable=True),
+        Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
+        Column("title", PrimitiveType.STRING),
+        Column("value_type", PrimitiveType.JSON),
+        Column("value_packed", PrimitiveType.JSON, is_nullable=True, is_encrypted=True),
     ),
 )
 
