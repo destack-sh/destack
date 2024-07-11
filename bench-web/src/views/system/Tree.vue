@@ -12,7 +12,7 @@ import {
   ViewData,
   type AnyNodeData,
 } from "@/proto/wire";
-import { isNode, type TypedNodeReferenceData } from "@/proto/wiring";
+import { isNode, toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
 import type { ActionContext, ActionMapImplementation } from "@/system/action";
 import { useHierarchicalNodeMoveActions } from "@/system/block";
 import { packagePtr } from "@/system/client";
@@ -38,7 +38,7 @@ import {
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import uFuzzy from "@leeoniya/ufuzzy";
-import { computed, ref, toRef, watch, type Ref } from "vue";
+import { computed, nextTick, ref, toRef, watch, type Ref } from "vue";
 
 const DEPTH_OFFSET = 12;
 const HEADER_HEIGHT = DEFAULT_HEADER_HEIGHT;
@@ -79,7 +79,6 @@ const inspectedNodeTypes = computed(() => {
     return [NodeType.BLOCK, NodeType.FIELD, NodeType.VIEW, NodeType.STEP];
   else return state.value.nodeTypes;
 });
-
 const rootPtr = computedValue(() => {
   if (props.nodePtr != null) return props.nodePtr;
   else if (preset.value == TreeViewPreset.EXPLORE) return packagePtr.value;
@@ -101,11 +100,18 @@ const { graph: pkgGraph, connection: pkgConnection } = useExistingConnection(roo
     },
   },
 });
-const rootNode = pkgGraph.getRef(rootPtr);
 
 //
 // Visible subtree
 //
+
+const editingNodePtr: Ref<NodeReferenceData | null> = ref(null);
+const editingNameRef: Ref<HTMLInputElement[]> = ref([]);
+
+function cancelRename() {
+  editingNodePtr.value = null;
+  queryRef.value?.focus();
+}
 
 const { toggleExpanded, isExpanded } = useExpansion({
   graph: spaceGraph,
@@ -280,8 +286,16 @@ const actions: Partial<ActionMapImplementation<"common">> = {
     action: () =>
       canvas.goToNode(focusedNode.value!, { where: "nextFrameRoot", skipSelf: preset.value == TreeViewPreset.OUTLINE }),
   },
-  // <!-- NOTE :Incomplete: Explorer/Outline actions -->
-  // common.edit.rename, ...
+  "common.edit.rename": {
+    isEnabled: hasFocusedNode,
+    action: () => {
+      editingNodePtr.value = toNodeReference(focusedNode.value!);
+      nextTick(() => {
+        editingNameRef.value?.[0]?.focus?.();
+        editingNameRef.value?.[0]?.select?.();
+      });
+    },
+  },
   "common.edit.archive": {
     isEnabled: hasFocusedNode,
     action: () => pkgConnection.tx.archive(focusedNode.value!),
@@ -349,7 +363,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
           v-model="query"
           class="max-w-60 cursor-default rounded border-0 bg-transparent font-semibold text-gray-900 decoration-2 underline-offset-2 caret-transparent outline-none ring-0 focus:underline focus:ring-0"
           spellcheck="false"
-          :data-suppress-actions="'common.edit,common.navigate' /* allow select & move */"
+          :data-suppress-actions="'common.navigate' /* allow select & move */"
           @keydown.enter.stop.prevent="
             () => {
               if (focusedNode != null) {
@@ -391,8 +405,8 @@ defineExpose<ViewExposed>({ self, actions, focus });
                 placement: 'bottom-right',
                 items: menuActionsLike(
                   [
-                    'common.sense.*',
-                    'common.edit.morph',
+                    'common.sense.focus*',
+                    'common.edit.rename',
                     'common.edit.move',
                     'common.edit.duplicate',
                     'common.edit.archive',
@@ -444,13 +458,35 @@ defineExpose<ViewExposed>({ self, actions, focus });
           <!-- Icon / title -->
           <IconInline
             v-bind="getNodeIcon(node)"
-            class="mr-1.5 w-5"
+            class="mr-1.5 w-5 flex-shrink-0"
             :class="[
               isFocusedAbsolute(node) ? 'text-primary-900' : 'text-gray-700 group-hover:text-primary-900',
               hasChildren ? '' : 'ml-6',
             ]"
           />
+          <!-- Input if editing -->
+          <input
+            v-if="node.id == editingNodePtr?.id"
+            ref="editingNameRef"
+            v-outside.mousedown.stop="cancelRename"
+            class="flex-1 rounded border-0 bg-transparent outline-none ring-0 hover:bg-gray-100 focus:ring-0"
+            spellcheck="false"
+            :value="(node as any).name"
+            @click.stop
+            @keydown.enter.stop.prevent="cancelRename"
+            @keydown.escape.stop.prevent="cancelRename"
+            @input="
+              (event) => {
+                pkgConnection.tx.update(
+                  node!,
+                  { name: (event.target as HTMLInputElement).value },
+                  { debounce: 'long' },
+                );
+              }
+            "
+          />
           <span
+            v-else
             class="select-none truncate group-hover:text-primary-900"
             :class="isFocusedAbsolute(node) ? 'text-primary-900' : ''"
             v-html="nodeTitlesMarked[i] ?? (node as any).name ?? node.id"
