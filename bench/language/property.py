@@ -981,7 +981,7 @@ def p_value_runtime(
     )
 
 
-def p_value_packed(id: int) -> Any:
+def p_value_packed(id: int, *, secret: bool = False) -> Any:
     """Packed value property."""
     return Property(
         id=id,
@@ -993,6 +993,9 @@ def p_value_packed(id: int) -> Any:
         is_stored=True,
         is_wired=True,
         is_list=False,
+        is_sensitive=secret,
+        is_encrypted=secret,
+        is_deferred=secret,
     )
 
 

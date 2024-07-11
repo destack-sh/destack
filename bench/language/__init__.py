@@ -65,7 +65,7 @@ from .const import (
 )
 from .expression import A, Aggregation, C, ComputedValue, Expression, S, coerce_conditional
 from .field import Field, FieldZone, TypeConstraint, TypeInfo, TypeInfoBase
-from .file import Blob, File, Icon
+from .file import File, FileReference, Icon
 from .graph import (
     NodeDataDict,
     NodeDataGraph,
@@ -105,6 +105,7 @@ from .query import (
 )
 from .record import Record
 from .run import CodeKind, Run, RunAttempt, RunnableKind, RunOptions
+from .secret import Secret, SecretReference
 from .session import EditContext, Session, SessionContext
 from .setup import _complete_bench_setup
 from .signal import Signal
@@ -154,7 +155,6 @@ __all__ = [
     "BenchNode",
     "BenchResourceNode",
     "BenchType",
-    "Blob",
     "Block",
     "BlockType",
     "Box",
@@ -187,6 +187,7 @@ __all__ = [
     "Field",
     "FieldZone",
     "File",
+    "FileReference",
     "Font",
     "FontSize",
     "FontType",
@@ -257,6 +258,8 @@ __all__ = [
     "SearchOptions",
     "SearchResult",
     "SearchResultData",
+    "Secret",
+    "SecretReference",
     "Server",
     "ServerProfile",
     "Session",

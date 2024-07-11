@@ -91,7 +91,8 @@ enum BenchType {
   BENCH_TYPE_STORE = 501;
   BENCH_TYPE_MACHINE = 502;
   BENCH_TYPE_DRIVE = 503;
-  BENCH_TYPE_BLOB = 504;
+  BENCH_TYPE_FILE = 504;
+  BENCH_TYPE_SECRET = 505;
   BENCH_TYPE_BRANCH = 1000;
   BENCH_TYPE_PACKAGE = 1001;
   BENCH_TYPE_DEPENDENCY = 1002;
@@ -139,9 +140,10 @@ enum BenchType {
   BENCH_TYPE_TYPE_CONSTRAINT = 10201;
   BENCH_TYPE_SCHEDULE = 10202;
   BENCH_TYPE_PROJECTION = 10203;
-  BENCH_TYPE_FILE = 10204;
+  BENCH_TYPE_FILE_REFERENCE = 10204;
   BENCH_TYPE_ICON = 10205;
-  BENCH_TYPE_TRIGGER_INFO = 10206;
+  BENCH_TYPE_SECRET_REFERENCE = 10206;
+  BENCH_TYPE_TRIGGER_INFO = 10210;
   BENCH_TYPE_EXPRESSION = 10300;
   BENCH_TYPE_AGGREGATION = 10301;
   BENCH_TYPE_SELECTION = 10302;
@@ -617,9 +619,6 @@ enum FormatHint {
   FORMAT_HINT_PHONE = 20;
   FORMAT_HINT_RATING = 21;
   FORMAT_HINT_SLIDER = 22;
-  FORMAT_HINT_IMAGE = 60;
-  FORMAT_HINT_VIDEO = 61;
-  FORMAT_HINT_AUDIO = 62;
 }
 
 enum FunctionalOp {
@@ -719,7 +718,8 @@ enum NodeType {
   NODE_TYPE_STORE = 501;
   NODE_TYPE_MACHINE = 502;
   NODE_TYPE_DRIVE = 503;
-  NODE_TYPE_BLOB = 504;
+  NODE_TYPE_FILE = 504;
+  NODE_TYPE_SECRET = 505;
   NODE_TYPE_BRANCH = 1000;
   NODE_TYPE_PACKAGE = 1001;
   NODE_TYPE_DEPENDENCY = 1002;
@@ -764,7 +764,8 @@ enum ObjectType {
   OBJECT_TYPE_STORE = 501;
   OBJECT_TYPE_MACHINE = 502;
   OBJECT_TYPE_DRIVE = 503;
-  OBJECT_TYPE_BLOB = 504;
+  OBJECT_TYPE_FILE = 504;
+  OBJECT_TYPE_SECRET = 505;
   OBJECT_TYPE_BRANCH = 1000;
   OBJECT_TYPE_PACKAGE = 1001;
   OBJECT_TYPE_DEPENDENCY = 1002;
@@ -812,9 +813,10 @@ enum ObjectType {
   OBJECT_TYPE_TYPE_CONSTRAINT = 10201;
   OBJECT_TYPE_SCHEDULE = 10202;
   OBJECT_TYPE_PROJECTION = 10203;
-  OBJECT_TYPE_FILE = 10204;
+  OBJECT_TYPE_FILE_REFERENCE = 10204;
   OBJECT_TYPE_ICON = 10205;
-  OBJECT_TYPE_TRIGGER_INFO = 10206;
+  OBJECT_TYPE_SECRET_REFERENCE = 10206;
+  OBJECT_TYPE_TRIGGER_INFO = 10210;
   OBJECT_TYPE_EXPRESSION = 10300;
   OBJECT_TYPE_AGGREGATION = 10301;
   OBJECT_TYPE_SELECTION = 10302;
@@ -1126,9 +1128,10 @@ enum StructType {
   STRUCT_TYPE_TYPE_CONSTRAINT = 10201;
   STRUCT_TYPE_SCHEDULE = 10202;
   STRUCT_TYPE_PROJECTION = 10203;
-  STRUCT_TYPE_FILE = 10204;
+  STRUCT_TYPE_FILE_REFERENCE = 10204;
   STRUCT_TYPE_ICON = 10205;
-  STRUCT_TYPE_TRIGGER_INFO = 10206;
+  STRUCT_TYPE_SECRET_REFERENCE = 10206;
+  STRUCT_TYPE_TRIGGER_INFO = 10210;
   STRUCT_TYPE_EXPRESSION = 10300;
   STRUCT_TYPE_AGGREGATION = 10301;
   STRUCT_TYPE_SELECTION = 10302;
@@ -1424,7 +1427,8 @@ message ChangeData {
 message ChangeVignetteData {
   ObjectType metatype = 1;
   optional string name = 30;
-  optional IconData icon = 31;
+  optional string title = 31;
+  optional IconData icon = 35;
 }
 
 // The state of a Chart view.
@@ -1540,14 +1544,15 @@ message FeedViewStateData {
 }
 
 // A reference to a file stored somewhere.
-message FileData {
+// Like a NodeReference with file-specific metadata.
+message FileReferenceData {
   ObjectType metatype = 1;
   FileKind kind = 30;
-  optional string type = 31;
   string title = 33;
-  optional int32 size = 35;
-  optional string sha512 = 36;
-  optional NodeReferenceData blob_ptr = 40;
+  optional int32 size = 34;
+  optional string sha512 = 35;
+  optional string mime_type = 36;
+  optional NodeReferenceData file_ptr = 40;
   optional string external_url = 41;
 }
 
@@ -1576,7 +1581,7 @@ message IconData {
   ObjectType metatype = 1;
   IconKind kind = 30;
   optional string emoji = 31;
-  optional FileData file = 32;
+  optional NodeReferenceData file_ptr = 32;
   optional string fa_name = 33;
   optional ColorData color = 40;
 }
@@ -1864,6 +1869,15 @@ message ScheduleData {
   optional string cron = 50;
 }
 
+// A reference to a Secret.
+// Like a NodeReference with secret-specific metadata.
+message SecretReferenceData {
+  ObjectType metatype = 1;
+  string title = 33;
+  NodeReferenceData secret_ptr = 40;
+  optional TypeInfoData value_type = 41;
+}
+
 // A selection of nodes/values.
 message SelectionData {
   ObjectType metatype = 1;
@@ -2120,34 +2134,6 @@ message BenchData {
   optional NodeReferenceData main_branch_ptr = 50;
 }
 
-// The actual file content stored as a Blob in a Drive. De-duped to 1 per sha512.
-message BlobData {
-  ObjectType metatype = 1;
-  string id = 2;
-  optional NodeReferenceData parent_ptr = 4;
-  NodeReferenceData bench_ptr = 6;
-  int64 revision = 10;
-  google.protobuf.Timestamp created_at = 11;
-  int64 created_epoch = 12;
-  google.protobuf.Timestamp updated_at = 13;
-  int64 updated_epoch = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
-  optional google.protobuf.Timestamp archived_at = 16;
-  optional NodeReferenceData created_by_ptr = 21;
-  optional NodeReferenceData updated_by_ptr = 22;
-  repeated int32 set_properties = 29;
-  string name = 32;
-  optional TextData text = 34;
-  Region region = 35;
-  ResourceStatus status = 36;
-  optional ResourceStatus current_status = 37;
-  string sha512 = 40;
-  int64 size = 41;
-  string mime_type = 42;
-  FileRetentionMode retention = 43;
-  optional google.protobuf.Timestamp expires_at = 44;
-}
-
 // A building block with logic, types, UI, data, auth, AI, ...
 message BlockData {
   ObjectType metatype = 1;
@@ -2335,6 +2321,31 @@ message FieldData {
   bool is_list = 60;
   bool is_secret = 61;
   bool is_required = 62;
+}
+
+// A file stored in a Drive.
+// De-duplicated so that there's only one File per unique file content (sha512).
+message FileData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData bench_ptr = 6;
+  int64 revision = 10;
+  google.protobuf.Timestamp created_at = 11;
+  int64 created_epoch = 12;
+  google.protobuf.Timestamp updated_at = 13;
+  int64 updated_epoch = 14;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  optional google.protobuf.Timestamp archived_at = 16;
+  optional NodeReferenceData created_by_ptr = 21;
+  optional NodeReferenceData updated_by_ptr = 22;
+  repeated int32 set_properties = 29;
+  string title = 33;
+  int64 size = 34;
+  string sha512 = 35;
+  string mime_type = 36;
+  FileRetentionMode retention = 37;
+  optional google.protobuf.Timestamp expires_at = 38;
 }
 
 // A Bench @handle. Can only be created/edited by the system.
@@ -2760,6 +2771,27 @@ message RunData {
   optional NodeReferenceData identity_ptr = 79;
 }
 
+// A secret value.
+message SecretData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData bench_ptr = 6;
+  int64 revision = 10;
+  google.protobuf.Timestamp created_at = 11;
+  int64 created_epoch = 12;
+  google.protobuf.Timestamp updated_at = 13;
+  int64 updated_epoch = 14;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  optional google.protobuf.Timestamp archived_at = 16;
+  optional NodeReferenceData created_by_ptr = 21;
+  optional NodeReferenceData updated_by_ptr = 22;
+  repeated int32 set_properties = 29;
+  string title = 33;
+  TypeInfoData value_type = 40;
+  optional google.protobuf.Struct value_packed = 41;
+}
+
 // A server provides some compute for a Bench's Runtime.
 // Physical compute is materialized (on-demand) as Machines.
 message ServerData {
@@ -3081,30 +3113,31 @@ message SomeNodeData {
     StoreData store = 7;
     MachineData machine = 8;
     DriveData drive = 9;
-    BlobData blob = 10;
-    BranchData branch = 11;
-    PackageData package = 12;
-    DependencyData dependency = 13;
-    SpaceData space = 14;
-    LinkData link = 15;
-    SkipData skip = 16;
-    IssueData issue = 17;
-    BlockData block = 18;
-    TriggerData trigger = 19;
-    FieldData field = 20;
-    QueryData query = 21;
-    ViewData view = 22;
-    StepData step = 23;
-    BadgeData badge = 24;
-    MembershipData membership = 25;
-    InviteData invite = 26;
-    SessionData session = 27;
-    RunData run = 28;
-    SignalData signal = 29;
-    LogData log = 30;
-    NotificationData notification = 31;
-    MessageData message = 32;
-    RecordData record = 33;
+    FileData file = 10;
+    SecretData secret = 11;
+    BranchData branch = 12;
+    PackageData package = 13;
+    DependencyData dependency = 14;
+    SpaceData space = 15;
+    LinkData link = 16;
+    SkipData skip = 17;
+    IssueData issue = 18;
+    BlockData block = 19;
+    TriggerData trigger = 20;
+    FieldData field = 21;
+    QueryData query = 22;
+    ViewData view = 23;
+    StepData step = 24;
+    BadgeData badge = 25;
+    MembershipData membership = 26;
+    InviteData invite = 27;
+    SessionData session = 28;
+    RunData run = 29;
+    SignalData signal = 30;
+    LogData log = 31;
+    NotificationData notification = 32;
+    MessageData message = 33;
+    RecordData record = 34;
   };
 }
 
