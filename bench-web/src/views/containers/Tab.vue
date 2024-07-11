@@ -88,7 +88,12 @@ const { activeDropZone: activeHeaderDropZone } = useMultiDropZone({
     const draggedNode = spaceGraph.get(dragged.node) as ViewData;
     if (draggedNode != null) {
       const self = spaceGraph.get(props.self) as ViewData;
-      canvas.moveView(spaceGraph, self, draggedNode, anchor as "start" | "end", targetId);
+      canvas.moveView(spaceGraph, {
+        self,
+        child: draggedNode,
+        anchor: anchor as "start" | "end",
+        referenceId: targetId,
+      });
       focus(draggedNode);
     }
   },
@@ -107,10 +112,10 @@ const { activeDropZone: activeBodyDropZone } = useSplitDropZone({
     if (draggedNode != null) {
       const self = spaceGraph.get(props.self) as ViewData;
       if (anchor == "center") {
-        canvas.moveView(spaceGraph, self, draggedNode, "end", null);
+        canvas.moveView(spaceGraph, { self, child: draggedNode, anchor: "end" });
         focus(draggedNode);
       } else {
-        canvas.splitView(spaceGraph, self, draggedNode, anchor);
+        canvas.splitView(spaceGraph, { parent: self, child: draggedNode, anchor });
       }
     }
   },
@@ -127,7 +132,7 @@ const splitAction = (anchor: SplitAnchor) => ({
     const focusedTab = getTabFromContext(ctx);
     if (focusedTab == null) return false;
     const selfData = spaceGraph.get(props.self) as ViewData;
-    canvas.splitView(spaceGraph, selfData, focusedTab, anchor);
+    canvas.splitView(spaceGraph, { parent: selfData, child: focusedTab, anchor });
     return true;
   },
 });

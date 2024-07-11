@@ -73,7 +73,7 @@ export function onEveryTick(fn: () => void) {
   tick();
   return () => {
     running = false;
-  }
+  };
 }
 
 /**
@@ -115,4 +115,13 @@ export function getRandomEnum<T extends Record<string | number, any>>(anEnum: T)
   let randomIndex = Math.floor(Math.random() * enumValues.length);
   while (randomIndex == 0) randomIndex = Math.floor(Math.random() * enumValues.length);
   return enumValues[randomIndex] as T[keyof T];
+}
+
+/** Asserts that a specific value must not exist (usually for discriminated union like handling) */
+export function assertNever(value?: never, msg?: string): never {
+  if (msg != null) {
+    throw new Error(`${msg}: ${JSON.stringify(value)}`);
+  } else {
+    throw new Error(`unexpected value: ${JSON.stringify(value)}`);
+  }
 }

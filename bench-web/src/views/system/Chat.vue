@@ -405,7 +405,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
               () => {
                 canvas.addView(
                   { type: ViewType.CHAT, nodePtr },
-                  { ifPresent: 'upsertAndFocus', where: 'nextFrameRoot' },
+                  { ifPresent: 'upsertAndFocus', where: 'bestFrame' },
                 );
                 $emit('close');
               }

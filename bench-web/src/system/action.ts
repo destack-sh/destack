@@ -136,7 +136,6 @@ export const ACTION_BUILTIN_IDS = [
   "common.search.findInSpace",
   "common.search.replaceInSpace",
   "common.sense.focus",
-  "common.sense.focusInSplit",
   "common.sense.goToDefinition",
   "common.sense.findReferences",
   "common.sense.findImplementations",
@@ -718,12 +717,6 @@ declareActionMap<"common">({
     title: "Focus",
     text: "Focus on this node in a new view",
     shortcuts: ["mod+enter"],
-  },
-  "common.sense.focusInSplit": {
-    icon: "fas fa-magnifying-glass-arrow-right",
-    title: "Focus in Next Split",
-    text: "Focus on this node in an adjacent split",
-    shortcuts: ["mod+shift+enter"],
   },
   "common.sense.goToDefinition": {
     icon: "fas fa-turn-down-right",
