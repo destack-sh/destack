@@ -160,6 +160,7 @@ enum BenchType {
   BENCH_TYPE_RUN_TRACE = 10503;
   BENCH_TYPE_RUN_FRAME = 10504;
   BENCH_TYPE_BREAKPOINT = 10520;
+  BENCH_TYPE_MODEL_OPTIONS = 10430;
   BENCH_TYPE_LOG_INFO = 10550;
   BENCH_TYPE_COLOR = 11000;
   BENCH_TYPE_FONT = 11001;
@@ -235,6 +236,8 @@ enum BenchType {
   BENCH_TYPE_BREAKPOINT_ACTION = 20512;
   BENCH_TYPE_CODE_KIND = 20513;
   BENCH_TYPE_RUNNABLE_KIND = 20514;
+  BENCH_TYPE_MODEL_AUTHOR = 20530;
+  BENCH_TYPE_MODEL_TYPE = 20531;
   BENCH_TYPE_SPACE_TYPE = 21000;
   BENCH_TYPE_VIEW_TYPE = 21001;
   BENCH_TYPE_VARIANT = 21002;
@@ -284,6 +287,7 @@ enum BreakpointKind {
   BREAKPOINT_KIND_START_RUN = 1;
   BREAKPOINT_KIND_FAIL_RUN = 2;
   BREAKPOINT_KIND_COMPLETE_RUN = 3;
+  BREAKPOINT_KIND_FAIL_ATTEMPT = 4;
   BREAKPOINT_KIND_CODE_LINE = 20;
 }
 
@@ -479,6 +483,8 @@ enum EnumType {
   ENUM_TYPE_BREAKPOINT_ACTION = 20512;
   ENUM_TYPE_CODE_KIND = 20513;
   ENUM_TYPE_RUNNABLE_KIND = 20514;
+  ENUM_TYPE_MODEL_AUTHOR = 20530;
+  ENUM_TYPE_MODEL_TYPE = 20531;
   ENUM_TYPE_SPACE_TYPE = 21000;
   ENUM_TYPE_VIEW_TYPE = 21001;
   ENUM_TYPE_VARIANT = 21002;
@@ -691,6 +697,23 @@ enum MachineProfile {
   MACHINE_PROFILE_MEDIUM = 7;
 }
 
+enum ModelAuthor {
+  MODEL_AUTHOR_UNSPECIFIED = 0;
+  MODEL_AUTHOR_INTERNAL = 1;
+  MODEL_AUTHOR_OPENAI = 100;
+  MODEL_AUTHOR_ANTHROPIC = 101;
+  MODEL_AUTHOR_GOOGLE = 102;
+  MODEL_AUTHOR_META = 103;
+}
+
+enum ModelType {
+  MODEL_TYPE_UNSPECIFIED = 0;
+  MODEL_TYPE_GPT40 = 1000;
+  MODEL_TYPE_CLAUDE_3_5_SONNET = 2000;
+  MODEL_TYPE_GEMINI_1_5_PRO = 3000;
+  MODEL_TYPE_LLAMA_3_80B = 4000;
+}
+
 enum Month {
   MONTH_UNSPECIFIED = 0;
   MONTH_JANUARY = 1;
@@ -833,6 +856,7 @@ enum ObjectType {
   OBJECT_TYPE_RUN_TRACE = 10503;
   OBJECT_TYPE_RUN_FRAME = 10504;
   OBJECT_TYPE_BREAKPOINT = 10520;
+  OBJECT_TYPE_MODEL_OPTIONS = 10430;
   OBJECT_TYPE_LOG_INFO = 10550;
   OBJECT_TYPE_COLOR = 11000;
   OBJECT_TYPE_FONT = 11001;
@@ -1148,6 +1172,7 @@ enum StructType {
   STRUCT_TYPE_RUN_TRACE = 10503;
   STRUCT_TYPE_RUN_FRAME = 10504;
   STRUCT_TYPE_BREAKPOINT = 10520;
+  STRUCT_TYPE_MODEL_OPTIONS = 10430;
   STRUCT_TYPE_LOG_INFO = 10550;
   STRUCT_TYPE_COLOR = 11000;
   STRUCT_TYPE_FONT = 11001;
@@ -1602,6 +1627,17 @@ message LogInfoData {
   optional google.protobuf.Struct value_packed = 65;
 }
 
+// Options for running an ML model.
+message ModelOptionsData {
+  ObjectType metatype = 1;
+  int32 id = 2;
+  optional int32 parent_id = 3;
+  optional string parent_key = 4;
+  optional string order_key = 9;
+  ModelAuthor author = 30;
+  ModelType type = 31;
+}
+
 // A reference to a Node.
 // We include the Bench and 'ck' where available.
 // Base = the node is 'based' on (like Record.parent->Block, Signal.type->Block).
@@ -1842,6 +1878,7 @@ message RunOptionsData {
   optional float jitter = 43;
   repeated RunErrorType retry_on = 44;
   repeated BreakpointData breakpoints = 50;
+  optional ModelOptionsData model_options = 60;
 }
 
 // A stacktrace for a Run.

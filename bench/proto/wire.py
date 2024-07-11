@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.07.11.4"
+VERSION = "2024.07.11.5"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -195,6 +195,7 @@ class BenchType(betterproto.Enum):
     RUN_TRACE = 10503
     RUN_FRAME = 10504
     BREAKPOINT = 10520
+    MODEL_OPTIONS = 10430
     LOG_INFO = 10550
     COLOR = 11000
     FONT = 11001
@@ -270,6 +271,8 @@ class BenchType(betterproto.Enum):
     BREAKPOINT_ACTION = 20512
     CODE_KIND = 20513
     RUNNABLE_KIND = 20514
+    MODEL_AUTHOR = 20530
+    MODEL_TYPE = 20531
     SPACE_TYPE = 21000
     VIEW_TYPE = 21001
     VARIANT = 21002
@@ -319,6 +322,7 @@ class BreakpointKind(betterproto.Enum):
     START_RUN = 1
     FAIL_RUN = 2
     COMPLETE_RUN = 3
+    FAIL_ATTEMPT = 4
     CODE_LINE = 20
 
 
@@ -522,6 +526,8 @@ class EnumType(betterproto.Enum):
     BREAKPOINT_ACTION = 20512
     CODE_KIND = 20513
     RUNNABLE_KIND = 20514
+    MODEL_AUTHOR = 20530
+    MODEL_TYPE = 20531
     SPACE_TYPE = 21000
     VIEW_TYPE = 21001
     VARIANT = 21002
@@ -738,6 +744,23 @@ class MachineProfile(betterproto.Enum):
     MEDIUM = 7
 
 
+class ModelAuthor(betterproto.Enum):
+    UNSPECIFIED = 0
+    INTERNAL = 1
+    OPENAI = 100
+    ANTHROPIC = 101
+    GOOGLE = 102
+    META = 103
+
+
+class ModelType(betterproto.Enum):
+    UNSPECIFIED = 0
+    GPT40 = 1000
+    CLAUDE_3_5_SONNET = 2000
+    GEMINI_1_5_PRO = 3000
+    LLAMA_3_80B = 4000
+
+
 class Month(betterproto.Enum):
     UNSPECIFIED = 0
     JANUARY = 1
@@ -881,6 +904,7 @@ class ObjectType(betterproto.Enum):
     RUN_TRACE = 10503
     RUN_FRAME = 10504
     BREAKPOINT = 10520
+    MODEL_OPTIONS = 10430
     LOG_INFO = 10550
     COLOR = 11000
     FONT = 11001
@@ -1212,6 +1236,7 @@ class StructType(betterproto.Enum):
     RUN_TRACE = 10503
     RUN_FRAME = 10504
     BREAKPOINT = 10520
+    MODEL_OPTIONS = 10430
     LOG_INFO = 10550
     COLOR = 11000
     FONT = 11001
@@ -1749,6 +1774,19 @@ class LogInfoData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class ModelOptionsData(betterproto.Message):
+    """Options for running an ML model."""
+
+    metatype: "ObjectType" = betterproto.enum_field(1)
+    id: int = betterproto.int32_field(2)
+    parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
+    parent_key: Optional[str] = betterproto.string_field(4, optional=True)
+    order_key: Optional[str] = betterproto.string_field(9, optional=True)
+    author: "ModelAuthor" = betterproto.enum_field(30)
+    type: "ModelType" = betterproto.enum_field(31)
+
+
+@dataclass(eq=False, repr=False)
 class NodeReferenceData(betterproto.Message):
     """
     A reference to a Node.
@@ -2038,6 +2076,7 @@ class RunOptionsData(betterproto.Message):
     jitter: Optional[float] = betterproto.float_field(43, optional=True)
     retry_on: List["RunErrorType"] = betterproto.enum_field(44)
     breakpoints: List["BreakpointData"] = betterproto.message_field(50)
+    model_options: Optional["ModelOptionsData"] = betterproto.message_field(60, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -5073,6 +5112,7 @@ AnyStructData = Union[
     RunTraceData,
     RunFrameData,
     BreakpointData,
+    ModelOptionsData,
     LogInfoData,
     ColorData,
     FontData,

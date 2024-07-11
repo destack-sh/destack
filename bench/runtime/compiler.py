@@ -17,8 +17,8 @@ from typing import Any, Iterator, Mapping, override
 import structlog
 from opentelemetry import trace
 
+from bench.language import CodeKind
 from bench.language.const import new_struct_id
-from bench.language.run import CodeKind
 
 # NOTE: some of the analysis logic was adapted from marimo (Apache 2 licensed)
 #  see https://github.com/marimo-team/marimo/blob/fec7d780488ab1478984468598d00d283e8c1c9d/marimo/_ast/visitor.py
@@ -32,10 +32,10 @@ BUILTIN_GLOBALS = {k: v for k, v in builtins.__dict__.items() if not k.startswit
 
 @dataclass
 class CodeImport:
-    namespace: str | None = field(init=False)
     module: str  # full module name (e.g., a.b.c.)
-    original_name: str | None = None  # `import a.b.c import d as e` -> d
-    name: str | None = None  # `import a.b.c import d as e` -> e
+    name: str | None = None  # `from a.b.c import d as e` -> e
+    original_name: str | None = None  # `from a.b.c import d as e` -> d
+    namespace: str | None = field(init=False)
     fully_qualified_name: str | None = None  # fully qualified name
     relative_level: int | None = None
 

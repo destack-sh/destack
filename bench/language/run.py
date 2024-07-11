@@ -67,16 +67,37 @@ class RunnableKind(IdEnum):
     FLOW = 4
 
 
-@enum_(EnumType.CODE_KIND)
-class CodeKind(IdEnum):
-    """
-    The implicit 'kind' of some Code.
-    We don't set this explicitly in Code because it depends on where the Code is used.
-    """
+@enum_(EnumType.MODEL_AUTHOR)
+class ModelAuthor(IdEnum):
+    INTERNAL = 1
+    # external
+    OPENAI = 100
+    ANTHROPIC = 101
+    GOOGLE = 102
+    META = 103
 
-    SNIPPET = 1  # for inline expressions and procedures anywhere (import only)
-    SCRIPT = 2  # for defining Python-level commons in Block 'scripts' (import & export)
-    FUNCTION = 3  # for Python functions in Blocks/Steps (import only)
+
+@enum_(EnumType.MODEL_TYPE)
+class ModelType(IdEnum):
+    # internal
+    ...
+    # external
+    # openai
+    GPT40 = 1000
+    # anthropic
+    CLAUDE_3_5_SONNET = 2000
+    # google
+    GEMINI_1_5_PRO = 3000
+    # meta
+    LLAMA_3_80B = 4000
+
+
+@struct_(StructType.MODEL_OPTIONS)
+class ModelOptions(Struct):
+    """Options for running an ML model."""
+
+    author: ModelAuthor = p_regular(30)
+    type: ModelType = p_regular(31)
 
 
 @struct_(StructType.RUN_OPTIONS)
@@ -102,6 +123,11 @@ class RunOptions(Struct):
     # debug
     breakpoints: list["Breakpoint"] = p_regular(50, array=True, struct=StructType.BREAKPOINT)
 
+    # model
+    model_options: Optional["ModelOptions"] = p_regular(
+        60, require=False, array=False, struct=StructType.MODEL_OPTIONS
+    )
+
     def to_retry(self) -> RetryOptions:
         """Turns the options into our RetryOptions."""
         return RetryOptions(
@@ -119,6 +145,7 @@ class BreakpointKind(IdEnum):
     START_RUN = 1
     FAIL_RUN = 2
     COMPLETE_RUN = 3
+    FAIL_ATTEMPT = 4
     ...
     # text
     ...

@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.07.11.4"  # auto change via version script
+VERSION = "2024.07.11.5"  # auto change via version script
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -142,6 +142,8 @@ class EnumType(IdEnum):
     BREAKPOINT_ACTION = 20512
     CODE_KIND = 20513
     RUNNABLE_KIND = 20514
+    MODEL_AUTHOR = 20530
+    MODEL_TYPE = 20531
 
     # view
     SPACE_TYPE = 21000
@@ -356,6 +358,7 @@ class StructType(IdEnum):
     RUN_TRACE = 10503
     RUN_FRAME = 10504
     BREAKPOINT = 10520
+    MODEL_OPTIONS = 10430
     LOG_INFO = 10550
 
     # space/views

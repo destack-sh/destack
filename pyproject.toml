@@ -82,6 +82,7 @@ addopts = [
 ]
 markers = [
 	"hypothesis: test uses hypothesis",
+	"model: test uses some ML model",
 	"quick: quick to run (for simulations)",
 	"careful: test is slow or resource intensive",
 	"paranoid: test is very slow or resource intensive",

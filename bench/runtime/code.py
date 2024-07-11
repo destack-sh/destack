@@ -5,8 +5,9 @@ from typing import Any, override
 import structlog
 from opentelemetry import trace
 
+from bench.language.code import CodeKind
 from bench.language.path import get_node, get_node_or_error
-from bench.language.run import CodeKind, RunnableKind
+from bench.language.run import RunnableKind
 from bench.language.session import Session
 from bench.language.value import ValueObject, coerce_value_object
 from bench.runtime.capture import LogSink, capture_logs

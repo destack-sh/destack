@@ -1,6 +1,6 @@
 # run ./scripts/update-requirements.sh
 
-anthropic==0.29.0
+anthropic==0.31.0
 betterproto[compiler] @ git+https://github.com/danielgtaylor/python-betterproto.git@5666393f9d10e13609d8eeac8d1ab3815dce5fd6
 bitarray==2.9.2
 boto3==1.34.104
@@ -9,10 +9,11 @@ black==23.7.0
 cachetools==5.2.0
 croniter==1.4.1
 googleapis-common-protos==1.63.0
+google-generativeai==0.7.2
 httpx[http2,brotli]==0.27.0
 more-itertools==9.0.0
 multidict>=6.0.4
-openai==1.19.0
+openai==1.35.13
 opentelemetry-api==1.24.0
 opentelemetry-sdk==1.24.0
 opentelemetry-exporter-otlp-proto-grpc==1.24.0
