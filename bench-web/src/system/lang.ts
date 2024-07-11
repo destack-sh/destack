@@ -106,6 +106,7 @@ export const ETERNAL_NODE_TYPES = [NodeType.SESSION, NodeType.RUN, NodeType.SIGN
 export const RESOURCE_NODE_TYPES = NODE_TYPES.filter((nt) => nt >= 500 && nt < 600);
 export const SOURCE_NODE_TYPES = NODE_TYPES.filter((nt) => nt >= 1000 && nt < 1200);
 
+export const PAGE_BLOCK_TYPES = [BlockType.PAGE, BlockType.FLOW, BlockType.DATABASE, BlockType.VIEW];
 export const TYPE_BLOCK_TYPES = [BlockType.CLASS, BlockType.CHOICE, BlockType.SIGNAL, BlockType.DATABASE];
 export const RUNNABLE_BLOCK_TYPES = [BlockType.TEXT, BlockType.CODE, BlockType.FLOW];
 export const CLASSY_BLOCK_TYPES = [
@@ -410,9 +411,7 @@ export function onNodeMorphed(tx: Transaction, graph: ReadNodeGraph, node: AnyNo
   }
 
   // auto update block flags
-  if (isNode(node, NodeType.BLOCK)) {
-    if (node.type == BlockType.PAGE && !node.isPage) tx.update(node, { isPage: true }, { debounce: "tick" });
-  }
+  // ...
 }
 
 /**
@@ -503,7 +502,6 @@ export function createBlock(
     parentPtr,
     packagePtr,
     type: blockIn.type,
-    isPage: blockIn.isPage || blockIn.type == BlockType.PAGE,
     orderKey,
     name: makeNodeName(graph, { metatype: ObjectType.BLOCK, type: blockIn.type, parentPtr }),
   });
@@ -664,7 +662,6 @@ export const EXPOSED_STRUCT_TYPES = [
   StructType.PATH,
   StructType.TYPE_INFO,
   StructType.SCHEDULE,
-  StructType.PROJECTION,
   // files
   StructType.FILE_REFERENCE,
   StructType.ICON,

@@ -19,7 +19,7 @@ import { packagePtr } from "@/system/client";
 import { useExistingConnection, type Connection } from "@/system/connection";
 import { isDescendantOf, walkDescendantsRef, type NodeTreeItem } from "@/system/graph";
 import { DEFAULT_BENCH_ICON, IconInline, getNodeIcon } from "@/system/icon";
-import { createBlock, moveNode } from "@/system/lang";
+import { createBlock, moveNode, PAGE_BLOCK_TYPES } from "@/system/lang";
 import { highlightMatches } from "@/system/search";
 import { bench, canvas, inspectionBasePtr, inspectionPtr, pkg } from "@/system/space";
 import { startDragging, useMultiDropZone } from "@/utils/drag";
@@ -117,7 +117,7 @@ const { toggleExpanded, isExpanded } = useExpansion({
 
 function isIncludedSelf(node: AnyNodeData) {
   if (filterIsPage.value) {
-    if (node.metatype == ObjectType.BLOCK) return (node as BlockData).isPage;
+    if (node.metatype == ObjectType.BLOCK) return PAGE_BLOCK_TYPES.includes((node as BlockData).type);
     else return true;
   } else {
     return true; // include everything
@@ -128,7 +128,7 @@ function isIncludedChildren(node: AnyNodeData) {
     return true;
   } else if (filterIsPage.value === false) {
     // don't descend into pages for outline
-    if (node.metatype == ObjectType.BLOCK) return !(node as BlockData).isPage;
+    if (node.metatype == ObjectType.BLOCK) return !PAGE_BLOCK_TYPES.includes((node as BlockData).type);
     else return true;
   } else {
     return true; // include everything

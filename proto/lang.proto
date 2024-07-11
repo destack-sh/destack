@@ -139,7 +139,6 @@ enum BenchType {
   BENCH_TYPE_TYPE_INFO = 10200;
   BENCH_TYPE_TYPE_CONSTRAINT = 10201;
   BENCH_TYPE_SCHEDULE = 10202;
-  BENCH_TYPE_PROJECTION = 10203;
   BENCH_TYPE_FILE_REFERENCE = 10204;
   BENCH_TYPE_ICON = 10205;
   BENCH_TYPE_SECRET_REFERENCE = 10206;
@@ -236,7 +235,7 @@ enum BenchType {
   BENCH_TYPE_BREAKPOINT_ACTION = 20512;
   BENCH_TYPE_CODE_KIND = 20513;
   BENCH_TYPE_RUNNABLE_KIND = 20514;
-  BENCH_TYPE_MODEL_AUTHOR = 20530;
+  BENCH_TYPE_MODEL_PROVIDER = 20530;
   BENCH_TYPE_MODEL_TYPE = 20531;
   BENCH_TYPE_SPACE_TYPE = 21000;
   BENCH_TYPE_VIEW_TYPE = 21001;
@@ -260,8 +259,6 @@ enum BlockType {
   BLOCK_TYPE_UNSPECIFIED = 0;
   BLOCK_TYPE_ALIAS = 1;
   BLOCK_TYPE_PAGE = 2;
-  BLOCK_TYPE_MODULE = 3;
-  BLOCK_TYPE_BLANK = 4;
   BLOCK_TYPE_CLASS = 10;
   BLOCK_TYPE_CHOICE = 11;
   BLOCK_TYPE_PROTOCOL = 14;
@@ -483,7 +480,7 @@ enum EnumType {
   ENUM_TYPE_BREAKPOINT_ACTION = 20512;
   ENUM_TYPE_CODE_KIND = 20513;
   ENUM_TYPE_RUNNABLE_KIND = 20514;
-  ENUM_TYPE_MODEL_AUTHOR = 20530;
+  ENUM_TYPE_MODEL_PROVIDER = 20530;
   ENUM_TYPE_MODEL_TYPE = 20531;
   ENUM_TYPE_SPACE_TYPE = 21000;
   ENUM_TYPE_VIEW_TYPE = 21001;
@@ -697,13 +694,13 @@ enum MachineProfile {
   MACHINE_PROFILE_MEDIUM = 7;
 }
 
-enum ModelAuthor {
-  MODEL_AUTHOR_UNSPECIFIED = 0;
-  MODEL_AUTHOR_INTERNAL = 1;
-  MODEL_AUTHOR_OPENAI = 100;
-  MODEL_AUTHOR_ANTHROPIC = 101;
-  MODEL_AUTHOR_GOOGLE = 102;
-  MODEL_AUTHOR_META = 103;
+enum ModelProvider {
+  MODEL_PROVIDER_UNSPECIFIED = 0;
+  MODEL_PROVIDER_INTERNAL = 1;
+  MODEL_PROVIDER_OPENAI = 100;
+  MODEL_PROVIDER_ANTHROPIC = 101;
+  MODEL_PROVIDER_GOOGLE = 102;
+  MODEL_PROVIDER_META = 103;
 }
 
 enum ModelType {
@@ -835,7 +832,6 @@ enum ObjectType {
   OBJECT_TYPE_TYPE_INFO = 10200;
   OBJECT_TYPE_TYPE_CONSTRAINT = 10201;
   OBJECT_TYPE_SCHEDULE = 10202;
-  OBJECT_TYPE_PROJECTION = 10203;
   OBJECT_TYPE_FILE_REFERENCE = 10204;
   OBJECT_TYPE_ICON = 10205;
   OBJECT_TYPE_SECRET_REFERENCE = 10206;
@@ -1151,7 +1147,6 @@ enum StructType {
   STRUCT_TYPE_TYPE_INFO = 10200;
   STRUCT_TYPE_TYPE_CONSTRAINT = 10201;
   STRUCT_TYPE_SCHEDULE = 10202;
-  STRUCT_TYPE_PROJECTION = 10203;
   STRUCT_TYPE_FILE_REFERENCE = 10204;
   STRUCT_TYPE_ICON = 10205;
   STRUCT_TYPE_SECRET_REFERENCE = 10206;
@@ -1634,8 +1629,7 @@ message ModelOptionsData {
   optional int32 parent_id = 3;
   optional string parent_key = 4;
   optional string order_key = 9;
-  ModelAuthor author = 30;
-  ModelType type = 31;
+  ModelType model = 31;
 }
 
 // A reference to a Node.
@@ -1769,19 +1763,6 @@ message PolicyRuleData {
   optional bool object_properties_is_system = 82;
   optional bool object_properties_is_sensitive = 83;
   optional bool object_properties_is_kernel = 84;
-}
-
-// A projection into the graph.
-// NOTE :Incomplete :Architecture: figure out projection
-// - how do we filter and LoD this?
-// - how do we represent unloaded nodes?
-// - how do we make projections reproducible and inspectable in the editor?
-message ProjectionData {
-  ObjectType metatype = 1;
-  int32 id = 2;
-  optional int32 parent_id = 3;
-  optional string parent_key = 4;
-  optional string order_key = 9;
 }
 
 // A reference to a builtin object's Property.
@@ -2207,7 +2188,6 @@ message BlockData {
   repeated PolicyData policies = 48;
   repeated PolicyData delegated_policies = 49;
   bool is_builtin = 60;
-  bool is_page = 61;
   bool is_paused = 64;
 }
 

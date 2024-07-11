@@ -51,8 +51,6 @@ if TYPE_CHECKING:
 IDENTIFIER_TYPE_BY_BLOCK_TYPE: dict[BlockType, IdentifierType] = {
     BlockType.ALIAS: IdentifierType.VARIABLE,
     BlockType.PAGE: IdentifierType.VARIABLE,
-    BlockType.MODULE: IdentifierType.VARIABLE,
-    BlockType.BLANK: IdentifierType.VARIABLE,
     BlockType.CLASS: IdentifierType.TYPE,
     BlockType.SIGNAL: IdentifierType.TYPE,
     BlockType.CHOICE: IdentifierType.TYPE,
@@ -117,9 +115,6 @@ class Block(SourceNode[BlockData], HasValues):
     is_builtin: bool = p_system(
         60, default=False, description="Whether this is an intrinsic provided by the system."
     )
-    is_page: bool = p_regular(
-        61, default=False, description="Whether to consider this block to be its own page."
-    )
     is_paused: bool = p_regular(
         64, default=False, description="Whether to pause any runtime activity within this block."
     )
@@ -138,8 +133,7 @@ class Block(SourceNode[BlockData], HasValues):
     def _validate_component(
         self, properties: Collection["Property"], invalid: "ValidationHandler"
     ) -> None:
-        if self.type == BlockType.PAGE and not self.is_page:
-            invalid(self, "type=Page must have is_page=True", (Block.type, Block.is_page))
+        pass
 
     def __content_str__(self):
         return ""  # implemented by dynamic components
@@ -147,6 +141,10 @@ class Block(SourceNode[BlockData], HasValues):
     @final
     def __repr__(self):  # type: ignore we want to override the default repr
         return f"<{self.type.bench_name}Block {self}>"
+
+    @property
+    def is_page(self) -> bool:
+        return self.type.is_page
 
     @property
     def is_type(self) -> bool:
@@ -222,8 +220,6 @@ class Block(SourceNode[BlockData], HasValues):
 
     @staticmethod
     def new(typ: BlockType, name: str, **kwargs) -> "Block":
-        if typ == BlockType.PAGE:
-            kwargs.setdefault("is_page", True)
         return Block(type=typ, name=name, **kwargs)
 
     @staticmethod

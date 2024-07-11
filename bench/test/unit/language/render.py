@@ -10,7 +10,7 @@ from bench.language.code import format_code
 from bench.language.const import BlockType, NodeType, StructType
 from bench.language.field import Field
 from bench.language.node import BuiltinObject
-from bench.language.render import render_builtin_object, render_node
+from bench.language.render import render, render_builtin_object
 from bench.language.session import Session
 from bench.runtime.core import STATIC_CODE_GLOBALS
 from bench.test.strategies import builtin_objects, examples
@@ -51,8 +51,7 @@ def test_render_nested(session: Session, package: Package):
     )
 
     # render
-    rendered = render_node([Choice1, ClassInner, ClassOuter])
-    rendered = format_code(rendered)
+    rendered = render(Choice1, ClassInner, ClassOuter)
     glbls = {**STATIC_CODE_GLOBALS}
     exec(rendered, glbls)
     for key, value in (

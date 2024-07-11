@@ -185,7 +185,6 @@ export const ICON_BY_STRUCT_TYPE: Partial<Record<StructType, IconData>> = _makeI
   [StructType.PATH]: "fas fa-path",
   [StructType.TYPE_INFO]: "fas fa-tilde",
   [StructType.SCHEDULE]: "fas fa-calendar",
-  [StructType.PROJECTION]: "fas fa-project-diagram",
   [StructType.SECRET_REFERENCE]: "fas fa-key",
   // files
   [StructType.FILE_REFERENCE]: "fas fa-file",
@@ -217,9 +216,7 @@ export const ICON_BY_BENCH_TYPE: Partial<Record<BenchType, IconData>> = {
 };
 
 export const ICON_BY_BLOCK_TYPE: Partial<Record<BlockType, IconData>> = _makeIcons<BlockType>({
-  [BlockType.MODULE]: "fas fa-box-open",
   [BlockType.PAGE]: "fas fa-memo",
-  [BlockType.BLANK]: "fas fa-empty-set",
   [BlockType.ALIAS]: "fas fa-link",
   [BlockType.CLASS]: "fas fa-objects-column",
 
