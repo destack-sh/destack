@@ -553,7 +553,9 @@ export function unpackValue(
   } else if (type.kind == TypeKind.OBJECT) {
     // nested object
     if (options.graph == null) {
-      throw new Error(`missing graph to unpack object type ${describeTypeIdentity(type)}`);
+      throw new Error(
+        `missing graph to unpack object type ${describeTypeIdentity(type)}: ${JSON.stringify(packed.valuePacked)}`,
+      );
     }
     if (packed.valuePacked == null) {
       return null;
@@ -561,7 +563,9 @@ export function unpackValue(
       return unpackValueObject(packed.valuePacked, packed.secretValuePacked, type, options.graph);
     } else {
       if (!Array.isArray(packed.valuePacked)) {
-        throw new Error(`expected array for list type ${describeTypeIdentity(type)}`);
+        throw new Error(
+          `expected array for list type ${describeTypeIdentity(type)}: ${JSON.stringify(packed.valuePacked)}`,
+        );
       }
       return packed.valuePacked!.map((v: any, i: number) =>
         unpackValueObject(v, (packed.secretValuePacked as Array<JsonValue>)?.[i], type, options.graph!),
@@ -571,10 +575,18 @@ export function unpackValue(
     // unwrap scalar
     if (packed.valuePacked == null) {
       return null;
-    } else if (typeof packed.valuePacked !== "object" || Array.isArray(packed.valuePacked)) {
-      throw new Error(`expected object for scalar type ${describeTypeIdentity(type)}`);
     }
-    const valuePacked = options?.unwrapScalar ? packed.valuePacked[encodeTypeIdentity(type)] : packed.valuePacked;
+    let valuePacked;
+    if (options?.unwrapScalar) {
+      if (typeof packed.valuePacked !== "object" || Array.isArray(packed.valuePacked)) {
+        throw new Error(
+          `expected object for scalar type ${describeTypeIdentity(type)}: ${JSON.stringify(packed.valuePacked)}`,
+        );
+      }
+      valuePacked = packed.valuePacked[encodeTypeIdentity(type)];
+    } else {
+      valuePacked = packed.valuePacked;
+    }
     if (valuePacked == null) {
       return null;
     } else if (!type.isList) {

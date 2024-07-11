@@ -68,7 +68,7 @@ defineExpose<ViewExposed>({ self, id });
       <!-- Inputs -->
       <div class="flex flex-col">
         <div
-          v-for="{ field, viewType, viewProps, isFullWidth, storageKey } in inputViews"
+          v-for="{ field, value, viewType, viewProps, isFullWidth, storageKey } in inputViews"
           :key="field.id"
           class="py-1"
           :class="[isFullWidth ? 'flex flex-col gap-y-1' : 'flex flex-row  items-center gap-x-2.5']"
@@ -84,9 +84,7 @@ defineExpose<ViewExposed>({ self, id });
               :class="['ml-auto flex-shrink-0', isFullWidth ? '' : 'text-right']"
               :style="{ width: isFullWidth ? '100%' : 'calc(45%)' }"
               v-bind="viewProps"
-              :model-value="
-                unpackValue({ valuePacked: inputsPacked[storageKey] }, field, { graph: pkgGraph, unwrapScalar: false })
-              "
+              :model-value="value"
             />
             <div v-else class="w-full text-right"><span class="italic text-gray-400">Unset</span></div>
           </template>
@@ -101,7 +99,7 @@ defineExpose<ViewExposed>({ self, id });
       <!-- NOTE :Cleanup: Run inputs/outputs are basically duplicated -->
       <div v-if="!run?.error" class="mt-2 flex flex-col">
         <div
-          v-for="{ field, viewType, viewProps, isFullWidth, storageKey } in outputViews"
+          v-for="{ field, value, viewType, viewProps, isFullWidth, storageKey } in outputViews"
           :key="field.id"
           class="py-1"
           :class="[isFullWidth ? 'flex flex-col gap-y-1' : 'flex flex-row  items-center gap-x-2.5']"
@@ -117,9 +115,7 @@ defineExpose<ViewExposed>({ self, id });
               :class="['ml-auto flex-shrink-0', isFullWidth ? '' : 'text-right']"
               :style="{ width: isFullWidth ? '100%' : 'calc(45%)' }"
               v-bind="viewProps"
-              :model-value="
-                unpackValue({ valuePacked: outputsPacked[storageKey] }, field, { graph: pkgGraph, unwrapScalar: false })
-              "
+              :model-value="value"
             />
             <div v-else class="w-full text-right"><span class="italic text-gray-400">Unset</span></div>
           </template>

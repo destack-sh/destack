@@ -38,6 +38,7 @@ import {
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import uFuzzy from "@leeoniya/ufuzzy";
+import { whenever } from "@vueuse/core";
 import { computed, nextTick, ref, toRef, watch, type Ref } from "vue";
 
 const DEPTH_OFFSET = 12;
@@ -105,14 +106,6 @@ const { graph: pkgGraph, connection: pkgConnection } = useExistingConnection(roo
 // Visible subtree
 //
 
-const editingNodePtr: Ref<NodeReferenceData | null> = ref(null);
-const editingNameRef: Ref<HTMLInputElement[]> = ref([]);
-
-function cancelRename() {
-  editingNodePtr.value = null;
-  queryRef.value?.focus();
-}
-
 const { toggleExpanded, isExpanded } = useExpansion({
   graph: spaceGraph,
   tx: canvas.tx,
@@ -166,11 +159,25 @@ const focusedNode = computed(() => focusedItem.value?.node);
 // Interaction
 //
 
-function isFocusedAbsolute(node: { id?: string }): boolean {
+const isFocusAbsolute = canvas.isFocusedAbsoluteRef(self);
+const editingNodePtr: Ref<NodeReferenceData | null> = ref(null);
+const editingNameRef: Ref<HTMLInputElement[]> = ref([]);
+
+function cancelRename() {
+  editingNodePtr.value = null;
+  queryRef.value?.focus();
+}
+
+watch(isFocusAbsolute, (isFocused) => {
+  if (!isFocused) {
+    cancelRename();
+  }
+});
+
+function isFocused(node: { id?: string }): boolean {
   return node.id == focusPtr.value?.id;
 }
 
-const isFocusAbsolute = canvas.isFocusedAbsoluteRef(self);
 function focus(anchor?: "next" | "previous" | number | FocusAnchor | NodeReferenceData): void {
   let toFocus: NodeTreeItem<any> | null = null;
   if (anchor == "top") {
@@ -416,7 +423,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
           class="group relative mx-1 flex flex-row items-center rounded border py-[3px] hover:cursor-pointer hover:bg-gray-100 hover:text-primary-900 data-[dragging=true]:opacity-50"
           :class="[
             focusedNode?.id == node.id && isFocusAbsolute ? 'border-primary-900' : 'border-transparent',
-            isFocusedAbsolute(node) ? 'bg-gray-100' : '',
+            isFocused(node) ? 'bg-gray-100' : '',
             activeDropZone?.targetId == node.id && activeDropZone?.anchor == 'center'
               ? 'border-primary-400 bg-primary-200'
               : '',
@@ -455,7 +462,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
             v-bind="getNodeIcon(node)"
             class="mr-1.5 w-5 flex-shrink-0"
             :class="[
-              isFocusedAbsolute(node) ? 'text-primary-900' : 'text-gray-700 group-hover:text-primary-900',
+              isFocused(node) ? 'text-primary-900' : 'text-gray-700 group-hover:text-primary-900',
               hasChildren ? '' : 'ml-6',
             ]"
           />
@@ -483,7 +490,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
           <span
             v-else
             class="select-none truncate group-hover:text-primary-900"
-            :class="isFocusedAbsolute(node) ? 'text-primary-900' : ''"
+            :class="isFocused(node) ? 'text-primary-900' : ''"
             v-html="nodeTitlesMarked[i] ?? (node as any).name ?? node.id"
           />
           <!-- Meta -->

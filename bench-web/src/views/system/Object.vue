@@ -136,7 +136,7 @@ defineExpose<ViewExposed>({ self, id, focus });
       <!-- Fields -->
       <ul class="flex w-full flex-col gap-y-2.5 py-3" :style="{ width: width + 'px' }">
         <li
-          v-for="{ field, storageKey, value, viewType, isFullWidth, viewProps } of fieldViews"
+          v-for="{ field, value, prepareUpdate: update, viewType, isFullWidth, viewProps } of fieldViews"
           :key="field.id"
           class="mx-auto w-full px-4"
           :class="[isFullWidth ? 'flex flex-col' : 'flex flex-row flex-wrap items-center gap-x-[10%]']"
@@ -157,7 +157,7 @@ defineExpose<ViewExposed>({ self, id, focus });
             :model-value="value"
             @update:model-value="
               (value: any) => {
-                const newValue = { ...props.modelValue, [storageKey]: value };
+                const newValue = update(value);
                 emit('update:modelValue', newValue);
               }
             "

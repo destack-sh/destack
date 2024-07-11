@@ -11,7 +11,7 @@ import {
 import type { ReadNodeGraph } from "@/system/graph";
 import { ENUM_ICONS_BY_TYPE, ICON_BY_ALIGNMENT } from "@/system/icon";
 import { isEnumType, getEnumOptions, isNodeType, FULL_WIDTH_VIEW_TYPES } from "@/system/lang";
-import { type TypeIdentity, makeTypeInfo, resolveType, getStorageKey } from "@/system/value";
+import { type TypeIdentity, makeTypeInfo, resolveType, getStorageKey, unpackValue, packValue } from "@/system/value";
 import type { ViewProps } from "@/views/common";
 
 const VIEW_TYPE_BY_BENCH_TYPE: Partial<Record<BenchType, ViewType>> = {
@@ -68,6 +68,7 @@ export type FieldView = {
   storageKey: string;
   isSet: boolean;
   value: any;
+  prepareUpdate: (value: any) => Record<string, any>;
   viewType?: ViewType;
   viewProps?: any;
   isFullWidth?: boolean;
@@ -75,7 +76,7 @@ export type FieldView = {
 
 export function getFieldViews(
   fields: FieldData[],
-  modelValue: Record<string, any>,
+  objectValuePacked: Record<string, any>,
   pkgGraph: ReadNodeGraph,
   options?: {
     zones?: FieldZone[];
@@ -87,15 +88,23 @@ export function getFieldViews(
     if (options?.zones != null && !options.zones.includes(field.zone)) continue;
     const fieldType = resolveType(field, pkgGraph);
     const storageKey = getStorageKey(field, fieldType);
-    const fieldValue = modelValue?.[storageKey];
-    const isSet = fieldValue != null && !(Array.isArray(fieldValue) && fieldValue.length === 0);
+    const value = unpackValue({ valuePacked: objectValuePacked?.[storageKey] }, field, {
+      graph: pkgGraph,
+      unwrapScalar: false,
+    });
+    const prepareUpdate = (newValue: any) => ({
+      ...objectValuePacked,
+      [storageKey]: packValue(newValue, field, { graph: pkgGraph, wrapScalar: false }).valuePacked,
+    });
+    const isSet = value != null && !(Array.isArray(value) && value.length === 0);
     const view = getViewForValueType(fieldType);
     fieldViews.push({
       field,
       fieldType,
       storageKey,
       isSet,
-      value: fieldValue,
+      value,
+      prepareUpdate,
       viewType: view?.viewType,
       viewProps: { ...view?.props, isInput: options?.isInput },
       isFullWidth: FULL_WIDTH_VIEW_TYPES.includes(view?.viewType!),
