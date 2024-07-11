@@ -16,7 +16,6 @@ from bench.language.property import (
     p_node_children,
     p_node_parent,
     p_regular,
-    p_secret_value_packed,
     p_value_packed,
     p_value_runtime,
 )
@@ -128,8 +127,7 @@ class Step(SourceNode[StepData], HasValues):
     # content
     value_type: Optional["TypeInfo"] = p_regular(40, default=None, struct=StructType.TYPE_INFO)
     value_packed: Any = p_value_packed(41)
-    secret_value_packed: Any = p_secret_value_packed(42)
-    value: Any = p_value_runtime(41, 42, typ=lambda self: cast("Step", self).value_type)
+    value: Any = p_value_runtime(41, typ=lambda self: cast("Step", self).value_type)
     node: Union["Block", "Step", "Trigger", None] = p_regular(
         43, require=False, references=(NodeType.BLOCK, NodeType.STEP, NodeType.TRIGGER)
     )

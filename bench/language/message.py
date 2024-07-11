@@ -61,8 +61,7 @@ class Message(
     title: Optional[str] = p_regular(40, require=False, default=None, constraint=TITLE_CONSTRAINT)
     text: Optional["Text"] = p_regular(41, require=False, default=None, struct=StructType.TEXT)
     value_packed: Any = p_value_packed(42)
-    secret_value_packed: Any = p_value_packed(43)
-    value: "ValueObject | None" = p_value_runtime(42, 43, typ=None)  # freely typed
+    value: "ValueObject | None" = p_value_runtime(42, typ=None)  # freely typed
 
     # flags
     is_pinned: bool = p_regular(50, default=False)

@@ -520,10 +520,9 @@ class Host(GraphIoServiceBase, HostApi, HostBase):
         # create signals
         ...
 
-        def _split_node_packed_secret(
+        def _split_node_packed_sensitive(
             node_type: NodeType, node_packed: dict[str, Any] | None
         ) -> tuple[ProtoStruct | None, ProtoStruct | None]:
-            # NOTE :Incomplete: we ignore nested :SecretValues (inside value properties) for now
             if node_packed is None:
                 return None, None
             node_cls = NODE_CLASS_BY_TYPE[node_type]
@@ -570,10 +569,10 @@ class Host(GraphIoServiceBase, HostApi, HostBase):
             else:
                 new_node_packed = None
             # break out secret properties
-            old_node_packed, old_node_secret_packed = _split_node_packed_secret(
+            old_node_packed, old_node_secret_packed = _split_node_packed_sensitive(
                 node_type, old_node_packed
             )
-            new_node_packed, new_node_secret_packed = _split_node_packed_secret(
+            new_node_packed, new_node_secret_packed = _split_node_packed_sensitive(
                 node_type, new_node_packed
             )
             log_data = LogData(

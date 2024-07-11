@@ -109,7 +109,6 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
     is_value_runtime: bool = False  # for user 'value' properties
     is_value_packed: bool = False  # for packed value properties (the underlying value)
     value_packed_ptr: Union[int, "Property", None] = None  # the packed value
-    secret_value_packed_ptr: Union[int, "Property", None] = None  # the secret packed value
     value_type_info_getter: Callable[["BuiltinObject"], "TypeInfoBase | None"] | None = None
 
     # references to nodes or structs
@@ -686,10 +685,6 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
             assert self.value_packed_ptr is not None, f"{self!r} is missing value_packed_ptr"
             if isinstance(self.value_packed_ptr, int):
                 self.value_packed_ptr = self.component.__properties_by_id__[self.value_packed_ptr]
-            if isinstance(self.secret_value_packed_ptr, int):
-                self.secret_value_packed_ptr = self.component.__properties_by_id__[
-                    self.secret_value_packed_ptr
-                ]
 
         # resolve py type
         if (
@@ -967,11 +962,10 @@ def p_struct_parent(id: int, wire: bool) -> Any:
 
 def p_value_runtime(
     packed: int,
-    secret_packed: int | None = None,
     *,
     typ: Callable[["BuiltinObject"], "TypeInfoBase | None"] | None,
 ) -> Any:
-    """Runtime-only property for a Value and secret value."""
+    """Runtime-only property for a Value."""
     return Property(
         is_internal=True,
         is_runtime=True,
@@ -983,7 +977,6 @@ def p_value_runtime(
         is_list=False,
         default=None,
         value_packed_ptr=packed,
-        secret_value_packed_ptr=secret_packed,
         value_type_info_getter=typ,
     )
 
@@ -999,24 +992,6 @@ def p_value_packed(id: int) -> Any:
         is_internal=True,
         is_stored=True,
         is_wired=True,
-        is_list=False,
-    )
-
-
-def p_secret_value_packed(id: int) -> Any:
-    """Packed secret value property."""
-    return Property(
-        id=id,
-        primitive_type=PrimitiveType.JSON,
-        default=None,
-        is_value_packed=True,
-        is_required=False,
-        is_internal=True,
-        is_stored=True,
-        is_wired=True,
-        is_sensitive=True,
-        is_encrypted=True,
-        is_deferred=True,
         is_list=False,
     )
 
@@ -1053,5 +1028,4 @@ _PROPERTY_SPECIFIERS: tuple[Callable, ...] = (
     p_node_children,
     p_value_runtime,
     p_value_packed,
-    p_secret_value_packed,
 )

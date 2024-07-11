@@ -17,7 +17,6 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 FILE_HASH_LENGTH = 128  # 512 bits
-FILE_MAX_SIZE = 1024 * 1024 * 1024  # 1GB
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -37,7 +36,7 @@ class FileRetentionMode(IdEnum):
 
 @node_(NodeType.BLOB, unique=(("parent_id", "sha512"),))
 class Blob(BenchResourceNode[BlobData]):
-    """The actual file content stored as a Blob in a Drive. De-duped to 1 per sha512."""
+    """A file stored as a Blob in a Drive. De-duped to 1 per sha512."""
 
     parent: Drive | None = p_node_parent(4, NodeType.DRIVE, is_system=True)
     sha512: str = p_internal(

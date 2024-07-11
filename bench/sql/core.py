@@ -654,13 +654,6 @@ RECORD_SHARED_TABLE = Table(
         Column("block_ck", PrimitiveType.UUID, _source=21),
         Column("block_id", PrimitiveType.UUID, _source=22),
         Column("value_packed", PrimitiveType.JSON, is_nullable=True, _source=30),
-        Column(
-            "secret_value_packed",
-            PrimitiveType.JSON,
-            is_nullable=True,
-            is_encrypted=True,
-            _source=31,
-        ),
     ),
     indexes=(
         *(i.clone() for i in RECORD_BASE_TABLE.indexes),

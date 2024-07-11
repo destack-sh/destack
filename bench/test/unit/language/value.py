@@ -67,12 +67,12 @@ def test_roundtrip_scalar_value(session: Session, package: Package) -> None:
     type_info = to_type(PrimitiveType.INT32)
     block = Block(type=BlockType.VARIABLE, name="Variable1", value_type=type_info, value=7)
     assert block.value == 7
-    assert unpack_value(block.value_packed, block.secret_value_packed, type_info) == 7
+    assert unpack_value(block.value_packed, type_info) == 7
 
     # set at runtime
     block.value = 42
     assert block.value == 42
-    assert unpack_value(block.value_packed, block.secret_value_packed, type_info) == 42
+    assert unpack_value(block.value_packed, type_info) == 42
 
 
 def test_roundtrip_nested_value(session: Session, package: Package):
@@ -114,8 +114,8 @@ def test_roundtrip_nested_value(session: Session, package: Package):
     value.field4 = cast(ValueObject, class2())
 
     class1_type = class1.to_type(as_object=True)
-    value_packed, secret_value_packed = pack_value(value, class1_type)
-    unpacked_value = unpack_value(value_packed, secret_value_packed, class1_type)
+    value_packed = pack_value(value, class1_type)
+    unpacked_value = unpack_value(value_packed, class1_type)
     assert unpacked_value == value
 
 

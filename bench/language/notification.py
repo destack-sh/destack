@@ -20,7 +20,6 @@ from bench.language.property import (
     p_internal,
     p_node_parent,
     p_regular,
-    p_secret_value_packed,
     p_system,
     p_value_packed,
     p_value_runtime,
@@ -61,9 +60,8 @@ class Notification(
     title: Optional[str] = p_regular(40, constraint=TITLE_CONSTRAINT)
     text: Optional["Text"] = p_regular(41, require=False, array=False, struct=StructType.TEXT)
     value_packed: Any | None = p_value_packed(42)
-    secret_value_packed: Any | None = p_secret_value_packed(43)
     value: "ValueObject | None" = p_value_runtime(
-        42, 43, typ=lambda self: cast("Notification", self).value_type
+        42, typ=lambda self: cast("Notification", self).value_type
     )
 
     # context

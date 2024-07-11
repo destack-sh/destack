@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.07.11.1"
+VERSION = "2024.07.11.2"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -696,7 +696,6 @@ BLOCK_TABLE = Table(
         Column("visibility", PrimitiveType.INT16, is_nullable=True),
         Column("value_type", PrimitiveType.JSON, is_nullable=True),
         Column("value_packed", PrimitiveType.JSON, is_nullable=True),
-        Column("secret_value_packed", PrimitiveType.JSON, is_nullable=True, is_encrypted=True),
         Column("code", PrimitiveType.JSON, is_nullable=True),
         Column("run_options", PrimitiveType.JSON, is_nullable=True),
         Column("roles_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
@@ -940,7 +939,6 @@ STEP_TABLE = Table(
         Column("incoming_pipes", PrimitiveType.JSON, is_array=True),
         Column("value_type", PrimitiveType.JSON, is_nullable=True),
         Column("value_packed", PrimitiveType.JSON, is_nullable=True),
-        Column("secret_value_packed", PrimitiveType.JSON, is_nullable=True, is_encrypted=True),
         Column("node_id", PrimitiveType.UUID, is_nullable=True),
         Column("node_ck", PrimitiveType.UUID, is_nullable=True),
         Column("node_type", PrimitiveType.INT16, is_nullable=True),
@@ -1161,11 +1159,8 @@ RUN_TABLE = Table(
         Column("terminated_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("terminated_epoch", PrimitiveType.INT32, is_nullable=True),
         Column("inputs_packed", PrimitiveType.JSON, is_nullable=True),
-        Column("inputs_secret_packed", PrimitiveType.JSON, is_nullable=True, is_encrypted=True),
         Column("outputs_packed", PrimitiveType.JSON, is_nullable=True),
-        Column("outputs_secret_packed", PrimitiveType.JSON, is_nullable=True, is_encrypted=True),
         Column("value_packed", PrimitiveType.JSON, is_nullable=True),
-        Column("value_secret_packed", PrimitiveType.JSON, is_nullable=True, is_encrypted=True),
         Column("logs", PrimitiveType.JSON, is_array=True),
         Column("block_id", PrimitiveType.UUID, is_nullable=True),
         Column("block_ck", PrimitiveType.UUID, is_nullable=True),
@@ -1220,7 +1215,6 @@ SIGNAL_TABLE = Table(
         Column("type_ck", PrimitiveType.UUID),
         Column("type_bench_id", PrimitiveType.UUID),
         Column("value_packed", PrimitiveType.JSON, is_nullable=True),
-        Column("secret_value_packed", PrimitiveType.JSON, is_nullable=True, is_encrypted=True),
         Column("block_id", PrimitiveType.UUID, is_nullable=True),
         Column("block_ck", PrimitiveType.UUID, is_nullable=True),
         Column("block_bench_id", PrimitiveType.UUID, is_nullable=True),
@@ -1345,7 +1339,6 @@ NOTIFICATION_TABLE = Table(
         Column("title", PrimitiveType.STRING, is_nullable=True),
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("value_packed", PrimitiveType.JSON, is_nullable=True),
-        Column("secret_value_packed", PrimitiveType.JSON, is_nullable=True, is_encrypted=True),
     ),
     indexes=(
         Index("bench_idx_created_at", IndexType.BTREE, ("created_at",)),
@@ -1393,7 +1386,6 @@ MESSAGE_TABLE = Table(
         Column("title", PrimitiveType.STRING, is_nullable=True),
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("value_packed", PrimitiveType.JSON, is_nullable=True),
-        Column("secret_value_packed", PrimitiveType.JSON, is_nullable=True),
         Column("is_pinned", PrimitiveType.BOOLEAN, default="false"),
     ),
     indexes=(

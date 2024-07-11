@@ -264,40 +264,22 @@ defineExpose<ViewExposed & { isRunnable: Ref<boolean> }>({
           // unfortunate :ProtoStructMapping for every change
           block!.valueType == null
             ? undefined
-            : unpackValue(
-                {
-                  valuePacked: block?.valuePacked == null ? null : ProtoStruct.toJson(block.valuePacked),
-                  secretValuePacked:
-                    block?.secretValuePacked == null ? null : ProtoStruct.toJson(block.secretValuePacked),
-                },
-                block!.valueType,
-                { graph: pkgGraph, unwrapScalar: true },
-              )
+            : unpackValue(block?.valuePacked == null ? null : ProtoStruct.toJson(block.valuePacked), block!.valueType, {
+                graph: pkgGraph,
+                unwrapScalar: true,
+              })
         "
         @update:model-value="
           (newValue) => {
-            const packed = packValue(newValue, block?.valueType!, { graph: pkgGraph, wrapScalar: true });
-            if (packed.secretValuePacked != null) {
+            const valuePacked = packValue(newValue, block?.valueType!, { graph: pkgGraph, wrapScalar: true });
+            if (valuePacked != null) {
               pkgConnection.tx.update(
                 block!,
-                {
-                  valuePacked: ProtoStruct.fromJson(packed.valuePacked),
-                  secretValuePacked: ProtoStruct.fromJson(packed.secretValuePacked),
-                },
-                { debounce: 'short' },
-              );
-            } else if (packed.valuePacked != null) {
-              pkgConnection.tx.update(
-                block!,
-                { valuePacked: ProtoStruct.fromJson(packed.valuePacked) },
+                { valuePacked: ProtoStruct.fromJson(valuePacked) },
                 { debounce: 'short' },
               );
             } else {
-              pkgConnection.tx.update(
-                block!,
-                { valuePacked: undefined, secretValuePacked: undefined },
-                { debounce: 'short' },
-              );
+              pkgConnection.tx.update(block!, { valuePacked: undefined }, { debounce: 'short' });
             }
           }
         "

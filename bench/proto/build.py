@@ -289,7 +289,6 @@ export type PropertyInfo = {
     isValueRuntime?: boolean;
     isValuePacked?: boolean;
     valuePackedId?: number;
-    secretValuePackedId?: number;
     
     // references
     referenceKind?: ReferenceKind;
@@ -347,10 +346,6 @@ export type PropertyInfo = {
             if prop.value_packed_ptr:
                 assert isinstance(prop.value_packed_ptr, Property)
                 prop_info_parts["valuePackedId"] = str(prop.value_packed_ptr.id)
-            if prop.secret_value_packed_ptr:
-                assert isinstance(prop.secret_value_packed_ptr, Property)
-                prop_info_parts["secretValuePackedId"] = str(prop.secret_value_packed_ptr.id)
-
             if prop.reference_kind:
                 prop_info_parts["referenceKind"] = f"ReferenceKind.{prop.reference_kind.name}"
             if prop.reference_nodes:

@@ -15,7 +15,6 @@ from bench.language.node import (
 from bench.language.property import (
     p_internal,
     p_node_parent,
-    p_secret_value_packed,
     p_value_packed,
     p_value_runtime,
 )
@@ -45,9 +44,8 @@ class Signal(PackageNode[SignalData], HasTimeIdentity, HasNodeBase, HasSessionCo
 
     # content
     value_packed: Any | None = p_value_packed(42)
-    secret_value_packed: Any | None = p_secret_value_packed(43)
     value: "ValueObject | None" = p_value_runtime(
-        42, 43, typ=lambda self: cast("Signal", self).value_type
+        42, typ=lambda self: cast("Signal", self).value_type
     )
 
     # context
