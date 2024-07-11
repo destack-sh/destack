@@ -2,7 +2,6 @@ import abc
 import base64
 import functools
 import inspect
-import math
 from collections import defaultdict
 from datetime import datetime
 from sys import intern
@@ -80,7 +79,7 @@ from bench.proto.wire import (
 from bench.sql.core import Constraint, ConstraintType, Index, IndexType, Table, stable_hash
 from bench.utils.casing import PYTHON_CASING, IdentifierType, to_casing
 from bench.utils.env import IS_DEV, IS_TEST
-from bench.utils.func import bittuple
+from bench.utils.func import bittuple, is_close
 from bench.utils.utils import frozendict
 from bench.utils.uuidt import UUIDT
 
@@ -963,7 +962,7 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
         else:
             return self._equals_content(other)
 
-    def _equals_content(self, other: Any) -> bool:
+    def _equals_content(self, other: Any, ignore: tuple[Property | Any, ...] = ()) -> bool:
         """Checks if all wired properties of the two structs are equal (recursively)."""
         if other is None or self.metatype != getattr(other, "metatype", None):
             return False
@@ -972,12 +971,10 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
                 continue  # ignore identity/tracking
             self_value = getattr(self, prop.name)
             other_value = getattr(other, prop.name)
-            if self_value != other_value and not (
-                type(self_value) is float
-                and type(other_value) is float
-                and math.isclose(
-                    self_value, other_value, rel_tol=FLOAT_EPSILON, abs_tol=FLOAT_EPSILON
-                )
+            if (
+                self_value != other_value
+                and not is_close(self_value, other_value, FLOAT_EPSILON)
+                and prop not in ignore
             ):
                 return False
         return True
@@ -1534,9 +1531,9 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
             for child in child_list:
                 child_clone = child.clone(detach=True)
                 clone_list.append(child_clone)  # re-attach
-        parent = self.parent
 
         # append to our parent to re-attach
+        parent = self.parent
         if not detach and parent:
             for prop in parent.__node_child_properties__.values():
                 if prop.reference_nodes and self.metatype in prop.reference_nodes:

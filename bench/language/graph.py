@@ -695,6 +695,11 @@ class GraphNodeList[V: Node](NodeList[V]):
         if self._parent._session is not None:
             node._validate_self((), invalid=on_invalid_raise)
 
+        # assign order key to ordered nodes
+        if hasattr(node, "order_key"):
+            ok = get_order_key(*get_key_bounds(self.nodes, after, before))
+            setattr(node, "order_key", ok)
+
         # add node (and descendants) to this parent's graph
         new_graph = self._parent._graph
         if node._graph is not new_graph:
@@ -711,11 +716,6 @@ class GraphNodeList[V: Node](NodeList[V]):
         else:
             added = (node,)  # already in the graph
 
-        # assign order key to ordered nodes
-        if hasattr(node, "order_key"):
-            ok = get_order_key(*get_key_bounds(self.nodes, after, before))
-            setattr(node, "order_key", ok)
-
         # 'create' node in session if it's attached
         if self._parent._session and self._parent._is_attached:
             self._parent._session._create(*added)
@@ -726,12 +726,6 @@ class GraphNodeList[V: Node](NodeList[V]):
     def extend(self, *nodes: V, after: V | None = None, before: V | None = None) -> None:  # type: ignore
         if not nodes:
             return
-
-        # pre-assign order keys since we don't trigger between appends (meaning last_ok is wrong)
-        if hasattr(nodes[0], "order_key"):
-            oks = get_order_keys(*get_key_bounds(self.nodes, after, before), n=len(nodes))
-            for node, ok in zip(nodes, oks):
-                setattr(node, "order_key", ok)
 
         for node in nodes:
             self.append(node)

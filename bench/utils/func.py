@@ -3,6 +3,7 @@ import enum
 import functools
 import hashlib
 import json
+import math
 import re
 import secrets
 import traceback
@@ -35,6 +36,14 @@ from bench.utils.env import IS_DEV, IS_TEST
 from bench.utils.utils import get_from_env
 
 logger = structlog.get_logger(__name__)
+
+
+def is_close(num_a: float | Any, num_b: float | Any, tol: float) -> bool:
+    return (
+        isinstance(num_a, (int, float))
+        and isinstance(num_b, (int, float))
+        and math.isclose(num_a, num_b, rel_tol=tol, abs_tol=tol)
+    )
 
 
 def stable_hash(*args) -> int:

@@ -27,7 +27,7 @@ from opentelemetry import trace
 from psycopg import OperationalError, sql
 from psycopg.types.json import Jsonb
 
-from bench.language import Block, ConditionalOp, Field, NodeReference, Property
+from bench.language import Block, ConditionalOp, NodeReference, Property
 from bench.language.connection import ChannelIncapableError
 from bench.language.const import (
     CASCADING_EDIT_TYPES,
@@ -65,7 +65,6 @@ from bench.sql.core import (
     DEFAULT_LOCAL_TABLES,
     GLOBAL_EXTENSIONS,
     LOCAL_EXTENSIONS,
-    RECORD_BASE_TABLE,
     CascadeAction,
     Column,
     Constraint,
@@ -388,39 +387,6 @@ def map_node_class_to_pg_table(node: type[Node]) -> Table:
         indexes=tuple(indexes),
     )
     return table
-
-
-def get_field_column_name(field: Field) -> str:
-    storage_key = field.storage_key.replace(".", "_").replace("-", "_").lower()
-    return f"value_{storage_key}"
-
-
-def map_block_to_pg_table(block: Block) -> Table:
-    """Gets the full table with all specific fields of a block and general record stuff."""
-    columns: list[Column] = []
-    indexes: list[Index] = []
-    constraints: list[Constraint] = []
-
-    for field in block.fields:
-        typ = field._to_resolved()
-        assert typ.primitive_type is not None, f"no primitive type for {field!r}"
-        column = Column(
-            _source=str(field.ck),
-            name=get_field_column_name(field),
-            type=typ.primitive_type,
-            is_array=typ.is_list,
-            is_nullable=True,
-            is_encrypted=typ.is_secret,
-        )
-        columns.append(column)
-
-    return Table(
-        _source=str(block.ck),
-        name=get_block_table_name(block),
-        columns=(*(c.clone() for c in RECORD_BASE_TABLE.columns), *columns),
-        indexes=(*(i.clone() for i in RECORD_BASE_TABLE.indexes), *indexes),
-        constraints=(*(c.clone() for c in RECORD_BASE_TABLE.constraints), *constraints),
-    )
 
 
 def _compile_expression_ref(
