@@ -355,7 +355,7 @@ class RuntimeRunner:
             else:
                 raise NotRunnableError(f"unexpected run: {run!r}")
             logger.info("runner.process_run", run=run, span="current")
-        except BenchError as e:
+        except (BenchError, ValueError, TypeError) as e:
             # re-raised inner error
             async with self.session.unsuspended():
                 if run.current_status != RunStatus.FAILED:

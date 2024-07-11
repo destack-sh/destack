@@ -78,13 +78,18 @@ print('print3')
         assert log.text_plain == s
 
 
+async def test_run_code_function_no_output(runner: RuntimeRunner, page: Block):
+    Function = Block.new_code("Function", """pass""", fields=(Field.input("Input1", int),))
+    page.blocks.append(Function)
+    await runner.session.commit()
+
+    _ = await runner.run(Function)
+
+
 async def test_run_code_function_coerce_output_scalar(runner: RuntimeRunner, page: Block):
-    Function = Block.new(
-        BlockType.CODE,
+    Function = Block.new_code(
         "Function",
-        code=code("""\
-return Input1 * 4
-"""),
+        """return Input1 * 4""",
         fields=(Field.input("Input1", int), Field.output("Result1", int, is_required=True)),
     )
     page.blocks.append(Function)
@@ -93,13 +98,17 @@ return Input1 * 4
     run = await runner.run(Function, inputs={"Input1": 3})
     assert run.outputs and run.outputs.Result1 == 12
 
+    # now with bad return value
+    Function.code = code("return 'stringy'")
+    await runner.session.commit()
+    run = await runner.run(Function, inputs={"Input1": 3}, suppress_error=True)
+    assert run.status == RunStatus.FAILED
+
 
 async def test_run_code_function_coerce_output_tuple(runner: RuntimeRunner, page: Block):
     Function = Block.new_code(
         "Function",
-        """\
-return Input1 > 10, Input1 * 4, None
-""",
+        """return Input1 > 10, Input1 * 4, None""",
         fields=(
             Field.input("Input1", int),
             Field.output("Result1", bool, is_required=True),
@@ -122,9 +131,7 @@ return Input1 > 10, Input1 * 4, None
 async def test_run_code_function_coerce_output_dict(runner: RuntimeRunner, page: Block):
     Function = Block.new_code(
         "Function",
-        """\
-return dict(Result1=Input1 > 10, Result2=Input1 * 4)
-""",
+        """return dict(Result1=Input1 > 10, Result2=Input1 * 4)""",
     )
     Function.fields.extend(
         Field.input("Input1", int), Field.output("Result1", bool), Field.output("Result2", int)
@@ -159,10 +166,10 @@ async def test_run_code_resolve_references(runner: RuntimeRunner, page: Block):
     Function = Block.new_code(
         "Function",
         """\
-ShapeKind
-ShapeKind.fields.Circle
-ShapeKind.Rectangle
-Shape(kind=ShapeKind.Square)
+assert ShapeKind is not None
+assert ShapeKind.fields.Circle is not None
+assert ShapeKind.Rectangle is not None
+assert Shape(kind=ShapeKind.Square)
 """,
     )
     subpage.blocks.append(Function)

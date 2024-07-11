@@ -385,7 +385,8 @@ class Run(PackageNode[RunData], HasTimeIdentity, HasNodeBase, HasSessionContext,
             assert_never(node)
 
         run = Run(parent=node.package, kind=kind, block=block, step=step)
-        if inputs is not None:
-            assert run.input_type is not None, f"no input type for {run!r}"
+        if inputs is None:
+            inputs = {}
+        if run.input_type is not None:
             run.inputs = coerce_value_object(run.input_type, inputs)
         return run
