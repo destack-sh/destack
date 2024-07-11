@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.07.10.1"
+VERSION = "2024.07.11.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -227,8 +227,9 @@ class BenchType(betterproto.Enum):
     SERVER_PROFILE = 20055
     MACHINE_PROFILE = 20056
     RESOURCE_STATUS = 20057
-    FILE_RETENTION_MODE = 20058
-    CLIENT_TYPE = 20060
+    FILE_RETENTION_MODE = 2060
+    FILE_KIND = 2061
+    CLIENT_TYPE = 20070
     PRIMITIVE_TYPE = 20080
     FORMAT_HINT = 20081
     FIELD_ZONE = 20082
@@ -478,8 +479,9 @@ class EnumType(betterproto.Enum):
     SERVER_PROFILE = 20055
     MACHINE_PROFILE = 20056
     RESOURCE_STATUS = 20057
-    FILE_RETENTION_MODE = 20058
-    CLIENT_TYPE = 20060
+    FILE_RETENTION_MODE = 2060
+    FILE_KIND = 2061
+    CLIENT_TYPE = 20070
     PRIMITIVE_TYPE = 20080
     FORMAT_HINT = 20081
     FIELD_ZONE = 20082
@@ -597,6 +599,12 @@ class FieldZone(betterproto.Enum):
     OUTPUT = 4
     OPTION = 5
     RUNTIME = 6
+
+
+class FileKind(betterproto.Enum):
+    UNSPECIFIED = 0
+    BLOB = 1
+    EXTERNAL = 2
 
 
 class FileRetentionMode(betterproto.Enum):
@@ -1664,12 +1672,13 @@ class FileData(betterproto.Message):
     """A reference to a file stored somewhere."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
+    kind: "FileKind" = betterproto.enum_field(30)
     type: Optional[str] = betterproto.string_field(31, optional=True)
-    name: str = betterproto.string_field(33)
-    size: Optional[int] = betterproto.int32_field(34, optional=True)
-    sha512: Optional[str] = betterproto.string_field(35, optional=True)
-    blob_ptr: Optional["NodeReferenceData"] = betterproto.message_field(36, optional=True)
-    external_url: Optional[str] = betterproto.string_field(37, optional=True)
+    title: str = betterproto.string_field(33)
+    size: Optional[int] = betterproto.int32_field(35, optional=True)
+    sha512: Optional[str] = betterproto.string_field(36, optional=True)
+    blob_ptr: Optional["NodeReferenceData"] = betterproto.message_field(40, optional=True)
+    external_url: Optional[str] = betterproto.string_field(41, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2205,7 +2214,7 @@ class TreeViewStateData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class TriggerInfoData(betterproto.Message):
-    """The information of a trigger."""
+    """The basic information describing a trigger."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     id: int = betterproto.int32_field(2)
