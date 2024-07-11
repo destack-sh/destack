@@ -1,8 +1,9 @@
 <script lang="ts" setup>
 import { ICON_BY_LOG_LEVEL, IconInline } from "@/system/icon";
 import { toaster, type ToastAnchor } from "@/system/toast";
+import { assertNever } from "@/utils/functools";
+import { ACCENT_COLOR_BY_LOG_LEVEL } from "@/utils/style";
 import { computed } from "vue";
-import { BG_COLOR_BY_LOG_LEVEL, ACCENT_COLOR_BY_LOG_LEVEL } from "@/utils/style";
 
 const props = defineProps<{ anchor: ToastAnchor; box: { left: number; top: number; width: number; height: number } }>();
 // default order is most recent bottom
@@ -42,7 +43,7 @@ const absoluteStyle = computed(() => {
   } else if (props.anchor == "bottom-right") {
     return { right: "0px", bottom: "0px" };
   } else {
-    throw new Error("unexpected anchor: " + props.anchor);
+    return assertNever(props.anchor);
   }
 });
 </script>

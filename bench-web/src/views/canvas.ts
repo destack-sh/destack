@@ -43,6 +43,7 @@ import { isProtoJson, packBuiltinObject, packBuiltinObjectJson, unpackBuiltinObj
 import type { SplitAnchor } from "@/utils/drag";
 import { getElement, isFocusableElement } from "@/utils/element";
 import { generateOrderKey, generateOrderKeys } from "@/utils/fractional";
+import { assertNever } from "@/utils/functools";
 import { IS_DEV, isDeveloperMode } from "@/utils/globals";
 import { DEFAULT_ORIENTATION, splitBox } from "@/utils/layout";
 import { log } from "@/utils/log";
@@ -194,7 +195,7 @@ export type ViewDataIn = Partial<Omit<ViewData, "metatype" | "icon">> &
 
 type OpenViewOptions = {
   predicate?: (view: ViewData) => boolean;
-  where?: "currentRoot" | "nextFrameRoot";
+  where?: "currentFrame" | "bestFrame";
   ifPresent?: "duplicate" | "focus" | "upsertAndFocus";
 };
 
@@ -408,7 +409,7 @@ export class ViewCanvas {
       const component = this.getViewComponent(focus.view.id!);
       if (component != null) this.focusInComponent(component, focus.anchor);
     } else {
-      throw new Error(`unexpected focus: ${focus}`);
+      throw new Error(`unexpected focus: ${JSON.stringify(focus)}`);
     }
   }
 
@@ -595,6 +596,13 @@ export class ViewCanvas {
     return instance;
   }
 
+  /** Gets the containing root view (or self, if any) for a view */
+  getRootView(view: ViewData): ViewData {
+    if (ROOT_VIEW_TYPES.has(view.type)) return view;
+    const ancestors = this.graph.getAncestors(view, { metatypes: [NodeType.VIEW], includeSelf: true });
+    return ancestors.find((v) => ROOT_VIEW_TYPES.has(v.type)) ?? view;
+  }
+
   /** Gets the current subroot view ('lowest' focused view within a root) */
   get focusedRoot(): ViewData | null {
     if (this.focusedViewPtr.value == null) return null;
@@ -603,16 +611,15 @@ export class ViewCanvas {
     // traverse focused view up until we find a root
     const view = this.graph.get(this.focusedViewPtr.value);
     if (view == null) return null;
-    const ancestors = this.graph.getAncestors(view, { metatypes: [NodeType.VIEW], includeSelf: true });
-    if (ROOT_VIEW_TYPES.has(view.type)) return view;
-    return ancestors.find((v) => ROOT_VIEW_TYPES.has(v.type)) ?? null;
+    return this.getRootView(view);
   }
 
+  /** Whether a given node is a view in our space */
   isInSpace(node: NodeKey<any>): boolean {
     return isDescendantOf(this.graph, node, this.spacePtr.value!);
   }
 
-  /** Gets all the open frames (direct children of Window views, not reactive) */
+  /** Gets all the frames non-reactively (direct children of Window/Split views) */
   get frames(): ViewData[] {
     if (this.spacePtr.value == null) return [];
     const getFrames = (view: ViewData): ViewData[] => {
@@ -627,6 +634,12 @@ export class ViewCanvas {
       .flatMap(getFrames)
       .filter((v) => v.type != ViewType.SPLIT);
     return frames;
+  }
+
+  /** Gets all the views non-reactively */
+  get views(): ViewData[] {
+    if (this.spacePtr.value == null) return [];
+    return this.graph.getDescendants(this.spacePtr.value, { metatypes: [NodeType.VIEW] });
   }
 
   /** Finds a view with properties exactly like the criteria */
@@ -647,34 +660,31 @@ export class ViewCanvas {
   addView(view: ViewDataIn, options?: OpenViewOptions) {
     const tx = this.tx();
     const existing = this.findView({ type: view.type, nodePtr: view.nodePtr, predicate: options?.predicate });
-    const currentFrameRoot = this.focusedRoot;
-    log.debug("canvas.addView", view, { existing, options, focusedRoot: currentFrameRoot });
+    const currentFrame = this.focusedRoot;
+    log.debug("canvas.addView", view, { existing, options, focusedRoot: currentFrame });
 
     if (existing == null || options?.ifPresent == null || options?.ifPresent == "duplicate") {
       // find/make root
       let parent: ViewData | null = null;
-      if (options?.where == null || options?.where == "currentRoot") {
-        parent = currentFrameRoot;
-      } else if (options?.where == "nextFrameRoot" && currentFrameRoot != null) {
-        // find next sibling of current frame root
-        const currentFrameRootParent = this.graph.get(currentFrameRoot.parentPtr!);
-        if (currentFrameRootParent != null) {
-          const currentFrameSiblings = this.graph.getChildren(currentFrameRootParent, NodeType.VIEW);
-          const currentFrameIdx = currentFrameSiblings.findIndex((v) => v.id == currentFrameRoot.id);
-          if (currentFrameIdx != -1) {
-            parent = currentFrameSiblings[(currentFrameIdx + 1) % currentFrameSiblings.length];
-          }
+      if (options?.where == null || options?.where == "currentFrame") {
+        parent = currentFrame;
+      } else if (options?.where == "bestFrame" && currentFrame != null) {
+        // NOTE :UX: improve how we choose the best frame for a new view
+        // if there's an existing frame containing the same view type, use that
+        const similarView = this.views.find((v) => v.type == view.type);
+        if (similarView != null) {
+          parent = this.getRootView(similarView);
         }
       } else {
         throw new Error(`unexpected where: ${options?.where}`);
       }
       if (parent == null) {
         // no parent so far, just use current
-        parent = currentFrameRoot;
+        parent = currentFrame;
       }
       if (parent == null) {
         // no parent at all, reset space (got messed up somehow)
-        log.info("canvas.repairCanvas", this.spacePtr.value);
+        log.warn("canvas.repairCanvas", this.spacePtr.value);
         const space = this.graph.getOrError(this.spacePtr.value!);
         parent = createEmptySpace(tx, space).primary;
       }
@@ -706,7 +716,7 @@ export class ViewCanvas {
       this.focus({ node: existing });
       return existing;
     } else {
-      throw new Error(`unexpected ifPresent: ${options?.ifPresent}`);
+      assertNever(options?.ifPresent);
     }
   }
 
@@ -718,7 +728,7 @@ export class ViewCanvas {
   /**
    * Goes to the given node, whatever that means. Unlike addView, this upserts the view by default.
    * If it's a view node, we focus it in the space graph (it must exist).
-   * If it's a regular node, we find or open an appropriate view for it and focus accordingly.
+   * If it's a regular node, we find or open an appropriate view for it and focus that somehow.
    */
   goToNode(
     node: AnyNodeData | NodeReferenceData,
@@ -784,8 +794,12 @@ export class ViewCanvas {
   /**
    * Adds the given view into this view at the target/anchor.
    */
-  moveView(graph: ReadNodeGraph, self: ViewData, child: ViewData, anchor: "start" | "end", referenceId: string | null) {
-    log.debug("canvas.move", { self, child, anchor, referenceId });
+  moveView(
+    graph: ReadNodeGraph,
+    move: { self: ViewData; child: ViewData; anchor: "start" | "end"; referenceId?: string | null },
+  ) {
+    log.debug("canvas.move", { graph, ...move });
+    const { self, child, anchor, referenceId } = move;
     const tx = this.tx();
     // move & update order
     if (child.id != referenceId) {
@@ -793,7 +807,7 @@ export class ViewCanvas {
         tx,
         node: child,
         position: anchor == "start" ? "before" : "after",
-        reference: referenceId,
+        reference: referenceId ?? null,
         getNodes: () => graph.getChildren(self, NodeType.VIEW),
       });
     }
@@ -807,25 +821,30 @@ export class ViewCanvas {
    * 'Splits' the 'parent' view to accomodate a new equally sized subview 'child' (at the anchor).
    * If we're already split alongside the given orientation, the child is added to the existing split.
    */
-  splitView(graph: ReadNodeGraph, parent: ViewData, child: ViewData, anchor: Omit<SplitAnchor, "center">) {
-    log.debug("canvas.split", { parent, child, anchor });
+  splitView(
+    graph: ReadNodeGraph,
+    split: { parent: ViewData; child: ViewData; anchor: Omit<SplitAnchor, "center">; duplicateIfSelf?: boolean },
+  ) {
+    log.debug("canvas.split", { graph, ...split });
+    // eslint-disable-next-line prefer-const
+    let { parent, child, anchor } = split;
     const tx = this.tx();
 
     // determine if we need a new split in the enclosing split view
-    let split: ViewData | null = null;
-    if (parent.type == ViewType.WINDOW) split = parent;
-    else if (parent.parentPtr != null) split = graph.get(parent.parentPtr) as ViewData;
-    if (split?.metatype != ObjectType.VIEW)
+    let splitView: ViewData | null = null;
+    if (parent.type == ViewType.WINDOW) splitView = parent;
+    else if (parent.parentPtr != null) splitView = graph.get(parent.parentPtr) as ViewData;
+    if (splitView?.metatype != ObjectType.VIEW)
       throw new Error(
         `no enclosing split view: [parent=${ObjectType[parent.metatype]}, parent.type=${ViewType[parent.type]}]`,
       );
     const isHorizontal = anchor == "left" || anchor == "right";
     const orientation = isHorizontal ? Orientation.HORIZONTAL : Orientation.VERTICAL;
     const isOrderFlipped = anchor == "right" || anchor == "bottom";
-    const needsNewSplit = (split.orientation ?? DEFAULT_ORIENTATION) != orientation;
+    const needsNewSplit = (splitView.orientation ?? DEFAULT_ORIENTATION) != orientation;
 
     // duplicate child if it belongs to self
-    if (child.parentPtr?.id == parent.id) {
+    if (child.parentPtr?.id == parent.id && split.duplicateIfSelf) {
       child = copyNode(child);
       tx.create(child);
     }
@@ -875,7 +894,7 @@ export class ViewCanvas {
         name: `${parent.name}Split`,
         size: halfSize,
         orderKey: getOrderKey({
-          nodes: graph.getChildren(split, NodeType.VIEW),
+          nodes: graph.getChildren(splitView, NodeType.VIEW),
           position: isOrderFlipped ? "after" : "before",
           reference: parent,
         }),

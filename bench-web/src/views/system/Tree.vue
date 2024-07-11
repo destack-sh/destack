@@ -204,7 +204,7 @@ function clear() {
 }
 
 function fire(node: AnyNodeData) {
-  canvas.goToNode(node, { where: "nextFrameRoot", skipSelf: preset.value == TreeViewPreset.OUTLINE });
+  canvas.goToNode(node, { where: "bestFrame", skipSelf: preset.value == TreeViewPreset.OUTLINE });
 }
 
 /** Navigate horizontally to expand/collapse */
@@ -279,12 +279,7 @@ const actions: Partial<ActionMapImplementation<"common">> = {
   "common.sense.focus": {
     isEnabled: hasFocusedNode,
     action: () =>
-      canvas.goToNode(focusedNode.value!, { where: "currentRoot", skipSelf: preset.value == TreeViewPreset.OUTLINE }),
-  },
-  "common.sense.focusInSplit": {
-    isEnabled: hasFocusedNode,
-    action: () =>
-      canvas.goToNode(focusedNode.value!, { where: "nextFrameRoot", skipSelf: preset.value == TreeViewPreset.OUTLINE }),
+      canvas.goToNode(focusedNode.value!, { where: "bestFrame", skipSelf: preset.value == TreeViewPreset.OUTLINE }),
   },
   "common.edit.rename": {
     isEnabled: hasFocusedNode,
@@ -345,7 +340,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
                 // NOTE: we assume that pkg == pkgGraph root here (may be incorrect later)
                 if (pkg == null) return;
                 const block = createBlock(pkgConnection.tx, pkgGraph, { type: BlockType.PAGE }, 'inside', pkg);
-                canvas.goToNode(block, { where: 'nextFrameRoot', ifPresent: 'upsertAndFocus' });
+                canvas.goToNode(block, { where: 'bestFrame', ifPresent: 'upsertAndFocus' });
               }
             "
           >
@@ -501,7 +496,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
               @click.stop="
                 () => {
                   const block = createBlock(pkgConnection.tx, pkgGraph, { type: BlockType.PAGE }, 'inside', node);
-                  canvas.goToNode(block, { where: 'nextFrameRoot', ifPresent: 'upsertAndFocus' });
+                  canvas.goToNode(block, { where: 'bestFrame', ifPresent: 'upsertAndFocus' });
                   if (!isExpanded(node)) toggleExpanded(node);
                 }
               "
