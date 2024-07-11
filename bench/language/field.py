@@ -296,10 +296,8 @@ class TypeInfoBase(HasValues):
         flags = tuple(f for f in ("is_list", "is_required", "is_secret") if getattr(self, f))
         if flags:
             info_str += f" ({', '.join(flags)})"
-
         if self._from_property:
             info_str += f" from {self._from_property!s}"
-
         if self.base_field_zone:
             info_str += f" [{self.base_field_zone.bench_name}]"
 
@@ -406,6 +404,7 @@ class TypeInfoBase(HasValues):
 class TypeInfo(Struct, TypeInfoBase):
     """A type from the type system."""
 
+    # redirect so we get TypeInfoBase.__content_str__ (not Struct.__content_str__)
     __content_str__ = TypeInfoBase.__content_str__  # type: ignore
 
 
@@ -497,25 +496,8 @@ class Field(SourceNode[FieldData], HasNodeBase, TypeInfoBase, _TypeQueryBuilder)
     def __content_str__(self) -> str:
         if self.zone == FieldZone.OPTION:
             return ""  # nothing to show
-
-        base_type = self.base_type
-        if base_type is not None:
-            info_str = base_type.absolute_path
-        elif self.bench_type is not None:
-            info_str = self.bench_type.bench_name
-        elif self.primitive_type is not None:
-            info_str = self.primitive_type.name
         else:
-            info_str = "<no type>"
-        if self.format_hint:
-            info_str += f" as {self.format_hint.bench_name}"
-        if self.condition is not None:
-            info_str += f" [{self.condition!r}]"
-
-        flags = tuple(f for f in ("is_list", "is_required", "is_secret") if getattr(self, f))
-        if flags:
-            info_str += f" ({', '.join(flags)})"
-        return info_str
+            return TypeInfoBase.__content_str__(self)
 
     def __eq__(self, other):  # type: ignore
         return _TypeQueryBuilder.__eq__(self, other)  # override to avoid recursion

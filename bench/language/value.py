@@ -17,6 +17,7 @@ from uuid import UUID
 
 import structlog
 from betterproto.lib.google.protobuf import Struct as ProtoStruct
+from opentelemetry import trace
 
 from bench.language.const import (
     EMPTY_DICT,
@@ -58,7 +59,9 @@ if TYPE_CHECKING:
 
 # pyright: reportIncompatibleVariableOverride=false
 
+
 logger = structlog.get_logger(__name__)
+tracer = trace.get_tracer(__name__)
 
 ScalarValue = Union["ValueObject", PrimitiveValue, "BuiltinObject"]
 ScalarValueData = Union[
@@ -1031,10 +1034,10 @@ def coerce_value_object(typ: "TypeInfoBase", value_raw: Any) -> ValueObject:
     """
     Tries to coerce a value object from a given raw value.
     We support 4 coercions:
-     1. Single return value if there is one field.
-     2. Tuple of return values if there are multiple fields (with same length)
-     3. Dict of return values with { FieldName: Value }
-     4. ValueObject (checked and then returned as is)
+     1. Tuple of return values if there are multiple fields (with same length)
+     2. Dict of return values with { FieldName: Value }
+     3. ValueObject of same shape
+     4. Single return value if there is one field.
 
     If this doesn't work, we raise ValueError/TypeError accordingly.
     """
@@ -1047,7 +1050,7 @@ def coerce_value_object(typ: "TypeInfoBase", value_raw: Any) -> ValueObject:
     if isinstance(value_raw, tuple):
         if len(value_raw) != len(fields):
             raise ValueError(
-                f"got {len(value_raw)} values for {typ}, expected {len(fields)}: {', '.join(f.name for f in fields)}"
+                f"got {len(value_raw)} values for {typ!r}, expected {len(fields)}: {', '.join(f.name for f in fields)}"
             )
         for i, field in enumerate(fields):
             setattr(coerced, field.name, value_raw[i])
@@ -1058,10 +1061,15 @@ def coerce_value_object(typ: "TypeInfoBase", value_raw: Any) -> ValueObject:
         for field in fields:
             setattr(coerced, field.name, getattr(value_raw, field.name))
     else:
-        assert (
-            len(fields) == 1
-        ), f"got single value for {typ}, need {len(fields)}: {', '.join(f.name for f in fields)}"
-        check_value(value_raw, fields[0], invalid=on_invalid_raise)
-        setattr(coerced, fields[0].name, value_raw)
+        if len(fields) == 0:
+            if value_raw is not None:
+                raise ValueError(f"got value for {typ!r}, expected None")
+        else:
+            if len(fields) > 1:
+                raise ValueError(
+                    f"got single value for {typ!r}, need {len(fields)}: {', '.join(f.name for f in fields)}"
+                )
+            check_value(value_raw, fields[0], invalid=on_invalid_raise)
+            setattr(coerced, fields[0].name, value_raw)
 
     return coerced
