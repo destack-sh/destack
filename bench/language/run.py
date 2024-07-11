@@ -30,7 +30,6 @@ from bench.language.property import (
     p_node_children,
     p_node_parent,
     p_regular,
-    p_secret_value_packed,
     p_system,
     p_value_packed,
     p_value_runtime,
@@ -263,19 +262,16 @@ class Run(PackageNode[RunData], HasTimeIdentity, HasNodeBase, HasSessionContext,
 
     # content
     inputs_packed: Any = p_value_packed(60)
-    inputs_secret_packed: Any = p_secret_value_packed(61)
     inputs: "ValueObject | None" = p_value_runtime(
-        60, 61, typ=lambda self: cast("Run", self).input_type
+        60, typ=lambda self: cast("Run", self).input_type
     )
-    outputs_packed: Any = p_value_packed(62)
-    outputs_secret_packed: Any = p_secret_value_packed(63)
+    outputs_packed: Any = p_value_packed(61)
     outputs: "ValueObject | None" = p_value_runtime(
-        62, 63, typ=lambda self: cast("Run", self).output_type
+        61, typ=lambda self: cast("Run", self).output_type
     )
-    value_packed: Any = p_value_packed(64)
-    value_secret_packed: Any = p_secret_value_packed(65)
-    value: "ValueObject | None" = p_value_runtime(64, 65, typ=None)  # freely typed
-    logs: list["LogInfo"] = p_internal(66, array=True, struct=StructType.LOG_INFO)
+    value_packed: Any = p_value_packed(62)
+    value: "ValueObject | None" = p_value_runtime(62, typ=None)  # freely typed
+    logs: list["LogInfo"] = p_internal(65, array=True, struct=StructType.LOG_INFO)
 
     # ...HasSessionContext[70-79]
 

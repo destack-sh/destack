@@ -407,14 +407,10 @@ export function unpackBuiltinObject<T extends ObjectType>(valuePacked: any, obje
   return value;
 }
 
-// TODO :Test!: figure out how to test value packing on bench-web
+// TODO :Test!: figure out how to test value packing on bench-web properly (ensure it's in sync with bench)
 
 /** Packs a single object value into a packed & secret packed value. */
-function packValueObject(
-  value: ScalarValue,
-  type: TypeIdentity,
-  graph: ReadNodeGraph,
-): { valuePacked: JsonValue; secretValuePacked: JsonValue | undefined } {
+function packValueObject(value: ScalarValue, type: TypeIdentity, graph: ReadNodeGraph): JsonValue {
   const fields = resolveFields(type, graph);
   const valuePacked: { [key: string]: JsonValue } = {};
   for (const field of fields) {
@@ -424,23 +420,18 @@ function packValueObject(
     if (fieldValue == null) {
       continue;
     } else if (fieldType.kind == TypeKind.OBJECT) {
-      valuePacked[fieldStorageKey] = packValue(fieldValue, fieldType, { graph, wrapScalar: false }).valuePacked; // :SecretValues
+      valuePacked[fieldStorageKey] = packValue(fieldValue, fieldType, { graph, wrapScalar: false });
     } else if (!fieldType.isList) {
       valuePacked[fieldStorageKey] = packValueScalar(fieldValue, fieldType);
     } else {
       valuePacked[fieldStorageKey] = fieldValue.map((v: any) => packValueScalar(v, fieldType));
     }
   }
-  return { valuePacked, secretValuePacked: undefined };
+  return valuePacked;
 }
 
 /** Unpacks a single packed & secret packed value into an object. */
-function unpackValueObject(
-  valuePacked: JsonValue,
-  secretValuePacked: JsonValue | undefined,
-  type: TypeIdentity,
-  graph: ReadNodeGraph,
-): SomeValue {
+function unpackValueObject(valuePacked: JsonValue, type: TypeIdentity, graph: ReadNodeGraph): SomeValue {
   const fields = resolveFields(type, graph);
   const value: { [key: string]: SomeValue } = {};
   for (const field of fields) {
@@ -450,7 +441,7 @@ function unpackValueObject(
     if (fieldValuePacked == null) {
       continue;
     } else if (fieldType.kind == TypeKind.OBJECT) {
-      const fieldValue = unpackValue({ valuePacked: fieldValuePacked, secretValuePacked }, fieldType, {
+      const fieldValue = unpackValue(fieldValuePacked, fieldType, {
         graph,
         unwrapScalar: false,
       });
@@ -470,14 +461,13 @@ function unpackValueObject(
  * Pack the value data into JSON wire format.
  * Graph is required if we're dealing with an alias or any object type.
  * If previous is passed, old values with different types will be retained.
- * TODO :Incomplete: handle :SecretValues
  * */
 export function packValue(
   value: any,
   type: TypeIdentity,
   options: { graph?: ReadNodeGraph; wrapScalar: boolean } = { wrapScalar: true },
-  previous?: { valuePacked?: JsonValue; secretValuePacked?: JsonValue | undefined },
-): { valuePacked: JsonValue; secretValuePacked: JsonValue | undefined } {
+  previous?: JsonValue,
+): JsonValue {
   if (type.kind == TypeKind.ALIAS) {
     if (options.graph == null) throw new Error(`missing graph to resolve ${describeTypeIdentity(type)}`);
     type = resolveType(type, options.graph);
@@ -488,18 +478,16 @@ export function packValue(
     // nested object
     if (options.graph == null) throw new Error(`missing graph to pack object type ${describeTypeIdentity(type)}`);
     if (value == null) {
-      return { valuePacked: null, secretValuePacked: undefined };
+      return null;
     } else if (!type.isList) {
       return packValueObject(value, type, options.graph);
     } else {
       const valuePacked: JsonValue[] = [];
-      const secretValuePacked: JsonValue[] = [];
       for (let i = 0; i < value.length; i++) {
         const packed = packValueObject(value[i], type, options.graph);
-        valuePacked.push(packed.valuePacked);
-        if (packed.secretValuePacked != null) secretValuePacked.push(packed.secretValuePacked);
+        valuePacked.push(packed);
       }
-      return { valuePacked, secretValuePacked: secretValuePacked.length > 0 ? secretValuePacked : undefined };
+      return valuePacked;
     }
   } else {
     // wrap scalar
@@ -514,7 +502,7 @@ export function packValue(
     if (options.wrapScalar) {
       valuePacked = { [encodeTypeIdentity(type)]: valuePacked };
     }
-    return { valuePacked, secretValuePacked: undefined };
+    return valuePacked;
   }
 }
 
@@ -523,7 +511,7 @@ export function packValueSimple(
   type: TypeIdentity,
   options: { graph?: ReadNodeGraph; wrapScalar: boolean } = { wrapScalar: true },
 ): JsonValue {
-  return packValue(value, type, options).valuePacked;
+  return packValue(value, type, options);
 }
 
 export function packValueSimpleStruct(
@@ -539,7 +527,7 @@ export function packValueSimpleStruct(
  * Graph is required if we're dealing with an alias or any object type.
  */
 export function unpackValue(
-  packed: { valuePacked?: JsonValue; secretValuePacked?: JsonValue },
+  valuePacked: JsonValue,
   type: TypeIdentity,
   options: { graph?: ReadNodeGraph; unwrapScalar: boolean } = { unwrapScalar: true },
 ): any {
@@ -554,48 +542,44 @@ export function unpackValue(
     // nested object
     if (options.graph == null) {
       throw new Error(
-        `missing graph to unpack object type ${describeTypeIdentity(type)}: ${JSON.stringify(packed.valuePacked)}`,
+        `missing graph to unpack object type ${describeTypeIdentity(type)}: ${JSON.stringify(valuePacked)}`,
       );
-    }
-    if (packed.valuePacked == null) {
-      return null;
-    } else if (!type.isList) {
-      return unpackValueObject(packed.valuePacked, packed.secretValuePacked, type, options.graph);
-    } else {
-      if (!Array.isArray(packed.valuePacked)) {
-        throw new Error(
-          `expected array for list type ${describeTypeIdentity(type)}: ${JSON.stringify(packed.valuePacked)}`,
-        );
-      }
-      return packed.valuePacked!.map((v: any, i: number) =>
-        unpackValueObject(v, (packed.secretValuePacked as Array<JsonValue>)?.[i], type, options.graph!),
-      );
-    }
-  } else {
-    // unwrap scalar
-    if (packed.valuePacked == null) {
-      return null;
-    }
-    let valuePacked;
-    if (options?.unwrapScalar) {
-      if (typeof packed.valuePacked !== "object" || Array.isArray(packed.valuePacked)) {
-        throw new Error(
-          `expected object for scalar type ${describeTypeIdentity(type)}: ${JSON.stringify(packed.valuePacked)}`,
-        );
-      }
-      valuePacked = packed.valuePacked[encodeTypeIdentity(type)];
-    } else {
-      valuePacked = packed.valuePacked;
     }
     if (valuePacked == null) {
       return null;
     } else if (!type.isList) {
-      return unpackValueScalar(valuePacked, type);
+      return unpackValueObject(valuePacked, type, options.graph);
     } else {
       if (!Array.isArray(valuePacked)) {
+        throw new Error(`expected array for list type ${describeTypeIdentity(type)}: ${JSON.stringify(valuePacked)}`);
+      }
+      return valuePacked!.map((v: any, i: number) => unpackValueObject(v, type, options.graph!));
+    }
+  } else {
+    // unwrap scalar
+    if (valuePacked == null) {
+      return null;
+    }
+    let value;
+    if (options?.unwrapScalar) {
+      if (typeof valuePacked !== "object" || Array.isArray(valuePacked)) {
+        throw new Error(
+          `expected object for scalar type ${describeTypeIdentity(type)}: ${JSON.stringify(valuePacked)}`,
+        );
+      }
+      value = valuePacked[encodeTypeIdentity(type)];
+    } else {
+      value = valuePacked;
+    }
+    if (value == null) {
+      return null;
+    } else if (!type.isList) {
+      return unpackValueScalar(value, type);
+    } else {
+      if (!Array.isArray(value)) {
         throw new Error(`expected array for list type ${describeTypeIdentity(type)}`);
       }
-      return valuePacked.map((v: any) => unpackValueScalar(v, type));
+      return value.map((v: any) => unpackValueScalar(v, type));
     }
   }
 }

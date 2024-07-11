@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.07.11.1"
+VERSION = "2024.07.11.2"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -2298,9 +2298,6 @@ class ValueData(betterproto.Message):
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         35, optional=True
     )
-    secret_value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = (
-        betterproto.message_field(36, optional=True)
-    )
 
 
 @dataclass(eq=False, repr=False)
@@ -2437,9 +2434,6 @@ class BlockData(betterproto.Message):
     value_type: Optional["TypeInfoData"] = betterproto.message_field(39, optional=True)
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         40, optional=True
-    )
-    secret_value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = (
-        betterproto.message_field(41, optional=True)
     )
     code: Optional["CodeData"] = betterproto.message_field(42, optional=True)
     run_options: Optional["RunOptionsData"] = betterproto.message_field(43, optional=True)
@@ -2870,9 +2864,6 @@ class MessageData(betterproto.Message):
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         42, optional=True
     )
-    secret_value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = (
-        betterproto.message_field(43, optional=True)
-    )
     is_pinned: bool = betterproto.bool_field(50)
 
 
@@ -2926,9 +2917,6 @@ class NotificationData(betterproto.Message):
     text: Optional["TextData"] = betterproto.message_field(41, optional=True)
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         42, optional=True
-    )
-    secret_value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = (
-        betterproto.message_field(43, optional=True)
     )
 
 
@@ -3044,9 +3032,6 @@ class RecordData(betterproto.Message):
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         30, optional=True
     )
-    secret_value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = (
-        betterproto.message_field(31, optional=True)
-    )
 
 
 @dataclass(eq=False, repr=False)
@@ -3094,22 +3079,13 @@ class RunData(betterproto.Message):
     inputs_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         60, optional=True
     )
-    inputs_secret_packed: Optional["betterproto_lib_google_protobuf.Struct"] = (
-        betterproto.message_field(61, optional=True)
-    )
     outputs_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
-        62, optional=True
-    )
-    outputs_secret_packed: Optional["betterproto_lib_google_protobuf.Struct"] = (
-        betterproto.message_field(63, optional=True)
+        61, optional=True
     )
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
-        64, optional=True
+        62, optional=True
     )
-    value_secret_packed: Optional["betterproto_lib_google_protobuf.Struct"] = (
-        betterproto.message_field(65, optional=True)
-    )
-    logs: List["LogInfoData"] = betterproto.message_field(66)
+    logs: List["LogInfoData"] = betterproto.message_field(65)
     block_ptr: Optional["NodeReferenceData"] = betterproto.message_field(70, optional=True)
     step_ptr: Optional["NodeReferenceData"] = betterproto.message_field(71, optional=True)
     session_ptr: Optional["NodeReferenceData"] = betterproto.message_field(72, optional=True)
@@ -3213,9 +3189,6 @@ class SignalData(betterproto.Message):
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         42, optional=True
     )
-    secret_value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = (
-        betterproto.message_field(43, optional=True)
-    )
     block_ptr: Optional["NodeReferenceData"] = betterproto.message_field(70, optional=True)
     step_ptr: Optional["NodeReferenceData"] = betterproto.message_field(71, optional=True)
     session_ptr: Optional["NodeReferenceData"] = betterproto.message_field(72, optional=True)
@@ -3314,9 +3287,6 @@ class StepData(betterproto.Message):
     value_type: Optional["TypeInfoData"] = betterproto.message_field(40, optional=True)
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         41, optional=True
-    )
-    secret_value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = (
-        betterproto.message_field(42, optional=True)
     )
     node_ptr: Optional["NodeReferenceData"] = betterproto.message_field(43, optional=True)
     code: Optional["CodeData"] = betterproto.message_field(44, optional=True)

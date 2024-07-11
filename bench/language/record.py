@@ -7,7 +7,6 @@ from bench.language.field import TypeInfoBase
 from bench.language.node import HasNodeBase, HasPersistentIdentity, PackageNode, local_node
 from bench.language.property import (
     p_node_parent,
-    p_secret_value_packed,
     p_value_packed,
     p_value_runtime,
 )
@@ -33,9 +32,8 @@ class Record(PackageNode[RecordData], HasPersistentIdentity, HasNodeBase, HasVal
     # :RecordSchema
     parent: "Block | None" = p_node_parent(4, NodeType.BLOCK)
     value_packed: Any = p_value_packed(30)
-    secret_value_packed = p_secret_value_packed(31)
     value: "ValueObject | None" = p_value_runtime(
-        30, 31, typ=lambda self: cast("Record", self).value_type
+        30, typ=lambda self: cast("Record", self).value_type
     )
 
     def __content_str__(self):

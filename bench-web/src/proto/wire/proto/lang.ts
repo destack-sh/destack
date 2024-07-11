@@ -2210,10 +2210,6 @@ export interface ValueData {
      * @generated from protobuf field: optional google.protobuf.Struct value_packed = 35;
      */
     valuePacked?: Struct;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Struct secret_value_packed = 36;
-     */
-    secretValuePacked?: Struct;
 }
 /**
  * Attach a badge to a node with an inline definition.
@@ -2656,10 +2652,6 @@ export interface BlockData {
      * @generated from protobuf field: optional google.protobuf.Struct value_packed = 40;
      */
     valuePacked?: Struct;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Struct secret_value_packed = 41;
-     */
-    secretValuePacked?: Struct;
     /**
      * @generated from protobuf field: optional symbolx.bench.CodeData code = 42;
      */
@@ -4053,10 +4045,6 @@ export interface MessageData {
      */
     valuePacked?: Struct;
     /**
-     * @generated from protobuf field: optional google.protobuf.Struct secret_value_packed = 43;
-     */
-    secretValuePacked?: Struct;
-    /**
      * @generated from protobuf field: bool is_pinned = 50;
      */
     isPinned: boolean;
@@ -4213,10 +4201,6 @@ export interface NotificationData {
      * @generated from protobuf field: optional google.protobuf.Struct value_packed = 42;
      */
     valuePacked?: Struct;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Struct secret_value_packed = 43;
-     */
-    secretValuePacked?: Struct;
 }
 /**
  * A Bench organization with Users as members.
@@ -4575,10 +4559,6 @@ export interface RecordData {
      * @generated from protobuf field: optional google.protobuf.Struct value_packed = 30;
      */
     valuePacked?: Struct;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Struct secret_value_packed = 31;
-     */
-    secretValuePacked?: Struct;
 }
 /**
  * A 'run' of Blocks (and Steps within them) or 'lambdas' (just Code/Text).
@@ -4726,27 +4706,15 @@ export interface RunData {
      */
     inputsPacked?: Struct;
     /**
-     * @generated from protobuf field: optional google.protobuf.Struct inputs_secret_packed = 61;
-     */
-    inputsSecretPacked?: Struct;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Struct outputs_packed = 62;
+     * @generated from protobuf field: optional google.protobuf.Struct outputs_packed = 61;
      */
     outputsPacked?: Struct;
     /**
-     * @generated from protobuf field: optional google.protobuf.Struct outputs_secret_packed = 63;
-     */
-    outputsSecretPacked?: Struct;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Struct value_packed = 64;
+     * @generated from protobuf field: optional google.protobuf.Struct value_packed = 62;
      */
     valuePacked?: Struct;
     /**
-     * @generated from protobuf field: optional google.protobuf.Struct value_secret_packed = 65;
-     */
-    valueSecretPacked?: Struct;
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.LogInfoData logs = 66;
+     * @generated from protobuf field: repeated symbolx.bench.LogInfoData logs = 65;
      */
     logs: LogInfoData[];
     /**
@@ -5074,10 +5042,6 @@ export interface SignalData {
      * @generated from protobuf field: optional google.protobuf.Struct value_packed = 42;
      */
     valuePacked?: Struct;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Struct secret_value_packed = 43;
-     */
-    secretValuePacked?: Struct;
     /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData block_ptr = 70;
      */
@@ -5407,10 +5371,6 @@ export interface StepData {
      * @generated from protobuf field: optional google.protobuf.Struct value_packed = 41;
      */
     valuePacked?: Struct;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Struct secret_value_packed = 42;
-     */
-    secretValuePacked?: Struct;
     /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData node_ptr = 43;
      */
@@ -16207,8 +16167,7 @@ class ValueData$Type extends MessageType<ValueData> {
             { no: 31, name: "type", kind: "message", T: () => TypeInfoData },
             { no: 32, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "text", kind: "message", T: () => TextData },
-            { no: 35, name: "value_packed", kind: "message", T: () => Struct },
-            { no: 36, name: "secret_value_packed", kind: "message", T: () => Struct }
+            { no: 35, name: "value_packed", kind: "message", T: () => Struct }
         ]);
     }
     create(value?: PartialMessage<ValueData>): ValueData {
@@ -16251,9 +16210,6 @@ class ValueData$Type extends MessageType<ValueData> {
                 case /* optional google.protobuf.Struct value_packed */ 35:
                     message.valuePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.valuePacked);
                     break;
-                case /* optional google.protobuf.Struct secret_value_packed */ 36:
-                    message.secretValuePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.secretValuePacked);
-                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -16293,9 +16249,6 @@ class ValueData$Type extends MessageType<ValueData> {
         /* optional google.protobuf.Struct value_packed = 35; */
         if (message.valuePacked)
             Struct.internalBinaryWrite(message.valuePacked, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Struct secret_value_packed = 36; */
-        if (message.secretValuePacked)
-            Struct.internalBinaryWrite(message.secretValuePacked, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -17042,7 +16995,6 @@ class BlockData$Type extends MessageType<BlockData> {
             { no: 38, name: "visibility", kind: "enum", opt: true, T: () => ["symbolx.bench.Visibility", Visibility, "VISIBILITY_"] },
             { no: 39, name: "value_type", kind: "message", T: () => TypeInfoData },
             { no: 40, name: "value_packed", kind: "message", T: () => Struct },
-            { no: 41, name: "secret_value_packed", kind: "message", T: () => Struct },
             { no: 42, name: "code", kind: "message", T: () => CodeData },
             { no: 43, name: "run_options", kind: "message", T: () => RunOptionsData },
             { no: 46, name: "roles_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
@@ -17166,9 +17118,6 @@ class BlockData$Type extends MessageType<BlockData> {
                     break;
                 case /* optional google.protobuf.Struct value_packed */ 40:
                     message.valuePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.valuePacked);
-                    break;
-                case /* optional google.protobuf.Struct secret_value_packed */ 41:
-                    message.secretValuePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.secretValuePacked);
                     break;
                 case /* optional symbolx.bench.CodeData code */ 42:
                     message.code = CodeData.internalBinaryRead(reader, reader.uint32(), options, message.code);
@@ -17294,9 +17243,6 @@ class BlockData$Type extends MessageType<BlockData> {
         /* optional google.protobuf.Struct value_packed = 40; */
         if (message.valuePacked)
             Struct.internalBinaryWrite(message.valuePacked, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Struct secret_value_packed = 41; */
-        if (message.secretValuePacked)
-            Struct.internalBinaryWrite(message.secretValuePacked, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.CodeData code = 42; */
         if (message.code)
             CodeData.internalBinaryWrite(message.code, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
@@ -20092,7 +20038,6 @@ class MessageData$Type extends MessageType<MessageData> {
             { no: 40, name: "title", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 41, name: "text", kind: "message", T: () => TextData },
             { no: 42, name: "value_packed", kind: "message", T: () => Struct },
-            { no: 43, name: "secret_value_packed", kind: "message", T: () => Struct },
             { no: 50, name: "is_pinned", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
@@ -20185,9 +20130,6 @@ class MessageData$Type extends MessageType<MessageData> {
                 case /* optional google.protobuf.Struct value_packed */ 42:
                     message.valuePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.valuePacked);
                     break;
-                case /* optional google.protobuf.Struct secret_value_packed */ 43:
-                    message.secretValuePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.secretValuePacked);
-                    break;
                 case /* bool is_pinned */ 50:
                     message.isPinned = reader.bool();
                     break;
@@ -20273,9 +20215,6 @@ class MessageData$Type extends MessageType<MessageData> {
         /* optional google.protobuf.Struct value_packed = 42; */
         if (message.valuePacked)
             Struct.internalBinaryWrite(message.valuePacked, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Struct secret_value_packed = 43; */
-        if (message.secretValuePacked)
-            Struct.internalBinaryWrite(message.secretValuePacked, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
         /* bool is_pinned = 50; */
         if (message.isPinned !== false)
             writer.tag(50, WireType.Varint).bool(message.isPinned);
@@ -20443,8 +20382,7 @@ class NotificationData$Type extends MessageType<NotificationData> {
             { no: 34, name: "read_at", kind: "message", T: () => Timestamp },
             { no: 40, name: "title", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 41, name: "text", kind: "message", T: () => TextData },
-            { no: 42, name: "value_packed", kind: "message", T: () => Struct },
-            { no: 43, name: "secret_value_packed", kind: "message", T: () => Struct }
+            { no: 42, name: "value_packed", kind: "message", T: () => Struct }
         ]);
     }
     create(value?: PartialMessage<NotificationData>): NotificationData {
@@ -20539,9 +20477,6 @@ class NotificationData$Type extends MessageType<NotificationData> {
                 case /* optional google.protobuf.Struct value_packed */ 42:
                     message.valuePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.valuePacked);
                     break;
-                case /* optional google.protobuf.Struct secret_value_packed */ 43:
-                    message.secretValuePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.secretValuePacked);
-                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -20627,9 +20562,6 @@ class NotificationData$Type extends MessageType<NotificationData> {
         /* optional google.protobuf.Struct value_packed = 42; */
         if (message.valuePacked)
             Struct.internalBinaryWrite(message.valuePacked, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Struct secret_value_packed = 43; */
-        if (message.secretValuePacked)
-            Struct.internalBinaryWrite(message.secretValuePacked, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -21284,8 +21216,7 @@ class RecordData$Type extends MessageType<RecordData> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 22, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 29, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
-            { no: 30, name: "value_packed", kind: "message", T: () => Struct },
-            { no: 31, name: "secret_value_packed", kind: "message", T: () => Struct }
+            { no: 30, name: "value_packed", kind: "message", T: () => Struct }
         ]);
     }
     create(value?: PartialMessage<RecordData>): RecordData {
@@ -21361,9 +21292,6 @@ class RecordData$Type extends MessageType<RecordData> {
                 case /* optional google.protobuf.Struct value_packed */ 30:
                     message.valuePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.valuePacked);
                     break;
-                case /* optional google.protobuf.Struct secret_value_packed */ 31:
-                    message.secretValuePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.secretValuePacked);
-                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -21431,9 +21359,6 @@ class RecordData$Type extends MessageType<RecordData> {
         /* optional google.protobuf.Struct value_packed = 30; */
         if (message.valuePacked)
             Struct.internalBinaryWrite(message.valuePacked, writer.tag(30, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Struct secret_value_packed = 31; */
-        if (message.secretValuePacked)
-            Struct.internalBinaryWrite(message.secretValuePacked, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -21482,12 +21407,9 @@ class RunData$Type extends MessageType<RunData> {
             { no: 53, name: "terminated_at", kind: "message", T: () => Timestamp },
             { no: 54, name: "terminated_epoch", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 60, name: "inputs_packed", kind: "message", T: () => Struct },
-            { no: 61, name: "inputs_secret_packed", kind: "message", T: () => Struct },
-            { no: 62, name: "outputs_packed", kind: "message", T: () => Struct },
-            { no: 63, name: "outputs_secret_packed", kind: "message", T: () => Struct },
-            { no: 64, name: "value_packed", kind: "message", T: () => Struct },
-            { no: 65, name: "value_secret_packed", kind: "message", T: () => Struct },
-            { no: 66, name: "logs", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => LogInfoData },
+            { no: 61, name: "outputs_packed", kind: "message", T: () => Struct },
+            { no: 62, name: "value_packed", kind: "message", T: () => Struct },
+            { no: 65, name: "logs", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => LogInfoData },
             { no: 70, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 71, name: "step_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 72, name: "session_ptr", kind: "message", T: () => NodeReferenceData },
@@ -21627,22 +21549,13 @@ class RunData$Type extends MessageType<RunData> {
                 case /* optional google.protobuf.Struct inputs_packed */ 60:
                     message.inputsPacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.inputsPacked);
                     break;
-                case /* optional google.protobuf.Struct inputs_secret_packed */ 61:
-                    message.inputsSecretPacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.inputsSecretPacked);
-                    break;
-                case /* optional google.protobuf.Struct outputs_packed */ 62:
+                case /* optional google.protobuf.Struct outputs_packed */ 61:
                     message.outputsPacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.outputsPacked);
                     break;
-                case /* optional google.protobuf.Struct outputs_secret_packed */ 63:
-                    message.outputsSecretPacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.outputsSecretPacked);
-                    break;
-                case /* optional google.protobuf.Struct value_packed */ 64:
+                case /* optional google.protobuf.Struct value_packed */ 62:
                     message.valuePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.valuePacked);
                     break;
-                case /* optional google.protobuf.Struct value_secret_packed */ 65:
-                    message.valueSecretPacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.valueSecretPacked);
-                    break;
-                case /* repeated symbolx.bench.LogInfoData logs */ 66:
+                case /* repeated symbolx.bench.LogInfoData logs */ 65:
                     message.logs.push(LogInfoData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 case /* optional symbolx.bench.NodeReferenceData block_ptr */ 70:
@@ -21793,24 +21706,15 @@ class RunData$Type extends MessageType<RunData> {
         /* optional google.protobuf.Struct inputs_packed = 60; */
         if (message.inputsPacked)
             Struct.internalBinaryWrite(message.inputsPacked, writer.tag(60, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Struct inputs_secret_packed = 61; */
-        if (message.inputsSecretPacked)
-            Struct.internalBinaryWrite(message.inputsSecretPacked, writer.tag(61, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Struct outputs_packed = 62; */
+        /* optional google.protobuf.Struct outputs_packed = 61; */
         if (message.outputsPacked)
-            Struct.internalBinaryWrite(message.outputsPacked, writer.tag(62, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Struct outputs_secret_packed = 63; */
-        if (message.outputsSecretPacked)
-            Struct.internalBinaryWrite(message.outputsSecretPacked, writer.tag(63, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Struct value_packed = 64; */
+            Struct.internalBinaryWrite(message.outputsPacked, writer.tag(61, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Struct value_packed = 62; */
         if (message.valuePacked)
-            Struct.internalBinaryWrite(message.valuePacked, writer.tag(64, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Struct value_secret_packed = 65; */
-        if (message.valueSecretPacked)
-            Struct.internalBinaryWrite(message.valueSecretPacked, writer.tag(65, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.LogInfoData logs = 66; */
+            Struct.internalBinaryWrite(message.valuePacked, writer.tag(62, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.LogInfoData logs = 65; */
         for (let i = 0; i < message.logs.length; i++)
-            LogInfoData.internalBinaryWrite(message.logs[i], writer.tag(66, WireType.LengthDelimited).fork(), options).join();
+            LogInfoData.internalBinaryWrite(message.logs[i], writer.tag(65, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.NodeReferenceData block_ptr = 70; */
         if (message.blockPtr)
             NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(70, WireType.LengthDelimited).fork(), options).join();
@@ -22319,7 +22223,6 @@ class SignalData$Type extends MessageType<SignalData> {
             { no: 29, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
             { no: 32, name: "type_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 42, name: "value_packed", kind: "message", T: () => Struct },
-            { no: 43, name: "secret_value_packed", kind: "message", T: () => Struct },
             { no: 70, name: "block_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 71, name: "step_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 72, name: "session_ptr", kind: "message", T: () => NodeReferenceData },
@@ -22403,9 +22306,6 @@ class SignalData$Type extends MessageType<SignalData> {
                     break;
                 case /* optional google.protobuf.Struct value_packed */ 42:
                     message.valuePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.valuePacked);
-                    break;
-                case /* optional google.protobuf.Struct secret_value_packed */ 43:
-                    message.secretValuePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.secretValuePacked);
                     break;
                 case /* optional symbolx.bench.NodeReferenceData block_ptr */ 70:
                     message.blockPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.blockPtr);
@@ -22504,9 +22404,6 @@ class SignalData$Type extends MessageType<SignalData> {
         /* optional google.protobuf.Struct value_packed = 42; */
         if (message.valuePacked)
             Struct.internalBinaryWrite(message.valuePacked, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Struct secret_value_packed = 43; */
-        if (message.secretValuePacked)
-            Struct.internalBinaryWrite(message.secretValuePacked, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.NodeReferenceData block_ptr = 70; */
         if (message.blockPtr)
             NodeReferenceData.internalBinaryWrite(message.blockPtr, writer.tag(70, WireType.LengthDelimited).fork(), options).join();
@@ -22967,7 +22864,6 @@ class StepData$Type extends MessageType<StepData> {
             { no: 37, name: "incoming_pipes", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PipeData },
             { no: 40, name: "value_type", kind: "message", T: () => TypeInfoData },
             { no: 41, name: "value_packed", kind: "message", T: () => Struct },
-            { no: 42, name: "secret_value_packed", kind: "message", T: () => Struct },
             { no: 43, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 44, name: "code", kind: "message", T: () => CodeData },
             { no: 45, name: "condition", kind: "message", T: () => ExpressionData },
@@ -23086,9 +22982,6 @@ class StepData$Type extends MessageType<StepData> {
                     break;
                 case /* optional google.protobuf.Struct value_packed */ 41:
                     message.valuePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.valuePacked);
-                    break;
-                case /* optional google.protobuf.Struct secret_value_packed */ 42:
-                    message.secretValuePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.secretValuePacked);
                     break;
                 case /* optional symbolx.bench.NodeReferenceData node_ptr */ 43:
                     message.nodePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
@@ -23211,9 +23104,6 @@ class StepData$Type extends MessageType<StepData> {
         /* optional google.protobuf.Struct value_packed = 41; */
         if (message.valuePacked)
             Struct.internalBinaryWrite(message.valuePacked, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Struct secret_value_packed = 42; */
-        if (message.secretValuePacked)
-            Struct.internalBinaryWrite(message.secretValuePacked, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.NodeReferenceData node_ptr = 43; */
         if (message.nodePtr)
             NodeReferenceData.internalBinaryWrite(message.nodePtr, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
@@ -25817,7 +25707,6 @@ export enum BlockProperty {
   visibility = 38,
   valueType = 39,
   valuePacked = 40,
-  secretValuePacked = 41,
   code = 42,
   runOptions = 43,
   rolesPtr = 46,
@@ -26000,7 +25889,6 @@ export enum StepProperty {
   incomingPipes = 37,
   valueType = 40,
   valuePacked = 41,
-  secretValuePacked = 42,
   nodePtr = 43,
   code = 44,
   condition = 45,
@@ -26148,12 +26036,9 @@ export enum RunProperty {
   terminatedAt = 53,
   terminatedEpoch = 54,
   inputsPacked = 60,
-  inputsSecretPacked = 61,
-  outputsPacked = 62,
-  outputsSecretPacked = 63,
-  valuePacked = 64,
-  valueSecretPacked = 65,
-  logs = 66,
+  outputsPacked = 61,
+  valuePacked = 62,
+  logs = 65,
   blockPtr = 70,
   stepPtr = 71,
   sessionPtr = 72,
@@ -26184,7 +26069,6 @@ export enum SignalProperty {
   setProperties = 29,
   typePtr = 32,
   valuePacked = 42,
-  secretValuePacked = 43,
   blockPtr = 70,
   stepPtr = 71,
   sessionPtr = 72,
@@ -26262,7 +26146,6 @@ export enum NotificationProperty {
   title = 40,
   text = 41,
   valuePacked = 42,
-  secretValuePacked = 43,
 }
 
 export enum MessageProperty {
@@ -26288,7 +26171,6 @@ export enum MessageProperty {
   title = 40,
   text = 41,
   valuePacked = 42,
-  secretValuePacked = 43,
   isPinned = 50,
 }
 
@@ -26310,7 +26192,6 @@ export enum RecordProperty {
   updatedByPtr = 22,
   setProperties = 29,
   valuePacked = 30,
-  secretValuePacked = 31,
 }
 
 export enum SessionContextProperty {
@@ -26706,7 +26587,6 @@ export enum ValueProperty {
   name = 32,
   text = 34,
   valuePacked = 35,
-  secretValuePacked = 36,
 }
 
 export enum ComputedValueProperty {
@@ -27147,7 +27027,6 @@ export type PropertyInfo = {
     isValueRuntime?: boolean;
     isValuePacked?: boolean;
     valuePackedId?: number;
-    secretValuePackedId?: number;
     
     // references
     referenceKind?: ReferenceKind;
@@ -27517,7 +27396,6 @@ export const ValueDataInfo: Record<ValueProperty, PropertyInfo> = {
   [ValueProperty.name]: { id: 32, name: 'name', component: ObjectType.VALUE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [ValueProperty.text]: { id: 34, name: 'text', component: ObjectType.VALUE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [ValueProperty.valuePacked]: { id: 35, name: 'value_packed', component: ObjectType.VALUE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [ValueProperty.secretValuePacked]: { id: 36, name: 'secret_value_packed', component: ObjectType.VALUE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
 }
 export const ComputedValueDataInfo: Record<ComputedValueProperty, PropertyInfo> = {
   [ComputedValueProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.COMPUTED_VALUE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -28145,7 +28023,6 @@ export const BlockDataInfo: Record<BlockProperty, PropertyInfo> = {
   [BlockProperty.visibility]: { id: 38, name: 'visibility', component: ObjectType.BLOCK, enumType: EnumType.VISIBILITY, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [BlockProperty.valueType]: { id: 39, name: 'value_type', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_INFO },
   [BlockProperty.valuePacked]: { id: 40, name: 'value_packed', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [BlockProperty.secretValuePacked]: { id: 41, name: 'secret_value_packed', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
   [BlockProperty.code]: { id: 42, name: 'code', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
   [BlockProperty.runOptions]: { id: 43, name: 'run_options', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_OPTIONS },
   [BlockProperty.rolesPtr]: { id: 46, name: 'roles_ptr', component: ObjectType.BLOCK, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
@@ -28323,7 +28200,6 @@ export const StepDataInfo: Record<StepProperty, PropertyInfo> = {
   [StepProperty.incomingPipes]: { id: 37, name: 'incoming_pipes', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.PIPE },
   [StepProperty.valueType]: { id: 40, name: 'value_type', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_INFO },
   [StepProperty.valuePacked]: { id: 41, name: 'value_packed', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [StepProperty.secretValuePacked]: { id: 42, name: 'secret_value_packed', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
   [StepProperty.nodePtr]: { id: 43, name: 'node_ptr', component: ObjectType.STEP, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK, NodeType.STEP, NodeType.TRIGGER], referenceStruct: StructType.NODE_REFERENCE },
   [StepProperty.code]: { id: 44, name: 'code', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
   [StepProperty.condition]: { id: 45, name: 'condition', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
@@ -28466,12 +28342,9 @@ export const RunDataInfo: Record<RunProperty, PropertyInfo> = {
   [RunProperty.terminatedAt]: { id: 53, name: 'terminated_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRuntime: true, isWired: true, isStored: true },
   [RunProperty.terminatedEpoch]: { id: 54, name: 'terminated_epoch', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
   [RunProperty.inputsPacked]: { id: 60, name: 'inputs_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [RunProperty.inputsSecretPacked]: { id: 61, name: 'inputs_secret_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
-  [RunProperty.outputsPacked]: { id: 62, name: 'outputs_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [RunProperty.outputsSecretPacked]: { id: 63, name: 'outputs_secret_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
-  [RunProperty.valuePacked]: { id: 64, name: 'value_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [RunProperty.valueSecretPacked]: { id: 65, name: 'value_secret_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
-  [RunProperty.logs]: { id: 66, name: 'logs', component: ObjectType.RUN, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.LOG_INFO },
+  [RunProperty.outputsPacked]: { id: 61, name: 'outputs_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [RunProperty.valuePacked]: { id: 62, name: 'value_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [RunProperty.logs]: { id: 65, name: 'logs', component: ObjectType.RUN, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.LOG_INFO },
   [RunProperty.blockPtr]: { id: 70, name: 'block_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [RunProperty.stepPtr]: { id: 71, name: 'step_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.STEP], referenceStruct: StructType.NODE_REFERENCE },
   [RunProperty.sessionPtr]: { id: 72, name: 'session_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SESSION], referenceStruct: StructType.NODE_REFERENCE },
@@ -28501,7 +28374,6 @@ export const SignalDataInfo: Record<SignalProperty, PropertyInfo> = {
   [SignalProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.SIGNAL, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
   [SignalProperty.typePtr]: { id: 32, name: 'type_ptr', component: ObjectType.SIGNAL, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [SignalProperty.valuePacked]: { id: 42, name: 'value_packed', component: ObjectType.SIGNAL, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [SignalProperty.secretValuePacked]: { id: 43, name: 'secret_value_packed', component: ObjectType.SIGNAL, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
   [SignalProperty.blockPtr]: { id: 70, name: 'block_ptr', component: ObjectType.SIGNAL, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [SignalProperty.stepPtr]: { id: 71, name: 'step_ptr', component: ObjectType.SIGNAL, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.STEP], referenceStruct: StructType.NODE_REFERENCE },
   [SignalProperty.sessionPtr]: { id: 72, name: 'session_ptr', component: ObjectType.SIGNAL, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SESSION], referenceStruct: StructType.NODE_REFERENCE },
@@ -28577,7 +28449,6 @@ export const NotificationDataInfo: Record<NotificationProperty, PropertyInfo> = 
   [NotificationProperty.title]: { id: 40, name: 'title', component: ObjectType.NOTIFICATION, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [NotificationProperty.text]: { id: 41, name: 'text', component: ObjectType.NOTIFICATION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [NotificationProperty.valuePacked]: { id: 42, name: 'value_packed', component: ObjectType.NOTIFICATION, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [NotificationProperty.secretValuePacked]: { id: 43, name: 'secret_value_packed', component: ObjectType.NOTIFICATION, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
 }
 export const MessageDataInfo: Record<MessageProperty, PropertyInfo> = {
   [MessageProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.MESSAGE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -28602,7 +28473,6 @@ export const MessageDataInfo: Record<MessageProperty, PropertyInfo> = {
   [MessageProperty.title]: { id: 40, name: 'title', component: ObjectType.MESSAGE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [MessageProperty.text]: { id: 41, name: 'text', component: ObjectType.MESSAGE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [MessageProperty.valuePacked]: { id: 42, name: 'value_packed', component: ObjectType.MESSAGE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [MessageProperty.secretValuePacked]: { id: 43, name: 'secret_value_packed', component: ObjectType.MESSAGE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [MessageProperty.isPinned]: { id: 50, name: 'is_pinned', component: ObjectType.MESSAGE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const RecordDataInfo: Record<RecordProperty, PropertyInfo> = {
@@ -28623,7 +28493,6 @@ export const RecordDataInfo: Record<RecordProperty, PropertyInfo> = {
   [RecordProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.RECORD, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [RecordProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.RECORD, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
   [RecordProperty.valuePacked]: { id: 30, name: 'value_packed', component: ObjectType.RECORD, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [RecordProperty.secretValuePacked]: { id: 31, name: 'secret_value_packed', component: ObjectType.RECORD, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true, isValuePacked: true },
 }
 export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo>> = {
   [ObjectType.UNSPECIFIED]: {},

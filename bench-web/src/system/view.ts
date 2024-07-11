@@ -88,13 +88,13 @@ export function getFieldViews(
     if (options?.zones != null && !options.zones.includes(field.zone)) continue;
     const fieldType = resolveType(field, pkgGraph);
     const storageKey = getStorageKey(field, fieldType);
-    const value = unpackValue({ valuePacked: objectValuePacked?.[storageKey] }, field, {
+    const value = unpackValue(objectValuePacked?.[storageKey], field, {
       graph: pkgGraph,
       unwrapScalar: false,
     });
     const prepareUpdate = (newValue: any) => ({
       ...objectValuePacked,
-      [storageKey]: packValue(newValue, field, { graph: pkgGraph, wrapScalar: false }).valuePacked,
+      [storageKey]: packValue(newValue, field, { graph: pkgGraph, wrapScalar: false }),
     });
     const isSet = value != null && !(Array.isArray(value) && value.length === 0);
     const view = getViewForValueType(fieldType);

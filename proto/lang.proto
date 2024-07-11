@@ -2056,7 +2056,6 @@ message ValueData {
   optional string name = 32;
   optional TextData text = 34;
   optional google.protobuf.Struct value_packed = 35;
-  optional google.protobuf.Struct secret_value_packed = 36;
 }
 
 // Attach a badge to a node with an inline definition.
@@ -2178,7 +2177,6 @@ message BlockData {
   optional Visibility visibility = 38;
   optional TypeInfoData value_type = 39;
   optional google.protobuf.Struct value_packed = 40;
-  optional google.protobuf.Struct secret_value_packed = 41;
   optional CodeData code = 42;
   optional RunOptionsData run_options = 43;
   repeated NodeReferenceData roles_ptr = 46;
@@ -2560,7 +2558,6 @@ message MessageData {
   optional string title = 40;
   optional TextData text = 41;
   optional google.protobuf.Struct value_packed = 42;
-  optional google.protobuf.Struct secret_value_packed = 43;
   bool is_pinned = 50;
 }
 
@@ -2607,7 +2604,6 @@ message NotificationData {
   optional string title = 40;
   optional TextData text = 41;
   optional google.protobuf.Struct value_packed = 42;
-  optional google.protobuf.Struct secret_value_packed = 43;
 }
 
 // A Bench organization with Users as members.
@@ -2708,7 +2704,6 @@ message RecordData {
   optional NodeReferenceData updated_by_ptr = 22;
   repeated int32 set_properties = 29;
   optional google.protobuf.Struct value_packed = 30;
-  optional google.protobuf.Struct secret_value_packed = 31;
 }
 
 // A 'run' of Blocks (and Steps within them) or 'lambdas' (just Code/Text).
@@ -2750,12 +2745,9 @@ message RunData {
   optional google.protobuf.Timestamp terminated_at = 53;
   optional int32 terminated_epoch = 54;
   optional google.protobuf.Struct inputs_packed = 60;
-  optional google.protobuf.Struct inputs_secret_packed = 61;
-  optional google.protobuf.Struct outputs_packed = 62;
-  optional google.protobuf.Struct outputs_secret_packed = 63;
-  optional google.protobuf.Struct value_packed = 64;
-  optional google.protobuf.Struct value_secret_packed = 65;
-  repeated LogInfoData logs = 66;
+  optional google.protobuf.Struct outputs_packed = 61;
+  optional google.protobuf.Struct value_packed = 62;
+  repeated LogInfoData logs = 65;
   optional NodeReferenceData block_ptr = 70;
   optional NodeReferenceData step_ptr = 71;
   optional NodeReferenceData session_ptr = 72;
@@ -2847,7 +2839,6 @@ message SignalData {
   repeated int32 set_properties = 29;
   NodeReferenceData type_ptr = 32;
   optional google.protobuf.Struct value_packed = 42;
-  optional google.protobuf.Struct secret_value_packed = 43;
   optional NodeReferenceData block_ptr = 70;
   optional NodeReferenceData step_ptr = 71;
   optional NodeReferenceData session_ptr = 72;
@@ -2937,7 +2928,6 @@ message StepData {
   repeated PipeData incoming_pipes = 37;
   optional TypeInfoData value_type = 40;
   optional google.protobuf.Struct value_packed = 41;
-  optional google.protobuf.Struct secret_value_packed = 42;
   optional NodeReferenceData node_ptr = 43;
   optional CodeData code = 44;
   optional ExpressionData condition = 45;

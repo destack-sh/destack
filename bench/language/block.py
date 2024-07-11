@@ -17,7 +17,6 @@ from bench.language.property import (
     p_node_children,
     p_node_parent,
     p_regular,
-    p_secret_value_packed,
     p_system,
     p_value_packed,
     p_value_runtime,
@@ -97,8 +96,7 @@ class Block(SourceNode[BlockData], HasValues):
     visibility: Optional[Visibility] = p_regular(38, default=None, require=False)
     value_type: Optional["TypeInfo"] = p_regular(39, default=None, struct=StructType.TYPE_INFO)
     value_packed: Any = p_value_packed(40)
-    secret_value_packed: Any | None = p_secret_value_packed(41)
-    value: Any = p_value_runtime(40, 41, typ=lambda self: cast("Block", self).value_type)
+    value: Any = p_value_runtime(40, typ=lambda self: cast("Block", self).value_type)
     code: Optional["Code"] = p_regular(
         42, default=None, require=False, array=False, struct=StructType.CODE
     )

@@ -1062,7 +1062,7 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
                                 node, properties=(prop,), old_values={prop.id: old_value}
                             )
                         else:
-                            # 'spread' value packed update into _packed (:SecretValues not handled yet)
+                            # 'put' value packed update into _packed property :ComputedValueProp
                             value_packed_ptr = cast(Property, prop.value_packed_ptr)
                             self._updated_properties[value_packed_ptr.ord] = True
                             session._update(

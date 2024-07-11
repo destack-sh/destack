@@ -35,7 +35,6 @@ from bench.language.const import (
 from bench.language.property import (
     Property,
     p_regular,
-    p_secret_value_packed,
     p_value_packed,
     p_value_runtime,
 )
@@ -79,7 +78,6 @@ JsonValue = Union[JsonPrimitive, dict[str, "JsonValue"], list["JsonValue"]]
 ValueParent = Union["ValueObject", "BuiltinObject"]
 ValueProperty = Union["Property", "Field"]
 
-# NOTE :Incomplete: handle :SecretValues somehow
 # TODO :Incomplete: handle :FreeformValues
 
 
@@ -90,7 +88,6 @@ class ValueObject(Mapping[str, Any]):
     """
 
     __slots__ = (
-        "_is_revealed",
         "_type",
         "_value",
         "ancestor_prop",
@@ -106,7 +103,6 @@ class ValueObject(Mapping[str, Any]):
         self,
         _type: "TypeInfoBase",
         _value: dict[str, SomeValue] | None = None,
-        _is_revealed: bool = False,
         id: int | None = None,
         parent: ValueParent | None = None,
         parent_prop: ValueProperty | None = None,
@@ -116,7 +112,6 @@ class ValueObject(Mapping[str, Any]):
     ):
         self._type = _type
         self._value = _value
-        self._is_revealed = _is_revealed
         self.id = id if id is not None else new_struct_id()
         self.parent = parent
         self.parent_prop = parent_prop
@@ -269,10 +264,8 @@ class ValueObject(Mapping[str, Any]):
         self, parent: ValueParent, prop: ValueProperty, ancestor_prop: Optional["Property"]
     ) -> "ValueObject":
         """Copy this object into the given parent/prop."""
-        value_packed, secret_value_packed = pack_value_object(self, self._type)
-        copy = unpack_value_object(
-            value_packed, secret_value_packed, self._type, parent, prop, ancestor_prop
-        )
+        value_packed = pack_value_object(self, self._type)
+        copy = unpack_value_object(value_packed, self._type, parent, prop, ancestor_prop)
         copy.parent_key = prop.id_as_str if isinstance(prop, Property) else prop.identity_key
         return copy
 
@@ -296,7 +289,6 @@ class ValueObject(Mapping[str, Any]):
         return ValueObject(
             _type=typ,
             _value=value,
-            _is_revealed=is_revealed,
             parent=parent,
             parent_prop=parent_property,
             ancestor_prop=ancestor_property,
@@ -739,9 +731,7 @@ def unpack_builtin_object_data[T: AnyStructData | AnyNodeData](
     return value
 
 
-def pack_value_object(
-    value: ValueObject, typ: "TypeInfoBase"
-) -> tuple[dict[str, JsonValue], dict[str, JsonValue] | None]:
+def pack_value_object(value: ValueObject, typ: "TypeInfoBase") -> dict[str, JsonValue]:
     """
     Packs an object value into a packed value & secret packed value.
     The secret split applies only to nested values within the type, not the type itself.
@@ -756,8 +746,7 @@ def pack_value_object(
         if field_value is None:
             continue
         elif field_type.kind == TypeKind.OBJECT:
-            # :SecretValues
-            value_packed[field.storage_key], _ = pack_value(field_value, field_type)
+            value_packed[field.storage_key] = pack_value(field_value, field_type)
         elif not field_type.is_list:
             value_packed[field.storage_key] = pack_value_scalar(
                 cast(ScalarValue, field_value), field_type
@@ -769,12 +758,11 @@ def pack_value_object(
             value_packed[field.storage_key] = [
                 pack_value_scalar(element, field_type) for element in field_value
             ]
-    return value_packed, None
+    return value_packed
 
 
 def unpack_value_object(
     value_packed: dict[str, JsonValue],
-    secret_value_packed: JsonValue | None,
     typ: "TypeInfoBase",
     parent: ValueParent | None = None,
     parent_prop: ValueProperty | None = None,
@@ -790,7 +778,7 @@ def unpack_value_object(
         if field_value_packed is None:
             continue
         elif field_type.kind == TypeKind.OBJECT:
-            field_value = unpack_value(field_value_packed, None, field_type)
+            field_value = unpack_value(field_value_packed, field_type)
             if field_value is None:
                 continue
         elif not field_type.is_list:
@@ -806,7 +794,6 @@ def unpack_value_object(
     return ValueObject.new(
         value=value,
         typ=typ,
-        is_revealed=secret_value_packed is not None,
         parent=parent,
         parent_property=parent_prop,
         ancestor_property=ancestor_prop,
@@ -815,11 +802,10 @@ def unpack_value_object(
 
 def pack_value(
     value: SomeValue | None, typ: "TypeInfoBase", wrap_primitive: bool = True
-) -> tuple[JsonValue, JsonValue | None]:
+) -> JsonValue:
     """
     Packs a value into JSON-able parts (packed value & secret packed value).
     Only minimal type checks are performed, invalid values will error in various ways.
-    TODO :Incomplete: handle :SecretValues
     """
     typ = typ._to_resolved()
     assert typ.kind != TypeKind.ALIAS, f"unresolved type {typ!r}"
@@ -831,14 +817,12 @@ def pack_value(
             return pack_value_object(value, typ)
         else:
             value_packed: JsonValue = []
-            secret_value_packed: JsonValue = []
             for element in cast(Collection[SomeValue], value):
                 if type(element) is not ValueObject:
                     raise TypeError(f"{element!r} is not an Object (expected {typ!r})")
-                inner_value_packed, inner_secret_value_packed = pack_value_object(element, typ)
+                inner_value_packed = pack_value_object(element, typ)
                 value_packed.append(inner_value_packed)
-                secret_value_packed.append(inner_secret_value_packed)
-            return value_packed, secret_value_packed
+            return value_packed
     else:
         # wrap scalar
         value_packed: JsonValue
@@ -850,12 +834,12 @@ def pack_value(
             value_packed = [pack_value_scalar(element, typ) for element in cast(list, value)]
         if wrap_primitive:
             value_packed = {typ.identity_key: value_packed}
-        return value_packed, None
+        return value_packed
 
 
 def pack_value_data(
     value: SomeValueData, typ: "TypeInfoBase", wrap_primitive: bool = True
-) -> tuple[JsonValue, JsonValue | None]:
+) -> JsonValue:
     """Packs a data value into JSON-able parts. See above."""
     typ = typ._to_resolved()
     assert typ.kind != TypeKind.ALIAS, f"unresolved type {typ!r}"
@@ -870,12 +854,11 @@ def pack_value_data(
         value_packed = [pack_value_scalar(element, typ) for element in cast(list, value)]
     if wrap_primitive:
         value_packed = {typ.identity_key: value_packed}
-    return value_packed, None
+    return value_packed
 
 
 def unpack_value(
     value_packed: JsonValue,
-    secret_value_packed: JsonValue | None,
     typ: "TypeInfoBase",
     parent: ValueParent | None = None,
     parent_prop: ValueProperty | None = None,
@@ -884,7 +867,6 @@ def unpack_value(
     """
     Unpacks a value from its constituent JSON-able parts (packed value & secret packed value).
     Only minimal type checks are performed, invalid values will error in various ways.
-    TODO :Incomplete: handle :SecretValues
     """
     typ = typ._to_resolved()
     assert typ.kind != TypeKind.ALIAS, f"unresolved type {typ!r}"
@@ -895,7 +877,6 @@ def unpack_value(
                 raise TypeError(f"{value_packed!r} is not a dict (expected {typ!r})")
             return unpack_value_object(
                 value_packed=value_packed,
-                secret_value_packed=secret_value_packed,
                 typ=typ,
                 parent=parent,
                 parent_prop=parent_prop,
@@ -907,7 +888,6 @@ def unpack_value(
             return [
                 unpack_value_object(
                     value_packed=cast(dict[str, JsonValue], element),
-                    secret_value_packed=secret_value_packed,
                     typ=typ,
                     parent=parent,
                     parent_prop=parent_prop,
@@ -941,7 +921,7 @@ from bench.language.node import (  # noqa: E402
 
 @object_component()
 class HasValues(BuiltinObject):
-    # NOTE :Robustness :Architecture: turn value into computed property? :NoFakeComputed
+    # NOTE :Robustness :Architecture: turn value into computed property? :ComputedValueProp
 
     @override
     def _init_component(self):
@@ -963,22 +943,22 @@ class HasValues(BuiltinObject):
             if value is not None:
                 if getattr(self, prop.value_packed_ptr.name) is not None:
                     continue  # skip if already set
-                value_packed, _ = pack_value(value, value_type)
+                value_packed = pack_value(value, value_type)
                 self._do_set(prop.value_packed_ptr.name, value_packed, track=False)
             else:
-                value = unpack_value(value_packed, None, value_type)
+                value = unpack_value(value_packed, value_type)
                 self._do_set(prop.name, value, track=False)
 
     @override
     def _updated_component(self, properties: Collection[Property]) -> None:
-        # update packed properties  :NoFakeComputed
+        # update packed properties  :ComputedValueProp
         if any(prop.is_value_runtime for prop in properties):
             # NOTE :Performance: only update packed values prior to serialization? (see above)
             #  (but note that we would still need the packed data for the Edit)
             self._pack_values_inplace(properties)
 
     def _unpack_values_inplace(self, properties: Collection[Property] = ()) -> None:
-        # also a bit crummy, see above :NoFakeComputed
+        # also a bit crummy, see above :ComputedValueProp
         if len(properties) == 0:
             properties = self.__value_properties__.values()
         for prop in properties:
@@ -990,13 +970,13 @@ class HasValues(BuiltinObject):
             if value_type is not None:
                 if value_packed is None:
                     value_packed = EMPTY_DICT
-                value = unpack_value(value_packed, None, value_type)
+                value = unpack_value(value_packed, value_type)
                 self._do_set(prop.name, value, track=False)
 
     def _pack_values_inplace(
         self, properties: Collection[Property] = (), skip_already_set: bool = False
     ) -> None:
-        # more ugh here  :NoFakeComputed
+        # more ugh here  :ComputedValueProp
         for prop in properties:
             if not prop.is_value_runtime:
                 continue
@@ -1010,7 +990,7 @@ class HasValues(BuiltinObject):
                     prop.value_type_info_getter(self) if prop.value_type_info_getter else None
                 )
                 if value_type is not None:
-                    value_packed, _ = pack_value(value, value_type)
+                    value_packed = pack_value(value, value_type)
                     self._do_set(prop.value_packed_ptr.name, value_packed, track=False)
             else:
                 self._do_set(prop.value_packed_ptr.name, None, track=False)
@@ -1026,8 +1006,7 @@ class Value(Struct, HasValues):
         34, default=None, require=False, array=False, struct=StructType.TEXT
     )
     value_packed: Any = p_value_packed(35)
-    secret_value_packed: Any = p_secret_value_packed(36)
-    value: Any = p_value_runtime(35, 36, typ=lambda self: cast("Value", self).type)
+    value: Any = p_value_runtime(35, typ=lambda self: cast("Value", self).type)
 
 
 def coerce_value_object(typ: "TypeInfoBase", value_raw: Any) -> ValueObject:
