@@ -70,7 +70,7 @@ ISSUE_PARENT_TYPES: tuple[NodeType, ...] = (
 )
 
 
-@local_node(NodeType.ISSUE)
+@local_node(NodeType.ISSUE, stored=False)
 class Issue(PackageNode[IssueData]):
     """
     A diagnostic regarding something in the Bench source.

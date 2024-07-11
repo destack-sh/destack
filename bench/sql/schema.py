@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.07.11.0"
+VERSION = "2024.07.11.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -655,44 +655,6 @@ LINK_TABLE = Table(
         Column("reference_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("reference_base_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("order_key", PrimitiveType.STRING, is_nullable=True),
-    ),
-)
-
-ISSUE_TABLE = Table(
-    "bench_issue",
-    (
-        Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("parent_id", PrimitiveType.UUID),
-        Column("parent_ck", PrimitiveType.UUID),
-        Column("parent_type", PrimitiveType.INT16),
-        Column("parent_base_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("package_id", PrimitiveType.UUID),
-        Column("bench_id", PrimitiveType.UUID),
-        Column("revision", PrimitiveType.INT64),
-        Column("created_at", PrimitiveType.DATETIME),
-        Column("created_epoch", PrimitiveType.INT64),
-        Column("updated_at", PrimitiveType.DATETIME),
-        Column("updated_epoch", PrimitiveType.INT64),
-        Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("archived_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
-        Column("created_by_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("created_by_type", PrimitiveType.INT16, is_nullable=True),
-        Column("updated_by_id", PrimitiveType.UUID, is_nullable=True),
-        Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
-        Column("kind", PrimitiveType.INT16),
-        Column("type", PrimitiveType.INT16),
-        Column("subject_id", PrimitiveType.UUID, is_nullable=True),
-        Column("subject_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("subject_type", PrimitiveType.INT16, is_nullable=True),
-        Column("subject_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("subject_base_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("subject_base_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("path", PrimitiveType.JSON, is_nullable=True),
-        Column("properties_ptr", PrimitiveType.JSON, is_array=True, is_nullable=True),
-        Column("title", PrimitiveType.STRING, is_nullable=True),
-        Column("text", PrimitiveType.JSON, is_nullable=True),
     ),
 )
 
