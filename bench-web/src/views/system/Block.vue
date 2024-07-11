@@ -84,10 +84,6 @@ const actions: Partial<ActionMapImplementation<"common">> & ActionMapImplementat
     },
   },
   // block
-  "block.edit.isPage": {
-    isChecked: () => block.value?.isPage ?? false,
-    action: () => pkgConnection.tx.update(block.value!, { isPage: !block.value!.isPage }, { debounce: "tick" }),
-  },
   "block.edit.isPaused": {
     isChecked: () => block.value?.isPaused ?? false,
     action: () => pkgConnection.tx.update(block.value!, { isPaused: !block.value!.isPaused }, { debounce: "tick" }),
@@ -123,7 +119,7 @@ defineExpose<ViewExposed & { isRunnable: Ref<boolean> }>({
     ]"
   >
     <!-- Header -->
-    <!-- TODO :UX: indicate Block.isPage/isProtocol/isTemplate -->
+    <!-- NOTE :UX: revamp block to indicate all its states/properties better -->
     <div class="flex flex-row">
       <!-- Icon/Name (also drag handle if container is not already draggable) -->
       <div

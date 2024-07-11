@@ -150,7 +150,6 @@ export const ACTION_BUILTIN_IDS = [
   "type.edit.isRequired",
   "type.edit.isSecret",
   // block
-  "block.edit.isPage",
   "block.edit.isPaused",
   // message
   "message.handle.startThread",
@@ -796,12 +795,6 @@ declareActionMap<"type">({
 // block
 declareActionMap<"block">({
   // block
-  "block.edit.isPage": {
-    type: "toggle",
-    icon: "fas fa-memo-pad",
-    title: "Page",
-    text: "Mark this block as a page",
-  },
   "block.edit.isPaused": {
     type: "toggle",
     icon: "fas fa-pause",
@@ -1125,7 +1118,6 @@ contributeActionMap<"developer">({
           parentPtr: packagePtr.value!,
           packagePtr: packagePtr.value!,
           type: BlockType.PAGE,
-          isPage: true,
           name: pageName,
           orderKey: generateOrderKey(pages[pages.length - 1]?.orderKey ?? null, null),
           icon: makeIcon({ faName: icon }),
@@ -1155,7 +1147,6 @@ contributeActionMap<"developer">({
           parentPtr: toNodeReference(parent),
           packagePtr: packagePtr.value!,
           type,
-          isPage: type == BlockType.PAGE,
           name,
           orderKey: generateOrderKey(prevOrderKey, null),
         });

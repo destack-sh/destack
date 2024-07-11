@@ -67,8 +67,8 @@ class RunnableKind(IdEnum):
     FLOW = 4
 
 
-@enum_(EnumType.MODEL_AUTHOR)
-class ModelAuthor(IdEnum):
+@enum_(EnumType.MODEL_PROVIDER)
+class ModelProvider(IdEnum):
     INTERNAL = 1
     # external
     OPENAI = 100
@@ -91,13 +91,31 @@ class ModelType(IdEnum):
     # meta
     LLAMA_3_80B = 4000
 
+    @property
+    def provider(self) -> ModelProvider:
+        if self <= 999:
+            return ModelProvider.INTERNAL
+        elif self <= 1999:
+            return ModelProvider.OPENAI
+        elif self <= 2999:
+            return ModelProvider.ANTHROPIC
+        elif self <= 3999:
+            return ModelProvider.GOOGLE
+        elif self <= 4999:
+            return ModelProvider.META
+        else:
+            raise RuntimeError(f"unexpected model {self!r}")
+
 
 @struct_(StructType.MODEL_OPTIONS)
 class ModelOptions(Struct):
     """Options for running an ML model."""
 
-    author: ModelAuthor = p_regular(30)
-    type: ModelType = p_regular(31)
+    model: ModelType = p_regular(31)
+
+    @property
+    def provider(self) -> ModelProvider:
+        return self.model.provider
 
 
 @struct_(StructType.RUN_OPTIONS)

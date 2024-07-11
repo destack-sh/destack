@@ -11,7 +11,7 @@ from bench.language.block import Block
 from bench.language.code import Code, CodeKind
 from bench.language.const import BenchError, BlockType, RunErrorKind, RunKind, RunStatus
 from bench.language.log import LogInfo
-from bench.language.run import Run, RunAttempt, RunError, RunnableKind, RunOptions
+from bench.language.run import ModelProvider, Run, RunAttempt, RunError, RunnableKind, RunOptions
 from bench.language.session import Session
 from bench.language.step import Step, StepType
 from bench.language.text import Text
@@ -31,7 +31,7 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 RunnableNode = Block | Step
-RunnableType = tuple[RunnableKind, CodeKind | StepType | None]
+RunnableType = tuple[RunnableKind, CodeKind | StepType | ModelProvider | None]
 
 
 @dataclass(slots=True)
@@ -226,8 +226,16 @@ class RuntimeRunner:
                 )
                 handle = RunHandle.from_state(state, run, base_options=DEFAULT_CODE_RUN_OPTIONS)
             elif block.type == BlockType.TEXT:
+                model = (
+                    block.run_options.model_options.model
+                    if block.run_options and block.run_options.model_options
+                    else None
+                )
                 state = RunnableState(
-                    id=block.id, typ=(RunnableKind.TEXT, None), node=block, text=block.text
+                    id=block.id,
+                    typ=(RunnableKind.TEXT, model.provider if model else None),
+                    node=block,
+                    text=block.text,
                 )
                 handle = RunHandle.from_state(state, run, base_options=DEFAULT_CODE_RUN_OPTIONS)
             elif block.type == BlockType.FLOW:

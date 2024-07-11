@@ -18,7 +18,7 @@ import { PACKAGE_SCOPE } from "@/system/client";
 import { useExistingConnection, useGetConnection } from "@/system/connection";
 import { getGroupedChildrenRef, isDescendantOf, walkDescendantsRef, type NodeTreeItem } from "@/system/graph";
 import { ICON_BY_BLOCK_TYPE, IconInline } from "@/system/icon";
-import { EXPOSED_BLOCK_TYPES, RUNNABLE_BLOCK_TYPES, createBlock, moveNode, toCamelName } from "@/system/lang";
+import { EXPOSED_BLOCK_TYPES, PAGE_BLOCK_TYPES, RUNNABLE_BLOCK_TYPES, createBlock, moveNode, toCamelName } from "@/system/lang";
 import { makeRun } from "@/system/session";
 import { canvas, inspectionPtr } from "@/system/space";
 import { makeTypeInfo } from "@/system/value";
@@ -73,7 +73,7 @@ const { items: expandedBlocks } = walkDescendantsRef({
   nodeTypes: ref([NodeType.BLOCK]),
   isExpanded: () => true,
   isIncludedSelf: () => true,
-  isIncludedChildren: (node) => !node.isPage,
+  isIncludedChildren: (node) => !PAGE_BLOCK_TYPES.includes(node.type),
 });
 const expandedBlocksWithSelf: Ref<NodeTreeItem<NodeType.BLOCK>[]> = computed(() => {
   if (page.value == null) {

@@ -31,6 +31,7 @@ import { isDescendantOf, type NodeKey, type ReadNodeGraph } from "@/system/graph
 import { toIconMaybe } from "@/system/icon";
 import {
   HELPER_VIEW_TYPES,
+  PAGE_BLOCK_TYPES,
   ROOT_VIEW_TYPES,
   generateNodeName,
   getOrderKey,
@@ -747,7 +748,7 @@ export class ViewCanvas {
       if (nodeRef.type == NodeType.BLOCK || DESCENDANT_NODE_TYPES[NodeType.BLOCK].includes(nodeRef.type)) {
         const containingPage = graph
           .getAncestors(nodeRef, { metatypes: [NodeType.BLOCK], includeSelf: !options?.skipSelf })
-          .find((n) => n.isPage);
+          .find((n) => PAGE_BLOCK_TYPES.includes(n.type));
         if (!containingPage) throw new Error(`in-block has no containing page block: ${describeNode(node)}`);
         const view = this.addView(
           {

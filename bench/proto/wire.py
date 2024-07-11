@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.07.11.5"
+VERSION = "2024.07.11.6"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -174,7 +174,6 @@ class BenchType(betterproto.Enum):
     TYPE_INFO = 10200
     TYPE_CONSTRAINT = 10201
     SCHEDULE = 10202
-    PROJECTION = 10203
     FILE_REFERENCE = 10204
     ICON = 10205
     SECRET_REFERENCE = 10206
@@ -271,7 +270,7 @@ class BenchType(betterproto.Enum):
     BREAKPOINT_ACTION = 20512
     CODE_KIND = 20513
     RUNNABLE_KIND = 20514
-    MODEL_AUTHOR = 20530
+    MODEL_PROVIDER = 20530
     MODEL_TYPE = 20531
     SPACE_TYPE = 21000
     VIEW_TYPE = 21001
@@ -295,8 +294,6 @@ class BlockType(betterproto.Enum):
     UNSPECIFIED = 0
     ALIAS = 1
     PAGE = 2
-    MODULE = 3
-    BLANK = 4
     CLASS = 10
     CHOICE = 11
     PROTOCOL = 14
@@ -526,7 +523,7 @@ class EnumType(betterproto.Enum):
     BREAKPOINT_ACTION = 20512
     CODE_KIND = 20513
     RUNNABLE_KIND = 20514
-    MODEL_AUTHOR = 20530
+    MODEL_PROVIDER = 20530
     MODEL_TYPE = 20531
     SPACE_TYPE = 21000
     VIEW_TYPE = 21001
@@ -744,7 +741,7 @@ class MachineProfile(betterproto.Enum):
     MEDIUM = 7
 
 
-class ModelAuthor(betterproto.Enum):
+class ModelProvider(betterproto.Enum):
     UNSPECIFIED = 0
     INTERNAL = 1
     OPENAI = 100
@@ -883,7 +880,6 @@ class ObjectType(betterproto.Enum):
     TYPE_INFO = 10200
     TYPE_CONSTRAINT = 10201
     SCHEDULE = 10202
-    PROJECTION = 10203
     FILE_REFERENCE = 10204
     ICON = 10205
     SECRET_REFERENCE = 10206
@@ -1215,7 +1211,6 @@ class StructType(betterproto.Enum):
     TYPE_INFO = 10200
     TYPE_CONSTRAINT = 10201
     SCHEDULE = 10202
-    PROJECTION = 10203
     FILE_REFERENCE = 10204
     ICON = 10205
     SECRET_REFERENCE = 10206
@@ -1782,8 +1777,7 @@ class ModelOptionsData(betterproto.Message):
     parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
     parent_key: Optional[str] = betterproto.string_field(4, optional=True)
     order_key: Optional[str] = betterproto.string_field(9, optional=True)
-    author: "ModelAuthor" = betterproto.enum_field(30)
-    type: "ModelType" = betterproto.enum_field(31)
+    model: "ModelType" = betterproto.enum_field(31)
 
 
 @dataclass(eq=False, repr=False)
@@ -1943,23 +1937,6 @@ class PolicyRuleData(betterproto.Message):
     object_properties_is_system: Optional[bool] = betterproto.bool_field(82, optional=True)
     object_properties_is_sensitive: Optional[bool] = betterproto.bool_field(83, optional=True)
     object_properties_is_kernel: Optional[bool] = betterproto.bool_field(84, optional=True)
-
-
-@dataclass(eq=False, repr=False)
-class ProjectionData(betterproto.Message):
-    """
-    A projection into the graph.
-     NOTE :Incomplete :Architecture: figure out projection
-     - how do we filter and LoD this?
-     - how do we represent unloaded nodes?
-     - how do we make projections reproducible and inspectable in the editor?
-    """
-
-    metatype: "ObjectType" = betterproto.enum_field(1)
-    id: int = betterproto.int32_field(2)
-    parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
-    parent_key: Optional[str] = betterproto.string_field(4, optional=True)
-    order_key: Optional[str] = betterproto.string_field(9, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2469,7 +2446,6 @@ class BlockData(betterproto.Message):
     policies: List["PolicyData"] = betterproto.message_field(48)
     delegated_policies: List["PolicyData"] = betterproto.message_field(49)
     is_builtin: bool = betterproto.bool_field(60)
-    is_page: bool = betterproto.bool_field(61)
     is_paused: bool = betterproto.bool_field(64)
 
 
@@ -5091,7 +5067,6 @@ AnyStructData = Union[
     TypeInfoData,
     TypeConstraintData,
     ScheduleData,
-    ProjectionData,
     FileReferenceData,
     IconData,
     SecretReferenceData,

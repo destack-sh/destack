@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.07.11.5"  # auto change via version script
+VERSION = "2024.07.11.6"  # auto change via version script
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -142,7 +142,7 @@ class EnumType(IdEnum):
     BREAKPOINT_ACTION = 20512
     CODE_KIND = 20513
     RUNNABLE_KIND = 20514
-    MODEL_AUTHOR = 20530
+    MODEL_PROVIDER = 20530
     MODEL_TYPE = 20531
 
     # view
@@ -333,7 +333,6 @@ class StructType(IdEnum):
     TYPE_INFO = 10200
     TYPE_CONSTRAINT = 10201
     SCHEDULE = 10202
-    PROJECTION = 10203
     FILE_REFERENCE = 10204
     ICON = 10205
     SECRET_REFERENCE = 10206
@@ -445,8 +444,6 @@ class Region(IdEnum):
 class BlockType(IdEnum):
     ALIAS = 1  # refer to / 'redefine' an existing block or builtin (like a 'newtype')
     PAGE = 2  # group of blocks
-    MODULE = 3  # group of blocks with a 'namespace'
-    BLANK = 4  # placeholder/spacer?
 
     # types
     CLASS = 10  # define a class type with fields
@@ -454,10 +451,8 @@ class BlockType(IdEnum):
     # TAG = 12  # define a tag type with fields
     PROTOCOL = 14  # define a 'protocol' for a block graph/template with fields
     SIGNAL = 15  # define a signal type with fields
-    # ISSUE = ...  # define a new issue type
     # NOTIFICATION = ...  # define a new notification type
-    # METRIC = ...  # define a new metric type?
-    # BLOCK = ...  # define a new block type?
+    # ISSUE, METRIC, BLOCK, ...?
 
     # runnable
     TEXT = 30  # define a 'paragraph' of text/prompt with fields (optionally incl. input/output)
@@ -477,6 +472,10 @@ class BlockType(IdEnum):
     IDENTITY = 91  # define an identity with roles & policies
 
     @property
+    def is_page(self) -> bool:
+        return self in BlockTypes.PAGES
+
+    @property
     def is_type(self) -> bool:
         return self in BlockTypes.TYPES
 
@@ -493,6 +492,7 @@ BLOCK_TYPES: tuple[BlockType, ...] = tuple(BlockType)
 
 
 class BlockTypes:
+    PAGES = bittuple(BlockType.PAGE, BlockType.FLOW, BlockType.DATABASE, BlockType.VIEW)
     TYPES = bittuple(*tuple(t for t in BLOCK_TYPES if 10 <= t.id < 20))
     RUNNABLE = bittuple(*tuple(t for t in BLOCK_TYPES if 30 <= t.id < 40))
     CLASSES = bittuple(
