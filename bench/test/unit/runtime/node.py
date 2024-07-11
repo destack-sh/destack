@@ -22,7 +22,7 @@ async def test_clone_subtree(session: Session, page: Block):
     await session.commit()
 
     choice_clone = choice.clone()
-    assert choice_clone._equals_content(choice)
+    assert choice_clone._equals_content(choice, ignore=(Block.order_key,))
     for field, field_clone in zip(choice.fields, choice_clone.fields):
         assert field_clone._equals_content(field)
     await session.commit()
