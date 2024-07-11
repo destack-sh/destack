@@ -20,7 +20,14 @@ import { isRunnable } from "@/system/lang";
 import { makeRun } from "@/system/session";
 import { canvas, inspectionPtr } from "@/system/space";
 import { packProtoJson, unpackProtoJson } from "@/system/transaction";
-import { packBuiltinObject, packValueSimpleStruct, propertyType, unpackBuiltinObject } from "@/system/value";
+import {
+  packBuiltinObject,
+  packValue,
+  packValueSimpleStruct,
+  propertyType,
+  unpackBuiltinObject,
+  unpackValue,
+} from "@/system/value";
 import { getFieldViews } from "@/system/view";
 import { ScrollbarWidth } from "@/utils/layout";
 import { computedValue, mapRef } from "@/utils/ref";
@@ -136,7 +143,7 @@ defineExpose<ViewExposed>({ self });
       <ul class="flex flex-col gap-y-2.5 py-3">
         <!-- Property -->
         <li
-          v-for="{ field, storageKey, viewType, viewProps, isFullWidth } of inputViews"
+          v-for="{ field, value, prepareUpdate: update, viewType, viewProps, isFullWidth } of inputViews"
           :key="field.id"
           class="mx-auto w-full px-5"
           :class="[isFullWidth ? 'flex flex-col' : 'flex flex-row flex-wrap items-center gap-x-[10%]']"
@@ -153,8 +160,8 @@ defineExpose<ViewExposed>({ self });
             :class="['ml-auto flex-shrink-0', isFullWidth ? '' : 'text-right']"
             :style="{ width: isFullWidth ? '100%' : 'calc(90% - 100px)' }"
             v-bind="viewProps"
-            :model-value="inputsPacked[storageKey]"
-            @update:model-value="(value: any) => (inputsPacked = { ...inputsPacked, [storageKey]: value })"
+            :model-value="value"
+            @update:model-value="(value: any) => (inputsPacked = update(value))"
           />
           <div v-else class="ml-auto text-warning-600">
             {{ viewType != null ? ViewType[viewType] : "No View for Type" }}
