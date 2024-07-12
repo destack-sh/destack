@@ -263,11 +263,16 @@ defineExpose<ViewExposed & { isRunnable: Ref<boolean> }>({
             : unpackValue(block?.valuePacked == null ? null : ProtoStruct.toJson(block.valuePacked), block!.valueType, {
                 graph: pkgGraph,
                 unwrapScalar: true,
+                recurseValueObject: false,
               })
         "
         @update:model-value="
           (newValue) => {
-            const valuePacked = packValue(newValue, block?.valueType!, { graph: pkgGraph, wrapScalar: true });
+            const valuePacked = packValue(newValue, block?.valueType!, {
+              graph: pkgGraph,
+              wrapScalar: true,
+              recurseValueObject: false,
+            });
             if (valuePacked != null) {
               pkgConnection.tx.update(
                 block!,

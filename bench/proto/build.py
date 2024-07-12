@@ -10,6 +10,7 @@ import typer
 from bench.cli.utils import _shell
 from bench.language import Node
 from bench.language.const import ENUM_TYPES, NODE_TYPES, STRUCT_TYPES, UNSET, VERSION
+from bench.language.node import NODE_REFERENCE_TYPES
 from bench.language.property import Property
 from bench.language.setup import (
     ANCESTOR_NODE_TYPES,
@@ -394,6 +395,7 @@ export type AnyNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLAS
 export type AnyStructData = {' | '.join(cls.__name__ + 'Data' for cls in STRUCT_CLASSES)}
 export type AnyNodeDataType = {' | '.join('typeof ' + cls.__name__ + 'Data' for cls in NODE_CLASSES)}
 export type AnyStructDataType = {' | '.join('typeof ' + cls.__name__ + 'Data' for cls in STRUCT_CLASSES)}
+export type AnyNodeReferenceData = {' | '.join('typeof ' + STRUCT_CLASS_BY_TYPE[t].__name__ + 'Data' for t in NODE_REFERENCE_TYPES)}
 
 // Ancestry maps
 {ancestry_maps_str}
