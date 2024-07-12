@@ -738,7 +738,10 @@ PRIMITIVE_TYPE_BY_PY_TYPE: dict[type, PrimitiveType] = {
 
 @enum_(EnumType.FORMAT_HINT)
 class FormatHint(IdEnum):
-    """Extra semantic hint for types."""
+    """
+    Extra semantic hint for types.
+    NOTE :Architecture: revisit FormatHint (especially with file types like images, constraints, etc.)
+    """
 
     # string
     TITLE = 1

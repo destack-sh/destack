@@ -92,7 +92,7 @@ defineExpose<ViewExposed>({ self, id, focus });
         class="mr-1.5 w-5 text-center text-gray-700"
       />
       <span :class="hasValue ? 'text-gray-900' : 'text-gray-400'">{{ baseType?.name ?? "???" }}</span>
-      <!-- TODO :UX: Object inline value preview -->
+      <!-- NOTE :UX: add Object inline value preview? -->
       <div class="ml-2 flex flex-row gap-x-1.5">
         <div v-for="{ field } of fieldViews.filter((f) => f.isSet)" :key="field.id">
           <span class="text-gray-400">{{ field.name }}</span>

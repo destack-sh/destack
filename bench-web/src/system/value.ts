@@ -410,17 +410,29 @@ export function unpackBuiltinObject<T extends ObjectType>(valuePacked: any, obje
 // TODO :Test!: figure out how to test value packing on bench-web properly (ensure it's in sync with bench)
 
 /** Packs a single object value into a packed & secret packed value. */
-function packValueObject(value: ScalarValue, type: TypeIdentity, graph: ReadNodeGraph): JsonValue {
-  const fields = resolveFields(type, graph);
+function packValueObject(
+  value: ScalarValue,
+  type: TypeIdentity,
+  options: { graph: ReadNodeGraph; recurseValueObject: boolean },
+): JsonValue {
+  const fields = resolveFields(type, options.graph);
   const valuePacked: { [key: string]: JsonValue } = {};
   for (const field of fields) {
-    const fieldType = resolveType(field, graph);
+    const fieldType = resolveType(field, options.graph);
     const fieldStorageKey = getStorageKey(field, fieldType);
     const fieldValue = (value as any)[fieldStorageKey];
     if (fieldValue == null) {
       continue;
     } else if (fieldType.kind == TypeKind.OBJECT) {
-      valuePacked[fieldStorageKey] = packValue(fieldValue, fieldType, { graph, wrapScalar: false });
+      if (options.recurseValueObject) {
+        valuePacked[fieldStorageKey] = packValue(fieldValue, fieldType, {
+          graph: options.graph,
+          wrapScalar: false,
+          recurseValueObject: options.recurseValueObject,
+        });
+      } else {
+        valuePacked[fieldStorageKey] = fieldValue; // keep packed as is
+      }
     } else if (!fieldType.isList) {
       valuePacked[fieldStorageKey] = packValueScalar(fieldValue, fieldType);
     } else {
@@ -431,22 +443,31 @@ function packValueObject(value: ScalarValue, type: TypeIdentity, graph: ReadNode
 }
 
 /** Unpacks a single packed & secret packed value into an object. */
-function unpackValueObject(valuePacked: JsonValue, type: TypeIdentity, graph: ReadNodeGraph): SomeValue {
-  const fields = resolveFields(type, graph);
+function unpackValueObject(
+  valuePacked: JsonValue,
+  type: TypeIdentity,
+  options: { graph: ReadNodeGraph; recurseValueObject: boolean },
+): SomeValue {
+  const fields = resolveFields(type, options.graph);
   const value: { [key: string]: SomeValue } = {};
   for (const field of fields) {
-    const fieldType = resolveType(field, graph);
+    const fieldType = resolveType(field, options.graph);
     const fieldStorageKey = getStorageKey(field, fieldType);
     const fieldValuePacked = (valuePacked as any)[fieldStorageKey];
     if (fieldValuePacked == null) {
       continue;
     } else if (fieldType.kind == TypeKind.OBJECT) {
-      const fieldValue = unpackValue(fieldValuePacked, fieldType, {
-        graph,
-        unwrapScalar: false,
-      });
-      if (fieldValue != null) {
-        value[fieldStorageKey] = fieldValue;
+      if (options.recurseValueObject) {
+        const fieldValue = unpackValue(fieldValuePacked, fieldType, {
+          graph: options.graph,
+          unwrapScalar: false,
+          recurseValueObject: options.recurseValueObject,
+        });
+        if (fieldValue != null) {
+          value[fieldStorageKey] = fieldValue;
+        }
+      } else {
+        value[fieldStorageKey] = fieldValuePacked; // keep packed as is
       }
     } else if (!fieldType.isList) {
       value[fieldStorageKey] = unpackValueScalar(fieldValuePacked, fieldType);
@@ -465,7 +486,10 @@ function unpackValueObject(valuePacked: JsonValue, type: TypeIdentity, graph: Re
 export function packValue(
   value: any,
   type: TypeIdentity,
-  options: { graph?: ReadNodeGraph; wrapScalar: boolean } = { wrapScalar: true },
+  options: { graph?: ReadNodeGraph; wrapScalar: boolean; recurseValueObject: boolean } = {
+    wrapScalar: true,
+    recurseValueObject: true,
+  },
   previous?: JsonValue,
 ): JsonValue {
   if (type.kind == TypeKind.ALIAS) {
@@ -480,11 +504,14 @@ export function packValue(
     if (value == null) {
       return null;
     } else if (!type.isList) {
-      return packValueObject(value, type, options.graph);
+      return packValueObject(value, type, { graph: options.graph, recurseValueObject: options.recurseValueObject });
     } else {
       const valuePacked: JsonValue[] = [];
       for (let i = 0; i < value.length; i++) {
-        const packed = packValueObject(value[i], type, options.graph);
+        const packed = packValueObject(value[i], type, {
+          graph: options.graph,
+          recurseValueObject: options.recurseValueObject,
+        });
         valuePacked.push(packed);
       }
       return valuePacked;
@@ -509,7 +536,10 @@ export function packValue(
 export function packValueSimple(
   value: any,
   type: TypeIdentity,
-  options: { graph?: ReadNodeGraph; wrapScalar: boolean } = { wrapScalar: true },
+  options: { graph?: ReadNodeGraph; wrapScalar: boolean; recurseValueObject: boolean } = {
+    wrapScalar: true,
+    recurseValueObject: true,
+  },
 ): JsonValue {
   return packValue(value, type, options);
 }
@@ -517,7 +547,10 @@ export function packValueSimple(
 export function packValueSimpleStruct(
   value: any,
   type: TypeIdentity,
-  options: { graph?: ReadNodeGraph; wrapScalar: boolean } = { wrapScalar: true },
+  options: { graph?: ReadNodeGraph; wrapScalar: boolean; recurseValueObject: boolean } = {
+    wrapScalar: true,
+    recurseValueObject: true,
+  },
 ): ProtoStruct {
   return ProtoStruct.fromJson(packValueSimple(value, type, options));
 }
@@ -529,7 +562,10 @@ export function packValueSimpleStruct(
 export function unpackValue(
   valuePacked: JsonValue,
   type: TypeIdentity,
-  options: { graph?: ReadNodeGraph; unwrapScalar: boolean } = { unwrapScalar: true },
+  options: { graph?: ReadNodeGraph; unwrapScalar: boolean; recurseValueObject: boolean } = {
+    unwrapScalar: true,
+    recurseValueObject: true,
+  },
 ): any {
   if (type.kind == TypeKind.ALIAS) {
     if (options.graph == null) throw new Error(`missing graph to resolve ${describeTypeIdentity(type)}`);
@@ -548,12 +584,17 @@ export function unpackValue(
     if (valuePacked == null) {
       return null;
     } else if (!type.isList) {
-      return unpackValueObject(valuePacked, type, options.graph);
+      return unpackValueObject(valuePacked, type, {
+        graph: options.graph,
+        recurseValueObject: options.recurseValueObject,
+      });
     } else {
       if (!Array.isArray(valuePacked)) {
         throw new Error(`expected array for list type ${describeTypeIdentity(type)}: ${JSON.stringify(valuePacked)}`);
       }
-      return valuePacked!.map((v: any, i: number) => unpackValueObject(v, type, options.graph!));
+      return valuePacked!.map((v: any, i: number) =>
+        unpackValueObject(v, type, { graph: options.graph!, recurseValueObject: options.recurseValueObject }),
+      );
     }
   } else {
     // unwrap scalar

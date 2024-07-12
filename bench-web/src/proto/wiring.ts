@@ -324,10 +324,11 @@ export function propertyInfo(metatype: ObjectType, id: number): PropertyInfo {
 }
 
 // references to some nodes have 'rich' metadata :RichReferences
-const RICH_REFERENCE_TYPES = {
+export const NODE_REFERENCE_TYPES_BY_NODE_TYPE = {
   [NodeType.FILE]: StructType.FILE_REFERENCE,
   [NodeType.SECRET]: StructType.SECRET_REFERENCE,
 };
+export const NODE_REFERENCE_TYPES = [StructType.NODE_REFERENCE, ...Object.values(NODE_REFERENCE_TYPES_BY_NODE_TYPE)];
 
 export function isNodeReference(value: any | null | undefined): value is NodeReferenceData {
   return typeof value == "object" && (value as any).metatype == ObjectType.NODE_REFERENCE;

@@ -2096,10 +2096,11 @@ class NodeReference(InlineStruct[NodeReferenceData], NodeReferenceBase):
 # some node types have richer representations in references :RichReferences
 #  (we only store those in Values or when the property explicitly has reference_is_rich,
 #   since otherwise every single ptr to a potential rich type would carry a lot of metadata)
-RICH_REFERENCE_TYPES: dict[NodeType, StructType] = {
+NODE_REFERENCE_TYPES_BY_NODE_TYPE: dict[NodeType, StructType] = {
     NodeType.FILE: StructType.FILE_REFERENCE,
     NodeType.SECRET: StructType.SECRET_REFERENCE,
 }
+NODE_REFERENCE_TYPES = (StructType.NODE_REFERENCE, *NODE_REFERENCE_TYPES_BY_NODE_TYPE.values())
 
 
 @struct_(StructType.PROPERTY_REFERENCE, inline=True)
