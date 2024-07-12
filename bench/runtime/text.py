@@ -1,11 +1,15 @@
 import abc
-from typing import override
+from typing import ClassVar, Mapping, cast, override
+
+import anthropic
+import openai
 
 from bench.language.code import Code
 from bench.language.projection import Projection, project
-from bench.language.run import ModelProvider, RunKind
-from bench.runtime.core import RUN_ONCE
+from bench.language.run import ModelProvider, ModelType, RunKind
+from bench.runtime.core import RUN_ONCE, NotRunnableError
 from bench.runtime.runner import Runner, runner
+from bench.utils.utils import get_from_env
 
 
 class ModelRunnerBase(Runner, abc.ABC):
@@ -16,7 +20,7 @@ class ModelRunnerBase(Runner, abc.ABC):
 
     @override
     async def run(self) -> None:
-        projection = project(self.state.node)
+        projection = project(self.state.node, self.handle.inputs)
         code_str = await self._do_generate_code(projection)
         code = Code.from_string(code_str)
         code_handle = await self.runtime.make_run_handle(
@@ -42,13 +46,51 @@ class ModelRouter(Runner):
         self.handle.outputs = model_handle.outputs
 
 
+openai_client = openai.AsyncClient(
+    api_key=get_from_env("OPENAI_API_KEY", description="OpenAI API key")
+)
+anthropic_client = anthropic.AsyncClient(
+    api_key=get_from_env("ANTHROPIC_API_KEY", description="Anthropic API key")
+)
+
+
 @runner(RunKind.TEXT, ModelProvider.OPENAI)
 class OpenaiModelRunner(ModelRunnerBase):
+    MODEL_BY_TYPE: ClassVar[Mapping[ModelType, str]] = {ModelType.GPT40: "gpt-4o"}
+
     @override
     async def _do_generate_code(self, projection: Projection) -> str:
-        raise NotImplementedError
+        model_key = self.MODEL_BY_TYPE.get(cast(ModelType, self.state.key))
+        if model_key is None:
+            raise NotRunnableError(f"unsupported model type {self.state.key}")
+        messages = ...  # nocheckin
+        completion = await openai_client.chat.completions.create(
+            messages=messages, model=model_key, temperature=0.1
+        )
+        assert completion.choices[0].message.content, "empty completion"
+        return completion.choices[0].message.content
 
 
 @runner(RunKind.TEXT, ModelProvider.ANTHROPIC)
 class AnthropicModelRunner(ModelRunnerBase):
-    pass
+    MODEL_BY_TYPE: ClassVar[Mapping[ModelType, str]] = {
+        ModelType.CLAUDE_3_5_SONNET: "claude-3-5-sonnet-20240620"
+    }
+
+    @override
+    async def _do_generate_code(self, projection: Projection) -> str:
+        model_key = self.MODEL_BY_TYPE.get(cast(ModelType, self.state.key))
+        if model_key is None:
+            raise NotRunnableError(f"unsupported model type {self.state.key}")
+        messages = ...  # nocheckin
+        completion = await anthropic_client.messages.create(
+            messages=messages,
+            model=model_key,
+            temperature=0.1,
+            max_tokens=1024 * 8,
+        )
+        assert completion.content, "empty completion"
+        assert (
+            completion.content[0].type == "text"
+        ), f"unexpected completion type: {completion.content}"
+        return completion.content[0].text

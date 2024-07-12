@@ -2,6 +2,9 @@ import base64
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, cast
 
+import structlog
+from opentelemetry import trace
+
 from bench.language.const import EnumType, PrimitiveType, TypeKind
 from bench.language.node import BuiltinObject, Node, Struct
 from bench.language.setup import ENUM_CLASS_BY_TYPE
@@ -9,6 +12,9 @@ from bench.language.setup import ENUM_CLASS_BY_TYPE
 if TYPE_CHECKING:
     from bench.language.field import TypeInfoBase
     from bench.language.value import ScalarValue, SomeValue, ValueObject
+
+logger = structlog.get_logger(__name__)
+tracer = trace.get_tracer(__name__)
 
 
 def render_value_scalar(value: "ScalarValue", typ: "TypeInfoBase") -> str:
@@ -26,7 +32,7 @@ def render_value_scalar(value: "ScalarValue", typ: "TypeInfoBase") -> str:
             return repr(value)
     elif typ.kind == TypeKind.NODE or typ.kind == TypeKind.BASED_NODE:
         assert isinstance(value, Node), f"{value!r} is not a node (expected {typ!r})"
-        # TODO :Broken :Projection: render/alias node reference properly :NodeAliasing
+        # nocheckin: render/alias node reference properly
         ident = value.py_ident
         assert ident is not None, f"{value!r} has no identifier"
         return ident
