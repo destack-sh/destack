@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.07.11.7"
+VERSION = "2024.07.12.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -268,8 +268,7 @@ class BenchType(betterproto.Enum):
     NOTIFICATION_KIND = 20510
     BREAKPOINT_KIND = 20511
     BREAKPOINT_ACTION = 20512
-    CODE_KIND = 20513
-    RUNNABLE_KIND = 20514
+    CODE_TYPE = 20513
     MODEL_PROVIDER = 20530
     MODEL_TYPE = 20531
     SPACE_TYPE = 21000
@@ -350,9 +349,9 @@ class ClientType(betterproto.Enum):
     BENCH_SERVER = 10
 
 
-class CodeKind(betterproto.Enum):
+class CodeType(betterproto.Enum):
     """
-    The implicit 'kind' of some Code.
+    The implicit 'type' of some Code.
      We don't set this explicitly in Code because it depends on where the Code is used.
     """
 
@@ -521,8 +520,7 @@ class EnumType(betterproto.Enum):
     NOTIFICATION_KIND = 20510
     BREAKPOINT_KIND = 20511
     BREAKPOINT_ACTION = 20512
-    CODE_KIND = 20513
-    RUNNABLE_KIND = 20514
+    CODE_TYPE = 20513
     MODEL_PROVIDER = 20530
     MODEL_TYPE = 20531
     SPACE_TYPE = 21000
@@ -655,7 +653,10 @@ class FontWeight(betterproto.Enum):
 
 
 class FormatHint(betterproto.Enum):
-    """Extra semantic hint for types."""
+    """
+    Extra semantic hint for types.
+     NOTE :Architecture: revisit FormatHint (especially with file types like images, constraints, etc.)
+    """
 
     UNSPECIFIED = 0
     TITLE = 1
@@ -1044,13 +1045,17 @@ class RunErrorType(betterproto.Enum):
     UNSPECIFIED = 0
     RUNTIME_UNAVAILABLE = 1
     NOT_RUNNABLE = 2
+    REPLAY = 3
 
 
 class RunKind(betterproto.Enum):
+    """The kind of some runnable."""
+
     UNSPECIFIED = 0
-    BLOCK = 1
-    STEP = 2
-    LAMBDA = 10
+    CODE = 1
+    TEXT = 2
+    STEP = 3
+    FLOW = 4
 
 
 class RunStatus(betterproto.Enum):
@@ -1064,16 +1069,6 @@ class RunStatus(betterproto.Enum):
     ABORTED = 7
     FAILED = 8
     COMPLETED = 9
-
-
-class RunnableKind(betterproto.Enum):
-    """The kind of some runnable."""
-
-    UNSPECIFIED = 0
-    CODE = 1
-    TEXT = 2
-    STEP = 3
-    FLOW = 4
 
 
 class ScheduleType(betterproto.Enum):
@@ -1169,21 +1164,21 @@ class StepType(betterproto.Enum):
     FAIL = 3
     VALUE = 10
     TRIGGER = 11
-    RUN = 20
-    CODE = 21
-    TEXT = 22
-    SEND = 23
-    PASS = 30
-    MATCH = 40
-    FILTER = 41
-    LOOP = 42
-    MERGE = 43
-    SPLIT = 44
-    FLATTEN = 45
-    ACCUMULATE = 46
-    REDUCE = 47
-    ZIP = 48
-    GROUP = 60
+    PASS = 50
+    BLOCK = 51
+    CODE = 52
+    TEXT = 53
+    SEND = 54
+    MATCH = 100
+    FILTER = 101
+    LOOP = 102
+    MERGE = 103
+    SPLIT = 104
+    FLATTEN = 105
+    ACCUMULATE = 106
+    REDUCE = 107
+    ZIP = 108
+    GROUP = 150
 
 
 class StructType(betterproto.Enum):

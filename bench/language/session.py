@@ -79,6 +79,7 @@ if TYPE_CHECKING:
         Step,
         User,
     )
+    from bench.runtime.runner import RuntimeRunner
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -147,9 +148,7 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
     # runtime
     _oracle: Oracle = p_runtime()
     _active_session_token: contextvars.Token | None = p_runtime(default=None)
-    _active_run: contextvars.ContextVar["Run | None"] = p_runtime(
-        default_factory=lambda: contextvars.ContextVar("_active_run", default=None)
-    )
+    _runner: Optional["RuntimeRunner"] = p_runtime(default=None)
     _supervisor: Optional["SupervisorClient"] = p_runtime(default=None)
     _host: Optional["HostClient"] = p_runtime(default=None)
 
@@ -214,16 +213,9 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
         return self._is_suspended
 
     @property
-    def supervisor(self) -> "SupervisorClient":
-        """The remote supervisor."""
-        assert self._supervisor is not None, f"supervisor not available in {self!r}"
-        return self._supervisor
-
-    @property
-    def host(self) -> "HostClient":
-        """The remote host."""
-        assert self._host is not None, f"host not available in {self!r}"
-        return self._host
+    def runtime(self) -> "RuntimeRunner":
+        assert self._runner is not None, f"no runner in {self!r}"
+        return self._runner
 
     def _get_scope_for_node(self, n: Node) -> GraphScopeData:
         """Get the scope for a node in this session."""
@@ -510,7 +502,7 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
         # but it could change..
 
         # if we have an active run, that's the subject
-        run = self._active_run.get()
+        run = self._runner.active_run if self._runner is not None else None
         if run is not None:
             # if run has a step/block, use that
             if run.step_ptr:

@@ -14,10 +14,10 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
-@enum_(EnumType.CODE_KIND)
-class CodeKind(IdEnum):
+@enum_(EnumType.CODE_TYPE)
+class CodeType(IdEnum):
     """
-    The implicit 'kind' of some Code.
+    The implicit 'type' of some Code.
     We don't set this explicitly in Code because it depends on where the Code is used.
     """
 

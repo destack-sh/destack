@@ -6,7 +6,7 @@ from typing import Any
 
 import pytest
 
-from bench.language import Code, CodeKind
+from bench.language import Code, CodeType
 from bench.runtime.compiler import (
     CodeAnalysisVisitor,
     CodeDefinition,
@@ -25,7 +25,7 @@ class _TestVisitorHandle:
 
     def __init__(
         self,
-        kind: CodeKind = CodeKind.SCRIPT,
+        kind: CodeType = CodeType.SCRIPT,
         visitor: CodeAnalysisVisitor | None = None,
         code_id: str = "test",
     ):
@@ -914,7 +914,7 @@ x = 1 + y + CONST
 _y = x + 1
 _y
 """)
-    compiled = compile_code("anon", code.to_string(), CodeKind.SNIPPET, {"CONST": 0})
+    compiled = compile_code("anon", code.to_string(), CodeType.SNIPPET, {"CONST": 0})
     assert compiled.code == code.to_string()
     assert compiled.transformed_code == compiled.code  # no transformation
     assert set(compiled.references.keys()) == {"y"}  # exclude global refs
@@ -926,7 +926,7 @@ x = y + 1
 def a():
     pass
 """)
-    compiled = compile_code("anon", code.to_string(), CodeKind.SCRIPT, {})
+    compiled = compile_code("anon", code.to_string(), CodeType.SCRIPT, {})
     assert compiled.code == code.to_string()
     assert compiled.transformed_code == compiled.code  # no transformation
     assert set(compiled.references.keys()) == {"y"}
@@ -941,7 +941,7 @@ def test_compile_code_function():
 x = 1
 return Input1 + y + 1
 """)
-    compiled = compile_code("anon", code.to_string(), CodeKind.FUNCTION, {})
+    compiled = compile_code("anon", code.to_string(), CodeType.FUNCTION, {})
     assert compiled.code == code.to_string()
     assert set(compiled.references.keys()) == {"Input1", "y"}
 
@@ -970,7 +970,7 @@ else:
         3,
     )
 """)
-    compiled = compile_code("anon", code.to_string(), CodeKind.FUNCTION, {})
+    compiled = compile_code("anon", code.to_string(), CodeType.FUNCTION, {})
     assert compiled.code == code.to_string()
     assert set(compiled.references.keys()) == {"x", "a", "c", "z", "boomify"}
     assert compiled.body_co, f"no code object for {compiled!r}"

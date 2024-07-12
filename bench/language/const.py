@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.07.11.7"  # auto change via version script
+VERSION = "2024.07.12.0"  # auto change via version script
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -140,8 +140,7 @@ class EnumType(IdEnum):
     NOTIFICATION_KIND = 20510
     BREAKPOINT_KIND = 20511
     BREAKPOINT_ACTION = 20512
-    CODE_KIND = 20513
-    RUNNABLE_KIND = 20514
+    CODE_TYPE = 20513
     MODEL_PROVIDER = 20530
     MODEL_TYPE = 20531
 
@@ -842,13 +841,6 @@ class IssueKind(IdEnum):
     INFO = 2
     WARNING = 3
     ERROR = 4
-
-
-@enum_(EnumType.RUN_KIND)
-class RunKind(IdEnum):
-    BLOCK = 1
-    STEP = 2
-    LAMBDA = 10
 
 
 @enum_(EnumType.RUN_ERROR_KIND)

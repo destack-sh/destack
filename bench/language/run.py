@@ -9,7 +9,6 @@ from bench.language.const import (
     FieldZone,
     NodeType,
     RunErrorKind,
-    RunKind,
     RunStatus,
     StructType,
     enum_,
@@ -57,8 +56,8 @@ if TYPE_CHECKING:
 
 
 # pyright: reportIncompatibleVariableOverride=false
-@enum_(EnumType.RUNNABLE_KIND)
-class RunnableKind(IdEnum):
+@enum_(EnumType.RUN_KIND)
+class RunKind(IdEnum):
     """The kind of some runnable."""
 
     CODE = 1
@@ -227,6 +226,7 @@ class RunFrame(Struct):
 class RunErrorType(IdEnum):
     RUNTIME_UNAVAILABLE = 1
     NOT_RUNNABLE = 2
+    REPLAY = 3
 
 
 @struct_(StructType.RUN_ERROR)
@@ -325,16 +325,12 @@ class Run(PackageNode[RunData], HasTimeIdentity, HasNodeBase, HasSessionContext,
     runs: list["Run"] = p_node_children(NodeType.RUN)
 
     def __content_str__(self):
-        if self.kind == RunKind.BLOCK:
-            content_str = self.block.absolute_path if self.block else str(self.block_ptr)
-        elif self.kind == RunKind.STEP:
-            content_str = self.step.absolute_path if self.step else str(self.step_ptr)
-        else:
-            content_str = repr(self.code) if self.code else "<no code>"
+        node = self.step or self.block
+        path = node.absolute_path if node else "<lambda>"
         if self.duration is not None:
-            return f"{content_str}, {self.status.bench_name}, duration={self.duration:.3f}s"
+            return f"{self.kind.bench_name}:{path}, {self.status.bench_name}, duration={self.duration:.3f}s"
         else:
-            return f"{content_str}, {self.status.bench_name}"
+            return f"{self.kind.bench_name}:{path}, {self.status.bench_name}"
 
     @property
     def is_active(self) -> bool:
@@ -394,9 +390,9 @@ class Run(PackageNode[RunData], HasTimeIdentity, HasNodeBase, HasSessionContext,
         else:
             self.cancel()
 
-    def fail(self, error: "RunError"):
+    def fail(self, error: "RunError", _force: bool = False):
         """Fails the Run with the given error."""
-        assert not self.status.is_terminal, f"cannot fail {self!r}"
+        assert not self.status.is_terminal or _force, f"cannot fail {self!r}"
         self.status = RunStatus.FAILED
         self.error = error
 
@@ -407,7 +403,9 @@ class Run(PackageNode[RunData], HasTimeIdentity, HasNodeBase, HasSessionContext,
             invalid(self, "root points to self", (Run.root, Run.id))
 
     @staticmethod
-    def from_runnable(node: "Block | Step", *, inputs: Any | None = None) -> "Run":
+    def from_runnable(
+        node: "Block | Step", *, inputs: Any | None = None, parent: "Run | None" = None
+    ) -> "Run":
         """Creates a Run from a Block."""
         from bench.language import Block, Step
         from bench.language.value import coerce_value_object
@@ -417,7 +415,8 @@ class Run(PackageNode[RunData], HasTimeIdentity, HasNodeBase, HasSessionContext,
         if isinstance(node, Block):
             step = None
             block = node
-            kind = RunKind.BLOCK
+            kind = node.run_kind
+            assert kind is not None, f"no run kind for {node!r}"
         elif isinstance(node, Step):
             step = node
             block = step.block
@@ -425,7 +424,7 @@ class Run(PackageNode[RunData], HasTimeIdentity, HasNodeBase, HasSessionContext,
         else:
             assert_never(node)
 
-        run = Run(parent=node.package, kind=kind, block=block, step=step)
+        run = Run(parent=parent or node.package, kind=kind, block=block, step=step)
         if inputs is None:
             inputs = {}
         if run.input_type is not None:
