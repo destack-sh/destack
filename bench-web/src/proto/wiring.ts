@@ -62,12 +62,12 @@ export function describeNode(node: {
   title?: string | null;
 }): string {
   const nodeParts: string[] = [`id=${node.id}`];
-  const nodeType = node.metatype == ObjectType.NODE_REFERENCE ? (node as NodeReferenceData).type : node.metatype;
+  const nodeType = isNodeReference(node) ? node.type : node.metatype;
   if ("ck" in node) nodeParts.push(`ck=${node.ck}`);
   if ("revision" in node) nodeParts.push(`revision=${node.revision}`);
   if (node.name) nodeParts.push(`name='${node.name}'`);
   if (node.slug) nodeParts.push(`slug=${node.slug}`);
-  if (node.metatype != ObjectType.NODE_REFERENCE && nodeType != null && node.type != null) {
+  if (!isNodeReference(node) && nodeType != null && node.type != null) {
     // coerce 'type' property into actual name
     const messageType = MESSAGE_TYPE_BY_OBJECT_TYPE[nodeType as unknown as ObjectType];
     if (messageType != null) {
@@ -323,12 +323,22 @@ export function propertyInfo(metatype: ObjectType, id: number): PropertyInfo {
   return PROPERTY_INFOS_BY_TYPE[metatype]![id];
 }
 
+// references to some nodes have 'rich' metadata :RichReferences
+const RICH_REFERENCE_TYPES = {
+  [NodeType.FILE]: StructType.FILE_REFERENCE,
+  [NodeType.SECRET]: StructType.SECRET_REFERENCE,
+};
+
+export function isNodeReference(value: any | null | undefined): value is NodeReferenceData {
+  return typeof value == "object" && (value as any).metatype == ObjectType.NODE_REFERENCE;
+}
+
 export function toNodeReference(node: null): null;
 export function toNodeReference<T extends NodeType>(node: TypedNodeReferenceData<T>): TypedNodeReferenceData<T>;
 export function toNodeReference<T extends NodeType>(node: NodeTypeMapping[T]): TypedNodeReferenceData<T>;
 export function toNodeReference<T extends NodeType>(node: NodeTypeMapping[T] | null): TypedNodeReferenceData<T> | null {
   if (!node) return null;
-  if (node.metatype == ObjectType.NODE_REFERENCE) return node as unknown as TypedNodeReferenceData<T>;
+  if (isNodeReference(node)) return node as unknown as TypedNodeReferenceData<T>;
   const reference: TypedNodeReferenceData<T> = {
     metatype: ObjectType.NODE_REFERENCE,
     type: node.metatype as unknown as T,
@@ -364,7 +374,7 @@ export function toNodeReferenceRef<T extends NodeType>(
 }
 
 export function getNodeType(node: AnyNodeData | AnyNodeReferenceData): NodeType {
-  if (node.metatype == ObjectType.NODE_REFERENCE) return (node as NodeReferenceData).type;
+  if (isNodeReference(node)) return (node as NodeReferenceData).type;
   else return node.metatype as unknown as NodeType;
 }
 

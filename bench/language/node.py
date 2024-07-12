@@ -1672,7 +1672,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
 
     def _to_ref_data(self) -> NodeReferenceData:
         """Gets a data reference to this node."""
-        return NodeReference.data_from_node(self)
+        return NodeReference.from_node_as_data(self)
 
     #
     # Lifecycle
@@ -1935,6 +1935,19 @@ class NodeReferenceBase[NT: Node, ND: AnyNodeData, RT: NodeReferenceBase, RD: An
     base_bench_id: Optional[UUID] = p_internal(35, default=None)
 
     @staticmethod
+    def _copy_ref[T: NodeReferenceBase | Any](
+        ref_cls: Type[T], ref: "NodeReferenceBase | Any"
+    ) -> T:
+        return ref_cls(
+            id=ref.id,
+            ck=ref.ck,
+            type=ref.type,
+            bench_id=ref.bench_id,
+            base_ck=ref.base_ck,
+            base_bench_id=ref.base_bench_id,
+        )
+
+    @staticmethod
     @abc.abstractmethod
     def from_node(node: NT) -> RT:
         raise NotImplementedError
@@ -1946,7 +1959,7 @@ class NodeReferenceBase[NT: Node, ND: AnyNodeData, RT: NodeReferenceBase, RD: An
 
     @staticmethod
     @abc.abstractmethod
-    def data_from_node(node: NT) -> RD:
+    def from_node_as_data(node: NT) -> RD:
         raise NotImplementedError
 
 
@@ -2054,7 +2067,7 @@ class NodeReference(InlineStruct[NodeReferenceData], NodeReferenceBase):
 
     @override
     @staticmethod
-    def data_from_node(node: Node) -> "NodeReferenceData":
+    def from_node_as_data(node: Node) -> "NodeReferenceData":
         """Turn a node straight to a data node reference."""
         from bench.proto import wire
 
@@ -2078,6 +2091,15 @@ class NodeReference(InlineStruct[NodeReferenceData], NodeReferenceBase):
                 reference.base_bench_id = str(base.bench_id)
 
         return reference
+
+
+# some node types have richer representations in references :RichReferences
+#  (we only store those in Values or when the property explicitly has reference_is_rich,
+#   since otherwise every single ptr to a potential rich type would carry a lot of metadata)
+RICH_REFERENCE_TYPES: dict[NodeType, StructType] = {
+    NodeType.FILE: StructType.FILE_REFERENCE,
+    NodeType.SECRET: StructType.SECRET_REFERENCE,
+}
 
 
 @struct_(StructType.PROPERTY_REFERENCE, inline=True)

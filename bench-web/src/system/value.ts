@@ -20,7 +20,7 @@ import {
   type PropertyInfo,
   type TypeInfoData,
 } from "@/proto/wire";
-import { describeNode, isStruct, makeDefaultObject, propertyInfo } from "@/proto/wiring";
+import { describeNode, isNodeReference, isStruct, makeDefaultObject, propertyInfo } from "@/proto/wiring";
 import type { ReadNodeGraph } from "@/system/graph";
 import {
   CLASSY_BLOCK_TYPES,
@@ -274,7 +274,7 @@ function packValueScalar(value: ScalarValue, type: TypeIdentity): JsonValue {
     if (isProtoJson(value)) {
       // shortcut if already packed :ProtoStructMapping
       return ProtoStruct.toJson(value);
-    } else if ((value as NodeReferenceData).metatype != ObjectType.NODE_REFERENCE) {
+    } else if (!isNodeReference(value)) {
       throw new Error(`unexpected value ${JSON.stringify(value)} for type ${describeTypeIdentity(type)}`);
     } else {
       return packBuiltinObject(value as NodeReferenceData);

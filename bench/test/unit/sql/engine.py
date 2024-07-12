@@ -23,6 +23,7 @@ from bench.language.field import TypeKind
 from bench.language.query import NodeNotFoundError
 from bench.language.session import Session
 from bench.language.user import User
+from bench.language.view import ViewType
 from bench.sql.client import pg_store_connection
 from bench.sql.core import GLOBAL_EXTENSIONS, Column, Schema, Table
 from bench.sql.engine import (
@@ -267,7 +268,7 @@ async def test_cascade_edits(omni_session: Session):
 
 
 async def test_crud_node_pointers(omni_session: Session):
-    """Ensures that node pointers (parent, regular, ancestor) roundtrip correctly."""
+    """Ensures that node pointers (parent, regular, ancestor, ...) roundtrip correctly."""
     async with omni_session as session:
         # write
         bench: Bench = Bench(
@@ -297,8 +298,10 @@ async def test_crud_node_pointers(omni_session: Session):
         bench._untrack_rec()
 
         session.track(bench)
-        block_1 = package.blocks.create(type=BlockType.CODE)
-        block_1.fields.create(name="foo", kind=TypeKind.ENUM, bench_type=EnumType.PRIMITIVE_TYPE)
+        block1 = package.blocks.create(type=BlockType.CODE)
+        block1.fields.create(name="foo", kind=TypeKind.ENUM, bench_type=EnumType.PRIMITIVE_TYPE)
+        view11 = block1.views.create(type=ViewType.COLOR, name="View1")
+        view11.node = block1
         await session.commit()
 
         # read back
@@ -316,8 +319,8 @@ async def test_crud_node_pointers(omni_session: Session):
             NodeReference(type=NodeType.CLIENT, id=client.id, ck=client.ck, bench_id=bench.id)
         )
 
-        block_1 = await Block.include_ancestors().get(id=block_1.id)
-        assert block_1.bench_id == bench.id
-        assert block_1.to_ref()._equals_content(
-            NodeReference(type=NodeType.BLOCK, id=block_1.id, ck=block_1.ck, bench_id=bench.id)
+        block1 = await Block.include_ancestors().get(id=block1.id)
+        assert block1.bench_id == bench.id
+        assert block1.to_ref()._equals_content(
+            NodeReference(type=NodeType.BLOCK, id=block1.id, ck=block1.ck, bench_id=bench.id)
         )

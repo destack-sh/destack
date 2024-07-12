@@ -1137,9 +1137,15 @@ def _pg_pack_node_reference_into_row(
     value: NodeReferenceData | Collection[NodeReferenceData] | None,
 ) -> None:
     """
-    'Unravels' a wired pointer into (one or more) stored columns as needed.
-    pack/unpacking pointers into rows is a bit gnarly, see :StoredPointers
+    'Unravels' a wired pointer into (one or more) stored columns as needed :StoredPointers
     """
+    if prop.reference_is_rich:
+        # stored as struct (jsonb)
+        assert prop.reference_wired_ptr is not None, f"no wired/stored ptr for {prop!r}"
+        prop = prop.reference_wired_ptr
+        row[prop.name] = _pack_struct_data_prop(prop, value, ignore_array=False)
+        return
+    # unravel reference
     assert prop.reference_stored_ids is not None, f"no stored ids for {prop!r}"
     assert prop.reference_stored_ids_by_type is not None, f"no stored ids for {prop!r}"
     assert prop.reference_stored_meta is not None, f"no stored extras for {prop!r}"
@@ -1182,9 +1188,17 @@ def _pg_pack_node_reference_into_row(
 
 def _pg_unpack_node_reference_from_row(prop: Property, row: RowOut, node: AnyNodeData) -> None:
     """
-    'Ravels' a wired pointer from (one or more) stored columns.
-    See above and :StoredPointers
+    'Ravels' a wired pointer from (one or more) stored columns :StoredPointers
     """
+
+    if prop.reference_is_rich:
+        # stored as struct (jsonb)
+        assert prop.reference_wired_ptr is not None, f"no wired/stored ptr for {prop!r}"
+        prop = prop.reference_wired_ptr
+        value = row.get(prop.name)
+        if value is not None:
+            setattr(node, prop.name, _unpack_struct_data_prop(prop, value, ignore_array=False))
+        return
 
     # get bench id
     bench_id = row.get("id") if node.metatype == NodeType.BENCH else row.get("bench_id")

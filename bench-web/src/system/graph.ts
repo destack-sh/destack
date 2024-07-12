@@ -13,6 +13,7 @@ import {
   EMPTY_SCOPE,
   describeNode,
   describeScope,
+  isNodeReference,
   toNodeReference,
   type AnyNodeReferenceData,
   type TypedNodeReferenceData,
@@ -1055,9 +1056,7 @@ export function mergeNode<T extends NodeType>(
 
 /** Resolve the node in the given graph if it's a reference */
 export function resolveNode(graph: ReadNodeGraph, node: AnyNodeData | AnyNodeReferenceData): AnyNodeData {
-  return node.metatype == ObjectType.NODE_REFERENCE
-    ? graph.getOrError(node as NodeReferenceData)
-    : (node as AnyNodeData);
+  return isNodeReference(node) ? graph.getOrError(node) : node;
 }
 
 export type NodeTreeItem<T extends NodeType> = {
