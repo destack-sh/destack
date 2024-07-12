@@ -31,7 +31,15 @@ from bench.utils.func import IdEnum, bittuple
 
 if TYPE_CHECKING:
     # noinspection PyUnresolvedReferences
-    from bench.language import Field, Node, NodeReference, Property, Struct, ValueObject
+    from bench.language import (
+        Field,
+        Node,
+        NodeReference,
+        NodeReferenceBase,
+        Property,
+        Struct,
+        ValueObject,
+    )
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -443,7 +451,7 @@ class NodeSuperGraph:
                 g for g in self._graphs_by_node_type[node_type] if g is not graph
             )
 
-    def get(self, ptr: "UUID | NodeReference") -> Optional["Node"]:
+    def get(self, ptr: "UUID | NodeReferenceBase") -> Optional["Node"]:
         """Get a node by some key."""
         if isinstance(ptr, UUID):
             # check all graphs :c
@@ -461,7 +469,7 @@ class NodeSuperGraph:
                     return node
             return None
 
-    def get_or_fail(self, ptr: "UUID | NodeReference") -> "Node":
+    def get_or_fail(self, ptr: "UUID | NodeReferenceBase") -> "Node":
         """Get a node by some key (error if not exists)."""
         node = self.get(ptr)
         if node is None:
@@ -470,7 +478,7 @@ class NodeSuperGraph:
 
     __getitem__ = get_or_fail
 
-    def __contains__(self, ptr: "UUID | NodeReference") -> bool:
+    def __contains__(self, ptr: "UUID | NodeReferenceBase") -> bool:
         return self.get(ptr) is not None
 
 

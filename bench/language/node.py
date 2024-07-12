@@ -14,6 +14,7 @@ from typing import (
     Iterable,
     Optional,
     Self,
+    Sequence,
     Type,
     TypeGuard,
     TypeVar,
@@ -90,6 +91,7 @@ if TYPE_CHECKING:
         Branch,
         Expression,
         Field,
+        FileReference,
         GetConnection,
         NodeReference,
         Package,
@@ -97,6 +99,7 @@ if TYPE_CHECKING:
         QueryBuilder,
         Run,
         SearchConnection,
+        SecretReference,
         Server,
         Session,
         Step,
@@ -652,10 +655,15 @@ def _object_node_ref(prop: Property) -> property:
 
     if not prop.is_list:
 
-        def _get_node_scalar(self: BuiltinObject) -> Optional["Node"]:
+        def _get_node_scalar(self: BuiltinObject) -> Optional["Node | SomeNodeReference"]:
             value_ptr: NodeReference | None = getattr(self, wired_prop.name)
-            if value_ptr is not None:
-                return self._supergraph.get(value_ptr)
+            if value_ptr is None:
+                return None
+            value = self._supergraph.get(value_ptr)
+            if value is not None:
+                return value
+            elif value_ptr.type in NODE_REFERENCE_TYPES_BY_NODE_TYPE:
+                return value_ptr  # :RichReferences
             else:
                 return None
 
@@ -672,8 +680,8 @@ def _object_node_ref(prop: Property) -> property:
 
     else:
 
-        def _get_node_many(self: BuiltinObject) -> tuple["Node", ...]:
-            value_ptrs = getattr(self, wired_prop.name)
+        def _get_node_many(self: BuiltinObject) -> Sequence["Node | SomeNodeReference"]:
+            value_ptrs: Collection[NodeReferenceBase] = getattr(self, wired_prop.name)
             assert type(value_ptrs) is list, f"invalid {prop}: {value_ptrs!r}"
             if len(value_ptrs) == 0:
                 return ()
@@ -682,7 +690,9 @@ def _object_node_ref(prop: Property) -> property:
                 value = self._supergraph.get(value_ptr)
                 if value is not None:
                     values.append(value)
-            return tuple(values)
+                elif value_ptr.type in NODE_REFERENCE_TYPES_BY_NODE_TYPE:
+                    values.append(value_ptr)  # :RichReferences
+            return values
 
         def _set_node_many(self: BuiltinObject, values: Collection["Node"]):
             values = tuple(values)
@@ -2101,6 +2111,7 @@ NODE_REFERENCE_TYPES_BY_NODE_TYPE: dict[NodeType, StructType] = {
     NodeType.SECRET: StructType.SECRET_REFERENCE,
 }
 NODE_REFERENCE_TYPES = (StructType.NODE_REFERENCE, *NODE_REFERENCE_TYPES_BY_NODE_TYPE.values())
+SomeNodeReference = Union[NodeReference, "FileReference", "SecretReference"]
 
 
 @struct_(StructType.PROPERTY_REFERENCE, inline=True)

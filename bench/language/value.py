@@ -101,8 +101,8 @@ class ValueObject(Mapping[str, Any]):
 
     def __init__(
         self,
-        _type: "TypeInfoBase",
-        _value: dict[str, SomeValue] | None = None,
+        type: "TypeInfoBase",
+        value: dict[str, SomeValue] | None = None,
         id: int | None = None,
         parent: ValueParent | None = None,
         parent_prop: ValueProperty | None = None,
@@ -110,8 +110,8 @@ class ValueObject(Mapping[str, Any]):
         parent_key: str | None = None,
         order_key: str | None = None,
     ):
-        self._type = _type
-        self._value = _value
+        self._type = type
+        self._value = value
         self.id = id if id is not None else new_struct_id()
         self.parent = parent
         self.parent_prop = parent_prop
@@ -119,8 +119,7 @@ class ValueObject(Mapping[str, Any]):
         self.parent_key = parent_key
         self.order_key = order_key
         if self.parent is not None and self.ancestor_prop is None:
-            if type(self.parent_prop) is not Property:
-                raise ValueError(f"{self.parent_prop!r} is not a Property")
+            assert isinstance(self.parent_prop, Property), f"{self.parent_prop!r} is not a Property"
             self.ancestor_prop = self.parent_prop
 
     def __str__(self) -> str:
@@ -128,7 +127,7 @@ class ValueObject(Mapping[str, Any]):
             return ""
         set_fields: list[str] = []
         for field in self._type._base_fields:
-            field_value = self._value.get(field.storage_key)
+            field_value = self._do_get(field)
             if field_value:
                 if type(field_value) is list:
                     set_fields.append(f"{field.name}[{len(field_value)}]")
@@ -164,13 +163,7 @@ class ValueObject(Mapping[str, Any]):
             raise AttributeError(f"{self._type!r} has no field with identifier {item}")
         if self._type.base_field_zone is not None and field.zone != self._type.base_field_zone:
             raise AttributeError(f"{field!r} is not in the same zone as {self._type!r}")
-        if self._value is None:
-            return field.default
-        value = self._value.get(field.storage_key)
-        if value is None:
-            return field.default
-        else:
-            return value
+        return self._do_get(field)
 
     __getattr__ = __getitem__
 
@@ -180,6 +173,15 @@ class ValueObject(Mapping[str, Any]):
         value = self._value.get(field.storage_key)
         if value is None:
             return field.default
+        elif isinstance(value, NodeReferenceBase):
+            # auto resolve references
+            resolved_value = self._type._supergraph.get(value)
+            if resolved_value is not None:
+                return resolved_value
+            elif value.type in NODE_REFERENCE_TYPES_BY_NODE_TYPE:
+                return value  # :RichReferences
+            else:
+                return None  # couldn't resolve
         else:
             return value
 
@@ -197,7 +199,16 @@ class ValueObject(Mapping[str, Any]):
         check_value(value, field, invalid=on_invalid_raise)
         if self._value is None:
             self._value = {}
+        if (field.kind == TypeKind.NODE or field.kind == TypeKind.BASED_NODE) and value:
+            # turn nodes into reference
+            if field.is_list:
+                assert isinstance(value, list), f"{value!r} is not a list"
+                value = [cast(Node, n).to_ref() for n in value]
+            else:
+                assert isinstance(value, Node), f"{value!r} is not a Node"
+                value = value.to_ref()
         self._value[field.storage_key] = value
+
         # notify
         self._updated_self((field,))
 
@@ -282,13 +293,12 @@ class ValueObject(Mapping[str, Any]):
         parent: ValueParent | None = None,
         parent_property: ValueProperty | None = None,
         ancestor_property: Optional["Property"] = None,
-        is_revealed: bool = True,
     ) -> "ValueObject":
         """Creates a new Object of the given Object type, coercing the given value."""
         assert typ.kind == TypeKind.OBJECT, f"{typ!r} is not an Object type"
         return ValueObject(
-            _type=typ,
-            _value=value,
+            type=typ,
+            value=value,
             parent=parent,
             parent_prop=parent_property,
             ancestor_prop=ancestor_property,
@@ -911,8 +921,11 @@ def unpack_value(
 
 # import later to avoid circular imports (Object is used in node.py)
 from bench.language.node import (  # noqa: E402
+    NODE_REFERENCE_TYPES_BY_NODE_TYPE,
     BuiltinObject,
     HasNodeBase,
+    Node,
+    NodeReferenceBase,
     Struct,
     object_component,
     struct_,
@@ -1025,7 +1038,7 @@ def coerce_value_object(typ: "TypeInfoBase", value_raw: Any) -> ValueObject:
     assert typ.kind == TypeKind.OBJECT, f"{typ!r} is not an Object"
 
     fields = typ._fields
-    coerced = ValueObject(typ, _value={})
+    coerced = ValueObject(typ, value={})
     if isinstance(value_raw, tuple):
         if len(value_raw) != len(fields):
             raise ValueError(
