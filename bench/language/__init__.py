@@ -23,7 +23,7 @@ from .bench import (
     Tenancy,
 )
 from .block import Block
-from .code import Code, CodeKind, CodeLine, code
+from .code import Code, CodeLine, CodeType, code
 from .connection import (
     AggregateConnection,
     AggregateOptions,
@@ -104,7 +104,7 @@ from .query import (
     ReadOptions,
 )
 from .record import Record
-from .run import Run, RunAttempt, RunnableKind, RunOptions
+from .run import Run, RunAttempt, RunKind, RunOptions
 from .secret import Secret, SecretReference
 from .session import EditContext, Session, SessionContext
 from .setup import _complete_bench_setup
@@ -168,8 +168,8 @@ __all__ = [
     "Client",
     "ClientType",
     "Code",
-    "CodeKind",
     "CodeLine",
+    "CodeType",
     "Color",
     "Color",
     "ColorShade",
@@ -250,8 +250,8 @@ __all__ = [
     "ResourceStatus",
     "Run",
     "RunAttempt",
+    "RunKind",
     "RunOptions",
-    "RunnableKind",
     "S",
     "ScheduleType",
     "SearchConnection",

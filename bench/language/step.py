@@ -47,40 +47,40 @@ if TYPE_CHECKING:
 
 @enum_(EnumType.STEP_TYPE)
 class StepType(IdEnum):
-    # source/sinks
+    # boundary
     START = 1  # source with inputs (at most one per Flow)
     COMPLETE = 2  # terminate with outputs (at most one per Flow)
-    FAIL = 3  # terminate with error (at most one per Flow)
+    FAIL = 3  # terminate with error
     VALUE = 10  # source with just(value)
     TRIGGER = 11  # source with just(trigger)
 
     # run
-    RUN = 20  # (block)
-    CODE = 21
-    TEXT = 22
-    SEND = 23  # (signal/notification)
-    # YIELD/SUSPEND
+    PASS = 50  # noop, output = input
+    BLOCK = 51  # run a runnable block
+    CODE = 52  # run code
+    TEXT = 53  # run text
+    SEND = 54  # (signal/notification)
+    # YIELD # to other program/human
     # APPLY
     # CREATE
-    PASS = 30  # noop, output = input
 
     # control
-    MATCH = 40  #
-    FILTER = 41  # X -> | X -> X | None | -> X
-    LOOP = 42  # X[] -> | X -> ... -> Y | -> Y[]
-    MERGE = 43  # X1, X2, ... -> X
-    SPLIT = 44  # X -> X1, X2, ...
-    FLATTEN = 45  # X[] -> X
-    ACCUMULATE = 46  # X -> X[]
-    REDUCE = 47  # X[] -> Y
-    ZIP = 48  # X1[], X2[], ... -> (X1, X2, ...)[]
+    MATCH = 100  # X -> [n expressions] -> X' filtered output port (per expression)
+    FILTER = 101  # X -> | X -> bool | -> X if true
+    LOOP = 102  # X[] -> | X -> ... -> Y | -> Y[]
+    MERGE = 103  # X1, X2, ... -> X
+    SPLIT = 104  # X -> X1, X2, ...
+    FLATTEN = 105  # X[] -> X
+    ACCUMULATE = 106  # X -> X[]
+    REDUCE = 107  # X[] -> Y
+    ZIP = 108  # X1[], X2[], ... -> (X1, X2, ...)[]
     # WAIT/DELAY?
     # DEBOUNCE?
     # THROTTLE?
     # TELEPORT?
 
     # organize
-    GROUP = 60
+    GROUP = 150
 
     ...
 
@@ -98,7 +98,7 @@ class Pipe(Struct):
 
     type: PipeType = p_internal(30)
     source: "Step" = p_regular(31, require=True, references=(NodeType.STEP,))
-    # mapping/...?
+    # ports/mapping/...?
 
 
 @local_node(NodeType.STEP, passthrough=("value", "fields"))

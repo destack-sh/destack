@@ -38,6 +38,7 @@ if TYPE_CHECKING:
         Package,
         Policy,
         Property,
+        RunKind,
         RunOptions,
         Step,
         Text,
@@ -155,12 +156,28 @@ class Block(SourceNode[BlockData], HasValues):
         return self.type.is_runnable
 
     @property
+    def run_kind(self) -> "RunKind | None":
+        from bench.language.run import RunKind
+
+        if self.type == BlockType.CODE:
+            return RunKind.CODE
+        elif self.type == BlockType.TEXT:
+            return RunKind.TEXT
+        elif self.type == BlockType.FLOW:
+            return RunKind.FLOW
+        elif self.type.is_runnable:
+            raise RuntimeError(f"unexpected type {self!r}")
+        else:
+            return None
+
+    @property
     def has_function_fields(self) -> bool:
         return any(f.zone == FieldZone.INPUT or f.zone == FieldZone.OUTPUT for f in self.fields)
 
     def __call__(self, *args, **kwargs) -> Any:
         if self.type.is_runnable:
-            raise NotImplementedError
+            assert not (args and kwargs), f"{self!r} does not accept both args and kwargs"
+            return self.active_session.runtime.run(self, inputs=args or kwargs)
         elif self.type in (BlockType.CLASS, BlockType.CHOICE, BlockType.SIGNAL):
             typ = self.to_type()
             if typ is None:

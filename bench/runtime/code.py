@@ -5,9 +5,9 @@ from typing import Any, override
 import structlog
 from opentelemetry import trace
 
-from bench.language.code import CodeKind
+from bench.language.code import CodeType
 from bench.language.path import get_node, get_node_or_error
-from bench.language.run import RunnableKind
+from bench.language.run import RunKind
 from bench.language.session import Session
 from bench.language.value import ValueObject, coerce_value_object
 from bench.runtime.capture import LogSink, capture_logs
@@ -26,10 +26,10 @@ class CodeRunnerBase(Runner):
 
     def __init__(self, runner: RuntimeRunner, session: Session, handle: RunHandle):
         super().__init__(runner, session, handle)
-        self.log_sink = LogSink(self.runner.oracle)
+        self.log_sink = LogSink(self.runtime.oracle)
 
     @tracer.start_as_current_span("code.compile")
-    async def _compile_code(self, kind: CodeKind) -> CompiledCode:
+    async def _compile_code(self, kind: CodeType) -> CompiledCode:
         """Prepares valid compiled code (raises SyntaxError if invalid)."""
         assert self.state.code, f"no code for {self!r}"
         compiled = self.state.compiled
@@ -38,7 +38,7 @@ class CodeRunnerBase(Runner):
                 str(self.state.code.id),
                 self.state.code.to_string(),
                 kind,
-                self.runner.combined_glbls,
+                self.runtime.combined_glbls,
             )
         if compiled.syntax_error:
             raise CodeSyntaxError(repr(self)) from compiled.syntax_error  # re-raise
@@ -69,7 +69,7 @@ class CodeRunnerBase(Runner):
         _get_node = functools.partial(get_node, self.node)
         glbls = {  # :CodeGlobals
             # static
-            **self.runner.static_glbls,
+            **self.runtime.static_glbls,
             # dynamic
             "self": self.node,
             "get_node": _get_node,
@@ -93,7 +93,7 @@ class CodeRunnerBase(Runner):
         return outputs
 
 
-@runner((RunnableKind.CODE, CodeKind.SNIPPET))
+@runner(RunKind.CODE, CodeType.SNIPPET)
 class CodeSnippetRunner(CodeRunnerBase):
     """Run a code snippet and update the value of the state's last expression."""
 
@@ -102,14 +102,14 @@ class CodeSnippetRunner(CodeRunnerBase):
         raise NotImplementedError
 
 
-@runner((RunnableKind.CODE, CodeKind.SCRIPT))
+@runner(RunKind.CODE, CodeType.SCRIPT)
 class CodeScriptRunner(CodeRunnerBase):
     """Run a code script and update the state's exported definitions."""
 
     @override
     async def run(self) -> None:
         # compile
-        compiled = await self._compile_code(CodeKind.SCRIPT)
+        compiled = await self._compile_code(CodeType.SCRIPT)
         if not compiled.body_co:
             return  # empty
 
@@ -127,14 +127,14 @@ class CodeScriptRunner(CodeRunnerBase):
         self.state.exports = exports
 
 
-@runner((RunnableKind.CODE, CodeKind.FUNCTION))
+@runner(RunKind.CODE, CodeType.FUNCTION)
 class CodeFunctionRunner(CodeRunnerBase):
     """Run a code function and update the run's outputs."""
 
     @override
     async def run(self) -> None:
         # compile
-        compiled = await self._compile_code(CodeKind.FUNCTION)
+        compiled = await self._compile_code(CodeType.FUNCTION)
         if not compiled.body_co:
             return  # empty
         assert compiled.function_name, f"no function name for {self!r}"

@@ -7105,13 +7105,9 @@ export enum BenchType {
      */
     BREAKPOINT_ACTION = 20512,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_CODE_KIND = 20513;
+     * @generated from protobuf enum value: BENCH_TYPE_CODE_TYPE = 20513;
      */
-    CODE_KIND = 20513,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_RUNNABLE_KIND = 20514;
-     */
-    RUNNABLE_KIND = 20514,
+    CODE_TYPE = 20513,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_MODEL_PROVIDER = 20530;
      */
@@ -7372,26 +7368,26 @@ export enum ClientType {
     BENCH_SERVER = 10
 }
 /**
- * The implicit 'kind' of some Code.
+ * The implicit 'type' of some Code.
  * We don't set this explicitly in Code because it depends on where the Code is used.
  *
- * @generated from protobuf enum symbolx.bench.CodeKind
+ * @generated from protobuf enum symbolx.bench.CodeType
  */
-export enum CodeKind {
+export enum CodeType {
     /**
-     * @generated from protobuf enum value: CODE_KIND_UNSPECIFIED = 0;
+     * @generated from protobuf enum value: CODE_TYPE_UNSPECIFIED = 0;
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: CODE_KIND_SNIPPET = 1;
+     * @generated from protobuf enum value: CODE_TYPE_SNIPPET = 1;
      */
     SNIPPET = 1,
     /**
-     * @generated from protobuf enum value: CODE_KIND_SCRIPT = 2;
+     * @generated from protobuf enum value: CODE_TYPE_SCRIPT = 2;
      */
     SCRIPT = 2,
     /**
-     * @generated from protobuf enum value: CODE_KIND_FUNCTION = 3;
+     * @generated from protobuf enum value: CODE_TYPE_FUNCTION = 3;
      */
     FUNCTION = 3
 }
@@ -7979,13 +7975,9 @@ export enum EnumType {
      */
     BREAKPOINT_ACTION = 20512,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_CODE_KIND = 20513;
+     * @generated from protobuf enum value: ENUM_TYPE_CODE_TYPE = 20513;
      */
-    CODE_KIND = 20513,
-    /**
-     * @generated from protobuf enum value: ENUM_TYPE_RUNNABLE_KIND = 20514;
-     */
-    RUNNABLE_KIND = 20514,
+    CODE_TYPE = 20513,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_MODEL_PROVIDER = 20530;
      */
@@ -8443,6 +8435,7 @@ export enum FontWeight {
 }
 /**
  * Extra semantic hint for types.
+ * NOTE :Architecture: revisit FormatHint (especially with file types like images, constraints, etc.)
  *
  * @generated from protobuf enum symbolx.bench.FormatHint
  */
@@ -9712,9 +9705,15 @@ export enum RunErrorType {
     /**
      * @generated from protobuf enum value: RUN_ERROR_TYPE_NOT_RUNNABLE = 2;
      */
-    NOT_RUNNABLE = 2
+    NOT_RUNNABLE = 2,
+    /**
+     * @generated from protobuf enum value: RUN_ERROR_TYPE_REPLAY = 3;
+     */
+    REPLAY = 3
 }
 /**
+ * The kind of some runnable.
+ *
  * @generated from protobuf enum symbolx.bench.RunKind
  */
 export enum RunKind {
@@ -9723,17 +9722,21 @@ export enum RunKind {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: RUN_KIND_BLOCK = 1;
+     * @generated from protobuf enum value: RUN_KIND_CODE = 1;
      */
-    BLOCK = 1,
+    CODE = 1,
     /**
-     * @generated from protobuf enum value: RUN_KIND_STEP = 2;
+     * @generated from protobuf enum value: RUN_KIND_TEXT = 2;
      */
-    STEP = 2,
+    TEXT = 2,
     /**
-     * @generated from protobuf enum value: RUN_KIND_LAMBDA = 10;
+     * @generated from protobuf enum value: RUN_KIND_STEP = 3;
      */
-    LAMBDA = 10
+    STEP = 3,
+    /**
+     * @generated from protobuf enum value: RUN_KIND_FLOW = 4;
+     */
+    FLOW = 4
 }
 /**
  * @generated from protobuf enum symbolx.bench.RunStatus
@@ -9779,33 +9782,6 @@ export enum RunStatus {
      * @generated from protobuf enum value: RUN_STATUS_COMPLETED = 9;
      */
     COMPLETED = 9
-}
-/**
- * The kind of some runnable.
- *
- * @generated from protobuf enum symbolx.bench.RunnableKind
- */
-export enum RunnableKind {
-    /**
-     * @generated from protobuf enum value: RUNNABLE_KIND_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: RUNNABLE_KIND_CODE = 1;
-     */
-    CODE = 1,
-    /**
-     * @generated from protobuf enum value: RUNNABLE_KIND_TEXT = 2;
-     */
-    TEXT = 2,
-    /**
-     * @generated from protobuf enum value: RUNNABLE_KIND_STEP = 3;
-     */
-    STEP = 3,
-    /**
-     * @generated from protobuf enum value: RUNNABLE_KIND_FLOW = 4;
-     */
-    FLOW = 4
 }
 /**
  * @generated from protobuf enum symbolx.bench.ScheduleType
@@ -10110,65 +10086,65 @@ export enum StepType {
      */
     TRIGGER = 11,
     /**
-     * @generated from protobuf enum value: STEP_TYPE_RUN = 20;
+     * @generated from protobuf enum value: STEP_TYPE_PASS = 50;
      */
-    RUN = 20,
+    PASS = 50,
     /**
-     * @generated from protobuf enum value: STEP_TYPE_CODE = 21;
+     * @generated from protobuf enum value: STEP_TYPE_BLOCK = 51;
      */
-    CODE = 21,
+    BLOCK = 51,
     /**
-     * @generated from protobuf enum value: STEP_TYPE_TEXT = 22;
+     * @generated from protobuf enum value: STEP_TYPE_CODE = 52;
      */
-    TEXT = 22,
+    CODE = 52,
     /**
-     * @generated from protobuf enum value: STEP_TYPE_SEND = 23;
+     * @generated from protobuf enum value: STEP_TYPE_TEXT = 53;
      */
-    SEND = 23,
+    TEXT = 53,
     /**
-     * @generated from protobuf enum value: STEP_TYPE_PASS = 30;
+     * @generated from protobuf enum value: STEP_TYPE_SEND = 54;
      */
-    PASS = 30,
+    SEND = 54,
     /**
-     * @generated from protobuf enum value: STEP_TYPE_MATCH = 40;
+     * @generated from protobuf enum value: STEP_TYPE_MATCH = 100;
      */
-    MATCH = 40,
+    MATCH = 100,
     /**
-     * @generated from protobuf enum value: STEP_TYPE_FILTER = 41;
+     * @generated from protobuf enum value: STEP_TYPE_FILTER = 101;
      */
-    FILTER = 41,
+    FILTER = 101,
     /**
-     * @generated from protobuf enum value: STEP_TYPE_LOOP = 42;
+     * @generated from protobuf enum value: STEP_TYPE_LOOP = 102;
      */
-    LOOP = 42,
+    LOOP = 102,
     /**
-     * @generated from protobuf enum value: STEP_TYPE_MERGE = 43;
+     * @generated from protobuf enum value: STEP_TYPE_MERGE = 103;
      */
-    MERGE = 43,
+    MERGE = 103,
     /**
-     * @generated from protobuf enum value: STEP_TYPE_SPLIT = 44;
+     * @generated from protobuf enum value: STEP_TYPE_SPLIT = 104;
      */
-    SPLIT = 44,
+    SPLIT = 104,
     /**
-     * @generated from protobuf enum value: STEP_TYPE_FLATTEN = 45;
+     * @generated from protobuf enum value: STEP_TYPE_FLATTEN = 105;
      */
-    FLATTEN = 45,
+    FLATTEN = 105,
     /**
-     * @generated from protobuf enum value: STEP_TYPE_ACCUMULATE = 46;
+     * @generated from protobuf enum value: STEP_TYPE_ACCUMULATE = 106;
      */
-    ACCUMULATE = 46,
+    ACCUMULATE = 106,
     /**
-     * @generated from protobuf enum value: STEP_TYPE_REDUCE = 47;
+     * @generated from protobuf enum value: STEP_TYPE_REDUCE = 107;
      */
-    REDUCE = 47,
+    REDUCE = 107,
     /**
-     * @generated from protobuf enum value: STEP_TYPE_ZIP = 48;
+     * @generated from protobuf enum value: STEP_TYPE_ZIP = 108;
      */
-    ZIP = 48,
+    ZIP = 108,
     /**
-     * @generated from protobuf enum value: STEP_TYPE_GROUP = 60;
+     * @generated from protobuf enum value: STEP_TYPE_GROUP = 150;
      */
-    GROUP = 60
+    GROUP = 150
 }
 /**
  * @generated from protobuf enum symbolx.bench.StructType
@@ -25493,8 +25469,7 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.NOTIFICATION_KIND]: NotificationKind,
   [EnumType.BREAKPOINT_KIND]: BreakpointKind,
   [EnumType.BREAKPOINT_ACTION]: BreakpointAction,
-  [EnumType.CODE_KIND]: CodeKind,
-  [EnumType.RUNNABLE_KIND]: RunnableKind,
+  [EnumType.CODE_TYPE]: CodeType,
   [EnumType.MODEL_PROVIDER]: ModelProvider,
   [EnumType.MODEL_TYPE]: ModelType,
   [EnumType.SPACE_TYPE]: SpaceType,
@@ -25771,8 +25746,7 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.NOTIFICATION_KIND]: NotificationKind,
   [EnumType.BREAKPOINT_KIND]: BreakpointKind,
   [EnumType.BREAKPOINT_ACTION]: BreakpointAction,
-  [EnumType.CODE_KIND]: CodeKind,
-  [EnumType.RUNNABLE_KIND]: RunnableKind,
+  [EnumType.CODE_TYPE]: CodeType,
   [EnumType.MODEL_PROVIDER]: ModelProvider,
   [EnumType.MODEL_TYPE]: ModelType,
   [EnumType.SPACE_TYPE]: SpaceType,

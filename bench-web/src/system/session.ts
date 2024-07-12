@@ -1,8 +1,33 @@
-import { NodeType, RunKind, RunStatus, Struct, type BlockData, type RunData, type StepData } from "@/proto/wire";
-import { isNode, makeNode, toNodeReference } from "@/proto/wiring";
+import {
+  BlockType,
+  NodeType,
+  RunKind,
+  RunStatus,
+  Struct,
+  type BlockData,
+  type RunData,
+  type StepData,
+} from "@/proto/wire";
+import { describeNode, isNode, makeNode, toNodeReference } from "@/proto/wiring";
 import type { ReadNodeGraph } from "@/system/graph";
 
 export type RunnableNode = BlockData | StepData;
+
+export function getRunKind(runnable: RunnableNode): RunKind {
+  if (isNode(runnable, NodeType.BLOCK)) {
+    if (runnable.type == BlockType.TEXT) {
+      return RunKind.TEXT;
+    } else if (runnable.type == BlockType.CODE) {
+      return RunKind.CODE;
+    } else if (runnable.type == BlockType.FLOW) {
+      return RunKind.FLOW;
+    }
+  } else {
+    return RunKind.STEP;
+  }
+
+  throw new Error(`unexpected runnable type: ${describeNode(runnable)}`);
+}
 
 export function makeRun(
   runnable: RunnableNode,
@@ -18,7 +43,7 @@ export function makeRun(
     metatype: NodeType.RUN,
     parentPtr: runnable.packagePtr,
     packagePtr: runnable.packagePtr,
-    kind: isNode(runnable, NodeType.BLOCK) ? RunKind.BLOCK : RunKind.STEP,
+    kind: getRunKind(runnable),
     status: RunStatus.SCHEDULED,
     blockPtr: block != null ? toNodeReference(block) : undefined,
     stepPtr: isNode(runnable, NodeType.STEP) ? toNodeReference(runnable) : undefined,

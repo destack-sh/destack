@@ -1,5 +1,6 @@
 import abc
 import dataclasses
+from contextvars import ContextVar
 from dataclasses import dataclass
 from typing import Any, Mapping
 from uuid import UUID
@@ -8,30 +9,29 @@ import structlog
 from opentelemetry import trace
 
 from bench.language.block import Block
-from bench.language.code import Code, CodeKind
-from bench.language.const import BenchError, BlockType, RunErrorKind, RunKind, RunStatus
+from bench.language.code import Code, CodeType
+from bench.language.const import BenchError, RunErrorKind, RunStatus
 from bench.language.log import LogInfo
-from bench.language.run import ModelProvider, Run, RunAttempt, RunError, RunnableKind, RunOptions
+from bench.language.run import ModelProvider, Run, RunAttempt, RunError, RunKind, RunOptions
 from bench.language.session import Session
 from bench.language.step import Step, StepType
 from bench.language.text import Text
 from bench.language.value import ValueObject
 from bench.runtime.compiler import CompiledCode
 from bench.runtime.core import (
-    DEFAULT_CODE_RUN_OPTIONS,
-    DEFAULT_FLOW_RUN_OPTIONS,
-    DEFAULT_STEP_RUN_OPTIONS,
+    DEFAULT_RUN_OPTIONS_BY_KIND,
     DYNAMIC_CODE_GLOBALS,
     STATIC_CODE_GLOBALS,
     NotRunnableError,
 )
 from bench.utils.oracle import Oracle
+from bench.utils.uuidt import UUIDT
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 RunnableNode = Block | Step
-RunnableType = tuple[RunnableKind, CodeKind | StepType | ModelProvider | None]
+RunKey = CodeType | StepType | ModelProvider | None
 
 
 @dataclass(slots=True)
@@ -39,7 +39,8 @@ class RunnableState[T: RunnableNode]:
     """The state of some runnable unit (Node or something within)."""
 
     id: UUID
-    typ: RunnableType
+    kind: RunKind
+    key: RunKey | None
     node: T
     code: Code | None = None
     text: Text | None = None
@@ -51,12 +52,10 @@ class RunnableState[T: RunnableNode]:
     last_expr_value: Any | None = None  # for snippets
 
     def __str__(self):
-        typ_str = (
-            f"{self.typ[0].bench_name}->{self.typ[1].bench_name}"
-            if self.typ[1]
-            else self.typ[0].bench_name
+        type_str = (
+            f"{self.kind.bench_name}:{self.key.bench_name}" if self.key else self.kind.bench_name
         )
-        return f"{typ_str}: {self.id} (in {self.node})"
+        return f"{type_str}: {self.id} (in {self.node})"
 
     def __repr__(self):
         return f"<{self.__class__.__name__} {self}"
@@ -67,7 +66,7 @@ class RunHandle[T: RunnableNode]:
     """A specific run (tracked or untracked)."""
 
     id: UUID  # Run.id if tracked, new otherwise
-    runnable: RunnableState[T]
+    state: RunnableState[T]
     options: RunOptions
     parent: "RunHandle | None"  # if nested
     status: RunStatus
@@ -79,7 +78,7 @@ class RunHandle[T: RunnableNode]:
     run: Run | None = None  # if tracked
 
     def __str__(self):
-        str_parts: list[str] = [f"runnable={self.runnable!r}", f"options={self.options!r}"]
+        str_parts: list[str] = [f"runnable={self.state!r}", f"options={self.options!r}"]
         if self.attempts:
             str_parts.append(f"attempts={self.attempts}")
         if self.run:
@@ -90,6 +89,14 @@ class RunHandle[T: RunnableNode]:
         return f"<{self.__class__.__name__} {self}"
 
     @property
+    def kind(self) -> RunKind:
+        return self.state.kind
+
+    @property
+    def key(self) -> RunKey | None:
+        return self.state.key
+
+    @property
     def current_attempt(self) -> RunAttempt | None:
         return self.attempts[-1] if self.attempts else None
 
@@ -97,7 +104,7 @@ class RunHandle[T: RunnableNode]:
     def from_state(state: RunnableState, run: Run, *, base_options: RunOptions) -> "RunHandle":
         handle = RunHandle(
             id=run.id,
-            runnable=state,
+            state=state,
             parent=None,
             options=run.options or base_options,
             status=run.status,
@@ -111,13 +118,13 @@ class RunHandle[T: RunnableNode]:
 class Runner[T: RunnableNode](abc.ABC):
     """A runner to process a single runnable unit once."""
 
-    __slots__ = ("handle", "runner", "session", "state")
+    __slots__ = ("handle", "runtime", "session", "state")
 
     def __init__(self, runner: "RuntimeRunner", session: Session, handle: RunHandle[T]):
-        self.runner = runner
+        self.runtime = runner
         self.session = session
         self.handle = handle
-        self.state = handle.runnable
+        self.state = handle.state
 
     def __str__(self):
         return f"{self.handle!r}"
@@ -164,16 +171,16 @@ class Runner[T: RunnableNode](abc.ABC):
         raise NotImplementedError
 
 
-_runners: dict[RunnableType, type[Runner]] = {}
+_runners: dict[tuple[RunKind, RunKey | None], type[Runner]] = {}
 
 
-def runner(typ: RunnableType):
+def runner(kind: RunKind, typ: RunKey | None = None):
     """Registers a Runner for a specific RunnableType."""
 
     def decorator(cls: type[Runner]):
-        if typ in _runners:
-            raise ValueError(f"runner already registered for {typ}: {_runners[typ]!r}")
-        _runners[typ] = cls
+        if (kind, typ) in _runners:
+            raise ValueError(f"runner already registered for {typ}: {_runners[(kind, typ)]!r}")
+        _runners[(kind, typ)] = cls
         return cls
 
     return decorator
@@ -183,6 +190,7 @@ class RuntimeRunner:
     """
     The runtime processes one top-level Run (or mini run for snippets) at a time.
     Inner runs may run in parallel if they are ready and read-only.
+    There may only be one RuntimeRunner per Session at a time.
 
     NOTE :Robustness :Architecture: separate transactions for session and user edits?
     NOTE :Incomplete: respect RunOptions.max_concurrency
@@ -205,67 +213,98 @@ class RuntimeRunner:
         self.dynamic_glbls = dynamic_glbls
         self.combined_glbls = {**static_glbls, **dynamic_glbls}
 
+        # session (maybe this should happen in some init?)
+        assert session._runner is None, f"{session!r} already has a runner"
+        self.session._runner = self
+        self._active_run_handle: ContextVar[RunHandle | None] = ContextVar("active_run_handle")
+
         # ensure runners are imported
         if not _runners:
             import bench.runtime.code  # noqa: F401, RUF100
             import bench.runtime.step  # noqa: F401, RUF100
             import bench.runtime.text  # noqa: F401, RUF100
 
-    @tracer.start_as_current_span("runner.prepare")
-    async def _prepare_run_state(self, run: Run) -> tuple[RunnableState, RunHandle]:
-        """Create/recover the state and handle for a Run."""
-        if run.kind == RunKind.BLOCK:
-            block = run.block
-            if block is None:
-                raise NotRunnableError(f"run {run!r} has no block")
-            if block.type == BlockType.CODE:
-                # NOTE :Incomplete: cache/remember code script handle state (with its exports)
-                code_kind = CodeKind.FUNCTION if block.has_function_fields else CodeKind.SCRIPT
-                state = RunnableState(
-                    id=block.id, typ=(RunnableKind.CODE, code_kind), node=block, code=block.code
-                )
-                handle = RunHandle.from_state(state, run, base_options=DEFAULT_CODE_RUN_OPTIONS)
-            elif block.type == BlockType.TEXT:
-                model = (
-                    block.run_options.model_options.model
-                    if block.run_options and block.run_options.model_options
-                    else None
-                )
-                state = RunnableState(
-                    id=block.id,
-                    typ=(RunnableKind.TEXT, model.provider if model else None),
-                    node=block,
-                    text=block.text,
-                )
-                handle = RunHandle.from_state(state, run, base_options=DEFAULT_CODE_RUN_OPTIONS)
-            elif block.type == BlockType.FLOW:
-                # NOTE :Incomplete: recover flow state from run
-                state = RunnableState(id=block.id, typ=(RunnableKind.FLOW, None), node=block)
-                handle = RunHandle.from_state(state, run, base_options=DEFAULT_FLOW_RUN_OPTIONS)
+    @property
+    def active_run_handle(self) -> RunHandle | None:
+        return self._active_run_handle.get(None)
+
+    @property
+    def active_run(self) -> Run | None:
+        handle = self._active_run_handle.get(None)
+        return handle.run if handle else None
+
+    @tracer.start_as_current_span("runner.make")
+    async def make_run_handle(
+        self,
+        # state
+        kind: RunKind,
+        *,
+        node: Block | Step,
+        track: bool,
+        key: RunKey | None = None,
+        code: Code | None = None,
+        text: Text | None = None,
+        variables: ValueObject | None = None,
+        # handle
+        inputs: ValueObject | None = None,
+        options: RunOptions | None = None,
+        run: Run | None = None,
+    ) -> RunHandle:
+        """Get/create/recover the state for some runnable."""
+        # NOTE :Incomplete: re-use existing state for block code scripts (to get exports)
+
+        # make state
+        if kind == RunKind.CODE:
+            code = code or node.code
+            if (isinstance(node, Block) and node.has_function_fields) or isinstance(node, Step):
+                key = CodeType.FUNCTION
             else:
-                raise NotRunnableError(f"block is not runnable: {block!r}")
-        elif run.kind == RunKind.STEP:
-            step = run.step
-            if step is None:
-                raise NotRunnableError(f"run {run!r} has no step")
-            state = RunnableState(id=step.id, typ=(RunnableKind.STEP, step.type), node=step)
-            handle = RunHandle.from_state(state, run, base_options=DEFAULT_STEP_RUN_OPTIONS)
-        else:
-            raise NotRunnableError(f"unexpected run: {run!r}")
+                key = CodeType.SCRIPT
+        elif kind == RunKind.TEXT:
+            text = text or node.text
+        state = RunnableState(
+            id=node.id,
+            kind=kind,
+            key=key,
+            node=node,
+            code=code,
+            text=text,
+            variables=variables,
+        )
 
-        return state, handle
+        # make handle
+        handle = RunHandle(
+            id=run.id if run else UUIDT(),
+            state=state,
+            options=options or DEFAULT_RUN_OPTIONS_BY_KIND[kind],
+            parent=self.active_run_handle,
+            status=run.status if run else RunStatus.SCHEDULED,
+            inputs=inputs,
+            attempts=run.attempts if run else [],
+            run=run,
+        )
+        if track:
+            ...  # nocheckin: create Run
 
-    async def _do_run_retrying(self, runner: Runner, handle: RunHandle):
+        return handle
+
+    async def make_run_handle_from_run(self, run: Run):
+        node = run.step or run.block
+        if node is None:
+            raise NotRunnableError(f"no node for {run!r}")  # default to package?
+        return await self.make_run_handle(
+            run.kind, node=node, code=run.code, run=run, inputs=run.inputs, track=True
+        )
+
+    async def _do_run_retrying(self, runner: Runner):
         """
-        Runs a handle in a Runner, retrying automatically and updating the handle along the way.
+        Runs a handle in a Runner, retrying automatically and updating the RunHandle along the way.
         """
+        handle = runner.handle
         handle.status = RunStatus.RUNNING
         retry = handle.options.to_retry().new(self.oracle, attempt=len(handle.attempts))
         # set active run
-        if handle.run is not None:
-            active_run_token = self.session._active_run.set(handle.run)
-        else:
-            active_run_token = None
+        active_run_handle_token = self._active_run_handle.set(handle)
         # run in attempt loop
         try:
             while retry.should_retry:
@@ -304,13 +343,13 @@ class RuntimeRunner:
             handle.status = last_attempt.status
             handle.error = last_attempt.error
             # reset active run
-            if active_run_token is not None:
-                self.session._active_run.reset(active_run_token)
+            self._active_run_handle.reset(active_run_handle_token)
 
-    async def _do_run_retrying_with_run(self, runner: Runner, handle: RunHandle):
+    async def _do_run_retrying_tracked(self, runner: Runner):
         """
         Runs a handle in A Runner, retrying automatically and updating the Run along the way.
         """
+        handle = runner.handle
         run = handle.run
         assert run is not None, f"missing run in {handle!r}"
 
@@ -328,7 +367,7 @@ class RuntimeRunner:
 
         # actually attempt Run
         try:
-            await self._do_run_retrying(runner, handle)
+            await self._do_run_retrying(runner)
         finally:
             last_attempt = handle.current_attempt
             assert last_attempt is not None, f"no last attempt for run {handle!r}"
@@ -341,15 +380,15 @@ class RuntimeRunner:
             run.terminated_at = last_attempt.terminated_at
             run.terminated_epoch = last_attempt.terminated_epoch
 
-    @tracer.start_as_current_span("runner.run")
-    async def _do_run(self, handle: RunHandle):
+    @tracer.start_as_current_span("runner.run_handle")
+    async def run_handle(self, handle: RunHandle):
         """Runs something runnable, considering its dependencies and run options."""
 
         # TODO :Incomplete: prepare run handle context (Runner.prepare?)
 
-        runner_cls = _runners.get(handle.runnable.typ)
+        runner_cls = _runners.get((handle.kind, handle.key))
         if runner_cls is None:
-            raise NotRunnableError(f"no runner for {handle!r}: {handle.runnable.typ}")
+            raise NotRunnableError(f"no runner for {handle!r}: {handle.state.key}")
         trace.get_current_span().set_attribute("runner_cls", str(runner_cls))
 
         # run it
@@ -357,34 +396,20 @@ class RuntimeRunner:
             runner = runner_cls(self, self.session, handle)
             trace.get_current_span().set_attribute("runner", repr(runner))
             if handle.run is not None:
-                await self._do_run_retrying_with_run(runner, handle)
+                await self._do_run_retrying_tracked(runner)
             else:
-                await self._do_run_retrying(runner, handle)
+                await self._do_run_retrying(runner)
             # TODO :Performance!: support optimistic commit (commit in background, fail if failed)
             await self.session.commit()
 
-    #
-    # High level Run helpers
-    #
-
-    async def run(
-        self, run: Run | Block | Step, *, inputs: Any | None = None, suppress_error: bool = False
-    ) -> RunHandle:
-        """Auto-run whatever runnable node."""
-        if not isinstance(run, Run):
-            run = Run.from_runnable(run, inputs=inputs)
-        handle = await self.process_run(run, suppress_error=suppress_error)
-        assert handle is not None, f"no handle for {run!r}"
-        return handle
-
     @tracer.start_as_current_span("runner.process_run")
     async def process_run(self, run: Run, *, suppress_error: bool) -> RunHandle | None:
-        """Start or resumes a new top-level Run in this Runner. Returns on halt or termination."""
+        """Start or resume a top-level Run in this Runner. Returns on halt or termination."""
         handle = None
         try:
-            _, handle = await self._prepare_run_state(run)
-            await self._do_run(handle)
-            logger.info("runner.process_run", run=run, span="current")
+            handle = await self.make_run_handle_from_run(run=run)
+            await self.run_handle(handle)
+            logger.info("runner.process_run", run=run, handle=handle, span="current")
         except (BenchError, ValueError, TypeError) as e:
             # NOTE: Robustness: should we really commit the entire session on failure?
             #  (maybe have some sort of atomic flag or context manager to prevent it as needed?)
@@ -400,7 +425,7 @@ class RuntimeRunner:
             # some unexpected internal error
             async with self.session.unsuspended():
                 if run.current_status != RunStatus.FAILED:
-                    run.fail(RunError.from_exception(RunErrorKind.INTERNAL, e))
+                    run.fail(RunError.from_exception(RunErrorKind.INTERNAL, e), _force=True)
                 await self.session.commit()
             logger.error("runner.process_run.internal_error", run=run, exc_info=e, span="current")
             if not suppress_error:
@@ -414,3 +439,13 @@ class RuntimeRunner:
     async def abort_run(self, run: Run):
         """Abort a Run currently executing in this Runner."""
         raise NotImplementedError
+
+    async def run(
+        self, run: Run | Block | Step, *, inputs: Any | None = None, suppress_error: bool = False
+    ) -> RunHandle:
+        """Auto-run wrapper for some runnable node (may already be in another run)."""
+        if not isinstance(run, Run):
+            run = Run.from_runnable(run, inputs=inputs, parent=self.active_run)
+        handle = await self.process_run(run, suppress_error=suppress_error)
+        assert handle is not None, f"no handle for {run!r}"
+        return handle

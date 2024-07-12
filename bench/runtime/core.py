@@ -7,17 +7,20 @@ from bench import language
 from bench.language.const import BenchError
 from bench.language.node import Node
 from bench.language.path import get_node
-from bench.language.run import RunErrorType, RunOptions
+from bench.language.run import RunErrorType, RunKind, RunOptions
 from bench.language.setup import BENCH_CLASS_BY_NAME
 from bench.runtime.capture import LogSink
 
 if TYPE_CHECKING:
     pass
 
-DEFAULT_CODE_RUN_OPTIONS = RunOptions(max_attempts=1)
-DEFAULT_TEXT_RUN_OPTIONS = RunOptions(max_attempts=3, retry_interval=3, backoff=2)
-DEFAULT_STEP_RUN_OPTIONS = RunOptions(max_attempts=1)
-DEFAULT_FLOW_RUN_OPTIONS = RunOptions(max_attempts=1)
+RUN_ONCE = RunOptions(max_attempts=1)
+DEFAULT_RUN_OPTIONS_BY_KIND = {
+    RunKind.CODE: RUN_ONCE,
+    RunKind.TEXT: RunOptions(max_attempts=3),
+    RunKind.STEP: RUN_ONCE,
+    RunKind.FLOW: RUN_ONCE,
+}
 
 # all bench types
 STATIC_CODE_GLOBALS: dict[str, Any] = {
@@ -31,7 +34,6 @@ DYNAMIC_CODE_GLOBALS: dict[str, Any] = {
     # dynamic globals are set per code run, these are just the types :CodeGlobals
     "self": Node,
     "get_node": get_node,
-    "n": get_node,
     "log": LogSink.log,
     "trace": LogSink.trace,
     "debug": LogSink.debug,
@@ -55,5 +57,9 @@ class CodeSyntaxError(NotRunnableError, SyntaxError):
     pass
 
 
-class RunHaltedError(BenchRuntimeError):
+class HaltedError(BenchRuntimeError):
     pass
+
+
+class ReplayError(NotRunnableError):
+    run_error_type = RunErrorType.REPLAY

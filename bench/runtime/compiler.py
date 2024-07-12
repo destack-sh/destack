@@ -17,7 +17,7 @@ from typing import Any, Iterator, Mapping, override
 import structlog
 from opentelemetry import trace
 
-from bench.language import CodeKind
+from bench.language import CodeType
 from bench.language.const import new_struct_id
 
 # NOTE: some of the analysis logic was adapted from marimo (Apache 2 licensed)
@@ -114,7 +114,7 @@ class CodeAnalysisVisitor(ast.NodeVisitor):
     def __init__(
         self,
         *,
-        kind: CodeKind,
+        kind: CodeType,
         code_id: str | None = None,
         builtins: Mapping[str, Any] = BUILTIN_GLOBALS,
     ) -> None:
@@ -148,7 +148,7 @@ class CodeAnalysisVisitor(ast.NodeVisitor):
         Mangle local variable name declared at top-level scope if not in a function.
         """
         if (
-            self._kind != CodeKind.FUNCTION
+            self._kind != CodeType.FUNCTION
             and is_local_name(name)
             and (len(self._block_stack) == 1 or ignore_scope)
         ):
@@ -605,7 +605,7 @@ def _is_coroutine(co: types.CodeType) -> bool:
 class CompiledCode:
     """Compiled and analysed Code."""
 
-    kind: CodeKind
+    kind: CodeType
     code: str
     transformed_code: str
     transformation: "CodeTransformation | None"
@@ -691,7 +691,7 @@ def desugar_code(code: str) -> tuple[str, CodeTransformation]:
 def compile_code(
     code_id: str,
     code: str,
-    kind: CodeKind,
+    kind: CodeType,
     glbls: Mapping[str, Any],
     builtins: Mapping[str, Any] = BUILTIN_GLOBALS,
 ) -> CompiledCode:
@@ -705,7 +705,7 @@ def compile_code(
 
     # wrap code in function if it's a function
     function_name = f"_code_{code_id}"
-    if kind == CodeKind.FUNCTION:
+    if kind == CodeType.FUNCTION:
         # compile to figure out if it's a coroutine (simple string matching wouldn't work)
         # NOTE :Performance: we compile twice to figure out if functions are async before wrapping
         module = compile(
@@ -762,7 +762,7 @@ def compile_code(
     # analyze
     analysis = CodeAnalysisVisitor(kind=kind, code_id=code_id, builtins=builtins)
     analysis.visit(module)
-    if kind == CodeKind.FUNCTION:
+    if kind == CodeType.FUNCTION:
         # remove the wrapped function definition from the analysis
         analysis._block_stack[0].definitions.pop(function_name)
 
@@ -771,7 +771,7 @@ def compile_code(
 
     # parse out last expression for snippets (and compile that)
     last_expr: ast.Expression | None
-    if kind == CodeKind.SNIPPET:
+    if kind == CodeType.SNIPPET:
         if isinstance(module.body[-1], ast.Expr):
             last_expr = ast.Expression(module.body.pop().value)
         else:
