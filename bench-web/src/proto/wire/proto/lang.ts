@@ -662,8 +662,7 @@ export interface FeedViewStateData {
     filterPills: string[];
 }
 /**
- * A reference to a file stored somewhere.
- * Like a NodeReference with file-specific metadata.
+ * A reference to a file stored somewhere. Like a NodeReference with file-specific metadata.
  *
  * @generated from protobuf message symbolx.bench.FileReferenceData
  */
@@ -1615,8 +1614,7 @@ export interface ScheduleData {
     cron?: string;
 }
 /**
- * A reference to a Secret.
- * Like a NodeReference with secret-specific metadata.
+ * A reference to a Secret. Like a NodeReference with secret-specific metadata.
  *
  * @generated from protobuf message symbolx.bench.SecretReferenceData
  */
@@ -1657,10 +1655,6 @@ export interface SecretReferenceData {
      * @generated from protobuf field: optional symbolx.bench.TypeInfoData value_type = 44;
      */
     valueType?: TypeInfoData;
-    /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData secret_ptr = 45;
-     */
-    secretPtr?: NodeReferenceData;
 }
 /**
  * A selection of nodes/values.
@@ -3205,8 +3199,8 @@ export interface FieldData {
     isRequired: boolean;
 }
 /**
- * A file stored in a Drive.
- * De-duplicated so that there's only one File per unique file content (sha512).
+ * A file stored in a Drive (or externally).
+ * De-duplicated so that there's only one File per unique file content for our own files (sha512).
  *
  * @generated from protobuf message symbolx.bench.FileData
  */
@@ -3268,6 +3262,10 @@ export interface FileData {
      */
     setProperties: number[];
     /**
+     * @generated from protobuf field: symbolx.bench.FileKind kind = 30;
+     */
+    kind: FileKind;
+    /**
      * @generated from protobuf field: string title = 33;
      */
     title: string;
@@ -3276,17 +3274,17 @@ export interface FileData {
      */
     size: bigint;
     /**
-     * @generated from protobuf field: string sha512 = 35;
-     */
-    sha512: string;
-    /**
-     * @generated from protobuf field: string mime_type = 36;
+     * @generated from protobuf field: string mime_type = 35;
      */
     mimeType: string;
     /**
-     * @generated from protobuf field: symbolx.bench.FileRetentionMode retention = 37;
+     * @generated from protobuf field: optional string sha512 = 36;
      */
-    retention: FileRetentionMode;
+    sha512?: string;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.FileRetentionMode retention = 37;
+     */
+    retention?: FileRetentionMode;
     /**
      * @generated from protobuf field: optional google.protobuf.Timestamp expires_at = 38;
      */
@@ -8295,9 +8293,9 @@ export enum FileKind {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: FILE_KIND_BLOB = 1;
+     * @generated from protobuf enum value: FILE_KIND_DRIVE = 1;
      */
-    BLOB = 1,
+    DRIVE = 1,
     /**
      * @generated from protobuf enum value: FILE_KIND_EXTERNAL = 2;
      */
@@ -15014,8 +15012,7 @@ class SecretReferenceData$Type extends MessageType<SecretReferenceData> {
             { no: 34, name: "base_ck", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 35, name: "base_bench_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 43, name: "title", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 44, name: "value_type", kind: "message", T: () => TypeInfoData },
-            { no: 45, name: "secret_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 44, name: "value_type", kind: "message", T: () => TypeInfoData }
         ]);
     }
     create(value?: PartialMessage<SecretReferenceData>): SecretReferenceData {
@@ -15059,9 +15056,6 @@ class SecretReferenceData$Type extends MessageType<SecretReferenceData> {
                 case /* optional symbolx.bench.TypeInfoData value_type */ 44:
                     message.valueType = TypeInfoData.internalBinaryRead(reader, reader.uint32(), options, message.valueType);
                     break;
-                case /* symbolx.bench.NodeReferenceData secret_ptr */ 45:
-                    message.secretPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.secretPtr);
-                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -15101,9 +15095,6 @@ class SecretReferenceData$Type extends MessageType<SecretReferenceData> {
         /* optional symbolx.bench.TypeInfoData value_type = 44; */
         if (message.valueType)
             TypeInfoData.internalBinaryWrite(message.valueType, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData secret_ptr = 45; */
-        if (message.secretPtr)
-            NodeReferenceData.internalBinaryWrite(message.secretPtr, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -18623,11 +18614,12 @@ class FileData$Type extends MessageType<FileData> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 22, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 29, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
+            { no: 30, name: "kind", kind: "enum", T: () => ["symbolx.bench.FileKind", FileKind, "FILE_KIND_"] },
             { no: 33, name: "title", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "size", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 35, name: "sha512", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 36, name: "mime_type", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 37, name: "retention", kind: "enum", T: () => ["symbolx.bench.FileRetentionMode", FileRetentionMode, "FILE_RETENTION_MODE_"] },
+            { no: 35, name: "mime_type", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 36, name: "sha512", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 37, name: "retention", kind: "enum", opt: true, T: () => ["symbolx.bench.FileRetentionMode", FileRetentionMode, "FILE_RETENTION_MODE_"] },
             { no: 38, name: "expires_at", kind: "message", T: () => Timestamp }
         ]);
     }
@@ -18639,11 +18631,10 @@ class FileData$Type extends MessageType<FileData> {
         message.createdEpoch = 0n;
         message.updatedEpoch = 0n;
         message.setProperties = [];
+        message.kind = 0;
         message.title = "";
         message.size = 0n;
-        message.sha512 = "";
         message.mimeType = "";
-        message.retention = 0;
         if (value !== undefined)
             reflectionMergePartial<FileData>(this, message, value);
         return message;
@@ -18699,19 +18690,22 @@ class FileData$Type extends MessageType<FileData> {
                     else
                         message.setProperties.push(reader.int32());
                     break;
+                case /* symbolx.bench.FileKind kind */ 30:
+                    message.kind = reader.int32();
+                    break;
                 case /* string title */ 33:
                     message.title = reader.string();
                     break;
                 case /* int64 size */ 34:
                     message.size = reader.int64().toBigInt();
                     break;
-                case /* string sha512 */ 35:
-                    message.sha512 = reader.string();
-                    break;
-                case /* string mime_type */ 36:
+                case /* string mime_type */ 35:
                     message.mimeType = reader.string();
                     break;
-                case /* symbolx.bench.FileRetentionMode retention */ 37:
+                case /* optional string sha512 */ 36:
+                    message.sha512 = reader.string();
+                    break;
+                case /* optional symbolx.bench.FileRetentionMode retention */ 37:
                     message.retention = reader.int32();
                     break;
                 case /* optional google.protobuf.Timestamp expires_at */ 38:
@@ -18775,20 +18769,23 @@ class FileData$Type extends MessageType<FileData> {
                 writer.int32(message.setProperties[i]);
             writer.join();
         }
+        /* symbolx.bench.FileKind kind = 30; */
+        if (message.kind !== 0)
+            writer.tag(30, WireType.Varint).int32(message.kind);
         /* string title = 33; */
         if (message.title !== "")
             writer.tag(33, WireType.LengthDelimited).string(message.title);
         /* int64 size = 34; */
         if (message.size !== 0n)
             writer.tag(34, WireType.Varint).int64(message.size);
-        /* string sha512 = 35; */
-        if (message.sha512 !== "")
-            writer.tag(35, WireType.LengthDelimited).string(message.sha512);
-        /* string mime_type = 36; */
+        /* string mime_type = 35; */
         if (message.mimeType !== "")
-            writer.tag(36, WireType.LengthDelimited).string(message.mimeType);
-        /* symbolx.bench.FileRetentionMode retention = 37; */
-        if (message.retention !== 0)
+            writer.tag(35, WireType.LengthDelimited).string(message.mimeType);
+        /* optional string sha512 = 36; */
+        if (message.sha512 !== undefined)
+            writer.tag(36, WireType.LengthDelimited).string(message.sha512);
+        /* optional symbolx.bench.FileRetentionMode retention = 37; */
+        if (message.retention !== undefined)
             writer.tag(37, WireType.Varint).int32(message.retention);
         /* optional google.protobuf.Timestamp expires_at = 38; */
         if (message.expiresAt)
@@ -26046,10 +26043,11 @@ export enum FileProperty {
   createdByPtr = 21,
   updatedByPtr = 22,
   setProperties = 29,
+  kind = 30,
   title = 33,
   size = 34,
-  sha512 = 35,
-  mimeType = 36,
+  mimeType = 35,
+  sha512 = 36,
   retention = 37,
   expiresAt = 38,
 }
@@ -27078,7 +27076,6 @@ export enum SecretReferenceProperty {
   baseBenchId = 35,
   title = 43,
   valueType = 44,
-  secretPtr = 45,
 }
 
 export enum TriggerInfoProperty {
@@ -27905,7 +27902,7 @@ export const IconDataInfo: Record<IconProperty, PropertyInfo> = {
   [IconProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.ICON, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [IconProperty.kind]: { id: 30, name: 'kind', component: ObjectType.ICON, enumType: EnumType.ICON_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [IconProperty.emoji]: { id: 31, name: 'emoji', component: ObjectType.ICON, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [IconProperty.filePtr]: { id: 32, name: 'file_ptr', component: ObjectType.ICON, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FILE], referenceStruct: StructType.NODE_REFERENCE },
+  [IconProperty.filePtr]: { id: 32, name: 'file_ptr', component: ObjectType.ICON, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FILE], referenceStruct: StructType.NODE_REFERENCE },
   [IconProperty.faName]: { id: 33, name: 'fa_name', component: ObjectType.ICON, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [IconProperty.color]: { id: 40, name: 'color', component: ObjectType.ICON, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.COLOR },
 }
@@ -27919,7 +27916,6 @@ export const SecretReferenceDataInfo: Record<SecretReferenceProperty, PropertyIn
   [SecretReferenceProperty.baseBenchId]: { id: 35, name: 'base_bench_id', component: ObjectType.SECRET_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [SecretReferenceProperty.title]: { id: 43, name: 'title', component: ObjectType.SECRET_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [SecretReferenceProperty.valueType]: { id: 44, name: 'value_type', component: ObjectType.SECRET_REFERENCE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_INFO },
-  [SecretReferenceProperty.secretPtr]: { id: 45, name: 'secret_ptr', component: ObjectType.SECRET_REFERENCE, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SECRET], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const TriggerInfoDataInfo: Record<TriggerInfoProperty, PropertyInfo> = {
   [TriggerInfoProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.TRIGGER_INFO, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -28430,11 +28426,12 @@ export const FileDataInfo: Record<FileProperty, PropertyInfo> = {
   [FileProperty.createdByPtr]: { id: 21, name: 'created_by_ptr', component: ObjectType.FILE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [FileProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.FILE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [FileProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
+  [FileProperty.kind]: { id: 30, name: 'kind', component: ObjectType.FILE, enumType: EnumType.FILE_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.title]: { id: 33, name: 'title', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.size]: { id: 34, name: 'size', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT64, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.sha512]: { id: 35, name: 'sha512', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.mimeType]: { id: 36, name: 'mime_type', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.retention]: { id: 37, name: 'retention', component: ObjectType.FILE, enumType: EnumType.FILE_RETENTION_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.mimeType]: { id: 35, name: 'mime_type', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.sha512]: { id: 36, name: 'sha512', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.retention]: { id: 37, name: 'retention', component: ObjectType.FILE, enumType: EnumType.FILE_RETENTION_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.expiresAt]: { id: 38, name: 'expires_at', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRuntime: true, isWired: true, isStored: true },
 }
 export const SecretDataInfo: Record<SecretProperty, PropertyInfo> = {
@@ -28775,7 +28772,7 @@ export const ViewDataInfo: Record<ViewProperty, PropertyInfo> = {
   [ViewProperty.icon]: { id: 35, name: 'icon', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [ViewProperty.valueType]: { id: 40, name: 'value_type', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_INFO },
   [ViewProperty.valuePacked]: { id: 41, name: 'value_packed', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [ViewProperty.nodePtr]: { id: 42, name: 'node_ptr', component: ObjectType.VIEW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.DEPENDENCY, NodeType.SPACE, NodeType.SKIP, NodeType.ISSUE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.MEMBERSHIP, NodeType.INVITE], referenceStruct: StructType.NODE_REFERENCE },
+  [ViewProperty.nodePtr]: { id: 42, name: 'node_ptr', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.FILE, NodeType.SECRET, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.LINK, NodeType.SKIP, NodeType.ISSUE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.NOTIFICATION, NodeType.MESSAGE, NodeType.RECORD], referenceStruct: StructType.NODE_REFERENCE },
   [ViewProperty.variant]: { id: 50, name: 'variant', component: ObjectType.VIEW, enumType: EnumType.VARIANT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [ViewProperty.font]: { id: 51, name: 'font', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.FONT },
   [ViewProperty.position]: { id: 60, name: 'position', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.OFFSET },

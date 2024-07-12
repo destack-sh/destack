@@ -1,13 +1,21 @@
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, override
 
 import structlog
 
 from bench.language.bench import Drive
 from bench.language.const import EnumType, NodeType, PrimitiveType, StructType, enum_
-from bench.language.node import BenchNode, InlineStruct, NodeReferenceBase, node_, struct_
-from bench.language.property import p_internal, p_node_parent, p_regular
-from bench.language.validation import TITLE_CONSTRAINT, constrain
+from bench.language.node import (
+    BenchNode,
+    InlineStruct,
+    Node,
+    NodeReference,
+    NodeReferenceBase,
+    node_,
+    struct_,
+)
+from bench.language.property import Property, p_internal, p_node_parent, p_regular
+from bench.language.validation import TITLE_CONSTRAINT, ValidationHandler, constrain
 from bench.proto.wire import FileData, FileReferenceData
 from bench.utils.func import IdEnum
 
@@ -25,7 +33,7 @@ SHA512_CONSTRAINT = constrain(min_length=FILE_HASH_LENGTH, max_length=FILE_HASH_
 
 @enum_(EnumType.FILE_KIND)
 class FileKind(IdEnum):
-    BLOB = 1
+    DRIVE = 1
     EXTERNAL = 2
 
 
@@ -39,20 +47,25 @@ class FileRetentionMode(IdEnum):
 @node_(NodeType.FILE, unique=(("parent_id", "sha512"),))
 class File(BenchNode[FileData]):
     """
-    A file stored in a Drive.
-    De-duplicated so that there's only one File per unique file content (sha512).
+    A file stored in a Drive (or externally).
+    De-duplicated so that there's only one File per unique file content for our own files (sha512).
     """
 
     parent: Drive | None = p_node_parent(4, NodeType.DRIVE, is_system=True)
 
     # meta
+    kind: FileKind = p_internal(30, default=FileKind.DRIVE, default_sql=None)
     title: str = p_regular(33, constraint=TITLE_CONSTRAINT)
-    size: int = p_internal(34, primitive_type=PrimitiveType.INT64)
-    sha512: str = p_internal(
-        35, constraint=constrain(min_length=FILE_HASH_LENGTH, max_length=FILE_HASH_LENGTH)
+    size: int = p_internal(
+        34, primitive_type=PrimitiveType.INT64, constraint=constrain(min_value=0)
     )
-    mime_type: str = p_internal(36, constraint=MIME_TYPE_CONSTRAINT)
-    retention: FileRetentionMode = p_regular(37)
+    mime_type: str = p_internal(35, constraint=MIME_TYPE_CONSTRAINT)
+    sha512: str | None = p_internal(
+        36, constraint=constrain(min_length=FILE_HASH_LENGTH, max_length=FILE_HASH_LENGTH)
+    )
+    retention: FileRetentionMode | None = p_regular(
+        37, default=FileRetentionMode.AUTOMATIC, default_sql=None
+    )
     expires_at: Optional[datetime] = p_regular(38)
 
     # type-specific metadata (image size, audio/video length, thumbnail, ...)
@@ -65,9 +78,8 @@ class FileReference(
     NodeReferenceBase[File, FileData, "FileReference", FileReferenceData],
 ):
     """
-    A reference to a file stored somewhere.
-    Like a NodeReference with file-specific metadata.
-    """
+    A reference to a file stored somewhere. Like a NodeReference with file-specific metadata.
+    """  # :RichReferences
 
     # ...NodeReferenceBase[30-39]
 
@@ -77,6 +89,40 @@ class FileReference(
     sha512: Optional[str] = p_internal(45)
     mime_type: Optional[str] = p_internal(46)
     external_url: Optional[str] = p_internal(47)
+
+    def _validate_component(self, properties: tuple[Property, ...], invalid: ValidationHandler):
+        if self.type != NodeType.FILE:
+            invalid("type", f"referenced node must be File, got {self.type}", (FileReference.type,))
+
+    @override
+    @staticmethod
+    def from_node(node: Node) -> "FileReference":
+        node_ref = NodeReference.from_node(node)
+        file_ref = FileReference._copy_ref(FileReference, node_ref)
+        for prop in FileReference.__declared_properties__.values():
+            if hasattr(file_ref, prop.name):
+                setattr(file_ref, prop.name, getattr(node, prop.name))
+        return file_ref
+
+    @override
+    @staticmethod
+    def from_node_data(node_data: FileData) -> FileReferenceData:
+        node_ref = NodeReference.from_node_data(node_data)
+        file_ref = FileReference._copy_ref(FileReferenceData, node_ref)
+        for prop in FileReference.__declared_properties__.values():
+            if hasattr(file_ref, prop.name):
+                setattr(file_ref, prop.name, getattr(node_data, prop.name))
+        return file_ref
+
+    @override
+    @staticmethod
+    def from_node_as_data(node: File) -> FileReferenceData:
+        node_ref = NodeReference.from_node_as_data(node)
+        file_ref = FileReference._copy_ref(FileReferenceData, node_ref)
+        for prop in FileReference.__declared_properties__.values():
+            if hasattr(file_ref, prop.name):
+                setattr(file_ref, prop.name, getattr(node, prop.name))
+        return file_ref
 
 
 @enum_(EnumType.ICON_KIND)
@@ -93,7 +139,9 @@ class Icon(InlineStruct):
     kind: IconKind = p_internal(30, default=False)
     # content
     emoji: Optional[str] = p_internal(31, require=False)
-    file: Optional["File"] = p_internal(32, require=False, array=False, references=NodeType.FILE)
+    file: Optional["File"] = p_internal(
+        32, require=False, array=False, references=NodeType.FILE, rich=True
+    )
     fa_name: Optional[str] = p_internal(33, require=False)
     # style
     color: Optional["Color"] = p_internal(40, require=False, array=False, struct=StructType.COLOR)

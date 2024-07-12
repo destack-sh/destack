@@ -608,7 +608,7 @@ class FieldZone(betterproto.Enum):
 
 class FileKind(betterproto.Enum):
     UNSPECIFIED = 0
-    BLOB = 1
+    DRIVE = 1
     EXTERNAL = 2
 
 
@@ -1694,8 +1694,7 @@ class FeedViewStateData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class FileReferenceData(betterproto.Message):
     """
-    A reference to a file stored somewhere.
-     Like a NodeReference with file-specific metadata.
+    A reference to a file stored somewhere. Like a NodeReference with file-specific metadata.
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
@@ -2093,8 +2092,7 @@ class ScheduleData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class SecretReferenceData(betterproto.Message):
     """
-    A reference to a Secret.
-     Like a NodeReference with secret-specific metadata.
+    A reference to a Secret. Like a NodeReference with secret-specific metadata.
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
@@ -2106,7 +2104,6 @@ class SecretReferenceData(betterproto.Message):
     base_bench_id: Optional[str] = betterproto.string_field(35, optional=True)
     title: str = betterproto.string_field(43)
     value_type: Optional["TypeInfoData"] = betterproto.message_field(44, optional=True)
-    secret_ptr: "NodeReferenceData" = betterproto.message_field(45)
 
 
 @dataclass(eq=False, repr=False)
@@ -2630,8 +2627,8 @@ class FieldData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class FileData(betterproto.Message):
     """
-    A file stored in a Drive.
-     De-duplicated so that there's only one File per unique file content (sha512).
+    A file stored in a Drive (or externally).
+     De-duplicated so that there's only one File per unique file content for our own files (sha512).
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
@@ -2648,11 +2645,12 @@ class FileData(betterproto.Message):
     created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(21, optional=True)
     updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(22, optional=True)
     set_properties: List[int] = betterproto.int32_field(29)
+    kind: "FileKind" = betterproto.enum_field(30)
     title: str = betterproto.string_field(33)
     size: int = betterproto.int64_field(34)
-    sha512: str = betterproto.string_field(35)
-    mime_type: str = betterproto.string_field(36)
-    retention: "FileRetentionMode" = betterproto.enum_field(37)
+    mime_type: str = betterproto.string_field(35)
+    sha512: Optional[str] = betterproto.string_field(36, optional=True)
+    retention: Optional["FileRetentionMode"] = betterproto.enum_field(37, optional=True)
     expires_at: Optional[datetime] = betterproto.message_field(38, optional=True)
 
 

@@ -7,7 +7,6 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
-    Iterable,
     Literal,
     Optional,
     Union,
@@ -126,6 +125,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
     reference_list_type: type["NodeList"] | type["ValueList"] | None = None
     reference_is_bench_implicit: bool = False
     reference_is_baseless: bool = False
+    reference_is_rich: bool = False
     reference_force_fk: bool = False
 
     _cached_as_ref: Optional["PropertyReference"] = None
@@ -150,7 +150,10 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
         if self.reference_kind:
             non_default.append(self.reference_kind.bench_name)
             if self.reference_nodes:
-                non_default.append("|".join(t.bench_name for t in self.reference_nodes))
+                if len(self.reference_nodes) == len(NodeType):
+                    non_default.append("*")
+                else:
+                    non_default.append("|".join(t.bench_name for t in self.reference_nodes))
             elif self.reference_struct:
                 non_default.append(self.reference_struct.bench_name)
         elif self.enum_type:
@@ -262,13 +265,6 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
     def is_struct_reference(self):
         """Whether this is a reference to a parent struct/value. *Not* an inlined Struct."""
         return self.reference_kind is not None and self.reference_kind.is_struct_tree
-
-    @property
-    def contributed_props(self) -> Iterable["Property"]:
-        if self.reference_wired_ptr is not None:
-            yield self.reference_wired_ptr
-        if self.reference_stored_props is not None:
-            yield from self.reference_stored_props
 
     @property
     def is_struct(self) -> bool:
@@ -478,6 +474,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
                 reference_nodes=self.reference_nodes,
                 reference_source=self,
                 reference_struct=StructType.NODE_REFERENCE,
+                reference_is_rich=self.reference_is_rich,
                 is_runtime=True,
                 is_wired=True,
                 is_stored=False,
@@ -490,11 +487,20 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
                 primitive_type=None,
             )
 
-        # unravel the reference types into appropriate id/ck/other metadata columns
-        stored_ids = []  # the contributed 'ptr'-like properties (id or ck)
-        # ... and any other metadata (type, base, etc.)
-        extra_stored_props: dict[PropertyReferenceMetadata, Property] = {}
-        if is_stored and self.component.__is_node__:  # only nodes are stored
+        if is_stored and self.reference_is_rich:
+            assert not self.reference_force_fk, f"rich references cannot have FKs {self!r}"
+            assert self.reference_wired_ptr is not None, f"missing wired ptr for {self!r}"
+            # rich references are stored as a struct with all the info
+            self.reference_wired_ptr.is_stored = True
+            self.reference_wired_ptr.primitive_type = PrimitiveType.JSON
+            self.reference_stored_props = (self.reference_wired_ptr,)
+            return (self.reference_wired_ptr,)
+        elif is_stored and self.component.__is_node__:  # only nodes are stored
+            assert self.reference_wired_ptr is not None, f"missing wired ptr for {self!r}"
+            # unravel the reference types into appropriate id/ck/other metadata columns
+            stored_ids = []  # the contributed 'ptr'-like properties (id or ck)
+            # ... and any other metadata (type, base, etc.)
+            extra_stored_props: dict[PropertyReferenceMetadata, Property] = {}
             need_fks = self.reference_force_fk
 
             # figure out which reference types (if any) to pack into the shared 'id'/'ck'
@@ -653,7 +659,11 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
             self.reference_stored_props = tuple(stored_ids + list(extra_stored_props.values()))
             self.reference_stored_meta = frozendict(extra_stored_props)
 
-        return tuple(self.contributed_props)
+            return (self.reference_wired_ptr, *stored_ids, *extra_stored_props.values())
+        elif self.reference_wired_ptr:
+            return self.reference_wired_ptr,
+        else:
+            return ()
 
     def _finalize_meta(self) -> None:
         """Analyzes the storage options. Must run after all class defs."""
@@ -782,6 +792,7 @@ def p_property(
     fk: bool = False,
     same_bench: bool = False,
     baseless: bool = False,
+    rich: bool = False,
     struct: StructType | None = None,
     is_node_data: bool = False,
     store: bool = True,
@@ -833,6 +844,7 @@ def p_property(
         reference_list_type=custom_list,
         reference_is_bench_implicit=same_bench,
         reference_is_baseless=baseless,
+        reference_is_rich=rich,
         reference_force_fk=fk,
         is_internal=internal,
         is_system=system,

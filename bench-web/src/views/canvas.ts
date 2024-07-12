@@ -20,6 +20,7 @@ import {
   copyNode,
   describeNode,
   getNodeType,
+  isNodeReference,
   makeNode,
   makeStruct,
   toNodeReference,
@@ -735,8 +736,7 @@ export class ViewCanvas {
     node: AnyNodeData | NodeReferenceData,
     options?: { graph?: ReadNodeGraph; skipSelf?: boolean } & OpenViewOptions,
   ) {
-    const nodeRef =
-      node.metatype == ObjectType.NODE_REFERENCE ? (node as NodeReferenceData) : toNodeReference(node as AnyNodeData);
+    const nodeRef = isNodeReference(node) ? node : toNodeReference(node as AnyNodeData);
     log.debug("canvas.goToNode", node);
     const tx = this.tx();
     if (nodeRef.type == NodeType.VIEW && this.isInSpace(node)) {
@@ -1057,9 +1057,7 @@ export function makeSelection(
   return {
     metatype: ObjectType.SELECTION,
     kind: SelectionKind.LIST,
-    nodesPtr: nodes.map((n) =>
-      n.metatype == ObjectType.NODE_REFERENCE ? (n as NodeReferenceData) : toNodeReference(n as AnyNodeData),
-    ),
+    nodesPtr: nodes.map((n) => (isNodeReference(n) ? n : toNodeReference(n as AnyNodeData))),
   };
 }
 
@@ -1078,9 +1076,7 @@ export function expandSelection(
     ...(selection ?? { metatype: ObjectType.SELECTION, kind: SelectionKind.LIST }),
     nodesPtr: [
       ...(selection?.nodesPtr ?? []),
-      ...nodes.map((n) =>
-        n.metatype == ObjectType.NODE_REFERENCE ? (n as NodeReferenceData) : toNodeReference(n as AnyNodeData),
-      ),
+      ...nodes.map((n) => (isNodeReference(n) ? n : toNodeReference(n as AnyNodeData))),
     ],
   };
 }
@@ -1088,13 +1084,7 @@ export function expandSelection(
 export function collapseSelection(selection: SelectionData, nodes: (AnyNodeData | NodeReferenceData)[]): SelectionData {
   return {
     ...selection,
-    nodesPtr: selection.nodesPtr.filter(
-      (n) =>
-        !nodes.some((m) => {
-          if (m.metatype == ObjectType.NODE_REFERENCE) return m.id == n.id;
-          else return m.id == n.id;
-        }),
-    ),
+    nodesPtr: selection.nodesPtr.filter((n) => !nodes.some((m) => m.id == n.id)),
   };
 }
 

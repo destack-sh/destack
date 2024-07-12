@@ -564,7 +564,7 @@ enum FieldZone {
 
 enum FileKind {
   FILE_KIND_UNSPECIFIED = 0;
-  FILE_KIND_BLOB = 1;
+  FILE_KIND_DRIVE = 1;
   FILE_KIND_EXTERNAL = 2;
 }
 
@@ -1563,8 +1563,7 @@ message FeedViewStateData {
   repeated string filter_pills = 99;
 }
 
-// A reference to a file stored somewhere.
-// Like a NodeReference with file-specific metadata.
+// A reference to a file stored somewhere. Like a NodeReference with file-specific metadata.
 message FileReferenceData {
   ObjectType metatype = 1;
   NodeType type = 30;
@@ -1892,8 +1891,7 @@ message ScheduleData {
   optional string cron = 50;
 }
 
-// A reference to a Secret.
-// Like a NodeReference with secret-specific metadata.
+// A reference to a Secret. Like a NodeReference with secret-specific metadata.
 message SecretReferenceData {
   ObjectType metatype = 1;
   NodeType type = 30;
@@ -1904,7 +1902,6 @@ message SecretReferenceData {
   optional string base_bench_id = 35;
   string title = 43;
   optional TypeInfoData value_type = 44;
-  NodeReferenceData secret_ptr = 45;
 }
 
 // A selection of nodes/values.
@@ -2351,8 +2348,8 @@ message FieldData {
   bool is_required = 62;
 }
 
-// A file stored in a Drive.
-// De-duplicated so that there's only one File per unique file content (sha512).
+// A file stored in a Drive (or externally).
+// De-duplicated so that there's only one File per unique file content for our own files (sha512).
 message FileData {
   ObjectType metatype = 1;
   string id = 2;
@@ -2368,11 +2365,12 @@ message FileData {
   optional NodeReferenceData created_by_ptr = 21;
   optional NodeReferenceData updated_by_ptr = 22;
   repeated int32 set_properties = 29;
+  FileKind kind = 30;
   string title = 33;
   int64 size = 34;
-  string sha512 = 35;
-  string mime_type = 36;
-  FileRetentionMode retention = 37;
+  string mime_type = 35;
+  optional string sha512 = 36;
+  optional FileRetentionMode retention = 37;
   optional google.protobuf.Timestamp expires_at = 38;
 }
 

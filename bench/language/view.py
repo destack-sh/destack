@@ -5,9 +5,9 @@ from bench.language.expression import Selection
 from bench.language.graph import NodeList
 from bench.language.issue import Issue
 from bench.language.node import (
-    LINK_TARGET_NODE_TYPES,
     InlineStruct,
     Node,
+    NodeReferenceBase,
     SourceNode,
     local_node,
     object_component,
@@ -412,10 +412,11 @@ class View(SourceNode[ViewData], HasValues):
     )
     value_packed: Any = p_value_packed(41)
     value: Any = p_value_runtime(packed=41, typ=None)  # freely typed for now
-    # NOTE :Architecture: View.node should probably just be in builtin View.value (ViewState)
     node: Optional["Node"] = p_regular(
-        42, default=None, require=False, array=False, references=LINK_TARGET_NODE_TYPES
+        42, default=None, require=False, array=False, references=NODE_TYPES.tuple, rich=True
     )
+    if TYPE_CHECKING:
+        node_ptr: Optional["NodeReferenceBase"] = None
 
     # style
     variant: Optional[Variant] = p_regular(50, default=None, require=False)

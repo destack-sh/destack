@@ -101,8 +101,12 @@ STRATEGY_BY_PRIMITIVE_TYPE: dict[PrimitiveType, st.SearchStrategy] = {
         max_value=MAX_VALUE_BY_PRIMITIVE_TYPE[PrimitiveType.INTERVAL],
     ),
 }
-STRATEGY_BY_PROPERTY_NAME: dict[str, st.SearchStrategy] = {
+STRATEGY_BY_PROPERTY: dict[str, st.SearchStrategy] = {
     "order_key": ORDER_KEY_STRATEGY,
+}
+STRATEGY_BY_OBJECT_PROPERTY: dict[tuple[ObjectType, str], st.SearchStrategy] = {
+    (StructType.FILE_REFERENCE, "type"): st.just(NodeType.FILE),
+    (StructType.SECRET_REFERENCE, "type"): st.just(NodeType.SECRET),
 }
 
 
@@ -223,8 +227,10 @@ def get_naive_object_strategy(object_type: ObjectType):
             or prop.is_autoset
         ):
             continue
-        elif prop.name in STRATEGY_BY_PROPERTY_NAME:
-            object_dict[prop.name] = STRATEGY_BY_PROPERTY_NAME[prop.name]
+        elif (object_type, prop.name) in STRATEGY_BY_OBJECT_PROPERTY:
+            object_dict[prop.name] = STRATEGY_BY_OBJECT_PROPERTY[(object_type, prop.name)]
+        elif prop.name in STRATEGY_BY_PROPERTY:
+            object_dict[prop.name] = STRATEGY_BY_PROPERTY[prop.name]
         elif prop.is_node_reference:
             if not prop.reference_nodes:
                 continue  # nothing to do

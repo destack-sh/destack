@@ -5,13 +5,21 @@ import {
   SelectionData,
   type AnyNodeData,
   type NodeReferenceData,
+  StructType,
 } from "@/proto/wire";
-import { toNodeReference, type AnyNodeReferenceData } from "@/proto/wiring";
+import { isNodeReference, isStruct, toNodeReference, type AnyNodeReferenceData } from "@/proto/wiring";
 import type { ReadNodeGraph } from "@/system/graph";
 import { getElement, getElementRef } from "@/utils/element";
 import { log } from "@/utils/log";
 import { uuidt } from "@/utils/uuidt";
-import { tryOnBeforeUnmount, useEventListener, useMouse, useMouseInElement, type MaybeElement } from "@vueuse/core";
+import {
+  isObject,
+  tryOnBeforeUnmount,
+  useEventListener,
+  useMouse,
+  useMouseInElement,
+  type MaybeElement,
+} from "@vueuse/core";
 import type { AnyNode } from "postcss";
 import { computed, ref, shallowRef, toRef, unref, watch, type MaybeRef, type Ref } from "vue";
 
@@ -62,29 +70,29 @@ export function startDragging(
   const trigger = event.target as HTMLElement;
   let dragged: Dragged;
   if ("metatype" in data) {
-    if (data.metatype == ObjectType.NODE_REFERENCE) {
+    if (isNodeReference(data)) {
       dragged = {
         id: uuidt(),
         trigger,
         kind: "node",
-        node: data as NodeReferenceData,
-        nodes: [graph.getOrError(data as NodeReferenceData)],
+        node: data,
+        nodes: [graph.getOrError(data)],
       };
-    } else if (data.metatype == ObjectType.SELECTION) {
+    } else if (isStruct(data, StructType.SELECTION)) {
       dragged = {
         id: uuidt(),
         trigger,
         kind: "selection",
-        selection: data as SelectionData,
-        nodes: (data as SelectionData).nodesPtr.map((n) => graph.getOrError(n)),
+        selection: data,
+        nodes: data.nodesPtr.map((n) => graph.getOrError(n)),
       };
     } else {
       dragged = {
         id: uuidt(),
         trigger,
         kind: "node",
-        node: toNodeReference(data as AnyNodeData),
-        nodes: [data as AnyNodeData],
+        node: toNodeReference(data),
+        nodes: [data],
       };
     }
   } /* DraggedData */ else {
