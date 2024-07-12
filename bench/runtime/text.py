@@ -1,11 +1,11 @@
 import abc
-from typing import ClassVar, Mapping, cast, override
+from typing import ClassVar, Mapping, override
 
 import anthropic
 import openai
 
 from bench.language.code import Code
-from bench.language.projection import Projection, project
+from bench.language.project import Projection, ProjectOptions, project
 from bench.language.run import ModelProvider, ModelType, RunKind
 from bench.runtime.core import RUN_ONCE, NotRunnableError
 from bench.runtime.runner import Runner, runner
@@ -18,9 +18,16 @@ class ModelRunnerBase(Runner, abc.ABC):
     Basically, the model generate codes that produces the answer, we run it and return that.
     """
 
+    @property
+    def model(self) -> ModelType | None:
+        if self.handle.options.model_options is not None:
+            return self.handle.options.model_options.model
+        else:
+            return None
+
     @override
     async def run(self) -> None:
-        projection = project(self.state.node, self.handle.inputs)
+        projection = project(self.state.node, self.handle.inputs, options=ProjectOptions())
         code_str = await self._do_generate_code(projection)
         code = Code.from_string(code_str)
         code_handle = await self.runtime.make_run_handle(
@@ -56,11 +63,13 @@ anthropic_client = anthropic.AsyncClient(
 
 @runner(RunKind.TEXT, ModelProvider.OPENAI)
 class OpenaiModelRunner(ModelRunnerBase):
+    DEFAULT_MODEL = ModelType.GPT40
     MODEL_BY_TYPE: ClassVar[Mapping[ModelType, str]] = {ModelType.GPT40: "gpt-4o"}
 
     @override
     async def _do_generate_code(self, projection: Projection) -> str:
-        model_key = self.MODEL_BY_TYPE.get(cast(ModelType, self.state.key))
+        model = self.model or self.DEFAULT_MODEL
+        model_key = self.MODEL_BY_TYPE.get(model)
         if model_key is None:
             raise NotRunnableError(f"unsupported model type {self.state.key}")
         messages = ...  # nocheckin
@@ -73,13 +82,15 @@ class OpenaiModelRunner(ModelRunnerBase):
 
 @runner(RunKind.TEXT, ModelProvider.ANTHROPIC)
 class AnthropicModelRunner(ModelRunnerBase):
+    DEFAULT_MODEL = ModelType.CLAUDE_3_5_SONNET
     MODEL_BY_TYPE: ClassVar[Mapping[ModelType, str]] = {
         ModelType.CLAUDE_3_5_SONNET: "claude-3-5-sonnet-20240620"
     }
 
     @override
     async def _do_generate_code(self, projection: Projection) -> str:
-        model_key = self.MODEL_BY_TYPE.get(cast(ModelType, self.state.key))
+        model = self.model or self.DEFAULT_MODEL
+        model_key = self.MODEL_BY_TYPE.get(model)
         if model_key is None:
             raise NotRunnableError(f"unsupported model type {self.state.key}")
         messages = ...  # nocheckin

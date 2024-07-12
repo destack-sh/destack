@@ -86,6 +86,7 @@ from .node import (
     Link,
     Node,
     NodeReference,
+    NodeReferenceBase,
     PackageNode,
     PropertyReference,
     SourceNode,
@@ -93,7 +94,7 @@ from .node import (
 )
 from .notification import Notification
 from .path import Path, get_node, get_node_or_error, parse_path, render_path
-from .projection import Projection
+from .project import Projection
 from .property import Property
 from .query import (
     MultipleNodesFoundError,
@@ -222,6 +223,7 @@ __all__ = [
     "NodeGraph",
     "NodeNotFoundError",
     "NodeReference",
+    "NodeReferenceBase",
     "NodeSuperGraph",
     "NodeType",
     "Notification",
