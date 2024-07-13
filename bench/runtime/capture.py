@@ -5,6 +5,7 @@ from typing import Any, Iterable, override
 from bench.language.log import LogInfo, LogLevel
 from bench.language.text import Text
 from bench.utils.oracle import Oracle
+from bench.utils.utils import get_from_env
 
 
 @contextlib.contextmanager
@@ -21,18 +22,42 @@ def capture_stderr():
 
 TextIn = str | Text | Any
 
+MAX_LOGS_PER_CAPTURE = get_from_env(
+    "MAX_LOGS_PER_CAPTURE",
+    typ=int,
+    default=100,
+    description="Maximum Logs to capture per capture (i.e. run)",
+)
+MAX_LOG_LINE_LENGTH = get_from_env(
+    "MAX_LOG_LINE_LENGTH",
+    typ=int,
+    default=1000,
+    description="Maximum length of a log line in characters",
+)
+
 
 class LogSink:
     """A sink for capturing logs."""
 
-    __slots__ = ["logs", "oracle"]
+    __slots__ = ["is_open", "logs", "max_log_length", "max_logs", "oracle"]
 
-    def __init__(self, oracle: Oracle):
+    def __init__(
+        self,
+        oracle: Oracle,
+        max_logs: int,
+        max_log_length: int,
+    ):
         self.oracle = oracle
         self.logs: list[LogInfo] = []
+        self.max_logs = max_logs
+        self.is_open = len(self.logs) < self.max_logs
+        self.max_log_length = max_log_length
 
-    def _capture(self, *, level: LogLevel, text_in: TextIn, **kwargs) -> LogInfo:
-        # NOTE :Incomplete: transform kwargs into freeform LogInfo.values
+    def _capture(self, *, level: LogLevel, text_in: TextIn, **kwargs):
+        if not self.is_open:
+            return
+
+        # coerce
         if isinstance(text_in, str):
             text = None
             text_plain = text_in.strip()
@@ -42,11 +67,29 @@ class LogSink:
         else:
             text = None
             text_plain = repr(text_in)
+
+        # coerce to none if empty
         if text_plain is not None and len(text_plain) == 0:
             text_plain = None  # we can't have empty strings
+
+        # truncate plain text if too long
+        if text_plain is not None and len(text_plain) > self.max_log_length:
+            text_plain = text_plain[: self.max_log_length] + "... <line too long, truncated>"
+
+        # NOTE :Incomplete: transform kwargs into freeform LogInfo.values
         log = LogInfo(created_at=self.oracle.utc(), level=level, text=text, text_plain=text_plain)
         self.logs.append(log)
-        return log
+
+        # close if overflown
+        if self.is_open and len(self.logs) >= self.max_logs - 1:
+            self.is_open = False
+            self.logs.append(
+                LogInfo(
+                    created_at=self.oracle.utc(),
+                    level=LogLevel.WARNING,
+                    text_plain=f"<stopping log capture, log overflow (exceeded {self.max_logs} logs)>",
+                )
+            )
 
     def bind(self, **kwargs) -> "BoundLogSink":
         """Bind additional kwargs to this log sink."""
@@ -66,35 +109,35 @@ class LogSink:
             assert isinstance(_arg2, LogLevel), "second argument must be LogLevel if first isn't"
             level = _arg2
             text = _arg1
-        return self._capture(level=level, text_in=text, **kwargs)
+        self._capture(level=level, text_in=text, **kwargs)
 
     __call__ = log
 
-    def trace(self, text: TextIn, **kwargs) -> LogInfo:
+    def trace(self, text: TextIn, **kwargs):
         """Log a trace message."""
-        return self._capture(level=LogLevel.TRACE, text_in=text, **kwargs)
+        self._capture(level=LogLevel.TRACE, text_in=text, **kwargs)
 
-    def debug(self, text: TextIn, **kwargs) -> LogInfo:
+    def debug(self, text: TextIn, **kwargs):
         """Log a debug message."""
-        return self._capture(level=LogLevel.DEBUG, text_in=text, **kwargs)
+        self._capture(level=LogLevel.DEBUG, text_in=text, **kwargs)
 
-    def info(self, text: TextIn, **kwargs) -> LogInfo:
+    def info(self, text: TextIn, **kwargs):
         """Log an info message."""
-        return self._capture(level=LogLevel.INFO, text_in=text, **kwargs)
+        self._capture(level=LogLevel.INFO, text_in=text, **kwargs)
 
-    def warn(self, text: TextIn, **kwargs) -> LogInfo:
+    def warn(self, text: TextIn, **kwargs):
         """Log a warning message."""
-        return self._capture(level=LogLevel.WARNING, text_in=text, **kwargs)
+        self._capture(level=LogLevel.WARNING, text_in=text, **kwargs)
 
     warning = warn
 
-    def error(self, text: TextIn, **kwargs) -> LogInfo:
+    def error(self, text: TextIn, **kwargs):
         """Log an error message."""
-        return self._capture(level=LogLevel.ERROR, text_in=text, **kwargs)
+        self._capture(level=LogLevel.ERROR, text_in=text, **kwargs)
 
-    def critical(self, text: TextIn, **kwargs) -> LogInfo:
+    def critical(self, text: TextIn, **kwargs):
         """Log a critical message."""
-        return self._capture(level=LogLevel.CRITICAL, text_in=text, **kwargs)
+        self._capture(level=LogLevel.CRITICAL, text_in=text, **kwargs)
 
     #
     # Print wrapper
@@ -110,12 +153,12 @@ class LogSink:
         flush=False,
         level: LogLevel = LogLevel.INFO,
         **kwargs,
-    ) -> LogInfo:
+    ):
         """Print to the log."""
         assert file is None, "cannot specify file for print"
         assert not flush, "cannot specify flush for print"
         text = sep.join(repr(arg) if not isinstance(arg, str) else arg for arg in args) + end
-        return self._capture(level=level, text_in=text, **kwargs)
+        self._capture(level=level, text_in=text, **kwargs)
 
 
 class BoundLogSink(LogSink):
@@ -132,10 +175,10 @@ class BoundLogSink(LogSink):
         return BoundLogSink(self.sink, combined_kwargs)
 
     @override
-    def _capture(self, *, level: LogLevel, text_in: TextIn, **kwargs) -> LogInfo:
+    def _capture(self, *, level: LogLevel, text_in: TextIn, **kwargs):
         combined_kwargs = {**self.kwargs}
         combined_kwargs.update(kwargs)
-        return self.sink._capture(level=level, text_in=text_in, **combined_kwargs)
+        self.sink._capture(level=level, text_in=text_in, **combined_kwargs)
 
 
 class LogStringIO(io.StringIO):

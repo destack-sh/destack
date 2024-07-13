@@ -11,6 +11,7 @@ from bench.language.node import (
     InlineStruct,
     Node,
     NodeReference,
+    NodeReferenceBase,
     Struct,
     object_component,
     struct_,
@@ -69,8 +70,10 @@ class TextSpan(TextOptions, InlineStruct):
 
     content: Optional[str] = p_regular(33, default=None)
     node: Optional[Node] = p_regular(
-        34, array=False, default=None, require=False, references=LINK_TARGET_NODE_TYPES
+        34, array=False, default=None, require=False, references=LINK_TARGET_NODE_TYPES, rich=True
     )
+    if TYPE_CHECKING:
+        node_ptr: Optional[NodeReferenceBase] = None
 
     def __content_str__(self):
         if self.content:
@@ -79,6 +82,14 @@ class TextSpan(TextOptions, InlineStruct):
             return f"@{self.node!r}"
         else:
             return ""
+
+    def __len__(self):
+        if self.content:
+            return len(self.content)
+        elif self.node_ptr:
+            return 1
+        else:
+            return 0
 
     @staticmethod
     def new(
@@ -120,6 +131,9 @@ class TextLine(TextOptions, Struct):
         md_line = "".join(span.__content_str__() for span in self.spans)
         md_line = md_line.replace("\n", "<br>")  # hard breaks
         return f"{_MD_PREFIX_BY_LINE_TYPE.get(self.type, '')}{_md_wrap_text_options(md_line, self)}"
+
+    def __len__(self):
+        return sum(len(span) for span in self.spans)
 
     @staticmethod
     def plain(text: str) -> "TextLine":
@@ -167,6 +181,9 @@ class Text(Struct):
 
     def to_markdown(self):
         return text_to_markdown(self)
+
+    def __len__(self):
+        return sum(len(line) for line in self.lines)
 
     @staticmethod
     def plain(text: str) -> "Text":

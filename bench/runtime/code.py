@@ -10,7 +10,12 @@ from bench.language.path import get_node, get_node_or_error
 from bench.language.run import RunKind
 from bench.language.session import Session
 from bench.language.value import ValueObject, coerce_value_object
-from bench.runtime.capture import LogSink, capture_logs
+from bench.runtime.capture import (
+    MAX_LOG_LINE_LENGTH,
+    MAX_LOGS_PER_CAPTURE,
+    LogSink,
+    capture_logs,
+)
 from bench.runtime.compiler import CompiledCode, compile_code
 from bench.runtime.core import CodeSyntaxError
 from bench.runtime.runner import RunHandle, Runner, RuntimeRunner, runner
@@ -26,7 +31,9 @@ class CodeRunnerBase(Runner):
 
     def __init__(self, runner: RuntimeRunner, session: Session, handle: RunHandle):
         super().__init__(runner, session, handle)
-        self.log_sink = LogSink(self.runtime.oracle)
+        self.log_sink = LogSink(
+            self.runtime.oracle, max_logs=MAX_LOGS_PER_CAPTURE, max_log_length=MAX_LOG_LINE_LENGTH
+        )
 
     @tracer.start_as_current_span("code.compile")
     async def _compile_code(self, kind: CodeType) -> CompiledCode:

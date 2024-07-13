@@ -2,6 +2,7 @@ import pytest
 
 from bench.language import Block, BlockType, Field, code
 from bench.language.const import RunStatus
+from bench.runtime.capture import MAX_LOG_LINE_LENGTH, MAX_LOGS_PER_CAPTURE
 from bench.runtime.runner import RuntimeRunner
 
 
@@ -75,6 +76,32 @@ print('print3')
     assert run.logs and len(run.logs) == 2
     for s, log in zip(("print1", "print2"), run.logs):
         assert log.text_plain == s
+
+
+async def test_run_code_capture_log_size_overflow(runner: RuntimeRunner, page: Block):
+    Logs103 = Block.new_code(
+        "Logs103",
+        f"""\
+for i in range(0, {MAX_LOGS_PER_CAPTURE + 5}):
+    print('print', i)
+""",
+    )
+    page.blocks.append(Logs103)
+    await runner.session.commit()
+
+    run = await runner.run(Logs103)
+    assert len(run.logs) == MAX_LOGS_PER_CAPTURE
+    assert run.logs[-1].text_plain and "overflow" in run.logs[-1].text_plain
+
+
+async def test_run_code_capture_log_line_overflow(runner: RuntimeRunner, page: Block):
+    Logs103 = Block.new_code("Logs103", f"""print('x' * {MAX_LOG_LINE_LENGTH + 5})""")
+    page.blocks.append(Logs103)
+    await runner.session.commit()
+
+    run = await runner.run(Logs103)
+    assert run.logs and len(run.logs) == 1
+    assert run.logs[0].text_plain and "truncate" in run.logs[0].text_plain
 
 
 async def test_run_code_function_no_output(runner: RuntimeRunner, page: Block):
