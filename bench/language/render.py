@@ -3,25 +3,29 @@ import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Collection, assert_never, cast
+from typing import TYPE_CHECKING, Any, Collection, assert_never, cast, override
 from uuid import UUID
 
 import structlog
 from opentelemetry import trace
 
-from bench.language.code import format_code
+from bench.language.block import Block
+from bench.language.code import Code, format_code
 from bench.language.const import (
     NODE_TYPES_SET,
     EnumType,
     FieldZone,
     NodeType,
+    ObjectType,
     PrimitiveType,
+    StructType,
     TypeKind,
 )
 from bench.language.field import Field, reverse_type_scalar
 from bench.language.node import BuiltinObject, Node, Struct
 from bench.language.path import find_path, render_path
 from bench.language.setup import ENUM_CLASS_BY_TYPE
+from bench.language.text import Text
 from bench.language.value import ScalarValue, SomeValue, ValueObject
 
 if TYPE_CHECKING:
@@ -35,18 +39,88 @@ tracer = trace.get_tracer(__name__)
 class RenderOptions:
     scope: Node
     format: bool = True
+    format_line_length: int = 100
     node_types: Collection[NodeType] = NODE_TYPES_SET
-    folded_child_types: Collection[NodeType] = (
-        NodeType.FIELD,
-        NodeType.TRIGGER,
-        NodeType.QUERY,
-    )
+    folded_child_types: Collection[NodeType] = (NodeType.FIELD, NodeType.TRIGGER, NodeType.QUERY)
     node_filter: Collection[UUID] | None = None
-    block_separator: str = "\n"
+    stmt_separator: str = "\n"
+
+
+class BuiltinObjectRenderer[T: BuiltinObject]:
+    """A custom renderer for a specific builtin object."""
+
+    def render(self, renderer: "Renderer", obj: T) -> str:
+        """Render the given object to a Python expression."""
+        # prepare kwargs
+        kwargs = _get_content_values(obj, include_defaults=False)
+        kwargs = self.map_kwargs(renderer, obj, kwargs)
+        rendered_kwargs: dict[str, str] = {}
+        for name, value in kwargs.items():
+            if name in obj.__properties__:
+                prop = obj.__properties__[name]
+                rendered_kwargs[name] = renderer._render_value_expr(value, prop.type_info)
+            else:
+                # can pass extra kwargs that aren't real properties
+                assert type(value) is str, f"unexpected kwarg str {name}={value!r}"
+                rendered_kwargs[name] = value
+
+        # fold in node children
+        if isinstance(obj, Node):
+            for prop in obj.__node_child_properties__.values():
+                assert prop.reference_nodes, f"no reference nodes for {prop!r}"
+                if prop.reference_nodes[0] not in renderer._options.folded_child_types:
+                    continue
+                children = getattr(obj, prop.name)
+                if not children:
+                    continue
+                if renderer._options.node_filter is not None:
+                    children = [
+                        child for child in children if child.id in renderer._options.node_filter
+                    ]
+                rendered_children = [
+                    renderer._render_builtin_object_expr(cast(BuiltinObject, child))
+                    for child in children
+                ]
+                rendered_kwargs[prop.name] = f"[{', '.join(rendered_children)}]"
+
+        return self.render_constructor(renderer, obj, kwargs, rendered_kwargs)
+
+    def map_kwargs(self, renderer: "Renderer", obj: T, kwargs: dict[str, Any]) -> dict[str, Any]:
+        """Remaps the kwargs for a BuiltinObject."""
+        return kwargs
+
+    def render_constructor(
+        self,
+        renderer: "Renderer",
+        obj: T,
+        kwargs: dict[str, Any],
+        rendered_kwargs: dict[str, str],
+    ) -> str:
+        """Create the constructor expression for a BuiltinObject."""
+        return f"{obj.__class__.__name__}({renderer._render_kwargs(**rendered_kwargs) or None})"
+
+
+DEFAULT_BUILTIN_OBJECT_RENDERER = BuiltinObjectRenderer[BuiltinObject]()
+_renderers: dict[ObjectType, BuiltinObjectRenderer] = {}
+
+
+def _renderer(object_type: ObjectType):
+    """Decorator to register a Rewriter for a specific ObjectType."""
+
+    def decorator(cls):
+        if object_type in _renderers:
+            raise RuntimeError(f"rewriter for {object_type!r} already registered")
+        _renderers[object_type] = cls()
+
+    return decorator
+
+
+def _get_renderer(object_type: ObjectType) -> BuiltinObjectRenderer:
+    return _renderers.get(object_type, DEFAULT_BUILTIN_OBJECT_RENDERER)
 
 
 class Renderer:
-    """A renderer for one pass of rendering related objects (at the same scope)."""
+    """A renderer for one pass of rendering related objects (in one scope)."""
 
     def __init__(self, options: RenderOptions):
         self._options = options
@@ -97,6 +171,8 @@ class Renderer:
         assert typ.base_type is not None, f"{value!r} has no base type"
         repr_by_name: dict[str, str] = {}
         for field in typ._base_fields:
+            if typ.base_field_zone is not None and field.zone != typ.base_field_zone:
+                continue
             field_type = field._to_resolved()
             field_value = cast(SomeValue, getattr(value, field.name, None))
             field_value_repr = self._render_value_expr(field_value, field_type)
@@ -132,96 +208,14 @@ class Renderer:
         """Renders args into a string."""
         return ", ".join(a for a in args if a is not None)
 
-    def _remap_builtin_object_kwargs(
-        self, obj: BuiltinObject, kwargs: dict[str, Any]
-    ) -> dict[str, Any]:
-        """Remaps the kwargs for a BuiltinObject."""
-        if isinstance(obj, Field):
-            # remap back to type in if possible
-            type_in = reverse_type_scalar(obj)
-            if type_in is not None:
-                if isinstance(type_in, Node):
-                    rendered_type = self._render_node_ref(type_in)
-                elif isinstance(type_in, Enum):
-                    rendered_type = f"{type_in.__class__.__name__}.{type_in.name}"
-                else:
-                    rendered_type = repr(type_in)
-                kwargs = {"type": rendered_type, **kwargs}
-                for key in ("kind", "primitive_type", "bench_type", "base_type"):
-                    kwargs.pop(key, None)
-            # kind=literal is implicit if option
-            if obj.zone == FieldZone.OPTION:
-                kwargs.pop("kind")
-        return kwargs
-
-    def _render_builtin_object_constructor_expr(
-        self, obj: BuiltinObject, kwargs: dict[str, Any], rendered_kwargs: dict[str, str]
-    ) -> str:
-        """Remaps the rendered kwargs for a BuiltinObject."""
-        if obj.metatype == NodeType.BLOCK:
-            block_args = self._render_args(
-                rendered_kwargs.pop("type"),
-                rendered_kwargs.pop("name"),
-                self._render_kwargs(**rendered_kwargs),
-            )
-            return f"Block.new({block_args})"
-        elif isinstance(obj, Field):
-            constructor_name = obj.zone.name.lower()
-            rendered_kwargs.pop("zone", None)  # implicit in constructor name
-            if "type" in rendered_kwargs:
-                field_args = self._render_args(
-                    rendered_kwargs.pop("name"),
-                    rendered_kwargs.pop("type"),
-                    self._render_kwargs(**rendered_kwargs) or None,
-                )
-            else:
-                field_args = self._render_args(
-                    rendered_kwargs.pop("name"), self._render_kwargs(**rendered_kwargs) or None
-                )
-            return f"Field.{constructor_name}({field_args})"
-        else:
-            return f"{obj.__class__.__name__}({self._render_kwargs(**rendered_kwargs) or None})"
-
     def _render_builtin_object_expr(self, obj: BuiltinObject) -> str:
         """
         Renders the given object into an expression (incl. some descendants for node).
         """
+        renderer = _get_renderer(obj.metatype)
+        return renderer.render(self, obj)
 
-        # prepare kwargs
-        kwargs = _get_content_values(obj, include_defaults=False)
-        kwargs = self._remap_builtin_object_kwargs(obj, kwargs)
-        rendered_kwargs: dict[str, str] = {}
-        for name, value in kwargs.items():
-            if name in obj.__properties__:
-                prop = obj.__properties__[name]
-                rendered_kwargs[name] = self._render_value_expr(value, prop.type_info)
-            else:
-                # can pass extra kwargs that aren't real properties
-                assert type(value) is str, f"unexpected kwarg str {name}={value!r}"
-                rendered_kwargs[name] = value
-
-        # fold in node children
-        if isinstance(obj, Node):
-            for prop in obj.__node_child_properties__.values():
-                assert prop.reference_nodes, f"no reference nodes for {prop!r}"
-                if prop.reference_nodes[0] not in self._options.folded_child_types:
-                    continue
-                children = getattr(obj, prop.name)
-                if not children:
-                    continue
-                if self._options.node_filter is not None:
-                    children = [
-                        child for child in children if child.id in self._options.node_filter
-                    ]
-                rendered_children = [
-                    self._render_builtin_object_expr(cast(BuiltinObject, child))
-                    for child in children
-                ]
-                rendered_kwargs[prop.name] = f"[{', '.join(rendered_children)}]"
-
-        return self._render_builtin_object_constructor_expr(obj, kwargs, rendered_kwargs)
-
-    def render_obj_expr(self, obj: BuiltinObject | ValueObject):
+    def _render_obj_expr(self, obj: BuiltinObject | ValueObject):
         """Renders the given objects to a Python expression."""
         if isinstance(obj, ValueObject):
             return self._render_value_object_scalar_expr(obj, obj._type)
@@ -230,9 +224,8 @@ class Renderer:
         else:
             assert_never(obj)
 
-    def render_stmt(self, *objs: Node) -> str:
-        """Renders the given objects to a Python block where the objects are defined."""
-        # assign aliases
+    def _add_nodes(self, *objs: Node):
+        """Adds the given nodes to the context of this renderer."""
         for obj in objs:
             if obj.id in self._alias_by_node_id:
                 continue  # already assigned
@@ -251,10 +244,12 @@ class Renderer:
             self._alias_by_node_id[obj.id] = alias
             self._node_by_alias[alias] = obj
 
+    def _render_stmt(self, *objs: Node) -> str:
+        """Renders the given objects to a Python block where the objects are defined."""
         # render
         rendered_objs = []
         for obj in objs:
-            rendered = self.render_obj_expr(obj)
+            rendered = self._render_obj_expr(obj)
             is_parent_in_scope = (
                 obj.parent_ptr is not None and obj.parent_ptr.id in self._alias_by_node_id
             )
@@ -262,12 +257,8 @@ class Renderer:
             if is_parent_in_scope:
                 # append to parent
                 ...  # nocheckin
-
-        # combine
-        rendered = self._options.block_separator.join(rendered_objs)
-        if self._options.format:
-            rendered = format_code(rendered)
-        return rendered.strip()
+        rendered = self._options.stmt_separator.join(rendered_objs)
+        return rendered
 
 
 def _get_content_values(obj: BuiltinObject, *, include_defaults: bool = False) -> dict[str, Any]:
@@ -299,15 +290,19 @@ def render_expr(obj: BuiltinObject | ValueObject, options: RenderOptions) -> str
     else:
         assert_never(obj)
     if options.format:
-        rendered = format_code(rendered)
-    return rendered
+        rendered = format_code(rendered, line_length=options.format_line_length)
+    return rendered.strip()
 
 
 @tracer.start_as_current_span("renderer.render_stmt")
 def render_stmt(*objs: Node, options: RenderOptions) -> str:
     """Renders the given object to a python block where the objects are defined."""
     renderer = Renderer(options)
-    return renderer.render_stmt(*objs)
+    renderer._add_nodes(*objs)
+    rendered = renderer._render_stmt(*objs)
+    if options.format:
+        rendered = format_code(rendered, line_length=options.format_line_length)
+    return rendered.strip()
 
 
 def render(*objs: BuiltinObject | ValueObject, options: RenderOptions) -> str:
@@ -322,3 +317,87 @@ def render(*objs: BuiltinObject | ValueObject, options: RenderOptions) -> str:
         # render into tuple of expressions
         value_exprs = [render_expr(obj, options) for obj in objs]
         return ", ".join(value_exprs)
+
+
+#
+# Specific renderers
+#
+
+
+@_renderer(NodeType.BLOCK)
+class BlockRenderer(BuiltinObjectRenderer[Block]):
+    @override
+    def render_constructor(
+        self,
+        renderer: "Renderer",
+        obj: Block,
+        kwargs: dict[str, Any],
+        rendered_kwargs: dict[str, str],
+    ) -> str:
+        block_args = renderer._render_args(
+            rendered_kwargs.pop("type"),
+            rendered_kwargs.pop("name"),
+            renderer._render_kwargs(**rendered_kwargs),
+        )
+        return f"Block.new({block_args})"
+
+
+@_renderer(NodeType.FIELD)
+class FieldRenderer(BuiltinObjectRenderer[Field]):
+    @override
+    def map_kwargs(
+        self, renderer: "Renderer", obj: Field, kwargs: dict[str, Any]
+    ) -> dict[str, Any]:
+        # remap back to type in if possible
+        type_in = reverse_type_scalar(obj)
+        if type_in is not None:
+            if isinstance(type_in, Node):
+                rendered_type = renderer._render_node_ref(type_in)
+            elif isinstance(type_in, Enum):
+                rendered_type = f"{type_in.__class__.__name__}.{type_in.name}"
+            else:
+                assert isinstance(type_in, type), f"unexpected type {type_in!r}"
+                rendered_type = type_in.__name__
+            kwargs = {"type": rendered_type, **kwargs}
+            for key in ("kind", "primitive_type", "bench_type", "base_type"):
+                kwargs.pop(key, None)
+        # kind=literal is implicit if option
+        if obj.zone == FieldZone.OPTION:
+            kwargs.pop("kind")
+        return kwargs
+
+    @override
+    def render_constructor(
+        self,
+        renderer: "Renderer",
+        obj: Field,
+        kwargs: dict[str, Any],
+        rendered_kwargs: dict[str, str],
+    ) -> str:
+        constructor_name = obj.zone.name.lower()
+        rendered_kwargs.pop("zone", None)
+        if "type" in rendered_kwargs:
+            field_args = renderer._render_args(
+                rendered_kwargs.pop("name"),
+                rendered_kwargs.pop("type"),
+                renderer._render_kwargs(**rendered_kwargs) or None,
+            )
+        else:
+            field_args = renderer._render_args(
+                rendered_kwargs.pop("name"), renderer._render_kwargs(**rendered_kwargs) or None
+            )
+        return f"Field.{constructor_name}({field_args})"
+
+
+@_renderer(StructType.TEXT)
+class TextRenderer(BuiltinObjectRenderer[Text]):
+    @override
+    def render(self, renderer: "Renderer", obj: Text) -> str:
+        return f"md({obj.to_markdown()!r})"
+
+
+@_renderer(StructType.CODE)
+class CodeRenderer(BuiltinObjectRenderer[Code]):
+    @override
+    def render(self, renderer: "Renderer", obj: Code) -> str:
+        return f"code({obj.to_string()!r})"

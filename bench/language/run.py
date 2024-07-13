@@ -204,8 +204,10 @@ class RunAttempt(Struct):
     )
 
     def __content_str__(self) -> str:
-        duration_str = f"{self.duration:.3f}" if self.duration else "<running>"
-        return f"{self.status.bench_name}, {duration_str}s"
+        if self.duration:
+            return f"{self.status.bench_name}, {self.duration:.3f}s"
+        else:
+            return f"{self.status.bench_name}"
 
 
 @struct_(StructType.RUN_TRACE)
@@ -253,7 +255,9 @@ class RunError(Struct, BenchError):
     def from_exception(kind: RunErrorKind, e: Exception) -> "RunError":
         # NOTE :Incomplete: get run error trace/frames/node/...
         title = to_casing(e.__class__.__name__, Casing.CAMEL, allow_whitespace=True)
-        return RunError(kind=kind, title=title, text=Text.plain(str(e)))
+        type = getattr(e, "run_error_type", None)
+        assert type is None or isinstance(type, RunErrorType), f"unexpected {type!r} from {e!r}"
+        return RunError(kind=kind, type=type, title=title, text=Text.plain(str(e)))
 
 
 @timed_node(NodeType.RUN)

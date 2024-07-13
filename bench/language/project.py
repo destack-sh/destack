@@ -46,6 +46,7 @@ class Projection:
         self._missing_nodes_by_id: dict[UUID, NodeReferenceBase] = {}
         self._missing_nodes_by_type: dict[NodeType, list[NodeReferenceBase]] = {}
         self._depth_by_node_id: dict[UUID, int] = {}
+        self._nodes_to_collect: list[Node] = []
 
     def __str__(self) -> str:
         str_parts = [
@@ -64,7 +65,6 @@ class Projection:
         if node.id not in self._nodes_by_id and node.metatype in self._options.node_types:
             self._nodes_by_id[node.id] = node
             self._nodes_to_collect.append(node)
-            self._depth_by_node_id[node.id] = self._depth
             return True
         else:
             return False
@@ -152,7 +152,7 @@ class Projection:
                 self._collect_builtin_object_scalar(obj)
 
         # keep collecting nodes until we run out or hit the depth limit
-        while self._depth < self._options.max_depth and self._nodes_to_collect:
+        while depth < self._options.max_depth and self._nodes_to_collect:
             nodes_at_layer = self._nodes_to_collect
             for node in nodes_at_layer:
                 self._depth_by_node_id[node.id] = depth

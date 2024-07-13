@@ -5,8 +5,10 @@ from typing import Any, override
 import structlog
 from opentelemetry import trace
 
+from bench.language import render
 from bench.language.code import CodeType
 from bench.language.path import get_node, get_node_or_error
+from bench.language.render import RenderOptions
 from bench.language.run import RunKind
 from bench.language.session import Session
 from bench.language.value import ValueObject, coerce_value_object
@@ -74,12 +76,14 @@ class CodeRunnerBase(Runner):
 
         # assemble globals
         _get_node = functools.partial(get_node, self.node)
+        _render = functools.partial(render, options=RenderOptions(scope=self.node))
         glbls = {  # :CodeGlobals
             # static
             **self.runtime.static_glbls,
             # dynamic
             "self": self.node,
             "get_node": _get_node,
+            "render": _render,
             "log": self.log_sink,
             "trace": self.log_sink.trace,
             "debug": self.log_sink.debug,
@@ -95,8 +99,8 @@ class CodeRunnerBase(Runner):
 
     def _coerce_outputs(self, outputs_raw: Any) -> ValueObject:
         """Coerves raw outputs into the output type for this run."""
-        assert self.handle.run and self.handle.run.output_type, f"no output type for {self!r}"
-        outputs = coerce_value_object(self.handle.run.output_type, outputs_raw)
+        assert self.handle.output_type, f"no output type for {self!r}"
+        outputs = coerce_value_object(self.handle.output_type, outputs_raw)
         return outputs
 
 
@@ -148,12 +152,12 @@ class CodeFunctionRunner(CodeRunnerBase):
 
         # context
         glbls = self._prepare_glbls()
-        assert self.inputs is not None, f"no inputs for {self!r}"
-        for field in self.inputs.fields:
-            value = self.inputs._do_get(field)
-            glbls[field.name] = value
-            if field.py_ident:
-                glbls[field.py_ident] = value
+        if self.inputs is not None:
+            for field in self.inputs.fields:
+                value = self.inputs._do_get(field)
+                glbls[field.name] = value
+                if field.py_ident:
+                    glbls[field.py_ident] = value
 
         # run
         exec(compiled.body_co, glbls)  # shouldn't error

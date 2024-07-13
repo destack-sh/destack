@@ -160,7 +160,7 @@ class ValueObject(Mapping[str, Any]):
         # get field value
         field = self._type._get_field(item)
         if field is None:
-            raise AttributeError(f"{self._type!r} has no field with identifier {item}")
+            raise AttributeError(f"{self._type!r} has no field named '{item}'")
         if self._type.base_field_zone is not None and field.zone != self._type.base_field_zone:
             raise AttributeError(f"{field!r} is not in the same zone as {self._type!r}")
         return self._do_get(field)

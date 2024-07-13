@@ -11,6 +11,7 @@ from opentelemetry import trace
 from bench.language.block import Block
 from bench.language.code import Code, CodeType
 from bench.language.const import BenchError, RunErrorKind, RunStatus
+from bench.language.field import TypeInfoBase
 from bench.language.log import LogInfo
 from bench.language.run import ModelProvider, Run, RunAttempt, RunError, RunKind, RunOptions
 from bench.language.session import Session
@@ -71,7 +72,9 @@ class RunHandle[T: RunnableNode]:
     parent: "RunHandle | None"  # if nested
     status: RunStatus
     inputs: ValueObject | None = None
+    input_type: TypeInfoBase | None = None
     outputs: ValueObject | None = None
+    output_type: TypeInfoBase | None = None
     error: RunError | None = None
     attempts: list[RunAttempt] = dataclasses.field(default_factory=list)
     logs: list[LogInfo] = dataclasses.field(default_factory=list)
@@ -99,20 +102,6 @@ class RunHandle[T: RunnableNode]:
     @property
     def current_attempt(self) -> RunAttempt | None:
         return self.attempts[-1] if self.attempts else None
-
-    @staticmethod
-    def from_state(state: RunnableState, run: Run, *, base_options: RunOptions) -> "RunHandle":
-        handle = RunHandle(
-            id=run.id,
-            state=state,
-            parent=None,
-            options=run.options or base_options,
-            status=run.status,
-            inputs=run.inputs,
-            attempts=list(run.attempts),
-            run=run,
-        )
-        return handle
 
 
 class Runner[T: RunnableNode](abc.ABC):
@@ -218,12 +207,19 @@ class RuntimeRunner:
         assert session._runner is None, f"{session!r} already has a runner"
         self.session._runner = self
         self._active_run_handle: ContextVar[RunHandle | None] = ContextVar("active_run_handle")
+        self._active_runs_by_id: dict[UUID, RunHandle] = {}
 
         # ensure runners are imported
         if not _runners:
             import bench.runtime.code  # noqa: F401, RUF100
             import bench.runtime.step  # noqa: F401, RUF100
             import bench.runtime.text  # noqa: F401, RUF100
+
+    def __str__(self):
+        return f"{len(self._active_runs_by_id)} active, {self.session!r}"
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__} {self}>"
 
     @property
     def active_run_handle(self) -> RunHandle | None:
@@ -280,6 +276,8 @@ class RuntimeRunner:
             options=options or DEFAULT_RUN_OPTIONS_BY_KIND[kind],
             parent=self.active_run_handle,
             status=run.status if run else RunStatus.SCHEDULED,
+            input_type=node.input_type,
+            output_type=node.output_type,
             inputs=inputs,
             attempts=run.attempts if run else [],
             run=run,
@@ -307,6 +305,7 @@ class RuntimeRunner:
         # set active run
         active_run_handle_token = self._active_run_handle.set(handle)
         # run in attempt loop
+        log = logger.bind(runner=runner, handle=handle, retry=retry)
         try:
             while retry.should_retry:
                 with tracer.start_as_current_span(
@@ -322,10 +321,12 @@ class RuntimeRunner:
                     try:
                         await runner.run()
                         attempt.status = RunStatus.COMPLETED
+                        log.debug("runner.attempt", attempt=attempt)
                         break  # success
                     except Exception as e:
                         attempt.error = RunError.from_exception(RunErrorKind.RUNTIME, e)
                         attempt.status = RunStatus.FAILED
+                        log.debug("runner.attempt.failed", attempt=attempt, exc_info=e)
                         if not retry.on_error(e):
                             raise
                     finally:
