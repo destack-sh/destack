@@ -420,6 +420,7 @@ FREEFORM_VALUE_TYPE = TypeInfo(
 TypeIn = Union[
     "TypeInfoBase",
     "Block",
+    "Step",
     "PrimitiveType",
     "BenchType",
     Type[Struct],
@@ -435,8 +436,8 @@ def to_type_scalar(
 
     if isinstance(typ, TypeInfoBase):
         return cast("TypeInfo", typ)
-    elif isinstance(typ, Node) and typ.metatype == NodeType.BLOCK:
-        type_info = cast("Block", typ).to_type(as_object=as_object, zone=zone)
+    elif isinstance(typ, Node) and typ.metatype in (NodeType.BLOCK, NodeType.STEP):
+        type_info = cast("Block|Step", typ).to_type(as_object=as_object, zone=zone)
         if type_info is not None:
             assert isinstance(type_info, TypeInfo), f"expected TypeInfo, got {type_info!r}"
             return type_info
@@ -477,6 +478,9 @@ def reverse_type_scalar(typ: TypeInfoBase) -> TypeIn | None:
     elif typ.kind in (TypeKind.NODE, TypeKind.STRUCT, TypeKind.ENUM):
         assert typ.bench_type is not None, f"missing bench type for {typ!r}"
         return typ.bench_type
+    elif typ.kind == TypeKind.BASED_NODE:
+        assert typ.base_type is not None, f"missing base type for {typ!r}"
+        return typ.base_type
     else:
         return None  # can't reverse
 
