@@ -24,7 +24,7 @@ class ProjectOptions:
 
 class Projection:
     """
-    A projection into the Bench graph, flattening all the referenced nodes into their containers.
+    A projection into the Bench graph, collecting referenced nodes with some settings.
     Should be a proper Struct at some point (so we can inspect it in the editor).
     NOTE :Incomplete: support loading "missing" (unloaded but referenced) nodes on demand
     """
@@ -42,15 +42,10 @@ class Projection:
 
     def __init__(self, options: ProjectOptions):
         self._options: ProjectOptions = options
-        # collection
-        self._depth = 0
         self._nodes_by_id: dict[UUID, Node] = {}
         self._missing_nodes_by_id: dict[UUID, NodeReferenceBase] = {}
         self._missing_nodes_by_type: dict[NodeType, list[NodeReferenceBase]] = {}
         self._depth_by_node_id: dict[UUID, int] = {}
-        self._nodes_to_collect: list[Node] = []
-        # layout
-        self._nodes_by_container_id: dict[UUID, list[Node]] = {}
 
     def __str__(self) -> str:
         str_parts = [
@@ -145,7 +140,7 @@ class Projection:
                     self._visit_node(cast(Node, field_value))
 
     def project(self, *objs: BuiltinObject | ValueObject | None):
-        self._depth = 0  # reset?
+        depth = 0
 
         # collect nodes from initial values
         for obj in objs:
@@ -159,8 +154,10 @@ class Projection:
         # keep collecting nodes until we run out or hit the depth limit
         while self._depth < self._options.max_depth and self._nodes_to_collect:
             nodes_at_layer = self._nodes_to_collect
+            for node in nodes_at_layer:
+                self._depth_by_node_id[node.id] = depth
             self._nodes_to_collect = []
-            self._depth += 1
+            depth += 1
             for node in nodes_at_layer:
                 self._collect_node(node)
 

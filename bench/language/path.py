@@ -385,3 +385,8 @@ def get_node_or_error(scope: Node, path: str | Path) -> Node:
     if node is None:
         raise PathLookupError(f"node at {path} not found in {scope!r}")
     return node
+
+
+def find_path(scope: Node, node: Node) -> Path:
+    """Finds a path to the given node from a scope."""
+    raise NotImplementedError

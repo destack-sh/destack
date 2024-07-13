@@ -208,6 +208,7 @@ class RuntimeRunner:
     ):
         assert session.package is not None, f"{session!r} is not attached"
         self.session = session
+        self.package = session.package
         self.oracle = oracle
         self.static_glbls = static_glbls
         self.dynamic_glbls = dynamic_glbls

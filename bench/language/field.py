@@ -428,7 +428,9 @@ TypeIn = Union[
 ]
 
 
-def to_type(typ: TypeIn, *, as_object: bool = False, zone: FieldZone | None = None) -> "TypeInfo":
+def to_type_scalar(
+    typ: TypeIn, *, as_object: bool = False, zone: FieldZone | None = None
+) -> "TypeInfo":
     """Converts a type-like object to a TypeInfo."""
 
     if isinstance(typ, TypeInfoBase):
@@ -461,6 +463,22 @@ def to_type(typ: TypeIn, *, as_object: bool = False, zone: FieldZone | None = No
                 return TypeInfo(kind=TypeKind.ENUM, bench_type=bench_type)
 
     raise ValueError(f"unsupported type {typ!r}")
+
+
+def reverse_type_scalar(typ: TypeInfoBase) -> TypeIn | None:
+    """Reverses a TypeInfo into a TypeIn as closely as possible."""
+    if typ.kind == TypeKind.PRIMITIVE:
+        assert typ.primitive_type is not None, f"missing primitive type for {typ!r}"
+        primitive_cls = PY_TYPE_BY_PRIMITIVE_TYPE.get(typ.primitive_type)
+        if primitive_cls and PRIMITIVE_TYPE_BY_PY_TYPE.get(primitive_cls) == typ.primitive_type:
+            return primitive_cls
+        else:
+            return typ.primitive_type
+    elif typ.kind in (TypeKind.NODE, TypeKind.STRUCT, TypeKind.ENUM):
+        assert typ.bench_type is not None, f"missing bench type for {typ!r}"
+        return typ.bench_type
+    else:
+        return None  # can't reverse
 
 
 # pyright: reportIncompatibleMethodOverride=false
@@ -533,7 +551,7 @@ class Field(SourceNode[FieldData], HasNodeBase, TypeInfoBase, _TypeQueryBuilder)
 
     @staticmethod
     def new(name: str, typ: TypeIn, **kwargs) -> "Field":
-        typ = to_type(typ)
+        typ = to_type_scalar(typ)
         for prop in TypeInfoBase.__declared_properties__.values():
             kwargs.setdefault(prop.name, getattr(typ, prop.name))
         field = Field(name=name, **kwargs)
