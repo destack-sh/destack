@@ -6,7 +6,7 @@ from hypothesis import given
 from bench.language.bench import Package
 from bench.language.block import Block
 from bench.language.const import BlockType, NodeType, PrimitiveType, StructType
-from bench.language.field import Field, TypeKind, to_type
+from bench.language.field import Field, TypeKind, to_type_scalar
 from bench.language.node import BuiltinObject
 from bench.language.session import Session
 from bench.language.text import Text
@@ -64,7 +64,7 @@ def test_roundtrip_scalar_value(session: Session, package: Package) -> None:
     """Pack/unpack a scalar value inside a (Variable) Block (which HasValues)."""
 
     # first set in constructor
-    type_info = to_type(PrimitiveType.INT32)
+    type_info = to_type_scalar(PrimitiveType.INT32)
     block = Block(type=BlockType.VARIABLE, name="Variable1", value_type=type_info, value=7)
     assert block.value == 7
     assert unpack_value(block.value_packed, type_info) == 7
