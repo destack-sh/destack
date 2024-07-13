@@ -69,10 +69,10 @@ def string_to_code(s: str) -> Code:
     return Code(lines=[CodeLine(content=line or None) for line in s.split("\n")])
 
 
-def format_code(code: str, suppress_error: bool = False) -> str:
+def format_code(code: str, suppress_error: bool = False, line_length: int = 100) -> str:
     """Formats the code string with our standard black settings."""
     try:
-        return black.format_str(code, mode=black.FileMode(line_length=100))
+        return black.format_str(code, mode=black.FileMode(line_length=line_length))
     except Exception as e:
         if suppress_error:
             return code

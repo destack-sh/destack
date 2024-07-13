@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 from bench import language
+from bench.language import render
 from bench.language.const import BenchError
 from bench.language.node import Node
 from bench.language.path import get_node
@@ -34,6 +35,7 @@ DYNAMIC_CODE_GLOBALS: dict[str, Any] = {
     # dynamic globals are set per code run, these are just the types :CodeGlobals
     "self": Node,
     "get_node": get_node,
+    "render": render,
     "log": LogSink.log,
     "trace": LogSink.trace,
     "debug": LogSink.debug,

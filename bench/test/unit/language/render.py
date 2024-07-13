@@ -5,6 +5,7 @@ from typing import Any, Callable, Mapping, cast
 
 from hypothesis import given
 
+from bench.language import md
 from bench.language.bench import Package
 from bench.language.block import Block
 from bench.language.const import BlockType
@@ -29,10 +30,11 @@ def test_render_builtin_object_expr(
     assert cast(BuiltinObject, ret)._equals_content(obj)
 
 
-def roundtrip_render_statement(func: Callable[[Any, Any], Mapping[str, BuiltinObject]]):
+def _render_as_stmt(func: Callable[[Any, Any], Mapping[str, BuiltinObject]]):
     @functools.wraps(func)
     def _inner(shared_session: Session, shared_package: Package):
-        render_options = RenderOptions(scope=shared_package)
+        # (line length 96 because it's 100 - 4 for the method indent here)
+        render_options = RenderOptions(scope=shared_package, format=True, format_line_length=96)
         original_defns = func(shared_session, shared_package)
 
         # render
@@ -66,22 +68,30 @@ def roundtrip_render_statement(func: Callable[[Any, Any], Mapping[str, BuiltinOb
     return _inner
 
 
-@roundtrip_render_statement
+@_render_as_stmt
 def test_render_choice_block(shared_session: Session, shared_package: Package):
     ShapeType = Block.new(
         BlockType.CHOICE,
         "ShapeType",
+        text=md("All sorts of **shapes**!"),
         fields=[Field.option("Circle"), Field.option("Square"), Field.option("Triangle")],
     )
     return {"ShapeType": ShapeType}
 
 
-@roundtrip_render_statement
+@_render_as_stmt
 def test_render_class_block(shared_session: Session, shared_package: Package):
     ShapeType = Block.new(
         BlockType.CHOICE,
         "ShapeType",
         fields=[Field.option("Circle"), Field.option("Square"), Field.option("Triangle")],
     )
-    Shape = Block.new(BlockType.CLASS, "Shape", fields=[Field.member("kind", ShapeType)])
+    Shape = Block.new(
+        BlockType.CLASS,
+        "Shape",
+        fields=[Field.member("kind", ShapeType), Field.member("is_cool", bool)],
+    )
     return {"ShapeType": ShapeType, "Shape": Shape}
+
+
+# NOTE :Test: test many more renderings

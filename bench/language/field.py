@@ -183,7 +183,8 @@ def decode_type_identity(key: str) -> "TypeInfoBase":
 
 def encode_storage_key(field: "Field") -> str:
     """Gets the key used to identify values of this field in storage. :FieldStorageKey"""
-    return f"{get_tk_b64_from_ck(field.ck)}{field.identity_key}"
+    resolved_field = field._to_resolved()
+    return f"{get_tk_b64_from_ck(field.ck)}{resolved_field.identity_key}"
 
 
 @struct_(StructType.TYPE_CONSTRAINT)

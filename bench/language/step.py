@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING, Any, Optional, Union, cast, final
 
 from bench.language.const import EnumType, FieldZone, NodeType, StructType, enum_
+from bench.language.field import TypeInfoBase
 from bench.language.graph import NodeList
 from bench.language.issue import Issue
 from bench.language.node import (
@@ -179,6 +180,14 @@ class Step(SourceNode[StepData], HasValues):
     def to_type(self, as_object: bool = True, zone: FieldZone | None = None):
         """Gets a type represented by this Step (if any)"""
         raise NotImplementedError
+
+    @property
+    def input_type(self) -> "TypeInfoBase":
+        return self.to_type(as_object=True, zone=FieldZone.INPUT)
+
+    @property
+    def output_type(self) -> "TypeInfoBase":
+        return self.to_type(as_object=True, zone=FieldZone.OUTPUT)
 
     @staticmethod
     def new(typ: StepType, name: str, **kwargs):

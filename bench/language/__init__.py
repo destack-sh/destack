@@ -94,7 +94,7 @@ from .node import (
 )
 from .notification import Notification
 from .path import Path, get_node, get_node_or_error, parse_path, render_path
-from .project import Projection
+from .project import Projection, project
 from .property import Property
 from .query import (
     MultipleNodesFoundError,
@@ -105,6 +105,7 @@ from .query import (
     ReadOptions,
 )
 from .record import Record
+from .render import render, render_expr, render_stmt
 from .run import Run, RunAttempt, RunKind, RunOptions
 from .secret import Secret, SecretReference
 from .session import EditContext, Session, SessionContext
@@ -307,7 +308,11 @@ __all__ = [
     "get_node_or_error",
     "md",
     "parse_path",
+    "project",
+    "render",
+    "render_expr",
     "render_path",
+    "render_stmt",
     "text",
 ]
 
