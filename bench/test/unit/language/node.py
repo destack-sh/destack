@@ -15,7 +15,7 @@ from bench.language.view import View, ViewType
 from bench.test.strategies import structs
 
 
-def test_struct_regular_properties_are_available():
+def test_builtin_object_properties_are_available():
     """Slightly tautological sanity check to check our introspected properties"""
     for cls in chain(STRUCT_CLASSES, NODE_CLASSES):
         for prop in cls.__properties__.values():
@@ -149,6 +149,6 @@ def test_node_pointers_consistency(session: "Session"):
 
 
 @given(obj=structs)
-def test_struct_clone(obj: BuiltinObject, shared_session):
+def test_builtin_object_clone(obj: BuiltinObject, shared_session):
     obj_clone = obj.clone()
     assert obj_clone._equals_content(obj)

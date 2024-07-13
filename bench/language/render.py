@@ -9,10 +9,10 @@ from opentelemetry import trace
 from bench.language.const import EnumType, PrimitiveType, TypeKind
 from bench.language.node import BuiltinObject, Node, Struct
 from bench.language.setup import ENUM_CLASS_BY_TYPE
+from bench.language.value import ScalarValue, SomeValue, ValueObject
 
 if TYPE_CHECKING:
     from bench.language.field import TypeInfoBase
-    from bench.language.value import ScalarValue, SomeValue, ValueObject
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -99,12 +99,12 @@ class Renderer:
         raise NotImplementedError
 
     def render(self, *values: BuiltinObject | ValueObject | None) -> str:
-        """Renders the given Node/Struct to Bench python and prettifies it."""
+        """Renders the given objects to Bench python and prettifies it."""
         raise NotImplementedError
 
 
 @tracer.start_as_current_span("renderer.render")
 def render(*objs: BuiltinObject | ValueObject | None, scope: Node) -> str:
-    """Renders the given Node/Struct to Bench python and prettifies it."""
+    """Renders the given object to Bench python and prettifies it."""
     renderer = Renderer(RenderOptions(scope=scope))
     return renderer.render(*objs)
