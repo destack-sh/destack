@@ -273,8 +273,9 @@ class SingleClientWorkloadBase[SpecT: SingleClientWorkloadSpec](WorkloadBase[Spe
             self.bench_id, self.client, self.host, self.oracle, self.simulation
         )
         await self.session.open(set_in_context=False)
-        async with self.session.unsuspended(readonly=False, autocommit=True):
+        async with self.session.active(readonly=False):
             await self._do_prepare_in_session(self.session)
+            await self.session.commit()
 
     async def _do_prepare_in_session(self, session: Session):
         """Prepare the workload in the given session."""
@@ -283,8 +284,9 @@ class SingleClientWorkloadBase[SpecT: SingleClientWorkloadSpec](WorkloadBase[Spe
     @override
     @final
     async def _do_run(self):
-        async with self.session.unsuspended(readonly=False, autocommit=True):
+        async with self.session.active(readonly=False):
             await self._do_run_in_session(self.session)
+            await self.session.commit()
 
     @abc.abstractmethod
     async def _do_run_in_session(self, session: Session):

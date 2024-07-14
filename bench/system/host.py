@@ -284,11 +284,11 @@ class Host(GraphIoServiceBase, HostApi, HostBase):
     async def session(self, *, readonly: bool = False, autocommit: bool = False):
         """Gets exclusive query and edit access to the main session. :ExclusiveHostSession"""
         assert self._session is not None, f"no session for {self!r}"
-        async with self.tx_lock, self._session.unsuspended(
-            readonly=readonly, autocommit=autocommit
-        ):
+        async with self.tx_lock, self._session.active(readonly=readonly):
             self._session._system_epoch = self.epoch
             yield self._session
+            if autocommit:
+                await self._session.commit()
 
     @tracer.start_as_current_span("host.get_request_subject")
     async def get_request_subject(
@@ -688,35 +688,31 @@ class Host(GraphIoServiceBase, HostApi, HostBase):
             edit_data_graph(root_node._data_graph, subedits, options)
 
         # run plugins on commit (in main session)
-        was_suspended = self._session.is_suspended
-        if was_suspended:  # we may be nested in a Session.commit already
-            self._session.unsuspend()
-        self._session.track_many(*graph.nodes)
-        commit = unpack_commit(
-            session=self._session,
-            supergraph=supergraph,
-            graphs=(*self.graphs, graph),
-            edits=edits,
-            cascaded_edits=cascaded_edits,
-            epoch=self.epoch,
-        )
-        for plugin in self._plugins:
-            if commit.edited_types & plugin.watch_types:
-                with tracer.start_as_current_span(
-                    "host.on_commit.plugin", attributes={"plugin": plugin.name}
-                ):
-                    trimmed_commit = commit.trim_to(plugin.watch_types)
-                    await plugin.on_commit(self._session, trimmed_commit)
-                    logger.debug(
-                        "host.on_commit.plugin",
-                        host=self,
-                        plugin=plugin,
-                        commit=trimmed_commit,
-                        span="current",
-                    )
-        await self._session.commit(_skip_lock=True)  # already in a locked section
-        if was_suspended:
-            self._session.suspend()
+        async with self._session.active():
+            self._session.track_many(*graph.nodes)
+            commit = unpack_commit(
+                session=self._session,
+                supergraph=supergraph,
+                graphs=(*self.graphs, graph),
+                edits=edits,
+                cascaded_edits=cascaded_edits,
+                epoch=self.epoch,
+            )
+            for plugin in self._plugins:
+                if commit.edited_types & plugin.watch_types:
+                    with tracer.start_as_current_span(
+                        "host.on_commit.plugin", attributes={"plugin": plugin.name}
+                    ):
+                        trimmed_commit = commit.trim_to(plugin.watch_types)
+                        await plugin.on_commit(self._session, trimmed_commit)
+                        logger.debug(
+                            "host.on_commit.plugin",
+                            host=self,
+                            plugin=plugin,
+                            commit=trimmed_commit,
+                            span="current",
+                        )
+            await self._session.commit(_skip_lock=True)  # already in a locked section
         logger.debug(
             "host.on_commit",
             host=self,

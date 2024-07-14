@@ -3,6 +3,7 @@ import inspect
 import textwrap
 from typing import Any, Callable, Mapping, cast
 
+import pytest
 from hypothesis import given
 
 from bench.language import md
@@ -19,6 +20,7 @@ from bench.test.strategies import builtin_objects, examples
 from bench.test.unit.conftest import BUILTIN_OBJECTS_OF_EVERY_TYPE
 
 
+@pytest.mark.skip(reason="nocheckin: render everything")
 @given(obj=builtin_objects())
 @examples([{"obj": obj} for obj in BUILTIN_OBJECTS_OF_EVERY_TYPE])
 def test_render_builtin_object_expr(

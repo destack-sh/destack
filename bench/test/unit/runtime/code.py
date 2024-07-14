@@ -158,9 +158,11 @@ async def test_run_code_function_coerce_output_dict(runner: RuntimeRunner, page:
     Function = Block.new_code(
         "Function",
         """return dict(Result1=Input1 > 10, Result2=Input1 * 4)""",
-    )
-    Function.fields.extend(
-        Field.input("Input1", int), Field.output("Result1", bool), Field.output("Result2", int)
+        fields=(
+            Field.input("Input1", int),
+            Field.output("Result1", bool),
+            Field.output("Result2", int),
+        ),
     )
     page.blocks.append(Function)
     await runner.session.commit()
@@ -169,7 +171,7 @@ async def test_run_code_function_coerce_output_dict(runner: RuntimeRunner, page:
     assert run.outputs and run.outputs.Result1 is False and run.outputs.Result2 == 12
 
 
-async def test_run_code_resolve_references(runner: RuntimeRunner, page: Block):
+async def test_run_code_complex_output(runner: RuntimeRunner, page: Block):
     subpage = page.blocks.append(Block.new(BlockType.PAGE, "Subpage"))
     ShapeKind = Block.new(
         BlockType.CHOICE,
@@ -199,5 +201,6 @@ assert Shape(kind=ShapeKind.Square)
 """,
     )
     subpage.blocks.append(Function)
+    await runner.session.commit()
 
     _ = await runner.run(Function)
