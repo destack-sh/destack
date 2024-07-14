@@ -394,7 +394,7 @@ class RuntimeRunner:
         trace.get_current_span().set_attribute("runner_cls", str(runner_cls))
 
         # run it
-        async with self.session.unsuspended():
+        async with self.session.active():
             runner = runner_cls(self, self.session, handle)
             trace.get_current_span().set_attribute("runner", repr(runner))
             if handle.run is not None:
@@ -408,31 +408,32 @@ class RuntimeRunner:
     async def process_run(self, run: Run, *, suppress_error: bool) -> RunHandle | None:
         """Start or resume a top-level Run in this Runner. Returns on halt or termination."""
         handle = None
-        try:
-            handle = await self.make_run_handle_from_run(run=run)
-            await self.run_handle(handle)
-            logger.info("runner.process_run", run=run, handle=handle, span="current")
-        except (BenchError, ValueError, TypeError) as e:
-            # NOTE: Robustness: should we really commit the entire session on failure?
-            #  (maybe have some sort of atomic flag or context manager to prevent it as needed?)
-            # re-raised inner user error
-            async with self.session.unsuspended():
+        async with self.session.active():
+            try:
+                handle = await self.make_run_handle_from_run(run=run)
+                await self.run_handle(handle)
+                logger.info("runner.process_run", run=run, handle=handle, span="current")
+            except (BenchError, ValueError, TypeError) as e:
+                # NOTE: Robustness: should we really commit the entire session on failure?
+                #  (maybe have some sort of atomic flag or context manager to prevent it as needed?)
+                # re-raised inner user error
                 if run.current_status != RunStatus.FAILED:
                     run.fail(RunError.from_exception(RunErrorKind.RUNTIME, e))
                 await self.session.commit()
-            logger.info("runner.process_run.error", run=run, exc_info=e, span="current")
-            if not suppress_error:
-                raise
-        except Exception as e:
-            # some unexpected internal error
-            async with self.session.unsuspended():
+                logger.info("runner.process_run.error", run=run, exc_info=e, span="current")
+                if not suppress_error:
+                    raise
+            except Exception as e:
+                # some unexpected internal error
                 if run.current_status != RunStatus.FAILED:
                     run.fail(RunError.from_exception(RunErrorKind.INTERNAL, e), _force=True)
                 await self.session.commit()
-            logger.error("runner.process_run.internal_error", run=run, exc_info=e, span="current")
-            if not suppress_error:
-                raise
-        return handle
+                logger.error(
+                    "runner.process_run.internal_error", run=run, exc_info=e, span="current"
+                )
+                if not suppress_error:
+                    raise
+            return handle
 
     async def pause_run(self, run: Run):
         """Pause a Run currently executing in this Runner."""

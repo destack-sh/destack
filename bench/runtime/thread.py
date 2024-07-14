@@ -115,12 +115,10 @@ class RuntimeThread:
         return max(self._bench.connection.epoch, self._main_package.connection.epoch)
 
     @asynccontextmanager
-    async def session(self, *, readonly: bool = False, autocommit: bool = False):
+    async def session(self, *, readonly: bool = False):
         """Gets exclusive query and edit access to the main session."""
         assert self._session is not None, f"no session for {self!r}"
-        async with self._tx_lock, self._session.unsuspended(
-            readonly=readonly, autocommit=autocommit
-        ):
+        async with self._tx_lock, self._session.active(readonly=readonly):
             yield self._session
 
     async def start(self):
@@ -191,7 +189,7 @@ class RuntimeThread:
         assert (
             run_data.parent_ptr and UUID(run_data.package_ptr.id) == package.id
         ), f"{run_data!r} not in {package!r}"
-        async with self._session.unsuspended(readonly=True):
+        async with self._session.active(readonly=True):
             run = wiring.unpack_object_validate(
                 run_data,
                 supergraph=self._supergraph,

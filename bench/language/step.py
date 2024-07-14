@@ -66,14 +66,13 @@ class StepType(IdEnum):
     # CREATE
 
     # control
-    MATCH = 100  # X -> [n expressions] -> X' filtered output port (per expression)
+    MATCH = 100  # X -> | n expressions | -> X' filtered output port (per expression)
     FILTER = 101  # X -> | X -> bool | -> X if true
     LOOP = 102  # X[] -> | X -> ... -> Y | -> Y[]
     MERGE = 103  # X1, X2, ... -> X
-    SPLIT = 104  # X -> X1, X2, ...
     FLATTEN = 105  # X[] -> X
     ACCUMULATE = 106  # X -> X[]
-    REDUCE = 107  # X[] -> Y
+    REDUCE = 107  # X[] -> | X[] -> Y | -> Y
     ZIP = 108  # X1[], X2[], ... -> (X1, X2, ...)[]
     # WAIT/DELAY?
     # DEBOUNCE?
@@ -88,8 +87,8 @@ class StepType(IdEnum):
 
 @enum_(EnumType.PIPE_TYPE)
 class PipeType(IdEnum):
-    THEN = 1
-    WITH = 2
+    THEN = 1  # trigger + data
+    WITH = 2  # just data binding
     ...
 
 

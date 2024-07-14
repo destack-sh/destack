@@ -372,8 +372,8 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
         self._active_session_token = _active_session.set(self)
 
     @asynccontextmanager
-    async def unsuspended(self, readonly: bool = False, autocommit: bool = False):
-        """Get active (not suspended) access to this session."""
+    async def active(self, readonly: bool = False):
+        """Activate this session in context (as active i.e. not suspended)."""
         was_readonly = self._is_readonly
         was_suspended = self._is_suspended
         was_active = self._active_session_token is not None
@@ -381,8 +381,6 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
         self.unsuspend()
         try:
             yield self
-            if autocommit:
-                await self.commit()
         finally:
             if was_suspended:
                 self.suspend()
