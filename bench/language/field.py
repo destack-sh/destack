@@ -282,7 +282,12 @@ class TypeInfoBase(HasValues):
     def __content_str__(self) -> str:
         kind_str = self.kind.bench_name if self.kind else "<no type>"
         if self.base_type is not None:
-            info_str = f"{kind_str}->{self.base_type.absolute_path}"
+            if self.bench_type is not None:
+                info_str = (
+                    f"{kind_str}->{self.bench_type.bench_name}->{self.base_type.absolute_path}"
+                )
+            else:
+                info_str = f"{kind_str}->{self.base_type.absolute_path}"
         elif self.bench_type is not None:
             info_str = self.bench_type.bench_name
         elif self.primitive_type is not None:

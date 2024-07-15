@@ -155,7 +155,21 @@ def test_sample_value_scalar_constrained(session: Session, package: Package):
     check_value(val, typ, on_invalid_raise)
 
 
-@pytest.mark.parametrize("struct_type", STRUCT_TYPES, ids=lambda t: t.bench_name)
+UNGENERATABLE_STRUCT_TYPES = [
+    StructType.EDIT,
+    StructType.CHANGE,
+    StructType.NODE_REFERENCE,
+    StructType.FILE_REFERENCE,
+    StructType.SECRET_REFERENCE,
+    StructType.PROPERTY_REFERENCE,
+]
+
+
+@pytest.mark.parametrize(
+    "struct_type",
+    [st for st in STRUCT_TYPES if st not in UNGENERATABLE_STRUCT_TYPES],
+    ids=lambda t: t.bench_name,
+)
 def test_sample_value_struct(struct_type: StructType, session: Session, package: Package):
     typ = TypeInfo(kind=TypeKind.STRUCT, bench_type=struct_type)
     val = sample_value(typ)

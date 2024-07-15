@@ -1566,13 +1566,9 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         # append to our parent to re-attach
         parent = self.parent
         if not detach and parent:
-            for prop in parent.__node_child_properties__.values():
-                if prop.reference_nodes and self.metatype in prop.reference_nodes:
-                    parent_list = getattr(parent, prop.name)
-                    parent_list.append(clone)
-                    break
-            else:
-                raise RuntimeError(f"no parent property for {self!r} in {parent!r}")
+            parent_child_prop = parent.get_node_child_property(self.metatype)
+            parent_list = getattr(parent, parent_child_prop.name)
+            parent_list.append(clone)
         return clone
 
     @property
@@ -1760,6 +1756,14 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         """Wipe this node from this universe forever."""
         self.active_session._erase(self)
 
+    @classmethod
+    def get_node_child_property(cls, node_type: NodeType) -> Property:
+        for prop in cls.__node_child_properties__.values():
+            if prop.reference_nodes and node_type in prop.reference_nodes:
+                return prop
+        else:
+            raise ValueError(f"no child property for {node_type} in {cls}")
+
     #
     # Querying
     #
@@ -1805,10 +1809,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     @classmethod
     def descendants(cls, *node_types: NodeTypeOrClass) -> "QueryBuilder[Self, NodeDataT]":
         return cls.query().descendants(*node_types)
-
-    #
-    # Read
-    #
 
     @classmethod
     async def get(cls, filter: Optional["Expression"] = None, live: bool = False, **kwargs) -> Self:
