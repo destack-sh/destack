@@ -106,10 +106,8 @@ class DurationFormatter:
             level = "debug"
         elif value < 100_000_000:
             level = "info"
-        elif value < 1_000_000_000:
-            level = "warning"
         else:
-            level = "error"
+            level = "warning"
         style = self.level_styles.get(level, "")
         duration_str = f"{value / 1_000_000:.3f}ms"
         return f"{style}{_padleft(duration_str, self.width)}{self.reset_style}"

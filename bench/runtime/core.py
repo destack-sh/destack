@@ -65,3 +65,7 @@ class HaltedError(BenchRuntimeError):
 
 class ReplayError(NotRunnableError):
     run_error_type = RunErrorType.REPLAY
+
+
+class ModelFailedError(BenchRuntimeError):
+    run_error_type = RunErrorType.MODEL_FAILED
