@@ -755,18 +755,10 @@ class GraphNodeList[V: Node](NodeList[V]):
         return len(self.nodes) > 0
 
     def __contains__(self, obj: object) -> bool:
-        if isinstance(obj, Node):
-            if obj in self.nodes:
-                return True
-            else:
-                if (
-                    self._property.reference_nodes is not None
-                    and obj.metatype not in self._property.reference_nodes
-                ):
-                    raise TypeError(f"{self!r} cannot contain {obj!r}")
-                return False
-        else:
-            return False
+        metatype = getattr(obj, "metatype", None)
+        if not metatype or metatype not in self._property.reference_nodes:
+            raise TypeError(f"{self!r} cannot contain {obj!r}")
+        return obj in self.nodes
 
     def __iter__(self) -> Iterator[V]:
         yield from self.nodes
