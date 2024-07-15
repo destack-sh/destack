@@ -110,11 +110,8 @@ class ModelType(IdEnum):
 class ModelOptions(Struct):
     """Options for running an ML model."""
 
-    model: ModelType = p_regular(31)
-
-    @property
-    def provider(self) -> ModelProvider:
-        return self.model.provider
+    provider: ModelProvider | None = p_regular(30)
+    model: ModelType | None = p_regular(31)
 
 
 @struct_(StructType.RUN_OPTIONS)
@@ -136,6 +133,7 @@ class RunOptions(Struct):
     max_retry_interval: Optional[float] = p_regular(42, constraint=TypeConstraintIn(min_value=0))
     jitter: Optional[float] = p_regular(43, constraint=TypeConstraintIn(min_value=0, max_value=1))
     retry_on: list["RunErrorType"] = p_regular(44, array=True)
+    retry_except_on: list["RunErrorType"] = p_regular(45, array=True)
 
     # debug
     breakpoints: list["Breakpoint"] = p_regular(50, array=True, struct=StructType.BREAKPOINT)
@@ -147,6 +145,7 @@ class RunOptions(Struct):
 
     def to_retry(self) -> RetryOptions:
         """Turns the options into our RetryOptions."""
+        # nocheckin: handle RetryOptions.retry_on (separate retryable/non-retryable errors)
         return RetryOptions(
             max_attempts=self.max_attempts or 1,
             retry_interval=self.retry_interval or 1,
@@ -226,9 +225,13 @@ class RunFrame(Struct):
 
 @enum_(EnumType.RUN_ERROR_TYPE)
 class RunErrorType(IdEnum):
+    # pre-run
     RUNTIME_UNAVAILABLE = 1
     NOT_RUNNABLE = 2
-    REPLAY = 3
+    REPLAY = 10
+    # during run
+    UNKNOWN = 50
+    MODEL_FAILED = 60
 
 
 @struct_(StructType.RUN_ERROR)

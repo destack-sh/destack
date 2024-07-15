@@ -1,15 +1,16 @@
 import abc
 from dataclasses import dataclass
-from typing import Any, ClassVar, Literal, Mapping, override
+from typing import ClassVar, Literal, Mapping, assert_never, override
 
 import anthropic
 import openai
+from openai.types import chat as openai_chat_types
 
 from bench.language.code import Code
 from bench.language.project import Projection, ProjectOptions, project
 from bench.language.render import RenderOptions, render
 from bench.language.run import ModelProvider, ModelType, RunKind
-from bench.runtime.core import RUN_ONCE, NotRunnableError
+from bench.runtime.core import RUN_ONCE, ModelFailedError, NotRunnableError
 from bench.runtime.runner import Runner, runner
 from bench.utils.utils import get_from_env
 
@@ -156,8 +157,18 @@ class OpenaiModelRunner(ChatModelRunnerBase):
     DEFAULT_MODEL = ModelType.GPT40
     MODEL_BY_TYPE: ClassVar[Mapping[ModelType, str]] = {ModelType.GPT40: "gpt-4o"}
 
-    def _convert_message(self, message: ChatMessage) -> Any:  # nocheckin: type this
-        return {"role": message.role, "content": message.content}
+    def _convert_message(
+        self, message: ChatMessage
+    ) -> openai_chat_types.ChatCompletionMessageParam:
+        # (for some reason we need to check each message.role separately for typechecking)
+        if message.role == "system":  # noqa: SIM114
+            return {"role": message.role, "content": message.content}
+        elif message.role == "user":  # noqa: SIM114
+            return {"role": message.role, "content": message.content}
+        elif message.role == "assistant":
+            return {"role": message.role, "content": message.content}
+        else:
+            assert_never(message.role)
 
     @override
     async def _generate_code(self, projection: Projection) -> str:
@@ -173,7 +184,8 @@ class OpenaiModelRunner(ChatModelRunnerBase):
             user=str(self.runtime.package.id),
         )
         completion_text = completion.choices[0].message.content
-        assert completion_text, "empty completion"
+        if not completion_text:
+            raise ModelFailedError(f"bad completion to {self!r}: {completion}")
         return completion_text
 
 
@@ -202,9 +214,7 @@ class AnthropicModelRunner(ChatModelRunnerBase):
             temperature=0.1,
             max_tokens=1024 * 4,
         )
-        assert completion.content, "empty completion"
-        assert (
-            completion.content[0].type == "text"
-        ), f"unexpected completion type: {completion.content}"
+        if not completion.content or completion.content[0].type != "text":
+            raise ModelFailedError(f"bad completion to {self!r}: {completion}")
         completion_text = completion.content[0].text
         return completion_text
