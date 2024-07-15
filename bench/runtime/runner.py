@@ -299,8 +299,15 @@ class RuntimeRunner:
         node = run.step or run.block
         if node is None:
             raise NotRunnableError(f"no node for {run!r}")  # default to package?
+        options = node.run_options.override(run.options) if node.run_options else run.options
         return await self.make_run_handle(
-            run.kind, node=node, code=run.code, run=run, inputs=run.inputs, track=True
+            run.kind,
+            node=node,
+            code=run.code,
+            run=run,
+            inputs=run.inputs,
+            options=options,
+            track=True,
         )
 
     async def _do_run_retrying(self, runner: Runner):
