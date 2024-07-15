@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.07.15.0"  # auto change via version script
+VERSION = "2024.07.15.1"  # auto change via version script
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -706,6 +706,14 @@ class PrimitiveType(IdEnum):
     @property
     def is_numeric(self) -> bool:
         return self.id >= 5 and self.id <= 15
+
+    @property
+    def is_int(self) -> bool:
+        return self.id >= 5 and self.id <= 7
+
+    @property
+    def is_float(self) -> bool:
+        return self.id >= 12 and self.id <= 13
 
 
 PrimitiveValue = bool | int | float | str | bytes | UUID | datetime | timedelta

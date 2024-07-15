@@ -2,6 +2,7 @@ import pytest
 
 from bench.language import Block, BlockType, Field, code
 from bench.language.const import RunStatus
+from bench.language.run import RunErrorType, RunOptions
 from bench.runtime.capture import MAX_LOG_LINE_LENGTH, MAX_LOGS_PER_CAPTURE
 from bench.runtime.runner import RuntimeRunner
 
@@ -71,7 +72,7 @@ print('print3')
     page.blocks.append(Logs102)
     await runner.session.commit()
 
-    run = await runner.run(Logs102, suppress_error=True)
+    run = await runner.run(Logs102, return_error=True)
     assert run.status == RunStatus.FAILED
     assert run.logs and len(run.logs) == 2
     for s, log in zip(("print1", "print2"), run.logs):
@@ -104,7 +105,7 @@ async def test_run_code_capture_log_line_overflow(runner: RuntimeRunner, page: B
     assert run.logs[0].text_plain and "truncate" in run.logs[0].text_plain
 
 
-async def test_run_code_function_no_output(runner: RuntimeRunner, page: Block):
+async def test_run_code_function_output_none(runner: RuntimeRunner, page: Block):
     Function = Block.new_code("Function", """pass""", fields=(Field.input("Input1", int),))
     page.blocks.append(Function)
     await runner.session.commit()
@@ -127,7 +128,7 @@ async def test_run_code_function_output_scalar(runner: RuntimeRunner, page: Bloc
     # now with bad return value
     Function.code = code("return 'stringy'")
     await runner.session.commit()
-    run = await runner.run(Function, inputs={"Input1": 3}, suppress_error=True)
+    run = await runner.run(Function, inputs={"Input1": 3}, return_error=True)
     assert run.status == RunStatus.FAILED
 
 
@@ -171,7 +172,7 @@ async def test_run_code_function_output_dict(runner: RuntimeRunner, page: Block)
     assert run.outputs and run.outputs.Result1 is False and run.outputs.Result2 == 12
 
 
-async def test_run_code_complex_output(runner: RuntimeRunner, page: Block):
+async def test_run_code_function_complex_output(runner: RuntimeRunner, page: Block):
     subpage = page.blocks.append(Block.new(BlockType.PAGE, "Subpage"))
     ShapeKind = Block.new(
         BlockType.CHOICE,
@@ -205,3 +206,29 @@ return Shape(kind=ShapeKind.Square)
     await runner.session.commit()
 
     _ = await runner.run(Function)
+
+
+async def test_run_code_raise_retryable_error(runner: RuntimeRunner, page: Block):
+    CodeBlock = Block.new_code(
+        "Code1", """raise RetryableError('error1')""", run_options=RunOptions(max_attempts=3)
+    )
+    page.blocks.append(CodeBlock)
+    await runner.session.commit()
+
+    run = await runner.run(CodeBlock, return_error=True)
+    assert run.status == RunStatus.FAILED
+    assert run.error and run.error.type == RunErrorType.UNKNOWN_UNRETRYABLE
+    assert len(run.attempts) == 3
+
+
+async def test_run_code_raise_unretryable_error(runner: RuntimeRunner, page: Block):
+    CodeBlock = Block.new_code(
+        "Code1", """raise NotRetryableError('error1')""", run_options=RunOptions(max_attempts=3)
+    )
+    page.blocks.append(CodeBlock)
+    await runner.session.commit()
+
+    run = await runner.run(CodeBlock, return_error=True)
+    assert run.status == RunStatus.FAILED
+    assert run.error and run.error.type == RunErrorType.UNKNOWN_UNRETRYABLE
+    assert len(run.attempts) == 1

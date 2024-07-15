@@ -29,7 +29,7 @@ from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
-    from bench.language import Block, Expression, Icon, Package, Policy, Text, TypeInfo
+    from bench.language import Block, Expression, Icon, Package, Policy, Run, Text, TypeInfo
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -551,8 +551,10 @@ class StartViewState(ViewState):
     """The state of a Start view."""
 
     inputs_packed: Any = p_value_packed(30)
+    last_run: "Run | None" = p_regular(40, default=None, require=False, references=NodeType.RUN)
+    last_outputs_packed: Any = p_value_packed(41)
     feed: "FeedViewState | None" = p_regular(
-        31, default=None, require=False, struct=StructType.FEED_VIEW_STATE
+        50, default=None, require=False, struct=StructType.FEED_VIEW_STATE
     )
 
 

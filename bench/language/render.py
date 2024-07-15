@@ -21,7 +21,7 @@ from bench.language.const import (
     StructType,
     TypeKind,
 )
-from bench.language.field import Field, reverse_type_scalar
+from bench.language.field import Field, TypeConstraint, reverse_type_scalar
 from bench.language.node import BuiltinObject, Node, Struct
 from bench.language.path import get_path, render_path
 from bench.language.property import Property
@@ -403,6 +403,19 @@ class FieldRenderer(BuiltinObjectRenderer[Field]):
                 rendered_kwargs.pop("name"), renderer._render_kwargs(**rendered_kwargs) or None
             )
         return f"Field.{constructor_name}({field_args})"
+
+
+@_renderer(StructType.TYPE_CONSTRAINT)
+class TypeConstraintRenderer(BuiltinObjectRenderer[TypeConstraint]):
+    @override
+    def render_constructor(
+        self,
+        renderer: "Renderer",
+        obj: TypeConstraint,
+        kwargs: dict[str, Any],
+        rendered_kwargs: dict[str, str],
+    ) -> str:
+        return f"constrain({renderer._render_kwargs(**rendered_kwargs)})"
 
 
 @_renderer(StructType.TEXT)

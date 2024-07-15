@@ -59,8 +59,9 @@ class TypeConstraintIn:
         from bench.language.field import TypeConstraint
 
         return TypeConstraint(
-            min_value=self.min_value,
-            max_value=self.max_value,
+            min_value=float(self.min_value) if self.min_value is not None else None,
+            max_value=float(self.max_value) if self.max_value is not None else None,
+            step_value=float(self.step_value) if self.step_value is not None else None,
             min_length=self.min_length,
             max_length=self.max_length,
             regex=self.regex,

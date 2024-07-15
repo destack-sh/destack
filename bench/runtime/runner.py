@@ -448,11 +448,11 @@ class RuntimeRunner:
         raise NotImplementedError
 
     async def run(
-        self, run: Run | Block | Step, *, inputs: Any | None = None, suppress_error: bool = False
+        self, run: Run | Block | Step, *, inputs: Any | None = None, return_error: bool = False
     ) -> RunHandle:
         """Auto-run wrapper for some runnable node (may already be in another run)."""
         if not isinstance(run, Run):
             run = Run.from_runnable(run, inputs=inputs, parent=self.active_run)
-        handle = await self.process_run(run, suppress_error=suppress_error)
+        handle = await self.process_run(run, suppress_error=return_error)
         assert handle is not None, f"no handle for {run!r}"
         return handle

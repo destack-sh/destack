@@ -23,28 +23,10 @@ BASE_RUN_OPTIONS_BY_KIND = {
     RunKind.FLOW: RUN_ONCE,
 }
 
-# all bench types
-STATIC_CODE_GLOBALS: dict[str, Any] = {
-    **{k: v for k, v in vars(language).items() if not k.startswith("__")},
-    **BENCH_CLASS_BY_NAME,
-}
-# and some general stuff
-for t in (datetime, timedelta, UUID, base64):
-    STATIC_CODE_GLOBALS[t.__name__] = t
-DYNAMIC_CODE_GLOBALS: dict[str, Any] = {
-    # dynamic globals are set per code run, these are just the types :CodeGlobals
-    "self": Node,
-    "get_node": get_node,
-    "render": render,
-    "log": LogSink.log,
-    "trace": LogSink.trace,
-    "debug": LogSink.debug,
-    "info": LogSink.info,
-    "warn": LogSink.warn,
-    "error": LogSink.error,
-    "critical": LogSink.critical,
-    "print": LogSink.print,
-}
+
+#
+# Errors
+#
 
 
 class RuntimeError(BenchError, RuntimeError):
@@ -85,3 +67,40 @@ class RetryableError(RuntimeError):
 
 class ModelFailedError(RetryableError):
     run_error_type = RunErrorType.MODEL_FAILED
+
+
+class ModelIncapableError(RetryableError):
+    run_error_type = RunErrorType.MODEL_INCAPABLE
+
+
+#
+# Globals
+#
+
+# all bench types
+STATIC_CODE_GLOBALS: dict[str, Any] = {
+    **{k: v for k, v in vars(language).items() if not k.startswith("__")},
+    **BENCH_CLASS_BY_NAME,
+    # some error types
+    "NotRetryableError": NotRetryableError,
+    "NotRunnableError": NotRunnableError,
+    "RetryableError": RetryableError,
+    "ModelIncapableError": ModelIncapableError,
+}
+# and some general stuff
+for t in (datetime, timedelta, UUID, base64):
+    STATIC_CODE_GLOBALS[t.__name__] = t
+DYNAMIC_CODE_GLOBALS: dict[str, Any] = {
+    # dynamic globals are set per code run, these are just the types :CodeGlobals
+    "self": Node,
+    "get_node": get_node,
+    "render": render,
+    "log": LogSink.log,
+    "trace": LogSink.trace,
+    "debug": LogSink.debug,
+    "info": LogSink.info,
+    "warn": LogSink.warn,
+    "error": LogSink.error,
+    "critical": LogSink.critical,
+    "print": LogSink.print,
+}

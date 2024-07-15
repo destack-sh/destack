@@ -125,6 +125,7 @@ return {"Joke": "Why did the scarecrow win an award? Because he was outstanding 
 # Generate the answer to the task '{self.node.name}' with the given inputs and return it. 
 # Do NOT attempt to generalize over inputs, just return the answer for the given inputs only.
 # You may import and use the python standard library for maths and such if required, but nothing else.
+# If you're asked to provide rationale in the output, generate the before the respective answer.
 # 
 """,
             ),
@@ -161,12 +162,12 @@ class OpenaiModelRunner(ChatModelRunnerBase):
         self, message: ChatMessage
     ) -> openai_chat_types.ChatCompletionMessageParam:
         # (for some reason we need to check each message.role separately for typechecking)
-        if message.role == "system":  # noqa: SIM114
-            return {"role": message.role, "content": message.content}
-        elif message.role == "user":  # noqa: SIM114
-            return {"role": message.role, "content": message.content}
+        if message.role == "system":
+            return {"role": "system", "content": message.content}
+        elif message.role == "user":
+            return {"role": "user", "content": message.content}
         elif message.role == "assistant":
-            return {"role": message.role, "content": message.content}
+            return {"role": "assistant", "content": message.content}
         else:
             assert_never(message.role)
 
