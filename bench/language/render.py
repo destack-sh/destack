@@ -21,7 +21,7 @@ from bench.language.const import (
     StructType,
     TypeKind,
 )
-from bench.language.field import Field, TypeConstraint, reverse_type_scalar
+from bench.language.field import Field, TypeConstraint, TypeInfoBase, reverse_type_scalar
 from bench.language.node import BuiltinObject, Node, Struct
 from bench.language.path import get_path, render_path
 from bench.language.property import Property
@@ -30,7 +30,7 @@ from bench.language.text import Text
 from bench.language.value import ScalarValue, SomeValue, ValueObject
 
 if TYPE_CHECKING:
-    from bench.language.field import TypeInfoBase
+    pass
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -59,7 +59,7 @@ class BuiltinObjectRenderer[T: BuiltinObject]:
         for name, value in kwargs.items():
             if name in obj.__properties__:
                 prop = obj.__properties__[name]
-                rendered_kwargs[name] = renderer._render_value_expr(value, prop.type_info)
+                rendered_kwargs[name] = renderer.render_value_expr(value, prop.type_info)
             else:
                 # can pass extra kwargs that aren't real properties
                 assert type(value) is str, f"unexpected kwarg str {name}={value!r}"
@@ -79,7 +79,7 @@ class BuiltinObjectRenderer[T: BuiltinObject]:
                         child for child in children if child.id in renderer._options.node_filter
                     ]
                 rendered_children = [
-                    renderer._render_builtin_object_expr(cast(BuiltinObject, child))
+                    renderer.render_builtin_object_expr(cast(BuiltinObject, child))
                     for child in children
                 ]
                 rendered_kwargs[prop.name] = f"[{', '.join(rendered_children)}]"
@@ -138,7 +138,7 @@ class Renderer:
     def scope(self) -> Node:
         return self._options.scope
 
-    def _add_node(self, obj: Node) -> str:
+    def add_node(self, obj: Node) -> str:
         """Adds the given nodes to the context of this renderer."""
         if obj.id in self._alias_by_node_id:
             return self._alias_by_node_id[obj.id]  # already assigned
@@ -160,7 +160,7 @@ class Renderer:
         self._node_by_alias[alias] = obj
         return alias
 
-    def _render_node_ref(self, node: Node) -> str:
+    def render_node_ref(self, node: Node) -> str:
         alias = self._alias_by_node_id.get(node.id)
         if alias is not None:
             return alias
@@ -171,7 +171,7 @@ class Renderer:
         else:
             raise RuntimeError(f"node {node!r} is not attached and has no alias")
 
-    def _render_value_scalar_expr(self, value: "ScalarValue", typ: "TypeInfoBase") -> str:
+    def render_value_scalar_expr(self, value: "ScalarValue", typ: "TypeInfoBase") -> str:
         """Renders single scalar value into an expression."""
         if typ.kind == TypeKind.PRIMITIVE:
             if typ.primitive_type == PrimitiveType.BYTES:
@@ -186,7 +186,7 @@ class Renderer:
                 return repr(value)
         elif typ.kind == TypeKind.NODE or typ.kind == TypeKind.BASED_NODE:
             assert isinstance(value, Node), f"{value!r} is not a node (expected {typ!r})"
-            return self._render_node_ref(value)
+            return self.render_node_ref(value)
         elif typ.kind == TypeKind.ENUM:
             enum_cls = ENUM_CLASS_BY_TYPE[cast(EnumType, typ.bench_type)]
             value = enum_cls(value)
@@ -195,11 +195,11 @@ class Renderer:
             if isinstance(value, Property):
                 return f"{value.component.__name__}.get_property({value.name!r})"
             else:
-                return self._render_builtin_object_expr(cast(Struct, value))
+                return self.render_builtin_object_expr(cast(Struct, value))
         else:
             raise RuntimeError(f"unexpected type {typ!r}")
 
-    def _render_value_object_scalar_expr(self, value: "ValueObject", typ: "TypeInfoBase") -> str:
+    def render_value_object_scalar_expr(self, value: "ValueObject", typ: "TypeInfoBase") -> str:
         """Renders single Object into an expression."""
         assert typ.base_type is not None, f"{value!r} has no base type"
         repr_by_name: dict[str, str] = {}
@@ -208,11 +208,11 @@ class Renderer:
                 continue
             field_type = field._to_resolved()
             field_value = cast(SomeValue, getattr(value, field.name, None))
-            field_value_repr = self._render_value_expr(field_value, field_type)
+            field_value_repr = self.render_value_expr(field_value, field_type)
             repr_by_name[field.name] = field_value_repr
         return f"{typ.base_type.name}({', '.join(f'{k}={v}' for k, v in repr_by_name.items())})"
 
-    def _render_value_expr(self, value: "SomeValue | None", typ: "TypeInfoBase") -> str:
+    def render_value_expr(self, value: "SomeValue | None", typ: "TypeInfoBase") -> str:
         """Renders a value into an expression."""
         from bench.language.value import ValueObject
 
@@ -223,15 +223,15 @@ class Renderer:
         if typ.kind == TypeKind.OBJECT:
             # nested object
             if not typ.is_list:
-                return self._render_value_object_scalar_expr(cast(ValueObject, value), typ)
+                return self.render_value_object_scalar_expr(cast(ValueObject, value), typ)
             else:
-                return f"[{', '.join(self._render_value_object_scalar_expr(cast(ValueObject, v), typ) for v in cast(list, value))}]"
+                return f"[{', '.join(self.render_value_object_scalar_expr(cast(ValueObject, v), typ) for v in cast(list, value))}]"
         else:
             # scalar
             if not typ.is_list:
-                return self._render_value_scalar_expr(cast("ScalarValue", value), typ)
+                return self.render_value_scalar_expr(cast("ScalarValue", value), typ)
             else:
-                return f"[{', '.join(self._render_value_scalar_expr(v, typ) for v in cast(list, value))}]"
+                return f"[{', '.join(self.render_value_scalar_expr(v, typ) for v in cast(list, value))}]"
 
     def _render_kwargs(self, **kwargs: Any) -> str:
         """Renders kwargs into a string."""
@@ -241,7 +241,7 @@ class Renderer:
         """Renders args into a string."""
         return ", ".join(a for a in args if a is not None)
 
-    def _render_builtin_object_expr(self, obj: BuiltinObject) -> str:
+    def render_builtin_object_expr(self, obj: BuiltinObject) -> str:
         """
         Renders the given object into an expression (incl. some descendants for node).
         """
@@ -249,29 +249,29 @@ class Renderer:
         return renderer.render(self, obj)
 
     @tracer.start_as_current_span("renderer.render_object_expr")
-    def _render_obj_expr(self, obj: BuiltinObject | ValueObject):
+    def render_obj_expr(self, obj: BuiltinObject | ValueObject):
         """Renders the given objects to a Python expression."""
         if isinstance(obj, ValueObject):
-            return self._render_value_object_scalar_expr(obj, obj._type)
+            return self.render_value_object_scalar_expr(obj, obj._type)
         elif isinstance(obj, BuiltinObject):
-            return self._render_builtin_object_expr(obj)
+            return self.render_builtin_object_expr(obj)
         else:
             assert_never(obj)
 
     @tracer.start_as_current_span("renderer.render_stmt")
-    def _render_stmt(self, *objs: Node) -> str:
+    def render_stmt(self, *objs: Node) -> str:
         """Renders the given objects to a Python block where the objects are defined."""
         # render
         rendered_objs = []
         for obj in objs:
-            rendered = self._render_obj_expr(obj)
+            rendered = self.render_obj_expr(obj)
             is_parent_in_scope = (
                 obj.parent_ptr is not None and obj.parent_ptr.id in self._alias_by_node_id
             )
             rendered_objs.append(f"{self._alias_by_node_id[obj.id]} = {rendered}")
             if is_parent_in_scope:
                 # append to parent
-                ...  # nocheckin
+                ...  # nocheckin: append rendered obj to parent
         rendered = self._options.stmt_separator.join(rendered_objs)
         return rendered
 
@@ -293,17 +293,25 @@ def _get_content_values(obj: BuiltinObject, *, include_defaults: bool = False) -
     return values
 
 
-@tracer.start_as_current_span("render.render_stmt")
-def render_expr(obj: BuiltinObject | ValueObject, options: RenderOptions) -> str:
+@tracer.start_as_current_span("render.render_value_expr")
+def render_value_expr(value: SomeValue, typ: TypeInfoBase, options: RenderOptions) -> str:
+    """Render the given value to a python expression."""
+    renderer = Renderer(options)
+    rendered = renderer.render_value_expr(value, typ)
+    return rendered
+
+
+@tracer.start_as_current_span("render.render_expr")
+def render_expr(value: BuiltinObject | ValueObject, options: RenderOptions) -> str:
     """Render the given object to a python expression."""
     renderer = Renderer(options)
     rendered: str
-    if isinstance(obj, ValueObject):
-        rendered = renderer._render_value_object_scalar_expr(obj, obj._type)
-    elif isinstance(obj, BuiltinObject):
-        rendered = renderer._render_builtin_object_expr(obj)
+    if isinstance(value, ValueObject):
+        rendered = renderer.render_value_object_scalar_expr(value, value._type)
+    elif isinstance(value, BuiltinObject):
+        rendered = renderer.render_builtin_object_expr(value)
     else:
-        assert_never(obj)
+        assert_never(value)
     if options.format:
         rendered = format_code(rendered, line_length=options.format_line_length)
     return rendered.strip()
@@ -314,8 +322,8 @@ def render_stmt(*objs: Node, options: RenderOptions) -> str:
     """Renders the given object to a python block where the objects are defined."""
     renderer = Renderer(options)
     for obj in objs:
-        renderer._add_node(obj)
-    rendered = renderer._render_stmt(*objs)
+        renderer.add_node(obj)
+    rendered = renderer.render_stmt(*objs)
     if options.format:
         rendered = format_code(rendered, line_length=options.format_line_length)
     return rendered.strip()
@@ -368,7 +376,7 @@ class FieldRenderer(BuiltinObjectRenderer[Field]):
         type_in = reverse_type_scalar(obj)
         if type_in is not None:
             if isinstance(type_in, Node):
-                rendered_type = renderer._render_node_ref(type_in)
+                rendered_type = renderer.render_node_ref(type_in)
             elif isinstance(type_in, Enum):
                 rendered_type = f"{type_in.__class__.__name__}.{type_in.name}"
             else:

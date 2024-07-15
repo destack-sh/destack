@@ -188,7 +188,7 @@ def from_type_info(typ: TypeInfoBase) -> st.SearchStrategy[Any]:
 def get_naive_object_strategy(object_type: ObjectType):
     """Gets the default uncorrelated strategies for every (init) property of an object type."""
     object_cls = OBJECT_CLASS_BY_TYPE[object_type]
-    object_dict: dict[str, st.SearchStrategy] = {}
+    object_kwargs: dict[str, st.SearchStrategy] = {}
     for prop in object_cls.__runtime_properties__.values():
         if (
             # ignore runtime-only properties
@@ -200,32 +200,32 @@ def get_naive_object_strategy(object_type: ObjectType):
             # ignore autoset properties (ids, timestamps)
             or prop.is_autoset
         ):
-            continue
+            continue  # :IgnoredGeneratedProperties
         elif (object_type, prop.name) in STRATEGY_BY_OBJECT_PROPERTY:
-            object_dict[prop.name] = STRATEGY_BY_OBJECT_PROPERTY[(object_type, prop.name)]
+            object_kwargs[prop.name] = STRATEGY_BY_OBJECT_PROPERTY[(object_type, prop.name)]
         elif prop.name in STRATEGY_BY_PROPERTY:
-            object_dict[prop.name] = STRATEGY_BY_PROPERTY[prop.name]
+            object_kwargs[prop.name] = STRATEGY_BY_PROPERTY[prop.name]
         elif prop.is_node_reference:
             if not prop.reference_nodes:
                 continue  # nothing to do
             # generate random reference instead of node (sometimes this is enough)
             assert prop.reference_wired_ptr is not None, f"{prop!r} has no wired ptr"
-            object_dict[prop.reference_wired_ptr.name] = wrap_value_scalar(
+            object_kwargs[prop.reference_wired_ptr.name] = wrap_value_scalar(
                 node_references(st.sampled_from(prop.reference_nodes)),
                 is_required=prop.is_required,
                 is_list=prop.is_list,
             )
         elif prop.is_property_reference:
-            object_dict[prop.name] = wrap_value_scalar(
+            object_kwargs[prop.name] = wrap_value_scalar(
                 properties(), is_required=prop.is_required, is_list=prop.is_list
             )
         elif prop.reference_is_node_data:
-            object_dict[prop.name] = st.none()  # nothing meaningful to generate?
+            object_kwargs[prop.name] = st.none()  # nothing meaningful to generate?
         elif prop.is_value_runtime or prop.is_value_packed:
-            object_dict[prop.name] = st.none()  # TODO :Test :Incomplete: add strategy for Values
+            object_kwargs[prop.name] = st.none()  # TODO :Test :Incomplete: add strategy for Values
         else:
-            object_dict[prop.name] = from_type_info(prop.type_info)
-    return object_dict
+            object_kwargs[prop.name] = from_type_info(prop.type_info)
+    return object_kwargs
 
 
 @cacheable

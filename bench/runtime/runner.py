@@ -147,6 +147,14 @@ class Runner[T: RunnableNode](abc.ABC):
         return self.handle.status
 
     @property
+    def input_type(self) -> TypeInfoBase | None:
+        return self.handle.input_type
+
+    @property
+    def output_type(self) -> TypeInfoBase | None:
+        return self.handle.output_type
+
+    @property
     def inputs(self) -> ValueObject | None:
         return self.handle.inputs
 

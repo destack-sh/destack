@@ -39,7 +39,7 @@ async def test_run_text_output_scalar(
         "AnalyzeSentiment",
         "",
         fields=[Field.input("Text", str), Field.output("IsHappy", bool)],
-        run_options=RunOptions(model_options=ModelOptions(provider=model_provider)),
+        run_options=RunOptions(max_attempts=1, model_options=ModelOptions(provider=model_provider)),
     )
     page.blocks.append(AnalyzeSentiment)
     await runner.session.commit()
@@ -60,6 +60,7 @@ async def test_run_text_output_dict(
         BlockType.CHOICE,
         "Mood",
         fields=[Field.option("Positive"), Field.option("Neutral"), Field.option("Negative")],
+        run_options=RunOptions(max_attempts=1, model_options=ModelOptions(provider=model_provider)),
     )
     WritingStyle = Block.new(
         BlockType.CLASS,
@@ -76,7 +77,7 @@ async def test_run_text_output_dict(
         ],
         run_options=RunOptions(model_options=ModelOptions(provider=model_provider)),
     )
-    page.blocks.append(AnalyzeSentiment)
+    page.blocks.extend(Mood, WritingStyle, AnalyzeSentiment)
     await runner.session.commit()
 
     run = await runner.run(

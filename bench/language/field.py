@@ -408,6 +408,18 @@ class TypeInfo(Struct, TypeInfoBase):
     # redirect so we get TypeInfoBase.__content_str__ (not Struct.__content_str__)
     __content_str__ = TypeInfoBase.__content_str__  # type: ignore
 
+    @staticmethod
+    def from_type(
+        typ: "TypeIn", constraint: "TypeConstraintIn | TypeConstraint | None" = None
+    ) -> "TypeInfo":
+        """Converts a type-like object to a TypeInfo."""
+        typ = to_type_scalar(typ)
+        if constraint is not None:
+            if isinstance(constraint, TypeConstraintIn):
+                constraint = constraint.into()
+            typ.constraint = constraint
+        return typ
+
 
 FREEFORM_VALUE_KEY = "*"
 FREEFORM_VALUE_TYPE = TypeInfo(
