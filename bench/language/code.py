@@ -66,6 +66,8 @@ def code_to_string(code: Code) -> str:
 
 
 def string_to_code(s: str) -> Code:
+    if not s:
+        return Code.empty()
     return Code(lines=[CodeLine(content=line or None) for line in s.split("\n")])
 
 
