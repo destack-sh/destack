@@ -1044,8 +1044,8 @@ def coerce_value_object(typ: "TypeInfoBase", value_raw: Any) -> ValueObject:
     assert typ.kind == TypeKind.OBJECT, f"{typ!r} is not an Object"
 
     fields = typ._fields
-    coerced = ValueObject(typ, value={})
     if isinstance(value_raw, tuple):
+        coerced = ValueObject(typ, value={})
         if len(value_raw) != len(fields):
             raise ValueError(
                 f"got {len(value_raw)} values for {typ!r}, expected {len(fields)}: {', '.join(f.name for f in fields)}"
@@ -1053,12 +1053,13 @@ def coerce_value_object(typ: "TypeInfoBase", value_raw: Any) -> ValueObject:
         for i, field in enumerate(fields):
             setattr(coerced, field.name, value_raw[i])
     elif isinstance(value_raw, dict):
+        coerced = ValueObject(typ, value={})
         for field in fields:
             setattr(coerced, field.name, value_raw.get(field.name))
-    elif isinstance(value_raw, ValueObject):
-        for field in fields:
-            setattr(coerced, field.name, getattr(value_raw, field.name))
+    elif isinstance(value_raw, ValueObject) and value_raw._type == typ:
+        coerced = value_raw
     else:
+        coerced = ValueObject(typ, value={})
         if len(fields) == 0:
             if value_raw is not None:
                 raise ValueError(f"got value for {typ!r}, expected None")

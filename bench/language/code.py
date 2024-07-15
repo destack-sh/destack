@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING
 
 import black
 import structlog
+from opentelemetry import trace
 
 from bench.language.const import EnumType, StructType, enum_
 from bench.language.node import Struct, struct_
@@ -12,6 +13,7 @@ if TYPE_CHECKING:
     pass
 
 logger = structlog.get_logger(__name__)
+tracer = trace.get_tracer(__name__)
 
 
 @enum_(EnumType.CODE_TYPE)
@@ -71,6 +73,7 @@ def string_to_code(s: str) -> Code:
     return Code(lines=[CodeLine(content=line or None) for line in s.split("\n")])
 
 
+@tracer.start_as_current_span(name="code.format")
 def format_code(code: str, suppress_error: bool = False, line_length: int = 100) -> str:
     """Formats the code string with our standard black settings."""
     try:

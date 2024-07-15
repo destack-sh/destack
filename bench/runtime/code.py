@@ -19,7 +19,7 @@ from bench.runtime.capture import (
     capture_logs,
 )
 from bench.runtime.compiler import CompiledCode, compile_code
-from bench.runtime.core import CodeSyntaxError
+from bench.runtime.core import SyntaxError
 from bench.runtime.runner import RunHandle, Runner, RuntimeRunner, runner
 
 logger = structlog.get_logger(__name__)
@@ -50,7 +50,7 @@ class CodeRunnerBase(Runner):
                 self.runtime.combined_glbls,
             )
         if compiled.syntax_error:
-            raise CodeSyntaxError(repr(self)) from compiled.syntax_error  # re-raise
+            raise SyntaxError(repr(self)) from compiled.syntax_error  # re-raise
         return compiled
 
     @contextmanager

@@ -138,6 +138,28 @@ class Renderer:
     def scope(self) -> Node:
         return self._options.scope
 
+    def _add_node(self, obj: Node) -> str:
+        """Adds the given nodes to the context of this renderer."""
+        if obj.id in self._alias_by_node_id:
+            return self._alias_by_node_id[obj.id]  # already assigned
+        alias = getattr(obj, "name") if hasattr(obj, "name") else obj.metatype.bench_name.lower()
+        # ensure alias is valid python identifier
+        if not alias:
+            alias = obj.metatype.bench_name.lower()
+        elif not re.match(r"^[a-zA-Z_]\w*$", alias):
+            alias = f"{obj.metatype.bench_name.lower()}_{alias}"
+        # bump digit at end if already exists
+        if alias in self._node_by_alias:
+            count = re.search(r"\d+$", alias)
+            if count:
+                count = int(count.group())
+                alias = re.sub(r"\d+$", str(count + 1), alias)
+            else:
+                alias += "2"
+        self._alias_by_node_id[obj.id] = alias
+        self._node_by_alias[alias] = obj
+        return alias
+
     def _render_node_ref(self, node: Node) -> str:
         alias = self._alias_by_node_id.get(node.id)
         if alias is not None:
@@ -226,6 +248,7 @@ class Renderer:
         renderer = _get_renderer(obj.metatype)
         return renderer.render(self, obj)
 
+    @tracer.start_as_current_span("renderer.render_object_expr")
     def _render_obj_expr(self, obj: BuiltinObject | ValueObject):
         """Renders the given objects to a Python expression."""
         if isinstance(obj, ValueObject):
@@ -235,28 +258,7 @@ class Renderer:
         else:
             assert_never(obj)
 
-    def _add_node(self, obj: Node) -> str:
-        """Adds the given nodes to the context of this renderer."""
-        if obj.id in self._alias_by_node_id:
-            return self._alias_by_node_id[obj.id]  # already assigned
-        alias = getattr(obj, "name") if hasattr(obj, "name") else obj.metatype.bench_name.lower()
-        # ensure alias is valid python identifier
-        if not alias:
-            alias = obj.metatype.bench_name.lower()
-        elif not re.match(r"^[a-zA-Z_]\w*$", alias):
-            alias = f"{obj.metatype.bench_name.lower()}_{alias}"
-        # bump digit at end if already exists
-        if alias in self._node_by_alias:
-            count = re.search(r"\d+$", alias)
-            if count:
-                count = int(count.group())
-                alias = re.sub(r"\d+$", str(count + 1), alias)
-            else:
-                alias += "2"
-        self._alias_by_node_id[obj.id] = alias
-        self._node_by_alias[alias] = obj
-        return alias
-
+    @tracer.start_as_current_span("renderer.render_stmt")
     def _render_stmt(self, *objs: Node) -> str:
         """Renders the given objects to a Python block where the objects are defined."""
         # render
@@ -291,7 +293,7 @@ def _get_content_values(obj: BuiltinObject, *, include_defaults: bool = False) -
     return values
 
 
-@tracer.start_as_current_span("renderer.render_expr")
+@tracer.start_as_current_span("render.render_stmt")
 def render_expr(obj: BuiltinObject | ValueObject, options: RenderOptions) -> str:
     """Render the given object to a python expression."""
     renderer = Renderer(options)
@@ -307,7 +309,7 @@ def render_expr(obj: BuiltinObject | ValueObject, options: RenderOptions) -> str
     return rendered.strip()
 
 
-@tracer.start_as_current_span("renderer.render_stmt")
+@tracer.start_as_current_span("render.render_stmt")
 def render_stmt(*objs: Node, options: RenderOptions) -> str:
     """Renders the given object to a python block where the objects are defined."""
     renderer = Renderer(options)

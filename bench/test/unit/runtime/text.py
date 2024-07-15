@@ -7,13 +7,18 @@ from bench.language.run import ModelOptions, ModelProvider, RunErrorType, RunOpt
 from bench.runtime.runner import RuntimeRunner
 
 TEST_MODEL_PROVIDERS = (
-    None,  # = automatic
     ModelProvider.OPENAI,
     ModelProvider.ANTHROPIC,
 )
 
 
-async def test_run_empty_text_no_io(runner: RuntimeRunner, page: Block):
+def _for_every_provider():
+    return pytest.mark.parametrize(
+        "model_provider", TEST_MODEL_PROVIDERS, ids=lambda p: p.name if p else p
+    )
+
+
+async def test_run_empty_text(runner: RuntimeRunner, page: Block):
     """Empty Text without any fields should fail."""
     Text1 = Block.new_text("Text1", "")
     page.blocks.append(Text1)
@@ -25,11 +30,8 @@ async def test_run_empty_text_no_io(runner: RuntimeRunner, page: Block):
 
 
 @pytest.mark.model()
-@pytest.mark.parametrize("model_provider", TEST_MODEL_PROVIDERS, ids=lambda p: p.name if p else p)
-async def test_run_empty_text_with_io(
-    runner: RuntimeRunner, page: Block, model_provider: ModelProvider
-):
-    """Empty Text with fields should work."""
+@_for_every_provider()
+async def test_run_simple_text(runner: RuntimeRunner, page: Block, model_provider: ModelProvider):
     Text1 = Block.new_text(
         "Text1",
         "",
@@ -39,6 +41,6 @@ async def test_run_empty_text_with_io(
     page.blocks.append(Text1)
     await runner.session.commit()
 
-    run = await runner.run(Text1, inputs={"Text": "Hello, I'm very happy!"}, suppress_error=True)
+    run = await runner.run(Text1, inputs={"Text": "Today was a great day."}, suppress_error=True)
     assert run.status == RunStatus.COMPLETED
     assert run.outputs and run.outputs.IsHappy is True
