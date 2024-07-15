@@ -705,7 +705,13 @@ def edit_graph(
             node.updated_at = edit.edited_at
             if "updated_epoch" in node.__properties__:
                 node._do_set("updated_epoch", edit.epoch, track=track)
-            node._do_set("updated_by_ptr", edit.subject_ptr, track=track)
+            node._do_set(
+                "updated_by_ptr",
+                wiring.unpack_object_prop(
+                    Node.get_property("updated_by"), edit.subject_ptr, supergraph=supergraph
+                ),
+                track=track,
+            )
             node._do_set("revision", edit.revision, track=track)
             if edit_type == EditType.ARCHIVE:
                 node._do_set("archived_at", edit.edited_at, track=track)
