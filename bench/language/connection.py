@@ -941,7 +941,7 @@ class SplitConnection(Connection):
                         node_type=child_type,
                         filter=C(
                             ConditionalOp.IN,
-                            property=child_cls._prop("parent_id"),
+                            property=child_cls.get_property("parent_id"),
                             value=parent_ids,
                             value_packed={},
                         ),

@@ -46,6 +46,7 @@ if TYPE_CHECKING:
     from bench.language import (
         BuiltinObject,
         Field,
+        InlineStruct,
         Node,
         NodeReference,
         Struct,
@@ -330,7 +331,7 @@ def _coerce_value_scalar(
     ancestor_prop: "Property | None" = None,
 ) -> ScalarValue:
     """Coerces a scalar value (primitive, node, struct)"""
-    if typ.kind == TypeKind.STRUCT and parent is not None:
+    if typ.kind == TypeKind.STRUCT and parent is not None and isinstance(value, InlineStruct):
         assert parent_prop is not None, f"{typ!r} got parent {parent!r} but no parent_prop"
         value = cast("Struct", value)._move_to(parent, parent_prop, ancestor_prop)
     return value
@@ -394,8 +395,8 @@ def coerce_value(
         if not typ.is_list:
             return coerce_object_scalar(cast(dict, value), typ, parent, parent_prop, ancestor_prop)
         else:
-            if isinstance(value, list):
-                raise TypeError(f"{value!r} is not a list (expected {typ!r})")
+            if isinstance(value, Sequence):
+                raise TypeError(f"{value!r} is not a sequence (expected {typ!r})")
             return [
                 coerce_object_scalar(cast(dict, element), typ, parent, parent_prop, ancestor_prop)
                 for element in value
@@ -406,8 +407,8 @@ def coerce_value(
         elif not typ.is_list:
             return _coerce_value_scalar(value, typ, parent, parent_prop, ancestor_prop)
         else:
-            if not isinstance(value, list):
-                raise TypeError(f"{value!r} is not a list (expected {typ!r})")
+            if not isinstance(value, Sequence):
+                raise TypeError(f"{value!r} is not a sequence (expected {typ!r})")
             return [
                 _coerce_value_scalar(element, typ, parent, parent_prop, ancestor_prop)
                 for element in value
@@ -496,10 +497,14 @@ def check_value_scalar(value: SomeValue, typ: "TypeInfoBase", invalid: "Validati
             if typ.base_type is not None and cast(HasNodeBase, value).base != typ.base_type:
                 invalid(value, f"not based on {typ.base_type}", typ)
     elif typ.kind == TypeKind.STRUCT:
-        if not getattr(cast("Struct", value), "__is_struct__", False):
-            invalid(value, "not a Struct", typ)
-        elif cast("Struct", value).metatype != typ.bench_type:
-            invalid(value, "not of type", typ)
+        if typ.bench_type == StructType.PROPERTY_REFERENCE:
+            if not isinstance(value, Property):
+                invalid(value, "not a Property", typ)
+        else:
+            if not getattr(cast("Struct", value), "__is_struct__", False):
+                invalid(value, "not a Struct", typ)
+            elif cast("Struct", value).metatype != typ.bench_type:
+                invalid(value, "not of type", typ)
     elif typ.kind == TypeKind.ENUM:
         enum_cls = ENUM_CLASS_BY_TYPE[cast(EnumType, typ.bench_type)]
         try:
@@ -924,6 +929,7 @@ from bench.language.node import (  # noqa: E402
     NODE_REFERENCE_TYPES_BY_NODE_TYPE,
     BuiltinObject,
     HasNodeBase,
+    InlineStruct,
     Node,
     NodeReferenceBase,
     Struct,

@@ -24,6 +24,7 @@ from bench.language.const import (
 from bench.language.field import Field, reverse_type_scalar
 from bench.language.node import BuiltinObject, Node, Struct
 from bench.language.path import get_path, render_path
+from bench.language.property import Property
 from bench.language.setup import ENUM_CLASS_BY_TYPE
 from bench.language.text import Text
 from bench.language.value import ScalarValue, SomeValue, ValueObject
@@ -169,7 +170,10 @@ class Renderer:
             value = enum_cls(value)
             return f"{enum_cls.__name__}.{value.name}"
         elif typ.kind == TypeKind.STRUCT:
-            return self._render_builtin_object_expr(cast(Struct, value))
+            if isinstance(value, Property):
+                return f"{value.component.__name__}.get_property({value.name!r})"
+            else:
+                return self._render_builtin_object_expr(cast(Struct, value))
         else:
             raise RuntimeError(f"unexpected type {typ!r}")
 

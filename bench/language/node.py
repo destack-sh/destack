@@ -1204,7 +1204,7 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
         return pack_object(self)  # type: ignore
 
     @classmethod
-    def _prop(cls, key: str | Property) -> Property:
+    def get_property(cls, key: str | Property) -> Property:
         if isinstance(key, str):
             prop = cls.__properties__.get(key)
             if prop is None:
