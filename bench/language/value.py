@@ -15,6 +15,7 @@ from typing import (
 )
 from uuid import UUID
 
+import pytz
 import structlog
 from betterproto.lib.google.protobuf import Struct as ProtoStruct
 from opentelemetry import trace
@@ -546,7 +547,7 @@ def _check_is_object(
     return True
 
 
-def check_object_scalar(
+def check_value_object_scalar(
     value: SomeValue, typ: "TypeInfoBase", invalid: "ValidationHandler"
 ) -> None:
     """Checks whether the given object value has the expected type (recursively)."""
@@ -557,6 +558,7 @@ def check_object_scalar(
             check_value(field_value, field_type, invalid)
 
 
+@tracer.start_as_current_span(name="value.check")
 def check_value(value: Any, typ: "TypeInfoBase", invalid: "ValidationHandler") -> None:
     """
     Checks whether the given value has the expected type (recursively).
@@ -570,10 +572,10 @@ def check_value(value: Any, typ: "TypeInfoBase", invalid: "ValidationHandler") -
                     invalid(value, "missing required value", typ)
                 else:
                     return
-            check_object_scalar(value, typ, invalid)
+            check_value_object_scalar(value, typ, invalid)
         elif _check_is_list(value, typ, invalid):
             for element in value:
-                check_object_scalar(element, typ, invalid)
+                check_value_object_scalar(element, typ, invalid)
     else:
         if not typ.is_list:
             if value is None:
@@ -585,6 +587,123 @@ def check_value(value: Any, typ: "TypeInfoBase", invalid: "ValidationHandler") -
         elif _check_is_list(value, typ, invalid):
             for element in value:
                 check_value_scalar(element, typ, invalid)
+
+
+#
+# Value sampling
+#
+
+
+def sample_scalar_value(typ: "TypeInfoBase") -> ScalarValue | None:
+    """Samples a representative (not necessarily random) scalar value for the given type."""
+    if typ.kind == TypeKind.PRIMITIVE:
+        assert typ.primitive_type is not None, f"missing primitive type for {typ!r}"
+        if typ.primitive_type == PrimitiveType.BOOLEAN:
+            return True
+        elif typ.primitive_type.is_numeric:
+            primitive_cls = PY_TYPE_BY_PRIMITIVE_TYPE[cast(PrimitiveType, typ.primitive_type)]
+            # sample with constraint
+            if typ.constraint is not None:
+                if typ.constraint.min_value is not None:
+                    return primitive_cls(typ.constraint.min_value)
+                if typ.constraint.max_value is not None:
+                    return primitive_cls(typ.constraint.max_value)
+                if typ.constraint.step_value is not None:
+                    return primitive_cls(typ.constraint.step_value)
+            # sample without constraint
+            if typ.primitive_type.is_float:
+                return 17.0
+            elif typ.primitive_type.is_int:
+                return 42
+        elif typ.primitive_type == PrimitiveType.STRING:
+            return "<some string>"
+        elif typ.primitive_type == PrimitiveType.BYTES:
+            return b"<some bytes>"
+        elif typ.primitive_type == PrimitiveType.UUID:
+            return UUID("00000000-0000-0000-0000-000000000000")
+        elif typ.primitive_type == PrimitiveType.JSON:
+            return None
+        elif typ.primitive_type == PrimitiveType.DATETIME:
+            return datetime(2024, 6, 12, tzinfo=pytz.utc)
+        elif typ.primitive_type == PrimitiveType.INTERVAL:
+            return timedelta(seconds=42)
+        else:
+            raise RuntimeError(f"unexpected primitive type {typ.primitive_type!r}")
+    elif typ.kind == TypeKind.ENUM:
+        enum_cls = ENUM_CLASS_BY_TYPE[cast(EnumType, typ.bench_type)]
+        for enum_value in enum_cls:
+            return enum_value
+        else:
+            return None  # no enum values?
+    elif typ.kind == TypeKind.NODE or typ.kind == TypeKind.BASED_NODE:
+        ...  # nocheckin: sample node
+    elif typ.kind == TypeKind.STRUCT:
+        return sample_builtin_object(typ)
+    else:
+        raise RuntimeError(f"unexpected type {typ!r}")
+
+
+def sample_builtin_object(typ: "TypeInfoBase") -> "BuiltinObject":
+    """Samples a representative object value for the given type (recursively)."""
+    object_cls = OBJECT_CLASS_BY_TYPE.get(cast(ObjectType, typ.bench_type))
+    assert object_cls is not None, f"missing object class for {typ!r}"
+    object_kwargs = {}
+    for prop in object_cls.__runtime_properties__.values():
+        if (
+            # ignore runtime-only properties
+            prop.id is None
+            # ignore identity/tracking properties
+            or (prop.id < 30 and prop.reference_kind is not None)
+            # ignore contributed wired properties (they're derived from the generated one)
+            or (prop.reference_source is not None)
+            # ignore autoset properties (ids, timestamps)
+            or prop.is_autoset
+        ):
+            continue  # :IgnoredGeneratedProperties
+        elif prop.is_node_reference:
+            ...  # nocheckin: sample node
+        elif prop.is_property_reference:
+            object_kwargs[prop.name] = prop
+        elif prop.reference_is_node_data or prop.is_value_runtime or prop.is_value_packed:
+            object_kwargs[prop.name] = None
+        else:
+            object_kwargs[prop.name] = sample_value(prop.type_info)
+    return object_cls(**object_kwargs)
+
+
+def sample_value_object_scalar(typ: "TypeInfoBase", recurse_objects: bool = True) -> ValueObject:
+    """Samples a representative object value for the given type (recursively)."""
+    assert typ.kind == TypeKind.OBJECT, f"expected object type, got {typ!r}"
+    value = {}
+    for field in typ._base_fields:
+        field_type = field._to_resolved()
+        if field.is_list:
+            value[field.storage_key] = [sample_value(field_type, recurse_objects) for _ in range(1)]
+        else:
+            value[field.storage_key] = sample_value(field_type, recurse_objects)
+    return ValueObject.new(value, typ)
+
+
+@tracer.start_as_current_span(name="value.sample")
+def sample_value(typ: "TypeInfoBase", recurse_objects: bool = True) -> SomeValue:
+    """Samples a representative value for the given type (recursively)."""
+    typ = typ._to_resolved()
+    assert typ.kind != TypeKind.ALIAS, f"unresolved type {typ!r}"
+    if typ.kind == TypeKind.OBJECT:
+        if not typ.is_list:
+            return sample_value_object_scalar(typ, recurse_objects)
+        else:
+            return [sample_value_object_scalar(typ, recurse_objects) for _ in range(1)]
+    else:
+        if not typ.is_list:
+            return sample_scalar_value(typ)
+        else:
+            scalar_values = []
+            for _ in range(1):
+                scalar_value = sample_scalar_value(typ)
+                if scalar_value is not None:
+                    scalar_values.append(scalar_value)
+            return scalar_values
 
 
 #
@@ -822,6 +941,7 @@ def unpack_value_object(
     )
 
 
+@tracer.start_as_current_span(name="value.pack")
 def pack_value(
     value: SomeValue | None, typ: "TypeInfoBase", wrap_primitive: bool = True
 ) -> JsonValue:
@@ -879,6 +999,7 @@ def pack_value_data(
     return value_packed
 
 
+@tracer.start_as_current_span(name="value.unpack")
 def unpack_value(
     value_packed: JsonValue,
     typ: "TypeInfoBase",

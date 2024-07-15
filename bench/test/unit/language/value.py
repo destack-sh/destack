@@ -5,15 +5,18 @@ from hypothesis import given
 
 from bench.language.bench import Package
 from bench.language.block import Block
-from bench.language.const import BlockType, NodeType, PrimitiveType, StructType
-from bench.language.field import Field, TypeKind, to_type_scalar
+from bench.language.const import STRUCT_TYPES, BlockType, NodeType, PrimitiveType, StructType
+from bench.language.field import Field, TypeInfo, TypeKind, to_type_scalar
 from bench.language.node import BuiltinObject
 from bench.language.session import Session
 from bench.language.text import Text
+from bench.language.validation import constrain, on_invalid_raise
 from bench.language.value import (
     ValueObject,
+    check_value,
     pack_builtin_object_data,
     pack_value,
+    sample_value,
     unpack_builtin_object_data,
     unpack_value,
 )
@@ -138,3 +141,22 @@ def test_roundtrip_builtin_object_value(
 
 
 # TODO :Test: auto generate :Test types & values
+
+
+def test_sample_value_scalar(session: Session, package: Package):
+    typ = TypeInfo.from_type(bool)
+    val = sample_value(typ)
+    check_value(val, typ, on_invalid_raise)
+
+
+def test_sample_value_scalar_constrained(session: Session, package: Package):
+    typ = TypeInfo.from_type(int, constraint=constrain(min_value=10.0, max_value=20.0))
+    val = sample_value(typ)
+    check_value(val, typ, on_invalid_raise)
+
+
+@pytest.mark.parametrize("struct_type", STRUCT_TYPES, ids=lambda t: t.bench_name)
+def test_sample_value_struct(struct_type: StructType, session: Session, package: Package):
+    typ = TypeInfo(kind=TypeKind.STRUCT, bench_type=struct_type)
+    val = sample_value(typ)
+    check_value(val, typ, on_invalid_raise)

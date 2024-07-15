@@ -45,12 +45,12 @@ def test_render_builtin_object_expr(
                 continue
             reference_node = BUILTIN_OBJECTS_BY_TYPE[wired_prop.reference_nodes[0]]
             assert isinstance(reference_node, Node), f"expected Node, got {reference_node!r}"
-            reference_alias = renderer._add_node(reference_node)
+            reference_alias = renderer.add_node(reference_node)
             node_references[reference_alias] = reference_node
             setattr(o, prop.name, reference_node)
 
     # render
-    rendered = renderer._render_builtin_object_expr(obj)
+    rendered = renderer.render_builtin_object_expr(obj)
     glbls = {**STATIC_CODE_GLOBALS, **BUILTIN_GLOBALS, **node_references}
     ret = eval(rendered, glbls)
     assert cast(BuiltinObject, ret)._equals_content(obj)

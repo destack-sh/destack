@@ -8,8 +8,9 @@ from openai.types import chat as openai_chat_types
 
 from bench.language.code import Code
 from bench.language.project import Projection, ProjectOptions, project
-from bench.language.render import RenderOptions, render
+from bench.language.render import RenderOptions, render, render_value_expr
 from bench.language.run import ModelProvider, ModelType, RunKind
+from bench.language.value import sample_value
 from bench.runtime.core import RUN_ONCE, ModelFailedError, NotRunnableError
 from bench.runtime.runner import Runner, runner
 from bench.utils.utils import get_from_env
@@ -99,33 +100,63 @@ return {"Joke": "Why did the scarecrow win an award? Because he was outstanding 
     ) -> list[ChatMessage]:
         # NOTE :Incomplete: add previous attempts errors to messages
         # NOTE :Incomplete: add images/file references to messages
-        # rendered_context = render(...)  # nocheckin: context
         if self.inputs is None or len(self.inputs) == 0:
             raise NotRunnableError(f"no inputs for {self.handle!r}")
+        if self.output_type is None or len(self.output_type._fields) == 0:
+            raise NotRunnableError(f"no outputs for {self.handle!r}")
+
         render_options = RenderOptions(scope=self.node)
+
+        # context
+        rendered_context = ""  # nocheckin: context
+
+        # specific task / inputs
         rendered_task = render(self.node, options=render_options)
         rendered_inputs = render(self.inputs, options=render_options)
+
+        # example values
+        rendered_examples = []
+        for field in self.output_type._fields:
+            example_value = sample_value(field)
+            rendered_example = render_value_expr(example_value, field, options=render_options)
+            rendered_examples.append(f"{field.name} = {rendered_example}")
+
+        # build messages
         messages: list[ChatMessage] = [
             ChatMessage(
                 "user",
                 f"""\
+#
+# Context around your task
+# Includes relevant and irrelevant instructions and information that you may want to consider.
 # 
-# Inputs for your task
+
+{rendered_context}
+
+# 
+# Inputs for your specific task
 #
                         
 {rendered_inputs}
 
 #
-# Your task is `{self.node.name}`
+# Your specific task is `{self.node.name}`
+# Only focus on this task with these inputs in relation to the provided context.
 #
 
 {rendered_task}
 
+# 
+# Some random examples for values of the right types (*not* specific to your actual task)
 #
-# Generate the answer to the task '{self.node.name}' with the given inputs and return it. 
+
+{'\n'.join(e for e in rendered_examples)}
+
+#
+# Return the answer to the specific invocation of task '{self.node.name}' with the given inputs. 
 # Do NOT attempt to generalize over inputs, just return the answer for the given inputs only.
 # You may import and use the python standard library for maths and such if required, but nothing else.
-# If you're asked to provide rationale in the output, generate the before the respective answer.
+# If the output includes any sort of ratoinale, generate that reasoning *before* the respective answer.
 # 
 """,
             ),
@@ -133,8 +164,8 @@ return {"Joke": "Why did the scarecrow win an award? Because he was outstanding 
                 "assistant",
                 # "# here is how I'll return the answer explained in comments, followed by the code: \n",
                 """\
-# Here is the code method body that returns the right answer for the given inputs only
-#  without any method wrapper or consideration for other possible inputs:""",
+# Here is the code method body that returns the specific answer for these specific inputs:
+#  (without any method wrapper or consideration for other possible inputs)""",
             ),
         ]
         if include_system_message:
