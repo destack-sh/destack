@@ -1801,8 +1801,12 @@ async def _pg_edit_batch(
             row["created_at"] = row["updated_at"] = edit.edited_at
             if "created_epoch" in node_cls.__properties__:
                 row["created_epoch"] = row["updated_epoch"] = edit.epoch
-            _pg_pack_node_reference_into_row(node_cls._prop("created_by"), row, edit.subject_ptr)
-            _pg_pack_node_reference_into_row(node_cls._prop("updated_by"), row, edit.subject_ptr)
+            _pg_pack_node_reference_into_row(
+                node_cls.get_property("created_by"), row, edit.subject_ptr
+            )
+            _pg_pack_node_reference_into_row(
+                node_cls.get_property("updated_by"), row, edit.subject_ptr
+            )
             rows.append(row)
 
         if edit_type == EditType.CREATE:
@@ -1838,7 +1842,7 @@ async def _pg_edit_batch(
         # collect dynamic columns (incl. implicit metadata)
         implicit_properties: list[Property | Any] = [
             node_cls.updated_at,
-            node_cls._prop("updated_by"),
+            node_cls.get_property("updated_by"),
         ]
         if issubclass(node_cls, BenchNode):
             implicit_properties.append(node_cls.updated_epoch)
@@ -1878,7 +1882,9 @@ async def _pg_edit_batch(
             row["updated_at"] = edit.edited_at
             if "updated_epoch" in node_cls.__properties__:
                 row["updated_epoch"] = edit.epoch
-            _pg_pack_node_reference_into_row(node_cls._prop("updated_by"), row, edit.subject_ptr)
+            _pg_pack_node_reference_into_row(
+                node_cls.get_property("updated_by"), row, edit.subject_ptr
+            )
             if edit_type == EditType.ARCHIVE:
                 row["archived_at"] = edit.edited_at
             elif edit_type == EditType.UNARCHIVE:

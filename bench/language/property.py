@@ -243,7 +243,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
         return (
             # exclude our own runtime-only properties
             not self.is_ephemeral
-            # exclude references (we have them as properties, so they're not directly introspectable, but would be ncie)
+            # exclude references (we have them as properties, so they're not directly introspectable, but would be nice)
             and not (self.reference_kind is not None and self.reference_kind.is_node)
             and self.reference_kind != ReferenceKind.PROPERTY
             and self.reference_kind != ReferenceKind.STRUCT_PARENT
@@ -319,11 +319,16 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
             kind = TypeKind.STRUCT
             bench_type = self.reference_struct
             primitive_type = None
+        elif self.reference_kind == ReferenceKind.PROPERTY:
+            kind = TypeKind.STRUCT
+            bench_type = StructType.PROPERTY_REFERENCE
+            primitive_type = None
         elif self.enum_type:
             kind = TypeKind.ENUM
             bench_type = self.enum_type
             primitive_type = None
         elif self.primitive_type:
+            assert self.primitive_type is not UNSET, f"missing primitive type for {self!r}"
             kind = TypeKind.PRIMITIVE
             bench_type = None
             primitive_type = self.primitive_type
@@ -661,7 +666,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
 
             return (self.reference_wired_ptr, *stored_ids, *extra_stored_props.values())
         elif self.reference_wired_ptr:
-            return self.reference_wired_ptr,
+            return (self.reference_wired_ptr,)
         else:
             return ()
 

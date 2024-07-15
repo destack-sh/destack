@@ -7,8 +7,8 @@ from bench.language.session import Session
 
 
 def test_evaluate_conditional(session: Session):
-    NAME = Field._prop("name")
-    ORDER_KEY = Field._prop("order_key")
+    NAME = Field.get_property("name")
+    ORDER_KEY = Field.get_property("order_key")
 
     field_0 = Field.new("apple", bool, order_key="a0")
     field_1 = Field.new("banana", bool, order_key="a1")
