@@ -290,8 +290,8 @@ class RuntimeRunner:
             attempts=run.attempts if run else [],
             run=run,
         )
-        if track:
-            ...  # nocheckin: create Run
+        if track and run is None:
+            pass  # NOTE :Incomplete: nested (tracked) run"
 
         return handle
 

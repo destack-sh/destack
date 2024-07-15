@@ -26,6 +26,7 @@ from bench.language.const import (
     PY_TYPE_BY_PRIMITIVE_TYPE,
     UNSET,
     EnumType,
+    NodeType,
     ObjectType,
     PrimitiveType,
     PrimitiveValue,
@@ -644,7 +645,11 @@ def sample_scalar_value(typ: "TypeInfoBase") -> ScalarValue | None:
         else:
             return None  # no enum values?
     elif typ.kind == TypeKind.NODE or typ.kind == TypeKind.BASED_NODE:
-        ...  # nocheckin: sample node
+        if typ.bench_type == NodeType.FIELD:
+            assert typ.base_type is not None, f"missing base type for {typ!r}"
+            if len(typ.base_type.fields) > 0:
+                return typ.base_type.fields[0]
+        return None  # NOTE :Incomplete: :SampleNodeValues
     elif typ.kind == TypeKind.STRUCT:
         return sample_builtin_object(typ)
     else:
@@ -672,7 +677,7 @@ def sample_builtin_object(typ: "TypeInfoBase") -> "BuiltinObject":
             prop_value = SAMPLE_VALUE_BY_PROPERTY[prop.name]
             object_kwargs[prop.name] = [prop_value] if prop.is_list else prop_value
         elif prop.is_node_reference:
-            ...  # nocheckin: sample node
+            ...  # NOTE :Incomplete: :SampleNodeValues
         elif prop.is_struct_reference and not prop.is_required:
             object_kwargs[prop.name] = [] if prop.is_list else None  # don't recurse
         elif prop.is_property_reference:

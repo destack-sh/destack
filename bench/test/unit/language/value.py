@@ -156,12 +156,16 @@ def test_sample_value_scalar_constrained(session: Session, package: Package):
 
 
 UNGENERATABLE_STRUCT_TYPES = [
+    # Edit/Change have old/new_node_packed data
     StructType.EDIT,
     StructType.CHANGE,
+    # references have special handling
     StructType.NODE_REFERENCE,
     StructType.FILE_REFERENCE,
     StructType.SECRET_REFERENCE,
     StructType.PROPERTY_REFERENCE,
+    # Pipe has a required reference to a node, which we can't handle yet
+    StructType.PIPE,  # :SampleNodeValues
 ]
 
 
@@ -174,3 +178,15 @@ def test_sample_value_struct(struct_type: StructType, session: Session, package:
     typ = TypeInfo(kind=TypeKind.STRUCT, bench_type=struct_type)
     val = sample_value(typ)
     check_value(val, typ, on_invalid_raise)
+
+
+def test_sample_choice_block(session: Session, package: Package):
+    page = package.blocks.append(Block.new(BlockType.PAGE, "Page1"))
+    choice = Block.new(
+        BlockType.CHOICE,
+        "Choice1",
+        fields=[Field.option("Option1"), Field.option("Option2"), Field.option("Option3")],
+    )
+    page.blocks.append(choice)
+    sampled_field = sample_value(choice.to_type())
+    assert sampled_field in choice.fields

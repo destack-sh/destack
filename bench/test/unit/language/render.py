@@ -27,6 +27,8 @@ def test_render_builtin_object_expr(
     obj: BuiltinObject, shared_session: Session, shared_package: Package
 ):
     assume(obj.metatype != StructType.TEXT)  # :CrummyMarkdown
+    assume(obj.metatype != StructType.TYPE_CONSTRAINT)  # coerced to TypeConstraintIn (incomparable)
+
     renderer = Renderer(RenderOptions(scope=shared_package))
 
     # impute real nodes for required node references (since they're needed for rendering)
