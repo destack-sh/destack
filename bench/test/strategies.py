@@ -83,32 +83,6 @@ ENUM_TYPE_STRATEGY = st.sampled_from(EnumType)
 STRUCT_TYPE_STRATEGY = st.sampled_from(StructType)
 OBJECT_TYPE_STRATEGY = st.sampled_from(ObjectType)
 
-STRATEGY_BY_PRIMITIVE_TYPE: dict[PrimitiveType, st.SearchStrategy] = {
-    PrimitiveType.BOOLEAN: st.booleans(),
-    PrimitiveType.INT16: st.integers(min_value=-(2**15), max_value=2**15 - 1),
-    PrimitiveType.INT32: st.integers(min_value=-(2**31), max_value=2**31 - 1),
-    PrimitiveType.INT64: st.integers(min_value=-(2**63), max_value=2**63 - 1),
-    PrimitiveType.DECIMAL: st.decimals(),
-    PrimitiveType.FLOAT32: st.floats(allow_nan=False, allow_infinity=False),
-    PrimitiveType.FLOAT64: st.floats(allow_nan=False, allow_infinity=False),
-    PrimitiveType.STRING: st.text(min_size=1),
-    PrimitiveType.UUID: st.uuids(),
-    PrimitiveType.JSON: JSON_STRATEGY,
-    PrimitiveType.BYTES: st.binary(),
-    PrimitiveType.DATETIME: st.datetimes(timezones=st.just(pytz.utc)),
-    PrimitiveType.INTERVAL: st.timedeltas(
-        min_value=MIN_VALUE_BY_PRIMITIVE_TYPE[PrimitiveType.INTERVAL],
-        max_value=MAX_VALUE_BY_PRIMITIVE_TYPE[PrimitiveType.INTERVAL],
-    ),
-}
-STRATEGY_BY_PROPERTY: dict[str, st.SearchStrategy] = {
-    "order_key": ORDER_KEY_STRATEGY,
-}
-STRATEGY_BY_OBJECT_PROPERTY: dict[tuple[ObjectType, str], st.SearchStrategy] = {
-    (StructType.FILE_REFERENCE, "type"): st.just(NodeType.FILE),
-    (StructType.SECRET_REFERENCE, "type"): st.just(NodeType.SECRET),
-}
-
 
 @cacheable
 @defines_strategy()
@@ -311,6 +285,34 @@ def node_references(draw: st.DrawFn, node_types: st.SearchStrategy[NodeType]):
         bench_id = None
     return NodeReference(type=node_type, id=node_id, ck=node_ck, bench_id=bench_id)
 
+
+STRATEGY_BY_PRIMITIVE_TYPE: dict[PrimitiveType, st.SearchStrategy] = {
+    PrimitiveType.BOOLEAN: st.booleans(),
+    PrimitiveType.INT16: st.integers(min_value=-(2**15), max_value=2**15 - 1),
+    PrimitiveType.INT32: st.integers(min_value=-(2**31), max_value=2**31 - 1),
+    PrimitiveType.INT64: st.integers(min_value=-(2**63), max_value=2**63 - 1),
+    PrimitiveType.DECIMAL: st.decimals(),
+    PrimitiveType.FLOAT32: st.floats(allow_nan=False, allow_infinity=False),
+    PrimitiveType.FLOAT64: st.floats(allow_nan=False, allow_infinity=False),
+    PrimitiveType.STRING: st.text(min_size=1),
+    PrimitiveType.UUID: st.uuids(),
+    PrimitiveType.JSON: JSON_STRATEGY,
+    PrimitiveType.BYTES: st.binary(),
+    PrimitiveType.DATETIME: st.datetimes(timezones=st.just(pytz.utc)),
+    PrimitiveType.INTERVAL: st.timedeltas(
+        min_value=MIN_VALUE_BY_PRIMITIVE_TYPE[PrimitiveType.INTERVAL],
+        max_value=MAX_VALUE_BY_PRIMITIVE_TYPE[PrimitiveType.INTERVAL],
+    ),
+}
+STRATEGY_BY_PROPERTY: dict[str, st.SearchStrategy] = {
+    "order_key": ORDER_KEY_STRATEGY,
+}
+STRATEGY_BY_OBJECT_PROPERTY: dict[tuple[ObjectType, str], st.SearchStrategy] = {
+    (StructType.FILE_REFERENCE, "type"): st.just(NodeType.FILE),
+    (StructType.SECRET_REFERENCE, "type"): st.just(NodeType.SECRET),
+    (StructType.TEXT_LINE, "spans"): st.lists(from_object_type(StructType.TEXT_SPAN), min_size=1),
+    (StructType.TEXT_SPAN, "content"): st.text(min_size=1, max_size=64, alphabet=ascii_lowercase),
+}
 
 SIMPLE_TYPE_KINDS = st.sampled_from((TypeKind.PRIMITIVE, TypeKind.ENUM, TypeKind.STRUCT))
 
