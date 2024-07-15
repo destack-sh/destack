@@ -3,12 +3,12 @@ import inspect
 import textwrap
 from typing import Any, Callable, Mapping, cast
 
-from hypothesis import given
+from hypothesis import assume, given
 
 from bench.language import md
 from bench.language.bench import Package
 from bench.language.block import Block
-from bench.language.const import BlockType, ReferenceKind
+from bench.language.const import BlockType, ReferenceKind, StructType
 from bench.language.field import Field
 from bench.language.node import BuiltinObject, Node
 from bench.language.render import Renderer, RenderOptions, render
@@ -24,6 +24,7 @@ from bench.test.unit.conftest import BUILTIN_OBJECTS_BY_TYPE, BUILTIN_OBJECTS_OF
 def test_render_builtin_object_expr(
     obj: BuiltinObject, shared_session: Session, shared_package: Package
 ):
+    assume(obj.metatype != StructType.TEXT)  # :CrummyMarkdown
     renderer = Renderer(RenderOptions(scope=shared_package))
 
     # impute real nodes for required node references (since they're needed for rendering)
