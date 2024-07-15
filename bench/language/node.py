@@ -885,6 +885,7 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
                     if prop_value is None:
                         wired_prop_value = None
                     elif not prop.is_list:
+                        assert isinstance(prop_value, Node), f"{prop}: {prop_value!r} is not a Node"
                         assert supergraph.has(
                             prop_value._supergraph
                         ), f"{prop}: {prop_value!r} is from {prop_value._supergraph!r} not {supergraph!r}"
@@ -977,7 +978,7 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
         if other is None or self.metatype != getattr(other, "metatype", None):
             return False
         for prop in self.__wired_properties__.values():
-            if prop.id < 30:
+            if prop.id < 30 or prop.name == "order_key":
                 continue  # ignore identity/tracking
             self_value = getattr(self, prop.name)
             other_value = getattr(other, prop.name)

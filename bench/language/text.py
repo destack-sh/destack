@@ -354,6 +354,8 @@ def markdown_to_text(markdown: str) -> Text:
     """
     Convert markdown (or GH-flavored markdown) to our rich Text.
     """
+    if not markdown:
+        return Text.empty()
     md_lines = markdown.splitlines()
     text_lines: list[TextLine] = []
     for md_line in md_lines:

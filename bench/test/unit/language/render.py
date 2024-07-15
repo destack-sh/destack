@@ -10,8 +10,8 @@ from bench.language.bench import Package
 from bench.language.block import Block
 from bench.language.const import BlockType, ReferenceKind
 from bench.language.field import Field
-from bench.language.node import BuiltinObject
-from bench.language.render import RenderOptions, render, render_expr
+from bench.language.node import BuiltinObject, Node
+from bench.language.render import Renderer, RenderOptions, render
 from bench.language.session import Session
 from bench.runtime.compiler import BUILTIN_GLOBALS
 from bench.runtime.core import STATIC_CODE_GLOBALS
@@ -24,20 +24,30 @@ from bench.test.unit.conftest import BUILTIN_OBJECTS_BY_TYPE, BUILTIN_OBJECTS_OF
 def test_render_builtin_object_expr(
     obj: BuiltinObject, shared_session: Session, shared_package: Package
 ):
+    renderer = Renderer(RenderOptions(scope=shared_package))
+
     # impute real nodes for required node references (since they're needed for rendering)
+    node_references = {}
     for prop in obj.__node_reference_properties__.values():
         if prop.reference_kind != ReferenceKind.NODE_REGULAR:
             continue
         wired_prop = prop.reference_wired_ptr
         assert wired_prop is not None, f"no wired prop for {prop!r}"
         if not wired_prop.is_required or wired_prop.is_list or not wired_prop.reference_nodes:
+            if wired_prop.is_list:
+                setattr(obj, prop.name, [])
+            else:
+                setattr(obj, prop.name, None)
             continue
-        reference_obj = BUILTIN_OBJECTS_BY_TYPE[wired_prop.reference_nodes[0]]
-        setattr(obj, prop.name, reference_obj)
+        reference_node = BUILTIN_OBJECTS_BY_TYPE[wired_prop.reference_nodes[0]]
+        assert isinstance(reference_node, Node), f"expected Node, got {reference_node!r}"
+        reference_alias = renderer._add_node(reference_node)
+        node_references[reference_alias] = reference_node
+        setattr(obj, prop.name, reference_node)
 
     # render
-    rendered = render_expr(obj, options=RenderOptions(scope=shared_package))
-    glbls = {**STATIC_CODE_GLOBALS, **BUILTIN_GLOBALS}
+    rendered = renderer._render_builtin_object_expr(obj)
+    glbls = {**STATIC_CODE_GLOBALS, **BUILTIN_GLOBALS, **node_references}
     ret = eval(rendered, glbls)
     assert cast(BuiltinObject, ret)._equals_content(obj)
 

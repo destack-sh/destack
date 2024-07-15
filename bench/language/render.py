@@ -127,19 +127,26 @@ class Renderer:
         self._alias_by_node_id: dict[UUID, str] = {}
         self._node_by_alias: dict[str, Node] = {}
 
+    def __str__(self) -> str:
+        return f"scope={self.scope!r}, aliases={', '.join(self._node_by_alias)}"
+
+    def __repr__(self) -> str:
+        return f"<Renderer {self}>"
+
     @property
     def scope(self) -> Node:
         return self._options.scope
 
     def _render_node_ref(self, node: Node) -> str:
-        if node._is_attached:
+        alias = self._alias_by_node_id.get(node.id)
+        if alias is not None:
+            return alias
+        elif node._is_attached:
             path = get_path(scope=self.scope, node=node)
             path_str = render_path(path)
             return f"get_node({path_str!r})"
         else:
-            alias = self._alias_by_node_id.get(node.id)
-            assert alias is not None, f"no alias for {node!r}"
-            return alias
+            raise RuntimeError(f"node {node!r} is not attached and has no alias")
 
     def _render_value_scalar_expr(self, value: "ScalarValue", typ: "TypeInfoBase") -> str:
         """Renders single scalar value into an expression."""
@@ -224,25 +231,27 @@ class Renderer:
         else:
             assert_never(obj)
 
-    def _add_nodes(self, *objs: Node):
+    def _add_node(self, obj: Node) -> str:
         """Adds the given nodes to the context of this renderer."""
-        for obj in objs:
-            if obj.id in self._alias_by_node_id:
-                continue  # already assigned
-            if hasattr(obj, "name"):
-                alias = getattr(obj, "name")
+        if obj.id in self._alias_by_node_id:
+            return self._alias_by_node_id[obj.id]  # already assigned
+        alias = getattr(obj, "name") if hasattr(obj, "name") else obj.metatype.bench_name.lower()
+        # ensure alias is valid python identifier
+        if not alias:
+            alias = obj.metatype.bench_name.lower()
+        elif not re.match(r"^[a-zA-Z_]\w*$", alias):
+            alias = f"{obj.metatype.bench_name.lower()}_{alias}"
+        # bump digit at end if already exists
+        if alias in self._node_by_alias:
+            count = re.search(r"\d+$", alias)
+            if count:
+                count = int(count.group())
+                alias = re.sub(r"\d+$", str(count + 1), alias)
             else:
-                alias = obj.metatype.bench_name.lower()
-            if alias in self._node_by_alias:
-                # add/increment digit at end
-                count = re.search(r"\d+$", alias)
-                if count:
-                    count = int(count.group())
-                    alias = re.sub(r"\d+$", str(count + 1), alias)
-                else:
-                    alias += "2"
-            self._alias_by_node_id[obj.id] = alias
-            self._node_by_alias[alias] = obj
+                alias += "2"
+        self._alias_by_node_id[obj.id] = alias
+        self._node_by_alias[alias] = obj
+        return alias
 
     def _render_stmt(self, *objs: Node) -> str:
         """Renders the given objects to a Python block where the objects are defined."""
@@ -269,7 +278,7 @@ def _get_content_values(obj: BuiltinObject, *, include_defaults: bool = False) -
             continue
         value = getattr(obj, prop.name)
         if (
-            value is None
+            (value is None and prop.default is None)
             or (isinstance(value, Collection) and len(value) == 0)
             or (value is prop.default and not include_defaults)
         ):
@@ -298,7 +307,8 @@ def render_expr(obj: BuiltinObject | ValueObject, options: RenderOptions) -> str
 def render_stmt(*objs: Node, options: RenderOptions) -> str:
     """Renders the given object to a python block where the objects are defined."""
     renderer = Renderer(options)
-    renderer._add_nodes(*objs)
+    for obj in objs:
+        renderer._add_node(obj)
     rendered = renderer._render_stmt(*objs)
     if options.format:
         rendered = format_code(rendered, line_length=options.format_line_length)

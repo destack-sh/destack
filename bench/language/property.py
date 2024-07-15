@@ -746,6 +746,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
             self.is_introspectable
             or self.reference_source is not None
             or self.reference_nodes
+            or self.reference_kind == ReferenceKind.PROPERTY
             or self.id == 1
         ):
             self._type_info = self._to_type_info()
