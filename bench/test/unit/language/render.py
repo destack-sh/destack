@@ -14,6 +14,7 @@ from bench.language.node import BuiltinObject, Node
 from bench.language.render import Renderer, RenderOptions, render
 from bench.language.session import Session
 from bench.language.validation import constrain
+from bench.language.view import View, ViewType
 from bench.runtime.compiler import BUILTIN_GLOBALS
 from bench.runtime.core import STATIC_CODE_GLOBALS
 from bench.test.strategies import builtin_objects, examples
@@ -120,6 +121,14 @@ def test_render_class_block(shared_session: Session, shared_package: Package):
         fields=[Field.member("kind", ShapeType), Field.member("is_cool", bool)],
     )
     return {"ShapeType": ShapeType, "Shape": Shape}
+
+
+@_render_as_stmt
+def test_render_view_block(shared_session: Session, shared_package: Package):
+    View1 = Block.new(BlockType.VIEW, "View1")
+    Logs1 = View.new(ViewType.LOG, "Logs1")
+    View1.views.append(Logs1)
+    return {"View1": View1, "Logs1": Logs1}
 
 
 @_render_as_stmt

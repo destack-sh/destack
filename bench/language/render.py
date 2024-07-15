@@ -25,9 +25,10 @@ from bench.language.field import Field, TypeConstraint, TypeInfoBase, reverse_ty
 from bench.language.node import BuiltinObject, Node, Struct
 from bench.language.path import get_path, render_path
 from bench.language.property import Property
-from bench.language.setup import ENUM_CLASS_BY_TYPE
+from bench.language.setup import ENUM_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE
 from bench.language.text import Text
 from bench.language.value import ScalarValue, SomeValue, ValueObject
+from bench.language.view import View
 
 if TYPE_CHECKING:
     pass
@@ -265,13 +266,14 @@ class Renderer:
         rendered_objs = []
         for obj in objs:
             rendered = self.render_obj_expr(obj)
-            is_parent_in_scope = (
-                obj.parent_ptr is not None and obj.parent_ptr.id in self._alias_by_node_id
-            )
-            rendered_objs.append(f"{self._alias_by_node_id[obj.id]} = {rendered}")
-            if is_parent_in_scope:
+            obj_ref = self._alias_by_node_id[obj.id]
+            rendered_objs.append(f"{obj_ref} = {rendered}")
+            if obj.parent_ptr and obj.parent_ptr.id in self._alias_by_node_id:
                 # append to parent
-                ...  # nocheckin: append rendered obj to parent
+                parent_ref = self._alias_by_node_id[cast(UUID, obj.parent_ptr.id)]
+                parent_cls = NODE_CLASS_BY_TYPE[obj.parent_ptr.type]
+                parent_child_prop = parent_cls.get_node_child_property(obj.metatype)
+                rendered_objs.append(f"{parent_ref}.{parent_child_prop.name}.append({obj_ref})")
         rendered = self._options.stmt_separator.join(rendered_objs)
         return rendered
 
@@ -361,9 +363,27 @@ class BlockRenderer(BuiltinObjectRenderer[Block]):
         block_args = renderer._render_args(
             rendered_kwargs.pop("type"),
             rendered_kwargs.pop("name"),
-            renderer._render_kwargs(**rendered_kwargs),
+            renderer._render_kwargs(**rendered_kwargs) or None,
         )
         return f"Block.new({block_args})"
+
+
+@_renderer(NodeType.VIEW)
+class ViewRenderer(BuiltinObjectRenderer[View]):
+    @override
+    def render_constructor(
+        self,
+        renderer: "Renderer",
+        obj: View,
+        kwargs: dict[str, Any],
+        rendered_kwargs: dict[str, str],
+    ) -> str:
+        view_args = renderer._render_args(
+            rendered_kwargs.pop("type"),
+            rendered_kwargs.pop("name"),
+            renderer._render_kwargs(**rendered_kwargs) or None,
+        )
+        return f"View.new({view_args})"
 
 
 @_renderer(NodeType.FIELD)

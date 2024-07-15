@@ -42,6 +42,7 @@ from bench.language.property import (
 from bench.language.setup import ENUM_CLASS_BY_TYPE, OBJECT_CLASS_BY_TYPE
 from bench.language.validation import NAME_CONSTRAINT, on_invalid_raise
 from bench.proto.wire import AnyNodeData, AnyStructData
+from bench.utils.fractional import INTEGER_ZERO
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -591,7 +592,14 @@ def check_value(value: Any, typ: "TypeInfoBase", invalid: "ValidationHandler") -
 
 #
 # Value sampling
+# NOTE :Incomplete :Feature: we'll probably want value sampling as a more general feature
+#  (also, value sampling is suspiciously similar to the strategy-based sampling we do
+#   during testing, but just different enough because this is sparse, low-volume & user-facing)
 #
+
+SAMPLE_VALUE_BY_PROPERTY: dict[str, SomeValue] = {
+    "order_key": INTEGER_ZERO,
+}
 
 
 def sample_scalar_value(typ: "TypeInfoBase") -> ScalarValue | None:
@@ -616,9 +624,9 @@ def sample_scalar_value(typ: "TypeInfoBase") -> ScalarValue | None:
             elif typ.primitive_type.is_int:
                 return 42
         elif typ.primitive_type == PrimitiveType.STRING:
-            return "<some string>"
+            return "string"
         elif typ.primitive_type == PrimitiveType.BYTES:
-            return b"<some bytes>"
+            return b"bytes"
         elif typ.primitive_type == PrimitiveType.UUID:
             return UUID("00000000-0000-0000-0000-000000000000")
         elif typ.primitive_type == PrimitiveType.JSON:
@@ -660,10 +668,15 @@ def sample_builtin_object(typ: "TypeInfoBase") -> "BuiltinObject":
             or prop.is_autoset
         ):
             continue  # :IgnoredGeneratedProperties
+        elif prop.name in SAMPLE_VALUE_BY_PROPERTY:
+            prop_value = SAMPLE_VALUE_BY_PROPERTY[prop.name]
+            object_kwargs[prop.name] = [prop_value] if prop.is_list else prop_value
         elif prop.is_node_reference:
             ...  # nocheckin: sample node
+        elif prop.is_struct_reference and not prop.is_required:
+            object_kwargs[prop.name] = [] if prop.is_list else None  # don't recurse
         elif prop.is_property_reference:
-            object_kwargs[prop.name] = prop
+            object_kwargs[prop.name] = [prop] if prop.is_list else prop
         elif prop.reference_is_node_data or prop.is_value_runtime or prop.is_value_packed:
             object_kwargs[prop.name] = None
         else:
