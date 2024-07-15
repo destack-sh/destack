@@ -217,7 +217,7 @@ async def test_run_code_raise_retryable_error(runner: RuntimeRunner, page: Block
 
     run = await runner.run(CodeBlock, return_error=True)
     assert run.status == RunStatus.FAILED
-    assert run.error and run.error.type == RunErrorType.UNKNOWN_UNRETRYABLE
+    assert run.error and run.error.type == RunErrorType.UNKNOWN_RETRYABLE
     assert len(run.attempts) == 3
 
 
