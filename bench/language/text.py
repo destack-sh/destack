@@ -20,7 +20,7 @@ from bench.language.property import p_regular
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
-    from bench.language import ColorType, Icon
+    from bench.language import ColorType
 
 
 @object_component()
@@ -123,7 +123,6 @@ class TextLine(TextOptions, Struct):
 
     type: TextLineType = p_regular(30, default=TextLineType.PLAIN)
     spans: list["TextSpan"] = p_regular(33, array=True, struct=StructType.TEXT_SPAN)
-    icon: Optional["Icon"] = p_regular(34, default=None, struct=StructType.ICON)
 
     def __content_str__(self):
         if self.type == TextLineType.DIVIDER:

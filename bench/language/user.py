@@ -93,8 +93,7 @@ class User(Node[UserData]):
         51, default=None, defer=True, encrypt=True, sensitive=True
     )
     # challenges?
-    # password_reset_token: Optional[UUID] = ...
-    # email_confirmation_token: Optional[UUID] = ...
+    # password_reset_token, email_confirmation_token, ...
 
     # activity
     last_logged_in_at: Optional[datetime] = p_system(70, default=None)

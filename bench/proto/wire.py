@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.07.13.0"
+VERSION = "2024.07.15.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -1173,7 +1173,6 @@ class StepType(betterproto.Enum):
     FILTER = 101
     LOOP = 102
     MERGE = 103
-    SPLIT = 104
     FLATTEN = 105
     ACCUMULATE = 106
     REDUCE = 107
@@ -2195,7 +2194,6 @@ class TextLineData(betterproto.Message):
     order_key: Optional[str] = betterproto.string_field(9, optional=True)
     type: "TextLineType" = betterproto.enum_field(30)
     spans: List["TextSpanData"] = betterproto.message_field(33)
-    icon: Optional["IconData"] = betterproto.message_field(34, optional=True)
     color: Optional["ColorType"] = betterproto.enum_field(50, optional=True)
     is_bold: Optional[bool] = betterproto.bool_field(60, optional=True)
     is_italic: Optional[bool] = betterproto.bool_field(61, optional=True)

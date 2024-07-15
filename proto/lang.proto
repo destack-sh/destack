@@ -1107,7 +1107,6 @@ enum StepType {
   STEP_TYPE_FILTER = 101;
   STEP_TYPE_LOOP = 102;
   STEP_TYPE_MERGE = 103;
-  STEP_TYPE_SPLIT = 104;
   STEP_TYPE_FLATTEN = 105;
   STEP_TYPE_ACCUMULATE = 106;
   STEP_TYPE_REDUCE = 107;
@@ -1971,7 +1970,6 @@ message TextLineData {
   optional string order_key = 9;
   TextLineType type = 30;
   repeated TextSpanData spans = 33;
-  optional IconData icon = 34;
   optional ColorType color = 50;
   optional bool is_bold = 60;
   optional bool is_italic = 61;

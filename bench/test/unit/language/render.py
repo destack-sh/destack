@@ -29,22 +29,24 @@ def test_render_builtin_object_expr(
 
     # impute real nodes for required node references (since they're needed for rendering)
     node_references = {}
-    for prop in obj.__node_reference_properties__.values():
-        if prop.reference_kind != ReferenceKind.NODE_REGULAR:
-            continue
-        wired_prop = prop.reference_wired_ptr
-        assert wired_prop is not None, f"no wired prop for {prop!r}"
-        if not wired_prop.is_required or wired_prop.is_list or not wired_prop.reference_nodes:
-            if wired_prop.is_list:
-                setattr(obj, prop.name, [])
-            else:
-                setattr(obj, prop.name, None)
-            continue
-        reference_node = BUILTIN_OBJECTS_BY_TYPE[wired_prop.reference_nodes[0]]
-        assert isinstance(reference_node, Node), f"expected Node, got {reference_node!r}"
-        reference_alias = renderer._add_node(reference_node)
-        node_references[reference_alias] = reference_node
-        setattr(obj, prop.name, reference_node)
+    for o in obj._walk_struct():
+        for prop in o.__node_reference_properties__.values():
+            if prop.reference_kind != ReferenceKind.NODE_REGULAR:
+                continue
+            wired_prop = prop.reference_wired_ptr
+            assert wired_prop is not None, f"no wired prop for {prop!r}"
+            if not wired_prop.is_required or wired_prop.is_list or not wired_prop.reference_nodes:
+                # ignore any generated references (they're not real)
+                if wired_prop.is_list:
+                    setattr(o, prop.name, [])
+                else:
+                    setattr(o, prop.name, None)
+                continue
+            reference_node = BUILTIN_OBJECTS_BY_TYPE[wired_prop.reference_nodes[0]]
+            assert isinstance(reference_node, Node), f"expected Node, got {reference_node!r}"
+            reference_alias = renderer._add_node(reference_node)
+            node_references[reference_alias] = reference_node
+            setattr(o, prop.name, reference_node)
 
     # render
     rendered = renderer._render_builtin_object_expr(obj)

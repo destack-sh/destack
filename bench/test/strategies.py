@@ -310,8 +310,17 @@ STRATEGY_BY_PROPERTY: dict[str, st.SearchStrategy] = {
 STRATEGY_BY_OBJECT_PROPERTY: dict[tuple[ObjectType, str], st.SearchStrategy] = {
     (StructType.FILE_REFERENCE, "type"): st.just(NodeType.FILE),
     (StructType.SECRET_REFERENCE, "type"): st.just(NodeType.SECRET),
-    (StructType.TEXT_LINE, "spans"): st.lists(from_object_type(StructType.TEXT_SPAN), min_size=1),
+    # Text is pretty limited right now :CrummyMarkdown
+    (StructType.TEXT, "lines"): st.lists(from_object_type(StructType.TEXT_LINE), max_size=0),
+    (StructType.TEXT_LINE, "spans"): st.lists(
+        from_object_type(StructType.TEXT_SPAN), min_size=1, max_size=1
+    ),
     (StructType.TEXT_SPAN, "content"): st.text(min_size=1, max_size=64, alphabet=ascii_lowercase),
+    **{
+        (s, p): st.just(None)
+        for p in ("color", "is_bold", "is_italic", "is_strikethrough", "is_underline", "is_code")
+        for s in (StructType.TEXT_LINE, StructType.TEXT_SPAN)
+    },
 }
 
 SIMPLE_TYPE_KINDS = st.sampled_from((TypeKind.PRIMITIVE, TypeKind.ENUM, TypeKind.STRUCT))
