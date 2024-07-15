@@ -331,7 +331,14 @@ def _coerce_value_scalar(
     ancestor_prop: "Property | None" = None,
 ) -> ScalarValue:
     """Coerces a scalar value (primitive, node, struct)"""
-    if typ.kind == TypeKind.STRUCT and parent is not None and isinstance(value, InlineStruct):
+    if typ.kind == TypeKind.PRIMITIVE:
+        assert typ.primitive_type is not None, f"missing primitive type for {typ!r}"
+        if typ.primitive_type.is_numeric:
+            if typ.primitive_type.is_float:
+                value = float(cast(Any, value))
+            elif typ.primitive_type.is_int:
+                value = int(cast(Any, value))
+    elif typ.kind == TypeKind.STRUCT and parent is not None and isinstance(value, InlineStruct):
         assert parent_prop is not None, f"{typ!r} got parent {parent!r} but no parent_prop"
         value = cast("Struct", value)._move_to(parent, parent_prop, ancestor_prop)
     return value
@@ -456,7 +463,7 @@ def check_value_scalar(value: SomeValue, typ: "TypeInfoBase", invalid: "Validati
                     invalid(value, "too large", typ)
                 if (
                     typ.constraint.step_value is not None
-                    and value % typ.constraint.step_value > FLOAT_EPSILON
+                    and abs(value % typ.constraint.step_value) > FLOAT_EPSILON
                 ):
                     invalid(value, f"not a multiple of {typ.constraint.step_value}", typ)
             if type(value) is str:

@@ -983,7 +983,10 @@ enum RunErrorType {
   RUN_ERROR_TYPE_UNSPECIFIED = 0;
   RUN_ERROR_TYPE_RUNTIME_UNAVAILABLE = 1;
   RUN_ERROR_TYPE_NOT_RUNNABLE = 2;
-  RUN_ERROR_TYPE_REPLAY = 3;
+  RUN_ERROR_TYPE_REPLAY = 10;
+  RUN_ERROR_TYPE_UNKNOWN_UNRETRYABLE = 499;
+  RUN_ERROR_TYPE_MODEL_FAILED = 500;
+  RUN_ERROR_TYPE_UNKNOWN_RETRYABLE = 999;
 }
 
 // The kind of some runnable.
@@ -1625,7 +1628,8 @@ message ModelOptionsData {
   optional int32 parent_id = 3;
   optional string parent_key = 4;
   optional string order_key = 9;
-  ModelType model = 31;
+  optional ModelProvider provider = 30;
+  optional ModelType model = 31;
 }
 
 // A plain reference to a Node.
@@ -1821,7 +1825,7 @@ message RunErrorData {
   optional string parent_key = 4;
   optional string order_key = 9;
   RunErrorKind kind = 30;
-  optional RunErrorType type = 31;
+  RunErrorType type = 31;
   optional string title = 32;
   optional TextData text = 33;
   optional NodeReferenceData node_ptr = 34;
@@ -1924,7 +1928,9 @@ message SessionContextData {
 message StartViewStateData {
   ObjectType metatype = 1;
   optional google.protobuf.Struct inputs_packed = 30;
-  optional FeedViewStateData feed = 31;
+  optional NodeReferenceData last_run_ptr = 40;
+  optional google.protobuf.Struct last_outputs_packed = 41;
+  optional FeedViewStateData feed = 50;
 }
 
 // The <whoever/whatever> issuing a request. Unknown/ignored attributes are unset.

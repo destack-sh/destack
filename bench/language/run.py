@@ -231,6 +231,7 @@ class RunErrorType(IdEnum):
     UNKNOWN_UNRETRYABLE = 499
     # during run
     MODEL_FAILED = 500
+    MODEL_INCAPABLE = 501
     UNKNOWN_RETRYABLE = 999
 
     @property
@@ -244,7 +245,7 @@ class RunError(Struct, BenchError):
     """An error that occurred in the context of a Run."""
 
     kind: RunErrorKind = p_internal(30)
-    type: Optional[RunErrorType] = p_internal(31, default=None)
+    type: RunErrorType = p_internal(31, default=None)
     title: Optional[str] = p_internal(32, default=None, constraint=TITLE_CONSTRAINT)
     text: Optional["Text"] = p_internal(33, default=None, struct=StructType.TEXT)
     node: Optional["Node"] = p_internal(34, require=False, array=False, references=NodeType.BLOCK)
@@ -261,15 +262,20 @@ class RunError(Struct, BenchError):
 
     @property
     def is_retryable(self) -> bool:
-        return self.type is not None and self.type.is_retryable
+        return self.type is None or self.type.is_retryable
 
     @staticmethod
     def from_exception(kind: RunErrorKind, e: Exception) -> "RunError":
         # NOTE :Incomplete: get run error trace/frames/node/...
         title = to_casing(e.__class__.__name__, Casing.CAMEL, allow_whitespace=True)
-        type = getattr(e, "run_error_type", None)
-        assert type is None or isinstance(type, RunErrorType), f"unexpected {type!r} from {e!r}"
-        return RunError(kind=kind, type=type, title=title, text=Text.plain(str(e)))
+        if hasattr(e, "run_error_type"):
+            typ = getattr(e, "run_error_type")
+            assert isinstance(typ, RunErrorType), f"unexpected {typ!r} from {e!r}"
+        elif kind == RunErrorKind.RUNTIME:
+            typ = RunErrorType.UNKNOWN_RETRYABLE
+        else:
+            typ = RunErrorType.UNKNOWN_UNRETRYABLE
+        return RunError(kind=kind, type=typ, title=title, text=Text.plain(str(e)))
 
 
 @timed_node(NodeType.RUN)

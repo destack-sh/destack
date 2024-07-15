@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.07.15.0"
+VERSION = "2024.07.15.1"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -1045,7 +1045,10 @@ class RunErrorType(betterproto.Enum):
     UNSPECIFIED = 0
     RUNTIME_UNAVAILABLE = 1
     NOT_RUNNABLE = 2
-    REPLAY = 3
+    REPLAY = 10
+    UNKNOWN_UNRETRYABLE = 499
+    MODEL_FAILED = 500
+    UNKNOWN_RETRYABLE = 999
 
 
 class RunKind(betterproto.Enum):
@@ -1775,7 +1778,8 @@ class ModelOptionsData(betterproto.Message):
     parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
     parent_key: Optional[str] = betterproto.string_field(4, optional=True)
     order_key: Optional[str] = betterproto.string_field(9, optional=True)
-    model: "ModelType" = betterproto.enum_field(31)
+    provider: Optional["ModelProvider"] = betterproto.enum_field(30, optional=True)
+    model: Optional["ModelType"] = betterproto.enum_field(31, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2011,7 +2015,7 @@ class RunErrorData(betterproto.Message):
     parent_key: Optional[str] = betterproto.string_field(4, optional=True)
     order_key: Optional[str] = betterproto.string_field(9, optional=True)
     kind: "RunErrorKind" = betterproto.enum_field(30)
-    type: Optional["RunErrorType"] = betterproto.enum_field(31, optional=True)
+    type: "RunErrorType" = betterproto.enum_field(31)
     title: Optional[str] = betterproto.string_field(32, optional=True)
     text: Optional["TextData"] = betterproto.message_field(33, optional=True)
     node_ptr: Optional["NodeReferenceData"] = betterproto.message_field(34, optional=True)
@@ -2136,7 +2140,11 @@ class StartViewStateData(betterproto.Message):
     inputs_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         30, optional=True
     )
-    feed: Optional["FeedViewStateData"] = betterproto.message_field(31, optional=True)
+    last_run_ptr: Optional["NodeReferenceData"] = betterproto.message_field(40, optional=True)
+    last_outputs_packed: Optional["betterproto_lib_google_protobuf.Struct"] = (
+        betterproto.message_field(41, optional=True)
+    )
+    feed: Optional["FeedViewStateData"] = betterproto.message_field(50, optional=True)
 
 
 @dataclass(eq=False, repr=False)

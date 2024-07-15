@@ -868,9 +868,13 @@ export interface ModelOptionsData {
      */
     orderKey?: string;
     /**
-     * @generated from protobuf field: symbolx.bench.ModelType model = 31;
+     * @generated from protobuf field: optional symbolx.bench.ModelProvider provider = 30;
      */
-    model: ModelType;
+    provider?: ModelProvider;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.ModelType model = 31;
+     */
+    model?: ModelType;
 }
 /**
  * A plain reference to a Node.
@@ -1412,9 +1416,9 @@ export interface RunErrorData {
      */
     kind: RunErrorKind;
     /**
-     * @generated from protobuf field: optional symbolx.bench.RunErrorType type = 31;
+     * @generated from protobuf field: symbolx.bench.RunErrorType type = 31;
      */
-    type?: RunErrorType;
+    type: RunErrorType;
     /**
      * @generated from protobuf field: optional string title = 32;
      */
@@ -1749,7 +1753,15 @@ export interface StartViewStateData {
      */
     inputsPacked?: Struct;
     /**
-     * @generated from protobuf field: optional symbolx.bench.FeedViewStateData feed = 31;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData last_run_ptr = 40;
+     */
+    lastRunPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Struct last_outputs_packed = 41;
+     */
+    lastOutputsPacked?: Struct;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.FeedViewStateData feed = 50;
      */
     feed?: FeedViewStateData;
 }
@@ -9703,9 +9715,21 @@ export enum RunErrorType {
      */
     NOT_RUNNABLE = 2,
     /**
-     * @generated from protobuf enum value: RUN_ERROR_TYPE_REPLAY = 3;
+     * @generated from protobuf enum value: RUN_ERROR_TYPE_REPLAY = 10;
      */
-    REPLAY = 3
+    REPLAY = 10,
+    /**
+     * @generated from protobuf enum value: RUN_ERROR_TYPE_UNKNOWN_UNRETRYABLE = 499;
+     */
+    UNKNOWN_UNRETRYABLE = 499,
+    /**
+     * @generated from protobuf enum value: RUN_ERROR_TYPE_MODEL_FAILED = 500;
+     */
+    MODEL_FAILED = 500,
+    /**
+     * @generated from protobuf enum value: RUN_ERROR_TYPE_UNKNOWN_RETRYABLE = 999;
+     */
+    UNKNOWN_RETRYABLE = 999
 }
 /**
  * The kind of some runnable.
@@ -13107,14 +13131,14 @@ class ModelOptionsData$Type extends MessageType<ModelOptionsData> {
             { no: 3, name: "parent_id", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 9, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 31, name: "model", kind: "enum", T: () => ["symbolx.bench.ModelType", ModelType, "MODEL_TYPE_"] }
+            { no: 30, name: "provider", kind: "enum", opt: true, T: () => ["symbolx.bench.ModelProvider", ModelProvider, "MODEL_PROVIDER_"] },
+            { no: 31, name: "model", kind: "enum", opt: true, T: () => ["symbolx.bench.ModelType", ModelType, "MODEL_TYPE_"] }
         ]);
     }
     create(value?: PartialMessage<ModelOptionsData>): ModelOptionsData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.id = 0;
-        message.model = 0;
         if (value !== undefined)
             reflectionMergePartial<ModelOptionsData>(this, message, value);
         return message;
@@ -13139,7 +13163,10 @@ class ModelOptionsData$Type extends MessageType<ModelOptionsData> {
                 case /* optional string order_key */ 9:
                     message.orderKey = reader.string();
                     break;
-                case /* symbolx.bench.ModelType model */ 31:
+                case /* optional symbolx.bench.ModelProvider provider */ 30:
+                    message.provider = reader.int32();
+                    break;
+                case /* optional symbolx.bench.ModelType model */ 31:
                     message.model = reader.int32();
                     break;
                 default:
@@ -13169,8 +13196,11 @@ class ModelOptionsData$Type extends MessageType<ModelOptionsData> {
         /* optional string order_key = 9; */
         if (message.orderKey !== undefined)
             writer.tag(9, WireType.LengthDelimited).string(message.orderKey);
-        /* symbolx.bench.ModelType model = 31; */
-        if (message.model !== 0)
+        /* optional symbolx.bench.ModelProvider provider = 30; */
+        if (message.provider !== undefined)
+            writer.tag(30, WireType.Varint).int32(message.provider);
+        /* optional symbolx.bench.ModelType model = 31; */
+        if (message.model !== undefined)
             writer.tag(31, WireType.Varint).int32(message.model);
         let u = options.writeUnknownFields;
         if (u !== false)
@@ -14415,7 +14445,7 @@ class RunErrorData$Type extends MessageType<RunErrorData> {
             { no: 4, name: "parent_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 9, name: "order_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "kind", kind: "enum", T: () => ["symbolx.bench.RunErrorKind", RunErrorKind, "RUN_ERROR_KIND_"] },
-            { no: 31, name: "type", kind: "enum", opt: true, T: () => ["symbolx.bench.RunErrorType", RunErrorType, "RUN_ERROR_TYPE_"] },
+            { no: 31, name: "type", kind: "enum", T: () => ["symbolx.bench.RunErrorType", RunErrorType, "RUN_ERROR_TYPE_"] },
             { no: 32, name: "title", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 33, name: "text", kind: "message", T: () => TextData },
             { no: 34, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
@@ -14427,6 +14457,7 @@ class RunErrorData$Type extends MessageType<RunErrorData> {
         message.metatype = 0;
         message.id = 0;
         message.kind = 0;
+        message.type = 0;
         if (value !== undefined)
             reflectionMergePartial<RunErrorData>(this, message, value);
         return message;
@@ -14454,7 +14485,7 @@ class RunErrorData$Type extends MessageType<RunErrorData> {
                 case /* symbolx.bench.RunErrorKind kind */ 30:
                     message.kind = reader.int32();
                     break;
-                case /* optional symbolx.bench.RunErrorType type */ 31:
+                case /* symbolx.bench.RunErrorType type */ 31:
                     message.type = reader.int32();
                     break;
                 case /* optional string title */ 32:
@@ -14499,8 +14530,8 @@ class RunErrorData$Type extends MessageType<RunErrorData> {
         /* symbolx.bench.RunErrorKind kind = 30; */
         if (message.kind !== 0)
             writer.tag(30, WireType.Varint).int32(message.kind);
-        /* optional symbolx.bench.RunErrorType type = 31; */
-        if (message.type !== undefined)
+        /* symbolx.bench.RunErrorType type = 31; */
+        if (message.type !== 0)
             writer.tag(31, WireType.Varint).int32(message.type);
         /* optional string title = 32; */
         if (message.title !== undefined)
@@ -15273,7 +15304,9 @@ class StartViewStateData$Type extends MessageType<StartViewStateData> {
         super("symbolx.bench.StartViewStateData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 30, name: "inputs_packed", kind: "message", T: () => Struct },
-            { no: 31, name: "feed", kind: "message", T: () => FeedViewStateData }
+            { no: 40, name: "last_run_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 41, name: "last_outputs_packed", kind: "message", T: () => Struct },
+            { no: 50, name: "feed", kind: "message", T: () => FeedViewStateData }
         ]);
     }
     create(value?: PartialMessage<StartViewStateData>): StartViewStateData {
@@ -15294,7 +15327,13 @@ class StartViewStateData$Type extends MessageType<StartViewStateData> {
                 case /* optional google.protobuf.Struct inputs_packed */ 30:
                     message.inputsPacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.inputsPacked);
                     break;
-                case /* optional symbolx.bench.FeedViewStateData feed */ 31:
+                case /* optional symbolx.bench.NodeReferenceData last_run_ptr */ 40:
+                    message.lastRunPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.lastRunPtr);
+                    break;
+                case /* optional google.protobuf.Struct last_outputs_packed */ 41:
+                    message.lastOutputsPacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.lastOutputsPacked);
+                    break;
+                case /* optional symbolx.bench.FeedViewStateData feed */ 50:
                     message.feed = FeedViewStateData.internalBinaryRead(reader, reader.uint32(), options, message.feed);
                     break;
                 default:
@@ -15315,9 +15354,15 @@ class StartViewStateData$Type extends MessageType<StartViewStateData> {
         /* optional google.protobuf.Struct inputs_packed = 30; */
         if (message.inputsPacked)
             Struct.internalBinaryWrite(message.inputsPacked, writer.tag(30, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.FeedViewStateData feed = 31; */
+        /* optional symbolx.bench.NodeReferenceData last_run_ptr = 40; */
+        if (message.lastRunPtr)
+            NodeReferenceData.internalBinaryWrite(message.lastRunPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Struct last_outputs_packed = 41; */
+        if (message.lastOutputsPacked)
+            Struct.internalBinaryWrite(message.lastOutputsPacked, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.FeedViewStateData feed = 50; */
         if (message.feed)
-            FeedViewStateData.internalBinaryWrite(message.feed, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
+            FeedViewStateData.internalBinaryWrite(message.feed, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -27239,6 +27284,7 @@ export enum ModelOptionsProperty {
   parentId = 3,
   parentKey = 4,
   orderKey = 9,
+  provider = 30,
   model = 31,
 }
 
@@ -27299,7 +27345,9 @@ export enum TransformProperty {
 export enum StartViewStateProperty {
   metatype = 1,
   inputsPacked = 30,
-  feed = 31,
+  lastRunPtr = 40,
+  lastOutputsPacked = 41,
+  feed = 50,
 }
 
 export enum FeedViewStateProperty {
@@ -27991,7 +28039,7 @@ export const RunErrorDataInfo: Record<RunErrorProperty, PropertyInfo> = {
   [RunErrorProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.RUN_ERROR, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [RunErrorProperty.orderKey]: { id: 9, name: 'order_key', component: ObjectType.RUN_ERROR, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RunErrorProperty.kind]: { id: 30, name: 'kind', component: ObjectType.RUN_ERROR, enumType: EnumType.RUN_ERROR_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [RunErrorProperty.type]: { id: 31, name: 'type', component: ObjectType.RUN_ERROR, enumType: EnumType.RUN_ERROR_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [RunErrorProperty.type]: { id: 31, name: 'type', component: ObjectType.RUN_ERROR, enumType: EnumType.RUN_ERROR_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RunErrorProperty.title]: { id: 32, name: 'title', component: ObjectType.RUN_ERROR, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RunErrorProperty.text]: { id: 33, name: 'text', component: ObjectType.RUN_ERROR, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [RunErrorProperty.nodePtr]: { id: 34, name: 'node_ptr', component: ObjectType.RUN_ERROR, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
@@ -28060,7 +28108,8 @@ export const ModelOptionsDataInfo: Record<ModelOptionsProperty, PropertyInfo> = 
   [ModelOptionsProperty.parentId]: { id: 3, name: 'parent_id', component: ObjectType.MODEL_OPTIONS, kind: 'reference', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [ModelOptionsProperty.parentKey]: { id: 4, name: 'parent_key', component: ObjectType.MODEL_OPTIONS, kind: 'reference', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_PARENT },
   [ModelOptionsProperty.orderKey]: { id: 9, name: 'order_key', component: ObjectType.MODEL_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [ModelOptionsProperty.model]: { id: 31, name: 'model', component: ObjectType.MODEL_OPTIONS, enumType: EnumType.MODEL_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ModelOptionsProperty.provider]: { id: 30, name: 'provider', component: ObjectType.MODEL_OPTIONS, enumType: EnumType.MODEL_PROVIDER, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [ModelOptionsProperty.model]: { id: 31, name: 'model', component: ObjectType.MODEL_OPTIONS, enumType: EnumType.MODEL_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
 }
 export const LogInfoDataInfo: Record<LogInfoProperty, PropertyInfo> = {
   [LogInfoProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.LOG_INFO, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -28113,7 +28162,9 @@ export const TransformDataInfo: Record<TransformProperty, PropertyInfo> = {
 export const StartViewStateDataInfo: Record<StartViewStateProperty, PropertyInfo> = {
   [StartViewStateProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.START_VIEW_STATE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [StartViewStateProperty.inputsPacked]: { id: 30, name: 'inputs_packed', component: ObjectType.START_VIEW_STATE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [StartViewStateProperty.feed]: { id: 31, name: 'feed', component: ObjectType.START_VIEW_STATE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.FEED_VIEW_STATE },
+  [StartViewStateProperty.lastRunPtr]: { id: 40, name: 'last_run_ptr', component: ObjectType.START_VIEW_STATE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [StartViewStateProperty.lastOutputsPacked]: { id: 41, name: 'last_outputs_packed', component: ObjectType.START_VIEW_STATE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [StartViewStateProperty.feed]: { id: 50, name: 'feed', component: ObjectType.START_VIEW_STATE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.FEED_VIEW_STATE },
 }
 export const FeedViewStateDataInfo: Record<FeedViewStateProperty, PropertyInfo> = {
   [FeedViewStateProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.FEED_VIEW_STATE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },

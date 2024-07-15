@@ -71,7 +71,7 @@ defineExpose<ViewExposed>({ self, id });
           v-for="{ field, value, viewType, viewProps, isFullWidth, storageKey } in inputViews"
           :key="field.id"
           class="py-1"
-          :class="[isFullWidth ? 'flex flex-col gap-y-1' : 'flex flex-row  items-center gap-x-2.5']"
+          :class="[isFullWidth ? 'flex flex-col gap-y-1' : 'flex flex-row gap-x-2.5']"
         >
           <!-- Title -->
           <span class="font-medium">{{ field.name }}</span>
@@ -102,7 +102,7 @@ defineExpose<ViewExposed>({ self, id });
           v-for="{ field, value, viewType, viewProps, isFullWidth, storageKey } in outputViews"
           :key="field.id"
           class="py-1"
-          :class="[isFullWidth ? 'flex flex-col gap-y-1' : 'flex flex-row  items-center gap-x-2.5']"
+          :class="[isFullWidth ? 'flex flex-col gap-y-1' : 'flex flex-row  gap-x-2.5']"
         >
           <!-- Title -->
           <span class="font-medium">{{ field.name }}</span>
@@ -154,7 +154,7 @@ defineExpose<ViewExposed>({ self, id });
     </div>
 
     <!-- Logs -->
-    <div v-if="run?.logs" class="mt-2 flex flex-col gap-y-1 font-mono">
+    <div v-if="run?.logs != null && run.logs.length > 0" class="mt-2 flex flex-col gap-y-1 font-mono">
       <span class="font-medium">Logs</span>
       <div v-for="(log, i) in run?.logs" :key="i" class="flex flex-row text-gray-900">
         <span class="mr-2 flex-shrink-0 text-gray-400">{{ tsToDt(log.createdAt!).toFormat("HH:mm:ss:SSS") }}</span>

@@ -49,7 +49,7 @@ from bench.language.property import (
     p_value_runtime,
 )
 from bench.language.setup import OBJECT_TYPE_BY_CLASS
-from bench.language.validation import NAME_CONSTRAINT, ValidationHandler
+from bench.language.validation import NAME_CONSTRAINT, TypeConstraintIn, ValidationHandler
 from bench.language.value import HasValues, SomeValue, coerce_object_scalar
 from bench.proto.wire import AnyNodeData, FieldData, NodeReferenceData
 from bench.utils.casing import IdentifierType
@@ -555,10 +555,20 @@ class Field(SourceNode[FieldData], HasNodeBase, TypeInfoBase, _TypeQueryBuilder)
         return encode_storage_key(self)
 
     @staticmethod
-    def new(name: str, typ: TypeIn, **kwargs) -> "Field":
+    def new(
+        name: str,
+        typ: TypeIn,
+        constraint: TypeConstraintIn | TypeConstraint | None = None,
+        **kwargs,
+    ) -> "Field":
         typ = to_type_scalar(typ)
         for prop in TypeInfoBase.__declared_properties__.values():
-            kwargs.setdefault(prop.name, getattr(typ, prop.name))
+            if prop.name not in kwargs:
+                kwargs[prop.name] = getattr(typ, prop.name)
+        if constraint is not None:
+            if isinstance(constraint, TypeConstraintIn):
+                constraint = constraint.into()
+            kwargs["constraint"] = constraint
         field = Field(name=name, **kwargs)
         return field
 
@@ -567,21 +577,46 @@ class Field(SourceNode[FieldData], HasNodeBase, TypeInfoBase, _TypeQueryBuilder)
         return Field(kind=TypeKind.LITERAL, zone=FieldZone.OPTION, name=name, **kwargs)
 
     @staticmethod
-    def variable(name: str, typ: TypeIn, **kwargs) -> "Field":
-        return Field.new(name, typ, zone=FieldZone.VARIABLE, **kwargs)
+    def variable(
+        name: str,
+        typ: TypeIn,
+        constraint: TypeConstraintIn | TypeConstraint | None = None,
+        **kwargs,
+    ) -> "Field":
+        return Field.new(name, typ, zone=FieldZone.VARIABLE, constraint=constraint, **kwargs)
 
     @staticmethod
-    def member(name: str, typ: TypeIn, **kwargs) -> "Field":
-        return Field.new(name, typ, zone=FieldZone.MEMBER, **kwargs)
+    def member(
+        name: str,
+        typ: TypeIn,
+        constraint: TypeConstraintIn | TypeConstraint | None = None,
+        **kwargs,
+    ) -> "Field":
+        return Field.new(name, typ, zone=FieldZone.MEMBER, constraint=constraint, **kwargs)
 
     @staticmethod
-    def input(name: str, typ: TypeIn, **kwargs) -> "Field":
-        return Field.new(name, typ, zone=FieldZone.INPUT, **kwargs)
+    def input(
+        name: str,
+        typ: TypeIn,
+        constraint: TypeConstraintIn | TypeConstraint | None = None,
+        **kwargs,
+    ) -> "Field":
+        return Field.new(name, typ, zone=FieldZone.INPUT, constraint=constraint, **kwargs)
 
     @staticmethod
-    def output(name: str, typ: TypeIn, **kwargs) -> "Field":
-        return Field.new(name, typ, zone=FieldZone.OUTPUT, **kwargs)
+    def output(
+        name: str,
+        typ: TypeIn,
+        constraint: TypeConstraintIn | TypeConstraint | None = None,
+        **kwargs,
+    ) -> "Field":
+        return Field.new(name, typ, zone=FieldZone.OUTPUT, constraint=constraint, **kwargs)
 
     @staticmethod
-    def runtime(name: str, typ: TypeIn, **kwargs) -> "Field":
-        return Field.new(name, typ, zone=FieldZone.RUNTIME, **kwargs)
+    def runtime(
+        name: str,
+        typ: TypeIn,
+        constraint: TypeConstraintIn | TypeConstraint | None = None,
+        **kwargs,
+    ) -> "Field":
+        return Field.new(name, typ, zone=FieldZone.RUNTIME, constraint=constraint, **kwargs)

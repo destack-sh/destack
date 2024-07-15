@@ -13,6 +13,7 @@ from bench.language.field import Field
 from bench.language.node import BuiltinObject, Node
 from bench.language.render import Renderer, RenderOptions, render
 from bench.language.session import Session
+from bench.language.validation import constrain
 from bench.runtime.compiler import BUILTIN_GLOBALS
 from bench.runtime.core import STATIC_CODE_GLOBALS
 from bench.test.strategies import builtin_objects, examples
@@ -119,6 +120,14 @@ def test_render_class_block(shared_session: Session, shared_package: Package):
         fields=[Field.member("kind", ShapeType), Field.member("is_cool", bool)],
     )
     return {"ShapeType": ShapeType, "Shape": Shape}
+
+
+@_render_as_stmt
+def test_render_field_with_constraint(shared_session: Session, shared_package: Package):
+    Field1 = Field.input(
+        "Field1", int, constraint=constrain(min_value=1.0, max_value=10.0, step_value=2.0)
+    )
+    return {"Field1": Field1}
 
 
 # NOTE :Test: test many more renderings
