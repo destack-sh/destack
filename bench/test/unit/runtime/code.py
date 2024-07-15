@@ -112,7 +112,7 @@ async def test_run_code_function_no_output(runner: RuntimeRunner, page: Block):
     _ = await runner.run(Function)
 
 
-async def test_run_code_function_coerce_output_scalar(runner: RuntimeRunner, page: Block):
+async def test_run_code_function_output_scalar(runner: RuntimeRunner, page: Block):
     Function = Block.new_code(
         "Function",
         """return Input1 * 4""",
@@ -131,7 +131,7 @@ async def test_run_code_function_coerce_output_scalar(runner: RuntimeRunner, pag
     assert run.status == RunStatus.FAILED
 
 
-async def test_run_code_function_coerce_output_tuple(runner: RuntimeRunner, page: Block):
+async def test_run_code_function_output_tuple(runner: RuntimeRunner, page: Block):
     Function = Block.new_code(
         "Function",
         """return Input1 > 10, Input1 * 4, None""",
@@ -154,7 +154,7 @@ async def test_run_code_function_coerce_output_tuple(runner: RuntimeRunner, page
     )
 
 
-async def test_run_code_function_coerce_output_dict(runner: RuntimeRunner, page: Block):
+async def test_run_code_function_output_dict(runner: RuntimeRunner, page: Block):
     Function = Block.new_code(
         "Function",
         """return dict(Result1=Input1 > 10, Result2=Input1 * 4)""",
@@ -197,8 +197,9 @@ async def test_run_code_complex_output(runner: RuntimeRunner, page: Block):
 assert ShapeKind is not None
 assert ShapeKind.fields.Circle is not None
 assert ShapeKind.Rectangle is not None
-assert Shape(kind=ShapeKind.Square)
+return Shape(kind=ShapeKind.Square)
 """,
+        fields=[Field.output("Result", Shape)],
     )
     subpage.blocks.append(Function)
     await runner.session.commit()

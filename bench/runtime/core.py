@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     pass
 
 RUN_ONCE = RunOptions(max_attempts=1)
-DEFAULT_RUN_OPTIONS_BY_KIND = {
+BASE_RUN_OPTIONS_BY_KIND = {
     RunKind.CODE: RUN_ONCE,
     RunKind.TEXT: RunOptions(max_attempts=3),
     RunKind.STEP: RUN_ONCE,
@@ -47,19 +47,24 @@ DYNAMIC_CODE_GLOBALS: dict[str, Any] = {
 }
 
 
-class BenchRuntimeError(BenchError, RuntimeError):
+class RuntimeError(BenchError, RuntimeError):
     pass
 
 
-class NotRunnableError(BenchRuntimeError):
+#
+# Not retryable
+#
+
+
+class NotRetryableError(RuntimeError):
+    run_error_type = RunErrorType.UNKNOWN_UNRETRYABLE
+
+
+class NotRunnableError(NotRetryableError):
     run_error_type = RunErrorType.NOT_RUNNABLE
 
 
-class CodeSyntaxError(NotRunnableError, SyntaxError):
-    pass
-
-
-class HaltedError(BenchRuntimeError):
+class SyntaxError(NotRunnableError, SyntaxError):
     pass
 
 
@@ -67,5 +72,16 @@ class ReplayError(NotRunnableError):
     run_error_type = RunErrorType.REPLAY
 
 
-class ModelFailedError(BenchRuntimeError):
+#
+# Retryable
+#
+
+
+class RetryableError(RuntimeError):
+    """An error we can retry "immediately" at runtime (in the same runtime)."""
+
+    run_error_type = RunErrorType.UNKNOWN_RETRYABLE
+
+
+class ModelFailedError(RetryableError):
     run_error_type = RunErrorType.MODEL_FAILED

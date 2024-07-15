@@ -20,7 +20,7 @@ from bench.language.text import Text
 from bench.language.value import ValueObject
 from bench.runtime.compiler import CompiledCode
 from bench.runtime.core import (
-    DEFAULT_RUN_OPTIONS_BY_KIND,
+    BASE_RUN_OPTIONS_BY_KIND,
     DYNAMIC_CODE_GLOBALS,
     STATIC_CODE_GLOBALS,
     NotRunnableError,
@@ -273,7 +273,7 @@ class RuntimeRunner:
         handle = RunHandle(
             id=run.id if run else UUIDT(),
             state=state,
-            options=options or DEFAULT_RUN_OPTIONS_BY_KIND[kind],
+            options=BASE_RUN_OPTIONS_BY_KIND[kind].override(options),
             parent=self.active_run_handle,
             status=run.status if run else RunStatus.SCHEDULED,
             input_type=node.input_type,
@@ -324,10 +324,14 @@ class RuntimeRunner:
                         log.debug("runner.attempt", attempt=attempt)
                         break  # success
                     except Exception as e:
-                        attempt.error = RunError.from_exception(RunErrorKind.RUNTIME, e)
+                        error = RunError.from_exception(RunErrorKind.RUNTIME, e)
+                        attempt.error = error
                         attempt.status = RunStatus.FAILED
                         log.debug("runner.attempt.failed", attempt=attempt, exc_info=e)
-                        if not retry.on_error(e):
+                        if not error.is_retryable or (
+                            not retry.on_error(e)
+                            and not (error.type and error.type in handle.options.retry_on)
+                        ):
                             raise
                     finally:
                         attempt.terminated_at = self.oracle.utc()

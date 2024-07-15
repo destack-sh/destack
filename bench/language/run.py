@@ -133,7 +133,6 @@ class RunOptions(Struct):
     max_retry_interval: Optional[float] = p_regular(42, constraint=TypeConstraintIn(min_value=0))
     jitter: Optional[float] = p_regular(43, constraint=TypeConstraintIn(min_value=0, max_value=1))
     retry_on: list["RunErrorType"] = p_regular(44, array=True)
-    retry_except_on: list["RunErrorType"] = p_regular(45, array=True)
 
     # debug
     breakpoints: list["Breakpoint"] = p_regular(50, array=True, struct=StructType.BREAKPOINT)
@@ -145,13 +144,13 @@ class RunOptions(Struct):
 
     def to_retry(self) -> RetryOptions:
         """Turns the options into our RetryOptions."""
-        # nocheckin: handle RetryOptions.retry_on (separate retryable/non-retryable errors)
         return RetryOptions(
             max_attempts=self.max_attempts or 1,
             retry_interval=self.retry_interval or 1,
             backoff=self.backoff or 2,
             max_retry_interval=self.max_retry_interval or 30,
             jitter=self.jitter,
+            # retry_on is handled separately in runtime because we need the specific RunErrorType
         )
 
 
@@ -229,9 +228,15 @@ class RunErrorType(IdEnum):
     RUNTIME_UNAVAILABLE = 1
     NOT_RUNNABLE = 2
     REPLAY = 10
+    UNKNOWN_UNRETRYABLE = 499
     # during run
-    UNKNOWN = 50
-    MODEL_FAILED = 60
+    MODEL_FAILED = 500
+    UNKNOWN_RETRYABLE = 999
+
+    @property
+    def is_retryable(self) -> bool:
+        """Whether this error type is retryable *at runtime*"""
+        return self > 500
 
 
 @struct_(StructType.RUN_ERROR)
@@ -253,6 +258,10 @@ class RunError(Struct, BenchError):
             parts.append(self.type.bench_name)
         parts.append(self.title or "<no title>")
         return ", ".join(parts)
+
+    @property
+    def is_retryable(self) -> bool:
+        return self.type is not None and self.type.is_retryable
 
     @staticmethod
     def from_exception(kind: RunErrorKind, e: Exception) -> "RunError":

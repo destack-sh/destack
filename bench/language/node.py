@@ -1276,6 +1276,26 @@ class InlineStruct[StructDataT: AnyStructData](BuiltinObject[StructDataT], abc.A
         else:
             return f"<{self.__class__.__name__}>"
 
+    def replace(self, **kwargs) -> Self:
+        """Replaces specific properties in this struct (in a copy)."""
+        copy = self.clone()
+        for prop_name, prop_value in kwargs.items():
+            setattr(copy, prop_name, prop_value)
+        return copy
+
+    def override(self, override: "Self | None") -> Self:
+        """Overrides this struct with set properties from another struct (in a copy)."""
+        if override is None:
+            return self
+        copy = self.clone()
+        for prop in self.__declared_properties__.values():
+            override_value = getattr(override, prop.name)
+            if (not prop.is_list and override_value is not None) or (
+                prop.is_list and override_value
+            ):
+                setattr(copy, prop.name, override_value)
+        return copy
+
     def _move_to(
         self,
         parent: Union["BuiltinObject", "ValueObject"],
