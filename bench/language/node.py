@@ -933,18 +933,18 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
                 elif not prop.is_required:
                     prop_value = None if not prop.is_list else []
                 else:
-                    raise ValueError(f"missing value for {prop!r}")
+                    raise ValueError(f"missing required value for {prop!r}")
             if wired_ptr_prop is not None and wired_prop_value is UNSET:
                 if prop.is_list:
                     wired_prop_value = []
                 elif not prop.is_required:
                     wired_prop_value = None
                 else:
-                    raise ValueError(f"missing value for {wired_ptr_prop!r}")
+                    raise ValueError(f"missing required value for {wired_ptr_prop!r}")
 
             # and set it
             if prop_value is UNSET:
-                raise ValueError(f"missing value for {prop!r}")
+                raise ValueError(f"missing required value for {prop!r}")
             self_dict[prop.name] = prop_value
             if wired_ptr_prop is not None:
                 self_dict[wired_ptr_prop.name] = wired_prop_value
@@ -1615,10 +1615,10 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         return self.__identifier_type__
 
     @property
-    def bench_ident(self) -> Optional[str]:
+    def _ident(self) -> Optional[str]:
         """The Bench identifier of this node (slug if exists, else name if exists)."""
         if self.metatype == NodeType.PACKAGE and self.parent is not None:
-            return self.parent.bench_ident  # package shares its Bench's identifier
+            return self.parent._ident  # package shares its Bench's identifier
         if "slug" in self.__properties__:
             slug = getattr(self, "slug")
             if slug:  # prefer slug as ident
@@ -1630,7 +1630,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     @property
     def _path_key(self) -> str:
         """The Bench *path* identifier of this node (prefers bench_ident, ck/id filter otherwise)"""
-        bench_ident = self.bench_ident
+        bench_ident = self._ident
         if bench_ident is not None:
             if self.metatype == NodeType.BENCH:
                 return f"@{bench_ident}"
@@ -1660,7 +1660,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     @property
     def absolute_path(self) -> str:
         if self.__parent_property__ is None or not self.__parent_property__.reference_nodes:
-            ident = self.bench_ident
+            ident = self._ident
             assert ident is not None, f"no bench ident for {self!r}"
             return ident
         elif self._supergraph is None or self.parent is None:

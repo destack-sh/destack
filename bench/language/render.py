@@ -23,7 +23,7 @@ from bench.language.const import (
 )
 from bench.language.field import Field, reverse_type_scalar
 from bench.language.node import BuiltinObject, Node, Struct
-from bench.language.path import find_path, render_path
+from bench.language.path import get_path, render_path
 from bench.language.setup import ENUM_CLASS_BY_TYPE
 from bench.language.text import Text
 from bench.language.value import ScalarValue, SomeValue, ValueObject
@@ -97,7 +97,7 @@ class BuiltinObjectRenderer[T: BuiltinObject]:
         rendered_kwargs: dict[str, str],
     ) -> str:
         """Create the constructor expression for a BuiltinObject."""
-        return f"{obj.__class__.__name__}({renderer._render_kwargs(**rendered_kwargs) or None})"
+        return f"{obj.__class__.__name__}({renderer._render_kwargs(**rendered_kwargs)})"
 
 
 DEFAULT_BUILTIN_OBJECT_RENDERER = BuiltinObjectRenderer[BuiltinObject]()
@@ -133,7 +133,7 @@ class Renderer:
 
     def _render_node_ref(self, node: Node) -> str:
         if node._is_attached:
-            path = find_path(scope=self.scope, node=node)
+            path = get_path(scope=self.scope, node=node)
             path_str = render_path(path)
             return f"get_node({path_str!r})"
         else:

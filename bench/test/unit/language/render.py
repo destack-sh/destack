@@ -3,36 +3,48 @@ import inspect
 import textwrap
 from typing import Any, Callable, Mapping, cast
 
-import pytest
 from hypothesis import given
 
 from bench.language import md
 from bench.language.bench import Package
 from bench.language.block import Block
-from bench.language.const import BlockType
+from bench.language.const import BlockType, ReferenceKind
 from bench.language.field import Field
 from bench.language.node import BuiltinObject
-from bench.language.render import RenderOptions, render
+from bench.language.render import RenderOptions, render, render_expr
 from bench.language.session import Session
 from bench.runtime.compiler import BUILTIN_GLOBALS
 from bench.runtime.core import STATIC_CODE_GLOBALS
 from bench.test.strategies import builtin_objects, examples
-from bench.test.unit.conftest import BUILTIN_OBJECTS_OF_EVERY_TYPE
+from bench.test.unit.conftest import BUILTIN_OBJECTS_BY_TYPE, BUILTIN_OBJECTS_OF_EVERY_TYPE
 
 
-@pytest.mark.skip(reason="nocheckin: render everything")
 @given(obj=builtin_objects())
 @examples([{"obj": obj} for obj in BUILTIN_OBJECTS_OF_EVERY_TYPE])
 def test_render_builtin_object_expr(
     obj: BuiltinObject, shared_session: Session, shared_package: Package
 ):
-    rendered = render(obj, options=RenderOptions(scope=shared_package))
+    # impute real nodes for required node references (since they're needed for rendering)
+    for prop in obj.__node_reference_properties__.values():
+        if prop.reference_kind != ReferenceKind.NODE_REGULAR:
+            continue
+        wired_prop = prop.reference_wired_ptr
+        assert wired_prop is not None, f"no wired prop for {prop!r}"
+        if not wired_prop.is_required or wired_prop.is_list or not wired_prop.reference_nodes:
+            continue
+        reference_obj = BUILTIN_OBJECTS_BY_TYPE[wired_prop.reference_nodes[0]]
+        setattr(obj, prop.name, reference_obj)
+
+    # render
+    rendered = render_expr(obj, options=RenderOptions(scope=shared_package))
     glbls = {**STATIC_CODE_GLOBALS, **BUILTIN_GLOBALS}
     ret = eval(rendered, glbls)
     assert cast(BuiltinObject, ret)._equals_content(obj)
 
 
 def _render_as_stmt(func: Callable[[Any, Any], Mapping[str, BuiltinObject]]):
+    """Decorator to check that the function body is exactly equivalent to its (re)rendered form."""
+
     @functools.wraps(func)
     def _inner(shared_session: Session, shared_package: Package):
         # (line length 96 because it's 100 - 4 for the method indent here)

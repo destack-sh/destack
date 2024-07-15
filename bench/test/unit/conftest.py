@@ -1,6 +1,7 @@
 # ruff: noqa: E402
 
 import warnings
+from typing import Mapping
 
 import pytest
 import uvloop
@@ -14,9 +15,9 @@ _setup_test_env()
 from bench.language import Session, Store
 from bench.language.bench import Bench, ServerProfile
 from bench.language.connection import NullEngine
-from bench.language.const import NODE_TYPES, OBJECT_TYPES, UserStatus, _active_session
+from bench.language.const import NODE_TYPES, OBJECT_TYPES, ObjectType, UserStatus, _active_session
 from bench.language.graph import NodeGraph, NodeSuperGraph
-from bench.language.node import EMPTY_SCOPE
+from bench.language.node import EMPTY_SCOPE, BuiltinObject
 from bench.language.user import User
 from bench.system.core import pg_engine_from_store
 from bench.test.strategies import draw_direct, from_object_type
@@ -147,3 +148,7 @@ with warnings.catch_warnings(action="ignore"):
         for object_type in OBJECT_TYPES
     ]
     _active_session.reset(_active_session_token)
+
+BUILTIN_OBJECTS_BY_TYPE: Mapping[ObjectType, BuiltinObject] = {
+    obj.metatype: obj for obj in BUILTIN_OBJECTS_OF_EVERY_TYPE
+}

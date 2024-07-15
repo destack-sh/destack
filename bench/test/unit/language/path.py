@@ -6,7 +6,14 @@ from more_itertools import first
 from bench.language.bench import Bench
 from bench.language.const import BlockType
 from bench.language.field import Field
-from bench.language.path import PathError, PathTokenType, get_node, parse_path, render_path
+from bench.language.path import (
+    PathError,
+    PathTokenType,
+    get_node,
+    get_path,
+    parse_path,
+    render_path,
+)
 from bench.language.session import Session
 from bench.language.step import Step, StepType
 
@@ -126,7 +133,7 @@ def test_parse_path_invalid(invalid_path: str):
 @pytest.fixture()
 def mock_package(session: Session):
     # make bench
-    bench = Bench(name="testbench", slug="test")
+    bench = Bench(name="bench1", slug="bench")
     branch = bench.branches.create(name="Main")
     package = branch.packages.create()
     session.parent = package  # patch in the session parent
@@ -153,11 +160,11 @@ def mock_package(session: Session):
     ("scope_name", "path", "expected_node_name"),
     [
         # from root
-        ("testbench", "@testbench", "testbench"),
-        ("testbench", ".", "testbench"),
-        ("testbench", "..", None),
+        ("bench1", "@bench1", "bench1"),
+        ("bench1", ".", "bench1"),
+        ("bench1", "..", None),
         # from top level page
-        ("Page1", "..", "testbench"),
+        ("Page1", "..", "bench1"),
         ("Page1", "Page11/Flow111", "Flow111"),
         ("Page1", "Page11/Flow111.Field1111", "Field1111"),
         ("Page1", "Page11/./Flow111/Step1111", "Step1111"),
@@ -165,7 +172,7 @@ def mock_package(session: Session):
         ("Page1", "Page11/Flow111/Step1111/invalid.property", None),
         # from nested
         ("Page11", "..", "Page1"),
-        ("Page11", "../..", "testbench"),
+        ("Page11", "../..", "bench1"),
         ("Page11", "../Page11/../../Page2/Page21/Flow211", "Flow211"),
         ("Page21", "../>Page1/Page11/Flow111", "Flow111"),
         # container nodes
@@ -196,3 +203,32 @@ def test_get_node(mock_package: Bench, scope_name: str, path: str, expected_node
         assert getattr(node, "name") == expected_node_name
     else:
         assert node is None, f"unexpected node found for path '{path}' in scope '{scope}'"
+
+
+@pytest.mark.parametrize(
+    ("scope_name", "node_name", "expected_path"),
+    [
+        # to root
+        ("bench1", "bench1", "@bench1"),
+        ("Page21", "bench1", "@bench1"),
+        ("Step2112", "bench1", "@bench1"),
+        # from root
+        ("bench1", "Page11", "/Page1/Page11"),
+        ("bench1", "Flow111", "/Page1/Page11/Flow111"),
+        ("bench1", "Field1111", "/Page1/Page11/Flow111.Field1111"),
+        # inner
+        ("Page1", "Page1", "."),
+        ("Page1", "Page2", "/Page2"),
+        ("Page1", "Page11", "Page11"),
+        ("Page1", "Step1111", "Page11/Flow111/Step1111"),
+        ("Page21", "Step1111", "/Page1/Page11/Flow111/Step1111"),
+        ("Page11", "Page1", "~Page1"),
+        ("Step1111", "Page1", "~Flow111/~Page11/~Page1"),
+    ],
+)
+def test_get_path(mock_package: Bench, scope_name: str, node_name: str, expected_path: str):
+    scope = first(n for n in mock_package._graph.nodes if getattr(n, "name", None) == scope_name)
+    node = first(n for n in mock_package._graph.nodes if getattr(n, "name", None) == node_name)
+    path = get_path(scope, node)
+    path_str = render_path(path)
+    assert path_str == expected_path
