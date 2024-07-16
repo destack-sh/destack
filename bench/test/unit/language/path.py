@@ -151,6 +151,11 @@ def mock_package(session: Session):
     flow211 = page21.blocks.create(name="Flow211", type=BlockType.CODE)
     step2111 = flow211.steps.append(Step.new(StepType.START, "Step2111"))  # noqa: F841
     step2112 = flow211.steps.append(Step.new(StepType.START, "Step2112"))  # noqa: F841
+    choice212 = page21.blocks.create(  # noqa: F841
+        name="Choice212",
+        type=BlockType.CHOICE,
+        fields=[Field.option("Option2121"), Field.option("Option2122"), Field.option("Option2123")],
+    )
 
     return package
 
@@ -246,6 +251,7 @@ def test_shadow_node(session: Session):
         ("Page21", "Step1111", "/Page1/Page11/Flow111/Step1111"),
         ("Page11", "Page1", "~Page1"),
         ("Step1111", "Page1", "~Flow111/~Page11/~Page1"),
+        ("Flow211", "Option2121", "^Choice212.Option2121"),
     ],
 )
 def test_get_path(mock_package: Bench, scope_name: str, node_name: str, expected_path: str):

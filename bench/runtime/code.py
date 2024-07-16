@@ -1,12 +1,12 @@
 import functools
 from contextlib import contextmanager
-from typing import Any, override
+from typing import Any, cast, override
 
 import structlog
 from opentelemetry import trace
 
 from bench.language import render
-from bench.language.code import CodeType
+from bench.language.code import Code, CodeType
 from bench.language.path import get_node, get_node_or_error
 from bench.language.render import RenderOptions
 from bench.language.run import RunKind
@@ -97,6 +97,7 @@ class CodeRunnerBase(Runner):
         glbls.update(resolved_references)
         return glbls
 
+    @tracer.start_as_current_span("code.coerce_outputs")
     def _coerce_outputs(self, outputs_raw: Any) -> ValueObject:
         """Coerves raw outputs into the output type for this run."""
         assert self.handle.output_type, f"no output type for {self!r}"
@@ -128,6 +129,7 @@ class CodeScriptRunner(CodeRunnerBase):
         glbls = self._prepare_glbls()
 
         # run
+        logger.trace("code.script", code=cast(Code, self.code).to_string())
         with self._capture_logs():
             if compiled.is_coroutine:
                 coro = eval(compiled.body_co, glbls)
@@ -160,6 +162,7 @@ class CodeFunctionRunner(CodeRunnerBase):
                     glbls[field.py_ident] = value
 
         # run
+        logger.trace("code.function", code=cast(Code, self.code).to_string())
         exec(compiled.body_co, glbls)  # shouldn't error
         func = glbls[compiled.function_name]
         with self._capture_logs():

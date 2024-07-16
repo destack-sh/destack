@@ -6,7 +6,7 @@ from bench.language.code import Code
 from bench.language.run import RunKind
 from bench.language.step import Step, StepType
 from bench.language.text import Text
-from bench.runtime.core import RUN_ONCE, NotRunnableError
+from bench.runtime.core import RUN_ONCE, RunImpossibleError
 from bench.runtime.runner import Runner, runner
 
 
@@ -38,7 +38,7 @@ class BlockStepRunner(StepRunnerBase):
     async def run(self) -> None:
         block = self.node.block
         if block is None or block.run_kind is None:
-            raise NotRunnableError(f"no runnable block for {self.node!r}: {block!r}")
+            raise RunImpossibleError(f"no runnable block for {self.node!r}: {block!r}")
         block_handle = await self.runtime.make_run_handle(
             block.run_kind, node=block, options=RUN_ONCE, track=True
         )

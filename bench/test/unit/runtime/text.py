@@ -27,7 +27,8 @@ async def test_run_text_empty(runner: RuntimeRunner, page: Block):
 
     run = await runner.run(Text1, return_error=True)
     assert run.status == RunStatus.FAILED
-    assert run.error and run.error.type == RunErrorType.NOT_RUNNABLE
+    assert run.error and run.error.type == RunErrorType.RUN_IMPOSSIBLE
+    assert len(run.attempts) == 1
 
 
 @pytest.mark.model()

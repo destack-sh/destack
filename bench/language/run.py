@@ -224,14 +224,14 @@ class RunFrame(Struct):
 
 @enum_(EnumType.RUN_ERROR_TYPE)
 class RunErrorType(IdEnum):
-    # pre-run
+    # unretryable
     RUNTIME_UNAVAILABLE = 1
-    NOT_RUNNABLE = 2
+    RUN_IMPOSSIBLE = 2
     REPLAY = 10
-    UNKNOWN_UNRETRYABLE = 499
-    # during run
+    MODEL_INCAPABLE = 100
+    UNKNOWN_NONRETRYABLE = 499
+    # retryable
     MODEL_FAILED = 500
-    MODEL_INCAPABLE = 501
     UNKNOWN_RETRYABLE = 999
 
     @property
@@ -274,7 +274,7 @@ class RunError(Struct, BenchError):
         elif kind == RunErrorKind.RUNTIME:
             typ = RunErrorType.UNKNOWN_RETRYABLE
         else:
-            typ = RunErrorType.UNKNOWN_UNRETRYABLE
+            typ = RunErrorType.UNKNOWN_NONRETRYABLE
         return RunError(kind=kind, type=typ, title=title, text=Text.plain(str(e)))
 
 
