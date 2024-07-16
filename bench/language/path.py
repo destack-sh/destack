@@ -120,6 +120,8 @@ class Path(Struct):
         """Parses a path string into aPath."""
         return parse_path(path)
 
+    from_string = parse
+
 
 # see NAME_REGEX in validationl
 BENCH_PATTERN = re.compile(rf"^@([{SLUG_REGEX_CHAR}]+)$")
@@ -175,8 +177,8 @@ def parse_path(path: str) -> Path:
             tokens.append(token)
 
             # get property (if any)
-            if "." in segment:
-                node_name, property_name = segment.split(".", maxsplit=1)
+            if token.name and "." in token.name:
+                node_name, property_name = token.name.split(".", maxsplit=1)
                 if "." in property_name:
                     raise PathSyntaxError(f"cannot nest properties: '{segment}' in '{path}'")
                 if i < len(segments) - 1:
@@ -251,7 +253,7 @@ def _normalize_node(scope: Node) -> Node:
 def _get_child(scope: Node, name: str, node_type: NodeType | None = None) -> Node | None:
     """Finds a named child from a scope (if any)."""
     for child in scope._graph.iter_descendants(scope, node_type=node_type):
-        if getattr(child, "name", None) == name:
+        if getattr(child, "name", None) == name:  # :NodeNameIndexing
             return child
     return None
 
@@ -259,7 +261,7 @@ def _get_child(scope: Node, name: str, node_type: NodeType | None = None) -> Nod
 def _get_descendant(scope: Node, name: str, node_type: NodeType | None = None) -> Node | None:
     """Finds any named descendant from a scope (if any, ignoring container boundaries)."""
     for descendant in scope._graph.iter_descendants(scope, recursive=True, node_type=node_type):
-        if getattr(descendant, "name", None) == name:
+        if getattr(descendant, "name", None) == name:  # :NodeNameIndexing
             return descendant
     return None
 
@@ -493,7 +495,12 @@ def get_path(scope: Node, node: Node) -> Path:
             for i in range(node_ancestor_idx - 1, -1, -1):
                 name = getattr(node_path[i], "name", None)
                 assert name is not None, f"no name for {node_path[i]!r}"
-                tokens.append(PathToken(type=PathTokenType.CHILD, name=name))
+                if not tokens and not _get_child(scope, name):
+                    # refer to sibling as unique node
+                    tokens.append(PathToken(type=PathTokenType.UNIQUE, name=name))
+                else:
+                    # must be a child if we already have other tokens
+                    tokens.append(PathToken(type=PathTokenType.CHILD, name=name))
 
     if node.metatype == NodeType.FIELD:
         tokens[-1].type = PathTokenType.FIELD
