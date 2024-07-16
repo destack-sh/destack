@@ -4409,10 +4409,6 @@ export interface PackageData {
      */
     setProperties: number[];
     /**
-     * @generated from protobuf field: optional string slug = 33;
-     */
-    slug?: string;
-    /**
      * @generated from protobuf field: optional symbolx.bench.TextData text = 34;
      */
     text?: TextData;
@@ -9419,25 +9415,21 @@ export enum PathTokenType {
      */
     BENCH = 4,
     /**
-     * @generated from protobuf enum value: PATH_TOKEN_TYPE_NAMED_NODE = 5;
+     * @generated from protobuf enum value: PATH_TOKEN_TYPE_CHILD = 5;
      */
-    NAMED_NODE = 5,
+    CHILD = 5,
     /**
-     * @generated from protobuf enum value: PATH_TOKEN_TYPE_SIBLING_NODE = 6;
+     * @generated from protobuf enum value: PATH_TOKEN_TYPE_CONTAINER = 7;
      */
-    SIBLING_NODE = 6,
+    CONTAINER = 7,
     /**
-     * @generated from protobuf enum value: PATH_TOKEN_TYPE_CONTAINING_NODE = 7;
+     * @generated from protobuf enum value: PATH_TOKEN_TYPE_UNIQUE = 8;
      */
-    CONTAINING_NODE = 7,
+    UNIQUE = 8,
     /**
-     * @generated from protobuf enum value: PATH_TOKEN_TYPE_UNIQUE_NODE = 8;
+     * @generated from protobuf enum value: PATH_TOKEN_TYPE_FIELD = 10;
      */
-    UNIQUE_NODE = 8,
-    /**
-     * @generated from protobuf enum value: PATH_TOKEN_TYPE_PROPERTY = 10;
-     */
-    PROPERTY = 10
+    FIELD = 10
 }
 /**
  * @generated from protobuf enum symbolx.bench.PipeType
@@ -9726,6 +9718,10 @@ export enum RunErrorType {
      * @generated from protobuf enum value: RUN_ERROR_TYPE_MODEL_FAILED = 500;
      */
     MODEL_FAILED = 500,
+    /**
+     * @generated from protobuf enum value: RUN_ERROR_TYPE_MODEL_INCAPABLE = 501;
+     */
+    MODEL_INCAPABLE = 501,
     /**
      * @generated from protobuf enum value: RUN_ERROR_TYPE_UNKNOWN_RETRYABLE = 999;
      */
@@ -21121,7 +21117,6 @@ class PackageData$Type extends MessageType<PackageData> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 22, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 29, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
-            { no: 33, name: "slug", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 34, name: "text", kind: "message", T: () => TextData },
             { no: 35, name: "icon", kind: "message", T: () => IconData },
             { no: 36, name: "policies", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PolicyData },
@@ -21197,9 +21192,6 @@ class PackageData$Type extends MessageType<PackageData> {
                             message.setProperties.push(reader.int32());
                     else
                         message.setProperties.push(reader.int32());
-                    break;
-                case /* optional string slug */ 33:
-                    message.slug = reader.string();
                     break;
                 case /* optional symbolx.bench.TextData text */ 34:
                     message.text = TextData.internalBinaryRead(reader, reader.uint32(), options, message.text);
@@ -21280,9 +21272,6 @@ class PackageData$Type extends MessageType<PackageData> {
                 writer.int32(message.setProperties[i]);
             writer.join();
         }
-        /* optional string slug = 33; */
-        if (message.slug !== undefined)
-            writer.tag(33, WireType.LengthDelimited).string(message.slug);
         /* optional symbolx.bench.TextData text = 34; */
         if (message.text)
             TextData.internalBinaryWrite(message.text, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
@@ -25152,7 +25141,7 @@ export const CHILD_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.LINK]: [],
   [NodeType.SKIP]: [],
   [NodeType.ISSUE]: [],
-  [NodeType.BLOCK]: [NodeType.DEPENDENCY, NodeType.LINK, NodeType.SKIP, NodeType.ISSUE, NodeType.BADGE, NodeType.BLOCK, NodeType.STEP, NodeType.FIELD, NodeType.MESSAGE, NodeType.QUERY, NodeType.RECORD, NodeType.TRIGGER, NodeType.VIEW],
+  [NodeType.BLOCK]: [NodeType.DEPENDENCY, NodeType.LINK, NodeType.SKIP, NodeType.ISSUE, NodeType.BADGE, NodeType.BLOCK, NodeType.STEP, NodeType.FIELD, NodeType.MESSAGE, NodeType.QUERY, NodeType.RECORD, NodeType.VIEW, NodeType.TRIGGER],
   [NodeType.TRIGGER]: [],
   [NodeType.FIELD]: [NodeType.ISSUE],
   [NodeType.QUERY]: [],
@@ -26118,7 +26107,6 @@ export enum PackageProperty {
   createdByPtr = 21,
   updatedByPtr = 22,
   setProperties = 29,
-  slug = 33,
   text = 34,
   icon = 35,
   policies = 36,
@@ -28502,7 +28490,6 @@ export const PackageDataInfo: Record<PackageProperty, PropertyInfo> = {
   [PackageProperty.createdByPtr]: { id: 21, name: 'created_by_ptr', component: ObjectType.PACKAGE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [PackageProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.PACKAGE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [PackageProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.PACKAGE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
-  [PackageProperty.slug]: { id: 33, name: 'slug', component: ObjectType.PACKAGE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [PackageProperty.text]: { id: 34, name: 'text', component: ObjectType.PACKAGE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [PackageProperty.icon]: { id: 35, name: 'icon', component: ObjectType.PACKAGE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [PackageProperty.policies]: { id: 36, name: 'policies', component: ObjectType.PACKAGE, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY },

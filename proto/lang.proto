@@ -887,11 +887,10 @@ enum PathTokenType {
   PATH_TOKEN_TYPE_CURRENT = 2;
   PATH_TOKEN_TYPE_PARENT = 3;
   PATH_TOKEN_TYPE_BENCH = 4;
-  PATH_TOKEN_TYPE_NAMED_NODE = 5;
-  PATH_TOKEN_TYPE_SIBLING_NODE = 6;
-  PATH_TOKEN_TYPE_CONTAINING_NODE = 7;
-  PATH_TOKEN_TYPE_UNIQUE_NODE = 8;
-  PATH_TOKEN_TYPE_PROPERTY = 10;
+  PATH_TOKEN_TYPE_CHILD = 5;
+  PATH_TOKEN_TYPE_CONTAINER = 7;
+  PATH_TOKEN_TYPE_UNIQUE = 8;
+  PATH_TOKEN_TYPE_FIELD = 10;
 }
 
 enum PipeType {
@@ -986,6 +985,7 @@ enum RunErrorType {
   RUN_ERROR_TYPE_REPLAY = 10;
   RUN_ERROR_TYPE_UNKNOWN_UNRETRYABLE = 499;
   RUN_ERROR_TYPE_MODEL_FAILED = 500;
+  RUN_ERROR_TYPE_MODEL_INCAPABLE = 501;
   RUN_ERROR_TYPE_UNKNOWN_RETRYABLE = 999;
 }
 
@@ -2679,7 +2679,6 @@ message PackageData {
   optional NodeReferenceData created_by_ptr = 21;
   optional NodeReferenceData updated_by_ptr = 22;
   repeated int32 set_properties = 29;
-  optional string slug = 33;
   optional TextData text = 34;
   optional IconData icon = 35;
   repeated PolicyData policies = 36;

@@ -183,16 +183,11 @@ class Branch(BenchNode[BranchData]):
     packages: NodeList["Package"] = p_node_children(NodeType.PACKAGE)
 
 
-@local_node(
-    NodeType.PACKAGE,
-    identifier=IdentifierType.VARIABLE,
-    unique=(("bench_id", "slug"),),
-)
+@local_node(NodeType.PACKAGE, identifier=IdentifierType.VARIABLE)
 class Package(BenchNode[PackageData]):
     """A package is a version of a Bench in a Branch."""
 
     parent: Branch | None = p_node_parent(4, NodeType.BRANCH)
-    slug: Optional[str] = p_regular(33, require=False, default=None, constraint=SLUG_CONSTRAINT)
     text: Optional["Text"] = p_regular(34, require=False, array=False, struct=StructType.TEXT)
     icon: Optional["Icon"] = p_regular(35, require=False, array=False, struct=StructType.ICON)
     policies: list["Policy"] = p_regular(36, struct=StructType.POLICY, array=True)
@@ -219,6 +214,14 @@ class Package(BenchNode[PackageData]):
         return self
 
     @property
+    def absolute_path(self) -> str:
+        bench = self.bench
+        if bench is not None:
+            return f"@{bench.slug}"
+        else:
+            return "<detached>"
+
+    @property
     def package_id(self):
         return self.id
 
@@ -230,6 +233,11 @@ class Package(BenchNode[PackageData]):
     def name(self):
         bench = self.bench
         return bench.name if bench is not None else None
+
+    @property
+    def slug(self):
+        bench = self.bench
+        return bench.slug if bench is not None else None
 
     def __content_str__(self):
         parts = [

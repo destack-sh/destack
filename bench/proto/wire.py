@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.07.15.1"
+VERSION = "2024.07.16.1"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -938,11 +938,10 @@ class PathTokenType(betterproto.Enum):
     CURRENT = 2
     PARENT = 3
     BENCH = 4
-    NAMED_NODE = 5
-    SIBLING_NODE = 6
-    CONTAINING_NODE = 7
-    UNIQUE_NODE = 8
-    PROPERTY = 10
+    CHILD = 5
+    CONTAINER = 7
+    UNIQUE = 8
+    FIELD = 10
 
 
 class PipeType(betterproto.Enum):
@@ -1048,6 +1047,7 @@ class RunErrorType(betterproto.Enum):
     REPLAY = 10
     UNKNOWN_UNRETRYABLE = 499
     MODEL_FAILED = 500
+    MODEL_INCAPABLE = 501
     UNKNOWN_RETRYABLE = 999
 
 
@@ -3007,7 +3007,6 @@ class PackageData(betterproto.Message):
     created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(21, optional=True)
     updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(22, optional=True)
     set_properties: List[int] = betterproto.int32_field(29)
-    slug: Optional[str] = betterproto.string_field(33, optional=True)
     text: Optional["TextData"] = betterproto.message_field(34, optional=True)
     icon: Optional["IconData"] = betterproto.message_field(35, optional=True)
     policies: List["PolicyData"] = betterproto.message_field(36)
