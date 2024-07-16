@@ -132,6 +132,19 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
             raise KeyError(f"node {node_id_or_ck!r} not found in {self!r}")
         return node
 
+    def get_by_name(self, name: str, node_type: NodeType | None = None) -> V | None:
+        """Gets a node by name"""
+        # NOTE :Performance: index node names :NodeNameIndexing
+        if node_type is None:
+            for node in self._nodes_by_id.values():
+                if getattr(node, "name", None) == name:
+                    return node
+        else:
+            for node in self._nodes_by_id.values():
+                if node.metatype == node_type and getattr(node, "name", None) == name:
+                    return node
+        return None
+
     def clear(self):
         """Clear the graph"""
         self._nodes_by_id.clear()
