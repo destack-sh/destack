@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.07.15.1"
+VERSION = "2024.07.16.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -530,7 +530,6 @@ PACKAGE_TABLE = Table(
         Column("updated_by_id", PrimitiveType.UUID, is_nullable=True),
         Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
         Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
-        Column("slug", PrimitiveType.STRING, is_nullable=True),
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("icon", PrimitiveType.JSON, is_nullable=True),
         Column("policies", PrimitiveType.JSON, is_array=True),
@@ -544,17 +543,6 @@ PACKAGE_TABLE = Table(
         Column("is_snapshot", PrimitiveType.BOOLEAN, default="false"),
         Column("is_overlay", PrimitiveType.BOOLEAN, default="false"),
         Column("is_paused", PrimitiveType.BOOLEAN, default="false"),
-    ),
-    indexes=(
-        Index("bench_idx_bench_id_slug", IndexType.BTREE, ("bench_id", "slug"), is_unique=True),
-    ),
-    constraints=(
-        Constraint(
-            "bench_idx_bench_id_slug",
-            ConstraintType.UNIQUE,
-            columns=("bench_id", "slug"),
-            index="bench_idx_bench_id_slug",
-        ),
     ),
 )
 

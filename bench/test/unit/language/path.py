@@ -36,59 +36,59 @@ from bench.language.step import Step, StepType
         ),
         ("..", [(PathTokenType.PARENT, None)]),
         ("../..", [(PathTokenType.PARENT, None), (PathTokenType.PARENT, None)]),
-        ("Node", [(PathTokenType.NAMED_NODE, "Node")]),
-        ("~", [(PathTokenType.CONTAINING_NODE, None)]),
-        ("~Container", [(PathTokenType.CONTAINING_NODE, "Container")]),
-        ("^Unique", [(PathTokenType.UNIQUE_NODE, "Unique")]),
-        (".property", [(PathTokenType.PROPERTY, "property")]),
+        ("Node", [(PathTokenType.CHILD, "Node")]),
+        ("~", [(PathTokenType.CONTAINER, None)]),
+        ("~Container", [(PathTokenType.CONTAINER, "Container")]),
+        ("^Unique", [(PathTokenType.UNIQUE, "Unique")]),
+        (".property", [(PathTokenType.FIELD, "property")]),
         ("@bench", [(PathTokenType.BENCH, "bench")]),
         (
             "/node1/node2",
             [
                 (PathTokenType.ROOT, None),
-                (PathTokenType.NAMED_NODE, "node1"),
-                (PathTokenType.NAMED_NODE, "node2"),
+                (PathTokenType.CHILD, "node1"),
+                (PathTokenType.CHILD, "node2"),
             ],
         ),
         (
             "./current/node",
             [
                 (PathTokenType.CURRENT, None),
-                (PathTokenType.NAMED_NODE, "current"),
-                (PathTokenType.NAMED_NODE, "node"),
+                (PathTokenType.CHILD, "current"),
+                (PathTokenType.CHILD, "node"),
             ],
         ),
-        ("../parent", [(PathTokenType.PARENT, None), (PathTokenType.NAMED_NODE, "parent")]),
-        ("^unique_node", [(PathTokenType.UNIQUE_NODE, "unique_node")]),
+        ("../parent", [(PathTokenType.PARENT, None), (PathTokenType.CHILD, "parent")]),
+        ("^unique_node", [(PathTokenType.UNIQUE, "unique_node")]),
         (
             "some/~block/^unique",
             [
-                (PathTokenType.NAMED_NODE, "some"),
-                (PathTokenType.CONTAINING_NODE, "block"),
-                (PathTokenType.UNIQUE_NODE, "unique"),
+                (PathTokenType.CHILD, "some"),
+                (PathTokenType.CONTAINER, "block"),
+                (PathTokenType.UNIQUE, "unique"),
             ],
         ),
         (
             "node.property",
-            [(PathTokenType.NAMED_NODE, "node"), (PathTokenType.PROPERTY, "property")],
+            [(PathTokenType.CHILD, "node"), (PathTokenType.FIELD, "property")],
         ),
         (
             "@bench/node1/^unique2/node3.property",
             [
                 (PathTokenType.BENCH, "bench"),
-                (PathTokenType.NAMED_NODE, "node1"),
-                (PathTokenType.UNIQUE_NODE, "unique2"),
-                (PathTokenType.NAMED_NODE, "node3"),
-                (PathTokenType.PROPERTY, "property"),
+                (PathTokenType.CHILD, "node1"),
+                (PathTokenType.UNIQUE, "unique2"),
+                (PathTokenType.CHILD, "node3"),
+                (PathTokenType.FIELD, "property"),
             ],
         ),
         (
             "~Container/~/../^Unique",
             [
-                (PathTokenType.CONTAINING_NODE, "Container"),
-                (PathTokenType.CONTAINING_NODE, None),
+                (PathTokenType.CONTAINER, "Container"),
+                (PathTokenType.CONTAINER, None),
                 (PathTokenType.PARENT, None),
-                (PathTokenType.UNIQUE_NODE, "Unique"),
+                (PathTokenType.UNIQUE, "Unique"),
             ],
         ),
     ],
@@ -132,8 +132,9 @@ def test_parse_path_invalid(invalid_path: str):
 def mock_package(session: Session):
     # make bench
     bench = Bench(name="bench1", slug="bench")
-    branch = bench.branches.create(name="Main")
-    package = branch.packages.create()
+    bench.main_branch = bench.branches.create(name="Main")
+    package = bench.main_branch.packages.create()
+    bench.main_branch.main_package = package
     session.parent = package  # patch in the session parent
     session._graph.update(session, _force_update_parent=True)
 
@@ -150,10 +151,6 @@ def mock_package(session: Session):
     flow211 = page21.blocks.create(name="Flow211", type=BlockType.CODE)
     step2111 = flow211.steps.append(Step.new(StepType.START, "Step2111"))  # noqa: F841
     step2112 = flow211.steps.append(Step.new(StepType.START, "Step2112"))  # noqa: F841
-
-    # space nodes
-    space1 = package.spaces.create(name="Space1")  # noqa: F841
-    space2 = package.spaces.create(name="Space2")  # noqa: F841
 
     return package
 
@@ -208,11 +205,12 @@ def test_get_node(mock_package: Bench, scope_name: str, path: str, expected_node
         assert node is None, f"unexpected node found for path '{path}' in scope '{scope}'"
 
 
-def test_get_shadowed_node(session: Session):
+def test_shadow_node(session: Session):
     """Siblings before descendants before ancestors. See get_unique_node."""
     bench = Bench(name="bench1", slug="bench")
-    branch = bench.branches.create(name="Main")
-    package = branch.packages.create()
+    bench.main_branch = bench.branches.create(name="Main")
+    package = bench.main_branch.packages.create()
+    bench.main_branch.main_package = package
     session.parent = package  # patch in the session parent
     session._graph.update(session, _force_update_parent=True)
 
