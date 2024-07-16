@@ -93,8 +93,7 @@ class TextSpan(TextOptions, InlineStruct):
 
     @staticmethod
     def new(
-        content: str,
-        node: Optional[Node] = None,
+        content: str | Node | None,
         is_bold: bool | None = None,
         is_italic: bool | None = None,
         is_strikethrough: bool | None = None,
@@ -102,6 +101,12 @@ class TextSpan(TextOptions, InlineStruct):
         is_code: bool | None = None,
         color: "ColorType | None" = None,
     ) -> "TextSpan":
+        if isinstance(content, str):
+            assert content, "content must be non-empty"
+            node = None
+        else:
+            node = content
+            content = None
         return TextSpan(
             content=content,
             node=node,

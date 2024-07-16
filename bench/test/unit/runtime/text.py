@@ -72,7 +72,7 @@ async def test_run_text_output_dict(
                 "formality",
                 int,
                 constrain(min_value=0, max_value=10),
-                text=md("0 is super casual slang, 10 is high formal prose"),
+                text=md("0 is super casual slang, 5 for normal, 10 is high formal prose"),
             )
         ],
     )
@@ -95,4 +95,12 @@ async def test_run_text_output_dict(
     assert run.status == RunStatus.COMPLETED
     assert run.outputs
     assert run.outputs.Mood == Mood.fields.Positive
-    assert run.outputs.WritingStyle and run.outputs.WritingStyle.formality > 0  # type: ignore
+    assert run.outputs.Style and run.outputs.Style.formality > 0  # type: ignore
+
+
+@pytest.mark.model()
+@_for_every_provider()
+async def test_run_text_with_context(
+    runner: RuntimeRunner, page: Block, model_provider: ModelProvider
+):
+    pass

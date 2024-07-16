@@ -270,7 +270,7 @@ def _get_descendant(scope: Node, name: str, node_type: NodeType | None = None) -
 
 
 def _get_contained_descendant(scope: Node, name: str) -> Node | None:
-    """Finds a descendant that is directly contained by a scope (if any)."""
+    """Finds a descendant that is directly contained by a scope (in block/page/pkg, if any)."""
     from bench.language.block import Block
 
     if not isinstance(scope, Block):
@@ -301,32 +301,21 @@ def _get_contained_descendant(scope: Node, name: str) -> Node | None:
 
 
 def _get_container(scope: Node, name: str | None = None) -> Node | None:
-    """Finds the next containing ancestor up from a scope (if any)."""
+    """Finds the next containing ancestor up from a scope (block/page/pkg, if any)."""
 
     if not isinstance(scope, SourceNode):
-        # there is no container outside of source other than the bench
+        # there is no container outside of source other than the bench/pkg
         if isinstance(scope, PackageNode) and (
             name is None or getattr(scope, "name", None) == name
         ):
             return scope.package
-    elif scope.metatype != NodeType.BLOCK:
-        # if we're not in a block, find containing block or space (or skip to bench)
+    else:
+        # if we're not in a block, find containing block or space (or skip to bench/pkg)
         parent = scope.parent
         while parent is not None:
-            if parent.metatype in (NodeType.BLOCK, NodeType.SPACE, NodeType.BENCH) and (
+            if parent.metatype in (NodeType.BLOCK, NodeType.SPACE, NodeType.PACKAGE) and (
                 name is None or getattr(parent, "name", None) == name
             ):
-                return parent
-            parent = parent.parent
-    else:
-        # if we're in a block, find next block that's a container/page or (or skip to bench)
-        from bench.language.block import Block
-
-        parent = scope.parent
-        while parent is not None:
-            if (
-                (isinstance(parent, Block) and parent.is_page) or parent.metatype == NodeType.BENCH
-            ) and (name is None or getattr(parent, "name", None) == name):
                 return parent
             parent = parent.parent
 
@@ -339,7 +328,7 @@ def _get_unique(scope: Node, name: str) -> Node | None:
     The order of search is:
      1. 'Siblings' - descendents of parent container.
      2. Descendants - descendants of scope.
-     3. Ancestors - descendants of ancestor containers.
+     3. Ancestors - descendants of ancestor containers (above parent).
     The rationale is that we generally want to refer to nodes in the same container
      more than we want our child nodes (like an output Field with the name of a ChoiceBlock,
      or other Steps in the same Flows more than our input Fields).

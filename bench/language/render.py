@@ -13,6 +13,7 @@ from bench.language.block import Block
 from bench.language.code import Code, format_code
 from bench.language.const import (
     NODE_TYPES_SET,
+    BlockType,
     EnumType,
     FieldZone,
     NodeType,
@@ -40,7 +41,10 @@ tracer = trace.get_tracer(__name__)
 @dataclass(slots=True)
 class RenderOptions:
     scope: Node
+    # whether the scope's non-inline children should also be rendered (as if it's a page)
+    as_page: bool = False
     node_types: Collection[NodeType] = NODE_TYPES_SET
+    # types to 'fold in' directly as children of nodes (without being referenced) :FoldedNodes
     folded_child_types: Collection[NodeType] = (NodeType.FIELD, NodeType.TRIGGER, NodeType.QUERY)
     node_filter: Collection[UUID] | None = None
     stmt_separator: str = "\n"
@@ -355,7 +359,22 @@ def render(*objs: BuiltinObject | ValueObject, options: RenderOptions) -> str:
         assert all(
             isinstance(obj, Node) for obj in objs
         ), f"cannot render nodes with other values: {objs!r}"
-        return render_stmt(*cast(list[Node], objs), options=options)
+
+        if options.as_page:
+            # collect additional nodes not in folded nodes
+            child_nodes: list[Node] = []
+            for obj in objs:
+                if not isinstance(obj, Block):
+                    continue  # only blocks can be a page
+                child_nodes.extend(obj.blocks)
+                if obj.type == BlockType.VIEW:
+                    child_nodes.extend(obj.views)
+                if obj.type == BlockType.FLOW:
+                    child_nodes.extend(obj.steps)
+        else:
+            child_nodes = []
+
+        return render_stmt(*cast(list[Node], objs), *child_nodes, options=options)
     else:
         # render into tuple of expressions
         value_exprs = [render_expr(obj, options) for obj in objs]
