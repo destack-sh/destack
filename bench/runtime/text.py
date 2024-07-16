@@ -45,7 +45,7 @@ class ModelRouter(Runner):
 
 
 @dataclass
-class ContainerContext:
+class PageContext:
     path: str
     body: str
 
@@ -100,9 +100,16 @@ There are many more complex types; examples are provided as needed.
     async def run(self) -> None:
         projection = project(self.state.node, self.handle.inputs, options=ProjectOptions())
         messages = await self._make_messages(projection)
+        log = logger.bind(runner=self, messages=messages)
         with tracer.start_as_current_span("text.generate_code"):
-            code_str = await self._generate_code(messages)
-        code = Code.from_string(code_str)
+            try:
+                code = await self._generate_code(messages)
+                log.trace("text.generate_code", code=code, span="current")
+            except BaseException as e:
+                log.trace("text.generate_code.error", exc_info=e, span="current")
+                raise
+
+        code = Code.from_string(code)
         with tracer.start_as_current_span("text.run_code"):
             code_handle = await self.runtime.make_run_handle(
                 RunKind.CODE, node=self.node, code=code, options=RUN_ONCE, track=True
@@ -122,7 +129,7 @@ There are many more complex types; examples are provided as needed.
         render_options = RenderOptions(scope=self.node)
 
         # context
-        contexts: list[ContainerContext] = []  # nocheckin: context
+        contexts: list[PageContext] = []  # nocheckin: context
         rendered_contexts = []
         for context in contexts:
             rendered_context = f"""\
@@ -172,7 +179,8 @@ There are many more complex types; examples are provided as needed.
 {rendered_task}
 
 # 
-# Some random examples for values of the right types (*not* specific to your actual task)
+# Some random syntax examples for values of the right types
+#  (the values are *not* specific to your actual task and semantically irrelevant)
 #
 
 {'\n'.join(e for e in rendered_examples)}
@@ -182,7 +190,7 @@ There are many more complex types; examples are provided as needed.
 #  - You MUST NOT attempt to generalize over inputs; return the answer for the given inputs only.
 #  - You MAY generate reasoning *before* the respective answer (especially if it's in the output).
 #  - You MAY import and use the Python standard library for maths and such, but nothing else.
-#  - You MAY raise ModelIncapableError("<reason>") if an fitting output is impossible.
+#  - You MAY raise ModelIncapableError("<reason>") if a fitting output is impossible.
 # 
 """,
             ),

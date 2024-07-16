@@ -23,7 +23,7 @@ from bench.language.const import (
 )
 from bench.language.field import Field, TypeConstraint, TypeInfoBase, reverse_type_scalar
 from bench.language.node import BuiltinObject, Node, Struct
-from bench.language.path import get_path, render_path
+from bench.language.path import PathTokenType, get_path, render_path
 from bench.language.property import Property
 from bench.language.setup import ENUM_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE
 from bench.language.text import Text
@@ -40,12 +40,13 @@ tracer = trace.get_tracer(__name__)
 @dataclass(slots=True)
 class RenderOptions:
     scope: Node
-    format: bool = True
-    format_line_length: int = 100
     node_types: Collection[NodeType] = NODE_TYPES_SET
     folded_child_types: Collection[NodeType] = (NodeType.FIELD, NodeType.TRIGGER, NodeType.QUERY)
     node_filter: Collection[UUID] | None = None
     stmt_separator: str = "\n"
+    simplify_paths: bool = True
+    format: bool = True
+    format_line_length: int = 100
 
 
 class BuiltinObjectRenderer[T: BuiltinObject]:
@@ -168,8 +169,18 @@ class Renderer:
             return alias
         elif node._is_attached:
             path = get_path(scope=self.scope, node=node)
-            path_str = render_path(path)
-            return f"get_node({path_str!r})"
+            rendered_path = render_path(path)
+            if self._options.simplify_paths:
+                if len(path) == 1 and path[0].type in (PathTokenType.UNIQUE, PathTokenType.CHILD):
+                    assert path[0].name is not None, f"no name for {path[0]!r}"
+                    return path[0].name
+                elif (
+                    len(path) == 2
+                    and path[0].type in (PathTokenType.UNIQUE, PathTokenType.CHILD)
+                    and path[1].type == PathTokenType.FIELD
+                ):
+                    return f"{path[0].name}.{path[1].name}"
+            return f"get_node({rendered_path!r})"
         else:
             raise RuntimeError(f"node {node!r} is not attached and has no alias")
 

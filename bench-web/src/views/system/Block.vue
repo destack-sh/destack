@@ -61,7 +61,9 @@ const isGeneratedName = computed(
 const isQuasiAnonymous = computed(
   () =>
     isGeneratedName.value &&
-    (block.value?.type == BlockType.TEXT || block.value?.type == BlockType.CODE) &&
+    (block.value?.type == BlockType.TEXT ||
+      block.value?.type == BlockType.CODE ||
+      block.value?.type == BlockType.VARIABLE) &&
     !hasFunctionFields.value,
 );
 const hasText = computed(() => block.value?.text != null);
@@ -119,7 +121,7 @@ defineExpose<ViewExposed & { isRunnable: Ref<boolean> }>({
     ]"
   >
     <!-- Header -->
-    <!-- NOTE :UX: revamp block to indicate all its states/properties better -->
+    <!-- NOTE :UX: revamp block to indicate all its states/properties better, hide header if not needed, ... -->
     <div class="flex flex-row">
       <!-- Icon/Name (also drag handle if container is not already draggable) -->
       <div
@@ -142,12 +144,12 @@ defineExpose<ViewExposed & { isRunnable: Ref<boolean> }>({
           "
           v-bind="getNodeIcon(block)"
           class="w-5 rounded py-0.5 hover:cursor-pointer hover:bg-gray-100 data-[popover=true]:bg-gray-100"
-          :class="isQuasiAnonymous ? 'text-gray-500' : 'text-gray-700'"
+          :class="isQuasiAnonymous ? 'text-gray-400' : 'text-gray-700'"
         />
         <input
           ref="nameRef"
           class="w-fit min-w-fit max-w-fit rounded border-0 px-1 outline-none ring-0 hover:bg-gray-100 focus:ring-0"
-          :class="[isQuasiAnonymous ? 'px-0.5 text-gray-500' : 'ml-0.5 px-1 font-medium']"
+          :class="[isQuasiAnonymous ? 'px-0.5 text-gray-400' : 'ml-0.5 px-1 font-medium']"
           spellcheck="false"
           :value="block.name"
           :size="Math.max(block.name.length, 5)"

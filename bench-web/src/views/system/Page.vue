@@ -13,12 +13,19 @@ import {
 } from "@/proto/wire/";
 import { toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
 import { fireActionById, type ActionContext, type ActionMapImplementation } from "@/system/action";
-import { useHierarchicalNodeMoveActions } from "@/system/block";
+import { useFlatNodeMoveActions, useHierarchicalNodeMoveActions } from "@/system/block";
 import { PACKAGE_SCOPE } from "@/system/client";
 import { useExistingConnection, useGetConnection } from "@/system/connection";
 import { getGroupedChildrenRef, isDescendantOf, walkDescendantsRef, type NodeTreeItem } from "@/system/graph";
 import { ICON_BY_BLOCK_TYPE, IconInline } from "@/system/icon";
-import { EXPOSED_BLOCK_TYPES, PAGE_BLOCK_TYPES, RUNNABLE_BLOCK_TYPES, createBlock, moveNode, toCamelName } from "@/system/lang";
+import {
+  EXPOSED_BLOCK_TYPES,
+  PAGE_BLOCK_TYPES,
+  RUNNABLE_BLOCK_TYPES,
+  createBlock,
+  moveNode,
+  toCamelName,
+} from "@/system/lang";
 import { makeRun } from "@/system/session";
 import { canvas, inspectionPtr } from "@/system/space";
 import { makeTypeInfo } from "@/system/value";
@@ -36,12 +43,10 @@ import Block from "@/views/system/Block.vue";
 import { computed, nextTick, ref, toRef, type Ref } from "vue";
 
 const HEADER_HEIGHT = DEFAULT_HEADER_HEIGHT;
-const DEPTH_OFFSET = 40;
 const MIN_BLOCK_WIDTH = 500;
 const MAX_BLOCK_WIDTH = 800;
 const MIN_GUTTER_WIDTH = 44;
 const ROOT_BLOCK_GAP_Y = 8;
-const NESTED_BLOCK_GAP_Y = 8;
 const HANDLE_WIDTH = 6;
 const SEPARATOR_WIDTH = 6;
 
@@ -66,27 +71,14 @@ const preparedPkgConnection = useGetConnection(
   })),
 );
 const { graph: pkgGraph, connection: pkgConnection } = preparedPkgConnection;
-const page = pkgGraph.getRef(toRef(props, "nodePtr")) as Ref<BlockData | undefined>;
-const { items: expandedBlocks } = walkDescendantsRef({
-  graph: pkgGraph,
-  rootPtr: toRef(props, "nodePtr"),
-  nodeTypes: ref([NodeType.BLOCK]),
-  isExpanded: () => true,
-  isIncludedSelf: () => true,
-  isIncludedChildren: (node) => !PAGE_BLOCK_TYPES.includes(node.type),
-});
-const expandedBlocksWithSelf: Ref<NodeTreeItem<NodeType.BLOCK>[]> = computed(() => {
+const nodePtr = toRef(props, "nodePtr");
+const page = pkgGraph.getRef(nodePtr) as Ref<BlockData | undefined>;
+const blocks = pkgGraph.getChildrenRef(nodePtr, NodeType.BLOCK);
+const blocksWithSelf: Ref<BlockData[]> = computed(() => {
   if (page.value == null) {
     return [];
   } else {
-    const selfItem: NodeTreeItem<NodeType.BLOCK> = {
-      id: page.value.id,
-      node: page.value,
-      nodePtr: toNodeReference(page.value),
-      depth: 0,
-      hasChildren: true,
-    };
-    return [selfItem, ...expandedBlocks.value];
+    return [page.value, ...blocks.value];
   }
 });
 const expandedBlockRefs: Ref<Record<string, InstanceType<typeof Block>>> = ref({});
@@ -96,11 +88,11 @@ const focusedNodePtr = computedValue(() => props.focus?.nodesPtr[0]);
 // messages / notices
 const { childrenByParentId: threadsByBlockId } = getGroupedChildrenRef({
   graph: pkgGraph,
-  parentPtrs: expandedBlocksWithSelf,
+  parentPtrs: blocksWithSelf,
   childTypes: [NodeType.MESSAGE],
 });
 
-// size block/gutter horizontally (try to fit both until min block width, ignoring depth)
+// size block/gutter horizontally (try to fit both until min block width)
 const widths = computed(() => {
   // divide space between block and gutter up to target gutter width
   const blockWidth = Math.min(MAX_BLOCK_WIDTH, Math.max(MIN_BLOCK_WIDTH, props.size.width - MIN_GUTTER_WIDTH * 2));
@@ -111,15 +103,12 @@ const widths = computed(() => {
 /** Gets the position for a div anchored at the start/end of the given block */
 function getAnchorPositionStyle(anchor: "start" | "end", blockIdx: number, anchorWidth: number) {
   if (anchor == "start") {
-    const depth = expandedBlocks.value[blockIdx]?.depth;
     return {
-      top: (depth == 0 ? -ROOT_BLOCK_GAP_Y : -NESTED_BLOCK_GAP_Y) / 2 - anchorWidth / 2 + "px",
+      top: -ROOT_BLOCK_GAP_Y / 2 - anchorWidth / 2 + "px",
     };
   } else {
-    const depth = expandedBlocks.value[blockIdx]?.depth;
-    const nextDepth = expandedBlocks.value[blockIdx + 1]?.depth;
     return {
-      bottom: (depth == 0 && nextDepth == 0 ? -ROOT_BLOCK_GAP_Y : -NESTED_BLOCK_GAP_Y) / 2 - anchorWidth / 2 + "px",
+      bottom: -ROOT_BLOCK_GAP_Y / 2 - anchorWidth / 2 + "px",
     };
   }
 }
@@ -156,10 +145,10 @@ const { activeDropZone } = useMultiDropZone({
 
 // actions
 const getBlockFromContext = (ctx: ActionContext | undefined): { block: BlockData | null; idx: number } => {
-  let block = expandedBlocks.value.find((item) => item.nodePtr.id == ctx?.triggerNode?.id)?.node;
-  if (!block) block = expandedBlocks.value.find((item) => item.nodePtr.id == focusedNodePtr.value?.id)?.node;
+  let block = blocks.value.find((block) => block.id == ctx?.triggerNode?.id);
+  if (!block) block = blocks.value.find((block) => block.id == focusedNodePtr.value?.id);
   if (!block) return { block: null, idx: -1 };
-  const idx = expandedBlocks.value.findIndex((item) => item.nodePtr.id == block!.id);
+  const idx = blocks.value.findIndex((block) => block.id == block!.id);
   return { block, idx };
 };
 const actions: Partial<ActionMapImplementation<"common">> = {
@@ -197,10 +186,9 @@ const actions: Partial<ActionMapImplementation<"common">> = {
   "common.navigate.up": {
     action: (action, context) => {
       const { block, idx } = getBlockFromContext(context);
-      let toFocus = expandedBlocks.value[idx - 1]?.nodePtr;
+      let toFocus = blocks.value[idx - 1];
       if (block == null) {
-        if (props.nodePtr?.id == focusedNodePtr.value?.id)
-          toFocus = expandedBlocks.value[expandedBlocks.value.length - 1]?.nodePtr;
+        if (props.nodePtr?.id == focusedNodePtr.value?.id) toFocus = blocks.value[blocks.value.length - 1];
         else return false;
       }
       if (toFocus != null) canvas.focus({ node: toFocus, view: self.value });
@@ -209,24 +197,21 @@ const actions: Partial<ActionMapImplementation<"common">> = {
   "common.navigate.down": {
     action: (action, context) => {
       const { block, idx } = getBlockFromContext(context);
-      let toFocus = expandedBlocks.value[idx + 1]?.nodePtr;
+      let toFocus = blocks.value[idx + 1];
       if (block == null) {
-        if (props.nodePtr?.id == focusedNodePtr.value?.id) toFocus = expandedBlocks.value[0]?.nodePtr;
+        if (props.nodePtr?.id == focusedNodePtr.value?.id) toFocus = blocks.value[0];
         else return false;
       }
       if (toFocus != null) canvas.focus({ node: toFocus, view: self.value });
     },
   },
   // move
-  ...useHierarchicalNodeMoveActions({
+  ...useFlatNodeMoveActions({
     graph: pkgGraph,
-    basePtr: toRef(props, "nodePtr"),
     txFactory: () => pkgConnection.tx,
-    expandedItems: expandedBlocks,
-    getItemFromContext: (context) => {
-      const { idx } = getBlockFromContext(context);
-      const item = expandedBlocks.value[idx];
-      return { item, idx };
+    getNodeFromContext: (context) => {
+      const { block, idx } = getBlockFromContext(context);
+      return { node: block, idx };
     },
   }),
 };
@@ -241,30 +226,30 @@ function createAndFocusBlock(
 
 // focus
 function focus(anchor?: FocusAnchor | NodeReferenceData) {
-  let block: InstanceType<typeof Block> | undefined;
+  let blockEl: InstanceType<typeof Block> | undefined;
   if (typeof anchor != "object") {
     if (anchor != "bottom") {
-      block = expandedBlockRefs.value[expandedBlocks.value[0].nodePtr.id!];
-      block?.$el.scrollIntoView({ block: "start", behavior: "instant" });
+      blockEl = expandedBlockRefs.value[blocks.value[0].id!];
+      blockEl?.$el.scrollIntoView({ block: "start", behavior: "instant" });
     } else {
-      block = expandedBlockRefs.value[expandedBlocks.value[expandedBlocks.value.length - 1].nodePtr.id!];
-      block?.$el.scrollIntoView({ block: "end", behavior: "instant" });
+      blockEl = expandedBlockRefs.value[blocks.value[blocks.value.length - 1].id!];
+      blockEl?.$el.scrollIntoView({ block: "end", behavior: "instant" });
     }
   } else {
     if (anchor.id == props.nodePtr?.id) {
       // just focus first
-      if (expandedBlocks.value.length > 0) {
-        block = expandedBlockRefs.value[expandedBlocks.value[0].nodePtr.id!];
-        block.$el.scrollIntoView({ block: "nearest", behavior: "instant" });
+      if (blocks.value.length > 0) {
+        blockEl = expandedBlockRefs.value[blocks.value[0].id!];
+        blockEl.$el.scrollIntoView({ block: "nearest", behavior: "instant" });
       }
     } else {
-      block = expandedBlockRefs.value[anchor.id!];
-      block?.$el.scrollIntoView({ block: "nearest", behavior: "instant" });
+      blockEl = expandedBlockRefs.value[anchor.id!];
+      blockEl?.$el.scrollIntoView({ block: "nearest", behavior: "instant" });
     }
   }
 
   blurDocument(); // nothing to focus directly
-  return block?.$el;
+  return blockEl?.$el;
 }
 const isFocusedAbsolute = canvas.isFocusedAbsoluteRef(self);
 
@@ -304,24 +289,24 @@ defineExpose<ViewExposed>({ self, actions, focus });
       <div ref="contentRef" class="mb-16 flex flex-col">
         <!--  (while still retaining all the functionality of a full block 'line') -->
         <!-- Block 'line' -->
-        <template v-for="({ nodePtr: blockPtr, node: block, depth }, i) in expandedBlocksWithSelf" :key="blockPtr.id">
+        <template v-for="(block, i) in blocksWithSelf" :key="block.id">
           <div
             class="group/block-line relative flex min-w-fit flex-row"
             :style="{
-              marginTop: (depth == 0 ? ROOT_BLOCK_GAP_Y : NESTED_BLOCK_GAP_Y) + 'px',
+              marginTop: ROOT_BLOCK_GAP_Y + 'px',
             }"
           >
             <!-- Left gutter -->
             <div
               class="relative flex flex-shrink-0 flex-row items-start justify-end gap-x-2 text-right"
-              :style="{ width: widths.gutter + DEPTH_OFFSET * depth + 'px', marginTop: SEPARATOR_WIDTH + 'px' }"
+              :style="{ width: widths.gutter + 'px', marginTop: SEPARATOR_WIDTH + 'px' }"
             >
               <!-- Activity / Run / ... -->
               <!-- Run -->
               <button
-                v-if="expandedBlockRefs[blockPtr.id!]?.isRunnable"
+                v-if="expandedBlockRefs[block.id!]?.isRunnable"
                 class="text-gray-400 hover:text-primary-900"
-                :class="inspectionPtr?.id == blockPtr?.id ? '' : 'opacity-0 group-hover/block-line:opacity-100'"
+                :class="inspectionPtr?.id == block?.id ? '' : 'opacity-0 group-hover/block-line:opacity-100'"
                 data-keep-inspection-in-base="true"
                 @click="() => pkgConnection.tx.create(makeRun(block, pkgGraph))"
               >
@@ -331,9 +316,9 @@ defineExpose<ViewExposed>({ self, actions, focus });
               <div
                 class="h-full rounded transition-colors duration-75"
                 :class="
-                  inspectionPtr?.id == blockPtr?.id
+                  inspectionPtr?.id == block?.id
                     ? 'bg-primary-900'
-                    : focusedNodePtr?.id == blockPtr?.id
+                    : focusedNodePtr?.id == block?.id
                       ? 'bg-gray-300'
                       : 'bg-transparent group-hover/block-line:bg-gray-200'
                 "
@@ -345,12 +330,12 @@ defineExpose<ViewExposed>({ self, actions, focus });
             <div
               class="group/block-wrapper relative rounded border-gray-100"
               :style="{
-                width: widths.block - DEPTH_OFFSET * depth + 'px',
+                width: widths.block + 'px',
               }"
             >
               <!-- Separator: create above/below (in between and around blocks) -->
               <div
-                v-for="anchor in i == 0 ? [] : i < expandedBlocks.length - 1 ? ['start', 'end'] : ['start', 'end']"
+                v-for="anchor in i == 0 ? [] : i < blocks.length - 1 ? ['start', 'end'] : ['start', 'end']"
                 :key="anchor"
                 v-menu="
                   (): PopoverInfoIn => ({
@@ -358,7 +343,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
                     placement: 'bottom',
                     props: { valueType: makeTypeInfo({ benchType: BenchType.BLOCK_TYPE, isRequired: true }) },
                     onApply: (blockType: BlockType) =>
-                      createAndFocusBlock({ type: blockType }, anchor == 'start' ? 'before' : 'after', blockPtr),
+                      createAndFocusBlock({ type: blockType }, anchor == 'start' ? 'before' : 'after', block),
                   })
                 "
                 role="button"
@@ -381,16 +366,14 @@ defineExpose<ViewExposed>({ self, actions, focus });
 
               <!-- Drag above/below -->
               <div
-                v-if="activeDropZone?.targetId == blockPtr.id"
+                v-if="activeDropZone?.targetId == block.id"
                 class="absolute z-10 h-1 w-full rounded-sm bg-primary-400"
                 :style="getAnchorPositionStyle(activeDropZone?.anchor as 'start' | 'end', i, 4)"
               />
 
               <!-- Block -->
               <Block
-                :ref="
-                  (ref: any) => (ref ? (expandedBlockRefs[blockPtr.id!] = ref) : delete expandedBlockRefs[blockPtr.id!])
-                "
+                :ref="(ref: any) => (ref ? (expandedBlockRefs[block.id!] = ref) : delete expandedBlockRefs[block.id!])"
                 v-contextmenu="
                   (context: PopoverContext): PopoverInfo => ({
                     kind: 'menu',
@@ -406,7 +389,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
                         'message.handle.startThread',
                       ],
                       {
-                        context: { ...context, triggerNode: blockPtr },
+                        context: { ...context, triggerNode: block },
                       },
                     ),
                   })
@@ -414,10 +397,10 @@ defineExpose<ViewExposed>({ self, actions, focus });
                 class="w-full px-2 py-1.5 data-[dragging=true]:opacity-50"
                 borderless
                 :variant="Variant.STEALTH"
-                :node-ptr="blockPtr"
+                :node-ptr="toNodeReference(block)"
                 :prepared-connection="preparedPkgConnection"
                 :draggable="true"
-                @dragstart.stop="(e: DragEvent) => startDragging(e, pkgGraph, blockPtr)"
+                @dragstart.stop="(e: DragEvent) => startDragging(e, pkgGraph, block)"
               />
             </div>
 
@@ -436,16 +419,16 @@ defineExpose<ViewExposed>({ self, actions, focus });
                     containerMargin: 12,
                     props: {
                       variant: Variant.COMPACT,
-                      nodePtr: toNodeReference(threadsByBlockId[blockPtr.id!]?.at(-1)!) ?? blockPtr,
+                      nodePtr: toNodeReference(threadsByBlockId[block.id!]?.at(-1)!) ?? block,
                     },
                   })
                 "
                 class="rounded transition-colors duration-75 hover:text-primary-900 data-[popover=true]:text-primary-900"
                 :class="[
-                  inspectionPtr?.id == blockPtr?.id || threadsByBlockId[blockPtr.id!]?.length
+                  inspectionPtr?.id == block?.id || threadsByBlockId[block.id!]?.length
                     ? ''
                     : 'opacity-0 group-hover/block-line:opacity-100',
-                  threadsByBlockId[blockPtr.id!]?.length ? 'text-gray-700' : 'text-gray-400',
+                  threadsByBlockId[block.id!]?.length ? 'text-gray-700' : 'text-gray-400',
                 ]"
                 data-keep-inspection-in-base="true"
               >

@@ -551,10 +551,13 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
           <i class="fas fa-empty-set w-5 text-center text-gray-400" />
           <span class="ml-1 text-gray-500">No results</span>
         </div>
-        <!-- End of list -->
+        <!-- End of list/feed -->
         <div v-if="page.total && page.size < page.total" class="mx-auto my-1 w-full text-center">
           <i class="fas fa-ellipsis-h w-5 text-center text-gray-400" />
-          <span v-if="page.total" class="ml-1 text-gray-500">{{ humanizeNumber(page.total - page.size) }} more</span>
+          <span class="ml-1 text-gray-500">{{ humanizeNumber(page.total - page.size) }} more</span>
+        </div>
+        <div v-else-if="page.total && page.size >= page.total" class="mx-auto my-1 w-full text-center">
+          <i class="fas fa-horizontal-rule w-5 text-center text-gray-400" />
         </div>
       </ul>
       <!-- Loading -->

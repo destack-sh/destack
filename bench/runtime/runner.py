@@ -336,13 +336,15 @@ class RuntimeRunner:
                     try:
                         await runner.run()
                         attempt.status = RunStatus.COMPLETED
-                        log.debug("runner.attempt", attempt=attempt)
+                        log.debug("runner.attempt", attempt=attempt, span="current")
                         break  # success
                     except Exception as e:
                         error = RunError.from_exception(RunErrorKind.RUNTIME, e)
                         attempt.error = error
                         attempt.status = RunStatus.FAILED
-                        log.debug("runner.attempt.failed", attempt=attempt, exc_info=e)
+                        log.debug(
+                            "runner.attempt.failed", attempt=attempt, exc_info=e, span="current"
+                        )
                         if not error.is_retryable or (
                             not retry.on_error(e)
                             and not (error.type and error.type in handle.options.retry_on)

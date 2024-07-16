@@ -129,7 +129,7 @@ class CodeScriptRunner(CodeRunnerBase):
         glbls = self._prepare_glbls()
 
         # run
-        logger.trace("code.script", code=cast(Code, self.code).to_string())
+        logger.trace("code.run", runner=self, code=cast(Code, self.code).to_string())
         with self._capture_logs():
             if compiled.is_coroutine:
                 coro = eval(compiled.body_co, glbls)
@@ -162,7 +162,7 @@ class CodeFunctionRunner(CodeRunnerBase):
                     glbls[field.py_ident] = value
 
         # run
-        logger.trace("code.function", code=cast(Code, self.code).to_string())
+        logger.trace("code.run", runner=self, code=cast(Code, self.code).to_string())
         exec(compiled.body_co, glbls)  # shouldn't error
         func = glbls[compiled.function_name]
         with self._capture_logs():
