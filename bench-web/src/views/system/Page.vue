@@ -453,7 +453,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
           <template v-for="blockType in EXPOSED_BLOCK_TYPES" :key="blockType">
             <button
               v-tooltip="{
-                title: `Create ${toCamelName(BlockType, blockType)} Block`,
+                title: `${toCamelName(BlockType, blockType)}`,
                 showDelay: 200,
                 hideDelay: 100,
                 small: true,

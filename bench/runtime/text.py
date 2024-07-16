@@ -126,23 +126,23 @@ There are many more complex types; examples are provided as needed.
         if self.output_type is None or len(self.output_type._fields) == 0:
             raise RunImpossibleError(f"no outputs for {self.handle!r}")
 
-        render_options = RenderOptions(scope=self.node)
-
         # context
-        contexts: list[PageContext] = []  # nocheckin: context
+        pages = projection.get_containing_pages()
         rendered_contexts = []
-        for context in contexts:
+        for page in pages:
+            rendered_page = render(page, options=RenderOptions(scope=page, as_page=True))
             rendered_context = f"""\
-# {'=' * 30}
-# `{context.path}`
-# {'=' * 30}
+# {'=' * 24}
+# `{page.absolute_path}`
+# {'=' * 24}
 
-{context.body}
+{rendered_page}
 """
             rendered_contexts.append(rendered_context)
         rendered_context = "\n\n".join(rendered_contexts)
 
         # specific task / inputs
+        render_options = RenderOptions(scope=self.node)
         rendered_task = render(self.node, options=render_options)
         rendered_inputs = render(self.inputs, options=render_options)
 
@@ -160,10 +160,10 @@ There are many more complex types; examples are provided as needed.
                 f"""\
 #
 # Context around your task '{self.node.name}'
-# Includes relevant and irrelevant instructions and information that you may want to consider.
+# Includes relevant and irrelevant instructions and information to consider.
 # 
 
-{rendered_context}
+{rendered_context or "# <no context available>"}
 
 # 
 # Inputs for your specific task '{self.node.name}'

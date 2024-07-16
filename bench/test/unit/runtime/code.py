@@ -223,7 +223,7 @@ async def test_run_code_raise_retryable_error(runner: RuntimeRunner, page: Block
 
 async def test_run_code_raise_unretryable_error(runner: RuntimeRunner, page: Block):
     CodeBlock = Block.new_code(
-        "Code1", """raise NotRetryableError('error1')""", run_options=RunOptions(max_attempts=3)
+        "Code1", """raise NonRetryableError('error1')""", run_options=RunOptions(max_attempts=3)
     )
     page.blocks.append(CodeBlock)
     await runner.session.commit()

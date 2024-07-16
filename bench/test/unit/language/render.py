@@ -151,7 +151,15 @@ def test_render_field_with_constraint(shared_session: Session, shared_package: P
 #
 
 
-def test_render_choice_option(shared_session: Session, shared_package: Package):
+def test_render_page(shared_session: Session, shared_package: Package):
+    Page = shared_package.blocks.create(name="Page", type=BlockType.PAGE)
+    Text1 = Page.blocks.append(Block.new_text("Text1", "Hello, world!"))
+    rendered_page = render(Page, options=RenderOptions(scope=Page, as_page=True))
+    assert Text1.name in rendered_page
+
+
+def test_render_simpe_choice_option_ref(shared_session: Session, shared_package: Package):
+    """Rendered node ref in sibling scope should be simplified"""
     Page = shared_package.blocks.create(name="Page", type=BlockType.PAGE)
     Choice = Block.new(
         BlockType.CHOICE,
