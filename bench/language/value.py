@@ -560,7 +560,6 @@ def check_value_object_scalar(
             check_value(field_value, field_type, invalid)
 
 
-@tracer.start_as_current_span(name="value.check")
 def check_value(value: Any, typ: "TypeInfoBase", invalid: "ValidationHandler") -> None:
     """
     Checks whether the given value has the expected type (recursively).

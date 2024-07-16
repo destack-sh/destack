@@ -269,7 +269,6 @@ class Transaction:
     # Edits
     #
 
-    @tracer.start_as_current_span("transaction.record_edit")
     def _record_edit(
         self,
         edit_type: EditType,

@@ -1,4 +1,4 @@
-import { BlockData, NodeReferenceData, NodeType } from "@/proto/wire";
+import { BlockData, NodeReferenceData, NodeType, type NodeTypeMapping } from "@/proto/wire";
 import { describeNode, isNode } from "@/proto/wiring";
 import type { ActionContext, ActionMapImplementation } from "@/system/action";
 import { type NodeTreeItem, type ReadNodeGraph } from "@/system/graph";
@@ -7,6 +7,7 @@ import { pkgGraph } from "@/system/space";
 import type { Transaction } from "@/system/transaction";
 import type { Ref } from "vue";
 
+/** Actions to smoothly move up/down/left/right inside a node tree */
 export function useHierarchicalNodeMoveActions<T extends NodeType>(options: {
   graph: ReadNodeGraph;
   basePtr: Ref<NodeReferenceData | null | undefined>;
@@ -119,6 +120,49 @@ export function useHierarchicalNodeMoveActions<T extends NodeType>(options: {
         const { item, idx } = getItemFromContext(context);
         if (item == null || idx < 1 || !isNode(item.node, NodeType.BLOCK)) return false;
         return moveNodeRight(txFactory(), item, idx);
+      },
+    },
+  };
+}
+
+/** Actions to move up/down in a flat node level (assumes all the parents are the same, i.e. all nodes are siblings) */
+export function useFlatNodeMoveActions<T extends NodeType>(options: {
+  graph: ReadNodeGraph;
+  txFactory: () => Transaction;
+  getNodeFromContext(context: ActionContext | undefined): { node: NodeTypeMapping[T] | null; idx: number };
+  enabled?: Ref<boolean>;
+}): ActionMapImplementation<"common.move.up" | "common.move.down"> {
+  type ItemT = NodeTreeItem<T>;
+
+  const { graph, txFactory, getNodeFromContext, enabled } = options;
+
+  return {
+    "common.move.up": {
+      isEnabled: enabled,
+      action: (action, context) => {
+        // move block one position up
+        const { node } = getNodeFromContext(context);
+        if (node?.parentPtr == null) return false;
+        const siblings = node?.parentPtr ? graph.getChildren(node.parentPtr) : [];
+        const prev = siblings[siblings.indexOf(node) - 1];
+        if (prev == null) return false;
+        const tx = txFactory();
+        moveNode(tx, pkgGraph, node, "before", prev);
+        return true;
+      },
+    },
+    "common.move.down": {
+      isEnabled: enabled,
+      action: (action, context) => {
+        // move block one position down
+        const { node } = getNodeFromContext(context);
+        if (node?.parentPtr == null) return false;
+        const siblings = node?.parentPtr ? graph.getChildren(node.parentPtr) : [];
+        const next = siblings[siblings.indexOf(node) + 1];
+        if (next == null) return false;
+        const tx = txFactory();
+        moveNode(tx, pkgGraph, node, "after", next);
+        return true;
       },
     },
   };

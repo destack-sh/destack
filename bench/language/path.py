@@ -101,6 +101,9 @@ class Path(Struct):
     def __len__(self) -> int:
         return len(self.tokens)
 
+    def __getitem__(self, index: int) -> PathToken:
+        return self.tokens[index]
+
     @property
     def is_absolute(self) -> bool:
         """Whether the path is absolute from a Bench root."""

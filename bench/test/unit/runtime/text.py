@@ -4,6 +4,7 @@ from bench.language.block import Block
 from bench.language.const import BlockType, RunStatus
 from bench.language.field import Field
 from bench.language.run import ModelOptions, ModelProvider, RunErrorType, RunOptions
+from bench.language.text import md
 from bench.language.validation import constrain
 from bench.runtime.runner import RuntimeRunner
 
@@ -66,7 +67,14 @@ async def test_run_text_output_dict(
     WritingStyle = Block.new(
         BlockType.CLASS,
         "WritingStyle",
-        fields=[Field.member("formality", int, constrain(min_value=0, max_value=10))],
+        fields=[
+            Field.member(
+                "formality",
+                int,
+                constrain(min_value=0, max_value=10),
+                text=md("0 is super casual slang, 10 is high formal prose"),
+            )
+        ],
     )
     AnalyzeSentiment = Block.new_text(
         "AnalyzeSentiment",
@@ -85,4 +93,6 @@ async def test_run_text_output_dict(
         AnalyzeSentiment, inputs={"Text": "today's a great day"}, return_error=True
     )
     assert run.status == RunStatus.COMPLETED
-    assert run.outputs and run.outputs.Mood == Mood.fields.Positive
+    assert run.outputs
+    assert run.outputs.Mood == Mood.fields.Positive
+    assert run.outputs.WritingStyle and run.outputs.WritingStyle.formality > 0  # type: ignore
