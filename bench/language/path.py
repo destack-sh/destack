@@ -47,7 +47,6 @@ class PathTokenType(IdEnum):
     PARENT = 3
     BENCH = 4
     NAMED_NODE = 5
-    SIBLING_NODE = 6
     CONTAINING_NODE = 7
     UNIQUE_NODE = 8
     PROPERTY = 10  # i.e. field
@@ -163,9 +162,7 @@ def parse_path(path: str) -> Path:
                     raise PathSyntaxError(f"invalid bench name '{segment}' in '{path}'")
             elif match := NODE_PATTERN.match(segment):
                 node_type = PathTokenType.NAMED_NODE
-                if match.group(1) == ">":
-                    node_type = PathTokenType.SIBLING_NODE
-                elif match.group(1) == "~":
+                if match.group(1) == "~":
                     node_type = PathTokenType.CONTAINING_NODE
                 elif match.group(1) == "^":
                     node_type = PathTokenType.UNIQUE_NODE
@@ -214,8 +211,6 @@ def render_path(path: Path) -> str:
             path_parts.append("..")
         elif token.type == PathTokenType.BENCH:
             path_parts.append(f"@{token.name}")
-        elif token.type == PathTokenType.SIBLING_NODE:
-            path_parts.append(f">{token.name or ''}")
         elif token.type == PathTokenType.CONTAINING_NODE:
             path_parts.append(f"~{token.name or ''}")
         elif token.type == PathTokenType.UNIQUE_NODE:
@@ -243,8 +238,8 @@ def get_child(scope: Node, name: str, node_type: NodeType | None = None) -> Node
     return None
 
 
-def get_descendant(scope: Node, name: str, node_type: NodeType | None = None) -> Node | None:
-    """Finds a named descendant from a scope (if any)."""
+def _get_descendant(scope: Node, name: str, node_type: NodeType | None = None) -> Node | None:
+    """Finds any named descendant from a scope (if any, ignoring container boundaries)."""
     for descendant in scope._graph.iter_descendants(scope, recursive=True, node_type=node_type):
         if getattr(descendant, "name", None) == name:
             return descendant
@@ -276,7 +271,7 @@ def get_contained_descendant(scope: Node, name: str) -> Node | None:
             if node := get_child(scope, name, node_type):
                 return node
         for node_type in (NodeType.VIEW, NodeType.STEP):
-            if node := get_descendant(scope, name, node_type):
+            if node := _get_descendant(scope, name, node_type):
                 return node
 
     return None
@@ -301,7 +296,7 @@ def get_containing_node(scope: Node, name: str | None = None) -> Node | None:
                 return parent
             parent = parent.parent
     else:
-        # if we're in a block, find next block that is_page or (or skip to bench)
+        # if we're in a block, find next block that's a container/page or (or skip to bench)
         from bench.language.block import Block
 
         parent = scope.parent
@@ -316,13 +311,32 @@ def get_containing_node(scope: Node, name: str | None = None) -> Node | None:
 
 
 def get_unique_node(scope: Node, name: str) -> Node | None:
-    """Finds a uniquely named node in any containing ancestor scope."""
-    container = scope
-    while container is not None:
-        descendant = get_contained_descendant(container, name)
+    """
+    Finds a uniquely named node in any containing ancestor scope.
+    The order of search is:
+     1. 'Siblings' - descendents of parent container.
+     2. Descendants - descendants of scope.
+     3. Ancestors - descendants of ancestor containers.
+    The rationale is that we generally want to refer to nodes in the same container
+     more than we want our child nodes (like an output Field with the name of a ChoiceBlock,
+     or other Steps in the same Flows more than our input Fields).
+    """
+    # 'siblings'
+    parent = get_containing_node(scope)
+    if parent is not None and (node := get_contained_descendant(parent, name)) is not None:
+        return node
+    # descendants
+    if (node := get_contained_descendant(scope, name)) is not None:
+        return node
+    # ancestors
+    if parent is None:
+        return None
+    parent = get_containing_node(parent)
+    while parent is not None:
+        descendant = get_contained_descendant(parent, name)
         if descendant is not None:
             return descendant
-        container = get_containing_node(container)
+        parent = get_containing_node(parent)
     return None
 
 
@@ -353,13 +367,6 @@ def get_node(scope: Node, path: str | Path) -> Node | None:
             else:
                 current = scope.bench
         elif token.type == PathTokenType.NAMED_NODE:
-            assert token.name, f"missing name for {token!r} in {path!r}"
-            current = get_child(current, token.name)
-        elif token.type == PathTokenType.SIBLING_NODE:
-            if token.type == PathTokenType.SIBLING_NODE:
-                current = current.parent
-                if current is None:
-                    return None
             assert token.name, f"missing name for {token!r} in {path!r}"
             current = get_child(current, token.name)
         elif token.type == PathTokenType.CONTAINING_NODE:
