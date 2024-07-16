@@ -11,7 +11,7 @@ from bench.language.block import Block
 from bench.language.const import BlockType, ReferenceKind, StructType
 from bench.language.field import Field
 from bench.language.node import BuiltinObject, Node
-from bench.language.render import Renderer, RenderOptions, render
+from bench.language.render import Renderer, RenderOptions, render, render_expr
 from bench.language.session import Session
 from bench.language.validation import constrain
 from bench.language.view import View, ViewType
@@ -57,6 +57,11 @@ def test_render_builtin_object_expr(
     glbls = {**STATIC_CODE_GLOBALS, **BUILTIN_GLOBALS, **node_references}
     ret = eval(rendered, glbls)
     assert cast(BuiltinObject, ret)._equals_content(obj)
+
+
+#
+# Roundtrip render statements
+#
 
 
 def _render_as_stmt(func: Callable[[Any, Any], Mapping[str, BuiltinObject]]):
@@ -141,4 +146,21 @@ def test_render_field_with_constraint(shared_session: Session, shared_package: P
     return {"Field1": Field1}
 
 
-# NOTE :Test: test many more renderings
+#
+# Other renderings
+#
+
+
+def test_render_choice_option(shared_session: Session, shared_package: Package):
+    Page = shared_package.blocks.create(name="Page", type=BlockType.PAGE)
+    Choice = Block.new(
+        BlockType.CHOICE,
+        "Choice",
+        fields=[Field.option("Option1"), Field.option("Option2"), Field.option("Option3")],
+    )
+    Function = Block.new_code("Function", "")
+    Page.blocks.extend(Choice, Function)
+    rendered_option = render_expr(
+        Choice.fields.Option2, options=RenderOptions(scope=Function), as_ref=True
+    )
+    assert rendered_option == "Choice.Option2"

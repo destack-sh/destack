@@ -441,18 +441,18 @@ def get_path(scope: Node, node: Node) -> Path:
         else:
             return Path(tokens=[PathToken(type=PathTokenType.CURRENT)])
 
-    scope_ancestors = _get_path_to_root(scope)
-    node_ancestors = _get_path_to_root(node)
-    if scope_ancestors[-1] != node_ancestors[-1] or isinstance(node, Package):
+    scope_path = _get_path_to_root(scope)
+    node_path = _get_path_to_root(node)
+    if scope_path[-1] != node_path[-1] or isinstance(node, Package):
         # make absolute path (different bench)
         if (
             not isinstance(node, BenchNode)
-            or not node_ancestors
-            or not isinstance(node_ancestors[-1], Package)
+            or not node_path
+            or not isinstance(node_path[-1], Package)
         ):
             raise PathLogicError(f"no common ancestor found for {scope!r} and {node!r}")
-        tokens = [PathToken(type=PathTokenType.BENCH, name=node_ancestors[-1].name)]
-        for node_ancestor in node_ancestors[1:]:
+        tokens = [PathToken(type=PathTokenType.BENCH, name=node_path[-1].name)]
+        for node_ancestor in node_path[1:]:
             name = getattr(node_ancestor, "name", None)
             assert name is not None, f"no name for {node_ancestor!r}"
             tokens.append(PathToken(type=PathTokenType.CHILD, name=name))
@@ -460,8 +460,8 @@ def get_path(scope: Node, node: Node) -> Path:
         # find relative path from scope to node (up/down)
         common_ancestor = None
         scope_ancestor_idx = 0  # to ensure type checker that it will be assigned
-        for node_ancestor_idx, node_ancestor in enumerate(node_ancestors):  # noqa: B007
-            for scope_ancestor_idx, scope_ancestor in enumerate(scope_ancestors):  # noqa: B007
+        for node_ancestor_idx, node_ancestor in enumerate(node_path):  # noqa: B007
+            for scope_ancestor_idx, scope_ancestor in enumerate(scope_path):  # noqa: B007
                 if node_ancestor == scope_ancestor:
                     common_ancestor = node_ancestor
                     break
@@ -472,7 +472,7 @@ def get_path(scope: Node, node: Node) -> Path:
         if isinstance(common_ancestor, Package):
             # absolute path from bench to node
             tokens = [PathToken(type=PathTokenType.ROOT)]
-            for node_ancestor in reversed(node_ancestors[:-1]):
+            for node_ancestor in reversed(node_path[:-1]):
                 name = getattr(node_ancestor, "name", None)
                 assert name is not None, f"no name for {node_ancestor!r}"
                 tokens.append(PathToken(type=PathTokenType.CHILD, name=name))
@@ -480,19 +480,19 @@ def get_path(scope: Node, node: Node) -> Path:
             # node is a direct ancestor of scope
             tokens = []
             for i in range(1, scope_ancestor_idx + 1):
-                name = getattr(scope_ancestors[i], "name", None)
-                assert name is not None, f"no name for {scope_ancestors[i]!r}"
+                name = getattr(scope_path[i], "name", None)
+                assert name is not None, f"no name for {scope_path[i]!r}"
                 tokens.append(PathToken(type=PathTokenType.CONTAINER, name=name))
         else:
             # get from scope to common ancestor, then from common ancestor to node
             tokens = []
             for i in range(1, scope_ancestor_idx):
-                name = getattr(scope_ancestors[i], "name", None)
-                assert name is not None, f"no name for {scope_ancestors[i]!r}"
+                name = getattr(scope_path[i], "name", None)
+                assert name is not None, f"no name for {scope_path[i]!r}"
                 tokens.append(PathToken(type=PathTokenType.CONTAINER, name=name))
             for i in range(node_ancestor_idx - 1, -1, -1):
-                name = getattr(node_ancestors[i], "name", None)
-                assert name is not None, f"no name for {node_ancestors[i]!r}"
+                name = getattr(node_path[i], "name", None)
+                assert name is not None, f"no name for {node_path[i]!r}"
                 tokens.append(PathToken(type=PathTokenType.CHILD, name=name))
 
     if node.metatype == NodeType.FIELD:

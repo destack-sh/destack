@@ -23,7 +23,7 @@ from bench.runtime.core import (
     BASE_RUN_OPTIONS_BY_KIND,
     DYNAMIC_CODE_GLOBALS,
     STATIC_CODE_GLOBALS,
-    NotRunnableError,
+    RunImpossibleError,
 )
 from bench.utils.oracle import Oracle
 from bench.utils.uuidt import UUIDT
@@ -298,7 +298,7 @@ class RuntimeRunner:
     async def make_run_handle_from_run(self, run: Run):
         node = run.step or run.block
         if node is None:
-            raise NotRunnableError(f"no node for {run!r}")  # default to package?
+            raise RunImpossibleError(f"no node for {run!r}")  # default to package?
         options = node.run_options.override(run.options) if node.run_options else run.options
         return await self.make_run_handle(
             run.kind,
@@ -409,7 +409,7 @@ class RuntimeRunner:
 
         runner_cls = _runners.get((handle.kind, handle.key))
         if runner_cls is None:
-            raise NotRunnableError(f"no runner for {handle!r}: {handle.state.key}")
+            raise RunImpossibleError(f"no runner for {handle!r}: {handle.state.key}")
         trace.get_current_span().set_attribute("runner_cls", str(runner_cls))
 
         # run it

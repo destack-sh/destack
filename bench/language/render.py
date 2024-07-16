@@ -162,6 +162,7 @@ class Renderer:
         return alias
 
     def render_node_ref(self, node: Node) -> str:
+        """Renders a python-valid reference to the given node in this context."""
         alias = self._alias_by_node_id.get(node.id)
         if alias is not None:
             return alias
@@ -304,14 +305,19 @@ def render_value_expr(value: SomeValue, typ: TypeInfoBase, options: RenderOption
 
 
 @tracer.start_as_current_span("render.render_expr")
-def render_expr(value: BuiltinObject | ValueObject, options: RenderOptions) -> str:
+def render_expr(
+    value: BuiltinObject | ValueObject, options: RenderOptions, as_ref: bool = False
+) -> str:
     """Render the given object to a python expression."""
     renderer = Renderer(options)
     rendered: str
     if isinstance(value, ValueObject):
         rendered = renderer.render_value_object_scalar_expr(value, value._type)
     elif isinstance(value, BuiltinObject):
-        rendered = renderer.render_builtin_object_expr(value)
+        if isinstance(value, Node) and as_ref:
+            rendered = renderer.render_node_ref(value)
+        else:
+            rendered = renderer.render_builtin_object_expr(value)
     else:
         assert_never(value)
     if options.format:

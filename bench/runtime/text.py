@@ -4,16 +4,21 @@ from typing import ClassVar, Literal, Mapping, assert_never, override
 
 import anthropic
 import openai
+import structlog
 from openai.types import chat as openai_chat_types
+from opentelemetry import trace
 
 from bench.language.code import Code
 from bench.language.project import Projection, ProjectOptions, project
 from bench.language.render import RenderOptions, render, render_value_expr
 from bench.language.run import ModelProvider, ModelType, RunKind
 from bench.language.value import sample_value
-from bench.runtime.core import RUN_ONCE, ModelFailedError, NotRunnableError
+from bench.runtime.core import RUN_ONCE, ModelFailedError, RunImpossibleError
 from bench.runtime.runner import Runner, runner
 from bench.utils.utils import get_from_env
+
+logger = structlog.get_logger(__name__)
+tracer = trace.get_tracer(__name__)
 
 
 @runner(RunKind.TEXT, None)
@@ -40,6 +45,12 @@ class ModelRouter(Runner):
 
 
 @dataclass
+class ContainerContext:
+    path: str
+    body: str
+
+
+@dataclass
 class ChatMessage:
     role: Literal["user", "assistant", "system"]
     content: str
@@ -53,14 +64,12 @@ class ChatModelRunnerBase(Runner, abc.ABC):
 
     SYSTEM_MESSAGE = """
 You are a computational assistant on a new development platform called Bench.
-
 Users define their programs in a language of Blocks, Fields, Steps, Views, etc.,
- some of which are 'rendered' into Python code for you to consider as context & instructions.
-The instructions therein may be unclear, incomplete or conflicting 
- - use your best judgement as to probable intent.
+ some will be 'rendered' into Python code for you to consider as context, inputs & instructions.
 
-Your one and only job is to generate valid Python code that returns outputs to a SPECIFIC input for a SPECIFIC function.
-For instance, for a task like the following:
+Your one and only job is generating valid Python answers as outputs to a SPECIFIC invocation of a SPECIFIC task.
+You MUST use your best judgement to fill in incomplete or conflicting information.
+Consider an unrelated example task like the following:
 
 TellJoke = Block.new(
     BlockType.TEXT,
@@ -68,14 +77,17 @@ TellJoke = Block.new(
     fields=[Field.input("Topic", str), Field.output("Joke", str)],
 )
 
-You may be tasked to generate the output for the given inputs:
+For the given inputs:
 
 TellJoke("I'm very happy!")
 
-And you must return something like (note no method wrapper):
+You would return something like:
 
 return {"Joke": "Why did the scarecrow win an award? Because he was outstanding in his field!"}
+
+There are many more complex types; examples are provided as needed.
 """
+    INCLUDE_SYSTEM_MESSAGE: ClassVar[bool] = True
 
     @property
     def model(self) -> ModelType | None:
@@ -87,28 +99,41 @@ return {"Joke": "Why did the scarecrow win an award? Because he was outstanding 
     @override
     async def run(self) -> None:
         projection = project(self.state.node, self.handle.inputs, options=ProjectOptions())
-        code_str = await self._generate_code(projection)
+        messages = await self._make_messages(projection)
+        with tracer.start_as_current_span("text.generate_code"):
+            code_str = await self._generate_code(messages)
         code = Code.from_string(code_str)
-        code_handle = await self.runtime.make_run_handle(
-            RunKind.CODE, node=self.node, code=code, options=RUN_ONCE, track=True
-        )
-        await self.runtime.run_handle(code_handle)
+        with tracer.start_as_current_span("text.run_code"):
+            code_handle = await self.runtime.make_run_handle(
+                RunKind.CODE, node=self.node, code=code, options=RUN_ONCE, track=True
+            )
+            await self.runtime.run_handle(code_handle)
         self.handle.outputs = code_handle.outputs
 
-    async def _make_messages(
-        self, projection: Projection, *, include_system_message: bool
-    ) -> list[ChatMessage]:
+    @tracer.start_as_current_span("text.make_messages")
+    async def _make_messages(self, projection: Projection) -> list[ChatMessage]:
         # NOTE :Incomplete: add previous attempts errors to messages
         # NOTE :Incomplete: add images/file references to messages
         if self.inputs is None or len(self.inputs) == 0:
-            raise NotRunnableError(f"no inputs for {self.handle!r}")
+            raise RunImpossibleError(f"no inputs for {self.handle!r}")
         if self.output_type is None or len(self.output_type._fields) == 0:
-            raise NotRunnableError(f"no outputs for {self.handle!r}")
+            raise RunImpossibleError(f"no outputs for {self.handle!r}")
 
         render_options = RenderOptions(scope=self.node)
 
         # context
-        rendered_context = ""  # nocheckin: context
+        contexts: list[ContainerContext] = []  # nocheckin: context
+        rendered_contexts = []
+        for context in contexts:
+            rendered_context = f"""\
+# {'=' * 30}
+# `{context.path}`
+# {'=' * 30}
+
+{context.body}
+"""
+            rendered_contexts.append(rendered_context)
+        rendered_context = "\n\n".join(rendered_contexts)
 
         # specific task / inputs
         rendered_task = render(self.node, options=render_options)
@@ -127,21 +152,21 @@ return {"Joke": "Why did the scarecrow win an award? Because he was outstanding 
                 "user",
                 f"""\
 #
-# Context around your task
+# Context around your task '{self.node.name}'
 # Includes relevant and irrelevant instructions and information that you may want to consider.
 # 
 
 {rendered_context}
 
 # 
-# Inputs for your specific task
+# Inputs for your specific task '{self.node.name}'
 #
                         
 {rendered_inputs}
 
 #
 # Your specific task is `{self.node.name}`
-# Only focus on this task with these inputs in relation to the provided context.
+# You MUST focus on this task with these inputs in relation to the provided context.
 #
 
 {rendered_task}
@@ -153,27 +178,26 @@ return {"Joke": "Why did the scarecrow win an award? Because he was outstanding 
 {'\n'.join(e for e in rendered_examples)}
 
 #
-# Return the answer to the specific invocation of task '{self.node.name}' with the given inputs. 
-# Do NOT attempt to generalize over inputs, just return the answer for the given inputs only.
-# You may import and use the python standard library for maths and such if required, but nothing else.
-# If the output includes any sort of ratoinale, generate that reasoning *before* the respective answer.
+# Return the answer to the specific invocation of task '{self.node.name}' with the given inputs.
+#  - You MUST NOT attempt to generalize over inputs; return the answer for the given inputs only.
+#  - You MAY generate reasoning *before* the respective answer (especially if it's in the output).
+#  - You MAY import and use the Python standard library for maths and such, but nothing else.
+#  - You MAY raise ModelIncapableError("<reason>") if an fitting output is impossible.
 # 
 """,
             ),
             ChatMessage(
                 "assistant",
-                # "# here is how I'll return the answer explained in comments, followed by the code: \n",
                 """\
-# Here is the code method body that returns the specific answer for these specific inputs:
-#  (without any method wrapper or consideration for other possible inputs)""",
+# Here is the Python method body that returns the specific answer for these specific inputs:""",
             ),
         ]
-        if include_system_message:
+        if self.INCLUDE_SYSTEM_MESSAGE:
             messages = [ChatMessage("system", self.SYSTEM_MESSAGE), *messages]
         return messages
 
     @abc.abstractmethod
-    async def _generate_code(self, projection: Projection) -> str: ...
+    async def _generate_code(self, messages: list[ChatMessage]) -> str: ...
 
 
 openai_client = openai.AsyncClient(
@@ -203,12 +227,11 @@ class OpenaiModelRunner(ChatModelRunnerBase):
             assert_never(message.role)
 
     @override
-    async def _generate_code(self, projection: Projection) -> str:
+    async def _generate_code(self, messages: list[ChatMessage]) -> str:
         model = self.model or self.DEFAULT_MODEL
         model_key = self.MODEL_BY_TYPE.get(model)
         if model_key is None:
-            raise NotRunnableError(f"unsupported model type {self.state.key}")
-        messages = await self._make_messages(projection, include_system_message=True)
+            raise RunImpossibleError(f"unsupported model type {self.state.key}")
         completion = await openai_client.chat.completions.create(
             messages=[self._convert_message(message) for message in messages],
             model=model_key,
@@ -227,18 +250,18 @@ class AnthropicModelRunner(ChatModelRunnerBase):
     MODEL_BY_TYPE: ClassVar[Mapping[ModelType, str]] = {
         ModelType.CLAUDE_3_5_SONNET: "claude-3-5-sonnet-20240620"
     }
+    INCLUDE_SYSTEM_MESSAGE: ClassVar[bool] = False
 
     def _convert_message(self, message: ChatMessage) -> anthropic.types.MessageParam:
         assert message.role != "system", "system messages are not supported"
         return {"role": message.role, "content": message.content}
 
     @override
-    async def _generate_code(self, projection: Projection) -> str:
+    async def _generate_code(self, messages: list[ChatMessage]) -> str:
         model = self.model or self.DEFAULT_MODEL
         model_key = self.MODEL_BY_TYPE.get(model)
         if model_key is None:
-            raise NotRunnableError(f"unsupported model type {self.state.key}")
-        messages = await self._make_messages(projection, include_system_message=False)
+            raise RunImpossibleError(f"unsupported model type {self.state.key}")
         completion = await anthropic_client.messages.create(
             system=self.SYSTEM_MESSAGE,
             messages=[self._convert_message(message) for message in messages],

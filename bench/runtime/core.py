@@ -33,39 +33,29 @@ class RuntimeError(BenchError, RuntimeError):
     pass
 
 
-#
-# Not retryable
-#
-
-
-class NotRetryableError(RuntimeError):
-    run_error_type = RunErrorType.UNKNOWN_UNRETRYABLE
-
-
-class NotRunnableError(NotRetryableError):
-    run_error_type = RunErrorType.NOT_RUNNABLE
-
-
-class SyntaxError(NotRunnableError, SyntaxError):
-    pass
-
-
-class ReplayError(NotRunnableError):
-    run_error_type = RunErrorType.REPLAY
-
-
-#
-# Retryable
-#
-
-
 class RetryableError(RuntimeError):
     """An error we can retry "immediately" at runtime (in the same runtime)."""
 
     run_error_type = RunErrorType.UNKNOWN_RETRYABLE
 
 
-class ModelFailedError(RetryableError):
+class NonRetryableError(RuntimeError):
+    run_error_type = RunErrorType.UNKNOWN_NONRETRYABLE
+
+
+class RunImpossibleError(NonRetryableError):
+    run_error_type = RunErrorType.RUN_IMPOSSIBLE
+
+
+class SyntaxError(RunImpossibleError, SyntaxError):
+    pass
+
+
+class ReplayError(RunImpossibleError):
+    run_error_type = RunErrorType.REPLAY
+
+
+class ModelFailedError(NonRetryableError):
     run_error_type = RunErrorType.MODEL_FAILED
 
 
@@ -82,9 +72,9 @@ STATIC_CODE_GLOBALS: dict[str, Any] = {
     **{k: v for k, v in vars(language).items() if not k.startswith("__")},
     **BENCH_CLASS_BY_NAME,
     # some error types
-    "NotRetryableError": NotRetryableError,
-    "NotRunnableError": NotRunnableError,
+    "NonRetryableError": NonRetryableError,
     "RetryableError": RetryableError,
+    "RunImpossibleError": RunImpossibleError,
     "ModelIncapableError": ModelIncapableError,
 }
 # and some general stuff
