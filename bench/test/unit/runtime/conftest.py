@@ -86,7 +86,7 @@ def session(omni_bench: Bench):
 @pytest.fixture()
 def page(omni_bench: Bench):
     package = omni_bench.main_package
-    page = Block.new(BlockType.PAGE, name="Page", is_page=True)
+    page = Block.new(BlockType.PAGE, name="Page")
     package.blocks.append(page)
     return page
 

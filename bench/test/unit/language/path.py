@@ -37,7 +37,6 @@ from bench.language.step import Step, StepType
         ("..", [(PathTokenType.PARENT, None)]),
         ("../..", [(PathTokenType.PARENT, None), (PathTokenType.PARENT, None)]),
         ("Node", [(PathTokenType.NAMED_NODE, "Node")]),
-        (">Sibling", [(PathTokenType.SIBLING_NODE, "Sibling")]),
         ("~", [(PathTokenType.CONTAINING_NODE, None)]),
         ("~Container", [(PathTokenType.CONTAINING_NODE, "Container")]),
         ("^Unique", [(PathTokenType.UNIQUE_NODE, "Unique")]),
@@ -61,12 +60,11 @@ from bench.language.step import Step, StepType
         ),
         ("../parent", [(PathTokenType.PARENT, None), (PathTokenType.NAMED_NODE, "parent")]),
         ("^unique_node", [(PathTokenType.UNIQUE_NODE, "unique_node")]),
-        (">block", [(PathTokenType.SIBLING_NODE, "block")]),
         (
-            "some/>block/^unique",
+            "some/~block/^unique",
             [
                 (PathTokenType.NAMED_NODE, "some"),
-                (PathTokenType.SIBLING_NODE, "block"),
+                (PathTokenType.CONTAINING_NODE, "block"),
                 (PathTokenType.UNIQUE_NODE, "unique"),
             ],
         ),
@@ -139,11 +137,11 @@ def mock_package(session: Session):
     session.parent = package  # patch in the session parent
     session._graph.update(session, _force_update_parent=True)
 
-    # make page nodes
-    page1 = package.blocks.create(name="Page1", type=BlockType.PAGE, is_page=True)
-    page2 = package.blocks.create(name="Page2", type=BlockType.PAGE, is_page=True)
-    page11 = page1.blocks.create(name="Page11", type=BlockType.PAGE, is_page=True)
-    page21 = page2.blocks.create(name="Page21", type=BlockType.PAGE, is_page=True)
+    # page nodes
+    page1 = package.blocks.create(name="Page1", type=BlockType.PAGE)
+    page2 = package.blocks.create(name="Page2", type=BlockType.PAGE)
+    page11 = page1.blocks.create(name="Page11", type=BlockType.PAGE)
+    page21 = page2.blocks.create(name="Page21", type=BlockType.PAGE)
     flow111 = page11.blocks.create(name="Flow111", type=BlockType.CHOICE)
     step1111 = flow111.steps.append(Step.new(StepType.START, "Step1111"))  # noqa: F841
     field1111 = flow111.fields.append(Field.input("Field1111", bool))  # noqa: F841
@@ -152,6 +150,10 @@ def mock_package(session: Session):
     flow211 = page21.blocks.create(name="Flow211", type=BlockType.CODE)
     step2111 = flow211.steps.append(Step.new(StepType.START, "Step2111"))  # noqa: F841
     step2112 = flow211.steps.append(Step.new(StepType.START, "Step2112"))  # noqa: F841
+
+    # space nodes
+    space1 = package.spaces.create(name="Space1")  # noqa: F841
+    space2 = package.spaces.create(name="Space2")  # noqa: F841
 
     return package
 
@@ -163,6 +165,7 @@ def mock_package(session: Session):
         ("bench1", "@bench1", "bench1"),
         ("bench1", ".", "bench1"),
         ("bench1", "..", None),
+        ("bench1", "@bench1/Page1", "Page1"),
         # from top level page
         ("Page1", "..", "bench1"),
         ("Page1", "Page11/Flow111", "Flow111"),
@@ -174,7 +177,7 @@ def mock_package(session: Session):
         ("Page11", "..", "Page1"),
         ("Page11", "../..", "bench1"),
         ("Page11", "../Page11/../../Page2/Page21/Flow211", "Flow211"),
-        ("Page21", "../>Page1/Page11/Flow111", "Flow111"),
+        ("Page21", "../../Page1/Page11/Flow111", "Flow111"),
         # container nodes
         ("Step1111", "~", "Flow111"),
         ("Step1111", "~/~", "Page11"),
@@ -203,6 +206,27 @@ def test_get_node(mock_package: Bench, scope_name: str, path: str, expected_node
         assert getattr(node, "name") == expected_node_name
     else:
         assert node is None, f"unexpected node found for path '{path}' in scope '{scope}'"
+
+
+def test_get_shadowed_node(session: Session):
+    """Siblings before descendants before ancestors. See get_unique_node."""
+    bench = Bench(name="bench1", slug="bench")
+    branch = bench.branches.create(name="Main")
+    package = branch.packages.create()
+    session.parent = package  # patch in the session parent
+    session._graph.update(session, _force_update_parent=True)
+
+    # shadowing nodes
+    page3 = package.blocks.create(name="Page3", type=BlockType.PAGE)
+    choice31 = page3.blocks.create(name="Choice31", type=BlockType.CHOICE)
+    page33 = package.blocks.create(name="Page33", type=BlockType.PAGE)
+    choice331 = page33.blocks.create(name="Choice331", type=BlockType.CHOICE)
+    code332 = page33.blocks.create(name="Code332", type=BlockType.CODE)
+    code332_output1 = code332.fields.append(Field.output("Choice331", choice331))  # noqa: F841
+    code332_output3 = code332.fields.append(Field.output("Choice31", choice31))
+
+    assert get_node(code332, "^Choice331") is choice331  # sibling before descendants
+    assert get_node(code332, "^Choice31") is code332_output3  # descendants before ancestors
 
 
 @pytest.mark.parametrize(
