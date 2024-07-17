@@ -299,4 +299,6 @@ dist
 *.gpg
 
 infra/.*
+*.tfstate
+*.tfvars
 .DS_Store
