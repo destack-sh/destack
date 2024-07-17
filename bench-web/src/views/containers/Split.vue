@@ -11,6 +11,7 @@ import type { ViewExposed } from "@/views/common";
 import { computed, ref, toRef, type Ref } from "vue";
 import Empty from "@/views/builtins/Empty.vue";
 import type { TypedNodeReferenceData } from "@/proto/wiring";
+import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/utils/menu";
 
 const props = defineProps<
   {
@@ -47,13 +48,7 @@ const splitLayout: Ref<SplitLayout> = computed(() => ({
   dividerSize: BORDER_SIZE,
 }));
 const containerRef: Ref<HTMLElement | null> = ref(null);
-const { sizedViews, draggingIdx } = useSplitView(
-  splits,
-  toRef(props, "size"),
-  containerRef,
-  splitLayout,
-  canvas.tx,
-);
+const { sizedViews, draggingIdx } = useSplitView(splits, toRef(props, "size"), containerRef, splitLayout, canvas.tx);
 
 // actions
 const getSplitFromContext = (ctx: ActionContext | undefined) => {
@@ -63,20 +58,19 @@ const getSplitFromContext = (ctx: ActionContext | undefined) => {
 const actions: Partial<ActionMapImplementation<"view">> = {
   // navigate
   "view.navigate.closeFrame": {
-    isEnabled: computed(() => hasFocusedSplit.value && isWindow.value),
     action: (action, ctx) => {
-      const focusedSplit = getSplitFromContext(ctx);
-      if (focusedSplit == null) return false;
-      canvas.removeView(spaceGraph, focusedSplit);
+      const split = getSplitFromContext(ctx);
+      if (split == null) return false;
+      canvas.removeView(spaceGraph, split);
     },
   },
   "view.navigate.focusPreviousFrame": {
     isEnabled: isWindow,
     action: (action, ctx) => {
       const allFrames = canvas.frames;
-      const focusedSplit = getSplitFromContext(ctx);
-      if (focusedSplit == null) return false;
-      const currentIdx = allFrames.findIndex((window) => window.id == focusedSplit.id);
+      const split = getSplitFromContext(ctx);
+      if (split == null) return false;
+      const currentIdx = allFrames.findIndex((v) => v.id == split.id);
       const prevIdx = ((currentIdx ?? 0) - 1 + allFrames.length) % allFrames.length;
       canvas.focus({ node: allFrames[prevIdx] });
     },
@@ -85,36 +79,33 @@ const actions: Partial<ActionMapImplementation<"view">> = {
     isEnabled: isWindow,
     action: (action, ctx) => {
       const allFrames = canvas.frames;
-      const focusedSplit = getSplitFromContext(ctx);
-      if (focusedSplit == null) return false;
-      const currentIdx = allFrames.findIndex((window) => window.id == focusedSplit.id);
+      const split = getSplitFromContext(ctx);
+      if (split == null) return false;
+      const currentIdx = allFrames.findIndex((v) => v.id == split.id);
       const nextIdx = ((currentIdx ?? 0) + 1) % canvas.frames.length;
       canvas.focus({ node: allFrames[nextIdx] });
     },
   },
   "view.navigate.closeSplit": {
-    isEnabled: computed(() => hasFocusedSplit.value && !isWindow.value),
     action: (action, ctx) => {
-      const focusedSplit = getSplitFromContext(ctx);
-      if (focusedSplit == null) return false;
-      canvas.removeView(spaceGraph, focusedSplit);
+      const split = getSplitFromContext(ctx);
+      if (split == null) return false;
+      canvas.removeView(spaceGraph, split);
     },
   },
   "view.navigate.focusNextSplit": {
-    isEnabled: hasFocusedSplit,
     action: (action, ctx) => {
-      const focusedSplit = getSplitFromContext(ctx);
-      const focusedSplitIdx = splits.value.findIndex((split) => split.id == focusedSplit.id);
-      const nextIdx = (focusedSplitIdx + 1) % splits.value.length;
+      const split = getSplitFromContext(ctx);
+      const splitIdx = splits.value.findIndex((v) => v.id == split.id);
+      const nextIdx = (splitIdx + 1) % splits.value.length;
       canvas.focus({ node: splits.value[nextIdx] });
     },
   },
   "view.navigate.focusPreviousSplit": {
-    isEnabled: hasFocusedSplit,
     action: (action, ctx) => {
-      const focusedSplit = getSplitFromContext(ctx);
-      const focusedSplitIdx = splits.value.findIndex((split) => split.id == focusedSplit.id);
-      const prevIdx = (focusedSplitIdx - 1 + splits.value.length) % splits.value.length;
+      const split = getSplitFromContext(ctx);
+      const splitIdx = splits.value.findIndex((v) => v.id == split.id);
+      const prevIdx = (splitIdx - 1 + splits.value.length) % splits.value.length;
       canvas.focus({ node: splits.value[prevIdx] });
     },
   },
@@ -198,6 +189,14 @@ defineExpose<ViewExposed>({ self, actions });
     <!-- No frames -->
     <Empty
       v-if="sizedViews.length === 0"
+      v-contextmenu="
+        (context: PopoverContext): PopoverInfo => ({
+          kind: 'menu',
+          placement: 'bottom-right',
+          items: menuActionsLike(['view.navigate*close*frame*', 'view.layout*'], { context }),
+          context,
+        })
+      "
       :type="type"
       class="flex h-full w-full flex-col items-center justify-center"
     />

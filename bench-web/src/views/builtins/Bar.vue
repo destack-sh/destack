@@ -37,12 +37,7 @@ const floatingPlacement: Ref<FloatingPlacement> = computed(() => {
 const BENCH_MENU_ITEMS = computed(() => {
   const items: MenuItem[] = [
     // bench
-    // NOTE :Incomplete: indicate & switch bench/environment/branch/package etc.
-    // menuItemFromAction("bench.go.goToBench", { category: "bench" }),
-    // menuItemFromAction("bench.go.goToEnvironment", { category: "bench" }),
-    // menuItemFromAction("bench.go.goToBranch", { category: "bench" }),
-    // menuItemFromAction("bench.go.goToPackage", { category: "bench" }),
-    // menuItemFromAction("bench.go.goToSpace", { category: "bench" }),
+    // NOTE :Incomplete: select bench/branch/package etc.
     // main
     {
       id: "omnibar",
@@ -50,7 +45,7 @@ const BENCH_MENU_ITEMS = computed(() => {
       category: "main",
       icon: "fas fa-magnifying-glass",
       title: "Search",
-      action: { items: menuActionsLike(["space.omnibar*", "common.search*"]) },
+      action: { items: menuActionsLike(["space.omnibar*", "common.search*"], { context: undefined }) },
     },
     {
       id: "view",
@@ -58,7 +53,9 @@ const BENCH_MENU_ITEMS = computed(() => {
       category: "main",
       icon: ICON_BY_NODE_TYPE[NodeType.VIEW],
       title: "View",
-      action: { items: menuActionsLike(["view.navigate.close*", "view.layout.*", "view.space.*"]) },
+      action: {
+        items: menuActionsLike(["view.navigate.close*", "view.layout.*", "view.space.*"], { context: undefined }),
+      },
     },
     {
       id: "edit",
@@ -67,7 +64,7 @@ const BENCH_MENU_ITEMS = computed(() => {
       icon: "fas fa-hammer",
       title: "Edit",
       action: {
-        items: menuActionsLike(["common.history*", "common.edit*", "common.move*"]),
+        items: menuActionsLike(["common.history*", "common.edit*", "common.move*"], { context: undefined }),
       },
     },
     {
@@ -77,7 +74,10 @@ const BENCH_MENU_ITEMS = computed(() => {
       icon: "fas fa-telescope",
       title: "Analyze",
       action: {
-        items: [menuItemFromAction("space.launch.inspect"), ...menuActionsLike(["common.sense*"])],
+        items: [
+          menuItemFromAction("space.launch.inspect"),
+          ...menuActionsLike(["common.sense*"], { context: undefined }),
+        ],
       },
     },
     {
@@ -86,7 +86,7 @@ const BENCH_MENU_ITEMS = computed(() => {
       category: "main",
       icon: "fas fa-play",
       title: "Run",
-      action: { items: menuActionsLike(["common.session*"]) },
+      action: { items: menuActionsLike(["common.session*"], { context: undefined }) },
     },
     // extra
     menuItemFromAction("space.launch.explorer"),
@@ -105,7 +105,7 @@ const BENCH_MENU_ITEMS = computed(() => {
       category: "developer",
       icon: "fas fa-binary",
       title: "Developer",
-      action: { items: menuActionsLike(["developer*"]) },
+      action: { items: menuActionsLike(["developer*"], { context: undefined }) },
     });
   }
 
@@ -160,7 +160,7 @@ const dockActions: Ref<Action[]> = computed(
           :class="[isOpen ? ' bg-gray-100' : '']"
           @click="toggle"
         >
-          <img src="@/assets/icon_outline.svg" class="w-5 rounded-md h-5" />
+          <img src="@/assets/icon_outline.svg" class="h-5 w-5 rounded-md" />
         </button>
       </template>
 
@@ -172,7 +172,7 @@ const dockActions: Ref<Action[]> = computed(
             <div class="flex flex-row px-2.5 pb-2 pt-1.5">
               <div class="mr-2 w-10 rounded border border-gray-300 bg-primary-400 py-0.5 text-center text-lg">
                 <IconInline v-if="bench.icon" class="text-gray-700" v-bind="bench.icon" />
-                <img v-else src="@/assets/icon_outline.svg" class="w-7 mx-auto rounded-md h-7" />
+                <img v-else src="@/assets/icon_outline.svg" class="mx-auto h-7 w-7 rounded-md" />
               </div>
               <div class="flex flex-col leading-tight">
                 <span class="select-all font-medium">{{ bench?.name ?? "???" }}</span>
