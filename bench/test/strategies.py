@@ -42,7 +42,7 @@ def examples(examples: list[dict]):
     return apply_examples
 
 
-# TODO :Broken! :Test!: figure out better way of drawing directly from strategies
+# NOTE :Test: figure out better way of drawing directly from strategies
 #  (outside of given context.. maybe have our own dummy conjecture data with a seed?)
 def draw_direct(strat: st.SearchStrategy):
     examples = []
@@ -67,7 +67,7 @@ DURATION_STRATEGY = st.floats(
     min_value=0, max_value=MAX_SCHEDULE_DURATION, allow_nan=False, allow_infinity=False
 )
 JSON_STRATEGY = st.none()  # not needed yet
-ORDER_KEY_STRATEGY = st.just(INTEGER_ZERO)  # TODO :Test: generate order keys properly
+ORDER_KEY_STRATEGY = st.just(INTEGER_ZERO)  # NOTE :Test: generate order keys properly
 ALL_DECLARED_PROPERTIES = tuple(
     more_itertools.flatten(
         (p for p in object_cls.__declared_properties__.values() if p.id is not None)

@@ -231,7 +231,7 @@ export const ACTION_COMING_SOON: ActionCallable = (action: Action) =>
  * An Action that can be performed by the user in the space.
  * Actions can be declared and implemented in different places (e.g. for different behavior in various Views).
  *
- * TODO :Architecture: define Action as Struct so it can be provided by custom Views/...?
+ * NOTE :Architecture: define Action as Struct so it can be provided by custom Views/...?
  *  provide actions by tagging runnable (no args) Blocks with Action?
  */
 export type Action = {

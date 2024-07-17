@@ -409,7 +409,6 @@ def test_function_with_defaults():
     v.visit(mod)
     assert v.defs == {"foo"}
     assert v.refs == {"x", "y", "a"}
-    # TODO: Are these required refs?
     assert v.definitions == {
         "foo": CodeDefinition("foo", kind=CodeDefinitionKind.FUNCTION, references={"x", "y", "a"}),
     }

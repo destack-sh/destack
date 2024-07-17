@@ -1362,7 +1362,7 @@ async def pg_walk_graph_down(
 ) -> tuple[list[NodeReferenceData], dict[str, list[NodeReferenceData]]]:
     """
     Gets node pointers to all descendants down from the roots matching the filter.
-    TODO :Performance!: walk graph down in SQL only (no roundtrip recursion)
+    TODO :Performance: walk graph down in SQL only (no roundtrip recursion)
      (the result of this is usually cached after initial load, but not for edit cascades)
     """
     if not roots:

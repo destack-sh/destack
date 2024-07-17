@@ -31,7 +31,7 @@ const spaceRef = ref<HTMLElement | null>(null);
 const barRef = ref<InstanceType<typeof Bar> | null>(null);
 const { width: spaceWidth, height: spaceHeight } = useWindowSize(); // Space must be root element
 const windows = spaceGraph.getChildrenRef(spacePtr, NodeType.VIEW);
-const window = computed(() => windows.value[0]); // assumes at :OneRootWindow for now
+const window = computed(() => windows.value[0]); // assumes :OneRootWindow for now
 
 const barPosition = computed(() => space.value?.barPosition ?? DEFAULT_BAR_POSITION);
 const barOrientation = computed(() =>
@@ -52,10 +52,6 @@ const mainOffset = computed(() => {
   else if (barPosition.value == Anchor.BOTTOM) return { left: 0, top: TOP_INSET_WITHOUT_BAR };
   else throw new Error(`unexpected bar position: ${barPosition.value}`);
 });
-const mainBoxStyle = computed(() => ({
-  left: mainOffset.value.left + "px",
-  top: mainOffset.value.top + "px",
-}));
 const mainBox = computed(() => ({
   ...mainOffset.value,
   width: spaceWidth.value - (barPosition.value == Anchor.LEFT || barPosition.value == Anchor.RIGHT ? BAR_WIDTH : 0),
@@ -63,6 +59,12 @@ const mainBox = computed(() => ({
     spaceHeight.value -
     (barPosition.value == Anchor.TOP || barPosition.value == Anchor.BOTTOM ? BAR_HEIGHT : 0) -
     (barPosition.value == Anchor.TOP ? 0 : TOP_INSET_WITHOUT_BAR),
+}));
+const mainBoxStyle = computed(() => ({
+  left: mainOffset.value.left + "px",
+  top: mainOffset.value.top + "px",
+  width: mainBox.value.width + "px",
+  height: mainBox.value.height + "px",
 }));
 
 const omnibarRef = ref<InstanceType<typeof Omnibar> | null>(null);
@@ -99,7 +101,7 @@ watch([canvas.focusedViewPtr, bench], () => {
   <!-- Space -->
   <div
     ref="spaceRef"
-    class="scrollbar-none h-full max-h-screen w-full overflow-hidden overscroll-none bg-gray-100 text-sm"
+    class="bg-gray-100 text-sm"
     :class="[
       isDraggingGlobal || hasActivePopover ? 'pointer-events-none select-none' : '',
       IS_IN_ALT_MODE ? 'altmode' : '',
@@ -145,11 +147,7 @@ watch([canvas.focusedViewPtr, bench], () => {
       :orientation="Orientation.HORIZONTAL"
     />
     <!-- Loading... -->
-    <div
-      v-else-if="!spaceConnection.isConnected.value"
-      class="absolute bg-white"
-      :style="{ width: mainBox.width + 'px', height: mainBox.height + 'px', ...mainBoxStyle }"
-    >
+    <div v-else-if="!spaceConnection.isConnected.value" class="absolute bg-white" :style="{ ...mainBoxStyle }">
       <div class="flex h-full flex-col items-center justify-center">
         <Transition
           enter-from-class="opacity-0"
@@ -162,11 +160,7 @@ watch([canvas.focusedViewPtr, bench], () => {
       </div>
     </div>
     <!-- Does not have a space (not signed, space empty or disappeared) -->
-    <div
-      v-else
-      class="absolute flex flex-col justify-center bg-white text-center"
-      :style="{ width: mainBox.width + 'px', height: mainBox.height + 'px', ...mainBoxStyle }"
-    >
+    <div v-else class="absolute flex flex-col justify-center bg-white text-center" :style="{ ...mainBoxStyle }">
       <div v-if="space && bench" class="flex w-fit flex-col gap-y-2 self-center">
         <!-- Space empty for some reason -->
         <span>
