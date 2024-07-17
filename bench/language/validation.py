@@ -54,6 +54,8 @@ class TypeConstraintIn:
     regex: str | None = None
     starts_with: str | None = None
     ends_with: str | None = None
+    # node-ish
+    subtype: int | None = None
 
     def into(self) -> "TypeConstraint":
         from bench.language.field import TypeConstraint
@@ -67,6 +69,7 @@ class TypeConstraintIn:
             regex=self.regex,
             starts_with=self.starts_with,
             ends_with=self.ends_with,
+            subtype=self.subtype,
         )
 
 
@@ -96,6 +99,7 @@ def constraint(
     regex: str | None = None,
     starts_with: str | None = None,
     ends_with: str | None = None,
+    subtype: int | None = None,
 ) -> "TypeConstraintIn":
     return TypeConstraintIn(
         min_value=min_value,
@@ -106,4 +110,5 @@ def constraint(
         regex=regex,
         starts_with=starts_with,
         ends_with=ends_with,
+        subtype=subtype,
     )

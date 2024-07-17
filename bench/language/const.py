@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.07.17.1"  # auto change via version script
+VERSION = "2024.07.17.2"  # auto change via version script
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -450,7 +450,7 @@ class BlockType(IdEnum):
     # TAG = 12  # define a tag type with fields
     PROTOCOL = 14  # define a 'protocol' for a block graph/template with fields
     SIGNAL = 15  # define a signal type with fields
-    # NOTIFICATION = ...  # define a new notification type
+    NOTIFICATION = 16  # define a new notification type
     # ISSUE, METRIC, BLOCK, ...?
 
     # runnable

@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Any, Optional, Union, cast, final
 
-from bench.language.const import EnumType, FieldZone, NodeType, StructType, enum_
+from bench.language.const import BlockType, EnumType, FieldZone, NodeType, StructType, enum_
 from bench.language.field import TypeInfoBase
 from bench.language.graph import NodeList
 from bench.language.issue import Issue
@@ -19,7 +19,7 @@ from bench.language.property import (
     p_value_packed,
     p_value_runtime,
 )
-from bench.language.validation import NAME_CONSTRAINT
+from bench.language.validation import NAME_CONSTRAINT, constraint
 from bench.language.value import HasValues
 from bench.proto.wire import StepData
 from bench.utils.fractional import INTEGER_ZERO
@@ -136,8 +136,19 @@ class Step(SourceNode[StepData], HasValues):
     condition: Optional["Expression"] = p_regular(
         45, require=False, array=False, default=None, struct=StructType.EXPRESSION
     )
-    roles: list["Block"] = p_regular(46, require=False, array=True, references=NodeType.BLOCK)
-    identity: Optional["Block"] = p_regular(47, require=False, references=NodeType.BLOCK)
+    roles: list["Block"] = p_regular(
+        46,
+        require=False,
+        array=True,
+        references=NodeType.BLOCK,
+        constraint=constraint(subtype=BlockType.ROLE),
+    )
+    identity: Optional["Block"] = p_regular(
+        47,
+        require=False,
+        references=NodeType.BLOCK,
+        constraint=constraint(subtype=BlockType.IDENTITY),
+    )
     policies: list["Policy"] = p_regular(48, require=False, array=True, struct=StructType.POLICY)
     if TYPE_CHECKING:
         node_ptr: Optional["NodeReference"] = None

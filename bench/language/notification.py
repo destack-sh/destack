@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional, cast
 
 from bench.language.const import (
+    BlockType,
     NodeType,
     NotificationKind,
     StructType,
@@ -24,7 +25,7 @@ from bench.language.property import (
     p_value_packed,
     p_value_runtime,
 )
-from bench.language.validation import TITLE_CONSTRAINT
+from bench.language.validation import TITLE_CONSTRAINT, constraint
 from bench.language.value import HasValues
 from bench.proto.wire import (
     AnyNodeData,
@@ -52,7 +53,13 @@ class Notification(
 
     parent: "Package | None" = p_node_parent(4, NodeType.PACKAGE)
     kind: NotificationKind = p_regular(30)
-    type: "Block" = p_system(32, require=True, array=False, references=NodeType.BLOCK)
+    type: "Block" = p_system(
+        32,
+        require=True,
+        array=False,
+        references=NodeType.BLOCK,
+        constraint=constraint(subtype=BlockType.NOTIFICATION),
+    )
     expires_at: Optional[datetime] = p_internal(33, default=None)
     read_at: Optional[datetime] = p_internal(34, default=None)
 

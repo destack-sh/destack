@@ -189,11 +189,12 @@ resource "aws_rds_cluster" "global_pg" {
   engine                  = "aurora-postgresql"
   engine_mode             = "provisioned"
   engine_version          = "16.2"
-  database_name           = "postgres"
-  master_username         = "postgres"
+  database_name           = var.global_pg_name
+  master_username         = var.global_pg_username
   master_password         = var.global_pg_password
   backup_retention_period = 7
   preferred_backup_window = "06:00-08:00"
+	availability_zones = var.aws_availability_zones
 
   vpc_security_group_ids = [aws_security_group.rds_sg.id]
 }

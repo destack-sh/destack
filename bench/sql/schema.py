@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.07.17.1"
+VERSION = "2024.07.17.2"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -578,9 +578,6 @@ DEPENDENCY_TABLE = Table(
         Column("scopes_bench_id", PrimitiveType.UUID, is_array=True),
         Column("dependency_id", PrimitiveType.UUID),
         Column("dependency_bench_id", PrimitiveType.UUID),
-        Column("dependency_scopes_id", PrimitiveType.UUID, is_array=True),
-        Column("dependency_scopes_ck", PrimitiveType.UUID, is_array=True),
-        Column("dependency_scopes_bench_id", PrimitiveType.UUID, is_array=True),
     ),
 )
 

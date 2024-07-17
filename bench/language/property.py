@@ -379,6 +379,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
                 is_list=self.is_list,
                 default=None,
                 reference_source=self,
+                constraint=self.constraint,
             )
             self.reference_stored_props = (property_ptr,)
             self.reference_wired_ptr = property_ptr
@@ -456,6 +457,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
                 is_internal=is_internal,
                 default=None,
                 primitive_type=None,
+                constraint=self.constraint,
             )
 
         if is_stored and self.reference_is_rich:

@@ -14,7 +14,7 @@ import {
 } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { IconInline, makeIcon } from "@/system/icon";
-import { isEnumType, isNodeType, toCamelName } from "@/system/lang";
+import { getNodeSubtype, getNodeSubtypeName, isEnumType, isNodeType, toCamelName } from "@/system/lang";
 import type { NodeItem, TypeItem } from "@/system/search";
 import { enumIndex, graphIndex, typeIndex, useSearch, type EnumOptionItem, type SearchIndex } from "@/system/search";
 import { canvas, pkgGraph } from "@/system/space";
@@ -75,7 +75,17 @@ const facetName = computed(() => {
   if (props.valueType?.kind == TypeKind.BASED_NODE && baseType.value != null) {
     return baseType.value.name;
   } else if (props.valueType?.benchType != null) {
-    return toCamelName(BenchType, props.valueType.benchType);
+    const metatypeName = toCamelName(BenchType, props.valueType.benchType);
+    if (props.valueType.constraint?.subtype != null) {
+      const subtypeName = getNodeSubtypeName(
+        props.valueType.benchType as unknown as NodeType,
+        props.valueType.constraint!.subtype,
+      );
+      if (subtypeName != null) return `${subtypeName} ${metatypeName}`;
+      else return metatypeName;
+    } else {
+      return metatypeName;
+    }
   } else {
     return null;
   }
@@ -107,6 +117,10 @@ const index: Ref<SearchIndex<any>> = computed(() => {
       metatypes: [props.valueType.benchType],
       roots,
       skipDepth: roots != null ? 0 : 2,
+      filter:
+        props.valueType?.constraint?.subtype != null
+          ? (node) => getNodeSubtype(node) == props.valueType!.constraint!.subtype
+          : undefined,
     });
   } else if (props.valueType?.benchType == BenchType.TYPE_INFO) {
     return typeIndex({ id: "type", graph: pkgGraph, skipDepth: 2 });

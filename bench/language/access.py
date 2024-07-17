@@ -30,6 +30,7 @@ from bench.language.const import (
     AccessMode,
     AccessType,
     BenchError,
+    BlockType,
     EditType,
     NodeType,
     ObjectType,
@@ -63,7 +64,7 @@ from bench.language.setup import (
 )
 from bench.language.text import Text
 from bench.language.user import User
-from bench.language.validation import NAME_CONSTRAINT, ValidationError
+from bench.language.validation import NAME_CONSTRAINT, ValidationError, constraint
 from bench.proto.wire import AnyNodeData, EditData, NodeReferenceData
 from bench.utils.func import IdEnum, bittuple
 
@@ -409,7 +410,12 @@ class Subject(Struct):
 
     # accessories
     identity: Optional["Block"] = p_system(
-        50, default=None, require=False, array=False, references=NodeType.BLOCK
+        50,
+        default=None,
+        require=False,
+        array=False,
+        references=NodeType.BLOCK,
+        constraint=constraint(subtype=BlockType.IDENTITY),
     )
     badges: list["Badge"] = p_system(51, require=False, array=True, references=NodeType.BADGE)
     owned: list[Ownable] = p_system(
@@ -418,7 +424,13 @@ class Subject(Struct):
     memberships: list[Union["Bench", "Organization"]] = p_system(
         53, require=False, array=True, references=NodeType.MEMBERSHIP
     )
-    roles: list["Block"] = p_system(54, require=False, array=True, references=NodeType.BLOCK)
+    roles: list["Block"] = p_system(
+        54,
+        require=False,
+        array=True,
+        references=NodeType.BLOCK,
+        constraint=constraint(subtype=BlockType.ROLE),
+    )
 
     def split_into_acting_subjects(self, graph: NodeDataGraph) -> tuple["Subject", ...]:
         """

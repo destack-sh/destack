@@ -205,6 +205,8 @@ class TypeConstraint(Struct):
     regex: Optional[str] = p_regular(60, require=False, default=None)
     starts_with: Optional[str] = p_regular(61, require=False, default=None)
     ends_with: Optional[str] = p_regular(62, require=False, default=None)
+    # node-ish
+    subtype: Optional[int] = p_regular(70, require=False, default=None)
 
 
 DEFAULT_CONSTRAINT = TypeConstraint()

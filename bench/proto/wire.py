@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.07.17.1"
+VERSION = "2024.07.17.2"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -297,6 +297,7 @@ class BlockType(betterproto.Enum):
     CHOICE = 11
     PROTOCOL = 14
     SIGNAL = 15
+    NOTIFICATION = 16
     TEXT = 30
     CODE = 31
     FLOW = 32
@@ -2189,6 +2190,7 @@ class TypeConstraintData(betterproto.Message):
     regex: Optional[str] = betterproto.string_field(60, optional=True)
     starts_with: Optional[str] = betterproto.string_field(61, optional=True)
     ends_with: Optional[str] = betterproto.string_field(62, optional=True)
+    subtype: Optional[int] = betterproto.int32_field(70, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2436,7 +2438,6 @@ class DependencyData(betterproto.Message):
     set_properties: List[int] = betterproto.int32_field(29)
     scopes_ptr: List["NodeReferenceData"] = betterproto.message_field(30)
     dependency_ptr: "NodeReferenceData" = betterproto.message_field(40)
-    dependency_scopes_ptr: List["NodeReferenceData"] = betterproto.message_field(41)
 
 
 @dataclass(eq=False, repr=False)
