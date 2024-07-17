@@ -14,13 +14,20 @@ import {
 } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import type { ActionMapImplementation } from "@/system/action";
-import { PACKAGE_SCOPE } from "@/system/client";
 import type { PreparedGetConnection } from "@/system/connection";
-import { useExistingConnection, useGetConnection } from "@/system/connection";
+import { useExistingConnection } from "@/system/connection";
 import { IconInline, getNodeIcon } from "@/system/icon";
-import { RUNNABLE_BLOCK_TYPES, TYPE_BLOCK_TYPES, createField, isGeneratedNodeName, isRunnableRef } from "@/system/lang";
+import {
+  NAME_CONSTRAINT,
+  RUNNABLE_BLOCK_TYPES,
+  TYPE_BLOCK_TYPES,
+  createField,
+  isGeneratedNodeName,
+  isRunnableRef,
+} from "@/system/lang";
 import { canvas, inspectionPtr } from "@/system/space";
 import { makeTypeInfo, packValue, resolveType, unpackValue, type TypeIdentity } from "@/system/value";
+import { getNativeConstraintProps as getNativeConstraintProps, guardNativeInput } from "@/system/view";
 import { onMouseReleasedOnce } from "@/utils/layout";
 import { menuActionsLike, pushPopover, type PopoverInfo, type PopoverInfoIn } from "@/utils/menu";
 import type { TooltipInfo } from "@/utils/tooltip";
@@ -60,11 +67,9 @@ const isGeneratedName = computed(
 );
 const isQuasiAnonymous = computed(
   () =>
-    isGeneratedName.value &&
-    (block.value?.type == BlockType.TEXT ||
-      block.value?.type == BlockType.CODE ||
-      block.value?.type == BlockType.VARIABLE) &&
-    !hasFunctionFields.value,
+    (block.value?.type == BlockType.TEXT && !hasFunctionFields.value) ||
+    (isGeneratedName.value &&
+      ((block.value?.type == BlockType.CODE && !hasFunctionFields.value) || block.value?.type == BlockType.VARIABLE)),
 );
 const hasText = computed(() => block.value?.text != null);
 const hasFunctionFields = computed(
@@ -148,15 +153,17 @@ defineExpose<ViewExposed & { isRunnable: Ref<boolean> }>({
         />
         <input
           ref="nameRef"
+          type="text"
           class="w-fit min-w-fit max-w-fit rounded border-0 px-1 outline-none ring-0 hover:bg-gray-100 focus:ring-0"
           :class="[isQuasiAnonymous ? 'px-0.5 text-gray-400' : 'ml-0.5 px-1 font-medium']"
           spellcheck="false"
           :value="block.name"
-          :size="Math.max(block.name.length, 5)"
+          :size="block.name.length + 3"
+          v-bind="getNativeConstraintProps(NAME_CONSTRAINT)"
           @input="
-            (event) => {
-              pkgConnection.tx.update(block!, { name: (event.target as HTMLInputElement).value }, { debounce: 'long' });
-            }
+            guardNativeInput(NAME_CONSTRAINT, $event, block!.name, (newValue) =>
+              pkgConnection.tx.update(block!, { name: newValue }, { debounce: 'long' }),
+            )
           "
         />
       </div>

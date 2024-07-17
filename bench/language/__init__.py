@@ -116,7 +116,7 @@ from .text import Text, TextSpan, md, text
 from .transaction import Change, ChangeCategory, ChangeVignette, Edit, Transaction
 from .trigger import Trigger, TriggerBase, TriggerInfo
 from .user import Handle, Organization, User
-from .validation import TypeConstraintIn, ValidationError, constrain
+from .validation import TypeConstraintIn, ValidationError, constraint
 from .value import Value, ValueObject
 from .view import (
     Alignment,
@@ -305,7 +305,7 @@ __all__ = [
     "WatchSearchUpdate",
     "code",
     "coerce_conditional",
-    "constrain",
+    "constraint",
     "get_node",
     "get_node_or_error",
     "md",

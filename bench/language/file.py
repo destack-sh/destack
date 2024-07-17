@@ -15,7 +15,7 @@ from bench.language.node import (
     struct_,
 )
 from bench.language.property import Property, p_internal, p_node_parent, p_regular
-from bench.language.validation import TITLE_CONSTRAINT, ValidationHandler, constrain
+from bench.language.validation import TITLE_CONSTRAINT, ValidationHandler, constraint
 from bench.proto.wire import FileData, FileReferenceData
 from bench.utils.func import IdEnum
 
@@ -25,8 +25,8 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 FILE_HASH_LENGTH = 128  # 512 bits
-MIME_TYPE_CONSTRAINT = constrain(min_length=1, max_length=255)
-SHA512_CONSTRAINT = constrain(min_length=FILE_HASH_LENGTH, max_length=FILE_HASH_LENGTH)
+MIME_TYPE_CONSTRAINT = constraint(min_length=1, max_length=255)
+SHA512_CONSTRAINT = constraint(min_length=FILE_HASH_LENGTH, max_length=FILE_HASH_LENGTH)
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -57,11 +57,11 @@ class File(BenchNode[FileData]):
     kind: FileKind = p_internal(30, default=FileKind.DRIVE, default_sql=None)
     title: str = p_regular(33, constraint=TITLE_CONSTRAINT)
     size: int = p_internal(
-        34, primitive_type=PrimitiveType.INT64, constraint=constrain(min_value=0)
+        34, primitive_type=PrimitiveType.INT64, constraint=constraint(min_value=0)
     )
     mime_type: str = p_internal(35, constraint=MIME_TYPE_CONSTRAINT)
     sha512: str | None = p_internal(
-        36, constraint=constrain(min_length=FILE_HASH_LENGTH, max_length=FILE_HASH_LENGTH)
+        36, constraint=constraint(min_length=FILE_HASH_LENGTH, max_length=FILE_HASH_LENGTH)
     )
     retention: FileRetentionMode | None = p_regular(
         37, default=FileRetentionMode.AUTOMATIC, default_sql=None

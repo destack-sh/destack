@@ -13,7 +13,7 @@ from bench.language.field import Field
 from bench.language.node import BuiltinObject, Node
 from bench.language.render import Renderer, RenderOptions, render, render_expr
 from bench.language.session import Session
-from bench.language.validation import constrain
+from bench.language.validation import constraint
 from bench.language.view import View, ViewType
 from bench.runtime.compiler import BUILTIN_GLOBALS
 from bench.runtime.core import STATIC_CODE_GLOBALS
@@ -141,7 +141,7 @@ def test_render_view_block(shared_session: Session, shared_package: Package):
 @_render_as_stmt
 def test_render_field_with_constraint(shared_session: Session, shared_package: Package):
     Field1 = Field.input(
-        "Field1", int, constraint=constrain(min_value=1.0, max_value=10.0, step_value=2.0)
+        "Field1", int, constraint=constraint(min_value=1.0, max_value=10.0, step_value=2.0)
     )
     return {"Field1": Field1}
 

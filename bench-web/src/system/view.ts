@@ -7,6 +7,7 @@ import {
   Variant,
   FieldData,
   FieldZone,
+  TypeConstraintData,
 } from "@/proto/wire";
 import type { ReadNodeGraph } from "@/system/graph";
 import { ENUM_ICONS_BY_TYPE, ICON_BY_ALIGNMENT } from "@/system/icon";
@@ -115,4 +116,61 @@ export function getFieldViews(
     });
   }
   return fieldViews;
+}
+
+/** Turn a type constraint into props for an Html input element */
+export function getNativeConstraintProps(constraint?: Partial<TypeConstraintData>) {
+  if (constraint == null) return {};
+  const props: Partial<Pick<HTMLInputElement, "minLength" | "maxLength" | "pattern" | "min" | "max">> = {};
+  if (constraint.minLength != null) {
+    props.minLength = constraint.minLength;
+  }
+  if (constraint.maxLength != null) {
+    props.maxLength = constraint.maxLength;
+  }
+  if (constraint.regex != null) {
+    props.pattern = constraint.regex;
+  }
+  if (constraint.minValue != null) {
+    props.min = constraint.minValue.toString();
+  }
+  if (constraint.maxValue != null) {
+    props.max = constraint.maxValue.toString();
+  }
+  return props;
+}
+
+/**
+ * Guards an event listener with a constraint
+ * Forward the value if it passes, otherwise revert the event target to the old value
+ */
+export function guardNativeInput<T extends string | number>(
+  constraint: Partial<TypeConstraintData> | undefined,
+  event: Event,
+  oldValue: T | undefined,
+  onAccept: (T: string) => void,
+) {
+  if (constraint == null) {
+    onAccept((event.target as HTMLInputElement).value);
+    return;
+  }
+  const input = event.target as HTMLInputElement;
+  const newValue = (input.value ?? "") as string;
+  let isValid = true;
+  if (constraint.minLength != null && newValue.length < constraint.minLength) {
+    isValid = false;
+  } else if (constraint.maxLength != null && newValue.length > constraint.maxLength) {
+    isValid = false;
+  } else if (constraint.regex != null && !new RegExp(constraint.regex).test(newValue)) {
+    isValid = false;
+  } else if (constraint.minValue != null && parseFloat(newValue) < constraint.minValue) {
+    isValid = false;
+  } else if (constraint.maxValue != null && parseFloat(newValue) > constraint.maxValue) {
+    isValid = false;
+  }
+  if (!isValid) {
+    input.value = oldValue?.toString() ?? "";
+  } else {
+    onAccept(newValue);
+  }
 }

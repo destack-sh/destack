@@ -10,7 +10,7 @@ from bench.language.field import Field, TypeInfo, TypeKind, to_type_scalar
 from bench.language.node import BuiltinObject
 from bench.language.session import Session
 from bench.language.text import Text
-from bench.language.validation import constrain, on_invalid_raise
+from bench.language.validation import constraint, on_invalid_raise
 from bench.language.value import (
     ValueObject,
     check_value,
@@ -150,7 +150,7 @@ def test_sample_value_scalar(session: Session, package: Package):
 
 
 def test_sample_value_scalar_constrained(session: Session, package: Package):
-    typ = TypeInfo.from_type(int, constraint=constrain(min_value=10.0, max_value=20.0))
+    typ = TypeInfo.from_type(int, constraint=constraint(min_value=10.0, max_value=20.0))
     val = sample_value(typ)
     check_value(val, typ, on_invalid_raise)
 

@@ -50,17 +50,15 @@ import { computedValue } from "@/utils/ref";
 import { ACCENT_COLOR_BY_RUN_STATUS } from "@/utils/style";
 import {
   formatDuration,
-  formatDurationFromNow,
   formatRelativeDate,
-  getDurationfromNow,
-  TimeUpdateInterval,
+  getDurationfromNow
 } from "@/utils/time";
 import { DEFAULT_HEADER_HEIGHT, useExpansion, useViewState } from "@/views/canvas";
 import { makeViewId, viewEmits, type ViewComponent, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Log from "@/views/system/Log.vue";
 import Run from "@/views/system/Run.vue";
-import { computed, ref, toRef, watchEffect, type Ref } from "vue";
+import { computed, ref, toRef, type Ref } from "vue";
 
 const HEADER_HEIGHT = DEFAULT_HEADER_HEIGHT;
 const MIN_WIDTH = 320;
@@ -245,7 +243,7 @@ const { roots, graph, connection, isStale, isConnected, isConnecting, page } = u
   computed(() => ({
     scope: PACKAGE_SCOPE.value,
     nodeType: nodeType.value,
-    first: 32,
+    first: 40,
     count: true,
     sort: [
       makeExpression({

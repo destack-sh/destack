@@ -2,7 +2,8 @@
 import { ObjectType, PROPERTY_ENUM_BY_TYPE, ViewType, type AnyNodeData } from "@/proto/wire";
 import type { Connection } from "@/system/connection";
 import { IconInline, getNodeIcon } from "@/system/icon";
-import { toCamelName } from "@/system/lang";
+import { NAME_CONSTRAINT, toCamelName } from "@/system/lang";
+import { getNativeConstraintProps, guardNativeInput } from "@/system/view";
 import type { PopoverInfoIn } from "@/utils/menu";
 import { computed } from "vue";
 
@@ -37,8 +38,11 @@ const nodeProperties = computed(() => (nodeMetatype.value != null ? PROPERTY_ENU
       spellcheck="false"
       :value="'name' in node ? node.name : toCamelName(ObjectType, node.metatype)"
       :disabled="!('name' in node)"
+      v-bind="getNativeConstraintProps(NAME_CONSTRAINT)"
       @input="
-        (event) => connection.tx.update(node!, { name: (event.target as HTMLInputElement).value }, { debounce: 'long' })
+        guardNativeInput(NAME_CONSTRAINT, $event, (node as any).name, (newValue) =>
+          connection.tx.update(node!, { name: newValue }, { debounce: 'long' }),
+        )
       "
     />
   </div>

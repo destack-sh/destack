@@ -479,7 +479,7 @@ class TypeConstraintRenderer(BuiltinObjectRenderer[TypeConstraint]):
         kwargs: dict[str, Any],
         rendered_kwargs: dict[str, str],
     ) -> str:
-        return f"constrain({renderer._render_kwargs(**rendered_kwargs)})"
+        return f"constraint({renderer._render_kwargs(**rendered_kwargs)})"
 
 
 @_renderer(StructType.TEXT)

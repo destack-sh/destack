@@ -5,7 +5,7 @@ from bench.language.const import BlockType, RunStatus
 from bench.language.field import Field
 from bench.language.run import ModelOptions, ModelProvider, RunErrorType, RunOptions
 from bench.language.text import md
-from bench.language.validation import constrain
+from bench.language.validation import constraint
 from bench.runtime.runner import RuntimeRunner
 
 TEST_MODEL_PROVIDERS = (
@@ -71,7 +71,7 @@ async def test_run_text_output_dict(
             Field.member(
                 "formality",
                 int,
-                constrain(min_value=0, max_value=10),
+                constraint(min_value=0, max_value=10),
                 text=md("0 is super casual slang, 5 for normal, 10 is high formal prose"),
             )
         ],
@@ -103,4 +103,4 @@ async def test_run_text_output_dict(
 async def test_run_text_with_context(
     runner: RuntimeRunner, page: Block, model_provider: ModelProvider
 ):
-    pass
+    pass  # nocheckin
