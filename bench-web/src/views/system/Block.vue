@@ -237,7 +237,6 @@ defineExpose<ViewExposed & { isRunnable: Ref<boolean> }>({
                   [
                     'common.edit.rename',
                     'common.edit.morph',
-                    'common.edit.move',
                     'common.edit.duplicate',
                     'common.edit.archive',
                     'common.edit.delete',

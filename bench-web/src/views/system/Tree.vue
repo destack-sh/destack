@@ -274,9 +274,8 @@ const { activeDropZone } = useMultiDropZone({
 });
 
 // actions
-const hasFocusedNode = computed(() => focusedNode.value != null);
-const getItemFromContext = (contet: ActionContext): { item: NodeTreeItem<any> | null; idx: number } => {
-  let item = expandedItems.value.find((item) => item.node.id == contet.triggerNode?.id);
+const getItemFromContext = (ctx: ActionContext | undefined): { item: NodeTreeItem<any> | null; idx: number } => {
+  let item = expandedItems.value.find((item) => item.node.id == ctx?.triggerNode?.id);
   if (!item) item = expandedItems.value.find((item) => item.node.id == focusedItem.value?.node.id);
   if (!item) return { item: null, idx: -1 };
   const idx = expandedItems.value.indexOf(item);
@@ -284,14 +283,17 @@ const getItemFromContext = (contet: ActionContext): { item: NodeTreeItem<any> | 
 };
 const actions: Partial<ActionMapImplementation<"common">> = {
   "common.sense.focus": {
-    isEnabled: hasFocusedNode,
-    action: () =>
-      canvas.goToNode(focusedNode.value!, { where: "bestFrame", skipSelf: preset.value == TreeViewPreset.OUTLINE }),
+    action: (action, ctx) => {
+      const node = getItemFromContext(ctx).item?.node;
+      if (node == null) return false;
+      canvas.goToNode(node, { where: "bestFrame", skipSelf: preset.value == TreeViewPreset.OUTLINE });
+    },
   },
   "common.edit.rename": {
-    isEnabled: hasFocusedNode,
-    action: () => {
-      editingNodePtr.value = toNodeReference(focusedNode.value!);
+    action: (action, ctx) => {
+      const node = getItemFromContext(ctx).item?.node;
+      if (node == null) return false;
+      editingNodePtr.value = toNodeReference(node);
       nextTick(() => {
         editingNameRef.value?.[0]?.focus?.();
         editingNameRef.value?.[0]?.select?.();
@@ -299,12 +301,18 @@ const actions: Partial<ActionMapImplementation<"common">> = {
     },
   },
   "common.edit.archive": {
-    isEnabled: hasFocusedNode,
-    action: () => pkgConnection.tx.archive(focusedNode.value!),
+    action: (action, ctx) => {
+      const node = getItemFromContext(ctx).item?.node;
+      if (node == null) return false;
+      pkgConnection.tx.archive(node);
+    },
   },
   "common.edit.delete": {
-    isEnabled: hasFocusedNode,
-    action: () => pkgConnection.tx.delete(focusedNode.value!),
+    action: (action, ctx) => {
+      const node = getItemFromContext(ctx).item?.node;
+      if (node == null) return false;
+      pkgConnection.tx.delete(node);
+    },
   },
   ...useHierarchicalNodeMoveActions({
     graph: pkgGraph,
@@ -409,7 +417,6 @@ defineExpose<ViewExposed>({ self, actions, focus });
                   [
                     'common.sense.focus*',
                     'common.edit.rename',
-                    'common.edit.move',
                     'common.edit.duplicate',
                     'common.edit.archive',
                     'common.edit.delete',

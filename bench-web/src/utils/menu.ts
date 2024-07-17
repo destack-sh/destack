@@ -1,4 +1,4 @@
-import type { IconData, TextData, ViewType } from "@/proto/wire";
+import type { IconData, ViewType } from "@/proto/wire";
 import {
   fireAction,
   getAction,
