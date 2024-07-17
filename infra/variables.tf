@@ -56,6 +56,11 @@ variable "global_pg_name" {
   description = "Name of the global Postgres database"
 }
 
+variable "global_pg_username" {
+  type        = string
+  description = "Username for the global Postgres database"
+}
+
 variable "global_pg_password" {
   type        = string
   description = "Password for the global Postgres database"

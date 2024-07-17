@@ -30,6 +30,7 @@ from bench.language.connection import (
 from bench.language.const import (
     NODE_TYPES,
     BenchError,
+    BlockType,
     NodeType,
     SessionStatus,
     StructType,
@@ -50,6 +51,7 @@ from bench.language.node import (
 )
 from bench.language.property import Property, p_internal, p_node_parent, p_runtime, p_system
 from bench.language.transaction import Transaction
+from bench.language.validation import constraint
 from bench.proto import wire
 from bench.proto.wire import (
     ClientOriginData,
@@ -710,7 +712,11 @@ class HasSessionContext(BuiltinObject):
     )
     user: Optional["User"] = p_internal(78, require=False, array=False, references=NodeType.USER)
     identity: Optional["Block"] = p_internal(
-        79, require=False, array=False, references=NodeType.BLOCK
+        79,
+        require=False,
+        array=False,
+        references=NodeType.BLOCK,
+        constraint=constraint(subtype=BlockType.IDENTITY),
     )
     if TYPE_CHECKING:
         block_ptr: Optional[NodeReference] = None

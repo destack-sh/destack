@@ -262,6 +262,7 @@ enum BlockType {
   BLOCK_TYPE_CHOICE = 11;
   BLOCK_TYPE_PROTOCOL = 14;
   BLOCK_TYPE_SIGNAL = 15;
+  BLOCK_TYPE_NOTIFICATION = 16;
   BLOCK_TYPE_TEXT = 30;
   BLOCK_TYPE_CODE = 31;
   BLOCK_TYPE_FLOW = 32;
@@ -1951,6 +1952,7 @@ message TypeConstraintData {
   optional string regex = 60;
   optional string starts_with = 61;
   optional string ends_with = 62;
+  optional int32 subtype = 70;
 }
 
 // A type from the type system.
@@ -2168,7 +2170,6 @@ message DependencyData {
   repeated int32 set_properties = 29;
   repeated NodeReferenceData scopes_ptr = 30;
   NodeReferenceData dependency_ptr = 40;
-  repeated NodeReferenceData dependency_scopes_ptr = 41;
 }
 
 // Drive for file storage.

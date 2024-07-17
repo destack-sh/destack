@@ -21,7 +21,7 @@ from bench.language.property import (
     p_value_packed,
     p_value_runtime,
 )
-from bench.language.validation import NAME_CONSTRAINT, ValidationHandler
+from bench.language.validation import NAME_CONSTRAINT, ValidationHandler, constraint
 from bench.language.value import HasValues
 from bench.proto.wire import BlockData
 from bench.utils.casing import IdentifierType
@@ -54,6 +54,7 @@ IDENTIFIER_TYPE_BY_BLOCK_TYPE: dict[BlockType, IdentifierType] = {
     BlockType.PAGE: IdentifierType.VARIABLE,
     BlockType.CLASS: IdentifierType.TYPE,
     BlockType.SIGNAL: IdentifierType.TYPE,
+    BlockType.NOTIFICATION: IdentifierType.TYPE,
     BlockType.CHOICE: IdentifierType.TYPE,
     BlockType.PROTOCOL: IdentifierType.TYPE,
     BlockType.TEXT: IdentifierType.FUNCTION,
@@ -102,8 +103,19 @@ class Block(SourceNode[BlockData], HasValues):
     run_options: Optional["RunOptions"] = p_regular(
         43, default=None, require=False, array=False, struct=StructType.RUN_OPTIONS
     )
-    roles: list["Block"] = p_regular(46, require=False, array=True, references=NodeType.BLOCK)
-    identity: Optional["Block"] = p_regular(47, require=False, references=NodeType.BLOCK)
+    roles: list["Block"] = p_regular(
+        46,
+        require=False,
+        array=True,
+        references=NodeType.BLOCK,
+        constraint=constraint(subtype=BlockType.ROLE),
+    )
+    identity: Optional["Block"] = p_regular(
+        47,
+        require=False,
+        references=NodeType.BLOCK,
+        constraint=constraint(subtype=BlockType.IDENTITY),
+    )
     policies: list["Policy"] = p_regular(48, require=False, array=True, struct=StructType.POLICY)
     delegated_policies: list["Policy"] = p_regular(
         49, require=False, array=True, struct=StructType.POLICY

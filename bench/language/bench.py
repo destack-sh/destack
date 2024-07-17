@@ -264,9 +264,6 @@ class Dependency(SourceNode[DependencyData]):
 
     # dependency
     dependency: Package = p_regular(40, require=True, array=False, references=NodeType.PACKAGE)
-    dependency_scopes: list["Block"] = p_regular(
-        41, require=True, array=True, references=NodeType.BLOCK
-    )
 
 
 @enum_(EnumType.TENANCY)

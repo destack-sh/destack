@@ -359,30 +359,48 @@ function getNodeDiscriminator(node: { metatype: ObjectType } & Partial<AnyNodeDa
   else return undefined;
 }
 
-/** Generates a node name for our :AutoNaming. */
-export function generateNodeName<T extends NodeType>(metatype: T, siblings: AnyNodeData[], value?: number): string {
-  let key: string | undefined;
-  if (metatype != NodeType.FIELD || (value != FieldZone.VARIABLE && value != FieldZone.MEMBER))
-    key = NODE_NAME_DISCRIMINATORS[metatype];
-  else key = undefined;
-  if (key != null) {
-    if (value == null) throw new Error(`value is required for discriminator ${key}`);
+/** Gets the discriminating subtype for a node, if any */
+export function getNodeSubtype(node: AnyNodeData): FieldZone | BlockType | ViewType | StepType | any {
+  const key = NODE_NAME_DISCRIMINATORS[node.metatype as unknown as NodeType];
+  if (key != null) return (node as any)[key];
+  else return null;
+}
+
+/** Gets the proper name for the discriminating subtype for a node, if any */
+export function getNodeSubtypeName(metatype: NodeType, value?: number): string | null {
+  const discriminator = NODE_NAME_DISCRIMINATORS[metatype];
+  if (discriminator != null) {
+    if (value == null) throw new Error(`value is required for discriminator ${discriminator}`);
     const properties = PROPERTY_ENUM_BY_TYPE[metatype as unknown as ObjectType];
     const propertyInfos = PROPERTY_INFOS_BY_TYPE[metatype as unknown as ObjectType];
-    const enumType = ENUM_BY_TYPE[propertyInfos[properties![key as any]]?.enumType!];
+    const enumType = ENUM_BY_TYPE[propertyInfos[properties![discriminator as any]]?.enumType!];
     let typeName = enumType[value];
-    if (typeof typeName != "string") throw new Error(`unknown type ${value} for ${NodeType[metatype]}.${key}`);
+    if (typeof typeName != "string")
+      throw new Error(`unknown type ${value} for ${NodeType[metatype]}.${discriminator}`);
     typeName = toCasing(typeName, Casing.CAMEL);
+    return typeName;
+  } else {
+    return null;
+  }
+}
+
+/** Generates a node name for our :AutoNaming. */
+export function generateNodeName(metatype: NodeType, siblings: AnyNodeData[], value?: number): string {
+  const discriminator = NODE_NAME_DISCRIMINATORS[metatype];
+  if (discriminator != null && value != null) {
+    if (value == null) throw new Error(`value is required for discriminator ${discriminator}`);
+    const subtypeName = getNodeSubtypeName(metatype, value);
     const maxId = Math.max(
-      ...siblings.filter((n) => (n as any)[key!] == value).map((n) => extractNameId((n as any).name) ?? 0),
+      ...siblings.filter((n) => (n as any)[discriminator!] == value).map((n) => extractNameId((n as any).name) ?? 0),
       0,
     );
-    return `${typeName}${maxId + 1}`;
-  } else {
-    const metatypeName = toCamelName(NodeType, metatype);
-    const maxId = Math.max(...siblings.map((n) => extractNameId((n as any).name) ?? 0), 0);
-    return `${metatypeName}${maxId + 1}`;
+    return `${subtypeName}${maxId + 1}`;
   }
+
+  // default to no subtype
+  const metatypeName = toCamelName(NodeType, metatype);
+  const maxId = Math.max(...siblings.map((n) => extractNameId((n as any).name) ?? 0), 0);
+  return `${metatypeName}${maxId + 1}`;
 }
 
 /** Checks whether the node name was likely generated */
@@ -842,6 +860,7 @@ export const EXPOSED_BLOCK_TYPES = [
   BlockType.TEXT,
   BlockType.CODE,
   BlockType.VARIABLE,
+  BlockType.IDENTITY,
 ];
 export const EXPOSED_STRUCT_TYPES = [
   // core
@@ -952,12 +971,6 @@ export function getPropertyTitle(property: PropertyInfo): string {
 // Inspection
 //
 
-/** Gets the discriminating subtype for a node, if any */
-export function getNodeSubtype(node: AnyNodeData): FieldZone | BlockType | ViewType | StepType | any {
-  if (isNode(node, NodeType.FIELD)) return node.zone;
-  else return (node as any).type;
-}
-
 type InspectionCategory = (
   | { from?: number; to?: number; excluding?: number[] }
   | {
@@ -1025,8 +1038,12 @@ function getInspectionInfo(metatype: ObjectType, type: any): Record<string, Insp
   } else if (metatype == ObjectType.BLOCK) {
     const properties: Record<string, InspectionCategory> = {
       Common: [BlockProperty.type],
-      Flags: [{ from: 60, to: 70 }],
+      Run: [],
     };
+    if (RUNNABLE_BLOCK_TYPES.includes(type) || PAGE_BLOCK_TYPES.includes(type)) {
+      properties.Run.push(BlockProperty.identityPtr);
+      properties.Run.push(BlockProperty.isPaused);
+    }
     if (type == BlockType.VARIABLE) {
       // value type
       properties.Common.push({
@@ -1132,15 +1149,16 @@ export function getInspectionLayout(
           isRequired: property.isRequired ?? false,
           isList: property.isList ?? false,
           isSecret: property.isEncrypted ?? false,
+          constraint:
+            property.constraint != null ? { metatype: ObjectType.TYPE_CONSTRAINT, ...property.constraint } : undefined,
         });
         if (valueView == null) {
           log.warn("lang.missingView", property); // will indicate no view for value in UI
           continue;
         }
-        const { viewType, props } = valueView;
-        inspectedProperty.viewType = viewType;
-        inspectedProperty.props = props;
-        inspectedProperty.isFullWidth = FULL_WIDTH_VIEW_TYPES.includes(viewType);
+        inspectedProperty.viewType = valueView.viewType;
+        inspectedProperty.props = valueView.props;
+        inspectedProperty.isFullWidth = FULL_WIDTH_VIEW_TYPES.includes(valueView.viewType);
         inspectedProperties.push(inspectedProperty);
       }
     }

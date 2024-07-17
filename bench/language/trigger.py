@@ -4,7 +4,14 @@ from typing import TYPE_CHECKING, Collection, Optional, Union
 import pytz
 from croniter import croniter
 
-from bench.language.const import NodeType, ScheduleType, StructType, TimeInterval, TriggerType
+from bench.language.const import (
+    BlockType,
+    NodeType,
+    ScheduleType,
+    StructType,
+    TimeInterval,
+    TriggerType,
+)
 from bench.language.graph import NodeList
 from bench.language.issue import Issue
 from bench.language.node import (
@@ -16,7 +23,12 @@ from bench.language.node import (
     struct_,
 )
 from bench.language.property import Property, p_node_children, p_node_parent, p_regular
-from bench.language.validation import NAME_CONSTRAINT, TypeConstraintIn, ValidationHandler
+from bench.language.validation import (
+    NAME_CONSTRAINT,
+    TypeConstraintIn,
+    ValidationHandler,
+    constraint,
+)
 from bench.proto.wire import TriggerData
 
 if TYPE_CHECKING:
@@ -76,7 +88,12 @@ class TriggerBase(BuiltinObject):
         50, default=None, require=False, array=False, struct=StructType.SCHEDULE
     )
     signal: Optional["Block"] = p_regular(
-        51, default=None, require=False, array=False, references=NodeType.BLOCK
+        51,
+        default=None,
+        require=False,
+        array=False,
+        references=NodeType.BLOCK,
+        constraint=constraint(subtype=BlockType.SIGNAL),
     )
     condition: Optional["Expression"] = p_regular(
         52, default=None, require=False, array=False, struct=StructType.EXPRESSION

@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING, Any, Optional, cast
 
 import structlog
 
-from bench.language.const import NodeType
+from bench.language.const import BlockType, NodeType
 from bench.language.field import TypeInfoBase
 from bench.language.node import (
     HasNodeBase,
@@ -19,6 +19,7 @@ from bench.language.property import (
     p_value_runtime,
 )
 from bench.language.session import HasSessionContext
+from bench.language.validation import constraint
 from bench.language.value import HasValues
 from bench.proto.wire import AnyNodeData, NodeReferenceData, SignalData
 
@@ -40,7 +41,13 @@ class Signal(PackageNode[SignalData], HasTimeIdentity, HasNodeBase, HasSessionCo
     """
 
     parent: "Package | None" = p_node_parent(4, NodeType.PACKAGE)
-    type: "Block" = p_internal(32, require=True, array=False, references=NodeType.BLOCK)
+    type: "Block" = p_internal(
+        32,
+        require=True,
+        array=False,
+        references=NodeType.BLOCK,
+        constraint=constraint(subtype=BlockType.SIGNAL),
+    )
 
     # content
     value_packed: Any | None = p_value_packed(42)

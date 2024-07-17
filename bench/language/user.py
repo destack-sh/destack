@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
 from bench.language.const import (
+    BlockType,
     NodeType,
     OrganizationStatus,
     StructType,
@@ -18,7 +19,13 @@ from bench.language.property import (
     p_regular,
     p_system,
 )
-from bench.language.validation import EMAIL_CONSTRAINT, NAME_CONSTRAINT, SLUG_CONSTRAINT, SLUG_REGEX
+from bench.language.validation import (
+    EMAIL_CONSTRAINT,
+    NAME_CONSTRAINT,
+    SLUG_CONSTRAINT,
+    SLUG_REGEX,
+    constraint,
+)
 from bench.proto.wire import (
     HandleData,
     InviteData,
@@ -161,4 +168,10 @@ class Invite(SourceNode[InviteData]):
 
     # membership properties once accepted
     is_owner: bool = p_regular(32, default=False)
-    roles: list["Block"] = p_regular(33, require=False, array=True, references=NodeType.BLOCK)
+    roles: list["Block"] = p_regular(
+        33,
+        require=False,
+        array=True,
+        references=NodeType.BLOCK,
+        constraint=constraint(subtype=BlockType.ROLE),
+    )
