@@ -42,8 +42,8 @@ variable "system_desired_cluster_size" {
   description = "Desired size of the EKS cluster"
 }
 
-variable "system_node_instance_types" {
-  type        = list(string)
+variable "system_node_instance_type" {
+  type        = string
   description = "EC2 instance types for EKS nodes"
 }
 

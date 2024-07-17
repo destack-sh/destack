@@ -5,49 +5,11 @@ import cachetools
 from bench.utils.func import IdEnum
 
 
-class IdentifierType(IdEnum):
-    FILE = 1
-    TYPE = 2
-    CONSTANT = 3
-    FUNCTION = 4
-    VARIABLE = 5
-    PROPERTY = 6
-
-
 class Casing(IdEnum):
     SNAKE = 1
     CAMEL = 2
     LOWER_CAMEL = 3
     ALL_CAPS = 4
-
-
-# NOTE: BENCH_CASING also allows (and encourages) spaces in identifiers (instead of _)
-BENCH_CASING: dict[IdentifierType, Casing] = {
-    IdentifierType.FILE: Casing.CAMEL,
-    IdentifierType.TYPE: Casing.CAMEL,
-    IdentifierType.CONSTANT: Casing.ALL_CAPS,
-    IdentifierType.FUNCTION: Casing.CAMEL,
-    IdentifierType.VARIABLE: Casing.CAMEL,
-    IdentifierType.PROPERTY: Casing.SNAKE,
-}
-
-PYTHON_CASING: dict[IdentifierType, Casing] = {
-    IdentifierType.FILE: Casing.SNAKE,
-    IdentifierType.TYPE: Casing.CAMEL,
-    IdentifierType.CONSTANT: Casing.ALL_CAPS,
-    IdentifierType.FUNCTION: Casing.SNAKE,
-    IdentifierType.VARIABLE: Casing.SNAKE,
-    IdentifierType.PROPERTY: Casing.SNAKE,
-}
-
-TYPESCRIPT_CASING: dict[IdentifierType, Casing] = {
-    IdentifierType.FILE: Casing.CAMEL,
-    IdentifierType.TYPE: Casing.CAMEL,
-    IdentifierType.CONSTANT: Casing.ALL_CAPS,
-    IdentifierType.FUNCTION: Casing.CAMEL,
-    IdentifierType.VARIABLE: Casing.CAMEL,
-    IdentifierType.PROPERTY: Casing.CAMEL,
-}
 
 
 def _strip_alpha_num(name: str) -> str:
@@ -60,6 +22,22 @@ def _strip_alpha_num(name: str) -> str:
     # remove leading digits
     name = re.sub(r"^[0-9]+", "", name)
     return name
+
+
+def to_py_name(name: str) -> str:
+    """
+    Turns a string into a valid Python identifier.
+    Does not attempt to transform casing, just make as few transformations as possible.
+    """
+    if not name:
+        return "_"
+    elif name.isidentifier():
+        return name
+    else:
+        name = "_".join(re.split(r"[^a-zA-Z0-9_]", name))
+        if name[0].isdigit():
+            name = "_" + name
+        return name
 
 
 @cachetools.cached(cache={})

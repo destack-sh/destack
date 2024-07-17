@@ -24,7 +24,6 @@ from bench.language.property import (
 from bench.language.validation import NAME_CONSTRAINT, ValidationHandler, constraint
 from bench.language.value import HasValues
 from bench.proto.wire import BlockData
-from bench.utils.casing import IdentifierType
 from bench.utils.fractional import INTEGER_ZERO
 
 if TYPE_CHECKING:
@@ -49,28 +48,7 @@ if TYPE_CHECKING:
 
 # pyright: reportIncompatibleVariableOverride=false
 
-IDENTIFIER_TYPE_BY_BLOCK_TYPE: dict[BlockType, IdentifierType] = {
-    BlockType.ALIAS: IdentifierType.VARIABLE,
-    BlockType.PAGE: IdentifierType.VARIABLE,
-    BlockType.CLASS: IdentifierType.TYPE,
-    BlockType.SIGNAL: IdentifierType.TYPE,
-    BlockType.NOTIFICATION: IdentifierType.TYPE,
-    BlockType.CHOICE: IdentifierType.TYPE,
-    BlockType.PROTOCOL: IdentifierType.TYPE,
-    BlockType.TEXT: IdentifierType.FUNCTION,
-    BlockType.CODE: IdentifierType.FUNCTION,
-    BlockType.FLOW: IdentifierType.FUNCTION,
-    BlockType.VARIABLE: IdentifierType.VARIABLE,
-    BlockType.DATABASE: IdentifierType.TYPE,
-    BlockType.QUERY: IdentifierType.VARIABLE,
-    BlockType.VIEW: IdentifierType.TYPE,
-    BlockType.ROLE: IdentifierType.TYPE,
-    BlockType.IDENTITY: IdentifierType.TYPE,
-}
-assert len(IDENTIFIER_TYPE_BY_BLOCK_TYPE) == len(BlockType)
-
-
-# TODO :UX: auto-generate node names in code just like in the UI (if unset -> block7, etc.)
+# NOTE :UX: auto-generate node names in code just like in the UI (if unset -> block7, etc.)
 #  (Maybe postpone name validation if detached so we can leave it unset?,
 #   auto-naming currently only works in NodeList where we know the siblings).
 #  see :AutoNaming
@@ -197,10 +175,6 @@ class Block(SourceNode[BlockData], HasValues):
             return typ(*args, **kwargs)
         else:
             raise BenchError(f"{self!r} is not callable")
-
-    @property
-    def identifier_type(self) -> IdentifierType:
-        return IDENTIFIER_TYPE_BY_BLOCK_TYPE[self.type]
 
     def to_type(self, *, as_object: bool = False, zone: FieldZone | None = None) -> "TypeInfoBase":
         """Get a type represented by this Block (if any)"""

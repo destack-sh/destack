@@ -77,9 +77,9 @@ from bench.proto.wire import (
     NodeReferenceData,
 )
 from bench.sql.core import Constraint, ConstraintType, Index, IndexType, Table, stable_hash
-from bench.utils.casing import PYTHON_CASING, IdentifierType, to_casing
 from bench.utils.env import IS_DEV
 from bench.utils.func import bittuple, is_close
+from bench.utils.naming import to_py_name
 from bench.utils.utils import frozendict
 from bench.utils.uuidt import UUIDT
 
@@ -502,7 +502,6 @@ def node_(
     constraints: tuple[Constraint, ...] = (),
     indexes: tuple[Index | tuple[str, ...], ...] = (),
     unique: tuple[tuple[str, ...], ...] = (),
-    identifier: IdentifierType = IdentifierType.VARIABLE,
 ):
     """Register a class as a concrete node for the given node type."""
 
@@ -520,7 +519,6 @@ def node_(
         cls.__is_stored__ = stored
         cls.__is_stored_custom__ = stored_custom
         cls.__is_local__ = local
-        cls.__identifier_type__ = identifier
 
         extra_indexes: list[Index] = []
         extra_constraints: list[Constraint] = [*constraints]
@@ -1323,7 +1321,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     metatype: ClassVar[NodeType]  # type: ignore
 
     __is_node__: ClassVar[bool] = True
-    __identifier_type__: ClassVar[IdentifierType] = IdentifierType.VARIABLE
     # NOTE :Test: make id factories deterministic (incl. UUIDT? somehow)
     __id_factory__: ClassVar[Callable[[], UUID]] = uuid4
     __ck_factory__: ClassVar[Callable[[], UUID]] = uuid4
@@ -1473,7 +1470,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     def __str__(self):  # type: ignore
         # override the default __str__ for nodes
         content_str = self.__content_str__()
-        ident_str = self.py_ident
+        ident_str = self.py_name
         if ident_str is None:
             ident_str = str(self.id)
         if content_str:
@@ -1580,10 +1577,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         return get_tk_from_ck(self.ck)
 
     @property
-    def identifier_type(self) -> IdentifierType:
-        return self.__identifier_type__
-
-    @property
     def _ident(self) -> Optional[str]:
         """The Bench identifier of this node (slug if exists, else name if exists)."""
         if self.metatype == NodeType.PACKAGE and self.parent is not None:
@@ -1611,10 +1604,10 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
             return f"[id={self.id}]"
 
     @property
-    def py_ident(self) -> Optional[str]:
-        """The standardized python identifier of this node. Derived from slug or name."""
+    def py_name(self) -> Optional[str]:
+        """The python identifier-compatible name of this node."""
         if self.metatype == NodeType.PACKAGE and self.parent is not None:
-            return self.parent.py_ident
+            return self.parent.py_name
         if "slug" in self.__properties__:
             slug = getattr(self, "slug")
             if slug:  # prefer slug as ident
@@ -1623,7 +1616,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
             name = getattr(self, "name")
             if name is None:
                 return None
-            return to_casing(name, PYTHON_CASING[self.identifier_type])
+            return to_py_name(name)
         return None
 
     @property

@@ -34,7 +34,6 @@ from bench.proto.wire import (
     UserData,
 )
 from bench.sql.core import Constraint, ConstraintType
-from bench.utils.casing import IdentifierType
 
 if TYPE_CHECKING:
     from bench.language import Bench, Block, Client, Icon, NodeReference, Package, Text
@@ -45,7 +44,6 @@ if TYPE_CHECKING:
 @node_(
     NodeType.HANDLE,
     roots=(NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH),
-    identifier=IdentifierType.VARIABLE,
     constraints=(
         Constraint(
             "bench_slug_is_slug",
@@ -68,7 +66,7 @@ class Handle(BenchNode[HandleData]):
         return self.parent is not None  # bench may not be present if it's not in a bench
 
 
-@node_(NodeType.USER, roots=(), identifier=IdentifierType.VARIABLE)
+@node_(NodeType.USER, roots=())
 class User(Node[UserData]):
     """A Bench user."""
 
@@ -118,7 +116,7 @@ class User(Node[UserData]):
         return self.main_bench
 
 
-@node_(NodeType.ORGANIZATION, roots=(), identifier=IdentifierType.VARIABLE)
+@node_(NodeType.ORGANIZATION, roots=())
 class Organization(Node[OrganizationData]):
     """
     A Bench organization with Users as members.

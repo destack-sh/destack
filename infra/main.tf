@@ -130,7 +130,7 @@ resource "aws_iam_role_policy_attachment" "ec2_container_registry_read_only" {
   role       = aws_iam_role.eks_node_role.name
 }
 
-# system nodes
+# EKS (system) nodes
 resource "aws_eks_node_group" "eks_system_nodes" {
   cluster_name    = aws_eks_cluster.eks_cluster.name
   node_group_name = "${var.env}-eks-system"
@@ -143,7 +143,7 @@ resource "aws_eks_node_group" "eks_system_nodes" {
     min_size     = var.system_min_cluster_size
   }
 
-  instance_types = var.system_node_instance_types
+  instance_types = [var.system_node_instance_type]
 }
 
 # Kubernetes secret for GHCR
@@ -194,7 +194,7 @@ resource "aws_rds_cluster" "global_pg" {
   master_password         = var.global_pg_password
   backup_retention_period = 7
   preferred_backup_window = "06:00-08:00"
-	availability_zones = var.aws_availability_zones
+  availability_zones      = var.aws_availability_zones
 
   vpc_security_group_ids = [aws_security_group.rds_sg.id]
 }

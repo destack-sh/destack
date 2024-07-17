@@ -46,7 +46,6 @@ from bench.proto.wire import (
     ServerData,
     StoreData,
 )
-from bench.utils.casing import IdentifierType
 from bench.utils.func import IdEnum, bittuple, generate_encryption_key
 
 if TYPE_CHECKING:
@@ -70,7 +69,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@node_(NodeType.BENCH, roots=(), identifier=IdentifierType.VARIABLE)
+@node_(NodeType.BENCH, roots=())
 class Bench(BenchNode[BenchData]):
     """
     A Bench is an AI-native operating system for a new generation of fully integrated, fluid software.
@@ -151,11 +150,7 @@ class Bench(BenchNode[BenchData]):
         )
 
 
-@local_node(
-    NodeType.BRANCH,
-    identifier=IdentifierType.VARIABLE,
-    unique=(("bench_id", "slug"),),
-)
+@local_node(NodeType.BRANCH, unique=(("bench_id", "slug"),))
 class Branch(BenchNode[BranchData]):
     """A branch is a lineage of Bench history."""
 
@@ -183,7 +178,7 @@ class Branch(BenchNode[BranchData]):
     packages: NodeList["Package"] = p_node_children(NodeType.PACKAGE)
 
 
-@local_node(NodeType.PACKAGE, identifier=IdentifierType.VARIABLE)
+@local_node(NodeType.PACKAGE)
 class Package(BenchNode[PackageData]):
     """A package is a version of a Bench in a Branch."""
 
@@ -251,7 +246,7 @@ class Package(BenchNode[PackageData]):
         return ", ".join(parts)
 
 
-@local_node(NodeType.DEPENDENCY, identifier=IdentifierType.VARIABLE)
+@local_node(NodeType.DEPENDENCY)
 class Dependency(SourceNode[DependencyData]):
     """
     A dependency on another Bench (pointing to a specific Package).
@@ -415,7 +410,7 @@ class Drive(BenchResourceNode[DriveData]):
     ...
 
 
-@node_(NodeType.CLIENT, roots=(NodeType.USER, NodeType.BENCH), identifier=IdentifierType.VARIABLE)
+@node_(NodeType.CLIENT, roots=(NodeType.USER, NodeType.BENCH))
 class Client(BenchNode[ClientData]):
     """A client to a Bench."""
 
