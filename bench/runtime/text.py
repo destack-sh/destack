@@ -154,25 +154,26 @@ There are many more complex types; examples are provided as needed.
             rendered_examples.append(f"{field.name} = {rendered_example}")
 
         # build messages
+        task_alias = self.node.absolute_path
         messages: list[ChatMessage] = [
             ChatMessage(
                 "user",
                 f"""\
 #
-# Context around your task '{self.node.name}'
+# Context around your task '{task_alias}'
 # Includes relevant and irrelevant instructions and information to consider.
 # 
 
 {rendered_context or "# <no context available>"}
 
 # 
-# Inputs for your specific task '{self.node.name}'
+# Inputs for your specific task '{task_alias}'
 #
                         
 {rendered_inputs}
 
 #
-# Your specific task is `{self.node.name}`
+# Your specific task is `{task_alias}`
 # You MUST focus on this task with these inputs in relation to the provided context.
 #
 
@@ -186,7 +187,7 @@ There are many more complex types; examples are provided as needed.
 {'\n'.join(e for e in rendered_examples)}
 
 #
-# Return the answer to the specific invocation of task '{self.node.name}' with the given inputs.
+# Return the answer to the specific invocation of task '{task_alias}' with the given inputs.
 #  - You MUST NOT attempt to generalize over inputs; return the answer for the given inputs only.
 #  - You MAY generate reasoning *before* the respective answer (especially if it's in the output).
 #  - You MAY import and use the Python standard library for maths and such, but nothing else.

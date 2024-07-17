@@ -52,8 +52,6 @@ def _build_proto_schema() -> str:
         name="symbolx.bench",
         bench_classes=[*FINAL_BENCH_CLASSES, Node],
         aliases={Node: "BaseNode"},
-        # TODO :Performance: improve hetero node wrapping
-        #  (SomeNodeData union seems inefficient)
         unions={"SomeNode": ("node", node_classes)},
         extras=[],
         message_postfix="Data",
@@ -275,7 +273,6 @@ AnyStructData = Union[{', '.join([cls.__name__ + 'Data' for cls in STRUCT_CLASSE
         property_enum_maps_parts.append(property_enum_map_str)
     property_enum_maps_str = "\n".join(property_enum_maps_parts)
 
-    # TODO :Incomplete: add TypeConstraint to PropertyInfo for bench-web
     object_info_type_str = """
 export type TypeConstraintIn = Partial<Omit<TypeConstraintData, "metatype">>;
 export type PropertyKind = 'primitive' | 'enum' | 'reference';

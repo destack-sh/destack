@@ -408,6 +408,7 @@ class RuntimeRunner:
         """Runs something runnable, considering its dependencies and run options."""
 
         # TODO :Incomplete: prepare run handle context (Runner.prepare?)
+        #  (like for code we need its referenced imports/exports ready)
 
         runner_cls = _runners.get((handle.kind, handle.key))
         if runner_cls is None:

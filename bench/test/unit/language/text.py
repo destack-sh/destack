@@ -99,7 +99,7 @@ def test_text_to_markdown_roundtrip(markdown: str, lines: list[TextLine]):
     assert text_from_markdown == text  # for sanity
 
     # text -> markdown
-    # TODO :Incomplete :Test: implement more optimal text to markdown (and test it in roundtrip)
+    # NOTE :Incomplete :Test: implement more optimal text to markdown (and test it in roundtrip)
     #  Currently, we naively wrap each span individually (ignoring successive spans), resulting in bloated MD.
     # markdown_from_text = text_to_markdown(text)
     # assert markdown_from_text == markdown

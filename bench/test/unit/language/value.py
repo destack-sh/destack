@@ -109,8 +109,6 @@ def test_roundtrip_nested_value(session: Session, package: Package):
 
     # outer value
     value = cast(ValueObject, class1())
-    # TODO :Broken: value pack/unpack does not yet turn node refs back into nodes
-    #  (so the assertion below would fail if the next line is uncommented)
     value.field1 = choice1.fields.Option1
     assert value.field1 is choice1.fields.Option1
     value.field2 = False

@@ -15,7 +15,7 @@ from bench.sql.core import Table, TableObject
 from bench.utils.func import sanitize_connection_uri
 from bench.utils.utils import get_from_env
 
-# TODO :Robustness: figure out how to fix the psycopg pool warning
+# NOTE :Robustness: figure out how to fix the psycopg pool warning
 #  (what we're doing should be fine according to docs and the warning)
 AsyncConnectionPool._warn_open_async = lambda *args, **kwargs: None  # type: ignore
 

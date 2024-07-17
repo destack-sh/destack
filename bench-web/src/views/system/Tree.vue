@@ -19,9 +19,10 @@ import { packagePtr } from "@/system/client";
 import { useExistingConnection, type Connection } from "@/system/connection";
 import { isDescendantOf, walkDescendantsRef, type NodeTreeItem } from "@/system/graph";
 import { DEFAULT_BENCH_ICON, IconInline, getNodeIcon } from "@/system/icon";
-import { createBlock, moveNode, PAGE_BLOCK_TYPES } from "@/system/lang";
+import { createBlock, moveNode, NAME_CONSTRAINT, PAGE_BLOCK_TYPES } from "@/system/lang";
 import { highlightMatches } from "@/system/search";
 import { bench, canvas, inspectionBasePtr, inspectionPtr, pkg } from "@/system/space";
+import { getNativeConstraintProps, guardNativeInput } from "@/system/view";
 import { startDragging, useMultiDropZone } from "@/utils/drag";
 import { ScrollbarWidth } from "@/utils/layout";
 import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/utils/menu";
@@ -392,7 +393,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
 
     <!-- Content -->
     <Scroll
-      :size="size"
+      :size="{ width: size.width, height: size.height - HEADER_HEIGHT }"
       :orientation="Orientation.VERTICAL"
       :track-width="ScrollbarWidth.md"
       track-is-overlay
@@ -481,17 +482,14 @@ defineExpose<ViewExposed>({ self, actions, focus });
             class="flex-1 rounded border-0 bg-transparent outline-none ring-0 hover:bg-gray-100 focus:ring-0"
             spellcheck="false"
             :value="(node as any).name"
+            v-bind="getNativeConstraintProps(NAME_CONSTRAINT)"
             @click.stop
             @keydown.enter.stop.prevent="cancelRename"
             @keydown.escape.stop.prevent="cancelRename"
             @input="
-              (event) => {
-                pkgConnection.tx.update(
-                  node!,
-                  { name: (event.target as HTMLInputElement).value },
-                  { debounce: 'long' },
-                );
-              }
+              guardNativeInput(NAME_CONSTRAINT, $event, (node as any).name, (newValue) => {
+                pkgConnection.tx.update(node!, { name: newValue }, { debounce: 'long' });
+              })
             "
           />
           <span
