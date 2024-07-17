@@ -110,7 +110,7 @@ export function makeViewId(props: { self?: NodeReferenceData; name?: string | nu
 
 // inverse :ViewRegistry for lookups without needing to import the registry
 export function getViewTypeByComponentName(name: string): ViewType | null {
-  if (name == "HtmlInput") {
+  if (name == "NativeInput") {
     return ViewType.STRING;
   } else {
     const capsName = toCasing(name, Casing.ALL_CAPS);

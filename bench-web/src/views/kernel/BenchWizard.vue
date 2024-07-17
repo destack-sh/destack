@@ -6,7 +6,7 @@ import { createBench, user } from "@/system/user";
 import { viewEmits, type FocusAnchor } from "@/views/common";
 import { toRef, type Ref, ref, watch, computed } from "vue";
 import Button from "@/views/controls/Button.vue";
-import HtmlInput from "@/views/content/HtmlInput.vue";
+import NativeInput from "@/views/content/NativeInput.vue";
 import { toNodeReference } from "@/proto/wiring";
 import { canvas, goToBench } from "@/system/space";
 import { getViewComponentChildren, isVueInstanceOf } from "@/views/canvas";
@@ -53,7 +53,7 @@ const instance = canvas.registerView(self);
 function focus(anchor: FocusAnchor | NodeReferenceData) {
   const childViews = getViewComponentChildren(instance);
   if (anchor != "bottom") {
-    return childViews.find((v) => isVueInstanceOf(v, HtmlInput));
+    return childViews.find((v) => isVueInstanceOf(v, NativeInput));
   } else {
     return childViews.reverse().find((v) => isVueInstanceOf(v, Button));
   }
@@ -75,7 +75,7 @@ defineExpose({ self, focus });
       <!-- Owner -->
       <!-- ... -->
       <!-- Slug must match user slug for main bench -->
-      <HtmlInput
+      <NativeInput
         v-model="slug"
         :icon="makeIcon({ faName: 'fas fa-at' })"
         name="Slug"

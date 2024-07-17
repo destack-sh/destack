@@ -37,9 +37,10 @@ import type { ActionContext, ActionMapImplementation } from "@/system/action";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import { makeSelection } from "@/views/canvas";
 import { getElement } from "@/utils/element";
-import { toCamelName } from "@/system/lang";
+import { TITLE_CONSTRAINT, toCamelName } from "@/system/lang";
 import NodePath from "@/views/builtins/NodePath.vue";
 import { PACKAGE_SCOPE } from "@/system/client";
+import { getNativeConstraintProps, guardNativeInput } from "@/system/view";
 
 const HEADER_HEIGHT_NORMAL = 36;
 const HEADER_HEIGHT_COMPACT = 32;
@@ -352,13 +353,11 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
             :size="(thread?.title?.length ?? 10) + 1"
             :disabled="thread == null"
             :placeholder="thread == null ? 'New Thread' : 'Untitled Thread'"
+            v-bind="getNativeConstraintProps(TITLE_CONSTRAINT)"
             @input="
-              (event) =>
-                pkgConnection.tx.update(
-                  node!,
-                  { title: (event.target as HTMLInputElement).value },
-                  { debounce: 'long' },
-                )
+              guardNativeInput(TITLE_CONSTRAINT, $event, thread?.title, (newValue) =>
+                pkgConnection.tx.update(node!, { title: newValue }, { debounce: 'long' }),
+              )
             "
           />
           <!-- Select thread -->
@@ -403,10 +402,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
             class="text-gray-400 enabled:hover:text-primary-900"
             @click="
               () => {
-                canvas.addView(
-                  { type: ViewType.CHAT, nodePtr },
-                  { ifPresent: 'upsertAndFocus', where: 'bestFrame' },
-                );
+                canvas.addView({ type: ViewType.CHAT, nodePtr }, { ifPresent: 'upsertAndFocus', where: 'bestFrame' });
                 $emit('close');
               }
             "

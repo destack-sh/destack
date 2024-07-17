@@ -19,7 +19,7 @@ import { logIn, signUp, user } from "@/system/user";
 import { makeTypeInfo } from "@/system/value";
 import { getViewComponentChildren, isVueInstanceOf, useViewState } from "@/views/canvas";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
-import HtmlInput from "@/views/content/HtmlInput.vue";
+import NativeInput from "@/views/content/NativeInput.vue";
 import Button from "@/views/controls/Button.vue";
 import { ref, toRef, type Ref } from "vue";
 
@@ -96,7 +96,7 @@ const instance = canvas.registerView(self);
 function focus(anchor?: FocusAnchor | NodeReferenceData) {
   const childViews = getViewComponentChildren(instance);
   if (anchor != "bottom") {
-    return childViews.find((v) => isVueInstanceOf(v, HtmlInput));
+    return childViews.find((v) => isVueInstanceOf(v, NativeInput));
   } else {
     return childViews.reverse().find((v) => isVueInstanceOf(v, Button));
   }
@@ -117,7 +117,7 @@ defineExpose<ViewExposed>({ self, focus });
     </div>
     <!-- Data -->
     <div v-if="!user" class="mt-5 flex w-full flex-col gap-y-3">
-      <HtmlInput
+      <NativeInput
         v-if="stage == UserWizardViewStage.SIGN_UP"
         v-model="name"
         :icon="makeIcon({ faName: 'fas fa-user' })"
@@ -126,7 +126,7 @@ defineExpose<ViewExposed>({ self, focus });
         :variant="Variant.PRIMARY"
         is-input
       />
-      <HtmlInput
+      <NativeInput
         v-model="slug"
         :icon="makeIcon({ faName: 'fas fa-at' })"
         name="slug"
@@ -134,7 +134,7 @@ defineExpose<ViewExposed>({ self, focus });
         :variant="Variant.PRIMARY"
         is-input
       />
-      <HtmlInput
+      <NativeInput
         v-if="stage == UserWizardViewStage.SIGN_UP"
         v-model="email"
         :icon="makeIcon({ faName: 'fas fa-at' })"
@@ -144,7 +144,7 @@ defineExpose<ViewExposed>({ self, focus });
         is-input
       />
       <!-- TODO :UX: add passowrd feedback (see https://zxcvbn-ts.github.io/zxcvbn/) -->
-      <HtmlInput
+      <NativeInput
         v-model="password"
         :icon="makeIcon({ faName: 'fas fa-key' })"
         name="Password"

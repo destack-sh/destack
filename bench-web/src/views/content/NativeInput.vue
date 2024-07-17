@@ -3,6 +3,7 @@ import { ColorShade, ColorType, NodeType, Variant, ViewType, type ViewData } fro
 import type { TypedNodeReferenceData } from "@/proto/wiring";
 import { IconInline } from "@/system/icon";
 import { canvas } from "@/system/space";
+import { getNativeConstraintProps, guardNativeInput } from "@/system/view";
 import { ViewContentWrapper, makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import { computed, ref, toRef } from "vue";
 
@@ -46,10 +47,15 @@ defineExpose<ViewExposed>({
       <IconInline v-if="icon" v-bind="icon" :shade="ColorShade.S400" class="mr-1.5 w-5" />
       <input
         ref="inputRef"
-        v-model="modelValue"
+        :value="modelValue"
+        spellcheck="false"
         :type="inputType"
         class="w-full border-0 bg-transparent p-0 outline-none ring-0 focus:ring-0"
+        v-bind="getNativeConstraintProps(valueType?.constraint)"
         :disabled="isDisabled"
+        @input="
+          guardNativeInput(valueType?.constraint, $event, modelValue, (newValue) => emit('update:modelValue', newValue))
+        "
       />
     </div>
     <span v-else>{{ modelValue }}</span>

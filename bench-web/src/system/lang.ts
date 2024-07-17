@@ -5,6 +5,7 @@
 import {
   Anchor,
   BenchType,
+  BlockDataInfo,
   BlockProperty,
   BlockType,
   ColorType,
@@ -29,6 +30,7 @@ import {
   StepType,
   StructType,
   TypeKind,
+  ViewDataInfo,
   ViewProperty,
   ViewType,
   type AnyNodeData,
@@ -125,6 +127,9 @@ export const VIEW_TYPES = Object.values(ViewType).filter((v) => typeof v == "num
 export const ROOT_VIEW_TYPES = new Set([ViewType.WINDOW, ViewType.TAB, ViewType.SPLIT]);
 export const NODE_VIEW_TYPES = new Set(VIEW_TYPES.filter((vt) => vt >= 200 && vt < 400));
 export const HELPER_VIEW_TYPES = new Set(VIEW_TYPES.filter((vt) => vt >= 400 && vt < 600));
+
+export const NAME_CONSTRAINT = BlockDataInfo[BlockProperty.name].constraint!;
+export const TITLE_CONSTRAINT = ViewDataInfo[ViewProperty.title].constraint!;
 
 /**
  * Gets the 'base' node defining a certain node. See :HasBase.

@@ -1,8 +1,10 @@
 import re
 import shutil
+from enum import Enum
 from itertools import chain
 from pathlib import Path
 from subprocess import DEVNULL
+from typing import Any
 
 import structlog
 import typer
@@ -10,6 +12,7 @@ import typer
 from bench.cli.utils import _shell
 from bench.language import Node
 from bench.language.const import ENUM_TYPES, NODE_TYPES, STRUCT_TYPES, UNSET, VERSION
+from bench.language.field import TypeConstraint
 from bench.language.node import NODE_REFERENCE_TYPES
 from bench.language.property import Property
 from bench.language.setup import (
@@ -59,6 +62,21 @@ def _build_proto_schema() -> str:
 
 
 _PUBLIC_SERVICES = ("GraphIo", "Supervisor", "Host")  # :ServiceKind
+
+
+def _render_js_value(value: Any) -> str:
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    elif isinstance(value, (int, float)):
+        return str(value)
+    elif isinstance(value, str):
+        # escape string
+        value = value.replace("\\", "\\\\").replace('"', '\\"')
+        return f'"{value}"'
+    elif isinstance(value, Enum):
+        return f"{value.__class__.__name__}.{value.name}"
+    else:
+        raise RuntimeError(f"unexpected value: {value}")
 
 
 def _build_proto(schema_str: str) -> None:
@@ -259,6 +277,7 @@ AnyStructData = Union[{', '.join([cls.__name__ + 'Data' for cls in STRUCT_CLASSE
 
     # TODO :Incomplete: add TypeConstraint to PropertyInfo for bench-web
     object_info_type_str = """
+export type TypeConstraintIn = Partial<Omit<TypeConstraintData, "metatype">>;
 export type PropertyKind = 'primitive' | 'enum' | 'reference';
 export type PropertyInfo = {
     // basics
@@ -269,6 +288,7 @@ export type PropertyInfo = {
     primitiveType?: PrimitiveType;
     enumType?: EnumType;
     default?: any;
+    constraint?: TypeConstraintIn;
     
     // flags
     isList?: boolean;
@@ -322,6 +342,17 @@ export type PropertyInfo = {
             prop_info_parts["kind"] = repr(kind)
             if prop.primitive_type and prop.primitive_type is not UNSET:
                 prop_info_parts["primitiveType"] = f"PrimitiveType.{prop.primitive_type.name}"
+            if prop.default is not None and prop.default is not UNSET:
+                prop_info_parts["default"] = _render_js_value(prop.default)
+            if prop.constraint:
+                constraint_parts = []
+                for p in TypeConstraint.__declared_properties__.values():
+                    p_value = getattr(prop.constraint, p.name)
+                    if p_value is not None:
+                        constraint_parts.append(
+                            f"{to_casing(p.name, Casing.LOWER_CAMEL)}: {_render_js_value(p_value)}"
+                        )
+                prop_info_parts["constraint"] = "{ " + ", ".join(constraint_parts) + " }"
 
             for flag in (
                 "isList",

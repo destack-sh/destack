@@ -4,7 +4,9 @@ import { type TypedNodeReferenceData } from "@/proto/wiring";
 import type { ActionMapImplementation } from "@/system/action";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
 import { IconInline, getNodeIcon } from "@/system/icon";
+import { NAME_CONSTRAINT } from "@/system/lang";
 import { canvas, inspectionPtr } from "@/system/space";
+import { getNativeConstraintProps, guardNativeInput } from "@/system/view";
 import { type PopoverInfoIn } from "@/utils/menu";
 import type { TooltipInfo } from "@/utils/tooltip";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
@@ -86,12 +88,16 @@ defineExpose<ViewExposed>({ self, id, actions });
     />
     <input
       ref="nameRef"
+      type="text"
       class="w-fit min-w-fit max-w-fit truncate rounded border-0 bg-transparent font-medium outline-none ring-0 hover:bg-gray-100 focus:ring-0"
       spellcheck="false"
       :value="field.name"
-      :size="Math.max(field.name?.length ?? 0, 5)"
+      :size="(field.name?.length ?? 0) + 3"
+      v-bind="getNativeConstraintProps(NAME_CONSTRAINT)"
       @input="
-        pkgConnection.tx.update(field!, { name: ($event.target as HTMLInputElement).value }, { debounce: 'long' })
+        guardNativeInput(NAME_CONSTRAINT, $event, field.name, (newValue) =>
+          pkgConnection.tx.update(field!, { name: newValue }, { debounce: 'long' }),
+        )
       "
     />
   </div>

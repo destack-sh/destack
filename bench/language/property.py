@@ -35,7 +35,6 @@ from bench.language.setup import (
     ENUM_TYPE_BY_CLASS,
     _on_completing_setup,
 )
-from bench.language.validation import TypeConstraintIn
 from bench.sql.core import CascadeAction, Column, Table
 from bench.utils.env import IS_DEV
 from bench.utils.func import IdEnum, parse_py_annotation, try_tuple
@@ -48,6 +47,7 @@ if TYPE_CHECKING:
         NodeReference,
         PropertyReference,
         TypeConstraint,
+        TypeConstraintIn,
         TypeInfo,
         TypeInfoBase,
     )
@@ -303,7 +303,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
         return True
 
     def _to_type_info(self) -> "TypeInfo":
-        from bench.language.field import TypeInfo
+        from bench.language.field import TypeConstraintIn, TypeInfo
 
         if isinstance(self.constraint, TypeConstraintIn):
             constraint = self.constraint.into()

@@ -73,7 +73,7 @@ class TypeConstraintIn:
 SLUG_REGEX_CHAR = r"a-z0-9-"
 SLUG_REGEX = rf"^[{SLUG_REGEX_CHAR}]{{3,}}$"
 EMAIL_REGEX = r"^[a-zA-Z0-9_.+\-]+@[a-zA-Z0-9\-]+\.[a-zA-Z0-9\-.]+$"
-NAME_REGEX_CHAR = r"a-zA-Z0-9_\-'`˚ "
+NAME_REGEX_CHAR = r"a-zA-Z0-9_'`˚ \-"
 NAME_REGEX_INLINE = rf"[{NAME_REGEX_CHAR}]+"
 NAME_REGEX = rf"^{NAME_REGEX_INLINE}$"
 NAME_CONSTRAINT = TypeConstraintIn(regex=NAME_REGEX, min_length=1, max_length=128)
@@ -87,7 +87,7 @@ def clean_name(name: str, sub="-") -> str:
     return re.sub(r"[^a-zA-Z0-9_\- ]", sub, name)
 
 
-def constrain(
+def constraint(
     min_value: float | None = None,
     max_value: float | None = None,
     step_value: float | None = None,
