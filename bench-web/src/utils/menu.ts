@@ -94,7 +94,7 @@ export function menuItemFromAction(
 /** Convenience wrapper around action filter & menu item mapping */
 export function menuActionsLike(
   filter: ActionFilter | string[],
-  override?: Partial<MenuItem> & { context?: PopoverContext },
+  override: Partial<MenuItem> & { context: PopoverContext | undefined },
 ): MenuItem[] {
   const contextViews = getMenuContextViews(override?.context);
   const actions = getActionsLike(filter).map((action) =>
@@ -233,7 +233,11 @@ function makePopoverDirective(options: {
       const triggerEl = el as PopoverTriggerElement;
       triggerEl.menuOnEvent = (e: MouseEvent) => {
         const reference = options.reference == "self" ? triggerEl : { x: e.clientX, y: e.clientY };
-        const info = typeof binding.value == "function" ? binding.value({ triggerElement: triggerEl }) : binding.value;
+        const triggerNode = canvas.findViewData(triggerEl) ?? undefined;
+        const info =
+          typeof binding.value == "function"
+            ? binding.value({ triggerElement: triggerEl, triggerNode })
+            : binding.value;
         if (info.isEnabled === false) return;
         e.preventDefault();
         e.stopPropagation();
