@@ -31,7 +31,6 @@ from bench.language.expression import C, Expression, coerce_conditional
 from bench.language.node import (
     NODE_CLASS_BY_TYPE,
     BuiltinObject,
-    InlineStruct,
     Node,
     SourceNode,
     Struct,
@@ -82,8 +81,8 @@ FieldOrProperty = Union[
 NodeTypeOrClass = Union[NodeType, type[Node]]
 
 
-@struct_(StructType.READ_OPTIONS, inline=True)
-class ReadOptions(InlineStruct):
+@struct_(StructType.READ_OPTIONS)
+class ReadOptions(Struct):
     """
     Fine-grained options to a read request.
     This is an addition to primary options (like the filter for a search or aggregation).

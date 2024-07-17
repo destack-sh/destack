@@ -7,10 +7,10 @@ from bench.language.bench import Drive
 from bench.language.const import EnumType, NodeType, PrimitiveType, StructType, enum_
 from bench.language.node import (
     BenchNode,
-    InlineStruct,
     Node,
     NodeReference,
     NodeReferenceBase,
+    Struct,
     node_,
     struct_,
 )
@@ -72,9 +72,9 @@ class File(BenchNode[FileData]):
     ...
 
 
-@struct_(StructType.FILE_REFERENCE, inline=True)
+@struct_(StructType.FILE_REFERENCE)
 class FileReference(
-    InlineStruct[FileReferenceData],
+    Struct[FileReferenceData],
     NodeReferenceBase[File, FileData, "FileReference", FileReferenceData],
 ):
     """
@@ -132,8 +132,8 @@ class IconKind(IdEnum):
     FONT_AWESOME = 3
 
 
-@struct_(StructType.ICON, inline=True)
-class Icon(InlineStruct):
+@struct_(StructType.ICON)
+class Icon(Struct):
     """An icon to be displayed in some view."""
 
     kind: IconKind = p_internal(30, default=False)

@@ -18,7 +18,9 @@ import structlog
 from opentelemetry import trace
 
 from bench.language import CodeType
+from bench.language.code import Code
 from bench.language.const import new_struct_id
+from bench.utils.func import stable_hash
 
 # NOTE: some of the analysis logic was adapted from marimo (Apache 2 licensed)
 #  see https://github.com/marimo-team/marimo/blob/fec7d780488ab1478984468598d00d283e8c1c9d/marimo/_ast/visitor.py
@@ -689,8 +691,7 @@ def desugar_code(code: str) -> tuple[str, CodeTransformation]:
 
 @tracer.start_as_current_span("compiler.compile_code")
 def compile_code(
-    code_id: str,
-    code: str,
+    code: Code | str,
     kind: CodeType,
     glbls: Mapping[str, Any],
     builtins: Mapping[str, Any] = BUILTIN_GLOBALS,
@@ -698,7 +699,9 @@ def compile_code(
     """
     Desugar, parse, analyze and compile code.
     """
-    assert code_id.isalnum(), f"code_id must be alphanumeric: {code_id}"
+    if not isinstance(code, str):
+        code = code.to_string()
+    code_id = stable_hash(code).to_bytes(8, "big").hex()
 
     # desugar code
     code, transformation = desugar_code(code)

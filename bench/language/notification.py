@@ -11,8 +11,8 @@ from bench.language.node import (
     HasNodeBase,
     HasPersistentIdentity,
     HasTimeIdentity,
-    InlineStruct,
     PackageNode,
+    Struct,
     object_component,
     timed_node,
 )
@@ -88,7 +88,7 @@ class Notification(
 
 
 @object_component()
-class NotificationState(InlineStruct):
+class NotificationState(Struct):
     """Builtin special Value as the state of some specific notification type (in Notification.value)."""
 
     pass

@@ -5,10 +5,10 @@ from bench.language.const import NodeType, StructType
 from bench.language.field import TypeInfo
 from bench.language.node import (
     BenchNode,
-    InlineStruct,
     Node,
     NodeReference,
     NodeReferenceBase,
+    Struct,
     node_,
     struct_,
 )
@@ -41,9 +41,9 @@ class Secret(BenchNode[SecretData], HasValues):
     value = p_value_runtime(41, typ=lambda self: cast(Secret, self).value_type)
 
 
-@struct_(StructType.SECRET_REFERENCE, inline=True)
+@struct_(StructType.SECRET_REFERENCE)
 class SecretReference(
-    InlineStruct[SecretReferenceData],
+    Struct[SecretReferenceData],
     NodeReferenceBase[Secret, SecretData, "SecretReference", SecretReferenceData],
 ):
     """

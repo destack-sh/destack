@@ -23,7 +23,6 @@ from bench.language.node import (
     ClientOrigin,
     EditSubject,
     GraphScope,
-    InlineStruct,
     Node,
     Property,
     Struct,
@@ -71,8 +70,8 @@ class ChangeCategory(IdEnum):
     SESSION = 20
 
 
-@struct_(StructType.CHANGE_VIGNETTE, inline=True)
-class ChangeVignette(InlineStruct):
+@struct_(StructType.CHANGE_VIGNETTE)
+class ChangeVignette(Struct):
     """
     A short non-binding summary of key properties at the time just before the edit.
     (so if you rename Block 'A' to 'B', the vignette will say 'A').
@@ -85,8 +84,8 @@ class ChangeVignette(InlineStruct):
     )
 
 
-@struct_(StructType.EDIT, inline=True)
-class Edit(InlineStruct):
+@struct_(StructType.EDIT)
+class Edit(Struct):
     """
     An edit to a Node. Currently, edits are always on the property level (no sub-properties or values).
 

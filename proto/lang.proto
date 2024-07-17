@@ -1349,7 +1349,7 @@ enum Visibility {
   VISIBILITY_PUBLIC = 10;
 }
 
-// An evaluated access on some objects as part of a larger request (by the same subject).
+// An evaluated access.
 message AccessData {
   ObjectType metatype = 1;
   AccessMode mode = 30;
@@ -1362,10 +1362,6 @@ message AccessData {
 // The materialized access matrix generated for a specific subject to quickly evaluate access for objects.
 message AccessMatrixData {
   ObjectType metatype = 1;
-  int32 id = 2;
-  optional int32 parent_id = 3;
-  optional string parent_key = 4;
-  optional string order_key = 9;
   SubjectData subject = 30;
   repeated SubjectData identities = 32;
   repeated AccessZoneData scoped_zones = 33;
@@ -1377,9 +1373,7 @@ message AccessMatrixData {
 message AccessZoneData {
   ObjectType metatype = 1;
   int32 id = 2;
-  optional int32 parent_id = 3;
-  optional string parent_key = 4;
-  optional string order_key = 9;
+  optional int32 parent_id = 4;
   string scope_id = 30;
   int32 identity_id = 31;
   repeated PolicyRuleData rules = 32;
@@ -1388,10 +1382,6 @@ message AccessZoneData {
 // The result of an aggregation expression.
 message AggregationData {
   ObjectType metatype = 1;
-  int32 id = 2;
-  optional int32 parent_id = 3;
-  optional string parent_key = 4;
-  optional string order_key = 9;
   AggregationOp op = 30;
   optional bool exists = 31;
   optional int32 count = 32;
@@ -1410,10 +1400,6 @@ message BoxData {
 // A breakpoint in some context.
 message BreakpointData {
   ObjectType metatype = 1;
-  int32 id = 2;
-  optional int32 parent_id = 3;
-  optional string parent_key = 4;
-  optional string order_key = 9;
   BreakpointKind kind = 30;
   BreakpointAction action = 31;
   optional ExpressionData condition = 40;
@@ -1424,10 +1410,6 @@ message BreakpointData {
 // The 'key' is the id the change will have in the Log.
 message ChangeData {
   ObjectType metatype = 1;
-  int32 id = 2;
-  optional int32 parent_id = 3;
-  optional string parent_key = 4;
-  optional string order_key = 9;
   string key = 30;
   ChangeKind kind = 31;
   optional NodeReferenceData scope_ptr = 32;
@@ -1462,20 +1444,12 @@ message ClientOriginData {
 // Code composed of multiple lines.
 message CodeData {
   ObjectType metatype = 1;
-  int32 id = 2;
-  optional int32 parent_id = 3;
-  optional string parent_key = 4;
-  optional string order_key = 9;
   repeated CodeLineData lines = 30;
 }
 
 // A line of code.
 message CodeLineData {
   ObjectType metatype = 1;
-  int32 id = 2;
-  optional int32 parent_id = 3;
-  optional string parent_key = 4;
-  optional string order_key = 9;
   optional string content = 32;
 }
 
@@ -1490,10 +1464,6 @@ message ColorData {
 // A value computed from an expression or code snippet.
 message ComputedValueData {
   ObjectType metatype = 1;
-  int32 id = 2;
-  optional int32 parent_id = 3;
-  optional string parent_key = 4;
-  optional string order_key = 9;
   optional ExpressionData expression = 35;
   optional CodeData code = 36;
 }
@@ -1538,10 +1508,6 @@ message EditContextData {
 // An expression like a value, function, comparison or such.
 message ExpressionData {
   ObjectType metatype = 1;
-  int32 id = 2;
-  optional int32 parent_id = 3;
-  optional string parent_key = 4;
-  optional string order_key = 9;
   ExpressionOp op = 30;
   optional PropertyReferenceData property_ptr = 31;
   repeated ExpressionData clauses = 35;
@@ -1624,10 +1590,6 @@ message LogInfoData {
 // Options for running an ML model.
 message ModelOptionsData {
   ObjectType metatype = 1;
-  int32 id = 2;
-  optional int32 parent_id = 3;
-  optional string parent_key = 4;
-  optional string order_key = 9;
   optional ModelProvider provider = 30;
   optional ModelType model = 31;
 }
@@ -1687,10 +1649,6 @@ message PageViewStateData {
 // @bench/Node1/Node2/Node3 -> absolute reference to 'Node3' in current package of @bench
 message PathData {
   ObjectType metatype = 1;
-  int32 id = 2;
-  optional int32 parent_id = 3;
-  optional string parent_key = 4;
-  optional string order_key = 9;
   repeated PathTokenData tokens = 31;
 }
 
@@ -1704,10 +1662,6 @@ message PathTokenData {
 // A connection between two Steps in a FlowBlock.
 message PipeData {
   ObjectType metatype = 1;
-  int32 id = 2;
-  optional int32 parent_id = 3;
-  optional string parent_key = 4;
-  optional string order_key = 9;
   PipeType type = 30;
   NodeReferenceData source_ptr = 31;
 }
@@ -1729,10 +1683,6 @@ message PipeData {
 // Instead, we 'rasterize' an 'access matrix' and use 'zones' as a shortcut.
 message PolicyData {
   ObjectType metatype = 1;
-  int32 id = 2;
-  optional int32 parent_id = 3;
-  optional string parent_key = 4;
-  optional string order_key = 9;
   string name = 30;
   optional TextData text = 31;
   repeated PolicyRuleData rules = 32;
@@ -1744,10 +1694,6 @@ message PolicyData {
 // (where None/empty -> wildcard, any value -> filter)
 message PolicyRuleData {
   ObjectType metatype = 1;
-  int32 id = 2;
-  optional int32 parent_id = 3;
-  optional string parent_key = 4;
-  optional string order_key = 9;
   string name = 30;
   optional TextData text = 31;
   optional bool subject_is_delegated = 40;
@@ -1777,10 +1723,6 @@ message PropertyReferenceData {
 // A stored query.
 message QueryInfoData {
   ObjectType metatype = 1;
-  int32 id = 2;
-  optional int32 parent_id = 3;
-  optional string parent_key = 4;
-  optional string order_key = 9;
   ReadType read_type = 40;
   NodeType node_type = 41;
   optional NodeReferenceData base_ptr = 42;
@@ -1804,10 +1746,6 @@ message ReadOptionsData {
 // A single attempt at a Run.
 message RunAttemptData {
   ObjectType metatype = 1;
-  int32 id = 2;
-  optional int32 parent_id = 3;
-  optional string parent_key = 4;
-  optional string order_key = 9;
   RunStatus status = 30;
   optional float duration = 31;
   optional google.protobuf.Timestamp started_at = 32;
@@ -1820,10 +1758,6 @@ message RunAttemptData {
 // An error that occurred in the context of a Run.
 message RunErrorData {
   ObjectType metatype = 1;
-  int32 id = 2;
-  optional int32 parent_id = 3;
-  optional string parent_key = 4;
-  optional string order_key = 9;
   RunErrorKind kind = 30;
   RunErrorType type = 31;
   optional string title = 32;
@@ -1835,20 +1769,12 @@ message RunErrorData {
 // A single frame in a stacktrace.
 message RunFrameData {
   ObjectType metatype = 1;
-  int32 id = 2;
-  optional int32 parent_id = 3;
-  optional string parent_key = 4;
-  optional string order_key = 9;
 }
 
 // Options for running something.
 // Limits are per top level run context (i.e. the root Run in some Session).
 message RunOptionsData {
   ObjectType metatype = 1;
-  int32 id = 2;
-  optional int32 parent_id = 3;
-  optional string parent_key = 4;
-  optional string order_key = 9;
   optional int32 max_runs = 30;
   optional int32 max_concurrency = 31;
   optional int32 max_attempts = 32;
@@ -1865,20 +1791,12 @@ message RunOptionsData {
 // A stacktrace for a Run.
 message RunTraceData {
   ObjectType metatype = 1;
-  int32 id = 2;
-  optional int32 parent_id = 3;
-  optional string parent_key = 4;
-  optional string order_key = 9;
   repeated RunFrameData frames = 30;
 }
 
 // The time-based schedule of something.
 message ScheduleData {
   ObjectType metatype = 1;
-  int32 id = 2;
-  optional int32 parent_id = 3;
-  optional string parent_key = 4;
-  optional string order_key = 9;
   ScheduleType type = 30;
   optional string timezone = 31;
   int32 every = 40;
@@ -1938,9 +1856,6 @@ message StartViewStateData {
 message SubjectData {
   ObjectType metatype = 1;
   int32 id = 2;
-  optional int32 parent_id = 3;
-  optional string parent_key = 4;
-  optional string order_key = 9;
   optional bool is_authenticated = 30;
   optional bool is_staff = 31;
   optional bool is_system = 32;
@@ -1959,10 +1874,6 @@ message SubjectData {
 // Formatting can be applied at per Text, line and span.
 message TextData {
   ObjectType metatype = 1;
-  int32 id = 2;
-  optional int32 parent_id = 3;
-  optional string parent_key = 4;
-  optional string order_key = 9;
   repeated TextLineData lines = 32;
 }
 
@@ -1970,10 +1881,6 @@ message TextData {
 // A line may contain hard breaks, so it's effectively a paragraph.
 message TextLineData {
   ObjectType metatype = 1;
-  int32 id = 2;
-  optional int32 parent_id = 3;
-  optional string parent_key = 4;
-  optional string order_key = 9;
   TextLineType type = 30;
   repeated TextSpanData spans = 33;
   optional ColorType color = 50;
@@ -2026,10 +1933,6 @@ message TreeViewStateData {
 // The basic information describing a trigger.
 message TriggerInfoData {
   ObjectType metatype = 1;
-  int32 id = 2;
-  optional int32 parent_id = 3;
-  optional string parent_key = 4;
-  optional string order_key = 9;
   optional int32 processed_epoch = 40;
   optional ScheduleData schedule = 50;
   optional NodeReferenceData signal_ptr = 51;
@@ -2040,10 +1943,6 @@ message TriggerInfoData {
 // Basically a more restricted form of a condition Expression.
 message TypeConstraintData {
   ObjectType metatype = 1;
-  int32 id = 2;
-  optional int32 parent_id = 3;
-  optional string parent_key = 4;
-  optional string order_key = 9;
   optional float min_value = 40;
   optional float max_value = 41;
   optional float step_value = 42;
@@ -2057,10 +1956,6 @@ message TypeConstraintData {
 // A type from the type system.
 message TypeInfoData {
   ObjectType metatype = 1;
-  int32 id = 2;
-  optional int32 parent_id = 3;
-  optional string parent_key = 4;
-  optional string order_key = 9;
   TypeKind kind = 40;
   optional PrimitiveType primitive_type = 41;
   optional BenchType bench_type = 42;
@@ -2085,10 +1980,6 @@ message UserWizardViewStateData {
 // A generic 'freeform' value.
 message ValueData {
   ObjectType metatype = 1;
-  int32 id = 2;
-  optional int32 parent_id = 3;
-  optional string parent_key = 4;
-  optional string order_key = 9;
   TypeInfoData type = 31;
   optional string name = 32;
   optional TextData text = 34;

@@ -15,9 +15,9 @@ from bench.language.const import (
 )
 from bench.language.node import (
     HasTimeIdentity,
-    InlineStruct,
     Node,
     PackageNode,
+    Struct,
     struct_,
     timed_node,
 )
@@ -60,8 +60,8 @@ class LogLevel(IdEnum):  # :LogLevel
     CRITICAL = 6
 
 
-@struct_(StructType.LOG_INFO, inline=True)
-class LogInfo(InlineStruct, HasValues):
+@struct_(StructType.LOG_INFO)
+class LogInfo(Struct, HasValues):
     """
     A simple log for user-generated logs at runtime.
     This is like a mini-Log that we can attach to Runs and also copy into the combined Log.

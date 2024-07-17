@@ -21,12 +21,12 @@ import structlog
 from more_itertools import first
 from opentelemetry import trace
 
-from bench.language.const import EMPTY_LIST, NodeType, ObjectType, ReferenceKind
-from bench.language.setup import NODE_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE
+from bench.language.const import EMPTY_LIST, NodeType, ObjectType
+from bench.language.setup import NODE_CLASS_BY_TYPE
 from bench.language.validation import on_invalid_raise
 from bench.proto.wire import AnyNodeData, GraphScopeData
 from bench.utils.casing import Casing, to_casing
-from bench.utils.fractional import get_key_bounds, get_order_key, get_order_keys
+from bench.utils.fractional import get_key_bounds, get_order_key
 from bench.utils.func import IdEnum, bittuple
 
 if TYPE_CHECKING:
@@ -816,17 +816,10 @@ class ValueList(list, Generic[ValueParentT]):
         if isinstance(parent_prop, Property):
             self.ancestor_prop = parent_prop
             self.parent_key = parent_prop.id_as_str
-            self.is_ordered = (
-                parent_prop.reference_kind == ReferenceKind.STRUCT_CHILD
-                and not STRUCT_CLASS_BY_TYPE[
-                    cast(Any, parent_prop.reference_struct)
-                ].__is_struct_inlined__
-            )
-        else:  # Field
+        else:
             assert ancestor_prop is not None, f"expected ancestor_prop for {parent_prop!r}"
             self.ancestor_prop = ancestor_prop
             self.parent_key = parent_prop.identity_key
-            self.is_ordered = True
         self.is_property_reference = (
             isinstance(parent_prop, Property) and parent_prop.is_property_reference
         )
@@ -835,10 +828,6 @@ class ValueList(list, Generic[ValueParentT]):
         if not self.is_property_reference:
             item = item._move_to(self.parent, self.parent_prop)  # type: ignore
         super().append(item)
-        if self.is_ordered:
-            cast(Union["ValueObject", "Struct"], item).order_key = get_order_key(
-                *get_key_bounds(self, after, before)
-            )
         self.parent._updated_self((self.ancestor_prop,))
         return item
 
@@ -851,11 +840,6 @@ class ValueList(list, Generic[ValueParentT]):
             else:
                 for item in values:
                     item.parent = self.parent
-                    item.parent_key = self.parent_key
-            if self.is_ordered:
-                order_keys = get_order_keys(*get_key_bounds(self), n=len(items))
-                for item, order_key in zip(values, order_keys):
-                    item.order_key = order_key
         self.parent._updated_self((self.ancestor_prop,))
 
     def clear(self):
@@ -870,14 +854,6 @@ class ValueList(list, Generic[ValueParentT]):
         ancestor_prop: Optional["Property"] = None,
     ):
         """Moves or copies the values in the list to the given parent."""
-        from bench.language.node import Property
-
-        parent_key = (
-            parent_prop.id_as_str if isinstance(parent_prop, Property) else parent_prop.identity_key
-        )
-        if any(
-            v.parent is not None and (v.parent != parent or v.parent_key != parent_key)
-            for v in cast(list[Union["ValueObject", "Struct"]], values)
-        ):
+        if any(v.parent is not None for v in cast(list[Union["ValueObject", "Struct"]], values)):
             values = [v._copy_to(parent, parent_prop) for v in values]  # type: ignore
         return ValueList(parent, parent_prop, ancestor_prop, values)

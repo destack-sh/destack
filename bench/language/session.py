@@ -41,9 +41,9 @@ from bench.language.node import (
     BuiltinObject,
     EditSubject,
     HasTimeIdentity,
-    InlineStruct,
     Node,
     PackageNode,
+    Struct,
     object_component,
     struct_,
     timed_node,
@@ -654,8 +654,8 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
             node._graph.remove(node)
 
 
-@struct_(StructType.EDIT_CONTEXT, inline=True)
-class EditContext(InlineStruct):
+@struct_(StructType.EDIT_CONTEXT)
+class EditContext(Struct):
     """Additional context for a specific edit (per-edit variable subset of Session context)."""
 
     block: Optional["Block"] = p_internal(70, require=False, array=False, references=NodeType.BLOCK)
@@ -725,8 +725,8 @@ class HasSessionContext(BuiltinObject):
         identity_ptr: Optional[NodeReference] = None
 
 
-@struct_(StructType.SESSION_CONTEXT, inline=True)
-class SessionContext(InlineStruct, HasSessionContext):
+@struct_(StructType.SESSION_CONTEXT)
+class SessionContext(Struct, HasSessionContext):
     """Context information for runtime nodes created in a session."""
 
     pass

@@ -7,11 +7,9 @@ import {
   RunData,
   StepData,
   UserData,
-  type AnyNodeData,
   type ExpressionData,
   type SortOp,
 } from "@/proto/wire";
-import { newStructId } from "@/proto/wiring";
 import { supergraph } from "@/system/connection";
 import { getPropertyType, packValueSimpleStruct } from "@/system/value";
 
@@ -30,7 +28,6 @@ export function makeExpression(options: { op: ExpressionOp; value?: any } & Part
 
   return {
     metatype: ObjectType.EXPRESSION,
-    id: newStructId(),
     clauses: [],
     ...options,
     valuePacked,

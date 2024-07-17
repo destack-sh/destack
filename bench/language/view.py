@@ -5,10 +5,10 @@ from bench.language.expression import Selection
 from bench.language.graph import NodeList
 from bench.language.issue import Issue
 from bench.language.node import (
-    InlineStruct,
     Node,
     NodeReferenceBase,
     SourceNode,
+    Struct,
     local_node,
     object_component,
     struct_,
@@ -198,8 +198,8 @@ class ColorShade(IdEnum):
     S950 = 950
 
 
-@struct_(StructType.COLOR, inline=True)
-class Color(InlineStruct):
+@struct_(StructType.COLOR)
+class Color(Struct):
     """A color value."""
 
     type: Optional[ColorType] = p_regular(31, default=None)
@@ -258,8 +258,8 @@ class FontSize(IdEnum):
     XL7 = 72
 
 
-@struct_(StructType.FONT, inline=True)
-class Font(InlineStruct):
+@struct_(StructType.FONT)
+class Font(Struct):
     """A font value."""
 
     type: Optional[FontType] = p_regular(31, default=None)
@@ -326,8 +326,8 @@ class Anchor(IdEnum):
     LEFT_BOTTOM = 33
 
 
-@struct_(StructType.TRANSFORM, inline=True)
-class Transform(InlineStruct):
+@struct_(StructType.TRANSFORM)
+class Transform(Struct):
     """A transform in 2D space."""
 
     # translation
@@ -343,8 +343,8 @@ class Transform(InlineStruct):
     rotate_x: Optional[int] = p_regular(40, default=None)
 
 
-@struct_(StructType.BOX, inline=True)
-class Box(InlineStruct):
+@struct_(StructType.BOX)
+class Box(Struct):
     """A box value. Absolute units are in pixels, ideally in Spacing scale."""
 
     width: Optional[int] = p_regular(50, default=None)
@@ -353,8 +353,8 @@ class Box(InlineStruct):
     height_relative: Optional[float] = p_regular(53, default=None)
 
 
-@struct_(StructType.OFFSET, inline=True)
-class Offset(InlineStruct):
+@struct_(StructType.OFFSET)
+class Offset(Struct):
     """A position value. Absolute units are in pixels, ideally in Spacing scale."""
 
     top: Optional[int] = p_regular(40, default=None)
@@ -517,13 +517,13 @@ class Space(SourceNode[SpaceData]):
 
 
 @object_component()
-class ViewState(InlineStruct):
+class ViewState(Struct):
     """Builtin special Value as the state of some specific view type (in View.value)."""
 
     pass
 
 
-@struct_(StructType.PAGE_VIEW_STATE, inline=True)
+@struct_(StructType.PAGE_VIEW_STATE)
 class PageViewState(ViewState):
     """The state of a Page view."""
 
@@ -536,7 +536,7 @@ class TreeViewPreset(IdEnum):
     OUTLINE = 2
 
 
-@struct_(StructType.TREE_VIEW_STATE, inline=True)
+@struct_(StructType.TREE_VIEW_STATE)
 class TreeViewState(ViewState):
     """The state of a Tree view."""
 
@@ -547,7 +547,7 @@ class TreeViewState(ViewState):
     preset: Optional[TreeViewPreset] = p_regular(99, default=None, require=False)
 
 
-@struct_(StructType.START_VIEW_STATE, inline=True)
+@struct_(StructType.START_VIEW_STATE)
 class StartViewState(ViewState):
     """The state of a Start view."""
 
@@ -559,7 +559,7 @@ class StartViewState(ViewState):
     )
 
 
-@struct_(StructType.FEED_VIEW_STATE, inline=True)
+@struct_(StructType.FEED_VIEW_STATE)
 class FeedViewState(ViewState):
     """The state of a Feed view."""
 
@@ -570,21 +570,21 @@ class FeedViewState(ViewState):
     filter_pills: list[str] = p_regular(99, array=True)
 
 
-@struct_(StructType.CHART_VIEW_STATE, inline=True)
+@struct_(StructType.CHART_VIEW_STATE)
 class ChartViewState(ViewState):
     """The state of a Chart view."""
 
     pass  # ... vega stuff or something
 
 
-@struct_(StructType.HISTORY_VIEW_STATE, inline=True)
+@struct_(StructType.HISTORY_VIEW_STATE)
 class HistoryViewState(ViewState):
     """The state of a History view."""
 
     pass
 
 
-@struct_(StructType.TIMELINE_VIEW_STATE, inline=True)
+@struct_(StructType.TIMELINE_VIEW_STATE)
 class TimelineViewState(ViewState):
     """The state of a Timeline view."""
 
@@ -599,7 +599,7 @@ class UserWizardViewStage(IdEnum):
     LOG_IN = 2
 
 
-@struct_(StructType.USER_WIZARD_VIEW_STATE, inline=True)
+@struct_(StructType.USER_WIZARD_VIEW_STATE)
 class UserWizardViewState(ViewState):
     """The state of a User view."""
 

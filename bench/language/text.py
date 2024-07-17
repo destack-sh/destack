@@ -8,7 +8,6 @@ from bench.language.node import (
     LINK_TARGET_NODE_TYPES,
     BenchNode,
     BuiltinObject,
-    InlineStruct,
     Node,
     NodeReference,
     NodeReferenceBase,
@@ -64,8 +63,8 @@ class TextLineType(IdEnum):
     # ...
 
 
-@struct_(StructType.TEXT_SPAN, inline=True)
-class TextSpan(TextOptions, InlineStruct):
+@struct_(StructType.TEXT_SPAN)
+class TextSpan(TextOptions, Struct):
     """A span of text with optional formatting."""
 
     content: Optional[str] = p_regular(33, default=None)
