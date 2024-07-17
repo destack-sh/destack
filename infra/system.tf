@@ -1,0 +1,226 @@
+
+# # 
+# # System (Supervisor/Host)
+# # NOTE :Infra! :Robustness: deploy Supervisor and Host separately
+# # 
+
+# # envoy
+# resource "kubernetes_config_map" "envoy_config" {
+#   metadata {
+#     name      = "envoy-config"
+#     namespace = "default"
+#   }
+
+#   data = {
+#     "envoy.yaml" = file("envoy.yaml")
+#   }
+# }
+
+# # System deployment
+# resource "kubernetes_deployment" "system" {
+#   metadata {
+#     name      = "system"
+#     namespace = "default"
+#     labels = {
+#       app = "system"
+#     }
+#   }
+
+#   spec {
+#     replicas = 1
+
+#     selector {
+#       match_labels = {
+#         app = "system"
+#       }
+#     }
+
+#     template {
+#       metadata {
+#         labels = {
+#           app = "system"
+#         }
+#         annotations = {
+#           "prometheus.io/scrape" = "true"
+#         }
+#       }
+
+#       spec {
+#         init_container {
+#           name    = "system-migrate"
+#           image   = "ghcr.io/symbolx/bench-system:${var.version}"
+#           command = ["/bin/sh", "-c"]
+#           args    = ["python bench.py migrate apply"]
+
+#           env {
+#             name  = "ENVIRONMENT"
+#             value = var.env
+#           }
+#           # Add other environment variables as needed
+#         }
+
+#         container {
+#           name  = "envoy"
+#           image = "envoyproxy/envoy:v1.28-latest"
+#           port {
+#             container_port = 8080
+#             name           = "grpc-web"
+#           }
+#           volume_mount {
+#             name       = "envoy-config"
+#             mount_path = "/etc/envoy"
+#             read_only  = true
+#           }
+#         }
+
+#         container {
+#           name  = "system"
+#           image = "ghcr.io/symbolx/bench-system:${var.version}"
+
+#           port {
+#             container_port = 80
+#             name           = "http"
+#           }
+#           port {
+#             container_port = 50051
+#             name           = "grpc"
+#           }
+
+#           env {
+#             name  = "ENVIRONMENT"
+#             value = var.env
+#           }
+#           env {
+#             name  = "REGION"
+#             value = var.aws_region
+#           }
+
+#           env {
+#             name  = "GLOBAL_PG_HOST"
+#             value = aws_rds_cluster.global_pg.endpoint
+#           }
+#           env {
+#             name  = "GLOBAL_PG_PASSWORD"
+#             value = var.global_pg_password
+#           }
+#           env {
+#             name  = "GLOBAL_PG_CRYPTO_KEY"
+#             value = var.global_pg_crypto_key
+#           }
+
+#           env {
+#             name  = "CORS_ALLOWED_HOSTS"
+#             value = var.cors_allowed_hosts
+#           }
+#           env {
+#             name  = "CORS_ALLOWED_ORIGINS"
+#             value = var.cors_allowed_origins
+#           }
+
+#           env {
+#             name  = "SENTRY_DSN"
+#             value = var.sentry_dsn
+#           }
+#           env {
+#             name  = "OPENAI_API_KEY"
+#             value = var.openai_api_key
+#           }
+#           env {
+#             name  = "ANTHROPIC_API_KEY"
+#             value = var.anthropic_api_key
+#           }
+
+#           command = ["python", "bench.py", "serve", "system"]
+
+#           resources {
+#             requests = {
+#               cpu    = "2000m"
+#               memory = "2000Mi"
+#             }
+#           }
+#         }
+
+#         volume {
+#           name = "envoy-config"
+#           config_map {
+#             name = kubernetes_config_map.envoy_config.metadata[0].name
+#           }
+#         }
+
+#         image_pull_secrets {
+#           name = kubernetes_secret.image_pull_secret.metadata[0].name
+#         }
+
+#         service_account_name = kubernetes_service_account.system_service_account.metadata[0].name
+#       }
+#     }
+#   }
+# }
+
+# # System service
+# resource "kubernetes_service" "system" {
+#   metadata {
+#     name = "system"
+#   }
+
+#   spec {
+#     selector = {
+#       app = "system"
+#     }
+
+#     port {
+#       port        = 80
+#       target_port = 80
+#       name        = "http"
+#     }
+
+#     port {
+#       port        = 8080
+#       target_port = 8080
+#       name        = "grpc-web"
+#     }
+
+#     type = "NodePort"
+#   }
+# }
+
+# # System ingress
+# resource "kubernetes_ingress_v1" "system" {
+#   metadata {
+#     name = "system"
+#     annotations = {
+#       "kubernetes.io/ingress.class"                       = "alb"
+#       "alb.ingress.kubernetes.io/ssl-redirect"            = "443"
+#       "alb.ingress.kubernetes.io/listen-ports"            = jsonencode([{ "HTTP" : 80 }, { "HTTPS" : 443 }])
+#       "alb.ingress.kubernetes.io/scheme"                  = "internet-facing"
+#       "alb.ingress.kubernetes.io/target-type"             = "ip"
+#       "alb.ingress.kubernetes.io/target-group-attributes" = "stickiness.enabled=true,stickiness.type=lb_cookie,stickiness.lb_cookie.duration_seconds=86400"
+#       "certificate-arn"                                   = "arn:aws:acm:eu-central-1:163349077661:certificate/8271c03a-0830-4c02-81af-b5add9429291"
+#     }
+#   }
+
+#   spec {
+#     tls {
+#       hosts       = ["system.justbench.com"]
+#       secret_name = "system-cert"
+#     }
+
+#     rule {
+#       host = "system.justbench.com"
+#       http {
+#         path {
+#           path      = "/"
+#           path_type = "Prefix"
+#           backend {
+#             service {
+#               name = kubernetes_service.system.metadata[0].name
+#               port {
+#                 number = 8080
+#               }
+#             }
+#           }
+#         }
+#       }
+#     }
+#   }
+# }
