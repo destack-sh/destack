@@ -76,13 +76,13 @@ function onDrop(dragged: DraggedData, anchor: MultiAnchor, targetId: string | nu
     const sideZone = side == "left" ? leftZone.value : rightZone.value;
     if (targetId != null) {
       const target = pkgGraph.getOrError({ id: targetId }) as FieldData;
-      moveNode(pkgConnection.tx, pkgGraph, dragged.node, anchor, target);
+      moveNode(pkgConnection.tx, pkgGraph, dragged.node, { anchor, target });
       if (node.zone != target.zone) {
         pkgConnection.tx.update(node, { zone: target.zone });
         onNodeMorphed(pkgConnection.tx, pkgGraph, node);
       }
     } else {
-      moveNode(pkgConnection.tx, pkgGraph, dragged.node, "center", block.value!);
+      moveNode(pkgConnection.tx, pkgGraph, dragged.node, { anchor: "center", target: block.value! });
       if (node.zone != sideZone) {
         pkgConnection.tx.update(node, { zone: sideZone ?? undefined }, { debounce: "tick" });
         onNodeMorphed(pkgConnection.tx, pkgGraph, node);
@@ -132,14 +132,14 @@ const actions: Partial<ActionMapImplementation<"common">> = {
     action: (action, ctx) => {
       const { field } = getFieldFromContext(ctx);
       if (field == null) return false;
-      createField(pkgConnection.tx, pkgGraph, "before", field);
+      createField(pkgConnection.tx, pkgGraph, { anchor: "before", target: field });
     },
   },
   "common.create.below": {
     action: (action, ctx) => {
       const { field } = getFieldFromContext(ctx);
       if (field == null) return false;
-      createField(pkgConnection.tx, pkgGraph, "after", field);
+      createField(pkgConnection.tx, pkgGraph, { anchor: "after", target: field });
     },
   },
   "common.edit.delete": {

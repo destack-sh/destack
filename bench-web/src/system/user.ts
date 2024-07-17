@@ -11,17 +11,11 @@ import {
   UserStatus,
   ViewType,
 } from "@/proto/wire";
-import {
-  EMPTY_SCOPE,
-  makeNode,
-  nodeReference,
-  propertyReference,
-  toNodeReferenceRef,
-  toProtoOneOf,
-} from "@/proto/wiring";
+import { EMPTY_SCOPE, nodeReference, propertyReference, toNodeReferenceRef, toProtoOneOf } from "@/proto/wiring";
 import { ACTION_COMING_SOON, contributeActionMap } from "@/system/action";
 import local, { persistentInfo } from "@/system/client";
 import { clearConnections, useGetConnection } from "@/system/connection";
+import { makeNode } from "@/system/lang";
 import { bench, canvas, goToBench } from "@/system/space";
 import { toaster } from "@/system/toast";
 import { log } from "@/utils/log";

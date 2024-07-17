@@ -443,6 +443,7 @@ class View(SourceNode[ViewData], HasValues):
     transform: Optional[Transform] = p_regular(
         66, default=None, require=False, array=False, struct=StructType.TRANSFORM
     )
+    ...  # scroll/...
 
     # behavior
     selection: Optional[Selection] = p_regular(

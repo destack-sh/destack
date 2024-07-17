@@ -10,6 +10,7 @@ import {
   Variant,
   ViewData,
   ViewType,
+  type AnyNodeData,
 } from "@/proto/wire/";
 import { toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
 import { fireActionById, type ActionContext, type ActionMapImplementation } from "@/system/action";
@@ -22,6 +23,7 @@ import {
   EXPOSED_BLOCK_TYPES,
   PAGE_BLOCK_TYPES,
   RUNNABLE_BLOCK_TYPES,
+  cloneNode,
   createBlock,
   moveNode,
   toCamelName,
@@ -138,7 +140,7 @@ const { activeDropZone } = useMultiDropZone({
   onDrop: (dragged, anchor, targetId) => {
     if (targetId != null && dragged.kind == "node") {
       const target = pkgGraph.getOrError({ id: targetId });
-      moveNode(pkgConnection.tx, pkgGraph, dragged.node, anchor, target);
+      moveNode(pkgConnection.tx, pkgGraph, dragged.node, { anchor, target });
     }
   },
 });
@@ -168,6 +170,14 @@ const actions: Partial<ActionMapImplementation<"common">> = {
     },
   },
   // edit
+  "common.edit.duplicate": {
+    action: (action, context) => {
+      const { block } = getBlockFromContext(context);
+      if (block == null) return false;
+      const duplicate = cloneNode(pkgConnection.tx, pkgGraph, block, { includeChildren: true });
+      nextTick(() => focus(duplicate));
+    },
+  },
   "common.edit.archive": {
     action: (action, context) => {
       const { block } = getBlockFromContext(context);
@@ -218,14 +228,14 @@ const actions: Partial<ActionMapImplementation<"common">> = {
 function createAndFocusBlock(
   blockIn: { type: BlockType } & Partial<BlockData>,
   anchor: "before" | "after" | "inside",
-  targetPtr: BlockData | TypedNodeReferenceData<NodeType.BLOCK>,
+  target: BlockData | TypedNodeReferenceData<NodeType.BLOCK>,
 ) {
-  const block = createBlock(pkgConnection.tx, pkgGraph, blockIn, anchor, targetPtr);
-  nextTick(() => focus(toNodeReference(block)));
+  const block = createBlock(pkgConnection.tx, pkgGraph, { block: blockIn, anchor, target });
+  nextTick(() => focus(block));
 }
 
 // focus
-function focus(anchor?: FocusAnchor | NodeReferenceData) {
+function focus(anchor?: FocusAnchor | NodeReferenceData | AnyNodeData) {
   let blockEl: InstanceType<typeof Block> | undefined;
   if (typeof anchor != "object") {
     if (anchor != "bottom") {
@@ -410,6 +420,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
             >
               <!-- Messages -->
               <button
+                v-if="false /* NOTE :Incomplete: Messages */"
                 v-menu="
                   (context: PopoverContext): PopoverInfoIn => ({
                     component: ViewType.CHAT,

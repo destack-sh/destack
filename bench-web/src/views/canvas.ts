@@ -17,11 +17,9 @@ import {
   type AnyTypeMapping,
 } from "@/proto/wire";
 import {
-  copyNode,
   describeNode,
   getNodeType,
   isNodeReference,
-  makeNode,
   makeStruct,
   toNodeReference,
   typeNodeReferenceMaybe,
@@ -34,8 +32,10 @@ import {
   HELPER_VIEW_TYPES,
   PAGE_BLOCK_TYPES,
   ROOT_VIEW_TYPES,
+  cloneNode,
   generateNodeName,
   getOrderKey,
+  makeNode,
   toCamelName,
   updateOrder,
 } from "@/system/lang";
@@ -846,7 +846,7 @@ export class ViewCanvas {
 
     // duplicate child if it belongs to self
     if (child.parentPtr?.id == parent.id && split.duplicateIfSelf) {
-      child = copyNode(child);
+      child = cloneNode(tx, graph, child, { includeChildren: true });
       tx.create(child);
     }
 

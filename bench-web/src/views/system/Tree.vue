@@ -19,7 +19,7 @@ import { packagePtr } from "@/system/client";
 import { useExistingConnection, type Connection } from "@/system/connection";
 import { isDescendantOf, walkDescendantsRef, type NodeTreeItem } from "@/system/graph";
 import { DEFAULT_BENCH_ICON, IconInline, getNodeIcon } from "@/system/icon";
-import { createBlock, moveNode, NAME_CONSTRAINT, PAGE_BLOCK_TYPES } from "@/system/lang";
+import { cloneNode, createBlock, moveNode, NAME_CONSTRAINT, PAGE_BLOCK_TYPES } from "@/system/lang";
 import { highlightMatches } from "@/system/search";
 import { bench, canvas, inspectionBasePtr, inspectionPtr, pkg } from "@/system/space";
 import { getNativeConstraintProps, guardNativeInput } from "@/system/view";
@@ -269,7 +269,7 @@ const { activeDropZone } = useMultiDropZone({
   onDrop: (dragged, anchor, targetId) => {
     if (targetId != null && dragged.kind == "node") {
       const target = pkgGraph.getOrError({ id: targetId });
-      moveNode(pkgConnection.tx, pkgGraph, dragged.node, anchor, target);
+      moveNode(pkgConnection.tx, pkgGraph, dragged.node, { anchor, target });
     }
   },
 });
@@ -299,6 +299,14 @@ const actions: Partial<ActionMapImplementation<"common">> = {
         editingNameRef.value?.[0]?.focus?.();
         editingNameRef.value?.[0]?.select?.();
       });
+    },
+  },
+  "common.edit.duplicate": {
+    action: (action, ctx) => {
+      const node = getItemFromContext(ctx).item?.node;
+      if (node == null) return false;
+      const duplicate = cloneNode(pkgConnection.tx, pkgGraph, node, { includeChildren: true });
+      nextTick(() => focus(duplicate));
     },
   },
   "common.edit.archive": {
@@ -355,7 +363,11 @@ defineExpose<ViewExposed>({ self, actions, focus });
               () => {
                 // NOTE: we assume that pkg == pkgGraph root here (may be incorrect later)
                 if (pkg == null) return;
-                const block = createBlock(pkgConnection.tx, pkgGraph, { type: BlockType.PAGE }, 'inside', pkg);
+                const block = createBlock(pkgConnection.tx, pkgGraph, {
+                  anchor: 'inside',
+                  target: pkg,
+                  block: { type: BlockType.PAGE },
+                });
                 canvas.goToNode(block, { where: 'bestFrame', ifPresent: 'upsertAndFocus' });
               }
             "
@@ -474,7 +486,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
               hasChildren ? '' : 'ml-6',
             ]"
           />
-          <!-- Input if editing -->
+          <!-- Name (editable) if editing -->
           <input
             v-if="node.id == editingNodePtr?.id"
             ref="editingNameRef"
@@ -492,6 +504,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
               })
             "
           />
+          <!-- Name otherwise -->
           <span
             v-else
             class="select-none truncate group-hover:text-primary-900"
@@ -507,7 +520,11 @@ defineExpose<ViewExposed>({ self, actions, focus });
               class="text-gray-400 opacity-0 hover:text-primary-900 group-hover:opacity-100"
               @click.stop="
                 () => {
-                  const block = createBlock(pkgConnection.tx, pkgGraph, { type: BlockType.PAGE }, 'inside', node);
+                  const block = createBlock(pkgConnection.tx, pkgGraph, {
+                    anchor: 'inside',
+                    target: node,
+                    block: { type: BlockType.PAGE },
+                  });
                   canvas.goToNode(block, { where: 'bestFrame', ifPresent: 'upsertAndFocus' });
                   if (!isExpanded(node)) toggleExpanded(node);
                 }

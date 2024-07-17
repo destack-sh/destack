@@ -201,9 +201,13 @@ defineExpose<ViewExposed & { isRunnable: Ref<boolean> }>({
             @click="
               (e) => {
                 if (block!.type == BlockType.CHOICE) {
-                  createField(pkgConnection.tx, pkgGraph, 'inside', block!, {
-                    kind: TypeKind.LITERAL,
-                    zone: FieldZone.OPTION,
+                  createField(pkgConnection.tx, pkgGraph, {
+                    anchor: 'inside',
+                    target: block!,
+                    field: {
+                      kind: TypeKind.LITERAL,
+                      zone: FieldZone.OPTION,
+                    },
                   });
                 } else {
                   const button = (e.target as HTMLElement).closest('button')!;
@@ -216,7 +220,7 @@ defineExpose<ViewExposed & { isRunnable: Ref<boolean> }>({
                       offset: 'referenceWidth',
                       props: { valueType: makeTypeInfo({ benchType: BenchType.TYPE_INFO }) },
                       onApply: (typeInfo: TypeIdentity) => {
-                        createField(pkgConnection.tx, pkgGraph, 'inside', block!, typeInfo);
+                        createField(pkgConnection.tx, pkgGraph, { anchor: 'inside', target: block!, field: typeInfo });
                       },
                     },
                   });
