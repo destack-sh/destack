@@ -3,7 +3,6 @@ import {
   EditType,
   GraphScopeData,
   MESSAGE_TYPE_BY_OBJECT_TYPE,
-  NODE_PROPERTY_ENUM_BY_TYPE,
   NodeReferenceData,
   NodeType,
   ObjectType,
@@ -21,10 +20,9 @@ import {
   type PropertyInfo,
   type StructTypeMapping,
 } from "@/proto/wire";
-import { BASED_NODE_TYPES, TIMED_NODE_TYPES, getBaseFromNode, toCamelName } from "@/system/lang";
+import { BASED_NODE_TYPES, getBaseFromNode, toCamelName } from "@/system/lang";
 import { reverseRecord } from "@/utils/functools";
 import { Casing, toCasing } from "@/utils/string";
-import { uuidt } from "@/utils/uuidt";
 import { MessageType, ScalarType, type FieldInfo } from "@protobuf-ts/runtime";
 import { v4 } from "uuid";
 import { computed, toRef, type MaybeRef, type Ref } from "vue";
@@ -115,6 +113,23 @@ export function makeStruct<T extends StructType>(
   return struct as unknown as StructTypeMapping[T];
 }
 
+/** Fills unset properties in the given object with default values. */
+export function fillDefaultObject<T extends AnyNodeData | AnyStructData>(obj: T) {
+  const properties = PROPERTY_ENUM_BY_TYPE[obj.metatype as unknown as ObjectType]!;
+  const messageType = MESSAGE_TYPE_BY_OBJECT_TYPE[obj.metatype as unknown as ObjectType]!;
+  let ord = 1; // skip metatype
+  for (const propName of Object.keys(properties)) {
+    if (!isNaN(Number(propName))) continue; // skip numeric keys
+    if (propName == "metatype") continue; // already set
+    if (!Object.prototype.hasOwnProperty.call(obj, propName)) {
+      const field = messageType.fields[ord];
+      const value = getDefaultProtoValue(field);
+      if (value !== undefined) (obj as any)[propName] = value;
+    }
+    ord += 1;
+  }
+}
+
 /** Makes an object from partial properties */
 export function makeDefaultObject<T extends ObjectType>(
   data: Partial<Omit<AnyTypeMapping[T], "metatype" | "id">> & { metatype: T },
@@ -122,19 +137,8 @@ export function makeDefaultObject<T extends ObjectType>(
   const allProperties = STRUCT_PROPERTY_ENUM_BY_TYPE[data.metatype as unknown as ObjectType];
   if (allProperties == null)
     throw new Error(`missing properties for struct type: ${data.metatype} (${typeof data.metatype})`);
-  const messageType = MESSAGE_TYPE_BY_OBJECT_TYPE[data.metatype as unknown as ObjectType]!;
-  let ord = 1; // skip metatype
   const struct = { ...data } as unknown as AnyTypeMapping[T];
-  for (const propName of Object.keys(allProperties)) {
-    if (!isNaN(Number(propName))) continue; // skip numeric keys
-    if (propName == "metatype") continue; // already set
-    if ((struct as any)[propName] == null) {
-      const field = messageType.fields[ord];
-      const defaultValue = getDefaultProtoValue(field);
-      if (defaultValue !== undefined) (struct as any)[propName] = defaultValue;
-    }
-    ord += 1;
-  }
+  fillDefaultObject(struct);
   return struct;
 }
 
@@ -198,75 +202,6 @@ export function newNodeCk(): string {
 
 export function newNodeId(): string {
   return v4();
-}
-
-/**
- * Create a node from the given data and assign it an id (and ck if in package).
- * NOTE: id/ck are only assigned if not present. To copy, use copyNode.
- */
-export function makeNode<T extends NodeType>(
-  data: Partial<Omit<NodeTypeMapping[T], "metatype" | "id" | "ck" | "revision" | "source" | "setProperties">> & {
-    metatype: T;
-  },
-  options?: { omit: (keyof NodeTypeMapping[T])[] },
-): NodeTypeMapping[T] {
-  const node = {
-    ...data,
-    revision: 0,
-    setProperties: [],
-  } as unknown as NodeTypeMapping[T];
-  const properties = NODE_PROPERTY_ENUM_BY_TYPE[data.metatype as unknown as ObjectType]!;
-
-  // assign id/ck/scope
-  if (!options?.omit?.includes("id")) {
-    if ("packagePtr" in properties) {
-      if (!("packagePtr" in data) || data.packagePtr == null) {
-        throw new Error(`missing packagePtr to make sub-package node ${NodeType[data.metatype]}`);
-      }
-      if ("ck" in properties && (node as any).ck == null) {
-        (node as any).ck = newNodeCk();
-      }
-      if (node.id == null) {
-        if (TIMED_NODE_TYPES.includes(node.metatype as unknown as NodeType)) {
-          node.id = uuidt();
-        } else {
-          node.id = newNodeId();
-        }
-      }
-    } else {
-      // out-of-package node
-      node.id = newNodeId();
-    }
-  }
-  if ("benchPtr" in properties && !Object.prototype.hasOwnProperty.call(node, "benchPtr")) {
-    const benchId = node.parentPtr?.benchId ?? (node as any).packagePtr?.benchId;
-    if (benchId == null) throw new Error(`missing benchId to make in-bench node ${NodeType[data.metatype]}`);
-    (node as any).benchPtr = nodeReference(NodeType.BENCH, benchId);
-  }
-
-  // assign default values to unset properties
-  const messageType = MESSAGE_TYPE_BY_OBJECT_TYPE[data.metatype as unknown as ObjectType]!;
-  let ord = 1; // skip metatype
-  for (const propName of Object.keys(properties)) {
-    if (!isNaN(Number(propName))) continue; // skip numeric keys
-    if (propName == "metatype") continue; // already set
-    if (!Object.prototype.hasOwnProperty.call(node, propName)) {
-      const field = messageType.fields[ord];
-      const value = getDefaultProtoValue(field);
-      if (value !== undefined) (node as any)[propName] = value;
-    }
-    ord += 1;
-  }
-
-  return node;
-}
-
-/**
- * Copies all data properties of the node with a new identity.
- */
-export function copyNode<T extends AnyNodeData>(node: T): T {
-  const copy = { ...node, id: undefined, ck: undefined, revision: 0, setProperties: [] };
-  return makeNode(copy) as T;
 }
 
 export function isNode<T extends NodeType = NodeType>(

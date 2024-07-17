@@ -25,17 +25,17 @@ import {
   describeEdit,
   describeNode,
   makeDefaultObject,
-  makeNode,
   makeScope,
   nodeReference,
   toNodeReference,
   unwrapSomeNode,
   wrapSomeNode,
-  type TypedNodeReferenceData
+  type TypedNodeReferenceData,
 } from "@/proto/wiring";
 import { nonce, origin, userOrNullPtr, userPtr } from "@/system/client";
 import { type ReadNodeGraph, type WriteNodeGraph } from "@/system/graph";
 import { makeIcon } from "@/system/icon";
+import { makeNode } from "@/system/lang";
 import { toaster } from "@/system/toast";
 import { type JsonValue } from "@/system/value";
 import { AsyncEvent } from "@/utils/functools";

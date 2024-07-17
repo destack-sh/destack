@@ -53,7 +53,7 @@ export function useHierarchicalNodeMoveActions<T extends NodeType>(options: {
     if (!isNode(item.node, NodeType.BLOCK)) throw new Error(`can't move hierarchically: ${describeNode(item.node)}`);
     const parent = pkgGraph.getMaybe(item?.node.parentPtr);
     if (item == null || !isNode(parent, NodeType.BLOCK) || parent.id == basePtr.value?.id) return false;
-    moveNode(tx, pkgGraph, item.node, "after", parent);
+    moveNode(tx, pkgGraph, item.node, { anchor: "after", target: parent });
   }
 
   return {
@@ -66,7 +66,7 @@ export function useHierarchicalNodeMoveActions<T extends NodeType>(options: {
         if (item == null || prev == null) return false;
         const tx = txFactory();
         if (prev.node.parentPtr?.id == item.node.parentPtr?.id || prev.node?.id == item.node.parentPtr?.id) {
-          moveNode(tx, pkgGraph, item.node, "before", prev.node);
+          moveNode(tx, pkgGraph, item.node, { anchor: "before", target: prev.node });
           return true;
         } else if (!isNode(item.node, NodeType.BLOCK)) {
           return false;
@@ -90,9 +90,9 @@ export function useHierarchicalNodeMoveActions<T extends NodeType>(options: {
         const tx = txFactory();
         if (next.node.parentPtr?.id == item.node.parentPtr?.id) {
           if (nextnext && nextnext.depth > next!.depth) {
-            moveNode(tx, pkgGraph, item.node, "before", nextnext.node);
+            moveNode(tx, pkgGraph, item.node, { anchor: "before", target: nextnext.node });
           } else {
-            moveNode(tx, pkgGraph, item.node, "after", next.node);
+            moveNode(tx, pkgGraph, item.node, { anchor: "after", target: next.node });
           }
           return true;
         } else if (!isNode(item.node, NodeType.BLOCK)) {
@@ -147,7 +147,7 @@ export function useFlatNodeMoveActions<T extends NodeType>(options: {
         const prev = siblings[siblings.indexOf(node) - 1];
         if (prev == null) return false;
         const tx = txFactory();
-        moveNode(tx, pkgGraph, node, "before", prev);
+        moveNode(tx, pkgGraph, node, { anchor: "before", target: prev });
         return true;
       },
     },
@@ -161,7 +161,7 @@ export function useFlatNodeMoveActions<T extends NodeType>(options: {
         const next = siblings[siblings.indexOf(node) + 1];
         if (next == null) return false;
         const tx = txFactory();
-        moveNode(tx, pkgGraph, node, "after", next);
+        moveNode(tx, pkgGraph, node, { anchor: "after", target: next });
         return true;
       },
     },

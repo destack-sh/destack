@@ -15,6 +15,8 @@ import {
   FieldProperty,
   FieldZone,
   IconData,
+  MESSAGE_TYPE_BY_OBJECT_TYPE,
+  NODE_PROPERTY_ENUM_BY_TYPE,
   NodeReferenceData,
   NodeType,
   NotificationData,
@@ -29,6 +31,7 @@ import {
   SignalData,
   StepType,
   StructType,
+  Timestamp,
   TypeKind,
   ViewDataInfo,
   ViewProperty,
@@ -38,11 +41,17 @@ import {
   type BlockData,
   type EnumTypeMapping,
   type FieldData,
+  type NodeTypeMapping,
   type PropertyInfo,
 } from "@/proto/wire";
 import {
   describeNode,
+  fillDefaultObject,
+  getDefaultProtoValue,
   isNode,
+  newNodeCk,
+  newNodeId,
+  nodeReference,
   toNodeReference,
   type AnyNodeReferenceData,
   type TypedNodeReferenceData,
@@ -56,6 +65,7 @@ import { generateOrderKey, generateOrderKeys, isValidOrderKey } from "@/utils/fr
 import { log } from "@/utils/log";
 import { Casing, toCasing } from "@/utils/string";
 import { getRandomColorType } from "@/utils/style";
+import { uuidt } from "@/utils/uuidt";
 import type { ViewProps } from "@/views/common";
 import { computed, type Ref } from "vue";
 
@@ -420,6 +430,172 @@ export function onNodeMorphed(tx: Transaction, graph: ReadNodeGraph, node: AnyNo
 }
 
 /**
+ * Create a node from the given data and assign it an id (and ck if in package).
+ * NOTE: id/ck are only assigned if not present. To copy, use copyNode.
+ */
+export function makeNode<T extends NodeType>(
+  data: Partial<
+    Omit<
+      NodeTypeMapping[T],
+      "metatype" | "id" | "ck" | "createdAt" | "updatedAt" | "revision" | "source" | "setProperties"
+    >
+  > & {
+    metatype: T;
+  },
+  options?: { omit: (keyof NodeTypeMapping[T])[] },
+): NodeTypeMapping[T] {
+  const now = Timestamp.now();
+  const node = {
+    ...data,
+    createdAt: now,
+    updatedAt: now,
+    revision: 0,
+    setProperties: [],
+  } as unknown as NodeTypeMapping[T];
+  const properties = NODE_PROPERTY_ENUM_BY_TYPE[data.metatype as unknown as ObjectType]!;
+
+  // assign id/ck/scope
+  if (!options?.omit?.includes("id")) {
+    if ("packagePtr" in properties) {
+      if (!("packagePtr" in data) || data.packagePtr == null) {
+        throw new Error(`missing packagePtr to make sub-package node ${NodeType[data.metatype]}`);
+      }
+      if ("ck" in properties && (node as any).ck == null) {
+        (node as any).ck = newNodeCk();
+      }
+      if (node.id == null) {
+        if (TIMED_NODE_TYPES.includes(node.metatype as unknown as NodeType)) {
+          node.id = uuidt();
+        } else {
+          node.id = newNodeId();
+        }
+      }
+    } else {
+      // out-of-package node
+      node.id = newNodeId();
+    }
+  }
+  if ("benchPtr" in properties && !Object.prototype.hasOwnProperty.call(node, "benchPtr")) {
+    const benchId = node.parentPtr?.benchId ?? (node as any).packagePtr?.benchId;
+    if (benchId == null) throw new Error(`missing benchId to make in-bench node ${NodeType[data.metatype]}`);
+    (node as any).benchPtr = nodeReference(NodeType.BENCH, benchId);
+  }
+
+  // assign default values to unset properties
+  fillDefaultObject(node);
+
+  return node;
+}
+
+/**
+ * Creates a clone of this struct and its nested structs with the same content (and different identity)
+ */
+export function cloneStruct<T extends AnyStructData>(struct: T): T {
+  const clone = { metatype: struct.metatype } as Record<string, any>;
+  const allProperties = PROPERTY_ENUM_BY_TYPE[struct.metatype as unknown as ObjectType]!;
+  const propertyInfos = PROPERTY_INFOS_BY_TYPE[struct.metatype as unknown as StructType];
+  for (const prop of Object.values(propertyInfos)) {
+    if (prop.id < 30) continue; // ignore identity/tracking properties
+    const propName = allProperties[prop.id];
+    const propValue = (struct as any)[propName];
+    if (prop.referenceStruct) {
+      if (prop.isList) {
+        clone[propName] = propValue.map((v: any) => cloneStruct(v));
+      } else if (propValue) {
+        clone[propName] = cloneStruct(propValue);
+      }
+    } else {
+      if (prop.isList) {
+        clone[propName] = propValue.slice();
+      } else {
+        clone[propName] = propValue;
+      }
+    }
+  }
+  fillDefaultObject(clone as T);
+  return clone as T;
+}
+
+/** Clones a node directly with a new identity. */
+function _cloneNode<T extends AnyNodeData>(node: T, now: Timestamp): T {
+  const clone = cloneStruct(node);
+  clone.id = newNodeId();
+  if ("ck" in node) (clone as any).ck = newNodeCk();
+  clone.parentPtr = node.parentPtr;
+  if ("packagePtr" in node) (clone as any).packagePtr = node.packagePtr;
+  if ("benchPtr" in node) (clone as any).benchPtr = node.benchPtr;
+  if ("templatePtr" in node) (clone as any).templatePtr = node.templatePtr;
+  if ("templatedEpoch" in node) (clone as any).templatedEpoch = node.templatedEpoch;
+  if ("orderKey" in node) (clone as any).orderKey = node.orderKey;
+  clone.revision = BigInt(0);
+  clone.createdAt = now;
+  clone.updatedAt = now;
+  clone.deletedAt = undefined;
+  clone.archivedAt = undefined;
+  return clone;
+}
+
+/**
+ * Creates a clone of this node and its node descendants with the same content (and different identity)
+ * The new node will be appended after the current node in its parent.
+ **/
+export function cloneNode<T extends AnyNodeData>(
+  tx: Transaction,
+  graph: ReadNodeGraph,
+  node: T,
+  options: { includeChildren?: boolean; now?: Timestamp; set?: Partial<T>; _isNested?: boolean } = {
+    includeChildren: true,
+  },
+): T {
+  const now = options?.now ?? Timestamp.now();
+  const clone = _cloneNode(node, now);
+  if (options?.set) Object.assign(clone, options.set);
+  if ("name" in clone && !options?._isNested) {
+    if (isGeneratedNodeName(node.metatype as unknown as NodeType, (clone as any).name)) {
+      // bump generated node name
+      const siblings = graph.getChildren(node.parentPtr!, node.metatype as unknown as NodeType);
+      clone.name = generateNodeName(node.metatype as unknown as NodeType, siblings, (clone as any).type);
+    } else {
+      // bump digit at end (or add 2) if already exists
+      const seq = (clone as any).name.match(/\d+$/);
+      if (seq != null) {
+        const num = parseInt(seq[0]);
+        clone.name = clone.name.replace(/\d+$/, (num + 1).toString());
+      } else {
+        clone.name += "2";
+      }
+    }
+  }
+
+  // actually create node
+  tx.create(clone);
+  // put clone after 'node'
+  // (technically we could get the new orderKey before we create it, avoiding an update,
+  //   but that only works if the order doesn't require fixing up the siblings, which updateOrder may do)
+  if ((node as any).orderKey && !options?._isNested) {
+    updateOrder({
+      tx,
+      node: clone as T & { orderKey: string },
+      position: "after",
+      reference: node.id!,
+      getNodes: () =>
+        graph.getChildren(node.parentPtr!, node.metatype as unknown as NodeType) as Array<T & { orderKey: string }>,
+    });
+  }
+
+  // clone all children (recursively)
+  if (options?.includeChildren) {
+    const clonePtr = toNodeReference(clone);
+    const children = graph.getChildren(node);
+    for (const child of children) {
+      cloneNode(tx, graph, child, { includeChildren: true, now, set: { parentPtr: clonePtr }, _isNested: true });
+    }
+  }
+
+  return clone;
+}
+
+/**
  * Moves the given node around.
  * Except for 'up'/'down' requires a target as reference.
  * If the node has an 'orderKey' we try to respect the anchor.
@@ -428,11 +604,14 @@ export function moveNode(
   tx: Transaction,
   graph: ReadNodeGraph,
   node: AnyNodeData | AnyNodeReferenceData,
-  anchor: "start" | "center" | "end" | "before" | "after" | "up" | "down",
-  target?: AnyNodeData | AnyNodeReferenceData,
+  options: {
+    anchor: "start" | "center" | "end" | "before" | "after" | "up" | "down";
+    target?: AnyNodeData | AnyNodeReferenceData;
+  },
 ) {
+  const { anchor } = options;
   node = resolveNode(graph, node);
-  target = target != null ? resolveNode(graph, target) : undefined;
+  const target = options.target != null ? resolveNode(graph, options.target) : undefined;
   if (node?.id == target?.id) {
     return; // no-op
   } else if (target != null && isDescendantOf(graph, target, node)) {
@@ -477,21 +656,19 @@ export function moveNode(
 export function createBlock(
   tx: Transaction,
   graph: ReadNodeGraph,
-  blockIn: { type: BlockType; isPage?: boolean; isProtocol?: boolean },
-  anchor: "before" | "after" | "inside",
-  targetPtr:
-    | BlockData
-    | TypedNodeReferenceData<NodeType.BLOCK>
-    | PackageData
-    | TypedNodeReferenceData<NodeType.PACKAGE>,
+  options: {
+    block: { type: BlockType; isPage?: boolean; isProtocol?: boolean };
+    anchor: "before" | "after" | "inside";
+    target: BlockData | TypedNodeReferenceData<NodeType.BLOCK> | PackageData | TypedNodeReferenceData<NodeType.PACKAGE>;
+  },
 ): BlockData {
-  const target = isNode(targetPtr) ? targetPtr : graph.getOrError(targetPtr);
+  const target = isNode(options.target) ? options.target : graph.getOrError(options.target);
   const packagePtr = isNode(target, NodeType.PACKAGE) ? toNodeReference(target) : target.packagePtr;
 
   let parentPtr: NodeReferenceData;
   let orderKey: string;
   let siblings: BlockData[];
-  if (anchor == "inside") {
+  if (options.anchor == "inside") {
     parentPtr = toNodeReference(target);
     siblings = graph.getChildren(target, NodeType.BLOCK);
     orderKey = generateOrderKey(siblings[siblings.length - 1]?.orderKey ?? null, null);
@@ -499,16 +676,16 @@ export function createBlock(
     if (isNode(target, NodeType.PACKAGE)) throw new Error(`unexpected target node type: ${describeNode(target)}`);
     parentPtr = target.parentPtr!;
     siblings = graph.getChildren(target.parentPtr!, NodeType.BLOCK);
-    orderKey = getOrderKey({ position: anchor, reference: target, nodes: siblings });
+    orderKey = getOrderKey({ position: options.anchor, reference: target, nodes: siblings });
   }
 
   const block = tx.create({
     metatype: NodeType.BLOCK,
     parentPtr,
     packagePtr,
-    type: blockIn.type,
+    type: options.block.type,
     orderKey,
-    name: makeNodeName(graph, { metatype: ObjectType.BLOCK, type: blockIn.type, parentPtr }),
+    name: makeNodeName(graph, { metatype: ObjectType.BLOCK, type: options.block.type, parentPtr }),
   });
   return block;
 }
@@ -517,11 +694,15 @@ export function createBlock(
 export function createField(
   tx: Transaction,
   graph: ReadNodeGraph,
-  anchor: "before" | "above" | "after" | "below" | "inside" | "center",
-  targetPtr: FieldData | TypedNodeReferenceData<NodeType.FIELD> | BlockData | TypedNodeReferenceData<NodeType.BLOCK>,
-  fieldIn?: Partial<FieldData>,
+  options: {
+    field?: Partial<FieldData>;
+    anchor: "before" | "above" | "after" | "below" | "inside" | "center";
+    target: FieldData | TypedNodeReferenceData<NodeType.FIELD> | BlockData | TypedNodeReferenceData<NodeType.BLOCK>;
+  },
 ): FieldData {
-  const target = isNode(targetPtr) ? targetPtr : graph.getOrError(targetPtr);
+  // eslint-disable-next-line prefer-const
+  let { anchor, field: fieldIn } = options;
+  const target = isNode(options.target) ? options.target : graph.getOrError(options.target);
 
   // get position within parent
   let parentPtr: NodeReferenceData;
