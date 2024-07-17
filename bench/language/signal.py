@@ -7,8 +7,8 @@ from bench.language.field import TypeInfoBase
 from bench.language.node import (
     HasNodeBase,
     HasTimeIdentity,
-    InlineStruct,
     PackageNode,
+    Struct,
     object_component,
     timed_node,
 )
@@ -70,7 +70,7 @@ class Signal(PackageNode[SignalData], HasTimeIdentity, HasNodeBase, HasSessionCo
 
 
 @object_component()
-class SignalState(InlineStruct):
+class SignalState(Struct):
     """Builtin special Value as the state of some specific signal type (in Signal.value)."""
 
     pass

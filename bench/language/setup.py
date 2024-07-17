@@ -19,14 +19,14 @@ from bench.utils.env import IS_DEV
 from bench.utils.func import IdEnum, assert_collections_equal, bittuple, get_subclasses
 
 if TYPE_CHECKING:
-    from bench.language import BuiltinObject, InlineStruct, Node
+    from bench.language import BuiltinObject, Node, Struct
 
 # some global indexes for language types/classes
 ENUM_CLASS_BY_TYPE = _ENUM_CLASS_BY_TYPE  # re-exported to avoid circular imports
 ENUM_TYPE_BY_CLASS: dict[type, EnumType] = {}
 NODE_CLASS_BY_TYPE: dict[NodeType, type["Node"]] = {}
 NODE_COMPONENT_CLASS_BY_NAME: dict[str, type["Node"]] = {}
-STRUCT_CLASS_BY_TYPE: dict[StructType, type["InlineStruct"]] = {}
+STRUCT_CLASS_BY_TYPE: dict[StructType, type["Struct"]] = {}
 OBJECT_CLASS_BY_TYPE: dict[ObjectType, type["BuiltinObject"]] = {}
 OBJECT_TYPE_BY_CLASS: dict[type["BuiltinObject"], ObjectType] = {}
 FINAL_BENCH_CLASSES_BY_NAME: dict[str, type[Union["BuiltinObject", IdEnum]]] = {}
@@ -34,7 +34,7 @@ FINAL_BENCH_CLASSES: list[type[Union["BuiltinObject", IdEnum]]] = []
 BENCH_CLASS_BY_NAME: dict[str, type[Union["BuiltinObject", IdEnum]]] = {}
 BENCH_CLASSES: list[type[Union["BuiltinObject", IdEnum]]] = []
 NODE_CLASSES: list[type["Node"]] = []
-STRUCT_CLASSES: list[type["InlineStruct"]] = []
+STRUCT_CLASSES: list[type["Struct"]] = []
 
 # direct parent/child
 PARENT_NODE_TYPES: dict[NodeType, bittuple[NodeType]] = {}
@@ -65,7 +65,7 @@ def _on_completing_setup(func: Callable | None = None):
 
 def _complete_bench_setup():
     """Finalize setup of all language constructs after everything is imported."""
-    from bench.language import BuiltinObject, InlineStruct, Node, ValueObject, const
+    from bench.language import BuiltinObject, Node, Struct, ValueObject, const
     from bench.language.node import HasNodeBase
 
     global _COMPLETED_SETUP
@@ -122,7 +122,7 @@ def _complete_bench_setup():
                 # check py_type matches struct type as defined
                 if (
                     isinstance(prop.py_type_raw, type)
-                    and issubclass(prop.py_type_raw, InlineStruct)
+                    and issubclass(prop.py_type_raw, Struct)
                     and not issubclass(prop.py_type_raw, Node)
                 ):
                     if not prop.reference_struct:

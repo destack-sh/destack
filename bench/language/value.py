@@ -32,7 +32,6 @@ from bench.language.const import (
     PrimitiveValue,
     StructType,
     TypeKind,
-    new_struct_id,
 )
 from bench.language.property import (
     Property,
@@ -49,7 +48,6 @@ if TYPE_CHECKING:
     from bench.language import (
         BuiltinObject,
         Field,
-        InlineStruct,
         Node,
         NodeReference,
         Struct,
@@ -82,8 +80,6 @@ JsonValue = Union[JsonPrimitive, dict[str, "JsonValue"], list["JsonValue"]]
 ValueParent = Union["ValueObject", "BuiltinObject"]
 ValueProperty = Union["Property", "Field"]
 
-# TODO :Incomplete: handle :FreeformValues
-
 
 class ValueObject(Mapping[str, Any]):
     """
@@ -107,21 +103,17 @@ class ValueObject(Mapping[str, Any]):
         self,
         type: "TypeInfoBase",
         value: dict[str, SomeValue] | None = None,
-        id: int | None = None,
         parent: ValueParent | None = None,
         parent_prop: ValueProperty | None = None,
         ancestor_prop: Optional["Property"] = None,
         parent_key: str | None = None,
-        order_key: str | None = None,
     ):
         self._type = type
         self._value = value
-        self.id = id if id is not None else new_struct_id()
         self.parent = parent
         self.parent_prop = parent_prop
         self.ancestor_prop = ancestor_prop
         self.parent_key = parent_key
-        self.order_key = order_key
         if self.parent is not None and self.ancestor_prop is None:
             assert isinstance(self.parent_prop, Property), f"{self.parent_prop!r} is not a Property"
             self.ancestor_prop = self.parent_prop
@@ -341,7 +333,7 @@ def _coerce_value_scalar(
                 value = float(cast(Any, value))
             elif typ.primitive_type.is_int:
                 value = int(cast(Any, value))
-    elif typ.kind == TypeKind.STRUCT and parent is not None and isinstance(value, InlineStruct):
+    elif typ.kind == TypeKind.STRUCT and parent is not None and isinstance(value, Struct):
         assert parent_prop is not None, f"{typ!r} got parent {parent!r} but no parent_prop"
         value = cast("Struct", value)._move_to(parent, parent_prop, ancestor_prop)
     return value
@@ -1074,7 +1066,6 @@ from bench.language.node import (  # noqa: E402
     NODE_REFERENCE_TYPES_BY_NODE_TYPE,
     BuiltinObject,
     HasNodeBase,
-    InlineStruct,
     Node,
     NodeReferenceBase,
     Struct,

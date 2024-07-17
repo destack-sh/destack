@@ -9,6 +9,7 @@ from typing import (
     Optional,
     Self,
     Union,
+    assert_never,
     cast,
 )
 from uuid import UUID
@@ -36,11 +37,11 @@ from bench.language.const import (
     ReadType,
     StructType,
     UseType,
+    new_struct_id,
 )
 from bench.language.graph import NodeDataGraph, NodeGraph, NodeSuperGraph
 from bench.language.node import (
     NODE_CLASS_BY_TYPE,
-    InlineStruct,
     NodeReference,
     SourceNode,
     Struct,
@@ -383,6 +384,8 @@ class Subject(Struct):
     (We unset various combinations of attributes to evaluate the access of acting subjects independently.)
     """
 
+    id: int = p_system(2, default_factory=new_struct_id)
+
     # flags
     is_authenticated: Optional[bool] = p_system(30, default=None)
     is_staff: Optional[bool] = p_system(31, default=None)
@@ -476,67 +479,6 @@ class Subject(Struct):
         return ", ".join(content_parts)
 
 
-@struct_(StructType.ACCESS_ZONE)
-class AccessZone(Struct):
-    """
-    The pre-filtered access rules for a given identity.
-    Clients use this to indicate access rights, but - obviously - only our copy is binding.
-    """
-
-    scope_id: str = p_system(30)
-    _scope: Optional[AnyNodeData] = p_runtime(default=None)
-    identity_id: int = p_system(31)
-    _identity: Optional[Subject] = p_runtime(default=None)
-    rules: list[PolicyRule] = p_system(32, array=True, struct=StructType.POLICY_RULE)
-
-    def __content_str__(self) -> str:
-        return f"{(self._identity or self.identity_id)!r} in {self._scope or self.scope_id}: {len(self.rules)} rules"
-
-
-@struct_(StructType.ACCESS_MATRIX)
-class AccessMatrix(Struct):
-    """The materialized access matrix generated for a specific subject to quickly evaluate access for objects."""
-
-    subject: Subject = p_system(30, require=True, struct=StructType.SUBJECT)
-    identities: list[Subject] = p_system(32, array=True, struct=StructType.SUBJECT)
-    scoped_zones: list[AccessZone] = p_system(33, array=True, struct=StructType.ACCESS_ZONE)
-    base_zones: list[AccessZone] = p_system(34, array=True, struct=StructType.ACCESS_ZONE)
-
-    # quick access to the zone (id = index)
-    _scoped_zones_by_id: dict[int, AccessZone] = p_runtime(default_factory=dict)
-    _lowest_zone_by_scope: dict[tuple[int, str], AccessZone] = p_runtime(default_factory=dict)
-    _base_zone_by_root: dict[tuple[int, str], AccessZone] = p_runtime(default_factory=dict)
-
-    def __content_str__(self) -> str:
-        return f"{self.subject!r}: {len(self.identities)} identities, {len(self.scoped_zones)} scoped zones, {len(self.base_zones)} base zones"
-
-
-@struct_(StructType.ACCESS, inline=True)
-class Access(InlineStruct):
-    """
-    An evaluated access on some objects as part of a larger request (by the same subject).
-    """
-
-    mode: AccessMode = p_system(30, require=True)
-    decision: PolicyEffect = p_system(31, require=True)
-    verb: AccessType = p_system(32, require=True)
-    node_type: NodeType = p_system(33, require=True)
-    allowed_properties: list[Property] = p_system(
-        34, require=False, array=True, struct=StructType.PROPERTY_REFERENCE
-    )
-
-    # arguments
-    # roots, read_options, ...
-
-    def __content_str__(self) -> str:
-        if self.allowed_properties:
-            object_properties_str = "|".join(p.name for p in self.allowed_properties)
-            object_str = f"{self.node_type.bench_name} [{object_properties_str}]"
-        else:
-            object_str = f"{self.node_type.bench_name} [*]"
-        return f"{self.decision.bench_name} {self.verb.bench_name} {object_str}"
-
-
 def _enums_to_mask(values: list[IdEnum], cls: type[IdEnum]) -> bitarray:
     """Set the given values in a mask. No values == all values == wildcard!"""
     mask = bitarray(cls.get_max_ord() + 1)
@@ -548,24 +490,12 @@ def _enums_to_mask(values: list[IdEnum], cls: type[IdEnum]) -> bitarray:
     return mask
 
 
-class AccessError(BenchError, ValueError):
-    def __init__(
-        self,
-        access: Access | Collection[Access],
-        cause: Exception | None = None,
-    ):
-        super().__init__(repr(access), cause)
-        self.evaluation = access
-        self.cause = cause
-
-
 _SYSTEM_POLICIES: list[Policy] = []
 
 
 @_on_completing_setup
-def _setup_system_policies():
+def _register_system_policies():
     system_policies = (
-        # NOTE: all policies (incl. these base policies) and their rules are evaluated in order
         Policy(name="SystemProtection").append(
             PolicyRule(
                 name="CannotAccessKernelProperties",
@@ -610,7 +540,7 @@ def _setup_system_policies():
         Policy(name="OwnerAccess").append(
             PolicyRule(
                 name="OwnerCanDoAnything",
-                text=Text.plain("Owners of a node can do anything (unless otherwise prohibited)."),
+                text=Text.plain("Owners of a node can do anything (unless system prohibited)."),
             )
             .subject(is_owner=True)
             .allow(),
@@ -643,7 +573,7 @@ def _setup_system_policies():
             PolicyRule(
                 name="AuthenticatedCanReadPublic",
                 text=Text.plain(
-                    "Authenticated users can read public nodes like User, Organization, Bench, etc.."
+                    "Authenticated users can read public nodes like User, Organization, Bench."
                 ),
             )
             .subject(is_authenticated=True)
@@ -653,7 +583,7 @@ def _setup_system_policies():
         Policy(name="AnonymousAccess").append(
             PolicyRule(
                 name="AnonCanReadHandle",
-                text=Text.plain("Everyone can read Handles (so they can create an account)."),
+                text=Text.plain("Everyone can read Handles (to create an account)."),
             )
             .subject(is_authenticated=False)
             .allow(AccessKind.READ)
@@ -661,6 +591,86 @@ def _setup_system_policies():
         ),
     )
     _SYSTEM_POLICIES.extend(system_policies)
+
+
+#
+# Access checking
+# NOTE :Performance :Architecture: overhaul access checking (and maybe some policies)
+#  It should be clearer where you can allow/deny certain access, and how that may be nested.
+#  For instance: can I allow access to a child node whose parent is denied? How do the paths work?
+#
+
+
+@struct_(StructType.ACCESS_ZONE)
+class AccessZone(Struct):
+    """
+    The pre-filtered access rules for a given identity.
+    Clients use this to indicate access rights, but - obviously - only our copy is binding.
+    """
+
+    id: int = p_system(2, default_factory=new_struct_id)
+    parent_id: int | None = p_system(4)
+    scope_id: str = p_system(30)
+    _scope: Optional[AnyNodeData] = p_runtime(default=None)
+    identity_id: int = p_system(31)
+    _identity: Optional[Subject] = p_runtime(default=None)
+    rules: list[PolicyRule] = p_system(32, array=True, struct=StructType.POLICY_RULE)
+
+    def __content_str__(self) -> str:
+        return f"{(self._identity or self.identity_id)!r} in {self._scope or self.scope_id}: {len(self.rules)} rules"
+
+
+@struct_(StructType.ACCESS_MATRIX)
+class AccessMatrix(Struct):
+    """The materialized access matrix generated for a specific subject to quickly evaluate access for objects."""
+
+    subject: Subject = p_system(30, require=True, struct=StructType.SUBJECT)
+    identities: list[Subject] = p_system(32, array=True, struct=StructType.SUBJECT)
+    scoped_zones: list[AccessZone] = p_system(33, array=True, struct=StructType.ACCESS_ZONE)
+    base_zones: list[AccessZone] = p_system(34, array=True, struct=StructType.ACCESS_ZONE)
+
+    # quick access to the zone (id = index)
+    _scoped_zones_by_id: dict[int, AccessZone] = p_runtime(default_factory=dict)
+    _lowest_zone_by_scope: dict[tuple[int, str], AccessZone] = p_runtime(default_factory=dict)
+    _base_zone_by_root: dict[tuple[int, str], AccessZone] = p_runtime(default_factory=dict)
+
+    def __content_str__(self) -> str:
+        return f"{self.subject!r}: {len(self.identities)} identities, {len(self.scoped_zones)} scoped zones, {len(self.base_zones)} base zones"
+
+
+@struct_(StructType.ACCESS)
+class Access(Struct):
+    """An evaluated access."""
+
+    mode: AccessMode = p_system(30, require=True)
+    decision: PolicyEffect = p_system(31, require=True)
+    verb: AccessType = p_system(32, require=True)
+    node_type: NodeType = p_system(33, require=True)
+    allowed_properties: list[Property] = p_system(
+        34, require=False, array=True, struct=StructType.PROPERTY_REFERENCE
+    )
+
+    # arguments
+    # roots, read_options, ...
+
+    def __content_str__(self) -> str:
+        if self.allowed_properties:
+            object_properties_str = "|".join(p.name for p in self.allowed_properties)
+            object_str = f"{self.node_type.bench_name} [{object_properties_str}]"
+        else:
+            object_str = f"{self.node_type.bench_name} [*]"
+        return f"{self.decision.bench_name} {self.verb.bench_name} {object_str}"
+
+
+class AccessError(BenchError):
+    def __init__(
+        self,
+        access: Access | Collection[Access],
+        cause: Exception | None = None,
+    ):
+        super().__init__(repr(access), cause)
+        self.evaluation = access
+        self.cause = cause
 
 
 @tracer.start_as_current_span("access.generate_access_matrix")
@@ -898,7 +908,7 @@ def evaluate_access(
         else:
             decision = PolicyEffect.DENY
     else:
-        raise ValueError(f"unexpected mode {mode!r}")
+        assert_never(mode)
     return decision, composite_allowed_properties
 
 

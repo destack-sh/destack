@@ -913,7 +913,7 @@ x = 1 + y + CONST
 _y = x + 1
 _y
 """)
-    compiled = compile_code("anon", code.to_string(), CodeType.SNIPPET, {"CONST": 0})
+    compiled = compile_code(code, CodeType.SNIPPET, {"CONST": 0})
     assert compiled.code == code.to_string()
     assert compiled.transformed_code == compiled.code  # no transformation
     assert set(compiled.references.keys()) == {"y"}  # exclude global refs
@@ -925,7 +925,7 @@ x = y + 1
 def a():
     pass
 """)
-    compiled = compile_code("anon", code.to_string(), CodeType.SCRIPT, {})
+    compiled = compile_code(code, CodeType.SCRIPT, {})
     assert compiled.code == code.to_string()
     assert compiled.transformed_code == compiled.code  # no transformation
     assert set(compiled.references.keys()) == {"y"}
@@ -940,7 +940,7 @@ def test_compile_code_function():
 x = 1
 return Input1 + y + 1
 """)
-    compiled = compile_code("anon", code.to_string(), CodeType.FUNCTION, {})
+    compiled = compile_code(code, CodeType.FUNCTION, {})
     assert compiled.code == code.to_string()
     assert set(compiled.references.keys()) == {"Input1", "y"}
 
@@ -948,7 +948,8 @@ return Input1 + y + 1
     glbls: dict[str, Any] = {"Input1": 1, "y": 1}
     assert compiled.body_co, f"no code object for {compiled!r}"
     exec(compiled.body_co, glbls)
-    func = glbls["_code_anon"]
+    assert compiled.function_name
+    func = glbls[compiled.function_name]
     assert func() == 3
 
 
@@ -969,7 +970,7 @@ else:
         3,
     )
 """)
-    compiled = compile_code("anon", code.to_string(), CodeType.FUNCTION, {})
+    compiled = compile_code(code, CodeType.FUNCTION, {})
     assert compiled.code == code.to_string()
     assert set(compiled.references.keys()) == {"x", "a", "c", "z", "boomify"}
     assert compiled.body_co, f"no code object for {compiled!r}"

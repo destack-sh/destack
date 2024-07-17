@@ -7,8 +7,6 @@ export function mapCodeToCmDoc(code: CodeData): string {
   defaultSortStruct(code.lines);
 
   // map lines
-  // TODO :Incomplete: preserve ids & line metadata in CM
-  //  (maybe use StateFields like in https://codemirror.net/examples/decoration/)
   const linesPm: string[] = [];
   for (const line of code.lines) {
     linesPm.push(line.content ?? "");
@@ -18,14 +16,13 @@ export function mapCodeToCmDoc(code: CodeData): string {
 
 export function mapPmDocToCode(doc: PmText, prev: CodeData | undefined): CodeData {
   const lines: CodeLineData[] = [];
-  let lineIdx = 0;
   for (const linePm of doc.iterLines()) {
-    const line: CodeLineData = { metatype: ObjectType.CODE_LINE, id: lineIdx++ };
+    const line: CodeLineData = { metatype: ObjectType.CODE_LINE };
     if (linePm.length > 0) {
       line.content = linePm;
     }
     lines.push(line);
   }
-  const code: CodeData = { metatype: ObjectType.CODE, id: prev?.id ?? newStructId(), lines };
+  const code: CodeData = { metatype: ObjectType.CODE, lines };
   return code;
 }

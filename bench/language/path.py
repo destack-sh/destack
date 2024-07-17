@@ -9,7 +9,6 @@ from bench.language.const import BenchError, EnumType, NodeType, StructType, enu
 from bench.language.graph import NodeList
 from bench.language.node import (
     BenchNode,
-    InlineStruct,
     Node,
     PackageNode,
     SourceNode,
@@ -52,8 +51,8 @@ class PathTokenType(IdEnum):
     FIELD = 10
 
 
-@struct_(StructType.PATH_TOKEN, inline=True)
-class PathToken(InlineStruct):
+@struct_(StructType.PATH_TOKEN)
+class PathToken(Struct):
     """A semantic part of a Bench path."""
 
     type: PathTokenType = p_regular(31)

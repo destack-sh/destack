@@ -21,7 +21,6 @@ from bench.language.const import (
     enum_,
 )
 from bench.language.node import (
-    InlineStruct,
     Node,
     NodeReference,
     Property,
@@ -80,8 +79,8 @@ class SelectionKind(IdEnum):
     LIST = 2
 
 
-@struct_(StructType.SELECTION, inline=True)
-class Selection(InlineStruct):
+@struct_(StructType.SELECTION)
+class Selection(Struct):
     """A selection of nodes/values."""
 
     kind: SelectionKind = p_regular(30, require=True)

@@ -44,7 +44,7 @@ export function mapTextToPmNode(text: TextData, prev: PmNode | undefined): PmNod
 
     // map line
     let lineNode: PmNode;
-    const attrs = { id: line.id, type: line.type };
+    const attrs = { type: line.type };
     if (line.type == TextLineType.PLAIN) {
       lineNode = schema.node("linePlain", attrs, spanNodes);
     } else if (
@@ -75,7 +75,6 @@ export function mapTextToPmNode(text: TextData, prev: PmNode | undefined): PmNod
 
 export function mapPmNodeToText(node: PmNode, prev: TextData | undefined): TextData {
   const lines: TextLineData[] = [];
-  const orderKeys = generateOrderKeys(null, null, node.childCount);
   for (let lineIdx = 0; lineIdx < node.childCount; lineIdx++) {
     const lineNode = node.child(lineIdx);
 
@@ -115,20 +114,18 @@ export function mapPmNodeToText(node: PmNode, prev: TextData | undefined): TextD
     // map line
     const line: TextLineData = {
       metatype: ObjectType.TEXT_LINE,
-      id: lineNode.attrs.id ?? newStructId(),
-      orderKey: orderKeys[lineIdx],
       type: lineNode.attrs.type,
       spans,
     };
     lines.push(line);
   }
 
-  const text: TextData = { metatype: ObjectType.TEXT, id: prev?.id ?? newStructId(), lines };
+  const text: TextData = { metatype: ObjectType.TEXT, lines };
   return text;
 }
 
 export function emptyText(): TextData {
-  return { metatype: ObjectType.TEXT, id: newStructId(), lines: [] };
+  return { metatype: ObjectType.TEXT, lines: [] };
 }
 
 export function trimText(text: TextData, numLines: number): TextData {

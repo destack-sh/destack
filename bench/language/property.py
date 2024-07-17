@@ -353,7 +353,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
         assert self._type_info is not None, f"{self!r} is not finalized"
         return self._type_info
 
-    def _contribute_ptrs(self, *, is_root: bool, is_inlined: bool) -> tuple["Property", ...]:
+    def _contribute_ptrs(self, *, is_root: bool) -> tuple["Property", ...]:
         """
         Contribute the wired and stored pointer properties required by this property.
         NOTE: contribute mutates this property, so can only be called once.
@@ -387,42 +387,8 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
 
         # struct (parent) references
         elif self.reference_kind == ReferenceKind.STRUCT_PARENT:
-            parent_id = Property(
-                id=self.id,
-                name=self.name + "_id",
-                component=self.component,
-                primitive_type=PrimitiveType.INT32,
-                py_type_raw=int,
-                reference_kind=ReferenceKind.STRUCT_PARENT,
-                is_runtime=True,
-                is_internal=True,
-                is_wired=not is_inlined,
-                is_stored=not is_inlined,
-                is_required=False,
-                is_list=False,
-                default=None,
-                reference_source=self,
-            )
-            parent_key = Property(
-                id=self.id + 1,
-                name=self.name + "_key",
-                component=self.component,
-                primitive_type=PrimitiveType.STRING,
-                py_type_raw=str,
-                reference_kind=ReferenceKind.STRUCT_PARENT,
-                is_runtime=True,
-                is_internal=True,
-                is_wired=not is_inlined,
-                is_stored=not is_inlined,
-                is_required=False,
-                is_list=False,
-                default=None,
-                reference_source=self,
-            )
             self.is_runtime = True
-            # not stored because self.component must be a struct
-            self.reference_wired_ptr = parent_id
-            return parent_id, parent_key
+            return ()  # no stored references
 
         # NOTE :Cleanup: mapping stored and wired references (i.e. node pointers) is gnarly.
         #  In wire pointers (=NodeReference[Data]) we conveniently have a struct with all the info:
@@ -739,7 +705,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
                 raise ValueError(f"cannot store/wire node directly: {self!r}")
             elif getattr(annotation.type, "__is_struct__", False):
                 assert self.reference_struct is not None, f"missing struct type for {self!r}"
-                self.primitive_type = PrimitiveType.JSON  # robust json
+                self.primitive_type = PrimitiveType.JSON  # packed builtin object json
             else:
                 primitive_type = PRIMITIVE_TYPE_BY_PY_TYPE.get(annotation.type)
                 if primitive_type is None:
@@ -965,15 +931,15 @@ def p_node_template(id: int) -> Any:
     )
 
 
-def p_struct_parent(id: int, wire: bool) -> Any:
+def p_struct_parent(id: int) -> Any:
     """The parent of a struct."""
     return Property(
         id=id,
         reference_kind=ReferenceKind.STRUCT_PARENT,
         reference_nodes=(),
         is_internal=True,
-        is_stored=True,
-        is_wired=wire,
+        is_stored=False,
+        is_wired=False,
         is_list=False,
     )
 

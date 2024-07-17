@@ -44,7 +44,6 @@ class CodeRunnerBase(Runner):
         compiled = self.state.compiled
         if compiled is None:
             self.state.compiled = compiled = compile_code(
-                str(self.state.code.id),
                 self.state.code.to_string(),
                 kind,
                 self.runtime.combined_glbls,
@@ -94,7 +93,7 @@ class CodeRunnerBase(Runner):
             "print": self.log_sink.print,
         }
         # references (nodes/exports)
-        glbls.update(resolved_references)
+        glbls.update(resolved_references)  # may shadow existing glbls
         return glbls
 
     @tracer.start_as_current_span("code.coerce_outputs")

@@ -7,7 +7,7 @@ from opentelemetry import trace
 
 from bench.language.block import Block
 from bench.language.const import NODE_TYPES_SET, NodeType, ReferenceKind, TypeKind
-from bench.language.node import BuiltinObject, InlineStruct, Node, NodeReferenceBase, SourceNode
+from bench.language.node import BuiltinObject, Node, NodeReferenceBase, SourceNode, Struct
 from bench.language.value import ValueObject
 
 if TYPE_CHECKING:
@@ -119,11 +119,11 @@ class Projection:
 
         # visit inner structs
         for prop in obj.__struct_properties__.values():
-            struct: InlineStruct | list[InlineStruct] | None = getattr(obj, prop.name)
+            struct: Struct | list[Struct] | None = getattr(obj, prop.name)
             if struct is None:
                 continue
             elif not prop.is_list:
-                self._collect_builtin_object_scalar(cast(InlineStruct, struct))
+                self._collect_builtin_object_scalar(cast(Struct, struct))
             elif len(cast(list, struct)) > 0:
                 for item in cast(list, struct):
                     self._collect_builtin_object_scalar(item)

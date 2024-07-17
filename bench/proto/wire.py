@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.07.17.0"
+VERSION = "2024.07.17.1"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -1429,9 +1429,7 @@ class ServiceKind(betterproto.Enum):
 
 @dataclass(eq=False, repr=False)
 class AccessData(betterproto.Message):
-    """
-    An evaluated access on some objects as part of a larger request (by the same subject).
-    """
+    """An evaluated access."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     mode: "AccessMode" = betterproto.enum_field(30)
@@ -1448,10 +1446,6 @@ class AccessMatrixData(betterproto.Message):
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
-    id: int = betterproto.int32_field(2)
-    parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
-    parent_key: Optional[str] = betterproto.string_field(4, optional=True)
-    order_key: Optional[str] = betterproto.string_field(9, optional=True)
     subject: "SubjectData" = betterproto.message_field(30)
     identities: List["SubjectData"] = betterproto.message_field(32)
     scoped_zones: List["AccessZoneData"] = betterproto.message_field(33)
@@ -1467,9 +1461,7 @@ class AccessZoneData(betterproto.Message):
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     id: int = betterproto.int32_field(2)
-    parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
-    parent_key: Optional[str] = betterproto.string_field(4, optional=True)
-    order_key: Optional[str] = betterproto.string_field(9, optional=True)
+    parent_id: Optional[int] = betterproto.int32_field(4, optional=True)
     scope_id: str = betterproto.string_field(30)
     identity_id: int = betterproto.int32_field(31)
     rules: List["PolicyRuleData"] = betterproto.message_field(32)
@@ -1480,10 +1472,6 @@ class AggregationData(betterproto.Message):
     """The result of an aggregation expression."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
-    id: int = betterproto.int32_field(2)
-    parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
-    parent_key: Optional[str] = betterproto.string_field(4, optional=True)
-    order_key: Optional[str] = betterproto.string_field(9, optional=True)
     op: "AggregationOp" = betterproto.enum_field(30)
     exists: Optional[bool] = betterproto.bool_field(31, optional=True)
     count: Optional[int] = betterproto.int32_field(32, optional=True)
@@ -1506,10 +1494,6 @@ class BreakpointData(betterproto.Message):
     """A breakpoint in some context."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
-    id: int = betterproto.int32_field(2)
-    parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
-    parent_key: Optional[str] = betterproto.string_field(4, optional=True)
-    order_key: Optional[str] = betterproto.string_field(9, optional=True)
     kind: "BreakpointKind" = betterproto.enum_field(30)
     action: "BreakpointAction" = betterproto.enum_field(31)
     condition: Optional["ExpressionData"] = betterproto.message_field(40, optional=True)
@@ -1524,10 +1508,6 @@ class ChangeData(betterproto.Message):
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
-    id: int = betterproto.int32_field(2)
-    parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
-    parent_key: Optional[str] = betterproto.string_field(4, optional=True)
-    order_key: Optional[str] = betterproto.string_field(9, optional=True)
     key: str = betterproto.string_field(30)
     kind: "ChangeKind" = betterproto.enum_field(31)
     scope_ptr: Optional["NodeReferenceData"] = betterproto.message_field(32, optional=True)
@@ -1572,10 +1552,6 @@ class CodeData(betterproto.Message):
     """Code composed of multiple lines."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
-    id: int = betterproto.int32_field(2)
-    parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
-    parent_key: Optional[str] = betterproto.string_field(4, optional=True)
-    order_key: Optional[str] = betterproto.string_field(9, optional=True)
     lines: List["CodeLineData"] = betterproto.message_field(30)
 
 
@@ -1584,10 +1560,6 @@ class CodeLineData(betterproto.Message):
     """A line of code."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
-    id: int = betterproto.int32_field(2)
-    parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
-    parent_key: Optional[str] = betterproto.string_field(4, optional=True)
-    order_key: Optional[str] = betterproto.string_field(9, optional=True)
     content: Optional[str] = betterproto.string_field(32, optional=True)
 
 
@@ -1606,10 +1578,6 @@ class ComputedValueData(betterproto.Message):
     """A value computed from an expression or code snippet."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
-    id: int = betterproto.int32_field(2)
-    parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
-    parent_key: Optional[str] = betterproto.string_field(4, optional=True)
-    order_key: Optional[str] = betterproto.string_field(9, optional=True)
     expression: Optional["ExpressionData"] = betterproto.message_field(35, optional=True)
     code: Optional["CodeData"] = betterproto.message_field(36, optional=True)
 
@@ -1664,10 +1632,6 @@ class ExpressionData(betterproto.Message):
     """An expression like a value, function, comparison or such."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
-    id: int = betterproto.int32_field(2)
-    parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
-    parent_key: Optional[str] = betterproto.string_field(4, optional=True)
-    order_key: Optional[str] = betterproto.string_field(9, optional=True)
     op: "ExpressionOp" = betterproto.enum_field(30)
     property_ptr: Optional["PropertyReferenceData"] = betterproto.message_field(31, optional=True)
     clauses: List["ExpressionData"] = betterproto.message_field(35)
@@ -1774,10 +1738,6 @@ class ModelOptionsData(betterproto.Message):
     """Options for running an ML model."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
-    id: int = betterproto.int32_field(2)
-    parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
-    parent_key: Optional[str] = betterproto.string_field(4, optional=True)
-    order_key: Optional[str] = betterproto.string_field(9, optional=True)
     provider: Optional["ModelProvider"] = betterproto.enum_field(30, optional=True)
     model: Optional["ModelType"] = betterproto.enum_field(31, optional=True)
 
@@ -1851,10 +1811,6 @@ class PathData(betterproto.Message):
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
-    id: int = betterproto.int32_field(2)
-    parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
-    parent_key: Optional[str] = betterproto.string_field(4, optional=True)
-    order_key: Optional[str] = betterproto.string_field(9, optional=True)
     tokens: List["PathTokenData"] = betterproto.message_field(31)
 
 
@@ -1872,10 +1828,6 @@ class PipeData(betterproto.Message):
     """A connection between two Steps in a FlowBlock."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
-    id: int = betterproto.int32_field(2)
-    parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
-    parent_key: Optional[str] = betterproto.string_field(4, optional=True)
-    order_key: Optional[str] = betterproto.string_field(9, optional=True)
     type: "PipeType" = betterproto.enum_field(30)
     source_ptr: "NodeReferenceData" = betterproto.message_field(31)
 
@@ -1901,10 +1853,6 @@ class PolicyData(betterproto.Message):
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
-    id: int = betterproto.int32_field(2)
-    parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
-    parent_key: Optional[str] = betterproto.string_field(4, optional=True)
-    order_key: Optional[str] = betterproto.string_field(9, optional=True)
     name: str = betterproto.string_field(30)
     text: Optional["TextData"] = betterproto.message_field(31, optional=True)
     rules: List["PolicyRuleData"] = betterproto.message_field(32)
@@ -1920,10 +1868,6 @@ class PolicyRuleData(betterproto.Message):
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
-    id: int = betterproto.int32_field(2)
-    parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
-    parent_key: Optional[str] = betterproto.string_field(4, optional=True)
-    order_key: Optional[str] = betterproto.string_field(9, optional=True)
     name: str = betterproto.string_field(30)
     text: Optional["TextData"] = betterproto.message_field(31, optional=True)
     subject_is_delegated: Optional[bool] = betterproto.bool_field(40, optional=True)
@@ -1959,10 +1903,6 @@ class QueryInfoData(betterproto.Message):
     """A stored query."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
-    id: int = betterproto.int32_field(2)
-    parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
-    parent_key: Optional[str] = betterproto.string_field(4, optional=True)
-    order_key: Optional[str] = betterproto.string_field(9, optional=True)
     read_type: "ReadType" = betterproto.enum_field(40)
     node_type: "NodeType" = betterproto.enum_field(41)
     base_ptr: Optional["NodeReferenceData"] = betterproto.message_field(42, optional=True)
@@ -1992,10 +1932,6 @@ class RunAttemptData(betterproto.Message):
     """A single attempt at a Run."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
-    id: int = betterproto.int32_field(2)
-    parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
-    parent_key: Optional[str] = betterproto.string_field(4, optional=True)
-    order_key: Optional[str] = betterproto.string_field(9, optional=True)
     status: "RunStatus" = betterproto.enum_field(30)
     duration: Optional[float] = betterproto.float_field(31, optional=True)
     started_at: Optional[datetime] = betterproto.message_field(32, optional=True)
@@ -2010,10 +1946,6 @@ class RunErrorData(betterproto.Message):
     """An error that occurred in the context of a Run."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
-    id: int = betterproto.int32_field(2)
-    parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
-    parent_key: Optional[str] = betterproto.string_field(4, optional=True)
-    order_key: Optional[str] = betterproto.string_field(9, optional=True)
     kind: "RunErrorKind" = betterproto.enum_field(30)
     type: "RunErrorType" = betterproto.enum_field(31)
     title: Optional[str] = betterproto.string_field(32, optional=True)
@@ -2027,10 +1959,6 @@ class RunFrameData(betterproto.Message):
     """A single frame in a stacktrace."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
-    id: int = betterproto.int32_field(2)
-    parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
-    parent_key: Optional[str] = betterproto.string_field(4, optional=True)
-    order_key: Optional[str] = betterproto.string_field(9, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2041,10 +1969,6 @@ class RunOptionsData(betterproto.Message):
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
-    id: int = betterproto.int32_field(2)
-    parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
-    parent_key: Optional[str] = betterproto.string_field(4, optional=True)
-    order_key: Optional[str] = betterproto.string_field(9, optional=True)
     max_runs: Optional[int] = betterproto.int32_field(30, optional=True)
     max_concurrency: Optional[int] = betterproto.int32_field(31, optional=True)
     max_attempts: Optional[int] = betterproto.int32_field(32, optional=True)
@@ -2063,10 +1987,6 @@ class RunTraceData(betterproto.Message):
     """A stacktrace for a Run."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
-    id: int = betterproto.int32_field(2)
-    parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
-    parent_key: Optional[str] = betterproto.string_field(4, optional=True)
-    order_key: Optional[str] = betterproto.string_field(9, optional=True)
     frames: List["RunFrameData"] = betterproto.message_field(30)
 
 
@@ -2075,10 +1995,6 @@ class ScheduleData(betterproto.Message):
     """The time-based schedule of something."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
-    id: int = betterproto.int32_field(2)
-    parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
-    parent_key: Optional[str] = betterproto.string_field(4, optional=True)
-    order_key: Optional[str] = betterproto.string_field(9, optional=True)
     type: "ScheduleType" = betterproto.enum_field(30)
     timezone: Optional[str] = betterproto.string_field(31, optional=True)
     every: int = betterproto.int32_field(40)
@@ -2156,9 +2072,6 @@ class SubjectData(betterproto.Message):
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     id: int = betterproto.int32_field(2)
-    parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
-    parent_key: Optional[str] = betterproto.string_field(4, optional=True)
-    order_key: Optional[str] = betterproto.string_field(9, optional=True)
     is_authenticated: Optional[bool] = betterproto.bool_field(30, optional=True)
     is_staff: Optional[bool] = betterproto.bool_field(31, optional=True)
     is_system: Optional[bool] = betterproto.bool_field(32, optional=True)
@@ -2181,10 +2094,6 @@ class TextData(betterproto.Message):
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
-    id: int = betterproto.int32_field(2)
-    parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
-    parent_key: Optional[str] = betterproto.string_field(4, optional=True)
-    order_key: Optional[str] = betterproto.string_field(9, optional=True)
     lines: List["TextLineData"] = betterproto.message_field(32)
 
 
@@ -2196,10 +2105,6 @@ class TextLineData(betterproto.Message):
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
-    id: int = betterproto.int32_field(2)
-    parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
-    parent_key: Optional[str] = betterproto.string_field(4, optional=True)
-    order_key: Optional[str] = betterproto.string_field(9, optional=True)
     type: "TextLineType" = betterproto.enum_field(30)
     spans: List["TextSpanData"] = betterproto.message_field(33)
     color: Optional["ColorType"] = betterproto.enum_field(50, optional=True)
@@ -2262,10 +2167,6 @@ class TriggerInfoData(betterproto.Message):
     """The basic information describing a trigger."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
-    id: int = betterproto.int32_field(2)
-    parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
-    parent_key: Optional[str] = betterproto.string_field(4, optional=True)
-    order_key: Optional[str] = betterproto.string_field(9, optional=True)
     processed_epoch: Optional[int] = betterproto.int32_field(40, optional=True)
     schedule: Optional["ScheduleData"] = betterproto.message_field(50, optional=True)
     signal_ptr: Optional["NodeReferenceData"] = betterproto.message_field(51, optional=True)
@@ -2280,10 +2181,6 @@ class TypeConstraintData(betterproto.Message):
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
-    id: int = betterproto.int32_field(2)
-    parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
-    parent_key: Optional[str] = betterproto.string_field(4, optional=True)
-    order_key: Optional[str] = betterproto.string_field(9, optional=True)
     min_value: Optional[float] = betterproto.float_field(40, optional=True)
     max_value: Optional[float] = betterproto.float_field(41, optional=True)
     step_value: Optional[float] = betterproto.float_field(42, optional=True)
@@ -2299,10 +2196,6 @@ class TypeInfoData(betterproto.Message):
     """A type from the type system."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
-    id: int = betterproto.int32_field(2)
-    parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
-    parent_key: Optional[str] = betterproto.string_field(4, optional=True)
-    order_key: Optional[str] = betterproto.string_field(9, optional=True)
     kind: "TypeKind" = betterproto.enum_field(40)
     primitive_type: Optional["PrimitiveType"] = betterproto.enum_field(41, optional=True)
     bench_type: Optional["BenchType"] = betterproto.enum_field(42, optional=True)
@@ -2333,10 +2226,6 @@ class ValueData(betterproto.Message):
     """A generic 'freeform' value."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
-    id: int = betterproto.int32_field(2)
-    parent_id: Optional[int] = betterproto.int32_field(3, optional=True)
-    parent_key: Optional[str] = betterproto.string_field(4, optional=True)
-    order_key: Optional[str] = betterproto.string_field(9, optional=True)
     type: "TypeInfoData" = betterproto.message_field(31)
     name: Optional[str] = betterproto.string_field(32, optional=True)
     text: Optional["TextData"] = betterproto.message_field(34, optional=True)

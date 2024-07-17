@@ -5,7 +5,6 @@ from bench.language.field import TypeInfoBase
 from bench.language.graph import NodeList
 from bench.language.issue import Issue
 from bench.language.node import (
-    InlineStruct,
     SourceNode,
     Struct,
     local_node,
@@ -200,7 +199,7 @@ class Step(SourceNode[StepData], HasValues):
 
 
 @object_component()
-class StepState(InlineStruct):
+class StepState(Struct):
     """Builtin special Value as the state of some specific step type (in Step.value)."""
 
     pass

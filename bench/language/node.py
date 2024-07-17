@@ -45,7 +45,6 @@ from bench.language.const import (
     ReferenceKind,
     StructType,
     _active_session,
-    new_struct_id,
 )
 from bench.language.graph import NULL_SUPERGRAPH, NodeDataGraph, NodeGraph, NodeSuperGraph
 from bench.language.property import (
@@ -79,7 +78,7 @@ from bench.proto.wire import (
 )
 from bench.sql.core import Constraint, ConstraintType, Index, IndexType, Table, stable_hash
 from bench.utils.casing import PYTHON_CASING, IdentifierType, to_casing
-from bench.utils.env import IS_DEV, IS_TEST
+from bench.utils.env import IS_DEV
 from bench.utils.func import bittuple, is_close
 from bench.utils.utils import frozendict
 from bench.utils.uuidt import UUIDT
@@ -157,7 +156,7 @@ def pad_ck_from_tk_b64(tk_b64: str) -> UUID:
     return UUID(bytes=bytes)
 
 
-_BASE_OBJECT_NAMES = ("BuiltinObject", "InlineStruct", "Struct", "Node")
+_BASE_OBJECT_NAMES = ("BuiltinObject", "Struct", "Struct", "Node")
 
 
 def _process_object_cls[ObjectT: BuiltinObject](
@@ -167,8 +166,6 @@ def _process_object_cls[ObjectT: BuiltinObject](
     # for nodes only
     is_root: bool = False,
     is_variable_root: bool = False,
-    # for structs only
-    is_inlined: bool = False,
 ) -> tuple[type[ObjectT], dict[str, "Property"]]:
     """Process an object base class and return the processed class and its properties."""
     assert isinstance(cls, type), f"expected type, got {cls} ({type(cls)})"
@@ -180,8 +177,8 @@ def _process_object_cls[ObjectT: BuiltinObject](
 
     is_object_base = cls.__name__ == "BuiltinObject"
     is_node_base = cls.__name__ == "Node"
-    is_struct_base = cls.__name__ in ("InlineStruct", "Struct")
-    is_struct = not is_object_base and (is_struct_base or issubclass(cls, InlineStruct))
+    is_struct_base = cls.__name__ in ("Struct", "Struct")
+    is_struct = not is_object_base and (is_struct_base or issubclass(cls, Struct))
     is_node = not is_object_base and not is_struct_base and (is_node_base or issubclass(cls, Node))
     metatype = METATYPE_PROPERTY.clone()
     metatype.component = cls
@@ -198,20 +195,6 @@ def _process_object_cls[ObjectT: BuiltinObject](
             for grandparent in base.__components__:
                 if grandparent not in static_components:
                     static_components.append(grandparent)
-
-    if IS_DEV or IS_TEST:
-        # check components
-        for component in static_components[1:]:
-            if component.__name__ in _BASE_OBJECT_NAMES:
-                continue  # ignore base classes
-            if is_node and component.__is_struct_inlined__:
-                raise ValueError(f"node {cls} has inlined struct {component}")
-            if (
-                is_inlined
-                and hasattr(component, "metatype")
-                and not component.__is_struct_inlined__
-            ):
-                raise ValueError(f"struct {cls} has non-inlined struct {component}")
 
     # collect properties from this class
     own_properties: dict[str, Property] = {}
@@ -278,7 +261,7 @@ def _process_object_cls[ObjectT: BuiltinObject](
                 # template points to nodes of same type
                 prop.reference_nodes = (cast(NodeType, object_type),)
 
-            for p in prop._contribute_ptrs(is_root=is_root, is_inlined=is_inlined):
+            for p in prop._contribute_ptrs(is_root=is_root):
                 if p.name in properties_by_name:
                     raise ValueError(
                         f"property conflict '{p.name}': {p!r}, {properties_by_name[prop.name]!r}"
@@ -334,7 +317,6 @@ def _process_object_cls[ObjectT: BuiltinObject](
 
     # register components and index properties
     cls.__components__ = tuple(static_components)  # type: ignore
-    cls.__is_struct_inlined__ = is_inlined
     cls.__properties__ = frozendict(properties_by_name)
     properties_by_id: dict[int, Property] = {}
     for prop in properties_by_name.values():
@@ -400,7 +382,7 @@ def _process_object_cls[ObjectT: BuiltinObject](
     cls.__properties_mask_unset__ = bitarray(cls.__max_property_ord__ + 1)
 
     parent_property = cls.__properties__.get("parent", None)
-    if is_final and (is_node or (is_struct and not is_inlined)) and parent_property is None:
+    if is_final and (is_node or is_struct) and parent_property is None:
         raise ValueError(f"missing parent property for node {cls}")
     cls.__parent_property__ = parent_property
 
@@ -422,7 +404,7 @@ def object_component(
 
     def decorate(cls_in: Type[_ObjectT]) -> Type[_ObjectT]:
         cls, _properties = _process_object_cls(
-            cls=cast(Any, cls_in), object_type=struct_type, is_final=is_final, is_inlined=is_inlined
+            cls=cast(Any, cls_in), object_type=struct_type, is_final=is_final
         )
 
         # register struct
@@ -444,13 +426,13 @@ def struct_(struct_type: StructType, inline: bool = False):
 
     def decorate(cls: Type[_ObjectT]) -> Type[_ObjectT]:
         cls = object_component(struct_type=struct_type, is_final=True, is_inlined=inline)(cls)
-        if IS_DEV and cls.__name__ != "Struct" and cls.__name__ != "InlineStruct":
-            if not issubclass(cls, (InlineStruct, Struct)):
+        if IS_DEV and cls.__name__ != "Struct" and cls.__name__ != "Struct":
+            if not issubclass(cls, (Struct, Struct)):
                 raise ValueError(f"{cls} is not a struct")
             if issubclass(cls, Node):
                 raise ValueError(f"{cls} is a node for {struct_type}")
 
-            # check that inline matches inheriting InlineStruct
+            # check that inline matches inheriting Struct
             is_cls_inlined = not issubclass(cls, Struct)
             if is_cls_inlined != inline:
                 raise ValueError(f"inline mismatch for {cls}: ={is_cls_inlined}, inline={inline}")
@@ -571,7 +553,7 @@ def node_(
         cls.__is_in_bench__ = in_bench
 
         if IS_DEV:
-            if issubclass(cls, (InlineStruct, Struct)):
+            if issubclass(cls, (Struct, Struct)):
                 raise ValueError(f"{cls} is a struct")
 
         return cls
@@ -805,7 +787,6 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
     __passthrough__: ClassVar[tuple[str, ...] | None] = None
 
     __is_struct__: ClassVar[bool] = False
-    __is_struct_inlined__: ClassVar[bool] = False
     __is_node__: ClassVar[bool] = False
 
     __parent_property__: ClassVar[Property] = UNSET
@@ -922,7 +903,7 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
                     if isinstance(prop_value, list):
                         value_list.extend(prop_value)  # will auto copy if needed
                     prop_value = value_list
-                elif isinstance(prop_value, InlineStruct):
+                elif isinstance(prop_value, Struct):
                     prop_value = prop_value._move_to(self, prop)
 
             # default value
@@ -1134,14 +1115,14 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
     def _walk_struct(self) -> Iterable["BuiltinObject"]:
         yield self
         for prop in self.__struct_properties__.values():
-            value: InlineStruct | list[InlineStruct] | None = getattr(self, prop.name)
+            value: Struct | list[Struct] | None = getattr(self, prop.name)
             if value is None:
                 continue
             elif not prop.is_list:
-                yield from (cast(InlineStruct, value))._walk_struct()
+                yield from (cast(Struct, value))._walk_struct()
             elif len(cast(list, value)) > 0:
                 for item in cast(list, value):
-                    yield from cast(InlineStruct, item)._walk_struct()
+                    yield from cast(Struct, item)._walk_struct()
 
     def _init_component(self):  # noqa: B027
         """Called after post init is done."""
@@ -1246,18 +1227,14 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
 
 
 @object_component()
-class InlineStruct[StructDataT: AnyStructData](BuiltinObject[StructDataT], abc.ABC):
+class Struct[StructDataT: AnyStructData](BuiltinObject[StructDataT], abc.ABC):
     """A base for structs with properties."""
 
     metatype: ClassVar[StructType]  # type: ignore
 
-    __is_struct_inlined__: ClassVar[bool] = True
     __is_struct__: ClassVar[bool] = True
 
-    parent: Union["BuiltinObject", "ValueObject", None] = p_struct_parent(3, wire=False)
-    if TYPE_CHECKING:
-        parent_id: int | None = None
-        parent_key: str | None = None
+    parent: Union["BuiltinObject", "ValueObject", None] = p_struct_parent(3)
 
     def __content_str__(self) -> str:
         # default __content_str__ for structs where we're too lazy to define one
@@ -1274,7 +1251,7 @@ class InlineStruct[StructDataT: AnyStructData](BuiltinObject[StructDataT], abc.A
         if content_str:
             return f"<{self.__class__.__name__} {content_str}>"
         else:
-            return f"<{self.__class__.__name__}>"
+            return f"<{self.__class__.__name__}"
 
     def replace(self, **kwargs) -> Self:
         """Replaces specific properties in this struct (in a copy)."""
@@ -1304,13 +1281,8 @@ class InlineStruct[StructDataT: AnyStructData](BuiltinObject[StructDataT], abc.A
     ) -> Self:
         """Move or copy this struct into given parent/prop."""
         assert self.__is_struct__, f"cannot copy non-struct {self!r}"  # this is overriden by Node
-        prop_key = prop.id_as_str if isinstance(prop, Property) else prop.identity_key
         if self.parent is None:  # not assigned
             self.parent = parent
-            self.parent_key = prop_key
-            return self
-        elif self.parent is parent and self.parent_key == prop_key:
-            # already there
             return self
         else:
             copy = self._copy_to(parent, prop)
@@ -1325,26 +1297,6 @@ class InlineStruct[StructDataT: AnyStructData](BuiltinObject[StructDataT], abc.A
         kwargs["parent_key"] = prop.id_as_str if isinstance(prop, Property) else prop.identity_key
         copy = self.__class__(**kwargs)
         return copy
-
-
-@object_component()
-class Struct[StructDataT: AnyStructData](InlineStruct[StructDataT], abc.ABC):
-    """A base for structs with properties and a local identity (within a node or some other object)."""
-
-    __is_struct_inlined__: ClassVar[bool] = False
-    __is_struct__: ClassVar[bool] = True
-
-    id: int = p_system(2, default_factory=new_struct_id)
-    parent: Union["BuiltinObject", "ValueObject", None] = p_struct_parent(3, wire=True)
-    order_key: str | None = p_internal(9, default=None)
-
-    @final
-    def __repr__(self):  # type: ignore
-        content_str = str(self)
-        if content_str:
-            return f"<{self.__class__.__name__} {content_str}>"
-        else:
-            return f"<{self.__class__.__name__} @ {self.id}>"
 
 
 FieldOrProperty = Union[
@@ -1922,8 +1874,8 @@ def is_node[T: Node](obj: Any, node_cls: type[T]) -> TypeGuard[T]:
     return isinstance(obj, Node) and obj.metatype == node_cls.metatype
 
 
-def is_struct[T: InlineStruct | Struct](obj: Any, struct_cls: type[T]) -> TypeGuard[T]:
-    return isinstance(obj, (InlineStruct, Struct)) and obj.metatype == struct_cls.metatype
+def is_struct[T: Struct | Struct](obj: Any, struct_cls: type[T]) -> TypeGuard[T]:
+    return isinstance(obj, (Struct, Struct)) and obj.metatype == struct_cls.metatype
 
 
 #
@@ -1931,8 +1883,8 @@ def is_struct[T: InlineStruct | Struct](obj: Any, struct_cls: type[T]) -> TypeGu
 #
 
 
-@struct_(StructType.GRAPH_SCOPE, inline=True)
-class GraphScope(InlineStruct[GraphScopeData]):
+@struct_(StructType.GRAPH_SCOPE)
+class GraphScope(Struct[GraphScopeData]):
     """The scope for an operation on the Bench graph."""
 
     bench_id: Optional[UUID] = p_internal(30, default=None)
@@ -1942,8 +1894,8 @@ class GraphScope(InlineStruct[GraphScopeData]):
 EMPTY_SCOPE = GraphScope()
 
 
-@struct_(StructType.CLIENT_ORIGIN, inline=True)
-class ClientOrigin(InlineStruct[ClientOriginData]):
+@struct_(StructType.CLIENT_ORIGIN)
+class ClientOrigin(Struct[ClientOriginData]):
     """Information to identify a client."""
 
     type: ClientType = p_internal(30, require=True)
@@ -1994,8 +1946,8 @@ class NodeReferenceBase[NT: Node, ND: AnyNodeData, RT: NodeReferenceBase, RD: An
         raise NotImplementedError
 
 
-@struct_(StructType.NODE_REFERENCE, inline=True)
-class NodeReference(InlineStruct[NodeReferenceData], NodeReferenceBase):
+@struct_(StructType.NODE_REFERENCE)
+class NodeReference(Struct[NodeReferenceData], NodeReferenceBase):
     """
     A plain reference to a Node.
     We include the Bench and 'ck' where available.
@@ -2135,8 +2087,8 @@ NODE_REFERENCE_TYPES = (StructType.NODE_REFERENCE, *NODE_REFERENCE_TYPES_BY_NODE
 SomeNodeReference = Union[NodeReference, "FileReference", "SecretReference"]
 
 
-@struct_(StructType.PROPERTY_REFERENCE, inline=True)
-class PropertyReference(InlineStruct):
+@struct_(StructType.PROPERTY_REFERENCE)
+class PropertyReference(Struct):
     """
     A reference to a builtin object's Property.
     If type is unset, this refers to a base property in one of the base BuiltinObject types.
