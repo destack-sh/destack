@@ -94,6 +94,8 @@ def constraint(
     min_length: int | None = None,
     max_length: int | None = None,
     regex: str | None = None,
+    starts_with: str | None = None,
+    ends_with: str | None = None,
 ) -> "TypeConstraintIn":
     return TypeConstraintIn(
         min_value=min_value,
@@ -102,4 +104,6 @@ def constraint(
         min_length=min_length,
         max_length=max_length,
         regex=regex,
+        starts_with=starts_with,
+        ends_with=ends_with,
     )
