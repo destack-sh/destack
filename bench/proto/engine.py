@@ -5,8 +5,8 @@ from typing import TYPE_CHECKING, Any, Collection, Union, cast
 from bench.language.const import PrimitiveType
 from bench.language.node import BuiltinObject
 from bench.proto.core import Enum, EnumValue, Field, FieldType, Message, ProtoSchema, ProtoThing
-from bench.utils.casing import Casing, to_casing
 from bench.utils.func import IdEnum
+from bench.utils.naming import Casing, to_casing
 
 if TYPE_CHECKING:
     from bench.language import Property

@@ -157,8 +157,8 @@ class CodeFunctionRunner(CodeRunnerBase):
             for field in self.inputs.fields:
                 value = self.inputs._do_get(field)
                 glbls[field.name] = value
-                if field.py_ident:
-                    glbls[field.py_ident] = value
+                if field.py_name:
+                    glbls[field.py_name] = value
 
         # run
         logger.trace("code.run", runner=self, code=cast(Code, self.code).to_string())

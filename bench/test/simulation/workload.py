@@ -29,8 +29,8 @@ from bench.proto.wiring import unpack_object
 from bench.test.simulation.spec import WorkloadSpec, WorkloadType
 from bench.test.simulation.utils import SampledFloat, SampledInt, to_value
 from bench.test.utils import assert_graph_equals
-from bench.utils.casing import Casing, to_casing
 from bench.utils.func import repr_enums
+from bench.utils.naming import Casing, to_casing
 from bench.utils.oracle import Oracle
 from bench.utils.tenacity import RETRY_GRPC_FOREVER
 

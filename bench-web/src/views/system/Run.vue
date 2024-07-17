@@ -139,7 +139,7 @@ defineExpose<ViewExposed>({ self, id });
           <div class="ml-auto flex-shrink-0 pl-4 text-gray-400">
             <span>{{ toCamelName(RunErrorKind, run.error.kind) }}</span>
             <template v-if="run.error.type"
-              >/<span>{{ toCamelName(RunErrorType, run.error.type) }}</span></template
+              > / <span>{{ toCamelName(RunErrorType, run.error.type) }}</span></template
             >
           </div>
         </div>

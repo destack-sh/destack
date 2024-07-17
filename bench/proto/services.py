@@ -31,8 +31,8 @@ from bench.language.query import NodeNotFoundError
 from bench.proto.wire import EditData, RpcMetadata, ServiceKind
 from bench.proto.wiring import BENCH_CLASS_BY_PROTO_CLASS, unpack_rpc_headers
 from bench.sql.engine import SqlAlreadyExistsError, SqlNotExistsError
-from bench.utils.casing import Casing, to_casing
 from bench.utils.env import IS_DEV, IS_TEST
+from bench.utils.naming import Casing, to_casing
 from bench.utils.oracle import Oracle
 from bench.utils.task import TaskManager
 from bench.utils.tracing import export_now

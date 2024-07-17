@@ -24,7 +24,6 @@ from bench.language.property import (
 from bench.language.validation import NAME_CONSTRAINT, TITLE_CONSTRAINT
 from bench.language.value import HasValues
 from bench.proto.wire import SpaceData, ViewData
-from bench.utils.casing import IdentifierType
 from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import IdEnum
 
@@ -388,7 +387,7 @@ class Alignment(IdEnum):
     SPACE_BETWEEN = 4
 
 
-@local_node(NodeType.VIEW, identifier=IdentifierType.VARIABLE, passthrough="value")
+@local_node(NodeType.VIEW, passthrough="value")
 class View(SourceNode[ViewData], HasValues):
     """A view of a user interface in a Bench."""
 
@@ -484,7 +483,7 @@ class SpaceType(IdEnum):
     EXTENSION = 30
 
 
-@local_node(NodeType.SPACE, identifier=IdentifierType.VARIABLE)
+@local_node(NodeType.SPACE)
 class Space(SourceNode[SpaceData]):
     """A space for a user to interact with the Bench."""
 

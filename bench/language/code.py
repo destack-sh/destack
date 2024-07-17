@@ -86,4 +86,4 @@ def format_code(code: str, suppress_error: bool = False, line_length: int = 100)
         if suppress_error:
             return code
         else:
-            raise ValueError(code) from e
+            raise SyntaxError(code) from e

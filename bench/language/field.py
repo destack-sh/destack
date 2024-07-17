@@ -52,7 +52,6 @@ from bench.language.setup import OBJECT_TYPE_BY_CLASS
 from bench.language.validation import NAME_CONSTRAINT, TypeConstraintIn, ValidationHandler
 from bench.language.value import HasValues, SomeValue, coerce_object_scalar
 from bench.proto.wire import AnyNodeData, FieldData, NodeReferenceData
-from bench.utils.casing import IdentifierType
 from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import decode_b64vlq, encode_b64vlq
 
@@ -399,9 +398,9 @@ class TypeInfoBase(HasValues):
             )
 
     def _get_field(self, ident: str) -> Optional["Field"]:
-        """Resolves a field in this type by an identifier (name or py_ident)"""
+        """Resolves a field in this type by an identifier (name or py_name)"""
         for field in self._base_fields:
-            if field.py_ident == ident or field.name == ident:
+            if field.py_name == ident or field.name == ident:
                 return field
         return None
 
@@ -559,13 +558,6 @@ class Field(SourceNode[FieldData], HasNodeBase, TypeInfoBase, _TypeQueryBuilder)
     @staticmethod
     def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]:
         return (cast(FieldData, data)).parent_ptr
-
-    @property
-    def identifier_type(self):
-        if self.zone == FieldZone.OPTION:
-            return IdentifierType.CONSTANT
-        else:
-            return IdentifierType.PROPERTY
 
     @property
     def storage_key(self) -> str:

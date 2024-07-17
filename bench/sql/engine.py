@@ -75,9 +75,9 @@ from bench.sql.core import (
     SqlPrimitive,
     Table,
 )
-from bench.utils.casing import Casing, to_casing
 from bench.utils.env import IS_DEV
 from bench.utils.func import bittuple, describe_type, group_by, to_uuid
+from bench.utils.naming import Casing, to_casing
 from bench.utils.oracle import REAL_ORACLE
 from bench.utils.tenacity import RetryOptions, retry
 from bench.utils.uuidt import UUIDT

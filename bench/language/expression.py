@@ -31,8 +31,8 @@ from bench.language.node import (
 from bench.language.property import p_regular, p_value_packed, p_value_runtime
 from bench.language.value import HasValues
 from bench.proto.wire import AnyNodeData, NodeReferenceData
-from bench.utils.casing import Casing, to_casing
 from bench.utils.func import IdEnum
+from bench.utils.naming import Casing, to_casing
 
 if TYPE_CHECKING:
     from bench.language import Block, Code, Field, TypeInfoBase
@@ -126,17 +126,17 @@ class Expression(Struct, HasValues):
             or self.op in ExpressionOps.COND_RANGE
             or self.op in ExpressionOps.COND_STRING
         ):
-            py_ident = self.target.py_ident if self.target is not None else "???"
+            py_name = self.target.py_name if self.target is not None else "???"
             value_str = str(self.value)
             if len(value_str) > 60:
                 value_str = f"{value_str[:48]}...{value_str[-12:]}"
-            return f"{py_ident}{_CONDITIONAL_OP_SIGN[self.op]}{value_str}"
+            return f"{py_name}{_CONDITIONAL_OP_SIGN[self.op]}{value_str}"
         elif self.op in ExpressionOps.COND_EXISTENCE:
-            py_ident = self.target.py_ident if self.target is not None else "???"
-            return f"{py_ident}{_CONDITIONAL_OP_SIGN[self.op]}"
+            py_name = self.target.py_name if self.target is not None else "???"
+            return f"{py_name}{_CONDITIONAL_OP_SIGN[self.op]}"
         elif self.op in ExpressionOps.SORT:
-            py_ident = self.target.py_ident if self.target is not None else "???"
-            return f"{'-' if self.op == SortOp.DESCENDING else ''}{py_ident}"
+            py_name = self.target.py_name if self.target is not None else "???"
+            return f"{'-' if self.op == SortOp.DESCENDING else ''}{py_name}"
         return to_casing(self.op.name, Casing.CAMEL)
 
     @property_
@@ -429,7 +429,7 @@ def evaluate_conditional(cond: Expression, node: Node | AnyNodeData) -> bool:
     assert prop is not None, f"expected Conditional with property, got {cond!r}"
     if prop.reference_wired_ptr is not None:
         prop = prop.reference_wired_ptr
-    node_value = getattr(node, prop.py_ident)
+    node_value = getattr(node, prop.py_name)
     node_value = _lower_expression_value(cond, prop, node_value)
     cond_value = cond.value  # do we need to unpack condition value here?
     cond_value = _lower_expression_value(cond, prop, cond_value)
@@ -489,8 +489,8 @@ def _compare_sort_key(
         assert prop is not None, f"expected Sort with property, got {sort!r}"
         if prop.reference_wired_ptr is not None:
             prop = prop.reference_wired_ptr
-        a_value = getattr(a, prop.py_ident)
-        b_value = getattr(b, prop.py_ident)
+        a_value = getattr(a, prop.py_name)
+        b_value = getattr(b, prop.py_name)
         if a_value == b_value:
             continue
         if prop.primitive_type is not None and (

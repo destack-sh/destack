@@ -491,7 +491,7 @@ class IdEnum(enum.IntEnum):
 
     @functools.cached_property
     def bench_name(self):
-        from bench.utils.casing import Casing, to_casing
+        from bench.utils.naming import Casing, to_casing
 
         return to_casing(self.name, Casing.CAMEL)
 

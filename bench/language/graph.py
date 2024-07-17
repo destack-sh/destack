@@ -25,9 +25,9 @@ from bench.language.const import EMPTY_LIST, NodeType, ObjectType
 from bench.language.setup import NODE_CLASS_BY_TYPE
 from bench.language.validation import on_invalid_raise
 from bench.proto.wire import AnyNodeData, GraphScopeData
-from bench.utils.casing import Casing, to_casing
 from bench.utils.fractional import get_key_bounds, get_order_key
 from bench.utils.func import IdEnum, bittuple
+from bench.utils.naming import Casing, to_casing
 
 if TYPE_CHECKING:
     # noinspection PyUnresolvedReferences
@@ -683,7 +683,7 @@ class GraphNodeList[V: Node](NodeList[V]):
             return cast(V, self._parent._graph.get(key))
         elif isinstance(key, str):
             return first(
-                (n for n in self.nodes if n.py_ident == key or getattr(n, "name", None) == key),
+                (n for n in self.nodes if n.py_name == key or getattr(n, "name", None) == key),
                 None,
             )
         else:

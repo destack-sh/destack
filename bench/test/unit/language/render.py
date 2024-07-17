@@ -105,6 +105,13 @@ def _render_as_stmt(func: Callable[[Any, Any], Mapping[str, BuiltinObject]]):
 
 
 @_render_as_stmt
+def test_render_bad_names(shared_session: Session, shared_package: Package):
+    _F_1 = Field.variable("-F_1", str)
+    Block_with_Spa_se = Block.new(BlockType.CLASS, "Block with Spa'se")
+    return {"_F_1": _F_1, "Block_with_Spa_se": Block_with_Spa_se}
+
+
+@_render_as_stmt
 def test_render_choice_block(shared_session: Session, shared_package: Package):
     ShapeType = Block.new(
         BlockType.CHOICE,

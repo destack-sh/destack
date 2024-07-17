@@ -1,6 +1,15 @@
 import pytest
+from hypothesis import assume, given
+from hypothesis import strategies as st
 
-from bench.utils.casing import Casing, to_casing
+from bench.utils.naming import Casing, to_casing, to_py_name
+
+
+@given(st.text())
+def test_to_py_name(s: str):
+    assume(len(s) > 0)
+    ident = to_py_name(s)
+    assert ident.isidentifier()
 
 
 @pytest.mark.parametrize(

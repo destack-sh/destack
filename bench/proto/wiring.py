@@ -26,8 +26,8 @@ from bench.proto.wire import (
     RpcMetadata,
     RpcMetadataBadgeInfo,
 )
-from bench.utils.casing import Casing, to_casing
 from bench.utils.func import IdEnum, IdEnumOrUnion, to_uuid
+from bench.utils.naming import Casing, to_casing
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
