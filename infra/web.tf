@@ -68,6 +68,7 @@ resource "aws_s3_bucket_policy" "bench_web_allow_public" {
 }
 
 # Upload the built bench-web/dist to the S3 bucket
+# nocheckin: replace VITE_APP_* variables in index*.js
 resource "aws_s3_object" "bench_web_files" {
   for_each = fileset("../bench-web/dist", "**")
 
