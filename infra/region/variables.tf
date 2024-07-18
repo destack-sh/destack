@@ -7,50 +7,33 @@ variable "env" {
   description = "Environment name"
 }
 
+variable "region" {
+  type        = string
+  description = "AWS region for resources"
+}
+
+variable "availability_zones" {
+  type        = list(string)
+  description = "AWS availability zones for the VPC"
+}
+
 variable "global_region" {
   type        = string
-  description = "Primary AWS region"
-  default     = "eu-central-1"
+  description = "Global AWS region for resources"
 }
 
-variable "global_availability_zones" {
-  type        = list(string)
-  description = "Availability zones for the global VPC"
-  default     = ["eu-central-1a", "eu-central-1b"]
+variable "is_global_region" {
+  type        = bool
+  description = "Whether this is the global region"
 }
 
-variable "regions" {
-  type        = list(string)
-  description = "Regions to create"
-  default     = ["eu-central-1", "us-east-2"]
-}
-
-variable "region_availability_zones" {
-  type        = map(list(string))
-  description = "Availability zones for the regional VPCs"
-  default = {
-    "eu-central-1" = ["eu-central-1a", "eu-central-1b"]
-    "us-east-2"    = ["us-east-2a", "us-east-2b"]
-  }
-}
-
-# 
+#
 # AWS
 # 
 
-variable "global_vpc_network_cidr" {
+variable "vpc_network_cidr" {
   type        = string
-  description = "CIDR block for the global VPC"
-  default     = "10.0.0.0/16"
-}
-
-variable "region_vpc_network_cidrs" {
-  type        = map(string)
-  description = "CIDR blocks for the regional VPCs"
-  default = {
-    "eu-central-1" = "10.1.0.0/16"
-    "us-east-2"    = "10.2.0.0/16"
-  }
+  description = "CIDR block for the VPC"
 }
 
 variable "system_min_cluster_size" {
@@ -72,7 +55,6 @@ variable "system_node_instance_type" {
   type        = string
   description = "EC2 instance types for EKS nodes"
 }
-
 
 #
 # DB
