@@ -124,7 +124,7 @@ defineExpose<ViewExposed>({ self });
             "
           >
             <i class="fas fa-play w-5 text-center" />
-            <span class="ml-0.5">Start</span>
+            <span class="ml-1">Start</span>
           </button>
         </div>
       </div>

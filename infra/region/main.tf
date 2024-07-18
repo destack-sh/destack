@@ -1,83 +1,74 @@
-terraform {
-  required_providers {
-    aws = {
-      source = "hashicorp/aws"
-    }
-    kubernetes = {
-      source = "hashicorp/kubernetes"
-    }
-  }
+provider "aws" {
+  region = var.region
 }
-
-
 
 #
 # AWS VPC
 #
 
 # VPC
-resource "aws_vpc" "eks_vpc" {
+resource "aws_vpc" "region_vpc" {
   enable_dns_hostnames = true
   cidr_block           = var.vpc_network_cidr
 
   tags = {
-    Name = "${var.env}-${var.region}-eks-vpc"
+    Name = "bench-${var.env}-${var.region}-region-vpc"
   }
 }
 
 # Subnets
 resource "aws_subnet" "public" {
   count             = length(var.availability_zones)
-  vpc_id            = aws_vpc.eks_vpc.id
+  vpc_id            = aws_vpc.region_vpc.id
   cidr_block        = cidrsubnet(var.vpc_network_cidr, 8, count.index)
   availability_zone = var.availability_zones[count.index]
 
   tags = {
-    Name                     = "${var.env}-${var.region}-public-subnet-${count.index + 1}"
+    Name                     = "bench-${var.env}-${var.region}-public-subnet-${count.index + 1}"
     "kubernetes.io/role/elb" = "1"
   }
 }
 resource "aws_subnet" "private" {
   count             = length(var.availability_zones)
-  vpc_id            = aws_vpc.eks_vpc.id
+  vpc_id            = aws_vpc.region_vpc.id
   cidr_block        = cidrsubnet(var.vpc_network_cidr, 8, length(var.availability_zones) + count.index)
   availability_zone = var.availability_zones[count.index]
 
   tags = {
-    Name                              = "${var.env}-${var.region}-private-subnet-${count.index + 1}"
+    Name                              = "bench-${var.env}-${var.region}-private-subnet-${count.index + 1}"
     "kubernetes.io/role/internal-elb" = "1"
   }
 }
 
 # Internet Gateway
-resource "aws_internet_gateway" "eks_vpc" {
-  vpc_id = aws_vpc.eks_vpc.id
+resource "aws_internet_gateway" "region_vpc" {
+  vpc_id = aws_vpc.region_vpc.id
 }
 
 # Elastic IP
-resource "aws_eip" "eks_vpc" {
+resource "aws_eip" "region_vpc" {
   domain     = "vpc"
-  depends_on = [aws_internet_gateway.eks_vpc]
+  depends_on = [aws_internet_gateway.region_vpc]
 }
 
 # NAT Gateway
-resource "aws_nat_gateway" "eks_vpc" {
-  allocation_id = aws_eip.eks_vpc.id
+resource "aws_nat_gateway" "region_vpc" {
+  allocation_id = aws_eip.region_vpc.id
   subnet_id     = aws_subnet.public[0].id
-  depends_on    = [aws_internet_gateway.eks_vpc]
+  depends_on    = [aws_internet_gateway.region_vpc]
 }
 
 # Public Route Table
 resource "aws_route_table" "public" {
-  vpc_id = aws_vpc.eks_vpc.id
+  vpc_id = aws_vpc.region_vpc.id
 
   route {
     cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.eks_vpc.id
+    gateway_id = aws_internet_gateway.region_vpc.id
   }
 
   tags = {
-    Name = "${var.env}-${var.region}-public-route-table"
+    Name = "bench-${var.env}-${var.region}-public-route-table"
   }
 }
 
@@ -89,15 +80,15 @@ resource "aws_route_table_association" "public" {
 
 # Private Route Table
 resource "aws_route_table" "private" {
-  vpc_id = aws_vpc.eks_vpc.id
+  vpc_id = aws_vpc.region_vpc.id
 
   route {
     cidr_block     = "0.0.0.0/0"
-    nat_gateway_id = aws_nat_gateway.eks_vpc.id
+    nat_gateway_id = aws_nat_gateway.region_vpc.id
   }
 
   tags = {
-    Name = "${var.env}-${var.region}-private-route-table"
+    Name = "bench-${var.env}-${var.region}-private-route-table"
   }
 }
 
@@ -112,9 +103,9 @@ resource "aws_route_table_association" "private" {
 # AWS EKS cluster
 #
 
-resource "aws_eks_cluster" "eks_cluster" {
-  name     = "bench-${var.env}"
-  role_arn = aws_iam_role.eks_cluster_role.arn
+resource "aws_eks_cluster" "region_cluster" {
+  name     = "bench-${var.env}-${var.region}"
+  role_arn = aws_iam_role.region_cluster_role.arn
 
   vpc_config {
     endpoint_private_access = true
@@ -123,12 +114,17 @@ resource "aws_eks_cluster" "eks_cluster" {
   }
 }
 
-data "aws_eks_cluster" "eks_cluster" {
-  name = aws_eks_cluster.eks_cluster.name
+# Kubernetes provider
+data "aws_eks_cluster" "region_cluster" {
+  name = aws_eks_cluster.region_cluster.name
 }
-
-data "aws_eks_cluster_auth" "eks_cluster" {
-  name = aws_eks_cluster.eks_cluster.name
+data "aws_eks_cluster_auth" "region_cluster" {
+  name = aws_eks_cluster.region_cluster.name
+}
+provider "kubernetes" {
+  host                   = data.aws_eks_cluster.region_cluster.endpoint
+  cluster_ca_certificate = base64decode(data.aws_eks_cluster.region_cluster.certificate_authority.0.data)
+  token                  = data.aws_eks_cluster_auth.region_cluster.token
 }
 
 # Grant root user access to the cluster
@@ -145,7 +141,7 @@ locals {
     data = {
       mapRoles = yamlencode([
         {
-          rolearn  = aws_iam_role.eks_node_role.arn
+          rolearn  = aws_iam_role.region_node_role.arn
           username = "system:node:{{EC2PrivateDNSName}}"
           groups   = ["system:bootstrappers", "system:nodes"]
         },
@@ -173,12 +169,12 @@ resource "kubernetes_config_map_v1_data" "aws_auth" {
   }
 
   force      = true
-  depends_on = [aws_eks_cluster.eks_cluster]
+  depends_on = [aws_eks_cluster.region_cluster]
 }
 
-# IAM roles for EKS
-resource "aws_iam_role" "eks_cluster_role" {
-  name = "${var.env}-${var.region}-eks-cluster-role"
+# IAM roles for EKS cluster
+resource "aws_iam_role" "region_cluster_role" {
+  name = "bench-${var.env}-${var.region}-region-cluster-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -193,20 +189,18 @@ resource "aws_iam_role" "eks_cluster_role" {
     ]
   })
 }
-
-resource "aws_iam_role_policy_attachment" "eks_cluster_policy" {
+resource "aws_iam_role_policy_attachment" "region_cluster_policy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
-  role       = aws_iam_role.eks_cluster_role.name
+  role       = aws_iam_role.region_cluster_role.name
 }
-
-resource "aws_iam_role_policy_attachment" "eks_vpc_resource_controller" {
+resource "aws_iam_role_policy_attachment" "region_vpc_resource_controller" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSVPCResourceController"
-  role       = aws_iam_role.eks_cluster_role.name
+  role       = aws_iam_role.region_cluster_role.name
 }
 
-# EKS Node Role
-resource "aws_iam_role" "eks_node_role" {
-  name = "${var.env}-${var.region}-eks-node-role"
+# IAM roles for EKS nodes
+resource "aws_iam_role" "region_node_role" {
+  name = "bench-${var.env}-${var.region}-region-node-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -221,20 +215,17 @@ resource "aws_iam_role" "eks_node_role" {
     ]
   })
 }
-
-resource "aws_iam_role_policy_attachment" "eks_worker_node_policy" {
+resource "aws_iam_role_policy_attachment" "region_worker_node_policy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
-  role       = aws_iam_role.eks_node_role.name
+  role       = aws_iam_role.region_node_role.name
 }
-
-resource "aws_iam_role_policy_attachment" "eks_cni_policy" {
+resource "aws_iam_role_policy_attachment" "region_cni_policy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
-  role       = aws_iam_role.eks_node_role.name
+  role       = aws_iam_role.region_node_role.name
 }
-
 resource "aws_iam_role_policy_attachment" "ec2_container_registry_read_only" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
-  role       = aws_iam_role.eks_node_role.name
+  role       = aws_iam_role.region_node_role.name
 }
 
 # Kubernetes secret for GHCR

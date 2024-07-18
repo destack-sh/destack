@@ -11,17 +11,20 @@ GIT_COMMIT=$(git rev-parse --short HEAD)
 # get version from 'version' file
 VERSION=$(cat version)
 
+# build vue
+bun run --cwd bench-web build
+
+# build docker images
 # image names
 IMAGES=("bench-system" "bench-runtime")
-
 for IMAGE in ${IMAGES[@]}; do
-  # Build the Docker image and tag properly (with commit hash)
+  # Build the Docker image and tag it properly (with commit hash)
   docker build . \
-    --platform linux/amd64 \
     --target $IMAGE \
     -f Dockerfile \
     -t symbolx/$IMAGE:latest \
     -t symbolx/$IMAGE:$GIT_COMMIT \
+    -t symbolx/$IMAGE:$VERSION \
     -t ghcr.io/symbolx/$IMAGE:latest \
     -t ghcr.io/symbolx/$IMAGE:$GIT_COMMIT \
     -t ghcr.io/symbolx/$IMAGE:$VERSION \

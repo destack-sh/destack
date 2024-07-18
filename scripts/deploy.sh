@@ -6,8 +6,8 @@ if [[ -n $(git status --porcelain) && "$1" != "--force" ]]; then
     exit 1
 fi
 
-# build.sh
+# build
 ./scripts/build.sh $1
 
-# deploy with pulumi
-pulumi --cwd infra up -y --skip-preview
+# deploy with terraform
+terraform apply -chdir=infra -auto-approve -var-file=infra/prod.tfvars
