@@ -1,5 +1,6 @@
 #
 # General
+# NOTE regions must be added manually to main.tf :StaticRegions
 #
 
 variable "env" {
@@ -13,16 +14,10 @@ variable "global_region" {
   default     = "eu-central-1"
 }
 
-variable "global_availability_zones" {
-  type        = list(string)
-  description = "Availability zones for the global VPC"
-  default     = ["eu-central-1a", "eu-central-1b"]
-}
-
 variable "regions" {
   type        = list(string)
   description = "Regions to create"
-  default     = ["eu-central-1", "us-east-2"]
+  default     = ["eu-central-1"]
 }
 
 variable "region_availability_zones" {
@@ -30,8 +25,17 @@ variable "region_availability_zones" {
   description = "Availability zones for the regional VPCs"
   default = {
     "eu-central-1" = ["eu-central-1a", "eu-central-1b"]
-    "us-east-2"    = ["us-east-2a", "us-east-2b"]
   }
+}
+
+#
+# Cloudflare
+# 
+
+variable "cloudflare_api_token" {
+  type        = string
+  description = "Cloudflare API key"
+  sensitive   = true
 }
 
 # 
@@ -49,7 +53,6 @@ variable "region_vpc_network_cidrs" {
   description = "CIDR blocks for the regional VPCs"
   default = {
     "eu-central-1" = "10.1.0.0/16"
-    "us-east-2"    = "10.2.0.0/16"
   }
 }
 
@@ -114,14 +117,15 @@ variable "cors_allowed_origins" {
   description = "Allowed origins"
 }
 
-variable "webapp_url" {
-  type        = string
-  description = "URL for the web application"
-}
-
 # 
 # 3rd party secrets
 # 
+
+variable "sentry_dsn" {
+  type        = string
+  description = "Sentry DSN"
+  sensitive   = true
+}
 
 variable "neon_api_key" {
   type        = string

@@ -2,6 +2,11 @@
 # General
 #
 
+variable "bench_version" {
+  type        = string
+  description = "Bench version"
+}
+
 variable "env" {
   type        = string
   description = "Environment name"
@@ -20,11 +25,6 @@ variable "availability_zones" {
 variable "global_region" {
   type        = string
   description = "Global AWS region for resources"
-}
-
-variable "is_global_region" {
-  type        = bool
-  description = "Whether this is the global region"
 }
 
 #
@@ -59,6 +59,11 @@ variable "system_node_instance_type" {
 #
 # DB
 # 
+
+variable "global_pg_host" {
+  type        = string
+  description = "Host for the global Postgres database"
+}
 
 variable "global_pg_name" {
   type        = string
@@ -96,14 +101,15 @@ variable "cors_allowed_origins" {
   description = "Allowed origins"
 }
 
-variable "webapp_url" {
-  type        = string
-  description = "URL for the web application"
-}
-
 # 
 # 3rd party secrets
 # 
+
+variable "sentry_dsn" {
+  type        = string
+  description = "Sentry DSN"
+  sensitive   = true
+}
 
 variable "neon_api_key" {
   type        = string

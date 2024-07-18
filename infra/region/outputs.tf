@@ -1,9 +1,9 @@
 output "vpc_id" {
-  value = aws_vpc.eks_vpc.id
+  value = aws_vpc.region_vpc.id
 }
 
 output "vpc_cidr_block" {
-  value = aws_vpc.eks_vpc.cidr_block
+  value = aws_vpc.region_vpc.cidr_block
 }
 
 output "public_subnets" {
@@ -14,6 +14,6 @@ output "private_subnets" {
   value = aws_subnet.private[*].id
 }
 
-output "eks_cluster" {
-  value = aws_eks_cluster.eks_cluster
+output "region_cluster" {
+  value = aws_eks_cluster.region_cluster
 }

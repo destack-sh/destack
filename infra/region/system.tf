@@ -4,10 +4,9 @@
 # 
 
 resource "aws_s3_bucket" "bench_public" {
-  bucket = "${var.env}-${var.region}-bench-public"
-
+  bucket = "bench-${var.env}-${var.region}-public"
   tags = {
-    Name = "${var.env}-${var.region}-bench-public"
+    Name = "bench-${var.env}-${var.region}-public"
   }
 }
 
@@ -16,10 +15,10 @@ resource "aws_s3_bucket" "bench_public" {
 # EKS (system) nodes
 #
 
-resource "aws_eks_node_group" "eks_system_nodes" {
-  cluster_name    = aws_eks_cluster.eks_cluster.name
-  node_group_name = "${var.env}-${var.region}-eks-system-nodes"
-  node_role_arn   = aws_iam_role.eks_node_role.arn
+resource "aws_eks_node_group" "region_system_nodes" {
+  cluster_name    = aws_eks_cluster.region_cluster.name
+  node_group_name = "bench-${var.env}-${var.region}-region-system-nodes"
+  node_role_arn   = aws_iam_role.region_node_role.arn
   subnet_ids      = aws_subnet.private[*].id
 
   scaling_config {
@@ -37,19 +36,19 @@ resource "aws_eks_node_group" "eks_system_nodes" {
 # NOTE :Infra! :Robustness: deploy Supervisor and Host separately
 # 
 
-# # envoy
-# resource "kubernetes_config_map" "envoy_config" {
-#   metadata {
-#     name      = "envoy-config"
-#     namespace = "default"
-#   }
+# envoy
+resource "kubernetes_config_map" "envoy_config" {
+  metadata {
+    name      = "envoy-config"
+    namespace = "default"
+  }
 
-#   data = {
-#     "envoy.yaml" = file("envoy.yaml")
-#   }
-# }
+  data = {
+    "envoy.yaml" = file("envoy.yaml")
+  }
+}
 
-# # System deployment
+# System deployment
 # resource "kubernetes_deployment" "system" {
 #   metadata {
 #     name      = "system"
@@ -81,7 +80,7 @@ resource "aws_eks_node_group" "eks_system_nodes" {
 #       spec {
 #         init_container {
 #           name    = "system-migrate"
-#           image   = "ghcr.io/symbolx/bench-system:${var.version}"
+#           image   = "ghcr.io/symbolx/bench-system:${var.bench_version}"
 #           command = ["/bin/sh", "-c"]
 #           args    = ["python bench.py migrate apply"]
 
@@ -89,7 +88,32 @@ resource "aws_eks_node_group" "eks_system_nodes" {
 #             name  = "ENVIRONMENT"
 #             value = var.env
 #           }
-#           # Add other environment variables as needed
+#           env {
+#             name  = "REGION"
+#             value = var.region
+#           }
+
+#           env {
+#             name  = "GLOBAL_PG_HOST"
+#             value = var.global_pg_host
+#           }
+#           env {
+#             name  = "GLOBAL_PG_USERNAME"
+#             value = var.global_pg_username
+#           }
+#           env {
+#             name  = "GLOBAL_PG_PASSWORD"
+#             value = var.global_pg_password
+#           }
+#           env {
+#             name  = "GLOBAL_PG_CRYPTO_KEY"
+#             value = var.global_pg_crypto_key
+#           }
+
+#           env {
+#             name  = "SENTRY_DSN"
+#             value = var.sentry_dsn
+#           }
 #         }
 
 #         container {
@@ -108,7 +132,7 @@ resource "aws_eks_node_group" "eks_system_nodes" {
 
 #         container {
 #           name  = "system"
-#           image = "ghcr.io/symbolx/bench-system:${var.version}"
+#           image = "ghcr.io/symbolx/bench-system:${var.bench_version}"
 
 #           port {
 #             container_port = 80
@@ -130,7 +154,11 @@ resource "aws_eks_node_group" "eks_system_nodes" {
 
 #           env {
 #             name  = "GLOBAL_PG_HOST"
-#             value = aws_rds_cluster.global_pg.endpoint
+#             value = var.global_pg_host
+#           }
+#           env {
+#             name  = "GLOBAL_PG_USERNAME"
+#             value = var.global_pg_username
 #           }
 #           env {
 #             name  = "GLOBAL_PG_PASSWORD"
@@ -142,17 +170,16 @@ resource "aws_eks_node_group" "eks_system_nodes" {
 #           }
 
 #           env {
-#             name  = "CORS_ALLOWED_HOSTS"
-#             value = var.cors_allowed_hosts
-#           }
-#           env {
-#             name  = "CORS_ALLOWED_ORIGINS"
-#             value = var.cors_allowed_origins
-#           }
-
-#           env {
 #             name  = "SENTRY_DSN"
 #             value = var.sentry_dsn
+#           }
+#           env {
+#             name  = "NEON_API_KEY"
+#             value = var.neon_api_key
+#           }
+#           env {
+#             name  = "NEON_BASE_URL"
+#             value = var.neon_base_url
 #           }
 #           env {
 #             name  = "OPENAI_API_KEY"
@@ -161,6 +188,10 @@ resource "aws_eks_node_group" "eks_system_nodes" {
 #           env {
 #             name  = "ANTHROPIC_API_KEY"
 #             value = var.anthropic_api_key
+#           }
+#           env {
+#             name  = "GHCR_TOKEN"
+#             value = var.ghcr_token
 #           }
 
 #           command = ["python", "bench.py", "serve", "system"]

@@ -26,7 +26,7 @@ ENV PYTHONPATH "${PYTHONPATH}:/bench"
 # --- System (Supervisor/Host) ---
 FROM bench-base as bench-system
 
-COPY requirements.txt .
+COPY requirements/system.txt requirements.txt
 RUN /root/.cargo/bin/uv pip install --system --no-cache -r requirements.txt
 
 # copy relevant files
@@ -46,10 +46,10 @@ EXPOSE 80
 # --- Runtime ---
 FROM bench-base as bench-runtime
 
-COPY requirements-runtime.txt .
-RUN /root/.cargo/bin/uv pip install --system --no-cache -r requirements-runtime.txt
+COPY requirements/runtime.txt requirements.txt
+RUN /root/.cargo/bin/uv pip install --system --no-cache -r requirements.txt
 
-# copy relevant fiels
+# copy relevant files
 COPY bench/ bench/ 
 # prune unnecessary modules
 RUN rm -rf bench/system bench/test
