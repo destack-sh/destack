@@ -28,7 +28,6 @@ resource "aws_subnet" "public" {
     "kubernetes.io/role/elb" = "1"
   }
 }
-
 resource "aws_subnet" "private" {
   count             = 2
   vpc_id            = aws_vpc.eks_vpc.id
@@ -41,6 +40,65 @@ resource "aws_subnet" "private" {
   }
 }
 
+# Internet Gateway
+resource "aws_internet_gateway" "eks_vpc" {
+  vpc_id = aws_vpc.eks_vpc.id
+}
+
+# Elastic IP
+resource "aws_eip" "eks_vpc" {
+  domain     = "vpc"
+  depends_on = [aws_internet_gateway.eks_vpc]
+}
+
+# NAT Gateway
+resource "aws_nat_gateway" "eks_vpc" {
+  allocation_id = aws_eip.eks_vpc.id
+  subnet_id     = aws_subnet.public[0].id
+  depends_on    = [aws_internet_gateway.eks_vpc]
+}
+
+# Public Route Table
+resource "aws_route_table" "public" {
+  vpc_id = aws_vpc.eks_vpc.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.eks_vpc.id
+  }
+
+  tags = {
+    Name = "${var.env}-public-route-table"
+  }
+}
+
+resource "aws_route_table_association" "public" {
+  count          = length(aws_subnet.public)
+  subnet_id      = aws_subnet.public[count.index].id
+  route_table_id = aws_route_table.public.id
+}
+
+# Private Route Table
+resource "aws_route_table" "private" {
+  vpc_id = aws_vpc.eks_vpc.id
+
+  route {
+    cidr_block     = "0.0.0.0/0"
+    nat_gateway_id = aws_nat_gateway.eks_vpc.id
+  }
+
+  tags = {
+    Name = "${var.env}-private-route-table"
+  }
+}
+
+# Private Route Table Association
+resource "aws_route_table_association" "private" {
+  count          = length(aws_subnet.private)
+  subnet_id      = aws_subnet.private[count.index].id
+  route_table_id = aws_route_table.private.id
+}
+
 #
 # AWS EKS cluster
 #
@@ -50,7 +108,9 @@ resource "aws_eks_cluster" "eks_cluster" {
   role_arn = aws_iam_role.eks_cluster_role.arn
 
   vpc_config {
-    subnet_ids = concat(aws_subnet.public[*].id, aws_subnet.private[*].id)
+    endpoint_private_access = true
+    endpoint_public_access  = true
+    subnet_ids              = concat(aws_subnet.public[*].id, aws_subnet.private[*].id)
   }
 }
 
@@ -62,11 +122,56 @@ data "aws_eks_cluster_auth" "eks_cluster" {
   name = aws_eks_cluster.eks_cluster.name
 }
 
-
 provider "kubernetes" {
+  config_path            = "~/.kube/config"
   host                   = data.aws_eks_cluster.eks_cluster.endpoint
   cluster_ca_certificate = base64decode(data.aws_eks_cluster.eks_cluster.certificate_authority[0].data)
   token                  = data.aws_eks_cluster_auth.eks_cluster.token
+}
+
+# Grant root user access to the cluster
+data "aws_caller_identity" "current" {}
+
+locals {
+  config_map_aws_auth = {
+    apiVersion = "v1"
+    kind       = "ConfigMap"
+    metadata = {
+      name      = "aws-auth"
+      namespace = "kube-system"
+    }
+    data = {
+      mapRoles = yamlencode([
+        {
+          rolearn  = aws_iam_role.eks_node_role.arn
+          username = "system:node:{{EC2PrivateDNSName}}"
+          groups   = ["system:bootstrappers", "system:nodes"]
+        },
+      ])
+      mapUsers = yamlencode([
+        {
+          userarn  = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
+          username = "admin"
+          groups   = ["system:masters"]
+        },
+      ])
+    }
+  }
+}
+
+resource "kubernetes_config_map_v1_data" "aws_auth" {
+  metadata {
+    name      = "aws-auth"
+    namespace = "kube-system"
+  }
+
+  data = {
+    mapRoles = yamlencode(yamldecode(local.config_map_aws_auth.data.mapRoles))
+    mapUsers = yamlencode(yamldecode(local.config_map_aws_auth.data.mapUsers))
+  }
+
+	force = true
+  depends_on = [aws_eks_cluster.eks_cluster]
 }
 
 # IAM roles for EKS
@@ -130,22 +235,6 @@ resource "aws_iam_role_policy_attachment" "ec2_container_registry_read_only" {
   role       = aws_iam_role.eks_node_role.name
 }
 
-# EKS (system) nodes
-resource "aws_eks_node_group" "eks_system_nodes" {
-  cluster_name    = aws_eks_cluster.eks_cluster.name
-  node_group_name = "${var.env}-eks-system"
-  node_role_arn   = aws_iam_role.eks_node_role.arn
-  subnet_ids      = aws_subnet.private[*].id
-
-  scaling_config {
-    desired_size = var.system_desired_cluster_size
-    max_size     = var.system_max_cluster_size
-    min_size     = var.system_min_cluster_size
-  }
-
-  instance_types = [var.system_node_instance_type]
-}
-
 # Kubernetes secret for GHCR
 resource "kubernetes_secret" "image_pull_secret" {
   metadata {
@@ -164,46 +253,4 @@ resource "kubernetes_secret" "image_pull_secret" {
       }
     })
   }
-}
-
-#
-# AWS RDS Aurora 
-# 
-
-resource "aws_security_group" "rds_sg" {
-  name        = "${var.env}-rds-sg"
-  description = "Allow inbound traffic to the RDS cluster"
-  vpc_id      = aws_vpc.eks_vpc.id
-
-  ingress {
-    description = "Allow inbound traffic to the RDS cluster"
-    from_port   = 5432
-    to_port     = 5432
-    protocol    = "tcp"
-    cidr_blocks = [var.vpc_network_cidr]
-  }
-}
-
-resource "aws_rds_cluster" "global_pg" {
-  cluster_identifier      = "${var.env}-global-db"
-  engine                  = "aurora-postgresql"
-  engine_mode             = "provisioned"
-  engine_version          = "16.2"
-  database_name           = var.global_pg_name
-  master_username         = var.global_pg_username
-  master_password         = var.global_pg_password
-  backup_retention_period = 7
-  preferred_backup_window = "06:00-08:00"
-  availability_zones      = var.aws_availability_zones
-
-  vpc_security_group_ids = [aws_security_group.rds_sg.id]
-}
-
-resource "aws_rds_cluster_instance" "global_pg_instance" {
-  count              = 1
-  identifier         = "${var.env}-global-db-${count.index}"
-  cluster_identifier = aws_rds_cluster.global_pg.id
-  instance_class     = "db.t3.medium"
-  engine             = aws_rds_cluster.global_pg.engine
-  engine_version     = aws_rds_cluster.global_pg.engine_version
 }

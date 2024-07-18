@@ -1,8 +1,78 @@
+# EKS (system) nodes
+resource "aws_eks_node_group" "eks_system_nodes" {
+  cluster_name    = aws_eks_cluster.eks_cluster.name
+  node_group_name = "${var.env}-eks-system-nodes"
+  node_role_arn   = aws_iam_role.eks_node_role.arn
+  subnet_ids      = aws_subnet.private[*].id
 
-# # 
-# # System (Supervisor/Host)
-# # NOTE :Infra! :Robustness: deploy Supervisor and Host separately
-# # 
+  scaling_config {
+    desired_size = var.system_desired_cluster_size
+    max_size     = var.system_max_cluster_size
+    min_size     = var.system_min_cluster_size
+  }
+
+  instance_types = [var.system_node_instance_type]
+}
+
+
+#
+# AWS RDS Aurora 
+# 
+
+resource "aws_security_group" "rds_security_group" {
+  name        = "${var.env}-rds-security-group"
+  description = "Allow inbound traffic to the RDS cluster"
+  vpc_id      = aws_vpc.eks_vpc.id
+
+  ingress {
+    description = "Allow inbound traffic to the RDS cluster"
+    from_port   = 5432
+    to_port     = 5432
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_network_cidr]
+  }
+}
+
+resource "aws_db_subnet_group" "rds_subnet_group" {
+  name       = "${var.env}-rds-subnet-group"
+  subnet_ids = aws_subnet.private[*].id
+
+  tags = {
+    Name = "${var.env}-rds-subnet-group"
+  }
+}
+
+resource "aws_rds_cluster" "global_pg" {
+  cluster_identifier      = "${var.env}-global-db"
+  engine                  = "aurora-postgresql"
+  engine_mode             = "provisioned"
+  engine_version          = "16.2"
+  database_name           = var.global_pg_name
+  master_username         = var.global_pg_username
+  master_password         = var.global_pg_password
+  backup_retention_period = 7
+  preferred_backup_window = "06:00-08:00"
+  storage_encrypted       = true
+
+  vpc_security_group_ids = [aws_security_group.rds_security_group.id]
+  db_subnet_group_name   = aws_db_subnet_group.rds_subnet_group.name
+}
+
+resource "aws_rds_cluster_instance" "global_pg_instance" {
+  count                      = 1
+  identifier                 = "${var.env}-global-db-${count.index}"
+  cluster_identifier         = aws_rds_cluster.global_pg.id
+  instance_class             = "db.t3.medium"
+  engine                     = aws_rds_cluster.global_pg.engine
+  engine_version             = aws_rds_cluster.global_pg.engine_version
+  auto_minor_version_upgrade = true
+}
+
+
+# 
+# System (Supervisor/Host)
+# NOTE :Infra! :Robustness: deploy Supervisor and Host separately
+# 
 
 # # envoy
 # resource "kubernetes_config_map" "envoy_config" {

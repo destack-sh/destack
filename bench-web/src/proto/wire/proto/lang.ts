@@ -580,9 +580,13 @@ export interface FileReferenceData {
      */
     mimeType?: string;
     /**
-     * @generated from protobuf field: optional string external_url = 47;
+     * @generated from protobuf field: optional bytes content = 50;
      */
-    externalUrl?: string;
+    content?: Uint8Array;
+    /**
+     * @generated from protobuf field: optional string url = 51;
+     */
+    url?: string;
 }
 /**
  * A font value.
@@ -2861,6 +2865,14 @@ export interface FileData {
      * @generated from protobuf field: optional google.protobuf.Timestamp expires_at = 38;
      */
     expiresAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional bytes content = 50;
+     */
+    content?: Uint8Array;
+    /**
+     * @generated from protobuf field: optional string url = 51;
+     */
+    url?: string;
 }
 /**
  * A Bench @handle. Can only be created/edited by the system.
@@ -11980,7 +11992,8 @@ class FileReferenceData$Type extends MessageType<FileReferenceData> {
             { no: 44, name: "size", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 45, name: "sha512", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 46, name: "mime_type", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 47, name: "external_url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
+            { no: 50, name: "content", kind: "scalar", opt: true, T: 12 /*ScalarType.BYTES*/ },
+            { no: 51, name: "url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<FileReferenceData>): FileReferenceData {
@@ -12034,8 +12047,11 @@ class FileReferenceData$Type extends MessageType<FileReferenceData> {
                 case /* optional string mime_type */ 46:
                     message.mimeType = reader.string();
                     break;
-                case /* optional string external_url */ 47:
-                    message.externalUrl = reader.string();
+                case /* optional bytes content */ 50:
+                    message.content = reader.bytes();
+                    break;
+                case /* optional string url */ 51:
+                    message.url = reader.string();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -12085,9 +12101,12 @@ class FileReferenceData$Type extends MessageType<FileReferenceData> {
         /* optional string mime_type = 46; */
         if (message.mimeType !== undefined)
             writer.tag(46, WireType.LengthDelimited).string(message.mimeType);
-        /* optional string external_url = 47; */
-        if (message.externalUrl !== undefined)
-            writer.tag(47, WireType.LengthDelimited).string(message.externalUrl);
+        /* optional bytes content = 50; */
+        if (message.content !== undefined)
+            writer.tag(50, WireType.LengthDelimited).bytes(message.content);
+        /* optional string url = 51; */
+        if (message.url !== undefined)
+            writer.tag(51, WireType.LengthDelimited).string(message.url);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -17400,7 +17419,9 @@ class FileData$Type extends MessageType<FileData> {
             { no: 35, name: "mime_type", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 36, name: "sha512", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 37, name: "retention", kind: "enum", opt: true, T: () => ["symbolx.bench.FileRetentionMode", FileRetentionMode, "FILE_RETENTION_MODE_"] },
-            { no: 38, name: "expires_at", kind: "message", T: () => Timestamp }
+            { no: 38, name: "expires_at", kind: "message", T: () => Timestamp },
+            { no: 50, name: "content", kind: "scalar", opt: true, T: 12 /*ScalarType.BYTES*/ },
+            { no: 51, name: "url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<FileData>): FileData {
@@ -17491,6 +17512,12 @@ class FileData$Type extends MessageType<FileData> {
                 case /* optional google.protobuf.Timestamp expires_at */ 38:
                     message.expiresAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.expiresAt);
                     break;
+                case /* optional bytes content */ 50:
+                    message.content = reader.bytes();
+                    break;
+                case /* optional string url */ 51:
+                    message.url = reader.string();
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -17570,6 +17597,12 @@ class FileData$Type extends MessageType<FileData> {
         /* optional google.protobuf.Timestamp expires_at = 38; */
         if (message.expiresAt)
             Timestamp.internalBinaryWrite(message.expiresAt, writer.tag(38, WireType.LengthDelimited).fork(), options).join();
+        /* optional bytes content = 50; */
+        if (message.content !== undefined)
+            writer.tag(50, WireType.LengthDelimited).bytes(message.content);
+        /* optional string url = 51; */
+        if (message.url !== undefined)
+            writer.tag(51, WireType.LengthDelimited).string(message.url);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -24822,6 +24855,8 @@ export enum FileProperty {
   sha512 = 36,
   retention = 37,
   expiresAt = 38,
+  content = 50,
+  url = 51,
 }
 
 export enum SecretProperty {
@@ -25779,7 +25814,8 @@ export enum FileReferenceProperty {
   size = 44,
   sha512 = 45,
   mimeType = 46,
-  externalUrl = 47,
+  content = 50,
+  url = 51,
 }
 
 export enum IconProperty {
@@ -26517,7 +26553,8 @@ export const FileReferenceDataInfo: Record<FileReferenceProperty, PropertyInfo> 
   [FileReferenceProperty.size]: { id: 44, name: 'size', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileReferenceProperty.sha512]: { id: 45, name: 'sha512', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileReferenceProperty.mimeType]: { id: 46, name: 'mime_type', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileReferenceProperty.externalUrl]: { id: 47, name: 'external_url', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileReferenceProperty.content]: { id: 50, name: 'content', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.BYTES, isRuntime: true, isWired: true, isStored: true },
+  [FileReferenceProperty.url]: { id: 51, name: 'url', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
 }
 export const IconDataInfo: Record<IconProperty, PropertyInfo> = {
   [IconProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.ICON, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -26993,6 +27030,8 @@ export const FileDataInfo: Record<FileProperty, PropertyInfo> = {
   [FileProperty.sha512]: { id: 36, name: 'sha512', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 128, maxLength: 128 }, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.retention]: { id: 37, name: 'retention', component: ObjectType.FILE, enumType: EnumType.FILE_RETENTION_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.expiresAt]: { id: 38, name: 'expires_at', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.content]: { id: 50, name: 'content', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.BYTES, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.url]: { id: 51, name: 'url', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
 }
 export const SecretDataInfo: Record<SecretProperty, PropertyInfo> = {
   [SecretProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SECRET, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },

@@ -68,6 +68,10 @@ class File(BenchNode[FileData]):
     )
     expires_at: Optional[datetime] = p_regular(38)
 
+    # content
+    content: Optional[bytes] = p_regular(50, default=None)  # if inline
+    url: Optional[str] = p_regular(51, default=None)
+
     # type-specific metadata (image size, audio/video length, thumbnail, ...)
     ...
 
@@ -83,12 +87,16 @@ class FileReference(
 
     # ...NodeReferenceBase[30-39]
 
+    # meta
     kind: FileKind = p_internal(40)
     title: str = p_regular(43, constraint=TITLE_CONSTRAINT)
     size: Optional[int] = p_internal(44)
     sha512: Optional[str] = p_internal(45)
     mime_type: Optional[str] = p_internal(46)
-    external_url: Optional[str] = p_internal(47)
+
+    # content
+    content: Optional[bytes] = p_regular(50, default=None)  # if inline
+    url: Optional[str] = p_regular(51, default=None)
 
     def _validate_component(self, properties: tuple[Property, ...], invalid: ValidationHandler):
         if self.type != NodeType.FILE:
