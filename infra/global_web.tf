@@ -48,6 +48,24 @@ resource "aws_s3_bucket_acl" "bench_web" {
   acl        = "public-read"
   depends_on = [aws_s3_bucket_public_access_block.bench_web]
 }
+resource "aws_s3_bucket_policy" "bench_web_allow_public" {
+  bucket = aws_s3_bucket.bench_web.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "PublicReadGetObject"
+        Effect = "Allow"
+        Principal = {
+          "AWS" : "*"
+        }
+        Action   = "s3:GetObject"
+        Resource = "arn:aws:s3:::${aws_s3_bucket.bench_web.bucket}/*"
+      },
+    ]
+  })
+}
 
 # Upload the built bench-web/dist to the S3 bucket
 resource "aws_s3_object" "bench_web_files" {
@@ -184,4 +202,8 @@ resource "cloudflare_record" "www" {
   value   = aws_cloudfront_distribution.bench_web.domain_name
   ttl     = 300
   proxied = false
+}
+
+output "bench_web_url" {
+  value = aws_cloudfront_distribution.bench_web.domain_name
 }
