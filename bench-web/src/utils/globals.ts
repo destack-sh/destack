@@ -2,7 +2,7 @@ import { pretendReadonly } from "@/utils/ref";
 import { ref } from "vue";
 
 export const VERSION = "2024.07.18.0";
-export const COMMIT = import.meta.env.VITE_VERCEL_GIT_COMMIT_SHA;
+export const COMMIT = import.meta.env.VITE_APP_GIT_COMMIT_SHA;
 
 export const IS_DEV = import.meta.env.DEV;
 export const SUPERVISOR_URL = import.meta.env.VITE_APP_SUPERVISOR_URL || "https://127.0.0.1:8080";

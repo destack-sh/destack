@@ -147,8 +147,8 @@ resource "aws_cloudfront_distribution" "bench_web" {
     }
 
     min_ttl                = 0
-    default_ttl            = 300
-    max_ttl                = 1800
+    default_ttl            = 3600
+    max_ttl                = 86400
     compress               = true
     viewer_protocol_policy = "redirect-to-https"
   }
@@ -202,6 +202,10 @@ resource "cloudflare_record" "www" {
   value   = aws_cloudfront_distribution.bench_web.domain_name
   ttl     = 300
   proxied = false
+}
+
+output "bench_web_distribution_id" {
+  value = aws_cloudfront_distribution.bench_web.id
 }
 
 output "bench_web_url" {

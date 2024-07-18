@@ -88,7 +88,7 @@ variable "global_pg_crypto_key" {
 }
 
 #
-# API
+# Web
 # 
 
 variable "cors_allowed_hosts" {
