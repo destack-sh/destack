@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.07.17.2"
+VERSION = "2024.07.18.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -1671,7 +1671,8 @@ class FileReferenceData(betterproto.Message):
     size: Optional[int] = betterproto.int32_field(44, optional=True)
     sha512: Optional[str] = betterproto.string_field(45, optional=True)
     mime_type: Optional[str] = betterproto.string_field(46, optional=True)
-    external_url: Optional[str] = betterproto.string_field(47, optional=True)
+    content: Optional[bytes] = betterproto.bytes_field(50, optional=True)
+    url: Optional[str] = betterproto.string_field(51, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2543,6 +2544,8 @@ class FileData(betterproto.Message):
     sha512: Optional[str] = betterproto.string_field(36, optional=True)
     retention: Optional["FileRetentionMode"] = betterproto.enum_field(37, optional=True)
     expires_at: Optional[datetime] = betterproto.message_field(38, optional=True)
+    content: Optional[bytes] = betterproto.bytes_field(50, optional=True)
+    url: Optional[str] = betterproto.string_field(51, optional=True)
 
 
 @dataclass(eq=False, repr=False)

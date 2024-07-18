@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.07.17.2"
+VERSION = "2024.07.18.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -422,6 +422,8 @@ FILE_TABLE = Table(
         Column("sha512", PrimitiveType.STRING, is_nullable=True),
         Column("retention", PrimitiveType.INT16, is_nullable=True),
         Column("expires_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("content", PrimitiveType.BYTES, is_nullable=True),
+        Column("url", PrimitiveType.STRING, is_nullable=True),
     ),
     indexes=(
         Index(

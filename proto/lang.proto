@@ -1539,7 +1539,8 @@ message FileReferenceData {
   optional int32 size = 44;
   optional string sha512 = 45;
   optional string mime_type = 46;
-  optional string external_url = 47;
+  optional bytes content = 50;
+  optional string url = 51;
 }
 
 // A font value.
@@ -2261,6 +2262,8 @@ message FileData {
   optional string sha512 = 36;
   optional FileRetentionMode retention = 37;
   optional google.protobuf.Timestamp expires_at = 38;
+  optional bytes content = 50;
+  optional string url = 51;
 }
 
 // A Bench @handle. Can only be created/edited by the system.

@@ -300,5 +300,6 @@ dist
 
 infra/.*
 *.tfstate
+*.tfstate.*
 *.tfvars
 .DS_Store
