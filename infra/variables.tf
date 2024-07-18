@@ -104,8 +104,14 @@ variable "global_pg_crypto_key" {
 }
 
 #
-# API
+# Web
 # 
+
+variable "web_env_variables" {
+	type = map(string)
+	description = "Environment variables for the web (VITE_APP_*)"
+	default = {}
+}
 
 variable "cors_allowed_hosts" {
   type        = string
