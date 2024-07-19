@@ -91,6 +91,11 @@ variable "global_pg_crypto_key" {
 # Web
 # 
 
+variable "web_certificate_arn" {
+  type        = string
+  description = "Certificate ARN for the web domain"
+}
+
 variable "cors_allowed_hosts" {
   type        = string
   description = "Allowed hosts"

@@ -67,7 +67,8 @@ module "region_eu_central_1" {
   global_pg_password   = var.global_pg_password
   global_pg_crypto_key = var.global_pg_crypto_key
 
-  # api
+  # web
+  web_certificate_arn  = aws_acm_certificate.justbench_com.arn
   cors_allowed_hosts   = var.cors_allowed_hosts
   cors_allowed_origins = var.cors_allowed_origins
 
