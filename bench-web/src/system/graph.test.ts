@@ -195,7 +195,7 @@ describe("node graph", () => {
 describe("layered node graph", () => {
   const base = new NodeGraph({ scope: EMPTY_SCOPE, nodeTypes: [NodeType.USER, NodeType.CLIENT] });
   const overlay = new NodeGraph({ scope: base.scope, nodeTypes: base.nodeTypes, isOverlayOf: base });
-  const graph = new LayerNodeGraph({ layers: [base] });
+  const graph = new LayerNodeGraph({ layers: [base], filter: PASSTHROUGH_NODE_FILTER });
 
   let user1 = fabricate(ObjectType.USER, { unset: ["parentPtr"], set: { id: "user1" } });
   let clientA = fabricate(ObjectType.CLIENT, { set: { parentPtr: toNodeReference(user1), id: "clientA" } });
@@ -280,7 +280,7 @@ describe("layered node graph", () => {
 describe("proxy node graph", () => {
   const baseA = new NodeGraph({ scope: EMPTY_SCOPE, nodeTypes: [NodeType.USER, NodeType.CLIENT] });
   const baseB = new NodeGraph({ scope: EMPTY_SCOPE, nodeTypes: [NodeType.USER, NodeType.CLIENT] });
-  const graph = new ProxyNodeGraph();
+  const graph = new ProxyNodeGraph({ filter: PASSTHROUGH_NODE_FILTER });
 
   let user1 = fabricate(ObjectType.USER, { unset: ["parentPtr"], set: { id: "user1" } });
   const clientA = fabricate(ObjectType.CLIENT, { set: { parentPtr: toNodeReference(user1), id: "clientA" } });
