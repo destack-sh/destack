@@ -153,7 +153,7 @@ const dockActions: Ref<Action[]> = computed(
     data-outside-view="true"
   >
     <!-- Bench -->
-    <Popover v-if="bench" :placement="floatingPlacement" :reference-margin="4" :container-margin="4">
+    <Popover :placement="floatingPlacement" :reference-margin="4" :container-margin="4">
       <template #trigger="{ toggle, isOpen }">
         <button
           class="flex h-[30px] w-full select-none flex-row items-center rounded px-2.5 py-1 text-gray-700 hover:bg-gray-100 hover:text-primary-900"

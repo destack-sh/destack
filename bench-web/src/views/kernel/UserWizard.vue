@@ -54,19 +54,15 @@ function clear() {
 function switchStage() {
   const selfNode = spaceGraph.getOrError(self.value);
   if (stage.value == UserWizardViewStage.LOG_IN) {
-    canvas
-      .tx()
-      .update(selfNode, {
-        title: "Sign Up",
-        valuePacked: packProtoJson(packStateUpdate({ stage: UserWizardViewStage.SIGN_UP })),
-      });
+    canvas.tx().update(selfNode, {
+      title: "Sign Up",
+      valuePacked: packProtoJson(packStateUpdate({ stage: UserWizardViewStage.SIGN_UP })),
+    });
   } else if (stage.value == UserWizardViewStage.SIGN_UP) {
-    canvas
-      .tx()
-      .update(selfNode, {
-        title: "Log In",
-        valuePacked: packProtoJson(packStateUpdate({ stage: UserWizardViewStage.LOG_IN })),
-      });
+    canvas.tx().update(selfNode, {
+      title: "Log In",
+      valuePacked: packProtoJson(packStateUpdate({ stage: UserWizardViewStage.LOG_IN })),
+    });
   } else {
     throw new Error(`unexpected registration stage: ${stage.value}`);
   }
@@ -170,7 +166,7 @@ defineExpose<ViewExposed>({ self, focus });
         v-if="!user"
         name="Switch"
         :icon="makeIcon({ faName: 'fas fa-shuffle' })"
-        :title="stage === UserWizardViewStage.LOG_IN ? 'Sign up instead' : 'Log in instead'"
+        :title="stage === UserWizardViewStage.LOG_IN ? 'Sign up' : 'Log in'"
         class="mt-2 w-full"
         :variant="Variant.COMPACT"
         @click="() => switchStage()"

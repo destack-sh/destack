@@ -23,6 +23,7 @@ import Button from "@/views/controls/Button.vue";
 import { DEFAULT_BAR_POSITION, DEFAULT_HEADER_HEIGHT, createDesktopDefaultSpace } from "@/views/canvas";
 import { user } from "@/system/user";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
+import { VERSION } from "@/utils/globals";
 
 const BAR_WIDTH = DEFAULT_HEADER_HEIGHT;
 const BAR_HEIGHT = DEFAULT_HEADER_HEIGHT;

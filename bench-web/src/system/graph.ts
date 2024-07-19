@@ -2,12 +2,10 @@ import {
   CHILD_NODE_TYPES,
   GraphScopeData,
   NODE_PROPERTY_ENUM_BY_TYPE,
-  NodeReferenceData,
   NodeType,
-  ObjectType,
   type AnyNodeData,
   type AnyPropertyType,
-  type NodeTypeMapping,
+  type NodeTypeMapping
 } from "@/proto/wire";
 import {
   EMPTY_SCOPE,
@@ -702,7 +700,7 @@ export class NodeGraph extends BaseNodeGraphMixin implements ReadNodeGraph, Writ
 abstract class FilterBaseNodeGraphMixin extends BaseNodeGraphMixin {
   public readonly filter: ShallowRef<NodeGraphFilter>;
 
-  constructor(filter: MaybeRef<NodeGraphFilter> = PASSTHROUGH_NODE_FILTER) {
+  constructor(filter: MaybeRef<NodeGraphFilter>) {
     super();
     this.filter = isRef(filter) ? filter : shallowRef(filter);
   }
@@ -785,7 +783,7 @@ abstract class FilterBaseNodeGraphMixin extends BaseNodeGraphMixin {
 export class ProxyNodeGraph extends FilterBaseNodeGraphMixin implements ReadNodeGraph {
   readonly _graph: ShallowRef<ReadNodeGraph | null>;
 
-  constructor(init: { graph?: MaybeRef<ReadNodeGraph | null>; filter?: MaybeRef<NodeGraphFilter> } = { graph: null }) {
+  constructor(init: { graph?: MaybeRef<ReadNodeGraph | null>; filter: MaybeRef<NodeGraphFilter> }) {
     super(init.filter);
     this._graph = isRef(init.graph) ? init.graph : shallowRef(init.graph ?? null);
   }
@@ -824,8 +822,24 @@ export class ProxyNodeGraph extends FilterBaseNodeGraphMixin implements ReadNode
 
   getChildren<T extends NodeType = NodeType>(parent: NodeKey<any>, metatype?: T): NodeTypeMapping[T][] {
     if (!this.get(parent)) return [];
+    // getChildren but with the filter
     const children = this._graph.value?.getChildren(parent, metatype)?.filter((n) => this.isNodeVisibleSelf(n)) ?? [];
     return children;
+  }
+
+  getDescendants<T extends NodeType = NodeType>(
+    node: NodeKey<any>,
+    options?: { metatypes?: T[]; filter?: (node: NodeTypeMapping[T]) => boolean; includeSelf?: boolean },
+  ): NodeTypeMapping[T][] {
+    // augment with the filter
+    return super.getDescendants(node, {
+      metatypes: options?.metatypes,
+      filter:
+        options?.filter != null
+          ? (n) => this.isNodeVisibleSelf(n) && options.filter!(n)
+          : (n) => this.isNodeVisibleSelf(n),
+      includeSelf: options?.includeSelf,
+    });
   }
 
   subscribe(
@@ -887,7 +901,7 @@ export class LayerNodeGraph extends FilterBaseNodeGraphMixin implements ReadNode
   //  (so we only need to acquire refs from layers with the requested scope)
   public readonly layers: ShallowRef<ReadNodeGraph[]>;
 
-  constructor(init: { layers?: MaybeRef<ReadNodeGraph[]>; filter?: MaybeRef<NodeGraphFilter> } = { layers: [] }) {
+  constructor(init: { layers?: MaybeRef<ReadNodeGraph[]>; filter: MaybeRef<NodeGraphFilter> }) {
     super(init.filter);
     this.layers = !isRef(init.layers) ? shallowRef(init.layers ?? []) : init.layers;
   }

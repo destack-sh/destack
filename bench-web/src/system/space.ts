@@ -11,7 +11,7 @@ import {
 } from "@/proto/wiring";
 import local, { BENCH_SCOPE, LOCAL_SPACE_ID, PACKAGE_SCOPE, spaceGraphLocal, spacePtr } from "@/system/client";
 import { makeReadOptions, useExistingConnection, useGetConnection } from "@/system/connection";
-import { NodeGraph, ProxyNodeGraph } from "@/system/graph";
+import { DEFAULT_NODE_FILTER, NodeGraph, ProxyNodeGraph } from "@/system/graph";
 import { SOURCE_NODE_TYPES } from "@/system/lang";
 import { toaster } from "@/system/toast";
 import { log } from "@/utils/log";
@@ -52,7 +52,7 @@ pkgConnection.onError((e) => {
 });
 
 // space (local if we don't have a Space in that Bench, otherwise from the current Package)
-export const spaceGraph = new ProxyNodeGraph({ graph: spaceGraphLocal });
+export const spaceGraph = new ProxyNodeGraph({ graph: spaceGraphLocal, filter: DEFAULT_NODE_FILTER });
 export const space = spaceGraph.getRef(local.spacePtr);
 export const inspectionPtr = computed(() => space.value?.inspectionPtr);
 export const inspectionBasePtr = computed(() => space.value?.basePtr);
