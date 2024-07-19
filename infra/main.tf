@@ -95,13 +95,16 @@ resource "aws_vpc_peering_connection" "global_peering" {
   peer_vpc_id = aws_vpc.global_vpc.id
   peer_region = var.global_region
   tags = {
-    "Name" = "bench-${var.env}-${each.key}-global-peering"
+    Name = "bench-${var.env}-${each.key}-global-peering"
   }
 }
 resource "aws_vpc_peering_connection_accepter" "global_peering_accepter" {
   for_each                  = toset(var.regions)
   vpc_peering_connection_id = aws_vpc_peering_connection.global_peering[each.key].id
   auto_accept               = true
+	tags = {
+		Name = "bench-${var.env}-${each.key}-global-peering"
+	}
 }
 
 # peer regional VPCs to each other
@@ -131,11 +134,14 @@ resource "aws_vpc_peering_connection" "cross_region_peering" {
   peer_vpc_id = each.value.vpc2
   peer_region = each.value.region2
   tags = {
-    "Name" = "bench-${var.env}-${each.value.region1}-${each.value.region2}-cross-region-peering"
+    Name = "bench-${var.env}-${each.value.region1}-${each.value.region2}-cross-region-peering"
   }
 }
 resource "aws_vpc_peering_connection_accepter" "cross_region_peering_accepter" {
   for_each                  = local.peering_map
   vpc_peering_connection_id = aws_vpc_peering_connection.cross_region_peering[each.key].id
   auto_accept               = true
+	tags = {
+		Name = "bench-${var.env}-${each.value.region1}-${each.value.region2}-cross-region-peering"
+	}
 }
