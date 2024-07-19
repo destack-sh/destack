@@ -96,8 +96,9 @@ resource "aws_s3_object" "bench_web_files" {
 #
 
 resource "aws_acm_certificate" "justbench_com" {
-  domain_name       = "justbench.com"
-  validation_method = "DNS"
+  domain_name               = "justbench.com"
+  subject_alternative_names = ["*.justbench.com"]
+  validation_method         = "DNS"
 
   provider = aws.us-east-1
 
@@ -203,6 +204,14 @@ resource "cloudflare_record" "www" {
   value   = aws_cloudfront_distribution.bench_web.domain_name
   ttl     = 300
   proxied = false
+}
+
+#
+# Outputs
+#
+
+output "bench_web_certificate_arn" {
+  value = aws_acm_certificate.justbench_com.arn
 }
 
 output "bench_web_distribution_id" {

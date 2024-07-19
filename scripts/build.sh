@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 # abort if repo is not clean and not --force
 if [[ -n $(git status --porcelain) && "$1" != "--force" ]]; then
