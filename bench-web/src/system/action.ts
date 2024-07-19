@@ -1251,7 +1251,7 @@ contributeActionMap<"space">({
     action: ACTION_COMING_SOON,
   },
   "space.launch.discord": {
-    title: "Discuss on Discord",
+    title: "Open Discord",
     text: "Join the community on Discord",
     icon: "fab fa-discord",
     url: DISCORD_URL,

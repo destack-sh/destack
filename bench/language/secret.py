@@ -47,7 +47,7 @@ class SecretReference(
     NodeReferenceBase[Secret, SecretData, "SecretReference", SecretReferenceData],
 ):
     """
-    A reference to a Secret. Like a NodeReference with secret-specific metadata.
+    A reference to a Secret. Extends NodeReference with secret-specific metadata.
     """  # :RichReferences
 
     # ...NodeReferenceBase[30-39]

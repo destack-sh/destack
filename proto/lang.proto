@@ -583,7 +583,7 @@ enum FileType {
   FILE_TYPE_DOCUMENT = 5;
   FILE_TYPE_DATA = 6;
   FILE_TYPE_EXECUTABLE = 7;
-  FILE_TYPE_OTHER = 10;
+  FILE_TYPE_GENERIC = 10;
 }
 
 enum FontSize {
@@ -1536,7 +1536,7 @@ message FileInfoData {
   optional int32 sample_rate = 63;
 }
 
-// A reference to a file stored somewhere. Like a NodeReference with file-specific metadata.
+// A reference to a File. Extends NodeReference with file-specific metadata.
 message FileReferenceData {
   ObjectType metatype = 1;
   NodeType type = 30;
@@ -1826,7 +1826,7 @@ message ScheduleData {
   optional string cron = 50;
 }
 
-// A reference to a Secret. Like a NodeReference with secret-specific metadata.
+// A reference to a Secret. Extends NodeReference with secret-specific metadata.
 message SecretReferenceData {
   ObjectType metatype = 1;
   NodeType type = 30;

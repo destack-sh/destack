@@ -56,7 +56,7 @@ class FileType(IdEnum):
     DOCUMENT = 5
     DATA = 6
     EXECUTABLE = 7
-    OTHER = 10
+    GENERIC = 10
 
 
 @object_component()
@@ -128,7 +128,7 @@ class FileReference(
     NodeReferenceBase[File, FileData, "FileReference", FileReferenceData],
 ):
     """
-    A reference to a file stored somewhere. Like a NodeReference with file-specific metadata.
+    A reference to a File. Extends NodeReference with file-specific metadata.
     """  # :RichReferences
 
     # ...NodeReferenceBase[30-39]

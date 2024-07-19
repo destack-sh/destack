@@ -991,7 +991,7 @@ async def pg_update_variable(
     )
     # only set dynamic columns if they are in the row (otherwise keep current value)
     dynamic_values_sql = tuple(
-        sqlstr(f"{{}} = CASE WHEN %(__{c.name}_set)s THEN {{}} ELSE {c.name} END").format(
+        sqlstr(f'{{}} = CASE WHEN %(__{c.name}_set)s THEN {{}} ELSE "{c.name}" END').format(
             sqlident(c.name), _pg_wrap_write_column(c, sqlstr(f"%({c.name})s"))
         )
         for c in dynamic_columns
