@@ -67,7 +67,7 @@ resource "aws_s3_bucket" "bench_web" {
   bucket = "bench-${var.env}-global-web"
 }
 
-# Make the S3 bucket public (for read access)
+# make the S3 bucket public (for read access)
 resource "aws_s3_bucket_public_access_block" "bench_web" {
   bucket = aws_s3_bucket.bench_web.id
 
@@ -106,15 +106,24 @@ resource "aws_s3_bucket_policy" "bench_web_allow_public" {
   })
 }
 
-# Upload the built bench-web/dist to the S3 bucket
-# nocheckin: replace VITE_APP_* variables in index*.js
+# upload the built bench-web/dist to the S3 bucket
+locals {
+  # :BenchWebEnv
+  web_variables = {
+    "VITE_APP_COMMIT"      = data.external.git.result.sha
+    "VITE_APP_ENVIRONMENT" = var.env
+    "VITE_APP_SENTRY_DSN"  = var.sentry_dsn
+  }
+  web_variables_subs = [for k, v in local.web_variables : {
+    regex = "/[a-zA-Z0-9]+\\.${k}/",
+    sub   = "\"${v}\""
+  }]
+}
 resource "aws_s3_object" "bench_web_files" {
   for_each = fileset("../bench-web/dist", "**")
 
   bucket = aws_s3_bucket.bench_web.bucket
   key    = each.key
-  source = "../bench-web/dist/${each.key}"
-  etag   = filemd5("../bench-web/dist/${each.key}")
   content_type = lookup({
     "html" = "text/html",
     "js"   = "application/javascript",
@@ -124,6 +133,23 @@ resource "aws_s3_object" "bench_web_files" {
     "svg"  = "image/svg+xml",
     "json" = "application/json"
   }, split(".", each.key)[length(split(".", each.key)) - 1], "application/octet-stream")
+
+  content_base64 = endswith(each.key, ".js") ? base64encode(
+    # :BenchWebEnv (one replace for each variable.. :Cleanup)
+    replace(
+      replace(
+        replace(
+          file("../bench-web/dist/${each.key}"),
+          local.web_variables_subs[0].regex,
+          local.web_variables_subs[0].sub
+        ),
+        local.web_variables_subs[1].regex,
+        local.web_variables_subs[1].sub
+      ),
+      local.web_variables_subs[2].regex,
+      local.web_variables_subs[2].sub
+    )
+  ) : filebase64("../bench-web/dist/${each.key}")
 
   tags = {
     Name        = "bench-${var.env}-web"

@@ -3,7 +3,7 @@ import "./assets/index.css";
 
 import { toaster } from "@/system/toast";
 import { setupTransactionManagement } from "@/system/transaction";
-import { COMMIT, IS_DEV, SUPERVISOR_URL, VERSION } from "@/utils/globals";
+import { COMMIT, ENV, IS_DEV, SENTRY_DSN, SUPERVISOR_URL, VERSION } from "@/utils/globals";
 import { keytrap } from "@/utils/keymap";
 import { CONTEXT_MENU_DIRECTIVE, MENU_DIRECTIVE } from "@/utils/menu";
 import { EVENT_OUTSIDE_DIRECTIVE, HOVER_DIRECTIVE, TOOLTIP_DIRECTIVE } from "@/utils/tooltip";
@@ -23,10 +23,10 @@ async function init() {
       api_host: "https://eu.posthog.com",
       enable_recording_console_log: true,
     });
-    console.info("Setting up Sentry...", import.meta.env.VITE_APP_SENTRY_DSN != null);
+    console.info("Setting up Sentry...", SENTRY_DSN != null);
     Sentry.init({
       app,
-      dsn: import.meta.env.VITE_APP_SENTRY_DSN,
+      dsn: import.meta.env.SENTRY_DSN,
       integrations: [
         Sentry.browserTracingIntegration({
           tracePropagationTargets: ["localhost", "127.0.0.1", "api.justbench.com", /^\//],
@@ -41,10 +41,10 @@ async function init() {
   }
 
   // dump startup info
-  console.group(`%cBench OS`, "color:orangered");
-  console.info(`%cVersion: ${VERSION} (${COMMIT})`, "color:orangered");
+  console.group(`%cBench Web`, "color:orangered");
+  console.info(`%cVersion: ${VERSION} (${COMMIT ?? "local"})`, "color:orangered");
+  console.info(`%cEnvironment: ${ENV ?? "dev"}`, "color:orangered");
   console.info(`%cSupervisor: ${SUPERVISOR_URL}`, "color:orangered");
-  console.info(`%cEnvironment: ${import.meta.env.MODE}`, "color:orangered");
   console.groupEnd();
 
   // prevent opening files that are dragged over the window
