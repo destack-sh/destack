@@ -34,6 +34,10 @@ COPY bench/ bench/
 COPY bench.py .
 COPY pyproject.toml .
 COPY version .
+# prune unnecessary files
+RUN rm -rf bench/test
+# prune tests
+RUN find bench/ -type f -name 'test_*.py' -delete
 
 ARG GIT_COMMIT
 ARG VERSION
@@ -51,7 +55,7 @@ RUN /root/.cargo/bin/uv pip install --system --no-cache -r requirements.txt
 
 # copy relevant files
 COPY bench/ bench/ 
-# prune unnecessary modules
+# prune unnecessary files
 RUN rm -rf bench/system bench/test
 # prune tests
 RUN find bench/ -type f -name 'test_*.py' -delete

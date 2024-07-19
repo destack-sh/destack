@@ -22,38 +22,60 @@ app = typer.Typer(short_help="run the services")
 logger = structlog.get_logger(__name__)
 
 
-@app.command()
-@async_to_sync_blocking
-async def system(
-    host: str, port: int, watch: bool = False, no_supervisor: bool = False, skip_check: bool = False
+async def _do_serve(
+    handlers: list[ServiceBase], *, host: str, port: int, watch: bool, no_check: bool
 ):
-    if not skip_check:
+    """Serves the given handlers."""
+    if not no_check:
         await check_is_consistent(check_db=True)
+    logger.info("serve", handlers=handlers, host=host, port=port, env=ENV)
     start = time_ns()
-    logger.info("serve.system", host=host, port=port, env=ENV)
-    global_store = system_store_from_env()
-    services: list[ServiceBase] = [HostRouter(global_store=global_store, oracle=REAL_ORACLE)]
-    if not no_supervisor:
-        services.append(Supervisor(global_store=global_store, oracle=REAL_ORACLE))
-    server = GrpcServer(handlers=services)
+    server = GrpcServer(handlers=handlers)
     if IS_DEV and watch:
         _ = asyncio.create_task(restart_on_file_changes())  # noqa: RUF006
     try:
         with graceful_exit([server]):
             await server.start(host=host, port=port)
-        await server.wait_closed()
+            await server.wait_closed()
     finally:
-        logger.info("serve.exit", uptime=(time_ns() - start) / 1e9)
+        logger.info("serve.exit", uptime=(time_ns() - start) / 1_000_000)
 
 
 @app.command()
 @async_to_sync_blocking
-async def runtime(host: str, port: int, watch: bool = False, skip_check: bool = False):
-    if not skip_check:
-        await check_is_consistent(check_db=True)
-    start = time_ns()
+async def system(
+    host: str, port: int, watch: bool = False, no_supervisor: bool = False, no_check: bool = False
+):
+    global_store = system_store_from_env()
+    host_router = HostRouter(global_store=global_store, oracle=REAL_ORACLE)
+    services: list[ServiceBase] = [host_router]
+    if not no_supervisor:
+        supervisor = Supervisor(global_store=global_store, oracle=REAL_ORACLE)
+        services.append(supervisor)
+    await _do_serve(handlers=services, host=host, port=port, watch=watch, no_check=no_check)
+
+
+@app.command()
+@async_to_sync_blocking
+async def supervisor(host: str, port: int, watch: bool = False, no_check: bool = False):
+    global_store = system_store_from_env()
+    supervisor = Supervisor(global_store=global_store, oracle=REAL_ORACLE)
+    await _do_serve(handlers=[supervisor], host=host, port=port, watch=watch, no_check=no_check)
+
+
+@app.command()
+@async_to_sync_blocking
+async def host(host: str, port: int, watch: bool = False, no_check: bool = False):
+    global_store = system_store_from_env()
+    host_router = HostRouter(global_store=global_store, oracle=REAL_ORACLE)
+    await _do_serve(handlers=[host_router], host=host, port=port, watch=watch, no_check=no_check)
+
+
+@app.command()
+@async_to_sync_blocking
+async def runtime(host: str, port: int, watch: bool = False, no_check: bool = False):
     logger.info("serve.runtime", host=host, port=port, env=ENV)
-    server = Runtime(
+    runtime = Runtime(
         supervisor_url=get_from_env("SUPERVISOR_URL", description="URL of the supervisor"),
         bench_id=get_from_env("BENCH_ID", typ=UUID, description="Node of current Bench"),
         client_type=get_from_env("CLIENT_TYPE", typ=ClientType, description="Type of client"),
@@ -69,14 +91,4 @@ async def runtime(host: str, port: int, watch: bool = False, skip_check: bool = 
         ),
         oracle=REAL_ORACLE,
     )
-    services = [server]
-    server = GrpcServer(services)
-
-    if IS_DEV and watch:
-        _ = asyncio.create_task(restart_on_file_changes())  # noqa: RUF006
-    try:
-        with graceful_exit([server]):
-            await server.start(host=host, port=port)
-        await server.wait_closed()
-    finally:
-        logger.info("serve.exit", uptime=(time_ns() - start) / 1e9)
+    await _do_serve(handlers=[runtime], host=host, port=port, watch=watch, no_check=no_check)
