@@ -1,8 +1,14 @@
 <script lang="ts" setup>
 import { NodeType, type NodeReferenceData } from "@/proto/wire";
 import { toCamelName } from "@/system/lang";
+import { DISCORD_URL } from "@/utils/globals";
+import { getDurationFromNow, TimeUpdateInterval } from "@/utils/time";
+import { DateTime } from "luxon";
+import { computed } from "vue";
 
 const props = defineProps<{ node?: NodeReferenceData; isConnected: boolean }>();
+const startedAt = DateTime.now();
+const duration = computed(() => getDurationFromNow(startedAt, { updateInterval: TimeUpdateInterval.SECOND }));
 </script>
 <template>
   <div class="flex flex-col justify-center text-center">
@@ -16,14 +22,29 @@ const props = defineProps<{ node?: NodeReferenceData; isConnected: boolean }>();
     </template>
     <template v-else>
       <!-- Loading -->
-       <!-- (delay appear to prevent flickering for very fast loads) -->
+      <!-- (delay appear to prevent flickering for very fast loads) -->
       <Transition
         enter-from-class="opacity-0"
         enter-active-class="transition-opacity duration-200"
         enter-to-class="opacity-100"
         appear
+        mode="out-in"
       >
-        <i class="fas fa-spinner-third animate-spin text-gray-400" />
+        <div v-if="duration.as('seconds') < 5">
+          <!-- Regular spinny boi -->
+          <i class="fas fa-spinner-third animate-spin text-gray-400" />
+        </div>
+        <div v-else-if="duration.as('seconds') < 30" class="flex flex-col items-center">
+          <!-- Something seems to be wrong -->
+          <i class="fas fa-spinner-third animate-spin text-gray-400" />
+          <span class="mt-1.5 text-gray-700">Hold tight...</span>
+        </div>
+        <div v-else class="flex flex-col items-center">
+          <!-- Couldn't connect -->
+          <i class="fas fa-cloud-slash text-warning-600" />
+          <span class="mt-1.5 text-gray-700">Unable to connect.</span>
+          <a :href="DISCORD_URL" class="underline mt-1">Discord</a>
+        </div>
       </Transition>
     </template>
   </div>

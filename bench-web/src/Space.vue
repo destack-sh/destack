@@ -22,6 +22,7 @@ import { assignSpaceInPackage } from "@/system/space";
 import Button from "@/views/controls/Button.vue";
 import { DEFAULT_BAR_POSITION, DEFAULT_HEADER_HEIGHT, createDesktopDefaultSpace } from "@/views/canvas";
 import { user } from "@/system/user";
+import Inaccessible from "@/views/builtins/Inaccessible.vue";
 
 const BAR_WIDTH = DEFAULT_HEADER_HEIGHT;
 const BAR_HEIGHT = DEFAULT_HEADER_HEIGHT;
@@ -148,16 +149,7 @@ watch([canvas.focusedViewPtr, bench], () => {
     />
     <!-- Loading... -->
     <div v-else-if="!spaceConnection.isConnected.value" class="absolute bg-white" :style="{ ...mainBoxStyle }">
-      <div class="flex h-full flex-col items-center justify-center">
-        <Transition
-          enter-from-class="opacity-0"
-          enter-active-class="transition-opacity duration-200"
-          enter-to-class="opacity-100"
-          appear
-        >
-          <i class="fas fa-spinner-third animate-spin text-xl text-gray-400" />
-        </Transition>
-      </div>
+      <Inaccessible class="h-full w-full" :node="spacePtr" :is-connected="spaceConnection.isConnected.value" />
     </div>
     <!-- Does not have a space (not signed, space empty or disappeared) -->
     <div v-else class="absolute flex flex-col justify-center bg-white text-center" :style="{ ...mainBoxStyle }">

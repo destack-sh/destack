@@ -51,7 +51,7 @@ import { ACCENT_COLOR_BY_RUN_STATUS } from "@/utils/style";
 import {
   formatDuration,
   formatRelativeDate,
-  getDurationfromNow
+  getDurationFromNow
 } from "@/utils/time";
 import { DEFAULT_HEADER_HEIGHT, useExpansion, useViewState } from "@/views/canvas";
 import { makeViewId, viewEmits, type ViewComponent, type ViewExposed } from "@/views/common";
@@ -496,7 +496,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
                 <template v-if="item.it.startedAt != null">
                   in
                   <span>
-                    {{ formatDuration(item.it.duration ?? getDurationfromNow(item.it.startedAt)) }}
+                    {{ formatDuration(item.it.duration ?? getDurationFromNow(item.it.startedAt)) }}
                   </span>
                 </template>
               </template>

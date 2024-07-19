@@ -35,6 +35,18 @@ export function getNow(updateInterval: TimeUpdateInterval) {
   return NOW_TRACKERS[updateInterval].now;
 }
 
+/** Gets the reactive absolute duration from now */
+export function getDurationFromNow(dt: Timestamp | DateTime, options?: { updateInterval?: TimeUpdateInterval }) {
+  if (!(dt instanceof DateTime)) dt = tsToDt(dt);
+  const interval = options?.updateInterval ?? TimeUpdateInterval.MINUTE;
+  const now = getNow(interval);
+  let duration = dt.diff(now.value, "milliseconds");
+  if (duration.as("milliseconds") < 0) {
+    duration = duration.negate();
+  }
+  return duration;
+}
+
 type TimeUnit = "ms" | "s" | "m" | "h" | "d" | "w" | "y";
 
 const TIME_UNIT_MILLIS: Record<TimeUnit, number> = {
@@ -108,24 +120,12 @@ export function formatDuration(duration: Duration | number, options?: FormatDura
   }
 }
 
-/** Gets the absolute duration from now */
-export function getDurationfromNow(dt: Timestamp | DateTime, options?: { updateInterval?: TimeUpdateInterval }) {
-  if (!(dt instanceof DateTime)) dt = tsToDt(dt);
-  const interval = options?.updateInterval ?? TimeUpdateInterval.MINUTE;
-  const now = getNow(interval);
-  let duration = dt.diff(now.value, "milliseconds");
-  if (duration.as("milliseconds") < 0) {
-    duration = duration.negate();
-  }
-  return duration;
-}
-
 /** Formats a duration from a date relative to now (as an absolute value) */
 export function formatDurationFromNow(
   dt: Timestamp | DateTime,
   options?: FormatDurationOptions & { updateInterval?: TimeUpdateInterval },
 ) {
-  const duration = getDurationfromNow(dt, options);
+  const duration = getDurationFromNow(dt, options);
   return formatDuration(duration, options);
 }
 

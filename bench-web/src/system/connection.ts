@@ -395,7 +395,7 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
       const errorCode = (error as RpcError).code ?? "UNKNOWN";
       if (errorCode) this.onErrorSubs.forEach((sub) => sub(errorCode as GrpcStatusName));
       const retry = shouldRetry(error);
-      if (errorCode != lastErrorCode) {
+      if (errorCode != lastErrorCode && lastErrorCode != null) {
         const op = `${this.kind}:${this.meta.name}`;
         toaster.error({
           title: `'${op}' connection lost`,
