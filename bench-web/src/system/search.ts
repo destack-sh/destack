@@ -4,14 +4,14 @@ import {
   BlockType,
   ENUM_BY_TYPE,
   EnumType,
+  FileType,
   NodeType,
   ObjectType,
   PrimitiveType,
-  StructType,
   TypeKind,
   type AnyNodeData,
   type IconData,
-  type NodeReferenceData,
+  type NodeReferenceData
 } from "@/proto/wire";
 import { toNodeReference } from "@/proto/wiring";
 import { ACTION_BUILTIN_IDS_INDEX, IMPLEMENTED_ACTIONS, type Action } from "@/system/action";
@@ -19,7 +19,6 @@ import type { NodeKey, ReadNodeGraph } from "@/system/graph";
 import { AVAILABLE_FA_ICONS, DEFAULT_ENUM_ICON, getNodeIcon, type IconMetadata } from "@/system/icon";
 import { TYPE_BLOCK_TYPES, getEnumOptions, isStructType, type EnumOption } from "@/system/lang";
 import type { TypeIdentity } from "@/system/value";
-import { log } from "@/utils/log";
 import uFuzzy from "@leeoniya/ufuzzy";
 import { tryOnBeforeUnmount } from "@vueuse/core";
 import { markRaw, shallowRef, toRef, toValue, watch, type MaybeRef, type Ref } from "vue";
@@ -186,7 +185,7 @@ function itemFromNode(indexId: string, graph: ReadNodeGraph, value: NodeKey<any>
 /**
  * Search nodes in a graph.
  */
-export function graphIndex(options: {
+export function graphIndex(idx: {
   id: string;
   graph: ReadNodeGraph;
   metatypes: NodeType[];
@@ -195,14 +194,14 @@ export function graphIndex(options: {
   skipDepth?: number;
   maxDepth?: MaybeRef<number>;
 }): SearchIndex<NodeItem> {
-  const maxDepthRef = toRef(options.maxDepth) as Ref<number | undefined>;
+  const maxDepthRef = toRef(idx.maxDepth) as Ref<number | undefined>;
 
   const index: SearchIndex<NodeItem> = {
-    id: options.id,
-    fromValue: (value: NodeKey<any>) => itemFromNode(options.id, options.graph, value),
+    id: idx.id,
+    fromValue: (value: NodeKey<any>) => itemFromNode(idx.id, idx.graph, value),
     toValue: (candidate: NodeItem) => toNodeReference(candidate.node),
     valueEquals: (a: NodeKey<any>, b: NodeKey<any>) => a.id === b.id || a.ck == b.ck,
-    candidates: () => walkGraph({ ...options, maxDepth: maxDepthRef.value }),
+    candidates: () => walkGraph({ ...idx, maxDepth: maxDepthRef.value }),
   };
 
   return markRaw(index);
@@ -211,12 +210,12 @@ export function graphIndex(options: {
 /**
  * Search the currently available actions.
  */
-export function actionIndex(options: { id: string } = { id: "action" }): SearchIndex<ActionItem> {
+export function actionIndex(idx: { id: string } = { id: "action" }): SearchIndex<ActionItem> {
   function map(value: Action): ActionItem {
-    return { ...value, title: toValue(value.title), metatype: "action", itemId: `${options.id}-${value.id}` };
+    return { ...value, title: toValue(value.title), metatype: "action", itemId: `${idx.id}-${value.id}` };
   }
   const index: SearchIndex<ActionItem> = {
-    id: options.id,
+    id: idx.id,
     fromValue: map,
     toValue: (candidate: ActionItem) => candidate.id,
     valueEquals: (a, b) => a.id === b.id,
@@ -232,7 +231,7 @@ export function actionIndex(options: { id: string } = { id: "action" }): SearchI
 /*
  * Search the available options of an enum.
  */
-export function enumIndex(options: { id: string; enumTypes: EnumType[] }): SearchIndex<EnumOptionItem> {
+export function enumIndex(idx: { id: string; enumTypes: EnumType[] }): SearchIndex<EnumOptionItem> {
   function itemFromEnumOption(enumTypes: EnumType[], value: EnumOption | number): EnumOptionItem | null {
     if (typeof value == "object") {
       return { ...value, metatype: "enum-option", itemId: value.id };
@@ -242,7 +241,7 @@ export function enumIndex(options: { id: string; enumTypes: EnumType[] }): Searc
         if (ENUM_BY_TYPE[enumType][value] != null) {
           const enumOption = getEnumOptions(enumType).find((o) => o.value === value);
           if (enumOption != null)
-            return { ...enumOption, metatype: "enum-option", itemId: `${options.id}-${enumOption.id}` };
+            return { ...enumOption, metatype: "enum-option", itemId: `${idx.id}-${enumOption.id}` };
         }
       }
     }
@@ -250,8 +249,8 @@ export function enumIndex(options: { id: string; enumTypes: EnumType[] }): Searc
   }
 
   const index: SearchIndex<EnumOptionItem> = {
-    id: options.id,
-    fromValue: (value: EnumOption | number) => itemFromEnumOption(options.enumTypes, value),
+    id: idx.id,
+    fromValue: (value: EnumOption | number) => itemFromEnumOption(idx.enumTypes, value),
     toValue: (candidate: EnumOptionItem) => candidate.value,
     valueEquals: (a: EnumOption | number, b: EnumOption | number) => {
       const aValue = typeof a == "object" ? a.value : a;
@@ -259,56 +258,57 @@ export function enumIndex(options: { id: string; enumTypes: EnumType[] }): Searc
       return aValue === bValue;
     },
     candidates: () =>
-      options.enumTypes
+      idx.enumTypes
         .flatMap((enumType) => getEnumOptions(enumType))
-        .map((enumOption) => itemFromEnumOption(options.enumTypes, enumOption)!),
+        .map((enumOption) => itemFromEnumOption(idx.enumTypes, enumOption)!),
   };
   return markRaw(index);
 }
 
-const PREFERRED_TYPE_ORDER: (PrimitiveType | StructType)[] = [
-  StructType.TEXT,
-  PrimitiveType.BOOLEAN,
-  PrimitiveType.FLOAT64,
-  PrimitiveType.DATETIME,
-  StructType.CODE,
-  PrimitiveType.JSON,
-];
-
 /**
  * Search the available type identities (built-ins plus from graph).
  */
-export function typeIndex(options: {
+export function typeIndex(idx: {
   id: string;
   graph: ReadNodeGraph;
   skipDepth?: number;
   maxDepth?: number;
 }): SearchIndex<TypeItem> {
-  const enumTypes = [EnumType.PRIMITIVE_TYPE, EnumType.OBJECT_TYPE];
+  const intrinsicEnumTypes = [EnumType.PRIMITIVE_TYPE, EnumType.FILE_TYPE, EnumType.BLOCK_TYPE, EnumType.OBJECT_TYPE];
 
   function fromValue(value: TypeIdentity): TypeItem | null {
     if (value.baseTypePtr != null) {
-      const nodeItem = itemFromNode(options.id, options.graph, value.baseTypePtr);
+      const nodeItem = itemFromNode(idx.id, idx.graph, value.baseTypePtr);
       if (nodeItem != null) return mapFromNode(nodeItem);
     } else if (value.primitiveType != null) {
-      const enumOption = getEnumOptions(EnumType.PRIMITIVE_TYPE).find((option) => option.value == value.primitiveType);
-      if (enumOption != null) return mapFromOption(EnumType.PRIMITIVE_TYPE, enumOption);
+      const option = getEnumOptions(EnumType.PRIMITIVE_TYPE).find((option) => option.value == value.primitiveType);
+      if (option != null) return mapFromIntrinsicOption(EnumType.PRIMITIVE_TYPE, option);
     } else if (value.benchType != null) {
-      const enumOption = getEnumOptions(EnumType.BENCH_TYPE).find((option) => option.value == value.benchType);
-      if (enumOption != null) return mapFromOption(EnumType.BENCH_TYPE, enumOption);
+      if (value.constraint?.fileType != null) {
+        const option = getEnumOptions(EnumType.FILE_TYPE).find((option) => option.value == value.constraint!.fileType);
+        if (option != null) return mapFromIntrinsicOption(EnumType.FILE_TYPE, option);
+      } else if (value.constraint?.blockType != null) {
+        const option = getEnumOptions(EnumType.BLOCK_TYPE).find(
+          (option) => option.value == value.constraint!.blockType,
+        );
+        if (option != null) return mapFromIntrinsicOption(EnumType.BLOCK_TYPE, option);
+      }
+      const option = getEnumOptions(EnumType.BENCH_TYPE).find((option) => option.value == value.benchType);
+      if (option != null) return mapFromIntrinsicOption(EnumType.BENCH_TYPE, option);
     }
     return null;
   }
 
-  function mapFromOption(enumType: EnumType, option: EnumOption): TypeItem {
+  function mapFromIntrinsicOption(enumType: EnumType, option: EnumOption): TypeItem {
     const item: TypeItem = {
-      ...option,
       kind: TypeKind.LITERAL,
       id: `${enumType}-${option.id}`,
+      title: option.title,
+      icon: option.icon,
       isList: false,
       isSecret: false,
       metatype: "type",
-      itemId: `${options.id}-${option.id}`,
+      itemId: `${idx.id}-${enumType}-${option.id}`,
     };
     if (item.icon == null) item.icon = DEFAULT_ENUM_ICON;
     if (enumType == EnumType.PRIMITIVE_TYPE) {
@@ -317,15 +317,25 @@ export function typeIndex(options: {
     } else if (enumType == EnumType.OBJECT_TYPE || enumType == EnumType.BENCH_TYPE) {
       item.benchType = option.value as BenchType;
       item.kind = isStructType(option.value) ? TypeKind.STRUCT : TypeKind.NODE;
+    } else if (enumType == EnumType.FILE_TYPE) {
+      item.title = option.title + " File";
+      item.kind = TypeKind.NODE;
+      item.benchType = BenchType.FILE;
+      item.constraint = { metatype: ObjectType.TYPE_CONSTRAINT, fileType: option.value as FileType };
+    } else if (enumType == EnumType.BLOCK_TYPE) {
+      item.title = option.title + " Block";
+      item.kind = TypeKind.NODE;
+      item.benchType = BenchType.BLOCK;
+      item.constraint = { metatype: ObjectType.TYPE_CONSTRAINT, blockType: option.value as BlockType };
     } else {
-      throw new Error(`unexpected enum type: ${enumType}`);
+      throw new Error(`unexpected enum type: ${enumType} (${option.value})`);
     }
     return item;
   }
 
   function mapFromNode(nodeItem: NodeItem): TypeItem {
     // NOTE: technically there is more than one possible mapping from node to type identity
-    //  (for instance Signal blocks could give both Signal nodes based in that block or Values of that Signal type)
+    //  (for instance Signal blocks could map to both Signal nodes based in that block or Values of that Signal type)
     const blockType = (nodeItem.node as BlockData).type;
     let kind: TypeKind;
     let benchType: BenchType | undefined;
@@ -347,32 +357,44 @@ export function typeIndex(options: {
   }
 
   const index: SearchIndex<TypeItem> = {
-    id: options.id,
+    id: idx.id,
     fromValue: fromValue,
     toValue: (candidate: TypeItem) => candidate,
     valueEquals: (a: TypeIdentity, b: TypeIdentity) => {
-      if (a.primitiveType != null) return a.primitiveType === b.primitiveType;
-      else if (a.baseTypePtr != null) return a.baseTypePtr.id === b.baseTypePtr?.id && a.benchType == b.benchType;
-      else if (a.benchType != null) return a.benchType === b.benchType;
-      else return false;
+      if (a.primitiveType != null) {
+        return a.primitiveType === b.primitiveType;
+      } else if (a.baseTypePtr != null) {
+        return a.baseTypePtr.id === b.baseTypePtr?.id && a.benchType == b.benchType;
+      } else if (a.benchType != null) {
+        if (a.benchType != b.benchType) {
+          return false;
+        } else if (a.constraint != null && b.constraint != null) {
+          return a.constraint.fileType == b.constraint.fileType && a.constraint.blockType == b.constraint.blockType && a.constraint.stepType == b.constraint.stepType;
+        } else { 
+          return true;
+        }
+      }
+      else {return false;
+
+      }
     },
     candidates: () => {
       // intrinsic types
-      const enumItems: TypeItem[] = enumTypes.flatMap((enumType) =>
-        getEnumOptions(enumType).map((option) => mapFromOption(enumType, option)),
+      const enumItems: TypeItem[] = intrinsicEnumTypes.flatMap((enumType) =>
+        getEnumOptions(enumType).map((option) => mapFromIntrinsicOption(enumType, option)),
       );
 
       // and any type definitions fro blocks
       const graphItems: TypeItem[] = walkGraph({
-        id: options.id,
-        graph: options.graph,
+        id: idx.id,
+        graph: idx.graph,
         metatypes: [NodeType.BLOCK],
         filter: (node) => {
           const block = node as BlockData;
           return TYPE_BLOCK_TYPES.includes(block.type);
         },
-        skipDepth: options.skipDepth,
-        maxDepth: options.maxDepth,
+        skipDepth: idx.skipDepth,
+        maxDepth: idx.maxDepth,
       }).map(mapFromNode);
 
       return [...enumItems, ...graphItems];

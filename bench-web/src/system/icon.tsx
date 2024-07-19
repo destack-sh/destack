@@ -23,6 +23,7 @@ import {
   Anchor,
   EditType,
   RunStatus,
+  FileType,
 } from "@/proto/wire";
 import type { FunctionalComponent } from "vue";
 // file is generated with:
@@ -183,9 +184,8 @@ export const ICON_BY_STRUCT_TYPE: Partial<Record<StructType, IconData>> = _makeI
   [StructType.PATH]: "fas fa-path",
   [StructType.TYPE_INFO]: "fas fa-tilde",
   [StructType.SCHEDULE]: "fas fa-calendar",
-  [StructType.SECRET_REFERENCE]: "fas fa-key",
+  [StructType.TRIGGER_INFO]: "fas fa-bolt",
   // files
-  [StructType.FILE_REFERENCE]: "fas fa-file",
   [StructType.ICON]: "fas fa-icons",
   // code
   [StructType.CODE]: "fas fa-code",
@@ -197,11 +197,23 @@ export const ICON_BY_STRUCT_TYPE: Partial<Record<StructType, IconData>> = _makeI
   [StructType.FONT]: "fas fa-font",
   [StructType.OFFSET]: "fas fa-arrows-alt",
   [StructType.BOX]: "fas fa-box",
+  // access
+  [StructType.POLICY]: "fas fa-shield-check",
+  [StructType.POLICY_RULE]: "fas fa-shield-check",
   // flow
   [StructType.PIPE]: "fas fa-arrow-right",
   // text
   [StructType.TEXT]: "fas fa-text",
   [StructType.TEXT_LINE]: "fas fa-grip-lines",
+  // run
+  [StructType.RUN_OPTIONS]: "fas fa-play",
+  [StructType.RUN_ATTEMPT]: "fas fa-play",
+  [StructType.RUN_ERROR]: "fas fa-play",
+  [StructType.RUN_FRAME]: "fas fa-play",
+  [StructType.RUN_TRACE]: "fas fa-play",
+  [StructType.BREAKPOINT]: "fas fa-pause",
+  [StructType.MODEL_OPTIONS]: "fas fa-play",
+  [StructType.LOG_INFO]: "fas fa-file-lines",
 });
 
 export const ICON_BY_OBJECT_TYPE: Partial<Record<ObjectType, IconData>> = {
@@ -349,6 +361,17 @@ export const ICON_BY_PRIMITIVE_TYPE: Partial<Record<PrimitiveType, IconData>> = 
   [PrimitiveType.INTERVAL]: "fas fa-calendar",
 });
 
+export const ICON_BY_FILE_TYPE: Partial<Record<FileType, IconData>> = _makeIcons({
+  [FileType.TEXT]: "fas fa-file-lines",
+  [FileType.IMAGE]: "fas fa-image",
+  [FileType.AUDIO]: "fas fa-volume",
+  [FileType.VIDEO]: "fas fa-video",
+  [FileType.DOCUMENT]: "fas fa-file-invoice",
+  [FileType.DATA]: "fas fa-file-zipper",
+  [FileType.EXECUTABLE]: "fas fa-file-binary",
+  [FileType.GENERIC]: "fas fa-file",
+});
+
 export const ICON_BY_FIELD_ZONE: Partial<Record<FieldZone, IconData>> = _makeIcons({
   [FieldZone.VARIABLE]: "fas fa-sliders",
   [FieldZone.MEMBER]: "fas fa-objects-column",
@@ -402,6 +425,7 @@ export const ENUM_ICONS_BY_TYPE: Partial<Record<EnumType, Record<any, IconData>>
   [EnumType.ALIGNMENT]: ICON_BY_ALIGNMENT,
   [EnumType.ANCHOR]: ICON_BY_ANCHOR,
   [EnumType.PRIMITIVE_TYPE]: ICON_BY_PRIMITIVE_TYPE,
+  [EnumType.FILE_TYPE]: ICON_BY_FILE_TYPE,
   [EnumType.FIELD_ZONE]: ICON_BY_FIELD_ZONE,
   [EnumType.LOG_LEVEL]: ICON_BY_LOG_LEVEL,
   [EnumType.EDIT_TYPE]: ICON_BY_EDIT_TYPE,

@@ -1,0 +1,11 @@
+{
+	"folders": [
+		{
+			"name": "bench",
+			"path": ".."
+		}
+	],
+	"settings": {
+		"workbench.editor.enablePreview": false
+	}
+}

@@ -597,7 +597,7 @@ export interface FileInfoData {
     sampleRate?: number;
 }
 /**
- * A reference to a file stored somewhere. Like a NodeReference with file-specific metadata.
+ * A reference to a File. Extends NodeReference with file-specific metadata.
  *
  * @generated from protobuf message symbolx.bench.FileReferenceData
  */
@@ -1397,7 +1397,7 @@ export interface ScheduleData {
     cron?: string;
 }
 /**
- * A reference to a Secret. Like a NodeReference with secret-specific metadata.
+ * A reference to a Secret. Extends NodeReference with secret-specific metadata.
  *
  * @generated from protobuf message symbolx.bench.SecretReferenceData
  */
@@ -8062,9 +8062,9 @@ export enum FileType {
      */
     EXECUTABLE = 7,
     /**
-     * @generated from protobuf enum value: FILE_TYPE_OTHER = 10;
+     * @generated from protobuf enum value: FILE_TYPE_GENERIC = 10;
      */
-    OTHER = 10
+    GENERIC = 10
 }
 /**
  * @generated from protobuf enum symbolx.bench.FontSize

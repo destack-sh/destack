@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.07.19.0"
+VERSION = "2024.07.19.1"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -627,7 +627,7 @@ class FileType(betterproto.Enum):
     DOCUMENT = 5
     DATA = 6
     EXECUTABLE = 7
-    OTHER = 10
+    GENERIC = 10
 
 
 class FontSize(betterproto.Enum):
@@ -1666,7 +1666,7 @@ class FileInfoData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class FileReferenceData(betterproto.Message):
     """
-    A reference to a file stored somewhere. Like a NodeReference with file-specific metadata.
+    A reference to a File. Extends NodeReference with file-specific metadata.
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
@@ -2026,7 +2026,7 @@ class ScheduleData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class SecretReferenceData(betterproto.Message):
     """
-    A reference to a Secret. Like a NodeReference with secret-specific metadata.
+    A reference to a Secret. Extends NodeReference with secret-specific metadata.
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)

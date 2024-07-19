@@ -868,8 +868,8 @@ export const EXPOSED_STRUCT_TYPES = [
   StructType.PATH,
   StructType.TYPE_INFO,
   StructType.SCHEDULE,
+  StructType.TRIGGER_INFO,
   // files
-  StructType.FILE_REFERENCE,
   StructType.ICON,
   // code
   StructType.CODE,
@@ -888,6 +888,15 @@ export const EXPOSED_STRUCT_TYPES = [
   StructType.PIPE,
   // text
   StructType.TEXT,
+  // run
+  StructType.RUN_OPTIONS,
+  StructType.RUN_ATTEMPT,
+  StructType.RUN_ERROR,
+  StructType.RUN_FRAME,
+  StructType.RUN_TRACE,
+  StructType.BREAKPOINT,
+  StructType.MODEL_OPTIONS,
+  StructType.LOG_INFO,
 ];
 export const EXPOSED_PRIMITIVE_TYPES = [
   PrimitiveType.BOOLEAN,
@@ -1025,6 +1034,7 @@ function getInspectionInfo(metatype: ObjectType, type: any): Record<string, Insp
                   primitiveType: value?.primitiveType,
                   benchType: value?.benchType,
                   baseTypePtr: value?.baseTypePtr,
+                  constraint: value?.constraint,
                 },
                 { debounce: "tick" },
               );
@@ -1064,6 +1074,7 @@ function getInspectionInfo(metatype: ObjectType, type: any): Record<string, Insp
                     primitiveType: value.primitiveType,
                     benchType: value.benchType,
                     baseTypePtr: value.baseTypePtr,
+                    constraint: value.constraint,
                   });
             tx.update(node as BlockData, { valueType }, { debounce: "tick" });
           },
