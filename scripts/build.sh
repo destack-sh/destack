@@ -22,7 +22,7 @@ for IMAGE in ${IMAGES[@]}; do
   # Build the Docker image and tag it properly (with commit hash)
   docker build . \
     --target $IMAGE \
-    -f Dockerfile \
+    -f infra/docker/Dockerfile.bench \
     -t symbolx/$IMAGE:latest \
     -t symbolx/$IMAGE:$GIT_COMMIT \
     -t symbolx/$IMAGE:$VERSION \

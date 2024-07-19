@@ -42,6 +42,6 @@ resource "kubernetes_config_map" "envoy_config" {
   }
 
   data = {
-    "envoy.yaml" = file("envoy.yaml")
+    "envoy.yaml" = file("config/envoy.yaml")
   }
 }
