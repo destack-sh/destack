@@ -9,8 +9,6 @@ import {
   BlockData,
   ViewData,
   EnumType,
-  Visibility,
-  FormatHint,
   PrimitiveType,
   StructType,
   BenchType,
@@ -336,13 +334,6 @@ export const ICON_BY_ANCHOR: Partial<Record<Anchor, IconData>> = _makeIcons({
   [Anchor.BOTTOM]: "fas fa-align-bottom",
 });
 
-export const ICON_BY_VISIBILITY: Partial<Record<Visibility, IconData>> = _makeIcons({
-  [Visibility.PAGE]: "fas fa-memo-pad",
-  [Visibility.MODULE]: "fas fa-box-open",
-  [Visibility.BENCH]: "fas fa-circle-dot",
-  [Visibility.PUBLIC]: "fas fa-globe",
-});
-
 export const ICON_BY_PRIMITIVE_TYPE: Partial<Record<PrimitiveType, IconData>> = _makeIcons({
   [PrimitiveType.BOOLEAN]: "fas fa-toggle-large-on",
   [PrimitiveType.INT16]: "fas fa-tally-4",
@@ -356,20 +347,6 @@ export const ICON_BY_PRIMITIVE_TYPE: Partial<Record<PrimitiveType, IconData>> = 
   [PrimitiveType.UUID]: "fas fa-fingerprint",
   [PrimitiveType.DATETIME]: "fas fa-calendar",
   [PrimitiveType.INTERVAL]: "fas fa-calendar",
-});
-
-export const ICON_BY_FORMAT_HINT: Partial<Record<FormatHint, IconData>> = _makeIcons({
-  // string
-  [FormatHint.TITLE]: "fas fa-heading",
-  [FormatHint.EMAIL]: "fas fa-at",
-  [FormatHint.URL]: "fas fa-link",
-  [FormatHint.MARKDOWN]: "fas fa-m",
-  [FormatHint.CODE]: "fas fa-code",
-  [FormatHint.EMOJI]: "fas fa-smile",
-  // number
-  [FormatHint.PHONE]: "fas fa-phone",
-  [FormatHint.RATING]: "fas fa-star",
-  [FormatHint.SLIDER]: "fas fa-slider",
 });
 
 export const ICON_BY_FIELD_ZONE: Partial<Record<FieldZone, IconData>> = _makeIcons({
@@ -424,9 +401,7 @@ export const ENUM_ICONS_BY_TYPE: Partial<Record<EnumType, Record<any, IconData>>
   [EnumType.VIEW_TYPE]: ICON_BY_VIEW_TYPE,
   [EnumType.ALIGNMENT]: ICON_BY_ALIGNMENT,
   [EnumType.ANCHOR]: ICON_BY_ANCHOR,
-  [EnumType.VISIBILITY]: ICON_BY_VISIBILITY,
   [EnumType.PRIMITIVE_TYPE]: ICON_BY_PRIMITIVE_TYPE,
-  [EnumType.FORMAT_HINT]: ICON_BY_FORMAT_HINT,
   [EnumType.FIELD_ZONE]: ICON_BY_FIELD_ZONE,
   [EnumType.LOG_LEVEL]: ICON_BY_LOG_LEVEL,
   [EnumType.EDIT_TYPE]: ICON_BY_EDIT_TYPE,

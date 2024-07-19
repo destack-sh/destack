@@ -1,11 +1,14 @@
 <script lang="ts" setup>
 import {
   BenchType,
+  BlockType,
   BoxData,
+  FileType,
   NodeReferenceData,
   NodeType,
   ObjectType,
   Orientation,
+  StepType,
   TypeKind,
   Variant,
   ViewData,
@@ -18,6 +21,7 @@ import { getNodeSubtype, getNodeSubtypeName, isEnumType, isNodeType, toCamelName
 import type { NodeItem, TypeItem } from "@/system/search";
 import { enumIndex, graphIndex, typeIndex, useSearch, type EnumOptionItem, type SearchIndex } from "@/system/search";
 import { canvas, pkgGraph } from "@/system/space";
+import { getConstrainedTypeName, nodeMatchesConstraint } from "@/system/value";
 import { ScrollbarWidth } from "@/utils/layout";
 import type { PopoverInfoIn } from "@/utils/menu";
 import {
@@ -75,17 +79,7 @@ const facetName = computed(() => {
   if (props.valueType?.kind == TypeKind.BASED_NODE && baseType.value != null) {
     return baseType.value.name;
   } else if (props.valueType?.benchType != null) {
-    const metatypeName = toCamelName(BenchType, props.valueType.benchType);
-    if (props.valueType.constraint?.subtype != null) {
-      const subtypeName = getNodeSubtypeName(
-        props.valueType.benchType as unknown as NodeType,
-        props.valueType.constraint!.subtype,
-      );
-      if (subtypeName != null) return `${subtypeName} ${metatypeName}`;
-      else return metatypeName;
-    } else {
-      return metatypeName;
-    }
+    return getConstrainedTypeName(props.valueType);
   } else {
     return null;
   }
@@ -118,8 +112,8 @@ const index: Ref<SearchIndex<any>> = computed(() => {
       roots,
       skipDepth: roots != null ? 0 : 2,
       filter:
-        props.valueType?.constraint?.subtype != null
-          ? (node) => getNodeSubtype(node) == props.valueType!.constraint!.subtype
+        props.valueType?.constraint != null
+          ? (node) => nodeMatchesConstraint(node, props.valueType!.constraint!)
           : undefined,
     });
   } else if (props.valueType?.benchType == BenchType.TYPE_INFO) {

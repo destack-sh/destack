@@ -7,11 +7,13 @@ from bench.language.bench import Drive
 from bench.language.const import EnumType, NodeType, PrimitiveType, StructType, enum_
 from bench.language.node import (
     BenchNode,
+    BuiltinObject,
     Node,
     NodeReference,
     NodeReferenceBase,
     Struct,
     node_,
+    object_component,
     struct_,
 )
 from bench.language.property import Property, p_internal, p_node_parent, p_regular
@@ -34,7 +36,8 @@ SHA512_CONSTRAINT = constraint(min_length=FILE_HASH_LENGTH, max_length=FILE_HASH
 @enum_(EnumType.FILE_KIND)
 class FileKind(IdEnum):
     DRIVE = 1
-    EXTERNAL = 2
+    DRIVE_INLINE = 2
+    EXTERNAL = 3
 
 
 @enum_(EnumType.FILE_RETENTION_MODE)
@@ -44,8 +47,62 @@ class FileRetentionMode(IdEnum):
     TIMED = 3  # delete after a certain time
 
 
+@enum_(EnumType.FILE_TYPE)
+class FileType(IdEnum):
+    TEXT = 1
+    IMAGE = 2
+    AUDIO = 3
+    VIDEO = 4
+    DOCUMENT = 5
+    DATA = 6
+    EXECUTABLE = 7
+    OTHER = 10
+
+
+@object_component()
+class FileInfoBase(BuiltinObject):
+    """
+    Base class for file info.
+    """
+
+    # content
+    kind: FileKind = p_internal(40, default=FileKind.DRIVE, default_sql=None)
+    content: Optional[bytes] = p_regular(41, default=None)  # if inline
+    url: Optional[str] = p_regular(42, default=None)
+    ...  # thumbnail/preview/...?
+
+    # common meta
+    coarse_type: FileType = p_internal(50)
+    mime_type: str = p_internal(51, constraint=MIME_TYPE_CONSTRAINT)
+    size: int = p_internal(
+        52, primitive_type=PrimitiveType.INT64, constraint=constraint(min_value=0)
+    )
+    sha512: str | None = p_internal(
+        53, constraint=constraint(min_length=FILE_HASH_LENGTH, max_length=FILE_HASH_LENGTH)
+    )
+
+    # multimedia
+    width: Optional[int] = p_regular(55, default=None)
+    height: Optional[int] = p_regular(56, default=None)
+    aspect_ratio: Optional[float] = p_regular(57, default=None)
+    codec: Optional[str] = p_regular(58, default=None)
+    duration: Optional[float] = p_regular(60, default=None)
+    bitrate: Optional[int] = p_regular(61, default=None)
+    channels: Optional[int] = p_regular(62, default=None)
+    sample_rate: Optional[int] = p_regular(63, default=None)
+
+
+@struct_(StructType.FILE_INFO)
+class FileInfo(Struct, FileInfoBase):
+    """
+    File metadata.
+    """
+
+    ...
+
+
 @node_(NodeType.FILE, unique=(("parent_id", "sha512"),))
-class File(BenchNode[FileData]):
+class File(BenchNode[FileData], FileInfoBase):
     """
     A file stored in a Drive (or externally).
     De-duplicated so that there's only one File per unique file content for our own files (sha512).
@@ -54,31 +111,20 @@ class File(BenchNode[FileData]):
     parent: Drive | None = p_node_parent(4, NodeType.DRIVE, is_system=True)
 
     # meta
-    kind: FileKind = p_internal(30, default=FileKind.DRIVE, default_sql=None)
     title: str = p_regular(33, constraint=TITLE_CONSTRAINT)
-    size: int = p_internal(
-        34, primitive_type=PrimitiveType.INT64, constraint=constraint(min_value=0)
-    )
-    mime_type: str = p_internal(35, constraint=MIME_TYPE_CONSTRAINT)
-    sha512: str | None = p_internal(
-        36, constraint=constraint(min_length=FILE_HASH_LENGTH, max_length=FILE_HASH_LENGTH)
-    )
     retention: FileRetentionMode | None = p_regular(
         37, default=FileRetentionMode.AUTOMATIC, default_sql=None
     )
     expires_at: Optional[datetime] = p_regular(38)
 
-    # content
-    content: Optional[bytes] = p_regular(50, default=None)  # if inline
-    url: Optional[str] = p_regular(51, default=None)
-
-    # type-specific metadata (image size, audio/video length, thumbnail, ...)
-    ...
+    # content/info
+    # ...FileInfoBase[40-69]
 
 
 @struct_(StructType.FILE_REFERENCE)
 class FileReference(
     Struct[FileReferenceData],
+    FileInfoBase,
     NodeReferenceBase[File, FileData, "FileReference", FileReferenceData],
 ):
     """
@@ -87,16 +133,8 @@ class FileReference(
 
     # ...NodeReferenceBase[30-39]
 
-    # meta
-    kind: FileKind = p_internal(40)
-    title: str = p_regular(43, constraint=TITLE_CONSTRAINT)
-    size: Optional[int] = p_internal(44)
-    sha512: Optional[str] = p_internal(45)
-    mime_type: Optional[str] = p_internal(46)
-
-    # content
-    content: Optional[bytes] = p_regular(50, default=None)  # if inline
-    url: Optional[str] = p_regular(51, default=None)
+    # content/info
+    # ...FileInfoBase[40-69]
 
     def _validate_component(self, properties: tuple[Property, ...], invalid: ValidationHandler):
         if self.type != NodeType.FILE:
@@ -107,7 +145,7 @@ class FileReference(
     def from_node(node: Node) -> "FileReference":
         node_ref = NodeReference.from_node(node)
         file_ref = FileReference._copy_ref(FileReference, node_ref)
-        for prop in FileReference.__declared_properties__.values():
+        for prop in FileInfoBase.__declared_properties__.values():
             if hasattr(file_ref, prop.name):
                 setattr(file_ref, prop.name, getattr(node, prop.name))
         return file_ref
@@ -117,7 +155,7 @@ class FileReference(
     def from_node_data(node_data: FileData) -> FileReferenceData:
         node_ref = NodeReference.from_node_data(node_data)
         file_ref = FileReference._copy_ref(FileReferenceData, node_ref)
-        for prop in FileReference.__declared_properties__.values():
+        for prop in FileInfoBase.__declared_properties__.values():
             if hasattr(file_ref, prop.name):
                 setattr(file_ref, prop.name, getattr(node_data, prop.name))
         return file_ref
@@ -127,7 +165,7 @@ class FileReference(
     def from_node_as_data(node: File) -> FileReferenceData:
         node_ref = NodeReference.from_node_as_data(node)
         file_ref = FileReference._copy_ref(FileReferenceData, node_ref)
-        for prop in FileReference.__declared_properties__.values():
+        for prop in FileInfoBase.__declared_properties__.values():
             if hasattr(file_ref, prop.name):
                 setattr(file_ref, prop.name, getattr(node, prop.name))
         return file_ref

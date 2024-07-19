@@ -1,8 +1,10 @@
 import {
   BenchType,
   BlockData,
+  BlockType,
   FieldData,
   FieldZone,
+  FileType,
   NodeReferenceData,
   NodeType,
   ObjectType,
@@ -11,8 +13,10 @@ import {
   PrimitiveType,
   PropertyReferenceData,
   Struct as ProtoStruct,
+  StepType,
   StructType,
   Timestamp,
+  TypeConstraintData,
   TypeKind,
   type AnyNodeData,
   type AnyStructData,
@@ -20,7 +24,7 @@ import {
   type PropertyInfo,
   type TypeInfoData,
 } from "@/proto/wire";
-import { describeNode, isNodeReference, isStruct, makeDefaultObject, propertyInfo } from "@/proto/wiring";
+import { describeNode, isNode, isNodeReference, isStruct, makeDefaultObject, propertyInfo } from "@/proto/wiring";
 import type { ReadNodeGraph } from "@/system/graph";
 import {
   CLASSY_BLOCK_TYPES,
@@ -34,15 +38,7 @@ import { decodeB64VLQ, encodeB64VLQ } from "@/utils/functools";
 
 export type TypeIdentity = Pick<
   TypeInfoData,
-  | "kind"
-  | "primitiveType"
-  | "benchType"
-  | "baseTypePtr"
-  | "baseFieldZone"
-  | "formatHint"
-  | "isList"
-  | "isSecret"
-  | "constraint"
+  "kind" | "primitiveType" | "benchType" | "baseTypePtr" | "baseFieldZone" | "isList" | "isSecret" | "constraint"
 > & { id?: any; ck?: string };
 
 export function describeTypeIdentity(type: TypeIdentity & Partial<AnyNodeData>): string {
@@ -209,6 +205,36 @@ export function getStorageKey(field: FieldData, fieldType?: TypeIdentity): strin
   fieldType = fieldType ?? field;
   if (field.ck == null) throw new Error(`missing ck for type ${describeTypeIdentity(field)}`);
   return `${getTkB64FromCk(field.ck)}${encodeTypeIdentity(fieldType)}`;
+}
+
+/** Gets the implied subtype node name  */
+export function getConstrainedTypeName(type: TypeIdentity): string | null {
+  const metatypeName = toCamelName(BenchType, type.benchType);
+  if (type.constraint?.blockType != null) {
+    const subtypeName = toCamelName(BlockType, type.constraint!.blockType);
+    return `${subtypeName} ${metatypeName}`;
+  } else if (type.constraint?.stepType != null) {
+    const subtypeName = toCamelName(StepType, type.constraint!.stepType);
+    return `${subtypeName} ${metatypeName}`;
+  } else if (type.constraint?.fileType != null) {
+    const subtypeName = toCamelName(FileType, type.constraint!.fileType);
+    return `${subtypeName} ${metatypeName}`;
+  } else {
+    return metatypeName;
+  }
+}
+
+/** Whether the value meets the type constraints */
+export function nodeMatchesConstraint(node: AnyNodeData, constraint: TypeConstraintData): boolean {
+  if (constraint.blockType != null) {
+    return isNode(node, NodeType.BLOCK) && node.type == constraint.blockType;
+  } else if (constraint.stepType != null) {
+    return isNode(node, NodeType.STEP) && node.type == constraint.stepType; 
+  } else if (constraint.fileType != null && isNode(node, NodeType.FILE)) {
+    return node.coarseType == constraint.fileType;
+  } else {
+    return true; // no constraint
+  }
 }
 
 // NOTE :Architecture: :TypeResolution in frontend should probably happen reactively in a dedicated.. something.

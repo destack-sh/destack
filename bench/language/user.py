@@ -171,5 +171,5 @@ class Invite(SourceNode[InviteData]):
         require=False,
         array=True,
         references=NodeType.BLOCK,
-        constraint=constraint(subtype=BlockType.ROLE),
+        constraint=constraint(block_type=BlockType.ROLE),
     )

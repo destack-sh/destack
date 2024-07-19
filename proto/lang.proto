@@ -142,7 +142,8 @@ enum BenchType {
   BENCH_TYPE_FILE_REFERENCE = 10204;
   BENCH_TYPE_ICON = 10205;
   BENCH_TYPE_SECRET_REFERENCE = 10206;
-  BENCH_TYPE_TRIGGER_INFO = 10210;
+  BENCH_TYPE_FILE_INFO = 10207;
+  BENCH_TYPE_TRIGGER_INFO = 10208;
   BENCH_TYPE_EXPRESSION = 10300;
   BENCH_TYPE_AGGREGATION = 10301;
   BENCH_TYPE_SELECTION = 10302;
@@ -179,7 +180,6 @@ enum BenchType {
   BENCH_TYPE_STRUCT_TYPE = 20003;
   BENCH_TYPE_OBJECT_TYPE = 20004;
   BENCH_TYPE_BENCH_TYPE = 20005;
-  BENCH_TYPE_VISIBILITY = 20010;
   BENCH_TYPE_CHANGE_KIND = 20011;
   BENCH_TYPE_ACCESS_MODE = 20030;
   BENCH_TYPE_ACCESS_KIND = 20031;
@@ -196,9 +196,9 @@ enum BenchType {
   BENCH_TYPE_RESOURCE_STATUS = 20057;
   BENCH_TYPE_FILE_RETENTION_MODE = 2060;
   BENCH_TYPE_FILE_KIND = 2061;
+  BENCH_TYPE_FILE_TYPE = 2062;
   BENCH_TYPE_CLIENT_TYPE = 20070;
   BENCH_TYPE_PRIMITIVE_TYPE = 20080;
-  BENCH_TYPE_FORMAT_HINT = 20081;
   BENCH_TYPE_FIELD_ZONE = 20082;
   BENCH_TYPE_TYPE_KIND = 20083;
   BENCH_TYPE_BLOCK_TYPE = 20384;
@@ -424,7 +424,6 @@ enum EnumType {
   ENUM_TYPE_STRUCT_TYPE = 20003;
   ENUM_TYPE_OBJECT_TYPE = 20004;
   ENUM_TYPE_BENCH_TYPE = 20005;
-  ENUM_TYPE_VISIBILITY = 20010;
   ENUM_TYPE_CHANGE_KIND = 20011;
   ENUM_TYPE_ACCESS_MODE = 20030;
   ENUM_TYPE_ACCESS_KIND = 20031;
@@ -441,9 +440,9 @@ enum EnumType {
   ENUM_TYPE_RESOURCE_STATUS = 20057;
   ENUM_TYPE_FILE_RETENTION_MODE = 2060;
   ENUM_TYPE_FILE_KIND = 2061;
+  ENUM_TYPE_FILE_TYPE = 2062;
   ENUM_TYPE_CLIENT_TYPE = 20070;
   ENUM_TYPE_PRIMITIVE_TYPE = 20080;
-  ENUM_TYPE_FORMAT_HINT = 20081;
   ENUM_TYPE_FIELD_ZONE = 20082;
   ENUM_TYPE_TYPE_KIND = 20083;
   ENUM_TYPE_BLOCK_TYPE = 20384;
@@ -564,7 +563,8 @@ enum FieldZone {
 enum FileKind {
   FILE_KIND_UNSPECIFIED = 0;
   FILE_KIND_DRIVE = 1;
-  FILE_KIND_EXTERNAL = 2;
+  FILE_KIND_DRIVE_INLINE = 2;
+  FILE_KIND_EXTERNAL = 3;
 }
 
 enum FileRetentionMode {
@@ -572,6 +572,18 @@ enum FileRetentionMode {
   FILE_RETENTION_MODE_AUTOMATIC = 1;
   FILE_RETENTION_MODE_MANUAL = 2;
   FILE_RETENTION_MODE_TIMED = 3;
+}
+
+enum FileType {
+  FILE_TYPE_UNSPECIFIED = 0;
+  FILE_TYPE_TEXT = 1;
+  FILE_TYPE_IMAGE = 2;
+  FILE_TYPE_AUDIO = 3;
+  FILE_TYPE_VIDEO = 4;
+  FILE_TYPE_DOCUMENT = 5;
+  FILE_TYPE_DATA = 6;
+  FILE_TYPE_EXECUTABLE = 7;
+  FILE_TYPE_OTHER = 10;
 }
 
 enum FontSize {
@@ -607,21 +619,6 @@ enum FontWeight {
   FONT_WEIGHT_BOLD = 700;
   FONT_WEIGHT_EXTRA_BOLD = 800;
   FONT_WEIGHT_BLACK = 900;
-}
-
-// Extra semantic hint for types.
-// NOTE :Architecture: revisit FormatHint (especially with file types like images, constraints, etc.)
-enum FormatHint {
-  FORMAT_HINT_UNSPECIFIED = 0;
-  FORMAT_HINT_TITLE = 1;
-  FORMAT_HINT_EMAIL = 2;
-  FORMAT_HINT_URL = 3;
-  FORMAT_HINT_MARKDOWN = 4;
-  FORMAT_HINT_CODE = 5;
-  FORMAT_HINT_EMOJI = 6;
-  FORMAT_HINT_PHONE = 20;
-  FORMAT_HINT_RATING = 21;
-  FORMAT_HINT_SLIDER = 22;
 }
 
 enum FunctionalOp {
@@ -835,7 +832,8 @@ enum ObjectType {
   OBJECT_TYPE_FILE_REFERENCE = 10204;
   OBJECT_TYPE_ICON = 10205;
   OBJECT_TYPE_SECRET_REFERENCE = 10206;
-  OBJECT_TYPE_TRIGGER_INFO = 10210;
+  OBJECT_TYPE_FILE_INFO = 10207;
+  OBJECT_TYPE_TRIGGER_INFO = 10208;
   OBJECT_TYPE_EXPRESSION = 10300;
   OBJECT_TYPE_AGGREGATION = 10301;
   OBJECT_TYPE_SELECTION = 10302;
@@ -1146,7 +1144,8 @@ enum StructType {
   STRUCT_TYPE_FILE_REFERENCE = 10204;
   STRUCT_TYPE_ICON = 10205;
   STRUCT_TYPE_SECRET_REFERENCE = 10206;
-  STRUCT_TYPE_TRIGGER_INFO = 10210;
+  STRUCT_TYPE_FILE_INFO = 10207;
+  STRUCT_TYPE_TRIGGER_INFO = 10208;
   STRUCT_TYPE_EXPRESSION = 10300;
   STRUCT_TYPE_AGGREGATION = 10301;
   STRUCT_TYPE_SELECTION = 10302;
@@ -1342,14 +1341,6 @@ enum ViewType {
   VIEW_TYPE_AUDIO = 1275;
 }
 
-enum Visibility {
-  VISIBILITY_UNSPECIFIED = 0;
-  VISIBILITY_PAGE = 4;
-  VISIBILITY_MODULE = 6;
-  VISIBILITY_BENCH = 8;
-  VISIBILITY_PUBLIC = 10;
-}
-
 // An evaluated access.
 message AccessData {
   ObjectType metatype = 1;
@@ -1525,6 +1516,26 @@ message FeedViewStateData {
   repeated string filter_pills = 99;
 }
 
+// File metadata.
+message FileInfoData {
+  ObjectType metatype = 1;
+  FileKind kind = 40;
+  optional bytes content = 41;
+  optional string url = 42;
+  FileType coarse_type = 50;
+  string mime_type = 51;
+  int64 size = 52;
+  optional string sha512 = 53;
+  optional int32 width = 55;
+  optional int32 height = 56;
+  optional float aspect_ratio = 57;
+  optional string codec = 58;
+  optional float duration = 60;
+  optional int32 bitrate = 61;
+  optional int32 channels = 62;
+  optional int32 sample_rate = 63;
+}
+
 // A reference to a file stored somewhere. Like a NodeReference with file-specific metadata.
 message FileReferenceData {
   ObjectType metatype = 1;
@@ -1535,12 +1546,20 @@ message FileReferenceData {
   optional string base_ck = 34;
   optional string base_bench_id = 35;
   FileKind kind = 40;
-  string title = 43;
-  optional int32 size = 44;
-  optional string sha512 = 45;
-  optional string mime_type = 46;
-  optional bytes content = 50;
-  optional string url = 51;
+  optional bytes content = 41;
+  optional string url = 42;
+  FileType coarse_type = 50;
+  string mime_type = 51;
+  int64 size = 52;
+  optional string sha512 = 53;
+  optional int32 width = 55;
+  optional int32 height = 56;
+  optional float aspect_ratio = 57;
+  optional string codec = 58;
+  optional float duration = 60;
+  optional int32 bitrate = 61;
+  optional int32 channels = 62;
+  optional int32 sample_rate = 63;
 }
 
 // A font value.
@@ -1953,7 +1972,9 @@ message TypeConstraintData {
   optional string regex = 60;
   optional string starts_with = 61;
   optional string ends_with = 62;
-  optional int32 subtype = 70;
+  optional BlockType block_type = 70;
+  optional StepType step_type = 71;
+  optional FileType file_type = 72;
 }
 
 // A type from the type system.
@@ -1965,8 +1986,6 @@ message TypeInfoData {
   optional NodeReferenceData base_type_ptr = 43;
   optional FieldZone base_field_zone = 44;
   optional google.protobuf.Struct default_packed = 50;
-  optional Visibility visibility = 52;
-  optional FormatHint format_hint = 53;
   optional ExpressionData condition = 54;
   optional TypeConstraintData constraint = 55;
   bool is_list = 60;
@@ -2077,7 +2096,6 @@ message BlockData {
   repeated NodeReferenceData bases_ptr = 35;
   optional TextData text = 36;
   optional IconData icon = 37;
-  optional Visibility visibility = 38;
   optional TypeInfoData value_type = 39;
   optional google.protobuf.Struct value_packed = 40;
   optional CodeData code = 42;
@@ -2229,8 +2247,6 @@ message FieldData {
   optional NodeReferenceData base_type_ptr = 43;
   optional FieldZone base_field_zone = 44;
   optional google.protobuf.Struct default_packed = 50;
-  optional Visibility visibility = 52;
-  optional FormatHint format_hint = 53;
   optional ExpressionData condition = 54;
   optional TypeConstraintData constraint = 55;
   bool is_list = 60;
@@ -2255,15 +2271,24 @@ message FileData {
   optional NodeReferenceData created_by_ptr = 21;
   optional NodeReferenceData updated_by_ptr = 22;
   repeated int32 set_properties = 29;
-  FileKind kind = 30;
   string title = 33;
-  int64 size = 34;
-  string mime_type = 35;
-  optional string sha512 = 36;
   optional FileRetentionMode retention = 37;
   optional google.protobuf.Timestamp expires_at = 38;
-  optional bytes content = 50;
-  optional string url = 51;
+  FileKind kind = 40;
+  optional bytes content = 41;
+  optional string url = 42;
+  FileType coarse_type = 50;
+  string mime_type = 51;
+  int64 size = 52;
+  optional string sha512 = 53;
+  optional int32 width = 55;
+  optional int32 height = 56;
+  optional float aspect_ratio = 57;
+  optional string codec = 58;
+  optional float duration = 60;
+  optional int32 bitrate = 61;
+  optional int32 channels = 62;
+  optional int32 sample_rate = 63;
 }
 
 // A Bench @handle. Can only be created/edited by the system.

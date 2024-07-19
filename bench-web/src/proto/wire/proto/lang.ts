@@ -526,6 +526,77 @@ export interface FeedViewStateData {
     filterPills: string[];
 }
 /**
+ * File metadata.
+ *
+ * @generated from protobuf message symbolx.bench.FileInfoData
+ */
+export interface FileInfoData {
+    /**
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: symbolx.bench.FileKind kind = 40;
+     */
+    kind: FileKind;
+    /**
+     * @generated from protobuf field: optional bytes content = 41;
+     */
+    content?: Uint8Array;
+    /**
+     * @generated from protobuf field: optional string url = 42;
+     */
+    url?: string;
+    /**
+     * @generated from protobuf field: symbolx.bench.FileType coarse_type = 50;
+     */
+    coarseType: FileType;
+    /**
+     * @generated from protobuf field: string mime_type = 51;
+     */
+    mimeType: string;
+    /**
+     * @generated from protobuf field: int64 size = 52;
+     */
+    size: bigint;
+    /**
+     * @generated from protobuf field: optional string sha512 = 53;
+     */
+    sha512?: string;
+    /**
+     * @generated from protobuf field: optional int32 width = 55;
+     */
+    width?: number;
+    /**
+     * @generated from protobuf field: optional int32 height = 56;
+     */
+    height?: number;
+    /**
+     * @generated from protobuf field: optional float aspect_ratio = 57;
+     */
+    aspectRatio?: number;
+    /**
+     * @generated from protobuf field: optional string codec = 58;
+     */
+    codec?: string;
+    /**
+     * @generated from protobuf field: optional float duration = 60;
+     */
+    duration?: number;
+    /**
+     * @generated from protobuf field: optional int32 bitrate = 61;
+     */
+    bitrate?: number;
+    /**
+     * @generated from protobuf field: optional int32 channels = 62;
+     */
+    channels?: number;
+    /**
+     * @generated from protobuf field: optional int32 sample_rate = 63;
+     */
+    sampleRate?: number;
+}
+/**
  * A reference to a file stored somewhere. Like a NodeReference with file-specific metadata.
  *
  * @generated from protobuf message symbolx.bench.FileReferenceData
@@ -564,29 +635,61 @@ export interface FileReferenceData {
      */
     kind: FileKind;
     /**
-     * @generated from protobuf field: string title = 43;
-     */
-    title: string;
-    /**
-     * @generated from protobuf field: optional int32 size = 44;
-     */
-    size?: number;
-    /**
-     * @generated from protobuf field: optional string sha512 = 45;
-     */
-    sha512?: string;
-    /**
-     * @generated from protobuf field: optional string mime_type = 46;
-     */
-    mimeType?: string;
-    /**
-     * @generated from protobuf field: optional bytes content = 50;
+     * @generated from protobuf field: optional bytes content = 41;
      */
     content?: Uint8Array;
     /**
-     * @generated from protobuf field: optional string url = 51;
+     * @generated from protobuf field: optional string url = 42;
      */
     url?: string;
+    /**
+     * @generated from protobuf field: symbolx.bench.FileType coarse_type = 50;
+     */
+    coarseType: FileType;
+    /**
+     * @generated from protobuf field: string mime_type = 51;
+     */
+    mimeType: string;
+    /**
+     * @generated from protobuf field: int64 size = 52;
+     */
+    size: bigint;
+    /**
+     * @generated from protobuf field: optional string sha512 = 53;
+     */
+    sha512?: string;
+    /**
+     * @generated from protobuf field: optional int32 width = 55;
+     */
+    width?: number;
+    /**
+     * @generated from protobuf field: optional int32 height = 56;
+     */
+    height?: number;
+    /**
+     * @generated from protobuf field: optional float aspect_ratio = 57;
+     */
+    aspectRatio?: number;
+    /**
+     * @generated from protobuf field: optional string codec = 58;
+     */
+    codec?: string;
+    /**
+     * @generated from protobuf field: optional float duration = 60;
+     */
+    duration?: number;
+    /**
+     * @generated from protobuf field: optional int32 bitrate = 61;
+     */
+    bitrate?: number;
+    /**
+     * @generated from protobuf field: optional int32 channels = 62;
+     */
+    channels?: number;
+    /**
+     * @generated from protobuf field: optional int32 sample_rate = 63;
+     */
+    sampleRate?: number;
 }
 /**
  * A font value.
@@ -1753,9 +1856,17 @@ export interface TypeConstraintData {
      */
     endsWith?: string;
     /**
-     * @generated from protobuf field: optional int32 subtype = 70;
+     * @generated from protobuf field: optional symbolx.bench.BlockType block_type = 70;
      */
-    subtype?: number;
+    blockType?: BlockType;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.StepType step_type = 71;
+     */
+    stepType?: StepType;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.FileType file_type = 72;
+     */
+    fileType?: FileType;
 }
 /**
  * A type from the type system.
@@ -1791,14 +1902,6 @@ export interface TypeInfoData {
      * @generated from protobuf field: optional google.protobuf.Struct default_packed = 50;
      */
     defaultPacked?: Struct;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.Visibility visibility = 52;
-     */
-    visibility?: Visibility;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.FormatHint format_hint = 53;
-     */
-    formatHint?: FormatHint;
     /**
      * @generated from protobuf field: optional symbolx.bench.ExpressionData condition = 54;
      */
@@ -2188,10 +2291,6 @@ export interface BlockData {
      * @generated from protobuf field: optional symbolx.bench.IconData icon = 37;
      */
     icon?: IconData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.Visibility visibility = 38;
-     */
-    visibility?: Visibility;
     /**
      * @generated from protobuf field: optional symbolx.bench.TypeInfoData value_type = 39;
      */
@@ -2746,14 +2845,6 @@ export interface FieldData {
      */
     defaultPacked?: Struct;
     /**
-     * @generated from protobuf field: optional symbolx.bench.Visibility visibility = 52;
-     */
-    visibility?: Visibility;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.FormatHint format_hint = 53;
-     */
-    formatHint?: FormatHint;
-    /**
      * @generated from protobuf field: optional symbolx.bench.ExpressionData condition = 54;
      */
     condition?: ExpressionData;
@@ -2838,25 +2929,9 @@ export interface FileData {
      */
     setProperties: number[];
     /**
-     * @generated from protobuf field: symbolx.bench.FileKind kind = 30;
-     */
-    kind: FileKind;
-    /**
      * @generated from protobuf field: string title = 33;
      */
     title: string;
-    /**
-     * @generated from protobuf field: int64 size = 34;
-     */
-    size: bigint;
-    /**
-     * @generated from protobuf field: string mime_type = 35;
-     */
-    mimeType: string;
-    /**
-     * @generated from protobuf field: optional string sha512 = 36;
-     */
-    sha512?: string;
     /**
      * @generated from protobuf field: optional symbolx.bench.FileRetentionMode retention = 37;
      */
@@ -2866,13 +2941,65 @@ export interface FileData {
      */
     expiresAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional bytes content = 50;
+     * @generated from protobuf field: symbolx.bench.FileKind kind = 40;
+     */
+    kind: FileKind;
+    /**
+     * @generated from protobuf field: optional bytes content = 41;
      */
     content?: Uint8Array;
     /**
-     * @generated from protobuf field: optional string url = 51;
+     * @generated from protobuf field: optional string url = 42;
      */
     url?: string;
+    /**
+     * @generated from protobuf field: symbolx.bench.FileType coarse_type = 50;
+     */
+    coarseType: FileType;
+    /**
+     * @generated from protobuf field: string mime_type = 51;
+     */
+    mimeType: string;
+    /**
+     * @generated from protobuf field: int64 size = 52;
+     */
+    size: bigint;
+    /**
+     * @generated from protobuf field: optional string sha512 = 53;
+     */
+    sha512?: string;
+    /**
+     * @generated from protobuf field: optional int32 width = 55;
+     */
+    width?: number;
+    /**
+     * @generated from protobuf field: optional int32 height = 56;
+     */
+    height?: number;
+    /**
+     * @generated from protobuf field: optional float aspect_ratio = 57;
+     */
+    aspectRatio?: number;
+    /**
+     * @generated from protobuf field: optional string codec = 58;
+     */
+    codec?: string;
+    /**
+     * @generated from protobuf field: optional float duration = 60;
+     */
+    duration?: number;
+    /**
+     * @generated from protobuf field: optional int32 bitrate = 61;
+     */
+    bitrate?: number;
+    /**
+     * @generated from protobuf field: optional int32 channels = 62;
+     */
+    channels?: number;
+    /**
+     * @generated from protobuf field: optional int32 sample_rate = 63;
+     */
+    sampleRate?: number;
 }
 /**
  * A Bench @handle. Can only be created/edited by the system.
@@ -6321,9 +6448,13 @@ export enum BenchType {
      */
     SECRET_REFERENCE = 10206,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_TRIGGER_INFO = 10210;
+     * @generated from protobuf enum value: BENCH_TYPE_FILE_INFO = 10207;
      */
-    TRIGGER_INFO = 10210,
+    FILE_INFO = 10207,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_TRIGGER_INFO = 10208;
+     */
+    TRIGGER_INFO = 10208,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_EXPRESSION = 10300;
      */
@@ -6469,10 +6600,6 @@ export enum BenchType {
      */
     BENCH_TYPE = 20005,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_VISIBILITY = 20010;
-     */
-    VISIBILITY = 20010,
-    /**
      * @generated from protobuf enum value: BENCH_TYPE_CHANGE_KIND = 20011;
      */
     CHANGE_KIND = 20011,
@@ -6537,6 +6664,10 @@ export enum BenchType {
      */
     FILE_KIND = 2061,
     /**
+     * @generated from protobuf enum value: BENCH_TYPE_FILE_TYPE = 2062;
+     */
+    FILE_TYPE = 2062,
+    /**
      * @generated from protobuf enum value: BENCH_TYPE_CLIENT_TYPE = 20070;
      */
     CLIENT_TYPE = 20070,
@@ -6544,10 +6675,6 @@ export enum BenchType {
      * @generated from protobuf enum value: BENCH_TYPE_PRIMITIVE_TYPE = 20080;
      */
     PRIMITIVE_TYPE = 20080,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_FORMAT_HINT = 20081;
-     */
-    FORMAT_HINT = 20081,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_FIELD_ZONE = 20082;
      */
@@ -7343,10 +7470,6 @@ export enum EnumType {
      */
     BENCH_TYPE = 20005,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_VISIBILITY = 20010;
-     */
-    VISIBILITY = 20010,
-    /**
      * @generated from protobuf enum value: ENUM_TYPE_CHANGE_KIND = 20011;
      */
     CHANGE_KIND = 20011,
@@ -7411,6 +7534,10 @@ export enum EnumType {
      */
     FILE_KIND = 2061,
     /**
+     * @generated from protobuf enum value: ENUM_TYPE_FILE_TYPE = 2062;
+     */
+    FILE_TYPE = 2062,
+    /**
      * @generated from protobuf enum value: ENUM_TYPE_CLIENT_TYPE = 20070;
      */
     CLIENT_TYPE = 20070,
@@ -7418,10 +7545,6 @@ export enum EnumType {
      * @generated from protobuf enum value: ENUM_TYPE_PRIMITIVE_TYPE = 20080;
      */
     PRIMITIVE_TYPE = 20080,
-    /**
-     * @generated from protobuf enum value: ENUM_TYPE_FORMAT_HINT = 20081;
-     */
-    FORMAT_HINT = 20081,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_FIELD_ZONE = 20082;
      */
@@ -7873,9 +7996,13 @@ export enum FileKind {
      */
     DRIVE = 1,
     /**
-     * @generated from protobuf enum value: FILE_KIND_EXTERNAL = 2;
+     * @generated from protobuf enum value: FILE_KIND_DRIVE_INLINE = 2;
      */
-    EXTERNAL = 2
+    DRIVE_INLINE = 2,
+    /**
+     * @generated from protobuf enum value: FILE_KIND_EXTERNAL = 3;
+     */
+    EXTERNAL = 3
 }
 /**
  * @generated from protobuf enum symbolx.bench.FileRetentionMode
@@ -7897,6 +8024,47 @@ export enum FileRetentionMode {
      * @generated from protobuf enum value: FILE_RETENTION_MODE_TIMED = 3;
      */
     TIMED = 3
+}
+/**
+ * @generated from protobuf enum symbolx.bench.FileType
+ */
+export enum FileType {
+    /**
+     * @generated from protobuf enum value: FILE_TYPE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: FILE_TYPE_TEXT = 1;
+     */
+    TEXT = 1,
+    /**
+     * @generated from protobuf enum value: FILE_TYPE_IMAGE = 2;
+     */
+    IMAGE = 2,
+    /**
+     * @generated from protobuf enum value: FILE_TYPE_AUDIO = 3;
+     */
+    AUDIO = 3,
+    /**
+     * @generated from protobuf enum value: FILE_TYPE_VIDEO = 4;
+     */
+    VIDEO = 4,
+    /**
+     * @generated from protobuf enum value: FILE_TYPE_DOCUMENT = 5;
+     */
+    DOCUMENT = 5,
+    /**
+     * @generated from protobuf enum value: FILE_TYPE_DATA = 6;
+     */
+    DATA = 6,
+    /**
+     * @generated from protobuf enum value: FILE_TYPE_EXECUTABLE = 7;
+     */
+    EXECUTABLE = 7,
+    /**
+     * @generated from protobuf enum value: FILE_TYPE_OTHER = 10;
+     */
+    OTHER = 10
 }
 /**
  * @generated from protobuf enum symbolx.bench.FontSize
@@ -8016,54 +8184,6 @@ export enum FontWeight {
      * @generated from protobuf enum value: FONT_WEIGHT_BLACK = 900;
      */
     BLACK = 900
-}
-/**
- * Extra semantic hint for types.
- * NOTE :Architecture: revisit FormatHint (especially with file types like images, constraints, etc.)
- *
- * @generated from protobuf enum symbolx.bench.FormatHint
- */
-export enum FormatHint {
-    /**
-     * @generated from protobuf enum value: FORMAT_HINT_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: FORMAT_HINT_TITLE = 1;
-     */
-    TITLE = 1,
-    /**
-     * @generated from protobuf enum value: FORMAT_HINT_EMAIL = 2;
-     */
-    EMAIL = 2,
-    /**
-     * @generated from protobuf enum value: FORMAT_HINT_URL = 3;
-     */
-    URL = 3,
-    /**
-     * @generated from protobuf enum value: FORMAT_HINT_MARKDOWN = 4;
-     */
-    MARKDOWN = 4,
-    /**
-     * @generated from protobuf enum value: FORMAT_HINT_CODE = 5;
-     */
-    CODE = 5,
-    /**
-     * @generated from protobuf enum value: FORMAT_HINT_EMOJI = 6;
-     */
-    EMOJI = 6,
-    /**
-     * @generated from protobuf enum value: FORMAT_HINT_PHONE = 20;
-     */
-    PHONE = 20,
-    /**
-     * @generated from protobuf enum value: FORMAT_HINT_RATING = 21;
-     */
-    RATING = 21,
-    /**
-     * @generated from protobuf enum value: FORMAT_HINT_SLIDER = 22;
-     */
-    SLIDER = 22
 }
 /**
  * @generated from protobuf enum symbolx.bench.FunctionalOp
@@ -8806,9 +8926,13 @@ export enum ObjectType {
      */
     SECRET_REFERENCE = 10206,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_TRIGGER_INFO = 10210;
+     * @generated from protobuf enum value: OBJECT_TYPE_FILE_INFO = 10207;
      */
-    TRIGGER_INFO = 10210,
+    FILE_INFO = 10207,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_TRIGGER_INFO = 10208;
+     */
+    TRIGGER_INFO = 10208,
     /**
      * @generated from protobuf enum value: OBJECT_TYPE_EXPRESSION = 10300;
      */
@@ -9851,9 +9975,13 @@ export enum StructType {
      */
     SECRET_REFERENCE = 10206,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_TRIGGER_INFO = 10210;
+     * @generated from protobuf enum value: STRUCT_TYPE_FILE_INFO = 10207;
      */
-    TRIGGER_INFO = 10210,
+    FILE_INFO = 10207,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_TRIGGER_INFO = 10208;
+     */
+    TRIGGER_INFO = 10208,
     /**
      * @generated from protobuf enum value: STRUCT_TYPE_EXPRESSION = 10300;
      */
@@ -10537,31 +10665,6 @@ export enum ViewType {
      * @generated from protobuf enum value: VIEW_TYPE_AUDIO = 1275;
      */
     AUDIO = 1275
-}
-/**
- * @generated from protobuf enum symbolx.bench.Visibility
- */
-export enum Visibility {
-    /**
-     * @generated from protobuf enum value: VISIBILITY_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: VISIBILITY_PAGE = 4;
-     */
-    PAGE = 4,
-    /**
-     * @generated from protobuf enum value: VISIBILITY_MODULE = 6;
-     */
-    MODULE = 6,
-    /**
-     * @generated from protobuf enum value: VISIBILITY_BENCH = 8;
-     */
-    BENCH = 8,
-    /**
-     * @generated from protobuf enum value: VISIBILITY_PUBLIC = 10;
-     */
-    PUBLIC = 10
 }
 // @generated message type with reflection information, may provide speed optimized methods
 class AccessData$Type extends MessageType<AccessData> {
@@ -11977,6 +12080,162 @@ class FeedViewStateData$Type extends MessageType<FeedViewStateData> {
  */
 export const FeedViewStateData = new FeedViewStateData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class FileInfoData$Type extends MessageType<FileInfoData> {
+    constructor() {
+        super("symbolx.bench.FileInfoData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 40, name: "kind", kind: "enum", T: () => ["symbolx.bench.FileKind", FileKind, "FILE_KIND_"] },
+            { no: 41, name: "content", kind: "scalar", opt: true, T: 12 /*ScalarType.BYTES*/ },
+            { no: 42, name: "url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 50, name: "coarse_type", kind: "enum", T: () => ["symbolx.bench.FileType", FileType, "FILE_TYPE_"] },
+            { no: 51, name: "mime_type", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 52, name: "size", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 53, name: "sha512", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 55, name: "width", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 56, name: "height", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 57, name: "aspect_ratio", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 58, name: "codec", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 60, name: "duration", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 61, name: "bitrate", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 62, name: "channels", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 63, name: "sample_rate", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ }
+        ]);
+    }
+    create(value?: PartialMessage<FileInfoData>): FileInfoData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.kind = 0;
+        message.coarseType = 0;
+        message.mimeType = "";
+        message.size = 0n;
+        if (value !== undefined)
+            reflectionMergePartial<FileInfoData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: FileInfoData): FileInfoData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* symbolx.bench.FileKind kind */ 40:
+                    message.kind = reader.int32();
+                    break;
+                case /* optional bytes content */ 41:
+                    message.content = reader.bytes();
+                    break;
+                case /* optional string url */ 42:
+                    message.url = reader.string();
+                    break;
+                case /* symbolx.bench.FileType coarse_type */ 50:
+                    message.coarseType = reader.int32();
+                    break;
+                case /* string mime_type */ 51:
+                    message.mimeType = reader.string();
+                    break;
+                case /* int64 size */ 52:
+                    message.size = reader.int64().toBigInt();
+                    break;
+                case /* optional string sha512 */ 53:
+                    message.sha512 = reader.string();
+                    break;
+                case /* optional int32 width */ 55:
+                    message.width = reader.int32();
+                    break;
+                case /* optional int32 height */ 56:
+                    message.height = reader.int32();
+                    break;
+                case /* optional float aspect_ratio */ 57:
+                    message.aspectRatio = reader.float();
+                    break;
+                case /* optional string codec */ 58:
+                    message.codec = reader.string();
+                    break;
+                case /* optional float duration */ 60:
+                    message.duration = reader.float();
+                    break;
+                case /* optional int32 bitrate */ 61:
+                    message.bitrate = reader.int32();
+                    break;
+                case /* optional int32 channels */ 62:
+                    message.channels = reader.int32();
+                    break;
+                case /* optional int32 sample_rate */ 63:
+                    message.sampleRate = reader.int32();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: FileInfoData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* symbolx.bench.FileKind kind = 40; */
+        if (message.kind !== 0)
+            writer.tag(40, WireType.Varint).int32(message.kind);
+        /* optional bytes content = 41; */
+        if (message.content !== undefined)
+            writer.tag(41, WireType.LengthDelimited).bytes(message.content);
+        /* optional string url = 42; */
+        if (message.url !== undefined)
+            writer.tag(42, WireType.LengthDelimited).string(message.url);
+        /* symbolx.bench.FileType coarse_type = 50; */
+        if (message.coarseType !== 0)
+            writer.tag(50, WireType.Varint).int32(message.coarseType);
+        /* string mime_type = 51; */
+        if (message.mimeType !== "")
+            writer.tag(51, WireType.LengthDelimited).string(message.mimeType);
+        /* int64 size = 52; */
+        if (message.size !== 0n)
+            writer.tag(52, WireType.Varint).int64(message.size);
+        /* optional string sha512 = 53; */
+        if (message.sha512 !== undefined)
+            writer.tag(53, WireType.LengthDelimited).string(message.sha512);
+        /* optional int32 width = 55; */
+        if (message.width !== undefined)
+            writer.tag(55, WireType.Varint).int32(message.width);
+        /* optional int32 height = 56; */
+        if (message.height !== undefined)
+            writer.tag(56, WireType.Varint).int32(message.height);
+        /* optional float aspect_ratio = 57; */
+        if (message.aspectRatio !== undefined)
+            writer.tag(57, WireType.Bit32).float(message.aspectRatio);
+        /* optional string codec = 58; */
+        if (message.codec !== undefined)
+            writer.tag(58, WireType.LengthDelimited).string(message.codec);
+        /* optional float duration = 60; */
+        if (message.duration !== undefined)
+            writer.tag(60, WireType.Bit32).float(message.duration);
+        /* optional int32 bitrate = 61; */
+        if (message.bitrate !== undefined)
+            writer.tag(61, WireType.Varint).int32(message.bitrate);
+        /* optional int32 channels = 62; */
+        if (message.channels !== undefined)
+            writer.tag(62, WireType.Varint).int32(message.channels);
+        /* optional int32 sample_rate = 63; */
+        if (message.sampleRate !== undefined)
+            writer.tag(63, WireType.Varint).int32(message.sampleRate);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.FileInfoData
+ */
+export const FileInfoData = new FileInfoData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class FileReferenceData$Type extends MessageType<FileReferenceData> {
     constructor() {
         super("symbolx.bench.FileReferenceData", [
@@ -11988,12 +12247,20 @@ class FileReferenceData$Type extends MessageType<FileReferenceData> {
             { no: 34, name: "base_ck", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 35, name: "base_bench_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 40, name: "kind", kind: "enum", T: () => ["symbolx.bench.FileKind", FileKind, "FILE_KIND_"] },
-            { no: 43, name: "title", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 44, name: "size", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 45, name: "sha512", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 46, name: "mime_type", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 50, name: "content", kind: "scalar", opt: true, T: 12 /*ScalarType.BYTES*/ },
-            { no: 51, name: "url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
+            { no: 41, name: "content", kind: "scalar", opt: true, T: 12 /*ScalarType.BYTES*/ },
+            { no: 42, name: "url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 50, name: "coarse_type", kind: "enum", T: () => ["symbolx.bench.FileType", FileType, "FILE_TYPE_"] },
+            { no: 51, name: "mime_type", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 52, name: "size", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 53, name: "sha512", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 55, name: "width", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 56, name: "height", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 57, name: "aspect_ratio", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 58, name: "codec", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 60, name: "duration", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 61, name: "bitrate", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 62, name: "channels", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 63, name: "sample_rate", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ }
         ]);
     }
     create(value?: PartialMessage<FileReferenceData>): FileReferenceData {
@@ -12001,7 +12268,9 @@ class FileReferenceData$Type extends MessageType<FileReferenceData> {
         message.metatype = 0;
         message.type = 0;
         message.kind = 0;
-        message.title = "";
+        message.coarseType = 0;
+        message.mimeType = "";
+        message.size = 0n;
         if (value !== undefined)
             reflectionMergePartial<FileReferenceData>(this, message, value);
         return message;
@@ -12035,23 +12304,47 @@ class FileReferenceData$Type extends MessageType<FileReferenceData> {
                 case /* symbolx.bench.FileKind kind */ 40:
                     message.kind = reader.int32();
                     break;
-                case /* string title */ 43:
-                    message.title = reader.string();
-                    break;
-                case /* optional int32 size */ 44:
-                    message.size = reader.int32();
-                    break;
-                case /* optional string sha512 */ 45:
-                    message.sha512 = reader.string();
-                    break;
-                case /* optional string mime_type */ 46:
-                    message.mimeType = reader.string();
-                    break;
-                case /* optional bytes content */ 50:
+                case /* optional bytes content */ 41:
                     message.content = reader.bytes();
                     break;
-                case /* optional string url */ 51:
+                case /* optional string url */ 42:
                     message.url = reader.string();
+                    break;
+                case /* symbolx.bench.FileType coarse_type */ 50:
+                    message.coarseType = reader.int32();
+                    break;
+                case /* string mime_type */ 51:
+                    message.mimeType = reader.string();
+                    break;
+                case /* int64 size */ 52:
+                    message.size = reader.int64().toBigInt();
+                    break;
+                case /* optional string sha512 */ 53:
+                    message.sha512 = reader.string();
+                    break;
+                case /* optional int32 width */ 55:
+                    message.width = reader.int32();
+                    break;
+                case /* optional int32 height */ 56:
+                    message.height = reader.int32();
+                    break;
+                case /* optional float aspect_ratio */ 57:
+                    message.aspectRatio = reader.float();
+                    break;
+                case /* optional string codec */ 58:
+                    message.codec = reader.string();
+                    break;
+                case /* optional float duration */ 60:
+                    message.duration = reader.float();
+                    break;
+                case /* optional int32 bitrate */ 61:
+                    message.bitrate = reader.int32();
+                    break;
+                case /* optional int32 channels */ 62:
+                    message.channels = reader.int32();
+                    break;
+                case /* optional int32 sample_rate */ 63:
+                    message.sampleRate = reader.int32();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -12089,24 +12382,48 @@ class FileReferenceData$Type extends MessageType<FileReferenceData> {
         /* symbolx.bench.FileKind kind = 40; */
         if (message.kind !== 0)
             writer.tag(40, WireType.Varint).int32(message.kind);
-        /* string title = 43; */
-        if (message.title !== "")
-            writer.tag(43, WireType.LengthDelimited).string(message.title);
-        /* optional int32 size = 44; */
-        if (message.size !== undefined)
-            writer.tag(44, WireType.Varint).int32(message.size);
-        /* optional string sha512 = 45; */
-        if (message.sha512 !== undefined)
-            writer.tag(45, WireType.LengthDelimited).string(message.sha512);
-        /* optional string mime_type = 46; */
-        if (message.mimeType !== undefined)
-            writer.tag(46, WireType.LengthDelimited).string(message.mimeType);
-        /* optional bytes content = 50; */
+        /* optional bytes content = 41; */
         if (message.content !== undefined)
-            writer.tag(50, WireType.LengthDelimited).bytes(message.content);
-        /* optional string url = 51; */
+            writer.tag(41, WireType.LengthDelimited).bytes(message.content);
+        /* optional string url = 42; */
         if (message.url !== undefined)
-            writer.tag(51, WireType.LengthDelimited).string(message.url);
+            writer.tag(42, WireType.LengthDelimited).string(message.url);
+        /* symbolx.bench.FileType coarse_type = 50; */
+        if (message.coarseType !== 0)
+            writer.tag(50, WireType.Varint).int32(message.coarseType);
+        /* string mime_type = 51; */
+        if (message.mimeType !== "")
+            writer.tag(51, WireType.LengthDelimited).string(message.mimeType);
+        /* int64 size = 52; */
+        if (message.size !== 0n)
+            writer.tag(52, WireType.Varint).int64(message.size);
+        /* optional string sha512 = 53; */
+        if (message.sha512 !== undefined)
+            writer.tag(53, WireType.LengthDelimited).string(message.sha512);
+        /* optional int32 width = 55; */
+        if (message.width !== undefined)
+            writer.tag(55, WireType.Varint).int32(message.width);
+        /* optional int32 height = 56; */
+        if (message.height !== undefined)
+            writer.tag(56, WireType.Varint).int32(message.height);
+        /* optional float aspect_ratio = 57; */
+        if (message.aspectRatio !== undefined)
+            writer.tag(57, WireType.Bit32).float(message.aspectRatio);
+        /* optional string codec = 58; */
+        if (message.codec !== undefined)
+            writer.tag(58, WireType.LengthDelimited).string(message.codec);
+        /* optional float duration = 60; */
+        if (message.duration !== undefined)
+            writer.tag(60, WireType.Bit32).float(message.duration);
+        /* optional int32 bitrate = 61; */
+        if (message.bitrate !== undefined)
+            writer.tag(61, WireType.Varint).int32(message.bitrate);
+        /* optional int32 channels = 62; */
+        if (message.channels !== undefined)
+            writer.tag(62, WireType.Varint).int32(message.channels);
+        /* optional int32 sample_rate = 63; */
+        if (message.sampleRate !== undefined)
+            writer.tag(63, WireType.Varint).int32(message.sampleRate);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -15076,7 +15393,9 @@ class TypeConstraintData$Type extends MessageType<TypeConstraintData> {
             { no: 60, name: "regex", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 61, name: "starts_with", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 62, name: "ends_with", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 70, name: "subtype", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ }
+            { no: 70, name: "block_type", kind: "enum", opt: true, T: () => ["symbolx.bench.BlockType", BlockType, "BLOCK_TYPE_"] },
+            { no: 71, name: "step_type", kind: "enum", opt: true, T: () => ["symbolx.bench.StepType", StepType, "STEP_TYPE_"] },
+            { no: 72, name: "file_type", kind: "enum", opt: true, T: () => ["symbolx.bench.FileType", FileType, "FILE_TYPE_"] }
         ]);
     }
     create(value?: PartialMessage<TypeConstraintData>): TypeConstraintData {
@@ -15118,8 +15437,14 @@ class TypeConstraintData$Type extends MessageType<TypeConstraintData> {
                 case /* optional string ends_with */ 62:
                     message.endsWith = reader.string();
                     break;
-                case /* optional int32 subtype */ 70:
-                    message.subtype = reader.int32();
+                case /* optional symbolx.bench.BlockType block_type */ 70:
+                    message.blockType = reader.int32();
+                    break;
+                case /* optional symbolx.bench.StepType step_type */ 71:
+                    message.stepType = reader.int32();
+                    break;
+                case /* optional symbolx.bench.FileType file_type */ 72:
+                    message.fileType = reader.int32();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -15160,9 +15485,15 @@ class TypeConstraintData$Type extends MessageType<TypeConstraintData> {
         /* optional string ends_with = 62; */
         if (message.endsWith !== undefined)
             writer.tag(62, WireType.LengthDelimited).string(message.endsWith);
-        /* optional int32 subtype = 70; */
-        if (message.subtype !== undefined)
-            writer.tag(70, WireType.Varint).int32(message.subtype);
+        /* optional symbolx.bench.BlockType block_type = 70; */
+        if (message.blockType !== undefined)
+            writer.tag(70, WireType.Varint).int32(message.blockType);
+        /* optional symbolx.bench.StepType step_type = 71; */
+        if (message.stepType !== undefined)
+            writer.tag(71, WireType.Varint).int32(message.stepType);
+        /* optional symbolx.bench.FileType file_type = 72; */
+        if (message.fileType !== undefined)
+            writer.tag(72, WireType.Varint).int32(message.fileType);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -15184,8 +15515,6 @@ class TypeInfoData$Type extends MessageType<TypeInfoData> {
             { no: 43, name: "base_type_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 44, name: "base_field_zone", kind: "enum", opt: true, T: () => ["symbolx.bench.FieldZone", FieldZone, "FIELD_ZONE_"] },
             { no: 50, name: "default_packed", kind: "message", T: () => Struct },
-            { no: 52, name: "visibility", kind: "enum", opt: true, T: () => ["symbolx.bench.Visibility", Visibility, "VISIBILITY_"] },
-            { no: 53, name: "format_hint", kind: "enum", opt: true, T: () => ["symbolx.bench.FormatHint", FormatHint, "FORMAT_HINT_"] },
             { no: 54, name: "condition", kind: "message", T: () => ExpressionData },
             { no: 55, name: "constraint", kind: "message", T: () => TypeConstraintData },
             { no: 60, name: "is_list", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
@@ -15229,12 +15558,6 @@ class TypeInfoData$Type extends MessageType<TypeInfoData> {
                     break;
                 case /* optional google.protobuf.Struct default_packed */ 50:
                     message.defaultPacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.defaultPacked);
-                    break;
-                case /* optional symbolx.bench.Visibility visibility */ 52:
-                    message.visibility = reader.int32();
-                    break;
-                case /* optional symbolx.bench.FormatHint format_hint */ 53:
-                    message.formatHint = reader.int32();
                     break;
                 case /* optional symbolx.bench.ExpressionData condition */ 54:
                     message.condition = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.condition);
@@ -15284,12 +15607,6 @@ class TypeInfoData$Type extends MessageType<TypeInfoData> {
         /* optional google.protobuf.Struct default_packed = 50; */
         if (message.defaultPacked)
             Struct.internalBinaryWrite(message.defaultPacked, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.Visibility visibility = 52; */
-        if (message.visibility !== undefined)
-            writer.tag(52, WireType.Varint).int32(message.visibility);
-        /* optional symbolx.bench.FormatHint format_hint = 53; */
-        if (message.formatHint !== undefined)
-            writer.tag(53, WireType.Varint).int32(message.formatHint);
         /* optional symbolx.bench.ExpressionData condition = 54; */
         if (message.condition)
             ExpressionData.internalBinaryWrite(message.condition, writer.tag(54, WireType.LengthDelimited).fork(), options).join();
@@ -15949,7 +16266,6 @@ class BlockData$Type extends MessageType<BlockData> {
             { no: 35, name: "bases_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 36, name: "text", kind: "message", T: () => TextData },
             { no: 37, name: "icon", kind: "message", T: () => IconData },
-            { no: 38, name: "visibility", kind: "enum", opt: true, T: () => ["symbolx.bench.Visibility", Visibility, "VISIBILITY_"] },
             { no: 39, name: "value_type", kind: "message", T: () => TypeInfoData },
             { no: 40, name: "value_packed", kind: "message", T: () => Struct },
             { no: 42, name: "code", kind: "message", T: () => CodeData },
@@ -16064,9 +16380,6 @@ class BlockData$Type extends MessageType<BlockData> {
                     break;
                 case /* optional symbolx.bench.IconData icon */ 37:
                     message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
-                    break;
-                case /* optional symbolx.bench.Visibility visibility */ 38:
-                    message.visibility = reader.int32();
                     break;
                 case /* optional symbolx.bench.TypeInfoData value_type */ 39:
                     message.valueType = TypeInfoData.internalBinaryRead(reader, reader.uint32(), options, message.valueType);
@@ -16186,9 +16499,6 @@ class BlockData$Type extends MessageType<BlockData> {
         /* optional symbolx.bench.IconData icon = 37; */
         if (message.icon)
             IconData.internalBinaryWrite(message.icon, writer.tag(37, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.Visibility visibility = 38; */
-        if (message.visibility !== undefined)
-            writer.tag(38, WireType.Varint).int32(message.visibility);
         /* optional symbolx.bench.TypeInfoData value_type = 39; */
         if (message.valueType)
             TypeInfoData.internalBinaryWrite(message.valueType, writer.tag(39, WireType.LengthDelimited).fork(), options).join();
@@ -17109,8 +17419,6 @@ class FieldData$Type extends MessageType<FieldData> {
             { no: 43, name: "base_type_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 44, name: "base_field_zone", kind: "enum", opt: true, T: () => ["symbolx.bench.FieldZone", FieldZone, "FIELD_ZONE_"] },
             { no: 50, name: "default_packed", kind: "message", T: () => Struct },
-            { no: 52, name: "visibility", kind: "enum", opt: true, T: () => ["symbolx.bench.Visibility", Visibility, "VISIBILITY_"] },
-            { no: 53, name: "format_hint", kind: "enum", opt: true, T: () => ["symbolx.bench.FormatHint", FormatHint, "FORMAT_HINT_"] },
             { no: 54, name: "condition", kind: "message", T: () => ExpressionData },
             { no: 55, name: "constraint", kind: "message", T: () => TypeConstraintData },
             { no: 60, name: "is_list", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
@@ -17237,12 +17545,6 @@ class FieldData$Type extends MessageType<FieldData> {
                 case /* optional google.protobuf.Struct default_packed */ 50:
                     message.defaultPacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.defaultPacked);
                     break;
-                case /* optional symbolx.bench.Visibility visibility */ 52:
-                    message.visibility = reader.int32();
-                    break;
-                case /* optional symbolx.bench.FormatHint format_hint */ 53:
-                    message.formatHint = reader.int32();
-                    break;
                 case /* optional symbolx.bench.ExpressionData condition */ 54:
                     message.condition = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.condition);
                     break;
@@ -17364,12 +17666,6 @@ class FieldData$Type extends MessageType<FieldData> {
         /* optional google.protobuf.Struct default_packed = 50; */
         if (message.defaultPacked)
             Struct.internalBinaryWrite(message.defaultPacked, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.Visibility visibility = 52; */
-        if (message.visibility !== undefined)
-            writer.tag(52, WireType.Varint).int32(message.visibility);
-        /* optional symbolx.bench.FormatHint format_hint = 53; */
-        if (message.formatHint !== undefined)
-            writer.tag(53, WireType.Varint).int32(message.formatHint);
         /* optional symbolx.bench.ExpressionData condition = 54; */
         if (message.condition)
             ExpressionData.internalBinaryWrite(message.condition, writer.tag(54, WireType.LengthDelimited).fork(), options).join();
@@ -17413,15 +17709,24 @@ class FileData$Type extends MessageType<FileData> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 22, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 29, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
-            { no: 30, name: "kind", kind: "enum", T: () => ["symbolx.bench.FileKind", FileKind, "FILE_KIND_"] },
             { no: 33, name: "title", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 34, name: "size", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 35, name: "mime_type", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 36, name: "sha512", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 37, name: "retention", kind: "enum", opt: true, T: () => ["symbolx.bench.FileRetentionMode", FileRetentionMode, "FILE_RETENTION_MODE_"] },
             { no: 38, name: "expires_at", kind: "message", T: () => Timestamp },
-            { no: 50, name: "content", kind: "scalar", opt: true, T: 12 /*ScalarType.BYTES*/ },
-            { no: 51, name: "url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
+            { no: 40, name: "kind", kind: "enum", T: () => ["symbolx.bench.FileKind", FileKind, "FILE_KIND_"] },
+            { no: 41, name: "content", kind: "scalar", opt: true, T: 12 /*ScalarType.BYTES*/ },
+            { no: 42, name: "url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 50, name: "coarse_type", kind: "enum", T: () => ["symbolx.bench.FileType", FileType, "FILE_TYPE_"] },
+            { no: 51, name: "mime_type", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 52, name: "size", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 53, name: "sha512", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 55, name: "width", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 56, name: "height", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 57, name: "aspect_ratio", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 58, name: "codec", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 60, name: "duration", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 61, name: "bitrate", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 62, name: "channels", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 63, name: "sample_rate", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ }
         ]);
     }
     create(value?: PartialMessage<FileData>): FileData {
@@ -17432,10 +17737,11 @@ class FileData$Type extends MessageType<FileData> {
         message.createdEpoch = 0n;
         message.updatedEpoch = 0n;
         message.setProperties = [];
-        message.kind = 0;
         message.title = "";
-        message.size = 0n;
+        message.kind = 0;
+        message.coarseType = 0;
         message.mimeType = "";
+        message.size = 0n;
         if (value !== undefined)
             reflectionMergePartial<FileData>(this, message, value);
         return message;
@@ -17491,20 +17797,8 @@ class FileData$Type extends MessageType<FileData> {
                     else
                         message.setProperties.push(reader.int32());
                     break;
-                case /* symbolx.bench.FileKind kind */ 30:
-                    message.kind = reader.int32();
-                    break;
                 case /* string title */ 33:
                     message.title = reader.string();
-                    break;
-                case /* int64 size */ 34:
-                    message.size = reader.int64().toBigInt();
-                    break;
-                case /* string mime_type */ 35:
-                    message.mimeType = reader.string();
-                    break;
-                case /* optional string sha512 */ 36:
-                    message.sha512 = reader.string();
                     break;
                 case /* optional symbolx.bench.FileRetentionMode retention */ 37:
                     message.retention = reader.int32();
@@ -17512,11 +17806,50 @@ class FileData$Type extends MessageType<FileData> {
                 case /* optional google.protobuf.Timestamp expires_at */ 38:
                     message.expiresAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.expiresAt);
                     break;
-                case /* optional bytes content */ 50:
+                case /* symbolx.bench.FileKind kind */ 40:
+                    message.kind = reader.int32();
+                    break;
+                case /* optional bytes content */ 41:
                     message.content = reader.bytes();
                     break;
-                case /* optional string url */ 51:
+                case /* optional string url */ 42:
                     message.url = reader.string();
+                    break;
+                case /* symbolx.bench.FileType coarse_type */ 50:
+                    message.coarseType = reader.int32();
+                    break;
+                case /* string mime_type */ 51:
+                    message.mimeType = reader.string();
+                    break;
+                case /* int64 size */ 52:
+                    message.size = reader.int64().toBigInt();
+                    break;
+                case /* optional string sha512 */ 53:
+                    message.sha512 = reader.string();
+                    break;
+                case /* optional int32 width */ 55:
+                    message.width = reader.int32();
+                    break;
+                case /* optional int32 height */ 56:
+                    message.height = reader.int32();
+                    break;
+                case /* optional float aspect_ratio */ 57:
+                    message.aspectRatio = reader.float();
+                    break;
+                case /* optional string codec */ 58:
+                    message.codec = reader.string();
+                    break;
+                case /* optional float duration */ 60:
+                    message.duration = reader.float();
+                    break;
+                case /* optional int32 bitrate */ 61:
+                    message.bitrate = reader.int32();
+                    break;
+                case /* optional int32 channels */ 62:
+                    message.channels = reader.int32();
+                    break;
+                case /* optional int32 sample_rate */ 63:
+                    message.sampleRate = reader.int32();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -17576,33 +17909,60 @@ class FileData$Type extends MessageType<FileData> {
                 writer.int32(message.setProperties[i]);
             writer.join();
         }
-        /* symbolx.bench.FileKind kind = 30; */
-        if (message.kind !== 0)
-            writer.tag(30, WireType.Varint).int32(message.kind);
         /* string title = 33; */
         if (message.title !== "")
             writer.tag(33, WireType.LengthDelimited).string(message.title);
-        /* int64 size = 34; */
-        if (message.size !== 0n)
-            writer.tag(34, WireType.Varint).int64(message.size);
-        /* string mime_type = 35; */
-        if (message.mimeType !== "")
-            writer.tag(35, WireType.LengthDelimited).string(message.mimeType);
-        /* optional string sha512 = 36; */
-        if (message.sha512 !== undefined)
-            writer.tag(36, WireType.LengthDelimited).string(message.sha512);
         /* optional symbolx.bench.FileRetentionMode retention = 37; */
         if (message.retention !== undefined)
             writer.tag(37, WireType.Varint).int32(message.retention);
         /* optional google.protobuf.Timestamp expires_at = 38; */
         if (message.expiresAt)
             Timestamp.internalBinaryWrite(message.expiresAt, writer.tag(38, WireType.LengthDelimited).fork(), options).join();
-        /* optional bytes content = 50; */
+        /* symbolx.bench.FileKind kind = 40; */
+        if (message.kind !== 0)
+            writer.tag(40, WireType.Varint).int32(message.kind);
+        /* optional bytes content = 41; */
         if (message.content !== undefined)
-            writer.tag(50, WireType.LengthDelimited).bytes(message.content);
-        /* optional string url = 51; */
+            writer.tag(41, WireType.LengthDelimited).bytes(message.content);
+        /* optional string url = 42; */
         if (message.url !== undefined)
-            writer.tag(51, WireType.LengthDelimited).string(message.url);
+            writer.tag(42, WireType.LengthDelimited).string(message.url);
+        /* symbolx.bench.FileType coarse_type = 50; */
+        if (message.coarseType !== 0)
+            writer.tag(50, WireType.Varint).int32(message.coarseType);
+        /* string mime_type = 51; */
+        if (message.mimeType !== "")
+            writer.tag(51, WireType.LengthDelimited).string(message.mimeType);
+        /* int64 size = 52; */
+        if (message.size !== 0n)
+            writer.tag(52, WireType.Varint).int64(message.size);
+        /* optional string sha512 = 53; */
+        if (message.sha512 !== undefined)
+            writer.tag(53, WireType.LengthDelimited).string(message.sha512);
+        /* optional int32 width = 55; */
+        if (message.width !== undefined)
+            writer.tag(55, WireType.Varint).int32(message.width);
+        /* optional int32 height = 56; */
+        if (message.height !== undefined)
+            writer.tag(56, WireType.Varint).int32(message.height);
+        /* optional float aspect_ratio = 57; */
+        if (message.aspectRatio !== undefined)
+            writer.tag(57, WireType.Bit32).float(message.aspectRatio);
+        /* optional string codec = 58; */
+        if (message.codec !== undefined)
+            writer.tag(58, WireType.LengthDelimited).string(message.codec);
+        /* optional float duration = 60; */
+        if (message.duration !== undefined)
+            writer.tag(60, WireType.Bit32).float(message.duration);
+        /* optional int32 bitrate = 61; */
+        if (message.bitrate !== undefined)
+            writer.tag(61, WireType.Varint).int32(message.bitrate);
+        /* optional int32 channels = 62; */
+        if (message.channels !== undefined)
+            writer.tag(62, WireType.Varint).int32(message.channels);
+        /* optional int32 sample_rate = 63; */
+        if (message.sampleRate !== undefined)
+            writer.tag(63, WireType.Varint).int32(message.sampleRate);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -23888,9 +24248,9 @@ export const SomeNodeData = new SomeNodeData$Type();
 
 // Any...
 export type AnyNodeData = BenchData | UserData | OrganizationData | HandleData | ClientData | ServerData | StoreData | MachineData | DriveData | FileData | SecretData | BranchData | PackageData | DependencyData | SpaceData | LinkData | SkipData | IssueData | BlockData | TriggerData | FieldData | QueryData | ViewData | StepData | BadgeData | MembershipData | InviteData | SessionData | RunData | SignalData | LogData | NotificationData | MessageData | RecordData
-export type AnyStructData = SessionContextData | EditContextData | EditData | ChangeData | ChangeVignetteData | GraphScopeData | ClientOriginData | NodeReferenceData | PropertyReferenceData | PathData | PathTokenData | PolicyData | PolicyRuleData | SubjectData | AccessZoneData | AccessMatrixData | AccessData | TextData | TextLineData | TextSpanData | TypeInfoData | TypeConstraintData | ScheduleData | FileReferenceData | IconData | SecretReferenceData | TriggerInfoData | ExpressionData | AggregationData | SelectionData | QueryInfoData | ReadOptionsData | ValueData | ComputedValueData | CodeData | CodeLineData | PipeData | RunErrorData | RunOptionsData | RunAttemptData | RunTraceData | RunFrameData | BreakpointData | ModelOptionsData | LogInfoData | ColorData | FontData | BoxData | OffsetData | TransformData | StartViewStateData | FeedViewStateData | ChartViewStateData | HistoryViewStateData | TimelineViewStateData | UserWizardViewStateData | PageViewStateData | TreeViewStateData
+export type AnyStructData = SessionContextData | EditContextData | EditData | ChangeData | ChangeVignetteData | GraphScopeData | ClientOriginData | NodeReferenceData | PropertyReferenceData | PathData | PathTokenData | PolicyData | PolicyRuleData | SubjectData | AccessZoneData | AccessMatrixData | AccessData | TextData | TextLineData | TextSpanData | TypeInfoData | TypeConstraintData | ScheduleData | FileReferenceData | IconData | SecretReferenceData | FileInfoData | TriggerInfoData | ExpressionData | AggregationData | SelectionData | QueryInfoData | ReadOptionsData | ValueData | ComputedValueData | CodeData | CodeLineData | PipeData | RunErrorData | RunOptionsData | RunAttemptData | RunTraceData | RunFrameData | BreakpointData | ModelOptionsData | LogInfoData | ColorData | FontData | BoxData | OffsetData | TransformData | StartViewStateData | FeedViewStateData | ChartViewStateData | HistoryViewStateData | TimelineViewStateData | UserWizardViewStateData | PageViewStateData | TreeViewStateData
 export type AnyNodeDataType = typeof BenchData | typeof UserData | typeof OrganizationData | typeof HandleData | typeof ClientData | typeof ServerData | typeof StoreData | typeof MachineData | typeof DriveData | typeof FileData | typeof SecretData | typeof BranchData | typeof PackageData | typeof DependencyData | typeof SpaceData | typeof LinkData | typeof SkipData | typeof IssueData | typeof BlockData | typeof TriggerData | typeof FieldData | typeof QueryData | typeof ViewData | typeof StepData | typeof BadgeData | typeof MembershipData | typeof InviteData | typeof SessionData | typeof RunData | typeof SignalData | typeof LogData | typeof NotificationData | typeof MessageData | typeof RecordData
-export type AnyStructDataType = typeof SessionContextData | typeof EditContextData | typeof EditData | typeof ChangeData | typeof ChangeVignetteData | typeof GraphScopeData | typeof ClientOriginData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof PathData | typeof PathTokenData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof TypeInfoData | typeof TypeConstraintData | typeof ScheduleData | typeof FileReferenceData | typeof IconData | typeof SecretReferenceData | typeof TriggerInfoData | typeof ExpressionData | typeof AggregationData | typeof SelectionData | typeof QueryInfoData | typeof ReadOptionsData | typeof ValueData | typeof ComputedValueData | typeof CodeData | typeof CodeLineData | typeof PipeData | typeof RunErrorData | typeof RunOptionsData | typeof RunAttemptData | typeof RunTraceData | typeof RunFrameData | typeof BreakpointData | typeof ModelOptionsData | typeof LogInfoData | typeof ColorData | typeof FontData | typeof BoxData | typeof OffsetData | typeof TransformData | typeof StartViewStateData | typeof FeedViewStateData | typeof ChartViewStateData | typeof HistoryViewStateData | typeof TimelineViewStateData | typeof UserWizardViewStateData | typeof PageViewStateData | typeof TreeViewStateData
+export type AnyStructDataType = typeof SessionContextData | typeof EditContextData | typeof EditData | typeof ChangeData | typeof ChangeVignetteData | typeof GraphScopeData | typeof ClientOriginData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof PathData | typeof PathTokenData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof TypeInfoData | typeof TypeConstraintData | typeof ScheduleData | typeof FileReferenceData | typeof IconData | typeof SecretReferenceData | typeof FileInfoData | typeof TriggerInfoData | typeof ExpressionData | typeof AggregationData | typeof SelectionData | typeof QueryInfoData | typeof ReadOptionsData | typeof ValueData | typeof ComputedValueData | typeof CodeData | typeof CodeLineData | typeof PipeData | typeof RunErrorData | typeof RunOptionsData | typeof RunAttemptData | typeof RunTraceData | typeof RunFrameData | typeof BreakpointData | typeof ModelOptionsData | typeof LogInfoData | typeof ColorData | typeof FontData | typeof BoxData | typeof OffsetData | typeof TransformData | typeof StartViewStateData | typeof FeedViewStateData | typeof ChartViewStateData | typeof HistoryViewStateData | typeof TimelineViewStateData | typeof UserWizardViewStateData | typeof PageViewStateData | typeof TreeViewStateData
 export type AnyNodeReferenceData = typeof NodeReferenceData | typeof FileReferenceData | typeof SecretReferenceData
 
 // Ancestry maps
@@ -24109,6 +24469,7 @@ export const MESSAGE_TYPE_BY_OBJECT_TYPE: Partial<Record<ObjectType, MessageType
   [ObjectType.FILE_REFERENCE]: FileReferenceData,
   [ObjectType.ICON]: IconData,
   [ObjectType.SECRET_REFERENCE]: SecretReferenceData,
+  [ObjectType.FILE_INFO]: FileInfoData,
   [ObjectType.TRIGGER_INFO]: TriggerInfoData,
   [ObjectType.EXPRESSION]: ExpressionData,
   [ObjectType.AGGREGATION]: AggregationData,
@@ -24204,6 +24565,7 @@ export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
   ["symbolx.bench.FileReferenceData"]: ObjectType.FILE_REFERENCE,
   ["symbolx.bench.IconData"]: ObjectType.ICON,
   ["symbolx.bench.SecretReferenceData"]: ObjectType.SECRET_REFERENCE,
+  ["symbolx.bench.FileInfoData"]: ObjectType.FILE_INFO,
   ["symbolx.bench.TriggerInfoData"]: ObjectType.TRIGGER_INFO,
   ["symbolx.bench.ExpressionData"]: ObjectType.EXPRESSION,
   ["symbolx.bench.AggregationData"]: ObjectType.AGGREGATION,
@@ -24245,7 +24607,6 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.STRUCT_TYPE]: StructType,
   [EnumType.OBJECT_TYPE]: ObjectType,
   [EnumType.BENCH_TYPE]: BenchType,
-  [EnumType.VISIBILITY]: Visibility,
   [EnumType.CHANGE_KIND]: ChangeKind,
   [EnumType.ACCESS_MODE]: AccessMode,
   [EnumType.ACCESS_KIND]: AccessKind,
@@ -24262,9 +24623,9 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.RESOURCE_STATUS]: ResourceStatus,
   [EnumType.FILE_RETENTION_MODE]: FileRetentionMode,
   [EnumType.FILE_KIND]: FileKind,
+  [EnumType.FILE_TYPE]: FileType,
   [EnumType.CLIENT_TYPE]: ClientType,
   [EnumType.PRIMITIVE_TYPE]: PrimitiveType,
-  [EnumType.FORMAT_HINT]: FormatHint,
   [EnumType.FIELD_ZONE]: FieldZone,
   [EnumType.TYPE_KIND]: TypeKind,
   [EnumType.BLOCK_TYPE]: BlockType,
@@ -24349,6 +24710,7 @@ export interface StructTypeMapping extends Record<StructType, AnyStructData> {
   [StructType.FILE_REFERENCE]: FileReferenceData,
   [StructType.ICON]: IconData,
   [StructType.SECRET_REFERENCE]: SecretReferenceData,
+  [StructType.FILE_INFO]: FileInfoData,
   [StructType.TRIGGER_INFO]: TriggerInfoData,
   [StructType.EXPRESSION]: ExpressionData,
   [StructType.AGGREGATION]: AggregationData,
@@ -24481,6 +24843,7 @@ export interface AnyTypeMapping extends Record<ObjectType, AnyStructData | AnyNo
   [ObjectType.FILE_REFERENCE]: FileReferenceData,
   [ObjectType.ICON]: IconData,
   [ObjectType.SECRET_REFERENCE]: SecretReferenceData,
+  [ObjectType.FILE_INFO]: FileInfoData,
   [ObjectType.TRIGGER_INFO]: TriggerInfoData,
   [ObjectType.EXPRESSION]: ExpressionData,
   [ObjectType.AGGREGATION]: AggregationData,
@@ -24522,7 +24885,6 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.STRUCT_TYPE]: StructType,
   [EnumType.OBJECT_TYPE]: ObjectType,
   [EnumType.BENCH_TYPE]: BenchType,
-  [EnumType.VISIBILITY]: Visibility,
   [EnumType.CHANGE_KIND]: ChangeKind,
   [EnumType.ACCESS_MODE]: AccessMode,
   [EnumType.ACCESS_KIND]: AccessKind,
@@ -24539,9 +24901,9 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.RESOURCE_STATUS]: ResourceStatus,
   [EnumType.FILE_RETENTION_MODE]: FileRetentionMode,
   [EnumType.FILE_KIND]: FileKind,
+  [EnumType.FILE_TYPE]: FileType,
   [EnumType.CLIENT_TYPE]: ClientType,
   [EnumType.PRIMITIVE_TYPE]: PrimitiveType,
-  [EnumType.FORMAT_HINT]: FormatHint,
   [EnumType.FIELD_ZONE]: FieldZone,
   [EnumType.TYPE_KIND]: TypeKind,
   [EnumType.BLOCK_TYPE]: BlockType,
@@ -24848,15 +25210,24 @@ export enum FileProperty {
   createdByPtr = 21,
   updatedByPtr = 22,
   setProperties = 29,
-  kind = 30,
   title = 33,
-  size = 34,
-  mimeType = 35,
-  sha512 = 36,
   retention = 37,
   expiresAt = 38,
-  content = 50,
-  url = 51,
+  kind = 40,
+  content = 41,
+  url = 42,
+  coarseType = 50,
+  mimeType = 51,
+  size = 52,
+  sha512 = 53,
+  width = 55,
+  height = 56,
+  aspectRatio = 57,
+  codec = 58,
+  duration = 60,
+  bitrate = 61,
+  channels = 62,
+  sampleRate = 63,
 }
 
 export enum SecretProperty {
@@ -25071,7 +25442,6 @@ export enum BlockProperty {
   basesPtr = 35,
   text = 36,
   icon = 37,
-  visibility = 38,
   valueType = 39,
   valuePacked = 40,
   code = 42,
@@ -25143,8 +25513,6 @@ export enum FieldProperty {
   baseTypePtr = 43,
   baseFieldZone = 44,
   defaultPacked = 50,
-  visibility = 52,
-  formatHint = 53,
   condition = 54,
   constraint = 55,
   isList = 60,
@@ -25769,8 +26137,6 @@ export enum TypeInfoProperty {
   baseTypePtr = 43,
   baseFieldZone = 44,
   defaultPacked = 50,
-  visibility = 52,
-  formatHint = 53,
   condition = 54,
   constraint = 55,
   isList = 60,
@@ -25788,7 +26154,9 @@ export enum TypeConstraintProperty {
   regex = 60,
   startsWith = 61,
   endsWith = 62,
-  subtype = 70,
+  blockType = 70,
+  stepType = 71,
+  fileType = 72,
 }
 
 export enum ScheduleProperty {
@@ -25810,12 +26178,20 @@ export enum FileReferenceProperty {
   baseCk = 34,
   baseBenchId = 35,
   kind = 40,
-  title = 43,
-  size = 44,
-  sha512 = 45,
-  mimeType = 46,
-  content = 50,
-  url = 51,
+  content = 41,
+  url = 42,
+  coarseType = 50,
+  mimeType = 51,
+  size = 52,
+  sha512 = 53,
+  width = 55,
+  height = 56,
+  aspectRatio = 57,
+  codec = 58,
+  duration = 60,
+  bitrate = 61,
+  channels = 62,
+  sampleRate = 63,
 }
 
 export enum IconProperty {
@@ -25837,6 +26213,25 @@ export enum SecretReferenceProperty {
   baseBenchId = 35,
   title = 43,
   valueType = 44,
+}
+
+export enum FileInfoProperty {
+  metatype = 1,
+  kind = 40,
+  content = 41,
+  url = 42,
+  coarseType = 50,
+  mimeType = 51,
+  size = 52,
+  sha512 = 53,
+  width = 55,
+  height = 56,
+  aspectRatio = 57,
+  codec = 58,
+  duration = 60,
+  bitrate = 61,
+  channels = 62,
+  sampleRate = 63,
 }
 
 export enum TriggerInfoProperty {
@@ -26080,11 +26475,11 @@ export enum TreeViewStateProperty {
 }
 
 export type AnyNodeProperty = typeof BenchProperty | typeof UserProperty | typeof OrganizationProperty | typeof HandleProperty | typeof ClientProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof FileProperty | typeof SecretProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof LinkProperty | typeof SkipProperty | typeof IssueProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof BadgeProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof MessageProperty | typeof RecordProperty
-export type AnyStructProperty = typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof FileReferenceProperty | typeof IconProperty | typeof SecretReferenceProperty | typeof TriggerInfoProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof ReadOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PipeProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof BreakpointProperty | typeof ModelOptionsProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof ChartViewStateProperty | typeof HistoryViewStateProperty | typeof TimelineViewStateProperty | typeof UserWizardViewStateProperty | typeof PageViewStateProperty | typeof TreeViewStateProperty
+export type AnyStructProperty = typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof FileReferenceProperty | typeof IconProperty | typeof SecretReferenceProperty | typeof FileInfoProperty | typeof TriggerInfoProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof ReadOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PipeProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof BreakpointProperty | typeof ModelOptionsProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof ChartViewStateProperty | typeof HistoryViewStateProperty | typeof TimelineViewStateProperty | typeof UserWizardViewStateProperty | typeof PageViewStateProperty | typeof TreeViewStateProperty
 export type AnyProperty = AnyNodeProperty | AnyStructProperty
 export type AnyNodePropertyType = typeof BenchProperty | typeof UserProperty | typeof OrganizationProperty | typeof HandleProperty | typeof ClientProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof FileProperty | typeof SecretProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof LinkProperty | typeof SkipProperty | typeof IssueProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof BadgeProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof MessageProperty | typeof RecordProperty
-export type AnyStructPropertyType = typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof FileReferenceProperty | typeof IconProperty | typeof SecretReferenceProperty | typeof TriggerInfoProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof ReadOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PipeProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof BreakpointProperty | typeof ModelOptionsProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof ChartViewStateProperty | typeof HistoryViewStateProperty | typeof TimelineViewStateProperty | typeof UserWizardViewStateProperty | typeof PageViewStateProperty | typeof TreeViewStateProperty
-export type AnyPropertyType = typeof BenchProperty | typeof UserProperty | typeof OrganizationProperty | typeof HandleProperty | typeof ClientProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof FileProperty | typeof SecretProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof LinkProperty | typeof SkipProperty | typeof IssueProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof BadgeProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof MessageProperty | typeof RecordProperty | typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof FileReferenceProperty | typeof IconProperty | typeof SecretReferenceProperty | typeof TriggerInfoProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof ReadOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PipeProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof BreakpointProperty | typeof ModelOptionsProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof ChartViewStateProperty | typeof HistoryViewStateProperty | typeof TimelineViewStateProperty | typeof UserWizardViewStateProperty | typeof PageViewStateProperty | typeof TreeViewStateProperty
+export type AnyStructPropertyType = typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof FileReferenceProperty | typeof IconProperty | typeof SecretReferenceProperty | typeof FileInfoProperty | typeof TriggerInfoProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof ReadOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PipeProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof BreakpointProperty | typeof ModelOptionsProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof ChartViewStateProperty | typeof HistoryViewStateProperty | typeof TimelineViewStateProperty | typeof UserWizardViewStateProperty | typeof PageViewStateProperty | typeof TreeViewStateProperty
+export type AnyPropertyType = typeof BenchProperty | typeof UserProperty | typeof OrganizationProperty | typeof HandleProperty | typeof ClientProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof FileProperty | typeof SecretProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof LinkProperty | typeof SkipProperty | typeof IssueProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof BadgeProperty | typeof MembershipProperty | typeof InviteProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof MessageProperty | typeof RecordProperty | typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof FileReferenceProperty | typeof IconProperty | typeof SecretReferenceProperty | typeof FileInfoProperty | typeof TriggerInfoProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof ReadOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PipeProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof BreakpointProperty | typeof ModelOptionsProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof ChartViewStateProperty | typeof HistoryViewStateProperty | typeof TimelineViewStateProperty | typeof UserWizardViewStateProperty | typeof PageViewStateProperty | typeof TreeViewStateProperty
 export const NODE_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyNodePropertyType>> = {
   [ObjectType.BENCH]: BenchProperty,
   [ObjectType.USER]: UserProperty,
@@ -26149,6 +26544,7 @@ export const STRUCT_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyStructP
   [ObjectType.FILE_REFERENCE]: FileReferenceProperty,
   [ObjectType.ICON]: IconProperty,
   [ObjectType.SECRET_REFERENCE]: SecretReferenceProperty,
+  [ObjectType.FILE_INFO]: FileInfoProperty,
   [ObjectType.TRIGGER_INFO]: TriggerInfoProperty,
   [ObjectType.EXPRESSION]: ExpressionProperty,
   [ObjectType.AGGREGATION]: AggregationProperty,
@@ -26244,6 +26640,7 @@ export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>>
   [ObjectType.FILE_REFERENCE]: FileReferenceProperty,
   [ObjectType.ICON]: IconProperty,
   [ObjectType.SECRET_REFERENCE]: SecretReferenceProperty,
+  [ObjectType.FILE_INFO]: FileInfoProperty,
   [ObjectType.TRIGGER_INFO]: TriggerInfoProperty,
   [ObjectType.EXPRESSION]: ExpressionProperty,
   [ObjectType.AGGREGATION]: AggregationProperty,
@@ -26333,7 +26730,7 @@ export const SessionContextDataInfo: Record<SessionContextProperty, PropertyInfo
   [SessionContextProperty.machinePtr]: { id: 76, name: 'machine_ptr', component: ObjectType.SESSION_CONTEXT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MACHINE], referenceStruct: StructType.NODE_REFERENCE },
   [SessionContextProperty.serverPtr]: { id: 77, name: 'server_ptr', component: ObjectType.SESSION_CONTEXT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SERVER], referenceStruct: StructType.NODE_REFERENCE },
   [SessionContextProperty.userPtr]: { id: 78, name: 'user_ptr', component: ObjectType.SESSION_CONTEXT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
-  [SessionContextProperty.identityPtr]: { id: 79, name: 'identity_ptr', component: ObjectType.SESSION_CONTEXT, kind: 'reference', constraint: { subtype: 91 }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [SessionContextProperty.identityPtr]: { id: 79, name: 'identity_ptr', component: ObjectType.SESSION_CONTEXT, kind: 'reference', constraint: { blockType: 91 }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const EditContextDataInfo: Record<EditContextProperty, PropertyInfo> = {
   [EditContextProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.EDIT_CONTEXT, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -26448,11 +26845,11 @@ export const SubjectDataInfo: Record<SubjectProperty, PropertyInfo> = {
   [SubjectProperty.clientPtr]: { id: 40, name: 'client_ptr', component: ObjectType.SUBJECT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
   [SubjectProperty.userPtr]: { id: 41, name: 'user_ptr', component: ObjectType.SUBJECT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
   [SubjectProperty.serverPtr]: { id: 42, name: 'server_ptr', component: ObjectType.SUBJECT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SERVER], referenceStruct: StructType.NODE_REFERENCE },
-  [SubjectProperty.identityPtr]: { id: 50, name: 'identity_ptr', component: ObjectType.SUBJECT, kind: 'reference', constraint: { subtype: 91 }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [SubjectProperty.identityPtr]: { id: 50, name: 'identity_ptr', component: ObjectType.SUBJECT, kind: 'reference', constraint: { blockType: 91 }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [SubjectProperty.badgesPtr]: { id: 51, name: 'badges_ptr', component: ObjectType.SUBJECT, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BADGE], referenceStruct: StructType.NODE_REFERENCE },
   [SubjectProperty.ownedPtr]: { id: 52, name: 'owned_ptr', component: ObjectType.SUBJECT, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [SubjectProperty.membershipsPtr]: { id: 53, name: 'memberships_ptr', component: ObjectType.SUBJECT, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MEMBERSHIP], referenceStruct: StructType.NODE_REFERENCE },
-  [SubjectProperty.rolesPtr]: { id: 54, name: 'roles_ptr', component: ObjectType.SUBJECT, kind: 'reference', constraint: { subtype: 90 }, isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [SubjectProperty.rolesPtr]: { id: 54, name: 'roles_ptr', component: ObjectType.SUBJECT, kind: 'reference', constraint: { blockType: 90 }, isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const AccessZoneDataInfo: Record<AccessZoneProperty, PropertyInfo> = {
   [AccessZoneProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.ACCESS_ZONE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -26511,8 +26908,6 @@ export const TypeInfoDataInfo: Record<TypeInfoProperty, PropertyInfo> = {
   [TypeInfoProperty.baseTypePtr]: { id: 43, name: 'base_type_ptr', component: ObjectType.TYPE_INFO, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK, NodeType.STEP], referenceStruct: StructType.NODE_REFERENCE },
   [TypeInfoProperty.baseFieldZone]: { id: 44, name: 'base_field_zone', component: ObjectType.TYPE_INFO, enumType: EnumType.FIELD_ZONE, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [TypeInfoProperty.defaultPacked]: { id: 50, name: 'default_packed', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [TypeInfoProperty.visibility]: { id: 52, name: 'visibility', component: ObjectType.TYPE_INFO, enumType: EnumType.VISIBILITY, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [TypeInfoProperty.formatHint]: { id: 53, name: 'format_hint', component: ObjectType.TYPE_INFO, enumType: EnumType.FORMAT_HINT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [TypeInfoProperty.condition]: { id: 54, name: 'condition', component: ObjectType.TYPE_INFO, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
   [TypeInfoProperty.constraint]: { id: 55, name: 'constraint', component: ObjectType.TYPE_INFO, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_CONSTRAINT },
   [TypeInfoProperty.isList]: { id: 60, name: 'is_list', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
@@ -26529,7 +26924,9 @@ export const TypeConstraintDataInfo: Record<TypeConstraintProperty, PropertyInfo
   [TypeConstraintProperty.regex]: { id: 60, name: 'regex', component: ObjectType.TYPE_CONSTRAINT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [TypeConstraintProperty.startsWith]: { id: 61, name: 'starts_with', component: ObjectType.TYPE_CONSTRAINT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [TypeConstraintProperty.endsWith]: { id: 62, name: 'ends_with', component: ObjectType.TYPE_CONSTRAINT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [TypeConstraintProperty.subtype]: { id: 70, name: 'subtype', component: ObjectType.TYPE_CONSTRAINT, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [TypeConstraintProperty.blockType]: { id: 70, name: 'block_type', component: ObjectType.TYPE_CONSTRAINT, enumType: EnumType.BLOCK_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [TypeConstraintProperty.stepType]: { id: 71, name: 'step_type', component: ObjectType.TYPE_CONSTRAINT, enumType: EnumType.STEP_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [TypeConstraintProperty.fileType]: { id: 72, name: 'file_type', component: ObjectType.TYPE_CONSTRAINT, enumType: EnumType.FILE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
 }
 export const ScheduleDataInfo: Record<ScheduleProperty, PropertyInfo> = {
   [ScheduleProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SCHEDULE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -26548,13 +26945,21 @@ export const FileReferenceDataInfo: Record<FileReferenceProperty, PropertyInfo> 
   [FileReferenceProperty.benchId]: { id: 33, name: 'bench_id', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileReferenceProperty.baseCk]: { id: 34, name: 'base_ck', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileReferenceProperty.baseBenchId]: { id: 35, name: 'base_bench_id', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileReferenceProperty.kind]: { id: 40, name: 'kind', component: ObjectType.FILE_REFERENCE, enumType: EnumType.FILE_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileReferenceProperty.title]: { id: 43, name: 'title', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 256 }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [FileReferenceProperty.size]: { id: 44, name: 'size', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileReferenceProperty.sha512]: { id: 45, name: 'sha512', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileReferenceProperty.mimeType]: { id: 46, name: 'mime_type', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileReferenceProperty.content]: { id: 50, name: 'content', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.BYTES, isRuntime: true, isWired: true, isStored: true },
-  [FileReferenceProperty.url]: { id: 51, name: 'url', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [FileReferenceProperty.kind]: { id: 40, name: 'kind', component: ObjectType.FILE_REFERENCE, enumType: EnumType.FILE_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileReferenceProperty.content]: { id: 41, name: 'content', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.BYTES, isRuntime: true, isWired: true, isStored: true },
+  [FileReferenceProperty.url]: { id: 42, name: 'url', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [FileReferenceProperty.coarseType]: { id: 50, name: 'coarse_type', component: ObjectType.FILE_REFERENCE, enumType: EnumType.FILE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileReferenceProperty.mimeType]: { id: 51, name: 'mime_type', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 255 }, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileReferenceProperty.size]: { id: 52, name: 'size', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.INT64, constraint: { minValue: 0 }, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileReferenceProperty.sha512]: { id: 53, name: 'sha512', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 128, maxLength: 128 }, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileReferenceProperty.width]: { id: 55, name: 'width', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [FileReferenceProperty.height]: { id: 56, name: 'height', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [FileReferenceProperty.aspectRatio]: { id: 57, name: 'aspect_ratio', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [FileReferenceProperty.codec]: { id: 58, name: 'codec', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [FileReferenceProperty.duration]: { id: 60, name: 'duration', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [FileReferenceProperty.bitrate]: { id: 61, name: 'bitrate', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [FileReferenceProperty.channels]: { id: 62, name: 'channels', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [FileReferenceProperty.sampleRate]: { id: 63, name: 'sample_rate', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
 }
 export const IconDataInfo: Record<IconProperty, PropertyInfo> = {
   [IconProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.ICON, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -26575,11 +26980,29 @@ export const SecretReferenceDataInfo: Record<SecretReferenceProperty, PropertyIn
   [SecretReferenceProperty.title]: { id: 43, name: 'title', component: ObjectType.SECRET_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 256 }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [SecretReferenceProperty.valueType]: { id: 44, name: 'value_type', component: ObjectType.SECRET_REFERENCE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_INFO },
 }
+export const FileInfoDataInfo: Record<FileInfoProperty, PropertyInfo> = {
+  [FileInfoProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.FILE_INFO, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [FileInfoProperty.kind]: { id: 40, name: 'kind', component: ObjectType.FILE_INFO, enumType: EnumType.FILE_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileInfoProperty.content]: { id: 41, name: 'content', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.BYTES, isRuntime: true, isWired: true, isStored: true },
+  [FileInfoProperty.url]: { id: 42, name: 'url', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [FileInfoProperty.coarseType]: { id: 50, name: 'coarse_type', component: ObjectType.FILE_INFO, enumType: EnumType.FILE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileInfoProperty.mimeType]: { id: 51, name: 'mime_type', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 255 }, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileInfoProperty.size]: { id: 52, name: 'size', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT64, constraint: { minValue: 0 }, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileInfoProperty.sha512]: { id: 53, name: 'sha512', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 128, maxLength: 128 }, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileInfoProperty.width]: { id: 55, name: 'width', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [FileInfoProperty.height]: { id: 56, name: 'height', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [FileInfoProperty.aspectRatio]: { id: 57, name: 'aspect_ratio', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [FileInfoProperty.codec]: { id: 58, name: 'codec', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [FileInfoProperty.duration]: { id: 60, name: 'duration', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [FileInfoProperty.bitrate]: { id: 61, name: 'bitrate', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [FileInfoProperty.channels]: { id: 62, name: 'channels', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [FileInfoProperty.sampleRate]: { id: 63, name: 'sample_rate', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+}
 export const TriggerInfoDataInfo: Record<TriggerInfoProperty, PropertyInfo> = {
   [TriggerInfoProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.TRIGGER_INFO, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [TriggerInfoProperty.processedEpoch]: { id: 40, name: 'processed_epoch', component: ObjectType.TRIGGER_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
   [TriggerInfoProperty.schedule]: { id: 50, name: 'schedule', component: ObjectType.TRIGGER_INFO, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SCHEDULE },
-  [TriggerInfoProperty.signalPtr]: { id: 51, name: 'signal_ptr', component: ObjectType.TRIGGER_INFO, kind: 'reference', constraint: { subtype: 15 }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [TriggerInfoProperty.signalPtr]: { id: 51, name: 'signal_ptr', component: ObjectType.TRIGGER_INFO, kind: 'reference', constraint: { blockType: 15 }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [TriggerInfoProperty.condition]: { id: 52, name: 'condition', component: ObjectType.TRIGGER_INFO, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
 }
 export const ExpressionDataInfo: Record<ExpressionProperty, PropertyInfo> = {
@@ -27023,15 +27446,24 @@ export const FileDataInfo: Record<FileProperty, PropertyInfo> = {
   [FileProperty.createdByPtr]: { id: 21, name: 'created_by_ptr', component: ObjectType.FILE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [FileProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.FILE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [FileProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
-  [FileProperty.kind]: { id: 30, name: 'kind', component: ObjectType.FILE, enumType: EnumType.FILE_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.title]: { id: 33, name: 'title', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 256 }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.size]: { id: 34, name: 'size', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT64, constraint: { minValue: 0 }, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.mimeType]: { id: 35, name: 'mime_type', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 255 }, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.sha512]: { id: 36, name: 'sha512', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 128, maxLength: 128 }, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.retention]: { id: 37, name: 'retention', component: ObjectType.FILE, enumType: EnumType.FILE_RETENTION_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.expiresAt]: { id: 38, name: 'expires_at', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.content]: { id: 50, name: 'content', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.BYTES, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.url]: { id: 51, name: 'url', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.kind]: { id: 40, name: 'kind', component: ObjectType.FILE, enumType: EnumType.FILE_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.content]: { id: 41, name: 'content', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.BYTES, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.url]: { id: 42, name: 'url', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.coarseType]: { id: 50, name: 'coarse_type', component: ObjectType.FILE, enumType: EnumType.FILE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.mimeType]: { id: 51, name: 'mime_type', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 255 }, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.size]: { id: 52, name: 'size', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT64, constraint: { minValue: 0 }, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.sha512]: { id: 53, name: 'sha512', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 128, maxLength: 128 }, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.width]: { id: 55, name: 'width', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.height]: { id: 56, name: 'height', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.aspectRatio]: { id: 57, name: 'aspect_ratio', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.codec]: { id: 58, name: 'codec', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.duration]: { id: 60, name: 'duration', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.bitrate]: { id: 61, name: 'bitrate', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.channels]: { id: 62, name: 'channels', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.sampleRate]: { id: 63, name: 'sample_rate', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
 }
 export const SecretDataInfo: Record<SecretProperty, PropertyInfo> = {
   [SecretProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SECRET, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -27237,13 +27669,12 @@ export const BlockDataInfo: Record<BlockProperty, PropertyInfo> = {
   [BlockProperty.basesPtr]: { id: 35, name: 'bases_ptr', component: ObjectType.BLOCK, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [BlockProperty.text]: { id: 36, name: 'text', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [BlockProperty.icon]: { id: 37, name: 'icon', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
-  [BlockProperty.visibility]: { id: 38, name: 'visibility', component: ObjectType.BLOCK, enumType: EnumType.VISIBILITY, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [BlockProperty.valueType]: { id: 39, name: 'value_type', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_INFO },
   [BlockProperty.valuePacked]: { id: 40, name: 'value_packed', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [BlockProperty.code]: { id: 42, name: 'code', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
   [BlockProperty.runOptions]: { id: 43, name: 'run_options', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_OPTIONS },
-  [BlockProperty.rolesPtr]: { id: 46, name: 'roles_ptr', component: ObjectType.BLOCK, kind: 'reference', constraint: { subtype: 90 }, isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [BlockProperty.identityPtr]: { id: 47, name: 'identity_ptr', component: ObjectType.BLOCK, kind: 'reference', constraint: { subtype: 91 }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [BlockProperty.rolesPtr]: { id: 46, name: 'roles_ptr', component: ObjectType.BLOCK, kind: 'reference', constraint: { blockType: 90 }, isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [BlockProperty.identityPtr]: { id: 47, name: 'identity_ptr', component: ObjectType.BLOCK, kind: 'reference', constraint: { blockType: 91 }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [BlockProperty.policies]: { id: 48, name: 'policies', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY },
   [BlockProperty.delegatedPolicies]: { id: 49, name: 'delegated_policies', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY },
   [BlockProperty.isBuiltin]: { id: 60, name: 'is_builtin', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -27272,7 +27703,7 @@ export const TriggerDataInfo: Record<TriggerProperty, PropertyInfo> = {
   [TriggerProperty.name]: { id: 31, name: 'name', component: ObjectType.TRIGGER, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[a-zA-Z0-9_'`˚ \\-]+$" }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [TriggerProperty.processedEpoch]: { id: 40, name: 'processed_epoch', component: ObjectType.TRIGGER, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
   [TriggerProperty.schedule]: { id: 50, name: 'schedule', component: ObjectType.TRIGGER, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SCHEDULE },
-  [TriggerProperty.signalPtr]: { id: 51, name: 'signal_ptr', component: ObjectType.TRIGGER, kind: 'reference', constraint: { subtype: 15 }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [TriggerProperty.signalPtr]: { id: 51, name: 'signal_ptr', component: ObjectType.TRIGGER, kind: 'reference', constraint: { blockType: 15 }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [TriggerProperty.condition]: { id: 52, name: 'condition', component: ObjectType.TRIGGER, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
   [TriggerProperty.isPaused]: { id: 60, name: 'is_paused', component: ObjectType.TRIGGER, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
@@ -27307,8 +27738,6 @@ export const FieldDataInfo: Record<FieldProperty, PropertyInfo> = {
   [FieldProperty.baseTypePtr]: { id: 43, name: 'base_type_ptr', component: ObjectType.FIELD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK, NodeType.STEP], referenceStruct: StructType.NODE_REFERENCE },
   [FieldProperty.baseFieldZone]: { id: 44, name: 'base_field_zone', component: ObjectType.FIELD, enumType: EnumType.FIELD_ZONE, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.defaultPacked]: { id: 50, name: 'default_packed', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [FieldProperty.visibility]: { id: 52, name: 'visibility', component: ObjectType.FIELD, enumType: EnumType.VISIBILITY, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [FieldProperty.formatHint]: { id: 53, name: 'format_hint', component: ObjectType.FIELD, enumType: EnumType.FORMAT_HINT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.condition]: { id: 54, name: 'condition', component: ObjectType.FIELD, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
   [FieldProperty.constraint]: { id: 55, name: 'constraint', component: ObjectType.FIELD, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_CONSTRAINT },
   [FieldProperty.isList]: { id: 60, name: 'is_list', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
@@ -27419,8 +27848,8 @@ export const StepDataInfo: Record<StepProperty, PropertyInfo> = {
   [StepProperty.nodePtr]: { id: 43, name: 'node_ptr', component: ObjectType.STEP, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK, NodeType.STEP, NodeType.TRIGGER], referenceStruct: StructType.NODE_REFERENCE },
   [StepProperty.code]: { id: 44, name: 'code', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
   [StepProperty.condition]: { id: 45, name: 'condition', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
-  [StepProperty.rolesPtr]: { id: 46, name: 'roles_ptr', component: ObjectType.STEP, kind: 'reference', constraint: { subtype: 90 }, isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [StepProperty.identityPtr]: { id: 47, name: 'identity_ptr', component: ObjectType.STEP, kind: 'reference', constraint: { subtype: 91 }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [StepProperty.rolesPtr]: { id: 46, name: 'roles_ptr', component: ObjectType.STEP, kind: 'reference', constraint: { blockType: 90 }, isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [StepProperty.identityPtr]: { id: 47, name: 'identity_ptr', component: ObjectType.STEP, kind: 'reference', constraint: { blockType: 91 }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [StepProperty.policies]: { id: 48, name: 'policies', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY },
   [StepProperty.position]: { id: 60, name: 'position', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.OFFSET },
   [StepProperty.size]: { id: 61, name: 'size', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.BOX },
@@ -27496,7 +27925,7 @@ export const InviteDataInfo: Record<InviteProperty, PropertyInfo> = {
   [InviteProperty.userPtr]: { id: 30, name: 'user_ptr', component: ObjectType.INVITE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
   [InviteProperty.userEmail]: { id: 31, name: 'user_email', component: ObjectType.INVITE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [InviteProperty.isOwner]: { id: 32, name: 'is_owner', component: ObjectType.INVITE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [InviteProperty.rolesPtr]: { id: 33, name: 'roles_ptr', component: ObjectType.INVITE, kind: 'reference', constraint: { subtype: 90 }, isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [InviteProperty.rolesPtr]: { id: 33, name: 'roles_ptr', component: ObjectType.INVITE, kind: 'reference', constraint: { blockType: 90 }, isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const SessionDataInfo: Record<SessionProperty, PropertyInfo> = {
   [SessionProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SESSION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -27570,7 +27999,7 @@ export const RunDataInfo: Record<RunProperty, PropertyInfo> = {
   [RunProperty.machinePtr]: { id: 76, name: 'machine_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MACHINE], referenceStruct: StructType.NODE_REFERENCE },
   [RunProperty.serverPtr]: { id: 77, name: 'server_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SERVER], referenceStruct: StructType.NODE_REFERENCE },
   [RunProperty.userPtr]: { id: 78, name: 'user_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
-  [RunProperty.identityPtr]: { id: 79, name: 'identity_ptr', component: ObjectType.RUN, kind: 'reference', constraint: { subtype: 91 }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [RunProperty.identityPtr]: { id: 79, name: 'identity_ptr', component: ObjectType.RUN, kind: 'reference', constraint: { blockType: 91 }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const SignalDataInfo: Record<SignalProperty, PropertyInfo> = {
   [SignalProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SIGNAL, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -27588,7 +28017,7 @@ export const SignalDataInfo: Record<SignalProperty, PropertyInfo> = {
   [SignalProperty.createdByPtr]: { id: 21, name: 'created_by_ptr', component: ObjectType.SIGNAL, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [SignalProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.SIGNAL, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [SignalProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.SIGNAL, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
-  [SignalProperty.typePtr]: { id: 32, name: 'type_ptr', component: ObjectType.SIGNAL, kind: 'reference', constraint: { subtype: 15 }, isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [SignalProperty.typePtr]: { id: 32, name: 'type_ptr', component: ObjectType.SIGNAL, kind: 'reference', constraint: { blockType: 15 }, isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [SignalProperty.valuePacked]: { id: 42, name: 'value_packed', component: ObjectType.SIGNAL, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [SignalProperty.blockPtr]: { id: 70, name: 'block_ptr', component: ObjectType.SIGNAL, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [SignalProperty.stepPtr]: { id: 71, name: 'step_ptr', component: ObjectType.SIGNAL, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.STEP], referenceStruct: StructType.NODE_REFERENCE },
@@ -27599,7 +28028,7 @@ export const SignalDataInfo: Record<SignalProperty, PropertyInfo> = {
   [SignalProperty.machinePtr]: { id: 76, name: 'machine_ptr', component: ObjectType.SIGNAL, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MACHINE], referenceStruct: StructType.NODE_REFERENCE },
   [SignalProperty.serverPtr]: { id: 77, name: 'server_ptr', component: ObjectType.SIGNAL, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SERVER], referenceStruct: StructType.NODE_REFERENCE },
   [SignalProperty.userPtr]: { id: 78, name: 'user_ptr', component: ObjectType.SIGNAL, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
-  [SignalProperty.identityPtr]: { id: 79, name: 'identity_ptr', component: ObjectType.SIGNAL, kind: 'reference', constraint: { subtype: 91 }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [SignalProperty.identityPtr]: { id: 79, name: 'identity_ptr', component: ObjectType.SIGNAL, kind: 'reference', constraint: { blockType: 91 }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const LogDataInfo: Record<LogProperty, PropertyInfo> = {
   [LogProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.LOG, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -27639,7 +28068,7 @@ export const LogDataInfo: Record<LogProperty, PropertyInfo> = {
   [LogProperty.machinePtr]: { id: 76, name: 'machine_ptr', component: ObjectType.LOG, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MACHINE], referenceStruct: StructType.NODE_REFERENCE },
   [LogProperty.serverPtr]: { id: 77, name: 'server_ptr', component: ObjectType.LOG, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SERVER], referenceStruct: StructType.NODE_REFERENCE },
   [LogProperty.userPtr]: { id: 78, name: 'user_ptr', component: ObjectType.LOG, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
-  [LogProperty.identityPtr]: { id: 79, name: 'identity_ptr', component: ObjectType.LOG, kind: 'reference', constraint: { subtype: 91 }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [LogProperty.identityPtr]: { id: 79, name: 'identity_ptr', component: ObjectType.LOG, kind: 'reference', constraint: { blockType: 91 }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const NotificationDataInfo: Record<NotificationProperty, PropertyInfo> = {
   [NotificationProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.NOTIFICATION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -27659,7 +28088,7 @@ export const NotificationDataInfo: Record<NotificationProperty, PropertyInfo> = 
   [NotificationProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.NOTIFICATION, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [NotificationProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.NOTIFICATION, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
   [NotificationProperty.kind]: { id: 30, name: 'kind', component: ObjectType.NOTIFICATION, enumType: EnumType.NOTIFICATION_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [NotificationProperty.typePtr]: { id: 32, name: 'type_ptr', component: ObjectType.NOTIFICATION, kind: 'reference', constraint: { subtype: 16 }, isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [NotificationProperty.typePtr]: { id: 32, name: 'type_ptr', component: ObjectType.NOTIFICATION, kind: 'reference', constraint: { blockType: 16 }, isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [NotificationProperty.expiresAt]: { id: 33, name: 'expires_at', component: ObjectType.NOTIFICATION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [NotificationProperty.readAt]: { id: 34, name: 'read_at', component: ObjectType.NOTIFICATION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [NotificationProperty.title]: { id: 40, name: 'title', component: ObjectType.NOTIFICATION, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 256 }, isRuntime: true, isWired: true, isStored: true },
@@ -27738,6 +28167,7 @@ export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo
   [ObjectType.FILE_REFERENCE]: FileReferenceDataInfo,
   [ObjectType.ICON]: IconDataInfo,
   [ObjectType.SECRET_REFERENCE]: SecretReferenceDataInfo,
+  [ObjectType.FILE_INFO]: FileInfoDataInfo,
   [ObjectType.TRIGGER_INFO]: TriggerInfoDataInfo,
   [ObjectType.EXPRESSION]: ExpressionDataInfo,
   [ObjectType.AGGREGATION]: AggregationDataInfo,

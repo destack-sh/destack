@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.07.18.0"
+VERSION = "2024.07.19.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -415,15 +415,24 @@ FILE_TABLE = Table(
         Column("updated_by_id", PrimitiveType.UUID, is_nullable=True),
         Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
         Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
-        Column("kind", PrimitiveType.INT16),
         Column("title", PrimitiveType.STRING),
-        Column("size", PrimitiveType.INT64),
-        Column("mime_type", PrimitiveType.STRING),
-        Column("sha512", PrimitiveType.STRING, is_nullable=True),
         Column("retention", PrimitiveType.INT16, is_nullable=True),
         Column("expires_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("kind", PrimitiveType.INT16),
         Column("content", PrimitiveType.BYTES, is_nullable=True),
         Column("url", PrimitiveType.STRING, is_nullable=True),
+        Column("coarse_type", PrimitiveType.INT16),
+        Column("mime_type", PrimitiveType.STRING),
+        Column("size", PrimitiveType.INT64),
+        Column("sha512", PrimitiveType.STRING, is_nullable=True),
+        Column("width", PrimitiveType.INT32, is_nullable=True),
+        Column("height", PrimitiveType.INT32, is_nullable=True),
+        Column("aspect_ratio", PrimitiveType.FLOAT32, is_nullable=True),
+        Column("codec", PrimitiveType.STRING, is_nullable=True),
+        Column("duration", PrimitiveType.FLOAT32, is_nullable=True),
+        Column("bitrate", PrimitiveType.INT32, is_nullable=True),
+        Column("channels", PrimitiveType.INT32, is_nullable=True),
+        Column("sample_rate", PrimitiveType.INT32, is_nullable=True),
     ),
     indexes=(
         Index(
@@ -702,7 +711,6 @@ BLOCK_TABLE = Table(
         Column("bases_bench_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("icon", PrimitiveType.JSON, is_nullable=True),
-        Column("visibility", PrimitiveType.INT16, is_nullable=True),
         Column("value_type", PrimitiveType.JSON, is_nullable=True),
         Column("value_packed", PrimitiveType.JSON, is_nullable=True),
         Column("code", PrimitiveType.JSON, is_nullable=True),
@@ -802,8 +810,6 @@ FIELD_TABLE = Table(
         Column("base_type_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("base_field_zone", PrimitiveType.INT16, is_nullable=True),
         Column("default_packed", PrimitiveType.JSON, is_nullable=True),
-        Column("visibility", PrimitiveType.INT16, is_nullable=True),
-        Column("format_hint", PrimitiveType.INT16, is_nullable=True),
         Column("condition", PrimitiveType.JSON, is_nullable=True),
         Column("constraint", PrimitiveType.JSON, is_nullable=True),
         Column("is_list", PrimitiveType.BOOLEAN, default="false"),

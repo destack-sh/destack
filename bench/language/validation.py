@@ -2,10 +2,10 @@ import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Callable, Collection, Optional, TypedDict, Union
 
-from bench.language.const import BenchError
+from bench.language.const import BenchError, BlockType
 
 if TYPE_CHECKING:
-    from bench.language import Property, TypeConstraint, TypeInfoBase
+    from bench.language import FileType, Property, StepType, TypeConstraint, TypeInfoBase
     from bench.language.value import SomeValue
 
 ValidationSite = Union["TypeInfoBase", tuple["Property | Any", ...]]
@@ -55,7 +55,9 @@ class TypeConstraintIn:
     starts_with: str | None = None
     ends_with: str | None = None
     # node-ish
-    subtype: int | None = None
+    block_type: "BlockType | None" = None
+    step_type: "StepType | None" = None
+    file_type: "FileType | None" = None
 
     def into(self) -> "TypeConstraint":
         from bench.language.field import TypeConstraint
@@ -69,7 +71,9 @@ class TypeConstraintIn:
             regex=self.regex,
             starts_with=self.starts_with,
             ends_with=self.ends_with,
-            subtype=self.subtype,
+            block_type=self.block_type,
+            step_type=self.step_type,
+            file_type=self.file_type,
         )
 
 
@@ -99,7 +103,9 @@ def constraint(
     regex: str | None = None,
     starts_with: str | None = None,
     ends_with: str | None = None,
-    subtype: int | None = None,
+    block_type: "BlockType | None" = None,
+    step_type: "StepType | None" = None,
+    file_type: "FileType | None" = None,
 ) -> "TypeConstraintIn":
     return TypeConstraintIn(
         min_value=min_value,
@@ -110,5 +116,7 @@ def constraint(
         regex=regex,
         starts_with=starts_with,
         ends_with=ends_with,
-        subtype=subtype,
+        block_type=block_type,
+        step_type=step_type,
+        file_type=file_type,
     )

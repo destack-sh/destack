@@ -7,7 +7,6 @@ from bench.language.const import (
     NodeType,
     StructType,
     TypeKind,
-    Visibility,
 )
 from bench.language.field import TypeInfoBase
 from bench.language.graph import NodeList
@@ -71,7 +70,6 @@ class Block(SourceNode[BlockData], HasValues):
     icon: Optional["Icon"] = p_regular(
         37, default=None, require=False, array=False, struct=StructType.ICON
     )
-    visibility: Optional[Visibility] = p_regular(38, default=None, require=False)
     value_type: Optional["TypeInfo"] = p_regular(39, default=None, struct=StructType.TYPE_INFO)
     value_packed: Any = p_value_packed(40)
     value: Any = p_value_runtime(40, typ=lambda self: cast("Block", self).value_type)
@@ -86,13 +84,13 @@ class Block(SourceNode[BlockData], HasValues):
         require=False,
         array=True,
         references=NodeType.BLOCK,
-        constraint=constraint(subtype=BlockType.ROLE),
+        constraint=constraint(block_type=BlockType.ROLE),
     )
     identity: Optional["Block"] = p_regular(
         47,
         require=False,
         references=NodeType.BLOCK,
-        constraint=constraint(subtype=BlockType.IDENTITY),
+        constraint=constraint(block_type=BlockType.IDENTITY),
     )
     policies: list["Policy"] = p_regular(48, require=False, array=True, struct=StructType.POLICY)
     delegated_policies: list["Policy"] = p_regular(
