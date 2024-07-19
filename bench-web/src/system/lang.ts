@@ -347,10 +347,11 @@ export function extractNameId(name: string): number | null {
 }
 
 const NODE_NAME_DISCRIMINATORS: Partial<Record<NodeType, string>> = {
-  [NodeType.FIELD]: "zone", // only used for option/input/output
+  [NodeType.FIELD]: "zone",
   [NodeType.BLOCK]: "type",
   [NodeType.VIEW]: "type",
   [NodeType.STEP]: "type",
+  [NodeType.FILE]: "coarseType",
 };
 
 function getNodeDiscriminator(node: { metatype: ObjectType } & Partial<AnyNodeData>): any | undefined {
@@ -1032,7 +1033,7 @@ function getInspectionInfo(metatype: ObjectType, type: any): Record<string, Insp
         },
         { from: 30, to: 43, excluding: [FieldProperty.valuePacked] },
       ],
-      Constraint: [FieldProperty.formatHint, { from: 60 }],
+      Constraint: [{ from: 60 }],
     };
     return properties;
   } else if (metatype == ObjectType.BLOCK) {

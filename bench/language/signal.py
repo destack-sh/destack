@@ -46,7 +46,7 @@ class Signal(PackageNode[SignalData], HasTimeIdentity, HasNodeBase, HasSessionCo
         require=True,
         array=False,
         references=NodeType.BLOCK,
-        constraint=constraint(subtype=BlockType.SIGNAL),
+        constraint=constraint(block_type=BlockType.SIGNAL),
     )
 
     # content

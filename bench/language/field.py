@@ -9,15 +9,14 @@ from bench.language.const import (
     PY_TYPE_BY_PRIMITIVE_TYPE,
     TK_LENGTH_B64,
     BenchType,
+    BlockType,
     EnumType,
     FieldZone,
-    FormatHint,
     NodeType,
     PrimitiveType,
     PrimitiveValue,
     StructType,
     TypeKind,
-    Visibility,
     is_enum_type,
     is_node_type,
     is_struct_type,
@@ -56,7 +55,7 @@ from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import decode_b64vlq, encode_b64vlq
 
 if typing.TYPE_CHECKING:
-    from bench.language import Block, Expression, Icon, Step, Text
+    from bench.language import Block, Expression, FileType, Icon, Step, StepType, Text
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -205,7 +204,11 @@ class TypeConstraint(Struct):
     starts_with: Optional[str] = p_regular(61, require=False, default=None)
     ends_with: Optional[str] = p_regular(62, require=False, default=None)
     # node-ish
-    subtype: Optional[int] = p_regular(70, require=False, default=None)
+    block_type: Optional[BlockType] = p_regular(70, require=False, default=None)
+    step_type: Optional["StepType"] = p_regular(71, require=False, default=None)
+    file_type: Optional["FileType"] = p_regular(72, require=False, default=None)
+    # file-ish
+    ...
 
 
 DEFAULT_CONSTRAINT = TypeConstraint()
@@ -239,7 +242,6 @@ class TypeInfoBase(HasValues):
 
     Types may also specify:
        - field zone, narrowing the fields included from the base type (if any)
-       - format hint (which may impact the unpacked representation, like for Image)
        - condition which instances must satisfy
        - constraints (simple conditions the value must satisfy)
        - combination flags for arrays, optionals, ...
@@ -260,8 +262,6 @@ class TypeInfoBase(HasValues):
     # + bonus info/constraints
     default_packed: Optional[Any] = p_value_packed(50)
     default = p_value_runtime(packed=50, typ=lambda self: cast("TypeInfoBase", self))
-    visibility: Optional[Visibility] = p_regular(52, default=None)
-    format_hint: Optional[FormatHint] = p_regular(53, default=None)
     condition: Optional["Expression"] = p_regular(
         54, require=False, array=False, default=None, struct=StructType.EXPRESSION
     )
@@ -293,8 +293,6 @@ class TypeInfoBase(HasValues):
             info_str = self.primitive_type.bench_name
         else:
             info_str = kind_str
-        if self.format_hint:
-            info_str += f" as {self.format_hint}"
         if self.condition is not None:
             info_str += f" [{self.condition}]"
 

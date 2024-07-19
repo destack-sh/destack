@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.07.18.0"  # auto change via version script
+VERSION = "2024.07.19.0"  # auto change via version script
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -72,7 +72,6 @@ class EnumType(IdEnum):
     STRUCT_TYPE = 20003
     OBJECT_TYPE = 20004  # NodeType | StructType
     BENCH_TYPE = 20005  # NodeType | StructType | EnumType
-    VISIBILITY = 20010
     CHANGE_KIND = 20011
 
     # access
@@ -93,11 +92,11 @@ class EnumType(IdEnum):
     RESOURCE_STATUS = 20057
     FILE_RETENTION_MODE = 2060
     FILE_KIND = 2061
+    FILE_TYPE = 2062
     CLIENT_TYPE = 20070
 
     # type
     PRIMITIVE_TYPE = 20080
-    FORMAT_HINT = 20081
     FIELD_ZONE = 20082
     TYPE_KIND = 20083
     BLOCK_TYPE = 20384
@@ -335,7 +334,8 @@ class StructType(IdEnum):
     FILE_REFERENCE = 10204
     ICON = 10205
     SECRET_REFERENCE = 10206
-    TRIGGER_INFO = 10210
+    FILE_INFO = 10207
+    TRIGGER_INFO = 10208
 
     # expressions
     EXPRESSION = 10300
@@ -497,16 +497,6 @@ class BlockTypes:
     CLASSES = bittuple(
         BlockType.CLASS, BlockType.SIGNAL, *RUNNABLE, BlockType.VARIABLE, BlockType.DATABASE
     )
-
-
-@enum_(EnumType.VISIBILITY)
-class Visibility(IdEnum):
-    # ...?
-    # BLOCK = 2
-    PAGE = 4
-    MODULE = 6
-    BENCH = 8
-    PUBLIC = 10
 
 
 DYNAMIC_NODE_KEY_LENGTH = 8
@@ -741,26 +731,6 @@ PRIMITIVE_TYPE_BY_PY_TYPE: dict[type, PrimitiveType] = {
     timedelta: PrimitiveType.INTERVAL,
     UUID: PrimitiveType.UUID,
 }
-
-
-@enum_(EnumType.FORMAT_HINT)
-class FormatHint(IdEnum):
-    """
-    Extra semantic hint for types.
-    NOTE :Architecture: revisit FormatHint (especially with file types like images, constraints, etc.)
-    """
-
-    # string
-    TITLE = 1
-    EMAIL = 2
-    URL = 3
-    MARKDOWN = 4
-    CODE = 5
-    EMOJI = 6
-    # number
-    PHONE = 20
-    RATING = 21
-    SLIDER = 22
 
 
 @enum_(EnumType.TYPE_KIND)

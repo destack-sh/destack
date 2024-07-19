@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.07.18.0"
+VERSION = "2024.07.19.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -177,7 +177,8 @@ class BenchType(betterproto.Enum):
     FILE_REFERENCE = 10204
     ICON = 10205
     SECRET_REFERENCE = 10206
-    TRIGGER_INFO = 10210
+    FILE_INFO = 10207
+    TRIGGER_INFO = 10208
     EXPRESSION = 10300
     AGGREGATION = 10301
     SELECTION = 10302
@@ -214,7 +215,6 @@ class BenchType(betterproto.Enum):
     STRUCT_TYPE = 20003
     OBJECT_TYPE = 20004
     BENCH_TYPE = 20005
-    VISIBILITY = 20010
     CHANGE_KIND = 20011
     ACCESS_MODE = 20030
     ACCESS_KIND = 20031
@@ -231,9 +231,9 @@ class BenchType(betterproto.Enum):
     RESOURCE_STATUS = 20057
     FILE_RETENTION_MODE = 2060
     FILE_KIND = 2061
+    FILE_TYPE = 2062
     CLIENT_TYPE = 20070
     PRIMITIVE_TYPE = 20080
-    FORMAT_HINT = 20081
     FIELD_ZONE = 20082
     TYPE_KIND = 20083
     BLOCK_TYPE = 20384
@@ -467,7 +467,6 @@ class EnumType(betterproto.Enum):
     STRUCT_TYPE = 20003
     OBJECT_TYPE = 20004
     BENCH_TYPE = 20005
-    VISIBILITY = 20010
     CHANGE_KIND = 20011
     ACCESS_MODE = 20030
     ACCESS_KIND = 20031
@@ -484,9 +483,9 @@ class EnumType(betterproto.Enum):
     RESOURCE_STATUS = 20057
     FILE_RETENTION_MODE = 2060
     FILE_KIND = 2061
+    FILE_TYPE = 2062
     CLIENT_TYPE = 20070
     PRIMITIVE_TYPE = 20080
-    FORMAT_HINT = 20081
     FIELD_ZONE = 20082
     TYPE_KIND = 20083
     BLOCK_TYPE = 20384
@@ -608,7 +607,8 @@ class FieldZone(betterproto.Enum):
 class FileKind(betterproto.Enum):
     UNSPECIFIED = 0
     DRIVE = 1
-    EXTERNAL = 2
+    DRIVE_INLINE = 2
+    EXTERNAL = 3
 
 
 class FileRetentionMode(betterproto.Enum):
@@ -616,6 +616,18 @@ class FileRetentionMode(betterproto.Enum):
     AUTOMATIC = 1
     MANUAL = 2
     TIMED = 3
+
+
+class FileType(betterproto.Enum):
+    UNSPECIFIED = 0
+    TEXT = 1
+    IMAGE = 2
+    AUDIO = 3
+    VIDEO = 4
+    DOCUMENT = 5
+    DATA = 6
+    EXECUTABLE = 7
+    OTHER = 10
 
 
 class FontSize(betterproto.Enum):
@@ -651,24 +663,6 @@ class FontWeight(betterproto.Enum):
     BOLD = 700
     EXTRA_BOLD = 800
     BLACK = 900
-
-
-class FormatHint(betterproto.Enum):
-    """
-    Extra semantic hint for types.
-     NOTE :Architecture: revisit FormatHint (especially with file types like images, constraints, etc.)
-    """
-
-    UNSPECIFIED = 0
-    TITLE = 1
-    EMAIL = 2
-    URL = 3
-    MARKDOWN = 4
-    CODE = 5
-    EMOJI = 6
-    PHONE = 20
-    RATING = 21
-    SLIDER = 22
 
 
 class FunctionalOp(betterproto.Enum):
@@ -885,7 +879,8 @@ class ObjectType(betterproto.Enum):
     FILE_REFERENCE = 10204
     ICON = 10205
     SECRET_REFERENCE = 10206
-    TRIGGER_INFO = 10210
+    FILE_INFO = 10207
+    TRIGGER_INFO = 10208
     EXPRESSION = 10300
     AGGREGATION = 10301
     SELECTION = 10302
@@ -1212,7 +1207,8 @@ class StructType(betterproto.Enum):
     FILE_REFERENCE = 10204
     ICON = 10205
     SECRET_REFERENCE = 10206
-    TRIGGER_INFO = 10210
+    FILE_INFO = 10207
+    TRIGGER_INFO = 10208
     EXPRESSION = 10300
     AGGREGATION = 10301
     SELECTION = 10302
@@ -1412,14 +1408,6 @@ class ViewType(betterproto.Enum):
     IMAGE = 1273
     VIDEO = 1274
     AUDIO = 1275
-
-
-class Visibility(betterproto.Enum):
-    UNSPECIFIED = 0
-    PAGE = 4
-    MODULE = 6
-    BENCH = 8
-    PUBLIC = 10
 
 
 class ServiceKind(betterproto.Enum):
@@ -1654,6 +1642,28 @@ class FeedViewStateData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class FileInfoData(betterproto.Message):
+    """File metadata."""
+
+    metatype: "ObjectType" = betterproto.enum_field(1)
+    kind: "FileKind" = betterproto.enum_field(40)
+    content: Optional[bytes] = betterproto.bytes_field(41, optional=True)
+    url: Optional[str] = betterproto.string_field(42, optional=True)
+    coarse_type: "FileType" = betterproto.enum_field(50)
+    mime_type: str = betterproto.string_field(51)
+    size: int = betterproto.int64_field(52)
+    sha512: Optional[str] = betterproto.string_field(53, optional=True)
+    width: Optional[int] = betterproto.int32_field(55, optional=True)
+    height: Optional[int] = betterproto.int32_field(56, optional=True)
+    aspect_ratio: Optional[float] = betterproto.float_field(57, optional=True)
+    codec: Optional[str] = betterproto.string_field(58, optional=True)
+    duration: Optional[float] = betterproto.float_field(60, optional=True)
+    bitrate: Optional[int] = betterproto.int32_field(61, optional=True)
+    channels: Optional[int] = betterproto.int32_field(62, optional=True)
+    sample_rate: Optional[int] = betterproto.int32_field(63, optional=True)
+
+
+@dataclass(eq=False, repr=False)
 class FileReferenceData(betterproto.Message):
     """
     A reference to a file stored somewhere. Like a NodeReference with file-specific metadata.
@@ -1667,12 +1677,20 @@ class FileReferenceData(betterproto.Message):
     base_ck: Optional[str] = betterproto.string_field(34, optional=True)
     base_bench_id: Optional[str] = betterproto.string_field(35, optional=True)
     kind: "FileKind" = betterproto.enum_field(40)
-    title: str = betterproto.string_field(43)
-    size: Optional[int] = betterproto.int32_field(44, optional=True)
-    sha512: Optional[str] = betterproto.string_field(45, optional=True)
-    mime_type: Optional[str] = betterproto.string_field(46, optional=True)
-    content: Optional[bytes] = betterproto.bytes_field(50, optional=True)
-    url: Optional[str] = betterproto.string_field(51, optional=True)
+    content: Optional[bytes] = betterproto.bytes_field(41, optional=True)
+    url: Optional[str] = betterproto.string_field(42, optional=True)
+    coarse_type: "FileType" = betterproto.enum_field(50)
+    mime_type: str = betterproto.string_field(51)
+    size: int = betterproto.int64_field(52)
+    sha512: Optional[str] = betterproto.string_field(53, optional=True)
+    width: Optional[int] = betterproto.int32_field(55, optional=True)
+    height: Optional[int] = betterproto.int32_field(56, optional=True)
+    aspect_ratio: Optional[float] = betterproto.float_field(57, optional=True)
+    codec: Optional[str] = betterproto.string_field(58, optional=True)
+    duration: Optional[float] = betterproto.float_field(60, optional=True)
+    bitrate: Optional[int] = betterproto.int32_field(61, optional=True)
+    channels: Optional[int] = betterproto.int32_field(62, optional=True)
+    sample_rate: Optional[int] = betterproto.int32_field(63, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2191,7 +2209,9 @@ class TypeConstraintData(betterproto.Message):
     regex: Optional[str] = betterproto.string_field(60, optional=True)
     starts_with: Optional[str] = betterproto.string_field(61, optional=True)
     ends_with: Optional[str] = betterproto.string_field(62, optional=True)
-    subtype: Optional[int] = betterproto.int32_field(70, optional=True)
+    block_type: Optional["BlockType"] = betterproto.enum_field(70, optional=True)
+    step_type: Optional["StepType"] = betterproto.enum_field(71, optional=True)
+    file_type: Optional["FileType"] = betterproto.enum_field(72, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2207,8 +2227,6 @@ class TypeInfoData(betterproto.Message):
     default_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         50, optional=True
     )
-    visibility: Optional["Visibility"] = betterproto.enum_field(52, optional=True)
-    format_hint: Optional["FormatHint"] = betterproto.enum_field(53, optional=True)
     condition: Optional["ExpressionData"] = betterproto.message_field(54, optional=True)
     constraint: Optional["TypeConstraintData"] = betterproto.message_field(55, optional=True)
     is_list: bool = betterproto.bool_field(60)
@@ -2335,7 +2353,6 @@ class BlockData(betterproto.Message):
     bases_ptr: List["NodeReferenceData"] = betterproto.message_field(35)
     text: Optional["TextData"] = betterproto.message_field(36, optional=True)
     icon: Optional["IconData"] = betterproto.message_field(37, optional=True)
-    visibility: Optional["Visibility"] = betterproto.enum_field(38, optional=True)
     value_type: Optional["TypeInfoData"] = betterproto.message_field(39, optional=True)
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         40, optional=True
@@ -2507,8 +2524,6 @@ class FieldData(betterproto.Message):
     default_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         50, optional=True
     )
-    visibility: Optional["Visibility"] = betterproto.enum_field(52, optional=True)
-    format_hint: Optional["FormatHint"] = betterproto.enum_field(53, optional=True)
     condition: Optional["ExpressionData"] = betterproto.message_field(54, optional=True)
     constraint: Optional["TypeConstraintData"] = betterproto.message_field(55, optional=True)
     is_list: bool = betterproto.bool_field(60)
@@ -2537,15 +2552,24 @@ class FileData(betterproto.Message):
     created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(21, optional=True)
     updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(22, optional=True)
     set_properties: List[int] = betterproto.int32_field(29)
-    kind: "FileKind" = betterproto.enum_field(30)
     title: str = betterproto.string_field(33)
-    size: int = betterproto.int64_field(34)
-    mime_type: str = betterproto.string_field(35)
-    sha512: Optional[str] = betterproto.string_field(36, optional=True)
     retention: Optional["FileRetentionMode"] = betterproto.enum_field(37, optional=True)
     expires_at: Optional[datetime] = betterproto.message_field(38, optional=True)
-    content: Optional[bytes] = betterproto.bytes_field(50, optional=True)
-    url: Optional[str] = betterproto.string_field(51, optional=True)
+    kind: "FileKind" = betterproto.enum_field(40)
+    content: Optional[bytes] = betterproto.bytes_field(41, optional=True)
+    url: Optional[str] = betterproto.string_field(42, optional=True)
+    coarse_type: "FileType" = betterproto.enum_field(50)
+    mime_type: str = betterproto.string_field(51)
+    size: int = betterproto.int64_field(52)
+    sha512: Optional[str] = betterproto.string_field(53, optional=True)
+    width: Optional[int] = betterproto.int32_field(55, optional=True)
+    height: Optional[int] = betterproto.int32_field(56, optional=True)
+    aspect_ratio: Optional[float] = betterproto.float_field(57, optional=True)
+    codec: Optional[str] = betterproto.string_field(58, optional=True)
+    duration: Optional[float] = betterproto.float_field(60, optional=True)
+    bitrate: Optional[int] = betterproto.int32_field(61, optional=True)
+    channels: Optional[int] = betterproto.int32_field(62, optional=True)
+    sample_rate: Optional[int] = betterproto.int32_field(63, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -4972,6 +4996,7 @@ AnyStructData = Union[
     FileReferenceData,
     IconData,
     SecretReferenceData,
+    FileInfoData,
     TriggerInfoData,
     ExpressionData,
     AggregationData,

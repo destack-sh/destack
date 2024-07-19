@@ -58,7 +58,7 @@ class Notification(
         require=True,
         array=False,
         references=NodeType.BLOCK,
-        constraint=constraint(subtype=BlockType.NOTIFICATION),
+        constraint=constraint(block_type=BlockType.NOTIFICATION),
     )
     expires_at: Optional[datetime] = p_internal(33, default=None)
     read_at: Optional[datetime] = p_internal(34, default=None)

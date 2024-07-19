@@ -716,7 +716,7 @@ class HasSessionContext(BuiltinObject):
         require=False,
         array=False,
         references=NodeType.BLOCK,
-        constraint=constraint(subtype=BlockType.IDENTITY),
+        constraint=constraint(block_type=BlockType.IDENTITY),
     )
     if TYPE_CHECKING:
         block_ptr: Optional[NodeReference] = None

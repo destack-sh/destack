@@ -415,7 +415,7 @@ class Subject(Struct):
         require=False,
         array=False,
         references=NodeType.BLOCK,
-        constraint=constraint(subtype=BlockType.IDENTITY),
+        constraint=constraint(block_type=BlockType.IDENTITY),
     )
     badges: list["Badge"] = p_system(51, require=False, array=True, references=NodeType.BADGE)
     owned: list[Ownable] = p_system(
@@ -429,7 +429,7 @@ class Subject(Struct):
         require=False,
         array=True,
         references=NodeType.BLOCK,
-        constraint=constraint(subtype=BlockType.ROLE),
+        constraint=constraint(block_type=BlockType.ROLE),
     )
 
     def split_into_acting_subjects(self, graph: NodeDataGraph) -> tuple["Subject", ...]:

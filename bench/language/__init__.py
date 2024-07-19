@@ -51,7 +51,6 @@ from .const import (
     BlockType,
     ClientType,
     ConditionalOp,
-    FormatHint,
     NodeType,
     ObjectType,
     PolicyEffect,
@@ -61,11 +60,10 @@ from .const import (
     SortOp,
     StructType,
     TriggerType,
-    Visibility,
 )
 from .expression import A, Aggregation, C, ComputedValue, Expression, S, coerce_conditional
 from .field import Field, FieldZone, TypeConstraint, TypeInfo, TypeInfoBase
-from .file import File, FileReference, Icon
+from .file import File, FileKind, FileReference, FileRetentionMode, FileType, Icon
 from .graph import (
     NodeDataDict,
     NodeDataGraph,
@@ -188,12 +186,14 @@ __all__ = [
     "Field",
     "FieldZone",
     "File",
+    "FileKind",
     "FileReference",
+    "FileRetentionMode",
+    "FileType",
     "Font",
     "FontSize",
     "FontType",
     "FontWeight",
-    "FormatHint",
     "GetConnection",
     "GetOptions",
     "GetResult",
@@ -298,7 +298,6 @@ __all__ = [
     "Variant",
     "View",
     "ViewType",
-    "Visibility",
     "WatchAggregateUpdate",
     "WatchGetUpdate",
     "WatchSearchUpdate",
