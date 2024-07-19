@@ -25,7 +25,7 @@ resource "aws_vpc" "global_vpc" {
   }
 }
 
-# Subnets
+# global subnets
 resource "aws_subnet" "global_public" {
   count             = length(var.region_availability_zones[var.global_region])
   vpc_id            = aws_vpc.global_vpc.id
@@ -51,6 +51,7 @@ resource "aws_subnet" "global_private" {
 # 
 # Regional modules
 # NOTE :Cleanup: region modules are duplicated because we need them to be legacy modules :StaticRegions
+#  (because the kubernetes provider depends on the EKS cluster, and we coan't pass that as an argument without creating a circular dependency)
 #
 
 module "region_eu_central_1" {
@@ -58,6 +59,7 @@ module "region_eu_central_1" {
 
   # general
   bench_version      = file("../version")
+  git_commit         = data.external.git.result.sha
   env                = var.env
   region             = "eu-central-1"
   availability_zones = var.region_availability_zones["eu-central-1"]
@@ -88,6 +90,7 @@ module "region_eu_central_1" {
   neon_base_url     = var.neon_base_url
   openai_api_key    = var.openai_api_key
   anthropic_api_key = var.anthropic_api_key
+  ghcr_username     = var.ghcr_username
   ghcr_token        = var.ghcr_token
 }
 
@@ -112,9 +115,9 @@ resource "aws_vpc_peering_connection_accepter" "global_peering_accepter" {
   for_each                  = toset(var.regions)
   vpc_peering_connection_id = aws_vpc_peering_connection.global_peering[each.key].id
   auto_accept               = true
-	tags = {
-		Name = "bench-${var.env}-${each.key}-global-peering"
-	}
+  tags = {
+    Name = "bench-${var.env}-${each.key}-global-peering"
+  }
 }
 
 # peer regional VPCs to each other
@@ -151,7 +154,7 @@ resource "aws_vpc_peering_connection_accepter" "cross_region_peering_accepter" {
   for_each                  = local.peering_map
   vpc_peering_connection_id = aws_vpc_peering_connection.cross_region_peering[each.key].id
   auto_accept               = true
-	tags = {
-		Name = "bench-${var.env}-${each.value.region1}-${each.value.region2}-cross-region-peering"
-	}
+  tags = {
+    Name = "bench-${var.env}-${each.value.region1}-${each.value.region2}-cross-region-peering"
+  }
 }

@@ -151,6 +151,11 @@ variable "anthropic_api_key" {
   sensitive   = true
 }
 
+variable "ghcr_username" {
+  type        = string
+  description = "GitHub Container Registry username"
+}
+
 variable "ghcr_token" {
   type        = string
   description = "GitHub Container Registry token"

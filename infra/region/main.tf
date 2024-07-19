@@ -241,7 +241,7 @@ resource "kubernetes_secret" "image_pull_secret" {
     ".dockerconfigjson" = jsonencode({
       auths = {
         "ghcr.io" = {
-          auth = base64encode(var.ghcr_token)
+          auth = base64encode("${var.ghcr_username}:${var.ghcr_token}")
         }
       }
     })

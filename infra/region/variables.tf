@@ -7,6 +7,11 @@ variable "bench_version" {
   description = "Bench version"
 }
 
+variable "git_commit" {
+  type        = string
+  description = "Git commit hash"
+}
+
 variable "env" {
   type        = string
   description = "Environment name"
@@ -140,6 +145,10 @@ variable "anthropic_api_key" {
   sensitive   = true
 }
 
+variable "ghcr_username" {
+  type        = string
+  description = "GitHub Container Registry username"
+}
 variable "ghcr_token" {
   type        = string
   description = "GitHub Container Registry token"
