@@ -20,6 +20,45 @@ data "cloudflare_zone" "justbench_com" {
   name = "justbench.com"
 }
 
+# 
+# ACM certificate
+#
+
+resource "aws_acm_certificate" "justbench_com" {
+  domain_name               = "justbench.com"
+  subject_alternative_names = ["*.justbench.com"]
+  validation_method         = "DNS"
+
+  provider = aws.us-east-1
+
+  tags = {
+    Name = "bench-${var.env}-global-web-cert"
+  }
+}
+
+locals {
+  # deduplicate domain validation options (may go in the same record)
+  domain_validation_options = toset([
+    for dvo in aws_acm_certificate.justbench_com.domain_validation_options : {
+      name   = dvo.resource_record_name
+      record = dvo.resource_record_value
+      type   = dvo.resource_record_type
+    }
+  ])
+}
+resource "cloudflare_record" "cert_validation" {
+  for_each = {
+    for dvo in local.domain_validation_options :
+    dvo.name => dvo
+  }
+
+  zone_id = data.cloudflare_zone.justbench_com.id
+  name    = each.value.name
+  type    = each.value.type
+  value   = each.value.record
+  ttl     = 60
+}
+
 #
 # S3 bucket for bench-web
 #
@@ -75,6 +114,7 @@ resource "aws_s3_object" "bench_web_files" {
   bucket = aws_s3_bucket.bench_web.bucket
   key    = each.key
   source = "../bench-web/dist/${each.key}"
+  etag   = filemd5("../bench-web/dist/${each.key}")
   content_type = lookup({
     "html" = "text/html",
     "js"   = "application/javascript",
@@ -91,37 +131,9 @@ resource "aws_s3_object" "bench_web_files" {
   }
 }
 
-# 
-# CloudFront distribution with certificate
 #
-
-resource "aws_acm_certificate" "justbench_com" {
-  domain_name               = "justbench.com"
-  subject_alternative_names = ["*.justbench.com"]
-  validation_method         = "DNS"
-
-  provider = aws.us-east-1
-
-  tags = {
-    Name = "bench-${var.env}-global-web-cert"
-  }
-}
-
-resource "cloudflare_record" "cert_validation" {
-  for_each = {
-    for dvo in aws_acm_certificate.justbench_com.domain_validation_options : dvo.domain_name => {
-      name   = dvo.resource_record_name
-      type   = dvo.resource_record_type
-      record = dvo.resource_record_value
-    }
-  }
-
-  zone_id = data.cloudflare_zone.justbench_com.id
-  name    = each.value.name
-  type    = each.value.type
-  value   = each.value.record
-  ttl     = 60
-}
+# CloudFront distribution
+#
 
 resource "aws_cloudfront_distribution" "bench_web" {
   origin {
