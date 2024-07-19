@@ -7,11 +7,11 @@ services:
       POSTGRES_DB: bench
       POSTGRES_PASSWORD: bench
     volumes:
-      - ./infra/local_postgres.conf:/etc/postgresql/local_postgresql.conf
+      - ../dev/postgres.conf:/etc/postgresql/postgresql.conf
       - postgres_data:/var/lib/postgresql/data
     ports:
       - '5432:5432'
-    command: ["postgres", "-c", "config_file=./etc/postgresql/local_postgresql.conf"]
+    command: ["postgres", "-c", "config_file=./etc/postgresql/postgresql.conf"]
 
   minio:
     image: minio/minio:latest
@@ -40,14 +40,14 @@ services:
     image: envoyproxy/envoy:v1.28-latest
     restart: on-failure
     volumes:
-      - ./infra/envoy.yaml:/etc/envoy/envoy.yaml
-      # certificates are generated with openssl for local development:
-      #  openssl req -x509 -newkey rsa:4096 -keyout infra/local_cert.key -out infra/local_cert.pem -days 10000 -nodes -subj "/CN=localhost" -addext "subjectAltName = DNS:localhost,IP:127.0.0.1"
+      - ../config/envoy.yaml:/etc/envoy/envoy.yaml
+      # certificates are generated with openssl for development:
+      #  openssl req -x509 -newkey rsa:4096 -keyout cert.key -out cert.pem -days 10000 -nodes -subj "/CN=localhost" -addext "subjectAltName = DNS:localhost,IP:127.0.0.1"
       # and to make MacOS happy:
-      #  security import infra/local_cert.pem -k ~/Library/Keychains/login.keychain-db
+      #  security import cert.pem -k ~/Library/Keychains/login.keychain-db
       #  (and then manually configure this 'localhost' cert as 'Always Trust' in Keychain Access)
-      - ./infra/local_cert.key:/etc/envoy/ssl/cert.key
-      - ./infra/local_cert.pem:/etc/envoy/ssl/cert.pem
+      - ../dev/cert.key:/etc/envoy/ssl/cert.key
+      - ../dev/cert.pem:/etc/envoy/ssl/cert.pem
     network_mode: host
     # ports: 8080 & 9901 are not needed in host network mode
 
