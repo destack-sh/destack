@@ -62,7 +62,7 @@ async def omni_bench_async(global_store: Store, global_session, request: pytest.
         bench = await create_default_bench(
             main_handle=user.main_handle,
             owner=user,
-            region=Region.EUROPE_CENTRAL,
+            region=Region.EU_CENTRAL,
             global_store=global_store,
             session=session,
         )

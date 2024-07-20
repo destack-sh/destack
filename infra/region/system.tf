@@ -35,13 +35,4 @@ resource "aws_eks_node_group" "region_system_nodes" {
 # Envoy
 # 
 
-resource "kubernetes_config_map" "envoy_config" {
-  metadata {
-    name      = "envoy-config"
-    namespace = "default"
-  }
-
-  data = {
-    "envoy.yaml" = file("config/envoy.yaml")
-  }
-}
+# ...

@@ -158,7 +158,7 @@ class NeonApiLocal(NeonApi):
 
 
 NEON_REGION_BY_REGION: dict[Region, str] = {
-    Region.EUROPE_CENTRAL: "aws-eu-central-1",
+    Region.EU_CENTRAL: "aws-eu-central-1",
 }
 NEON_MAIN_ENDPOINT_SETTINGS = {
     "autoscaling_limit_min_cu": 0.25,

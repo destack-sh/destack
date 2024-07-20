@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.07.19.1"  # auto change via version script
+VERSION = "2024.07.20.0"  # auto change via version script
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -86,7 +86,7 @@ class EnumType(IdEnum):
 
     # bench
     REGION = 20050
-    TENANCY = 20051
+    CLOUD = 20051
     SERVER_PROFILE = 20055
     MACHINE_PROFILE = 20056
     RESOURCE_STATUS = 20057
@@ -418,25 +418,102 @@ def is_enum_type(obj: IdEnum | int) -> bool:
     return obj in ENUM_TYPES_SET
 
 
+@enum_(EnumType.CLOUD)
+class Cloud(IdEnum):
+    """The cloud provider."""
+
+    # own
+    ...
+    # big
+    AWS = 10
+    AZURE = 11
+    GCP = 12
+    OCI = 13
+    ALIBABA = 14
+    # small
+    HETZNER = 20
+    # private
+    PRIVATE = 90
+
+    @property
+    def slug(self) -> str:
+        return CLOUD_SLUGS[self]
+
+
+# :CloudSlugs
+CLOUD_SLUGS: dict[Cloud, str] = {
+    Cloud.AWS: "aws",
+    Cloud.AZURE: "azu",
+    Cloud.GCP: "gcp",
+    Cloud.OCI: "oci",
+    Cloud.ALIBABA: "ali",
+    Cloud.HETZNER: "het",
+}
+CLOUD_BY_SLUG = {v: k for k, v in CLOUD_SLUGS.items()}
+
+
 @enum_(EnumType.REGION)
 class Region(IdEnum):
     """
     Where a Resource is located (physically).
     There are
-      - 'continental' regions ([>1, <100]: Europe, North America, etc.).
-      - 'area' regions ([%20=0]: Europe Central, US East, etc.).
+      - 'continental' regions ([>1, <1000]: Europe, North America, etc.).
+      - 'area' regions ([%100=0]: Europe Central, US East, etc.).
       - 'city' regions (Frankfurt, Ohio, etc.).
     """
 
-    GLOBAL = 1
-    EUROPE = 2
+    # 'continental'
+    EUROPE = 1
+    NORTH_AMERICA = 2
+    SOUTH_AMERICA = 3
+    MIDDLE_EAST = 4
+    AFRICA = 5
+    ASIA = 6
+    OCEANIA = 7
+    PRIVATE = 900
+    GLOBAL = 999
 
     # europe
-    EUROPE_CENTRAL = 100
-    EUROPE_ZURICH = 101
-    EUROPE_FRANKFURT = 102
-    # americas
-    ...
+    EU_CENTRAL = 1000
+    EU_ZURICH = 1001
+    EU_FRANKFURT = 1002
+
+    # north america
+    NA_EAST = 2000
+    NA_VIRGINIA = 2001
+    NA_OHIO = 2002
+
+    @property
+    def is_continental(self) -> bool:
+        return self.id < 1000
+
+    @property
+    def is_area(self) -> bool:
+        return self.id > 1000 and self.id % 100 == 0
+
+    @property
+    def is_city(self) -> bool:
+        return self.id > 1000 and self.id % 100 != 0
+
+    @property
+    def slug(self) -> str:
+        if self.is_continental:
+            return REGION_SLUGS[self]
+        else:
+            return self.name.lower().replace("_", "-")
+
+
+# :RegionSlugs
+REGION_SLUGS: dict[Region, str] = {
+    Region.EUROPE: "eu",
+    Region.NORTH_AMERICA: "na",
+    Region.SOUTH_AMERICA: "sa",
+    Region.MIDDLE_EAST: "me",
+    Region.AFRICA: "af",
+    Region.ASIA: "as",
+    Region.OCEANIA: "oc",
+}
+REGION_BY_SLUG = {v: k for k, v in REGION_SLUGS.items()}
 
 
 @enum_(EnumType.BLOCK_TYPE)
@@ -1043,6 +1120,7 @@ class NotificationKind(IdEnum):
 # Other global stuff
 #
 
+CLOUD = get_from_env("CLOUD", typ=Cloud, description="Cloud we're running in")
 REGION = get_from_env("REGION", typ=Region, description="Region we're running in")
 
 

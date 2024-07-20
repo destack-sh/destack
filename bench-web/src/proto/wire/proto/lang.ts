@@ -6640,9 +6640,9 @@ export enum BenchType {
      */
     REGION = 20050,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_TENANCY = 20051;
+     * @generated from protobuf enum value: BENCH_TYPE_CLOUD = 20051;
      */
-    TENANCY = 20051,
+    CLOUD = 20051,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_SERVER_PROFILE = 20055;
      */
@@ -7079,6 +7079,41 @@ export enum ClientType {
     BENCH_SERVER = 10
 }
 /**
+ * The cloud provider.
+ *
+ * @generated from protobuf enum symbolx.bench.Cloud
+ */
+export enum Cloud {
+    /**
+     * @generated from protobuf enum value: CLOUD_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: CLOUD_AWS = 10;
+     */
+    AWS = 10,
+    /**
+     * @generated from protobuf enum value: CLOUD_AZURE = 11;
+     */
+    AZURE = 11,
+    /**
+     * @generated from protobuf enum value: CLOUD_GCP = 12;
+     */
+    GCP = 12,
+    /**
+     * @generated from protobuf enum value: CLOUD_OCI = 13;
+     */
+    OCI = 13,
+    /**
+     * @generated from protobuf enum value: CLOUD_ALIBABA = 14;
+     */
+    ALIBABA = 14,
+    /**
+     * @generated from protobuf enum value: CLOUD_HETZNER = 20;
+     */
+    HETZNER = 20
+}
+/**
  * The implicit 'type' of some Code.
  * We don't set this explicitly in Code because it depends on where the Code is used.
  *
@@ -7510,9 +7545,9 @@ export enum EnumType {
      */
     REGION = 20050,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_TENANCY = 20051;
+     * @generated from protobuf enum value: ENUM_TYPE_CLOUD = 20051;
      */
-    TENANCY = 20051,
+    CLOUD = 20051,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_SERVER_PROFILE = 20055;
      */
@@ -9310,8 +9345,8 @@ export enum ReferenceKind {
 /**
  * Where a Resource is located (physically).
  * There are
- * - 'continental' regions ([>1, <100]: Europe, North America, etc.).
- * - 'area' regions ([%20=0]: Europe Central, US East, etc.).
+ * - 'continental' regions ([>1, <1000]: Europe, North America, etc.).
+ * - 'area' regions ([%100=0]: Europe Central, US East, etc.).
  * - 'city' regions (Frankfurt, Ohio, etc.).
  *
  * @generated from protobuf enum symbolx.bench.Region
@@ -9322,25 +9357,61 @@ export enum Region {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: REGION_GLOBAL = 1;
+     * @generated from protobuf enum value: REGION_EUROPE = 1;
      */
-    GLOBAL = 1,
+    EUROPE = 1,
     /**
-     * @generated from protobuf enum value: REGION_EUROPE = 2;
+     * @generated from protobuf enum value: REGION_NORTH_AMERICA = 2;
      */
-    EUROPE = 2,
+    NORTH_AMERICA = 2,
     /**
-     * @generated from protobuf enum value: REGION_EUROPE_CENTRAL = 100;
+     * @generated from protobuf enum value: REGION_SOUTH_AMERICA = 3;
      */
-    EUROPE_CENTRAL = 100,
+    SOUTH_AMERICA = 3,
     /**
-     * @generated from protobuf enum value: REGION_EUROPE_ZURICH = 101;
+     * @generated from protobuf enum value: REGION_MIDDLE_EAST = 4;
      */
-    EUROPE_ZURICH = 101,
+    MIDDLE_EAST = 4,
     /**
-     * @generated from protobuf enum value: REGION_EUROPE_FRANKFURT = 102;
+     * @generated from protobuf enum value: REGION_AFRICA = 5;
      */
-    EUROPE_FRANKFURT = 102
+    AFRICA = 5,
+    /**
+     * @generated from protobuf enum value: REGION_ASIA = 6;
+     */
+    ASIA = 6,
+    /**
+     * @generated from protobuf enum value: REGION_OCEANIA = 7;
+     */
+    OCEANIA = 7,
+    /**
+     * @generated from protobuf enum value: REGION_GLOBAL = 999;
+     */
+    GLOBAL = 999,
+    /**
+     * @generated from protobuf enum value: REGION_EUROPE_CENTRAL = 1000;
+     */
+    EUROPE_CENTRAL = 1000,
+    /**
+     * @generated from protobuf enum value: REGION_EUROPE_ZURICH = 1001;
+     */
+    EUROPE_ZURICH = 1001,
+    /**
+     * @generated from protobuf enum value: REGION_EUROPE_FRANKFURT = 1002;
+     */
+    EUROPE_FRANKFURT = 1002,
+    /**
+     * @generated from protobuf enum value: REGION_NORTH_AMERICA_EAST = 2000;
+     */
+    NORTH_AMERICA_EAST = 2000,
+    /**
+     * @generated from protobuf enum value: REGION_NORTH_AMERICA_VIRGINIA = 2001;
+     */
+    NORTH_AMERICA_VIRGINIA = 2001,
+    /**
+     * @generated from protobuf enum value: REGION_NORTH_AMERICA_OHIO = 2002;
+     */
+    NORTH_AMERICA_OHIO = 2002
 }
 /**
  * Generalized status of a Resource in its lifecycle.
@@ -10106,25 +10177,6 @@ export enum StructType {
      * @generated from protobuf enum value: STRUCT_TYPE_TREE_VIEW_STATE = 11207;
      */
     TREE_VIEW_STATE = 11207
-}
-/**
- * How a Resource is shared (if at all).
- *
- * @generated from protobuf enum symbolx.bench.Tenancy
- */
-export enum Tenancy {
-    /**
-     * @generated from protobuf enum value: TENANCY_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: TENANCY_SHARED = 3;
-     */
-    SHARED = 3,
-    /**
-     * @generated from protobuf enum value: TENANCY_DEDICATED = 7;
-     */
-    DEDICATED = 7
 }
 /**
  * @generated from protobuf enum symbolx.bench.TextLineType
@@ -24617,7 +24669,7 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.CHANGE_CATEGORY]: ChangeCategory,
   [EnumType.POLICY_EFFECT]: PolicyEffect,
   [EnumType.REGION]: Region,
-  [EnumType.TENANCY]: Tenancy,
+  [EnumType.CLOUD]: Cloud,
   [EnumType.SERVER_PROFILE]: ServerProfile,
   [EnumType.MACHINE_PROFILE]: MachineProfile,
   [EnumType.RESOURCE_STATUS]: ResourceStatus,
@@ -24895,7 +24947,7 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.CHANGE_CATEGORY]: ChangeCategory,
   [EnumType.POLICY_EFFECT]: PolicyEffect,
   [EnumType.REGION]: Region,
-  [EnumType.TENANCY]: Tenancy,
+  [EnumType.CLOUD]: Cloud,
   [EnumType.SERVER_PROFILE]: ServerProfile,
   [EnumType.MACHINE_PROFILE]: MachineProfile,
   [EnumType.RESOURCE_STATUS]: ResourceStatus,
@@ -27227,7 +27279,7 @@ export const BenchDataInfo: Record<BenchProperty, PropertyInfo> = {
   [BenchProperty.text]: { id: 34, name: 'text', component: ObjectType.BENCH, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [BenchProperty.icon]: { id: 35, name: 'icon', component: ObjectType.BENCH, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [BenchProperty.ownerPtr]: { id: 36, name: 'owner_ptr', component: ObjectType.BENCH, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION], referenceStruct: StructType.NODE_REFERENCE },
-  [BenchProperty.region]: { id: 37, name: 'region', component: ObjectType.BENCH, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 101, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [BenchProperty.region]: { id: 37, name: 'region', component: ObjectType.BENCH, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [BenchProperty.encryptionKey]: { id: 38, name: 'encryption_key', component: ObjectType.BENCH, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
   [BenchProperty.policies]: { id: 39, name: 'policies', component: ObjectType.BENCH, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY },
   [BenchProperty.mainStorePtr]: { id: 40, name: 'main_store_ptr', component: ObjectType.BENCH, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.STORE], referenceStruct: StructType.NODE_REFERENCE },
