@@ -1,23 +1,33 @@
+locals {
+  aws_global_vpc_network_cidr = "10.0.0.0/16"
+  aws_region_by_bench_region = {
+    "eu-frankfurt" = "eu-central-1"
+  }
+  aws_region_availability_zones = {
+    "eu-frankfurt" = ["eu-central-1a", "eu-central-1b"]
+  }
+}
+
 provider "aws" {
-  region = var.global_region
+  region = local.aws_region_by_bench_region[var.global_region]
 }
 
 data "external" "git" {
   program = [
     "git",
     "log",
-    "--pretty=format:{ \"sha\": \"%H\" }",
+    "--pretty=format:{\"sha\": \"%h\"}",
     "-1",
     "HEAD"
   ]
 }
 
 #
-# Global VPC
+# Global AWS VPC
 #
 
 resource "aws_vpc" "global_vpc" {
-  cidr_block           = var.global_vpc_network_cidr
+  cidr_block           = local.aws_global_vpc_network_cidr
   enable_dns_hostnames = true
 
   tags = {
@@ -27,20 +37,20 @@ resource "aws_vpc" "global_vpc" {
 
 # global subnets
 resource "aws_subnet" "global_public" {
-  count             = length(var.region_availability_zones[var.global_region])
+  count             = length(local.aws_region_availability_zones[var.global_region])
   vpc_id            = aws_vpc.global_vpc.id
-  cidr_block        = cidrsubnet(var.global_vpc_network_cidr, 8, count.index)
-  availability_zone = var.region_availability_zones[var.global_region][count.index]
+  cidr_block        = cidrsubnet(local.aws_global_vpc_network_cidr, 8, count.index)
+  availability_zone = local.aws_region_availability_zones[var.global_region][count.index]
 
   tags = {
     Name = "bench-${var.env}-global-public-subnet-${count.index + 1}"
   }
 }
 resource "aws_subnet" "global_private" {
-  count             = length(var.region_availability_zones[var.global_region])
+  count             = length(local.aws_region_availability_zones[var.global_region])
   vpc_id            = aws_vpc.global_vpc.id
-  cidr_block        = cidrsubnet(var.global_vpc_network_cidr, 8, 2 + count.index)
-  availability_zone = var.region_availability_zones[var.global_region][count.index]
+  cidr_block        = cidrsubnet(local.aws_global_vpc_network_cidr, 8, 2 + count.index)
+  availability_zone = local.aws_region_availability_zones[var.global_region][count.index]
 
   tags = {
     Name = "bench-${var.env}-global-private-subnet-${count.index + 1}"
@@ -58,15 +68,16 @@ module "region_eu_central_1" {
   source = "./region"
 
   # general
-  bench_version      = file("../version")
-  git_commit         = data.external.git.result.sha
-  env                = var.env
-  region             = "eu-central-1"
-  availability_zones = var.region_availability_zones["eu-central-1"]
-  global_region      = var.global_region
+  bench_version          = file("../version")
+  git_commit             = data.external.git.result.sha
+  env                    = var.env
+  cloud                  = "aws"
+  region                 = "eu-frankfurt"
+  aws_availability_zones = ["eu-central-1a", "eu-central-1b"]
+  global_region          = var.global_region
 
   # aws
-  vpc_network_cidr            = var.region_vpc_network_cidrs["eu-central-1"]
+  vpc_network_cidr            = "10.1.0.0/16"
   system_min_cluster_size     = var.system_min_cluster_size
   system_max_cluster_size     = var.system_max_cluster_size
   system_desired_cluster_size = var.system_desired_cluster_size
@@ -97,13 +108,17 @@ module "region_eu_central_1" {
 # put all regions in a map
 locals {
   regions = {
-    "eu-central-1" = module.region_eu_central_1
+    "aws-eu-frankfurt" = module.region_eu_central_1
   }
 }
 
-# peer regional VPCs to the global VPC
+#
+# Peering
+# 
+
+# peer regional AWS VPCs to the global AWS VPC
 resource "aws_vpc_peering_connection" "global_peering" {
-  for_each    = toset(var.regions)
+  for_each    = local.regions
   vpc_id      = local.regions[each.key].vpc_id
   peer_vpc_id = aws_vpc.global_vpc.id
   peer_region = var.global_region
@@ -112,7 +127,7 @@ resource "aws_vpc_peering_connection" "global_peering" {
   }
 }
 resource "aws_vpc_peering_connection_accepter" "global_peering_accepter" {
-  for_each                  = toset(var.regions)
+  for_each                  = local.regions
   vpc_peering_connection_id = aws_vpc_peering_connection.global_peering[each.key].id
   auto_accept               = true
   tags = {
@@ -127,7 +142,7 @@ locals {
   }
   # generate possible pairs of regions
   region_pairs = [
-    for pair in setproduct(var.regions, var.regions) : pair
+    for pair in setproduct(keys(local.regions), keys(local.regions)) : pair
     if pair[0] != pair[1]
   ]
   # map into peering connections
@@ -145,7 +160,7 @@ resource "aws_vpc_peering_connection" "cross_region_peering" {
   for_each    = local.peering_map
   vpc_id      = each.value.vpc1
   peer_vpc_id = each.value.vpc2
-  peer_region = each.value.region2
+  peer_region = local.aws_region_by_bench_region[each.value.region2]
   tags = {
     Name = "bench-${var.env}-${each.value.region1}-${each.value.region2}-cross-region-peering"
   }

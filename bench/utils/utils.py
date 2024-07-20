@@ -44,7 +44,20 @@ def get_from_env_maybe[T](
                 value = int(value)  # type: ignore
                 value = typ(value)
             except ValueError:
-                value = typ[cast(str, value)]
+                if typ.__name__ == "Region":
+                    # also accept slug
+                    value = cast(str, value).replace("-", "_").upper()
+                    value = typ(value)
+                elif typ.__name__ == "Cloud":
+                    from bench.language.const import CLOUD_BY_SLUG
+
+                    value = cast(str, value).lower()
+                    if value in CLOUD_BY_SLUG:
+                        value = CLOUD_BY_SLUG[cast(str, value)]
+                    else:
+                        value = typ[cast(str, value).upper()]
+                else:
+                    value = typ[cast(str, value)]
         else:
             value = cast(T, typ(value))  # type: ignore
     except Exception as e:

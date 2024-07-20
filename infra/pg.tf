@@ -51,5 +51,9 @@ resource "aws_rds_cluster_instance" "global_pg_primary_instance" {
   engine                     = aws_rds_cluster.global_pg_primary.engine
   engine_version             = aws_rds_cluster.global_pg_primary.engine_version
   auto_minor_version_upgrade = true
-  availability_zone          = var.region_availability_zones[var.global_region][count.index]
+  availability_zone          = local.aws_region_availability_zones[var.global_region][count.index]
+}
+
+output "global_pg_host" {
+  value = aws_rds_cluster.global_pg_primary.endpoint
 }

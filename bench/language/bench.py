@@ -261,14 +261,6 @@ class Dependency(SourceNode[DependencyData]):
     dependency: Package = p_regular(40, require=True, array=False, references=NodeType.PACKAGE)
 
 
-@enum_(EnumType.TENANCY)
-class Tenancy(IdEnum):
-    """How a Resource is shared (if at all)."""
-
-    SHARED = 3
-    DEDICATED = 7
-
-
 @enum_(EnumType.RESOURCE_STATUS)
 class ResourceStatus(IdEnum):
     """Generalized status of a Resource in its lifecycle."""

@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.07.19.1"
+VERSION = "2024.07.20.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -225,7 +225,7 @@ class BenchType(betterproto.Enum):
     CHANGE_CATEGORY = 20036
     POLICY_EFFECT = 20040
     REGION = 20050
-    TENANCY = 20051
+    CLOUD = 20051
     SERVER_PROFILE = 20055
     MACHINE_PROFILE = 20056
     RESOURCE_STATUS = 20057
@@ -348,6 +348,18 @@ class ClientType(betterproto.Enum):
     BENCH_DESKTOP = 3
     BENCH_MOBILE = 4
     BENCH_SERVER = 10
+
+
+class Cloud(betterproto.Enum):
+    """The cloud provider."""
+
+    UNSPECIFIED = 0
+    AWS = 10
+    AZURE = 11
+    GCP = 12
+    OCI = 13
+    ALIBABA = 14
+    HETZNER = 20
 
 
 class CodeType(betterproto.Enum):
@@ -477,7 +489,7 @@ class EnumType(betterproto.Enum):
     CHANGE_CATEGORY = 20036
     POLICY_EFFECT = 20040
     REGION = 20050
-    TENANCY = 20051
+    CLOUD = 20051
     SERVER_PROFILE = 20055
     MACHINE_PROFILE = 20056
     RESOURCE_STATUS = 20057
@@ -1005,17 +1017,26 @@ class Region(betterproto.Enum):
     """
     Where a Resource is located (physically).
      There are
-     - 'continental' regions ([>1, <100]: Europe, North America, etc.).
-     - 'area' regions ([%20=0]: Europe Central, US East, etc.).
+     - 'continental' regions ([>1, <1000]: Europe, North America, etc.).
+     - 'area' regions ([%100=0]: Europe Central, US East, etc.).
      - 'city' regions (Frankfurt, Ohio, etc.).
     """
 
     UNSPECIFIED = 0
-    GLOBAL = 1
-    EUROPE = 2
-    EUROPE_CENTRAL = 100
-    EUROPE_ZURICH = 101
-    EUROPE_FRANKFURT = 102
+    EUROPE = 1
+    NORTH_AMERICA = 2
+    SOUTH_AMERICA = 3
+    MIDDLE_EAST = 4
+    AFRICA = 5
+    ASIA = 6
+    OCEANIA = 7
+    GLOBAL = 999
+    EUROPE_CENTRAL = 1000
+    EUROPE_ZURICH = 1001
+    EUROPE_FRANKFURT = 1002
+    NORTH_AMERICA_EAST = 2000
+    NORTH_AMERICA_VIRGINIA = 2001
+    NORTH_AMERICA_OHIO = 2002
 
 
 class ResourceStatus(betterproto.Enum):
@@ -1240,14 +1261,6 @@ class StructType(betterproto.Enum):
     USER_WIZARD_VIEW_STATE = 11205
     PAGE_VIEW_STATE = 11206
     TREE_VIEW_STATE = 11207
-
-
-class Tenancy(betterproto.Enum):
-    """How a Resource is shared (if at all)."""
-
-    UNSPECIFIED = 0
-    SHARED = 3
-    DEDICATED = 7
 
 
 class TextLineType(betterproto.Enum):

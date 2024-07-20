@@ -190,7 +190,7 @@ enum BenchType {
   BENCH_TYPE_CHANGE_CATEGORY = 20036;
   BENCH_TYPE_POLICY_EFFECT = 20040;
   BENCH_TYPE_REGION = 20050;
-  BENCH_TYPE_TENANCY = 20051;
+  BENCH_TYPE_CLOUD = 20051;
   BENCH_TYPE_SERVER_PROFILE = 20055;
   BENCH_TYPE_MACHINE_PROFILE = 20056;
   BENCH_TYPE_RESOURCE_STATUS = 20057;
@@ -311,6 +311,17 @@ enum ClientType {
   CLIENT_TYPE_BENCH_DESKTOP = 3;
   CLIENT_TYPE_BENCH_MOBILE = 4;
   CLIENT_TYPE_BENCH_SERVER = 10;
+}
+
+// The cloud provider.
+enum Cloud {
+  CLOUD_UNSPECIFIED = 0;
+  CLOUD_AWS = 10;
+  CLOUD_AZURE = 11;
+  CLOUD_GCP = 12;
+  CLOUD_OCI = 13;
+  CLOUD_ALIBABA = 14;
+  CLOUD_HETZNER = 20;
 }
 
 // The implicit 'type' of some Code.
@@ -434,7 +445,7 @@ enum EnumType {
   ENUM_TYPE_CHANGE_CATEGORY = 20036;
   ENUM_TYPE_POLICY_EFFECT = 20040;
   ENUM_TYPE_REGION = 20050;
-  ENUM_TYPE_TENANCY = 20051;
+  ENUM_TYPE_CLOUD = 20051;
   ENUM_TYPE_SERVER_PROFILE = 20055;
   ENUM_TYPE_MACHINE_PROFILE = 20056;
   ENUM_TYPE_RESOURCE_STATUS = 20057;
@@ -948,16 +959,25 @@ enum ReferenceKind {
 
 // Where a Resource is located (physically).
 // There are
-// - 'continental' regions ([>1, <100]: Europe, North America, etc.).
-// - 'area' regions ([%20=0]: Europe Central, US East, etc.).
+// - 'continental' regions ([>1, <1000]: Europe, North America, etc.).
+// - 'area' regions ([%100=0]: Europe Central, US East, etc.).
 // - 'city' regions (Frankfurt, Ohio, etc.).
 enum Region {
   REGION_UNSPECIFIED = 0;
-  REGION_GLOBAL = 1;
-  REGION_EUROPE = 2;
-  REGION_EUROPE_CENTRAL = 100;
-  REGION_EUROPE_ZURICH = 101;
-  REGION_EUROPE_FRANKFURT = 102;
+  REGION_EUROPE = 1;
+  REGION_NORTH_AMERICA = 2;
+  REGION_SOUTH_AMERICA = 3;
+  REGION_MIDDLE_EAST = 4;
+  REGION_AFRICA = 5;
+  REGION_ASIA = 6;
+  REGION_OCEANIA = 7;
+  REGION_GLOBAL = 999;
+  REGION_EUROPE_CENTRAL = 1000;
+  REGION_EUROPE_ZURICH = 1001;
+  REGION_EUROPE_FRANKFURT = 1002;
+  REGION_NORTH_AMERICA_EAST = 2000;
+  REGION_NORTH_AMERICA_VIRGINIA = 2001;
+  REGION_NORTH_AMERICA_OHIO = 2002;
 }
 
 // Generalized status of a Resource in its lifecycle.
@@ -1177,13 +1197,6 @@ enum StructType {
   STRUCT_TYPE_USER_WIZARD_VIEW_STATE = 11205;
   STRUCT_TYPE_PAGE_VIEW_STATE = 11206;
   STRUCT_TYPE_TREE_VIEW_STATE = 11207;
-}
-
-// How a Resource is shared (if at all).
-enum Tenancy {
-  TENANCY_UNSPECIFIED = 0;
-  TENANCY_SHARED = 3;
-  TENANCY_DEDICATED = 7;
 }
 
 enum TextLineType {

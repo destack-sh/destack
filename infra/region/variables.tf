@@ -12,6 +12,11 @@ variable "git_commit" {
   description = "Git commit hash"
 }
 
+variable "cloud" {
+  type        = string
+  description = "Cloud provider"
+}
+
 variable "env" {
   type        = string
   description = "Environment name"
@@ -19,17 +24,17 @@ variable "env" {
 
 variable "region" {
   type        = string
-  description = "AWS region for resources"
-}
-
-variable "availability_zones" {
-  type        = list(string)
-  description = "AWS availability zones for the VPC"
+  description = "Bench region"
 }
 
 variable "global_region" {
   type        = string
-  description = "Global AWS region for resources"
+  description = "Global Bench region for resources"
+}
+
+variable "aws_availability_zones" {
+  type        = list(string)
+  description = "AWS availability zones"
 }
 
 #

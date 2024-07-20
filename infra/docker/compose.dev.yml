@@ -40,7 +40,7 @@ services:
     image: envoyproxy/envoy:v1.28-latest
     restart: on-failure
     volumes:
-      - ../config/envoy.yaml:/etc/envoy/envoy.yaml
+      - ../dev/envoy.yaml:/etc/envoy/envoy.yaml
       # certificates are generated with openssl for development:
       #  openssl req -x509 -newkey rsa:4096 -keyout cert.key -out cert.pem -days 10000 -nodes -subj "/CN=localhost" -addext "subjectAltName = DNS:localhost,IP:127.0.0.1"
       # and to make MacOS happy:

@@ -20,7 +20,6 @@ from .bench import (
     Server,
     ServerProfile,
     Store,
-    Tenancy,
 )
 from .block import Block
 from .code import Code, CodeLine, CodeType, code
@@ -50,6 +49,7 @@ from .const import (
     BenchType,
     BlockType,
     ClientType,
+    Cloud,
     ConditionalOp,
     NodeType,
     ObjectType,
@@ -166,6 +166,7 @@ __all__ = [
     "Channel",
     "Client",
     "ClientType",
+    "Cloud",
     "Code",
     "CodeLine",
     "CodeType",
@@ -278,7 +279,6 @@ __all__ = [
     "Struct",
     "StructType",
     "Subject",
-    "Tenancy",
     "Text",
     "TextSpan",
     "Transaction",

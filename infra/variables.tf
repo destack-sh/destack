@@ -10,22 +10,8 @@ variable "env" {
 
 variable "global_region" {
   type        = string
-  description = "Primary AWS region"
-  default     = "eu-central-1"
-}
-
-variable "regions" {
-  type        = list(string)
-  description = "Regions to create"
-  default     = ["eu-central-1"]
-}
-
-variable "region_availability_zones" {
-  type        = map(list(string))
-  description = "Availability zones for the regional VPCs"
-  default = {
-    "eu-central-1" = ["eu-central-1a", "eu-central-1b"]
-  }
+  description = "Primary Bench region"
+  default     = "eu-frankfurt"
 }
 
 #
@@ -41,20 +27,6 @@ variable "cloudflare_api_token" {
 # 
 # AWS
 # 
-
-variable "global_vpc_network_cidr" {
-  type        = string
-  description = "CIDR block for the global VPC"
-  default     = "10.0.0.0/16"
-}
-
-variable "region_vpc_network_cidrs" {
-  type        = map(string)
-  description = "CIDR blocks for the regional VPCs"
-  default = {
-    "eu-central-1" = "10.1.0.0/16"
-  }
-}
 
 variable "system_min_cluster_size" {
   type        = number

@@ -6,10 +6,10 @@
 # Supervisor deployment
 resource "kubernetes_deployment" "supervisor" {
   metadata {
-    name      = "bench-${var.env}-${var.region}-supervisor"
+    name      = "bench-${var.env}-${var.cloud}-${var.region}-supervisor"
     namespace = "default"
     labels = {
-      app = "bench-${var.env}-${var.region}-supervisor"
+      app = "bench-${var.env}-${var.cloud}-${var.region}-supervisor"
     }
   }
 
@@ -18,14 +18,14 @@ resource "kubernetes_deployment" "supervisor" {
 
     selector {
       match_labels = {
-        app = "bench-${var.env}-${var.region}-supervisor"
+        app = "bench-${var.env}-${var.cloud}-${var.region}-supervisor"
       }
     }
 
     template {
       metadata {
         labels = {
-          app = "bench-${var.env}-${var.region}-supervisor"
+          app = "bench-${var.env}-${var.cloud}-${var.region}-supervisor"
         }
         annotations = {
           "prometheus.io/scrape" = "true"
@@ -40,6 +40,10 @@ resource "kubernetes_deployment" "supervisor" {
           command = ["/bin/sh", "-c"]
           args    = ["python bench.py migrate apply"]
 
+          env {
+            name  = "SERVICE_NAME"
+            value = "supervisor"
+          }
           env {
             name  = "ENVIRONMENT"
             value = var.env
@@ -64,6 +68,20 @@ resource "kubernetes_deployment" "supervisor" {
           env {
             name  = "GLOBAL_PG_CRYPTO_KEY"
             value = var.global_pg_crypto_key
+          }
+
+          # TODO :Infra: enable tracing
+          env {
+            name  = "TRACING"
+            value = 0
+          }
+          env {
+            name  = "LOG_LEVEL"
+            value = "DEBUG"
+          }
+          env {
+            name  = "LOG_MODE"
+            value = "JSON"
           }
 
           env {
@@ -87,6 +105,10 @@ resource "kubernetes_deployment" "supervisor" {
           }
 
           env {
+            name  = "SERVICE_NAME"
+            value = "supervisor"
+          }
+          env {
             name  = "ENVIRONMENT"
             value = var.env
           }
@@ -110,6 +132,19 @@ resource "kubernetes_deployment" "supervisor" {
           env {
             name  = "GLOBAL_PG_CRYPTO_KEY"
             value = var.global_pg_crypto_key
+          }
+
+          env {
+            name  = "TRACING"
+            value = 0
+          }
+          env {
+            name  = "LOG_LEVEL"
+            value = "DEBUG"
+          }
+          env {
+            name  = "LOG_MODE"
+            value = "JSON"
           }
 
           env {
@@ -147,13 +182,6 @@ resource "kubernetes_deployment" "supervisor" {
           }
         }
 
-        volume {
-          name = "envoy-config"
-          config_map {
-            name = kubernetes_config_map.envoy_config.metadata[0].name
-          }
-        }
-
         image_pull_secrets {
           name = kubernetes_secret.image_pull_secret.metadata[0].name
         }
@@ -165,12 +193,12 @@ resource "kubernetes_deployment" "supervisor" {
 # Supervisor service
 resource "kubernetes_service" "supervisor" {
   metadata {
-    name = "bench-${var.env}-${var.region}-supervisor"
+    name = "bench-${var.env}-${var.cloud}-${var.region}-supervisor"
   }
 
   spec {
     selector = {
-      app = "bench-${var.env}-${var.region}-supervisor"
+      app = "bench-${var.env}-${var.cloud}-${var.region}-supervisor"
     }
 
     port {

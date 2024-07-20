@@ -1,5 +1,11 @@
+locals {
+  aws_region_by_bench_region = {
+    "eu-frankfurt" = "eu-central-1"
+  }
+}
+
 provider "aws" {
-  region = var.region
+  region = local.aws_region_by_bench_region[var.region]
 }
 
 #
@@ -18,10 +24,10 @@ resource "aws_vpc" "region_vpc" {
 
 # Subnets
 resource "aws_subnet" "public" {
-  count             = length(var.availability_zones)
+  count             = length(var.aws_availability_zones)
   vpc_id            = aws_vpc.region_vpc.id
   cidr_block        = cidrsubnet(var.vpc_network_cidr, 8, count.index)
-  availability_zone = var.availability_zones[count.index]
+  availability_zone = var.aws_availability_zones[count.index]
 
   tags = {
     Name                     = "bench-${var.env}-${var.region}-public-subnet-${count.index + 1}"
@@ -29,10 +35,10 @@ resource "aws_subnet" "public" {
   }
 }
 resource "aws_subnet" "private" {
-  count             = length(var.availability_zones)
+  count             = length(var.aws_availability_zones)
   vpc_id            = aws_vpc.region_vpc.id
-  cidr_block        = cidrsubnet(var.vpc_network_cidr, 8, length(var.availability_zones) + count.index)
-  availability_zone = var.availability_zones[count.index]
+  cidr_block        = cidrsubnet(var.vpc_network_cidr, 8, length(var.aws_availability_zones) + count.index)
+  availability_zone = var.aws_availability_zones[count.index]
 
   tags = {
     Name                              = "bench-${var.env}-${var.region}-private-subnet-${count.index + 1}"
