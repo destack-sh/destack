@@ -8,12 +8,6 @@ variable "env" {
   description = "Environment name"
 }
 
-variable "global_region" {
-  type        = string
-  description = "Primary Bench region"
-  default     = "eu-frankfurt"
-}
-
 #
 # Cloudflare
 # 

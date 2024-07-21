@@ -27,11 +27,6 @@ variable "region" {
   description = "Bench region"
 }
 
-variable "global_region" {
-  type        = string
-  description = "Global Bench region for resources"
-}
-
 variable "aws_availability_zones" {
   type        = list(string)
   description = "AWS availability zones"

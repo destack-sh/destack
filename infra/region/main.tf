@@ -1,5 +1,6 @@
 locals {
   aws_region_by_bench_region = {
+    "eu-zurich" : "eu-central-2"
     "eu-frankfurt" = "eu-central-1"
   }
 }
@@ -77,7 +78,6 @@ resource "aws_route_table" "public" {
     Name = "bench-${var.env}-${var.region}-public-route-table"
   }
 }
-
 resource "aws_route_table_association" "public" {
   count          = length(aws_subnet.public)
   subnet_id      = aws_subnet.public[count.index].id
@@ -97,8 +97,6 @@ resource "aws_route_table" "private" {
     Name = "bench-${var.env}-${var.region}-private-route-table"
   }
 }
-
-# Private Route Table Association
 resource "aws_route_table_association" "private" {
   count          = length(aws_subnet.private)
   subnet_id      = aws_subnet.private[count.index].id
@@ -107,10 +105,11 @@ resource "aws_route_table_association" "private" {
 
 #
 # AWS EKS cluster
+# NOTE :Infra :Architecture: eventually we'll probably have multiple clusters per region
 #
 
 resource "aws_eks_cluster" "region_cluster" {
-  name     = "bench-${var.env}-${var.region}"
+  name     = "bench-${var.env}-${var.cloud}-${var.region}"
   role_arn = aws_iam_role.region_cluster_role.arn
 
   vpc_config {
@@ -133,9 +132,8 @@ provider "kubernetes" {
   token                  = data.aws_eks_cluster_auth.region_cluster.token
 }
 
-# Grant root user access to the cluster
+# grant root user full access to the cluster
 data "aws_caller_identity" "current" {}
-
 locals {
   config_map_aws_auth = {
     apiVersion = "v1"

@@ -29,7 +29,7 @@ resource "aws_acm_certificate" "justbench_com" {
   subject_alternative_names = ["*.justbench.com"]
   validation_method         = "DNS"
 
-  provider = aws.us-east-1
+  provider = aws.us-east-1 // all ACM certificates must be in us-east-1
 
   tags = {
     Name = "bench-${var.env}-global-web-cert"

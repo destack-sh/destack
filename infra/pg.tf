@@ -22,7 +22,7 @@ resource "aws_db_subnet_group" "global_pg_subnet_group" {
   subnet_ids = aws_subnet.global_private[*].id
 
   tags = {
-    Name = "bench-${var.env}-rds-subnet-group"
+    Name = "bench-${var.env}-global-pg-subnet-group"
   }
 }
 
@@ -47,11 +47,11 @@ resource "aws_rds_cluster_instance" "global_pg_primary_instance" {
   count                      = 1
   identifier                 = "bench-${var.env}-global-db-${count.index}"
   cluster_identifier         = aws_rds_cluster.global_pg_primary.id
-  instance_class             = "db.t3.medium"
+  instance_class             = "db.t3.small"
   engine                     = aws_rds_cluster.global_pg_primary.engine
   engine_version             = aws_rds_cluster.global_pg_primary.engine_version
   auto_minor_version_upgrade = true
-  availability_zone          = local.aws_region_availability_zones[var.global_region][count.index]
+  availability_zone          = local.aws_region_availability_zones[local.global_region][count.index]
 }
 
 output "global_pg_host" {
