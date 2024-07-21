@@ -1,15 +1,19 @@
 locals {
+  bench_version               = file("../version")
+  global_region               = "eu-zurich"
   aws_global_vpc_network_cidr = "10.0.0.0/16"
   aws_region_by_bench_region = {
+    "eu-zurich" : "eu-central-2"
     "eu-frankfurt" = "eu-central-1"
   }
   aws_region_availability_zones = {
+    "eu-zurich" = ["eu-central-2a", "eu-central-2b"]
     "eu-frankfurt" = ["eu-central-1a", "eu-central-1b"]
   }
 }
 
 provider "aws" {
-  region = local.aws_region_by_bench_region[var.global_region]
+  region = local.aws_region_by_bench_region[local.global_region]
 }
 
 data "external" "git" {
@@ -37,20 +41,20 @@ resource "aws_vpc" "global_vpc" {
 
 # global subnets
 resource "aws_subnet" "global_public" {
-  count             = length(local.aws_region_availability_zones[var.global_region])
+  count             = length(local.aws_region_availability_zones[local.global_region])
   vpc_id            = aws_vpc.global_vpc.id
   cidr_block        = cidrsubnet(local.aws_global_vpc_network_cidr, 8, count.index)
-  availability_zone = local.aws_region_availability_zones[var.global_region][count.index]
+  availability_zone = local.aws_region_availability_zones[local.global_region][count.index]
 
   tags = {
     Name = "bench-${var.env}-global-public-subnet-${count.index + 1}"
   }
 }
 resource "aws_subnet" "global_private" {
-  count             = length(local.aws_region_availability_zones[var.global_region])
+  count             = length(local.aws_region_availability_zones[local.global_region])
   vpc_id            = aws_vpc.global_vpc.id
   cidr_block        = cidrsubnet(local.aws_global_vpc_network_cidr, 8, 2 + count.index)
-  availability_zone = local.aws_region_availability_zones[var.global_region][count.index]
+  availability_zone = local.aws_region_availability_zones[local.global_region][count.index]
 
   tags = {
     Name = "bench-${var.env}-global-private-subnet-${count.index + 1}"
@@ -64,17 +68,21 @@ resource "aws_subnet" "global_private" {
 #  (because the kubernetes provider depends on the EKS cluster, and we coan't pass that as an argument without creating a circular dependency)
 #
 
-module "region_eu_central_1" {
+moved {
+  from = module.region_eu_central_1
+  to   = module.region_aws_eu_frankfurt
+}
+
+module "region_aws_eu_frankfurt" {
   source = "./region"
 
   # general
-  bench_version          = file("../version")
+  bench_version          = local.bench_version
   git_commit             = data.external.git.result.sha
   env                    = var.env
   cloud                  = "aws"
   region                 = "eu-frankfurt"
   aws_availability_zones = ["eu-central-1a", "eu-central-1b"]
-  global_region          = var.global_region
 
   # aws
   vpc_network_cidr            = "10.1.0.0/16"
@@ -108,7 +116,7 @@ module "region_eu_central_1" {
 # put all regions in a map
 locals {
   regions = {
-    "aws-eu-frankfurt" = module.region_eu_central_1
+    "aws-eu-frankfurt" = module.region_aws_eu_frankfurt
   }
 }
 
@@ -121,7 +129,7 @@ resource "aws_vpc_peering_connection" "global_peering" {
   for_each    = local.regions
   vpc_id      = local.regions[each.key].vpc_id
   peer_vpc_id = aws_vpc.global_vpc.id
-  peer_region = var.global_region
+  peer_region = local.global_region
   tags = {
     Name = "bench-${var.env}-${each.key}-global-peering"
   }
