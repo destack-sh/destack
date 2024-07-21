@@ -29,7 +29,7 @@ async function init() {
       dsn: import.meta.env.SENTRY_DSN,
       integrations: [
         Sentry.browserTracingIntegration({
-          tracePropagationTargets: ["localhost", "127.0.0.1", "api.justbench.com", /^\//],
+          tracePropagationTargets: ["localhost", "127.0.0.1", "justbench.com", /^\//],
         }),
       ],
       tracesSampleRate: 1.0,

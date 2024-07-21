@@ -13,7 +13,7 @@ resource "aws_security_group" "global_pg_security_group" {
     from_port   = 5432
     to_port     = 5432
     protocol    = "tcp"
-    cidr_blocks = ["10.0.0.0/16"]
+    cidr_blocks = ["10.0.0.0/24"]
   }
 }
 
@@ -51,7 +51,7 @@ resource "aws_rds_cluster_instance" "global_pg_primary_instance" {
   engine                     = aws_rds_cluster.global_pg_primary.engine
   engine_version             = aws_rds_cluster.global_pg_primary.engine_version
   auto_minor_version_upgrade = true
-  availability_zone          = local.aws_region_availability_zones[local.global_region][count.index]
+  availability_zone          = local.aws_region_availability_zones[local.global_region][count.index % length(local.aws_region_availability_zones[local.global_region])]
 }
 
 output "global_pg_host" {

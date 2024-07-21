@@ -1,6 +1,8 @@
 locals {
   bench_version               = file("../version")
-  global_region               = "eu-zurich"
+  global_region               = "eu-zurich"    # global state
+  primary_region              = "eu-frankfurt" # supervisor
+  main_website                = "justbench.com"
   aws_global_vpc_network_cidr = "10.0.0.0/16"
   aws_region_by_bench_region = {
     "eu-zurich" : "eu-central-2"
@@ -105,7 +107,7 @@ module "region_aws_eu_frankfurt" {
   global_pg_crypto_key = var.global_pg_crypto_key
 
   # web
-  web_certificate_arn  = aws_acm_certificate.justbench_com.arn
+  web_certificate_arn  = aws_acm_certificate.main_website.arn
   cors_allowed_hosts   = var.cors_allowed_hosts
   cors_allowed_origins = var.cors_allowed_origins
 

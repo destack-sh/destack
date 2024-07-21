@@ -16,17 +16,18 @@ provider "cloudflare" {
   api_token = var.cloudflare_api_token
 }
 
-data "cloudflare_zone" "justbench_com" {
-  name = "justbench.com"
+data "cloudflare_zone" "main_website" {
+  name = local.main_website
 }
+
 
 # 
 # ACM certificate
 #
 
-resource "aws_acm_certificate" "justbench_com" {
-  domain_name               = "justbench.com"
-  subject_alternative_names = ["*.justbench.com"]
+resource "aws_acm_certificate" "main_website" {
+  domain_name               = local.main_website
+  subject_alternative_names = ["*.${local.main_website}"]
   validation_method         = "DNS"
 
   provider = aws.us-east-1 // all ACM certificates must be in us-east-1
@@ -39,7 +40,7 @@ resource "aws_acm_certificate" "justbench_com" {
 locals {
   # deduplicate domain validation options (may go in the same record)
   domain_validation_options = toset([
-    for dvo in aws_acm_certificate.justbench_com.domain_validation_options : {
+    for dvo in aws_acm_certificate.main_website.domain_validation_options : {
       name   = dvo.resource_record_name
       record = dvo.resource_record_value
       type   = dvo.resource_record_type
@@ -52,7 +53,7 @@ resource "cloudflare_record" "cert_validation" {
     dvo.name => dvo
   }
 
-  zone_id = data.cloudflare_zone.justbench_com.id
+  zone_id = data.cloudflare_zone.main_website.id
   name    = each.value.name
   type    = each.value.type
   value   = each.value.record
@@ -114,17 +115,15 @@ locals {
     "VITE_APP_COMMIT"      = data.external.git.result.sha
     "VITE_APP_ENVIRONMENT" = var.env
     "VITE_APP_SENTRY_DSN"  = var.sentry_dsn
+    # "VITE_APP_"            = "https://supervisor.${local.main_website}"
   }
   web_variables_subs = [for k, v in local.web_variables : {
     regex = "/[a-zA-Z0-9]+\\.${k}/",
     sub   = "\"${v}\""
   }]
   web_files_unfiltered = fileset("../bench-web/dist", "**")
-  web_exclude_files = [
-    ".DS_Store",
-    "other_file_to_exclude"
-  ]
-  web_files = setsubtract(local.web_files_unfiltered, local.web_exclude_files)
+  web_exclude_files    = [".DS_Store"]
+  web_files            = setsubtract(local.web_files_unfiltered, local.web_exclude_files)
 }
 resource "aws_s3_object" "bench_web_files" {
   for_each = local.web_files
@@ -179,7 +178,7 @@ resource "aws_cloudfront_distribution" "bench_web" {
   comment             = "bench-${var.env}-global-web"
   default_root_object = "index.html"
 
-  aliases = ["justbench.com"]
+  aliases = [local.main_website]
 
   default_cache_behavior {
     allowed_methods  = ["GET", "HEAD", "OPTIONS"]
@@ -209,7 +208,7 @@ resource "aws_cloudfront_distribution" "bench_web" {
   price_class = "PriceClass_200"
 
   viewer_certificate {
-    acm_certificate_arn      = aws_acm_certificate.justbench_com.arn
+    acm_certificate_arn      = aws_acm_certificate.main_website.arn
     ssl_support_method       = "sni-only"
     minimum_protocol_version = "TLSv1.2_2019"
   }
@@ -220,7 +219,7 @@ resource "aws_cloudfront_distribution" "bench_web" {
     }
   }
 
-  depends_on = [aws_acm_certificate.justbench_com]
+  depends_on = [aws_acm_certificate.main_website]
 
   tags = {
     Name = "bench-${var.env}-global-cloudfront"
@@ -234,8 +233,8 @@ resource "aws_cloudfront_distribution" "bench_web" {
 
 
 resource "cloudflare_record" "root" {
-  zone_id = data.cloudflare_zone.justbench_com.id
-  name    = "justbench.com"
+  zone_id = data.cloudflare_zone.main_website.id
+  name    = local.main_website
   type    = "CNAME"
   value   = aws_cloudfront_distribution.bench_web.domain_name
   ttl     = 300
@@ -243,8 +242,8 @@ resource "cloudflare_record" "root" {
 }
 
 resource "cloudflare_record" "www" {
-  zone_id = data.cloudflare_zone.justbench_com.id
-  name    = "www.justbench.com"
+  zone_id = data.cloudflare_zone.main_website.id
+  name    = "www.${local.main_website}"
   type    = "CNAME"
   value   = aws_cloudfront_distribution.bench_web.domain_name
   ttl     = 300
@@ -256,7 +255,7 @@ resource "cloudflare_record" "www" {
 #
 
 output "bench_web_certificate_arn" {
-  value = aws_acm_certificate.justbench_com.arn
+  value = aws_acm_certificate.main_website.arn
 }
 
 output "bench_web_distribution_id" {

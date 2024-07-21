@@ -15,5 +15,5 @@ output "private_subnets" {
 }
 
 output "region_cluster" {
-  value = aws_eks_cluster.region_cluster
+  value = module.cluster_0
 }
