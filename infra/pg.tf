@@ -47,7 +47,7 @@ resource "aws_rds_cluster_instance" "global_pg_primary_instance" {
   count                      = 1
   identifier                 = "bench-${var.env}-global-db-${count.index}"
   cluster_identifier         = aws_rds_cluster.global_pg_primary.id
-  instance_class             = "db.t3.small"
+  instance_class             = "db.t3.medium"
   engine                     = aws_rds_cluster.global_pg_primary.engine
   engine_version             = aws_rds_cluster.global_pg_primary.engine_version
   auto_minor_version_upgrade = true
