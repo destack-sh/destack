@@ -13,13 +13,20 @@ resource "aws_security_group" "global_pg_security_group" {
     from_port   = 5432
     to_port     = 5432
     protocol    = "tcp"
-    cidr_blocks = ["10.0.0.0/24"]
+    cidr_blocks = ["0.0.0.0/0"] # NOTE :Infra :Security: restrict global PG ingress to VPC/IP ranges
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
   }
 }
 
 resource "aws_db_subnet_group" "global_pg_subnet_group" {
   name       = "bench-${var.env}-global-pg-subnet-group"
-  subnet_ids = aws_subnet.global_private[*].id
+  subnet_ids = aws_subnet.global_public[*].id
 
   tags = {
     Name = "bench-${var.env}-global-pg-subnet-group"
@@ -52,6 +59,7 @@ resource "aws_rds_cluster_instance" "global_pg_primary_instance" {
   engine_version             = aws_rds_cluster.global_pg_primary.engine_version
   auto_minor_version_upgrade = true
   availability_zone          = local.aws_region_availability_zones[local.global_region][count.index % length(local.aws_region_availability_zones[local.global_region])]
+  publicly_accessible        = true
 }
 
 output "global_pg_host" {

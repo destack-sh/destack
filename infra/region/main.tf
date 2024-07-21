@@ -15,8 +15,8 @@ provider "aws" {
 
 # VPC
 resource "aws_vpc" "region_vpc" {
-  enable_dns_hostnames = true
   cidr_block           = var.vpc_network_cidr
+  enable_dns_hostnames = true
 
   tags = {
     Name = "bench-${var.env}-${var.region}-region-vpc"
@@ -50,12 +50,20 @@ resource "aws_subnet" "private" {
 # Internet Gateway
 resource "aws_internet_gateway" "region_vpc" {
   vpc_id = aws_vpc.region_vpc.id
+
+  tags = {
+    Name = "bench-${var.env}-${var.region}-internet-gateway"
+  }
 }
 
 # Elastic IP
 resource "aws_eip" "region_vpc" {
   domain     = "vpc"
   depends_on = [aws_internet_gateway.region_vpc]
+
+  tags = {
+    Name = "bench-${var.env}-${var.region}-eip"
+  }
 }
 
 # NAT Gateway

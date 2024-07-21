@@ -30,91 +30,90 @@ locals {
 }
 
 # Supervisor deployment
-# nocheckin
-# resource "kubernetes_deployment" "supervisor" {
-#   metadata {
-#     name      = "bench-${var.env}-${var.cloud}-${var.region}-supervisor"
-#     namespace = "default"
-#     labels = {
-#       app = "bench-${var.env}-${var.cloud}-${var.region}-supervisor"
-#     }
-#   }
+resource "kubernetes_deployment" "supervisor" {
+  metadata {
+    name      = "bench-${var.env}-${var.cloud}-${var.region}-supervisor"
+    namespace = "default"
+    labels = {
+      app = "bench-${var.env}-${var.cloud}-${var.region}-supervisor"
+    }
+  }
 
-#   spec {
-#     replicas = 1
+  spec {
+    replicas = 1
 
-#     selector {
-#       match_labels = {
-#         app = "bench-${var.env}-${var.cloud}-${var.region}-supervisor"
-#       }
-#     }
+    selector {
+      match_labels = {
+        app = "bench-${var.env}-${var.cloud}-${var.region}-supervisor"
+      }
+    }
 
-#     template {
-#       metadata {
-#         labels = {
-#           app = "bench-${var.env}-${var.cloud}-${var.region}-supervisor"
-#         }
-#         annotations = {
-#           "prometheus.io/scrape" = "true"
-#         }
-#       }
+    template {
+      metadata {
+        labels = {
+          app = "bench-${var.env}-${var.cloud}-${var.region}-supervisor"
+        }
+        annotations = {
+          "prometheus.io/scrape" = "true"
+        }
+      }
 
-#       spec {
-#         # init container
-#         init_container {
-#           name    = "supervisor-migrate"
-#           image   = "ghcr.io/symbolx/bench-system:${var.git_commit}"
-#           command = ["/bin/sh", "-c"]
-#           args    = ["python bench.py migrate apply"]
+      spec {
+        # init container
+        init_container {
+          name    = "supervisor-migrate"
+          image   = "ghcr.io/symbolx/bench-system:${var.git_commit}"
+          command = ["/bin/sh", "-c"]
+          args    = ["python bench.py migrate apply"]
 
-#           dynamic "env" {
-#             for_each = local.env_vars
-#             content {
-#               name  = env.key
-#               value = env.value
-#             }
-#           }
-#         }
+          dynamic "env" {
+            for_each = local.env_vars
+            content {
+              name  = env.key
+              value = env.value
+            }
+          }
+        }
 
-#         # main container
-#         container {
-#           name  = "supervisor"
-#           image = "ghcr.io/symbolx/bench-system:${var.git_commit}"
+        # main container
+        container {
+          name  = "supervisor"
+          image = "ghcr.io/symbolx/bench-system:${var.git_commit}"
 
-#           port {
-#             container_port = 80
-#             name           = "http"
-#           }
-#           port {
-#             container_port = 60051
-#             name           = "grpc"
-#           }
+          port {
+            container_port = 80
+            name           = "http"
+          }
+          port {
+            container_port = 60051
+            name           = "grpc"
+          }
 
-#           dynamic "env" {
-#             for_each = local.env_vars
-#             content {
-#               name  = env.key
-#               value = env.value
-#             }
-#           }
+          dynamic "env" {
+            for_each = local.env_vars
+            content {
+              name  = env.key
+              value = env.value
+            }
+          }
 
-#           command = ["python", "bench.py", "serve", "supervisor"]
+          command = ["python", "bench.py", "serve", "supervisor"]
 
-#           resources {
-#             requests = {
-#               cpu    = "500m"
-#               memory = "500Mi"
-#             }
-#           }
-#         }
+          resources {
+            requests = {
+              cpu    = "500m"
+              memory = "500Mi"
+            }
+          }
+        }
 
-#         image_pull_secrets {
-#           name = kubernetes_secret.image_pull_secret.metadata[0].name
-#         }
-#       }
-#     }
-#   }
-# }
+        image_pull_secrets {
+          name = kubernetes_secret.image_pull_secret.metadata[0].name
+        }
+      }
+    }
+  }
+}
 
 # Supervisor service
 resource "kubernetes_service" "supervisor" {

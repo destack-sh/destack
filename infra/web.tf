@@ -115,14 +115,14 @@ locals {
     "VITE_APP_COMMIT"      = data.external.git.result.sha
     "VITE_APP_ENVIRONMENT" = var.env
     "VITE_APP_SENTRY_DSN"  = var.sentry_dsn
-    # "VITE_APP_"            = "https://supervisor.${local.main_website}"
+    "VITE_APP_SUPERVISOR_URL"  = "https://supervisor.${local.main_website}"
   }
   web_variables_subs = [for k, v in local.web_variables : {
     regex = "/[a-zA-Z0-9]+\\.${k}/",
     sub   = "\"${v}\""
   }]
-  web_files_unfiltered = fileset("../bench-web/dist", "**")
   web_exclude_files    = [".DS_Store"]
+  web_files_unfiltered = fileset("../bench-web/dist", "**")
   web_files            = setsubtract(local.web_files_unfiltered, local.web_exclude_files)
 }
 resource "aws_s3_object" "bench_web_files" {
@@ -145,15 +145,19 @@ resource "aws_s3_object" "bench_web_files" {
     replace(
       replace(
         replace(
-          file("../bench-web/dist/${each.key}"),
-          local.web_variables_subs[0].regex,
-          local.web_variables_subs[0].sub
+          replace(
+            file("../bench-web/dist/${each.key}"),
+            local.web_variables_subs[0].regex,
+            local.web_variables_subs[0].sub
+          ),
+          local.web_variables_subs[1].regex,
+          local.web_variables_subs[1].sub
         ),
-        local.web_variables_subs[1].regex,
-        local.web_variables_subs[1].sub
+        local.web_variables_subs[2].regex,
+        local.web_variables_subs[2].sub
       ),
-      local.web_variables_subs[2].regex,
-      local.web_variables_subs[2].sub
+      local.web_variables_subs[3].regex,
+      local.web_variables_subs[3].sub
     )
   ) : filebase64("../bench-web/dist/${each.key}")
 
