@@ -105,137 +105,61 @@ resource "aws_route_table_association" "private" {
 
 #
 # AWS EKS cluster
-# NOTE :Infra :Architecture: eventually we'll probably have multiple clusters per region
+# NOTE :Infra :Architecture: eventually we'll want multiple clusters per region
 #
 
-resource "aws_eks_cluster" "region_cluster" {
-  name     = "bench-${var.env}-${var.cloud}-${var.region}"
-  role_arn = aws_iam_role.region_cluster_role.arn
+data "aws_caller_identity" "current" {}
+module "cluster_0" {
+  source = "terraform-aws-modules/eks/aws"
 
-  vpc_config {
-    endpoint_private_access = true
-    endpoint_public_access  = true
-    subnet_ids              = concat(aws_subnet.public[*].id, aws_subnet.private[*].id)
+  cluster_name    = "bench-${var.env}-${var.cloud}-${var.region}-cluster-0"
+  cluster_version = "1.30"
+  iam_role_name   = "bench-${var.env}-${var.region}"
+  vpc_id          = aws_vpc.region_vpc.id
+  subnet_ids      = aws_subnet.private[*].id
+
+  enable_cluster_creator_admin_permissions = true
+  cluster_endpoint_private_access          = true
+  cluster_endpoint_public_access           = true
+
+  eks_managed_node_groups = {
+    "bench-${var.env}-${var.region}-system-nodes" = {
+      instance_types = ["t3.medium"]
+      min_size       = 1
+      max_size       = 3
+      desired_size   = 2
+
+      iam_role_use_name_prefix = false
+    }
+  }
+
+  cluster_tags = {
+    Name = "bench-${var.env}-${var.region}-cluster-0"
   }
 }
+module "cluster_0_auth" {
+  source = "terraform-aws-modules/eks/aws//modules/aws-auth"
 
-# Kubernetes provider
-data "aws_eks_cluster" "region_cluster" {
-  name = aws_eks_cluster.region_cluster.name
+  manage_aws_auth_configmap = true
+  aws_auth_users = [
+    {
+      userarn  = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
+      username = "root"
+      groups   = ["system:masters"]
+    },
+  ]
 }
-data "aws_eks_cluster_auth" "region_cluster" {
-  name = aws_eks_cluster.region_cluster.name
+
+data "aws_eks_cluster" "cluster_0" {
+  name = module.cluster_0.cluster_name
+}
+data "aws_eks_cluster_auth" "cluster_0" {
+  name = module.cluster_0.cluster_name
 }
 provider "kubernetes" {
-  host                   = data.aws_eks_cluster.region_cluster.endpoint
-  cluster_ca_certificate = base64decode(data.aws_eks_cluster.region_cluster.certificate_authority.0.data)
-  token                  = data.aws_eks_cluster_auth.region_cluster.token
-}
-
-# grant root user full access to the cluster
-data "aws_caller_identity" "current" {}
-locals {
-  config_map_aws_auth = {
-    apiVersion = "v1"
-    kind       = "ConfigMap"
-    metadata = {
-      name      = "aws-auth"
-      namespace = "kube-system"
-    }
-    data = {
-      mapRoles = yamlencode([
-        {
-          rolearn  = aws_iam_role.region_node_role.arn
-          username = "system:node:{{EC2PrivateDNSName}}"
-          groups   = ["system:bootstrappers", "system:nodes"]
-        },
-      ])
-      mapUsers = yamlencode([
-        {
-          userarn  = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
-          username = "admin"
-          groups   = ["system:masters"]
-        },
-      ])
-    }
-  }
-}
-resource "null_resource" "aws_auth_config_map_wait" {
-  # during initial cluster creation, the aws-auth config map is not immediately available
-  depends_on = [aws_eks_cluster.region_cluster]
-  provisioner "local-exec" {
-    command = "sleep 5"
-  }
-}
-resource "kubernetes_config_map_v1_data" "aws_auth" {
-  metadata {
-    name      = "aws-auth"
-    namespace = "kube-system"
-  }
-
-  data = {
-    mapRoles = yamlencode(yamldecode(local.config_map_aws_auth.data.mapRoles))
-    mapUsers = yamlencode(yamldecode(local.config_map_aws_auth.data.mapUsers))
-  }
-
-  force      = true
-  depends_on = [aws_eks_cluster.region_cluster, null_resource.aws_auth_config_map_wait]
-}
-
-# IAM roles for EKS cluster
-resource "aws_iam_role" "region_cluster_role" {
-  name = "bench-${var.env}-${var.region}-region-cluster-role"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Principal = {
-          Service = "eks.amazonaws.com"
-        }
-      }
-    ]
-  })
-}
-resource "aws_iam_role_policy_attachment" "region_cluster_policy" {
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
-  role       = aws_iam_role.region_cluster_role.name
-}
-resource "aws_iam_role_policy_attachment" "region_vpc_resource_controller" {
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSVPCResourceController"
-  role       = aws_iam_role.region_cluster_role.name
-}
-
-# IAM roles for EKS nodes
-resource "aws_iam_role" "region_node_role" {
-  name = "bench-${var.env}-${var.region}-region-node-role"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Principal = {
-          Service = "ec2.amazonaws.com"
-        }
-      }
-    ]
-  })
-}
-resource "aws_iam_role_policy_attachment" "region_worker_node_policy" {
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
-  role       = aws_iam_role.region_node_role.name
-}
-resource "aws_iam_role_policy_attachment" "region_cni_policy" {
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
-  role       = aws_iam_role.region_node_role.name
-}
-resource "aws_iam_role_policy_attachment" "ec2_container_registry_read_only" {
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
-  role       = aws_iam_role.region_node_role.name
+  host                   = data.aws_eks_cluster.cluster_0.endpoint
+  cluster_ca_certificate = base64decode(data.aws_eks_cluster.cluster_0.certificate_authority.0.data)
+  token                  = data.aws_eks_cluster_auth.cluster_0.token
 }
 
 # Kubernetes secret for GHCR
@@ -258,3 +182,13 @@ resource "kubernetes_secret" "image_pull_secret" {
   }
 }
 
+#
+# S3 bucket
+# 
+
+resource "aws_s3_bucket" "bench_public" {
+  bucket = "bench-${var.env}-${var.region}-public"
+  tags = {
+    Name = "bench-${var.env}-${var.region}-public"
+  }
+}
