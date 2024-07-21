@@ -32,6 +32,7 @@ data "external" "git" {
 # Global AWS VPC
 #
 
+# VPC
 resource "aws_vpc" "global_vpc" {
   cidr_block           = local.aws_global_vpc_network_cidr
   enable_dns_hostnames = true
@@ -63,6 +64,33 @@ resource "aws_subnet" "global_private" {
   }
 }
 
+# Internet Gateway
+resource "aws_internet_gateway" "global_vpc" {
+  vpc_id = aws_vpc.global_vpc.id
+
+  tags = {
+    Name = "bench-${var.env}-global-internet-gateway"
+  }
+}
+
+# Public Route Table
+resource "aws_route_table" "global_public" {
+  vpc_id = aws_vpc.global_vpc.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.global_vpc.id
+  }
+
+  tags = {
+    Name = "bench-${var.env}-global-public-route-table"
+  }
+}
+resource "aws_route_table_association" "global_public" {
+  count          = length(aws_subnet.global_public)
+  subnet_id      = aws_subnet.global_public[count.index].id
+  route_table_id = aws_route_table.global_public.id
+}
 
 # 
 # Regional modules
@@ -130,27 +158,5 @@ locals {
 
 #
 # Peering
-# NOTE :Cleanup: unfortunately we can't dynamically reference providers, so we have to type out each peering connection
-# 
-
-# peer regional AWS VPCs to the global AWS VPC
-resource "aws_vpc_peering_connection" "global_peering_eu_frankfurt" {
-  provider    = aws.eu-frankfurt
-  vpc_id      = module.region_aws_eu_frankfurt.vpc_id
-  peer_vpc_id = aws_vpc.global_vpc.id
-  peer_region = local.aws_region_by_bench_region["eu-zurich"]
-  tags = {
-    Name = "bench-${var.env}-global-peering-eu-frankfurt"
-  }
-}
-resource "aws_vpc_peering_connection_accepter" "global_peering_accepter_eu_frankfurt" {
-  provider                  = aws.eu-zurich
-  vpc_peering_connection_id = aws_vpc_peering_connection.global_peering_eu_frankfurt.id
-  auto_accept               = true
-  tags = {
-    Name = "bench-${var.env}-global-peering-eu-frankfurt-accepter"
-  }
-}
-
-# peer regional AWS VPCs to each other
+# NOTE :Infra: peer VPCs instead of using public gateways
 # ...
