@@ -64,7 +64,7 @@ resource "cloudflare_record" "cert_validation" {
 #
 
 resource "aws_s3_bucket" "bench_web" {
-  bucket = "bench-${var.env}-global-web"
+  bucket = "bench-${var.env}-global-web-public"
 }
 
 # make the S3 bucket public (for read access)
@@ -104,6 +104,7 @@ resource "aws_s3_bucket_policy" "bench_web_allow_public" {
       },
     ]
   })
+  depends_on = [aws_s3_bucket_public_access_block.bench_web]
 }
 
 # upload the built bench-web/dist to the S3 bucket
@@ -118,9 +119,15 @@ locals {
     regex = "/[a-zA-Z0-9]+\\.${k}/",
     sub   = "\"${v}\""
   }]
+  web_files_unfiltered = fileset("../bench-web/dist", "**")
+  web_exclude_files = [
+    ".DS_Store",
+    "other_file_to_exclude"
+  ]
+  web_files = setsubtract(local.web_files_unfiltered, local.web_exclude_files)
 }
 resource "aws_s3_object" "bench_web_files" {
-  for_each = fileset("../bench-web/dist", "**")
+  for_each = local.web_files
 
   bucket = aws_s3_bucket.bench_web.bucket
   key    = each.key

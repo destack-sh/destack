@@ -160,7 +160,13 @@ locals {
     }
   }
 }
-
+resource "null_resource" "aws_auth_config_map_wait" {
+  # during initial cluster creation, the aws-auth config map is not immediately available
+  depends_on = [aws_eks_cluster.region_cluster]
+  provisioner "local-exec" {
+    command = "sleep 5"
+  }
+}
 resource "kubernetes_config_map_v1_data" "aws_auth" {
   metadata {
     name      = "aws-auth"
@@ -173,7 +179,7 @@ resource "kubernetes_config_map_v1_data" "aws_auth" {
   }
 
   force      = true
-  depends_on = [aws_eks_cluster.region_cluster]
+  depends_on = [aws_eks_cluster.region_cluster, null_resource.aws_auth_config_map_wait]
 }
 
 # IAM roles for EKS cluster

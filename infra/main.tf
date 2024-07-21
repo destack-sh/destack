@@ -7,7 +7,7 @@ locals {
     "eu-frankfurt" = "eu-central-1"
   }
   aws_region_availability_zones = {
-    "eu-zurich" = ["eu-central-2a", "eu-central-2b"]
+    "eu-zurich"    = ["eu-central-2a", "eu-central-2b"]
     "eu-frankfurt" = ["eu-central-1a", "eu-central-1b"]
   }
 }
@@ -68,11 +68,17 @@ resource "aws_subnet" "global_private" {
 #  (because the kubernetes provider depends on the EKS cluster, and we coan't pass that as an argument without creating a circular dependency)
 #
 
-moved {
-  from = module.region_eu_central_1
-  to   = module.region_aws_eu_frankfurt
+# static providers for each region for peering
+provider "aws" {
+  alias  = "eu-zurich"
+  region = local.aws_region_by_bench_region["eu-zurich"]
+}
+provider "aws" {
+  alias  = "eu-frankfurt"
+  region = local.aws_region_by_bench_region["eu-frankfurt"]
 }
 
+# region modules
 module "region_aws_eu_frankfurt" {
   source = "./region"
 
@@ -122,62 +128,21 @@ locals {
 
 #
 # Peering
+# NOTE :Cleanup: unfortunately we can't dynamically reference providers, so we have to type out each peering connection
 # 
 
 # peer regional AWS VPCs to the global AWS VPC
-resource "aws_vpc_peering_connection" "global_peering" {
-  for_each    = local.regions
-  vpc_id      = local.regions[each.key].vpc_id
+resource "aws_vpc_peering_connection" "global_peering_eu_frankfurt" {
+  provider    = aws.eu-frankfurt
+  vpc_id      = module.region_aws_eu_frankfurt.vpc_id
   peer_vpc_id = aws_vpc.global_vpc.id
-  peer_region = local.global_region
-  tags = {
-    Name = "bench-${var.env}-${each.key}-global-peering"
-  }
+  peer_region = local.aws_region_by_bench_region["eu-zurich"]
 }
-resource "aws_vpc_peering_connection_accepter" "global_peering_accepter" {
-  for_each                  = local.regions
-  vpc_peering_connection_id = aws_vpc_peering_connection.global_peering[each.key].id
+resource "aws_vpc_peering_connection_accepter" "global_peering_accepter_eu_frankfurt" {
+  provider                  = aws.eu-zurich
+  vpc_peering_connection_id = aws_vpc_peering_connection.global_peering_eu_frankfurt.id
   auto_accept               = true
-  tags = {
-    Name = "bench-${var.env}-${each.key}-global-peering"
-  }
 }
 
 # peer regional VPCs to each other
-locals {
-  vpc_ids = {
-    for region, mod in local.regions : region => mod.vpc_id
-  }
-  # generate possible pairs of regions
-  region_pairs = [
-    for pair in setproduct(keys(local.regions), keys(local.regions)) : pair
-    if pair[0] != pair[1]
-  ]
-  # map into peering connections
-  peering_map = {
-    for pair in local.region_pairs :
-    "${pair[0]}-${pair[1]}" => {
-      region1 = pair[0]
-      region2 = pair[1]
-      vpc1    = local.vpc_ids[pair[0]]
-      vpc2    = local.vpc_ids[pair[1]]
-    }
-  }
-}
-resource "aws_vpc_peering_connection" "cross_region_peering" {
-  for_each    = local.peering_map
-  vpc_id      = each.value.vpc1
-  peer_vpc_id = each.value.vpc2
-  peer_region = local.aws_region_by_bench_region[each.value.region2]
-  tags = {
-    Name = "bench-${var.env}-${each.value.region1}-${each.value.region2}-cross-region-peering"
-  }
-}
-resource "aws_vpc_peering_connection_accepter" "cross_region_peering_accepter" {
-  for_each                  = local.peering_map
-  vpc_peering_connection_id = aws_vpc_peering_connection.cross_region_peering[each.key].id
-  auto_accept               = true
-  tags = {
-    Name = "bench-${var.env}-${each.value.region1}-${each.value.region2}-cross-region-peering"
-  }
-}
+# ...
