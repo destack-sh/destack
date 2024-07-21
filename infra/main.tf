@@ -137,12 +137,18 @@ resource "aws_vpc_peering_connection" "global_peering_eu_frankfurt" {
   vpc_id      = module.region_aws_eu_frankfurt.vpc_id
   peer_vpc_id = aws_vpc.global_vpc.id
   peer_region = local.aws_region_by_bench_region["eu-zurich"]
+  tags = {
+    Name = "bench-${var.env}-global-peering-eu-frankfurt"
+  }
 }
 resource "aws_vpc_peering_connection_accepter" "global_peering_accepter_eu_frankfurt" {
   provider                  = aws.eu-zurich
   vpc_peering_connection_id = aws_vpc_peering_connection.global_peering_eu_frankfurt.id
   auto_accept               = true
+  tags = {
+    Name = "bench-${var.env}-global-peering-eu-frankfurt-accepter"
+  }
 }
 
-# peer regional VPCs to each other
+# peer regional AWS VPCs to each other
 # ...

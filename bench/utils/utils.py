@@ -47,7 +47,7 @@ def get_from_env_maybe[T](
                 if typ.__name__ == "Region":
                     # also accept slug
                     value = cast(str, value).replace("-", "_").upper()
-                    value = typ(value)
+                    value = typ[value]
                 elif typ.__name__ == "Cloud":
                     from bench.language.const import CLOUD_BY_SLUG
 

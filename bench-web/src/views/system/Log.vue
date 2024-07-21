@@ -126,7 +126,7 @@ defineExpose<ViewExposed>({ self, id });
             v-bind="viewProps"
             :model-value="oldValue"
           />
-          <div v-else :class="[isFullWidth ? '' : 'ml-auto']"><span class="text-gray-500"></span></div>
+          <div v-else :class="[isFullWidth ? '' : 'ml-auto']"><span class="text-gray-500">Unset</span></div>
           <!-- Arrow -->
           <i
             class="fas fa-arrow-right-long text-sm text-gray-400"

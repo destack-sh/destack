@@ -4,192 +4,195 @@
 # 
 
 # Supervisor deployment
-# nocheckin: supervisor
-# resource "kubernetes_deployment" "supervisor" {
-#   metadata {
-#     name      = "bench-${var.env}-${var.cloud}-${var.region}-supervisor"
-#     namespace = "default"
-#     labels = {
-#       app = "bench-${var.env}-${var.cloud}-${var.region}-supervisor"
-#     }
-#   }
+resource "kubernetes_deployment" "supervisor" {
+  metadata {
+    name      = "bench-${var.env}-${var.cloud}-${var.region}-supervisor"
+    namespace = "default"
+    labels = {
+      app = "bench-${var.env}-${var.cloud}-${var.region}-supervisor"
+    }
+  }
 
-#   spec {
-#     replicas = 1
+  spec {
+    replicas = 1
 
-#     selector {
-#       match_labels = {
-#         app = "bench-${var.env}-${var.cloud}-${var.region}-supervisor"
-#       }
-#     }
+    selector {
+      match_labels = {
+        app = "bench-${var.env}-${var.cloud}-${var.region}-supervisor"
+      }
+    }
 
-#     template {
-#       metadata {
-#         labels = {
-#           app = "bench-${var.env}-${var.cloud}-${var.region}-supervisor"
-#         }
-#         annotations = {
-#           "prometheus.io/scrape" = "true"
-#         }
-#       }
+    template {
+      metadata {
+        labels = {
+          app = "bench-${var.env}-${var.cloud}-${var.region}-supervisor"
+        }
+        annotations = {
+          "prometheus.io/scrape" = "true"
+        }
+      }
 
-#       spec {
-#         # init container
-#         init_container {
-#           name    = "supervisor-migrate"
-#           image   = "ghcr.io/symbolx/bench-system:${var.git_commit}"
-#           command = ["/bin/sh", "-c"]
-#           args    = ["python bench.py migrate apply"]
+      spec {
+        # init container
+        init_container {
+          name    = "supervisor-migrate"
+          image   = "ghcr.io/symbolx/bench-system:${var.git_commit}"
+          command = ["/bin/sh", "-c"]
+          args    = ["python bench.py migrate apply"]
 
-#           env {
-#             name  = "SERVICE_NAME"
-#             value = "supervisor"
-#           }
-#           env {
-#             name  = "ENVIRONMENT"
-#             value = var.env
-#           }
-#           env {
-#             name  = "REGION"
-#             value = var.region
-#           }
+          env {
+            name  = "SERVICE_NAME"
+            value = "supervisor"
+          }
+          env {
+            name  = "ENVIRONMENT"
+            value = var.env
+          }
+          env {
+            name  = "CLOUD"
+            value = var.cloud
+          }
+          env {
+            name  = "REGION"
+            value = var.region
+          }
 
-#           env {
-#             name  = "GLOBAL_PG_HOST"
-#             value = var.global_pg_host
-#           }
-#           env {
-#             name  = "GLOBAL_PG_USERNAME"
-#             value = var.global_pg_username
-#           }
-#           env {
-#             name  = "GLOBAL_PG_PASSWORD"
-#             value = var.global_pg_password
-#           }
-#           env {
-#             name  = "GLOBAL_PG_CRYPTO_KEY"
-#             value = var.global_pg_crypto_key
-#           }
+          env {
+            name  = "GLOBAL_PG_HOST"
+            value = var.global_pg_host
+          }
+          env {
+            name  = "GLOBAL_PG_USERNAME"
+            value = var.global_pg_username
+          }
+          env {
+            name  = "GLOBAL_PG_PASSWORD"
+            value = var.global_pg_password
+          }
+          env {
+            name  = "GLOBAL_PG_CRYPTO_KEY"
+            value = var.global_pg_crypto_key
+          }
 
-#           # TODO :Infra: enable tracing
-#           env {
-#             name  = "TRACING"
-#             value = 0
-#           }
-#           env {
-#             name  = "LOG_LEVEL"
-#             value = "DEBUG"
-#           }
-#           env {
-#             name  = "LOG_MODE"
-#             value = "JSON"
-#           }
+          # TODO :Infra: enable tracing
+          env {
+            name  = "TRACING"
+            value = 0
+          }
+          env {
+            name  = "LOG_LEVEL"
+            value = "DEBUG"
+          }
+          env {
+            name  = "LOG_MODE"
+            value = "JSON"
+          }
 
-#           env {
-#             name  = "SENTRY_DSN"
-#             value = var.sentry_dsn
-#           }
-#         }
+          env {
+            name  = "SENTRY_DSN"
+            value = var.sentry_dsn
+          }
+        }
 
-#         # main container
-#         container {
-#           name  = "supervisor"
-#           image = "ghcr.io/symbolx/bench-system:${var.git_commit}"
+        # main container
+        container {
+          name  = "supervisor"
+          image = "ghcr.io/symbolx/bench-system:${var.git_commit}"
 
-#           port {
-#             container_port = 80
-#             name           = "http"
-#           }
-#           port {
-#             container_port = 60051
-#             name           = "grpc"
-#           }
+          port {
+            container_port = 80
+            name           = "http"
+          }
+          port {
+            container_port = 60051
+            name           = "grpc"
+          }
 
-#           env {
-#             name  = "SERVICE_NAME"
-#             value = "supervisor"
-#           }
-#           env {
-#             name  = "ENVIRONMENT"
-#             value = var.env
-#           }
-#           env {
-#             name  = "REGION"
-#             value = var.region
-#           }
+          env {
+            name  = "SERVICE_NAME"
+            value = "supervisor"
+          }
+          env {
+            name  = "ENVIRONMENT"
+            value = var.env
+          }
+          env {
+            name  = "REGION"
+            value = var.region
+          }
 
-#           env {
-#             name  = "GLOBAL_PG_HOST"
-#             value = var.global_pg_host
-#           }
-#           env {
-#             name  = "GLOBAL_PG_USERNAME"
-#             value = var.global_pg_username
-#           }
-#           env {
-#             name  = "GLOBAL_PG_PASSWORD"
-#             value = var.global_pg_password
-#           }
-#           env {
-#             name  = "GLOBAL_PG_CRYPTO_KEY"
-#             value = var.global_pg_crypto_key
-#           }
+          env {
+            name  = "GLOBAL_PG_HOST"
+            value = var.global_pg_host
+          }
+          env {
+            name  = "GLOBAL_PG_USERNAME"
+            value = var.global_pg_username
+          }
+          env {
+            name  = "GLOBAL_PG_PASSWORD"
+            value = var.global_pg_password
+          }
+          env {
+            name  = "GLOBAL_PG_CRYPTO_KEY"
+            value = var.global_pg_crypto_key
+          }
 
-#           env {
-#             name  = "TRACING"
-#             value = 0
-#           }
-#           env {
-#             name  = "LOG_LEVEL"
-#             value = "DEBUG"
-#           }
-#           env {
-#             name  = "LOG_MODE"
-#             value = "JSON"
-#           }
+          env {
+            name  = "TRACING"
+            value = 0
+          }
+          env {
+            name  = "LOG_LEVEL"
+            value = "DEBUG"
+          }
+          env {
+            name  = "LOG_MODE"
+            value = "JSON"
+          }
 
-#           env {
-#             name  = "SENTRY_DSN"
-#             value = var.sentry_dsn
-#           }
-#           env {
-#             name  = "NEON_API_KEY"
-#             value = var.neon_api_key
-#           }
-#           env {
-#             name  = "NEON_BASE_URL"
-#             value = var.neon_base_url
-#           }
-#           env {
-#             name  = "OPENAI_API_KEY"
-#             value = var.openai_api_key
-#           }
-#           env {
-#             name  = "ANTHROPIC_API_KEY"
-#             value = var.anthropic_api_key
-#           }
-#           env {
-#             name  = "GHCR_TOKEN"
-#             value = var.ghcr_token
-#           }
+          env {
+            name  = "SENTRY_DSN"
+            value = var.sentry_dsn
+          }
+          env {
+            name  = "NEON_API_KEY"
+            value = var.neon_api_key
+          }
+          env {
+            name  = "NEON_BASE_URL"
+            value = var.neon_base_url
+          }
+          env {
+            name  = "OPENAI_API_KEY"
+            value = var.openai_api_key
+          }
+          env {
+            name  = "ANTHROPIC_API_KEY"
+            value = var.anthropic_api_key
+          }
+          env {
+            name  = "GHCR_TOKEN"
+            value = var.ghcr_token
+          }
 
-#           command = ["python", "bench.py", "serve", "supervisor"]
+          command = ["python", "bench.py", "serve", "supervisor"]
 
-#           resources {
-#             requests = {
-#               cpu    = "500m"
-#               memory = "1000Mi"
-#             }
-#           }
-#         }
+          resources {
+            requests = {
+              cpu    = "500m"
+              memory = "500Mi"
+            }
+          }
+        }
 
-#         image_pull_secrets {
-#           name = kubernetes_secret.image_pull_secret.metadata[0].name
-#         }
-#       }
-#     }
-#   }
-# }
+        image_pull_secrets {
+          name = kubernetes_secret.image_pull_secret.metadata[0].name
+        }
+      }
+    }
+  }
+}
 
 # Supervisor service
 resource "kubernetes_service" "supervisor" {
