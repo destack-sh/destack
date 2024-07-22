@@ -1,9 +1,0 @@
-vector:
-  customConfig:
-    sinks:
-      better_stack_http_sink:
-        auth:
-          token: 8gmSKZjoNvxPvFsuAKRDxFKP
-      better_stack_http_metrics_sink:
-        auth:
-          token: 8gmSKZjoNvxPvFsuAKRDxFKP
