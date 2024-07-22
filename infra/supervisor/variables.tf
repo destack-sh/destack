@@ -27,48 +27,9 @@ variable "region" {
   description = "Bench region"
 }
 
-variable "is_primary" {
-  type        = bool
-  description = "Whether this is the primary region (with the supervisor)"
-}
-
 variable "host_map" {
   type        = map(string)
   description = "Host map"
-}
-
-variable "aws_availability_zones" {
-  type        = list(string)
-  description = "AWS availability zones"
-}
-
-#
-# AWS
-# 
-
-variable "vpc_network_cidr" {
-  type        = string
-  description = "CIDR block for the VPC"
-}
-
-variable "system_min_cluster_size" {
-  type        = number
-  description = "Minimum size of the EKS cluster"
-}
-
-variable "system_max_cluster_size" {
-  type        = number
-  description = "Maximum size of the EKS cluster"
-}
-
-variable "system_desired_cluster_size" {
-  type        = number
-  description = "Desired size of the EKS cluster"
-}
-
-variable "system_node_instance_type" {
-  type        = string
-  description = "EC2 instance types for EKS nodes"
 }
 
 #
@@ -100,6 +61,15 @@ variable "global_pg_crypto_key" {
   type        = string
   description = "Crypto key for the global Postgres database"
   sensitive   = true
+}
+
+#
+# Kubernetes
+# 
+
+variable "image_pull_secret_name" {
+  type        = string
+  description = "Name of the image pull secret"
 }
 
 #
@@ -142,26 +112,3 @@ variable "neon_base_url" {
   description = "Neon base URL"
   default     = "https://console.neon.tech/api/v2"
 }
-
-variable "openai_api_key" {
-  type        = string
-  description = "OpenAI API key"
-  sensitive   = true
-}
-
-variable "anthropic_api_key" {
-  type        = string
-  description = "Anthropic API key"
-  sensitive   = true
-}
-
-variable "ghcr_username" {
-  type        = string
-  description = "GitHub Container Registry username"
-}
-variable "ghcr_token" {
-  type        = string
-  description = "GitHub Container Registry token"
-  sensitive   = true
-}
-

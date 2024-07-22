@@ -1,3 +1,21 @@
+terraform {
+  required_providers {
+    cloudflare = {
+      source  = "cloudflare/cloudflare"
+      version = "~> 4.0"
+    }
+    acme = {
+      source  = "vancluever/acme"
+      version = "~> 2.0"
+    }
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
+}
+
+
 locals {
   bench_version = file("../version")
   global_region = "eu-zurich" # global state
@@ -17,6 +35,13 @@ locals {
     "eu-zurich"    = ["eu-central-2a", "eu-central-2b"]
     "eu-frankfurt" = ["eu-central-1a", "eu-central-1b"]
   }
+}
+
+provider "cloudflare" {
+  api_token = var.cloudflare_api_token
+}
+data "cloudflare_zone" "main_website" {
+  name = local.main_website
 }
 
 provider "aws" {
@@ -133,9 +158,9 @@ module "region_aws_eu_frankfurt" {
   global_pg_crypto_key = var.global_pg_crypto_key
 
   # web
-  web_certificate_arn  = aws_acm_certificate.main_website.arn
-  cors_allowed_hosts   = var.cors_allowed_hosts
-  cors_allowed_origins = var.cors_allowed_origins
+  web_certificate_arn            = aws_acm_certificate.main_website.arn
+  web_certificate_pem             = acme_certificate.main_website.certificate_pem
+  web_certificate_private_key_pem = acme_certificate.main_website.private_key_pem
 
   # 3rd party secrets
   sentry_dsn        = var.sentry_dsn

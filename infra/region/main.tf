@@ -1,3 +1,16 @@
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = "~> 2.0"
+    }
+  }
+}
+
 locals {
   aws_region_by_bench_region = {
     "eu-zurich" : "eu-central-2"
@@ -201,3 +214,36 @@ resource "aws_s3_bucket" "bench_public" {
     Name = "bench-${var.env}-${var.region}-public"
   }
 }
+
+#
+# Supervisor (if primary)
+#
+
+# nocheckin: supervisor
+# module "supervisor" {
+#   count  = var.is_primary ? 1 : 0
+#   source = "../supervisor"
+
+#   bench_version = var.bench_version
+#   git_commit    = var.git_commit
+#   env           = var.env
+#   cloud         = var.cloud
+#   region        = var.region
+#   host_map      = var.host_map
+
+#   global_pg_host       = var.global_pg_host
+#   global_pg_name       = var.global_pg_name
+#   global_pg_username   = var.global_pg_username
+#   global_pg_password   = var.global_pg_password
+#   global_pg_crypto_key = var.global_pg_crypto_key
+
+#   image_pull_secret_name = kubernetes_secret.image_pull_secret.metadata[0].name
+
+#   web_certificate_arn             = var.web_certificate_arn
+#   web_certificate_pem             = var.web_certificate_pem
+#   web_certificate_private_key_pem = var.web_certificate_private_key_pem
+
+#   sentry_dsn    = var.sentry_dsn
+#   neon_api_key  = var.neon_api_key
+#   neon_base_url = var.neon_base_url
+# }
