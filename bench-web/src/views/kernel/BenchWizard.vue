@@ -21,6 +21,7 @@ const slug: Ref<string> = ref("");
 const region: Ref<Region> = ref(Region.EU_FRANKFURT);
 const isActive = ref(false);
 const isActivated = computed(() => user.value?.status == UserStatus.ACTIVATED);
+const lastError: Ref<string | null> = ref(null);
 
 // init slug with user slug
 watch(
@@ -35,6 +36,7 @@ watch(
 
 async function submit() {
   isActive.value = true;
+  lastError.value = null;
   try {
     if (!user.value) throw new Error("no active user");
     const { bench } = await createBench({
@@ -44,6 +46,8 @@ async function submit() {
       isMain: true,
     });
     await goToBench({ bench: toNodeReference(bench) });
+  } catch (e) {
+    lastError.value = (e as Error).message ?? "Unknown error";
   } finally {
     isActive.value = false;
   }
@@ -98,6 +102,16 @@ defineExpose({ self, focus });
         :is-disabled="isActive"
         @click="submit"
       />
+    </div>
+    <!-- Error -->
+    <div v-if="lastError" class="pt-3 mt-3 border-t border-t-gray-200 flex w-full flex-col gap-y-1">
+      <div class="flex flex-row items-center gap-x-2">
+        <i class="fas fa-exclamation-triangle text-danger-600" />
+        <span class="text-danger-600">Error</span>
+      </div>
+      <div class="flex flex-row items-center gap-x-2">
+        <span class="text-gray-500">{{ lastError }}</span>
+      </div>
     </div>
   </div>
 </template>
