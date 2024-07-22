@@ -40,7 +40,9 @@ class HostMap:
         for map_str in host_map_str.split(","):
             key, host_uri_str = map_str.split("=", 1)
             if key != "*":
-                key = Region[key.upper()]
+                # accept slug
+                key = key.replace("-", "_").upper()
+                key = Region[key]
             host_uri = host_uri_str.strip()
             host_map[key] = host_uri
         return HostMap(host_map)

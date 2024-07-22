@@ -130,8 +130,8 @@ resource "kubernetes_service" "supervisor" {
     }
 
     port {
-      port        = 60051
-      target_port = 60051
+      port        = 60061
+      target_port = 60061
       name        = "grpc"
     }
 
@@ -158,62 +158,62 @@ resource "kubernetes_config_map" "supervisor_envoy_config" {
           address:
             socket_address: { address: 0.0.0.0, port_value: 8080 }
           filter_chains:
-          - filters:
-            - name: envoy.filters.network.http_connection_manager
-              typed_config:
-                "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
-                codec_type: auto
-                stat_prefix: ingress_http
-                route_config:
-                  name: local_route
-                  virtual_hosts:
-                  - name: local_service
-                    domains: ["*"]
-                    routes:
-                    - match: { prefix: "/" }
-                      route:
-                        cluster: supervisor_service
-                        timeout: 0s
-                        max_stream_duration:
-                          grpc_timeout_header_max: 0s
-                    cors:
-                      allow_origin_string_match:
-                        - prefix: "*"
-                      allow_methods: GET, PUT, DELETE, POST, OPTIONS
-                      allow_headers: keep-alive,user-agent,cache-control,content-type,content-transfer-encoding,x-accept-content-transfer-encoding,x-accept-response-streaming,x-user-agent,grpc-web,x-grpc-web,grpc-timeout,grpc-timeout,x-bench-1,x-bench-2,x-bench-3,x-bench-4,x-bench-5,x-bench-6,x-bench-7,x-bench-8,x-bench-9
-                      max_age: "1728000"
-                      expose_headers: content-type,grpc-status,grpc-message,grpc-web,x-grpc-web,x-bench-1,x-bench-2,x-bench-3,x-bench-4,x-bench-5,x-bench-6,x-bench-7,x-bench-8,x-bench-9
-                http_filters:
-                  - name: envoy.filters.http.grpc_web
-                  - name: envoy.filters.http.cors
-                  - name: envoy.filters.http.router
-                # tls to enable h2
-                transport_socket:
-                  name: envoy.tls_context.http3
-                  typed_config:
-                    "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.DownstreamTlsContext
-                    common_tls_context:
-                      alpn_protocols: ["h2"]
-                      tls_certificates:
-                        - certificate_chain:
-                            filename: /etc/envoy/ssl/cert.pem
-                          private_key:
-                            filename: /etc/envoy/ssl/cert.key
+            - filters:
+              - name: envoy.filters.network.http_connection_manager
+                typed_config:
+                  "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+                  codec_type: auto
+                  stat_prefix: ingress_http
+                  route_config:
+                    name: local_route
+                    virtual_hosts:
+                    - name: local_service
+                      domains: ["*"]
+                      routes:
+                      - match: { prefix: "/" }
+                        route:
+                          cluster: supervisor_service
+                          timeout: 0s
+                          max_stream_duration:
+                            grpc_timeout_header_max: 0s
+                      cors:
+                        allow_origin_string_match:
+                          - prefix: "*"
+                        allow_methods: GET, PUT, DELETE, POST, OPTIONS
+                        allow_headers: keep-alive,user-agent,cache-control,content-type,content-transfer-encoding,x-accept-content-transfer-encoding,x-accept-response-streaming,x-user-agent,grpc-web,x-grpc-web,grpc-timeout,grpc-timeout,x-bench-1,x-bench-2,x-bench-3,x-bench-4,x-bench-5,x-bench-6,x-bench-7,x-bench-8,x-bench-9
+                        max_age: "1728000"
+                        expose_headers: content-type,grpc-status,grpc-message,grpc-web,x-grpc-web,x-bench-1,x-bench-2,x-bench-3,x-bench-4,x-bench-5,x-bench-6,x-bench-7,x-bench-8,x-bench-9
+                  http_filters:
+                    - name: envoy.filters.http.grpc_web
+                    - name: envoy.filters.http.cors
+                    - name: envoy.filters.http.router
+              # tls to enable h2
+              transport_socket:
+                name: envoy.tls_context.http3
+                typed_config:
+                  "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.DownstreamTlsContext
+                  common_tls_context:
+                    alpn_protocols: ["h2"]
+                    tls_certificates:
+                      - certificate_chain:
+                          filename: /etc/envoy/ssl/cert.pem
+                        private_key:
+                          filename: /etc/envoy/ssl/cert.key
         clusters:
-        - name: supervisor_service
-          connect_timeout: 0.25s
-          type: logical_dns
-          http2_protocol_options: {}
-          lb_policy: round_robin
-          load_assignment:
-            cluster_name: cluster_0
-            endpoints:
-              - lb_endpoints:
-                  - endpoint:
-                      address:
-                        socket_address:
-                          address: bench-${var.env}-${var.cloud}-${var.region}-supervisor
-                          port_value: 60051
+          - name: supervisor_service
+            connect_timeout: 0.25s
+            type: logical_dns
+            http2_protocol_options: {}
+            lb_policy: round_robin
+            load_assignment:
+              cluster_name: cluster_0
+              endpoints:
+                - lb_endpoints:
+                    - endpoint:
+                        address:
+                          socket_address:
+                            address: bench-${var.env}-${var.cloud}-${var.region}-supervisor
+                            port_value: 60061
     EOT
   }
 }
@@ -253,8 +253,14 @@ resource "kubernetes_deployment" "supervisor_envoy_proxy" {
           }
 
           volume_mount {
-            name       = "bench-${var.env}-${var.cloud}-${var.region}-supervisor-envoy-config"
-            mount_path = "/etc/envoy"
+            name       = "envoy-config"
+            mount_path = "/etc/envoy/envoy.yaml"
+            read_only  = true
+          }
+
+          volume_mount {
+            name       = "envoy-cert"
+            mount_path = "/etc/envoy/ssl"
             read_only  = true
           }
         }
@@ -263,6 +269,13 @@ resource "kubernetes_deployment" "supervisor_envoy_proxy" {
           name = "envoy-config"
           config_map {
             name = kubernetes_config_map.supervisor_envoy_config.metadata[0].name
+          }
+        }
+
+        volume {
+          name = "envoy-cert"
+          secret {
+            secret_name = var.web_certificate_secret_name
           }
         }
       }
@@ -343,7 +356,7 @@ resource "kubernetes_service" "envoy_proxy" {
 # # ALB Target Group
 # resource "aws_lb_target_group" "supervisor_tg" {
 #   name        = "supervisor-tg"
-#   port        = 8080
+#   port        = 443
 #   protocol    = "HTTP"
 #   vpc_id      = var.vpc_id
 #   target_type = "ip"
@@ -359,5 +372,5 @@ resource "kubernetes_service" "envoy_proxy" {
 # resource "aws_lb_target_group_attachment" "supervisor_tg_attachment" {
 #   target_group_arn = aws_lb_target_group.supervisor_tg.arn
 #   target_id        = kubernetes_service.envoy_proxy.status.0.load_balancer.0.ingress.0.hostname
-#   port             = 8080
+#   port             = 443
 # }

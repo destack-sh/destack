@@ -72,6 +72,11 @@ variable "image_pull_secret_name" {
   description = "Name of the image pull secret"
 }
 
+variable "web_certificate_secret_name" {
+  type        = string
+  description = "Name of the cert secret"
+}
+
 #
 # Web
 # 

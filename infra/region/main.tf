@@ -184,10 +184,10 @@ provider "kubernetes" {
   token                  = data.aws_eks_cluster_auth.cluster_0.token
 }
 
-# Kubernetes secret for GHCR
+# image pull secret (GHCR)
 resource "kubernetes_secret" "image_pull_secret" {
   metadata {
-    name      = "image-pull-secret"
+    name      = "bench-${var.env}-${var.cloud}-${var.region}-image-pull-secret"
     namespace = "default"
   }
 
@@ -204,6 +204,22 @@ resource "kubernetes_secret" "image_pull_secret" {
   }
 }
 
+# cert secret (LE)
+resource "kubernetes_secret" "web_certificate_secret" {
+  metadata {
+    name      = "bench-${var.env}-${var.cloud}-${var.region}-cert-secret"
+    namespace = "default"
+  }
+
+  type = "kubernetes.io/tls"
+
+  data = {
+    "cert.pem" = var.web_certificate_pem
+    "cert.key" = var.web_certificate_private_key_pem
+  }
+}
+
+
 #
 # S3 bucket
 # 
@@ -219,31 +235,31 @@ resource "aws_s3_bucket" "bench_public" {
 # Supervisor (if primary)
 #
 
-# nocheckin: supervisor
-# module "supervisor" {
-#   count  = var.is_primary ? 1 : 0
-#   source = "../supervisor"
+module "supervisor" {
+  count  = var.is_primary ? 1 : 0
+  source = "../supervisor"
 
-#   bench_version = var.bench_version
-#   git_commit    = var.git_commit
-#   env           = var.env
-#   cloud         = var.cloud
-#   region        = var.region
-#   host_map      = var.host_map
+  bench_version = var.bench_version
+  git_commit    = var.git_commit
+  env           = var.env
+  cloud         = var.cloud
+  region        = var.region
+  host_map      = var.host_map
 
-#   global_pg_host       = var.global_pg_host
-#   global_pg_name       = var.global_pg_name
-#   global_pg_username   = var.global_pg_username
-#   global_pg_password   = var.global_pg_password
-#   global_pg_crypto_key = var.global_pg_crypto_key
+  global_pg_host       = var.global_pg_host
+  global_pg_name       = var.global_pg_name
+  global_pg_username   = var.global_pg_username
+  global_pg_password   = var.global_pg_password
+  global_pg_crypto_key = var.global_pg_crypto_key
 
-#   image_pull_secret_name = kubernetes_secret.image_pull_secret.metadata[0].name
+  image_pull_secret_name      = kubernetes_secret.image_pull_secret.metadata[0].name
+  web_certificate_secret_name = kubernetes_secret.web_certificate_secret.metadata[0].name
 
-#   web_certificate_arn             = var.web_certificate_arn
-#   web_certificate_pem             = var.web_certificate_pem
-#   web_certificate_private_key_pem = var.web_certificate_private_key_pem
+  web_certificate_arn             = var.web_certificate_arn
+  web_certificate_pem             = var.web_certificate_pem
+  web_certificate_private_key_pem = var.web_certificate_private_key_pem
 
-#   sentry_dsn    = var.sentry_dsn
-#   neon_api_key  = var.neon_api_key
-#   neon_base_url = var.neon_base_url
-# }
+  sentry_dsn    = var.sentry_dsn
+  neon_api_key  = var.neon_api_key
+  neon_base_url = var.neon_base_url
+}
