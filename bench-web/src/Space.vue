@@ -24,6 +24,7 @@ import { DEFAULT_BAR_POSITION, DEFAULT_HEADER_HEIGHT, createDesktopDefaultSpace 
 import { user } from "@/system/user";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import { VERSION } from "@/utils/globals";
+import { GEOLOCATION } from "@/utils/geolocation";
 
 const BAR_WIDTH = DEFAULT_HEADER_HEIGHT;
 const BAR_HEIGHT = DEFAULT_HEADER_HEIGHT;
