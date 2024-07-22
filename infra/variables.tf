@@ -69,20 +69,6 @@ variable "global_pg_crypto_key" {
   sensitive   = true
 }
 
-#
-# Web
-# 
-
-variable "cors_allowed_hosts" {
-  type        = string
-  description = "Allowed hosts"
-}
-
-variable "cors_allowed_origins" {
-  type        = string
-  description = "Allowed origins"
-}
-
 # 
 # 3rd party secrets
 # 

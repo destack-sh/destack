@@ -1,65 +1,3 @@
-terraform {
-  required_providers {
-    cloudflare = {
-      source  = "cloudflare/cloudflare"
-      version = "~> 4.0"
-    }
-  }
-}
-
-provider "aws" {
-  alias  = "us-east-1"
-  region = "us-east-1"
-}
-
-provider "cloudflare" {
-  api_token = var.cloudflare_api_token
-}
-
-data "cloudflare_zone" "main_website" {
-  name = local.main_website
-}
-
-
-# 
-# ACM certificate
-#
-
-resource "aws_acm_certificate" "main_website" {
-  domain_name               = local.main_website
-  subject_alternative_names = ["*.${local.main_website}", "*.host.${local.main_website}"]
-  validation_method         = "DNS"
-
-  provider = aws.us-east-1 // all ACM certificates must be in us-east-1
-
-  tags = {
-    Name = "bench-${var.env}-global-web-cert"
-  }
-}
-
-locals {
-  # deduplicate domain validation options (may go in the same record)
-  domain_validation_options = toset([
-    for dvo in aws_acm_certificate.main_website.domain_validation_options : {
-      name   = dvo.resource_record_name
-      record = dvo.resource_record_value
-      type   = dvo.resource_record_type
-    }
-  ])
-}
-resource "cloudflare_record" "cert_validation" {
-  for_each = {
-    for dvo in local.domain_validation_options :
-    dvo.name => dvo
-  }
-
-  zone_id = data.cloudflare_zone.main_website.id
-  name    = each.value.name
-  type    = each.value.type
-  value   = each.value.record
-  ttl     = 60
-}
-
 #
 # S3 bucket for bench-web
 #
@@ -257,10 +195,6 @@ resource "cloudflare_record" "www" {
 #
 # Outputs
 #
-
-output "bench_web_certificate_arn" {
-  value = aws_acm_certificate.main_website.arn
-}
 
 output "bench_web_distribution_id" {
   value = aws_cloudfront_distribution.bench_web.id

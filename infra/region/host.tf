@@ -3,7 +3,7 @@
 # 
 
 locals {
-  env_vars = {
+  host_env_vars = {
     SERVICE_NAME = "host"
     ENVIRONMENT  = var.env
     CLOUD        = var.cloud

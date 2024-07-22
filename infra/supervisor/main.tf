@@ -4,7 +4,7 @@
 # 
 
 locals {
-  env_vars = {
+  supervisor_env_vars = {
     SERVICE_NAME = "supervisor"
     ENVIRONMENT  = var.env
     CLOUD        = var.cloud
@@ -26,19 +26,14 @@ locals {
     LOG_LEVEL = "DEBUG"
     LOG_MODE  = "JSON"
 
-    SENTRY_DSN        = var.sentry_dsn
-    NEON_API_KEY      = var.neon_api_key
-    NEON_BASE_URL     = var.neon_base_url
-    OPENAI_API_KEY    = var.openai_api_key
-    ANTHROPIC_API_KEY = var.anthropic_api_key
-    GHCR_TOKEN        = var.ghcr_token
+    SENTRY_DSN    = var.sentry_dsn
+    NEON_API_KEY  = var.neon_api_key
+    NEON_BASE_URL = var.neon_base_url
   }
 }
 
 # Supervisor deployment
 resource "kubernetes_deployment" "supervisor" {
-  count = var.is_primary ? 1 : 0
-
   metadata {
     name      = "bench-${var.env}-${var.cloud}-${var.region}-supervisor"
     namespace = "default"
@@ -75,7 +70,7 @@ resource "kubernetes_deployment" "supervisor" {
           args    = ["python bench.py migrate apply"]
 
           dynamic "env" {
-            for_each = local.env_vars
+            for_each = local.supervisor_env_vars
             content {
               name  = env.key
               value = env.value
@@ -98,7 +93,7 @@ resource "kubernetes_deployment" "supervisor" {
           }
 
           dynamic "env" {
-            for_each = local.env_vars
+            for_each = local.supervisor_env_vars
             content {
               name  = env.key
               value = env.value
@@ -116,7 +111,7 @@ resource "kubernetes_deployment" "supervisor" {
         }
 
         image_pull_secrets {
-          name = kubernetes_secret.image_pull_secret.metadata[0].name
+          name = var.image_pull_secret_name
         }
       }
     }
@@ -125,8 +120,6 @@ resource "kubernetes_deployment" "supervisor" {
 
 # Supervisor service
 resource "kubernetes_service" "supervisor" {
-  count = var.is_primary ? 1 : 0
-
   metadata {
     name = "bench-${var.env}-${var.cloud}-${var.region}-supervisor"
   }
@@ -154,7 +147,7 @@ resource "kubernetes_service" "supervisor" {
 # Envoy ConfigMap
 resource "kubernetes_config_map" "supervisor_envoy_config" {
   metadata {
-    name = "envoy-config"
+    name = "bench-${var.env}-${var.cloud}-${var.region}-supervisor-envoy-config"
   }
 
   data = {
@@ -195,7 +188,7 @@ resource "kubernetes_config_map" "supervisor_envoy_config" {
                   - name: envoy.filters.http.cors
                   - name: envoy.filters.http.router
                 # tls to enable h2
-                tls_context:
+                transport_socket:
                   name: envoy.tls_context.http3
                   typed_config:
                     "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.DownstreamTlsContext
@@ -226,11 +219,11 @@ resource "kubernetes_config_map" "supervisor_envoy_config" {
 }
 
 # Envoy Deployment
-resource "kubernetes_deployment" "envoy_proxy" {
+resource "kubernetes_deployment" "supervisor_envoy_proxy" {
   metadata {
-    name = "envoy-proxy"
+    name = "bench-${var.env}-${var.cloud}-${var.region}-supervisor-envoy-proxy"
     labels = {
-      app = "envoy-proxy"
+      app = "bench-${var.env}-${var.cloud}-${var.region}-supervisor-envoy-proxy"
     }
   }
 
@@ -239,28 +232,28 @@ resource "kubernetes_deployment" "envoy_proxy" {
 
     selector {
       match_labels = {
-        app = "envoy-proxy"
+        app = "bench-${var.env}-${var.cloud}-${var.region}-supervisor-envoy-proxy"
       }
     }
 
     template {
       metadata {
         labels = {
-          app = "envoy-proxy"
+          app = "bench-${var.env}-${var.cloud}-${var.region}-supervisor-envoy-proxy"
         }
       }
 
       spec {
         container {
-          image = "envoyproxy/envoy:v1.22.0"
+          image = "envoyproxy/envoy:v1.31.0"
           name  = "envoy"
 
           port {
-            container_port = 8080
+            container_port = 443
           }
 
           volume_mount {
-            name       = "envoy-config"
+            name       = "bench-${var.env}-${var.cloud}-${var.region}-supervisor-envoy-config"
             mount_path = "/etc/envoy"
             read_only  = true
           }
@@ -280,17 +273,17 @@ resource "kubernetes_deployment" "envoy_proxy" {
 # Envoy Service
 resource "kubernetes_service" "envoy_proxy" {
   metadata {
-    name = "envoy-proxy"
+    name = "bench-${var.env}-${var.cloud}-${var.region}-supervisor-envoy-proxy"
   }
 
   spec {
     selector = {
-      app = "envoy-proxy"
+      app = "bench-${var.env}-${var.cloud}-${var.region}-supervisor-envoy-proxy"
     }
 
     port {
-      port        = 8080
-      target_port = 8080
+      port        = 443
+      target_port = 443
     }
 
     type = "NodePort"
