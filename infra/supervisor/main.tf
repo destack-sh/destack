@@ -185,8 +185,14 @@ resource "kubernetes_config_map" "supervisor_envoy_config" {
                         expose_headers: content-type,grpc-status,grpc-message,grpc-web,x-grpc-web,x-bench-1,x-bench-2,x-bench-3,x-bench-4,x-bench-5,x-bench-6,x-bench-7,x-bench-8,x-bench-9
                   http_filters:
                     - name: envoy.filters.http.grpc_web
+                      typed_config:
+                        "@type": type.googleapis.com/envoy.extensions.filters.http.grpc_web.v3.GrpcWeb
                     - name: envoy.filters.http.cors
+                      typed_config:
+                        "@type": type.googleapis.com/envoy.extensions.filters.http.cors.v3.Cors
                     - name: envoy.filters.http.router
+                      typed_config:
+                        "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
               # tls to enable h2
               transport_socket:
                 name: envoy.tls_context.http3
@@ -196,9 +202,9 @@ resource "kubernetes_config_map" "supervisor_envoy_config" {
                     alpn_protocols: ["h2"]
                     tls_certificates:
                       - certificate_chain:
-                          filename: /etc/envoy/ssl/cert.pem
+                          filename: /etc/envoy/tls/tls.crt
                         private_key:
-                          filename: /etc/envoy/ssl/cert.key
+                          filename: /etc/envoy/tls/tls.key
         clusters:
           - name: supervisor_service
             connect_timeout: 0.25s
@@ -254,13 +260,13 @@ resource "kubernetes_deployment" "supervisor_envoy_proxy" {
 
           volume_mount {
             name       = "envoy-config"
-            mount_path = "/etc/envoy/envoy.yaml"
+            mount_path = "/etc/envoy"
             read_only  = true
           }
 
           volume_mount {
             name       = "envoy-cert"
-            mount_path = "/etc/envoy/ssl"
+            mount_path = "/etc/envoy/tls"
             read_only  = true
           }
         }
@@ -276,6 +282,14 @@ resource "kubernetes_deployment" "supervisor_envoy_proxy" {
           name = "envoy-cert"
           secret {
             secret_name = var.web_certificate_secret_name
+            items {
+              key  = "tls.crt"
+              path = "tls.crt"
+            }
+            items {
+              key  = "tls.key"
+              path = "tls.key"
+            }
           }
         }
       }
@@ -284,9 +298,18 @@ resource "kubernetes_deployment" "supervisor_envoy_proxy" {
 }
 
 # Envoy Service
-resource "kubernetes_service" "envoy_proxy" {
+resource "kubernetes_service" "supervisor_envoy_proxy" {
   metadata {
     name = "bench-${var.env}-${var.cloud}-${var.region}-supervisor-envoy-proxy"
+    annotations = {
+      "service.beta.kubernetes.io/aws-load-balancer-type"                   = "nlb"
+      "service.beta.kubernetes.io/aws-load-balancer-nlb-target-type"        = "ip"
+      "service.beta.kubernetes.io/aws-load-balancer-scheme"                 = "internet-facing"
+      "service.beta.kubernetes.io/aws-load-balancer-ssl-ports"              = "443"
+      "service.beta.kubernetes.io/aws-load-balancer-ssl-negotiation-policy" = "ELBSecurityPolicy-TLS-1-2-2017-01"
+      "service.beta.kubernetes.io/aws-load-balancer-backend-protocol"       = "ssl"
+      "service.beta.kubernetes.io/aws-load-balancer-name"                   = "bench-${var.env}-${var.cloud}-${var.region}-nlb"
+    }
   }
 
   spec {
@@ -299,78 +322,19 @@ resource "kubernetes_service" "envoy_proxy" {
       target_port = 443
     }
 
-    type = "NodePort"
+    type = "LoadBalancer"
   }
 }
 
-#
-# Supervisor ingress
-# nocheckin
-# 
+data "kubernetes_service" "supervisor_envoy_proxy" {
+  metadata {
+    name = kubernetes_service.supervisor_envoy_proxy.metadata[0].name
+  }
 
-# # ALB Security Group
-# resource "aws_security_group" "alb_sg" {
-#   name        = "alb-supervisor-sg"
-#   description = "Security group for ALB"
-#   vpc_id      = var.vpc_id
+  depends_on = [kubernetes_service.supervisor_envoy_proxy]
+}
 
-#   ingress {
-#     from_port   = 443
-#     to_port     = 443
-#     protocol    = "tcp"
-#     cidr_blocks = ["0.0.0.0/0"]
-#   }
-
-#   egress {
-#     from_port   = 0
-#     to_port     = 0
-#     protocol    = "-1"
-#     cidr_blocks = ["0.0.0.0/0"]
-#   }
-# }
-
-# # ALB
-# resource "aws_lb" "supervisor_alb" {
-#   name               = "supervisor-alb"
-#   internal           = false
-#   load_balancer_type = "application"
-#   security_groups    = [aws_security_group.alb_sg.id]
-#   subnets            = var.public_subnet_ids
-
-#   enable_deletion_protection = false
-# }
-
-# # ALB Listener
-# resource "aws_lb_listener" "front_end" {
-#   load_balancer_arn = aws_lb.supervisor_alb.arn
-#   port              = "443"
-#   protocol          = "HTTPS"
-#   ssl_policy        = "ELBSecurityPolicy-2016-08"
-
-#   default_action {
-#     type             = "forward"
-#     target_group_arn = aws_lb_target_group.supervisor_tg.arn
-#   }
-# }
-
-# # ALB Target Group
-# resource "aws_lb_target_group" "supervisor_tg" {
-#   name        = "supervisor-tg"
-#   port        = 443
-#   protocol    = "HTTP"
-#   vpc_id      = var.vpc_id
-#   target_type = "ip"
-
-#   health_check {
-#     path                = "/healthz" # Adjust this to a proper health check endpoint
-#     healthy_threshold   = 2
-#     unhealthy_threshold = 10
-#   }
-# }
-
-# # Attach the Envoy service to the target group
-# resource "aws_lb_target_group_attachment" "supervisor_tg_attachment" {
-#   target_group_arn = aws_lb_target_group.supervisor_tg.arn
-#   target_id        = kubernetes_service.envoy_proxy.status.0.load_balancer.0.ingress.0.hostname
-#   port             = 443
-# }
+output "supervisor_load_balancer_hostname" {
+  value       = data.kubernetes_service.supervisor_envoy_proxy.status.0.load_balancer.0.ingress.0.hostname
+  description = "The hostname of the load balancer"
+}

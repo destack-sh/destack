@@ -8,6 +8,10 @@ terraform {
       source  = "hashicorp/kubernetes"
       version = "~> 2.0"
     }
+    helm = {
+      source  = "hashicorp/helm"
+      version = ">= 2.14.0"
+    }
   }
 }
 
@@ -172,6 +176,7 @@ module "cluster_0_auth" {
   ]
 }
 
+# Kubernetes/Helm provider
 data "aws_eks_cluster" "cluster_0" {
   name = module.cluster_0.cluster_name
 }
@@ -183,6 +188,14 @@ provider "kubernetes" {
   cluster_ca_certificate = base64decode(data.aws_eks_cluster.cluster_0.certificate_authority.0.data)
   token                  = data.aws_eks_cluster_auth.cluster_0.token
 }
+provider "helm" {
+  kubernetes {
+    host                   = data.aws_eks_cluster.cluster_0.endpoint
+    cluster_ca_certificate = base64decode(data.aws_eks_cluster.cluster_0.certificate_authority[0].data)
+    token                  = data.aws_eks_cluster_auth.cluster_0.token
+  }
+}
+
 
 # image pull secret (GHCR)
 resource "kubernetes_secret" "image_pull_secret" {
@@ -214,10 +227,14 @@ resource "kubernetes_secret" "web_certificate_secret" {
   type = "kubernetes.io/tls"
 
   data = {
-    "cert.pem" = var.web_certificate_pem
-    "cert.key" = var.web_certificate_private_key_pem
+    "tls.crt" = var.web_certificate_pem
+    "tls.key" = var.web_certificate_private_key_pem
   }
 }
+
+# 
+# AWS stuff
+# 
 
 
 #
@@ -245,6 +262,9 @@ module "supervisor" {
   cloud         = var.cloud
   region        = var.region
   host_map      = var.host_map
+
+  vpc_id            = aws_vpc.region_vpc.id
+  public_subnet_ids = aws_subnet.public[*].id
 
   global_pg_host       = var.global_pg_host
   global_pg_name       = var.global_pg_name
