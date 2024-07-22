@@ -197,7 +197,6 @@ provider "helm" {
     cluster_ca_certificate = base64decode(data.aws_eks_cluster.cluster_0.certificate_authority[0].data)
     token                  = data.aws_eks_cluster_auth.cluster_0.token
   }
-  
 }
 
 
