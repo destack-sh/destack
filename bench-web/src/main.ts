@@ -12,6 +12,7 @@ import * as Sentry from "@sentry/vue";
 import posthog from "posthog-js";
 import { createApp } from "vue";
 import Space from "./Space.vue";
+import { log } from "@/utils/log";
 
 async function init() {
   const app = createApp(Space);
@@ -56,7 +57,7 @@ async function init() {
     app.config.performance = true;
   }
   app.config.errorHandler = (err, instance, info) => {
-    console.error(err);
+    log.error("error.internal", err, info);
     toaster.error({ title: "Internal client error", text: (err as any).message ?? info });
   };
   app.directive("tooltip", TOOLTIP_DIRECTIVE);

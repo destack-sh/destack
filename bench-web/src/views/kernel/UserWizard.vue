@@ -43,6 +43,7 @@ const email: Ref<string> = ref("");
 const password: Ref<string> = ref("");
 const region: Ref<Region> = ref(Region.EU_FRANKFURT);
 const isActive = ref(false);
+const lastError: Ref<string | null> = ref(null);
 
 function clear() {
   name.value = "";
@@ -70,6 +71,7 @@ function switchStage() {
 
 async function submit() {
   isActive.value = true;
+  lastError.value = null;
   try {
     if (stage.value == UserWizardViewStage.SIGN_UP) {
       await signUp({ name: name.value, slug: slug.value, email: email.value }, password.value);
@@ -83,6 +85,8 @@ async function submit() {
       throw new Error(`unexpected registration stage: ${stage.value}`);
     }
     clear();
+  } catch (e) {
+    lastError.value = (e as Error).message ?? "Unknown error";
   } finally {
     isActive.value = false;
   }
@@ -179,6 +183,16 @@ defineExpose<ViewExposed>({ self, focus });
         class="mt-2 w-full"
         @click="() => fireActionById('user.auth.activate')"
       />
+    </div>
+    <!-- Error -->
+     <div v-if="lastError" class="pt-3 mt-3 border-t border-t-gray-200 flex w-full flex-col gap-y-1">
+      <div class="flex flex-row items-center gap-x-2">
+        <i class="fas fa-exclamation-triangle text-danger-600" />
+        <span class="text-danger-600">Error</span>
+      </div>
+      <div class="flex flex-row items-center gap-x-2">
+        <span class="text-gray-500">{{ lastError }}</span>
+      </div>
     </div>
   </div>
 </template>

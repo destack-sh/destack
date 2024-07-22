@@ -390,7 +390,7 @@ def get_provisioners_for(host: HostApi, bench: Bench) -> list[Provisioner]:
             LocalhostMachineProvisioner(host, bench, LOCAL_NACHINE_URL),
             S3DriveProvisioner(host, bench),
         ]
-    elif ENV == Env.STAGE:
+    elif ENV == Env.STAGE or ENV == Env.PROD:
         return [
             NeonStoreProvisioner(host, bench, neon_api),
             ElasticServerProvisioner(host, bench),
