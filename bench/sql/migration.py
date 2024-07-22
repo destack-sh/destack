@@ -1,7 +1,7 @@
 import enum
-import importlib
 import os
 import re
+import types
 from collections import defaultdict
 from dataclasses import dataclass, replace
 from datetime import datetime
@@ -216,9 +216,9 @@ def has_migration_after(version_a: str, *, is_global: bool) -> bool:
 
 def _load_migration_from_path(migration: Migration) -> MigrationFile:
     assert migration.path is not None, "migration path not set"
-    current_path = Path(__file__).parent.parent.parent
-    module_path = str(migration.path)[len(str(current_path)) + 1 : -3].replace("/", ".")
-    migration_module = importlib.import_module(module_path)
+    migration_code = migration.path.read_text()
+    migration_module = types.ModuleType(migration.path.stem)
+    exec(migration_code, migration_module.__dict__)
     file = MigrationFile(path=migration.path, module=migration_module)
     return file
 

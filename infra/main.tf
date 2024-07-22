@@ -87,26 +87,16 @@ resource "aws_route_table" "global_public" {
   }
 }
 resource "aws_route_table_association" "global_public" {
-  count          = length(aws_subnet.global_public)
+  count          = length(aws_subnet.global_public) 
   subnet_id      = aws_subnet.global_public[count.index].id
   route_table_id = aws_route_table.global_public.id
 }
 
 # 
-# Regional modules
+# Regions
 # NOTE :Cleanup: region modules are duplicated because we need them to be legacy modules :StaticRegions
-#  (because the kubernetes provider depends on the EKS cluster, and we coan't pass that as an argument without creating a circular dependency)
+#  (because the kubernetes provider depends on the EKS cluster, and we can't pass that as an argument without creating a circular dependency)
 #
-
-# static providers for each region for peering
-provider "aws" {
-  alias  = "eu-zurich"
-  region = local.aws_region_by_bench_region["eu-zurich"]
-}
-provider "aws" {
-  alias  = "eu-frankfurt"
-  region = local.aws_region_by_bench_region["eu-frankfurt"]
-}
 
 # region modules
 module "region_aws_eu_frankfurt" {
