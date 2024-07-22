@@ -27,7 +27,7 @@ data "cloudflare_zone" "main_website" {
 
 resource "aws_acm_certificate" "main_website" {
   domain_name               = local.main_website
-  subject_alternative_names = ["*.${local.main_website}"]
+  subject_alternative_names = ["*.${local.main_website}", "*.host.${local.main_website}"]
   validation_method         = "DNS"
 
   provider = aws.us-east-1 // all ACM certificates must be in us-east-1
@@ -112,10 +112,10 @@ resource "aws_s3_bucket_policy" "bench_web_allow_public" {
 locals {
   # :BenchWebEnv
   web_variables = {
-    "VITE_APP_COMMIT"      = data.external.git.result.sha
-    "VITE_APP_ENVIRONMENT" = var.env
-    "VITE_APP_SENTRY_DSN"  = var.sentry_dsn
-    "VITE_APP_SUPERVISOR_URL"  = "https://supervisor.${local.main_website}"
+    "VITE_APP_COMMIT"         = data.external.git.result.sha
+    "VITE_APP_ENVIRONMENT"    = var.env
+    "VITE_APP_SENTRY_DSN"     = var.sentry_dsn
+    "VITE_APP_SUPERVISOR_URL" = "https://supervisor.${local.main_website}"
   }
   web_variables_subs = [for k, v in local.web_variables : {
     regex = "/[a-zA-Z0-9]+\\.${k}/",
