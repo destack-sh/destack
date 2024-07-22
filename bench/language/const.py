@@ -482,6 +482,19 @@ class Region(IdEnum):
     NA_EAST = 2000
     NA_VIRGINIA = 2001
     NA_OHIO = 2002
+    NA_OREGON = 2003
+
+    # south america
+    ...
+
+    # africa
+    ...
+
+    # asia
+    AS_SINGAPORE = 3001
+
+    # oceania
+    OC_SYDNEY = 4001
 
     @property
     def is_continental(self) -> bool:
