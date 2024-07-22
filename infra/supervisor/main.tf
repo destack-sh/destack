@@ -20,6 +20,7 @@ terraform {
 # 
 
 locals {
+  prefix = "bench-${var.env}-${var.cloud}-${var.region}"
   supervisor_env_vars = {
     SERVICE_NAME = "supervisor"
     ENVIRONMENT  = var.env
@@ -51,10 +52,10 @@ locals {
 # Supervisor deployment
 resource "kubernetes_deployment" "supervisor" {
   metadata {
-    name      = "bench-${var.env}-${var.cloud}-${var.region}-supervisor"
+    name      = "${local.prefix}-supervisor"
     namespace = "default"
     labels = {
-      app = "bench-${var.env}-${var.cloud}-${var.region}-supervisor"
+      app = "${local.prefix}-supervisor"
     }
   }
 
@@ -63,14 +64,14 @@ resource "kubernetes_deployment" "supervisor" {
 
     selector {
       match_labels = {
-        app = "bench-${var.env}-${var.cloud}-${var.region}-supervisor"
+        app = "${local.prefix}-supervisor"
       }
     }
 
     template {
       metadata {
         labels = {
-          app = "bench-${var.env}-${var.cloud}-${var.region}-supervisor"
+          app = "${local.prefix}-supervisor"
         }
         annotations = {
           "prometheus.io/scrape" = "true"
@@ -99,10 +100,6 @@ resource "kubernetes_deployment" "supervisor" {
           name  = "supervisor"
           image = "ghcr.io/symbolx/bench-system:${var.git_commit}"
 
-          port {
-            container_port = 80
-            name           = "http"
-          }
           port {
             container_port = 60051
             name           = "grpc"
@@ -137,12 +134,12 @@ resource "kubernetes_deployment" "supervisor" {
 # Supervisor service
 resource "kubernetes_service" "supervisor" {
   metadata {
-    name = "bench-${var.env}-${var.cloud}-${var.region}-supervisor"
+    name = "${local.prefix}-supervisor"
   }
 
   spec {
     selector = {
-      app = "bench-${var.env}-${var.cloud}-${var.region}-supervisor"
+      app = "${local.prefix}-supervisor"
     }
 
     port {
@@ -163,7 +160,7 @@ resource "kubernetes_service" "supervisor" {
 # Envoy ConfigMap
 resource "kubernetes_config_map" "supervisor_envoy_config" {
   metadata {
-    name = "bench-${var.env}-${var.cloud}-${var.region}-supervisor-envoy-config"
+    name = "${local.prefix}-supervisor-envoy-config"
   }
 
   data = {
@@ -240,7 +237,7 @@ resource "kubernetes_config_map" "supervisor_envoy_config" {
                     - endpoint:
                         address:
                           socket_address:
-                            address: bench-${var.env}-${var.cloud}-${var.region}-supervisor
+                            address: ${local.prefix}-supervisor
                             port_value: 60061
     EOT
   }
@@ -249,9 +246,9 @@ resource "kubernetes_config_map" "supervisor_envoy_config" {
 # Envoy Deployment
 resource "kubernetes_deployment" "supervisor_envoy_proxy" {
   metadata {
-    name = "bench-${var.env}-${var.cloud}-${var.region}-supervisor-envoy-proxy"
+    name = "${local.prefix}-supervisor-envoy-proxy"
     labels = {
-      app = "bench-${var.env}-${var.cloud}-${var.region}-supervisor-envoy-proxy"
+      app = "${local.prefix}-supervisor-envoy-proxy"
     }
   }
 
@@ -260,14 +257,14 @@ resource "kubernetes_deployment" "supervisor_envoy_proxy" {
 
     selector {
       match_labels = {
-        app = "bench-${var.env}-${var.cloud}-${var.region}-supervisor-envoy-proxy"
+        app = "${local.prefix}-supervisor-envoy-proxy"
       }
     }
 
     template {
       metadata {
         labels = {
-          app = "bench-${var.env}-${var.cloud}-${var.region}-supervisor-envoy-proxy"
+          app = "${local.prefix}-supervisor-envoy-proxy"
         }
       }
 
@@ -322,13 +319,13 @@ resource "kubernetes_deployment" "supervisor_envoy_proxy" {
 # Envoy Service
 resource "kubernetes_service" "supervisor_envoy_proxy" {
   metadata {
-    name = "bench-${var.env}-${var.cloud}-${var.region}-supervisor-envoy-proxy"
+    name = "${local.prefix}-supervisor-envoy-proxy"
     annotations = {
       "service.beta.kubernetes.io/aws-load-balancer-type"                            = "nlb"
       "service.beta.kubernetes.io/aws-load-balancer-nlb-target-type"                 = "ip"
       "service.beta.kubernetes.io/aws-load-balancer-scheme"                          = "internet-facing"
       "service.beta.kubernetes.io/aws-load-balancer-backend-protocol"                = "ssl"
-      "service.beta.kubernetes.io/aws-load-balancer-name"                            = "bench-${var.env}-${var.cloud}-${var.region}-nlb"
+      "service.beta.kubernetes.io/aws-load-balancer-name"                            = "${local.prefix}-nlb"
       "service.beta.kubernetes.io/aws-load-balancer-healthcheck-protocol"            = "TCP"
       "service.beta.kubernetes.io/aws-load-balancer-healthcheck-healthy-threshold"   = "2"
       "service.beta.kubernetes.io/aws-load-balancer-healthcheck-unhealthy-threshold" = "2"
@@ -339,7 +336,7 @@ resource "kubernetes_service" "supervisor_envoy_proxy" {
 
   spec {
     selector = {
-      app = "bench-${var.env}-${var.cloud}-${var.region}-supervisor-envoy-proxy"
+      app = "${local.prefix}-supervisor-envoy-proxy"
     }
 
     port {
