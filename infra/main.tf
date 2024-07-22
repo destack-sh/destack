@@ -1,5 +1,9 @@
 terraform {
   required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
     cloudflare = {
       source  = "cloudflare/cloudflare"
       version = "~> 4.0"
@@ -7,10 +11,6 @@ terraform {
     acme = {
       source  = "vancluever/acme"
       version = "~> 2.0"
-    }
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.0"
     }
   }
 }
@@ -158,7 +158,8 @@ module "region_aws_eu_frankfurt" {
   global_pg_crypto_key = var.global_pg_crypto_key
 
   # web
-  web_certificate_arn            = aws_acm_certificate.main_website.arn
+  web_zone_id                     = data.cloudflare_zone.main_website.id
+  web_certificate_arn             = aws_acm_certificate.main_website.arn
   web_certificate_pem             = acme_certificate.main_website.certificate_pem
   web_certificate_private_key_pem = acme_certificate.main_website.private_key_pem
 

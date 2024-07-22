@@ -96,11 +96,3 @@ async def test_run_text_output_dict(
     assert run.outputs
     assert run.outputs.Mood == Mood.fields.Positive
     assert run.outputs.Style and run.outputs.Style.formality > 0  # type: ignore
-
-
-@pytest.mark.model()
-@_for_every_provider()
-async def test_run_text_with_context(
-    runner: RuntimeRunner, page: Block, model_provider: ModelProvider
-):
-    pass  # nocheckin

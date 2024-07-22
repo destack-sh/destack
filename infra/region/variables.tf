@@ -106,6 +106,11 @@ variable "global_pg_crypto_key" {
 # Web
 # 
 
+variable "web_zone_id" {
+  type        = string
+  description = "Cloudflare zone ID for the web domain"
+}
+
 variable "web_certificate_arn" {
   type        = string
   description = "Certificate ARN for the web domain"
