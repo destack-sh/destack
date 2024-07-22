@@ -134,7 +134,7 @@ resource "aws_route_table_association" "private" {
 
 #
 # AWS EKS cluster
-# NOTE :Infra :Architecture: eventually we'll want multiple clusters per region
+# NOTE :Infra :Architecture: right now 1 region = 1 cluster, but of course we'll later want multiple clusters per region
 #
 
 data "aws_caller_identity" "current" {}
@@ -167,9 +167,8 @@ module "cluster_0" {
   }
 }
 module "cluster_0_auth" {
-  source = "terraform-aws-modules/eks/aws//modules/aws-auth"
+  source = "github.com/terraform-aws-modules/terraform-aws-eks//modules/aws-auth"
 
-  # nocheckin: fix this stupid TF error
   manage_aws_auth_configmap = true
   aws_auth_users = [
     {
@@ -198,6 +197,7 @@ provider "helm" {
     cluster_ca_certificate = base64decode(data.aws_eks_cluster.cluster_0.certificate_authority[0].data)
     token                  = data.aws_eks_cluster_auth.cluster_0.token
   }
+  
 }
 
 

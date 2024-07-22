@@ -171,4 +171,5 @@ module "region_aws_eu_frankfurt" {
   anthropic_api_key = var.anthropic_api_key
   ghcr_username     = var.ghcr_username
   ghcr_token        = var.ghcr_token
+  betterstack_token = var.betterstack_token
 }
