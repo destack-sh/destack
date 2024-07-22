@@ -65,7 +65,7 @@ resource "kubernetes_deployment" "metrics_server" {
         service_account_name = kubernetes_service_account.metrics_server.metadata[0].name
         container {
           name  = "metrics-server"
-          image = "k8s.gcr.io/metrics-server/metrics-server:v0.6.1"
+          image = "bitnami/metrics-server:0.7.1"
 
           args = [
             "--cert-dir=/tmp",
@@ -119,27 +119,7 @@ resource "kubernetes_cluster_role" "kube_state_metrics" {
     name = "kube-state-metrics"
   }
   rule {
-    api_groups = [""]
-    resources  = ["*"]
-    verbs      = ["get", "list", "watch"]
-  }
-  rule {
-    api_groups = ["apps"]
-    resources  = ["*"]
-    verbs      = ["get", "list", "watch"]
-  }
-  rule {
-    api_groups = ["extensions"]
-    resources  = ["*"]
-    verbs      = ["get", "list", "watch"]
-  }
-  rule {
-    api_groups = ["batch"]
-    resources  = ["*"]
-    verbs      = ["get", "list", "watch"]
-  }
-  rule {
-    api_groups = ["autoscaling"]
+    api_groups = ["*"]
     resources  = ["*"]
     verbs      = ["get", "list", "watch"]
   }
@@ -184,7 +164,7 @@ resource "kubernetes_deployment" "kube_state_metrics" {
         service_account_name = kubernetes_service_account.kube_state_metrics.metadata[0].name
         container {
           name  = "kube-state-metrics"
-          image = "quay.io/coreos/kube-state-metrics:v1.9.8"
+          image = "bitnami/kube-state-metrics:2.13.0"
 
           port {
             container_port = 8080
@@ -243,6 +223,9 @@ resource "helm_release" "betterstack_logs" {
 
   values = [
     jsonencode({
+      metrics_server = {
+        enabled = false
+      }
       vector = {
         customConfig = {
           sinks = {
