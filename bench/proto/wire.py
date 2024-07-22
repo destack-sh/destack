@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.07.20.0"
+VERSION = "2024.07.22.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -360,6 +360,7 @@ class Cloud(betterproto.Enum):
     OCI = 13
     ALIBABA = 14
     HETZNER = 20
+    PRIVATE = 90
 
 
 class CodeType(betterproto.Enum):
@@ -1030,13 +1031,14 @@ class Region(betterproto.Enum):
     AFRICA = 5
     ASIA = 6
     OCEANIA = 7
+    PRIVATE = 900
     GLOBAL = 999
-    EUROPE_CENTRAL = 1000
-    EUROPE_ZURICH = 1001
-    EUROPE_FRANKFURT = 1002
-    NORTH_AMERICA_EAST = 2000
-    NORTH_AMERICA_VIRGINIA = 2001
-    NORTH_AMERICA_OHIO = 2002
+    EU_CENTRAL = 1000
+    EU_ZURICH = 1001
+    EU_FRANKFURT = 1002
+    NA_EAST = 2000
+    NA_VIRGINIA = 2001
+    NA_OHIO = 2002
 
 
 class ResourceStatus(betterproto.Enum):
@@ -3819,14 +3821,24 @@ class CreateBenchResponse(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class GetHostRequest(betterproto.Message):
+class GetHostsRequest(betterproto.Message):
+    benches: List["GetHostsRequestBenchKey"] = betterproto.message_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class GetHostsRequestBenchKey(betterproto.Message):
     id: str = betterproto.string_field(1, group="bench")
     slug: str = betterproto.string_field(2, group="bench")
 
 
 @dataclass(eq=False, repr=False)
-class GetHostResponse(betterproto.Message):
-    connection_uri: str = betterproto.string_field(1)
+class GetHostsResponse(betterproto.Message):
+    hosts: List["GetHostsResponseHostInfo"] = betterproto.message_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class GetHostsResponseHostInfo(betterproto.Message):
+    host_uri: str = betterproto.string_field(1)
     bench: "NodeReferenceData" = betterproto.message_field(2)
 
 
@@ -4183,18 +4195,18 @@ class SupervisorClient(betterproto.ServiceStub):
             metadata=metadata,
         )
 
-    async def get_host(
+    async def get_hosts(
         self,
-        request: "GetHostRequest",
+        request: "GetHostsRequest",
         *,
         timeout: Optional[float] = None,
         deadline: Optional["Deadline"] = None,
         metadata: Optional["MetadataLike"] = None,
-    ) -> "GetHostResponse":
+    ) -> "GetHostsResponse":
         return await self._unary_unary(
-            "/symbolx.bench.Supervisor/GetHost",
+            "/symbolx.bench.Supervisor/GetHosts",
             request,
-            GetHostResponse,
+            GetHostsResponse,
             timeout=timeout,
             deadline=deadline,
             metadata=metadata,
@@ -4568,7 +4580,7 @@ class SupervisorBase(ServiceBase):
     ) -> "CreateBenchResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def get_host(self, subject: "Subject", request: "GetHostRequest") -> "GetHostResponse":
+    async def get_hosts(self, subject: "Subject", request: "GetHostsRequest") -> "GetHostsResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def __rpc_get_nodes(
@@ -4668,11 +4680,11 @@ class SupervisorBase(ServiceBase):
         response = await self.create_bench(request)
         await stream.send_message(response)
 
-    async def __rpc_get_host(
-        self, stream: "grpclib.server.Stream[GetHostRequest, GetHostResponse]"
+    async def __rpc_get_hosts(
+        self, stream: "grpclib.server.Stream[GetHostsRequest, GetHostsResponse]"
     ) -> None:
         request = await stream.recv_message()
-        response = await self.get_host(request)
+        response = await self.get_hosts(request)
         await stream.send_message(response)
 
     def __mapping__(self) -> Dict[str, grpclib.const.Handler]:
@@ -4749,11 +4761,11 @@ class SupervisorBase(ServiceBase):
                 CreateBenchRequest,
                 CreateBenchResponse,
             ),
-            "/symbolx.bench.Supervisor/GetHost": grpclib.const.Handler(
-                self.__rpc_get_host,
+            "/symbolx.bench.Supervisor/GetHosts": grpclib.const.Handler(
+                self.__rpc_get_hosts,
                 grpclib.const.Cardinality.UNARY_UNARY,
-                GetHostRequest,
-                GetHostResponse,
+                GetHostsRequest,
+                GetHostsResponse,
             ),
         }
 

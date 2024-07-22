@@ -12,19 +12,29 @@ variable "git_commit" {
   description = "Git commit hash"
 }
 
-variable "cloud" {
-  type        = string
-  description = "Cloud provider"
-}
-
 variable "env" {
   type        = string
   description = "Environment name"
 }
 
+variable "cloud" {
+  type        = string
+  description = "Cloud provider"
+}
+
 variable "region" {
   type        = string
   description = "Bench region"
+}
+
+variable "is_primary" {
+  type        = bool
+  description = "Whether this is the primary region (with the supervisor)"
+}
+
+variable "host_map" {
+  type        = map(string)
+  description = "Host map"
 }
 
 variable "aws_availability_zones" {

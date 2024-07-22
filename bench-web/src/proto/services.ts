@@ -133,7 +133,7 @@ const operationsTracker = {
     };
     const onError = async (error: RpcError) => {
       const code = error.code;
-      const meta = op.options as OperationMetadata<any>
+      const meta = op.options as OperationMetadata<any>;
       if (!meta.suppressErrors) {
         log.error(rpcName, code, error, op);
         toaster.error(humanizeError(error));
@@ -154,7 +154,7 @@ const operationsTracker = {
       });
       op.call.responses.onComplete(() => {
         terminate();
-        log.trace(rpcName, "completed", formatDuration(op.duration!, { maxUnit: "ms" }));
+        log.trace(rpcName, "complete", formatDuration(op.duration!, { maxUnit: "ms" }));
         remove();
       });
       op.call.responses.onError((error) => {
@@ -169,7 +169,7 @@ const operationsTracker = {
         .then((output) => {
           op.response = output;
           terminate();
-          log.trace(rpcName, "completed", formatDuration(op.duration!, { maxUnit: "ms" }), output);
+          log.trace(rpcName, "complete", formatDuration(op.duration!, { maxUnit: "ms" }), output);
         })
         .catch((error) => {
           op.error = error;
@@ -307,18 +307,25 @@ export const supervisor = new SupervisorClient(
   }),
 );
 
-/** Gets the Host for a given Bench (looking up host info via supervisor if not cached) */
+/**
+ * Gets the Host for a given Bench (looking up host info via supervisor if not cached)
+ * NOTE :Performance: cache resolved hosts across session in local storage?
+ */
 export async function getHostClient(bench: { id: string }): Promise<HostClient> {
   if ("id" in bench && _CACHED_BENCH_IDS[bench.id]) return _CACHED_HOST_CLIENTS[bench.id];
 
-  // TODO :Scalability: lookup bench host (via supervisor?) :SingleHostService
-  // const hostInfo = await supervisor.getHost({
-  //   bench: "id" in bench ? { id: bench.id, oneofKind: "id" } : { slug: bench.slug, oneofKind: "slug" },
-  // }).response;
-  const hostInfo = { host: SUPERVISOR_URL };
-  const hostClient = new HostClient(new BenchGrpcWebTransport({ baseUrl: hostInfo.host }));
-  _CACHED_HOST_CLIENTS[bench.id!] = hostClient;
-  return hostClient;
+  log.debug("system.getHost", bench);
+  try {
+    const { hosts: hostInfos } = await supervisor.getHosts({ benches: [{ bench: { oneofKind: "id", id: bench.id } }] })
+      .response;
+    const hostClient = new HostClient(new BenchGrpcWebTransport({ baseUrl: `https://${hostInfos[0].hostUri}` }));
+    _CACHED_HOST_CLIENTS[bench.id!] = hostClient;
+    log.debug("system.getHost.complete", bench, hostInfos);
+    return hostClient;
+  } catch (e) {
+    log.error("system.getHost.error", bench, e);
+    throw e;
+  }
 }
 
 /** Gets the Graph client for a given scope */

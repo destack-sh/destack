@@ -4,8 +4,8 @@
 // tslint:disable
 import { Host } from "./system";
 import { Supervisor } from "./system";
-import type { GetHostResponse } from "./system";
-import type { GetHostRequest } from "./system";
+import type { GetHostsResponse } from "./system";
+import type { GetHostsRequest } from "./system";
 import type { CreateBenchResponse } from "./system";
 import type { CreateBenchRequest } from "./system";
 import type { LogoutUserResponse } from "./system";
@@ -240,9 +240,9 @@ export interface ISupervisorClient {
     /**
      * Gets Bench host information.
      *
-     * @generated from protobuf rpc: GetHost(symbolx.bench.GetHostRequest) returns (symbolx.bench.GetHostResponse);
+     * @generated from protobuf rpc: GetHosts(symbolx.bench.GetHostsRequest) returns (symbolx.bench.GetHostsResponse);
      */
-    getHost(input: GetHostRequest, options?: OperationOptions): UnaryCall<GetHostRequest, GetHostResponse>;
+    getHosts(input: GetHostsRequest, options?: OperationOptions): UnaryCall<GetHostsRequest, GetHostsResponse>;
 }
 /**
  * Global control plane: create & manage the global stuff like Benches, Users, etc..
@@ -364,11 +364,11 @@ export class SupervisorClient implements ISupervisorClient, ServiceInfo {
     /**
      * Gets Bench host information.
      *
-     * @generated from protobuf rpc: GetHost(symbolx.bench.GetHostRequest) returns (symbolx.bench.GetHostResponse);
+     * @generated from protobuf rpc: GetHosts(symbolx.bench.GetHostsRequest) returns (symbolx.bench.GetHostsResponse);
      */
-    getHost(input: GetHostRequest, options?: OperationOptions): UnaryCall<GetHostRequest, GetHostResponse> {
+    getHosts(input: GetHostsRequest, options?: OperationOptions): UnaryCall<GetHostsRequest, GetHostsResponse> {
         const method = this.methods[12], opt = this._transport.mergeOptions(options);
-        return stackIntercept<GetHostRequest, GetHostResponse>("unary", this._transport, method, opt, input);
+        return stackIntercept<GetHostsRequest, GetHostsResponse>("unary", this._transport, method, opt, input);
     }
 }
 // 

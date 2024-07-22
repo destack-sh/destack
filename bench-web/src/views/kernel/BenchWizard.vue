@@ -18,7 +18,7 @@ const { graph: spaceGraph } = useExistingConnection(toRef(props, "self"));
 
 const self = toRef(props, "self");
 const slug: Ref<string> = ref("");
-const region: Ref<Region> = ref(Region.EUROPE_CENTRAL);
+const region: Ref<Region> = ref(Region.EU_FRANKFURT);
 const isActive = ref(false);
 const isActivated = computed(() => user.value?.status == UserStatus.ACTIVATED);
 

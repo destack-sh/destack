@@ -464,7 +464,7 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
             );
             connectedSignal.set();
             this.abortController = null;
-            log.debug(`graph.${this.kind}.completed`, this.meta.name, this.params, newResult);
+            log.debug(`graph.${this.kind}.complete`, this.meta.name, this.params, newResult);
           } finally {
             if (this.abortController) {
               // cleanup
