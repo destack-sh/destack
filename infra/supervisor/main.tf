@@ -1,3 +1,19 @@
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = "~> 2.0"
+    }
+    helm = {
+      source  = "hashicorp/helm"
+      version = ">= 2.14.0"
+    }
+  }
+}
 
 # 
 # Supervisor
@@ -154,7 +170,7 @@ resource "kubernetes_config_map" "supervisor_envoy_config" {
     "envoy.yaml" = <<-EOT
       static_resources:
         listeners:
-        - name: listener_0
+        - name: grpc_listener
           address:
             socket_address: { address: 0.0.0.0, port_value: 8080 }
           filter_chains:
@@ -193,6 +209,12 @@ resource "kubernetes_config_map" "supervisor_envoy_config" {
                     - name: envoy.filters.http.router
                       typed_config:
                         "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+                  access_log:
+                    - name: envoy.access_loggers.stdout
+                      typed_config:
+                        "@type": type.googleapis.com/envoy.extensions.access_loggers.stream.v3.StdoutAccessLog
+                        log_format:
+                          text_format: "[%START_TIME%] \"%REQ(:METHOD)% %REQ(X-ENVOY-ORIGINAL-PATH?:PATH)% %PROTOCOL%\" %RESPONSE_CODE% %RESPONSE_FLAGS% %BYTES_RECEIVED% %BYTES_SENT% %DURATION% %RESP(X-ENVOY-UPSTREAM-SERVICE-TIME)% \"%REQ(X-FORWARDED-FOR)%\" \"%REQ(USER-AGENT)%\" \"%REQ(X-REQUEST-ID)%\" \"%REQ(:AUTHORITY)%\" \"%UPSTREAM_HOST%\"\n"
               # tls to enable h2
               transport_socket:
                 name: envoy.tls_context.http3
@@ -255,7 +277,7 @@ resource "kubernetes_deployment" "supervisor_envoy_proxy" {
           name  = "envoy"
 
           port {
-            container_port = 443
+            container_port = 8080
           }
 
           volume_mount {
@@ -302,13 +324,16 @@ resource "kubernetes_service" "supervisor_envoy_proxy" {
   metadata {
     name = "bench-${var.env}-${var.cloud}-${var.region}-supervisor-envoy-proxy"
     annotations = {
-      "service.beta.kubernetes.io/aws-load-balancer-type"                   = "nlb"
-      "service.beta.kubernetes.io/aws-load-balancer-nlb-target-type"        = "ip"
-      "service.beta.kubernetes.io/aws-load-balancer-scheme"                 = "internet-facing"
-      "service.beta.kubernetes.io/aws-load-balancer-ssl-ports"              = "443"
-      "service.beta.kubernetes.io/aws-load-balancer-ssl-negotiation-policy" = "ELBSecurityPolicy-TLS-1-2-2017-01"
-      "service.beta.kubernetes.io/aws-load-balancer-backend-protocol"       = "ssl"
-      "service.beta.kubernetes.io/aws-load-balancer-name"                   = "bench-${var.env}-${var.cloud}-${var.region}-nlb"
+      "service.beta.kubernetes.io/aws-load-balancer-type"                            = "nlb"
+      "service.beta.kubernetes.io/aws-load-balancer-nlb-target-type"                 = "ip"
+      "service.beta.kubernetes.io/aws-load-balancer-scheme"                          = "internet-facing"
+      "service.beta.kubernetes.io/aws-load-balancer-backend-protocol"                = "ssl"
+      "service.beta.kubernetes.io/aws-load-balancer-name"                            = "bench-${var.env}-${var.cloud}-${var.region}-nlb"
+      "service.beta.kubernetes.io/aws-load-balancer-healthcheck-protocol"            = "TCP"
+      "service.beta.kubernetes.io/aws-load-balancer-healthcheck-healthy-threshold"   = "2"
+      "service.beta.kubernetes.io/aws-load-balancer-healthcheck-unhealthy-threshold" = "2"
+      "service.beta.kubernetes.io/aws-load-balancer-healthcheck-interval"            = "10"
+      "service.beta.kubernetes.io/aws-load-balancer-healthcheck-timeout"             = "5"
     }
   }
 
@@ -318,8 +343,9 @@ resource "kubernetes_service" "supervisor_envoy_proxy" {
     }
 
     port {
+      name        = "grpc-web"
       port        = 443
-      target_port = 443
+      target_port = 8080
     }
 
     type = "LoadBalancer"
@@ -334,7 +360,7 @@ data "kubernetes_service" "supervisor_envoy_proxy" {
   depends_on = [kubernetes_service.supervisor_envoy_proxy]
 }
 
-output "supervisor_load_balancer_hostname" {
+output "supervisor_hostname" {
   value       = data.kubernetes_service.supervisor_envoy_proxy.status.0.load_balancer.0.ingress.0.hostname
-  description = "The hostname of the load balancer"
+  description = "The public hostname of the load balancer"
 }

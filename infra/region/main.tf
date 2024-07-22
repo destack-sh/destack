@@ -12,6 +12,10 @@ terraform {
       source  = "hashicorp/helm"
       version = ">= 2.14.0"
     }
+    cloudflare = {
+      source  = "cloudflare/cloudflare"
+      version = "~> 4.0"
+    }
   }
 }
 
@@ -250,6 +254,7 @@ resource "aws_s3_bucket" "bench_public" {
 
 #
 # Supervisor (if primary)
+# NOTE :Infra: supervisor should probably be in its own cluster (or even just a lone EC2 instance)
 #
 
 module "supervisor" {
@@ -282,4 +287,20 @@ module "supervisor" {
   sentry_dsn    = var.sentry_dsn
   neon_api_key  = var.neon_api_key
   neon_base_url = var.neon_base_url
+}
+
+# point 'supervisor.' to the supervisor ingress
+resource "cloudflare_record" "supervisor" {
+  count   = var.is_primary ? 1 : 0
+  zone_id = var.web_zone_id
+  name    = "supervisor"
+  type    = "CNAME"
+  value   = module.supervisor[0].supervisor_hostname
+  ttl     = 300
+  proxied = false
+}
+
+output "supervisor_hostname" {
+  value       = module.supervisor[0].supervisor_hostname
+  description = "The public hostname of the supervisor (if primary)"
 }
