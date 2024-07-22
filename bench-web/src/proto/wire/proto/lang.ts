@@ -7111,7 +7111,11 @@ export enum Cloud {
     /**
      * @generated from protobuf enum value: CLOUD_HETZNER = 20;
      */
-    HETZNER = 20
+    HETZNER = 20,
+    /**
+     * @generated from protobuf enum value: CLOUD_PRIVATE = 90;
+     */
+    PRIVATE = 90
 }
 /**
  * The implicit 'type' of some Code.
@@ -9385,33 +9389,37 @@ export enum Region {
      */
     OCEANIA = 7,
     /**
+     * @generated from protobuf enum value: REGION_PRIVATE = 900;
+     */
+    PRIVATE = 900,
+    /**
      * @generated from protobuf enum value: REGION_GLOBAL = 999;
      */
     GLOBAL = 999,
     /**
-     * @generated from protobuf enum value: REGION_EUROPE_CENTRAL = 1000;
+     * @generated from protobuf enum value: REGION_EU_CENTRAL = 1000;
      */
-    EUROPE_CENTRAL = 1000,
+    EU_CENTRAL = 1000,
     /**
-     * @generated from protobuf enum value: REGION_EUROPE_ZURICH = 1001;
+     * @generated from protobuf enum value: REGION_EU_ZURICH = 1001;
      */
-    EUROPE_ZURICH = 1001,
+    EU_ZURICH = 1001,
     /**
-     * @generated from protobuf enum value: REGION_EUROPE_FRANKFURT = 1002;
+     * @generated from protobuf enum value: REGION_EU_FRANKFURT = 1002;
      */
-    EUROPE_FRANKFURT = 1002,
+    EU_FRANKFURT = 1002,
     /**
-     * @generated from protobuf enum value: REGION_NORTH_AMERICA_EAST = 2000;
+     * @generated from protobuf enum value: REGION_NA_EAST = 2000;
      */
-    NORTH_AMERICA_EAST = 2000,
+    NA_EAST = 2000,
     /**
-     * @generated from protobuf enum value: REGION_NORTH_AMERICA_VIRGINIA = 2001;
+     * @generated from protobuf enum value: REGION_NA_VIRGINIA = 2001;
      */
-    NORTH_AMERICA_VIRGINIA = 2001,
+    NA_VIRGINIA = 2001,
     /**
-     * @generated from protobuf enum value: REGION_NORTH_AMERICA_OHIO = 2002;
+     * @generated from protobuf enum value: REGION_NA_OHIO = 2002;
      */
-    NORTH_AMERICA_OHIO = 2002
+    NA_OHIO = 2002
 }
 /**
  * Generalized status of a Resource in its lifecycle.

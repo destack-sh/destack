@@ -1,8 +1,13 @@
 locals {
-  bench_version               = file("../version")
-  global_region               = "eu-zurich"    # global state
-  primary_region              = "eu-frankfurt" # supervisor
-  main_website                = "justbench.com"
+  bench_version = file("../version")
+  global_region = "eu-zurich" # global state
+  regions       = ["eu-frankfurt"]
+  main_website  = "justbench.com"
+
+  host_map = {
+    "eu-frankfurt" = "aws-eu-frankfurt.host.${local.main_website}"
+  }
+
   aws_global_vpc_network_cidr = "10.0.0.0/16"
   aws_region_by_bench_region = {
     "eu-zurich" : "eu-central-2"
@@ -87,7 +92,7 @@ resource "aws_route_table" "global_public" {
   }
 }
 resource "aws_route_table_association" "global_public" {
-  count          = length(aws_subnet.global_public) 
+  count          = length(aws_subnet.global_public)
   subnet_id      = aws_subnet.global_public[count.index].id
   route_table_id = aws_route_table.global_public.id
 }
@@ -108,6 +113,8 @@ module "region_aws_eu_frankfurt" {
   env                    = var.env
   cloud                  = "aws"
   region                 = "eu-frankfurt"
+  is_primary             = true
+  host_map               = local.host_map
   aws_availability_zones = ["eu-central-1a", "eu-central-1b"]
 
   # aws
@@ -138,15 +145,3 @@ module "region_aws_eu_frankfurt" {
   ghcr_username     = var.ghcr_username
   ghcr_token        = var.ghcr_token
 }
-
-# put all regions in a map
-locals {
-  regions = {
-    "aws-eu-frankfurt" = module.region_aws_eu_frankfurt
-  }
-}
-
-#
-# Peering
-# NOTE :Infra: peer VPCs instead of using public gateways
-# ...

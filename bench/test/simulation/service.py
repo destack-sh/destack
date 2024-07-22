@@ -10,6 +10,7 @@ from bench.proto import wire
 from bench.proto.services import ServiceBase
 from bench.proto.wire import CreateBenchRequest, HostClient, SupervisorClient
 from bench.system.host import Host
+from bench.system.sharding import HostMap
 from bench.system.supervisor import Supervisor
 from bench.test.simulation.spec import HostSpec, ServiceSpec, SupervisorSpec
 from bench.test.simulation.transport import SimulatedChannel
@@ -81,7 +82,9 @@ class SupervisorHandle(ServiceHandle[SupervisorSpec, Supervisor, SupervisorClien
 
     @override
     async def _do_start(self):
-        service = Supervisor(global_store=self.simulation.global_store, oracle=self.oracle)
+        service = Supervisor(
+            global_store=self.simulation.global_store, oracle=self.oracle, host_map=HostMap({})
+        )
         await service.start()
         return service
 
@@ -115,7 +118,7 @@ class HostHandle(ServiceHandle[HostSpec, Host, HostClient]):
             owner=NodeReference.from_node_data(client.user.user_data),
             is_main=True,
             slug=self.spec.bench.name,
-            region=wire.Region.EUROPE_CENTRAL,
+            region=wire.Region.EU_ZURICH,
         )
         create_bench_rep = await supervisor_client.create_bench(
             create_bench_req, metadata=client.rpc_headers

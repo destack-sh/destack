@@ -21,8 +21,9 @@ from bench.proto.wire import (
     ClientDataIn,
     CreateBenchRequest,
     CreateBenchResponse,
-    GetHostRequest,
-    GetHostResponse,
+    GetHostsRequest,
+    GetHostsResponse,
+    GetHostsResponseHostInfo,
     LoginUserRequest,
     LoginUserResponse,
     LogoutUserRequest,
@@ -49,6 +50,7 @@ from bench.system.core import (
 )
 from bench.system.graph import GraphIoServiceBase
 from bench.system.provisioner import provision
+from bench.system.sharding import HostMap
 from bench.utils.func import generate_access_token, generate_salt, to_uuid
 from bench.utils.oracle import Oracle
 
@@ -59,7 +61,7 @@ tracer = trace.get_tracer(__name__)
 class Supervisor(GraphIoServiceBase, SupervisorBase):
     kind = ServiceKind.PUBLIC  # :ServiceKind
 
-    def __init__(self, global_store: Store, oracle: Oracle):
+    def __init__(self, global_store: Store, oracle: Oracle, host_map: HostMap):
         GraphIoServiceBase.__init__(
             self,
             bench_id=None,
@@ -70,6 +72,7 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
         )
         self._global_store = global_store
         self._global_pg_engine = pg_engine_from_store(global_store)
+        self._host_map = host_map
 
     def __str__(self):
         return "shards=[*]"
@@ -362,16 +365,24 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
         return CreateBenchResponse(bench=bench._to_data())
 
     @override
-    async def get_host(self, subject: "Subject", request: "GetHostRequest") -> "GetHostResponse":
-        key, value = betterproto.which_one_of(request, "bench")
+    async def get_hosts(self, subject: "Subject", request: "GetHostsRequest") -> "GetHostsResponse":
         async with self.request_session(supergraph=subject._supergraph):
-            if key == "id":
-                await Bench.get(id=to_uuid(value))
-            elif key == "slug":
-                await Bench.get(slug=value)
-            else:
-                raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "no bench specified")
-        raise GRPCError(GRPCStatus.UNIMPLEMENTED, "not implemented :SingleHostService")
+            hosts: list[GetHostsResponseHostInfo] = []
+            for bench_key in request.benches:
+                # NOTE :Performance: batch get_hosts lookups
+                key, value = betterproto.which_one_of(bench_key, "bench")
+                if key == "id":
+                    bench = await Bench.get(id=to_uuid(value))
+                elif key == "slug":
+                    bench = await Bench.get(slug=value)
+                else:
+                    raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "no bench specified")
+                host_uri = self._host_map.get(bench.region)
+                if host_uri is None:
+                    raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "no host for bench")
+                host_info = GetHostsResponseHostInfo(host_uri=host_uri, bench=bench._to_ref_data())
+                hosts.append(host_info)
+        return GetHostsResponse(hosts=hosts)
 
 
 async def create_default_bench(

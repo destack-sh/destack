@@ -41,7 +41,7 @@ const name: Ref<string> = ref("");
 const slug: Ref<string> = ref("");
 const email: Ref<string> = ref("");
 const password: Ref<string> = ref("");
-const region: Ref<Region> = ref(Region.EUROPE_CENTRAL);
+const region: Ref<Region> = ref(Region.EU_FRANKFURT);
 const isActive = ref(false);
 
 function clear() {

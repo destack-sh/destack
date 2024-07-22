@@ -148,6 +148,7 @@ module "cluster_0" {
 module "cluster_0_auth" {
   source = "terraform-aws-modules/eks/aws//modules/aws-auth"
 
+  # nocheckin: fix this stupid TF error
   manage_aws_auth_configmap = true
   aws_auth_users = [
     {

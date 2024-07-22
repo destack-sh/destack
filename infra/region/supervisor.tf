@@ -9,6 +9,12 @@ locals {
     ENVIRONMENT  = var.env
     CLOUD        = var.cloud
     REGION       = var.region
+    # encode host map as k=v,k=v,...
+    HOST_MAP = join(",", flatten([
+      for k, v in var.host_map : [
+        format("%s=%s", k, v)
+      ]
+    ]))
 
     GLOBAL_PG_HOST       = var.global_pg_host
     GLOBAL_PG_NAME       = var.global_pg_name
@@ -31,6 +37,8 @@ locals {
 
 # Supervisor deployment
 resource "kubernetes_deployment" "supervisor" {
+  count = var.is_primary ? 1 : 0
+
   metadata {
     name      = "bench-${var.env}-${var.cloud}-${var.region}-supervisor"
     namespace = "default"
@@ -97,7 +105,7 @@ resource "kubernetes_deployment" "supervisor" {
             }
           }
 
-          command = ["python", "bench.py", "serve", "supervisor"]
+          command = ["python", "bench.py", "serve", "supervisor", "0.0.0.0", "60061"]
 
           resources {
             requests = {
@@ -117,6 +125,8 @@ resource "kubernetes_deployment" "supervisor" {
 
 # Supervisor service
 resource "kubernetes_service" "supervisor" {
+  count = var.is_primary ? 1 : 0
+
   metadata {
     name = "bench-${var.env}-${var.cloud}-${var.region}-supervisor"
   }
