@@ -90,7 +90,7 @@ watch(
     setTimeout(() => {
       try {
         canvas.restoreComponentFocus();
-        log.debug("space.restoreFocus", spacePtr.value, spaceConnection.result.value);
+        log.trace("space.restoreFocus", spacePtr.value, spaceConnection.result.value);
       } catch (e) {
         log.warn("space.restoreFocus.error", spacePtr.value, spaceConnection.result.value, e);
       }
