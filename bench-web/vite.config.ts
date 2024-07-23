@@ -9,18 +9,26 @@ export default defineConfig(({ mode }) => ({
   logLevel: "info",
   plugins: [vue(), vueJsx()],
   resolve: {
-    // Resolve grpc-web/Vite issue (see https://github.com/grpc/grpc-web/issues/1242#issuecomment-1816249928)
     preserveSymlinks: true,
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
   },
   build: {
-    chunkSizeWarningLimit: 4096,
+    chunkSizeWarningLimit: 8 * 1024,
     minify: mode !== "unminified",
     rollupOptions: {
       output: {
-        manualChunks: () => "everything.js",
+        entryFileNames: 'assets/[name].js',
+        chunkFileNames: 'assets/[name].js',
+        assetFileNames: 'assets/[name].[ext]',
+        manualChunks: () => 'everything.js',
+      },
+      onwarn(warning, warn) {
+        if (warning.message.includes('but also statically imported by')) {
+          return;
+        }
+        warn(warning);
       },
     },
   },
