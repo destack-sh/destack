@@ -966,17 +966,17 @@ enum ReferenceKind {
 // Actual regions within a Zone in an Area.
 enum Region {
   REGION_UNSPECIFIED = 0;
-  REGION_EUROPE_ZURICH = 1001;
-  REGION_EUROPE_FRANKFURT = 1002;
-  REGION_NORTH_AMERICA_VIRGINIA = 2001;
-  REGION_NORTH_AMERICA_OHIO = 2002;
-  REGION_NORTH_AMERICA_OREGON = 2101;
-  REGION_SOUTH_AMERICA_SAO_PAULO = 3001;
-  REGION_AFRICA_CAPE_TOWN = 5001;
-  REGION_ASIA_MUMBAI = 6001;
-  REGION_ASIA_SINGAPORE = 6101;
-  REGION_ASIA_TOKYO = 6201;
-  REGION_AUSTRALIA_SYDNEY = 7001;
+  REGION_ZURICH = 1001;
+  REGION_FRANKFURT = 1002;
+  REGION_VIRGINIA = 2001;
+  REGION_OHIO = 2002;
+  REGION_OREGON = 2101;
+  REGION_SAO_PAULO = 3001;
+  REGION_CAPE_TOWN = 5001;
+  REGION_MUMBAI = 6001;
+  REGION_SINGAPORE = 6101;
+  REGION_TOKYO = 6201;
+  REGION_SYDNEY = 7001;
 }
 
 // Rough 'contintents' of Regions.
@@ -2297,7 +2297,7 @@ message FieldData {
 }
 
 // A file stored in a Drive (or externally).
-// De-duplicated so that there's only one File per unique file content for our own files (sha512).
+// De-duplicated so that there's only one File per unique file content for our own files.
 message FileData {
   ObjectType metatype = 1;
   string id = 2;

@@ -51,7 +51,7 @@ export interface Geolocation {
 async function getGeolocation(): Promise<Geolocation> {
   try {
     const response = IP_API_KEY
-      ? await fetch(`https://pro.ip-api.com/json/?fields=${GEOLOCATION_FIELDS.join(",")}&key=${IP_API_KEY}}`, {
+      ? await fetch(`https://pro.ip-api.com/json/?fields=${GEOLOCATION_FIELDS.join(",")}&key=${IP_API_KEY}`, {
           credentials: "omit",
         })
       : await fetch(`http://ip-api.com/json/?fields=${GEOLOCATION_FIELDS.join(",")}`); // only works in HTTP context (can't request HTTP in HTTPS)
@@ -93,12 +93,12 @@ const REGION_AREA_BY_CONTINENT_CODE: Record<string, RegionArea> = {
 };
 
 export const DEFAULT_REGION_BY_AREA: Partial<Record<RegionArea, Region>> = {
-  [RegionArea.EUROPE]: Region.EUROPE_FRANKFURT,
-  [RegionArea.NORTH_AMERICA]: Region.NORTH_AMERICA_VIRGINIA,
-  [RegionArea.SOUTH_AMERICA]: Region.SOUTH_AMERICA_SAO_PAULO,
-  [RegionArea.AFRICA]: Region.AFRICA_CAPE_TOWN,
-  [RegionArea.ASIA]: Region.ASIA_MUMBAI,
-  [RegionArea.AUSTRALIA]: Region.AUSTRALIA_SYDNEY,
+  [RegionArea.EUROPE]: Region.FRANKFURT,
+  [RegionArea.NORTH_AMERICA]: Region.VIRGINIA,
+  [RegionArea.SOUTH_AMERICA]: Region.SAO_PAULO,
+  [RegionArea.AFRICA]: Region.CAPE_TOWN,
+  [RegionArea.ASIA]: Region.MUMBAI,
+  [RegionArea.AUSTRALIA]: Region.SYDNEY,
 };
 
 const _geolocation: Ref<Geolocation | null> = shallowRef(null);

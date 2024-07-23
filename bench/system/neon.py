@@ -55,12 +55,12 @@ class NeonApi(abc.ABC):
 
 
 NEON_REGION_BY_REGION: dict[Region, str] = {
-    Region.EUROPE_FRANKFURT: "aws-eu-central-1",
-    Region.NORTH_AMERICA_VIRGINIA: "aws-us-east-1",
-    Region.NORTH_AMERICA_OHIO: "aws-us-east-2",
-    Region.NORTH_AMERICA_OREGON: "aws-us-west-2",
-    Region.ASIA_SINGAPORE: "aws-ap-southeast-1",
-    Region.AUSTRALIA_SYDNEY: "aws-ap-southeast-2",
+    Region.FRANKFURT: "aws-eu-central-1",
+    Region.VIRGINIA: "aws-us-east-1",
+    Region.OHIO: "aws-us-east-2",
+    Region.OREGON: "aws-us-west-2",
+    Region.SINGAPORE: "aws-ap-southeast-1",
+    Region.SYDNEY: "aws-ap-southeast-2",
 }
 NEON_MAIN_ENDPOINT_SETTINGS = {
     "autoscaling_limit_min_cu": 0.25,

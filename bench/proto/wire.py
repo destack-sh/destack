@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.07.23.2"
+VERSION = "2024.07.23.3"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -1023,17 +1023,17 @@ class Region(betterproto.Enum):
     """Actual regions within a Zone in an Area."""
 
     UNSPECIFIED = 0
-    EUROPE_ZURICH = 1001
-    EUROPE_FRANKFURT = 1002
-    NORTH_AMERICA_VIRGINIA = 2001
-    NORTH_AMERICA_OHIO = 2002
-    NORTH_AMERICA_OREGON = 2101
-    SOUTH_AMERICA_SAO_PAULO = 3001
-    AFRICA_CAPE_TOWN = 5001
-    ASIA_MUMBAI = 6001
-    ASIA_SINGAPORE = 6101
-    ASIA_TOKYO = 6201
-    AUSTRALIA_SYDNEY = 7001
+    ZURICH = 1001
+    FRANKFURT = 1002
+    VIRGINIA = 2001
+    OHIO = 2002
+    OREGON = 2101
+    SAO_PAULO = 3001
+    CAPE_TOWN = 5001
+    MUMBAI = 6001
+    SINGAPORE = 6101
+    TOKYO = 6201
+    SYDNEY = 7001
 
 
 class RegionArea(betterproto.Enum):
@@ -2577,7 +2577,7 @@ class FieldData(betterproto.Message):
 class FileData(betterproto.Message):
     """
     A file stored in a Drive (or externally).
-     De-duplicated so that there's only one File per unique file content for our own files (sha512).
+     De-duplicated so that there's only one File per unique file content for our own files.
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)

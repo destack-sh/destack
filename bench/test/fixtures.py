@@ -42,7 +42,7 @@ def make_system_store(name: str):
         id=UUID(int=0),
         name="System",
         slug="system",
-        region=Region.EUROPE_ZURICH,
+        region=Region.ZURICH,
         encryption_key=GLOBAL_PG_CRYPTO_KEY,
         _supergraph=supergraph,
         created_at=BEGINNING_OF_TIME,

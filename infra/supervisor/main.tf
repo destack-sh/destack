@@ -42,7 +42,6 @@ locals {
     TRACING                  = 0
     LOG_LEVEL                = "DEBUG"
     LOG_MODE                 = "JSON"
-    CONNECTION_CACHE_ENABLED = 0
     USE_WAITLIST             = 1
 
     SENTRY_DSN    = var.sentry_dsn

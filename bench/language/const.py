@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.07.23.2"  # auto change via version script
+VERSION = "2024.07.23.3"  # auto change via version script
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -517,36 +517,36 @@ REGION_ZONE_BY_SLUG = {v: k for k, v in REGION_ZONE_SLUGS.items()}
 class Region(IdEnum):
     """Actual regions within a Zone in an Area."""
 
-    # europe-central
-    EUROPE_ZURICH = 1001
-    EUROPE_FRANKFURT = 1002
+    # eu-central
+    ZURICH = 1001
+    FRANKFURT = 1002
 
-    # north-america-east
-    NORTH_AMERICA_VIRGINIA = 2001
-    NORTH_AMERICA_OHIO = 2002
+    # na-east
+    VIRGINIA = 2001
+    OHIO = 2002
 
-    # north-america-west
-    NORTH_AMERICA_OREGON = 2101
+    # na-west
+    OREGON = 2101
 
-    # south-america-east
-    SOUTH_AMERICA_SAO_PAULO = 3001
+    # sa-east
+    SAO_PAULO = 3001
 
     ...
 
-    # africa-south
-    AFRICA_CAPE_TOWN = 5001
+    # af-south
+    CAPE_TOWN = 5001
 
-    # asia-east
-    ASIA_MUMBAI = 6001
+    # as-east
+    MUMBAI = 6001
 
-    # asia-south
-    ASIA_SINGAPORE = 6101
+    # as-south
+    SINGAPORE = 6101
 
-    # asia-east
-    ASIA_TOKYO = 6201
+    # as-east
+    TOKYO = 6201
 
-    # australia-south
-    AUSTRALIA_SYDNEY = 7001
+    # au-south
+    SYDNEY = 7001
 
     @property
     def zone(self) -> RegionZone:
@@ -559,7 +559,7 @@ class Region(IdEnum):
     @property
     def slug(self) -> str:
         area = self.area
-        return area.slug + "-" + self.name[len(area.name) + 1 :].replace("_", "-").lower()
+        return area.slug + "-" + self.name.replace("_", "-").lower()
 
     @staticmethod
     def get_by_slug(slug: str) -> "Region":
