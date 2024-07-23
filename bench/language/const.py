@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.07.23.3"  # auto change via version script
+VERSION = "2024.07.23.4"  # auto change via version script
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -808,13 +808,15 @@ class PrimitiveType(IdEnum):
 
     BOOLEAN = 1
     # ...
-    INT16 = 5  # range: -32768 to 32767
+    # INT8? UINTs?
+    INT16 = 4  # range: -32768 to 32767
     INT32 = 6  # range: -2147483648 to 2147483647
-    INT64 = 7  # range: -9223372036854775808 to 9223372036854775807
-    DECIMAL = 9  # numeric(precision, scale)
+    INT64 = 8  # range: -9223372036854775808 to 9223372036854775807
+    DECIMAL = 10  # numeric(precision, scale)
     # ...
-    FLOAT32 = 12  # range: 1.175494351e-38 to 3.402823466e+38
-    FLOAT64 = 13  # range: 2.2250738585072014e-308 to 1.7976931348623157e+308
+    # FLOAT16?
+    FLOAT32 = 16  # range: 1.175494351e-38 to 3.402823466e+38
+    FLOAT64 = 17  # range: 2.2250738585072014e-308 to 1.7976931348623157e+308
     # ...
     STRING = 20
     UUID = 21
@@ -826,15 +828,15 @@ class PrimitiveType(IdEnum):
 
     @property
     def is_numeric(self) -> bool:
-        return self.id >= 5 and self.id <= 15
+        return self.id >= 2 and self.id < 20
 
     @property
     def is_int(self) -> bool:
-        return self.id >= 5 and self.id <= 7
+        return self.id >= 2 and self.id <= 10
 
     @property
     def is_float(self) -> bool:
-        return self.id >= 12 and self.id <= 13
+        return self.id >= 15 and self.id < 20
 
 
 PrimitiveValue = bool | int | float | str | bytes | UUID | datetime | timedelta

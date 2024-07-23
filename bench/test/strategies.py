@@ -14,6 +14,7 @@ from bench.language import NodeReference
 from bench.language.const import (
     IN_BENCH_NODE_TYPES,
     EnumType,
+    FieldZone,
     NodeType,
     ObjectType,
     PrimitiveType,
@@ -361,6 +362,10 @@ def type_infos(draw: st.DrawFn, kinds: st.SearchStrategy[TypeKind]):
 def fields(draw: st.DrawFn, kinds: st.SearchStrategy[TypeKind]):
     type_info_base_dict = draw_type_info_base_dict(draw, kinds)
     naive_base_dict = get_naive_object_strategy(NodeType.FIELD)
+    if type_info_base_dict["kind"] == TypeKind.LITERAL:
+        naive_base_dict["zone"] = st.just(FieldZone.OPTION)
+    else:
+        naive_base_dict["zone"] = st.just(FieldZone.VARIABLE)
     combined_dict = {}
     for key in naive_base_dict:
         # prefer type info where set

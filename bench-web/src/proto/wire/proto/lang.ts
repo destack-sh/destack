@@ -9244,29 +9244,29 @@ export enum PrimitiveType {
      */
     BOOLEAN = 1,
     /**
-     * @generated from protobuf enum value: PRIMITIVE_TYPE_INT16 = 5;
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_INT16 = 4;
      */
-    INT16 = 5,
+    INT16 = 4,
     /**
      * @generated from protobuf enum value: PRIMITIVE_TYPE_INT32 = 6;
      */
     INT32 = 6,
     /**
-     * @generated from protobuf enum value: PRIMITIVE_TYPE_INT64 = 7;
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_INT64 = 8;
      */
-    INT64 = 7,
+    INT64 = 8,
     /**
-     * @generated from protobuf enum value: PRIMITIVE_TYPE_DECIMAL = 9;
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_DECIMAL = 10;
      */
-    DECIMAL = 9,
+    DECIMAL = 10,
     /**
-     * @generated from protobuf enum value: PRIMITIVE_TYPE_FLOAT32 = 12;
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_FLOAT32 = 16;
      */
-    FLOAT32 = 12,
+    FLOAT32 = 16,
     /**
-     * @generated from protobuf enum value: PRIMITIVE_TYPE_FLOAT64 = 13;
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_FLOAT64 = 17;
      */
-    FLOAT64 = 13,
+    FLOAT64 = 17,
     /**
      * @generated from protobuf enum value: PRIMITIVE_TYPE_STRING = 20;
      */

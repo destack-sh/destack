@@ -12,7 +12,6 @@ GIT_COMMIT=$(git rev-parse --short HEAD)
 # get version from 'version' file
 VERSION=$(cat version)
 
-# build vue
 bun run --cwd bench-web build
 
 # build docker images
