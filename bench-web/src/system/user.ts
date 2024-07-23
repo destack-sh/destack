@@ -48,16 +48,6 @@ export const client = userGraph.getRef(
   ),
 );
 export const clients = userGraph.getChildrenRef(toNodeReferenceRef(user), NodeType.CLIENT);
-export const clientsSorted = computed(() => {
-  // sort clients so we are first, then descending by last active
-  return clients.value.slice().sort((a, b) => {
-    if (a.id == local.clientInfo.value?.id) return -1;
-    if (b.id == local.clientInfo.value?.id) return 1;
-    if (a.seenAt == null) return -1;
-    if (b.seenAt == null) return 1;
-    return Number(b.seenAt.seconds - a.seenAt.seconds);
-  });
-});
 export const isWaitlisted = computed(() => user.value?.status == UserStatus.WAITLISTED);
 export const isActivated = computed(() => user.value?.status == UserStatus.ACTIVATED);
 

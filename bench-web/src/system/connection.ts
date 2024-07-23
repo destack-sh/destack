@@ -1,6 +1,7 @@
 import {
   HUMANIZED_OPERATION_STATUS,
   getGraphClient,
+  getGraphTransport,
   type GrpcStatusName,
   type OperationMetadata,
 } from "@/proto/services";
@@ -14,6 +15,7 @@ import {
   type NodeTypeMapping,
   type ReadOptionsData,
 } from "@/proto/wire";
+import { HealthClient } from "@/proto/wire/proto/common.client";
 import {
   EMPTY_SCOPE,
   contentEquals,
@@ -44,7 +46,7 @@ import {
   type TransactionBuffer,
 } from "@/system/transaction";
 import { AsyncEvent } from "@/utils/functools";
-import { IS_DEV } from "@/utils/globals";
+import { GRPC_KEEPALIVE_INTERVAL as GRPC_KEEPALIVE_INTERVAL_SECONDS, IS_DEV } from "@/utils/globals";
 import { log } from "@/utils/log";
 import { deepValueEquals, immediateStopWatch, pretendReadonly, toValueRef } from "@/utils/ref";
 import type { RpcError } from "@protobuf-ts/runtime-rpc";
@@ -59,6 +61,7 @@ import {
   toRef,
   triggerRef,
   watch,
+  watchEffect,
   type MaybeRef,
   type Ref,
   type ShallowRef,
@@ -1112,7 +1115,7 @@ export function useGetConnection<T extends NodeType>(
   const graph = useConnectionOverlayGraph(connection);
   const roots: Ref<NodeTypeMapping[T][]> = computed(() => connection.value?.result.value?.roots?.value ?? []);
 
-  // no overlay because already already overlaid
+  // no overlay because already overlaid
   return {
     graph,
     overlay: null,
@@ -1153,7 +1156,7 @@ export function useSearchConnection<T extends NodeType>(
     () => connection.value?.result?.value?.page?.value ?? ({ roots: [], cursors: [], size: 0 } as PageInfo),
   );
 
-  // no overlay because already already overlaid
+  // no overlay because already overlaid
   return {
     graph,
     overlay: null,
@@ -1177,3 +1180,31 @@ export function useAggregateConnection(
 ): AggregateConnectionResult & { connection: ConnectionBase<"aggregate", NodeType> } {
   throw new Error("aggregate not yet implemented");
 }
+
+//
+// Connection keep-alive for active streaming connections
+//
+
+const _activeRemoteConnections = computed(() =>
+  Object.values(connections.value).filter((c) => c.isConnected.value && c.isLive && !c.name.startsWith("local.")),
+);
+const _activeRemoteBenchIds = computed(() => {
+  const benchIds = new Set<string>();
+  _activeRemoteConnections.value.map((c) => benchIds.add(c.params.scope.benchId));
+  return [...benchIds];
+});
+
+async function _sendRemoteKeepAlives() {
+  const healthChecks = [];
+  for (const benchId of _activeRemoteBenchIds.value) {
+    const transport = getGraphTransport({ benchId });
+    if (transport == null) continue;
+    const healthClient = new HealthClient(transport);
+    healthChecks.push(
+      healthClient.check({ service: benchId != null ? "symbolx.bench.Host" : "symbolx.bench.Supervisor" }),
+    );
+  }
+  await Promise.all(healthChecks);
+}
+
+setInterval(_sendRemoteKeepAlives, GRPC_KEEPALIVE_INTERVAL_SECONDS * 1000);

@@ -53,7 +53,7 @@ locals {
     "VITE_APP_COMMIT"         = data.external.git.result.sha
     "VITE_APP_ENVIRONMENT"    = var.env
     "VITE_APP_SENTRY_DSN"     = var.sentry_dsn
-    "VITE_APP_SUPERVISOR_URL" = "https://supervisor.${local.main_website}"
+    "VITE_APP_SUPERVISOR_URL" = "supervisor.${local.main_website}"
     "VITE_APP_IP_API_KEY"     = base64encode(var.ip_api_key)
   }
   web_variables_subs = [for k, v in local.web_variables : {
