@@ -9,8 +9,14 @@ from opentelemetry import trace
 
 from bench.language import Bench, Client, NodeReference, Server, Store, User
 from bench.language.access import Subject
-from bench.language.bench import Region, ServerProfile
-from bench.language.const import USER_NODE_TYPES, ClientType, NodeType, OrganizationStatus
+from bench.language.bench import ServerProfile
+from bench.language.const import (
+    USER_NODE_TYPES,
+    ClientType,
+    NodeType,
+    OrganizationStatus,
+    Region,
+)
 from bench.language.graph import generate_node_name
 from bench.language.session import Session
 from bench.language.user import Handle, Organization, UserStatus

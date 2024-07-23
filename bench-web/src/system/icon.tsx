@@ -24,6 +24,8 @@ import {
   EditType,
   RunStatus,
   FileType,
+  RegionArea,
+  Region,
 } from "@/proto/wire";
 import type { FunctionalComponent } from "vue";
 // file is generated with:
@@ -103,7 +105,11 @@ type IconIn = string | (Pick<IconData, "emoji" | "filePtr" | "faName"> & { color
 export function makeIcon(icon: IconIn): IconData {
   let kind: IconKind;
   if (typeof icon == "string") {
-    return { metatype: ObjectType.ICON, kind: IconKind.FONT_AWESOME, faName: icon };
+    if (icon.startsWith("fa")) {
+      return { metatype: ObjectType.ICON, kind: IconKind.FONT_AWESOME, faName: icon };
+    } else {
+      return { metatype: ObjectType.ICON, kind: IconKind.EMOJI, emoji: icon };
+    }
   } else if (icon.emoji) {
     kind = IconKind.EMOJI;
   } else if (icon.filePtr) {
@@ -122,10 +128,10 @@ export function toIconMaybe(icon?: IconIn | null): IconData | undefined {
   return makeIcon(icon);
 }
 
-function _makeIcons<K extends string | number>(icons: Partial<Record<K, string | IconData>>): Record<K, IconData> {
+function _makeIcons<K extends string | number>(icons: Partial<Record<K, IconIn>>): Record<K, IconData> {
   return Object.fromEntries(
     Object.entries(icons).map(([key, value]) => {
-      return [key as K, typeof value == "string" ? makeIcon({ faName: value as string }) : value];
+      return [key as K, makeIcon(value as IconIn)];
     }),
   ) as Record<K, IconData>;
 }
@@ -415,6 +421,31 @@ export const ICON_BY_EDIT_TYPE: Partial<Record<EditType, IconData>> = _makeIcons
   [EditType.RESTORE]: "fas fa-trash-undo",
 });
 
+export const ICON_BY_REGION_AREA: Partial<Record<RegionArea, IconData>> = _makeIcons<RegionArea>({
+  [RegionArea.EUROPE]: "fas fas fa-earth-europe",
+  [RegionArea.NORTH_AMERICA]: "fas fas fa-globe-americas",
+  [RegionArea.SOUTH_AMERICA]: "fas fas fa-globe-americas",
+  [RegionArea.MIDDLE_EAST]: "fas fas fa-globe-asia",
+  [RegionArea.AFRICA]: "fas fas fa-globe-africa",
+  [RegionArea.ASIA]: "fas fas fa-globe-asia",
+  [RegionArea.AUSTRALIA]: "fas fas fa-globe-oceania",
+  [RegionArea.GLOBAL]: "fas fas fa-globe",
+});
+
+export const ICON_BY_REGION: Partial<Record<Region, IconData>> = _makeIcons<Region>({
+  [Region.EUROPE_ZURICH]: "🇨🇭",
+  [Region.EUROPE_FRANKFURT]: "🇩🇪",
+  [Region.NORTH_AMERICA_VIRGINIA]: "🇺🇸",
+  [Region.NORTH_AMERICA_OHIO]: "🇺🇸",
+  [Region.NORTH_AMERICA_OREGON]: "🇺🇸",
+  [Region.SOUTH_AMERICA_SAO_PAULO]: "🇵🇸",
+  [Region.AFRICA_CAPE_TOWN]: "🇿🇦",
+  [Region.ASIA_MUMBAI]: "🇮🇳",
+  [Region.ASIA_SINGAPORE]: "🇸🇬",
+  [Region.ASIA_TOKYO]: "🇯🇵",
+  [Region.AUSTRALIA_SYDNEY]: "🇦🇺",
+});
+
 export const ENUM_ICONS_BY_TYPE: Partial<Record<EnumType, Record<any, IconData>>> = {
   [EnumType.NODE_TYPE]: ICON_BY_NODE_TYPE,
   [EnumType.STRUCT_TYPE]: ICON_BY_STRUCT_TYPE,
@@ -429,6 +460,8 @@ export const ENUM_ICONS_BY_TYPE: Partial<Record<EnumType, Record<any, IconData>>
   [EnumType.FIELD_ZONE]: ICON_BY_FIELD_ZONE,
   [EnumType.LOG_LEVEL]: ICON_BY_LOG_LEVEL,
   [EnumType.EDIT_TYPE]: ICON_BY_EDIT_TYPE,
+  [EnumType.REGION_AREA]: ICON_BY_REGION_AREA,
+  [EnumType.REGION]: ICON_BY_REGION,
 };
 
 export function getNodeIcon(

@@ -14,7 +14,6 @@ from bench.language.const import (
     Region,
     StructType,
     enum_,
-    get_region,
 )
 from bench.language.graph import NodeList
 from bench.language.node import (
@@ -296,7 +295,7 @@ class BenchResourceNode(BenchNode[NodeDataT], abc.ABC, Generic[NodeDataT]):
     parent: Bench | None = p_node_parent(4, NodeType.BENCH, is_system=True)
     name: str = p_regular(32, constraint=NAME_CONSTRAINT)
     text: Optional["Text"] = p_regular(34, default=None, struct=StructType.TEXT)
-    region: Region = p_system(35, default_factory=get_region, default_sql=None)
+    region: Region = p_system(35, default=REGION, default_sql=None)
     status: ResourceStatus = p_system(36, default=ResourceStatus.DECLARED)
     current_status: Optional[ResourceStatus] = p_system(37, default=None)
 

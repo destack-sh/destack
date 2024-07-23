@@ -262,6 +262,7 @@ class NodeConnection[
                 not options.include_hidden and edit_type in (EditType.UNARCHIVE, EditType.RESTORE)
             ):
                 # parent must be in our result graph
+                # nocheckin: mising parent error when this is a root (user signup)
                 #  (cannot be a root type here, so must have a parent)
                 parent_id = updated_node.parent_ptr.id if updated_node.parent_ptr else None
                 assert parent_id, f"missing parent for {updated_node!r}"
@@ -272,7 +273,7 @@ class NodeConnection[
             if not is_in_scope:
                 continue  # irrelevant scope
 
-            # apply (just copy node instead of actually applying edit, we don't modify anything)
+            # apply (just copy node instead of actually applying edit, we don't modify anything here)
             applied_edits.append(edit)
             if edit_type == EditType.ERASE or (
                 not options.include_hidden and edit_type in (EditType.ARCHIVE, EditType.DELETE)

@@ -1,22 +1,20 @@
 <script lang="ts" setup>
-import { Alignment, Anchor, ClientType, NodeType, Orientation } from "@/proto/wire";
+import { Anchor, ClientType, NodeType, Orientation } from "@/proto/wire";
 import { DECLARED_ACTIONS_BY_ID, fireActionById, type Action, type ActionBuiltinId } from "@/system/action";
 import { CLIENT_TYPE, isDeveloperMode } from "@/system/client";
 import { DEFAULT_USER_ICON, ICON_BY_NODE_TYPE, IconInline, makeIcon } from "@/system/icon";
+import { toCamelName } from "@/system/lang";
 import { bench, hasLocalBench } from "@/system/space";
 import { isAuthenticated, user } from "@/system/user";
-import { COMMIT, ENV, IS_DEV, VERSION } from "@/utils/globals";
+import type { FloatingPlacement } from "@/utils/floating";
+import { COMMIT, ENV, VERSION } from "@/utils/globals";
 import { menuActionsLike, menuItemFromAction, type MenuItem } from "@/utils/menu";
-import Button from "@/views/controls/Button.vue";
+import { tooltipFromAction } from "@/utils/tooltip";
 import Menu from "@/views/builtins/Menu.vue";
 import Popover from "@/views/builtins/Popover.vue";
+import { useElementSize } from "@vueuse/core";
 import { computed, ref, type Ref } from "vue";
 import ConnectionStatus from "./ConnectionStatus.vue";
-import { tooltipFromAction } from "@/utils/tooltip";
-import type { FloatingPlacement } from "@/utils/floating";
-import { useElementSize } from "@vueuse/core";
-import { toCamelName } from "@/system/lang";
-import { GEOLOCATION } from "@/utils/geolocation";
 
 const props = defineProps<{
   anchor: Anchor;
@@ -219,11 +217,9 @@ const dockActions: Ref<Action[]> = computed(
 
     <!-- End -->
     <div
-      class="flex flex-shrink-0 gap-1.5"
+      class="flex flex-shrink-0 items-center gap-1.5"
       :class="[orientation == Orientation.HORIZONTAL ? 'ml-auto flex-row pr-1' : 'mt-auto flex-col pb-1']"
     >
-      <!-- Geolocation -->
-      <span>{{ GEOLOCATION?.continent }}</span>
       <!-- Connection -->
       <ConnectionStatus />
       <!-- Notifications -->

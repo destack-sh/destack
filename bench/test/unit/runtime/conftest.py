@@ -3,7 +3,13 @@ import pytest
 from bench.language import Bench, Session, Store
 from bench.language.bench import Client
 from bench.language.block import Block
-from bench.language.const import BlockType, ClientType, Region, UserStatus, _active_session
+from bench.language.const import (
+    BlockType,
+    ClientType,
+    Region,
+    UserStatus,
+    _active_session,
+)
 from bench.language.graph import NodeSuperGraph
 from bench.language.node import EMPTY_SCOPE
 from bench.language.user import User

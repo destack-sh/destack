@@ -6,10 +6,11 @@ from more_itertools import first
 from rich import print_json
 
 from bench.cli.utils import async_to_sync_blocking, check_is_consistent
-from bench.language import Bench, Region, User
+from bench.language import Bench, User
 from bench.language.const import (
     ClientType,
     NodeType,
+    Region,
     UserStatus,
 )
 from bench.system.access import ACCESS_TOKEN_LENGTH

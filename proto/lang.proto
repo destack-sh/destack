@@ -1567,7 +1567,7 @@ message FileInfoData {
   FileType coarse_type = 50;
   string mime_type = 51;
   int64 size = 52;
-  optional string sha512 = 53;
+  optional string sha256 = 53;
   optional int32 width = 55;
   optional int32 height = 56;
   optional float aspect_ratio = 57;
@@ -1593,7 +1593,7 @@ message FileReferenceData {
   FileType coarse_type = 50;
   string mime_type = 51;
   int64 size = 52;
-  optional string sha512 = 53;
+  optional string sha256 = 53;
   optional int32 width = 55;
   optional int32 height = 56;
   optional float aspect_ratio = 57;
@@ -2322,7 +2322,7 @@ message FileData {
   FileType coarse_type = 50;
   string mime_type = 51;
   int64 size = 52;
-  optional string sha512 = 53;
+  optional string sha256 = 53;
   optional int32 width = 55;
   optional int32 height = 56;
   optional float aspect_ratio = 57;

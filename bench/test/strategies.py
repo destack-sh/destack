@@ -68,6 +68,7 @@ DURATION_STRATEGY = st.floats(
 )
 JSON_STRATEGY = st.none()  # not needed yet
 ORDER_KEY_STRATEGY = st.just(INTEGER_ZERO)  # NOTE :Test: generate order keys properly
+BYTES_STRATEGY = st.binary(min_size=1, max_size=32)
 ALL_DECLARED_PROPERTIES = tuple(
     more_itertools.flatten(
         (p for p in object_cls.__declared_properties__.values() if p.id is not None)
@@ -308,6 +309,8 @@ STRATEGY_BY_PROPERTY: dict[str, st.SearchStrategy] = {
     "order_key": ORDER_KEY_STRATEGY,
 }
 STRATEGY_BY_OBJECT_PROPERTY: dict[tuple[ObjectType, str], st.SearchStrategy] = {
+    (NodeType.FILE, "content"): BYTES_STRATEGY,
+    (StructType.FILE_INFO, "content"): BYTES_STRATEGY,
     (StructType.FILE_REFERENCE, "type"): st.just(NodeType.FILE),
     (StructType.SECRET_REFERENCE, "type"): st.just(NodeType.SECRET),
     # Text is pretty limited right now :CrummyMarkdown

@@ -231,7 +231,7 @@ export function actionIndex(idx: { id: string } = { id: "action" }): SearchIndex
 /*
  * Search the available options of an enum.
  */
-export function enumIndex(idx: { id: string; enumTypes: EnumType[] }): SearchIndex<EnumOptionItem> {
+export function enumIndex(idx: { id: string; enumTypes: EnumType[], enumValues?: any[] }): SearchIndex<EnumOptionItem> {
   function itemFromEnumOption(enumTypes: EnumType[], value: EnumOption | number): EnumOptionItem | null {
     if (typeof value == "object") {
       return { ...value, metatype: "enum-option", itemId: value.id };
@@ -257,10 +257,15 @@ export function enumIndex(idx: { id: string; enumTypes: EnumType[] }): SearchInd
       const bValue = typeof b == "object" ? b.value : b;
       return aValue === bValue;
     },
-    candidates: () =>
-      idx.enumTypes
-        .flatMap((enumType) => getEnumOptions(enumType))
-        .map((enumOption) => itemFromEnumOption(idx.enumTypes, enumOption)!),
+    candidates: () => {
+      if (idx.enumValues) {
+        return idx.enumValues.map((enumValue) => itemFromEnumOption(idx.enumTypes, enumValue)!);
+      } else {
+        return idx.enumTypes
+          .flatMap((enumType) => getEnumOptions(enumType))
+          .map((enumOption) => itemFromEnumOption(idx.enumTypes, enumOption)!);
+      }
+    }
   };
   return markRaw(index);
 }

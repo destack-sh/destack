@@ -26,9 +26,9 @@ if TYPE_CHECKING:
 
 logger = structlog.get_logger(__name__)
 
-FILE_HASH_LENGTH = 128  # 512 bits
+FILE_HASH_LENGTH = 64  # 256 bits
 MIME_TYPE_CONSTRAINT = constraint(min_length=1, max_length=255)
-SHA512_CONSTRAINT = constraint(min_length=FILE_HASH_LENGTH, max_length=FILE_HASH_LENGTH)
+SHA256_CONSTRAINT = constraint(min_length=FILE_HASH_LENGTH, max_length=FILE_HASH_LENGTH)
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -67,7 +67,7 @@ class FileInfoBase(BuiltinObject):
 
     # content
     kind: FileKind = p_internal(40, default=FileKind.DRIVE, default_sql=None)
-    content: Optional[bytes] = p_regular(41, default=None)  # if inline
+    content: Optional[bytes] = p_regular(41, default=None, constraint=constraint(min_length=1))
     url: Optional[str] = p_regular(42, default=None)
     ...  # thumbnail/preview/...?
 
@@ -77,9 +77,7 @@ class FileInfoBase(BuiltinObject):
     size: int = p_internal(
         52, primitive_type=PrimitiveType.INT64, constraint=constraint(min_value=0)
     )
-    sha512: str | None = p_internal(
-        53, constraint=constraint(min_length=FILE_HASH_LENGTH, max_length=FILE_HASH_LENGTH)
-    )
+    sha256: str | None = p_internal(53, constraint=SHA256_CONSTRAINT)
 
     # multimedia
     width: Optional[int] = p_regular(55, default=None)
@@ -101,11 +99,11 @@ class FileInfo(Struct, FileInfoBase):
     ...
 
 
-@node_(NodeType.FILE, unique=(("parent_id", "sha512"),))
+@node_(NodeType.FILE, unique=(("parent_id", "sha256"),))
 class File(BenchNode[FileData], FileInfoBase):
     """
     A file stored in a Drive (or externally).
-    De-duplicated so that there's only one File per unique file content for our own files (sha512).
+    De-duplicated so that there's only one File per unique file content for our own files.
     """
 
     parent: Drive | None = p_node_parent(4, NodeType.DRIVE, is_system=True)

@@ -1,12 +1,17 @@
 <script lang="ts" setup>
-import { Orientation } from "@/proto/wire";
+import { Orientation, RegionArea } from "@/proto/wire";
 import { isDeveloperMode } from "@/system/client";
 import { connections, hasPendingConnections } from "@/system/connection";
+import { ICON_BY_REGION_AREA, IconInline, makeIcon } from "@/system/icon";
+import { toCamelName } from "@/system/lang";
+import { GEOLOCATION } from "@/utils/geolocation";
 import { IS_DEV } from "@/utils/globals";
 import { ScrollbarWidth } from "@/utils/layout";
 import Popover from "@/views/builtins/Popover.vue";
 import Scroll from "@/views/containers/Scroll.vue";
-import { ref, type Ref } from "vue";
+import { computed, ref, type Ref } from "vue";
+
+const geolocationIcon = computed(() => (GEOLOCATION.value?.area ? ICON_BY_REGION_AREA[GEOLOCATION.value?.area] : null));
 
 const expandedConnectionId: Ref<number | null> = ref(null);
 </script>
@@ -24,12 +29,12 @@ const expandedConnectionId: Ref<number | null> = ref(null);
         "
         @click.stop="toggle"
       >
-        <i
-          class="fas"
+        <IconInline
+          v-bind="geolocationIcon ?? makeIcon({ faName: 'fas fa-cloud' })"
           :class="
             !hasPendingConnections
-              ? 'fa-cloud text-gray-700 hover:text-primary-900'
-              : 'fa-cloud-slash animate-pulse text-warning-600 hover:text-warning-500'
+              ? ' text-gray-700 hover:text-primary-900'
+              : ' animate-pulse text-warning-600 hover:text-warning-500'
           "
         />
       </button>
@@ -38,9 +43,14 @@ const expandedConnectionId: Ref<number | null> = ref(null);
       <!-- Individual connections -->
       <!-- (will probably move this to a Connections View (maybe keep summary on hover)) -->
       <div v-outside.click.stop="close" class="p z-50 rounded border border-gray-300 bg-white text-gray-900">
-        <div class="my-1 border-b border-gray-300 px-3 py-1">
+        <!-- Header -->
+        <div class="my-1 flex flex-row border-b border-gray-300 px-3 py-1">
           <span class="font-semibold">Connections ({{ connections.length }})</span>
+          <div class="ml-auto">
+            <span v-if="GEOLOCATION?.area" class="text-gray-500">{{ toCamelName(RegionArea, GEOLOCATION?.area) }}</span>
+          </div>
         </div>
+        <!-- Body -->
         <Scroll
           :size="{ width: 480, height: 600 }"
           size-is-dynamic

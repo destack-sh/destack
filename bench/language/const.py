@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.07.23.0"  # auto change via version script
+VERSION = "2024.07.23.2"  # auto change via version script
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -1147,7 +1147,7 @@ class ClientType(IdEnum):
 class UserStatus(IdEnum):
     INVITED = 1  # invited via email
     RESERVED = 2  # reserved a handle, unconfirmed
-    WAITLISTED = 3  # got handle, confirmed email, waiting
+    WAITLISTED = 3  # got handle, confirmed email, waiting # nocheckin: waitlist users
     REGISTERED = 4  # got handle, confirmed email, ready to activate
     ACTIVATED = 10  # has main bench, all ready to go
 
@@ -1176,6 +1176,8 @@ class NotificationKind(IdEnum):
 
 CLOUD = get_from_env("CLOUD", typ=Cloud, description="Cloud we're running in")
 REGION = get_from_env("REGION", typ=Region, description="Region we're running in")
+REGION_ZONE = REGION.zone
+REGION_AREA = REGION.area
 
 
 class BenchError(Exception):
@@ -1231,11 +1233,3 @@ def get_active_tx() -> Optional["Transaction"]:
     if session is None:
         return None
     return session._tx
-
-
-def get_region() -> Region:
-    bench = get_active_bench()
-    if bench is not None:
-        return bench.region
-    else:
-        return REGION

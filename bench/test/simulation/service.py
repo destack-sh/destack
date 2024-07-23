@@ -118,7 +118,7 @@ class HostHandle(ServiceHandle[HostSpec, Host, HostClient]):
             owner=NodeReference.from_node_data(client.user.user_data),
             is_main=True,
             slug=self.spec.bench.name,
-            region=wire.Region.EU_ZURICH,
+            region=wire.Region.EUROPE_ZURICH,
         )
         create_bench_rep = await supervisor_client.create_bench(
             create_bench_req, metadata=client.rpc_headers

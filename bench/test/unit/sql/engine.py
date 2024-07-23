@@ -13,12 +13,11 @@ from bench.language import (
     Client,
     NodeReference,
     PrimitiveType,
-    Region,
     Server,
     ServerProfile,
     Store,
 )
-from bench.language.const import ClientType, EnumType, NodeType, UserStatus
+from bench.language.const import ClientType, EnumType, NodeType, Region, UserStatus
 from bench.language.field import TypeKind
 from bench.language.query import NodeNotFoundError
 from bench.language.session import Session
@@ -274,7 +273,7 @@ async def test_crud_node_pointers(omni_session: Session):
         bench: Bench = Bench(
             slug="test",
             name="test_b",
-            region=Region.EUROPE_FRANKFURT,
+            region=Region.EUROPE_ZURICH,
             encryption_key=generate_encryption_key(32),
         )
         session._create(bench)

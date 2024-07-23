@@ -1,23 +1,20 @@
 <script lang="ts" setup>
 import {
   BenchType,
-  BlockType,
   BoxData,
-  FileType,
   NodeReferenceData,
   NodeType,
   ObjectType,
   Orientation,
-  StepType,
   TypeKind,
   Variant,
   ViewData,
   ViewType,
-  type AnyNodeData,
+  type AnyNodeData
 } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { IconInline, makeIcon } from "@/system/icon";
-import { getNodeSubtype, getNodeSubtypeName, isEnumType, isNodeType, toCamelName } from "@/system/lang";
+import { isEnumType, isNodeType } from "@/system/lang";
 import type { NodeItem, TypeItem } from "@/system/search";
 import { enumIndex, graphIndex, typeIndex, useSearch, type EnumOptionItem, type SearchIndex } from "@/system/search";
 import { canvas, pkgGraph } from "@/system/space";
@@ -186,6 +183,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
           referenceMargin: 0,
           props: {
             ...(props as ViewProps),
+            title: undefined, // clear title
             size: { metatype: ObjectType.BOX, width: buttonRef?.getBoundingClientRect().width },
             isInline: true,
           },
