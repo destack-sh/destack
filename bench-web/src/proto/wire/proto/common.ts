@@ -16,7 +16,8 @@ import { ClientType } from "./lang";
  * Core metadata for all RPC requests.
  * This is passed as specially encoded headers with robust dicts,
  * but it's nice to have a common definition.
- * NOTE: update :RpcMetadataEncoding when changing RpcMetadata
+ * NOTE: keep :RpcMetadataEncoding references in sync with RpcMetadata
+ * NOTE :Monitoring: add request id to RPC metadata?
  *
  * @generated from protobuf message symbolx.bench.RpcMetadata
  */

@@ -6636,13 +6636,21 @@ export enum BenchType {
      */
     POLICY_EFFECT = 20040,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_REGION = 20050;
+     * @generated from protobuf enum value: BENCH_TYPE_CLOUD = 20050;
      */
-    REGION = 20050,
+    CLOUD = 20050,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_CLOUD = 20051;
+     * @generated from protobuf enum value: BENCH_TYPE_REGION = 20051;
      */
-    CLOUD = 20051,
+    REGION = 20051,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_REGION_ZONE = 20052;
+     */
+    REGION_ZONE = 20052,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_REGION_AREA = 20053;
+     */
+    REGION_AREA = 20053,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_SERVER_PROFILE = 20055;
      */
@@ -7109,13 +7117,17 @@ export enum Cloud {
      */
     ALIBABA = 14,
     /**
-     * @generated from protobuf enum value: CLOUD_HETZNER = 20;
+     * @generated from protobuf enum value: CLOUD_HETZNER = 100;
      */
-    HETZNER = 20,
+    HETZNER = 100,
     /**
-     * @generated from protobuf enum value: CLOUD_PRIVATE = 90;
+     * @generated from protobuf enum value: CLOUD_NEON = 200;
      */
-    PRIVATE = 90
+    NEON = 200,
+    /**
+     * @generated from protobuf enum value: CLOUD_PRIVATE = 900;
+     */
+    PRIVATE = 900
 }
 /**
  * The implicit 'type' of some Code.
@@ -7545,13 +7557,21 @@ export enum EnumType {
      */
     POLICY_EFFECT = 20040,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_REGION = 20050;
+     * @generated from protobuf enum value: ENUM_TYPE_CLOUD = 20050;
      */
-    REGION = 20050,
+    CLOUD = 20050,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_CLOUD = 20051;
+     * @generated from protobuf enum value: ENUM_TYPE_REGION = 20051;
      */
-    CLOUD = 20051,
+    REGION = 20051,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_REGION_ZONE = 20052;
+     */
+    REGION_ZONE = 20052,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_REGION_AREA = 20053;
+     */
+    REGION_AREA = 20053,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_SERVER_PROFILE = 20055;
      */
@@ -9347,11 +9367,7 @@ export enum ReferenceKind {
     PROPERTY = 20
 }
 /**
- * Where a Resource is located (physically).
- * There are
- * - 'continental' regions ([>1, <1000]: Europe, North America, etc.).
- * - 'area' regions ([%100=0]: Europe Central, US East, etc.).
- * - 'city' regions (Frankfurt, Ohio, etc.).
+ * Actual regions within a Zone in an Area.
  *
  * @generated from protobuf enum symbolx.bench.Region
  */
@@ -9361,65 +9377,151 @@ export enum Region {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: REGION_EUROPE = 1;
+     * @generated from protobuf enum value: REGION_EUROPE_ZURICH = 1001;
      */
-    EUROPE = 1,
+    EUROPE_ZURICH = 1001,
     /**
-     * @generated from protobuf enum value: REGION_NORTH_AMERICA = 2;
+     * @generated from protobuf enum value: REGION_EUROPE_FRANKFURT = 1002;
      */
-    NORTH_AMERICA = 2,
+    EUROPE_FRANKFURT = 1002,
     /**
-     * @generated from protobuf enum value: REGION_SOUTH_AMERICA = 3;
+     * @generated from protobuf enum value: REGION_NORTH_AMERICA_VIRGINIA = 2001;
      */
-    SOUTH_AMERICA = 3,
+    NORTH_AMERICA_VIRGINIA = 2001,
     /**
-     * @generated from protobuf enum value: REGION_MIDDLE_EAST = 4;
+     * @generated from protobuf enum value: REGION_NORTH_AMERICA_OHIO = 2002;
      */
-    MIDDLE_EAST = 4,
+    NORTH_AMERICA_OHIO = 2002,
     /**
-     * @generated from protobuf enum value: REGION_AFRICA = 5;
+     * @generated from protobuf enum value: REGION_NORTH_AMERICA_OREGON = 2101;
      */
-    AFRICA = 5,
+    NORTH_AMERICA_OREGON = 2101,
     /**
-     * @generated from protobuf enum value: REGION_ASIA = 6;
+     * @generated from protobuf enum value: REGION_SOUTH_AMERICA_SAO_PAULO = 3001;
      */
-    ASIA = 6,
+    SOUTH_AMERICA_SAO_PAULO = 3001,
     /**
-     * @generated from protobuf enum value: REGION_OCEANIA = 7;
+     * @generated from protobuf enum value: REGION_AFRICA_CAPE_TOWN = 5001;
      */
-    OCEANIA = 7,
+    AFRICA_CAPE_TOWN = 5001,
     /**
-     * @generated from protobuf enum value: REGION_PRIVATE = 900;
+     * @generated from protobuf enum value: REGION_ASIA_MUMBAI = 6001;
      */
-    PRIVATE = 900,
+    ASIA_MUMBAI = 6001,
     /**
-     * @generated from protobuf enum value: REGION_GLOBAL = 999;
+     * @generated from protobuf enum value: REGION_ASIA_SINGAPORE = 6101;
      */
-    GLOBAL = 999,
+    ASIA_SINGAPORE = 6101,
     /**
-     * @generated from protobuf enum value: REGION_EU_CENTRAL = 1000;
+     * @generated from protobuf enum value: REGION_ASIA_TOKYO = 6201;
      */
-    EU_CENTRAL = 1000,
+    ASIA_TOKYO = 6201,
     /**
-     * @generated from protobuf enum value: REGION_EU_ZURICH = 1001;
+     * @generated from protobuf enum value: REGION_AUSTRALIA_SYDNEY = 7001;
      */
-    EU_ZURICH = 1001,
+    AUSTRALIA_SYDNEY = 7001
+}
+/**
+ * Rough 'contintents' of Regions.
+ *
+ * @generated from protobuf enum symbolx.bench.RegionArea
+ */
+export enum RegionArea {
     /**
-     * @generated from protobuf enum value: REGION_EU_FRANKFURT = 1002;
+     * @generated from protobuf enum value: REGION_AREA_UNSPECIFIED = 0;
      */
-    EU_FRANKFURT = 1002,
+    UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: REGION_NA_EAST = 2000;
+     * @generated from protobuf enum value: REGION_AREA_EUROPE = 1000;
      */
-    NA_EAST = 2000,
+    EUROPE = 1000,
     /**
-     * @generated from protobuf enum value: REGION_NA_VIRGINIA = 2001;
+     * @generated from protobuf enum value: REGION_AREA_NORTH_AMERICA = 2000;
      */
-    NA_VIRGINIA = 2001,
+    NORTH_AMERICA = 2000,
     /**
-     * @generated from protobuf enum value: REGION_NA_OHIO = 2002;
+     * @generated from protobuf enum value: REGION_AREA_SOUTH_AMERICA = 3000;
      */
-    NA_OHIO = 2002
+    SOUTH_AMERICA = 3000,
+    /**
+     * @generated from protobuf enum value: REGION_AREA_MIDDLE_EAST = 4000;
+     */
+    MIDDLE_EAST = 4000,
+    /**
+     * @generated from protobuf enum value: REGION_AREA_AFRICA = 5000;
+     */
+    AFRICA = 5000,
+    /**
+     * @generated from protobuf enum value: REGION_AREA_ASIA = 6000;
+     */
+    ASIA = 6000,
+    /**
+     * @generated from protobuf enum value: REGION_AREA_AUSTRALIA = 7000;
+     */
+    AUSTRALIA = 7000,
+    /**
+     * @generated from protobuf enum value: REGION_AREA_PRIVATE = 9000;
+     */
+    PRIVATE = 9000,
+    /**
+     * @generated from protobuf enum value: REGION_AREA_GLOBAL = 10090;
+     */
+    GLOBAL = 10090
+}
+/**
+ * A larger zone of Regions within an Area.
+ *
+ * @generated from protobuf enum symbolx.bench.RegionZone
+ */
+export enum RegionZone {
+    /**
+     * @generated from protobuf enum value: REGION_ZONE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: REGION_ZONE_EUROPE_CENTRAL = 1000;
+     */
+    EUROPE_CENTRAL = 1000,
+    /**
+     * @generated from protobuf enum value: REGION_ZONE_NORTH_AMERICA_EAST = 2000;
+     */
+    NORTH_AMERICA_EAST = 2000,
+    /**
+     * @generated from protobuf enum value: REGION_ZONE_NORTH_AMERICA_WEST = 2100;
+     */
+    NORTH_AMERICA_WEST = 2100,
+    /**
+     * @generated from protobuf enum value: REGION_ZONE_SOUTH_AMERICA_EAST = 3000;
+     */
+    SOUTH_AMERICA_EAST = 3000,
+    /**
+     * @generated from protobuf enum value: REGION_ZONE_MIDDLE_EAST_CENTRAL = 4000;
+     */
+    MIDDLE_EAST_CENTRAL = 4000,
+    /**
+     * @generated from protobuf enum value: REGION_ZONE_MIDDLE_EAST_WEST = 4100;
+     */
+    MIDDLE_EAST_WEST = 4100,
+    /**
+     * @generated from protobuf enum value: REGION_ZONE_AFRICA_SOUTH = 5000;
+     */
+    AFRICA_SOUTH = 5000,
+    /**
+     * @generated from protobuf enum value: REGION_ZONE_ASIA_WEST = 6000;
+     */
+    ASIA_WEST = 6000,
+    /**
+     * @generated from protobuf enum value: REGION_ZONE_ASIA_SOUTH = 6100;
+     */
+    ASIA_SOUTH = 6100,
+    /**
+     * @generated from protobuf enum value: REGION_ZONE_ASIA_EAST = 6200;
+     */
+    ASIA_EAST = 6200,
+    /**
+     * @generated from protobuf enum value: REGION_ZONE_AUSTRALIA_SOUTH = 7000;
+     */
+    AUSTRALIA_SOUTH = 7000
 }
 /**
  * Generalized status of a Resource in its lifecycle.
@@ -24676,8 +24778,10 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.ACCESS_TYPE]: AccessType,
   [EnumType.CHANGE_CATEGORY]: ChangeCategory,
   [EnumType.POLICY_EFFECT]: PolicyEffect,
-  [EnumType.REGION]: Region,
   [EnumType.CLOUD]: Cloud,
+  [EnumType.REGION]: Region,
+  [EnumType.REGION_ZONE]: RegionZone,
+  [EnumType.REGION_AREA]: RegionArea,
   [EnumType.SERVER_PROFILE]: ServerProfile,
   [EnumType.MACHINE_PROFILE]: MachineProfile,
   [EnumType.RESOURCE_STATUS]: ResourceStatus,
@@ -24954,8 +25058,10 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.ACCESS_TYPE]: AccessType,
   [EnumType.CHANGE_CATEGORY]: ChangeCategory,
   [EnumType.POLICY_EFFECT]: PolicyEffect,
-  [EnumType.REGION]: Region,
   [EnumType.CLOUD]: Cloud,
+  [EnumType.REGION]: Region,
+  [EnumType.REGION_ZONE]: RegionZone,
+  [EnumType.REGION_AREA]: RegionArea,
   [EnumType.SERVER_PROFILE]: ServerProfile,
   [EnumType.MACHINE_PROFILE]: MachineProfile,
   [EnumType.RESOURCE_STATUS]: ResourceStatus,
@@ -27287,7 +27393,7 @@ export const BenchDataInfo: Record<BenchProperty, PropertyInfo> = {
   [BenchProperty.text]: { id: 34, name: 'text', component: ObjectType.BENCH, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [BenchProperty.icon]: { id: 35, name: 'icon', component: ObjectType.BENCH, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [BenchProperty.ownerPtr]: { id: 36, name: 'owner_ptr', component: ObjectType.BENCH, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION], referenceStruct: StructType.NODE_REFERENCE },
-  [BenchProperty.region]: { id: 37, name: 'region', component: ObjectType.BENCH, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [BenchProperty.region]: { id: 37, name: 'region', component: ObjectType.BENCH, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [BenchProperty.encryptionKey]: { id: 38, name: 'encryption_key', component: ObjectType.BENCH, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRequired: true, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
   [BenchProperty.policies]: { id: 39, name: 'policies', component: ObjectType.BENCH, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY },
   [BenchProperty.mainStorePtr]: { id: 40, name: 'main_store_ptr', component: ObjectType.BENCH, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.STORE], referenceStruct: StructType.NODE_REFERENCE },

@@ -16,6 +16,7 @@ import { tooltipFromAction } from "@/utils/tooltip";
 import type { FloatingPlacement } from "@/utils/floating";
 import { useElementSize } from "@vueuse/core";
 import { toCamelName } from "@/system/lang";
+import { GEOLOCATION } from "@/utils/geolocation";
 
 const props = defineProps<{
   anchor: Anchor;
@@ -221,6 +222,8 @@ const dockActions: Ref<Action[]> = computed(
       class="flex flex-shrink-0 gap-1.5"
       :class="[orientation == Orientation.HORIZONTAL ? 'ml-auto flex-row pr-1' : 'mt-auto flex-col pb-1']"
     >
+      <!-- Geolocation -->
+      <span>{{ GEOLOCATION?.continent }}</span>
       <!-- Connection -->
       <ConnectionStatus />
       <!-- Notifications -->

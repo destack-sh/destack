@@ -119,3 +119,8 @@ variable "betterstack_token" {
   sensitive   = true
 }
 
+variable "ip_api_key" {
+  type        = string
+  description = "IP Geolocation API key"
+  sensitive   = true
+}

@@ -41,7 +41,7 @@ const name: Ref<string> = ref("");
 const slug: Ref<string> = ref("");
 const email: Ref<string> = ref("");
 const password: Ref<string> = ref("");
-const region: Ref<Region> = ref(Region.EU_FRANKFURT);
+const region: Ref<Region> = ref(Region.EUROPE_FRANKFURT);
 const isActive = ref(false);
 const lastError: Ref<string | null> = ref(null);
 
@@ -185,7 +185,7 @@ defineExpose<ViewExposed>({ self, focus });
       />
     </div>
     <!-- Error -->
-     <div v-if="lastError" class="pt-3 mt-3 border-t border-t-gray-200 flex w-full flex-col gap-y-1">
+    <div v-if="lastError" class="mt-3 flex w-full flex-col gap-y-1 border-t border-t-gray-200 pt-3">
       <div class="flex flex-row items-center gap-x-2">
         <i class="fas fa-exclamation-triangle text-danger-600" />
         <span class="text-danger-600">Error</span>

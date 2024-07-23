@@ -274,7 +274,7 @@ async def test_crud_node_pointers(omni_session: Session):
         bench: Bench = Bench(
             slug="test",
             name="test_b",
-            region=Region.GLOBAL,
+            region=Region.EUROPE_FRANKFURT,
             encryption_key=generate_encryption_key(32),
         )
         session._create(bench)

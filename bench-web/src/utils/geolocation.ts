@@ -1,39 +1,60 @@
+import type { Region } from "@/proto/wire";
+import { IP_API_KEY } from "@/utils/globals";
 import { log } from "@/utils/log";
 import { createSharedComposable } from "@vueuse/core";
 import { ref, shallowRef, type Ref } from "vue";
 
-// TypeScript interface for the complete ip-api.com schema
-export interface Geolocation {
-  message?: string;
+// see ip-api.com/docs
+export interface GeolocationRaw {
   continent: string;
   continentCode: string;
   country: string;
   countryCode: string;
+  countryCode3: string;
   region: string;
   regionName: string;
   city: string;
-  district: string;
-  zip: string;
   lat: number;
   lon: number;
-  timezone: string;
-  offset: number;
-  currency: string;
   isp: string;
   org: string;
-  as: string;
-  asname: string;
-  reverse: string;
-  mobile: boolean;
   proxy: boolean;
   hosting: boolean;
   query: string;
 }
+const GEOLOCATION_FIELDS = [
+  "status",
+  "message",
+  "continent",
+  "continentCode",
+  "country",
+  "countryCode",
+  "countryCode3",
+  "region",
+  "regionName",
+  "city",
+  "lat",
+  "lon",
+  "proxy",
+  "hosting",
+  "query",
+];
 
+export interface Geolocation {
+  continent: Region;
+  area: Region | undefined;
+  city: Region | undefined;
+  detail: GeolocationRaw;
+}
+
+// TODO :Security: move ip-api lookup behind proxy (to avoid exposing our token)
 async function getGeolocation(): Promise<Geolocation> {
   try {
-    // NOTE :Compliance: get commercial api token for ip-api.com?
-    const response = await fetch("http://ip-api.com/json/");
+    const response = IP_API_KEY
+      ? await fetch(`https://pro.ip-api.com/json/?fields=${GEOLOCATION_FIELDS.join(",")}&key=${IP_API_KEY}}`, {
+          credentials: "omit",
+        })
+      : await fetch(`http://ip-api.com/json/?fields=${GEOLOCATION_FIELDS.join(",")}`); // only works in HTTP context (can't request HTTP in HTTPS)
     const data = await response.json();
 
     if (data.status === "fail") {
