@@ -28,7 +28,15 @@ from bench.language import ValidationError
 from bench.language.access import AccessError, Subject
 from bench.language.const import BenchError
 from bench.language.query import NodeNotFoundError
-from bench.proto.wire import EditData, RpcMetadata, ServiceKind
+from bench.proto.wire import (
+    EditData,
+    HealthBase,
+    HealthCheckRequest,
+    HealthCheckResponse,
+    HealthCheckResponseServingStatus,
+    RpcMetadata,
+    ServiceKind,
+)
 from bench.proto.wiring import BENCH_CLASS_BY_PROTO_CLASS, unpack_rpc_headers
 from bench.sql.engine import SqlAlreadyExistsError, SqlNotExistsError
 from bench.utils.env import IS_DEV, IS_TEST
@@ -235,14 +243,30 @@ class ServiceBase:
         return grpclib.const.Handler(_managed_rpc, cardinality, request_type, reply_type)
 
 
+class HealthService(HealthBase):
+    """Health check service."""
+
+    def __init__(self, services: Collection[ServiceBase]):
+        super().__init__()
+        self._services = services
+
+    async def check(self, request: "HealthCheckRequest") -> "HealthCheckResponse":
+        # TODO :Robustness :Monitoring: check health properly
+        response = HealthCheckResponse(status=HealthCheckResponseServingStatus.SERVING)
+        logger.trace("health.check", request=request, response=response)
+        return response
+
+
 class GrpcServer(grpclib.server.Server):
     """gRPC server with extra bells and whistles."""
 
     def __init__(self, handlers: Collection["IServable"], **kwargs):
-        super().__init__(handlers, **kwargs)
-        self._services: tuple[ServiceBase, ...] = tuple(
-            h for h in handlers if isinstance(h, ServiceBase)
-        )
+        assert all(
+            isinstance(h, ServiceBase) for h in handlers
+        ), f"unexpected handlers: {handlers!r}"
+        self._services: tuple[ServiceBase, ...] = cast(tuple[ServiceBase, ...], tuple(handlers))
+        self._health_service = HealthService(self._services)
+        super().__init__((*handlers, self._health_service), **kwargs)
         self._host: str | None = None
         self._port: int | None = None
 

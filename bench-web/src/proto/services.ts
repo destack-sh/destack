@@ -1,10 +1,17 @@
-import { GraphScopeData, HostClient, RpcMetadata, SupervisorClient, type IGraphIOClient } from "@/proto/wire";
+import {
+  GetHostsResponse_HostInfo,
+  GraphScopeData,
+  HostClient,
+  RpcMetadata,
+  SupervisorClient,
+  type IGraphIOClient,
+} from "@/proto/wire";
 import { CLIENT_TYPE, clientInfo, clientMeta } from "@/system/client";
 import { toaster } from "@/system/toast";
 import { SUPERVISOR_URL } from "@/utils/globals";
 import { log } from "@/utils/log";
 import { formatDuration } from "@/utils/time";
-import { GrpcStatusCode, GrpcWebFetchTransport } from "@protobuf-ts/grpcweb-transport";
+import { GrpcStatusCode, GrpcWebFetchTransport, type GrpcWebOptions } from "@protobuf-ts/grpcweb-transport";
 import {
   RpcError,
   type MethodInfo,
@@ -13,7 +20,7 @@ import {
   type UnaryCall,
 } from "@protobuf-ts/runtime-rpc";
 import { DateTime, Duration } from "luxon";
-import { computed, type Ref } from "vue";
+import { computed, shallowRef, triggerRef, type Ref } from "vue";
 
 // NOTE :Robustness: ipv6 on MacOS sometimes causes ERR_NETWORK_CHANGED in chrome, breaking RPC streams.
 //  A 'solution' is to disable ipv6, but obviously you have to do that manually as a user:
@@ -24,6 +31,7 @@ import { computed, type Ref } from "vue";
 
 /** An operation is an RPC call which may be retried. */
 export type Operation<I extends object, O extends object> = {
+  transport: BenchGrpcWebTransport;
   id: number;
   name: string;
   method: MethodInfo<I, O>;
@@ -53,7 +61,6 @@ type RetryOptions<T extends object> = {
   maxTimeMs?: number;
   amendRetry?: (request: T, error: RpcError, numRetries: number) => T;
 };
-const DEFAULT_RETRY_ON: GrpcStatusName[] = ["DEADLINE_EXCEEDED", "UNAVAILABLE", "INTERNAL", "UNKNOWN", "CANCELLED"];
 export type OperationMetadata<T extends object> = {
   connectionId?: number;
   operationName?: string;
@@ -109,7 +116,8 @@ const operationsTracker = {
 
   track<I extends object, O extends object>(opIn: Omit<Operation<I, O>, "id" | "name">) {
     const id = this.numTotalOps++;
-    const serviceName = opIn.method.service.typeName.split(".").slice(2).join("."); // remove common company/project prefix
+    const uri = opIn.transport.uri;
+    const serviceName = opIn.method.service.typeName.split(".").slice(2).join(".");
     const op = { ...opIn, id, name: `${serviceName}.${opIn.method.name}` };
     const rpcName = `rpc.${op.name}`;
     this.pendingOps.push(op);
@@ -117,7 +125,7 @@ const operationsTracker = {
     if (this.recentOps.length > this.RECENT_OPERATION_BUFFER_SIZE) {
       this.recentOps.shift();
     }
-    log.trace(rpcName, op.request);
+    log.trace(rpcName, { id, uri, request: op.request });
 
     const remove = () => {
       const index = this.pendingOps.indexOf(op);
@@ -131,7 +139,7 @@ const operationsTracker = {
       const code = error.code;
       const meta = op.options as OperationMetadata<any>;
       if (!meta.suppressErrors) {
-        log.error(rpcName, code, error, op);
+        log.error(rpcName, { id, uri, code, error, op });
         toaster.error(humanizeError(error));
       }
       if (code == "UNAUTHENTICATED") {
@@ -146,11 +154,11 @@ const operationsTracker = {
       op.call.responses.onNext((r) => {
         op.updatedAt = DateTime.now();
         op.numResponses = (op.numResponses ?? 0) + 1;
-        log.trace(`${rpcName}.update`, { id, numResponses: op.numResponses, epoch: (r as any)?.epoch });
+        log.trace(`${rpcName}.update`, { id, uri, numResponses: op.numResponses, epoch: (r as any)?.epoch });
       });
       op.call.responses.onComplete(() => {
         terminate();
-        log.trace(`${rpcName}.complete`, { id, duration: formatDuration(op.duration!, { maxUnit: "ms" }) });
+        log.trace(`${rpcName}.complete`, { id, uri, duration: formatDuration(op.duration!, { maxUnit: "ms" }) });
         remove();
       });
       op.call.responses.onError((error) => {
@@ -165,7 +173,12 @@ const operationsTracker = {
         .then((output) => {
           op.response = output;
           terminate();
-          log.trace(`${rpcName}.complete`, { id, duration: formatDuration(op.duration!, { maxUnit: "ms" }), output });
+          log.trace(`${rpcName}.complete`, {
+            id,
+            uri,
+            duration: formatDuration(op.duration!, { maxUnit: "ms" }),
+            output,
+          });
         })
         .catch((error) => {
           op.error = error;
@@ -190,9 +203,16 @@ export type BenchUnaryCall<I extends object, O extends object> = UnaryCall<I, O>
 };
 
 /**
- * Extend the standard grpc-web fetch clients with auth, instrumentation, retries, etc.
+ * Extend the standard grpc-web fetch clients with aut & instrumentation.
  */
 class BenchGrpcWebTransport extends GrpcWebFetchTransport {
+  uri: string;
+
+  constructor(uri: string) {
+    super({ baseUrl: `https://${uri}` });
+    this.uri = uri;
+  }
+
   mergeOptions(options?: Partial<RpcOptions> | undefined): RpcOptions {
     options = super.mergeOptions(options);
     options = { ...options, meta: { ...currentMetadataEncoded.value } };
@@ -207,6 +227,7 @@ class BenchGrpcWebTransport extends GrpcWebFetchTransport {
     if (options.retry) throw new Error("serverStreaming does not support retry options");
     const call = super.serverStreaming(method, input, options) as BenchServerStreamingCall<I, O>;
     const op = operationsTracker.track({
+      transport: this,
       method,
       request: input,
       options,
@@ -226,20 +247,9 @@ class BenchGrpcWebTransport extends GrpcWebFetchTransport {
     input: I,
     options: OperationOptions,
   ): BenchUnaryCall<I, O> {
-    const {
-      retryOn = DEFAULT_RETRY_ON,
-      maxRetries = options.retry ? undefined : 1,
-      maxTimeMs,
-      amendRetry,
-    } = options.retry ?? {};
-
-    // TODO :Robustness!: retry operations if 'retry' (on connection failure?)
-    //  (Not quite sure how to do this without promise chaining madness?)
-    const numRetries = 0;
-    const startTimeMs = Date.now();
-
     const call = super.unary(method, input, options) as BenchUnaryCall<I, O>;
     const op = operationsTracker.track({
+      transport: this,
       method,
       request: input,
       options,
@@ -292,41 +302,54 @@ const currentMetadataEncoded: Ref<{ [key: string]: any }> = computed(() => {
 // Service clients
 //
 
-const TRANSPORT_FETCH_OPTIONS: Omit<RequestInit, "body" | "headers" | "method" | "signal"> = {};
-const _CACHED_BENCH_IDS: { [slug: string]: string } = {};
-const _CACHED_HOST_CLIENTS: { [benchId: string]: HostClient } = {};
+const _CACHED_HOST_TRANSPORTS: Ref<{ [benchId: string]: BenchGrpcWebTransport }> = shallowRef({});
+const _CACHED_HOST_CLIENTS: Ref<{ [benchId: string]: HostClient }> = shallowRef({});
 
-export const supervisor = new SupervisorClient(
-  new BenchGrpcWebTransport({
-    baseUrl: SUPERVISOR_URL,
-    fetchInit: TRANSPORT_FETCH_OPTIONS,
-  }),
-);
+export const supervisorTransport = new BenchGrpcWebTransport(SUPERVISOR_URL);
+export const supervisor = new SupervisorClient(supervisorTransport);
 
 /**
  * Gets the Host for a given Bench (looking up host info via supervisor if not cached)
  * NOTE :Performance: cache resolved hosts across session in local storage?
  */
 export async function getHostClient(bench: { id: string }): Promise<HostClient> {
-  if ("id" in bench && _CACHED_BENCH_IDS[bench.id]) return _CACHED_HOST_CLIENTS[bench.id];
+  if ("id" in bench && _CACHED_HOST_CLIENTS.value[bench.id]) {
+    return _CACHED_HOST_CLIENTS.value[bench.id];
+  }
 
   const startedAt = DateTime.now();
   log.debug("host.resolve", bench);
   try {
     const { hosts: hostInfos } = await supervisor.getHosts({ benches: [{ bench: { oneofKind: "id", id: bench.id } }] })
       .response;
-    const hostClient = new HostClient(new BenchGrpcWebTransport({ baseUrl: `https://${hostInfos[0].hostUri}` }));
-    _CACHED_HOST_CLIENTS[bench.id!] = hostClient;
-    log.debug("host.resolve.complete", bench, hostInfos);
+    const hostTransport = new BenchGrpcWebTransport(hostInfos[0].hostUri);
+    const hostClient = new HostClient(hostTransport);
+
+    _CACHED_HOST_CLIENTS.value[bench.id!] = hostClient;
+    _CACHED_HOST_TRANSPORTS.value[bench.id!] = hostTransport;
+    triggerRef(_CACHED_HOST_CLIENTS);
+    triggerRef(_CACHED_HOST_TRANSPORTS);
+
+    log.debug("host.resolve.complete", {
+      bench,
+      hostInfos,
+      duration: formatDuration(DateTime.now().diff(startedAt), { maxUnit: "ms" }),
+    });
     return hostClient;
   } catch (e) {
-    log.error("host.resolve.error", bench, e);
+    log.error("host.resolve.error", { bench, e });
     throw e;
   }
 }
 
+/** Gets a cached transport for the given scope */
+export function getGraphTransport(scope?: Partial<GraphScopeData>): BenchGrpcWebTransport | undefined {
+  if (scope?.benchId == null) return supervisorTransport;
+  else return _CACHED_HOST_TRANSPORTS.value[scope.benchId];
+}
+
 /** Gets the Graph client for a given scope */
-export async function getGraphClient(scope?: Partial<GraphScopeData>): Promise<IGraphIOClient> {
+export async function getGraphClient(scope?: Partial<GraphScopeData>): Promise<HostClient | SupervisorClient> {
   if (scope?.benchId == null) return supervisor;
   else return await getHostClient({ id: scope.benchId });
 }

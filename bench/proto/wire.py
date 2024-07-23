@@ -1458,6 +1458,12 @@ class ServiceKind(betterproto.Enum):
     PUBLIC = 2
 
 
+class HealthCheckResponseServingStatus(betterproto.Enum):
+    UNKNOWN = 0
+    SERVING = 1
+    NOT_SERVING = 2
+
+
 @dataclass(eq=False, repr=False)
 class AccessData(betterproto.Message):
     """An evaluated access."""
@@ -3532,6 +3538,18 @@ class RpcMetadataBadgeInfo(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class HealthCheckRequest(betterproto.Message):
+    """HealthCheck"""
+
+    service: str = betterproto.string_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class HealthCheckResponse(betterproto.Message):
+    status: "HealthCheckResponseServingStatus" = betterproto.enum_field(1)
+
+
+@dataclass(eq=False, repr=False)
 class GetNodesRequest(betterproto.Message):
     scope: "GraphScopeData" = betterproto.message_field(1)
     roots: List["NodeReferenceData"] = betterproto.message_field(2)
@@ -3889,6 +3907,25 @@ class QueueRunRequest(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class QueueRunResponse(betterproto.Message):
     pass
+
+
+class HealthClient(betterproto.ServiceStub):
+    async def check(
+        self,
+        request: "HealthCheckRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None,
+    ) -> "HealthCheckResponse":
+        return await self._unary_unary(
+            "/symbolx.bench.Health/Check",
+            request,
+            HealthCheckResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
 
 
 class GraphIoClient(betterproto.ServiceStub):
@@ -4399,6 +4436,28 @@ class RuntimeClient(betterproto.ServiceStub):
             deadline=deadline,
             metadata=metadata,
         )
+
+
+class HealthBase(ServiceBase):
+    async def check(self, request: "HealthCheckRequest") -> "HealthCheckResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def __rpc_check(
+        self, stream: "grpclib.server.Stream[HealthCheckRequest, HealthCheckResponse]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.check(request)
+        await stream.send_message(response)
+
+    def __mapping__(self) -> Dict[str, grpclib.const.Handler]:
+        return {
+            "/symbolx.bench.Health/Check": grpclib.const.Handler(
+                self.__rpc_check,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                HealthCheckRequest,
+                HealthCheckResponse,
+            ),
+        }
 
 
 class GraphIoBase(ServiceBase):

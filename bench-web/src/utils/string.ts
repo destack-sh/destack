@@ -1,8 +1,3 @@
-export function toCamelCase(input: string): string {
-  /* TEXT to Text */
-  return input.charAt(0).toUpperCase() + input.slice(1).toLowerCase();
-}
-
 export function dedent(input: string, levels: number): string {
   const spacesToRemove = levels * 2;
   const inputLines = input.split("\n");
