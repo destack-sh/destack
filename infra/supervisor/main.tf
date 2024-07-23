@@ -39,9 +39,11 @@ locals {
     GLOBAL_PG_PASSWORD   = var.global_pg_password
     GLOBAL_PG_CRYPTO_KEY = var.global_pg_crypto_key
 
-    TRACING   = 0
-    LOG_LEVEL = "DEBUG"
-    LOG_MODE  = "JSON"
+    TRACING                  = 0
+    LOG_LEVEL                = "DEBUG"
+    LOG_MODE                 = "JSON"
+    CONNECTION_CACHE_ENABLED = 0
+    USE_WAITLIST             = 1
 
     SENTRY_DSN    = var.sentry_dsn
     NEON_API_KEY  = var.neon_api_key

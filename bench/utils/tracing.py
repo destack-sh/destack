@@ -20,8 +20,8 @@ from bench.utils.utils import get_from_env
 VERSION = Path("version").read_text().strip()
 
 _setup_tracing = False
-_processor: BatchSpanProcessor | None
-_reader: PeriodicExportingMetricReader | None
+_processor: BatchSpanProcessor | None = None
+_reader: PeriodicExportingMetricReader | None = None
 
 
 def setup_tracing():

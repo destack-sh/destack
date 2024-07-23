@@ -44,7 +44,7 @@ export function getViewForValueType(type: Omit<TypeIdentity, "kind"> & Partial<T
       return { viewType: VIEW_TYPE_BY_BENCH_TYPE[type.benchType]! };
     } else if (isEnumType(type.benchType)) {
       // prefer inline picker if it fits
-      if (getEnumOptions(type.benchType).length <= 6 && ENUM_ICONS_BY_TYPE[type.benchType] != null) {
+      if (getEnumOptions(type.benchType).length <= 5 && ENUM_ICONS_BY_TYPE[type.benchType] != null) {
         const variant = ENUM_ICONS_BY_TYPE[type.benchType] != null ? Variant.STEALTH : Variant.COMPACT;
         return {
           viewType: ViewType.PICKER,

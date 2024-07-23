@@ -59,9 +59,14 @@ from bench.system.provisioner import provision
 from bench.system.sharding import HostMap
 from bench.utils.func import generate_access_token, generate_salt, to_uuid
 from bench.utils.oracle import Oracle
+from bench.utils.utils import get_from_env
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
+
+USE_WAITLIST = get_from_env(
+    "USE_WAITLIST", default=False, description="Whether to add new users to the waitlist"
+)
 
 
 class Supervisor(GraphIoServiceBase, SupervisorBase):
@@ -177,7 +182,7 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
                 slug=request.slug,
                 name=request.name or request.slug,
                 email=request.email,
-                status=UserStatus.REGISTERED,
+                status=UserStatus.WAITLISTED if USE_WAITLIST else UserStatus.REGISTERED,
                 last_logged_in_at=self.oracle.utc(),
                 _is_new=True,  # force create
             )
@@ -314,6 +319,8 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
             raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "slug not specified")
         if not request.region:
             raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "region not specified")
+        if user.status == UserStatus.WAITLISTED:
+            raise GRPCError(GRPCStatus.PERMISSION_DENIED, "cannot create bench for waitlisted user")
         region = wiring.unpack_enum(Region, request.region)
 
         owner_ptr = wiring.unpack_object(request.owner, supergraph=None, expect=NodeReference)
