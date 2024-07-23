@@ -141,6 +141,7 @@ resource "kubernetes_config_map" "host_envoy_config" {
                   "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
                   codec_type: auto
                   stat_prefix: ingress_http
+                  stream_idle_timeout: 0s
                   route_config:
                     name: local_route
                     virtual_hosts:
