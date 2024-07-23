@@ -1,15 +1,28 @@
 <script lang="ts" setup>
-import { ViewData, NodeReferenceData, Region, UserStatus, Variant } from "@/proto/wire/";
+import {
+  ViewData,
+  NodeReferenceData,
+  Region,
+  UserStatus,
+  Variant,
+  RegionZone,
+  BenchType,
+  EnumType,
+} from "@/proto/wire/";
 import { useExistingConnection } from "@/system/connection";
 import { makeIcon } from "@/system/icon";
 import { createBench, user } from "@/system/user";
 import { viewEmits, type FocusAnchor } from "@/views/common";
-import { toRef, type Ref, ref, watch, computed } from "vue";
+import { toRef, type Ref, ref, watch, computed, watchEffect } from "vue";
 import Button from "@/views/controls/Button.vue";
 import NativeInput from "@/views/content/NativeInput.vue";
 import { toNodeReference } from "@/proto/wiring";
 import { canvas, goToBench } from "@/system/space";
 import { getViewComponentChildren, isVueInstanceOf } from "@/views/canvas";
+import Picker from "@/views/content/Picker.vue";
+import { DEFAULT_REGION_BY_AREA, GEOLOCATION } from "@/utils/geolocation";
+import { makeTypeInfo } from "@/system/value";
+import { enumIndex } from "@/system/search";
 
 const props = defineProps<{ self: NodeReferenceData } & Pick<ViewData, "nodePtr">>();
 const emit = defineEmits(viewEmits());
@@ -19,6 +32,14 @@ const { graph: spaceGraph } = useExistingConnection(toRef(props, "self"));
 const self = toRef(props, "self");
 const slug: Ref<string> = ref("");
 const region: Ref<Region> = ref(Region.EUROPE_FRANKFURT);
+watchEffect(() => {
+  if (GEOLOCATION.value?.area != null) {
+    const defaultRegion = DEFAULT_REGION_BY_AREA[GEOLOCATION.value.area];
+    if (defaultRegion != null) {
+      region.value = defaultRegion;
+    }
+  }
+});
 const isActive = ref(false);
 const isActivated = computed(() => user.value?.status == UserStatus.ACTIVATED);
 const lastError: Ref<string | null> = ref(null);
@@ -75,7 +96,7 @@ defineExpose({ self, focus });
       </p>
     </div>
     <!-- Data -->
-    <div v-if="!isActivated" class="mt-5">
+    <div v-if="!isActivated" class="mt-5 flex flex-col gap-y-3">
       <!-- Owner -->
       <!-- ... -->
       <!-- Slug must match user slug for main bench -->
@@ -88,14 +109,28 @@ defineExpose({ self, focus });
         is-input
         is-disabled
       />
-      <!-- Region -->
-      <!-- ... -->
+      <!-- Region Area -->
+      <Picker
+        v-model="region"
+        :icon="makeIcon({ faName: 'fas fa-globe' })"
+        name="Region"
+        title="Region"
+        is-input
+        :value-type="makeTypeInfo({ benchType: BenchType.REGION, isList: false })"
+        :custom-index="
+          enumIndex({
+            id: 'geolocation',
+            enumTypes: [EnumType.REGION],
+            enumValues: [Region.EUROPE_FRANKFURT, Region.NORTH_AMERICA_OHIO],
+          })
+        "
+      />
     </div>
     <!-- Actions -->
     <div v-if="!isActivated" class="mt-7">
       <Button
         name="Submit"
-        :icon="makeIcon({ faName: 'fas fa-rocket-launch' })"
+        :icon="makeIcon({ faName: 'fas fa-plus' })"
         title="Create Bench"
         class="w-full"
         :is-loading="isActive"
@@ -104,7 +139,7 @@ defineExpose({ self, focus });
       />
     </div>
     <!-- Error -->
-    <div v-if="lastError" class="pt-3 mt-3 border-t border-t-gray-200 flex w-full flex-col gap-y-1">
+    <div v-if="lastError" class="mt-3 flex w-full flex-col gap-y-1 border-t border-t-gray-200 pt-3">
       <div class="flex flex-row items-center gap-x-2">
         <i class="fas fa-exclamation-triangle text-danger-600" />
         <span class="text-danger-600">Error</span>

@@ -43,8 +43,8 @@ def test_coerce_nested_value(session: Session, package: Package) -> None:
     ClassInner.fields.extend(
         Field.member("Field1", Choice1), Field.member("Field2", NodeType.BLOCK)
     )
-    object_inner = ClassInner(field1=Option1)
-    assert object_inner.field1 == Option1
+    object_inner = ClassInner(Field1=Option1)
+    assert object_inner.Field1 is Option1
 
     # outer class
     ClassOuter = Block(type=BlockType.CLASS, name="ClassOuter")
@@ -55,12 +55,12 @@ def test_coerce_nested_value(session: Session, package: Package) -> None:
         Field.member("Field4", ClassInner),
     )
     object_outer = ClassOuter(
-        field1=Option1, field2=False, field3=[Text.plain("hello bench!")], field4=object_inner
+        Field1=Option1, Field2=False, Field3=[Text.plain("hello bench!")], Field4=object_inner
     )
-    assert object_outer.field1 == Option1
-    assert object_outer.field2 is False
-    assert object_outer.field3 == [Text.plain("hello bench!")]
-    assert object_outer.field4 == object_inner
+    assert object_outer.Field1 is Option1
+    assert object_outer.Field2 is False
+    assert object_outer.Field3 == [Text.plain("hello bench!")]
+    assert object_outer.Field4 == object_inner
 
 
 def test_roundtrip_scalar_value(session: Session, package: Package) -> None:
@@ -109,11 +109,11 @@ def test_roundtrip_nested_value(session: Session, package: Package):
 
     # outer value
     value = cast(ValueObject, class1())
-    value.field1 = choice1.fields.Option1
-    assert value.field1 is choice1.fields.Option1
-    value.field2 = False
-    value.field3 = [Text.plain("hello bench!")]
-    value.field4 = cast(ValueObject, class2())
+    value.Field1 = choice1.fields.Option1
+    assert value.Field1 is choice1.fields.Option1
+    value.Field2 = False
+    value.Field3 = [Text.plain("hello bench!")]
+    value.Field4 = cast(ValueObject, class2())
 
     class1_type = class1.to_type(as_object=True)
     value_packed = pack_value(value, class1_type)

@@ -1,4 +1,4 @@
-import type { Region } from "@/proto/wire";
+import { Region, RegionArea, type RegionZone } from "@/proto/wire";
 import { IP_API_KEY } from "@/utils/globals";
 import { log } from "@/utils/log";
 import { createSharedComposable } from "@vueuse/core";
@@ -41,9 +41,9 @@ const GEOLOCATION_FIELDS = [
 ];
 
 export interface Geolocation {
-  continent: Region;
-  area: Region | undefined;
-  city: Region | undefined;
+  area: RegionArea | undefined;
+  zone: RegionZone | undefined;
+  region: Region | undefined;
   detail: GeolocationRaw;
 }
 
@@ -55,19 +55,51 @@ async function getGeolocation(): Promise<Geolocation> {
           credentials: "omit",
         })
       : await fetch(`http://ip-api.com/json/?fields=${GEOLOCATION_FIELDS.join(",")}`); // only works in HTTP context (can't request HTTP in HTTPS)
-    const data = await response.json();
 
+    const data = await response.json();
     if (data.status === "fail") {
       throw new Error(data.message || "Failed to fetch geolocation");
     }
     log.trace("geolocation.complete", data);
 
-    return data as Geolocation;
+    const geolocation = parseGeolocation(data);
+    return geolocation;
   } catch (error) {
     log.error("geolocation.error", error);
     throw error;
   }
 }
+
+function parseGeolocation(data: GeolocationRaw): Geolocation {
+  // NOTE :Incomplete: parse zone/region in geolocation
+  const area = REGION_AREA_BY_CONTINENT_CODE[data.continentCode];
+  const gelocation: Geolocation = {
+    area,
+    zone: undefined,
+    region: undefined,
+    detail: data,
+  };
+  return gelocation;
+}
+
+const REGION_AREA_BY_CONTINENT_CODE: Record<string, RegionArea> = {
+  EU: RegionArea.EUROPE,
+  NA: RegionArea.NORTH_AMERICA,
+  SA: RegionArea.SOUTH_AMERICA,
+  AS: RegionArea.ASIA,
+  AF: RegionArea.AFRICA,
+  OC: RegionArea.AUSTRALIA,
+  AU: RegionArea.AUSTRALIA,
+};
+
+export const DEFAULT_REGION_BY_AREA: Partial<Record<RegionArea, Region>> = {
+  [RegionArea.EUROPE]: Region.EUROPE_FRANKFURT,
+  [RegionArea.NORTH_AMERICA]: Region.NORTH_AMERICA_VIRGINIA,
+  [RegionArea.SOUTH_AMERICA]: Region.SOUTH_AMERICA_SAO_PAULO,
+  [RegionArea.AFRICA]: Region.AFRICA_CAPE_TOWN,
+  [RegionArea.ASIA]: Region.ASIA_MUMBAI,
+  [RegionArea.AUSTRALIA]: Region.AUSTRALIA_SYDNEY,
+};
 
 const _geolocation: Ref<Geolocation | null> = shallowRef(null);
 

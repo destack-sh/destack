@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.07.23.0"
+VERSION = "2024.07.23.2"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -1694,7 +1694,7 @@ class FileInfoData(betterproto.Message):
     coarse_type: "FileType" = betterproto.enum_field(50)
     mime_type: str = betterproto.string_field(51)
     size: int = betterproto.int64_field(52)
-    sha512: Optional[str] = betterproto.string_field(53, optional=True)
+    sha256: Optional[str] = betterproto.string_field(53, optional=True)
     width: Optional[int] = betterproto.int32_field(55, optional=True)
     height: Optional[int] = betterproto.int32_field(56, optional=True)
     aspect_ratio: Optional[float] = betterproto.float_field(57, optional=True)
@@ -1724,7 +1724,7 @@ class FileReferenceData(betterproto.Message):
     coarse_type: "FileType" = betterproto.enum_field(50)
     mime_type: str = betterproto.string_field(51)
     size: int = betterproto.int64_field(52)
-    sha512: Optional[str] = betterproto.string_field(53, optional=True)
+    sha256: Optional[str] = betterproto.string_field(53, optional=True)
     width: Optional[int] = betterproto.int32_field(55, optional=True)
     height: Optional[int] = betterproto.int32_field(56, optional=True)
     aspect_ratio: Optional[float] = betterproto.float_field(57, optional=True)
@@ -2603,7 +2603,7 @@ class FileData(betterproto.Message):
     coarse_type: "FileType" = betterproto.enum_field(50)
     mime_type: str = betterproto.string_field(51)
     size: int = betterproto.int64_field(52)
-    sha512: Optional[str] = betterproto.string_field(53, optional=True)
+    sha256: Optional[str] = betterproto.string_field(53, optional=True)
     width: Optional[int] = betterproto.int32_field(55, optional=True)
     height: Optional[int] = betterproto.int32_field(56, optional=True)
     aspect_ratio: Optional[float] = betterproto.float_field(57, optional=True)

@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.07.23.0"
+VERSION = "2024.07.23.2"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -424,7 +424,7 @@ FILE_TABLE = Table(
         Column("coarse_type", PrimitiveType.INT16),
         Column("mime_type", PrimitiveType.STRING),
         Column("size", PrimitiveType.INT64),
-        Column("sha512", PrimitiveType.STRING, is_nullable=True),
+        Column("sha256", PrimitiveType.STRING, is_nullable=True),
         Column("width", PrimitiveType.INT32, is_nullable=True),
         Column("height", PrimitiveType.INT32, is_nullable=True),
         Column("aspect_ratio", PrimitiveType.FLOAT32, is_nullable=True),
@@ -436,15 +436,15 @@ FILE_TABLE = Table(
     ),
     indexes=(
         Index(
-            "bench_idx_parent_id_sha512", IndexType.BTREE, ("parent_id", "sha512"), is_unique=True
+            "bench_idx_parent_id_sha256", IndexType.BTREE, ("parent_id", "sha256"), is_unique=True
         ),
     ),
     constraints=(
         Constraint(
-            "bench_idx_parent_id_sha512",
+            "bench_idx_parent_id_sha256",
             ConstraintType.UNIQUE,
-            columns=("parent_id", "sha512"),
-            index="bench_idx_parent_id_sha512",
+            columns=("parent_id", "sha256"),
+            index="bench_idx_parent_id_sha256",
         ),
     ),
 )

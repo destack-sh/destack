@@ -175,14 +175,6 @@ defineExpose<ViewExposed>({ self, focus });
         :variant="Variant.COMPACT"
         @click="() => switchStage()"
       />
-      <Button
-        v-if="user"
-        name="Activate"
-        :icon="makeIcon({ faName: 'fas fa-shuffle' })"
-        title="Activate"
-        class="mt-2 w-full"
-        @click="() => fireActionById('user.auth.activate')"
-      />
     </div>
     <!-- Error -->
     <div v-if="lastError" class="mt-3 flex w-full flex-col gap-y-1 border-t border-t-gray-200 pt-3">

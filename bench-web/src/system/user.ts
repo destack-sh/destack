@@ -10,6 +10,7 @@ import {
   UserProperty,
   UserStatus,
   ViewType,
+  RegionZone,
 } from "@/proto/wire";
 import { EMPTY_SCOPE, nodeReference, propertyReference, toNodeReferenceRef, toProtoOneOf } from "@/proto/wiring";
 import { ACTION_COMING_SOON, contributeActionMap } from "@/system/action";

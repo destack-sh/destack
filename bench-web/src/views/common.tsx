@@ -70,7 +70,7 @@ export const ViewContentWrapper: FunctionalComponent<{
         : "flex flex-col";
 
   const labelClass =
-    props.variant === Variant.PRIMARY ? "mb-0.5 block font-semibold text-gray-900" : "mb-0.5 block text-gray-700";
+    props.variant !== Variant.STEALTH ? "mb-0.5 block font-semibold text-gray-900" : "mb-0.5 block text-gray-700";
 
   return (
     <div class={classBase}>
