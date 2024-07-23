@@ -12,7 +12,7 @@ from bench.proto.services import GrpcServer, ServiceBase
 from bench.runtime.runtime import Runtime
 from bench.system.core import system_store_from_env
 from bench.system.host import HostRouter
-from bench.system.sharding import HostMap
+from bench.system.sharding import host_map_from_env
 from bench.system.supervisor import Supervisor
 from bench.utils.env import ENV, IS_DEV
 from bench.utils.oracle import REAL_ORACLE
@@ -49,7 +49,7 @@ async def system(
 ):
     global_store = system_store_from_env()
     host_router = HostRouter(global_store=global_store, oracle=REAL_ORACLE)
-    host_map = HostMap.from_env()
+    host_map = host_map_from_env()
     services: list[ServiceBase] = [host_router]
     if not no_supervisor:
         supervisor = Supervisor(global_store=global_store, oracle=REAL_ORACLE, host_map=host_map)
@@ -61,7 +61,7 @@ async def system(
 @async_to_sync_blocking
 async def supervisor(host: str, port: int, watch: bool = False, no_check: bool = False):
     global_store = system_store_from_env()
-    host_map = HostMap.from_env()
+    host_map = host_map_from_env()
     supervisor = Supervisor(global_store=global_store, oracle=REAL_ORACLE, host_map=host_map)
     await _do_serve(handlers=[supervisor], host=host, port=port, watch=watch, no_check=no_check)
 
