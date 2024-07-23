@@ -122,12 +122,13 @@ class ViewType(IdEnum):
     CALENDAR = 1256
     MAP = 1258
     COLOR = 1260
+    ICON = 1261
     # file
-    FILE = 1270
-    ICON = 1272
+    FILE = 1270  # (generic file content according to file type)
     IMAGE = 1273
-    VIDEO = 1274
-    AUDIO = 1275
+    AUDIO = 1274
+    VIDEO = 1275
+    DOCUMENT = 1276
     ...
 
 

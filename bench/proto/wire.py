@@ -1445,11 +1445,12 @@ class ViewType(betterproto.Enum):
     CALENDAR = 1256
     MAP = 1258
     COLOR = 1260
+    ICON = 1261
     FILE = 1270
-    ICON = 1272
     IMAGE = 1273
-    VIDEO = 1274
-    AUDIO = 1275
+    AUDIO = 1274
+    VIDEO = 1275
+    DOCUMENT = 1276
 
 
 class ServiceKind(betterproto.Enum):

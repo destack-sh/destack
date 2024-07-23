@@ -65,7 +65,7 @@ class SecretReference(
     @staticmethod
     def from_node(node: Node) -> "SecretReference":
         node_ref = NodeReference.from_node(node)
-        secret_ref = SecretReference._copy_ref(SecretReference, node_ref)
+        secret_ref = SecretReference._clone_ref(SecretReference, node_ref)
         for prop in SecretReference.__declared_properties__.values():
             if hasattr(secret_ref, prop.name):
                 setattr(secret_ref, prop.name, getattr(node, prop.name))
@@ -75,7 +75,7 @@ class SecretReference(
     @staticmethod
     def from_node_data(node_data: SecretData) -> SecretReferenceData:
         node_ref = NodeReference.from_node_data(node_data)
-        secret_ref = SecretReference._copy_ref(SecretReferenceData, node_ref)
+        secret_ref = SecretReference._clone_ref(SecretReferenceData, node_ref)
         for prop in SecretReference.__declared_properties__.values():
             if hasattr(secret_ref, prop.name):
                 setattr(secret_ref, prop.name, getattr(node_data, prop.name))
@@ -85,7 +85,7 @@ class SecretReference(
     @staticmethod
     def from_node_as_data(node: Secret) -> SecretReferenceData:
         node_ref = NodeReference.from_node_as_data(node)
-        secret_ref = SecretReference._copy_ref(SecretReferenceData, node_ref)
+        secret_ref = SecretReference._clone_ref(SecretReferenceData, node_ref)
         for prop in SecretReference.__declared_properties__.values():
             if hasattr(secret_ref, prop.name):
                 setattr(secret_ref, prop.name, getattr(node, prop.name))
