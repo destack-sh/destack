@@ -267,6 +267,11 @@ function clearBench() {
   }
 }
 
+
+function clearSpace() {
+  log.trace("local.clearSpace");
+  _spaceGraphLocal.clear();
+}
 //
 // Developer stuff
 //
@@ -291,6 +296,7 @@ const local = {
   getSpacePtr,
   setBench,
   clearBench,
+  clearSpace,
   isDeveloperMode,
 } as const;
 

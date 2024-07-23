@@ -805,16 +805,14 @@ let connectionId = 0;
 function newConnectionId(): number {
   return connectionId++;
 }
-const _connections: Ref<ConnectionBase<any, any>[]> = shallowRef([
-  // add local graph
-  new LocalGetConnection(
-    { id: newConnectionId(), name: "local.space", live: true, options: {} },
-    { scope: EMPTY_SCOPE, roots: [LOCAL_SPACE_PTR], options: makeReadOptions({ descendantTypes: [NodeType.VIEW] }) },
-    new ProxyNodeGraph({ graph: spaceGraphLocal, filter: DEFAULT_NODE_FILTER }),
-    // we export it as read-only but it's actually writable
-    spaceGraphLocal as ReadNodeGraph & WriteNodeGraph,
-  ),
-]);
+const localConnection = new LocalGetConnection(
+  { id: newConnectionId(), name: "local.space", live: true, options: {} },
+  { scope: EMPTY_SCOPE, roots: [LOCAL_SPACE_PTR], options: makeReadOptions({ descendantTypes: [NodeType.VIEW] }) },
+  new ProxyNodeGraph({ graph: spaceGraphLocal, filter: DEFAULT_NODE_FILTER }),
+  // we export it as read-only but it's actually writable
+  spaceGraphLocal as ReadNodeGraph & WriteNodeGraph,
+);
+const _connections: Ref<ConnectionBase<any, any>[]> = shallowRef([localConnection]);
 export const connections = pretendReadonly(_connections);
 export const hasPendingConnections = computed(() => connections.value.some((c) => !c.isConnected.value));
 
@@ -917,7 +915,7 @@ function acquireExistingConnection<K extends GraphConnectionKind, T extends Node
 
 export async function clearConnections(): Promise<void> {
   await Promise.all(_connections.value.map((c) => c.close()));
-  _connections.value = [];
+  _connections.value = [localConnection];
 }
 
 type ConnectionMetadataIn = Pick<ConnectionMetadata, "name"> & Partial<ConnectionMetadata>;
