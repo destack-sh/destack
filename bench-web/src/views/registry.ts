@@ -50,6 +50,7 @@ const COMPONENT_BY_VIEW_TYPE_LAZY = {
   [ViewType.PICKER]: () => import("@/views/content/Picker.vue"),
   [ViewType.COLOR]: () => import("@/views/content/Color.vue"),
   [ViewType.ICON]: () => import("@/views/content/Icon.vue"),
+  [ViewType.FILE]: () => import("@/views/content/File.vue"),
 };
 const COMPONENT_BY_VIEW_TYPE = {} as Record<ViewType, ViewComponent>;
 const VIEW_TYPE_BY_COMPONENT_NAME = {} as Record<string, ViewType>;

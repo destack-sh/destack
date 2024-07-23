@@ -80,14 +80,14 @@ class FileInfoBase(BuiltinObject):
     sha256: str | None = p_internal(53, constraint=SHA256_CONSTRAINT)
 
     # multimedia
-    width: Optional[int] = p_regular(55, default=None)
-    height: Optional[int] = p_regular(56, default=None)
-    aspect_ratio: Optional[float] = p_regular(57, default=None)
-    codec: Optional[str] = p_regular(58, default=None)
-    duration: Optional[float] = p_regular(60, default=None)
-    bitrate: Optional[int] = p_regular(61, default=None)
-    channels: Optional[int] = p_regular(62, default=None)
-    sample_rate: Optional[int] = p_regular(63, default=None)
+    width: Optional[int] = p_internal(55, default=None)
+    height: Optional[int] = p_internal(56, default=None)
+    aspect_ratio: Optional[float] = p_internal(57, default=None)
+    codec: Optional[str] = p_internal(58, default=None)
+    duration: Optional[float] = p_internal(60, default=None)
+    bitrate: Optional[int] = p_internal(61, default=None)
+    channels: Optional[int] = p_internal(62, default=None)
+    sample_rate: Optional[int] = p_internal(63, default=None)
 
 
 @struct_(StructType.FILE_INFO)
@@ -142,7 +142,7 @@ class FileReference(
     @staticmethod
     def from_node(node: Node) -> "FileReference":
         node_ref = NodeReference.from_node(node)
-        file_ref = FileReference._copy_ref(FileReference, node_ref)
+        file_ref = FileReference._clone_ref(FileReference, node_ref)
         for prop in FileInfoBase.__declared_properties__.values():
             if hasattr(file_ref, prop.name):
                 setattr(file_ref, prop.name, getattr(node, prop.name))
@@ -152,7 +152,7 @@ class FileReference(
     @staticmethod
     def from_node_data(node_data: FileData) -> FileReferenceData:
         node_ref = NodeReference.from_node_data(node_data)
-        file_ref = FileReference._copy_ref(FileReferenceData, node_ref)
+        file_ref = FileReference._clone_ref(FileReferenceData, node_ref)
         for prop in FileInfoBase.__declared_properties__.values():
             if hasattr(file_ref, prop.name):
                 setattr(file_ref, prop.name, getattr(node_data, prop.name))
@@ -162,7 +162,7 @@ class FileReference(
     @staticmethod
     def from_node_as_data(node: File) -> FileReferenceData:
         node_ref = NodeReference.from_node_as_data(node)
-        file_ref = FileReference._copy_ref(FileReferenceData, node_ref)
+        file_ref = FileReference._clone_ref(FileReferenceData, node_ref)
         for prop in FileInfoBase.__declared_properties__.values():
             if hasattr(file_ref, prop.name):
                 setattr(file_ref, prop.name, getattr(node, prop.name))

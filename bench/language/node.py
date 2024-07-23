@@ -1911,7 +1911,7 @@ class NodeReferenceBase[NT: Node, ND: AnyNodeData, RT: NodeReferenceBase, RD: An
     base_bench_id: Optional[UUID] = p_internal(35, default=None)
 
     @staticmethod
-    def _copy_ref[T: NodeReferenceBase | Any](
+    def _clone_ref[T: NodeReferenceBase | Any](
         ref_cls: Type[T], ref: "NodeReferenceBase | Any"
     ) -> T:
         return ref_cls(

@@ -45,9 +45,11 @@ const expandedConnectionId: Ref<number | null> = ref(null);
       <div v-outside.click.stop="close" class="p z-50 rounded border border-gray-300 bg-white text-gray-900">
         <!-- Header -->
         <div class="my-1 flex flex-row border-b border-gray-300 px-3 py-1">
-          <span class="font-semibold">Connections ({{ connections.length }})</span>
+          <span class="font-semibold">Connections</span>
           <div class="ml-auto">
-            <span v-if="GEOLOCATION?.area" class="text-gray-500">{{ toCamelName(RegionArea, GEOLOCATION?.area) }}</span>
+            <span v-if="GEOLOCATION?.area" class="text-gray-400"
+              >{{ toCamelName(RegionArea, GEOLOCATION?.area) }} / {{ GEOLOCATION?.detail?.city }}</span
+            >
           </div>
         </div>
         <!-- Body -->

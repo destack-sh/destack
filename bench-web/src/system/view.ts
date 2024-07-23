@@ -19,6 +19,7 @@ const VIEW_TYPE_BY_BENCH_TYPE: Partial<Record<BenchType, ViewType>> = {
   [BenchType.ICON]: ViewType.ICON,
   [BenchType.CODE]: ViewType.CODE,
   [BenchType.TEXT]: ViewType.TEXT,
+  [BenchType.FILE]: ViewType.FILE,
 };
 const VIEW_TYPE_BY_PRIMITIVE_TYPE: Partial<Record<PrimitiveType, ViewType>> = {
   [PrimitiveType.STRING]: ViewType.STRING,
@@ -38,25 +39,31 @@ export function getViewForValueType(type: Omit<TypeIdentity, "kind"> & Partial<T
   props?: ViewProps;
 } | null {
   if (type.kind == TypeKind.OBJECT) {
+    // object
     return { viewType: ViewType.OBJECT, props: { valueType: type as TypeInfoData } };
   } else if (type.benchType != null) {
     if (VIEW_TYPE_BY_BENCH_TYPE[type.benchType] != null) {
+      // specific bench type view
       return { viewType: VIEW_TYPE_BY_BENCH_TYPE[type.benchType]! };
     } else if (isEnumType(type.benchType)) {
-      // prefer inline picker if it fits
+      // enum type -> picker
       if (getEnumOptions(type.benchType).length <= 5 && ENUM_ICONS_BY_TYPE[type.benchType] != null) {
+        // prefer inline picker for small enums
         const variant = ENUM_ICONS_BY_TYPE[type.benchType] != null ? Variant.STEALTH : Variant.COMPACT;
         return {
           viewType: ViewType.PICKER,
           props: { valueType: makeTypeInfo(type), variant, isInline: true },
         };
       } else {
+        // regular picker
         return { viewType: ViewType.PICKER, props: { valueType: makeTypeInfo(type) } };
       }
     } else if (isNodeType(type.benchType)) {
+      // node picker
       return { viewType: ViewType.PICKER, props: { valueType: makeTypeInfo(type) } };
     }
-  } else if (VIEW_TYPE_BY_PRIMITIVE_TYPE[type.primitiveType!] != null) {
+  } else if (type.primitiveType != null && VIEW_TYPE_BY_PRIMITIVE_TYPE[type.primitiveType] != null) {
+    // primitive
     return { viewType: VIEW_TYPE_BY_PRIMITIVE_TYPE[type.primitiveType!]! };
   }
 
