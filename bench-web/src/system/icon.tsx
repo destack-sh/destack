@@ -26,6 +26,7 @@ import {
   FileType,
   RegionArea,
   Region,
+  ResourceStatus,
 } from "@/proto/wire";
 import type { FunctionalComponent } from "vue";
 // file is generated with:
@@ -446,6 +447,15 @@ export const ICON_BY_REGION: Partial<Record<Region, IconData>> = _makeIcons<Regi
   [Region.AUSTRALIA_SYDNEY]: "🇦🇺",
 });
 
+export const ICON_BY_RESOURCE_STATUS: Partial<Record<ResourceStatus, IconData>> = _makeIcons<ResourceStatus>({
+  [ResourceStatus.DECLARED]: "fas fa-circle-dot",
+  [ResourceStatus.PROVISIONING]: "fas fa-circle-notch",
+  [ResourceStatus.HEALTHY]: "fas fa-circle-check",
+  [ResourceStatus.UNHEALTHY]: "fas fa-exclamation-triangle",
+  [ResourceStatus.SLEEPING]: "fas fa-zzz",
+  [ResourceStatus.DECOMMISSIONED]: "fas fa-skull",
+});
+
 export const ENUM_ICONS_BY_TYPE: Partial<Record<EnumType, Record<any, IconData>>> = {
   [EnumType.NODE_TYPE]: ICON_BY_NODE_TYPE,
   [EnumType.STRUCT_TYPE]: ICON_BY_STRUCT_TYPE,
@@ -462,6 +472,7 @@ export const ENUM_ICONS_BY_TYPE: Partial<Record<EnumType, Record<any, IconData>>
   [EnumType.EDIT_TYPE]: ICON_BY_EDIT_TYPE,
   [EnumType.REGION_AREA]: ICON_BY_REGION_AREA,
   [EnumType.REGION]: ICON_BY_REGION,
+  [EnumType.RESOURCE_STATUS]: ICON_BY_RESOURCE_STATUS,
 };
 
 export function getNodeIcon(

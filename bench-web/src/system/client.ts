@@ -1,14 +1,7 @@
-import {
-  ClientOriginData,
-  ClientType,
-  LocalStorage,
-  NodeType,
-  ObjectType,
-  SpaceData
-} from "@/proto/wire";
+import { ClientOriginData, ClientType, LocalStorage, NodeType, ObjectType, SpaceData } from "@/proto/wire";
 import { describeNode, makeScope, nodeReference, toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
 import { NodeGraph, type ReadNodeGraph } from "@/system/graph";
-import { SOURCE_NODE_TYPES } from "@/system/lang";
+import { makeNode, SOURCE_NODE_TYPES } from "@/system/lang";
 import { getBrowserName, getBrowserVersion, getDeviceType, getOperatingSystem } from "@/utils/browser";
 import { isDeveloperMode as globalIsDeveloperMode } from "@/utils/globals";
 import { log } from "@/utils/log";
@@ -193,17 +186,18 @@ export const PACKAGE_SCOPE = computedValue(() =>
 );
 
 // current local Space graph (not yet persisted).
-const _spaceGraphLocal = new NodeGraph({
-  scope: makeScope({ benchId: LOCAL_BENCH_ID, packageId: LOCAL_PACKAGE_ID }),
-  nodeTypes: SOURCE_NODE_TYPES,
-});
-_spaceGraphLocal.add({
+const _spaceLocal = {
   metatype: ObjectType.SPACE,
   name: "Local",
   id: LOCAL_SPACE_ID,
   packagePtr: LOCAL_PACKAGE_PTR,
   benchPtr: LOCAL_BENCH_PTR,
-} as SpaceData);
+} as SpaceData;
+const _spaceGraphLocal = new NodeGraph({
+  scope: makeScope({ benchId: LOCAL_BENCH_ID, packageId: LOCAL_PACKAGE_ID }),
+  nodeTypes: SOURCE_NODE_TYPES,
+});
+_spaceGraphLocal.add(_spaceLocal);
 export const spaceGraphLocal = _spaceGraphLocal as ReadNodeGraph;
 
 /** Sets the active space. Must be local or from the current package. Also replaces main space for that bench. */
@@ -267,10 +261,10 @@ function clearBench() {
   }
 }
 
-
 function clearSpace() {
   log.trace("local.clearSpace");
   _spaceGraphLocal.clear();
+  _spaceGraphLocal.add(_spaceLocal);
 }
 //
 // Developer stuff

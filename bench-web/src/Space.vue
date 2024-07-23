@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { Anchor, NodeType, Orientation, ViewType } from "@/proto/wire";
+import { Anchor, NodeType, Orientation, UserStatus, ViewType } from "@/proto/wire";
 import { toNodeReference } from "@/proto/wiring";
 import { spacePtr } from "@/system/client";
 import { bench, canvas, space, spaceConnection, spaceGraph } from "@/system/space";
@@ -24,6 +24,7 @@ import { DEFAULT_BAR_POSITION, DEFAULT_HEADER_HEIGHT, createDesktopDefaultSpace 
 import { user } from "@/system/user";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import { GEOLOCATION } from "@/utils/geolocation";
+import { DISCORD_URL } from "@/utils/globals";
 
 const BAR_WIDTH = DEFAULT_HEADER_HEIGHT;
 const BAR_HEIGHT = DEFAULT_HEADER_HEIGHT;
@@ -181,18 +182,35 @@ watch([canvas.focusedViewPtr, bench], () => {
           @click="() => assignSpaceInPackage()"
         />
       </div>
-      <div v-else-if="user" class="flex flex-col gap-y-2 self-center">
-        <!-- Logged in, but not on any space (not sure if this should even show or just auto-redirect?) -->
-        <span
+      <div v-else-if="user && user.status == UserStatus.WAITLISTED" class="flex flex-col gap-y-2 self-center">
+        <!-- Logged in but waitlisted -->
+        <span>
+          <i class="fas fa-clock mr-1.5 text-gray-500" />
+          <span class="text-gray-600"
+            ><span class="font-semibold">{{ user.slug }}</span> is on the waitlist</span
           >
+        </span>
+        <a :href="DISCORD_URL" class="mt-1 underline">Discord</a>
+      </div>
+      <div v-else-if="user" class="flex flex-col gap-y-2 self-center">
+        <!-- Logged in but not on any space (not sure if this should even show or just auto-redirect?) -->
+        <span>
           <i class="fas fa-exclamation-triangle mr-1.5 text-gray-500" />
           <span class="text-gray-600">You're Lost in Space</span>
         </span>
         <Button
+          v-if="user.status == UserStatus.ACTIVATED"
           name="GoHome"
           :icon="makeIcon('fas fa-home')"
           title="Go Home"
           @click="fireActionById('user.misc.goToHome')"
+        />
+        <Button
+          v-else
+          name="Activate"
+          :icon="makeIcon('fas fa-plus')"
+          title="Create Bench"
+          @click="fireActionById('user.auth.activate')"
         />
       </div>
       <div v-else class="flex flex-col gap-y-2 self-center">

@@ -1147,7 +1147,7 @@ class ClientType(IdEnum):
 class UserStatus(IdEnum):
     INVITED = 1  # invited via email
     RESERVED = 2  # reserved a handle, unconfirmed
-    WAITLISTED = 3  # got handle, confirmed email, waiting # nocheckin: waitlist users
+    WAITLISTED = 3  # got handle, confirmed email, waiting
     REGISTERED = 4  # got handle, confirmed email, ready to activate
     ACTIVATED = 10  # has main bench, all ready to go
 

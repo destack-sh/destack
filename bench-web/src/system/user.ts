@@ -58,6 +58,7 @@ export const clientsSorted = computed(() => {
     return Number(b.seenAt.seconds - a.seenAt.seconds);
   });
 });
+export const isWaitlisted = computed(() => user.value?.status == UserStatus.WAITLISTED);
 export const isActivated = computed(() => user.value?.status == UserStatus.ACTIVATED);
 
 function makeCurrentClient(): ClientData {
@@ -218,7 +219,7 @@ contributeActionMap<"user">({
   },
   "user.auth.activate": {
     icon: "fas fa-rocket-launch",
-    isEnabled: computed(() => isAuthenticated.value && !isActivated.value),
+    isEnabled: computed(() => isAuthenticated.value && !isActivated.value && !isWaitlisted.value),
     title: "Activate Bench",
     text: "Activate your account by creating your Bench.",
     action: () =>
