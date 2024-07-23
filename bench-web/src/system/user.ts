@@ -88,6 +88,15 @@ function onLogIn(info: { user: UserData; client: ClientData; accessToken: string
   log.info("user.login", local.userInfo.value);
 }
 
+function onLogout() {
+  local.clearUser();
+  if (user.value?.mainBenchPtr?.id == local.benchPtr.value?.id) {
+    local.clearBench();
+  }
+  local.clearSpace();
+  clearConnections();
+}
+
 /**
  * Sign up a new user and simultaneously log in as the current client.
  */
@@ -145,12 +154,7 @@ export async function logOut(logOut?: { all?: boolean; clients?: { id: string }[
   if (logOut == null || logOut?.all || logOut?.clients?.some((c) => c.id == local.clientInfo.value?.id)) {
     // logged out current client
     log.info("user.logout", logOut);
-    local.clearUser();
-    if (user.value?.mainBenchPtr?.id == local.benchPtr.value?.id) {
-      // reset local space
-      local.clearBench();
-    }
-    clearConnections();
+    onLogout();
     toaster.info({ icon: "fas fa-right-to-bracket", title: "Logged out", text: "Thanks for all the fish." });
   }
 }
