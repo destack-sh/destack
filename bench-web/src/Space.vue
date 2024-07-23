@@ -16,14 +16,13 @@ import TooltipOverlay from "@/views/builtins/TooltipOverlay.vue";
 import Split from "@/views/containers/Split.vue";
 import { IS_IN_ALT_MODE, fireActionById } from "@/system/action";
 import { useTitle, useWindowSize } from "@vueuse/core";
-import { computed, onBeforeUnmount, ref, watch } from "vue";
+import { computed, onBeforeUnmount, ref, watch, watchEffect } from "vue";
 import { makeIcon } from "@/system/icon";
 import { assignSpaceInPackage } from "@/system/space";
 import Button from "@/views/controls/Button.vue";
 import { DEFAULT_BAR_POSITION, DEFAULT_HEADER_HEIGHT, createDesktopDefaultSpace } from "@/views/canvas";
 import { user } from "@/system/user";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
-import { VERSION } from "@/utils/globals";
 import { GEOLOCATION } from "@/utils/geolocation";
 
 const BAR_WIDTH = DEFAULT_HEADER_HEIGHT;
@@ -36,6 +35,7 @@ const { width: spaceWidth, height: spaceHeight } = useWindowSize(); // Space mus
 const windows = spaceGraph.getChildrenRef(spacePtr, NodeType.VIEW);
 const window = computed(() => windows.value[0]); // assumes :OneRootWindow for now
 
+// figure out main box / bar layout
 const barPosition = computed(() => space.value?.barPosition ?? DEFAULT_BAR_POSITION);
 const barOrientation = computed(() =>
   barPosition.value == Anchor.TOP || barPosition.value == Anchor.BOTTOM ? Orientation.HORIZONTAL : Orientation.VERTICAL,

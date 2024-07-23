@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.07.22.0"
+VERSION = "2024.07.23.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -224,8 +224,10 @@ class BenchType(betterproto.Enum):
     ACCESS_TYPE = 20035
     CHANGE_CATEGORY = 20036
     POLICY_EFFECT = 20040
-    REGION = 20050
-    CLOUD = 20051
+    CLOUD = 20050
+    REGION = 20051
+    REGION_ZONE = 20052
+    REGION_AREA = 20053
     SERVER_PROFILE = 20055
     MACHINE_PROFILE = 20056
     RESOURCE_STATUS = 20057
@@ -359,8 +361,9 @@ class Cloud(betterproto.Enum):
     GCP = 12
     OCI = 13
     ALIBABA = 14
-    HETZNER = 20
-    PRIVATE = 90
+    HETZNER = 100
+    NEON = 200
+    PRIVATE = 900
 
 
 class CodeType(betterproto.Enum):
@@ -489,8 +492,10 @@ class EnumType(betterproto.Enum):
     ACCESS_TYPE = 20035
     CHANGE_CATEGORY = 20036
     POLICY_EFFECT = 20040
-    REGION = 20050
-    CLOUD = 20051
+    CLOUD = 20050
+    REGION = 20051
+    REGION_ZONE = 20052
+    REGION_AREA = 20053
     SERVER_PROFILE = 20055
     MACHINE_PROFILE = 20056
     RESOURCE_STATUS = 20057
@@ -1015,30 +1020,52 @@ class ReferenceKind(betterproto.Enum):
 
 
 class Region(betterproto.Enum):
-    """
-    Where a Resource is located (physically).
-     There are
-     - 'continental' regions ([>1, <1000]: Europe, North America, etc.).
-     - 'area' regions ([%100=0]: Europe Central, US East, etc.).
-     - 'city' regions (Frankfurt, Ohio, etc.).
-    """
+    """Actual regions within a Zone in an Area."""
 
     UNSPECIFIED = 0
-    EUROPE = 1
-    NORTH_AMERICA = 2
-    SOUTH_AMERICA = 3
-    MIDDLE_EAST = 4
-    AFRICA = 5
-    ASIA = 6
-    OCEANIA = 7
-    PRIVATE = 900
-    GLOBAL = 999
-    EU_CENTRAL = 1000
-    EU_ZURICH = 1001
-    EU_FRANKFURT = 1002
-    NA_EAST = 2000
-    NA_VIRGINIA = 2001
-    NA_OHIO = 2002
+    EUROPE_ZURICH = 1001
+    EUROPE_FRANKFURT = 1002
+    NORTH_AMERICA_VIRGINIA = 2001
+    NORTH_AMERICA_OHIO = 2002
+    NORTH_AMERICA_OREGON = 2101
+    SOUTH_AMERICA_SAO_PAULO = 3001
+    AFRICA_CAPE_TOWN = 5001
+    ASIA_MUMBAI = 6001
+    ASIA_SINGAPORE = 6101
+    ASIA_TOKYO = 6201
+    AUSTRALIA_SYDNEY = 7001
+
+
+class RegionArea(betterproto.Enum):
+    """Rough 'contintents' of Regions."""
+
+    UNSPECIFIED = 0
+    EUROPE = 1000
+    NORTH_AMERICA = 2000
+    SOUTH_AMERICA = 3000
+    MIDDLE_EAST = 4000
+    AFRICA = 5000
+    ASIA = 6000
+    AUSTRALIA = 7000
+    PRIVATE = 9000
+    GLOBAL = 10090
+
+
+class RegionZone(betterproto.Enum):
+    """A larger zone of Regions within an Area."""
+
+    UNSPECIFIED = 0
+    EUROPE_CENTRAL = 1000
+    NORTH_AMERICA_EAST = 2000
+    NORTH_AMERICA_WEST = 2100
+    SOUTH_AMERICA_EAST = 3000
+    MIDDLE_EAST_CENTRAL = 4000
+    MIDDLE_EAST_WEST = 4100
+    AFRICA_SOUTH = 5000
+    ASIA_WEST = 6000
+    ASIA_SOUTH = 6100
+    ASIA_EAST = 6200
+    AUSTRALIA_SOUTH = 7000
 
 
 class ResourceStatus(betterproto.Enum):
@@ -3482,7 +3509,8 @@ class RpcMetadata(betterproto.Message):
     Core metadata for all RPC requests.
      This is passed as specially encoded headers with robust dicts,
      but it's nice to have a common definition.
-     NOTE: update :RpcMetadataEncoding when changing RpcMetadata
+     NOTE: keep :RpcMetadataEncoding references in sync with RpcMetadata
+     NOTE :Monitoring: add request id to RPC metadata?
     """
 
     client_type: Optional["ClientType"] = betterproto.enum_field(2, optional=True)

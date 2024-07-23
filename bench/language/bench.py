@@ -92,7 +92,7 @@ class Bench(BenchNode[BenchData]):
     if TYPE_CHECKING:
         owner_id: Optional[UUID] = None
         owner_type: Optional[NodeType] = None
-    region: "Region" = p_regular(37, require=True, default=REGION, default_sql=None)
+    region: "Region" = p_system(37, require=True, default=REGION, default_sql=None)
     encryption_key: str = p_kernel(
         38,
         require=True,
@@ -289,8 +289,8 @@ NodeDataT = TypeVar("NodeDataT", bound=AnyNodeData)
 class BenchResourceNode(BenchNode[NodeDataT], abc.ABC, Generic[NodeDataT]):
     """
     An external resource in a Bench.
-    Resources generally work on the 'desired state' principle (except for some system-only properties).
-    If different, the real 'current' state is stored in current_* properties.
+    Resources generally work on the 'desired state' principle.
+    The real 'current' state is stored in current_* properties.
     """
 
     parent: Bench | None = p_node_parent(4, NodeType.BENCH, is_system=True)

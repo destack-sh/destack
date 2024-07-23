@@ -35,7 +35,7 @@ async def check(check_db: bool = False):
 
 @app.command(help="create 'bench' and 'system' Benches (owned by 'system' User)")
 @async_to_sync_blocking
-async def bootstrap(region: Region = Region.EU_CENTRAL):
+async def bootstrap(region: Region):
     global_store = system_store_from_env()
     global_pg_engine = pg_engine_from_store(global_store)
     async with global_session(global_store, (global_pg_engine,), REAL_ORACLE, epoch=0) as session:

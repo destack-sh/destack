@@ -110,11 +110,7 @@ const operationsTracker = {
   track<I extends object, O extends object>(opIn: Omit<Operation<I, O>, "id" | "name">) {
     const id = this.numTotalOps++;
     const serviceName = opIn.method.service.typeName.split(".").slice(2).join("."); // remove common company/project prefix
-    const op = {
-      ...opIn,
-      id,
-      name: `${serviceName}.${opIn.method.name} [id=${id}]`,
-    };
+    const op = { ...opIn, id, name: `${serviceName}.${opIn.method.name}` };
     const rpcName = `rpc.${op.name}`;
     this.pendingOps.push(op);
     this.recentOps.push(op);
@@ -144,17 +140,17 @@ const operationsTracker = {
       }
     };
 
-    // subscribe to call events
+    // subscribe to call
     if ("responses" in op.call) {
       // streaming
       op.call.responses.onNext((r) => {
         op.updatedAt = DateTime.now();
         op.numResponses = (op.numResponses ?? 0) + 1;
-        log.trace(rpcName, "update", op.numResponses, (r as any)?.epoch);
+        log.trace(`${rpcName}.update`, { id, numResponses: op.numResponses, epoch: (r as any)?.epoch });
       });
       op.call.responses.onComplete(() => {
         terminate();
-        log.trace(rpcName, "complete", formatDuration(op.duration!, { maxUnit: "ms" }));
+        log.trace(`${rpcName}.complete`, { id, duration: formatDuration(op.duration!, { maxUnit: "ms" }) });
         remove();
       });
       op.call.responses.onError((error) => {
@@ -169,7 +165,7 @@ const operationsTracker = {
         .then((output) => {
           op.response = output;
           terminate();
-          log.trace(rpcName, "complete", formatDuration(op.duration!, { maxUnit: "ms" }), output);
+          log.trace(`${rpcName}.complete`, { id, duration: formatDuration(op.duration!, { maxUnit: "ms" }), output });
         })
         .catch((error) => {
           op.error = error;
@@ -314,16 +310,17 @@ export const supervisor = new SupervisorClient(
 export async function getHostClient(bench: { id: string }): Promise<HostClient> {
   if ("id" in bench && _CACHED_BENCH_IDS[bench.id]) return _CACHED_HOST_CLIENTS[bench.id];
 
-  log.debug("system.getHost", bench);
+  const startedAt = DateTime.now();
+  log.debug("host.resolve", bench);
   try {
     const { hosts: hostInfos } = await supervisor.getHosts({ benches: [{ bench: { oneofKind: "id", id: bench.id } }] })
       .response;
     const hostClient = new HostClient(new BenchGrpcWebTransport({ baseUrl: `https://${hostInfos[0].hostUri}` }));
     _CACHED_HOST_CLIENTS[bench.id!] = hostClient;
-    log.debug("system.getHost.complete", bench, hostInfos);
+    log.debug("host.resolve.complete", bench, hostInfos);
     return hostClient;
   } catch (e) {
-    log.error("system.getHost.error", bench, e);
+    log.error("host.resolve.error", bench, e);
     throw e;
   }
 }

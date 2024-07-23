@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.07.22.0"  # auto change via version script
+VERSION = "2024.07.23.0"  # auto change via version script
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -85,8 +85,10 @@ class EnumType(IdEnum):
     POLICY_EFFECT = 20040
 
     # bench
-    REGION = 20050
-    CLOUD = 20051
+    CLOUD = 20050
+    REGION = 20051
+    REGION_ZONE = 20052
+    REGION_AREA = 20053
     SERVER_PROFILE = 20055
     MACHINE_PROFILE = 20056
     RESOURCE_STATUS = 20057
@@ -424,108 +426,147 @@ class Cloud(IdEnum):
 
     # own
     ...
-    # big
+    # big general
     AWS = 10
     AZURE = 11
     GCP = 12
     OCI = 13
     ALIBABA = 14
-    # small
-    HETZNER = 20
+    # small general
+    HETZNER = 100
+    # small non-general
+    NEON = 200
     # private
-    PRIVATE = 90
+    PRIVATE = 900
+
+
+@enum_(EnumType.REGION_AREA)
+class RegionArea(IdEnum):
+    """
+    Rough 'contintents' of Regions.
+    """
+
+    EUROPE = 1000
+    NORTH_AMERICA = 2000
+    SOUTH_AMERICA = 3000
+    MIDDLE_EAST = 4000
+    AFRICA = 5000
+    ASIA = 6000
+    AUSTRALIA = 7000
+    PRIVATE = 9000
+    GLOBAL = 10090
 
     @property
     def slug(self) -> str:
-        return CLOUD_SLUGS[self]
+        return REGION_AREA_SLUGS[self]
+
+    @staticmethod
+    def get_by_slug(slug: str) -> "RegionArea":
+        return REGION_AREA_BY_SLUG[slug]
 
 
-# :CloudSlugs
-CLOUD_SLUGS: dict[Cloud, str] = {
-    Cloud.AWS: "aws",
-    Cloud.AZURE: "azu",
-    Cloud.GCP: "gcp",
-    Cloud.OCI: "oci",
-    Cloud.ALIBABA: "ali",
-    Cloud.HETZNER: "het",
+REGION_AREA_SLUGS: dict[RegionArea, str] = {
+    RegionArea.EUROPE: "eu",
+    RegionArea.NORTH_AMERICA: "na",
+    RegionArea.SOUTH_AMERICA: "sa",
+    RegionArea.MIDDLE_EAST: "me",
+    RegionArea.AFRICA: "af",
+    RegionArea.ASIA: "as",
+    RegionArea.AUSTRALIA: "au",
 }
-CLOUD_BY_SLUG = {v: k for k, v in CLOUD_SLUGS.items()}
+REGION_AREA_BY_SLUG = {v: k for k, v in REGION_AREA_SLUGS.items()}
+
+
+@enum_(EnumType.REGION_ZONE)
+class RegionZone(IdEnum):
+    """
+    A larger zone of Regions within an Area.
+    """
+
+    EUROPE_CENTRAL = 1000
+    NORTH_AMERICA_EAST = 2000
+    NORTH_AMERICA_WEST = 2100
+    SOUTH_AMERICA_EAST = 3000
+    MIDDLE_EAST_CENTRAL = 4000
+    MIDDLE_EAST_WEST = 4100
+    AFRICA_SOUTH = 5000
+    ASIA_WEST = 6000
+    ASIA_SOUTH = 6100
+    ASIA_EAST = 6200
+    AUSTRALIA_SOUTH = 7000
+
+    @property
+    def area(self) -> RegionArea:
+        return RegionArea((self.id // 1000) * 1000)
+
+    @property
+    def slug(self) -> str:
+        zone = self.name.split("_")[-1]
+        return REGION_AREA_SLUGS[self.area] + "-" + zone.replace("_", "-").lower()
+
+    @staticmethod
+    def get_by_slug(slug: str) -> "RegionZone":
+        return REGION_ZONE_BY_SLUG[slug]
+
+
+REGION_ZONE_SLUGS: dict[RegionZone, str] = {r: r.slug for r in RegionZone}
+REGION_ZONE_BY_SLUG = {v: k for k, v in REGION_ZONE_SLUGS.items()}
 
 
 @enum_(EnumType.REGION)
 class Region(IdEnum):
-    """
-    Where a Resource is located (physically).
-    There are
-      - 'continental' regions ([>1, <1000]: Europe, North America, etc.).
-      - 'area' regions ([%100=0]: Europe Central, US East, etc.).
-      - 'city' regions (Frankfurt, Ohio, etc.).
-    """
+    """Actual regions within a Zone in an Area."""
 
-    # 'continental'
-    EUROPE = 1
-    NORTH_AMERICA = 2
-    SOUTH_AMERICA = 3
-    MIDDLE_EAST = 4
-    AFRICA = 5
-    ASIA = 6
-    OCEANIA = 7
-    PRIVATE = 900
-    GLOBAL = 999
+    # europe-central
+    EUROPE_ZURICH = 1001
+    EUROPE_FRANKFURT = 1002
 
-    # europe
-    EU_CENTRAL = 1000
-    EU_ZURICH = 1001
-    EU_FRANKFURT = 1002
+    # north-america-east
+    NORTH_AMERICA_VIRGINIA = 2001
+    NORTH_AMERICA_OHIO = 2002
 
-    # north america
-    NA_EAST = 2000
-    NA_VIRGINIA = 2001
-    NA_OHIO = 2002
-    NA_OREGON = 2003
+    # north-america-west
+    NORTH_AMERICA_OREGON = 2101
 
-    # south america
+    # south-america-east
+    SOUTH_AMERICA_SAO_PAULO = 3001
+
     ...
 
-    # africa
-    ...
+    # africa-south
+    AFRICA_CAPE_TOWN = 5001
 
-    # asia
-    AS_SINGAPORE = 3001
+    # asia-east
+    ASIA_MUMBAI = 6001
 
-    # oceania
-    OC_SYDNEY = 4001
+    # asia-south
+    ASIA_SINGAPORE = 6101
 
-    @property
-    def is_continental(self) -> bool:
-        return self.id < 1000
+    # asia-east
+    ASIA_TOKYO = 6201
 
-    @property
-    def is_area(self) -> bool:
-        return self.id > 1000 and self.id % 100 == 0
+    # australia-south
+    AUSTRALIA_SYDNEY = 7001
 
     @property
-    def is_city(self) -> bool:
-        return self.id > 1000 and self.id % 100 != 0
+    def zone(self) -> RegionZone:
+        return RegionZone((self.id // 100) * 100)
+
+    @property
+    def area(self) -> RegionArea:
+        return RegionArea((self.id // 1000) * 1000)
 
     @property
     def slug(self) -> str:
-        if self.is_continental:
-            return REGION_SLUGS[self]
-        else:
-            return self.name.lower().replace("_", "-")
+        area = self.area
+        return area.slug + "-" + self.name[len(area.name) + 1 :].replace("_", "-").lower()
+
+    @staticmethod
+    def get_by_slug(slug: str) -> "Region":
+        return REGION_BY_SLUG[slug]
 
 
-# :RegionSlugs
-REGION_SLUGS: dict[Region, str] = {
-    Region.EUROPE: "eu",
-    Region.NORTH_AMERICA: "na",
-    Region.SOUTH_AMERICA: "sa",
-    Region.MIDDLE_EAST: "me",
-    Region.AFRICA: "af",
-    Region.ASIA: "as",
-    Region.OCEANIA: "oc",
-}
+REGION_SLUGS: dict[Region, str] = {r: r.slug for r in Region}
 REGION_BY_SLUG = {v: k for k, v in REGION_SLUGS.items()}
 
 

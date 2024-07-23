@@ -309,8 +309,6 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
         if not request.region:
             raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "region not specified")
         region = wiring.unpack_enum(Region, request.region)
-        if region == Region.GLOBAL:
-            raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "cannot create bench in global region")
 
         owner_ptr = wiring.unpack_object(request.owner, supergraph=None, expect=NodeReference)
         async with self.request_session(supergraph=subject._supergraph, readonly=False) as session:

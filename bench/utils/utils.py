@@ -44,20 +44,12 @@ def get_from_env_maybe[T](
                 value = int(value)  # type: ignore
                 value = typ(value)
             except ValueError:
-                if typ.__name__ == "Region":
-                    # also accept slug
-                    value = cast(str, value).replace("-", "_").upper()
-                    value = typ[value]
-                elif typ.__name__ == "Cloud":
-                    from bench.language.const import CLOUD_BY_SLUG
-
-                    value = cast(str, value).lower()
-                    if value in CLOUD_BY_SLUG:
-                        value = CLOUD_BY_SLUG[cast(str, value)]
-                    else:
-                        value = typ[cast(str, value).upper()]
+                if typ.__name__ in ("Region", "RegionZone", "RegionArea"):
+                    # parse slug
+                    value = cast(str, value).replace("_", "-").lower()
+                    value = typ.get_by_slug(value)  # type: ignore
                 else:
-                    value = typ[cast(str, value)]
+                    value = typ[cast(str, value).upper()]
         else:
             value = cast(T, typ(value))  # type: ignore
     except Exception as e:
