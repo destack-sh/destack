@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.07.23.3"
+VERSION = "2024.07.23.4"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -978,12 +978,12 @@ class PrimitiveType(betterproto.Enum):
 
     UNSPECIFIED = 0
     BOOLEAN = 1
-    INT16 = 5
+    INT16 = 4
     INT32 = 6
-    INT64 = 7
-    DECIMAL = 9
-    FLOAT32 = 12
-    FLOAT64 = 13
+    INT64 = 8
+    DECIMAL = 10
+    FLOAT32 = 16
+    FLOAT64 = 17
     STRING = 20
     UUID = 21
     JSON = 22

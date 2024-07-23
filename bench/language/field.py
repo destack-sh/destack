@@ -542,8 +542,8 @@ class Field(SourceNode[FieldData], HasNodeBase, TypeInfoBase, _TypeQueryBuilder)
     def _validate_component(
         self, properties: Collection[Property], invalid: ValidationHandler
     ) -> None:
-        if self.zone != FieldZone.OPTION and self.kind is None:
-            invalid(self, "missing type identity", None)
+        if (self.zone == FieldZone.OPTION) != (self.kind == TypeKind.LITERAL):
+            invalid(self, "option field must be literal", None)
 
     @property
     def base(self) -> Optional[Node]:
