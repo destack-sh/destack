@@ -36,12 +36,6 @@ from bench.utils.utils import get_from_env
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
-CONNECTION_CACHE_ENABLED = get_from_env(
-    "CONNECTION_CACHE_ENABLED",
-    typ=bool,
-    default=True,
-    description="Whether to cache system graph connections",
-)
 CONNECTION_REPLAY_BUFFER_SIZE = get_from_env(
     "CONNECTION_REPLAY_BUFFER_SIZE",
     typ=int,
@@ -52,13 +46,7 @@ CONNECTION_CACHE_EXPIRE_SECONDS = get_from_env(
     "CONNECTION_CACHE_EXPIRE_SECONDS",
     typ=int,
     default=120,
-    description="How long to keep unused connections around in seconds",
-)
-MAX_TIME_DRIFT_SECONDS = get_from_env(
-    "MAX_TIME_DRIFT_SECONDS",
-    typ=int,
-    default=60,
-    description="Maximum allowable delta between our time and client transaction time",
+    description="How long to keep unused connections around",
 )
 
 

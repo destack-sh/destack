@@ -12,7 +12,7 @@ async def test_create_and_destroy_project():
     try:
         create_project_rep = await neon_api.create_project(
             name="bench-test",
-            region=Region.EUROPE_FRANKFURT,
+            region=Region.FRANKFURT,
             pg_version=15,
             branch="main",
         )

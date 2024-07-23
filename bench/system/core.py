@@ -51,7 +51,7 @@ def system_store_from_env() -> Store:
         id=UUID(int=0),
         name="System",
         slug="system",
-        region=Region.EUROPE_ZURICH,
+        region=Region.ZURICH,
         encryption_key=encryption_key,
         _supergraph=supergraph,
         # set timestamps to avoid drawing from oracle (which we don't have here)

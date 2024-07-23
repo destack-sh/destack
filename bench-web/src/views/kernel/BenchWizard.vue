@@ -31,7 +31,7 @@ const { graph: spaceGraph } = useExistingConnection(toRef(props, "self"));
 
 const self = toRef(props, "self");
 const slug: Ref<string> = ref("");
-const region: Ref<Region> = ref(Region.EUROPE_FRANKFURT);
+const region: Ref<Region> = ref(Region.FRANKFURT);
 watchEffect(() => {
   if (GEOLOCATION.value?.area != null) {
     const defaultRegion = DEFAULT_REGION_BY_AREA[GEOLOCATION.value.area];
@@ -121,7 +121,7 @@ defineExpose({ self, focus });
           enumIndex({
             id: 'geolocation',
             enumTypes: [EnumType.REGION],
-            enumValues: [Region.EUROPE_FRANKFURT, Region.NORTH_AMERICA_OHIO],
+            enumValues: [Region.FRANKFURT, Region.OHIO],
           })
         "
       />

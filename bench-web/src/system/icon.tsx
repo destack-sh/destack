@@ -434,17 +434,17 @@ export const ICON_BY_REGION_AREA: Partial<Record<RegionArea, IconData>> = _makeI
 });
 
 export const ICON_BY_REGION: Partial<Record<Region, IconData>> = _makeIcons<Region>({
-  [Region.EUROPE_ZURICH]: "🇨🇭",
-  [Region.EUROPE_FRANKFURT]: "🇩🇪",
-  [Region.NORTH_AMERICA_VIRGINIA]: "🇺🇸",
-  [Region.NORTH_AMERICA_OHIO]: "🇺🇸",
-  [Region.NORTH_AMERICA_OREGON]: "🇺🇸",
-  [Region.SOUTH_AMERICA_SAO_PAULO]: "🇵🇸",
-  [Region.AFRICA_CAPE_TOWN]: "🇿🇦",
-  [Region.ASIA_MUMBAI]: "🇮🇳",
-  [Region.ASIA_SINGAPORE]: "🇸🇬",
-  [Region.ASIA_TOKYO]: "🇯🇵",
-  [Region.AUSTRALIA_SYDNEY]: "🇦🇺",
+  [Region.ZURICH]: "🇨🇭",
+  [Region.FRANKFURT]: "🇩🇪",
+  [Region.VIRGINIA]: "🇺🇸",
+  [Region.OHIO]: "🇺🇸",
+  [Region.OREGON]: "🇺🇸",
+  [Region.SAO_PAULO]: "🇵🇸",
+  [Region.CAPE_TOWN]: "🇿🇦",
+  [Region.MUMBAI]: "🇮🇳",
+  [Region.SINGAPORE]: "🇸🇬",
+  [Region.TOKYO]: "🇯🇵",
+  [Region.SYDNEY]: "🇦🇺",
 });
 
 export const ICON_BY_RESOURCE_STATUS: Partial<Record<ResourceStatus, IconData>> = _makeIcons<ResourceStatus>({

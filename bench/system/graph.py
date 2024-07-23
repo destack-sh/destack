@@ -72,8 +72,6 @@ from bench.proto.wire import (
     WatchSearchResponse,
 )
 from bench.system.connection import (
-    CONNECTION_CACHE_ENABLED,
-    MAX_TIME_DRIFT_SECONDS,
     AggregateConnection,
     ConnectionIndex,
     GetConnection,
@@ -84,10 +82,17 @@ from bench.system.connection import (
 from bench.utils.func import CriticalLock, bittuple, group_by, to_uuid
 from bench.utils.oracle import Oracle
 from bench.utils.tenacity import RetryOptions
+from bench.utils.utils import get_from_env
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
+MAX_TIME_DRIFT_SECONDS = get_from_env(
+    "MAX_TIME_DRIFT_SECONDS",
+    typ=int,
+    default=60,
+    description="Maximum allowable delta between our time and client transaction time",
+)
 COMMIT_RETRY = RetryOptions(max_attempts=3, retry_on=(ChannelUnavailableError,))
 
 
@@ -206,7 +211,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
                     query=query,
                     session=session,
                     connection_t=GetConnection,
-                    cache=CONNECTION_CACHE_ENABLED and not request.no_cache,
+                    cache=not request.no_cache,
                 )
                 result = connection.result
                 span.set_attributes(
@@ -316,7 +321,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
                     query=query,
                     session=session,
                     connection_t=SearchConnection,
-                    cache=CONNECTION_CACHE_ENABLED and not request.no_cache,
+                    cache=not request.no_cache,
                 )
                 result = connection.result
                 span.set_attributes(
@@ -416,7 +421,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
                     query=query,
                     session=session,
                     connection_t=AggregateConnection,
-                    cache=CONNECTION_CACHE_ENABLED and not request.no_cache,
+                    cache=not request.no_cache,
                 )
                 span.set_attributes(
                     {"connection_hash": connection.hash, "connection_token": connection.token}

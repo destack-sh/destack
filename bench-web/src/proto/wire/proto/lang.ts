@@ -2867,7 +2867,7 @@ export interface FieldData {
 }
 /**
  * A file stored in a Drive (or externally).
- * De-duplicated so that there's only one File per unique file content for our own files (sha512).
+ * De-duplicated so that there's only one File per unique file content for our own files.
  *
  * @generated from protobuf message symbolx.bench.FileData
  */
@@ -9377,49 +9377,49 @@ export enum Region {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: REGION_EUROPE_ZURICH = 1001;
+     * @generated from protobuf enum value: REGION_ZURICH = 1001;
      */
-    EUROPE_ZURICH = 1001,
+    ZURICH = 1001,
     /**
-     * @generated from protobuf enum value: REGION_EUROPE_FRANKFURT = 1002;
+     * @generated from protobuf enum value: REGION_FRANKFURT = 1002;
      */
-    EUROPE_FRANKFURT = 1002,
+    FRANKFURT = 1002,
     /**
-     * @generated from protobuf enum value: REGION_NORTH_AMERICA_VIRGINIA = 2001;
+     * @generated from protobuf enum value: REGION_VIRGINIA = 2001;
      */
-    NORTH_AMERICA_VIRGINIA = 2001,
+    VIRGINIA = 2001,
     /**
-     * @generated from protobuf enum value: REGION_NORTH_AMERICA_OHIO = 2002;
+     * @generated from protobuf enum value: REGION_OHIO = 2002;
      */
-    NORTH_AMERICA_OHIO = 2002,
+    OHIO = 2002,
     /**
-     * @generated from protobuf enum value: REGION_NORTH_AMERICA_OREGON = 2101;
+     * @generated from protobuf enum value: REGION_OREGON = 2101;
      */
-    NORTH_AMERICA_OREGON = 2101,
+    OREGON = 2101,
     /**
-     * @generated from protobuf enum value: REGION_SOUTH_AMERICA_SAO_PAULO = 3001;
+     * @generated from protobuf enum value: REGION_SAO_PAULO = 3001;
      */
-    SOUTH_AMERICA_SAO_PAULO = 3001,
+    SAO_PAULO = 3001,
     /**
-     * @generated from protobuf enum value: REGION_AFRICA_CAPE_TOWN = 5001;
+     * @generated from protobuf enum value: REGION_CAPE_TOWN = 5001;
      */
-    AFRICA_CAPE_TOWN = 5001,
+    CAPE_TOWN = 5001,
     /**
-     * @generated from protobuf enum value: REGION_ASIA_MUMBAI = 6001;
+     * @generated from protobuf enum value: REGION_MUMBAI = 6001;
      */
-    ASIA_MUMBAI = 6001,
+    MUMBAI = 6001,
     /**
-     * @generated from protobuf enum value: REGION_ASIA_SINGAPORE = 6101;
+     * @generated from protobuf enum value: REGION_SINGAPORE = 6101;
      */
-    ASIA_SINGAPORE = 6101,
+    SINGAPORE = 6101,
     /**
-     * @generated from protobuf enum value: REGION_ASIA_TOKYO = 6201;
+     * @generated from protobuf enum value: REGION_TOKYO = 6201;
      */
-    ASIA_TOKYO = 6201,
+    TOKYO = 6201,
     /**
-     * @generated from protobuf enum value: REGION_AUSTRALIA_SYDNEY = 7001;
+     * @generated from protobuf enum value: REGION_SYDNEY = 7001;
      */
-    AUSTRALIA_SYDNEY = 7001
+    SYDNEY = 7001
 }
 /**
  * Rough 'contintents' of Regions.
@@ -27112,7 +27112,7 @@ export const FileReferenceDataInfo: Record<FileReferenceProperty, PropertyInfo> 
   [FileReferenceProperty.baseCk]: { id: 34, name: 'base_ck', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileReferenceProperty.baseBenchId]: { id: 35, name: 'base_bench_id', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileReferenceProperty.kind]: { id: 40, name: 'kind', component: ObjectType.FILE_REFERENCE, enumType: EnumType.FILE_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileReferenceProperty.content]: { id: 41, name: 'content', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.BYTES, isRuntime: true, isWired: true, isStored: true },
+  [FileReferenceProperty.content]: { id: 41, name: 'content', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.BYTES, constraint: { minLength: 1 }, isRuntime: true, isWired: true, isStored: true },
   [FileReferenceProperty.url]: { id: 42, name: 'url', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [FileReferenceProperty.coarseType]: { id: 50, name: 'coarse_type', component: ObjectType.FILE_REFERENCE, enumType: EnumType.FILE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileReferenceProperty.mimeType]: { id: 51, name: 'mime_type', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 255 }, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -27149,7 +27149,7 @@ export const SecretReferenceDataInfo: Record<SecretReferenceProperty, PropertyIn
 export const FileInfoDataInfo: Record<FileInfoProperty, PropertyInfo> = {
   [FileInfoProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.FILE_INFO, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [FileInfoProperty.kind]: { id: 40, name: 'kind', component: ObjectType.FILE_INFO, enumType: EnumType.FILE_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileInfoProperty.content]: { id: 41, name: 'content', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.BYTES, isRuntime: true, isWired: true, isStored: true },
+  [FileInfoProperty.content]: { id: 41, name: 'content', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.BYTES, constraint: { minLength: 1 }, isRuntime: true, isWired: true, isStored: true },
   [FileInfoProperty.url]: { id: 42, name: 'url', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [FileInfoProperty.coarseType]: { id: 50, name: 'coarse_type', component: ObjectType.FILE_INFO, enumType: EnumType.FILE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileInfoProperty.mimeType]: { id: 51, name: 'mime_type', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 255 }, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -27616,7 +27616,7 @@ export const FileDataInfo: Record<FileProperty, PropertyInfo> = {
   [FileProperty.retention]: { id: 37, name: 'retention', component: ObjectType.FILE, enumType: EnumType.FILE_RETENTION_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.expiresAt]: { id: 38, name: 'expires_at', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.kind]: { id: 40, name: 'kind', component: ObjectType.FILE, enumType: EnumType.FILE_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.content]: { id: 41, name: 'content', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.BYTES, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.content]: { id: 41, name: 'content', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.BYTES, constraint: { minLength: 1 }, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.url]: { id: 42, name: 'url', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.coarseType]: { id: 50, name: 'coarse_type', component: ObjectType.FILE, enumType: EnumType.FILE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.mimeType]: { id: 51, name: 'mime_type', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 255 }, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
