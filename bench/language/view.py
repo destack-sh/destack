@@ -5,7 +5,7 @@ from bench.language.expression import Selection
 from bench.language.graph import NodeList
 from bench.language.node import (
     Node,
-    NodeReferenceBase,
+    SomeNodeReference,
     SourceNode,
     Struct,
     local_node_,
@@ -27,7 +27,7 @@ from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
-    from bench.language import Block, Expression, Icon, Package, Policy, Run, Text, TypeInfo
+    from bench.language import Block, Expression, File, Icon, Package, Policy, Run, Text, TypeInfo
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -415,7 +415,7 @@ class View(SourceNode[ViewData], HasValues):
         42, default=None, require=False, array=False, references=NODE_TYPES.tuple, rich=True
     )
     if TYPE_CHECKING:
-        node_ptr: Optional["NodeReferenceBase"] = None
+        node_ptr: Optional["SomeNodeReference"] = None
 
     # style
     variant: Optional[Variant] = p_regular(50, default=None, require=False)
@@ -507,6 +507,45 @@ class Space(SourceNode[SpaceData]):
     )
 
     views: NodeList["View"] = p_node_children(NodeType.VIEW)
+
+
+@enum_(EnumType.ICON_KIND)
+class IconKind(IdEnum):
+    EMOJI = 1
+    FILE = 2
+    FONT_AWESOME = 3
+
+
+@struct_(StructType.ICON)
+class Icon(Struct):
+    """An icon to be displayed in some view."""
+
+    kind: IconKind = p_internal(30, default=False)
+    # content
+    emoji: Optional[str] = p_internal(31, require=False)
+    file: Optional["File"] = p_internal(
+        32, require=False, array=False, references=NodeType.FILE, rich=True
+    )
+    fa_name: Optional[str] = p_internal(33, require=False)
+    # style
+    color: Optional["Color"] = p_internal(40, require=False, array=False, struct=StructType.COLOR)
+
+    @staticmethod
+    def new(icon: "IconIn") -> "Icon":
+        return to_icon(icon)
+
+
+IconIn = Icon | str
+
+
+def to_icon(icon: IconIn) -> Icon:
+    if isinstance(icon, str):
+        if icon.startswith("fa-"):
+            return Icon(kind=IconKind.FONT_AWESOME, fa_name=icon)
+        else:
+            return Icon(kind=IconKind.EMOJI, emoji=icon)
+    else:
+        return icon
 
 
 #

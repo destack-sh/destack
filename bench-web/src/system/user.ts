@@ -12,7 +12,14 @@ import {
   ViewType,
   RegionZone,
 } from "@/proto/wire";
-import { EMPTY_SCOPE, nodeReference, propertyReference, toNodeReferenceRef, toProtoOneOf } from "@/proto/wiring";
+import {
+  EMPTY_SCOPE,
+  nodeReference,
+  propertyReference,
+  toNodeReferenceRef,
+  toProtoOneOf,
+  type TypedNodeReferenceData,
+} from "@/proto/wiring";
 import { ACTION_COMING_SOON, contributeActionMap } from "@/system/action";
 import local, { persistentInfo } from "@/system/client";
 import { clearConnections, useGetConnection } from "@/system/connection";
@@ -229,7 +236,7 @@ contributeActionMap<"user">({
           override: "user.misc.goToHome",
         });
       } else {
-        await goToBench({ bench: user.value!.mainBenchPtr! });
+        await goToBench({ bench: user.value!.mainBenchPtr! as TypedNodeReferenceData<NodeType.BENCH> });
       }
     },
   },

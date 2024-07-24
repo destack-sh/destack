@@ -1045,7 +1045,7 @@ def evaluate_and_adapt_read(
                 parent_ptr=node.parent_ptr,
                 revision=node.revision,
                 order_key=getattr(node, "order_key", None),
-                reference_ptr=NodeReference.from_node_data(node),
+                reference_ptr=NodeReference._ref_data_from_node_data(node),
             )
             skips[cast(str, node.parent_ptr.id)] = skip
     visible_nodes.extend(skips.values())

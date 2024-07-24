@@ -447,11 +447,11 @@ class SearchConnection(NodeConnection[SearchResultData, WatchSearchUpdate]):
                 trimmed = self._result_data.roots[self.query._first :]
                 self._result_data.roots = self._result_data.roots[: self.query._first]
                 for node in trimmed:
-                    removed_nodes_ptr.append(NodeReference.from_node_data(node))
+                    removed_nodes_ptr.append(NodeReference._ref_data_from_node_data(node))
                     self._result_data.graph.remove(node)
                     self._result_roots_ids.remove(node.id)
             self._result_data.roots_ptr = [  # .roots_ptr is derived from .roots
-                NodeReference.from_node_data(node) for node in self._result_data.roots
+                NodeReference._ref_data_from_node_data(node) for node in self._result_data.roots
             ]
 
             # emit update

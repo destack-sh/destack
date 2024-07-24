@@ -546,8 +546,8 @@ class Host(GraphIoServiceBase, HostApi, HostBase):
         context_data: SessionContextData = (
             context._to_data() if context is not None else SessionContextData()
         )
-        package_ptr = session.package._to_ref_data()
-        bench_ptr = session.bench._to_ref_data()
+        package_ptr = session.package._to_plain_ref_data()
+        bench_ptr = session.bench._to_plain_ref_data()
         log_edits: list[EditData] = []
         for edit in chain(edits, extended_edits):
             node_type = NodeType(edit.node_ptr.type)
@@ -618,7 +618,7 @@ class Host(GraphIoServiceBase, HostApi, HostBase):
                 id=log_data.id,
                 type=wire.EditType.CREATE,
                 scope=edit.scope,
-                node_ptr=NodeReference.from_node_data(log_data),
+                node_ptr=NodeReference._ref_data_from_node_data(log_data),
                 origin=None,
                 epoch=edit.epoch,
                 revision=log_data.revision,

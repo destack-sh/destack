@@ -520,7 +520,7 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
             return None, None
 
         # map into edit-specific context
-        subject_ptr = subject._to_ref_data()
+        subject_ptr = subject._to_plain_ref_data()
         context = EditContextData(metatype=wire.ObjectType.EDIT_CONTEXT)
         if self.client_ptr is not None:
             context.client_ptr = self.client_ptr._to_data()

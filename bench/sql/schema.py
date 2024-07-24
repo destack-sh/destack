@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.07.24.2"
+VERSION = "2024.07.24.4"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -611,6 +611,7 @@ BLOCK_TABLE = Table(
         Column("policies", PrimitiveType.JSON, is_array=True, is_nullable=True),
         Column("delegated_policies", PrimitiveType.JSON, is_array=True, is_nullable=True),
         Column("is_builtin", PrimitiveType.BOOLEAN, default="false"),
+        Column("is_owned", PrimitiveType.BOOLEAN, default="false"),
         Column("is_paused", PrimitiveType.BOOLEAN, default="false"),
     ),
 )

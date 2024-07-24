@@ -7,7 +7,7 @@ from bench.language import Bench, NodeReference, Property, Server, Signal
 from bench.language.bench import Client, ServerProfile
 from bench.language.const import BlockType, ClientType, NodeType
 from bench.language.field import Field
-from bench.language.file import File, FileType
+from bench.language.file import File, FileReference, FileType
 from bench.language.node import BuiltinObject
 from bench.language.session import Session
 from bench.language.setup import NODE_CLASSES, STRUCT_CLASSES
@@ -143,12 +143,15 @@ def test_node_pointers_consistency(session: "Session"):
 
     # rich references
     file1 = File(title="File1", size=0, coarse_type=FileType.TEXT, mime_type="text/plain")
+    file1_ref = file1.to_ref()
+    assert isinstance(file1_ref, FileReference)
     view_a_1_1 = block_a_1.views.append(View.new(ViewType.COLOR, "Color1"))
     view_a_1_1.node = file1
+    assert isinstance(view_a_1_1.node_ptr, FileReference)
     assert view_a_1_1.node == file1
 
 
 @given(obj=structs)
-def test_builtin_object_clone(obj: BuiltinObject, shared_session):
+def test_builtin_object_clone(obj: BuiltinObject, shared_session: Session):
     obj_clone = obj.clone()
     assert obj_clone._equals_content(obj)

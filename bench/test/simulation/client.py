@@ -65,7 +65,9 @@ class UserHandle:
         signup_rep = await supervisor_client.signup_user(signup_req)
         self._user_data = signup_rep.user
         self._user_ptr = unpack_object(
-            NodeReference.from_node_data(self._user_data), expect=NodeReference, supergraph=None
+            NodeReference._ref_data_from_node_data(self._user_data),
+            expect=NodeReference,
+            supergraph=None,
         )
 
 

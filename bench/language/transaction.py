@@ -529,7 +529,7 @@ class Transaction:
                 metatype=wire.ObjectType.EDIT,
                 id=new_edit_id(),
                 type=wiring.pack_enum(EditType, edit_type),
-                node_ptr=node._to_ref_data(),
+                node_ptr=node._to_plain_ref_data(),
                 properties=properties,
                 new_node_partial=wiring.wrap_some_node_maybe(new_node_partial),
                 old_node_partial=wiring.wrap_some_node_maybe(old_node_partial),

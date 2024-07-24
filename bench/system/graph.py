@@ -738,7 +738,7 @@ def parse_commit_scope(edits: list[EditData], base_graph: NodeDataGraph | None) 
             # add current base (base is immutable)
             old_base_node = base_graph.get(edit.node_ptr.base_ck)
             if old_base_node is not None:
-                old_base_ptr = NodeReference.from_node_data(old_base_node)
+                old_base_ptr = NodeReference._ref_data_from_node_data(old_base_node)
                 assert old_base_ptr.id, f"missing base id for {old_base_ptr!r} in {edit!r}"
                 node_scopes_by_id[old_base_ptr.id] = old_base_ptr
         node_scopes_by_id[node_id] = node_scope

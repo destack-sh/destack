@@ -43,6 +43,14 @@ class Secret(SourceNode[SecretData], HasValues):
     value_packed: Any = p_value_packed(41, secret=True)
     value = p_value_runtime(41, typ=lambda self: cast(Secret, self).value_type)
 
+    def to_ref(self) -> "SecretReference":
+        """Gets a reference to this secret."""
+        return SecretReference._ref_from_node(self)
+
+    def _to_ref_data(self) -> SecretReferenceData:
+        """Gets a data reference to this secret."""
+        return SecretReference._ref_from_node(self)._to_data()
+
 
 @struct_(StructType.SECRET_REFERENCE)
 class SecretReference(
@@ -65,24 +73,12 @@ class SecretReference(
 
     @override
     @staticmethod
-    def from_node(node: Secret) -> "SecretReference":
-        node_ref = NodeReference.from_node(node)
-        secret_ref = SecretReference._clone_ref(SecretReference, node_ref)
-        secret_ref.title = node.title
-        return secret_ref
+    def _ref_from_node(node: Secret) -> "SecretReference":
+        node_ref = NodeReference._ref_from_node(node)
+        return SecretReference._clone_ref(SecretReference, node_ref, title=node.title)
 
     @override
     @staticmethod
-    def from_node_data(node_data: SecretData) -> SecretReferenceData:
-        node_ref = NodeReference.from_node_data(node_data)
-        secret_ref = SecretReference._clone_ref(SecretReferenceData, node_ref)
-        secret_ref.title = node_data.title
-        return secret_ref
-
-    @override
-    @staticmethod
-    def from_node_as_data(node: Secret) -> SecretReferenceData:
-        node_ref = NodeReference.from_node_as_data(node)
-        secret_ref = SecretReference._clone_ref(SecretReferenceData, node_ref)
-        secret_ref.title = node.title
-        return secret_ref
+    def _ref_data_from_node_data(node_data: SecretData) -> SecretReferenceData:
+        node_ref = NodeReference._ref_data_from_node_data(node_data)
+        return SecretReference._clone_ref(SecretReferenceData, node_ref, title=node_data.title)

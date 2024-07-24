@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.07.24.2"
+VERSION = "2024.07.24.4"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -2386,6 +2386,7 @@ class BlockData(betterproto.Message):
     policies: List["PolicyData"] = betterproto.message_field(48)
     delegated_policies: List["PolicyData"] = betterproto.message_field(49)
     is_builtin: bool = betterproto.bool_field(60)
+    is_owned: bool = betterproto.bool_field(61)
     is_paused: bool = betterproto.bool_field(64)
 
 

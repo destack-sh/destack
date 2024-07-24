@@ -30,13 +30,12 @@ from bench.utils.func import IdEnum, bittuple
 from bench.utils.naming import Casing, to_casing
 
 if TYPE_CHECKING:
-    # noinspection PyUnresolvedReferences
     from bench.language import (
         Field,
         Node,
-        NodeReference,
         NodeReferenceBase,
         Property,
+        SomeNodeReference,
         Struct,
         ValueObject,
     )
@@ -402,7 +401,7 @@ class NodeSuperGraph:
 
     __slots__ = ("_base", "_graphs", "_graphs_by_node_type", "_root_ptr")
 
-    def __init__(self, root_ptr: "NodeReference | None", base: "NodeSuperGraph | None" = None):
+    def __init__(self, root_ptr: "SomeNodeReference | None", base: "NodeSuperGraph | None" = None):
         self._root_ptr = root_ptr
         self._graphs = ()
         self._graphs_by_node_type: dict[NodeType, tuple[NodeGraph, ...]] = {}

@@ -103,6 +103,9 @@ class Block(SourceNode[BlockData], HasValues):
     is_builtin: bool = p_system(
         60, default=False, description="Whether this is an intrinsic provided by the system."
     )
+    is_owned: bool = p_system(
+        61, default=False, description="Whether this is owned by its creator."
+    )
     is_paused: bool = p_regular(
         64, default=False, description="Whether to pause any runtime activity within this block."
     )

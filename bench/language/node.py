@@ -1640,13 +1640,21 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
                 parent = parent.parent
             return "/".join(reversed(path_parts))
 
-    def to_ref(self) -> "SomeNodeReference":
-        """Gets a reference to this node."""
-        return NodeReference.from_node(self)
+    def to_plain_ref(self) -> "NodeReference":
+        """Gets a plain reference to this node."""
+        return NodeReference._ref_from_node(self)
 
-    def _to_ref_data(self) -> NodeReferenceData:
-        """Gets a data reference to this node."""
-        return NodeReference.from_node_as_data(self)
+    def _to_plain_ref_data(self) -> NodeReferenceData:
+        """Gets a plain data reference to this node."""
+        return NodeReference._ref_from_node(self)._to_data()
+
+    def to_ref(self) -> "SomeNodeReference":
+        """Gets a reference to this node. May be rich in subclasses."""
+        return NodeReference._ref_from_node(self)
+
+    def _to_ref_data(self) -> "SomeNodeReferenceData":
+        """Gets a data reference to this node. May be rich in subclasses."""
+        return NodeReference._ref_from_node(self)._to_data()
 
     #
     # Lifecycle
@@ -1917,7 +1925,7 @@ class NodeReferenceBase[NT: Node, ND: AnyNodeData, RT: NodeReferenceBase, RD: An
 
     @staticmethod
     def _clone_ref[T: NodeReferenceBase | Any](
-        ref_cls: Type[T], ref: "NodeReferenceBase | Any"
+        ref_cls: Type[T], ref: "NodeReferenceBase | Any", **kwargs
     ) -> T:
         return ref_cls(
             id=ref.id,
@@ -1926,21 +1934,17 @@ class NodeReferenceBase[NT: Node, ND: AnyNodeData, RT: NodeReferenceBase, RD: An
             bench_id=ref.bench_id,
             base_ck=ref.base_ck,
             base_bench_id=ref.base_bench_id,
+            **kwargs,
         )
 
     @staticmethod
     @abc.abstractmethod
-    def from_node(node: NT) -> RT:
+    def _ref_from_node(node: NT) -> RT:
         raise NotImplementedError
 
     @staticmethod
     @abc.abstractmethod
-    def from_node_data(node_data: ND) -> RD:
-        raise NotImplementedError
-
-    @staticmethod
-    @abc.abstractmethod
-    def from_node_as_data(node: NT) -> RD:
+    def _ref_data_from_node_data(node_data: ND) -> RD:
         raise NotImplementedError
 
 
@@ -1979,7 +1983,7 @@ class NodeReference(Struct[NodeReferenceData], NodeReferenceBase):
 
     @override
     @staticmethod
-    def from_node(node: Node) -> "NodeReference":
+    def _ref_from_node(node: Node) -> "NodeReference":
         """Turn a node into a reference to that node."""
         assert isinstance(node, Node), f"expected Node, got {node!r}"
         reference = NodeReference(type=node.metatype, id=node.id, ck=node.ck)
@@ -2012,7 +2016,7 @@ class NodeReference(Struct[NodeReferenceData], NodeReferenceBase):
 
     @override
     @staticmethod
-    def from_node_data(node_data: AnyNodeData) -> "NodeReferenceData":
+    def _ref_data_from_node_data(node_data: AnyNodeData) -> "NodeReferenceData":
         """Turn a data node into a data node reference to that node."""
         from bench.proto import wire
 
@@ -2035,33 +2039,6 @@ class NodeReference(Struct[NodeReferenceData], NodeReferenceBase):
             if base is not None:
                 reference.base_ck = base.ck
                 reference.base_bench_id = base.bench_id
-
-        return reference
-
-    @override
-    @staticmethod
-    def from_node_as_data(node: Node) -> "NodeReferenceData":
-        """Turn a node straight to a data node reference."""
-        from bench.proto import wire
-
-        reference = NodeReferenceData(
-            metatype=wire.ObjectType.NODE_REFERENCE,
-            type=cast(wire.NodeType, node.metatype),
-            id=str(node.id),
-            ck=str(node.ck),
-        )
-
-        # bench
-        if node.metatype == NodeType.BENCH:
-            reference.bench_id = str(node.id)
-        elif isinstance(node, BenchNode) and node.bench_id is not None:
-            reference.bench_id = str(node.bench_id)
-        # base
-        if node.metatype in BASED_NODE_TYPES:
-            base = cast(HasNodeBase, node).base
-            if base is not None:
-                reference.base_ck = str(base.ck)
-                reference.base_bench_id = str(base.bench_id)
 
         return reference
 
