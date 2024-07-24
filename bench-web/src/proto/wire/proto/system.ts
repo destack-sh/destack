@@ -12,6 +12,10 @@ import { UnknownFieldHandler } from "@protobuf-ts/runtime";
 import type { PartialMessage } from "@protobuf-ts/runtime";
 import { reflectionMergePartial } from "@protobuf-ts/runtime";
 import { MessageType } from "@protobuf-ts/runtime";
+import { FileData } from "./lang";
+import { FileReferenceData } from "./lang";
+import { Struct } from "../google/protobuf/struct";
+import { FileInfoData } from "./lang";
 import { BenchData } from "./lang";
 import { Region } from "./lang";
 import { OrganizationData } from "./lang";
@@ -766,6 +770,72 @@ export interface GetHostsResponse_HostInfo {
      * @generated from protobuf field: symbolx.bench.NodeReferenceData bench = 2;
      */
     bench?: NodeReferenceData;
+}
+// 
+// Host
+// 
+
+/**
+ * @generated from protobuf message symbolx.bench.UploadFilesRequest
+ */
+export interface UploadFilesRequest {
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.FileInfoData files = 1;
+     */
+    files: FileInfoData[];
+}
+/**
+ * @generated from protobuf message symbolx.bench.UploadFilesResponse
+ */
+export interface UploadFilesResponse {
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.UploadFilesResponse.UploadHandle handles = 1;
+     */
+    handles: UploadFilesResponse_UploadHandle[];
+}
+/**
+ * @generated from protobuf message symbolx.bench.UploadFilesResponse.UploadHandle
+ */
+export interface UploadFilesResponse_UploadHandle {
+    /**
+     * @generated from protobuf field: string post_url = 1;
+     */
+    postUrl: string;
+    /**
+     * @generated from protobuf field: google.protobuf.Struct fields = 2;
+     */
+    fields?: Struct;
+}
+/**
+ * @generated from protobuf message symbolx.bench.DownloadFilesRequest
+ */
+export interface DownloadFilesRequest {
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.FileReferenceData files = 1;
+     */
+    files: FileReferenceData[];
+}
+/**
+ * @generated from protobuf message symbolx.bench.DownloadFilesResponse
+ */
+export interface DownloadFilesResponse {
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.DownloadFilesResponse.DownloadHandle handles = 1;
+     */
+    handles: DownloadFilesResponse_DownloadHandle[];
+}
+/**
+ * @generated from protobuf message symbolx.bench.DownloadFilesResponse.DownloadHandle
+ */
+export interface DownloadFilesResponse_DownloadHandle {
+    /**
+     * @generated from protobuf field: symbolx.bench.FileData file = 1;
+     */
+    file?: FileData;
+    /**
+     * @generated from protobuf field: string get_url = 2;
+     */
+    getUrl: string;
 }
 // @generated message type with reflection information, may provide speed optimized methods
 class GetNodesRequest$Type extends MessageType<GetNodesRequest> {
@@ -2822,6 +2892,302 @@ class GetHostsResponse_HostInfo$Type extends MessageType<GetHostsResponse_HostIn
  * @generated MessageType for protobuf message symbolx.bench.GetHostsResponse.HostInfo
  */
 export const GetHostsResponse_HostInfo = new GetHostsResponse_HostInfo$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class UploadFilesRequest$Type extends MessageType<UploadFilesRequest> {
+    constructor() {
+        super("symbolx.bench.UploadFilesRequest", [
+            { no: 1, name: "files", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => FileInfoData }
+        ]);
+    }
+    create(value?: PartialMessage<UploadFilesRequest>): UploadFilesRequest {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.files = [];
+        if (value !== undefined)
+            reflectionMergePartial<UploadFilesRequest>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: UploadFilesRequest): UploadFilesRequest {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* repeated symbolx.bench.FileInfoData files */ 1:
+                    message.files.push(FileInfoData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: UploadFilesRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* repeated symbolx.bench.FileInfoData files = 1; */
+        for (let i = 0; i < message.files.length; i++)
+            FileInfoData.internalBinaryWrite(message.files[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.UploadFilesRequest
+ */
+export const UploadFilesRequest = new UploadFilesRequest$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class UploadFilesResponse$Type extends MessageType<UploadFilesResponse> {
+    constructor() {
+        super("symbolx.bench.UploadFilesResponse", [
+            { no: 1, name: "handles", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => UploadFilesResponse_UploadHandle }
+        ]);
+    }
+    create(value?: PartialMessage<UploadFilesResponse>): UploadFilesResponse {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.handles = [];
+        if (value !== undefined)
+            reflectionMergePartial<UploadFilesResponse>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: UploadFilesResponse): UploadFilesResponse {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* repeated symbolx.bench.UploadFilesResponse.UploadHandle handles */ 1:
+                    message.handles.push(UploadFilesResponse_UploadHandle.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: UploadFilesResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* repeated symbolx.bench.UploadFilesResponse.UploadHandle handles = 1; */
+        for (let i = 0; i < message.handles.length; i++)
+            UploadFilesResponse_UploadHandle.internalBinaryWrite(message.handles[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.UploadFilesResponse
+ */
+export const UploadFilesResponse = new UploadFilesResponse$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class UploadFilesResponse_UploadHandle$Type extends MessageType<UploadFilesResponse_UploadHandle> {
+    constructor() {
+        super("symbolx.bench.UploadFilesResponse.UploadHandle", [
+            { no: 1, name: "post_url", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 2, name: "fields", kind: "message", T: () => Struct }
+        ]);
+    }
+    create(value?: PartialMessage<UploadFilesResponse_UploadHandle>): UploadFilesResponse_UploadHandle {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.postUrl = "";
+        if (value !== undefined)
+            reflectionMergePartial<UploadFilesResponse_UploadHandle>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: UploadFilesResponse_UploadHandle): UploadFilesResponse_UploadHandle {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* string post_url */ 1:
+                    message.postUrl = reader.string();
+                    break;
+                case /* google.protobuf.Struct fields */ 2:
+                    message.fields = Struct.internalBinaryRead(reader, reader.uint32(), options, message.fields);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: UploadFilesResponse_UploadHandle, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* string post_url = 1; */
+        if (message.postUrl !== "")
+            writer.tag(1, WireType.LengthDelimited).string(message.postUrl);
+        /* google.protobuf.Struct fields = 2; */
+        if (message.fields)
+            Struct.internalBinaryWrite(message.fields, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.UploadFilesResponse.UploadHandle
+ */
+export const UploadFilesResponse_UploadHandle = new UploadFilesResponse_UploadHandle$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class DownloadFilesRequest$Type extends MessageType<DownloadFilesRequest> {
+    constructor() {
+        super("symbolx.bench.DownloadFilesRequest", [
+            { no: 1, name: "files", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => FileReferenceData }
+        ]);
+    }
+    create(value?: PartialMessage<DownloadFilesRequest>): DownloadFilesRequest {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.files = [];
+        if (value !== undefined)
+            reflectionMergePartial<DownloadFilesRequest>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: DownloadFilesRequest): DownloadFilesRequest {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* repeated symbolx.bench.FileReferenceData files */ 1:
+                    message.files.push(FileReferenceData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: DownloadFilesRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* repeated symbolx.bench.FileReferenceData files = 1; */
+        for (let i = 0; i < message.files.length; i++)
+            FileReferenceData.internalBinaryWrite(message.files[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.DownloadFilesRequest
+ */
+export const DownloadFilesRequest = new DownloadFilesRequest$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class DownloadFilesResponse$Type extends MessageType<DownloadFilesResponse> {
+    constructor() {
+        super("symbolx.bench.DownloadFilesResponse", [
+            { no: 1, name: "handles", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => DownloadFilesResponse_DownloadHandle }
+        ]);
+    }
+    create(value?: PartialMessage<DownloadFilesResponse>): DownloadFilesResponse {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.handles = [];
+        if (value !== undefined)
+            reflectionMergePartial<DownloadFilesResponse>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: DownloadFilesResponse): DownloadFilesResponse {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* repeated symbolx.bench.DownloadFilesResponse.DownloadHandle handles */ 1:
+                    message.handles.push(DownloadFilesResponse_DownloadHandle.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: DownloadFilesResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* repeated symbolx.bench.DownloadFilesResponse.DownloadHandle handles = 1; */
+        for (let i = 0; i < message.handles.length; i++)
+            DownloadFilesResponse_DownloadHandle.internalBinaryWrite(message.handles[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.DownloadFilesResponse
+ */
+export const DownloadFilesResponse = new DownloadFilesResponse$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class DownloadFilesResponse_DownloadHandle$Type extends MessageType<DownloadFilesResponse_DownloadHandle> {
+    constructor() {
+        super("symbolx.bench.DownloadFilesResponse.DownloadHandle", [
+            { no: 1, name: "file", kind: "message", T: () => FileData },
+            { no: 2, name: "get_url", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
+        ]);
+    }
+    create(value?: PartialMessage<DownloadFilesResponse_DownloadHandle>): DownloadFilesResponse_DownloadHandle {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.getUrl = "";
+        if (value !== undefined)
+            reflectionMergePartial<DownloadFilesResponse_DownloadHandle>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: DownloadFilesResponse_DownloadHandle): DownloadFilesResponse_DownloadHandle {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.FileData file */ 1:
+                    message.file = FileData.internalBinaryRead(reader, reader.uint32(), options, message.file);
+                    break;
+                case /* string get_url */ 2:
+                    message.getUrl = reader.string();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: DownloadFilesResponse_DownloadHandle, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.FileData file = 1; */
+        if (message.file)
+            FileData.internalBinaryWrite(message.file, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* string get_url = 2; */
+        if (message.getUrl !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.getUrl);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.DownloadFilesResponse.DownloadHandle
+ */
+export const DownloadFilesResponse_DownloadHandle = new DownloadFilesResponse_DownloadHandle$Type();
 /**
  * @generated ServiceType for protobuf service symbolx.bench.GraphIO
  */
@@ -2862,5 +3228,7 @@ export const Host = new ServiceType("symbolx.bench.Host", [
     { name: "WatchSearch", serverStreaming: true, options: {}, I: WatchSearchRequest, O: WatchSearchResponse },
     { name: "AggregateNodes", options: {}, I: AggregateNodesRequest, O: AggregateNodesResponse },
     { name: "WatchAggregate", serverStreaming: true, options: {}, I: WatchAggregateRequest, O: WatchAggregateResponse },
-    { name: "CommitTransaction", options: {}, I: CommitTransactionRequest, O: CommitTransactionResponse }
+    { name: "CommitTransaction", options: {}, I: CommitTransactionRequest, O: CommitTransactionResponse },
+    { name: "UploadFiles", options: {}, I: UploadFilesRequest, O: UploadFilesResponse },
+    { name: "DownloadFiles", options: {}, I: DownloadFilesRequest, O: DownloadFilesResponse }
 ], { "symbolx.bench.kind": "PUBLIC" });

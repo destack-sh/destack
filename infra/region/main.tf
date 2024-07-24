@@ -245,9 +245,9 @@ resource "kubernetes_secret" "web_certificate_secret" {
 # 
 
 resource "aws_s3_bucket" "bench_public" {
-  bucket = "bench-${var.env}-${var.region}-public"
+  bucket = "bench-${var.env}-${var.cloud}-${var.region}-public"
   tags = {
-    Name = "bench-${var.env}-${var.region}-public"
+    Name = "bench-${var.env}-${var.cloud}-${var.region}-public"
   }
 }
 

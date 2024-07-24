@@ -1,5 +1,6 @@
 # run ./scripts/update-requirements.sh
 
+aiohttp==3.9.5
 anthropic==0.31.0
 betterproto[compiler] @ git+https://github.com/danielgtaylor/python-betterproto.git@5666393f9d10e13609d8eeac8d1ab3815dce5fd6
 bitarray==2.9.2

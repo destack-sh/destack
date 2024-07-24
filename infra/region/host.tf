@@ -26,7 +26,44 @@ locals {
     OPENAI_API_KEY    = var.openai_api_key
     ANTHROPIC_API_KEY = var.anthropic_api_key
     GHCR_TOKEN        = var.ghcr_token
+    S3_ENDPOINT       = aws_s3_bucket.bench_web.bucket_regional_domain_name
+    S3_ACCESS_KEY     = aws_iam_access_key.host.id
+    S3_SECRET_KEY     = aws_iam_access_key.host.secret
   }
+}
+
+# s3 access
+resource "aws_iam_user" "host" {
+  name = "bench-${var.env}-host"
+}
+resource "aws_iam_policy" "host_s3" {
+  name        = "bench-${var.env}-${var.region}-host-s3"
+  description = "Allow access to S3 buckets for host"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:ListBucket",
+          "s3:PutObject",
+          "s3:DeleteObject",
+        ]
+        Resource = [
+          "bench-${var.env}*"
+        ]
+      }
+    ]
+  })
+}
+resource "aws_iam_user_policy_attachment" "host_s3" {
+  user       = aws_iam_user.host.name
+  policy_arn = aws_iam_policy.host_s3.arn
+}
+resource "aws_iam_access_key" "host" {
+  user = aws_iam_user.host.name
 }
 
 # host deployment

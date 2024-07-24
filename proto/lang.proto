@@ -1538,7 +1538,7 @@ message FileInfoData {
   optional NodeReferenceData drive_ptr = 41;
   optional string url = 42;
   string title = 43;
-  optional bytes content = 44;
+  optional bytes inline_content = 44;
   FileType coarse_type = 50;
   string mime_type = 51;
   int64 size = 52;
@@ -1566,7 +1566,7 @@ message FileReferenceData {
   optional NodeReferenceData drive_ptr = 41;
   optional string url = 42;
   string title = 43;
-  optional bytes content = 44;
+  optional bytes inline_content = 44;
   FileType coarse_type = 50;
   string mime_type = 51;
   int64 size = 52;
@@ -2297,7 +2297,7 @@ message FileData {
   optional NodeReferenceData drive_ptr = 41;
   optional string url = 42;
   string title = 43;
-  optional bytes content = 44;
+  optional bytes inline_content = 44;
   FileType coarse_type = 50;
   string mime_type = 51;
   int64 size = 52;

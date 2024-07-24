@@ -7,8 +7,7 @@ import {
   typeNodeReference,
   typeNodeReferenceMaybe,
   unwrapSomeNode,
-  type SomeNodeReferenceData,
-  type TypedNodeReferenceData,
+  type TypedNodeReferenceData
 } from "@/proto/wiring";
 import local, { BENCH_SCOPE, LOCAL_SPACE_ID, PACKAGE_SCOPE, spaceGraphLocal, spacePtr } from "@/system/client";
 import { makeReadOptions, useExistingConnection, useGetConnection } from "@/system/connection";

@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.07.24.4"
+VERSION = "2024.07.24.5"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -1669,7 +1669,7 @@ class FileInfoData(betterproto.Message):
     drive_ptr: Optional["NodeReferenceData"] = betterproto.message_field(41, optional=True)
     url: Optional[str] = betterproto.string_field(42, optional=True)
     title: str = betterproto.string_field(43)
-    content: Optional[bytes] = betterproto.bytes_field(44, optional=True)
+    inline_content: Optional[bytes] = betterproto.bytes_field(44, optional=True)
     coarse_type: "FileType" = betterproto.enum_field(50)
     mime_type: str = betterproto.string_field(51)
     size: int = betterproto.int64_field(52)
@@ -1701,7 +1701,7 @@ class FileReferenceData(betterproto.Message):
     drive_ptr: Optional["NodeReferenceData"] = betterproto.message_field(41, optional=True)
     url: Optional[str] = betterproto.string_field(42, optional=True)
     title: str = betterproto.string_field(43)
-    content: Optional[bytes] = betterproto.bytes_field(44, optional=True)
+    inline_content: Optional[bytes] = betterproto.bytes_field(44, optional=True)
     coarse_type: "FileType" = betterproto.enum_field(50)
     mime_type: str = betterproto.string_field(51)
     size: int = betterproto.int64_field(52)
@@ -2582,7 +2582,7 @@ class FileData(betterproto.Message):
     drive_ptr: Optional["NodeReferenceData"] = betterproto.message_field(41, optional=True)
     url: Optional[str] = betterproto.string_field(42, optional=True)
     title: str = betterproto.string_field(43)
-    content: Optional[bytes] = betterproto.bytes_field(44, optional=True)
+    inline_content: Optional[bytes] = betterproto.bytes_field(44, optional=True)
     coarse_type: "FileType" = betterproto.enum_field(50)
     mime_type: str = betterproto.string_field(51)
     size: int = betterproto.int64_field(52)
@@ -3802,6 +3802,38 @@ class GetHostsResponseHostInfo(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class UploadFilesRequest(betterproto.Message):
+    files: List["FileInfoData"] = betterproto.message_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class UploadFilesResponse(betterproto.Message):
+    handles: List["UploadFilesResponseUploadHandle"] = betterproto.message_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class UploadFilesResponseUploadHandle(betterproto.Message):
+    post_url: str = betterproto.string_field(1)
+    fields: "betterproto_lib_google_protobuf.Struct" = betterproto.message_field(2)
+
+
+@dataclass(eq=False, repr=False)
+class DownloadFilesRequest(betterproto.Message):
+    files: List["FileReferenceData"] = betterproto.message_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class DownloadFilesResponse(betterproto.Message):
+    handles: List["DownloadFilesResponseDownloadHandle"] = betterproto.message_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class DownloadFilesResponseDownloadHandle(betterproto.Message):
+    file: "FileData" = betterproto.message_field(1)
+    get_url: str = betterproto.string_field(2)
+
+
+@dataclass(eq=False, repr=False)
 class RestartRuntimeRequest(betterproto.Message):
     force: bool = betterproto.bool_field(1)
 
@@ -4314,6 +4346,40 @@ class HostClient(betterproto.ServiceStub):
             metadata=metadata,
         )
 
+    async def upload_files(
+        self,
+        request: "UploadFilesRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None,
+    ) -> "UploadFilesResponse":
+        return await self._unary_unary(
+            "/symbolx.bench.Host/UploadFiles",
+            request,
+            UploadFilesResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def download_files(
+        self,
+        request: "DownloadFilesRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None,
+    ) -> "DownloadFilesResponse":
+        return await self._unary_unary(
+            "/symbolx.bench.Host/DownloadFiles",
+            request,
+            DownloadFilesResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
 
 class RuntimeClient(betterproto.ServiceStub):
     async def restart(
@@ -4807,6 +4873,16 @@ class HostBase(ServiceBase):
     ) -> "CommitTransactionResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
+    async def upload_files(
+        self, subject: "Subject", request: "UploadFilesRequest"
+    ) -> "UploadFilesResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def download_files(
+        self, subject: "Subject", request: "DownloadFilesRequest"
+    ) -> "DownloadFilesResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
     async def __rpc_get_nodes(
         self, stream: "grpclib.server.Stream[GetNodesRequest, GetNodesResponse]"
     ) -> None:
@@ -4868,6 +4944,21 @@ class HostBase(ServiceBase):
         response = await self.commit_transaction(request)
         await stream.send_message(response)
 
+    async def __rpc_upload_files(
+        self, stream: "grpclib.server.Stream[UploadFilesRequest, UploadFilesResponse]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.upload_files(request)
+        await stream.send_message(response)
+
+    async def __rpc_download_files(
+        self,
+        stream: "grpclib.server.Stream[DownloadFilesRequest, DownloadFilesResponse]",
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.download_files(request)
+        await stream.send_message(response)
+
     def __mapping__(self) -> Dict[str, grpclib.const.Handler]:
         return {
             "/symbolx.bench.Host/GetNodes": grpclib.const.Handler(
@@ -4911,6 +5002,18 @@ class HostBase(ServiceBase):
                 grpclib.const.Cardinality.UNARY_UNARY,
                 CommitTransactionRequest,
                 CommitTransactionResponse,
+            ),
+            "/symbolx.bench.Host/UploadFiles": grpclib.const.Handler(
+                self.__rpc_upload_files,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                UploadFilesRequest,
+                UploadFilesResponse,
+            ),
+            "/symbolx.bench.Host/DownloadFiles": grpclib.const.Handler(
+                self.__rpc_download_files,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                DownloadFilesRequest,
+                DownloadFilesResponse,
             ),
         }
 

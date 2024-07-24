@@ -3,7 +3,7 @@
 #
 
 resource "aws_s3_bucket" "bench_web" {
-  bucket = "bench-${var.env}-global-web-public"
+  bucket = "bench-${var.env}-${var.cloud}-global-web-public"
 }
 
 # make the S3 bucket public (for read access)

@@ -8,9 +8,11 @@ from typing import (
     Collection,
     Iterable,
     Optional,
+    Sequence,
     TypeVar,
     Union,
     cast,
+    overload,
 )
 
 import structlog
@@ -444,34 +446,50 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         scope = session._get_scope_for_query(self)
         return await session._get_channel_for(scope, self.all_node_types, is_readonly=True)
 
-    @tracer.start_as_current_span("query.get")
+    @overload
     async def get(
         self,
         filter: Union["Expression", "SomeNodeReference", None] = None,
         live: bool = False,
+        **kwargs
+    ) -> NodeT: ...
+    @overload
+    async def get(
+        self, filter: Sequence["SomeNodeReference"], live: bool = False, **kwargs
+    ) -> list[NodeT]: ...
+    @tracer.start_as_current_span("query.get")
+    async def get(
+        self,
+        filter: Union[
+            "Expression", "SomeNodeReference", Sequence["SomeNodeReference"], None
+        ] = None,
+        live: bool = False,
         **kwargs,
-    ) -> NodeT:
+    ) -> NodeT | list[NodeT]:
         """
-        Returns the unique result matching the query (errors otherwise).
+        Returns the unique result matching the query (one or multiple nodes, errors otherwise).
         NOTE: this is only a true get query with specific node pointers as roots, otherwise it's a search.
         """
         from bench.language import GetOptions, NodeReferenceBase, coerce_conditional
 
-        if isinstance(filter, NodeReferenceBase):
+        if isinstance(filter, (NodeReferenceBase, Sequence)):
             # true get request (with node pointers)
             assert self._filter is None, f"cannot combine filter and roots in {self!r}"
             query = self.clone()
-            query._roots = [filter]
+            query._roots = [filter] if isinstance(filter, NodeReferenceBase) else list(filter)
             query._read_type = ReadType.GET
             channel = await query._get_read_channel()
             connection = await channel.get(query, GetOptions(unpack=True, live=live))
-            if len(connection.result.roots) != 1:
-                if len(connection.result.roots) == 0:
+            if len(connection.result.roots) != len(query._roots):
+                if len(connection.result.roots) < len(query._roots):
                     raise NodeNotFoundError(query=query)
                 else:
                     raise MultipleNodesFoundError(query=query, result=connection.result.roots)
-            node = connection.result.roots[0]
-            return cast(NodeT, node)
+            if len(connection.result.roots) == 1:
+                node = connection.result.roots[0]
+                return cast(NodeT, node)
+            else:
+                return cast(list[NodeT], connection.result.roots)
         else:
             # search which should only have one result
             filter = coerce_conditional(self._node_cls, filter, kwargs)

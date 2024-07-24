@@ -3,6 +3,10 @@
 // @generated from protobuf file "proto/system.proto" (package "symbolx.bench", syntax proto3)
 // tslint:disable
 import { Host } from "./system";
+import type { DownloadFilesResponse } from "./system";
+import type { DownloadFilesRequest } from "./system";
+import type { UploadFilesResponse } from "./system";
+import type { UploadFilesRequest } from "./system";
 import { Supervisor } from "./system";
 import type { GetHostsResponse } from "./system";
 import type { GetHostsRequest } from "./system";
@@ -371,12 +375,8 @@ export class SupervisorClient implements ISupervisorClient, ServiceInfo {
         return stackIntercept<GetHostsRequest, GetHostsResponse>("unary", this._transport, method, opt, input);
     }
 }
-// 
-// Host
-// 
-
 /**
- * The Host provides the operating system of a Bench.
+ * A Host provides the operating system of a Bench.
  *
  * @generated from protobuf service symbolx.bench.Host
  */
@@ -413,13 +413,25 @@ export interface IHostClient {
      * @generated from protobuf rpc: CommitTransaction(symbolx.bench.CommitTransactionRequest) returns (symbolx.bench.CommitTransactionResponse);
      */
     commitTransaction(input: CommitTransactionRequest, options?: OperationOptions): UnaryCall<CommitTransactionRequest, CommitTransactionResponse>;
-}
-// 
-// Host
-// 
+    // 
+    // Misc 
+    // 
 
+    /**
+     * 'Upload' some files (get URLs to upload them to).
+     *
+     * @generated from protobuf rpc: UploadFiles(symbolx.bench.UploadFilesRequest) returns (symbolx.bench.UploadFilesResponse);
+     */
+    uploadFiles(input: UploadFilesRequest, options?: OperationOptions): UnaryCall<UploadFilesRequest, UploadFilesResponse>;
+    /**
+     * 'Download' some files (get URLs to download them from).
+     *
+     * @generated from protobuf rpc: DownloadFiles(symbolx.bench.DownloadFilesRequest) returns (symbolx.bench.DownloadFilesResponse);
+     */
+    downloadFiles(input: DownloadFilesRequest, options?: OperationOptions): UnaryCall<DownloadFilesRequest, DownloadFilesResponse>;
+}
 /**
- * The Host provides the operating system of a Bench.
+ * A Host provides the operating system of a Bench.
  *
  * @generated from protobuf service symbolx.bench.Host
  */
@@ -481,6 +493,28 @@ export class HostClient implements IHostClient, ServiceInfo {
     commitTransaction(input: CommitTransactionRequest, options?: OperationOptions): UnaryCall<CommitTransactionRequest, CommitTransactionResponse> {
         const method = this.methods[6], opt = this._transport.mergeOptions(options);
         return stackIntercept<CommitTransactionRequest, CommitTransactionResponse>("unary", this._transport, method, opt, input);
+    }
+    // 
+    // Misc 
+    // 
+
+    /**
+     * 'Upload' some files (get URLs to upload them to).
+     *
+     * @generated from protobuf rpc: UploadFiles(symbolx.bench.UploadFilesRequest) returns (symbolx.bench.UploadFilesResponse);
+     */
+    uploadFiles(input: UploadFilesRequest, options?: OperationOptions): UnaryCall<UploadFilesRequest, UploadFilesResponse> {
+        const method = this.methods[7], opt = this._transport.mergeOptions(options);
+        return stackIntercept<UploadFilesRequest, UploadFilesResponse>("unary", this._transport, method, opt, input);
+    }
+    /**
+     * 'Download' some files (get URLs to download them from).
+     *
+     * @generated from protobuf rpc: DownloadFiles(symbolx.bench.DownloadFilesRequest) returns (symbolx.bench.DownloadFilesResponse);
+     */
+    downloadFiles(input: DownloadFilesRequest, options?: OperationOptions): UnaryCall<DownloadFilesRequest, DownloadFilesResponse> {
+        const method = this.methods[8], opt = this._transport.mergeOptions(options);
+        return stackIntercept<DownloadFilesRequest, DownloadFilesResponse>("unary", this._transport, method, opt, input);
     }
 }
 

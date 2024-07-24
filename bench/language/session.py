@@ -219,6 +219,16 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
         assert self._runner is not None, f"no runner in {self!r}"
         return self._runner
 
+    @property
+    def host(self) -> HostClient:
+        assert self._host is not None, f"no host in {self!r}"
+        return self._host
+
+    @property
+    def supervisor(self) -> SupervisorClient:
+        assert self._supervisor is not None, f"no supervisor in {self!r}"
+        return self._supervisor
+
     def _get_scope_for_node(self, n: Node) -> GraphScopeData:
         """Get the scope for a node in this session."""
         scope = GraphScopeData(metatype=wire.ObjectType.GRAPH_SCOPE)

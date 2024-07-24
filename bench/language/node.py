@@ -22,6 +22,7 @@ from typing import (
     cast,
     dataclass_transform,
     final,
+    overload,
     override,
 )
 from uuid import UUID, uuid4
@@ -1765,8 +1766,28 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     def descendants(cls, *node_types: NodeTypeOrClass) -> "QueryBuilder[Self, NodeDataT]":
         return cls.query().descendants(*node_types)
 
+    @overload
     @classmethod
-    async def get(cls, filter: Optional["Expression"] = None, live: bool = False, **kwargs) -> Self:
+    async def get(
+        cls,
+        filter: Optional["Expression | SomeNodeReference | None"] = None,
+        live: bool = False,
+        **kwargs,
+    ) -> Self: ...
+    @overload
+    @classmethod
+    async def get(
+        cls, filter: Sequence["SomeNodeReference"], live: bool = False, **kwargs
+    ) -> list[Self]: ...
+    @classmethod
+    async def get(
+        cls,
+        filter: Optional[
+            "Expression | SomeNodeReference | Sequence[SomeNodeReference] | None"
+        ] = None,
+        live: bool = False,
+        **kwargs,
+    ) -> Self | list[Self]:
         return await cls.query().get(filter, live=live, **kwargs)
 
     @classmethod

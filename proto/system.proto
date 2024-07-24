@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package symbolx.bench;
 
+import "google/protobuf/struct.proto";
 import "proto/common.proto";
 import "proto/lang.proto";
 
@@ -323,7 +324,31 @@ service Supervisor {
 // Host
 //
 
-// The Host provides the operating system of a Bench.
+message UploadFilesRequest {
+  repeated FileInfoData files = 1;
+}
+
+message UploadFilesResponse {
+  message UploadHandle {
+    string post_url = 1;
+    google.protobuf.Struct fields = 2;
+  }
+  repeated UploadHandle handles = 1;
+}
+
+message DownloadFilesRequest {
+  repeated FileReferenceData files = 1;
+}
+
+message DownloadFilesResponse {
+  message DownloadHandle {
+    FileData file = 1;
+    string get_url = 2;
+  }
+  repeated DownloadHandle handles = 1;
+}
+
+// A Host provides the operating system of a Bench.
 service Host {
   option (kind) = PUBLIC; // :ServiceKind
   
@@ -339,5 +364,12 @@ service Host {
   rpc WatchAggregate(WatchAggregateRequest) returns (stream WatchAggregateResponse);
   rpc CommitTransaction(CommitTransactionRequest) returns (CommitTransactionResponse);
 
-  // ...
+  // 
+  // Misc 
+  //
+
+  // 'Upload' some files (get URLs to upload them to).
+  rpc UploadFiles(UploadFilesRequest) returns (UploadFilesResponse);
+  // 'Download' some files (get URLs to download them from).
+  rpc DownloadFiles(DownloadFilesRequest) returns (DownloadFilesResponse);
 }
