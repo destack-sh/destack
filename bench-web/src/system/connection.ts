@@ -18,7 +18,6 @@ import {
 import { HealthClient } from "@/proto/wire/proto/common.client";
 import {
   EMPTY_SCOPE,
-  contentEquals,
   deepContentEquals,
   describeNode,
   makeDefaultBenchProto,
@@ -48,7 +47,7 @@ import {
 import { AsyncEvent } from "@/utils/functools";
 import { GRPC_KEEPALIVE_INTERVAL as GRPC_KEEPALIVE_INTERVAL_SECONDS, IS_DEV } from "@/utils/globals";
 import { log } from "@/utils/log";
-import { deepValueEquals, immediateStopWatch, pretendReadonly, toValueRef } from "@/utils/ref";
+import { immediateStopWatch, pretendReadonly, toValueRef } from "@/utils/ref";
 import type { RpcError } from "@protobuf-ts/runtime-rpc";
 import { tryOnBeforeUnmount, useNetwork, whenever } from "@vueuse/core";
 import { DateTime } from "luxon";
@@ -61,7 +60,6 @@ import {
   toRef,
   triggerRef,
   watch,
-  watchEffect,
   type MaybeRef,
   type Ref,
   type ShallowRef,
@@ -592,6 +590,7 @@ export class RemoteGetConnection<T extends NodeType> extends ConnectionBase<"get
         this.txBuffer.accept(rep.edits);
       });
       editStream.responses.onError(onError);
+      editStream.responses.onComplete(() => onError(new Error("edit stream closed")));
     } else {
       // otherwise directly apply confirmed edits
       subs.push(this.txBuffer.onCommitted((edits) => this.txBuffer.accept(edits)));
@@ -663,6 +662,7 @@ export class RemoteSearchConnection<T extends NodeType> extends ConnectionBase<"
         page.value = { size: rep.rootsPtr.length, total: rep.total };
       });
       editStream.responses.onError(onError);
+      editStream.responses.onComplete(() => onError(new Error("edit stream closed")));
     }
 
     const overlay = makeConnectionOverlayGraph(graph, this, subs);

@@ -1,4 +1,4 @@
-import { HUMANIZED_OPERATION_STATUS, getHostClient, supervisor } from "@/proto/services";
+import { getCachedGraphClient, HUMANIZED_OPERATION_STATUS, supervisor } from "@/proto/services";
 import {
   BlockProperty,
   ChangeCategory,
@@ -716,7 +716,6 @@ export class ImmediateTransactionBuffer implements TransactionBuffer {
 export class RemoteTransactionBuffer implements TransactionBuffer {
   public readonly id: number;
   public readonly scope: GraphScopeData;
-  public readonly client: IGraphIOClient;
   public readonly isPaused: Ref<boolean> = ref(false);
   private pendingSubs: Array<PendingCallback> = [];
   private committedSubs: Array<CommittedCallback> = [];
@@ -726,12 +725,11 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
   private pendingConnectionByEditId: Record<string, number> = {};
   failedCommits: Ref<Record<string, CommitFailure>> = shallowRef({});
 
-  constructor(id: number, scope: GraphScopeData, client: IGraphIOClient) {
+  constructor(id: number, scope: GraphScopeData) {
     this.id = id;
     this.scope = scope;
     this.currentTx = null;
     this.pendingTx = null;
-    this.client = client;
     this.reset();
   }
 
@@ -746,6 +744,9 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
     try {
       log.trace("transaction.commit", { scope: this.scope, id: this.currentTx.id, edits: this.currentTx.edits });
 
+      const client = getCachedGraphClient(this.scope);
+      if (client == null) throw new Error(`no client for ${this.scope}`);
+
       // swap
       const edits = this.currentTx.edits;
       this.pendingTx = this.currentTx;
@@ -754,7 +755,7 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
       // commit
       const {
         response: { epoch, revisions },
-      } = await this.client.commitTransaction(
+      } = await client.commitTransaction(
         { edits, id: this.pendingTx.id, scope: this.scope },
         {
           suppressErrors: true,
@@ -911,9 +912,8 @@ let bufferId = 0;
 export function newBufferId() {
   return bufferId++;
 }
-const globalTxBuffer: TransactionBuffer = new RemoteTransactionBuffer(newBufferId(), EMPTY_SCOPE, supervisor);
+const globalTxBuffer: TransactionBuffer = new RemoteTransactionBuffer(newBufferId(), EMPTY_SCOPE);
 const txBuffersByBenchId: Ref<Record<string, RemoteTransactionBuffer>> = shallowRef({});
-const txBufferLockByBenchId: Record<string, AsyncEvent> = {};
 
 export function getAllTransactionBuffers(): TransactionBuffer[] {
   return [globalTxBuffer, ...Object.values(txBuffersByBenchId.value)];
@@ -927,18 +927,10 @@ export async function getTransactionBuffer(scope: GraphScopeData): Promise<Trans
   if (scope.benchId) {
     if (!txBuffersByBenchId.value[scope.benchId]) {
       // synchronize so that only one buffer is created per bench even when called concurrently
-      if (!txBufferLockByBenchId[scope.benchId]) {
-        txBufferLockByBenchId[scope.benchId] = new AsyncEvent();
-      } else {
-        await txBufferLockByBenchId[scope.benchId].wait();
-      }
       if (!txBuffersByBenchId.value[scope.benchId]) {
-        const client = await getHostClient({ id: scope.benchId });
-        const buffer = new RemoteTransactionBuffer(newBufferId(), scope, client);
+        const buffer = new RemoteTransactionBuffer(newBufferId(), scope);
         txBuffersByBenchId.value[scope.benchId] = buffer;
         triggerRef(txBuffersByBenchId);
-        txBufferLockByBenchId[scope.benchId].set();
-        delete txBufferLockByBenchId[scope.benchId];
         watchTransactionBuffer(buffer);
       }
     }
