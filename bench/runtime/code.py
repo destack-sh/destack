@@ -7,6 +7,7 @@ from opentelemetry import trace
 
 from bench.language import render
 from bench.language.code import Code, CodeType
+from bench.language.file import upload
 from bench.language.path import get_node, get_node_or_error
 from bench.language.render import RenderOptions
 from bench.language.run import RunKind
@@ -66,16 +67,10 @@ class CodeRunnerBase(Runner):
         """Prepares the context for running the code."""
         assert self.state.compiled, f"no compiled code for {self!r}"
 
-        # references
-        # NOTE :Incomplete: handle references to exported definitions (not just node references)
-        resolved_references = {}
-        for reference_name in self.state.compiled.references:
-            reference = get_node_or_error(self.node, f"^{reference_name}")
-            resolved_references[reference_name] = reference
-
         # assemble globals
         _get_node = functools.partial(get_node, self.node)
         _render = functools.partial(render, options=RenderOptions(scope=self.node))
+        _upload = functools.partial(upload, parent=self.node)
         glbls = {  # :CodeGlobals
             # static
             **self.runtime.static_glbls,
@@ -83,6 +78,7 @@ class CodeRunnerBase(Runner):
             "self": self.node,
             "get_node": _get_node,
             "render": _render,
+            "upload": _upload,
             "log": self.log_sink,
             "trace": self.log_sink.trace,
             "debug": self.log_sink.debug,
@@ -92,8 +88,15 @@ class CodeRunnerBase(Runner):
             "critical": self.log_sink.critical,
             "print": self.log_sink.print,
         }
-        # references (nodes/exports)
+
+        # references
+        # NOTE :Incomplete: handle references to exported definitions (not just node references)
+        resolved_references = {}
+        for reference_name in self.state.compiled.references:
+            reference = get_node_or_error(self.node, f"^{reference_name}")
+            resolved_references[reference_name] = reference
         glbls.update(resolved_references)  # may shadow existing glbls
+
         return glbls
 
     @tracer.start_as_current_span("code.coerce_outputs")

@@ -2093,6 +2093,7 @@ message TypeConstraintData {
   optional BlockType block_type = 70;
   optional StepType step_type = 71;
   optional FileType file_type = 72;
+  optional FileFormat file_format = 73;
 }
 
 // A type from the type system.

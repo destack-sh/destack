@@ -24,7 +24,7 @@ from bench.language.log import Log
 from bench.language.node import EMPTY_SCOPE, GraphScope
 from bench.language.session import Session
 from bench.language.user import User
-from bench.proto.wire import HostClient, SupervisorClient
+from bench.proto.wire import HostClient, RpcMetadata, SupervisorClient
 from bench.proto.wiring import unpack_object
 from bench.test.simulation.spec import WorkloadSpec, WorkloadType
 from bench.test.simulation.utils import SampledFloat, SampledInt, to_value
@@ -163,7 +163,7 @@ class WorkloadBase[SpecT: WorkloadSpec](abc.ABC):
 
 def _make_remote_engines(
     bench_id: UUID,
-    client: "ClientHandle",
+    rpc_metadata: RpcMetadata,
     supervisor_client: SupervisorClient,
     host_client: HostClient,
 ) -> tuple[GraphEngine, ...]:
@@ -175,7 +175,7 @@ def _make_remote_engines(
             node_types=PUBLIC_NODE_TYPES,
             remote=supervisor_client,
             write_retry=RETRY_GRPC_FOREVER,
-            rpc_metadata=client.rpc_metadata,
+            rpc_metadata=rpc_metadata,
         ),
         # bench engine
         RemoteEngine(
@@ -183,7 +183,7 @@ def _make_remote_engines(
             node_types=BENCH_NODE_TYPES | IN_PACKAGE_NODE_TYPES,
             remote=host_client,
             write_retry=RETRY_GRPC_FOREVER,
-            rpc_metadata=client.rpc_metadata,
+            rpc_metadata=rpc_metadata,
         ),
     )
     return engines
@@ -201,7 +201,7 @@ async def make_remote_session(
     nonce = str(UUID(int=oracle.random.getrandbits(128)))
     supervisor_client = await simulation._supervisor.connect(client)
     host_client = await host.connect(client)
-    engines = _make_remote_engines(bench_id, client, supervisor_client, host_client)
+    engines = _make_remote_engines(bench_id, client.rpc_metadata, supervisor_client, host_client)
     if supergraph is None:
         root_ptr = NodeReference(type=NodeType.BENCH, id=bench_id, ck=bench_id)
         supergraph = NodeSuperGraph(root_ptr)

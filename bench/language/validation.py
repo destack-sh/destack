@@ -5,7 +5,14 @@ from typing import TYPE_CHECKING, Any, Callable, Collection, Optional, TypedDict
 from bench.language.const import BenchError, BlockType
 
 if TYPE_CHECKING:
-    from bench.language import FileType, Property, StepType, TypeConstraint, TypeInfoBase
+    from bench.language import (
+        FileFormat,
+        FileType,
+        Property,
+        StepType,
+        TypeConstraint,
+        TypeInfoBase,
+    )
     from bench.language.value import SomeValue
 
 ValidationSite = Union["TypeInfoBase", tuple["Property | Any", ...]]
@@ -58,6 +65,7 @@ class TypeConstraintIn:
     block_type: "BlockType | None" = None
     step_type: "StepType | None" = None
     file_type: "FileType | None" = None
+    file_format: "FileFormat | None" = None
 
     def into(self) -> "TypeConstraint":
         from bench.language.field import TypeConstraint
@@ -74,6 +82,7 @@ class TypeConstraintIn:
             block_type=self.block_type,
             step_type=self.step_type,
             file_type=self.file_type,
+            file_format=self.file_format,
         )
 
 
@@ -106,6 +115,7 @@ def constraint(
     block_type: "BlockType | None" = None,
     step_type: "StepType | None" = None,
     file_type: "FileType | None" = None,
+    file_format: "FileFormat | None" = None,
 ) -> "TypeConstraintIn":
     return TypeConstraintIn(
         min_value=min_value,
@@ -119,4 +129,5 @@ def constraint(
         block_type=block_type,
         step_type=step_type,
         file_type=file_type,
+        file_format=file_format,
     )

@@ -1887,6 +1887,10 @@ export interface TypeConstraintData {
      * @generated from protobuf field: optional symbolx.bench.FileType file_type = 72;
      */
     fileType?: FileType;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.FileFormat file_format = 73;
+     */
+    fileFormat?: FileFormat;
 }
 /**
  * A type from the type system.
@@ -15709,7 +15713,8 @@ class TypeConstraintData$Type extends MessageType<TypeConstraintData> {
             { no: 62, name: "ends_with", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 70, name: "block_type", kind: "enum", opt: true, T: () => ["symbolx.bench.BlockType", BlockType, "BLOCK_TYPE_"] },
             { no: 71, name: "step_type", kind: "enum", opt: true, T: () => ["symbolx.bench.StepType", StepType, "STEP_TYPE_"] },
-            { no: 72, name: "file_type", kind: "enum", opt: true, T: () => ["symbolx.bench.FileType", FileType, "FILE_TYPE_"] }
+            { no: 72, name: "file_type", kind: "enum", opt: true, T: () => ["symbolx.bench.FileType", FileType, "FILE_TYPE_"] },
+            { no: 73, name: "file_format", kind: "enum", opt: true, T: () => ["symbolx.bench.FileFormat", FileFormat] }
         ]);
     }
     create(value?: PartialMessage<TypeConstraintData>): TypeConstraintData {
@@ -15760,6 +15765,9 @@ class TypeConstraintData$Type extends MessageType<TypeConstraintData> {
                 case /* optional symbolx.bench.FileType file_type */ 72:
                     message.fileType = reader.int32();
                     break;
+                case /* optional symbolx.bench.FileFormat file_format */ 73:
+                    message.fileFormat = reader.int32();
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -15808,6 +15816,9 @@ class TypeConstraintData$Type extends MessageType<TypeConstraintData> {
         /* optional symbolx.bench.FileType file_type = 72; */
         if (message.fileType !== undefined)
             writer.tag(72, WireType.Varint).int32(message.fileType);
+        /* optional symbolx.bench.FileFormat file_format = 73; */
+        if (message.fileFormat !== undefined)
+            writer.tag(73, WireType.Varint).int32(message.fileFormat);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -25982,6 +25993,7 @@ export enum TypeConstraintProperty {
   blockType = 70,
   stepType = 71,
   fileType = 72,
+  fileFormat = 73,
 }
 
 export enum ScheduleProperty {
@@ -26753,6 +26765,7 @@ export const TypeConstraintDataInfo: Record<TypeConstraintProperty, PropertyInfo
   [TypeConstraintProperty.blockType]: { id: 70, name: 'block_type', component: ObjectType.TYPE_CONSTRAINT, enumType: EnumType.BLOCK_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [TypeConstraintProperty.stepType]: { id: 71, name: 'step_type', component: ObjectType.TYPE_CONSTRAINT, enumType: EnumType.STEP_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [TypeConstraintProperty.fileType]: { id: 72, name: 'file_type', component: ObjectType.TYPE_CONSTRAINT, enumType: EnumType.FILE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [TypeConstraintProperty.fileFormat]: { id: 73, name: 'file_format', component: ObjectType.TYPE_CONSTRAINT, enumType: EnumType.FILE_FORMAT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
 }
 export const ScheduleDataInfo: Record<ScheduleProperty, PropertyInfo> = {
   [ScheduleProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SCHEDULE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
