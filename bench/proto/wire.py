@@ -2335,6 +2335,7 @@ class TypeConstraintData(betterproto.Message):
     block_type: Optional["BlockType"] = betterproto.enum_field(70, optional=True)
     step_type: Optional["StepType"] = betterproto.enum_field(71, optional=True)
     file_type: Optional["FileType"] = betterproto.enum_field(72, optional=True)
+    file_format: Optional["FileFormat"] = betterproto.enum_field(73, optional=True)
 
 
 @dataclass(eq=False, repr=False)

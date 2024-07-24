@@ -162,5 +162,5 @@ class Runtime(ServiceBase, RuntimeBase):
 
 
 async def get_host_client(bench_id: UUID, supervisor: SupervisorClient) -> HostClient:  # noqa: RUF029
-    # NOTE :Scalability: lookup bench host (via supervisor?) :SingleHostService
+    # nocheckin: lookup bench host via supervisor
     return HostClient(supervisor.channel)

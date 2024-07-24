@@ -6,6 +6,7 @@ from uuid import UUID
 from bench import language
 from bench.language import render
 from bench.language.const import BenchError
+from bench.language.file import upload
 from bench.language.node import Node
 from bench.language.path import get_node
 from bench.language.run import RunErrorType, RunKind, RunOptions
@@ -85,6 +86,7 @@ DYNAMIC_CODE_GLOBALS: dict[str, Any] = {
     "self": Node,
     "get_node": get_node,
     "render": render,
+    "upload": upload,
     "log": LogSink.log,
     "trace": LogSink.trace,
     "debug": LogSink.debug,

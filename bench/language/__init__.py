@@ -63,7 +63,7 @@ from .const import (
 )
 from .expression import A, Aggregation, C, ComputedValue, Expression, S, coerce_conditional
 from .field import Field, FieldZone, TypeConstraint, TypeInfo, TypeInfoBase
-from .file import File, FileKind, FileReference, FileRetentionMode, FileType
+from .file import File, FileFormat, FileKind, FileReference, FileRetentionMode, FileType
 from .graph import (
     NodeDataDict,
     NodeDataGraph,
@@ -188,6 +188,7 @@ __all__ = [
     "Field",
     "FieldZone",
     "File",
+    "FileFormat",
     "FileKind",
     "FileReference",
     "FileRetentionMode",

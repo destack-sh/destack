@@ -53,7 +53,7 @@ from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import decode_b64vlq, encode_b64vlq
 
 if typing.TYPE_CHECKING:
-    from bench.language import Block, Expression, FileType, Icon, Step, StepType, Text
+    from bench.language import Block, Expression, FileFormat, FileType, Icon, Step, StepType, Text
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -205,7 +205,7 @@ class TypeConstraint(Struct):
     block_type: Optional[BlockType] = p_regular(70, require=False, default=None)
     step_type: Optional["StepType"] = p_regular(71, require=False, default=None)
     file_type: Optional["FileType"] = p_regular(72, require=False, default=None)
-    # file-ish
+    file_format: Optional["FileFormat"] = p_regular(73, require=False, default=None)
     ...
 
 

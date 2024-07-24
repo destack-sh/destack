@@ -3,7 +3,10 @@ import pytest
 from bench.language import Bench, Session, Store
 from bench.language.bench import Client
 from bench.language.block import Block
+from bench.language.connection import RemoteEngine
 from bench.language.const import (
+    BENCH_NODE_TYPES,
+    IN_PACKAGE_NODE_TYPES,
     BlockType,
     ClientType,
     Region,
@@ -11,12 +14,16 @@ from bench.language.const import (
     _active_session,
 )
 from bench.language.graph import NodeSuperGraph
-from bench.language.node import EMPTY_SCOPE
+from bench.language.node import EMPTY_SCOPE, GraphScope
 from bench.language.user import User
+from bench.proto.wire import HostClient, RpcMetadata
 from bench.runtime.runner import RuntimeRunner
 from bench.system.core import pg_engine_from_store
+from bench.system.host import Host
 from bench.system.supervisor import create_default_bench
+from bench.test.simulation.transport import SimulatedChannel
 from bench.utils.oracle import REAL_ORACLE, Oracle
+from bench.utils.tenacity import RETRY_GRPC_FOREVER
 
 
 def create_global_session(global_store: Store, oracle: Oracle):
@@ -34,14 +41,14 @@ def create_global_session(global_store: Store, oracle: Oracle):
     return session
 
 
-@pytest.fixture()
-def global_session(global_store: Store):
-    return create_global_session(global_store, REAL_ORACLE)
+#
+# Omni/local session
+#
 
 
 @pytest.fixture()
-async def omni_bench_async(global_store: Store, global_session, request: pytest.FixtureRequest):
-    async with global_session as session:
+async def omni_bench_async(global_store: Store, request: pytest.FixtureRequest):
+    async with create_global_session(global_store, REAL_ORACLE) as session:
         # setup user/client
         user = User(
             slug="user",
@@ -49,6 +56,7 @@ async def omni_bench_async(global_store: Store, global_session, request: pytest.
             email="test@test.com",
             status=UserStatus.REGISTERED,
             last_logged_in_at=REAL_ORACLE.utc(),
+            is_staff=True,
             _is_new=True,  # force create
         )
         session._create(user)
@@ -72,7 +80,7 @@ async def omni_bench_async(global_store: Store, global_session, request: pytest.
             global_store=global_store,
             session=session,
         )
-        global_session.parent = bench.main_package  # patch in main package
+        session.parent = bench.main_package  # patch in main package
         yield bench
 
 
@@ -101,3 +109,100 @@ def page(omni_bench: Bench):
 def runner(omni_bench: Bench):
     runner = RuntimeRunner(session=omni_bench.active_session, oracle=REAL_ORACLE)
     return runner
+
+
+#
+# Real/remote session
+#
+
+
+@pytest.fixture()
+async def bench(global_store: Store):
+    async with create_global_session(global_store, REAL_ORACLE) as session:
+        user = User(
+            slug="test",
+            name="Test",
+            email="test@symbolx.com",
+            status=UserStatus.REGISTERED,
+            last_logged_in_at=REAL_ORACLE.utc(),
+            is_staff=True,
+            _is_new=True,  # force create
+        )
+        session._create(user)
+        await session.flush()
+        client = Client(
+            parent=user,
+            name="Test",
+            type=ClientType.BENCH_WEB,
+            seen_at=REAL_ORACLE.utc(),
+            access_token="test",
+            _is_new=True,  # force create
+        )
+        session._create(client)
+        await session.flush()
+        user.main_handle = user.handles.create(slug=user.slug)
+
+        bench = await create_default_bench(
+            main_handle=user.main_handle,
+            owner=user,
+            region=Region.ZURICH,
+            global_store=global_store,
+            session=session,
+        )
+        await session.commit()
+    return bench
+
+
+@pytest.fixture()
+async def host_service(global_store: Store, bench: Bench):
+    host = Host(bench_id=bench.id, global_store=global_store, oracle=REAL_ORACLE)
+    await host.start()
+    try:
+        yield host
+    finally:
+        host.close()
+        await host.wait_closed()
+
+
+@pytest.fixture()
+async def host(host_service: Host):
+    async with SimulatedChannel(services=(host_service,), oracle=REAL_ORACLE) as channel:
+        yield HostClient(channel)
+
+
+@pytest.fixture()
+async def real_session(bench: Bench, host: HostClient):
+    user = bench.owner
+    assert isinstance(user, User), f"unexpected bench owner: {user!r}"
+    client = user.clients[0]
+    client_data = client._to_data()
+    rpc_metadata = RpcMetadata(
+        client_type=client_data.type,
+        client_id=client_data.id,
+        client_nonce=client_data.id,
+        client_access_token="test",
+    )
+    engines = (
+        RemoteEngine(
+            scope=GraphScope(bench_id=bench.id)._to_data(),
+            node_types=BENCH_NODE_TYPES | IN_PACKAGE_NODE_TYPES,
+            remote=host,
+            write_retry=RETRY_GRPC_FOREVER,
+            rpc_metadata=rpc_metadata,
+        ),
+    )
+    session = Session(
+        parent=bench.main_package,
+        user=user,
+        client=client,
+        _is_readonly=False,
+        _default_scope=GraphScope(bench_id=bench.id)._to_data(),
+        _engines=engines,
+        _system_epoch=0,
+        _supergraph=bench._supergraph,
+        _split_read=True,
+        _oracle=REAL_ORACLE,
+        _subject=user,
+    )
+    async with session:
+        yield session
