@@ -7,7 +7,6 @@ from bench.language.bench import Drive
 from bench.language.const import EnumType, NodeType, PrimitiveType, StructType, enum_
 from bench.language.node import (
     BuiltinObject,
-    Node,
     NodeReference,
     NodeReferenceBase,
     RemoteNode,
@@ -145,7 +144,7 @@ class FileReference(
 
     @override
     @staticmethod
-    def from_node(node: Node) -> "FileReference":
+    def from_node(node: File) -> "FileReference":
         node_ref = NodeReference.from_node(node)
         file_ref = FileReference._clone_ref(FileReference, node_ref)
         for prop in FileInfoBase.__declared_properties__.values():

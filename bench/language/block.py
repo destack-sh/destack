@@ -31,7 +31,6 @@ if TYPE_CHECKING:
         Code,
         Field,
         Icon,
-        Issue,
         NodeReference,
         Package,
         Policy,
@@ -116,7 +115,6 @@ class Block(SourceNode[BlockData], HasValues):
     fields: NodeList["Field"] = p_node_children(NodeType.FIELD)
     steps: NodeList["Step"] = p_node_children(NodeType.STEP)
     triggers: NodeList["Trigger"] = p_node_children(NodeType.TRIGGER)
-    issues: NodeList["Issue"] = p_node_children(NodeType.ISSUE)
     views: NodeList["View"] = p_node_children(NodeType.VIEW)
 
     def _validate_component(

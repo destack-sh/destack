@@ -31,6 +31,7 @@ const expandedConnectionId: Ref<number | null> = ref(null);
       >
         <IconInline
           v-bind="geolocationIcon ?? makeIcon({ faName: 'fas fa-cloud' })"
+          class="transition-colors duration-75"
           :class="
             !hasPendingConnections
               ? ' text-gray-700 hover:text-primary-900'

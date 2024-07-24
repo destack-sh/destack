@@ -73,8 +73,10 @@ from bench.proto.wire import (
     AnyNodeData,
     AnyStructData,
     ClientOriginData,
+    FileReferenceData,
     GraphScopeData,
     NodeReferenceData,
+    SecretReferenceData,
 )
 from bench.sql.core import Constraint, ConstraintType, Index, IndexType, Table, stable_hash
 from bench.utils.env import IS_DEV
@@ -1638,7 +1640,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
                 parent = parent.parent
             return "/".join(reversed(path_parts))
 
-    def to_ref(self) -> "NodeReference":
+    def to_ref(self) -> "SomeNodeReference":
         """Gets a reference to this node."""
         return NodeReference.from_node(self)
 
@@ -1973,15 +1975,7 @@ class NodeReference(Struct[NodeReferenceData], NodeReferenceBase):
     def _validate_component(
         self, properties: Collection[Property], invalid: "ValidationHandler"
     ) -> None:
-        pass
-        # NOTE :Robustness: we used to require bench_id for sub-bench types here
-        #  but sometimes we send around nodes (with references) before they are attached
-        # if (
-        #     self.type in SUB_BENCH_NODE_TYPES
-        #     and self.type not in USER_NODE_TYPES
-        #     and self.bench_id is None
-        # ):
-        #     invalid(self, "bench_id is required", (NodeReference.bench_id,))
+        pass  # NOTE :Robustness: we used to require bench_id for sub-bench types here
 
     @override
     @staticmethod
@@ -2081,6 +2075,7 @@ NODE_REFERENCE_TYPES_BY_NODE_TYPE: dict[NodeType, StructType] = {
 }
 NODE_REFERENCE_TYPES = (StructType.NODE_REFERENCE, *NODE_REFERENCE_TYPES_BY_NODE_TYPE.values())
 SomeNodeReference = Union[NodeReference, "FileReference", "SecretReference"]
+SomeNodeReferenceData = Union[NodeReferenceData, FileReferenceData, SecretReferenceData]
 
 
 @struct_(StructType.PROPERTY_REFERENCE)
@@ -2150,35 +2145,13 @@ class PropertyReference(Struct):
 
 from bench.language.value import check_value, coerce_value  # noqa: E402
 
-LINK_TARGET_NODE_TYPES: tuple[NodeType, ...] = tuple(
-    nt
-    for nt in NODE_TYPES
-    if NodeType.PACKAGE.id < nt.id < NodeType.SESSION.id and nt != NodeType.LINK
-)
-LINK_PARENT_NODE_TYPES: tuple[NodeType, ...] = (NodeType.PACKAGE, NodeType.BLOCK)
-
-
-@local_node_(NodeType.LINK)
-class Link(SourceNode):
-    """
-    A reference to another node in some graph.
-    The referenced subtree is inlined on access.
-    The reference may be indirect through a value somewhere (which should point to a node).
-    """
-
-    parent: Node = p_node_parent(4, *LINK_PARENT_NODE_TYPES)
-    reference: Optional[Node] = p_regular(
-        30, array=False, references=LINK_TARGET_NODE_TYPES, require=False
-    )
-    order_key: Optional[str] = p_internal(32, default=None)
-
 
 @local_node_(NodeType.SKIP, stored=False)
 class Skip(Node):
     """A reference to another node in some graph that wasn't available for some reason (usually permissions)."""
 
-    parent: Node = p_node_parent(4, *LINK_PARENT_NODE_TYPES)
+    parent: Node = p_node_parent(4, *NODE_TYPES.tuple)
     reference: Optional[Node] = p_regular(
-        30, array=False, references=LINK_TARGET_NODE_TYPES, require=True
+        30, array=False, references=NODE_TYPES.tuple, require=True
     )
     order_key: Optional[str] = p_internal(31, default=None)

@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.07.24.1"  # auto change via version script
+VERSION = "2024.07.24.2"  # auto change via version script
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -123,10 +123,6 @@ class EnumType(IdEnum):
     SELECTION_KIND = 20208
     PATH_TOKEN_TYPE = 20210
 
-    # issue
-    ISSUE_KIND = 20400
-    ISSUE_TYPE = 20401
-
     # run
     STEP_TYPE = 20500
     PIPE_TYPE = 20501
@@ -206,9 +202,7 @@ class NodeType(IdEnum):
     PACKAGE = 1001
     DEPENDENCY = 1002
     SPACE = 1003
-    LINK = 1004
     SKIP = 1005
-    ISSUE = 1006
     BLOCK = 1010
     TRIGGER = 1011
     FIELD = 1012  # (based)
@@ -940,16 +934,6 @@ class Month(IdEnum):
     OCTOBER = 10
     NOVEMBER = 11
     DECEMBER = 12
-
-
-@enum_(EnumType.ISSUE_KIND)
-class IssueKind(IdEnum):
-    """Type of diagnostic in increasing severity."""
-
-    HINT = 1
-    INFO = 2
-    WARNING = 3
-    ERROR = 4
 
 
 @enum_(EnumType.RUN_ERROR_KIND)

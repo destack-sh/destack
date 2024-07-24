@@ -3,9 +3,8 @@ from base64 import b64encode
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID
 
-from bench.language.const import EnumType, NodeType, StructType, enum_
+from bench.language.const import NODE_TYPES, EnumType, NodeType, StructType, enum_
 from bench.language.node import (
-    LINK_TARGET_NODE_TYPES,
     BenchNode,
     BuiltinObject,
     Node,
@@ -69,7 +68,7 @@ class TextSpan(TextOptions, Struct):
 
     content: Optional[str] = p_regular(33, default=None)
     node: Optional[Node] = p_regular(
-        34, array=False, default=None, require=False, references=LINK_TARGET_NODE_TYPES, rich=True
+        34, array=False, default=None, require=False, references=NODE_TYPES.tuple, rich=True
     )
     if TYPE_CHECKING:
         node_ptr: Optional[NodeReferenceBase] = None

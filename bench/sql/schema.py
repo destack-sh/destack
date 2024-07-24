@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.07.24.1"
+VERSION = "2024.07.24.2"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -560,43 +560,6 @@ SPACE_TABLE = Table(
         Column("base_bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("base_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("base_base_bench_id", PrimitiveType.UUID, is_nullable=True),
-    ),
-)
-
-LINK_TABLE = Table(
-    "bench_link",
-    (
-        Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("ck", PrimitiveType.UUID),
-        Column("parent_id", PrimitiveType.UUID),
-        Column("parent_ck", PrimitiveType.UUID),
-        Column("parent_type", PrimitiveType.INT16),
-        Column("package_id", PrimitiveType.UUID),
-        Column("bench_id", PrimitiveType.UUID),
-        Column("template_id", PrimitiveType.UUID, is_nullable=True),
-        Column("template_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("template_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("templated_epoch", PrimitiveType.INT64, is_nullable=True),
-        Column("revision", PrimitiveType.INT64),
-        Column("created_at", PrimitiveType.DATETIME),
-        Column("created_epoch", PrimitiveType.INT64),
-        Column("updated_at", PrimitiveType.DATETIME),
-        Column("updated_epoch", PrimitiveType.INT64),
-        Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("archived_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
-        Column("created_by_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("created_by_type", PrimitiveType.INT16, is_nullable=True),
-        Column("updated_by_id", PrimitiveType.UUID, is_nullable=True),
-        Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
-        Column("reference_id", PrimitiveType.UUID, is_nullable=True),
-        Column("reference_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("reference_type", PrimitiveType.INT16, is_nullable=True),
-        Column("reference_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("reference_base_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("reference_base_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("order_key", PrimitiveType.STRING, is_nullable=True),
     ),
 )
 
