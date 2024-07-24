@@ -9,7 +9,7 @@ from bench.language.node import (
     NodeReferenceBase,
     SourceNode,
     Struct,
-    local_node,
+    local_node_,
     object_component,
     struct_,
 )
@@ -388,7 +388,7 @@ class Alignment(IdEnum):
     SPACE_BETWEEN = 4
 
 
-@local_node(NodeType.VIEW, passthrough="value")
+@local_node_(NodeType.VIEW, passthrough="value")
 class View(SourceNode[ViewData], HasValues):
     """A view of a user interface in a Bench."""
 
@@ -484,11 +484,11 @@ class SpaceType(IdEnum):
     EXTENSION = 30
 
 
-@local_node(NodeType.SPACE)
+@local_node_(NodeType.SPACE)
 class Space(SourceNode[SpaceData]):
     """A space for a user to interact with the Bench."""
 
-    parent: "Package" = p_node_parent(4, NodeType.PACKAGE)
+    parent: Union["Package", "Block", None] = p_node_parent(4, NodeType.PACKAGE, NodeType.BLOCK)
 
     type: SpaceType = p_regular(30)
     name: str = p_regular(31, constraint=NAME_CONSTRAINT)

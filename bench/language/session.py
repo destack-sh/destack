@@ -47,7 +47,7 @@ from bench.language.node import (
     Struct,
     object_component,
     struct_,
-    timed_node,
+    timed_node_,
 )
 from bench.language.property import Property, p_internal, p_node_parent, p_runtime, p_system
 from bench.language.transaction import Transaction
@@ -91,7 +91,7 @@ tracer = trace.get_tracer(__name__)
 CustomCommit = Callable[["Session"], Awaitable[tuple[list[EditData], list[EditData]]]]
 
 
-@timed_node(NodeType.SESSION)
+@timed_node_(NodeType.SESSION)
 class Session(PackageNode[SessionData], HasTimeIdentity):
     """
     A managed Session for interacting with and running a Bench in a Client.

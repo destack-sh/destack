@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.07.24.0"  # auto change via version script
+VERSION = "2024.07.24.1"  # auto change via version script
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -195,9 +195,7 @@ class NodeType(IdEnum):
     STORE = 501  # our trusted postgres store
     MACHINE = 502  # actual machine providing compute and such
     DRIVE = 503  # object store like S3/MinIO, maybe block storage later
-    FILE = 504  # in a Drive (deferred)
-    SECRET = 505
-    # CACHE, DOMAIN, EMAIL, PHONE, ...
+    # CACHE, DOMAIN, EMAIL?, PHONE?, ... # (maybe Email/Phone/... should be in source?)
 
     #
     # Local (per Bench)
@@ -217,21 +215,23 @@ class NodeType(IdEnum):
     QUERY = 1013
     VIEW = 1014
     STEP = 1015
+    BADGE = 1016
+    SECRET = 1017
     # TAG?
-    # REACTION?
-    # LOCK?
-    BADGE = 1100
-    MEMBERSHIP = 1101
-    INVITE = 1102
+
+    # remote (local, deferred)
+    FILE = 1100
+    MESSAGE = 1101  # (based, timed)
+    RECORD = 1102  # (based)
+    MEMBERSHIP = 1103
+    INVITE = 1104
+    NOTIFICATION = 1105  # (based, timed)
 
     # runtime (local)
     SESSION = 1200  # (timed)
     RUN = 1201  # (based, timed)
     SIGNAL = 1202  # (based, timed)
     LOG = 1203  # (timed)
-    NOTIFICATION = 1204  # (based, timed)
-    MESSAGE = 1205  # (based, timed)
-    RECORD = 1206  # (based)
 
 
 # :NodeTypes
@@ -241,7 +241,8 @@ ROOT_NODE_TYPES = bittuple(NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION)
 UNIVERSE_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if nt.id < 100))
 GLOBAL_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if nt.id < 1000))
 LOCAL_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if nt.id >= 1000))
-SOURCE_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if nt.id >= 1000 and nt.id < 1200))
+SOURCE_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if nt.id >= 1000 and nt.id < 1100))
+REMOTE_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if nt.id >= 1100 and nt.id < 1200))
 
 BASED_NODE_TYPES = bittuple(  # :HasBase
     NodeType.FIELD,
@@ -277,7 +278,6 @@ IN_BENCH_GLOBAL_NODE_TYPES = bittuple(
 )
 SUB_BENCH_NODE_TYPES = bittuple(*tuple(nt for nt in IN_BENCH_NODE_TYPES if nt != NodeType.BENCH))
 RESOURCE_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if nt.id >= 500 and nt.id < 600))
-DEFERRED_RESOURCE_NODE_TYPES = bittuple(NodeType.FILE, NodeType.SECRET)
 BENCH_NODE_TYPES = bittuple(
     NodeType.BENCH,
     NodeType.BRANCH,
@@ -286,9 +286,7 @@ BENCH_NODE_TYPES = bittuple(
     NodeType.CLIENT,
     *RESOURCE_NODE_TYPES,
 )
-LOADED_BENCH_NODE_TYPES = bittuple(
-    *(nt for nt in BENCH_NODE_TYPES if nt not in DEFERRED_RESOURCE_NODE_TYPES)
-)
+LOADED_BENCH_NODE_TYPES = bittuple(*(nt for nt in BENCH_NODE_TYPES if nt not in REMOTE_NODE_TYPES))
 PUBLIC_NODE_TYPES = bittuple(NodeType.USER, NodeType.ORGANIZATION)
 USER_NODE_TYPES = bittuple(NodeType.USER, NodeType.ORGANIZATION, NodeType.CLIENT, NodeType.HANDLE)
 

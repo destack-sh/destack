@@ -10,7 +10,7 @@ from bench.language.node import (
     PackageNode,
     Struct,
     object_component,
-    timed_node,
+    timed_node_,
 )
 from bench.language.property import (
     p_internal,
@@ -34,7 +34,7 @@ logger = structlog.get_logger(__name__)
 #  (although generally, we want to query Signals together more than Records...)
 
 
-@timed_node(NodeType.SIGNAL, passthrough="value")
+@timed_node_(NodeType.SIGNAL, passthrough="value")
 class Signal(PackageNode[SignalData], HasTimeIdentity, HasNodeBase, HasSessionContext, HasValues):
     """
     A Signal emitted in this Bench, usually received in Triggers.

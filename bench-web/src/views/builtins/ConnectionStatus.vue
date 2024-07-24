@@ -34,7 +34,7 @@ const expandedConnectionId: Ref<number | null> = ref(null);
           :class="
             !hasPendingConnections
               ? ' text-gray-700 hover:text-primary-900'
-              : ' animate-pulse text-warning-600 hover:text-warning-500'
+              : ' text-warning-600 hover:text-warning-500'
           "
         />
       </button>

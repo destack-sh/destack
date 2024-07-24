@@ -10,12 +10,11 @@ from bench.language.const import (
 from bench.language.field import TypeInfoBase
 from bench.language.node import (
     HasNodeBase,
-    HasPersistentIdentity,
     HasTimeIdentity,
-    PackageNode,
+    RemoteNode,
     Struct,
     object_component,
-    timed_node,
+    timed_node_,
 )
 from bench.language.property import (
     p_internal,
@@ -39,14 +38,8 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@timed_node(NodeType.NOTIFICATION, passthrough="value")
-class Notification(
-    PackageNode[NotificationData],
-    HasTimeIdentity,
-    HasPersistentIdentity,
-    HasNodeBase,
-    HasValues,
-):
+@timed_node_(NodeType.NOTIFICATION, passthrough="value")
+class Notification(RemoteNode[NotificationData], HasTimeIdentity, HasNodeBase, HasValues):
     """
     A Notification for a Bench (author = created_by).
     """

@@ -7,7 +7,7 @@ from bench.language.issue import Issue
 from bench.language.node import (
     SourceNode,
     Struct,
-    local_node,
+    local_node_,
     object_component,
     struct_,
 )
@@ -100,7 +100,7 @@ class Pipe(Struct):
     # ports/mapping/...?
 
 
-@local_node(NodeType.STEP, passthrough=("value", "fields"))
+@local_node_(NodeType.STEP, passthrough=("value", "fields"))
 class Step(SourceNode[StepData], HasValues):
     """
     An data or control flow node in a FlowBlock.
