@@ -12,10 +12,9 @@ import { UnknownFieldHandler } from "@protobuf-ts/runtime";
 import type { PartialMessage } from "@protobuf-ts/runtime";
 import { reflectionMergePartial } from "@protobuf-ts/runtime";
 import { MessageType } from "@protobuf-ts/runtime";
-import { FileData } from "./lang";
 import { FileReferenceData } from "./lang";
 import { Struct } from "../google/protobuf/struct";
-import { FileInfoData } from "./lang";
+import { FileData } from "./lang";
 import { BenchData } from "./lang";
 import { Region } from "./lang";
 import { OrganizationData } from "./lang";
@@ -780,9 +779,9 @@ export interface GetHostsResponse_HostInfo {
  */
 export interface UploadFilesRequest {
     /**
-     * @generated from protobuf field: repeated symbolx.bench.FileInfoData files = 1;
+     * @generated from protobuf field: repeated symbolx.bench.FileData files = 1;
      */
-    files: FileInfoData[];
+    files: FileData[];
 }
 /**
  * @generated from protobuf message symbolx.bench.UploadFilesResponse
@@ -2896,7 +2895,7 @@ export const GetHostsResponse_HostInfo = new GetHostsResponse_HostInfo$Type();
 class UploadFilesRequest$Type extends MessageType<UploadFilesRequest> {
     constructor() {
         super("symbolx.bench.UploadFilesRequest", [
-            { no: 1, name: "files", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => FileInfoData }
+            { no: 1, name: "files", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => FileData }
         ]);
     }
     create(value?: PartialMessage<UploadFilesRequest>): UploadFilesRequest {
@@ -2911,8 +2910,8 @@ class UploadFilesRequest$Type extends MessageType<UploadFilesRequest> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* repeated symbolx.bench.FileInfoData files */ 1:
-                    message.files.push(FileInfoData.internalBinaryRead(reader, reader.uint32(), options));
+                case /* repeated symbolx.bench.FileData files */ 1:
+                    message.files.push(FileData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -2926,9 +2925,9 @@ class UploadFilesRequest$Type extends MessageType<UploadFilesRequest> {
         return message;
     }
     internalBinaryWrite(message: UploadFilesRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* repeated symbolx.bench.FileInfoData files = 1; */
+        /* repeated symbolx.bench.FileData files = 1; */
         for (let i = 0; i < message.files.length; i++)
-            FileInfoData.internalBinaryWrite(message.files[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+            FileData.internalBinaryWrite(message.files[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

@@ -560,15 +560,19 @@ export interface FileInfoData {
      */
     coarseType: FileType;
     /**
-     * @generated from protobuf field: string mime_type = 51;
+     * @generated from protobuf field: optional string mime_type = 51;
      */
-    mimeType: string;
+    mimeType?: string;
     /**
-     * @generated from protobuf field: int64 size = 52;
+     * @generated from protobuf field: optional symbolx.bench.FileFormat format = 52;
+     */
+    format?: FileFormat;
+    /**
+     * @generated from protobuf field: int64 size = 53;
      */
     size: bigint;
     /**
-     * @generated from protobuf field: optional string sha256 = 53;
+     * @generated from protobuf field: optional string sha256 = 54;
      */
     sha256?: string;
     /**
@@ -663,15 +667,19 @@ export interface FileReferenceData {
      */
     coarseType: FileType;
     /**
-     * @generated from protobuf field: string mime_type = 51;
+     * @generated from protobuf field: optional string mime_type = 51;
      */
-    mimeType: string;
+    mimeType?: string;
     /**
-     * @generated from protobuf field: int64 size = 52;
+     * @generated from protobuf field: optional symbolx.bench.FileFormat format = 52;
+     */
+    format?: FileFormat;
+    /**
+     * @generated from protobuf field: int64 size = 53;
      */
     size: bigint;
     /**
-     * @generated from protobuf field: optional string sha256 = 53;
+     * @generated from protobuf field: optional string sha256 = 54;
      */
     sha256?: string;
     /**
@@ -2981,15 +2989,19 @@ export interface FileData {
      */
     coarseType: FileType;
     /**
-     * @generated from protobuf field: string mime_type = 51;
+     * @generated from protobuf field: optional string mime_type = 51;
      */
-    mimeType: string;
+    mimeType?: string;
     /**
-     * @generated from protobuf field: int64 size = 52;
+     * @generated from protobuf field: optional symbolx.bench.FileFormat format = 52;
+     */
+    format?: FileFormat;
+    /**
+     * @generated from protobuf field: int64 size = 53;
      */
     size: bigint;
     /**
-     * @generated from protobuf field: optional string sha256 = 53;
+     * @generated from protobuf field: optional string sha256 = 54;
      */
     sha256?: string;
     /**
@@ -6480,6 +6492,10 @@ export enum BenchType {
      */
     FILE_TYPE = 2062,
     /**
+     * @generated from protobuf enum value: BENCH_TYPE_FILE_FORMAT = 2063;
+     */
+    FILE_FORMAT = 2063,
+    /**
      * @generated from protobuf enum value: BENCH_TYPE_CLIENT_TYPE = 20070;
      */
     CLIENT_TYPE = 20070,
@@ -7393,6 +7409,10 @@ export enum EnumType {
      */
     FILE_TYPE = 2062,
     /**
+     * @generated from protobuf enum value: ENUM_TYPE_FILE_FORMAT = 2063;
+     */
+    FILE_FORMAT = 2063,
+    /**
      * @generated from protobuf enum value: ENUM_TYPE_CLIENT_TYPE = 20070;
      */
     CLIENT_TYPE = 20070,
@@ -7831,6 +7851,373 @@ export enum FieldZone {
     RUNTIME = 6
 }
 /**
+ * The format of a file (roughly an extension).
+ *
+ * @generated from protobuf enum symbolx.bench.FileFormat
+ */
+export enum FileFormat {
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_UNSPECIFIED = 0;
+     */
+    FILE_FORMAT_UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_TXT = 1000;
+     */
+    FILE_FORMAT_TXT = 1000,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_MARKDOWN = 1001;
+     */
+    FILE_FORMAT_MARKDOWN = 1001,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_RTF = 1002;
+     */
+    FILE_FORMAT_RTF = 1002,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_INI = 1003;
+     */
+    FILE_FORMAT_INI = 1003,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_LOG = 1004;
+     */
+    FILE_FORMAT_LOG = 1004,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_PYTHON = 2000;
+     */
+    FILE_FORMAT_PYTHON = 2000,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_JAVASCRIPT = 2001;
+     */
+    FILE_FORMAT_JAVASCRIPT = 2001,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_TYPESCRIPT = 2002;
+     */
+    FILE_FORMAT_TYPESCRIPT = 2002,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_GO = 2003;
+     */
+    FILE_FORMAT_GO = 2003,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_C = 2004;
+     */
+    FILE_FORMAT_C = 2004,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_CPP = 2005;
+     */
+    FILE_FORMAT_CPP = 2005,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_OBJECTIVE_C = 2006;
+     */
+    FILE_FORMAT_OBJECTIVE_C = 2006,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_SWIFT = 2007;
+     */
+    FILE_FORMAT_SWIFT = 2007,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_RUBY = 2008;
+     */
+    FILE_FORMAT_RUBY = 2008,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_PHP = 2009;
+     */
+    FILE_FORMAT_PHP = 2009,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_HTML = 2010;
+     */
+    FILE_FORMAT_HTML = 2010,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_CSS = 2011;
+     */
+    FILE_FORMAT_CSS = 2011,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_JAVA = 2012;
+     */
+    FILE_FORMAT_JAVA = 2012,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_KOTLIN = 2013;
+     */
+    FILE_FORMAT_KOTLIN = 2013,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_RUST = 2014;
+     */
+    FILE_FORMAT_RUST = 2014,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_SCALA = 2015;
+     */
+    FILE_FORMAT_SCALA = 2015,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_SHELL = 2016;
+     */
+    FILE_FORMAT_SHELL = 2016,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_SQL = 2017;
+     */
+    FILE_FORMAT_SQL = 2017,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_POWERSHELL = 2018;
+     */
+    FILE_FORMAT_POWERSHELL = 2018,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_ASSEMBLY = 2019;
+     */
+    FILE_FORMAT_ASSEMBLY = 2019,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_LATEX = 2020;
+     */
+    FILE_FORMAT_LATEX = 2020,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_JPEG = 3000;
+     */
+    FILE_FORMAT_JPEG = 3000,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_PNG = 3001;
+     */
+    FILE_FORMAT_PNG = 3001,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_GIF = 3002;
+     */
+    FILE_FORMAT_GIF = 3002,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_BMP = 3003;
+     */
+    FILE_FORMAT_BMP = 3003,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_TIFF = 3004;
+     */
+    FILE_FORMAT_TIFF = 3004,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_WEBP = 3005;
+     */
+    FILE_FORMAT_WEBP = 3005,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_SVG = 3006;
+     */
+    FILE_FORMAT_SVG = 3006,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_ICO = 3007;
+     */
+    FILE_FORMAT_ICO = 3007,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_PSD = 3008;
+     */
+    FILE_FORMAT_PSD = 3008,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_AI = 3009;
+     */
+    FILE_FORMAT_AI = 3009,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_EPS = 3010;
+     */
+    FILE_FORMAT_EPS = 3010,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_RAW = 3011;
+     */
+    FILE_FORMAT_RAW = 3011,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_MP3 = 4000;
+     */
+    FILE_FORMAT_MP3 = 4000,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_WAV = 4001;
+     */
+    FILE_FORMAT_WAV = 4001,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_FLAC = 4002;
+     */
+    FILE_FORMAT_FLAC = 4002,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_AAC = 4003;
+     */
+    FILE_FORMAT_AAC = 4003,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_OGG = 4004;
+     */
+    FILE_FORMAT_OGG = 4004,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_M4A = 4005;
+     */
+    FILE_FORMAT_M4A = 4005,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_WMA = 4006;
+     */
+    FILE_FORMAT_WMA = 4006,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_MP4 = 5000;
+     */
+    FILE_FORMAT_MP4 = 5000,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_WEBM = 5001;
+     */
+    FILE_FORMAT_WEBM = 5001,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_AVI = 5002;
+     */
+    FILE_FORMAT_AVI = 5002,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_MOV = 5003;
+     */
+    FILE_FORMAT_MOV = 5003,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_WMV = 5004;
+     */
+    FILE_FORMAT_WMV = 5004,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_FLV = 5005;
+     */
+    FILE_FORMAT_FLV = 5005,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_MKV = 5006;
+     */
+    FILE_FORMAT_MKV = 5006,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_PDF = 6000;
+     */
+    FILE_FORMAT_PDF = 6000,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_DOCX = 6001;
+     */
+    FILE_FORMAT_DOCX = 6001,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_PPTX = 6002;
+     */
+    FILE_FORMAT_PPTX = 6002,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_ODT = 6003;
+     */
+    FILE_FORMAT_ODT = 6003,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_XLSX = 6004;
+     */
+    FILE_FORMAT_XLSX = 6004,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_ODS = 6005;
+     */
+    FILE_FORMAT_ODS = 6005,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_EPUB = 6006;
+     */
+    FILE_FORMAT_EPUB = 6006,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_MOBI = 6007;
+     */
+    FILE_FORMAT_MOBI = 6007,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_CHM = 6008;
+     */
+    FILE_FORMAT_CHM = 6008,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_DOC = 6009;
+     */
+    FILE_FORMAT_DOC = 6009,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_XLS = 6010;
+     */
+    FILE_FORMAT_XLS = 6010,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_PPT = 6011;
+     */
+    FILE_FORMAT_PPT = 6011,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_JSON = 7000;
+     */
+    FILE_FORMAT_JSON = 7000,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_YAML = 7001;
+     */
+    FILE_FORMAT_YAML = 7001,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_CSV = 7002;
+     */
+    FILE_FORMAT_CSV = 7002,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_XML = 7003;
+     */
+    FILE_FORMAT_XML = 7003,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_TOML = 7004;
+     */
+    FILE_FORMAT_TOML = 7004,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_SQLITE = 7100;
+     */
+    FILE_FORMAT_SQLITE = 7100,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_PARQUET = 7101;
+     */
+    FILE_FORMAT_PARQUET = 7101,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_AVRO = 7102;
+     */
+    FILE_FORMAT_AVRO = 7102,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_PROTOBUF = 7103;
+     */
+    FILE_FORMAT_PROTOBUF = 7103,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_ZIP = 8000;
+     */
+    FILE_FORMAT_ZIP = 8000,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_RAR = 8001;
+     */
+    FILE_FORMAT_RAR = 8001,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_TAR = 8002;
+     */
+    FILE_FORMAT_TAR = 8002,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_SEVENZIP = 8003;
+     */
+    FILE_FORMAT_SEVENZIP = 8003,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_CAB = 8004;
+     */
+    FILE_FORMAT_CAB = 8004,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_GZIP = 8005;
+     */
+    FILE_FORMAT_GZIP = 8005,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_BZIP2 = 8006;
+     */
+    FILE_FORMAT_BZIP2 = 8006,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_XZ = 8007;
+     */
+    FILE_FORMAT_XZ = 8007,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_EXE = 9000;
+     */
+    FILE_FORMAT_EXE = 9000,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_APP_IMAGE = 9001;
+     */
+    FILE_FORMAT_APP_IMAGE = 9001,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_APK = 9002;
+     */
+    FILE_FORMAT_APK = 9002,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_DMG = 9003;
+     */
+    FILE_FORMAT_DMG = 9003,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_JAR = 9004;
+     */
+    FILE_FORMAT_JAR = 9004,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_MSI = 9005;
+     */
+    FILE_FORMAT_MSI = 9005,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_DEB = 9006;
+     */
+    FILE_FORMAT_DEB = 9006,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_RPM = 9007;
+     */
+    FILE_FORMAT_RPM = 9007
+}
+/**
  * @generated from protobuf enum symbolx.bench.FileKind
  */
 export enum FileKind {
@@ -7885,33 +8272,41 @@ export enum FileType {
      */
     TEXT = 1,
     /**
-     * @generated from protobuf enum value: FILE_TYPE_IMAGE = 2;
+     * @generated from protobuf enum value: FILE_TYPE_CODE = 2;
      */
-    IMAGE = 2,
+    CODE = 2,
     /**
-     * @generated from protobuf enum value: FILE_TYPE_AUDIO = 3;
+     * @generated from protobuf enum value: FILE_TYPE_IMAGE = 3;
      */
-    AUDIO = 3,
+    IMAGE = 3,
     /**
-     * @generated from protobuf enum value: FILE_TYPE_VIDEO = 4;
+     * @generated from protobuf enum value: FILE_TYPE_AUDIO = 4;
      */
-    VIDEO = 4,
+    AUDIO = 4,
     /**
-     * @generated from protobuf enum value: FILE_TYPE_DOCUMENT = 5;
+     * @generated from protobuf enum value: FILE_TYPE_VIDEO = 5;
      */
-    DOCUMENT = 5,
+    VIDEO = 5,
     /**
-     * @generated from protobuf enum value: FILE_TYPE_DATA = 6;
+     * @generated from protobuf enum value: FILE_TYPE_DOCUMENT = 6;
      */
-    DATA = 6,
+    DOCUMENT = 6,
     /**
-     * @generated from protobuf enum value: FILE_TYPE_EXECUTABLE = 7;
+     * @generated from protobuf enum value: FILE_TYPE_DATA = 7;
      */
-    EXECUTABLE = 7,
+    DATA = 7,
     /**
-     * @generated from protobuf enum value: FILE_TYPE_GENERIC = 10;
+     * @generated from protobuf enum value: FILE_TYPE_ARCHIVE = 8;
      */
-    GENERIC = 10
+    ARCHIVE = 8,
+    /**
+     * @generated from protobuf enum value: FILE_TYPE_EXECUTABLE = 9;
+     */
+    EXECUTABLE = 9,
+    /**
+     * @generated from protobuf enum value: FILE_TYPE_GENERIC = 99;
+     */
+    GENERIC = 99
 }
 /**
  * @generated from protobuf enum symbolx.bench.FontSize
@@ -11974,9 +12369,10 @@ class FileInfoData$Type extends MessageType<FileInfoData> {
             { no: 43, name: "title", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 44, name: "inline_content", kind: "scalar", opt: true, T: 12 /*ScalarType.BYTES*/ },
             { no: 50, name: "coarse_type", kind: "enum", T: () => ["symbolx.bench.FileType", FileType, "FILE_TYPE_"] },
-            { no: 51, name: "mime_type", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 52, name: "size", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 53, name: "sha256", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 51, name: "mime_type", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 52, name: "format", kind: "enum", opt: true, T: () => ["symbolx.bench.FileFormat", FileFormat] },
+            { no: 53, name: "size", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 54, name: "sha256", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 55, name: "width", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 56, name: "height", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 57, name: "aspect_ratio", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
@@ -11993,7 +12389,6 @@ class FileInfoData$Type extends MessageType<FileInfoData> {
         message.kind = 0;
         message.title = "";
         message.coarseType = 0;
-        message.mimeType = "";
         message.size = 0n;
         if (value !== undefined)
             reflectionMergePartial<FileInfoData>(this, message, value);
@@ -12025,13 +12420,16 @@ class FileInfoData$Type extends MessageType<FileInfoData> {
                 case /* symbolx.bench.FileType coarse_type */ 50:
                     message.coarseType = reader.int32();
                     break;
-                case /* string mime_type */ 51:
+                case /* optional string mime_type */ 51:
                     message.mimeType = reader.string();
                     break;
-                case /* int64 size */ 52:
+                case /* optional symbolx.bench.FileFormat format */ 52:
+                    message.format = reader.int32();
+                    break;
+                case /* int64 size */ 53:
                     message.size = reader.int64().toBigInt();
                     break;
-                case /* optional string sha256 */ 53:
+                case /* optional string sha256 */ 54:
                     message.sha256 = reader.string();
                     break;
                 case /* optional int32 width */ 55:
@@ -12091,15 +12489,18 @@ class FileInfoData$Type extends MessageType<FileInfoData> {
         /* symbolx.bench.FileType coarse_type = 50; */
         if (message.coarseType !== 0)
             writer.tag(50, WireType.Varint).int32(message.coarseType);
-        /* string mime_type = 51; */
-        if (message.mimeType !== "")
+        /* optional string mime_type = 51; */
+        if (message.mimeType !== undefined)
             writer.tag(51, WireType.LengthDelimited).string(message.mimeType);
-        /* int64 size = 52; */
+        /* optional symbolx.bench.FileFormat format = 52; */
+        if (message.format !== undefined)
+            writer.tag(52, WireType.Varint).int32(message.format);
+        /* int64 size = 53; */
         if (message.size !== 0n)
-            writer.tag(52, WireType.Varint).int64(message.size);
-        /* optional string sha256 = 53; */
+            writer.tag(53, WireType.Varint).int64(message.size);
+        /* optional string sha256 = 54; */
         if (message.sha256 !== undefined)
-            writer.tag(53, WireType.LengthDelimited).string(message.sha256);
+            writer.tag(54, WireType.LengthDelimited).string(message.sha256);
         /* optional int32 width = 55; */
         if (message.width !== undefined)
             writer.tag(55, WireType.Varint).int32(message.width);
@@ -12151,9 +12552,10 @@ class FileReferenceData$Type extends MessageType<FileReferenceData> {
             { no: 43, name: "title", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 44, name: "inline_content", kind: "scalar", opt: true, T: 12 /*ScalarType.BYTES*/ },
             { no: 50, name: "coarse_type", kind: "enum", T: () => ["symbolx.bench.FileType", FileType, "FILE_TYPE_"] },
-            { no: 51, name: "mime_type", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 52, name: "size", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 53, name: "sha256", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 51, name: "mime_type", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 52, name: "format", kind: "enum", opt: true, T: () => ["symbolx.bench.FileFormat", FileFormat] },
+            { no: 53, name: "size", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 54, name: "sha256", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 55, name: "width", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 56, name: "height", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 57, name: "aspect_ratio", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
@@ -12171,7 +12573,6 @@ class FileReferenceData$Type extends MessageType<FileReferenceData> {
         message.kind = 0;
         message.title = "";
         message.coarseType = 0;
-        message.mimeType = "";
         message.size = 0n;
         if (value !== undefined)
             reflectionMergePartial<FileReferenceData>(this, message, value);
@@ -12221,13 +12622,16 @@ class FileReferenceData$Type extends MessageType<FileReferenceData> {
                 case /* symbolx.bench.FileType coarse_type */ 50:
                     message.coarseType = reader.int32();
                     break;
-                case /* string mime_type */ 51:
+                case /* optional string mime_type */ 51:
                     message.mimeType = reader.string();
                     break;
-                case /* int64 size */ 52:
+                case /* optional symbolx.bench.FileFormat format */ 52:
+                    message.format = reader.int32();
+                    break;
+                case /* int64 size */ 53:
                     message.size = reader.int64().toBigInt();
                     break;
-                case /* optional string sha256 */ 53:
+                case /* optional string sha256 */ 54:
                     message.sha256 = reader.string();
                     break;
                 case /* optional int32 width */ 55:
@@ -12305,15 +12709,18 @@ class FileReferenceData$Type extends MessageType<FileReferenceData> {
         /* symbolx.bench.FileType coarse_type = 50; */
         if (message.coarseType !== 0)
             writer.tag(50, WireType.Varint).int32(message.coarseType);
-        /* string mime_type = 51; */
-        if (message.mimeType !== "")
+        /* optional string mime_type = 51; */
+        if (message.mimeType !== undefined)
             writer.tag(51, WireType.LengthDelimited).string(message.mimeType);
-        /* int64 size = 52; */
+        /* optional symbolx.bench.FileFormat format = 52; */
+        if (message.format !== undefined)
+            writer.tag(52, WireType.Varint).int32(message.format);
+        /* int64 size = 53; */
         if (message.size !== 0n)
-            writer.tag(52, WireType.Varint).int64(message.size);
-        /* optional string sha256 = 53; */
+            writer.tag(53, WireType.Varint).int64(message.size);
+        /* optional string sha256 = 54; */
         if (message.sha256 !== undefined)
-            writer.tag(53, WireType.LengthDelimited).string(message.sha256);
+            writer.tag(54, WireType.LengthDelimited).string(message.sha256);
         /* optional int32 width = 55; */
         if (message.width !== undefined)
             writer.tag(55, WireType.Varint).int32(message.width);
@@ -17633,9 +18040,10 @@ class FileData$Type extends MessageType<FileData> {
             { no: 43, name: "title", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 44, name: "inline_content", kind: "scalar", opt: true, T: 12 /*ScalarType.BYTES*/ },
             { no: 50, name: "coarse_type", kind: "enum", T: () => ["symbolx.bench.FileType", FileType, "FILE_TYPE_"] },
-            { no: 51, name: "mime_type", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 52, name: "size", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 53, name: "sha256", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 51, name: "mime_type", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 52, name: "format", kind: "enum", opt: true, T: () => ["symbolx.bench.FileFormat", FileFormat] },
+            { no: 53, name: "size", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 54, name: "sha256", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 55, name: "width", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 56, name: "height", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 57, name: "aspect_ratio", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
@@ -17657,7 +18065,6 @@ class FileData$Type extends MessageType<FileData> {
         message.kind = 0;
         message.title = "";
         message.coarseType = 0;
-        message.mimeType = "";
         message.size = 0n;
         if (value !== undefined)
             reflectionMergePartial<FileData>(this, message, value);
@@ -17741,13 +18148,16 @@ class FileData$Type extends MessageType<FileData> {
                 case /* symbolx.bench.FileType coarse_type */ 50:
                     message.coarseType = reader.int32();
                     break;
-                case /* string mime_type */ 51:
+                case /* optional string mime_type */ 51:
                     message.mimeType = reader.string();
                     break;
-                case /* int64 size */ 52:
+                case /* optional symbolx.bench.FileFormat format */ 52:
+                    message.format = reader.int32();
+                    break;
+                case /* int64 size */ 53:
                     message.size = reader.int64().toBigInt();
                     break;
-                case /* optional string sha256 */ 53:
+                case /* optional string sha256 */ 54:
                     message.sha256 = reader.string();
                     break;
                 case /* optional int32 width */ 55:
@@ -17859,15 +18269,18 @@ class FileData$Type extends MessageType<FileData> {
         /* symbolx.bench.FileType coarse_type = 50; */
         if (message.coarseType !== 0)
             writer.tag(50, WireType.Varint).int32(message.coarseType);
-        /* string mime_type = 51; */
-        if (message.mimeType !== "")
+        /* optional string mime_type = 51; */
+        if (message.mimeType !== undefined)
             writer.tag(51, WireType.LengthDelimited).string(message.mimeType);
-        /* int64 size = 52; */
+        /* optional symbolx.bench.FileFormat format = 52; */
+        if (message.format !== undefined)
+            writer.tag(52, WireType.Varint).int32(message.format);
+        /* int64 size = 53; */
         if (message.size !== 0n)
-            writer.tag(52, WireType.Varint).int64(message.size);
-        /* optional string sha256 = 53; */
+            writer.tag(53, WireType.Varint).int64(message.size);
+        /* optional string sha256 = 54; */
         if (message.sha256 !== undefined)
-            writer.tag(53, WireType.LengthDelimited).string(message.sha256);
+            writer.tag(54, WireType.LengthDelimited).string(message.sha256);
         /* optional int32 width = 55; */
         if (message.width !== undefined)
             writer.tag(55, WireType.Varint).int32(message.width);
@@ -24088,6 +24501,7 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.FILE_RETENTION_MODE]: FileRetentionMode,
   [EnumType.FILE_KIND]: FileKind,
   [EnumType.FILE_TYPE]: FileType,
+  [EnumType.FILE_FORMAT]: FileFormat,
   [EnumType.CLIENT_TYPE]: ClientType,
   [EnumType.PRIMITIVE_TYPE]: PrimitiveType,
   [EnumType.FIELD_ZONE]: FieldZone,
@@ -24362,6 +24776,7 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.FILE_RETENTION_MODE]: FileRetentionMode,
   [EnumType.FILE_KIND]: FileKind,
   [EnumType.FILE_TYPE]: FileType,
+  [EnumType.FILE_FORMAT]: FileFormat,
   [EnumType.CLIENT_TYPE]: ClientType,
   [EnumType.PRIMITIVE_TYPE]: PrimitiveType,
   [EnumType.FIELD_ZONE]: FieldZone,
@@ -25066,8 +25481,9 @@ export enum FileProperty {
   inlineContent = 44,
   coarseType = 50,
   mimeType = 51,
-  size = 52,
-  sha256 = 53,
+  format = 52,
+  size = 53,
+  sha256 = 54,
   width = 55,
   height = 56,
   aspectRatio = 57,
@@ -25593,8 +26009,9 @@ export enum FileReferenceProperty {
   inlineContent = 44,
   coarseType = 50,
   mimeType = 51,
-  size = 52,
-  sha256 = 53,
+  format = 52,
+  size = 53,
+  sha256 = 54,
   width = 55,
   height = 56,
   aspectRatio = 57,
@@ -25634,8 +26051,9 @@ export enum FileInfoProperty {
   inlineContent = 44,
   coarseType = 50,
   mimeType = 51,
-  size = 52,
-  sha256 = 53,
+  format = 52,
+  size = 53,
+  sha256 = 54,
   width = 55,
   height = 56,
   aspectRatio = 57,
@@ -26359,9 +26777,10 @@ export const FileReferenceDataInfo: Record<FileReferenceProperty, PropertyInfo> 
   [FileReferenceProperty.title]: { id: 43, name: 'title', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 256 }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [FileReferenceProperty.inlineContent]: { id: 44, name: 'inline_content', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.BYTES, constraint: { minLength: 1 }, isRuntime: true, isWired: true, isStored: true },
   [FileReferenceProperty.coarseType]: { id: 50, name: 'coarse_type', component: ObjectType.FILE_REFERENCE, enumType: EnumType.FILE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileReferenceProperty.mimeType]: { id: 51, name: 'mime_type', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 255 }, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileReferenceProperty.size]: { id: 52, name: 'size', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.INT64, constraint: { minValue: 0 }, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileReferenceProperty.sha256]: { id: 53, name: 'sha256', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 64, maxLength: 64 }, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileReferenceProperty.mimeType]: { id: 51, name: 'mime_type', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 255 }, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileReferenceProperty.format]: { id: 52, name: 'format', component: ObjectType.FILE_REFERENCE, enumType: EnumType.FILE_FORMAT, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileReferenceProperty.size]: { id: 53, name: 'size', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.INT64, constraint: { minValue: 0 }, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileReferenceProperty.sha256]: { id: 54, name: 'sha256', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 64, maxLength: 64 }, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileReferenceProperty.width]: { id: 55, name: 'width', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileReferenceProperty.height]: { id: 56, name: 'height', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileReferenceProperty.aspectRatio]: { id: 57, name: 'aspect_ratio', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -26397,9 +26816,10 @@ export const FileInfoDataInfo: Record<FileInfoProperty, PropertyInfo> = {
   [FileInfoProperty.title]: { id: 43, name: 'title', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 256 }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [FileInfoProperty.inlineContent]: { id: 44, name: 'inline_content', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.BYTES, constraint: { minLength: 1 }, isRuntime: true, isWired: true, isStored: true },
   [FileInfoProperty.coarseType]: { id: 50, name: 'coarse_type', component: ObjectType.FILE_INFO, enumType: EnumType.FILE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileInfoProperty.mimeType]: { id: 51, name: 'mime_type', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 255 }, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileInfoProperty.size]: { id: 52, name: 'size', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT64, constraint: { minValue: 0 }, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileInfoProperty.sha256]: { id: 53, name: 'sha256', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 64, maxLength: 64 }, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileInfoProperty.mimeType]: { id: 51, name: 'mime_type', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 255 }, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileInfoProperty.format]: { id: 52, name: 'format', component: ObjectType.FILE_INFO, enumType: EnumType.FILE_FORMAT, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileInfoProperty.size]: { id: 53, name: 'size', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT64, constraint: { minValue: 0 }, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileInfoProperty.sha256]: { id: 54, name: 'sha256', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 64, maxLength: 64 }, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileInfoProperty.width]: { id: 55, name: 'width', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileInfoProperty.height]: { id: 56, name: 'height', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileInfoProperty.aspectRatio]: { id: 57, name: 'aspect_ratio', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -27241,9 +27661,10 @@ export const FileDataInfo: Record<FileProperty, PropertyInfo> = {
   [FileProperty.title]: { id: 43, name: 'title', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 256 }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.inlineContent]: { id: 44, name: 'inline_content', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.BYTES, constraint: { minLength: 1 }, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.coarseType]: { id: 50, name: 'coarse_type', component: ObjectType.FILE, enumType: EnumType.FILE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.mimeType]: { id: 51, name: 'mime_type', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 255 }, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.size]: { id: 52, name: 'size', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT64, constraint: { minValue: 0 }, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.sha256]: { id: 53, name: 'sha256', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 64, maxLength: 64 }, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.mimeType]: { id: 51, name: 'mime_type', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 255 }, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.format]: { id: 52, name: 'format', component: ObjectType.FILE, enumType: EnumType.FILE_FORMAT, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.size]: { id: 53, name: 'size', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT64, constraint: { minValue: 0 }, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.sha256]: { id: 54, name: 'sha256', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 64, maxLength: 64 }, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.width]: { id: 55, name: 'width', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.height]: { id: 56, name: 'height', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.aspectRatio]: { id: 57, name: 'aspect_ratio', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
