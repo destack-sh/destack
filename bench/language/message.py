@@ -2,9 +2,8 @@ from typing import TYPE_CHECKING, Any, Optional, Union, cast
 
 import structlog
 
-from bench.language.const import NodeType, StructType
+from bench.language.const import NODE_TYPES, NodeType, StructType
 from bench.language.node import (
-    LINK_TARGET_NODE_TYPES,
     BenchNode,
     HasNodeBase,
     HasTimeIdentity,
@@ -46,7 +45,7 @@ class Message(
     """
 
     parent: MessageParent | None = p_node_parent(4, *MESSAGE_PARENT_TYPES)
-    origin: BenchNode = p_regular(32, require=True, references=LINK_TARGET_NODE_TYPES)
+    origin: BenchNode = p_regular(32, require=True, references=NODE_TYPES.tuple)
     path: Optional["Path"] = p_regular(33, require=False, array=False, struct=StructType.PATH)
     reply_to: Optional["Message"] = p_regular(
         34, require=False, default=None, references=NodeType.MESSAGE, same_bench=True

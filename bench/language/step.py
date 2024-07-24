@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, Any, Optional, Union, cast, final
 from bench.language.const import BlockType, EnumType, FieldZone, NodeType, StructType, enum_
 from bench.language.field import TypeInfoBase
 from bench.language.graph import NodeList
-from bench.language.issue import Issue
 from bench.language.node import (
     SourceNode,
     Struct,
@@ -168,7 +167,6 @@ class Step(SourceNode[StepData], HasValues):
 
     steps: NodeList["Step"] = p_node_children(NodeType.STEP)
     fields: NodeList["Field"] = p_node_children(NodeType.FIELD)
-    issues: NodeList["Issue"] = p_node_children(NodeType.ISSUE)
 
     @final
     def __repr__(self):  # type: ignore we want to override the default repr

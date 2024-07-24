@@ -23,7 +23,6 @@ from bench.language.const import (
 )
 from bench.language.expression import _TypeQueryBuilder
 from bench.language.graph import NodeList
-from bench.language.issue import Issue
 from bench.language.node import (
     HasNodeBase,
     Node,
@@ -40,7 +39,6 @@ from bench.language.node import (
 from bench.language.property import (
     Property,
     p_internal,
-    p_node_children,
     p_node_parent,
     p_regular,
     p_runtime,
@@ -525,8 +523,6 @@ class Field(SourceNode[FieldData], HasNodeBase, TypeInfoBase, _TypeQueryBuilder)
     # field-only flags
     # is_indexed: bool = ... # for database fields
     # is_unique: bool = ... # for database fields
-
-    issues: NodeList["Issue"] = p_node_children(NodeType.ISSUE)
 
     _introspected_from: Optional[Property] = p_runtime(default=None)
 

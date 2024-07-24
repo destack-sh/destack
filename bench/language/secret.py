@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, Any, Union, cast, override
 from bench.language.const import NodeType, StructType
 from bench.language.field import TypeInfo
 from bench.language.node import (
-    Node,
     NodeReference,
     NodeReferenceBase,
     SourceNode,
@@ -57,7 +56,6 @@ class SecretReference(
     # ...NodeReferenceBase[30-39]
 
     title: str = p_regular(43, constraint=TITLE_CONSTRAINT)
-    value_type: TypeInfo | None = p_regular(44, struct=StructType.TYPE_INFO)
 
     def _validate_component(self, properties: tuple[Property, ...], invalid: ValidationHandler):
         if self.type != NodeType.SECRET:
@@ -67,12 +65,10 @@ class SecretReference(
 
     @override
     @staticmethod
-    def from_node(node: Node) -> "SecretReference":
+    def from_node(node: Secret) -> "SecretReference":
         node_ref = NodeReference.from_node(node)
         secret_ref = SecretReference._clone_ref(SecretReference, node_ref)
-        for prop in SecretReference.__declared_properties__.values():
-            if hasattr(secret_ref, prop.name):
-                setattr(secret_ref, prop.name, getattr(node, prop.name))
+        secret_ref.title = node.title
         return secret_ref
 
     @override
@@ -80,9 +76,7 @@ class SecretReference(
     def from_node_data(node_data: SecretData) -> SecretReferenceData:
         node_ref = NodeReference.from_node_data(node_data)
         secret_ref = SecretReference._clone_ref(SecretReferenceData, node_ref)
-        for prop in SecretReference.__declared_properties__.values():
-            if hasattr(secret_ref, prop.name):
-                setattr(secret_ref, prop.name, getattr(node_data, prop.name))
+        secret_ref.title = node_data.title
         return secret_ref
 
     @override
@@ -90,7 +84,5 @@ class SecretReference(
     def from_node_as_data(node: Secret) -> SecretReferenceData:
         node_ref = NodeReference.from_node_as_data(node)
         secret_ref = SecretReference._clone_ref(SecretReferenceData, node_ref)
-        for prop in SecretReference.__declared_properties__.values():
-            if hasattr(secret_ref, prop.name):
-                setattr(secret_ref, prop.name, getattr(node, prop.name))
+        secret_ref.title = node.title
         return secret_ref

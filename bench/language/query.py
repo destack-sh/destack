@@ -32,6 +32,7 @@ from bench.language.node import (
     NODE_CLASS_BY_TYPE,
     BuiltinObject,
     Node,
+    SomeNodeReference,
     SourceNode,
     Struct,
     local_node_,
@@ -446,7 +447,7 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
     @tracer.start_as_current_span("query.get")
     async def get(
         self,
-        filter: Union["Expression", "NodeReference", None] = None,
+        filter: Union["Expression", "SomeNodeReference", None] = None,
         live: bool = False,
         **kwargs,
     ) -> NodeT:
@@ -454,9 +455,9 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         Returns the unique result matching the query (errors otherwise).
         NOTE: this is only a true get query with specific node pointers as roots, otherwise it's a search.
         """
-        from bench.language import GetOptions, NodeReference, coerce_conditional
+        from bench.language import GetOptions, NodeReferenceBase, coerce_conditional
 
-        if isinstance(filter, NodeReference):
+        if isinstance(filter, NodeReferenceBase):
             # true get request (with node pointers)
             assert self._filter is None, f"cannot combine filter and roots in {self!r}"
             query = self.clone()

@@ -12,8 +12,6 @@ from bench.language.const import (
     TimeInterval,
     TriggerType,
 )
-from bench.language.graph import NodeList
-from bench.language.issue import Issue
 from bench.language.node import (
     BuiltinObject,
     SourceNode,
@@ -22,7 +20,7 @@ from bench.language.node import (
     object_component,
     struct_,
 )
-from bench.language.property import Property, p_node_children, p_node_parent, p_regular
+from bench.language.property import Property, p_node_parent, p_regular
 from bench.language.validation import (
     NAME_CONSTRAINT,
     TypeConstraintIn,
@@ -119,8 +117,6 @@ class Trigger(SourceNode[TriggerData], TriggerBase):
 
     # flags
     is_paused: bool = p_regular(60, default=False)
-
-    issues: NodeList["Issue"] = p_node_children(NodeType.ISSUE)
 
     def __content_str__(self):
         if self.type == TriggerType.SCHEDULE and self.schedule:

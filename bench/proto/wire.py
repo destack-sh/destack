@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.07.24.1"
+VERSION = "2024.07.24.2"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -130,9 +130,7 @@ class BenchType(betterproto.Enum):
     PACKAGE = 1001
     DEPENDENCY = 1002
     SPACE = 1003
-    LINK = 1004
     SKIP = 1005
-    ISSUE = 1006
     BLOCK = 1010
     TRIGGER = 1011
     FIELD = 1012
@@ -255,8 +253,6 @@ class BenchType(betterproto.Enum):
     SORT_OP = 20207
     SELECTION_KIND = 20208
     PATH_TOKEN_TYPE = 20210
-    ISSUE_KIND = 20400
-    ISSUE_TYPE = 20401
     STEP_TYPE = 20500
     PIPE_TYPE = 20501
     LOG_KIND = 20502
@@ -523,8 +519,6 @@ class EnumType(betterproto.Enum):
     SORT_OP = 20207
     SELECTION_KIND = 20208
     PATH_TOKEN_TYPE = 20210
-    ISSUE_KIND = 20400
-    ISSUE_TYPE = 20401
     STEP_TYPE = 20500
     PIPE_TYPE = 20501
     LOG_KIND = 20502
@@ -704,26 +698,6 @@ class IdEnum(betterproto.Enum):
     UNSPECIFIED = 0
 
 
-class IssueKind(betterproto.Enum):
-    """Type of diagnostic in increasing severity."""
-
-    UNSPECIFIED = 0
-    HINT = 1
-    INFO = 2
-    WARNING = 3
-    ERROR = 4
-
-
-class IssueType(betterproto.Enum):
-    """Built-in issue types."""
-
-    UNSPECIFIED = 0
-    MISSING_REFERENCE = 1
-    CIRCULAR_BASE = 2
-    MISMATCHED_BASE = 3
-    AMBIGUOUS_NAME = 100
-
-
 class LiteralOp(betterproto.Enum):
     UNSPECIFIED = 0
     VALUE = 100
@@ -803,9 +777,7 @@ class NodeType(betterproto.Enum):
     PACKAGE = 1001
     DEPENDENCY = 1002
     SPACE = 1003
-    LINK = 1004
     SKIP = 1005
-    ISSUE = 1006
     BLOCK = 1010
     TRIGGER = 1011
     FIELD = 1012
@@ -850,9 +822,7 @@ class ObjectType(betterproto.Enum):
     PACKAGE = 1001
     DEPENDENCY = 1002
     SPACE = 1003
-    LINK = 1004
     SKIP = 1005
-    ISSUE = 1006
     BLOCK = 1010
     TRIGGER = 1011
     FIELD = 1012
@@ -2090,7 +2060,6 @@ class SecretReferenceData(betterproto.Message):
     base_ck: Optional[str] = betterproto.string_field(34, optional=True)
     base_bench_id: Optional[str] = betterproto.string_field(35, optional=True)
     title: str = betterproto.string_field(43)
-    value_type: Optional["TypeInfoData"] = betterproto.message_field(44, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2671,64 +2640,6 @@ class InviteData(betterproto.Message):
     user_email: Optional[str] = betterproto.string_field(31, optional=True)
     is_owner: bool = betterproto.bool_field(32)
     roles_ptr: List["NodeReferenceData"] = betterproto.message_field(33)
-
-
-@dataclass(eq=False, repr=False)
-class IssueData(betterproto.Message):
-    """A diagnostic regarding something in the Bench source."""
-
-    metatype: "ObjectType" = betterproto.enum_field(1)
-    id: str = betterproto.string_field(2)
-    parent_ptr: Optional["NodeReferenceData"] = betterproto.message_field(4, optional=True)
-    package_ptr: "NodeReferenceData" = betterproto.message_field(5)
-    bench_ptr: "NodeReferenceData" = betterproto.message_field(6)
-    revision: int = betterproto.int64_field(10)
-    created_at: datetime = betterproto.message_field(11)
-    created_epoch: int = betterproto.int64_field(12)
-    updated_at: datetime = betterproto.message_field(13)
-    updated_epoch: int = betterproto.int64_field(14)
-    deleted_at: Optional[datetime] = betterproto.message_field(15, optional=True)
-    archived_at: Optional[datetime] = betterproto.message_field(16, optional=True)
-    created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(21, optional=True)
-    updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(22, optional=True)
-    set_properties: List[int] = betterproto.int32_field(29)
-    kind: "IssueKind" = betterproto.enum_field(30)
-    type: "IssueType" = betterproto.enum_field(31)
-    subject_ptr: Optional["NodeReferenceData"] = betterproto.message_field(33, optional=True)
-    path: Optional["PathData"] = betterproto.message_field(34, optional=True)
-    properties_ptr: List["PropertyReferenceData"] = betterproto.message_field(35)
-    title: Optional[str] = betterproto.string_field(40, optional=True)
-    text: Optional["TextData"] = betterproto.message_field(41, optional=True)
-
-
-@dataclass(eq=False, repr=False)
-class LinkData(betterproto.Message):
-    """
-    A reference to another node in some graph.
-     The referenced subtree is inlined on access.
-     The reference may be indirect through a value somewhere (which should point to a node).
-    """
-
-    metatype: "ObjectType" = betterproto.enum_field(1)
-    id: str = betterproto.string_field(2)
-    ck: str = betterproto.string_field(3)
-    parent_ptr: Optional["NodeReferenceData"] = betterproto.message_field(4, optional=True)
-    package_ptr: "NodeReferenceData" = betterproto.message_field(5)
-    bench_ptr: "NodeReferenceData" = betterproto.message_field(6)
-    template_ptr: Optional["NodeReferenceData"] = betterproto.message_field(7, optional=True)
-    templated_epoch: Optional[int] = betterproto.int64_field(8, optional=True)
-    revision: int = betterproto.int64_field(10)
-    created_at: datetime = betterproto.message_field(11)
-    created_epoch: int = betterproto.int64_field(12)
-    updated_at: datetime = betterproto.message_field(13)
-    updated_epoch: int = betterproto.int64_field(14)
-    deleted_at: Optional[datetime] = betterproto.message_field(15, optional=True)
-    archived_at: Optional[datetime] = betterproto.message_field(16, optional=True)
-    created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(21, optional=True)
-    updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(22, optional=True)
-    set_properties: List[int] = betterproto.int32_field(29)
-    reference_ptr: Optional["NodeReferenceData"] = betterproto.message_field(30, optional=True)
-    order_key: Optional[str] = betterproto.string_field(32, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -3489,27 +3400,25 @@ class SomeNodeData(betterproto.Message):
     package: "PackageData" = betterproto.message_field(11, group="node")
     dependency: "DependencyData" = betterproto.message_field(12, group="node")
     space: "SpaceData" = betterproto.message_field(13, group="node")
-    link: "LinkData" = betterproto.message_field(14, group="node")
-    skip: "SkipData" = betterproto.message_field(15, group="node")
-    issue: "IssueData" = betterproto.message_field(16, group="node")
-    block: "BlockData" = betterproto.message_field(17, group="node")
-    trigger: "TriggerData" = betterproto.message_field(18, group="node")
-    field: "FieldData" = betterproto.message_field(19, group="node")
-    query: "QueryData" = betterproto.message_field(20, group="node")
-    view: "ViewData" = betterproto.message_field(21, group="node")
-    step: "StepData" = betterproto.message_field(22, group="node")
-    badge: "BadgeData" = betterproto.message_field(23, group="node")
-    secret: "SecretData" = betterproto.message_field(24, group="node")
-    file: "FileData" = betterproto.message_field(25, group="node")
-    message: "MessageData" = betterproto.message_field(26, group="node")
-    record: "RecordData" = betterproto.message_field(27, group="node")
-    membership: "MembershipData" = betterproto.message_field(28, group="node")
-    invite: "InviteData" = betterproto.message_field(29, group="node")
-    notification: "NotificationData" = betterproto.message_field(30, group="node")
-    session: "SessionData" = betterproto.message_field(31, group="node")
-    run: "RunData" = betterproto.message_field(32, group="node")
-    signal: "SignalData" = betterproto.message_field(33, group="node")
-    log: "LogData" = betterproto.message_field(34, group="node")
+    skip: "SkipData" = betterproto.message_field(14, group="node")
+    block: "BlockData" = betterproto.message_field(15, group="node")
+    trigger: "TriggerData" = betterproto.message_field(16, group="node")
+    field: "FieldData" = betterproto.message_field(17, group="node")
+    query: "QueryData" = betterproto.message_field(18, group="node")
+    view: "ViewData" = betterproto.message_field(19, group="node")
+    step: "StepData" = betterproto.message_field(20, group="node")
+    badge: "BadgeData" = betterproto.message_field(21, group="node")
+    secret: "SecretData" = betterproto.message_field(22, group="node")
+    file: "FileData" = betterproto.message_field(23, group="node")
+    message: "MessageData" = betterproto.message_field(24, group="node")
+    record: "RecordData" = betterproto.message_field(25, group="node")
+    membership: "MembershipData" = betterproto.message_field(26, group="node")
+    invite: "InviteData" = betterproto.message_field(27, group="node")
+    notification: "NotificationData" = betterproto.message_field(28, group="node")
+    session: "SessionData" = betterproto.message_field(29, group="node")
+    run: "RunData" = betterproto.message_field(30, group="node")
+    signal: "SignalData" = betterproto.message_field(31, group="node")
+    log: "LogData" = betterproto.message_field(32, group="node")
 
 
 @dataclass(eq=False, repr=False)
@@ -5062,9 +4971,7 @@ AnyNodeData = Union[
     PackageData,
     DependencyData,
     SpaceData,
-    LinkData,
     SkipData,
-    IssueData,
     BlockData,
     TriggerData,
     FieldData,
