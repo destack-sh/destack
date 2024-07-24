@@ -2340,6 +2340,10 @@ export interface BlockData {
      */
     isBuiltin: boolean;
     /**
+     * @generated from protobuf field: bool is_owned = 61;
+     */
+    isOwned: boolean;
+    /**
      * @generated from protobuf field: bool is_paused = 64;
      */
     isPaused: boolean;
@@ -16178,6 +16182,7 @@ class BlockData$Type extends MessageType<BlockData> {
             { no: 48, name: "policies", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PolicyData },
             { no: 49, name: "delegated_policies", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PolicyData },
             { no: 60, name: "is_builtin", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 61, name: "is_owned", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 64, name: "is_paused", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
@@ -16198,6 +16203,7 @@ class BlockData$Type extends MessageType<BlockData> {
         message.policies = [];
         message.delegatedPolicies = [];
         message.isBuiltin = false;
+        message.isOwned = false;
         message.isPaused = false;
         if (value !== undefined)
             reflectionMergePartial<BlockData>(this, message, value);
@@ -16310,6 +16316,9 @@ class BlockData$Type extends MessageType<BlockData> {
                     break;
                 case /* bool is_builtin */ 60:
                     message.isBuiltin = reader.bool();
+                    break;
+                case /* bool is_owned */ 61:
+                    message.isOwned = reader.bool();
                     break;
                 case /* bool is_paused */ 64:
                     message.isPaused = reader.bool();
@@ -16429,6 +16438,9 @@ class BlockData$Type extends MessageType<BlockData> {
         /* bool is_builtin = 60; */
         if (message.isBuiltin !== false)
             writer.tag(60, WireType.Varint).bool(message.isBuiltin);
+        /* bool is_owned = 61; */
+        if (message.isOwned !== false)
+            writer.tag(61, WireType.Varint).bool(message.isOwned);
         /* bool is_paused = 64; */
         if (message.isPaused !== false)
             writer.tag(64, WireType.Varint).bool(message.isPaused);
@@ -24794,6 +24806,7 @@ export enum BlockProperty {
   policies = 48,
   delegatedPolicies = 49,
   isBuiltin = 60,
+  isOwned = 61,
   isPaused = 64,
 }
 
@@ -26977,6 +26990,7 @@ export const BlockDataInfo: Record<BlockProperty, PropertyInfo> = {
   [BlockProperty.policies]: { id: 48, name: 'policies', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY },
   [BlockProperty.delegatedPolicies]: { id: 49, name: 'delegated_policies', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY },
   [BlockProperty.isBuiltin]: { id: 60, name: 'is_builtin', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [BlockProperty.isOwned]: { id: 61, name: 'is_owned', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [BlockProperty.isPaused]: { id: 64, name: 'is_paused', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const TriggerDataInfo: Record<TriggerProperty, PropertyInfo> = {

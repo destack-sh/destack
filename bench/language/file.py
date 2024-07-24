@@ -21,7 +21,7 @@ from bench.proto.wire import FileData, FileReferenceData
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
-    from bench.language import Block, Color, Package
+    from bench.language import Block, Package
 
 logger = structlog.get_logger(__name__)
 
@@ -122,6 +122,14 @@ class File(RemoteNode[FileData], FileInfoBase):
     # content/info
     # ...FileInfoBase[40-69]
 
+    def to_ref(self) -> "FileReference":
+        """Gets a reference to this file."""
+        return FileReference._ref_from_node(self)
+
+    def _to_ref_data(self) -> FileReferenceData:
+        """Gets a data reference to this file."""
+        return FileReference._ref_from_node(self)._to_data()
+
 
 @struct_(StructType.FILE_REFERENCE)
 class FileReference(
@@ -144,69 +152,20 @@ class FileReference(
 
     @override
     @staticmethod
-    def from_node(node: File) -> "FileReference":
-        node_ref = NodeReference.from_node(node)
-        file_ref = FileReference._clone_ref(FileReference, node_ref)
+    def _ref_from_node(node: File) -> "FileReference":
+        node_ref = NodeReference._ref_from_node(node)
+        kwargs = {}
         for prop in FileInfoBase.__declared_properties__.values():
-            if hasattr(file_ref, prop.name):
-                setattr(file_ref, prop.name, getattr(node, prop.name))
-        return file_ref
+            if hasattr(node, prop.name):
+                kwargs[prop.name] = getattr(node, prop.name)
+        return FileReference._clone_ref(FileReference, node_ref, **kwargs)
 
     @override
     @staticmethod
-    def from_node_data(node_data: FileData) -> FileReferenceData:
-        node_ref = NodeReference.from_node_data(node_data)
-        file_ref = FileReference._clone_ref(FileReferenceData, node_ref)
+    def _ref_data_from_node_data(node_data: FileData) -> FileReferenceData:
+        node_ref = NodeReference._ref_data_from_node_data(node_data)
+        kwargs = {}
         for prop in FileInfoBase.__declared_properties__.values():
-            if hasattr(file_ref, prop.name):
-                setattr(file_ref, prop.name, getattr(node_data, prop.name))
-        return file_ref
-
-    @override
-    @staticmethod
-    def from_node_as_data(node: File) -> FileReferenceData:
-        node_ref = NodeReference.from_node_as_data(node)
-        file_ref = FileReference._clone_ref(FileReferenceData, node_ref)
-        for prop in FileInfoBase.__declared_properties__.values():
-            if hasattr(file_ref, prop.name):
-                setattr(file_ref, prop.name, getattr(node, prop.name))
-        return file_ref
-
-
-@enum_(EnumType.ICON_KIND)
-class IconKind(IdEnum):
-    EMOJI = 1
-    FILE = 2
-    FONT_AWESOME = 3
-
-
-@struct_(StructType.ICON)
-class Icon(Struct):
-    """An icon to be displayed in some view."""
-
-    kind: IconKind = p_internal(30, default=False)
-    # content
-    emoji: Optional[str] = p_internal(31, require=False)
-    file: Optional["File"] = p_internal(
-        32, require=False, array=False, references=NodeType.FILE, rich=True
-    )
-    fa_name: Optional[str] = p_internal(33, require=False)
-    # style
-    color: Optional["Color"] = p_internal(40, require=False, array=False, struct=StructType.COLOR)
-
-    @staticmethod
-    def new(icon: "IconIn") -> "Icon":
-        return to_icon(icon)
-
-
-IconIn = Icon | str
-
-
-def to_icon(icon: IconIn) -> Icon:
-    if isinstance(icon, str):
-        if icon.startswith("fa-"):
-            return Icon(kind=IconKind.FONT_AWESOME, fa_name=icon)
-        else:
-            return Icon(kind=IconKind.EMOJI, emoji=icon)
-    else:
-        return icon
+            if hasattr(node_data, prop.name):
+                kwargs[prop.name] = getattr(node_data, prop.name)
+        return FileReference._clone_ref(FileReferenceData, node_ref, **kwargs)

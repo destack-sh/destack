@@ -1368,7 +1368,9 @@ async def pg_walk_graph_down(
     if not roots:
         return [], {}
     if not isinstance(roots[0], NodeReferenceData):
-        roots_ptrs = [NodeReference.from_node_data(cast(AnyNodeData, node)) for node in roots]
+        roots_ptrs = [
+            NodeReference._ref_data_from_node_data(cast(AnyNodeData, node)) for node in roots
+        ]
     else:
         roots_ptrs = cast(list[NodeReferenceData], roots)
 

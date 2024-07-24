@@ -115,7 +115,7 @@ class HostHandle(ServiceHandle[HostSpec, Host, HostClient]):
     async def prepare(self, supervisor_client: SupervisorClient, client: "ClientHandle"):
         # create bench in supervisor
         create_bench_req = CreateBenchRequest(
-            owner=NodeReference.from_node_data(client.user.user_data),
+            owner=NodeReference._ref_data_from_node_data(client.user.user_data),
             is_main=True,
             slug=self.spec.bench.name,
             region=wire.Region.ZURICH,

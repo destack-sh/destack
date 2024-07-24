@@ -63,7 +63,7 @@ from .const import (
 )
 from .expression import A, Aggregation, C, ComputedValue, Expression, S, coerce_conditional
 from .field import Field, FieldZone, TypeConstraint, TypeInfo, TypeInfoBase
-from .file import File, FileKind, FileReference, FileRetentionMode, FileType, Icon
+from .file import File, FileKind, FileReference, FileRetentionMode, FileType
 from .graph import (
     NodeDataDict,
     NodeDataGraph,
@@ -84,6 +84,8 @@ from .node import (
     NodeReferenceBase,
     PackageNode,
     PropertyReference,
+    SomeNodeReference,
+    SomeNodeReferenceData,
     SourceNode,
     Struct,
 )
@@ -124,6 +126,8 @@ from .view import (
     FontSize,
     FontType,
     FontWeight,
+    Icon,
+    IconKind,
     Offset,
     Orientation,
     Space,
@@ -200,6 +204,7 @@ __all__ = [
     "Handle",
     "HasNodeBase",
     "Icon",
+    "IconKind",
     "Log",
     "LogInfo",
     "LogKind",
@@ -260,6 +265,8 @@ __all__ = [
     "Session",
     "SessionContext",
     "Signal",
+    "SomeNodeReference",
+    "SomeNodeReferenceData",
     "SortMode",
     "SortOp",
     "SourceNode",

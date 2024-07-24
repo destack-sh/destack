@@ -864,7 +864,7 @@ class MemoryGetConnection[T: Node](GetConnection[MemoryChannel, T]):
 
         return GetResultData(
             graph=visited_graph,
-            roots_ptr=[NodeReference.from_node_data(r) for r in roots],
+            roots_ptr=[NodeReference._ref_data_from_node_data(r) for r in roots],
             epoch=None,
             connection_token=None,
         )
@@ -1428,7 +1428,7 @@ class PostgresSearchConnection[T: Node](SearchConnection[PostgresChannel, T]):
         return SearchResultData(
             graph=graph,
             roots=roots,
-            roots_ptr=[NodeReference.from_node_data(r) for r in roots],
+            roots_ptr=[NodeReference._ref_data_from_node_data(r) for r in roots],
             total=total,
             epoch=None,
             connection_token=None,

@@ -391,7 +391,9 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
                 host_uri = self._host_map.get(bench.region)
                 if host_uri is None:
                     raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "no host for bench")
-                host_info = GetHostsResponseHostInfo(host_uri=host_uri, bench=bench._to_ref_data())
+                host_info = GetHostsResponseHostInfo(
+                    host_uri=host_uri, bench=bench._to_plain_ref_data()
+                )
                 hosts.append(host_info)
         return GetHostsResponse(hosts=hosts)
 

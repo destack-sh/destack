@@ -99,7 +99,7 @@ async def test_user_registration(supervisor: SupervisorClient):
     )._to_data()
     read_user_req = GetNodesRequest(
         scope=GraphScope()._to_data(),
-        roots=[NodeReference.from_node_data(signup_rep.user)],
+        roots=[NodeReference._ref_data_from_node_data(signup_rep.user)],
         options=options,
     )
     access_metadata = RpcMetadata(

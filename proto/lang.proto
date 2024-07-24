@@ -2123,6 +2123,7 @@ message BlockData {
   repeated PolicyData policies = 48;
   repeated PolicyData delegated_policies = 49;
   bool is_builtin = 60;
+  bool is_owned = 61;
   bool is_paused = 64;
 }
 

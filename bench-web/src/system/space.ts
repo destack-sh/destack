@@ -8,6 +8,7 @@ import {
   typeNodeReferenceMaybe,
   unwrapSomeNode,
   type SomeNodeReferenceData,
+  type TypedNodeReferenceData,
 } from "@/proto/wiring";
 import local, { BENCH_SCOPE, LOCAL_SPACE_ID, PACKAGE_SCOPE, spaceGraphLocal, spacePtr } from "@/system/client";
 import { makeReadOptions, useExistingConnection, useGetConnection } from "@/system/connection";
@@ -138,10 +139,10 @@ export async function assignSpaceInPackage() {
 
 /** 'Goes' to a Bench and sets it as the current main Bench. **/
 export async function goToBench(go: {
-  bench: SomeNodeReferenceData<NodeType.BENCH>;
-  branch?: SomeNodeReferenceData<NodeType.BRANCH>;
-  pkg?: SomeNodeReferenceData<NodeType.PACKAGE>;
-  space?: SomeNodeReferenceData<NodeType.SPACE>;
+  bench: TypedNodeReferenceData<NodeType.BENCH>;
+  branch?: TypedNodeReferenceData<NodeType.BRANCH>;
+  pkg?: TypedNodeReferenceData<NodeType.PACKAGE>;
+  space?: TypedNodeReferenceData<NodeType.SPACE>;
 }) {
   log.info("space.goToBench", go);
 
@@ -172,7 +173,7 @@ export async function goToBench(go: {
 }
 
 /** 'Goes' to a Space and sets it as the current main Space. */
-export async function goToSpace(go: { space: SomeNodeReferenceData<NodeType.SPACE> }) {
+export async function goToSpace(go: { space: TypedNodeReferenceData<NodeType.SPACE> }) {
   log.info("space.goToSpace", go);
 
   if (go.space.benchId != local.benchPtr.value?.id) {

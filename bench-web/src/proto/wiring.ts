@@ -1,6 +1,7 @@
 import {
   EditData,
   EditType,
+  FileReferenceData,
   GraphScopeData,
   MESSAGE_TYPE_BY_OBJECT_TYPE,
   NodeReferenceData,
@@ -10,6 +11,7 @@ import {
   PROPERTY_INFOS_BY_TYPE,
   PropertyReferenceData,
   STRUCT_PROPERTY_ENUM_BY_TYPE,
+  SecretReferenceData,
   SomeNodeData,
   StructType,
   type AnyNodeData,
@@ -33,7 +35,6 @@ export const OBJECT_TYPE_NAME: Record<ObjectType, string> = reverseRecord(Object
 
 export type TypedNodeReferenceData<T extends NodeType> = NodeReferenceData & { type: T };
 export type AnyNodeReferenceData = NodeReferenceData | TypedNodeReferenceData<NodeType>;
-export type SomeNodeReferenceData<T extends NodeType> = NodeReferenceData | TypedNodeReferenceData<T>;
 
 export function makeScope(scope: Partial<GraphScopeData>): GraphScopeData {
   return { metatype: ObjectType.GRAPH_SCOPE, ...scope };
@@ -263,7 +264,8 @@ export const NODE_REFERENCE_TYPES_BY_NODE_TYPE = {
   [NodeType.FILE]: StructType.FILE_REFERENCE,
   [NodeType.SECRET]: StructType.SECRET_REFERENCE,
 };
-export const NODE_REFERENCE_TYPES = [StructType.NODE_REFERENCE, ...Object.values(NODE_REFERENCE_TYPES_BY_NODE_TYPE)];
+export const NODE_REFERENCE_TYPES = [StructType.NODE_REFERENCE, StructType.FILE_REFERENCE, StructType.SECRET_REFERENCE];
+export type SomeNodeReferenceData = NodeReferenceData | FileReferenceData | SecretReferenceData;
 
 export function isNodeReference(value: any | null | undefined): value is NodeReferenceData {
   return typeof value == "object" && (value as any).metatype == ObjectType.NODE_REFERENCE;
