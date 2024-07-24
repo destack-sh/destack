@@ -32,7 +32,7 @@ from bench.language.node import (
     Struct,
     get_tk_b64_from_ck,
     get_tk_b64_from_ptr,
-    local_node,
+    local_node_,
     object_component,
     pad_ck_from_tk_b64,
     struct_,
@@ -501,7 +501,7 @@ def reverse_type_scalar(typ: TypeInfoBase) -> TypeIn | None:
 
 
 # pyright: reportIncompatibleMethodOverride=false
-@local_node(NodeType.FIELD)
+@local_node_(NodeType.FIELD)
 class Field(SourceNode[FieldData], HasNodeBase, TypeInfoBase, _TypeQueryBuilder):
     """
     A used-defined attribute of some value

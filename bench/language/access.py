@@ -46,7 +46,7 @@ from bench.language.node import (
     NodeReference,
     SourceNode,
     Struct,
-    local_node,
+    local_node_,
     struct_,
 )
 from bench.language.property import (
@@ -103,7 +103,7 @@ OWNABLE_NODE_TYPES: bittuple[NodeType] = bittuple(
 )
 
 
-@local_node(NodeType.BADGE)
+@local_node_(NodeType.BADGE)
 class Badge(SourceNode):
     """
     Attach a badge to a node with an inline definition.

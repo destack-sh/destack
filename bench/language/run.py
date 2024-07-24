@@ -20,7 +20,7 @@ from bench.language.node import (
     PackageNode,
     Struct,
     struct_,
-    timed_node,
+    timed_node_,
 )
 from bench.language.property import (
     Property,
@@ -278,7 +278,7 @@ class RunError(Struct, BenchError):
         return RunError(kind=kind, type=typ, title=title, text=Text.plain(str(e)))
 
 
-@timed_node(NodeType.RUN)
+@timed_node_(NodeType.RUN)
 class Run(PackageNode[RunData], HasTimeIdentity, HasNodeBase, HasSessionContext, HasValues):
     """
     A 'run' of Blocks (and Steps within them) or 'lambdas' (just Code/Text).

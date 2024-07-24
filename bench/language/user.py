@@ -10,7 +10,7 @@ from bench.language.const import (
     UserStatus,
 )
 from bench.language.graph import NodeList
-from bench.language.node import BenchNode, Node, SourceNode, local_node, node_
+from bench.language.node import BenchNode, Node, RemoteNode, local_node_, node_
 from bench.language.property import (
     p_internal,
     p_kernel,
@@ -145,8 +145,8 @@ class Organization(Node[OrganizationData]):
         return self.main_bench
 
 
-@local_node(NodeType.MEMBERSHIP)
-class Membership(SourceNode[MembershipData]):
+@local_node_(NodeType.MEMBERSHIP)
+class Membership(RemoteNode[MembershipData]):
     """
     A membership to this Bench (and its owner if it's the main Bench).
     """
@@ -156,8 +156,8 @@ class Membership(SourceNode[MembershipData]):
     is_owner: bool = p_regular(31, default=False)
 
 
-@local_node(NodeType.INVITE)
-class Invite(SourceNode[InviteData]):
+@local_node_(NodeType.INVITE)
+class Invite(RemoteNode[InviteData]):
     """An invitation to become a member of this Bench."""
 
     parent: "Package | None" = p_node_parent(4, NodeType.PACKAGE)

@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, ClassVar, Collection, cast, final, override
 import structlog
 from opentelemetry import trace
 
-from bench.language import Bench, BenchResourceNode, Drive, Machine, ResourceStatus, Server, Store
+from bench.language import Bench, Drive, Machine, ResourceNode, ResourceStatus, Server, Store
 from bench.language.bench import MachineProfile
 from bench.language.const import VERSION, NodeType
 from bench.sql.client import pg_store_connection
@@ -23,7 +23,7 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
-class Provisioner[PT: BenchResourceNode, WT: BenchResourceNode](DeferredHostPlugin[WT], abc.ABC):
+class Provisioner[PT: ResourceNode, WT: ResourceNode](DeferredHostPlugin[WT], abc.ABC):
     """
     A provisioner for resources of the declared types.
     Synchronize the declared state of Bench resources with their actual (external) state (both ways).
@@ -401,7 +401,7 @@ def get_provisioners_for(host: HostApi, bench: Bench) -> list[Provisioner]:
         raise RuntimeError(f"unexpected environment: {ENV!r}")
 
 
-async def provision(host: HostApi, bench: Bench, resources: Collection[BenchResourceNode]) -> None:
+async def provision(host: HostApi, bench: Bench, resources: Collection[ResourceNode]) -> None:
     """Provisions the given resources in *this* environment"""
     provisioners = get_provisioners_for(host, bench)
     for resource in resources:

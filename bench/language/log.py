@@ -19,7 +19,7 @@ from bench.language.node import (
     PackageNode,
     Struct,
     struct_,
-    timed_node,
+    timed_node_,
 )
 from bench.language.property import (
     p_internal,
@@ -81,7 +81,7 @@ class LogInfo(Struct, HasValues):
     value: Any = p_value_runtime(65, typ=None)  # freeform value only
 
 
-@timed_node(NodeType.LOG)
+@timed_node_(NodeType.LOG)
 class Log(PackageNode[LogData], HasTimeIdentity, HasSessionContext, HasValues):
     """
     A Log of something happening in a Bench.

@@ -1,18 +1,18 @@
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional, override
+from typing import TYPE_CHECKING, Optional, Union, override
 
 import structlog
 
 from bench.language.bench import Drive
 from bench.language.const import EnumType, NodeType, PrimitiveType, StructType, enum_
 from bench.language.node import (
-    BenchNode,
     BuiltinObject,
     Node,
     NodeReference,
     NodeReferenceBase,
+    RemoteNode,
     Struct,
-    node_,
+    local_node_,
     object_component,
     struct_,
 )
@@ -22,7 +22,7 @@ from bench.proto.wire import FileData, FileReferenceData
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
-    from bench.language import Color
+    from bench.language import Block, Color, Package
 
 logger = structlog.get_logger(__name__)
 
@@ -67,8 +67,12 @@ class FileInfoBase(BuiltinObject):
 
     # content
     kind: FileKind = p_internal(40, default=FileKind.DRIVE, default_sql=None)
-    content: Optional[bytes] = p_regular(41, default=None, constraint=constraint(min_length=1))
+    drive: Drive | None = p_regular(
+        41, references=NodeType.DRIVE, require=False, array=False, same_bench=True
+    )
     url: Optional[str] = p_regular(42, default=None)
+    title: str = p_regular(43, constraint=TITLE_CONSTRAINT)
+    content: Optional[bytes] = p_regular(44, default=None, constraint=constraint(min_length=1))
     ...  # thumbnail/preview/...?
 
     # common meta
@@ -99,21 +103,22 @@ class FileInfo(Struct, FileInfoBase):
     ...
 
 
-@node_(NodeType.FILE, unique=(("parent_id", "sha256"),))
-class File(BenchNode[FileData], FileInfoBase):
+@local_node_(NodeType.FILE, indexes=(("drive_id", "sha256"),))
+class File(RemoteNode[FileData], FileInfoBase):
     """
     A file stored in a Drive (or externally).
     De-duplicated so that there's only one File per unique file content for our own files.
     """
 
-    parent: Drive | None = p_node_parent(4, NodeType.DRIVE, is_system=True)
+    parent: Union["Package", "Block", None] = p_node_parent(
+        4, NodeType.PACKAGE, NodeType.BLOCK, is_system=True
+    )
 
     # meta
-    title: str = p_regular(33, constraint=TITLE_CONSTRAINT)
     retention: FileRetentionMode | None = p_regular(
-        37, default=FileRetentionMode.AUTOMATIC, default_sql=None
+        30, default=FileRetentionMode.AUTOMATIC, default_sql=None
     )
-    expires_at: Optional[datetime] = p_regular(38)
+    expires_at: Optional[datetime] = p_regular(31)
 
     # content/info
     # ...FileInfoBase[40-69]

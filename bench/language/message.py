@@ -7,10 +7,9 @@ from bench.language.node import (
     LINK_TARGET_NODE_TYPES,
     BenchNode,
     HasNodeBase,
-    HasPersistentIdentity,
     HasTimeIdentity,
-    PackageNode,
-    timed_node,
+    RemoteNode,
+    timed_node_,
 )
 from bench.language.property import p_node_parent, p_regular, p_value_packed, p_value_runtime
 from bench.language.validation import TITLE_CONSTRAINT
@@ -34,11 +33,10 @@ MESSAGE_PARENT_TYPES: tuple[NodeType, ...] = (
 )
 
 
-@timed_node(NodeType.MESSAGE, passthrough="value")
+@timed_node_(NodeType.MESSAGE, passthrough="value")
 class Message(
-    PackageNode[MessageData],
+    RemoteNode[MessageData],
     HasTimeIdentity,
-    HasPersistentIdentity,
     HasNodeBase,
     HasValues,
 ):

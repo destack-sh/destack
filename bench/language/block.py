@@ -10,7 +10,7 @@ from bench.language.const import (
 )
 from bench.language.field import TypeInfoBase
 from bench.language.graph import NodeList
-from bench.language.node import SourceNode, local_node
+from bench.language.node import SourceNode, local_node_
 from bench.language.property import (
     p_internal,
     p_node_children,
@@ -53,7 +53,7 @@ if TYPE_CHECKING:
 #  see :AutoNaming
 
 
-@local_node(NodeType.BLOCK, passthrough=("value", "fields"))
+@local_node_(NodeType.BLOCK, passthrough=("value", "fields"))
 class Block(SourceNode[BlockData], HasValues):
     """A building block with logic, types, UI, data, auth, AI, ..."""
 

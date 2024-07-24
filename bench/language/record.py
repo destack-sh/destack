@@ -4,7 +4,12 @@ import structlog
 
 from bench.language.const import NodeType
 from bench.language.field import TypeInfoBase
-from bench.language.node import HasNodeBase, HasPersistentIdentity, PackageNode, local_node
+from bench.language.node import (
+    HasNodeBase,
+    HasPersistentIdentity,
+    RemoteNode,
+    local_node_,
+)
 from bench.language.property import (
     p_node_parent,
     p_value_packed,
@@ -22,8 +27,8 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
-@local_node(NodeType.RECORD, passthrough="value", stored_custom=True, local=True)
-class Record(PackageNode[RecordData], HasPersistentIdentity, HasNodeBase, HasValues):
+@local_node_(NodeType.RECORD, passthrough="value", stored_custom=True, local=True)
+class Record(RemoteNode[RecordData], HasPersistentIdentity, HasNodeBase, HasValues):
     """
     A record in a DatabaseBlock.
     If the block is_materialized, the backing table is a real Postgres table.

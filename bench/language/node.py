@@ -559,19 +559,19 @@ def node_(
     return decorate
 
 
-local_node = functools.partial(node_, local=True)
+local_node_ = functools.partial(node_, local=True)
 if TYPE_CHECKING:
-    local_node = node_
+    local_node_ = node_
 
 
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
-def timed_node(
+def timed_node_(
     node_type: NodeType,
     passthrough: str | None = None,
     indexes: tuple[Index | tuple[str, ...], ...] = (),
 ):
     """Register a class as a concrete node for the given node type."""
-    return local_node(
+    return local_node_(
         node_type=node_type,
         passthrough=passthrough,
         local=True,
@@ -1821,10 +1821,6 @@ class HasPersistentIdentity(Node, abc.ABC):
     ck: UUID = p_system(3, default=None, require=True, autoset=True)  # type: ignore
 
 
-# NOTE :Architecture: to get proper branching for local nodes with persistent identity
-#  we'll have to swap id/ck and use ck as primary key (for all or excluding source nodes?)
-
-
 @node_component()
 class SourceNode[NodeDataT: AnyNodeData](PackageNode[NodeDataT], HasPersistentIdentity, abc.ABC):
     """A package node with a persistent identity that can be instanced."""
@@ -1836,6 +1832,13 @@ class SourceNode[NodeDataT: AnyNodeData](PackageNode[NodeDataT], HasPersistentId
     if TYPE_CHECKING:
         template_id: Optional[UUID] = None
         template_ptr: Optional[NodeReference] = None
+
+
+@node_component()
+class RemoteNode[NodeDataT: AnyNodeData](PackageNode[NodeDataT], abc.ABC):
+    """A package node with a persistent identity that can be instanced."""
+
+    pass
 
 
 @node_component()
@@ -2155,7 +2158,7 @@ LINK_TARGET_NODE_TYPES: tuple[NodeType, ...] = tuple(
 LINK_PARENT_NODE_TYPES: tuple[NodeType, ...] = (NodeType.PACKAGE, NodeType.BLOCK)
 
 
-@local_node(NodeType.LINK)
+@local_node_(NodeType.LINK)
 class Link(SourceNode):
     """
     A reference to another node in some graph.
@@ -2170,7 +2173,7 @@ class Link(SourceNode):
     order_key: Optional[str] = p_internal(32, default=None)
 
 
-@local_node(NodeType.SKIP, stored=False)
+@local_node_(NodeType.SKIP, stored=False)
 class Skip(Node):
     """A reference to another node in some graph that wasn't available for some reason (usually permissions)."""
 

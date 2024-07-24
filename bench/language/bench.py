@@ -20,7 +20,7 @@ from bench.language.node import (
     BenchNode,
     ClientOrigin,
     SourceNode,
-    local_node,
+    local_node_,
     node_,
     node_component,
 )
@@ -49,7 +49,6 @@ from bench.utils.func import IdEnum, bittuple, generate_encryption_key
 
 if TYPE_CHECKING:
     from bench.language import (
-        BenchResourceNode,
         Block,
         Drive,
         Handle,
@@ -58,6 +57,7 @@ if TYPE_CHECKING:
         Organization,
         Policy,
         Region,
+        ResourceNode,
         Server,
         Space,
         Store,
@@ -140,7 +140,7 @@ class Bench(BenchNode[BenchData]):
         return main_package
 
     @property
-    def resources(self) -> Iterable["BenchResourceNode"]:
+    def resources(self) -> Iterable["ResourceNode"]:
         return chain(
             self.servers,
             chain.from_iterable(server.machines for server in self.servers),
@@ -149,7 +149,7 @@ class Bench(BenchNode[BenchData]):
         )
 
 
-@local_node(NodeType.BRANCH, unique=(("bench_id", "slug"),))
+@local_node_(NodeType.BRANCH, unique=(("bench_id", "slug"),))
 class Branch(BenchNode[BranchData]):
     """A branch is a lineage of Bench history."""
 
@@ -177,7 +177,7 @@ class Branch(BenchNode[BranchData]):
     packages: NodeList["Package"] = p_node_children(NodeType.PACKAGE)
 
 
-@local_node(NodeType.PACKAGE)
+@local_node_(NodeType.PACKAGE)
 class Package(BenchNode[PackageData]):
     """A package is a version of a Bench in a Branch."""
 
@@ -245,7 +245,7 @@ class Package(BenchNode[PackageData]):
         return ", ".join(parts)
 
 
-@local_node(NodeType.DEPENDENCY)
+@local_node_(NodeType.DEPENDENCY)
 class Dependency(SourceNode[DependencyData]):
     """
     A dependency on another Bench (pointing to a specific Package).
@@ -285,7 +285,7 @@ NodeDataT = TypeVar("NodeDataT", bound=AnyNodeData)
 
 
 @node_component()
-class BenchResourceNode(BenchNode[NodeDataT], abc.ABC, Generic[NodeDataT]):
+class ResourceNode(BenchNode[NodeDataT], abc.ABC, Generic[NodeDataT]):
     """
     An external resource in a Bench.
     Resources generally work on the 'desired state' principle.
@@ -302,7 +302,7 @@ class BenchResourceNode(BenchNode[NodeDataT], abc.ABC, Generic[NodeDataT]):
     def __content_str__(self):
         value_strs: list[str] = []
         for prop in chain(
-            BenchResourceNode.__declared_properties__.values(),
+            ResourceNode.__declared_properties__.values(),
             self.__declared_properties__.values(),
         ):
             if (
@@ -338,7 +338,7 @@ class MachineProfile(IdEnum):
 
 
 @node_(NodeType.SERVER)
-class Server(BenchResourceNode[ServerData]):
+class Server(ResourceNode[ServerData]):
     """
     A server provides some compute for a Bench's Runtime.
     Physical compute is materialized (on-demand) as Machines.
@@ -357,7 +357,7 @@ class Server(BenchResourceNode[ServerData]):
 
 
 @node_(NodeType.MACHINE)
-class Machine(BenchResourceNode[MachineData]):
+class Machine(ResourceNode[MachineData]):
     """
     A Machine provides some isolated compute for a Server.
     """
@@ -381,7 +381,7 @@ class Machine(BenchResourceNode[MachineData]):
 
 
 @node_(NodeType.STORE)
-class Store(BenchResourceNode[StoreData]):
+class Store(ResourceNode[StoreData]):
     """A trusty Postgres-compatible database."""
 
     version: Optional[str] = p_system(40, default=None)
@@ -395,7 +395,7 @@ class Store(BenchResourceNode[StoreData]):
 
 
 @node_(NodeType.DRIVE)
-class Drive(BenchResourceNode[DriveData]):
+class Drive(ResourceNode[DriveData]):
     """Drive for file storage."""
 
     ...
