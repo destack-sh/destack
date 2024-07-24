@@ -451,7 +451,7 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         self,
         filter: Union["Expression", "SomeNodeReference", None] = None,
         live: bool = False,
-        **kwargs
+        **kwargs,
     ) -> NodeT: ...
     @overload
     async def get(

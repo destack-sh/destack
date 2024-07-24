@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.07.24.5"
+VERSION = "2024.07.24.7"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -969,7 +969,8 @@ FILE_TABLE = Table(
         Column("title", PrimitiveType.STRING),
         Column("inline_content", PrimitiveType.BYTES, is_nullable=True),
         Column("coarse_type", PrimitiveType.INT16),
-        Column("mime_type", PrimitiveType.STRING),
+        Column("mime_type", PrimitiveType.STRING, is_nullable=True),
+        Column("format", PrimitiveType.INT16, is_nullable=True),
         Column("size", PrimitiveType.INT64),
         Column("sha256", PrimitiveType.STRING, is_nullable=True),
         Column("width", PrimitiveType.INT32, is_nullable=True),

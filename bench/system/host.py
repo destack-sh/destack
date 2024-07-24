@@ -29,7 +29,7 @@ from bench.language.const import (
     ClientType,
     NodeType,
 )
-from bench.language.file import File, FileKind, FileReference
+from bench.language.file import File, FileInfoBase, FileKind, FileReference
 from bench.language.graph import NodeDataGraphLike, NodeGraphLike, NodeSuperGraph
 from bench.language.log import Log
 from bench.language.node import GraphScope
@@ -760,27 +760,37 @@ class Host(GraphIoServiceBase, HostApi, HostBase):
         self, subject: Subject, request: UploadFilesRequest
     ) -> UploadFilesResponse:
         handles: list[UploadFilesResponseUploadHandle] = []
-        for file_info in request.files:
+        for file_data in request.files:
             # get drive (from in-memory graph)
             if (
-                file_info.kind not in (FileKind.DRIVE, FileKind.DRIVE_INLINE)
-                or not file_info.drive_ptr
-                or not file_info.sha256
+                file_data.kind not in (FileKind.DRIVE, FileKind.DRIVE_INLINE)
+                or not file_data.drive_ptr
+                or not file_data.sha256
             ):
-                raise GRPCError(GRPCStatus.INVALID_ARGUMENT, f"unexpected file: {file_info.kind}")
-            drive = self.bench._graph.get(UUID(file_info.drive_ptr.id))
+                raise GRPCError(GRPCStatus.INVALID_ARGUMENT, f"unexpected file: {file_data.kind}")
+            drive = self.bench._graph.get(UUID(file_data.drive_ptr.id))
             if not isinstance(drive, Drive):
                 raise GRPCError(GRPCStatus.INVALID_ARGUMENT, f"unexpected drive: {drive!r}")
 
             # presign post URL
-            file_key = get_file_key(drive, file_info.sha256, file_info.title)
+            file_key = get_file_key(drive, file_data.sha256, file_data.title)
+            file_metadata = {"id": file_data.id}
+            for prop in FileInfoBase.__declared_properties__.values():
+                if prop.id < 50:
+                    continue  # exclude content
+                prop_value = getattr(file_data, prop.name)
+                if prop_value is not None:
+                    file_metadata[prop.name] = prop_value
+            s3_obj_metadata = {
+                f"x-amz-meta-{k.lower().replace('_', '-')}": v for k, v in file_metadata.items()
+            }
             response = s3_client.generate_presigned_post(
                 Bucket=get_drive_bucket(drive),
                 Key=file_key,
-                Fields={"Content-Type": file_info.mime_type},
+                Fields={"Content-Type": file_data.mime_type, **s3_obj_metadata},
                 Conditions=[
                     {"acl": "public-read"},
-                    {"Content-Type": file_info.mime_type},
+                    {"Content-Type": file_data.mime_type},
                     {"key": file_key},
                 ],
                 ExpiresIn=3600,
@@ -859,4 +869,5 @@ def get_drive_bucket(drive: Drive) -> str:
 
 def get_file_key(drive: Drive, sha256: str, title: str) -> str:
     """Gets the key for a file in the given bucket."""
-    return f"{drive.id}/{sha256}/{title}"
+    file_key = f"{drive.id}/{sha256}/{title}"
+    return file_key

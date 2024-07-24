@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.07.24.5"
+VERSION = "2024.07.24.7"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -232,6 +232,7 @@ class BenchType(betterproto.Enum):
     FILE_RETENTION_MODE = 2060
     FILE_KIND = 2061
     FILE_TYPE = 2062
+    FILE_FORMAT = 2063
     CLIENT_TYPE = 20070
     PRIMITIVE_TYPE = 20080
     FIELD_ZONE = 20082
@@ -498,6 +499,7 @@ class EnumType(betterproto.Enum):
     FILE_RETENTION_MODE = 2060
     FILE_KIND = 2061
     FILE_TYPE = 2062
+    FILE_FORMAT = 2063
     CLIENT_TYPE = 20070
     PRIMITIVE_TYPE = 20080
     FIELD_ZONE = 20082
@@ -616,6 +618,101 @@ class FieldZone(betterproto.Enum):
     RUNTIME = 6
 
 
+class FileFormat(betterproto.Enum):
+    """The format of a file (roughly an extension)."""
+
+    UNSPECIFIED = 0
+    TXT = 1000
+    MARKDOWN = 1001
+    RTF = 1002
+    INI = 1003
+    LOG = 1004
+    PYTHON = 2000
+    JAVASCRIPT = 2001
+    TYPESCRIPT = 2002
+    GO = 2003
+    C = 2004
+    CPP = 2005
+    OBJECTIVE_C = 2006
+    SWIFT = 2007
+    RUBY = 2008
+    PHP = 2009
+    HTML = 2010
+    CSS = 2011
+    JAVA = 2012
+    KOTLIN = 2013
+    RUST = 2014
+    SCALA = 2015
+    SHELL = 2016
+    SQL = 2017
+    POWERSHELL = 2018
+    ASSEMBLY = 2019
+    LATEX = 2020
+    JPEG = 3000
+    PNG = 3001
+    GIF = 3002
+    BMP = 3003
+    TIFF = 3004
+    WEBP = 3005
+    SVG = 3006
+    ICO = 3007
+    PSD = 3008
+    AI = 3009
+    EPS = 3010
+    RAW = 3011
+    MP3 = 4000
+    WAV = 4001
+    FLAC = 4002
+    AAC = 4003
+    OGG = 4004
+    M4A = 4005
+    WMA = 4006
+    MP4 = 5000
+    WEBM = 5001
+    AVI = 5002
+    MOV = 5003
+    WMV = 5004
+    FLV = 5005
+    MKV = 5006
+    PDF = 6000
+    DOCX = 6001
+    PPTX = 6002
+    ODT = 6003
+    XLSX = 6004
+    ODS = 6005
+    EPUB = 6006
+    MOBI = 6007
+    CHM = 6008
+    DOC = 6009
+    XLS = 6010
+    PPT = 6011
+    JSON = 7000
+    YAML = 7001
+    CSV = 7002
+    XML = 7003
+    TOML = 7004
+    SQLITE = 7100
+    PARQUET = 7101
+    AVRO = 7102
+    PROTOBUF = 7103
+    ZIP = 8000
+    RAR = 8001
+    TAR = 8002
+    SEVENZIP = 8003
+    CAB = 8004
+    GZIP = 8005
+    BZIP2 = 8006
+    XZ = 8007
+    EXE = 9000
+    APP_IMAGE = 9001
+    APK = 9002
+    DMG = 9003
+    JAR = 9004
+    MSI = 9005
+    DEB = 9006
+    RPM = 9007
+
+
 class FileKind(betterproto.Enum):
     UNSPECIFIED = 0
     DRIVE = 1
@@ -633,13 +730,15 @@ class FileRetentionMode(betterproto.Enum):
 class FileType(betterproto.Enum):
     UNSPECIFIED = 0
     TEXT = 1
-    IMAGE = 2
-    AUDIO = 3
-    VIDEO = 4
-    DOCUMENT = 5
-    DATA = 6
-    EXECUTABLE = 7
-    GENERIC = 10
+    CODE = 2
+    IMAGE = 3
+    AUDIO = 4
+    VIDEO = 5
+    DOCUMENT = 6
+    DATA = 7
+    ARCHIVE = 8
+    EXECUTABLE = 9
+    GENERIC = 99
 
 
 class FontSize(betterproto.Enum):
@@ -1671,9 +1770,10 @@ class FileInfoData(betterproto.Message):
     title: str = betterproto.string_field(43)
     inline_content: Optional[bytes] = betterproto.bytes_field(44, optional=True)
     coarse_type: "FileType" = betterproto.enum_field(50)
-    mime_type: str = betterproto.string_field(51)
-    size: int = betterproto.int64_field(52)
-    sha256: Optional[str] = betterproto.string_field(53, optional=True)
+    mime_type: Optional[str] = betterproto.string_field(51, optional=True)
+    format: Optional["FileFormat"] = betterproto.enum_field(52, optional=True)
+    size: int = betterproto.int64_field(53)
+    sha256: Optional[str] = betterproto.string_field(54, optional=True)
     width: Optional[int] = betterproto.int32_field(55, optional=True)
     height: Optional[int] = betterproto.int32_field(56, optional=True)
     aspect_ratio: Optional[float] = betterproto.float_field(57, optional=True)
@@ -1703,9 +1803,10 @@ class FileReferenceData(betterproto.Message):
     title: str = betterproto.string_field(43)
     inline_content: Optional[bytes] = betterproto.bytes_field(44, optional=True)
     coarse_type: "FileType" = betterproto.enum_field(50)
-    mime_type: str = betterproto.string_field(51)
-    size: int = betterproto.int64_field(52)
-    sha256: Optional[str] = betterproto.string_field(53, optional=True)
+    mime_type: Optional[str] = betterproto.string_field(51, optional=True)
+    format: Optional["FileFormat"] = betterproto.enum_field(52, optional=True)
+    size: int = betterproto.int64_field(53)
+    sha256: Optional[str] = betterproto.string_field(54, optional=True)
     width: Optional[int] = betterproto.int32_field(55, optional=True)
     height: Optional[int] = betterproto.int32_field(56, optional=True)
     aspect_ratio: Optional[float] = betterproto.float_field(57, optional=True)
@@ -2584,9 +2685,10 @@ class FileData(betterproto.Message):
     title: str = betterproto.string_field(43)
     inline_content: Optional[bytes] = betterproto.bytes_field(44, optional=True)
     coarse_type: "FileType" = betterproto.enum_field(50)
-    mime_type: str = betterproto.string_field(51)
-    size: int = betterproto.int64_field(52)
-    sha256: Optional[str] = betterproto.string_field(53, optional=True)
+    mime_type: Optional[str] = betterproto.string_field(51, optional=True)
+    format: Optional["FileFormat"] = betterproto.enum_field(52, optional=True)
+    size: int = betterproto.int64_field(53)
+    sha256: Optional[str] = betterproto.string_field(54, optional=True)
     width: Optional[int] = betterproto.int32_field(55, optional=True)
     height: Optional[int] = betterproto.int32_field(56, optional=True)
     aspect_ratio: Optional[float] = betterproto.float_field(57, optional=True)
@@ -3803,7 +3905,7 @@ class GetHostsResponseHostInfo(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class UploadFilesRequest(betterproto.Message):
-    files: List["FileInfoData"] = betterproto.message_field(1)
+    files: List["FileData"] = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)

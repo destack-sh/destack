@@ -54,8 +54,11 @@ charset-normalizer==3.3.2
 click==8.1.7
     # via
     #   black
+    #   magika
     #   pip-tools
     #   typer
+coloredlogs==15.0.1
+    # via onnxruntime
 coverage==7.5.3
     # via pytest-cov
 croniter==1.4.1
@@ -88,6 +91,8 @@ filelock==3.15.4
     # via
     #   huggingface-hub
     #   virtualenv
+flatbuffers==24.3.25
+    # via onnxruntime
 frozenlist==1.4.1
     # via
     #   aiohttp
@@ -158,6 +163,8 @@ httpx==0.27.0
     #   openai
 huggingface-hub==0.23.4
     # via tokenizers
+humanfriendly==10.0
+    # via coloredlogs
 hyperframe==6.0.1
     # via h2
 hypothesis==6.103.2
@@ -193,6 +200,7 @@ lxml==5.2.2
     # via
     #   python-docx
     #   python-pptx
+magika==0.5.1
 markdown==3.4.1
 markdown-it-py==3.0.0
     # via rich
@@ -203,6 +211,8 @@ marshmallow==3.21.2
 mdurl==0.1.2
     # via markdown-it-py
 more-itertools==9.0.0
+mpmath==1.3.0
+    # via sympy
 msgpack==1.0.7
 multidict==6.0.5
     # via
@@ -220,12 +230,16 @@ nodeenv==1.8.0
 notion-client==2.2.1
 numpy==1.26.4
     # via
+    #   magika
+    #   onnxruntime
     #   pandas
     #   pyarrow
 oauthlib==3.2.2
     # via
     #   atlassian-python-api
     #   requests-oauthlib
+onnxruntime==1.18.1
+    # via magika
 openai==1.35.13
 opentelemetry-api==1.24.0
     # via
@@ -249,6 +263,7 @@ packaging==24.0
     #   docker
     #   huggingface-hub
     #   marshmallow
+    #   onnxruntime
     #   pytest
 pandas==2.2.2
 pathspec==0.12.1
@@ -281,6 +296,7 @@ protobuf==4.24.3
     #   google-generativeai
     #   googleapis-common-protos
     #   grpcio-status
+    #   onnxruntime
     #   opentelemetry-proto
     #   proto-plus
 psutil==5.9.2
@@ -347,6 +363,7 @@ python-dateutil==2.9.0.post0
     #   pandas
 python-docx==1.1.2
 python-dotenv==1.0.1
+    # via magika
 python-pptx==0.6.23
 python-twitter-v2==0.8.1
 pytz==2024.1
@@ -417,6 +434,10 @@ soupsieve==2.5
 stone==3.3.6
     # via dropbox
 structlog==24.2.0
+sympy==1.13.1
+    # via onnxruntime
+tabulate==0.9.0
+    # via magika
 tach==0.6.9
 tokenizers==0.19.1
     # via anthropic
@@ -424,6 +445,7 @@ tqdm==4.66.4
     # via
     #   google-generativeai
     #   huggingface-hub
+    #   magika
     #   openai
 typer==0.12.3
 typing-extensions==4.11.0

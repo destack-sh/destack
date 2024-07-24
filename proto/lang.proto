@@ -197,6 +197,7 @@ enum BenchType {
   BENCH_TYPE_FILE_RETENTION_MODE = 2060;
   BENCH_TYPE_FILE_KIND = 2061;
   BENCH_TYPE_FILE_TYPE = 2062;
+  BENCH_TYPE_FILE_FORMAT = 2063;
   BENCH_TYPE_CLIENT_TYPE = 20070;
   BENCH_TYPE_PRIMITIVE_TYPE = 20080;
   BENCH_TYPE_FIELD_ZONE = 20082;
@@ -454,6 +455,7 @@ enum EnumType {
   ENUM_TYPE_FILE_RETENTION_MODE = 2060;
   ENUM_TYPE_FILE_KIND = 2061;
   ENUM_TYPE_FILE_TYPE = 2062;
+  ENUM_TYPE_FILE_FORMAT = 2063;
   ENUM_TYPE_CLIENT_TYPE = 20070;
   ENUM_TYPE_PRIMITIVE_TYPE = 20080;
   ENUM_TYPE_FIELD_ZONE = 20082;
@@ -571,6 +573,100 @@ enum FieldZone {
   FIELD_ZONE_RUNTIME = 6;
 }
 
+// The format of a file (roughly an extension).
+enum FileFormat {
+  FILE_FORMAT_UNSPECIFIED = 0;
+  FILE_FORMAT_TXT = 1000;
+  FILE_FORMAT_MARKDOWN = 1001;
+  FILE_FORMAT_RTF = 1002;
+  FILE_FORMAT_INI = 1003;
+  FILE_FORMAT_LOG = 1004;
+  FILE_FORMAT_PYTHON = 2000;
+  FILE_FORMAT_JAVASCRIPT = 2001;
+  FILE_FORMAT_TYPESCRIPT = 2002;
+  FILE_FORMAT_GO = 2003;
+  FILE_FORMAT_C = 2004;
+  FILE_FORMAT_CPP = 2005;
+  FILE_FORMAT_OBJECTIVE_C = 2006;
+  FILE_FORMAT_SWIFT = 2007;
+  FILE_FORMAT_RUBY = 2008;
+  FILE_FORMAT_PHP = 2009;
+  FILE_FORMAT_HTML = 2010;
+  FILE_FORMAT_CSS = 2011;
+  FILE_FORMAT_JAVA = 2012;
+  FILE_FORMAT_KOTLIN = 2013;
+  FILE_FORMAT_RUST = 2014;
+  FILE_FORMAT_SCALA = 2015;
+  FILE_FORMAT_SHELL = 2016;
+  FILE_FORMAT_SQL = 2017;
+  FILE_FORMAT_POWERSHELL = 2018;
+  FILE_FORMAT_ASSEMBLY = 2019;
+  FILE_FORMAT_LATEX = 2020;
+  FILE_FORMAT_JPEG = 3000;
+  FILE_FORMAT_PNG = 3001;
+  FILE_FORMAT_GIF = 3002;
+  FILE_FORMAT_BMP = 3003;
+  FILE_FORMAT_TIFF = 3004;
+  FILE_FORMAT_WEBP = 3005;
+  FILE_FORMAT_SVG = 3006;
+  FILE_FORMAT_ICO = 3007;
+  FILE_FORMAT_PSD = 3008;
+  FILE_FORMAT_AI = 3009;
+  FILE_FORMAT_EPS = 3010;
+  FILE_FORMAT_RAW = 3011;
+  FILE_FORMAT_MP3 = 4000;
+  FILE_FORMAT_WAV = 4001;
+  FILE_FORMAT_FLAC = 4002;
+  FILE_FORMAT_AAC = 4003;
+  FILE_FORMAT_OGG = 4004;
+  FILE_FORMAT_M4A = 4005;
+  FILE_FORMAT_WMA = 4006;
+  FILE_FORMAT_MP4 = 5000;
+  FILE_FORMAT_WEBM = 5001;
+  FILE_FORMAT_AVI = 5002;
+  FILE_FORMAT_MOV = 5003;
+  FILE_FORMAT_WMV = 5004;
+  FILE_FORMAT_FLV = 5005;
+  FILE_FORMAT_MKV = 5006;
+  FILE_FORMAT_PDF = 6000;
+  FILE_FORMAT_DOCX = 6001;
+  FILE_FORMAT_PPTX = 6002;
+  FILE_FORMAT_ODT = 6003;
+  FILE_FORMAT_XLSX = 6004;
+  FILE_FORMAT_ODS = 6005;
+  FILE_FORMAT_EPUB = 6006;
+  FILE_FORMAT_MOBI = 6007;
+  FILE_FORMAT_CHM = 6008;
+  FILE_FORMAT_DOC = 6009;
+  FILE_FORMAT_XLS = 6010;
+  FILE_FORMAT_PPT = 6011;
+  FILE_FORMAT_JSON = 7000;
+  FILE_FORMAT_YAML = 7001;
+  FILE_FORMAT_CSV = 7002;
+  FILE_FORMAT_XML = 7003;
+  FILE_FORMAT_TOML = 7004;
+  FILE_FORMAT_SQLITE = 7100;
+  FILE_FORMAT_PARQUET = 7101;
+  FILE_FORMAT_AVRO = 7102;
+  FILE_FORMAT_PROTOBUF = 7103;
+  FILE_FORMAT_ZIP = 8000;
+  FILE_FORMAT_RAR = 8001;
+  FILE_FORMAT_TAR = 8002;
+  FILE_FORMAT_SEVENZIP = 8003;
+  FILE_FORMAT_CAB = 8004;
+  FILE_FORMAT_GZIP = 8005;
+  FILE_FORMAT_BZIP2 = 8006;
+  FILE_FORMAT_XZ = 8007;
+  FILE_FORMAT_EXE = 9000;
+  FILE_FORMAT_APP_IMAGE = 9001;
+  FILE_FORMAT_APK = 9002;
+  FILE_FORMAT_DMG = 9003;
+  FILE_FORMAT_JAR = 9004;
+  FILE_FORMAT_MSI = 9005;
+  FILE_FORMAT_DEB = 9006;
+  FILE_FORMAT_RPM = 9007;
+}
+
 enum FileKind {
   FILE_KIND_UNSPECIFIED = 0;
   FILE_KIND_DRIVE = 1;
@@ -588,13 +684,15 @@ enum FileRetentionMode {
 enum FileType {
   FILE_TYPE_UNSPECIFIED = 0;
   FILE_TYPE_TEXT = 1;
-  FILE_TYPE_IMAGE = 2;
-  FILE_TYPE_AUDIO = 3;
-  FILE_TYPE_VIDEO = 4;
-  FILE_TYPE_DOCUMENT = 5;
-  FILE_TYPE_DATA = 6;
-  FILE_TYPE_EXECUTABLE = 7;
-  FILE_TYPE_GENERIC = 10;
+  FILE_TYPE_CODE = 2;
+  FILE_TYPE_IMAGE = 3;
+  FILE_TYPE_AUDIO = 4;
+  FILE_TYPE_VIDEO = 5;
+  FILE_TYPE_DOCUMENT = 6;
+  FILE_TYPE_DATA = 7;
+  FILE_TYPE_ARCHIVE = 8;
+  FILE_TYPE_EXECUTABLE = 9;
+  FILE_TYPE_GENERIC = 99;
 }
 
 enum FontSize {
@@ -1540,9 +1638,10 @@ message FileInfoData {
   string title = 43;
   optional bytes inline_content = 44;
   FileType coarse_type = 50;
-  string mime_type = 51;
-  int64 size = 52;
-  optional string sha256 = 53;
+  optional string mime_type = 51;
+  optional FileFormat format = 52;
+  int64 size = 53;
+  optional string sha256 = 54;
   optional int32 width = 55;
   optional int32 height = 56;
   optional float aspect_ratio = 57;
@@ -1568,9 +1667,10 @@ message FileReferenceData {
   string title = 43;
   optional bytes inline_content = 44;
   FileType coarse_type = 50;
-  string mime_type = 51;
-  int64 size = 52;
-  optional string sha256 = 53;
+  optional string mime_type = 51;
+  optional FileFormat format = 52;
+  int64 size = 53;
+  optional string sha256 = 54;
   optional int32 width = 55;
   optional int32 height = 56;
   optional float aspect_ratio = 57;
@@ -2299,9 +2399,10 @@ message FileData {
   string title = 43;
   optional bytes inline_content = 44;
   FileType coarse_type = 50;
-  string mime_type = 51;
-  int64 size = 52;
-  optional string sha256 = 53;
+  optional string mime_type = 51;
+  optional FileFormat format = 52;
+  int64 size = 53;
+  optional string sha256 = 54;
   optional int32 width = 55;
   optional int32 height = 56;
   optional float aspect_ratio = 57;
