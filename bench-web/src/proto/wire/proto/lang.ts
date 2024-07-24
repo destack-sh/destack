@@ -552,9 +552,9 @@ export interface FileInfoData {
      */
     title: string;
     /**
-     * @generated from protobuf field: optional bytes content = 44;
+     * @generated from protobuf field: optional bytes inline_content = 44;
      */
-    content?: Uint8Array;
+    inlineContent?: Uint8Array;
     /**
      * @generated from protobuf field: symbolx.bench.FileType coarse_type = 50;
      */
@@ -655,9 +655,9 @@ export interface FileReferenceData {
      */
     title: string;
     /**
-     * @generated from protobuf field: optional bytes content = 44;
+     * @generated from protobuf field: optional bytes inline_content = 44;
      */
-    content?: Uint8Array;
+    inlineContent?: Uint8Array;
     /**
      * @generated from protobuf field: symbolx.bench.FileType coarse_type = 50;
      */
@@ -2973,9 +2973,9 @@ export interface FileData {
      */
     title: string;
     /**
-     * @generated from protobuf field: optional bytes content = 44;
+     * @generated from protobuf field: optional bytes inline_content = 44;
      */
-    content?: Uint8Array;
+    inlineContent?: Uint8Array;
     /**
      * @generated from protobuf field: symbolx.bench.FileType coarse_type = 50;
      */
@@ -11972,7 +11972,7 @@ class FileInfoData$Type extends MessageType<FileInfoData> {
             { no: 41, name: "drive_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 42, name: "url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 43, name: "title", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 44, name: "content", kind: "scalar", opt: true, T: 12 /*ScalarType.BYTES*/ },
+            { no: 44, name: "inline_content", kind: "scalar", opt: true, T: 12 /*ScalarType.BYTES*/ },
             { no: 50, name: "coarse_type", kind: "enum", T: () => ["symbolx.bench.FileType", FileType, "FILE_TYPE_"] },
             { no: 51, name: "mime_type", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 52, name: "size", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
@@ -12019,8 +12019,8 @@ class FileInfoData$Type extends MessageType<FileInfoData> {
                 case /* string title */ 43:
                     message.title = reader.string();
                     break;
-                case /* optional bytes content */ 44:
-                    message.content = reader.bytes();
+                case /* optional bytes inline_content */ 44:
+                    message.inlineContent = reader.bytes();
                     break;
                 case /* symbolx.bench.FileType coarse_type */ 50:
                     message.coarseType = reader.int32();
@@ -12085,9 +12085,9 @@ class FileInfoData$Type extends MessageType<FileInfoData> {
         /* string title = 43; */
         if (message.title !== "")
             writer.tag(43, WireType.LengthDelimited).string(message.title);
-        /* optional bytes content = 44; */
-        if (message.content !== undefined)
-            writer.tag(44, WireType.LengthDelimited).bytes(message.content);
+        /* optional bytes inline_content = 44; */
+        if (message.inlineContent !== undefined)
+            writer.tag(44, WireType.LengthDelimited).bytes(message.inlineContent);
         /* symbolx.bench.FileType coarse_type = 50; */
         if (message.coarseType !== 0)
             writer.tag(50, WireType.Varint).int32(message.coarseType);
@@ -12149,7 +12149,7 @@ class FileReferenceData$Type extends MessageType<FileReferenceData> {
             { no: 41, name: "drive_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 42, name: "url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 43, name: "title", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 44, name: "content", kind: "scalar", opt: true, T: 12 /*ScalarType.BYTES*/ },
+            { no: 44, name: "inline_content", kind: "scalar", opt: true, T: 12 /*ScalarType.BYTES*/ },
             { no: 50, name: "coarse_type", kind: "enum", T: () => ["symbolx.bench.FileType", FileType, "FILE_TYPE_"] },
             { no: 51, name: "mime_type", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 52, name: "size", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
@@ -12215,8 +12215,8 @@ class FileReferenceData$Type extends MessageType<FileReferenceData> {
                 case /* string title */ 43:
                     message.title = reader.string();
                     break;
-                case /* optional bytes content */ 44:
-                    message.content = reader.bytes();
+                case /* optional bytes inline_content */ 44:
+                    message.inlineContent = reader.bytes();
                     break;
                 case /* symbolx.bench.FileType coarse_type */ 50:
                     message.coarseType = reader.int32();
@@ -12299,9 +12299,9 @@ class FileReferenceData$Type extends MessageType<FileReferenceData> {
         /* string title = 43; */
         if (message.title !== "")
             writer.tag(43, WireType.LengthDelimited).string(message.title);
-        /* optional bytes content = 44; */
-        if (message.content !== undefined)
-            writer.tag(44, WireType.LengthDelimited).bytes(message.content);
+        /* optional bytes inline_content = 44; */
+        if (message.inlineContent !== undefined)
+            writer.tag(44, WireType.LengthDelimited).bytes(message.inlineContent);
         /* symbolx.bench.FileType coarse_type = 50; */
         if (message.coarseType !== 0)
             writer.tag(50, WireType.Varint).int32(message.coarseType);
@@ -17631,7 +17631,7 @@ class FileData$Type extends MessageType<FileData> {
             { no: 41, name: "drive_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 42, name: "url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 43, name: "title", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 44, name: "content", kind: "scalar", opt: true, T: 12 /*ScalarType.BYTES*/ },
+            { no: 44, name: "inline_content", kind: "scalar", opt: true, T: 12 /*ScalarType.BYTES*/ },
             { no: 50, name: "coarse_type", kind: "enum", T: () => ["symbolx.bench.FileType", FileType, "FILE_TYPE_"] },
             { no: 51, name: "mime_type", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 52, name: "size", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
@@ -17735,8 +17735,8 @@ class FileData$Type extends MessageType<FileData> {
                 case /* string title */ 43:
                     message.title = reader.string();
                     break;
-                case /* optional bytes content */ 44:
-                    message.content = reader.bytes();
+                case /* optional bytes inline_content */ 44:
+                    message.inlineContent = reader.bytes();
                     break;
                 case /* symbolx.bench.FileType coarse_type */ 50:
                     message.coarseType = reader.int32();
@@ -17853,9 +17853,9 @@ class FileData$Type extends MessageType<FileData> {
         /* string title = 43; */
         if (message.title !== "")
             writer.tag(43, WireType.LengthDelimited).string(message.title);
-        /* optional bytes content = 44; */
-        if (message.content !== undefined)
-            writer.tag(44, WireType.LengthDelimited).bytes(message.content);
+        /* optional bytes inline_content = 44; */
+        if (message.inlineContent !== undefined)
+            writer.tag(44, WireType.LengthDelimited).bytes(message.inlineContent);
         /* symbolx.bench.FileType coarse_type = 50; */
         if (message.coarseType !== 0)
             writer.tag(50, WireType.Varint).int32(message.coarseType);
@@ -25063,7 +25063,7 @@ export enum FileProperty {
   drivePtr = 41,
   url = 42,
   title = 43,
-  content = 44,
+  inlineContent = 44,
   coarseType = 50,
   mimeType = 51,
   size = 52,
@@ -25590,7 +25590,7 @@ export enum FileReferenceProperty {
   drivePtr = 41,
   url = 42,
   title = 43,
-  content = 44,
+  inlineContent = 44,
   coarseType = 50,
   mimeType = 51,
   size = 52,
@@ -25631,7 +25631,7 @@ export enum FileInfoProperty {
   drivePtr = 41,
   url = 42,
   title = 43,
-  content = 44,
+  inlineContent = 44,
   coarseType = 50,
   mimeType = 51,
   size = 52,
@@ -26357,7 +26357,7 @@ export const FileReferenceDataInfo: Record<FileReferenceProperty, PropertyInfo> 
   [FileReferenceProperty.drivePtr]: { id: 41, name: 'drive_ptr', component: ObjectType.FILE_REFERENCE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.DRIVE], referenceStruct: StructType.NODE_REFERENCE },
   [FileReferenceProperty.url]: { id: 42, name: 'url', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [FileReferenceProperty.title]: { id: 43, name: 'title', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 256 }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [FileReferenceProperty.content]: { id: 44, name: 'content', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.BYTES, constraint: { minLength: 1 }, isRuntime: true, isWired: true, isStored: true },
+  [FileReferenceProperty.inlineContent]: { id: 44, name: 'inline_content', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.BYTES, constraint: { minLength: 1 }, isRuntime: true, isWired: true, isStored: true },
   [FileReferenceProperty.coarseType]: { id: 50, name: 'coarse_type', component: ObjectType.FILE_REFERENCE, enumType: EnumType.FILE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileReferenceProperty.mimeType]: { id: 51, name: 'mime_type', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 255 }, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileReferenceProperty.size]: { id: 52, name: 'size', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.INT64, constraint: { minValue: 0 }, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -26395,7 +26395,7 @@ export const FileInfoDataInfo: Record<FileInfoProperty, PropertyInfo> = {
   [FileInfoProperty.drivePtr]: { id: 41, name: 'drive_ptr', component: ObjectType.FILE_INFO, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.DRIVE], referenceStruct: StructType.NODE_REFERENCE },
   [FileInfoProperty.url]: { id: 42, name: 'url', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [FileInfoProperty.title]: { id: 43, name: 'title', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 256 }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [FileInfoProperty.content]: { id: 44, name: 'content', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.BYTES, constraint: { minLength: 1 }, isRuntime: true, isWired: true, isStored: true },
+  [FileInfoProperty.inlineContent]: { id: 44, name: 'inline_content', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.BYTES, constraint: { minLength: 1 }, isRuntime: true, isWired: true, isStored: true },
   [FileInfoProperty.coarseType]: { id: 50, name: 'coarse_type', component: ObjectType.FILE_INFO, enumType: EnumType.FILE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileInfoProperty.mimeType]: { id: 51, name: 'mime_type', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 255 }, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileInfoProperty.size]: { id: 52, name: 'size', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT64, constraint: { minValue: 0 }, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -27233,13 +27233,13 @@ export const FileDataInfo: Record<FileProperty, PropertyInfo> = {
   [FileProperty.createdByPtr]: { id: 21, name: 'created_by_ptr', component: ObjectType.FILE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [FileProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.FILE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [FileProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
-  [FileProperty.retention]: { id: 30, name: 'retention', component: ObjectType.FILE, enumType: EnumType.FILE_RETENTION_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.expiresAt]: { id: 31, name: 'expires_at', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.retention]: { id: 30, name: 'retention', component: ObjectType.FILE, enumType: EnumType.FILE_RETENTION_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.expiresAt]: { id: 31, name: 'expires_at', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.kind]: { id: 40, name: 'kind', component: ObjectType.FILE, enumType: EnumType.FILE_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.drivePtr]: { id: 41, name: 'drive_ptr', component: ObjectType.FILE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.DRIVE], referenceStruct: StructType.NODE_REFERENCE },
   [FileProperty.url]: { id: 42, name: 'url', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.title]: { id: 43, name: 'title', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 256 }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.content]: { id: 44, name: 'content', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.BYTES, constraint: { minLength: 1 }, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.inlineContent]: { id: 44, name: 'inline_content', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.BYTES, constraint: { minLength: 1 }, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.coarseType]: { id: 50, name: 'coarse_type', component: ObjectType.FILE, enumType: EnumType.FILE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.mimeType]: { id: 51, name: 'mime_type', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 255 }, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.size]: { id: 52, name: 'size', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT64, constraint: { minValue: 0 }, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },

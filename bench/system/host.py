@@ -6,6 +6,7 @@ from typing import Any, Callable, cast, override
 from uuid import UUID
 
 import betterproto
+import boto3
 import grpclib.server
 import structlog
 from betterproto.lib.google.protobuf import Struct as ProtoStruct
@@ -13,11 +14,12 @@ from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 from opentelemetry import trace
 
-from bench.language import Bench, NodeReference, Package, Run, Server, Store, Subject
+from bench.language import Bench, Drive, NodeReference, Package, Run, Server, Store, Subject
 from bench.language.access import Badge, Ownable
 from bench.language.bench import Branch, Client
 from bench.language.connection import GraphEngine, MemoryEngine, PostgresEngine
 from bench.language.const import (
+    CLOUD,
     ETERNAL_NODE_TYPES,
     IN_BENCH_GLOBAL_NODE_TYPES,
     IN_BENCH_NODE_TYPES,
@@ -27,6 +29,7 @@ from bench.language.const import (
     ClientType,
     NodeType,
 )
+from bench.language.file import File, FileKind, FileReference
 from bench.language.graph import NodeDataGraphLike, NodeGraphLike, NodeSuperGraph
 from bench.language.log import Log
 from bench.language.node import GraphScope
@@ -42,14 +45,25 @@ from bench.language.value import pack_builtin_object_data
 from bench.proto import wire
 from bench.proto.services import RpcCallable, ServiceBase
 from bench.proto.wire import (
+    DownloadFilesRequest,
+    DownloadFilesResponse,
+    DownloadFilesResponseDownloadHandle,
     EditData,
     GraphScopeData,
     HostBase,
     LogData,
     ServiceKind,
     SessionContextData,
+    UploadFilesRequest,
+    UploadFilesResponse,
+    UploadFilesResponseUploadHandle,
 )
-from bench.proto.wiring import pack_proto_json, unwrap_some_node, wrap_some_node
+from bench.proto.wiring import (
+    pack_proto_json,
+    unpack_object_validate,
+    unwrap_some_node,
+    wrap_some_node,
+)
 from bench.system.access import CLIENT_CACHE_ENABLED, ClientCache, get_client
 from bench.system.core import (
     HostApi,
@@ -62,6 +76,7 @@ from bench.system.core import (
 from bench.system.graph import CommitArea, GraphIoServiceBase, parse_commit_scope, validate_edit
 from bench.system.provisioner import Provisioner, get_provisioners_for
 from bench.system.scheduler import QueueRunPlugin
+from bench.utils.env import ENV
 from bench.utils.func import to_uuid
 from bench.utils.oracle import Oracle
 from bench.utils.utils import get_from_env
@@ -75,6 +90,17 @@ HOST_MEMORY_ENGINE_ENABLED = get_from_env(
     typ=bool,
     default=True,
     description="Whether to provide in-memory caches for Bench/Package",
+)
+
+S3_ENDPOINT = get_from_env("S3_ENDPOINT", description="S3 endpoint URL")
+S3_ACCESS_KEY = get_from_env("S3_ACCESS_KEY", description="S3 access key")
+S3_SECRET_KEY = get_from_env("S3_SECRET_KEY", description="S3 secret key")
+
+s3_client = boto3.client(
+    "s3",
+    endpoint_url=S3_ENDPOINT,
+    aws_access_key_id=S3_ACCESS_KEY,
+    aws_secret_access_key=S3_SECRET_KEY,
 )
 
 LOADED_HOST_NODE_TYPES = LOADED_BENCH_NODE_TYPES | SOURCE_NODE_TYPES
@@ -481,6 +507,10 @@ class Host(GraphIoServiceBase, HostApi, HostBase):
         if self._session is not None:
             await self._session.close()
 
+    #
+    # Graph
+    #
+
     @override
     @tracer.start_as_current_span("host.prepare_commit")
     def _prepare_commit(
@@ -722,6 +752,75 @@ class Host(GraphIoServiceBase, HostApi, HostBase):
             span="current",
         )
 
+    #
+    # Files
+    #
+
+    async def upload_files(
+        self, subject: Subject, request: UploadFilesRequest
+    ) -> UploadFilesResponse:
+        handles: list[UploadFilesResponseUploadHandle] = []
+        for file_info in request.files:
+            # get drive (from in-memory graph)
+            if (
+                file_info.kind not in (FileKind.DRIVE, FileKind.DRIVE_INLINE)
+                or not file_info.drive_ptr
+                or not file_info.sha256
+            ):
+                raise GRPCError(GRPCStatus.INVALID_ARGUMENT, f"unexpected file: {file_info.kind}")
+            drive = self.bench._graph.get(UUID(file_info.drive_ptr.id))
+            if not isinstance(drive, Drive):
+                raise GRPCError(GRPCStatus.INVALID_ARGUMENT, f"unexpected drive: {drive!r}")
+
+            # presign post URL
+            file_key = get_file_key(drive, file_info.sha256, file_info.title)
+            response = s3_client.generate_presigned_post(
+                Bucket=get_drive_bucket(drive),
+                Key=file_key,
+                Fields={"Content-Type": file_info.mime_type},
+                Conditions=[
+                    {"acl": "public-read"},
+                    {"Content-Type": file_info.mime_type},
+                    {"key": file_key},
+                ],
+                ExpiresIn=3600,
+            )
+            fields = ProtoStruct().from_json(response["fields"])
+            handle = UploadFilesResponseUploadHandle(post_url=response["url"], fields=fields)
+            handles.append(handle)
+
+        return UploadFilesResponse(handles=handles)
+
+    async def download_files(
+        self, subject: Subject, request: DownloadFilesRequest
+    ) -> DownloadFilesResponse:
+        # get files
+        files_refs = [
+            unpack_object_validate(ref, supergraph=None, expect=FileReference)
+            for ref in request.files
+        ]
+        files = await File.get(files_refs)
+        # TODO :Broken :Security: evaluate file access
+
+        # get pre-signed URLs
+        handles: list[DownloadFilesResponseDownloadHandle] = []
+        for file in files:
+            if file.kind not in (FileKind.DRIVE, FileKind.DRIVE_INLINE) or not file.sha256:
+                raise GRPCError(GRPCStatus.INVALID_ARGUMENT, f"unexpected file: {file.kind}")
+            drive = file.drive
+            assert drive, f"no drive for {file!r}"
+            bucket = get_drive_bucket(drive)
+            file_key = get_file_key(drive, file.sha256, file.title)
+            get_url = s3_client.generate_presigned_url(
+                "get_object",
+                Params={"Bucket": bucket, "Key": file_key},
+                ExpiresIn=3600,
+            )
+            handle = DownloadFilesResponseDownloadHandle(get_url=get_url)
+            handles.append(handle)
+
+        return DownloadFilesResponse(handles=handles)
+
 
 @tracer.start_as_current_span("host.validate_context")
 def validate_context(subject: Subject, context: SessionContext, edits: list[EditData]):
@@ -751,3 +850,13 @@ def validate_context(subject: Subject, context: SessionContext, edits: list[Edit
                 f"bad machine context for {subject!r}: {context.machine!r}",
             )
     # NOTE :Incomplete: validate Edit context in Host
+
+
+def get_drive_bucket(drive: Drive) -> str:
+    bucket_name = f"bench-{ENV.value}-{CLOUD.name.lower()}-{drive.region.slug}-public"
+    return bucket_name
+
+
+def get_file_key(drive: Drive, sha256: str, title: str) -> str:
+    """Gets the key for a file in the given bucket."""
+    return f"{drive.id}/{sha256}/{title}"

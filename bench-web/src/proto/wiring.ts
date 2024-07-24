@@ -271,6 +271,7 @@ export function isNodeReference(value: any | null | undefined): value is NodeRef
   return typeof value == "object" && (value as any).metatype == ObjectType.NODE_REFERENCE;
 }
 
+// nocheckin: separate plain/rich references
 export function toNodeReference(node: null): null;
 export function toNodeReference<T extends NodeType>(node: TypedNodeReferenceData<T>): TypedNodeReferenceData<T>;
 export function toNodeReference<T extends NodeType>(node: NodeTypeMapping[T]): TypedNodeReferenceData<T>;
