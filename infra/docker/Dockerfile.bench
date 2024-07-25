@@ -50,6 +50,9 @@ EXPOSE 80
 # --- Runtime ---
 FROM bench-base as bench-runtime
 
+# install pandoc
+RUN apt-get install -y pandoc
+
 COPY requirements/runtime.txt requirements.txt
 RUN /root/.cargo/bin/uv pip install --system --no-cache -r requirements.txt
 
