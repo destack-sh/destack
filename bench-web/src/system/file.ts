@@ -2,12 +2,7 @@ import { FileData, FileReferenceData, FileType, HostClient, ViewType } from "@/p
 import { pretendReadonly } from "@/utils/ref";
 import { shallowRef, type Ref } from "vue";
 
-export const FILE_TYPE_BY_VIEW_TYPE: Partial<Record<ViewType, FileType>> = {
-  [ViewType.IMAGE]: FileType.IMAGE,
-  [ViewType.AUDIO]: FileType.AUDIO,
-  [ViewType.VIDEO]: FileType.VIDEO,
-  [ViewType.DOCUMENT]: FileType.DOCUMENT,
-};
+
 
 export type Upload = {
   file: FileData;

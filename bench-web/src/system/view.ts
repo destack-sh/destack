@@ -1,27 +1,40 @@
 import {
   BenchType,
-  ViewType,
+  FieldData,
+  FieldZone,
+  FileType,
   PrimitiveType,
+  TypeConstraintData,
   TypeInfoData,
   TypeKind,
   Variant,
-  FieldData,
-  FieldZone,
-  TypeConstraintData,
+  ViewType,
 } from "@/proto/wire";
 import type { ReadNodeGraph } from "@/system/graph";
-import { ENUM_ICONS_BY_TYPE, ICON_BY_ALIGNMENT } from "@/system/icon";
-import { isEnumType, getEnumOptions, isNodeType, FULL_WIDTH_VIEW_TYPES } from "@/system/lang";
-import { type TypeIdentity, makeTypeInfo, resolveType, getStorageKey, unpackValue, packValue } from "@/system/value";
+import { ENUM_ICONS_BY_TYPE } from "@/system/icon";
+import { FULL_WIDTH_VIEW_TYPES, getEnumOptions, isEnumType, isNodeType } from "@/system/lang";
+import { type TypeIdentity, getStorageKey, makeTypeInfo, packValue, resolveType, unpackValue } from "@/system/value";
 import type { ViewProps } from "@/views/common";
 
-const VIEW_TYPE_BY_BENCH_TYPE: Partial<Record<BenchType, ViewType>> = {
+export const VIEW_TYPE_BY_BENCH_TYPE: Partial<Record<BenchType, ViewType>> = {
   [BenchType.ICON]: ViewType.ICON,
   [BenchType.CODE]: ViewType.CODE,
   [BenchType.TEXT]: ViewType.TEXT,
   [BenchType.FILE]: ViewType.FILE,
 };
-const VIEW_TYPE_BY_PRIMITIVE_TYPE: Partial<Record<PrimitiveType, ViewType>> = {
+export const VIEW_TYPE_BY_FILE_TYPE: Partial<Record<FileType, ViewType>> = {
+  [FileType.TEXT]: ViewType.TEXT,
+  [FileType.CODE]: ViewType.CODE,
+  [FileType.IMAGE]: ViewType.IMAGE,
+  [FileType.AUDIO]: ViewType.AUDIO,
+  [FileType.VIDEO]: ViewType.VIDEO,
+  [FileType.DOCUMENT]: ViewType.DOCUMENT,
+};
+export const FILE_TYPE_BY_VIEW_TYPE: Partial<Record<ViewType, FileType>> = Object.fromEntries(
+  Object.entries(VIEW_TYPE_BY_FILE_TYPE).map(([k, v]) => [v, k]),
+);
+
+export const VIEW_TYPE_BY_PRIMITIVE_TYPE: Partial<Record<PrimitiveType, ViewType>> = {
   [PrimitiveType.STRING]: ViewType.STRING,
   [PrimitiveType.INT16]: ViewType.NUMBER,
   [PrimitiveType.INT32]: ViewType.NUMBER,
@@ -43,8 +56,19 @@ export function getViewForValueType(type: Omit<TypeIdentity, "kind"> & Partial<T
     return { viewType: ViewType.OBJECT, props: { valueType: type as TypeInfoData } };
   } else if (type.benchType != null) {
     if (VIEW_TYPE_BY_BENCH_TYPE[type.benchType] != null) {
+      if (
+        type.benchType == BenchType.FILE &&
+        type.constraint?.fileType != null &&
+        VIEW_TYPE_BY_FILE_TYPE[type.constraint.fileType] != null
+      ) {
+        // specific file type view
+        return {
+          viewType: VIEW_TYPE_BY_FILE_TYPE[type.constraint.fileType]!,
+          props: { valueType: makeTypeInfo(type) },
+        };
+      }
       // specific bench type view
-      return { viewType: VIEW_TYPE_BY_BENCH_TYPE[type.benchType]! };
+      return { viewType: VIEW_TYPE_BY_BENCH_TYPE[type.benchType]!, props: { valueType: makeTypeInfo(type) } };
     } else if (isEnumType(type.benchType)) {
       // enum type -> picker
       if (getEnumOptions(type.benchType).length <= 5 && ENUM_ICONS_BY_TYPE[type.benchType] != null) {
@@ -64,7 +88,7 @@ export function getViewForValueType(type: Omit<TypeIdentity, "kind"> & Partial<T
     }
   } else if (type.primitiveType != null && VIEW_TYPE_BY_PRIMITIVE_TYPE[type.primitiveType] != null) {
     // primitive
-    return { viewType: VIEW_TYPE_BY_PRIMITIVE_TYPE[type.primitiveType!]! };
+    return { viewType: VIEW_TYPE_BY_PRIMITIVE_TYPE[type.primitiveType!]!, props: { valueType: makeTypeInfo(type) } };
   }
 
   return null;

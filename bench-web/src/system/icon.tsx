@@ -27,6 +27,7 @@ import {
   RegionArea,
   Region,
   ResourceStatus,
+  FileFormat,
 } from "@/proto/wire";
 import type { FunctionalComponent } from "vue";
 // file is generated with:
@@ -372,9 +373,32 @@ export const ICON_BY_FILE_TYPE: Partial<Record<FileType, IconData>> = _makeIcons
   [FileType.AUDIO]: "fas fa-volume",
   [FileType.VIDEO]: "fas fa-video",
   [FileType.DOCUMENT]: "fas fa-file-invoice",
-  [FileType.DATA]: "fas fa-file-zipper",
+  [FileType.DATA]: "fas fa-database",
+  [FileType.ARCHIVE]: "fas fa-file-zipper",
   [FileType.EXECUTABLE]: "fas fa-file-binary",
   [FileType.GENERIC]: "fas fa-file",
+});
+
+export const ICON_BY_FILE_FORMAT: Partial<Record<FileFormat, IconData>> = _makeIcons({
+  // text
+  [FileFormat.TXT]: "fas fa-file-lines",
+  [FileFormat.MARKDOWN]: "fas fa-pen-fancy",
+  [FileFormat.RTF]: "fas fa-file-word",
+  [FileFormat.LOG]: "fas fa-clipboard-list",
+  // code
+  [FileFormat.PYTHON]: "🐍",
+  // image
+  [FileFormat.PDF]: "fas fa-file-pdf",
+  [FileFormat.DOCX]: "fas fa-file-word",
+  [FileFormat.PPTX]: "fas fa-file-powerpoint",
+  [FileFormat.XLSX]: "fas fa-file-excel",
+  [FileFormat.ODS]: "fas fa-table",
+  [FileFormat.EPUB]: "fas fa-book",
+  [FileFormat.CHM]: "fas fa-book",
+  [FileFormat.DOC]: "fas fa-file-word",
+  [FileFormat.XLS]: "fas fa-file-excel",
+  [FileFormat.PPT]: "fas fa-file-powerpoint",
+
 });
 
 export const ICON_BY_FIELD_ZONE: Partial<Record<FieldZone, IconData>> = _makeIcons({
@@ -454,6 +478,7 @@ export const ICON_BY_RESOURCE_STATUS: Partial<Record<ResourceStatus, IconData>> 
   [ResourceStatus.DECOMMISSIONED]: "fas fa-skull",
 });
 
+// big registry of ICON_BY_* by enum type
 export const ENUM_ICONS_BY_TYPE: Partial<Record<EnumType, Record<any, IconData>>> = {
   [EnumType.NODE_TYPE]: ICON_BY_NODE_TYPE,
   [EnumType.STRUCT_TYPE]: ICON_BY_STRUCT_TYPE,
@@ -465,6 +490,7 @@ export const ENUM_ICONS_BY_TYPE: Partial<Record<EnumType, Record<any, IconData>>
   [EnumType.ANCHOR]: ICON_BY_ANCHOR,
   [EnumType.PRIMITIVE_TYPE]: ICON_BY_PRIMITIVE_TYPE,
   [EnumType.FILE_TYPE]: ICON_BY_FILE_TYPE,
+  [EnumType.FILE_FORMAT]: ICON_BY_FILE_FORMAT,
   [EnumType.FIELD_ZONE]: ICON_BY_FIELD_ZONE,
   [EnumType.LOG_LEVEL]: ICON_BY_LOG_LEVEL,
   [EnumType.EDIT_TYPE]: ICON_BY_EDIT_TYPE,

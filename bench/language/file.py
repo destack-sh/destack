@@ -107,7 +107,7 @@ class FileFormat(IdEnum):  # :FileFormats
     JAVASCRIPT = 2001
     TYPESCRIPT = 2002
     GO = 2003
-    C = 2004
+    C_LANG = 2004
     CPP = 2005
     OBJECTIVE_C = 2006
     SWIFT = 2007
@@ -134,10 +134,7 @@ class FileFormat(IdEnum):  # :FileFormats
     WEBP = 3005
     SVG = 3006
     ICO = 3007
-    PSD = 3008
-    AI = 3009
-    EPS = 3010
-    RAW = 3011
+    RAW = 3008
 
     # audio
     MP3 = 4000
@@ -228,10 +225,10 @@ FILE_FORMAT_BY_EXTENSION = {
     "js": FileFormat.JAVASCRIPT,
     "ts": FileFormat.TYPESCRIPT,
     "go": FileFormat.GO,
-    "c": FileFormat.C,
+    "c": FileFormat.C_LANG,
     "cpp": FileFormat.CPP,
     "cxx": FileFormat.CPP,
-    "h": FileFormat.C,
+    "h": FileFormat.C_LANG,
     "hpp": FileFormat.CPP,
     "m": FileFormat.OBJECTIVE_C,
     "swift": FileFormat.SWIFT,
@@ -261,9 +258,6 @@ FILE_FORMAT_BY_EXTENSION = {
     "webp": FileFormat.WEBP,
     "svg": FileFormat.SVG,
     "ico": FileFormat.ICO,
-    "psd": FileFormat.PSD,
-    "ai": FileFormat.AI,
-    "eps": FileFormat.EPS,
     "raw": FileFormat.RAW,
     "cr2": FileFormat.RAW,
     "nef": FileFormat.RAW,
@@ -345,8 +339,8 @@ FORMAT_BY_MIME_TYPE = {
     "application/typescript": FileFormat.TYPESCRIPT,
     "text/x-go": FileFormat.GO,
     "application/x-go": FileFormat.GO,
-    "text/x-c": FileFormat.C,
-    "text/x-csrc": FileFormat.C,
+    "text/x-c": FileFormat.C_LANG,
+    "text/x-csrc": FileFormat.C_LANG,
     "text/x-c++": FileFormat.CPP,
     "text/x-c++src": FileFormat.CPP,
     "text/x-objective-c": FileFormat.OBJECTIVE_C,
@@ -370,11 +364,6 @@ FORMAT_BY_MIME_TYPE = {
     "image/webp": FileFormat.WEBP,
     "image/svg+xml": FileFormat.SVG,
     "image/x-icon": FileFormat.ICO,
-    "image/vnd.adobe.photoshop": FileFormat.PSD,
-    "application/x-photoshop": FileFormat.PSD,
-    "image/x-photoshop": FileFormat.PSD,
-    "application/postscript": FileFormat.EPS,
-    "image/x-eps": FileFormat.EPS,
     "image/x-adobe-dng": FileFormat.RAW,
     "image/x-canon-cr2": FileFormat.RAW,
     "image/x-nikon-nef": FileFormat.RAW,

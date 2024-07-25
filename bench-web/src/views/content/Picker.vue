@@ -10,10 +10,10 @@ import {
   Variant,
   ViewData,
   ViewType,
-  type AnyNodeData
+  type AnyNodeData,
 } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
-import { IconInline, makeIcon } from "@/system/icon";
+import { ICON_BY_BENCH_TYPE, ICON_BY_BLOCK_TYPE, IconInline, makeIcon } from "@/system/icon";
 import { isEnumType, isNodeType } from "@/system/lang";
 import type { NodeItem, TypeItem } from "@/system/search";
 import { enumIndex, graphIndex, typeIndex, useSearch, type EnumOptionItem, type SearchIndex } from "@/system/search";
@@ -72,6 +72,15 @@ const width = computed(() => Math.max(MIN_WIDTH, props.size?.width ?? DEFAULT_WI
 const baseType = pkgGraph.getRef(
   computed(() => props.valueType?.baseTypePtr as TypedNodeReferenceData<NodeType.BLOCK> | undefined),
 );
+const facetIcon = computed(() => {
+  if (props.valueType?.kind == TypeKind.BASED_NODE && baseType.value != null) {
+    return ICON_BY_BLOCK_TYPE[baseType.value.type];
+  } else if (props.valueType?.benchType != null) {
+    return ICON_BY_BENCH_TYPE[props.valueType.benchType];
+  } else {
+    return null;
+  }
+});
 const facetName = computed(() => {
   if (props.valueType?.kind == TypeKind.BASED_NODE && baseType.value != null) {
     return baseType.value.name;
@@ -198,7 +207,10 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
         <IconInline v-if="modelValueIcon" v-bind="modelValueIcon" class="mr-1.5 w-5 text-gray-700" />
         <span class="truncate">{{ modelValueTitle ?? "???" }}</span>
       </template>
-      <span v-else class="truncate text-gray-400 group-hover:text-gray-700">{{ facetName ?? "Select" }}</span>
+      <template v-else>
+        <IconInline v-if="facetIcon" v-bind="facetIcon" class="mr-1.5 w-5 text-gray-400" />
+        <span class="truncate text-gray-400">{{ facetName ?? "Select" }}</span>
+      </template>
       <!-- Controls -->
       <div v-if="!props.isDisabled && props.isInput" class="ml-auto flex-shrink-0 pl-1.5">
         <!-- Clear -->

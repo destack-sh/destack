@@ -5,8 +5,9 @@ import { makeViewId, ViewContentWrapper, viewEmits, type ViewExposed } from "@/v
 import { canvas } from "@/system/space";
 import { computed, toRef } from "vue";
 import { toCamelName } from "@/system/lang";
-import { ICON_BY_FILE_TYPE, IconInline } from "@/system/icon";
-import { FILE_TYPE_BY_VIEW_TYPE } from "@/system/file";
+import { ICON_BY_FILE_FORMAT, ICON_BY_FILE_TYPE, IconInline } from "@/system/icon";
+import { humanizeBytes } from "@/utils/string";
+import { FILE_TYPE_BY_VIEW_TYPE } from "@/system/view";
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; modelValue?: FileReferenceData } & Partial<
@@ -31,9 +32,18 @@ const self = toRef(props, "self");
 const id = makeViewId(props);
 
 const fileType = computed(() => {
-  if (props.type != null) return FILE_TYPE_BY_VIEW_TYPE[props.type] ?? FileType.GENERIC;
-  else if (props.valueType?.constraint?.fileType != null) return props.valueType.constraint.fileType;
+  if (props.valueType?.constraint?.fileType != null) return props.valueType.constraint.fileType;
+  else if (props.type != null) return FILE_TYPE_BY_VIEW_TYPE[props.type] ?? FileType.GENERIC;
   else return FileType.GENERIC;
+});
+const fileFormat = computed(() => props.valueType?.constraint?.fileFormat);
+
+const facetIcon = computed(() => {
+  if (fileFormat.value != null && ICON_BY_FILE_FORMAT[fileFormat.value] != null) {
+    return ICON_BY_FILE_FORMAT[fileFormat.value];
+  } else {
+    return ICON_BY_FILE_TYPE[fileType.value];
+  }
 });
 
 canvas.registerView(self, id);
@@ -50,12 +60,13 @@ defineExpose<ViewExposed>({ self, id });
     >
       <!-- Current value -->
       <template v-if="modelValue != null">
-        <IconInline v-bind="ICON_BY_FILE_TYPE[fileType]" class="mr-1.5 w-5 text-gray-700" />
-        {{ modelValue.title ?? '???' }}
+        <IconInline v-bind="facetIcon" class="mr-1.5 w-5 text-gray-700" />
+        <span>{{ modelValue.title ?? "???" }}</span>
+        <span class="text-xs text-gray-400">{{ humanizeBytes(17000) }}</span>
       </template>
-      <span v-else class="select-none text-gray-500">
-        <IconInline v-bind="ICON_BY_FILE_TYPE[fileType]" class="mr-1.5 w-5 text-gray-700" />
-        Upload {{ toCamelName(ViewType, type ?? ViewType.FILE) }}
+      <span v-else class="select-none text-gray-400">
+        <IconInline v-bind="facetIcon" class="mr-1.5 w-5 text-gray-400" />
+        <span>Upload {{ toCamelName(FileType, fileType ?? ViewType.FILE) }}</span>
       </span>
       <!-- Controls -->
       <div v-if="!props.isDisabled && props.isInput" class="ml-auto flex-shrink-0 pl-1.5">

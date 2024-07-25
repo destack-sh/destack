@@ -311,8 +311,9 @@ export const supervisor = new SupervisorClient(supervisorTransport);
 /**
  * Gets the Host for a given Bench (looking up host info via supervisor if not cached)
  * NOTE :Performance: cache resolved hosts across session in local storage?
+ * NOTE :Performance: resolving hosts has a 'race condition' where the same host is resolved multiple times concurrently
  */
-export async function resolveHostClient(bench: { id: string }): Promise<HostClient> {
+export async function getHostClient(bench: { id: string }): Promise<HostClient> {
   if ("id" in bench && _CACHED_HOST_CLIENTS.value[bench.id]) {
     return _CACHED_HOST_CLIENTS.value[bench.id];
   }
@@ -320,8 +321,9 @@ export async function resolveHostClient(bench: { id: string }): Promise<HostClie
   const startedAt = DateTime.now();
   log.debug("host.resolve", bench);
   try {
-    const { hosts: hostInfos } = await supervisor.resolveHosts({ benches: [{ bench: { oneofKind: "id", id: bench.id } }] })
-      .response;
+    const { hosts: hostInfos } = await supervisor.resolveHosts({
+      benches: [{ bench: { oneofKind: "id", id: bench.id } }],
+    }).response;
     const hostTransport = new BenchGrpcWebTransport(hostInfos[0].hostUri);
     const hostClient = new HostClient(hostTransport);
 
@@ -351,7 +353,7 @@ export function getGraphTransport(scope?: Partial<GraphScopeData>): BenchGrpcWeb
 /** Gets the Graph client for a given scope */
 export async function getGraphClient(scope?: Partial<GraphScopeData>): Promise<HostClient | SupervisorClient> {
   if (scope?.benchId == null) return supervisor;
-  else return await resolveHostClient({ id: scope.benchId });
+  else return await getHostClient({ id: scope.benchId });
 }
 
 /** Gets the cached Graph client for a given scope */
