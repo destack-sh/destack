@@ -325,19 +325,22 @@ service Supervisor {
 //
 
 message UploadFilesRequest {
-  repeated FileData files = 1;
+  GraphScopeData scope = 1;
+  repeated FileData files = 2;
 }
 
 message UploadFilesResponse {
   message UploadHandle {
     string post_url = 1;
     google.protobuf.Struct fields = 2;
+    string get_url = 3;
   }
   repeated UploadHandle handles = 1;
 }
 
 message DownloadFilesRequest {
-  repeated FileReferenceData files = 1;
+  GraphScopeData scope = 1;
+  repeated FileReferenceData files = 2;
 }
 
 message DownloadFilesResponse {

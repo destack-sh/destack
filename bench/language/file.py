@@ -1,8 +1,10 @@
+import hashlib
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional, Union, assert_never, override
 
 import aiohttp
 import structlog
+from opentelemetry import trace
 
 from bench.language.bench import Drive
 from bench.language.const import (
@@ -48,10 +50,11 @@ if TYPE_CHECKING:
     from bench.language import Block, Package, Session
 
 logger = structlog.get_logger(__name__)
+tracer = trace.get_tracer(__name__)
 
 FILE_HASH_LENGTH = 64  # 256 bits
 MAX_FILE_SIZE = get_from_env(
-    "MAX_FILE_SIZE", typ=int, default=1024 * 1024 * 1024, description="Max file size (in bytes)"
+    "MAX_FILE_SIZE", typ=int, default=1024 * 1024 * 128, description="Max file size (in bytes)"
 )
 
 MIME_TYPE_CONSTRAINT = constraint(min_length=1, max_length=255)
@@ -461,14 +464,14 @@ class FileInfoBase(BuiltinObject):
     """
 
     # content
-    kind: FileKind = p_internal(40, default=FileKind.DRIVE, default_sql=None)
+    kind: FileKind = p_internal(40)
+    title: str = p_regular(41, constraint=TITLE_CONSTRAINT)
     drive: Drive | None = p_regular(
-        41, references=NodeType.DRIVE, require=False, array=False, same_bench=True
+        42, references=NodeType.DRIVE, require=False, array=False, same_bench=True
     )
     if TYPE_CHECKING:
         drive_ptr: Optional[NodeReference] = None
-    url: Optional[str] = p_regular(42, default=None)
-    title: str = p_regular(43, constraint=TITLE_CONSTRAINT)
+    url: Optional[str] = p_regular(43, default=None)  # if external
     inline_content: Optional[bytes] = p_regular(
         44, default=None, constraint=constraint(min_length=1)
     )
@@ -506,7 +509,7 @@ class FileInfo(Struct[FileInfoData], FileInfoBase):
 @local_node_(NodeType.FILE, indexes=(("drive_id", "sha256"),))
 class File(RemoteNode[FileData], FileInfoBase):
     """
-    A file stored in a Drive (or externally).
+    A file stored somewhere (like a Drive, orexternally).
     De-duplicated so that there's only one File per unique file content for our own files.
     """
 
@@ -524,6 +527,7 @@ class File(RemoteNode[FileData], FileInfoBase):
     # ...FileInfoBase[40-69]
 
     # cached content
+    _cached_get_url: Optional[str] = p_runtime(default=None)
     _cached_content: Optional[bytes] = p_runtime(default=None)
 
     @property
@@ -606,45 +610,58 @@ class FileReference(
         return FileReference._clone_ref(FileReferenceData, node_ref, **kwargs)
 
 
+@tracer.start_as_current_span("file.upload_batch")
 async def _do_upload_files(session: "Session", files: list[File], file_contents: list[bytes]):
-    """Uploads the given files to the given host."""
-
+    """Uploads the given Files to their Host."""
     assert len(files) == len(
         file_contents
-    ), f"unexpected files: {len(file_contents)} != {len(files)}"
+    ), f"unexpected files: {len(files)} != {len(file_contents)}"
+    if not files:
+        return
 
     # get upload URLs
-    upload_req = UploadFilesRequest(files=[f._to_data() for f in files])
-    upload_rep = await session.host.upload_files(upload_req)
+    upload_req = UploadFilesRequest(
+        scope=session._get_scope_for_node(files[0]), files=[f._to_data() for f in files]
+    )
+    upload_rep = await session.host.upload_files(upload_req, metadata=session._rpc_headers)
     assert len(upload_rep.handles) == len(
         files
     ), f"unexpected handles: {len(upload_rep.handles)} != {len(files)}"
 
     # upload files
     async with aiohttp.ClientSession() as http_session:
-        for file_info, file_content, handle in zip(files, file_contents, upload_rep.handles):
-            assert file_info.kind in (
-                FileKind.DRIVE,
-                FileKind.DRIVE_INLINE,
-            ), f"unexpected file: {file_info!r}"
+        for file, file_content, handle in zip(files, file_contents, upload_rep.handles):
+            with tracer.start_as_current_span("file.upload", attributes={"file": repr(file)}):
+                assert file.kind in (
+                    FileKind.DRIVE,
+                    FileKind.DRIVE_INLINE,
+                ), f"unexpected file: {file!r}"
 
-            # post file to url
-            fields = handle.fields.to_pydict()
-            form_data = aiohttp.FormData()
-            for key, value in fields.items():
-                form_data.add_field(key, value)
-            form_data.add_field("file", file_content, filename=file_info.title)
-            async with http_session.post(handle.post_url, data=form_data) as resp:
-                resp.raise_for_status()
+                # post file to url
+                fields = handle.fields.to_dict()
+                form_data = aiohttp.FormData()
+                for key, value in fields.items():
+                    form_data.add_field(key, value)
+                form_data.add_field(
+                    "file", file_content, filename=file.title, content_type=file.mime_type
+                )
+                async with http_session.post(handle.post_url, data=form_data) as resp:
+                    resp.raise_for_status()
 
 
+@tracer.start_as_current_span("file.download_batch")
 async def _do_download_files(session: "Session", file_refs: list[FileReference]) -> list[File]:
-    """Downloads the given files from the given host."""
+    """Downloads the given Files from their Host."""
+    if not file_refs:
+        return []
+
     from bench.proto.wiring import unpack_object
 
     # get download URLs
-    download_req = DownloadFilesRequest(files=[f._to_data() for f in file_refs])
-    download_rep = await session.host.download_files(download_req)
+    download_req = DownloadFilesRequest(
+        scope=session._get_scope_for_node(file_refs[0]), files=[f._to_data() for f in file_refs]
+    )
+    download_rep = await session.host.download_files(download_req, metadata=session._rpc_headers)
     files: list[File] = [
         unpack_object(h.file, supergraph=session._supergraph, expect=File)
         for h in download_rep.handles
@@ -658,11 +675,12 @@ async def _do_download_files(session: "Session", file_refs: list[FileReference])
     async with aiohttp.ClientSession() as http_session:
         for file, handle in zip(files, download_rep.handles):
             # get file from url
-            async with http_session.get(handle.get_url) as resp:
-                resp.raise_for_status()
-                file_content = await resp.read()
-            file_contents.append(file_content)
-            file._cached_content = file_content
+            with tracer.start_as_current_span("file.download", attributes={"file": repr(file)}):
+                async with http_session.get(handle.get_url) as resp:
+                    resp.raise_for_status()
+                    file_content = await resp.read()
+                file_contents.append(file_content)
+                file._cached_content = file_content
 
     return files
 
@@ -690,6 +708,7 @@ async def upload(
     coarse_type: FileType | None = None,
     format: FileFormat | str | None = None,
     parent: "Block | Package | None" = None,
+    drive: "Drive | None" = None,
     session: "Session | None" = None,
 ) -> "File":
     """Uploads the given file to the given (or current) session."""
@@ -699,6 +718,10 @@ async def upload(
         session = active_session()
     if parent is None:
         parent = session.package
+    if drive is None:
+        drive = session.bench.main_drive
+        if drive is None:
+            raise ValueError(f"no drive to upload file {title!r} to in {session!r}")
 
     # get content
     content: bytes
@@ -733,8 +756,18 @@ async def upload(
                 coarse_type = format.coarse_type
 
     # nocheckin: extract file metadata
+    size = len(content)
+    sha256 = hashlib.sha256(content).hexdigest()
     file = File(
-        parent=parent, title=title, coarse_type=coarse_type, mime_type=mime_type, format=format
+        parent=parent,
+        kind=FileKind.DRIVE,
+        drive=drive,
+        title=title,
+        coarse_type=coarse_type,
+        mime_type=mime_type,
+        format=format,
+        size=size,
+        sha256=sha256,
     )
 
     # upload file, then create in session

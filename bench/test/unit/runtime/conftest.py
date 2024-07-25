@@ -171,7 +171,7 @@ async def host(host_service: Host):
 
 
 @pytest.fixture()
-async def real_session(bench: Bench, host: HostClient):
+async def real_session_async(bench: Bench, host: HostClient):
     user = bench.owner
     assert isinstance(user, User), f"unexpected bench owner: {user!r}"
     client = user.clients[0]
@@ -203,6 +203,15 @@ async def real_session(bench: Bench, host: HostClient):
         _split_read=True,
         _oracle=REAL_ORACLE,
         _subject=user,
+        _host=host,
+        _origin=client.to_origin(nonce=None)._to_data(),
     )
     async with session:
         yield session
+
+
+@pytest.fixture()
+def real_session(real_session_async: Session):
+    active_session_token = _active_session.set(real_session_async)
+    yield real_session_async
+    _active_session.reset(active_session_token)

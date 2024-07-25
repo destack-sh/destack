@@ -41,7 +41,7 @@ from bench.language.transaction import (
     edit_graph,
 )
 from bench.language.user import User
-from bench.language.value import pack_builtin_object_data
+from bench.language.value import pack_builtin_object_data, pack_value_scalar
 from bench.proto import wire
 from bench.proto.services import RpcCallable, ServiceBase
 from bench.proto.wire import (
@@ -95,6 +95,12 @@ HOST_MEMORY_ENGINE_ENABLED = get_from_env(
 S3_ENDPOINT = get_from_env("S3_ENDPOINT", description="S3 endpoint URL")
 S3_ACCESS_KEY = get_from_env("S3_ACCESS_KEY", description="S3 access key")
 S3_SECRET_KEY = get_from_env("S3_SECRET_KEY", description="S3 secret key")
+S3_PRESIGNED_URL_EXPIRY = get_from_env(
+    "S3_PRESIGNED_URL_EXPIRY",
+    typ=int,
+    default=3600,
+    description="S3 presigned URL expiry (in seconds)",
+)
 
 s3_client = boto3.client(
     "s3",
@@ -759,6 +765,7 @@ class Host(GraphIoServiceBase, HostApi, HostBase):
     async def upload_files(
         self, subject: Subject, request: UploadFilesRequest
     ) -> UploadFilesResponse:
+        # TODO :Broken :Security: evaluate file upload access
         handles: list[UploadFilesResponseUploadHandle] = []
         for file_data in request.files:
             # get drive (from in-memory graph)
@@ -767,36 +774,52 @@ class Host(GraphIoServiceBase, HostApi, HostBase):
                 or not file_data.drive_ptr
                 or not file_data.sha256
             ):
-                raise GRPCError(GRPCStatus.INVALID_ARGUMENT, f"unexpected file: {file_data.kind}")
+                raise GRPCError(
+                    GRPCStatus.INVALID_ARGUMENT,
+                    f"unexpected file: {file_data!r} (kind={file_data.kind}, drive_ptr={file_data.drive_ptr}, sha256={file_data.sha256})",
+                )
             drive = self.bench._graph.get(UUID(file_data.drive_ptr.id))
             if not isinstance(drive, Drive):
-                raise GRPCError(GRPCStatus.INVALID_ARGUMENT, f"unexpected drive: {drive!r}")
+                raise GRPCError(
+                    GRPCStatus.INVALID_ARGUMENT,
+                    f"unexpected drive: {file_data.drive_ptr!r}->{drive!r}",
+                )
 
             # presign post URL
             file_key = get_file_key(drive, file_data.sha256, file_data.title)
-            file_metadata = {"id": file_data.id}
+            file_metadata: dict[str, str] = {"2": file_data.id}
             for prop in FileInfoBase.__declared_properties__.values():
                 if prop.id < 50:
                     continue  # exclude content
                 prop_value = getattr(file_data, prop.name)
                 if prop_value is not None:
-                    file_metadata[prop.name] = prop_value
-            s3_obj_metadata = {
-                f"x-amz-meta-{k.lower().replace('_', '-')}": v for k, v in file_metadata.items()
+                    packed_value = pack_value_scalar(prop_value, prop.type_info)
+                    if not isinstance(packed_value, str):
+                        packed_value = str(packed_value)
+                    file_metadata[prop.id_as_str] = packed_value
+            file_fields = {
+                "Content-Type": file_data.mime_type,
+                "Content-Length": str(file_data.size),
+                **{
+                    f"x-amz-meta-{k.lower().replace('_', '-')}": v for k, v in file_metadata.items()
+                },
             }
-            response = s3_client.generate_presigned_post(
+            presigned_post = s3_client.generate_presigned_post(
                 Bucket=get_drive_bucket(drive),
                 Key=file_key,
-                Fields={"Content-Type": file_data.mime_type, **s3_obj_metadata},
-                Conditions=[
-                    {"acl": "public-read"},
-                    {"Content-Type": file_data.mime_type},
-                    {"key": file_key},
-                ],
-                ExpiresIn=3600,
+                Fields=file_fields,
+                Conditions=[{k: v} for k, v in file_fields.items()],
+                ExpiresIn=S3_PRESIGNED_URL_EXPIRY,
             )
-            fields = ProtoStruct().from_json(response["fields"])
-            handle = UploadFilesResponseUploadHandle(post_url=response["url"], fields=fields)
+            fields = ProtoStruct().from_dict(presigned_post["fields"])
+            get_url = s3_client.generate_presigned_url(
+                "get_object",
+                Params={"Bucket": get_drive_bucket(drive), "Key": file_key},
+                ExpiresIn=S3_PRESIGNED_URL_EXPIRY,
+            )
+            handle = UploadFilesResponseUploadHandle(
+                post_url=presigned_post["url"], fields=fields, get_url=get_url
+            )
             handles.append(handle)
 
         return UploadFilesResponse(handles=handles)
@@ -804,13 +827,13 @@ class Host(GraphIoServiceBase, HostApi, HostBase):
     async def download_files(
         self, subject: Subject, request: DownloadFilesRequest
     ) -> DownloadFilesResponse:
+        # TODO :Broken :Security: evaluate file download access
         # get files
         files_refs = [
             unpack_object_validate(ref, supergraph=None, expect=FileReference)
             for ref in request.files
         ]
         files = await File.get(files_refs)
-        # TODO :Broken :Security: evaluate file access
 
         # get pre-signed URLs
         handles: list[DownloadFilesResponseDownloadHandle] = []
@@ -824,7 +847,7 @@ class Host(GraphIoServiceBase, HostApi, HostBase):
             get_url = s3_client.generate_presigned_url(
                 "get_object",
                 Params={"Bucket": bucket, "Key": file_key},
-                ExpiresIn=3600,
+                ExpiresIn=S3_PRESIGNED_URL_EXPIRY,
             )
             handle = DownloadFilesResponseDownloadHandle(get_url=get_url)
             handles.append(handle)
@@ -863,7 +886,7 @@ def validate_context(subject: Subject, context: SessionContext, edits: list[Edit
 
 
 def get_drive_bucket(drive: Drive) -> str:
-    bucket_name = f"bench-{ENV.value}-{CLOUD.name.lower()}-{drive.region.slug}-public"
+    bucket_name = f"bench-{ENV.value}-{CLOUD.name.lower()}-{drive.region.slug}-files"
     return bucket_name
 
 
