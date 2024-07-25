@@ -356,6 +356,14 @@ export async function getGraphClient(scope?: Partial<GraphScopeData>): Promise<H
   else return await getHostClient({ id: scope.benchId });
 }
 
+/** Gets the cached Host client for a given scope */
+export function getCachedHostClient(scope: GraphScopeData): HostClient {
+  if (scope.benchId == null) throw new Error("no bench id");
+  const hostClient = _CACHED_HOST_CLIENTS.value[scope.benchId];
+  if (hostClient == null) throw new Error(`no cached host client for ${scope.benchId}`);
+  return hostClient;
+}
+
 /** Gets the cached Graph client for a given scope */
 export function getCachedGraphClient(scope: GraphScopeData): HostClient | SupervisorClient {
   if (scope.benchId == null) return supervisor;

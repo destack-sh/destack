@@ -809,15 +809,19 @@ export interface UploadFilesResponse {
  */
 export interface UploadFilesResponse_UploadHandle {
     /**
-     * @generated from protobuf field: string post_url = 1;
+     * @generated from protobuf field: symbolx.bench.FileData file = 1;
+     */
+    file?: FileData;
+    /**
+     * @generated from protobuf field: string post_url = 2;
      */
     postUrl: string;
     /**
-     * @generated from protobuf field: google.protobuf.Struct fields = 2;
+     * @generated from protobuf field: google.protobuf.Struct fields = 3;
      */
     fields?: Struct;
     /**
-     * @generated from protobuf field: string get_url = 3;
+     * @generated from protobuf field: string get_url = 4;
      */
     getUrl: string;
 }
@@ -3032,9 +3036,10 @@ export const UploadFilesResponse = new UploadFilesResponse$Type();
 class UploadFilesResponse_UploadHandle$Type extends MessageType<UploadFilesResponse_UploadHandle> {
     constructor() {
         super("symbolx.bench.UploadFilesResponse.UploadHandle", [
-            { no: 1, name: "post_url", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 2, name: "fields", kind: "message", T: () => Struct },
-            { no: 3, name: "get_url", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
+            { no: 1, name: "file", kind: "message", T: () => FileData },
+            { no: 2, name: "post_url", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 3, name: "fields", kind: "message", T: () => Struct },
+            { no: 4, name: "get_url", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<UploadFilesResponse_UploadHandle>): UploadFilesResponse_UploadHandle {
@@ -3050,13 +3055,16 @@ class UploadFilesResponse_UploadHandle$Type extends MessageType<UploadFilesRespo
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* string post_url */ 1:
+                case /* symbolx.bench.FileData file */ 1:
+                    message.file = FileData.internalBinaryRead(reader, reader.uint32(), options, message.file);
+                    break;
+                case /* string post_url */ 2:
                     message.postUrl = reader.string();
                     break;
-                case /* google.protobuf.Struct fields */ 2:
+                case /* google.protobuf.Struct fields */ 3:
                     message.fields = Struct.internalBinaryRead(reader, reader.uint32(), options, message.fields);
                     break;
-                case /* string get_url */ 3:
+                case /* string get_url */ 4:
                     message.getUrl = reader.string();
                     break;
                 default:
@@ -3071,15 +3079,18 @@ class UploadFilesResponse_UploadHandle$Type extends MessageType<UploadFilesRespo
         return message;
     }
     internalBinaryWrite(message: UploadFilesResponse_UploadHandle, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* string post_url = 1; */
+        /* symbolx.bench.FileData file = 1; */
+        if (message.file)
+            FileData.internalBinaryWrite(message.file, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* string post_url = 2; */
         if (message.postUrl !== "")
-            writer.tag(1, WireType.LengthDelimited).string(message.postUrl);
-        /* google.protobuf.Struct fields = 2; */
+            writer.tag(2, WireType.LengthDelimited).string(message.postUrl);
+        /* google.protobuf.Struct fields = 3; */
         if (message.fields)
-            Struct.internalBinaryWrite(message.fields, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
-        /* string get_url = 3; */
+            Struct.internalBinaryWrite(message.fields, writer.tag(3, WireType.LengthDelimited).fork(), options).join();
+        /* string get_url = 4; */
         if (message.getUrl !== "")
-            writer.tag(3, WireType.LengthDelimited).string(message.getUrl);
+            writer.tag(4, WireType.LengthDelimited).string(message.getUrl);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

@@ -3916,9 +3916,10 @@ class UploadFilesResponse(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class UploadFilesResponseUploadHandle(betterproto.Message):
-    post_url: str = betterproto.string_field(1)
-    fields: "betterproto_lib_google_protobuf.Struct" = betterproto.message_field(2)
-    get_url: str = betterproto.string_field(3)
+    file: "FileData" = betterproto.message_field(1)
+    post_url: str = betterproto.string_field(2)
+    fields: "betterproto_lib_google_protobuf.Struct" = betterproto.message_field(3)
+    get_url: str = betterproto.string_field(4)
 
 
 @dataclass(eq=False, repr=False)

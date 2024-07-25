@@ -1,15 +1,15 @@
 <script lang="ts" setup>
-import { ViewData, NodeType, FileReferenceData, ViewType, FileType, FileFormat } from "@/proto/wire";
-import { describeNode, type TypedNodeReferenceData } from "@/proto/wiring";
-import { makeViewId, ViewContentWrapper, viewEmits, type ViewExposed } from "@/views/common";
-import { canvas } from "@/system/space";
-import { computed, ref, toRef } from "vue";
-import { toCamelName } from "@/system/lang";
+import { FileFormat, FileReferenceData, FileType, NodeType, ViewData } from "@/proto/wire";
+import { describeNode, toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
+import { uploadFiles, type FileUpload } from "@/system/file";
 import { ICON_BY_FILE_FORMAT, ICON_BY_FILE_TYPE, IconInline } from "@/system/icon";
-import { humanizeBytes } from "@/utils/string";
+import { toCamelName } from "@/system/lang";
+import { canvas, pkg } from "@/system/space";
 import { FILE_TYPE_BY_VIEW_TYPE } from "@/system/view";
 import { useDropZone } from "@/utils/drag";
-import { extractFileInfo } from "@/system/file";
+import { humanizeBytes } from "@/utils/string";
+import { makeViewId, ViewContentWrapper, viewEmits, type ViewExposed } from "@/views/common";
+import { computed, ref, toRef, type Ref } from "vue";
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; modelValue?: FileReferenceData } & Partial<
@@ -60,12 +60,17 @@ const facetName = computed(() => {
 
 const fileInputRef = ref<HTMLInputElement | null>(null);
 const containerRef = ref<HTMLElement | null>(null);
+const upload: Ref<FileUpload | null> = ref(null);
 
-async function onFileSelected(event: DragEvent) {
-  // nocheckin: use file
-  if (event.dataTransfer?.files.length == 0) return;
-  const file = event.dataTransfer!.files[0];
-  const fileData = await extractFileInfo(file);
+async function onFileSelected(files: File[]) {
+  if (files.length == 0) return;
+  if (pkg.value == null) throw new Error("no current package");
+  const content = files[0];
+  // NOTE :Incomplete: uploaded file should be attributed to closest ancestor block, not package (?)
+  upload.value = uploadFiles([content], pkg.value)[0];
+  await upload.value.completion.wait();
+  if (upload.value.file.value == null) throw new Error("no file");
+  emit("update:modelValue", toNodeReference(upload.value.file.value));
 }
 
 const { isInDropZone } = useDropZone({
@@ -74,7 +79,8 @@ const { isInDropZone } = useDropZone({
   kinds: ["file"],
   onDrop: (dragged, event) => {
     if (dragged.kind == "file") {
-      onFileSelected(event);
+      if (event.dataTransfer?.files.length == 0) return;
+      onFileSelected(Array.from(event.dataTransfer!.files));
     }
   },
   isEnabled: computed(() => props.isInput && !props.isDisabled),
@@ -85,6 +91,18 @@ defineExpose<ViewExposed>({ self, id });
 </script>
 <template>
   <ViewContentWrapper v-bind="props">
+    <!-- Actual file input (hidden) -->
+    <input
+      ref="fileInputRef"
+      type="file"
+      class="hidden"
+      @change="
+        (e) => {
+          onFileSelected(Array.from((e.target as HTMLInputElement).files!));
+          (e.target as HTMLInputElement).value = ''; // clear value
+        }
+      "
+    />
     <!-- Dropdown -->
     <button
       v-if="!isInline"
@@ -97,7 +115,6 @@ defineExpose<ViewExposed>({ self, id });
       ]"
       @click="fileInputRef!.click()"
     >
-      <input ref="fileInputRef" type="file" class="hidden" @change="onFileSelected" />
       <!-- Current value -->
       <template v-if="modelValue != null">
         <IconInline v-bind="facetIcon" class="mr-1.5 w-5 text-gray-700" />
@@ -137,7 +154,6 @@ defineExpose<ViewExposed>({ self, id });
       ]"
       @click="fileInputRef!.click()"
     >
-      <input ref="fileInputRef" type="file" class="hidden" @change="onFileSelected" />
       <span class="select-none transition-colors duration-75">
         <IconInline v-bind="facetIcon" class="mr-1.5 w-5" />
         <span>Upload {{ facetName }}</span>

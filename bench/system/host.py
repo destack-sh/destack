@@ -771,19 +771,23 @@ class Host(GraphIoServiceBase, HostApi, HostBase):
             # get drive (from in-memory graph)
             if (
                 file_data.kind not in (FileKind.DRIVE, FileKind.DRIVE_INLINE)
-                or not file_data.drive_ptr
                 or not file_data.sha256
             ):
                 raise GRPCError(
                     GRPCStatus.INVALID_ARGUMENT,
-                    f"unexpected file: {file_data!r} (kind={file_data.kind}, drive_ptr={file_data.drive_ptr}, sha256={file_data.sha256})",
+                    f"unexpected file: {file_data!r} (kind={file_data.kind}, sha256={file_data.sha256})",
                 )
-            drive = self.bench._graph.get(UUID(file_data.drive_ptr.id))
-            if not isinstance(drive, Drive):
-                raise GRPCError(
-                    GRPCStatus.INVALID_ARGUMENT,
-                    f"unexpected drive: {file_data.drive_ptr!r}->{drive!r}",
-                )
+            if file_data.drive_ptr:
+                drive = self.bench._graph.get(UUID(file_data.drive_ptr.id))
+                if not isinstance(drive, Drive):
+                    raise GRPCError(
+                        GRPCStatus.INVALID_ARGUMENT,
+                        f"unexpected drive: {file_data.drive_ptr!r}->{drive!r}",
+                    )
+            else:  # default to main drive
+                drive = self.bench.main_drive
+                assert drive, f"{self.bench!r} has no main drive"
+                file_data.drive_ptr = drive._to_plain_ref_data()
 
             # presign post URL
             file_key = get_file_key(drive, file_data.sha256, file_data.title)
@@ -817,7 +821,7 @@ class Host(GraphIoServiceBase, HostApi, HostBase):
                 ExpiresIn=S3_PRESIGNED_URL_EXPIRY,
             )
             handle = UploadFilesResponseUploadHandle(
-                post_url=presigned_post["url"], fields=fields, get_url=get_url
+                file=file_data, post_url=presigned_post["url"], fields=fields, get_url=get_url
             )
             handles.append(handle)
 
