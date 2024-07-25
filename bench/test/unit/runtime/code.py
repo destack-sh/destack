@@ -7,6 +7,15 @@ from bench.runtime.capture import MAX_LOG_LINE_LENGTH, MAX_LOGS_PER_CAPTURE
 from bench.test.unit.runtime.conftest import RuntimeHandle
 
 
+async def test_run_code_empty(local_runtime: RuntimeHandle):
+    """Empty Code without any fields should fail."""
+    Code1 = Block.new(BlockType.CODE, "Code1")
+    local_runtime.page().blocks.append(Code1)
+    await local_runtime.commit()
+
+    _ = await local_runtime.run(Code1)
+
+
 async def test_run_code_with_syntax_error(local_runtime: RuntimeHandle):
     InvalidCode = Block.new_code("InvalidCode", "!!invalid!!")
     local_runtime.page().blocks.append(InvalidCode)
