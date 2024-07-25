@@ -85,7 +85,6 @@ defineExpose<ViewExposed>({ self, id });
 </script>
 <template>
   <ViewContentWrapper v-bind="props">
-    <!-- nocheckin: File -->
     <!-- Dropdown -->
     <button
       v-if="!isInline"

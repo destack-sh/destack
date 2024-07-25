@@ -324,7 +324,7 @@ export async function getHostClient(bench: { id: string }): Promise<HostClient> 
     const { hosts: hostInfos } = await supervisor.resolveHosts({
       benches: [{ bench: { oneofKind: "id", id: bench.id } }],
     }).response;
-    const hostTransport = new BenchGrpcWebTransport(hostInfos[0].hostUri);
+    const hostTransport = new BenchGrpcWebTransport(`${hostInfos[0].domain}:${hostInfos[0].grpcWebPort}`);
     const hostClient = new HostClient(hostTransport);
 
     _CACHED_HOST_CLIENTS.value[bench.id!] = hostClient;

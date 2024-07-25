@@ -762,11 +762,19 @@ export interface ResolveHostsResponse {
  */
 export interface ResolveHostsResponse_HostInfo {
     /**
-     * @generated from protobuf field: string host_uri = 1;
+     * @generated from protobuf field: string domain = 1;
      */
-    hostUri: string;
+    domain: string;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench = 2;
+     * @generated from protobuf field: int32 grpc_port = 2;
+     */
+    grpcPort: number;
+    /**
+     * @generated from protobuf field: int32 grpc_web_port = 3;
+     */
+    grpcWebPort: number;
+    /**
+     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench = 4;
      */
     bench?: NodeReferenceData;
 }
@@ -2853,13 +2861,17 @@ export const ResolveHostsResponse = new ResolveHostsResponse$Type();
 class ResolveHostsResponse_HostInfo$Type extends MessageType<ResolveHostsResponse_HostInfo> {
     constructor() {
         super("symbolx.bench.ResolveHostsResponse.HostInfo", [
-            { no: 1, name: "host_uri", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 2, name: "bench", kind: "message", T: () => NodeReferenceData }
+            { no: 1, name: "domain", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 2, name: "grpc_port", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 3, name: "grpc_web_port", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 4, name: "bench", kind: "message", T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<ResolveHostsResponse_HostInfo>): ResolveHostsResponse_HostInfo {
         const message = globalThis.Object.create((this.messagePrototype!));
-        message.hostUri = "";
+        message.domain = "";
+        message.grpcPort = 0;
+        message.grpcWebPort = 0;
         if (value !== undefined)
             reflectionMergePartial<ResolveHostsResponse_HostInfo>(this, message, value);
         return message;
@@ -2869,10 +2881,16 @@ class ResolveHostsResponse_HostInfo$Type extends MessageType<ResolveHostsRespons
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* string host_uri */ 1:
-                    message.hostUri = reader.string();
+                case /* string domain */ 1:
+                    message.domain = reader.string();
                     break;
-                case /* symbolx.bench.NodeReferenceData bench */ 2:
+                case /* int32 grpc_port */ 2:
+                    message.grpcPort = reader.int32();
+                    break;
+                case /* int32 grpc_web_port */ 3:
+                    message.grpcWebPort = reader.int32();
+                    break;
+                case /* symbolx.bench.NodeReferenceData bench */ 4:
                     message.bench = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.bench);
                     break;
                 default:
@@ -2887,12 +2905,18 @@ class ResolveHostsResponse_HostInfo$Type extends MessageType<ResolveHostsRespons
         return message;
     }
     internalBinaryWrite(message: ResolveHostsResponse_HostInfo, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* string host_uri = 1; */
-        if (message.hostUri !== "")
-            writer.tag(1, WireType.LengthDelimited).string(message.hostUri);
-        /* symbolx.bench.NodeReferenceData bench = 2; */
+        /* string domain = 1; */
+        if (message.domain !== "")
+            writer.tag(1, WireType.LengthDelimited).string(message.domain);
+        /* int32 grpc_port = 2; */
+        if (message.grpcPort !== 0)
+            writer.tag(2, WireType.Varint).int32(message.grpcPort);
+        /* int32 grpc_web_port = 3; */
+        if (message.grpcWebPort !== 0)
+            writer.tag(3, WireType.Varint).int32(message.grpcWebPort);
+        /* symbolx.bench.NodeReferenceData bench = 4; */
         if (message.bench)
-            NodeReferenceData.internalBinaryWrite(message.bench, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.bench, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

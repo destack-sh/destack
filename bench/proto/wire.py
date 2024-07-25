@@ -3897,8 +3897,10 @@ class ResolveHostsResponse(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class ResolveHostsResponseHostInfo(betterproto.Message):
-    host_uri: str = betterproto.string_field(1)
-    bench: "NodeReferenceData" = betterproto.message_field(2)
+    domain: str = betterproto.string_field(1)
+    grpc_port: int = betterproto.int32_field(2)
+    grpc_web_port: int = betterproto.int32_field(3)
+    bench: "NodeReferenceData" = betterproto.message_field(4)
 
 
 @dataclass(eq=False, repr=False)

@@ -23,7 +23,7 @@ locals {
   main_website  = "justbench.com"
 
   host_map = {
-    "eu-frankfurt" = "aws-eu-frankfurt.host.${local.main_website}"
+    "eu-frankfurt" = "aws-eu-frankfurt.host.${local.main_website}:60061/443"
   }
 
   aws_global_vpc_network_cidr = "10.0.0.0/16"
