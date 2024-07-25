@@ -5,28 +5,35 @@ import { shallowRef, type Ref } from "vue";
 /** A file upload. */
 export type Upload = {
   file: FileData;
-  progress: Ref<number>; // 0-1
+  progress: Ref<number>; // [0.0, 100.0]
+  completion: Promise<void>;
 };
 
 export type Download = {
   file: FileReferenceData;
-  progress: Ref<number>; // 0-1
+  progress: Ref<number>; // [0.0, 100.0]
   includesContent: boolean;
+  completion: Promise<void>;
 };
 
 const _activeUploads: Ref<Upload[]> = shallowRef([]);
 export const activeUploads = pretendReadonly(_activeUploads);
 
-/** Uploads the given files to the Host. */
-async function uploadFiles(host: HostClient, files: FileData[], contents: File[]) {
+/** Extract file info from a native File */
+export function extractFileInfo(file: File): FileData {
+  throw new Error("nocheckin: extractFileInfo");
+}
+
+/** Uploads the given files to the Host. Returns as soon as the upload starts. */
+export async function uploadFiles(host: HostClient, files: FileData[], contents: File[]): Promise<Upload[]> {
   throw new Error("nocheckin: uploadFile");
 }
 
-/** 'Downloads' the given files as get URLs from the Host. */
-async function downloadFiles(
+/** 'Downloads' the given files as get URLs from the Host. Returns as soon as the download starts. */
+export async function downloadFiles(
   host: HostClient,
   files: (FileReferenceData | FileData)[],
   options?: { includeContent: boolean },
-): Promise<string[]> {
+): Promise<Download[]> {
   throw new Error("nocheckin: downloadFiles");
 }

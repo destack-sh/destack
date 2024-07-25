@@ -13,6 +13,7 @@ from bench.cli.utils import _shell
 from bench.language import Node
 from bench.language.const import ENUM_TYPES, NODE_TYPES, STRUCT_TYPES, UNSET, VERSION
 from bench.language.field import TypeConstraint
+from bench.language.file import FILE_FORMAT_BY_EXTENSION, FILE_FORMAT_BY_MIME_TYPE
 from bench.language.node import NODE_REFERENCE_TYPES
 from bench.language.property import Property
 from bench.language.setup import (
@@ -413,6 +414,36 @@ export type PropertyInfo = {
     type_info_map_parts.append("}\n")
     object_info_map_str = "".join(type_info_map_parts)
 
+    # file mapping enums
+    file_format_by_extension_str_inner = "\n".join(
+        f'  "{extension}": FileFormat.{file_format.name.upper()},'
+        for extension, file_format in FILE_FORMAT_BY_EXTENSION.items()
+    )
+    file_format_by_extension_str = f"""
+export const FILE_FORMAT_BY_EXTENSION: Record<string, FileFormat> = {{
+{file_format_by_extension_str_inner}
+}}
+export const EXTENSION_BY_FILE_FORMAT: Partial<Record<FileFormat, string>> = Object.fromEntries(
+    Object.entries(FILE_FORMAT_BY_EXTENSION).map(([k, v]) => [v, k]),
+);
+"""
+    file_format_by_mime_type_str_inner = "\n".join(
+        f'  "{mime_type}": FileFormat.{file_format.name.upper()},'
+        for mime_type, file_format in FILE_FORMAT_BY_MIME_TYPE.items()
+    )
+    file_format_by_mime_type_str = f"""
+export const FILE_FORMAT_BY_MIME_TYPE: Record<string, FileFormat> = {{
+{file_format_by_mime_type_str_inner}
+}}
+export const MIME_TYPE_BY_FILE_FORMAT: Partial<Record<FileFormat, string>> = Object.fromEntries(
+    Object.entries(FILE_FORMAT_BY_MIME_TYPE).map(([k, v]) => [v, k]),
+);
+"""
+    file_mapping_enums_str = f"""
+{file_format_by_extension_str}
+{file_format_by_mime_type_str}
+"""
+
     patch_postfix_code = f"""
 //
 // Extra utility types
@@ -453,6 +484,9 @@ export type AnyPropertyType = {' | '.join('typeof ' + cls.__name__ + 'Property' 
 {object_info_type_str}
 {object_info_definitions_str}
 {object_info_map_str}
+
+// Assorted enums
+{file_mapping_enums_str}
     """
     lang_ts = Path(TEMP_TS_DIR + "/proto/lang.ts").read_text()
     Path(TEMP_TS_DIR + "/proto/lang.ts").write_text(lang_ts + "\n\n" + patch_postfix_code)

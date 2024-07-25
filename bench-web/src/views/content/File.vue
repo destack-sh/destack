@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { ViewData, NodeType, FileReferenceData, ViewType, FileType } from "@/proto/wire";
+import { ViewData, NodeType, FileReferenceData, ViewType, FileType, FileFormat } from "@/proto/wire";
 import { describeNode, type TypedNodeReferenceData } from "@/proto/wiring";
 import { makeViewId, ViewContentWrapper, viewEmits, type ViewExposed } from "@/views/common";
 import { canvas } from "@/system/space";
@@ -9,6 +9,7 @@ import { ICON_BY_FILE_FORMAT, ICON_BY_FILE_TYPE, IconInline } from "@/system/ico
 import { humanizeBytes } from "@/utils/string";
 import { FILE_TYPE_BY_VIEW_TYPE } from "@/system/view";
 import { useDropZone } from "@/utils/drag";
+import { extractFileInfo } from "@/system/file";
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; modelValue?: FileReferenceData } & Partial<
@@ -45,6 +46,13 @@ const facetIcon = computed(() => {
     return ICON_BY_FILE_TYPE[fileType.value];
   }
 });
+const facetName = computed(() => {
+  if (fileFormat.value != null) {
+    return `${toCamelName(FileFormat, fileFormat.value)} ${toCamelName(FileType, fileType.value)}`;
+  } else {
+    return toCamelName(FileType, fileType.value);
+  }
+});
 
 //
 // Interaction
@@ -53,9 +61,11 @@ const facetIcon = computed(() => {
 const fileInputRef = ref<HTMLInputElement | null>(null);
 const containerRef = ref<HTMLElement | null>(null);
 
-function onFileSelected(event: Event) {
+async function onFileSelected(event: DragEvent) {
   // nocheckin: use file
-  console.log(event);
+  if (event.dataTransfer?.files.length == 0) return;
+  const file = event.dataTransfer!.files[0];
+  const fileData = await extractFileInfo(file);
 }
 
 const { isInDropZone } = useDropZone({
@@ -101,7 +111,7 @@ defineExpose<ViewExposed>({ self, id });
         :class="isInDropZone ? 'text-primary-900' : 'text-gray-400'"
       >
         <IconInline v-bind="facetIcon" class="mr-1.5 w-5" />
-        <span>Upload {{ toCamelName(FileType, fileType ?? ViewType.FILE) }}</span>
+        <span>Upload {{ facetName }}</span>
       </span>
       <!-- Controls -->
       <div v-if="!props.isDisabled && props.isInput" class="ml-auto flex-shrink-0 pl-1.5">
@@ -131,7 +141,7 @@ defineExpose<ViewExposed>({ self, id });
       <input ref="fileInputRef" type="file" class="hidden" @change="onFileSelected" />
       <span class="select-none transition-colors duration-75">
         <IconInline v-bind="facetIcon" class="mr-1.5 w-5" />
-        <span>Upload {{ toCamelName(FileType, fileType ?? ViewType.FILE) }}</span>
+        <span>Upload {{ facetName }}</span>
       </span>
     </div>
 
