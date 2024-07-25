@@ -114,7 +114,7 @@ defineExpose<ViewExposed>({ self });
         <div class="ml-auto flex flex-row items-center pl-1.5">
           <button
             :disabled="runnableNode == null"
-            class="h-fit enabled:text-gray-700 enabled:hover:text-primary-900 disabled:text-gray-400"
+            class="h-fit enabled:text-gray-900 enabled:hover:text-primary-900 disabled:text-gray-400"
             @click="
               () => {
                 if (runnableNode == null) return;
@@ -146,12 +146,12 @@ defineExpose<ViewExposed>({ self });
           v-for="{ field, value, prepareUpdate: update, viewType, viewProps, isFullWidth } of inputViews"
           :key="field.id"
           class="mx-auto w-full px-5"
-          :class="[isFullWidth ? 'flex flex-col' : 'flex flex-row flex-wrap items-center gap-x-[10%]']"
+          :class="[isFullWidth ? 'flex flex-col gap-y-0.5' : 'flex flex-row flex-wrap items-center gap-x-[10%]']"
           :style="{ minWidth: MIN_WIDTH + 'px', maxWidth: MAX_WIDTH + 'px' }"
         >
           <!-- Title & Controls -->
           <span class="w-[100px]">
-            <span class="max-w-full truncate py-1 font-medium text-gray-700">{{ field.name }}</span>
+            <span class="max-w-full truncate py-1 font-medium">{{ field.name }}</span>
           </span>
           <!-- Value -->
           <component

@@ -1,34 +1,28 @@
 import {
-  ObjectType,
   NodeType,
   Orientation,
   SelectionData,
+  StructType,
   type AnyNodeData,
   type NodeReferenceData,
-  StructType,
 } from "@/proto/wire";
 import { isNodeReference, isStruct, toNodeReference, type AnyNodeReferenceData } from "@/proto/wiring";
 import type { ReadNodeGraph } from "@/system/graph";
 import { getElement, getElementRef } from "@/utils/element";
 import { log } from "@/utils/log";
 import { uuidt } from "@/utils/uuidt";
-import {
-  isObject,
-  tryOnBeforeUnmount,
-  useEventListener,
-  useMouse,
-  useMouseInElement,
-  type MaybeElement,
-} from "@vueuse/core";
-import type { AnyNode } from "postcss";
+import { tryOnBeforeUnmount, useEventListener, useMouse, useMouseInElement, type MaybeElement } from "@vueuse/core";
+import { DateTime } from "luxon";
 import { computed, ref, shallowRef, toRef, unref, watch, type MaybeRef, type Ref } from "vue";
 
+// NOTE :Architecture: we can probably generalise drag & selection targets into a single system?
+//  (also canvas.registerView, View.nodePtr and data-node-id annotations seem very relevant)
 // NOTE: for now the drag/drop system is only expected to work within a single bench-web instance
 //  (i.e. not across instances, but it should work across with other applications)
 
 const DRAGGED_KINDS = ["node", "selection", "file"] as const;
 export type DraggedKind = (typeof DRAGGED_KINDS)[number];
-export type DraggedData =
+export type DraggedContent =
   | {
       kind: "node";
       node: NodeReferenceData;
@@ -41,15 +35,14 @@ export type DraggedData =
     }
   | {
       kind: "file"; // native browser file
-      fileTypes: string[];
-      files?: File[];
+      files: FileList | undefined; // only on drop
     };
 export type Dragged = {
   id: string;
-  trigger: HTMLElement;
-} & DraggedData;
+  trigger: HTMLElement | undefined;
+} & DraggedContent;
 
-// NOTE: we render the drag image globally in Space
+// NOTE: we render the drag image globally in DragOverlay.vue
 const dragImageRef = ref<HTMLElement | null>(null);
 
 export function _setDragImage(image: HTMLElement | null) {
@@ -57,15 +50,16 @@ export function _setDragImage(image: HTMLElement | null) {
 }
 
 export const activeDragged: Ref<Dragged | null> = shallowRef(null);
+const lastDraggedAt: Ref<DateTime | null> = shallowRef(null);
 const dropZones: Ref<Record<number, DropZone>> = shallowRef({});
 const dropZonesByElement: Map<HTMLElement | SVGElement, DropZone> = new Map();
 const activeDropZone: Ref<DropZone | null> = ref(null);
 
-/** Start dragging the given thing. Sets 'activeDragged'. */
+/** Start dragging the given thing. Sets 'activeDragged' (can only drag one thing at a time). */
 export function startDragging(
   event: DragEvent,
   graph: ReadNodeGraph,
-  data: AnyNodeData | AnyNodeReferenceData | SelectionData | DraggedData,
+  data: AnyNodeData | AnyNodeReferenceData | SelectionData | DraggedContent,
 ) {
   const trigger = event.target as HTMLElement;
   let dragged: Dragged;
@@ -95,7 +89,7 @@ export function startDragging(
         nodes: [data],
       };
     }
-  } /* DraggedData */ else {
+  } /* DraggedContent */ else {
     dragged = { id: uuidt(), trigger, ...data };
   }
 
@@ -107,19 +101,22 @@ export function startDragging(
   trigger.dataset.dragging = "true";
   if (activeDragged.value != null) log.warn("drag.alreadyExists", activeDragged);
   activeDragged.value = dragged;
+  lastDraggedAt.value = DateTime.now();
   log.trace("drag.start", dragged);
 }
 
-const resetDragging = () => {
-  if (activeDragged.value != null) {
-    delete activeDragged.value.trigger.dataset.dragging;
+/** Stops dragging the current thing. */
+function stopDragging() {
+  if (activeDragged.value?.trigger != null) {
+    delete activeDragged.value.trigger?.dataset.dragging;
   }
   activeDragged.value = null;
+  lastDraggedAt.value = null;
   activeDropZone.value = null;
-};
+}
 
 /** Gets the current dragged thing. Must match 'activeDragged'. */
-function getDraggedData(event: DragEvent): DraggedData | null {
+function getDragged(event: DragEvent): DraggedContent | null {
   // get dragged metatype while dragging (can only read keys set in startDragging above)
   if (event.dataTransfer?.types == null) return null;
 
@@ -138,14 +135,7 @@ function getDraggedData(event: DragEvent): DraggedData | null {
 
   // might be a file drop
   if (event.dataTransfer.types.includes("Files")) {
-    // get files if available
-    if (event.dataTransfer.files.length > 0) {
-      return {
-        kind: "file",
-        fileTypes: Array.from(event.dataTransfer.types),
-        files: Array.from(event.dataTransfer.files),
-      };
-    }
+    return { kind: "file", files: event.dataTransfer.files };
   }
 
   // something else
@@ -170,13 +160,13 @@ type DropOptions = {
 
 //
 // Drop zones
-// NOTE: to handl hierarchical drop zones, we manage them globally here and query against thee dropZones registry.
+// NOTE: to handle hierarchical drop zones, we register them globally here and query against thee dropZones registry.
 //
 
 type DropZone = DropOptions & {
   id: number;
   containerEl: Ref<HTMLElement | SVGElement | null>;
-  onDrop?: (dragged: DraggedData, event: DragEvent) => void;
+  onDrop?: (dragged: DraggedContent, event: DragEvent) => void;
 };
 let dropZoneId = 0;
 function newDropZoneId(): number {
@@ -184,20 +174,17 @@ function newDropZoneId(): number {
 }
 
 /** Whether dropping the dragged thing into this zone is possible */
-function isDropCompatible(zone: DropZone, dragged: DraggedData): boolean {
+function isDropCompatible(zone: DropZone, dragged: DraggedContent): boolean {
   if (dragged == null) return false;
   const kinds = unref(zone.kinds);
   if (kinds != null && !kinds.includes(dragged.kind)) return false;
   const metatypes = unref(zone.metatypes);
   if (metatypes != null && dragged.kind == "node" && !metatypes.includes(dragged.node.type)) return false;
-  const fileTypes = unref(zone.fileTypes);
-  if (fileTypes != null && dragged.kind == "file" && dragged.fileTypes.some((t) => !fileTypes.includes(t)))
-    return false;
   return true;
 }
 
-/** Traverses the event targets up to find a */
-function findCompatibleDropZone(el: HTMLElement | SVGElement | null, dragged: DraggedData): DropZone | null {
+/** Traverses the event targets up to find a drop zone that can accept the dragged thing (if any). */
+function findCompatibleDropZone(el: HTMLElement | SVGElement | null, dragged: DraggedContent): DropZone | null {
   while (el) {
     const zone = dropZonesByElement.get(el);
     if (zone && isDropCompatible(zone, dragged)) return zone;
@@ -206,43 +193,57 @@ function findCompatibleDropZone(el: HTMLElement | SVGElement | null, dragged: Dr
   return null;
 }
 
-function updateDropZone(event: DragEvent) {
-  const dragged = getDraggedData(event);
-  if (dragged == null) return;
+/** Updates the active dragging on any drag event. */
+function updateDragging(event: DragEvent) {
+  const dragged = getDragged(event);
+  if (dragged == null) {
+    if (activeDropZone.value != null) stopDragging();
+    return;
+  }
   event.preventDefault();
   const zone = findCompatibleDropZone(event.target as HTMLElement | SVGElement, dragged);
   if (zone?.id !== activeDropZone.value?.id) {
     activeDropZone.value = zone;
     log.trace("drag.activeZone", zone);
   }
+  lastDraggedAt.value = DateTime.now();
+  // schedule check if still active
+  //  (this handles the case where something external is dragged into bench-web and we don't get a dragleave/drop/dragend)
+  setTimeout(() => {
+    if (activeDropZone.value == null) return;
+    if (DateTime.now().diff(lastDraggedAt.value!).milliseconds > 200) {
+      stopDragging();
+    }
+  }, 250);
 }
 
-useEventListener("dragenter", updateDropZone);
-useEventListener("dragover", updateDropZone);
+useEventListener("dragenter", updateDragging);
+useEventListener("dragover", updateDragging);
+useEventListener("dragleave", updateDragging);
 useEventListener("drop", (event) => {
-  const dragged = getDraggedData(event);
+  const dragged = getDragged(event);
   if (dragged == null) return;
   const zone = findCompatibleDropZone(event.target as HTMLElement | SVGElement, dragged);
   if (zone) {
     log.debug("drag.drop", dragged, zone);
     zone.onDrop?.(dragged, event);
   }
-  resetDragging();
+  stopDragging();
 });
-useEventListener("dragend", resetDragging);
+useEventListener("dragend", stopDragging);
 
 /**
  * Track certain drop events in a target region.
  */
 export function useDropZone(
   options: DropOptions & {
-    onDrop?: (dragged: DraggedData, event: DragEvent) => void;
+    onDrop?: (dragged: DraggedContent, event: DragEvent) => void;
   },
 ): { isInDropZone: Ref<boolean> } {
   const isEnabled = options.isEnabled ?? ref(true);
 
   // create & register/deregister zone
-  const zone = {
+  const zone: DropZone = {
     id: newDropZoneId(),
     containerEl: getElementRef(options.container),
     onDrop: options.onDrop,
@@ -273,7 +274,7 @@ export function useDropZone(
 export function useSingleDropZone(
   options: DropOptions & {
     orientation: MaybeRef<Orientation>;
-    onDrop?: (dragged: DraggedData, anchor: "start" | "end", event: DragEvent) => void;
+    onDrop?: (dragged: DraggedContent, anchor: "start" | "end", event: DragEvent) => void;
   },
 ): { activeDropZone: Ref<{ anchor: "start" | "end" } | null>; getActiveDropZone: () => { anchor: "start" | "end" } } {
   const { isInDropZone } = useDropZone({
@@ -297,86 +298,6 @@ export function useSingleDropZone(
   return { activeDropZone, getActiveDropZone };
 }
 
-export type SplitAnchor = "center" | "left" | "top" | "right" | "bottom";
-export const SPLIT_ANCHOR_OPPOSITE: Record<SplitAnchor, SplitAnchor> = {
-  center: "center",
-  left: "right",
-  top: "bottom",
-  right: "left",
-  bottom: "top",
-};
-export const SPLIT_EDGE_ZONE_FRACTION = 0.12;
-
-/*
- * Track 'split' container drop events.
- * The left/top/right/bottom fraction percent are the respective zones, the rest is the center zone.
- * If the cursor is in two zones at once, the edge we're closest to wins.
- */
-export function useSplitDropZone(
-  options: DropOptions & {
-    onDrop?: (dragged: DraggedData, anchor: SplitAnchor, event: DragEvent) => void;
-  },
-): {
-  activeDropZone: Ref<{ anchor: SplitAnchor; splitClass: string } | null>;
-} {
-  const { isInDropZone } = useDropZone({
-    ...options,
-    onDrop: (dragged, event) => {
-      options.onDrop?.(dragged, getActiveDropZone().anchor, event);
-    },
-  });
-  const position = useMouseInElement(options.container);
-
-  function getActiveDropZone(): { anchor: SplitAnchor; splitClass: string } {
-    const mouseX = position.elementX.value;
-    const mouseY = position.elementY.value;
-    const distances = {
-      left: mouseX,
-      top: mouseY,
-      right: position.elementWidth.value - mouseX,
-      bottom: position.elementHeight.value - mouseY,
-    };
-    const closestEdge = Object.keys(distances).reduce((a, b) =>
-      (distances as any)[a] < (distances as any)[b] ? a : b,
-    );
-
-    const horizontalEdgeZone = position.elementWidth.value * SPLIT_EDGE_ZONE_FRACTION;
-    const verticalEdgeZone = position.elementHeight.value * SPLIT_EDGE_ZONE_FRACTION;
-    let anchor: SplitAnchor;
-    switch (closestEdge) {
-      case "left":
-        anchor = mouseX <= horizontalEdgeZone ? "left" : "center";
-        break;
-      case "top":
-        anchor = mouseY <= verticalEdgeZone ? "top" : "center";
-        break;
-      case "right":
-        anchor = mouseX >= position.elementWidth.value - horizontalEdgeZone ? "right" : "center";
-        break;
-      case "bottom":
-        anchor = mouseY >= position.elementHeight.value - verticalEdgeZone ? "bottom" : "center";
-        break;
-      default:
-        anchor = "center";
-    }
-
-    const splitClass = {
-      top: "left-0 top-0 w-full h-1/2",
-      bottom: "left-0 top-1/2 w-full h-1/2",
-      left: "left-0 top-0 w-1/2 h-full",
-      right: "left-1/2 top-0 w-1/2 h-full",
-      center: "left-0 top-0 w-full h-full",
-    }[anchor];
-
-    return { anchor, splitClass };
-  }
-
-  const activeDropZone: Ref<{ anchor: SplitAnchor; splitClass: string } | null> = computed(() =>
-    isInDropZone.value ? getActiveDropZone() : null,
-  );
-  return { activeDropZone };
-}
-
 export type MultiAnchor = "start" | "center" | "end";
 /**
  * Track certain drop zone events across dynamic target regions in a single parent container.
@@ -387,8 +308,8 @@ export function useMultiDropZone(
     orientation: MaybeRef<Orientation>;
     fallbackToClosest?: boolean;
     hasCenterAnchor?: boolean;
-    allowDrop?: (dragged: DraggedData, anchor: MultiAnchor, targetId: string, event?: DragEvent) => boolean;
-    onDrop?: (dragged: DraggedData, anchor: MultiAnchor, targetId: string | null, event: DragEvent) => void;
+    allowDrop?: (dragged: DraggedContent, anchor: MultiAnchor, targetId: string, event?: DragEvent) => boolean;
+    onDrop?: (dragged: DraggedContent, anchor: MultiAnchor, targetId: string | null, event: DragEvent) => void;
   },
 ): { activeDropZone: Ref<{ anchor: MultiAnchor; targetId: string | null } | null> } {
   const { activeDropZone: singleDropZone, getActiveDropZone: getSingleActiveDropZone } = useSingleDropZone({
@@ -451,5 +372,85 @@ export function useMultiDropZone(
     return activeDropZone;
   });
 
+  return { activeDropZone };
+}
+
+export type SplitAnchor = "center" | "left" | "top" | "right" | "bottom";
+export const SPLIT_ANCHOR_OPPOSITE: Record<SplitAnchor, SplitAnchor> = {
+  center: "center",
+  left: "right",
+  top: "bottom",
+  right: "left",
+  bottom: "top",
+};
+export const SPLIT_EDGE_ZONE_FRACTION = 0.12;
+
+/*
+ * Track 'split' container drop events.
+ * The left/top/right/bottom fraction percent are the respective zones, the rest is the center zone.
+ * If the cursor is in two zones at once, the edge we're closest to wins.
+ */
+export function useSplitDropZone(
+  options: DropOptions & {
+    onDrop?: (dragged: DraggedContent, anchor: SplitAnchor, event: DragEvent) => void;
+  },
+): {
+  activeDropZone: Ref<{ anchor: SplitAnchor; splitClass: string } | null>;
+} {
+  const { isInDropZone } = useDropZone({
+    ...options,
+    onDrop: (dragged, event) => {
+      options.onDrop?.(dragged, getActiveDropZone().anchor, event);
+    },
+  });
+  const position = useMouseInElement(options.container);
+
+  function getActiveDropZone(): { anchor: SplitAnchor; splitClass: string } {
+    const mouseX = position.elementX.value;
+    const mouseY = position.elementY.value;
+    const distances = {
+      left: mouseX,
+      top: mouseY,
+      right: position.elementWidth.value - mouseX,
+      bottom: position.elementHeight.value - mouseY,
+    };
+    const closestEdge = Object.keys(distances).reduce((a, b) =>
+      (distances as any)[a] < (distances as any)[b] ? a : b,
+    );
+
+    const horizontalEdgeZone = position.elementWidth.value * SPLIT_EDGE_ZONE_FRACTION;
+    const verticalEdgeZone = position.elementHeight.value * SPLIT_EDGE_ZONE_FRACTION;
+    let anchor: SplitAnchor;
+    switch (closestEdge) {
+      case "left":
+        anchor = mouseX <= horizontalEdgeZone ? "left" : "center";
+        break;
+      case "top":
+        anchor = mouseY <= verticalEdgeZone ? "top" : "center";
+        break;
+      case "right":
+        anchor = mouseX >= position.elementWidth.value - horizontalEdgeZone ? "right" : "center";
+        break;
+      case "bottom":
+        anchor = mouseY >= position.elementHeight.value - verticalEdgeZone ? "bottom" : "center";
+        break;
+      default:
+        anchor = "center";
+    }
+
+    const splitClass = {
+      top: "left-0 top-0 w-full h-1/2",
+      bottom: "left-0 top-1/2 w-full h-1/2",
+      left: "left-0 top-0 w-1/2 h-full",
+      right: "left-1/2 top-0 w-1/2 h-full",
+      center: "left-0 top-0 w-full h-full",
+    }[anchor];
+
+    return { anchor, splitClass };
+  }
+
+  const activeDropZone: Ref<{ anchor: SplitAnchor; splitClass: string } | null> = computed(() =>
+    isInDropZone.value ? getActiveDropZone() : null,
+  );
   return { activeDropZone };
 }

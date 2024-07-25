@@ -5,7 +5,7 @@ import type { ActionContext, ActionMapImplementation } from "@/system/action";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
 import { RUNNABLE_BLOCK_TYPES, createField, moveNode, onNodeMorphed, toCamelName } from "@/system/lang";
 import { canvas } from "@/system/space";
-import { startDragging, useMultiDropZone, type DraggedData, type MultiAnchor } from "@/utils/drag";
+import { startDragging, useMultiDropZone, type DraggedContent, type MultiAnchor } from "@/utils/drag";
 import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/utils/menu";
 import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import Field from "@/views/system/Field.vue";
@@ -62,14 +62,14 @@ const rightFields = computed(() => {
 
 // dragging
 // NOTE: we have separate drop zones for left/right (for function types)
-function allowDrop(dragged: DraggedData, anchor: MultiAnchor, targetId: string | null, event?: DragEvent): boolean {
+function allowDrop(dragged: DraggedContent, anchor: MultiAnchor, targetId: string | null, event?: DragEvent): boolean {
   if (dragged.kind != "node") return false;
   const node = pkgGraph.get(dragged.node);
   if (!isNode(node, NodeType.FIELD)) return false;
   if ((node.zone == FieldZone.OPTION) != (block.value?.type == BlockType.CHOICE)) return false;
   return true;
 }
-function onDrop(dragged: DraggedData, anchor: MultiAnchor, targetId: string | null, event: DragEvent) {
+function onDrop(dragged: DraggedContent, anchor: MultiAnchor, targetId: string | null, event: DragEvent) {
   if (dragged.kind == "node") {
     const node = pkgGraph.getOrError(dragged.node) as FieldData;
     const side = leftRef.value?.contains(event.target as Node) ? "left" : "right";

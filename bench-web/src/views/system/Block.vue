@@ -204,10 +204,7 @@ defineExpose<ViewExposed & { isRunnable: Ref<boolean> }>({
                   createField(pkgConnection.tx, pkgGraph, {
                     anchor: 'inside',
                     target: block!,
-                    field: {
-                      kind: TypeKind.LITERAL,
-                      zone: FieldZone.OPTION,
-                    },
+                    field: { kind: TypeKind.LITERAL, zone: FieldZone.OPTION },
                   });
                 } else {
                   const button = (e.target as HTMLElement).closest('button')!;

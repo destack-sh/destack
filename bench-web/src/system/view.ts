@@ -64,7 +64,10 @@ export function getViewForValueType(type: Omit<TypeIdentity, "kind"> & Partial<T
         // specific file type view
         return {
           viewType: VIEW_TYPE_BY_FILE_TYPE[type.constraint.fileType]!,
-          props: { valueType: makeTypeInfo(type) },
+          props: {
+            valueType: makeTypeInfo(type),
+            isInline: [FileType.IMAGE, FileType.AUDIO, FileType.VIDEO].includes(type.constraint.fileType),
+          },
         };
       }
       // specific bench type view

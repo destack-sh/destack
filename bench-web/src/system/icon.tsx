@@ -379,6 +379,7 @@ export const ICON_BY_FILE_TYPE: Partial<Record<FileType, IconData>> = _makeIcons
   [FileType.GENERIC]: "fas fa-file",
 });
 
+// TODO :UX: use vscode-icons for file format icons
 export const ICON_BY_FILE_FORMAT: Partial<Record<FileFormat, IconData>> = _makeIcons({
   // text
   [FileFormat.TXT]: "fas fa-file-lines",
@@ -398,7 +399,6 @@ export const ICON_BY_FILE_FORMAT: Partial<Record<FileFormat, IconData>> = _makeI
   [FileFormat.DOC]: "fas fa-file-word",
   [FileFormat.XLS]: "fas fa-file-excel",
   [FileFormat.PPT]: "fas fa-file-powerpoint",
-
 });
 
 export const ICON_BY_FIELD_ZONE: Partial<Record<FieldZone, IconData>> = _makeIcons({

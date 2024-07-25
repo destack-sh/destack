@@ -93,12 +93,12 @@ defineExpose<ViewExposed>({ self });
           <!-- Property -->
           <li
             class="mx-auto w-full px-5"
-            :class="[isFullWidth ? 'flex flex-col' : 'flex flex-row flex-wrap items-center gap-x-[10%]']"
+            :class="[isFullWidth ? 'flex flex-col gap-y-0.5' : 'flex flex-row flex-wrap items-center gap-x-[10%]']"
             :style="{ minWidth: MIN_WIDTH + 'px', maxWidth: MAX_WIDTH + 'px' }"
           >
             <!-- Title & Controls -->
             <span class="w-[100px]">
-              <span class="max-w-full truncate py-1 font-medium text-gray-700">{{ title }}</span>
+              <span class="max-w-full truncate py-1 font-medium">{{ title }}</span>
             </span>
             <!-- Value -->
             <component

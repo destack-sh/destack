@@ -3,11 +3,12 @@ import { ViewData, NodeType, FileReferenceData, ViewType, FileType } from "@/pro
 import { describeNode, type TypedNodeReferenceData } from "@/proto/wiring";
 import { makeViewId, ViewContentWrapper, viewEmits, type ViewExposed } from "@/views/common";
 import { canvas } from "@/system/space";
-import { computed, toRef } from "vue";
+import { computed, ref, toRef } from "vue";
 import { toCamelName } from "@/system/lang";
 import { ICON_BY_FILE_FORMAT, ICON_BY_FILE_TYPE, IconInline } from "@/system/icon";
 import { humanizeBytes } from "@/utils/string";
 import { FILE_TYPE_BY_VIEW_TYPE } from "@/system/view";
+import { useDropZone } from "@/utils/drag";
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; modelValue?: FileReferenceData } & Partial<
@@ -37,13 +38,36 @@ const fileType = computed(() => {
   else return FileType.GENERIC;
 });
 const fileFormat = computed(() => props.valueType?.constraint?.fileFormat);
-
 const facetIcon = computed(() => {
   if (fileFormat.value != null && ICON_BY_FILE_FORMAT[fileFormat.value] != null) {
     return ICON_BY_FILE_FORMAT[fileFormat.value];
   } else {
     return ICON_BY_FILE_TYPE[fileType.value];
   }
+});
+
+//
+// Interaction
+//
+
+const fileInputRef = ref<HTMLInputElement | null>(null);
+const containerRef = ref<HTMLElement | null>(null);
+
+function onFileSelected(event: Event) {
+  // nocheckin: use file
+  console.log(event);
+}
+
+const { isInDropZone } = useDropZone({
+  name: "file",
+  container: containerRef,
+  kinds: ["file"],
+  onDrop: (dragged, event) => {
+    if (dragged.kind == "file") {
+      onFileSelected(event);
+    }
+  },
+  isEnabled: computed(() => props.isInput && !props.isDisabled),
 });
 
 canvas.registerView(self, id);
@@ -55,17 +79,28 @@ defineExpose<ViewExposed>({ self, id });
     <!-- Dropdown -->
     <button
       v-if="!isInline"
-      ref="buttonRef"
-      class="group flex w-full flex-row items-center rounded border border-gray-200 px-2.5 py-1 hover:border-gray-300 data-[popover=true]:border-gray-300"
+      ref="containerRef"
+      class="group flex w-full flex-row items-center rounded border px-2.5 py-1 transition-all duration-75 data-[popover=true]:border-gray-300"
+      :class="[
+        isInDropZone
+          ? 'border-primary-400 bg-primary-200 outline outline-1 outline-primary-400'
+          : 'border-gray-200  hover:border-gray-300',
+      ]"
+      @click="fileInputRef!.click()"
     >
+      <input ref="fileInputRef" type="file" class="hidden" @change="onFileSelected" />
       <!-- Current value -->
       <template v-if="modelValue != null">
         <IconInline v-bind="facetIcon" class="mr-1.5 w-5 text-gray-700" />
         <span>{{ modelValue.title ?? "???" }}</span>
         <span class="text-xs text-gray-400">{{ humanizeBytes(17000) }}</span>
       </template>
-      <span v-else class="select-none text-gray-400">
-        <IconInline v-bind="facetIcon" class="mr-1.5 w-5 text-gray-400" />
+      <span
+        v-else
+        class="select-none transition-colors duration-75"
+        :class="isInDropZone ? 'text-primary-900' : 'text-gray-400'"
+      >
+        <IconInline v-bind="facetIcon" class="mr-1.5 w-5" />
         <span>Upload {{ toCamelName(FileType, fileType ?? ViewType.FILE) }}</span>
       </span>
       <!-- Controls -->
@@ -80,5 +115,35 @@ defineExpose<ViewExposed>({ self, id });
         <i class="fas fa-caret-down ml-auto text-gray-400 hover:text-primary-900" />
       </div>
     </button>
+
+    <!-- Inline drop area -->
+    <div
+      v-else-if="modelValue == null"
+      ref="containerRef"
+      class="flex h-full min-h-[60px] w-full cursor-pointer flex-col justify-center rounded border px-2.5 py-1 text-center transition-all duration-75"
+      :class="[
+        isInDropZone
+          ? 'border-primary-400 bg-primary-200 text-primary-900 outline outline-1 outline-primary-400'
+          : ' border-gray-200 text-gray-400  hover:border-gray-300',
+      ]"
+      @click="fileInputRef!.click()"
+    >
+      <input ref="fileInputRef" type="file" class="hidden" @change="onFileSelected" />
+      <span class="select-none transition-colors duration-75">
+        <IconInline v-bind="facetIcon" class="mr-1.5 w-5" />
+        <span>Upload {{ toCamelName(FileType, fileType ?? ViewType.FILE) }}</span>
+      </span>
+    </div>
+
+    <!-- Inline value -->
+    <div
+      v-else
+      ref="containerRef"
+      class="h-full w-full rounded border border-gray-200"
+      :class="[isInDropZone ? 'border-primary-400' : '']"
+    >
+      <!-- nocheckin: file view (image, audio, ... generic) -->
+      {{ describeNode(modelValue) }}
+    </div>
   </ViewContentWrapper>
 </template>
