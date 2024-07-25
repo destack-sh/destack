@@ -260,7 +260,7 @@ class RuntimeRunner:
 
         # make state
         if kind == RunKind.CODE:
-            code = code or node.code
+            code = code or node.code or Code.empty()
             if (isinstance(node, Block) and node.has_function_fields) or isinstance(node, Step):
                 key = CodeType.FUNCTION
             else:
