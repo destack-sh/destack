@@ -3883,23 +3883,23 @@ class CreateBenchResponse(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class GetHostsRequest(betterproto.Message):
-    benches: List["GetHostsRequestBenchKey"] = betterproto.message_field(1)
+class ResolveHostsRequest(betterproto.Message):
+    benches: List["ResolveHostsRequestBenchKey"] = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
-class GetHostsRequestBenchKey(betterproto.Message):
+class ResolveHostsRequestBenchKey(betterproto.Message):
     id: str = betterproto.string_field(1, group="bench")
     slug: str = betterproto.string_field(2, group="bench")
 
 
 @dataclass(eq=False, repr=False)
-class GetHostsResponse(betterproto.Message):
-    hosts: List["GetHostsResponseHostInfo"] = betterproto.message_field(1)
+class ResolveHostsResponse(betterproto.Message):
+    hosts: List["ResolveHostsResponseHostInfo"] = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
-class GetHostsResponseHostInfo(betterproto.Message):
+class ResolveHostsResponseHostInfo(betterproto.Message):
     host_uri: str = betterproto.string_field(1)
     bench: "NodeReferenceData" = betterproto.message_field(2)
 
@@ -4311,18 +4311,18 @@ class SupervisorClient(betterproto.ServiceStub):
             metadata=metadata,
         )
 
-    async def get_hosts(
+    async def resolve_hosts(
         self,
-        request: "GetHostsRequest",
+        request: "ResolveHostsRequest",
         *,
         timeout: Optional[float] = None,
         deadline: Optional["Deadline"] = None,
         metadata: Optional["MetadataLike"] = None,
-    ) -> "GetHostsResponse":
+    ) -> "ResolveHostsResponse":
         return await self._unary_unary(
-            "/symbolx.bench.Supervisor/GetHosts",
+            "/symbolx.bench.Supervisor/ResolveHosts",
             request,
-            GetHostsResponse,
+            ResolveHostsResponse,
             timeout=timeout,
             deadline=deadline,
             metadata=metadata,
@@ -4752,7 +4752,9 @@ class SupervisorBase(ServiceBase):
     ) -> "CreateBenchResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def get_hosts(self, subject: "Subject", request: "GetHostsRequest") -> "GetHostsResponse":
+    async def resolve_hosts(
+        self, subject: "Subject", request: "ResolveHostsRequest"
+    ) -> "ResolveHostsResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def __rpc_get_nodes(
@@ -4852,11 +4854,11 @@ class SupervisorBase(ServiceBase):
         response = await self.create_bench(request)
         await stream.send_message(response)
 
-    async def __rpc_get_hosts(
-        self, stream: "grpclib.server.Stream[GetHostsRequest, GetHostsResponse]"
+    async def __rpc_resolve_hosts(
+        self, stream: "grpclib.server.Stream[ResolveHostsRequest, ResolveHostsResponse]"
     ) -> None:
         request = await stream.recv_message()
-        response = await self.get_hosts(request)
+        response = await self.resolve_hosts(request)
         await stream.send_message(response)
 
     def __mapping__(self) -> Dict[str, grpclib.const.Handler]:
@@ -4933,11 +4935,11 @@ class SupervisorBase(ServiceBase):
                 CreateBenchRequest,
                 CreateBenchResponse,
             ),
-            "/symbolx.bench.Supervisor/GetHosts": grpclib.const.Handler(
-                self.__rpc_get_hosts,
+            "/symbolx.bench.Supervisor/ResolveHosts": grpclib.const.Handler(
+                self.__rpc_resolve_hosts,
                 grpclib.const.Cardinality.UNARY_UNARY,
-                GetHostsRequest,
-                GetHostsResponse,
+                ResolveHostsRequest,
+                ResolveHostsResponse,
             ),
         }
 

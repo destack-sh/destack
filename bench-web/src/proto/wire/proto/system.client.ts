@@ -8,8 +8,8 @@ import type { DownloadFilesRequest } from "./system";
 import type { UploadFilesResponse } from "./system";
 import type { UploadFilesRequest } from "./system";
 import { Supervisor } from "./system";
-import type { GetHostsResponse } from "./system";
-import type { GetHostsRequest } from "./system";
+import type { ResolveHostsResponse } from "./system";
+import type { ResolveHostsRequest } from "./system";
 import type { CreateBenchResponse } from "./system";
 import type { CreateBenchRequest } from "./system";
 import type { LogoutUserResponse } from "./system";
@@ -244,9 +244,9 @@ export interface ISupervisorClient {
     /**
      * Gets Bench host information.
      *
-     * @generated from protobuf rpc: GetHosts(symbolx.bench.GetHostsRequest) returns (symbolx.bench.GetHostsResponse);
+     * @generated from protobuf rpc: ResolveHosts(symbolx.bench.ResolveHostsRequest) returns (symbolx.bench.ResolveHostsResponse);
      */
-    getHosts(input: GetHostsRequest, options?: OperationOptions): UnaryCall<GetHostsRequest, GetHostsResponse>;
+    resolveHosts(input: ResolveHostsRequest, options?: OperationOptions): UnaryCall<ResolveHostsRequest, ResolveHostsResponse>;
 }
 /**
  * Global control plane: create & manage the global stuff like Benches, Users, etc..
@@ -368,11 +368,11 @@ export class SupervisorClient implements ISupervisorClient, ServiceInfo {
     /**
      * Gets Bench host information.
      *
-     * @generated from protobuf rpc: GetHosts(symbolx.bench.GetHostsRequest) returns (symbolx.bench.GetHostsResponse);
+     * @generated from protobuf rpc: ResolveHosts(symbolx.bench.ResolveHostsRequest) returns (symbolx.bench.ResolveHostsResponse);
      */
-    getHosts(input: GetHostsRequest, options?: OperationOptions): UnaryCall<GetHostsRequest, GetHostsResponse> {
+    resolveHosts(input: ResolveHostsRequest, options?: OperationOptions): UnaryCall<ResolveHostsRequest, ResolveHostsResponse> {
         const method = this.methods[12], opt = this._transport.mergeOptions(options);
-        return stackIntercept<GetHostsRequest, GetHostsResponse>("unary", this._transport, method, opt, input);
+        return stackIntercept<ResolveHostsRequest, ResolveHostsResponse>("unary", this._transport, method, opt, input);
     }
 }
 /**

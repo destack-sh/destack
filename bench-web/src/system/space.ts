@@ -1,4 +1,4 @@
-import { getHostClient } from "@/proto/services";
+import { resolveHostClient } from "@/proto/services";
 import { BenchData, BranchData, ChangeCategory, NodeType, SpaceType } from "@/proto/wire";
 import {
   makeScope,
@@ -147,7 +147,7 @@ export async function goToBench(go: {
 
   // connect to bench/package
   const scope = makeScope({ benchId: go.bench.id! });
-  const host = await getHostClient({ id: go.bench.id! });
+  const host = await resolveHostClient({ id: go.bench.id! });
   const {
     response: { nodes },
   } = await host.getNodes({

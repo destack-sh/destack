@@ -27,13 +27,13 @@ from bench.proto.wire import (
     ClientDataIn,
     CreateBenchRequest,
     CreateBenchResponse,
-    GetHostsRequest,
-    GetHostsResponse,
-    GetHostsResponseHostInfo,
     LoginUserRequest,
     LoginUserResponse,
     LogoutUserRequest,
     LogoutUserResponse,
+    ResolveHostsRequest,
+    ResolveHostsResponse,
+    ResolveHostsResponseHostInfo,
     RpcMetadata,
     ServiceKind,
     SignupUserRequest,
@@ -376,11 +376,13 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
         return CreateBenchResponse(bench=bench._to_data())
 
     @override
-    async def get_hosts(self, subject: "Subject", request: "GetHostsRequest") -> "GetHostsResponse":
+    async def resolve_hosts(
+        self, subject: "Subject", request: "ResolveHostsRequest"
+    ) -> "ResolveHostsResponse":
         async with self.request_session(supergraph=subject._supergraph):
-            hosts: list[GetHostsResponseHostInfo] = []
+            hosts: list[ResolveHostsResponseHostInfo] = []
             for bench_key in request.benches:
-                # NOTE :Performance: batch get_hosts lookups
+                # NOTE :Performance: batch resolve_hosts lookups
                 key, value = betterproto.which_one_of(bench_key, "bench")
                 if key == "id":
                     bench = await Bench.get(id=to_uuid(value))
@@ -391,11 +393,11 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
                 host_uri = self._host_map.get(bench.region)
                 if host_uri is None:
                     raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "no host for bench")
-                host_info = GetHostsResponseHostInfo(
+                host_info = ResolveHostsResponseHostInfo(
                     host_uri=host_uri, bench=bench._to_plain_ref_data()
                 )
                 hosts.append(host_info)
-        return GetHostsResponse(hosts=hosts)
+        return ResolveHostsResponse(hosts=hosts)
 
 
 async def create_default_bench(
