@@ -11,6 +11,7 @@ from typing import (
     Iterable,
     Mapping,
     Optional,
+    Sequence,
     TypeVar,
     Union,
     assert_never,
@@ -45,7 +46,7 @@ from bench.language.const import (
 )
 from bench.language.expression import C, Expression, ExpressionOps
 from bench.language.graph import NodeDataGraph
-from bench.language.node import NODE_CLASS_BY_TYPE, UNSET, BenchNode, Node
+from bench.language.node import NODE_CLASS_BY_TYPE, UNSET, BenchNode, Node, SomeNodeReferenceData
 from bench.language.query import FILTER_VISIBLE, SELECT_ALL_PROPERTIES, ReadOptions
 from bench.language.setup import (
     DESCENDANT_NODE_TYPES_IN_STORE,
@@ -55,7 +56,15 @@ from bench.language.setup import (
 )
 from bench.language.value import pack_builtin_object_data, unpack_builtin_object_data
 from bench.proto import wire, wiring
-from bench.proto.wire import AnyNodeData, EditData, GraphScopeData, IdEnum, NodeReferenceData
+from bench.proto.wire import (
+    AnyNodeData,
+    EditData,
+    FileReferenceData,
+    GraphScopeData,
+    IdEnum,
+    NodeReferenceData,
+    SecretReferenceData,
+)
 from bench.proto.wiring import PROTO_CLASS_BY_TYPE
 from bench.sql import schema
 from bench.sql.client import get_pg_crypto_key
@@ -1448,7 +1457,7 @@ async def pg_get_node_graph(
     *,
     cur: psycopg.AsyncCursor,
     root_type: NodeType,
-    roots: list[NodeReferenceData] | list[AnyNodeData],
+    roots: Sequence[SomeNodeReferenceData] | Sequence[AnyNodeData],
     options: ReadOptions,
     visited_graph: NodeDataGraph,
 ) -> None:
@@ -1461,7 +1470,8 @@ async def pg_get_node_graph(
     assert roots, "no roots to select"
 
     # get roots
-    if isinstance(roots[0], NodeReferenceData):
+    root_nodes: list[AnyNodeData]
+    if isinstance(roots[0], (NodeReferenceData, FileReferenceData, SecretReferenceData)):
         # select roots
         roots_ids = [node.id for node in roots]
         root_filter = options.filter(
@@ -1474,7 +1484,7 @@ async def pg_get_node_graph(
             properties=options.select(root_type),
         )
     else:  # already got nodes
-        root_nodes = cast(tuple[AnyNodeData, ...], roots)
+        root_nodes = cast(list[AnyNodeData], list(roots))
     for node in root_nodes:
         visited_graph.add(node)
 

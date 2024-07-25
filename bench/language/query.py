@@ -480,12 +480,14 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
             query._read_type = ReadType.GET
             channel = await query._get_read_channel()
             connection = await channel.get(query, GetOptions(unpack=True, live=live))
+
+            # coerce to node/list of nodes
             if len(connection.result.roots) != len(query._roots):
                 if len(connection.result.roots) < len(query._roots):
                     raise NodeNotFoundError(query=query)
                 else:
                     raise MultipleNodesFoundError(query=query, result=connection.result.roots)
-            if len(connection.result.roots) == 1:
+            if isinstance(filter, NodeReferenceBase):  # keep single node
                 node = connection.result.roots[0]
                 return cast(NodeT, node)
             else:

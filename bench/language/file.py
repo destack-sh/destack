@@ -1,6 +1,6 @@
 import hashlib
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional, Union, assert_never, override
+from typing import TYPE_CHECKING, Literal, Optional, Union, assert_never, overload, override
 
 import aiohttp
 import structlog
@@ -530,6 +530,18 @@ class File(RemoteNode[FileData], FileInfoBase):
     _cached_get_url: Optional[str] = p_runtime(default=None)
     _cached_content: Optional[bytes] = p_runtime(default=None)
 
+    def to_ref(self) -> "FileReference":
+        """Gets a reference to this file."""
+        return FileReference._ref_from_node(self)
+
+    def _to_ref_data(self) -> FileReferenceData:
+        """Gets a data reference to this file."""
+        return FileReference._ref_from_node(self)._to_data()
+
+    #
+    # Generic content
+    #
+
     @property
     def content(self) -> bytes:
         """The file content."""
@@ -540,13 +552,24 @@ class File(RemoteNode[FileData], FileInfoBase):
         else:
             raise ValueError(f"content not ready for {self!r}")
 
-    def to_ref(self) -> "FileReference":
-        """Gets a reference to this file."""
-        return FileReference._ref_from_node(self)
+    def clear_cache(self):
+        """Clears the cached content and URL."""
+        self._cached_content = None
+        self._cached_get_url = None
 
-    def _to_ref_data(self) -> FileReferenceData:
-        """Gets a data reference to this file."""
-        return FileReference._ref_from_node(self)._to_data()
+    @overload
+    async def download(self, *, include_content: Literal[True] = True) -> bytes: ...
+    @overload
+    async def download(self, *, include_content: Literal[False] = False) -> str: ...
+    async def download(self, *, include_content: bool = True) -> Union[bytes, str]:
+        """Downloads the file from the host."""
+        await _do_download_files(self.active_session, [self], include_content=include_content)
+        if include_content:
+            assert self._cached_content is not None, f"content not ready for {self!r}"
+            return self._cached_content
+        else:
+            assert self._cached_get_url is not None, f"content not ready for {self!r}"
+            return self._cached_get_url
 
     @staticmethod
     async def upload(
@@ -647,10 +670,14 @@ async def _do_upload_files(session: "Session", files: list[File], file_contents:
                 )
                 async with http_session.post(handle.post_url, data=form_data) as resp:
                     resp.raise_for_status()
+                file._cached_content = file_content
+                file._cached_get_url = handle.get_url
 
 
 @tracer.start_as_current_span("file.download_batch")
-async def _do_download_files(session: "Session", file_refs: list[FileReference]) -> list[File]:
+async def _do_download_files(
+    session: "Session", file_refs: list[FileReference | File], *, include_content: bool
+) -> list[File]:
     """Downloads the given Files from their Host."""
     if not file_refs:
         return []
@@ -659,45 +686,36 @@ async def _do_download_files(session: "Session", file_refs: list[FileReference])
 
     # get download URLs
     download_req = DownloadFilesRequest(
-        scope=session._get_scope_for_node(file_refs[0]), files=[f._to_data() for f in file_refs]
+        scope=session._get_scope_for_node(session),
+        files=[(f.to_ref() if isinstance(f, File) else f)._to_data() for f in file_refs],
     )
     download_rep = await session.host.download_files(download_req, metadata=session._rpc_headers)
-    files: list[File] = [
-        unpack_object(h.file, supergraph=session._supergraph, expect=File)
-        for h in download_rep.handles
-    ]
-    assert len(download_rep.handles) == len(
-        file_refs
-    ), f"unexpected handles: {len(download_rep.handles)} != {len(file_refs)}"
+    files: list[File] = []
+    for file_ref, handle in zip(file_refs, download_rep.handles):
+        if isinstance(file_ref, File):
+            file = file_ref
+        else:
+            file = unpack_object(handle.file, supergraph=session._supergraph, expect=File)
+        files.append(file)
+        file._cached_get_url = handle.get_url
 
     # download files
-    file_contents: list[bytes] = []
-    async with aiohttp.ClientSession() as http_session:
-        for file, handle in zip(files, download_rep.handles):
-            # get file from url
-            with tracer.start_as_current_span("file.download", attributes={"file": repr(file)}):
-                async with http_session.get(handle.get_url) as resp:
-                    resp.raise_for_status()
-                    file_content = await resp.read()
-                file_contents.append(file_content)
-                file._cached_content = file_content
+    if include_content:
+        file_contents: list[bytes] = []
+        async with aiohttp.ClientSession() as http_session:
+            for file, handle in zip(files, download_rep.handles):
+                # get file from url
+                with tracer.start_as_current_span("file.download", attributes={"file": repr(file)}):
+                    async with http_session.get(handle.get_url) as resp:
+                        resp.raise_for_status()
+                        file_content = await resp.read()
+                    file_contents.append(file_content)
+                    file._cached_content = file_content
 
     return files
 
 
 FileIn = Union[str, bytes]
-
-
-_magika: "Magika | None" = None
-
-
-def _get_magika() -> "Magika":
-    from magika import Magika
-
-    global _magika
-    if _magika is None:
-        _magika = Magika()
-    return _magika
 
 
 async def upload(
@@ -723,7 +741,7 @@ async def upload(
         if drive is None:
             raise ValueError(f"no drive to upload file {title!r} to in {session!r}")
 
-    # get content
+    # content
     content: bytes
     if isinstance(file_in, str):
         content = file_in.encode()
@@ -737,7 +755,7 @@ async def upload(
         format = format.lower()
         assert format in FILE_FORMAT_BY_EXTENSION, f"unknown format: {format}"
         format = FILE_FORMAT_BY_EXTENSION.get(format)
-    if format is None and title is not None:
+    if format is None and title is not None and "." in title:
         format = FILE_FORMAT_BY_EXTENSION.get(title.split(".")[-1])
     if format is not None:
         coarse_type = format.coarse_type
@@ -747,13 +765,14 @@ async def upload(
         mime_type = format.mime_type
 
     # guess with magika if needed
-    if mime_type is None:
-        magika_result = _get_magika().identify_bytes(content)
-        if magika_result:
-            mime_type = magika_result.output.mime_type
-            format = FORMAT_BY_MIME_TYPE.get(mime_type)
-            if format is not None:
-                coarse_type = format.coarse_type
+    if format is None:
+        mime_type, format = detect_file_format(content)
+        if format is not None:
+            coarse_type = format.coarse_type
+
+    # add extension if needed
+    if format is not None and "." not in title and format.extension is not None:
+        title = f"{title}.{format.extension}"
 
     # nocheckin: extract file metadata
     size = len(content)
@@ -775,3 +794,28 @@ async def upload(
     session._create(file)
 
     return file
+
+
+_magika: "Magika | None" = None
+
+
+def _get_magika() -> "Magika":
+    from magika import Magika
+
+    global _magika
+    if _magika is None:
+        _magika = Magika()
+    return _magika
+
+
+@tracer.start_as_current_span("file.detect_format")
+def detect_file_format(content: bytes) -> tuple[str | None, FileFormat | None]:
+    """Detects the file format from the given file content."""
+    magika = _get_magika()
+    magika_result = magika.identify_bytes(content)
+    if magika_result:
+        mime_type = magika_result.output.mime_type
+        format = FORMAT_BY_MIME_TYPE.get(mime_type)
+        return mime_type, format
+    else:
+        return None, None
