@@ -36,8 +36,8 @@ from bench.proto.wire import (
 )
 from bench.proto.wiring import pack_rpc_headers
 from bench.runtime.thread import RuntimeThread
-from bench.utils.oracle import Oracle
-from bench.utils.tenacity import RETRY_GRPC_FOREVER
+from bench.utils.oracle import REAL_ORACLE, Oracle
+from bench.utils.tenacity import RETRY_GRPC_FOREVER, retry
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -166,6 +166,7 @@ class Runtime(ServiceBase, RuntimeBase):
         return QueueRunResponse()
 
     @cachetools.cached({})
+    @retry(RETRY_GRPC_FOREVER, REAL_ORACLE)
     @tracer.start_as_current_span("runtime.resolve_host")
     async def _get_host_client(self, bench_id: UUID) -> HostClient:
         request = ResolveHostsRequest(benches=[ResolveHostsRequestBenchKey(id=str(bench_id))])

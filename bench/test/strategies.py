@@ -8,6 +8,7 @@ import structlog
 from cachetools import cached
 from hypothesis import example, given, reject, settings
 from hypothesis import strategies as st
+from hypothesis.strategies import SearchStrategy
 from hypothesis.strategies._internal.utils import cacheable, defines_strategy
 
 from bench.language import NodeReference
@@ -83,7 +84,7 @@ TYPE_KIND_STRATEGY = st.sampled_from(TypeKind)
 PRIMITIVE_TYPE_STRATEGY = st.sampled_from(PrimitiveType)
 ENUM_TYPE_STRATEGY = st.sampled_from(EnumType)
 STRUCT_TYPE_STRATEGY = st.sampled_from(StructType)
-OBJECT_TYPE_STRATEGY = st.sampled_from(ObjectType)
+OBJECT_TYPE_STRATEGY: SearchStrategy[ObjectType] = st.sampled_from(ObjectType)  # type: ignore
 
 
 @cacheable

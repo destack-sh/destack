@@ -1,3 +1,4 @@
+from asyncio import CancelledError
 from dataclasses import dataclass
 from functools import wraps
 from typing import Any, Awaitable, Callable, Coroutine, Type, TypeVar, Union
@@ -116,7 +117,7 @@ class RetryState:
 def retry(
     options: Union[RetryOptions, Callable[..., RetryOptions]],
     oracle: Oracle,
-    on_error: Callable[..., Awaitable[T]] | None = None,
+    on_error: Callable[..., None] | None = None,
 ):
     """
     Retry the decorated coroutine function on certain exceptions.
@@ -158,7 +159,9 @@ def is_retryable_grpc_error(e: Exception) -> bool:
             GRPCStatus.DEADLINE_EXCEEDED,
             GRPCStatus.RESOURCE_EXHAUSTED,
         )
-    ) or isinstance(e, (OSError, StreamTerminatedError, ProtocolError))
+    ) or isinstance(
+        e, (OSError, StreamTerminatedError, ProtocolError, RuntimeError, CancelledError)
+    )
 
 
 RETRY_STANDARD = RetryOptions()
