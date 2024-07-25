@@ -81,10 +81,10 @@ def make_session(name: str):
 
 
 # NOTE :Cleanup: manually set session sync context since it's not propagated across pytest tasks (see above)
-# https://github.com/pytest-dev/pytest-asyncio/issues/127#issuecomment-862817549
+# https://github.com/pytest-dev/pytest-asyncio/issues/127#issuecomment-862817549 :PytestAsyncContext
 
 
-@pytest.fixture()
+@pytest.fixture()  # :PytestAsyncContext
 async def session_async(request):
     session = make_session(clean_name(request.node.name))
     await session.open(set_in_context=False)

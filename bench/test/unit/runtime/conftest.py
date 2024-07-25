@@ -1,3 +1,6 @@
+from dataclasses import dataclass
+from typing import Any
+
 import pytest
 
 from bench.language import Bench, Session, Store
@@ -15,9 +18,11 @@ from bench.language.const import (
 )
 from bench.language.graph import NodeSuperGraph
 from bench.language.node import EMPTY_SCOPE, GraphScope
+from bench.language.run import Run
+from bench.language.step import Step
 from bench.language.user import User
 from bench.proto.wire import HostClient, RpcMetadata
-from bench.runtime.runner import RuntimeRunner
+from bench.runtime.runner import RunHandle, RuntimeRunner
 from bench.system.core import pg_engine_from_store
 from bench.system.host import Host
 from bench.system.supervisor import create_default_bench
@@ -41,13 +46,40 @@ def create_global_session(global_store: Store, oracle: Oracle):
     return session
 
 
-#
+@dataclass(slots=True)
+class RuntimeHandle:
+    """All the stuff you need to do and run inside a Runtime."""
+
+    user: User
+    client: Client
+    bench: Bench
+    session: Session
+    runner: RuntimeRunner
+
+    def page(self, name: str = "Page1") -> Block:
+        """Gets or creates a page in the current package."""
+        page = self.bench.main_package.blocks.get(name)
+        if page is None:
+            page = Block.new(BlockType.PAGE, name=name)
+            self.bench.main_package.blocks.append(page)
+        return page
+
+    async def commit(self):
+        """Commits the current session."""
+        return await self.session.commit()
+
+    async def run(
+        self, run: Run | Block | Step, *, inputs: Any | None = None, return_error: bool = False
+    ) -> RunHandle:
+        return await self.runner.run(run, inputs=inputs, return_error=return_error)
+
+
 # Omni/local session
 #
 
 
 @pytest.fixture()
-async def omni_bench_async(global_store: Store, request: pytest.FixtureRequest):
+async def local_runtime_async(global_store: Store):
     async with create_global_session(global_store, REAL_ORACLE) as session:
         # setup user/client
         user = User(
@@ -80,35 +112,32 @@ async def omni_bench_async(global_store: Store, request: pytest.FixtureRequest):
             global_store=global_store,
             session=session,
         )
-        session.parent = bench.main_package  # patch in main package
-        yield bench
+
+        user._untrack_rec()
+        bench._untrack_rec()
+
+    session = Session(
+        parent=bench.main_package,
+        user=user,
+        client=client,
+        _is_readonly=False,
+        _default_scope=GraphScope(bench_id=bench.id)._to_data(),
+        _engines=session._engines,
+        _system_epoch=0,
+        _oracle=REAL_ORACLE,
+        _supergraph=bench._supergraph,
+    )
+    runner = RuntimeRunner(session=session, oracle=REAL_ORACLE)
+    handle = RuntimeHandle(user=user, client=client, bench=bench, session=session, runner=runner)
+    async with session:
+        yield handle
 
 
 @pytest.fixture()
-def omni_bench(omni_bench_async: Bench):
-    session = omni_bench_async.active_session
-    active_session_token = _active_session.set(session)
-    yield omni_bench_async
+def local_runtime(local_runtime_async: RuntimeHandle):  # :PytestAsyncContext
+    active_session_token = _active_session.set(local_runtime_async.session)
+    yield local_runtime_async
     _active_session.reset(active_session_token)
-
-
-@pytest.fixture()
-def session(omni_bench: Bench):
-    return omni_bench.active_session
-
-
-@pytest.fixture()
-def page(omni_bench: Bench):
-    package = omni_bench.main_package
-    page = Block.new(BlockType.PAGE, name="Page")
-    package.blocks.append(page)
-    return page
-
-
-@pytest.fixture()
-def runner(omni_bench: Bench):
-    runner = RuntimeRunner(session=omni_bench.active_session, oracle=REAL_ORACLE)
-    return runner
 
 
 #
@@ -171,7 +200,7 @@ async def host(host_service: Host):
 
 
 @pytest.fixture()
-async def real_session_async(bench: Bench, host: HostClient):
+async def hosted_runtime_async(bench: Bench, host: HostClient):
     user = bench.owner
     assert isinstance(user, User), f"unexpected bench owner: {user!r}"
     client = user.clients[0]
@@ -206,12 +235,14 @@ async def real_session_async(bench: Bench, host: HostClient):
         _host=host,
         _origin=client.to_origin(nonce=None)._to_data(),
     )
+    runner = RuntimeRunner(session=session, oracle=REAL_ORACLE)
+    handle = RuntimeHandle(user=user, client=client, bench=bench, session=session, runner=runner)
     async with session:
-        yield session
+        yield handle
 
 
 @pytest.fixture()
-def real_session(real_session_async: Session):
-    active_session_token = _active_session.set(real_session_async)
-    yield real_session_async
+def hosted_runtime(hosted_runtime_async: RuntimeHandle):  # :PytestAsyncContext
+    active_session_token = _active_session.set(hosted_runtime_async.session)
+    yield hosted_runtime_async
     _active_session.reset(active_session_token)

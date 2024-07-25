@@ -6,7 +6,7 @@ from bench.language.field import Field
 from bench.language.run import ModelOptions, ModelProvider, RunErrorType, RunOptions
 from bench.language.text import md
 from bench.language.validation import constraint
-from bench.runtime.runner import RuntimeRunner
+from bench.test.unit.runtime.conftest import RuntimeHandle
 
 TEST_MODEL_PROVIDERS = (
     ModelProvider.OPENAI,
@@ -20,13 +20,13 @@ def _for_every_provider():
     )
 
 
-async def test_run_text_empty(runner: RuntimeRunner, page: Block):
+async def test_run_text_empty(local_runtime: RuntimeHandle):
     """Empty Text without any fields should fail."""
     Text1 = Block.new_text("Text1", "")
-    page.blocks.append(Text1)
-    await runner.session.commit()
+    local_runtime.page().blocks.append(Text1)
+    await local_runtime.commit()
 
-    run = await runner.run(Text1, return_error=True)
+    run = await local_runtime.run(Text1, return_error=True)
     assert run.status == RunStatus.FAILED
     assert run.error and run.error.type == RunErrorType.RUN_IMPOSSIBLE
     assert len(run.attempts) == 1
@@ -34,19 +34,17 @@ async def test_run_text_empty(runner: RuntimeRunner, page: Block):
 
 @pytest.mark.model()
 @_for_every_provider()
-async def test_run_text_output_scalar(
-    runner: RuntimeRunner, page: Block, model_provider: ModelProvider
-):
+async def test_run_text_output_scalar(local_runtime: RuntimeHandle, model_provider: ModelProvider):
     AnalyzeSentiment = Block.new_text(
         "AnalyzeSentiment",
         "",
         fields=[Field.input("Text", str), Field.output("IsHappy", bool)],
         run_options=RunOptions(max_attempts=1, model_options=ModelOptions(provider=model_provider)),
     )
-    page.blocks.append(AnalyzeSentiment)
-    await runner.session.commit()
+    local_runtime.page().blocks.append(AnalyzeSentiment)
+    await local_runtime.commit()
 
-    run = await runner.run(
+    run = await local_runtime.run(
         AnalyzeSentiment, inputs={"Text": "Today was a great day."}, return_error=True
     )
     assert run.status == RunStatus.COMPLETED
@@ -55,9 +53,7 @@ async def test_run_text_output_scalar(
 
 @pytest.mark.model()
 @_for_every_provider()
-async def test_run_text_output_dict(
-    runner: RuntimeRunner, page: Block, model_provider: ModelProvider
-):
+async def test_run_text_output_dict(local_runtime: RuntimeHandle, model_provider: ModelProvider):
     Mood = Block.new(
         BlockType.CHOICE,
         "Mood",
@@ -86,10 +82,10 @@ async def test_run_text_output_dict(
         ],
         run_options=RunOptions(model_options=ModelOptions(provider=model_provider)),
     )
-    page.blocks.extend(Mood, WritingStyle, AnalyzeSentiment)
-    await runner.session.commit()
+    local_runtime.page().blocks.extend(Mood, WritingStyle, AnalyzeSentiment)
+    await local_runtime.commit()
 
-    run = await runner.run(
+    run = await local_runtime.run(
         AnalyzeSentiment, inputs={"Text": "today's a great day"}, return_error=True
     )
     assert run.status == RunStatus.COMPLETED

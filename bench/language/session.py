@@ -43,6 +43,7 @@ from bench.language.node import (
     EditSubject,
     HasTimeIdentity,
     Node,
+    NodeReferenceBase,
     PackageNode,
     Struct,
     object_component,
@@ -239,6 +240,13 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
             scope.bench_id = uuid_to_str(n.bench_id) or self._default_scope.bench_id
         if isinstance(n, PackageNode):
             scope.package_id = uuid_to_str(n.package_id) or self._default_scope.package_id
+        return scope
+
+    def _get_scope_for_node_ptr(self, ptr: NodeReferenceBase) -> GraphScopeData:
+        """Get the scope for a node pointer in this session."""
+        scope = GraphScopeData(metatype=wire.ObjectType.GRAPH_SCOPE)
+        if ptr.bench_id is not None:
+            scope.bench_id = uuid_to_str(ptr.bench_id)
         return scope
 
     def _get_scope_for_query(self, query: "QueryBuilder") -> GraphScopeData:

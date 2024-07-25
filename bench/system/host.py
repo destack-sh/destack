@@ -798,12 +798,11 @@ class Host(GraphIoServiceBase, HostApi, HostBase):
                         packed_value = str(packed_value)
                     file_metadata[prop.id_as_str] = packed_value
             file_fields = {
-                "Content-Type": file_data.mime_type,
-                "Content-Length": str(file_data.size),
-                **{
-                    f"x-amz-meta-{k.lower().replace('_', '-')}": v for k, v in file_metadata.items()
-                },
+                f"x-amz-meta-{k.lower().replace('_', '-')}": v for k, v in file_metadata.items()
             }
+            if file_data.mime_type:
+                file_fields["Content-Type"] = file_data.mime_type
+            file_fields["Content-Length"] = str(file_data.size)
             presigned_post = s3_client.generate_presigned_post(
                 Bucket=get_drive_bucket(drive),
                 Key=file_key,
@@ -829,11 +828,12 @@ class Host(GraphIoServiceBase, HostApi, HostBase):
     ) -> DownloadFilesResponse:
         # TODO :Broken :Security: evaluate file download access
         # get files
-        files_refs = [
-            unpack_object_validate(ref, supergraph=None, expect=FileReference)
-            for ref in request.files
-        ]
-        files = await File.get(files_refs)
+        async with self.session(readonly=True):
+            files_refs = [
+                unpack_object_validate(ref, supergraph=None, expect=FileReference)
+                for ref in request.files
+            ]
+            files = await File.get(files_refs)
 
         # get pre-signed URLs
         handles: list[DownloadFilesResponseDownloadHandle] = []
