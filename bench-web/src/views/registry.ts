@@ -51,7 +51,10 @@ const COMPONENT_BY_VIEW_TYPE_LAZY = {
   [ViewType.COLOR]: () => import("@/views/content/Color.vue"),
   [ViewType.ICON]: () => import("@/views/content/Icon.vue"),
   [ViewType.FILE]: () => import("@/views/content/File.vue"),
-  [ViewType.IMAGE]: () => import("@/views/content/File.vue"),
+  [ViewType.IMAGE]: () => import("@/views/content/File.vue"), // shared with File
+  [ViewType.AUDIO]: () => import("@/views/content/File.vue"), // shared with File
+  [ViewType.VIDEO]: () => import("@/views/content/File.vue"), // shared with File
+  [ViewType.DOCUMENT]: () => import("@/views/content/File.vue"), // shared with File
 };
 const COMPONENT_BY_VIEW_TYPE = {} as Record<ViewType, ViewComponent>;
 const VIEW_TYPE_BY_COMPONENT_NAME = {} as Record<string, ViewType>;

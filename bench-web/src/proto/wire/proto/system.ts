@@ -717,18 +717,18 @@ export interface CreateBenchResponse {
     bench?: BenchData;
 }
 /**
- * @generated from protobuf message symbolx.bench.GetHostsRequest
+ * @generated from protobuf message symbolx.bench.ResolveHostsRequest
  */
-export interface GetHostsRequest {
+export interface ResolveHostsRequest {
     /**
-     * @generated from protobuf field: repeated symbolx.bench.GetHostsRequest.BenchKey benches = 1;
+     * @generated from protobuf field: repeated symbolx.bench.ResolveHostsRequest.BenchKey benches = 1;
      */
-    benches: GetHostsRequest_BenchKey[];
+    benches: ResolveHostsRequest_BenchKey[];
 }
 /**
- * @generated from protobuf message symbolx.bench.GetHostsRequest.BenchKey
+ * @generated from protobuf message symbolx.bench.ResolveHostsRequest.BenchKey
  */
-export interface GetHostsRequest_BenchKey {
+export interface ResolveHostsRequest_BenchKey {
     /**
      * @generated from protobuf oneof: bench
      */
@@ -749,18 +749,18 @@ export interface GetHostsRequest_BenchKey {
     };
 }
 /**
- * @generated from protobuf message symbolx.bench.GetHostsResponse
+ * @generated from protobuf message symbolx.bench.ResolveHostsResponse
  */
-export interface GetHostsResponse {
+export interface ResolveHostsResponse {
     /**
-     * @generated from protobuf field: repeated symbolx.bench.GetHostsResponse.HostInfo hosts = 1;
+     * @generated from protobuf field: repeated symbolx.bench.ResolveHostsResponse.HostInfo hosts = 1;
      */
-    hosts: GetHostsResponse_HostInfo[];
+    hosts: ResolveHostsResponse_HostInfo[];
 }
 /**
- * @generated from protobuf message symbolx.bench.GetHostsResponse.HostInfo
+ * @generated from protobuf message symbolx.bench.ResolveHostsResponse.HostInfo
  */
-export interface GetHostsResponse_HostInfo {
+export interface ResolveHostsResponse_HostInfo {
     /**
      * @generated from protobuf field: string host_uri = 1;
      */
@@ -2696,26 +2696,26 @@ class CreateBenchResponse$Type extends MessageType<CreateBenchResponse> {
  */
 export const CreateBenchResponse = new CreateBenchResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class GetHostsRequest$Type extends MessageType<GetHostsRequest> {
+class ResolveHostsRequest$Type extends MessageType<ResolveHostsRequest> {
     constructor() {
-        super("symbolx.bench.GetHostsRequest", [
-            { no: 1, name: "benches", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => GetHostsRequest_BenchKey }
+        super("symbolx.bench.ResolveHostsRequest", [
+            { no: 1, name: "benches", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ResolveHostsRequest_BenchKey }
         ]);
     }
-    create(value?: PartialMessage<GetHostsRequest>): GetHostsRequest {
+    create(value?: PartialMessage<ResolveHostsRequest>): ResolveHostsRequest {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.benches = [];
         if (value !== undefined)
-            reflectionMergePartial<GetHostsRequest>(this, message, value);
+            reflectionMergePartial<ResolveHostsRequest>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: GetHostsRequest): GetHostsRequest {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ResolveHostsRequest): ResolveHostsRequest {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* repeated symbolx.bench.GetHostsRequest.BenchKey benches */ 1:
-                    message.benches.push(GetHostsRequest_BenchKey.internalBinaryRead(reader, reader.uint32(), options));
+                case /* repeated symbolx.bench.ResolveHostsRequest.BenchKey benches */ 1:
+                    message.benches.push(ResolveHostsRequest_BenchKey.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -2728,10 +2728,10 @@ class GetHostsRequest$Type extends MessageType<GetHostsRequest> {
         }
         return message;
     }
-    internalBinaryWrite(message: GetHostsRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* repeated symbolx.bench.GetHostsRequest.BenchKey benches = 1; */
+    internalBinaryWrite(message: ResolveHostsRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* repeated symbolx.bench.ResolveHostsRequest.BenchKey benches = 1; */
         for (let i = 0; i < message.benches.length; i++)
-            GetHostsRequest_BenchKey.internalBinaryWrite(message.benches[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+            ResolveHostsRequest_BenchKey.internalBinaryWrite(message.benches[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -2739,25 +2739,25 @@ class GetHostsRequest$Type extends MessageType<GetHostsRequest> {
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.GetHostsRequest
+ * @generated MessageType for protobuf message symbolx.bench.ResolveHostsRequest
  */
-export const GetHostsRequest = new GetHostsRequest$Type();
+export const ResolveHostsRequest = new ResolveHostsRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class GetHostsRequest_BenchKey$Type extends MessageType<GetHostsRequest_BenchKey> {
+class ResolveHostsRequest_BenchKey$Type extends MessageType<ResolveHostsRequest_BenchKey> {
     constructor() {
-        super("symbolx.bench.GetHostsRequest.BenchKey", [
+        super("symbolx.bench.ResolveHostsRequest.BenchKey", [
             { no: 1, name: "id", kind: "scalar", oneof: "bench", T: 9 /*ScalarType.STRING*/ },
             { no: 2, name: "slug", kind: "scalar", oneof: "bench", T: 9 /*ScalarType.STRING*/ }
         ]);
     }
-    create(value?: PartialMessage<GetHostsRequest_BenchKey>): GetHostsRequest_BenchKey {
+    create(value?: PartialMessage<ResolveHostsRequest_BenchKey>): ResolveHostsRequest_BenchKey {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.bench = { oneofKind: undefined };
         if (value !== undefined)
-            reflectionMergePartial<GetHostsRequest_BenchKey>(this, message, value);
+            reflectionMergePartial<ResolveHostsRequest_BenchKey>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: GetHostsRequest_BenchKey): GetHostsRequest_BenchKey {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ResolveHostsRequest_BenchKey): ResolveHostsRequest_BenchKey {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
@@ -2785,7 +2785,7 @@ class GetHostsRequest_BenchKey$Type extends MessageType<GetHostsRequest_BenchKey
         }
         return message;
     }
-    internalBinaryWrite(message: GetHostsRequest_BenchKey, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+    internalBinaryWrite(message: ResolveHostsRequest_BenchKey, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* string id = 1; */
         if (message.bench.oneofKind === "id")
             writer.tag(1, WireType.LengthDelimited).string(message.bench.id);
@@ -2799,30 +2799,30 @@ class GetHostsRequest_BenchKey$Type extends MessageType<GetHostsRequest_BenchKey
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.GetHostsRequest.BenchKey
+ * @generated MessageType for protobuf message symbolx.bench.ResolveHostsRequest.BenchKey
  */
-export const GetHostsRequest_BenchKey = new GetHostsRequest_BenchKey$Type();
+export const ResolveHostsRequest_BenchKey = new ResolveHostsRequest_BenchKey$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class GetHostsResponse$Type extends MessageType<GetHostsResponse> {
+class ResolveHostsResponse$Type extends MessageType<ResolveHostsResponse> {
     constructor() {
-        super("symbolx.bench.GetHostsResponse", [
-            { no: 1, name: "hosts", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => GetHostsResponse_HostInfo }
+        super("symbolx.bench.ResolveHostsResponse", [
+            { no: 1, name: "hosts", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ResolveHostsResponse_HostInfo }
         ]);
     }
-    create(value?: PartialMessage<GetHostsResponse>): GetHostsResponse {
+    create(value?: PartialMessage<ResolveHostsResponse>): ResolveHostsResponse {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.hosts = [];
         if (value !== undefined)
-            reflectionMergePartial<GetHostsResponse>(this, message, value);
+            reflectionMergePartial<ResolveHostsResponse>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: GetHostsResponse): GetHostsResponse {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ResolveHostsResponse): ResolveHostsResponse {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* repeated symbolx.bench.GetHostsResponse.HostInfo hosts */ 1:
-                    message.hosts.push(GetHostsResponse_HostInfo.internalBinaryRead(reader, reader.uint32(), options));
+                case /* repeated symbolx.bench.ResolveHostsResponse.HostInfo hosts */ 1:
+                    message.hosts.push(ResolveHostsResponse_HostInfo.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -2835,10 +2835,10 @@ class GetHostsResponse$Type extends MessageType<GetHostsResponse> {
         }
         return message;
     }
-    internalBinaryWrite(message: GetHostsResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* repeated symbolx.bench.GetHostsResponse.HostInfo hosts = 1; */
+    internalBinaryWrite(message: ResolveHostsResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* repeated symbolx.bench.ResolveHostsResponse.HostInfo hosts = 1; */
         for (let i = 0; i < message.hosts.length; i++)
-            GetHostsResponse_HostInfo.internalBinaryWrite(message.hosts[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+            ResolveHostsResponse_HostInfo.internalBinaryWrite(message.hosts[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -2846,25 +2846,25 @@ class GetHostsResponse$Type extends MessageType<GetHostsResponse> {
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.GetHostsResponse
+ * @generated MessageType for protobuf message symbolx.bench.ResolveHostsResponse
  */
-export const GetHostsResponse = new GetHostsResponse$Type();
+export const ResolveHostsResponse = new ResolveHostsResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class GetHostsResponse_HostInfo$Type extends MessageType<GetHostsResponse_HostInfo> {
+class ResolveHostsResponse_HostInfo$Type extends MessageType<ResolveHostsResponse_HostInfo> {
     constructor() {
-        super("symbolx.bench.GetHostsResponse.HostInfo", [
+        super("symbolx.bench.ResolveHostsResponse.HostInfo", [
             { no: 1, name: "host_uri", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 2, name: "bench", kind: "message", T: () => NodeReferenceData }
         ]);
     }
-    create(value?: PartialMessage<GetHostsResponse_HostInfo>): GetHostsResponse_HostInfo {
+    create(value?: PartialMessage<ResolveHostsResponse_HostInfo>): ResolveHostsResponse_HostInfo {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.hostUri = "";
         if (value !== undefined)
-            reflectionMergePartial<GetHostsResponse_HostInfo>(this, message, value);
+            reflectionMergePartial<ResolveHostsResponse_HostInfo>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: GetHostsResponse_HostInfo): GetHostsResponse_HostInfo {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ResolveHostsResponse_HostInfo): ResolveHostsResponse_HostInfo {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
@@ -2886,7 +2886,7 @@ class GetHostsResponse_HostInfo$Type extends MessageType<GetHostsResponse_HostIn
         }
         return message;
     }
-    internalBinaryWrite(message: GetHostsResponse_HostInfo, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+    internalBinaryWrite(message: ResolveHostsResponse_HostInfo, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* string host_uri = 1; */
         if (message.hostUri !== "")
             writer.tag(1, WireType.LengthDelimited).string(message.hostUri);
@@ -2900,9 +2900,9 @@ class GetHostsResponse_HostInfo$Type extends MessageType<GetHostsResponse_HostIn
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.GetHostsResponse.HostInfo
+ * @generated MessageType for protobuf message symbolx.bench.ResolveHostsResponse.HostInfo
  */
-export const GetHostsResponse_HostInfo = new GetHostsResponse_HostInfo$Type();
+export const ResolveHostsResponse_HostInfo = new ResolveHostsResponse_HostInfo$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class UploadFilesRequest$Type extends MessageType<UploadFilesRequest> {
     constructor() {
@@ -3249,7 +3249,7 @@ export const Supervisor = new ServiceType("symbolx.bench.Supervisor", [
     { name: "LoginUser", options: {}, I: LoginUserRequest, O: LoginUserResponse },
     { name: "LogoutUser", options: {}, I: LogoutUserRequest, O: LogoutUserResponse },
     { name: "CreateBench", options: {}, I: CreateBenchRequest, O: CreateBenchResponse },
-    { name: "GetHosts", options: {}, I: GetHostsRequest, O: GetHostsResponse }
+    { name: "ResolveHosts", options: {}, I: ResolveHostsRequest, O: ResolveHostsResponse }
 ], { "symbolx.bench.kind": "PUBLIC" });
 /**
  * @generated ServiceType for protobuf service symbolx.bench.Host

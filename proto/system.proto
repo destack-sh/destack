@@ -264,7 +264,7 @@ message CreateBenchResponse {
   BenchData bench = 1;
 }
 
-message GetHostsRequest {
+message ResolveHostsRequest {
   message BenchKey {
     oneof bench {
       string id = 1;
@@ -273,7 +273,7 @@ message GetHostsRequest {
   }
   repeated BenchKey benches = 1;
 }
-message GetHostsResponse {
+message ResolveHostsResponse {
   message HostInfo {
     string host_uri = 1;
     NodeReferenceData bench = 2;
@@ -317,7 +317,7 @@ service Supervisor {
   // Create a Bench. If this is the first Bench for the owner, we activate the User/Organization.
   rpc CreateBench(CreateBenchRequest) returns (CreateBenchResponse);
   // Gets Bench host information.
-  rpc GetHosts(GetHostsRequest) returns (GetHostsResponse);
+  rpc ResolveHosts(ResolveHostsRequest) returns (ResolveHostsResponse);
 }
 
 //
