@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { FileFormat, FileReferenceData, FileType, NodeType, ViewData } from "@/proto/wire";
 import { describeNode, toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
-import { uploadFiles, type FileUpload } from "@/system/file";
+import { uploadFile, uploadFiles, type FileUpload } from "@/system/file";
 import { ICON_BY_FILE_FORMAT, ICON_BY_FILE_TYPE, IconInline } from "@/system/icon";
 import { toCamelName } from "@/system/lang";
 import { canvas, pkg } from "@/system/space";
@@ -67,9 +67,9 @@ async function onFileSelected(files: File[]) {
   if (pkg.value == null) throw new Error("no current package");
   const content = files[0];
   // NOTE :Incomplete: uploaded file should be attributed to closest ancestor block, not package (?)
-  upload.value = uploadFiles([content], pkg.value)[0];
+  upload.value = uploadFile(content, pkg.value);
   await upload.value.completion.wait();
-  if (upload.value.file.value == null) throw new Error("no file");
+  if (upload.value.file.value == null) throw new Error("missing file in upload");
   emit("update:modelValue", toNodeReference(upload.value.file.value));
 }
 

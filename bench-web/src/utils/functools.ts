@@ -82,11 +82,13 @@ export function onEveryTick(fn: () => void) {
  * */
 export class AsyncEvent {
   private _resolve: (() => void) | null = null;
+  private _reject: ((reason?: any) => void) | null = null;
   private _promise: Promise<void> | null = null;
 
   constructor() {
-    this._promise = new Promise((resolve) => {
+    this._promise = new Promise((resolve, reject) => {
       this._resolve = resolve;
+      this._reject = reject;
     });
   }
 
@@ -102,9 +104,18 @@ export class AsyncEvent {
     }
   }
 
+  reject(reason?: any) {
+    if (this._reject) {
+      this._reject(reason);
+      this._reject = null;
+      this._promise = null;
+    }
+  }
+
   reset() {
-    this._promise = new Promise((resolve) => {
+    this._promise = new Promise((resolve, reject) => {
       this._resolve = resolve;
+      this._reject = reject;
     });
   }
 }
