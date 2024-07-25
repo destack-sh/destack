@@ -205,7 +205,7 @@ class FileFormat(IdEnum):  # :FileFormats
 
     @property
     def extension(self) -> str | None:
-        return EXTENSION_BY_FORMAT.get(self)
+        return EXTENSION_BY_FILE_FORMAT.get(self)
 
     @property
     def mime_type(self) -> str | None:
@@ -320,8 +320,10 @@ FILE_FORMAT_BY_EXTENSION = {
     "deb": FileFormat.DEB,
     "rpm": FileFormat.RPM,
 }
-EXTENSION_BY_FORMAT: dict[FileFormat, str] = {v: k for k, v in FILE_FORMAT_BY_EXTENSION.items()}
-FORMAT_BY_MIME_TYPE = {
+EXTENSION_BY_FILE_FORMAT: dict[FileFormat, str] = {
+    v: k for k, v in FILE_FORMAT_BY_EXTENSION.items()
+}
+FILE_FORMAT_BY_MIME_TYPE = {
     # text
     "text/plain": FileFormat.TXT,
     "text/markdown": FileFormat.MARKDOWN,
@@ -443,7 +445,7 @@ FORMAT_BY_MIME_TYPE = {
     "application/x-rpm": FileFormat.RPM,
     "application/x-redhat-package-manager": FileFormat.RPM,
 }
-MIME_TYPE_BY_FORMAT: dict[FileFormat, str] = {v: k for k, v in FORMAT_BY_MIME_TYPE.items()}
+MIME_TYPE_BY_FORMAT: dict[FileFormat, str] = {v: k for k, v in FILE_FORMAT_BY_MIME_TYPE.items()}
 
 
 @object_component()
@@ -804,7 +806,7 @@ def detect_file_format(content: bytes) -> tuple[str | None, FileFormat | None]:
     magika_result = magika.identify_bytes(content)
     if magika_result:
         mime_type = magika_result.output.mime_type
-        format = FORMAT_BY_MIME_TYPE.get(mime_type)
+        format = FILE_FORMAT_BY_MIME_TYPE.get(mime_type)
         return mime_type, format
     else:
         return None, None
