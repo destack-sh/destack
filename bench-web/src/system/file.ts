@@ -17,7 +17,8 @@ import { makeNode } from "@/system/lang";
 import { unpackProtoJson } from "@/system/transaction";
 import { AsyncEvent } from "@/utils/functools";
 import { log } from "@/utils/log";
-import { ref, type Ref } from "vue";
+import { humanizeBytes } from "@/utils/string";
+import { markRaw, ref, shallowRef, type Ref } from "vue";
 
 export enum FileUploadStatus {
   PENDING = 0,
@@ -43,6 +44,7 @@ export type FileUpload = {
   parent: PackageData | BlockData;
   file: Ref<FileData | null>;
   content: File;
+  getUrl: Ref<string | null>;
   progress: Ref<number>; // [0.0, 100.0]
   completion: AsyncEvent;
 };
@@ -56,8 +58,26 @@ export type FileDownload = {
   getUrl: Ref<string | null>;
   progress: Ref<number>; // [0.0, 100.0]
   includesContent: boolean;
-  completion: Promise<void>;
+  completion: AsyncEvent;
 };
+
+const _cachedDownloadsByFileId: Record<string, FileDownload> = {};
+
+/** Turn a completed upload into a download. */
+function uploadAsDownload(upload: FileUpload): FileDownload {
+  if (upload.file.value == null) throw new Error(`missing file for ${upload.content.name}`);
+  const download: FileDownload = {
+    status: ref(FileDownloadStatus.COMPLETED),
+    filePtr: toNodeReference(upload.file.value),
+    file: shallowRef(upload.file.value),
+    content: shallowRef(upload.content),
+    getUrl: upload.getUrl,
+    progress: ref(100),
+    completion: upload.completion,
+  };
+  _cachedDownloadsByFileId[upload.file.value.id] = download;
+  return download;
+}
 
 /** Extract file info from a native File. Like in bench :ExtractFileInfo */
 export async function extractFile(content: File, parent: PackageData | BlockData): Promise<FileData> {
@@ -102,7 +122,7 @@ export async function extractFile(content: File, parent: PackageData | BlockData
 
 /** Actually upload a single file to a presigned post URL. */
 async function doUploadFile(content: File, postUrl: string, fields: Record<string, string>): Promise<void> {
-  log.trace("file.uploadFile", content.name, { content, postUrl, fields });
+  log.trace("file.uploadFile", content.name, humanizeBytes(content.size), { content, postUrl, fields });
   const formData = new FormData();
   for (const [key, value] of Object.entries(fields)) {
     formData.append(key, value);
@@ -115,7 +135,7 @@ async function doUploadFile(content: File, postUrl: string, fields: Record<strin
   if (!response.ok) {
     throw new Error(`failed to upload file '${content.name}': ${response.status} ${response.statusText}`);
   }
-  log.trace("file.uploadFile.complete", content.name);
+  log.trace("file.uploadFile.complete", content.name, humanizeBytes(content.size));
 }
 
 /** Executes a set of uploads (as parallel as possible). */
@@ -123,8 +143,8 @@ async function doUploadFiles(uploads: FileUpload[]): Promise<void> {
   log.trace("file.uploadFiles", uploads);
   // extract files
   for (const upload of uploads) {
+    upload.status.value = FileUploadStatus.PREPARING;
     upload.file.value = await extractFile(upload.content, upload.parent);
-    upload.status.value = FileUploadStatus.UPLOADING;
   }
 
   // get post URLs
@@ -138,8 +158,16 @@ async function doUploadFiles(uploads: FileUpload[]): Promise<void> {
   for (let i = 0; i < uploads.length; i++) {
     const upload = uploads[i];
     const handle = handles[i];
+    if (handle.file == null) throw new Error(`missing file from host for ${upload.content.name}`);
+    upload.file.value = handle.file; // may have been updated by Host
+    upload.getUrl.value = handle.getUrl;
     const fields = unpackProtoJson(handle.fields!) as Record<string, string>;
+    
+    // actually upload
+    upload.status.value = FileUploadStatus.UPLOADING;
     await doUploadFile(upload.content, handle.postUrl, fields);
+    upload.status.value = FileUploadStatus.COMPLETED;
+    upload.completion.set();
   }
   log.trace("file.uploadFiles.complete", uploads);
 }
@@ -148,17 +176,24 @@ async function doUploadFiles(uploads: FileUpload[]): Promise<void> {
 export function uploadFiles(contents: File[], parent: PackageData | BlockData): FileUpload[] {
   const uploads: FileUpload[] = contents.map((content) => {
     const upload: FileUpload = {
-      status: ref(FileUploadStatus.PENDING),
+      status: shallowRef(FileUploadStatus.PENDING),
       parent,
-      file: ref(null),
+      file: shallowRef(null),
       content,
-      progress: ref(0),
+      getUrl: shallowRef(null),
+      progress: shallowRef(0),
       completion: new AsyncEvent(),
     };
-    return upload;
+    return markRaw(upload);
   });
   doUploadFiles(uploads); // kick off async
   return uploads;
+}
+
+/** Extracts and upload a file to the Host. Returns as soon as the upload starts. */
+export function uploadFile(content: File, parent: PackageData | BlockData): FileUpload {
+  const upload = uploadFiles([content], parent)[0];
+  return upload;
 }
 
 /** 'Downloads' the given files as get URLs from the Host. Returns as soon as the download starts. */
