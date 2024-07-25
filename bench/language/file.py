@@ -709,29 +709,15 @@ async def _do_download_files(
 FileIn = Union[str, bytes]
 
 
-async def upload(
+def extract_file_info(
     file_in: FileIn,
     title: str,
     *,
     mime_type: str | None = None,
     coarse_type: FileType | None = None,
     format: FileFormat | str | None = None,
-    parent: "Block | Package | None" = None,
-    drive: "Drive | None" = None,
-    session: "Session | None" = None,
-) -> "File":
-    """Uploads the given file to the given (or current) session."""
-
-    # context
-    if session is None:
-        session = active_session()
-    if parent is None:
-        parent = session.package
-    if drive is None:
-        drive = session.bench.main_drive
-        if drive is None:
-            raise ValueError(f"no drive to upload file {title!r} to in {session!r}")
-
+) -> tuple["File", bytes]:  # :ExtractFileInfo
+    """Extracts the metadata from a file."""
     # content
     content: bytes
     if isinstance(file_in, str):
@@ -765,13 +751,11 @@ async def upload(
     if format is not None and "." not in title and format.extension is not None:
         title = f"{title}.{format.extension}"
 
-    # nocheckin: extract file metadata
+    # TODO :Incomplete: extract more file metadata :ExtractFileInfo
     size = len(content)
     sha256 = hashlib.sha256(content).hexdigest()
     file = File(
-        parent=parent,
         kind=FileKind.DRIVE,
-        drive=drive,
         title=title,
         coarse_type=coarse_type,
         mime_type=mime_type,
@@ -779,6 +763,36 @@ async def upload(
         size=size,
         sha256=sha256,
     )
+    return file, content
+
+
+async def upload(
+    file_in: FileIn,
+    title: str,
+    *,
+    mime_type: str | None = None,
+    coarse_type: FileType | None = None,
+    format: FileFormat | str | None = None,
+    parent: "Block | Package | None" = None,
+    drive: "Drive | None" = None,
+    session: "Session | None" = None,
+) -> "File":
+    """Uploads the given file to the given (or current) session."""
+
+    # extract file info
+    file, content = extract_file_info(
+        file_in, title, mime_type=mime_type, coarse_type=coarse_type, format=format
+    )
+
+    # context
+    if session is None:
+        session = active_session()
+    if parent is None:
+        parent = session.package
+    if drive is None:
+        drive = session.bench.main_drive
+        if drive is None:
+            raise ValueError(f"no drive to upload file {title!r} to in {session!r}")
 
     # upload file, then create in session
     await _do_upload_files(session, [file], [content])

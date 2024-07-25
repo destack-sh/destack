@@ -333,9 +333,10 @@ message UploadFilesRequest {
 
 message UploadFilesResponse {
   message UploadHandle {
-    string post_url = 1;
-    google.protobuf.Struct fields = 2;
-    string get_url = 3;
+    FileData file = 1;
+    string post_url = 2;
+    google.protobuf.Struct fields = 3;
+    string get_url = 4;
   }
   repeated UploadHandle handles = 1;
 }

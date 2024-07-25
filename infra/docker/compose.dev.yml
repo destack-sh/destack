@@ -26,7 +26,7 @@ services:
       - minio_data:/data
     entrypoint: sh
     # we manually create the required buckets here (outside of dev they're defined in terraform)
-    command: -c 'mkdir -p /data/bench-test-private-eu-zurich-files && mkdir -p /data/bench-dev-private-eu-zurich-files && minio server --address ":19000" --console-address ":19001" /data'
+    command: -c 'mkdir -p /data/bench-test-private-eu-zurich-files && mkdir -p /data/bench-dev-private-eu-zurich-files && mkdir -p /data/bench-test-private-eu-frankfurt-files && mkdir -p /data/bench-dev-private-eu-frankfurt-files && minio server --address ":19000" --console-address ":19001" /data'
 
   redis:
     image: redis:7-alpine
