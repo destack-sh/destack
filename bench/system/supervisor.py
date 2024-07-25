@@ -390,11 +390,12 @@ class Supervisor(GraphIoServiceBase, SupervisorBase):
                     bench = await Bench.get(slug=value)
                 else:
                     raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "no bench specified")
-                host_uri = self._host_map.get(bench.region)
-                if host_uri is None:
-                    raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "no host for bench")
+                host_info = self._host_map.get_or_error(bench.region)
                 host_info = ResolveHostsResponseHostInfo(
-                    host_uri=host_uri, bench=bench._to_plain_ref_data()
+                    domain=host_info.host_domain,
+                    grpc_port=host_info.grpc_port,
+                    grpc_web_port=host_info.grpc_web_port,
+                    bench=bench._to_plain_ref_data(),
                 )
                 hosts.append(host_info)
         return ResolveHostsResponse(hosts=hosts)

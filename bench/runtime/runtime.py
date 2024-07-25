@@ -3,6 +3,7 @@ from typing import cast, override
 from urllib.parse import urlparse
 from uuid import UUID, uuid4
 
+import cachetools
 import structlog
 from grpclib.client import Channel
 from opentelemetry import trace
@@ -25,12 +26,15 @@ from bench.proto.wire import (
     HostClient,
     QueueRunRequest,
     QueueRunResponse,
+    ResolveHostsRequest,
+    ResolveHostsRequestBenchKey,
     RpcMetadata,
     RunData,
     RuntimeBase,
     ServiceKind,
     SupervisorClient,
 )
+from bench.proto.wiring import pack_rpc_headers
 from bench.runtime.thread import RuntimeThread
 from bench.utils.oracle import Oracle
 from bench.utils.tenacity import RETRY_GRPC_FOREVER
@@ -80,6 +84,7 @@ class Runtime(ServiceBase, RuntimeBase):
             client_id=str(self._client_id),
             client_access_token=self._client_access_token,
         )
+        self._rpc_headers = pack_rpc_headers(self._rpc_metadata)
         self._machine_id = machine_id
         self._machine: Machine | None = None
         self._engines: tuple[RemoteEngine, ...] = ()
@@ -107,7 +112,7 @@ class Runtime(ServiceBase, RuntimeBase):
 
     async def start(self):
         # setup host
-        self._host = await get_host_client(self._bench_id, self._supervisor)
+        self._host = await self._get_host_client(self._bench_id)
         bench_scope = GraphScopeData(
             metatype=wire.ObjectType.GRAPH_SCOPE, bench_id=str(self._bench_id)
         )
@@ -160,7 +165,12 @@ class Runtime(ServiceBase, RuntimeBase):
         logger.trace("runtime.queue_run", run=request.run, span="current")
         return QueueRunResponse()
 
-
-async def get_host_client(bench_id: UUID, supervisor: SupervisorClient) -> HostClient:  # noqa: RUF029
-    # nocheckin: lookup bench host via supervisor
-    return HostClient(supervisor.channel)
+    @cachetools.cached({})
+    @tracer.start_as_current_span("runtime.resolve_host")
+    async def _get_host_client(self, bench_id: UUID) -> HostClient:
+        request = ResolveHostsRequest(benches=[ResolveHostsRequestBenchKey(id=str(bench_id))])
+        response = await self._supervisor.resolve_hosts(request, metadata=self._rpc_headers)
+        host_info = response.hosts[0]
+        self.logger.info("runtime.resolve_host", bench_id=bench_id, host_info=host_info)
+        host_channel = Channel(host_info.domain, host_info.grpc_port)
+        return HostClient(host_channel)

@@ -275,8 +275,10 @@ message ResolveHostsRequest {
 }
 message ResolveHostsResponse {
   message HostInfo {
-    string host_uri = 1;
-    NodeReferenceData bench = 2;
+    string domain = 1;
+    int32 grpc_port = 2;
+    int32 grpc_web_port = 3;
+    NodeReferenceData bench = 4;
   }
   repeated HostInfo hosts = 1;
 }
