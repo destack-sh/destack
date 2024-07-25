@@ -14,19 +14,17 @@ import {
 } from "@/proto/wire/";
 import { toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
 import { fireActionById, type ActionContext, type ActionMapImplementation } from "@/system/action";
-import { useFlatNodeMoveActions, useHierarchicalNodeMoveActions } from "@/system/block";
+import { useFlatNodeMoveActions } from "@/system/block";
 import { PACKAGE_SCOPE } from "@/system/client";
 import { useExistingConnection, useGetConnection } from "@/system/connection";
-import { getGroupedChildrenRef, isDescendantOf, walkDescendantsRef, type NodeTreeItem } from "@/system/graph";
+import { getGroupedChildrenRef, isDescendantOf } from "@/system/graph";
 import { ICON_BY_BLOCK_TYPE, IconInline } from "@/system/icon";
 import {
   EXPOSED_BLOCK_TYPES,
-  PAGE_BLOCK_TYPES,
-  RUNNABLE_BLOCK_TYPES,
   cloneNode,
   createBlock,
   moveNode,
-  toCamelName,
+  toCamelName
 } from "@/system/lang";
 import { makeRun } from "@/system/session";
 import { canvas, inspectionPtr } from "@/system/space";

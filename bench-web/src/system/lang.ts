@@ -1097,7 +1097,7 @@ function getInspectionInfo(metatype: ObjectType, type: any): Record<string, Insp
   }
 }
 
-export const FULL_WIDTH_VIEW_TYPES = [ViewType.TEXT, ViewType.CODE];
+export const FULL_WIDTH_VIEW_TYPES = [ViewType.TEXT, ViewType.CODE, ViewType.IMAGE, ViewType.AUDIO, ViewType.VIDEO];
 const ALWAYS_EXCLUDED_PROPERTIES: string[] = ["order_key"];
 
 /** Generates the inspection layout for an object metatype. */

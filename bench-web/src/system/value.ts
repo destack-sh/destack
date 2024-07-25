@@ -229,9 +229,11 @@ export function nodeMatchesConstraint(node: AnyNodeData, constraint: TypeConstra
   if (constraint.blockType != null) {
     return isNode(node, NodeType.BLOCK) && node.type == constraint.blockType;
   } else if (constraint.stepType != null) {
-    return isNode(node, NodeType.STEP) && node.type == constraint.stepType; 
+    return isNode(node, NodeType.STEP) && node.type == constraint.stepType;
   } else if (constraint.fileType != null && isNode(node, NodeType.FILE)) {
-    return node.coarseType == constraint.fileType;
+    if (constraint.fileFormat != null && node.format != constraint.fileFormat) return false;
+    if (constraint.fileType != null && node.coarseType != constraint.fileType) return false;
+    return true;
   } else {
     return true; // no constraint
   }

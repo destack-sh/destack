@@ -98,7 +98,7 @@ watch([canvas.focusedViewPtr, bench], () => {
     viewTitle = viewAncestors.find((ancestor) => ancestor.name != null || ancestor.title != null)?.title;
   }
 
-  browserTitle.value = viewTitle ? `${viewTitle} | ${benchPostfix}` : benchPostfix;
+  browserTitle.value = viewTitle ? `${viewTitle} | @${benchPostfix}` : `@${benchPostfix}`;
 });
 </script>
 <template>
