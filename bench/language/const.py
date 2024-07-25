@@ -392,9 +392,9 @@ else:
     BenchType = IdEnum.combine("BenchType", NodeType, StructType, EnumType)
     enum_(EnumType.BENCH_TYPE)(BenchType)
 
-OBJECT_TYPES: bittuple[ObjectType] = bittuple(*ObjectType)
+OBJECT_TYPES: bittuple[ObjectType] = bittuple(*ObjectType)  # type: ignore
 OBJECT_TYPES_SET: frozenset[ObjectType] = frozenset(OBJECT_TYPES)
-BENCH_TYPES: bittuple[BenchType] = bittuple(*BenchType)
+BENCH_TYPES: bittuple[BenchType] = bittuple(*BenchType)  # type: ignore
 
 
 def is_node_type(obj: IdEnum | int) -> bool:
@@ -753,8 +753,8 @@ else:
 READ_TYPES: bittuple[ReadType] = bittuple(*ReadType)
 EDIT_TYPES: bittuple[EditType] = bittuple(*EditType)
 USE_TYPES: bittuple[UseType] = bittuple(*UseType)
-ACCESS_TYPES: bittuple[AccessType] = bittuple(*AccessType)
-ACCESS_CLASSES: tuple[type[AccessType], ...] = (ReadType, EditType, UseType, AccessType)
+ACCESS_TYPES: bittuple[AccessType] = bittuple(*AccessType)  # type: ignore
+ACCESS_CLASSES: tuple[type[AccessType], ...] = (ReadType, EditType, UseType, AccessType)  # type: ignore
 ACCESS_KINDS = bittuple(*AccessKind)
 ACCESS_TYPES_BY_KIND: dict[AccessKind, bittuple[AccessType]] = {
     AccessKind.READ: bittuple(*READ_TYPES),

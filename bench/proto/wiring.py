@@ -34,9 +34,9 @@ tracer = trace.get_tracer(__name__)
 
 
 PROTO_CLASS_BY_TYPE: dict[ObjectType, type[Union[AnyNodeData, AnyStructData]]] = {
-    _type: getattr(wire, _type.bench_name + "Data")
-    for _type in ObjectType
-    if hasattr(wire, _type.bench_name + "Data")  # may just be creating a new class
+    object_type: getattr(wire, object_type.bench_name + "Data")
+    for object_type in ObjectType  # type: ignore
+    if hasattr(wire, object_type.bench_name + "Data")  # may just be creating a new class
 }
 OBJECT_TYPE_BY_PROTO_CLASS: dict[type[Union[AnyNodeData, AnyStructData]], ObjectType] = {
     cls: object_type for object_type, cls in PROTO_CLASS_BY_TYPE.items()

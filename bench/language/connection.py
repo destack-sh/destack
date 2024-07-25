@@ -517,6 +517,8 @@ class Connection[
     async def _do_connect_live(self) -> None:
         """Runs the live connection loop until closed."""
         retry = self.retry.new(self.session._oracle)
+        log = self.log.bind(retry=retry, options=self.retry)
+        last_error: Exception | None = None
         try:
             while not self._is_closed:
                 if not retry.should_retry:
@@ -527,26 +529,35 @@ class Connection[
                     # initial read
                     with tracer.start_as_current_span(f"connect.{self.type_name}"):
                         self._result_data = await self._do_read(self.query)
-                        self.log.trace(f"connect.{self.type_name}", span="current")
+                        if last_error is not None:
+                            log.debug(f"connect.{self.type_name}.recover", span="current")
+                        else:
+                            log.trace(f"connect.{self.type_name}", span="current")
+                        last_error = None
                     # unpack
                     if self.options.unpack:
+                        # TODO :Broken: in case of re-connect result should replace original nodes/graph somehow
+                        #  (e.g. if we fetch self._bench = await Bench.get(...) in runtime or such,
+                        #   the object reference should either remain connected or be replaced)
                         self._result = self._unpack_result(self._result_data)
                     self._has_result.set()
                     retry.on_success()
+
                     # subscribe
                     async for update in self._do_subscribe(self.query, self._result_data):
                         assert (
                             update.epoch > self.epoch
                         ), f"epoch regression: {update!r} in {self!r}"
-                        self.log.trace(f"connect.{self.type_name}.update", update=update)
+                        log.trace(f"connect.{self.type_name}.update", update=update)
                         self._apply_update(self._result_data, self._result, update)
                         for callback in self._update_subscribers:
                             callback(update)
                 except Exception as e:
+                    last_error = e
                     interval = retry.get_wait_interval()
-                    self.log.error(f"connect.{self.type_name}.error", exc_info=e, interval=interval)
+                    log.error(f"connect.{self.type_name}.error", exc_info=e, interval=interval)
                     if not retry.on_error(e):
-                        raise
+                        raise  # re-raise immediately
                     await self.session._oracle.sleep(interval)
                     continue
         except Exception as e:
@@ -554,6 +565,7 @@ class Connection[
                 self.session._on_error(e)
         finally:
             self.session._on_connection_end(self)
+        log.debug(f"connect.{self.type_name}.end")
 
     @abc.abstractmethod
     def _unpack_result(self, result_data: ResultDataT) -> ResultT:
@@ -580,6 +592,7 @@ class Connection[
         self._is_closed = True
         if self._connect_task is not None:
             self._connect_task.cancel()
+        self.log.debug(f"connect.{self.type_name}.close")
 
     @final
     async def wait_closed(self):
