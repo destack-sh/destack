@@ -299,7 +299,6 @@ async def sql_migrate(
     return migrations_to_apply
 
 
-@tracer.start_as_current_span("sql.do_migrate")
 async def _do_sql_migrate(
     cur: psycopg.AsyncCursor,
     migrations: Collection[Migration],
@@ -311,28 +310,31 @@ async def _do_sql_migrate(
 ):
     """Applies the given migrations in the given order."""
     for migration in migrations:
-        func_name = (
-            f"{(is_upgrade and 'upgrade') or 'downgrade'}_{(is_global and 'global') or 'local'}"
-        )
-        migration_file = _load_migration_from_path(migration)
-        func = getattr(migration_file.module, func_name)
-        try:
-            await func(cur)
-        except Exception as e:
-            logger.error(
-                "migration.apply.error",
-                cur=cur,
-                migration=migration,
-                store=store,
-                error=e,
-                span="current",
+        with tracer.start_as_current_span("sql.apply_migration"):
+            func_name = (
+                f"{(is_upgrade and 'upgrade') or 'downgrade'}_{(is_global and 'global') or 'local'}"
             )
-            raise
-        if is_upgrade:
-            migration.applied_at = oracle.utc()
-        else:
-            migration.applied_at = None
-        logger.debug("migration.apply", cur=cur, migration=migration, store=store, span="current")
+            migration_file = _load_migration_from_path(migration)
+            func = getattr(migration_file.module, func_name)
+            try:
+                await func(cur)
+            except Exception as e:
+                logger.error(
+                    "migration.apply.error",
+                    cur=cur,
+                    migration=migration,
+                    store=store,
+                    error=e,
+                    span="current",
+                )
+                raise
+            if is_upgrade:
+                migration.applied_at = oracle.utc()
+            else:
+                migration.applied_at = None
+            logger.debug(
+                "migration.apply", cur=cur, migration=migration, store=store, span="current"
+            )
 
 
 #

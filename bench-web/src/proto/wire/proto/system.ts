@@ -779,7 +779,11 @@ export interface GetHostsResponse_HostInfo {
  */
 export interface UploadFilesRequest {
     /**
-     * @generated from protobuf field: repeated symbolx.bench.FileData files = 1;
+     * @generated from protobuf field: symbolx.bench.GraphScopeData scope = 1;
+     */
+    scope?: GraphScopeData;
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.FileData files = 2;
      */
     files: FileData[];
 }
@@ -804,13 +808,21 @@ export interface UploadFilesResponse_UploadHandle {
      * @generated from protobuf field: google.protobuf.Struct fields = 2;
      */
     fields?: Struct;
+    /**
+     * @generated from protobuf field: string get_url = 3;
+     */
+    getUrl: string;
 }
 /**
  * @generated from protobuf message symbolx.bench.DownloadFilesRequest
  */
 export interface DownloadFilesRequest {
     /**
-     * @generated from protobuf field: repeated symbolx.bench.FileReferenceData files = 1;
+     * @generated from protobuf field: symbolx.bench.GraphScopeData scope = 1;
+     */
+    scope?: GraphScopeData;
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.FileReferenceData files = 2;
      */
     files: FileReferenceData[];
 }
@@ -2895,7 +2907,8 @@ export const GetHostsResponse_HostInfo = new GetHostsResponse_HostInfo$Type();
 class UploadFilesRequest$Type extends MessageType<UploadFilesRequest> {
     constructor() {
         super("symbolx.bench.UploadFilesRequest", [
-            { no: 1, name: "files", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => FileData }
+            { no: 1, name: "scope", kind: "message", T: () => GraphScopeData },
+            { no: 2, name: "files", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => FileData }
         ]);
     }
     create(value?: PartialMessage<UploadFilesRequest>): UploadFilesRequest {
@@ -2910,7 +2923,10 @@ class UploadFilesRequest$Type extends MessageType<UploadFilesRequest> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* repeated symbolx.bench.FileData files */ 1:
+                case /* symbolx.bench.GraphScopeData scope */ 1:
+                    message.scope = GraphScopeData.internalBinaryRead(reader, reader.uint32(), options, message.scope);
+                    break;
+                case /* repeated symbolx.bench.FileData files */ 2:
                     message.files.push(FileData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
@@ -2925,9 +2941,12 @@ class UploadFilesRequest$Type extends MessageType<UploadFilesRequest> {
         return message;
     }
     internalBinaryWrite(message: UploadFilesRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* repeated symbolx.bench.FileData files = 1; */
+        /* symbolx.bench.GraphScopeData scope = 1; */
+        if (message.scope)
+            GraphScopeData.internalBinaryWrite(message.scope, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.FileData files = 2; */
         for (let i = 0; i < message.files.length; i++)
-            FileData.internalBinaryWrite(message.files[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+            FileData.internalBinaryWrite(message.files[i], writer.tag(2, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -2990,12 +3009,14 @@ class UploadFilesResponse_UploadHandle$Type extends MessageType<UploadFilesRespo
     constructor() {
         super("symbolx.bench.UploadFilesResponse.UploadHandle", [
             { no: 1, name: "post_url", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 2, name: "fields", kind: "message", T: () => Struct }
+            { no: 2, name: "fields", kind: "message", T: () => Struct },
+            { no: 3, name: "get_url", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<UploadFilesResponse_UploadHandle>): UploadFilesResponse_UploadHandle {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.postUrl = "";
+        message.getUrl = "";
         if (value !== undefined)
             reflectionMergePartial<UploadFilesResponse_UploadHandle>(this, message, value);
         return message;
@@ -3010,6 +3031,9 @@ class UploadFilesResponse_UploadHandle$Type extends MessageType<UploadFilesRespo
                     break;
                 case /* google.protobuf.Struct fields */ 2:
                     message.fields = Struct.internalBinaryRead(reader, reader.uint32(), options, message.fields);
+                    break;
+                case /* string get_url */ 3:
+                    message.getUrl = reader.string();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -3029,6 +3053,9 @@ class UploadFilesResponse_UploadHandle$Type extends MessageType<UploadFilesRespo
         /* google.protobuf.Struct fields = 2; */
         if (message.fields)
             Struct.internalBinaryWrite(message.fields, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
+        /* string get_url = 3; */
+        if (message.getUrl !== "")
+            writer.tag(3, WireType.LengthDelimited).string(message.getUrl);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -3043,7 +3070,8 @@ export const UploadFilesResponse_UploadHandle = new UploadFilesResponse_UploadHa
 class DownloadFilesRequest$Type extends MessageType<DownloadFilesRequest> {
     constructor() {
         super("symbolx.bench.DownloadFilesRequest", [
-            { no: 1, name: "files", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => FileReferenceData }
+            { no: 1, name: "scope", kind: "message", T: () => GraphScopeData },
+            { no: 2, name: "files", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => FileReferenceData }
         ]);
     }
     create(value?: PartialMessage<DownloadFilesRequest>): DownloadFilesRequest {
@@ -3058,7 +3086,10 @@ class DownloadFilesRequest$Type extends MessageType<DownloadFilesRequest> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* repeated symbolx.bench.FileReferenceData files */ 1:
+                case /* symbolx.bench.GraphScopeData scope */ 1:
+                    message.scope = GraphScopeData.internalBinaryRead(reader, reader.uint32(), options, message.scope);
+                    break;
+                case /* repeated symbolx.bench.FileReferenceData files */ 2:
                     message.files.push(FileReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
@@ -3073,9 +3104,12 @@ class DownloadFilesRequest$Type extends MessageType<DownloadFilesRequest> {
         return message;
     }
     internalBinaryWrite(message: DownloadFilesRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* repeated symbolx.bench.FileReferenceData files = 1; */
+        /* symbolx.bench.GraphScopeData scope = 1; */
+        if (message.scope)
+            GraphScopeData.internalBinaryWrite(message.scope, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.FileReferenceData files = 2; */
         for (let i = 0; i < message.files.length; i++)
-            FileReferenceData.internalBinaryWrite(message.files[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+            FileReferenceData.internalBinaryWrite(message.files[i], writer.tag(2, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

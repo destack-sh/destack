@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.07.24.7"
+VERSION = "2024.07.25.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -964,9 +964,9 @@ FILE_TABLE = Table(
         Column("retention", PrimitiveType.INT16, is_nullable=True),
         Column("expires_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("kind", PrimitiveType.INT16),
+        Column("title", PrimitiveType.STRING),
         Column("drive_id", PrimitiveType.UUID, is_nullable=True),
         Column("url", PrimitiveType.STRING, is_nullable=True),
-        Column("title", PrimitiveType.STRING),
         Column("inline_content", PrimitiveType.BYTES, is_nullable=True),
         Column("coarse_type", PrimitiveType.INT16),
         Column("mime_type", PrimitiveType.STRING, is_nullable=True),

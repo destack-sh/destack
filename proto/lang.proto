@@ -1633,9 +1633,9 @@ message FeedViewStateData {
 message FileInfoData {
   ObjectType metatype = 1;
   FileKind kind = 40;
-  optional NodeReferenceData drive_ptr = 41;
-  optional string url = 42;
-  string title = 43;
+  string title = 41;
+  optional NodeReferenceData drive_ptr = 42;
+  optional string url = 43;
   optional bytes inline_content = 44;
   FileType coarse_type = 50;
   optional string mime_type = 51;
@@ -1662,9 +1662,9 @@ message FileReferenceData {
   optional string base_ck = 34;
   optional string base_bench_id = 35;
   FileKind kind = 40;
-  optional NodeReferenceData drive_ptr = 41;
-  optional string url = 42;
-  string title = 43;
+  string title = 41;
+  optional NodeReferenceData drive_ptr = 42;
+  optional string url = 43;
   optional bytes inline_content = 44;
   FileType coarse_type = 50;
   optional string mime_type = 51;
@@ -2374,7 +2374,7 @@ message FieldData {
   bool is_required = 62;
 }
 
-// A file stored in a Drive (or externally).
+// A file stored somewhere (like a Drive, orexternally).
 // De-duplicated so that there's only one File per unique file content for our own files.
 message FileData {
   ObjectType metatype = 1;
@@ -2395,9 +2395,9 @@ message FileData {
   optional FileRetentionMode retention = 30;
   optional google.protobuf.Timestamp expires_at = 31;
   FileKind kind = 40;
-  optional NodeReferenceData drive_ptr = 41;
-  optional string url = 42;
-  string title = 43;
+  string title = 41;
+  optional NodeReferenceData drive_ptr = 42;
+  optional string url = 43;
   optional bytes inline_content = 44;
   FileType coarse_type = 50;
   optional string mime_type = 51;

@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.07.24.7"
+VERSION = "2024.07.25.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -1765,9 +1765,9 @@ class FileInfoData(betterproto.Message):
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     kind: "FileKind" = betterproto.enum_field(40)
-    drive_ptr: Optional["NodeReferenceData"] = betterproto.message_field(41, optional=True)
-    url: Optional[str] = betterproto.string_field(42, optional=True)
-    title: str = betterproto.string_field(43)
+    title: str = betterproto.string_field(41)
+    drive_ptr: Optional["NodeReferenceData"] = betterproto.message_field(42, optional=True)
+    url: Optional[str] = betterproto.string_field(43, optional=True)
     inline_content: Optional[bytes] = betterproto.bytes_field(44, optional=True)
     coarse_type: "FileType" = betterproto.enum_field(50)
     mime_type: Optional[str] = betterproto.string_field(51, optional=True)
@@ -1798,9 +1798,9 @@ class FileReferenceData(betterproto.Message):
     base_ck: Optional[str] = betterproto.string_field(34, optional=True)
     base_bench_id: Optional[str] = betterproto.string_field(35, optional=True)
     kind: "FileKind" = betterproto.enum_field(40)
-    drive_ptr: Optional["NodeReferenceData"] = betterproto.message_field(41, optional=True)
-    url: Optional[str] = betterproto.string_field(42, optional=True)
-    title: str = betterproto.string_field(43)
+    title: str = betterproto.string_field(41)
+    drive_ptr: Optional["NodeReferenceData"] = betterproto.message_field(42, optional=True)
+    url: Optional[str] = betterproto.string_field(43, optional=True)
     inline_content: Optional[bytes] = betterproto.bytes_field(44, optional=True)
     coarse_type: "FileType" = betterproto.enum_field(50)
     mime_type: Optional[str] = betterproto.string_field(51, optional=True)
@@ -2659,7 +2659,7 @@ class FieldData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class FileData(betterproto.Message):
     """
-    A file stored in a Drive (or externally).
+    A file stored somewhere (like a Drive, orexternally).
      De-duplicated so that there's only one File per unique file content for our own files.
     """
 
@@ -2681,9 +2681,9 @@ class FileData(betterproto.Message):
     retention: Optional["FileRetentionMode"] = betterproto.enum_field(30, optional=True)
     expires_at: Optional[datetime] = betterproto.message_field(31, optional=True)
     kind: "FileKind" = betterproto.enum_field(40)
-    drive_ptr: Optional["NodeReferenceData"] = betterproto.message_field(41, optional=True)
-    url: Optional[str] = betterproto.string_field(42, optional=True)
-    title: str = betterproto.string_field(43)
+    title: str = betterproto.string_field(41)
+    drive_ptr: Optional["NodeReferenceData"] = betterproto.message_field(42, optional=True)
+    url: Optional[str] = betterproto.string_field(43, optional=True)
     inline_content: Optional[bytes] = betterproto.bytes_field(44, optional=True)
     coarse_type: "FileType" = betterproto.enum_field(50)
     mime_type: Optional[str] = betterproto.string_field(51, optional=True)
@@ -3906,7 +3906,8 @@ class GetHostsResponseHostInfo(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class UploadFilesRequest(betterproto.Message):
-    files: List["FileData"] = betterproto.message_field(1)
+    scope: "GraphScopeData" = betterproto.message_field(1)
+    files: List["FileData"] = betterproto.message_field(2)
 
 
 @dataclass(eq=False, repr=False)
@@ -3918,11 +3919,13 @@ class UploadFilesResponse(betterproto.Message):
 class UploadFilesResponseUploadHandle(betterproto.Message):
     post_url: str = betterproto.string_field(1)
     fields: "betterproto_lib_google_protobuf.Struct" = betterproto.message_field(2)
+    get_url: str = betterproto.string_field(3)
 
 
 @dataclass(eq=False, repr=False)
 class DownloadFilesRequest(betterproto.Message):
-    files: List["FileReferenceData"] = betterproto.message_field(1)
+    scope: "GraphScopeData" = betterproto.message_field(1)
+    files: List["FileReferenceData"] = betterproto.message_field(2)
 
 
 @dataclass(eq=False, repr=False)
