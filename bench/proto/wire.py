@@ -631,7 +631,7 @@ class FileFormat(betterproto.Enum):
     JAVASCRIPT = 2001
     TYPESCRIPT = 2002
     GO = 2003
-    C = 2004
+    C_LANG = 2004
     CPP = 2005
     OBJECTIVE_C = 2006
     SWIFT = 2007
@@ -656,10 +656,7 @@ class FileFormat(betterproto.Enum):
     WEBP = 3005
     SVG = 3006
     ICO = 3007
-    PSD = 3008
-    AI = 3009
-    EPS = 3010
-    RAW = 3011
+    RAW = 3008
     MP3 = 4000
     WAV = 4001
     FLAC = 4002

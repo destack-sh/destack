@@ -7863,363 +7863,351 @@ export enum FileFormat {
     /**
      * @generated from protobuf enum value: FILE_FORMAT_UNSPECIFIED = 0;
      */
-    FILE_FORMAT_UNSPECIFIED = 0,
+    UNSPECIFIED = 0,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_TXT = 1000;
      */
-    FILE_FORMAT_TXT = 1000,
+    TXT = 1000,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_MARKDOWN = 1001;
      */
-    FILE_FORMAT_MARKDOWN = 1001,
+    MARKDOWN = 1001,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_RTF = 1002;
      */
-    FILE_FORMAT_RTF = 1002,
+    RTF = 1002,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_INI = 1003;
      */
-    FILE_FORMAT_INI = 1003,
+    INI = 1003,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_LOG = 1004;
      */
-    FILE_FORMAT_LOG = 1004,
+    LOG = 1004,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_PYTHON = 2000;
      */
-    FILE_FORMAT_PYTHON = 2000,
+    PYTHON = 2000,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_JAVASCRIPT = 2001;
      */
-    FILE_FORMAT_JAVASCRIPT = 2001,
+    JAVASCRIPT = 2001,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_TYPESCRIPT = 2002;
      */
-    FILE_FORMAT_TYPESCRIPT = 2002,
+    TYPESCRIPT = 2002,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_GO = 2003;
      */
-    FILE_FORMAT_GO = 2003,
+    GO = 2003,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_C = 2004;
+     * @generated from protobuf enum value: FILE_FORMAT_C_LANG = 2004;
      */
-    FILE_FORMAT_C = 2004,
+    C_LANG = 2004,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_CPP = 2005;
      */
-    FILE_FORMAT_CPP = 2005,
+    CPP = 2005,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_OBJECTIVE_C = 2006;
      */
-    FILE_FORMAT_OBJECTIVE_C = 2006,
+    OBJECTIVE_C = 2006,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_SWIFT = 2007;
      */
-    FILE_FORMAT_SWIFT = 2007,
+    SWIFT = 2007,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_RUBY = 2008;
      */
-    FILE_FORMAT_RUBY = 2008,
+    RUBY = 2008,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_PHP = 2009;
      */
-    FILE_FORMAT_PHP = 2009,
+    PHP = 2009,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_HTML = 2010;
      */
-    FILE_FORMAT_HTML = 2010,
+    HTML = 2010,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_CSS = 2011;
      */
-    FILE_FORMAT_CSS = 2011,
+    CSS = 2011,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_JAVA = 2012;
      */
-    FILE_FORMAT_JAVA = 2012,
+    JAVA = 2012,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_KOTLIN = 2013;
      */
-    FILE_FORMAT_KOTLIN = 2013,
+    KOTLIN = 2013,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_RUST = 2014;
      */
-    FILE_FORMAT_RUST = 2014,
+    RUST = 2014,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_SCALA = 2015;
      */
-    FILE_FORMAT_SCALA = 2015,
+    SCALA = 2015,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_SHELL = 2016;
      */
-    FILE_FORMAT_SHELL = 2016,
+    SHELL = 2016,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_SQL = 2017;
      */
-    FILE_FORMAT_SQL = 2017,
+    SQL = 2017,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_POWERSHELL = 2018;
      */
-    FILE_FORMAT_POWERSHELL = 2018,
+    POWERSHELL = 2018,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_ASSEMBLY = 2019;
      */
-    FILE_FORMAT_ASSEMBLY = 2019,
+    ASSEMBLY = 2019,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_LATEX = 2020;
      */
-    FILE_FORMAT_LATEX = 2020,
+    LATEX = 2020,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_JPEG = 3000;
      */
-    FILE_FORMAT_JPEG = 3000,
+    JPEG = 3000,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_PNG = 3001;
      */
-    FILE_FORMAT_PNG = 3001,
+    PNG = 3001,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_GIF = 3002;
      */
-    FILE_FORMAT_GIF = 3002,
+    GIF = 3002,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_BMP = 3003;
      */
-    FILE_FORMAT_BMP = 3003,
+    BMP = 3003,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_TIFF = 3004;
      */
-    FILE_FORMAT_TIFF = 3004,
+    TIFF = 3004,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_WEBP = 3005;
      */
-    FILE_FORMAT_WEBP = 3005,
+    WEBP = 3005,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_SVG = 3006;
      */
-    FILE_FORMAT_SVG = 3006,
+    SVG = 3006,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_ICO = 3007;
      */
-    FILE_FORMAT_ICO = 3007,
+    ICO = 3007,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_PSD = 3008;
+     * @generated from protobuf enum value: FILE_FORMAT_RAW = 3008;
      */
-    FILE_FORMAT_PSD = 3008,
-    /**
-     * @generated from protobuf enum value: FILE_FORMAT_AI = 3009;
-     */
-    FILE_FORMAT_AI = 3009,
-    /**
-     * @generated from protobuf enum value: FILE_FORMAT_EPS = 3010;
-     */
-    FILE_FORMAT_EPS = 3010,
-    /**
-     * @generated from protobuf enum value: FILE_FORMAT_RAW = 3011;
-     */
-    FILE_FORMAT_RAW = 3011,
+    RAW = 3008,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_MP3 = 4000;
      */
-    FILE_FORMAT_MP3 = 4000,
+    MP3 = 4000,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_WAV = 4001;
      */
-    FILE_FORMAT_WAV = 4001,
+    WAV = 4001,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_FLAC = 4002;
      */
-    FILE_FORMAT_FLAC = 4002,
+    FLAC = 4002,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_AAC = 4003;
      */
-    FILE_FORMAT_AAC = 4003,
+    AAC = 4003,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_OGG = 4004;
      */
-    FILE_FORMAT_OGG = 4004,
+    OGG = 4004,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_M4A = 4005;
      */
-    FILE_FORMAT_M4A = 4005,
+    M4A = 4005,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_WMA = 4006;
      */
-    FILE_FORMAT_WMA = 4006,
+    WMA = 4006,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_MP4 = 5000;
      */
-    FILE_FORMAT_MP4 = 5000,
+    MP4 = 5000,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_WEBM = 5001;
      */
-    FILE_FORMAT_WEBM = 5001,
+    WEBM = 5001,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_AVI = 5002;
      */
-    FILE_FORMAT_AVI = 5002,
+    AVI = 5002,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_MOV = 5003;
      */
-    FILE_FORMAT_MOV = 5003,
+    MOV = 5003,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_WMV = 5004;
      */
-    FILE_FORMAT_WMV = 5004,
+    WMV = 5004,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_FLV = 5005;
      */
-    FILE_FORMAT_FLV = 5005,
+    FLV = 5005,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_MKV = 5006;
      */
-    FILE_FORMAT_MKV = 5006,
+    MKV = 5006,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_PDF = 6000;
      */
-    FILE_FORMAT_PDF = 6000,
+    PDF = 6000,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_DOCX = 6001;
      */
-    FILE_FORMAT_DOCX = 6001,
+    DOCX = 6001,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_PPTX = 6002;
      */
-    FILE_FORMAT_PPTX = 6002,
+    PPTX = 6002,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_ODT = 6003;
      */
-    FILE_FORMAT_ODT = 6003,
+    ODT = 6003,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_XLSX = 6004;
      */
-    FILE_FORMAT_XLSX = 6004,
+    XLSX = 6004,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_ODS = 6005;
      */
-    FILE_FORMAT_ODS = 6005,
+    ODS = 6005,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_EPUB = 6006;
      */
-    FILE_FORMAT_EPUB = 6006,
+    EPUB = 6006,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_MOBI = 6007;
      */
-    FILE_FORMAT_MOBI = 6007,
+    MOBI = 6007,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_CHM = 6008;
      */
-    FILE_FORMAT_CHM = 6008,
+    CHM = 6008,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_DOC = 6009;
      */
-    FILE_FORMAT_DOC = 6009,
+    DOC = 6009,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_XLS = 6010;
      */
-    FILE_FORMAT_XLS = 6010,
+    XLS = 6010,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_PPT = 6011;
      */
-    FILE_FORMAT_PPT = 6011,
+    PPT = 6011,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_JSON = 7000;
      */
-    FILE_FORMAT_JSON = 7000,
+    JSON = 7000,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_YAML = 7001;
      */
-    FILE_FORMAT_YAML = 7001,
+    YAML = 7001,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_CSV = 7002;
      */
-    FILE_FORMAT_CSV = 7002,
+    CSV = 7002,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_XML = 7003;
      */
-    FILE_FORMAT_XML = 7003,
+    XML = 7003,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_TOML = 7004;
      */
-    FILE_FORMAT_TOML = 7004,
+    TOML = 7004,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_SQLITE = 7100;
      */
-    FILE_FORMAT_SQLITE = 7100,
+    SQLITE = 7100,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_PARQUET = 7101;
      */
-    FILE_FORMAT_PARQUET = 7101,
+    PARQUET = 7101,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_AVRO = 7102;
      */
-    FILE_FORMAT_AVRO = 7102,
+    AVRO = 7102,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_PROTOBUF = 7103;
      */
-    FILE_FORMAT_PROTOBUF = 7103,
+    PROTOBUF = 7103,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_ZIP = 8000;
      */
-    FILE_FORMAT_ZIP = 8000,
+    ZIP = 8000,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_RAR = 8001;
      */
-    FILE_FORMAT_RAR = 8001,
+    RAR = 8001,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_TAR = 8002;
      */
-    FILE_FORMAT_TAR = 8002,
+    TAR = 8002,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_SEVENZIP = 8003;
      */
-    FILE_FORMAT_SEVENZIP = 8003,
+    SEVENZIP = 8003,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_CAB = 8004;
      */
-    FILE_FORMAT_CAB = 8004,
+    CAB = 8004,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_GZIP = 8005;
      */
-    FILE_FORMAT_GZIP = 8005,
+    GZIP = 8005,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_BZIP2 = 8006;
      */
-    FILE_FORMAT_BZIP2 = 8006,
+    BZIP2 = 8006,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_XZ = 8007;
      */
-    FILE_FORMAT_XZ = 8007,
+    XZ = 8007,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_EXE = 9000;
      */
-    FILE_FORMAT_EXE = 9000,
+    EXE = 9000,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_APP_IMAGE = 9001;
      */
-    FILE_FORMAT_APP_IMAGE = 9001,
+    APP_IMAGE = 9001,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_APK = 9002;
      */
-    FILE_FORMAT_APK = 9002,
+    APK = 9002,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_DMG = 9003;
      */
-    FILE_FORMAT_DMG = 9003,
+    DMG = 9003,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_JAR = 9004;
      */
-    FILE_FORMAT_JAR = 9004,
+    JAR = 9004,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_MSI = 9005;
      */
-    FILE_FORMAT_MSI = 9005,
+    MSI = 9005,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_DEB = 9006;
      */
-    FILE_FORMAT_DEB = 9006,
+    DEB = 9006,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_RPM = 9007;
      */
-    FILE_FORMAT_RPM = 9007
+    RPM = 9007
 }
 /**
  * @generated from protobuf enum symbolx.bench.FileKind
@@ -12374,7 +12362,7 @@ class FileInfoData$Type extends MessageType<FileInfoData> {
             { no: 44, name: "inline_content", kind: "scalar", opt: true, T: 12 /*ScalarType.BYTES*/ },
             { no: 50, name: "coarse_type", kind: "enum", T: () => ["symbolx.bench.FileType", FileType, "FILE_TYPE_"] },
             { no: 51, name: "mime_type", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 52, name: "format", kind: "enum", opt: true, T: () => ["symbolx.bench.FileFormat", FileFormat] },
+            { no: 52, name: "format", kind: "enum", opt: true, T: () => ["symbolx.bench.FileFormat", FileFormat, "FILE_FORMAT_"] },
             { no: 53, name: "size", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 54, name: "sha256", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 55, name: "width", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
@@ -12557,7 +12545,7 @@ class FileReferenceData$Type extends MessageType<FileReferenceData> {
             { no: 44, name: "inline_content", kind: "scalar", opt: true, T: 12 /*ScalarType.BYTES*/ },
             { no: 50, name: "coarse_type", kind: "enum", T: () => ["symbolx.bench.FileType", FileType, "FILE_TYPE_"] },
             { no: 51, name: "mime_type", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 52, name: "format", kind: "enum", opt: true, T: () => ["symbolx.bench.FileFormat", FileFormat] },
+            { no: 52, name: "format", kind: "enum", opt: true, T: () => ["symbolx.bench.FileFormat", FileFormat, "FILE_FORMAT_"] },
             { no: 53, name: "size", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 54, name: "sha256", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 55, name: "width", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
@@ -15714,7 +15702,7 @@ class TypeConstraintData$Type extends MessageType<TypeConstraintData> {
             { no: 70, name: "block_type", kind: "enum", opt: true, T: () => ["symbolx.bench.BlockType", BlockType, "BLOCK_TYPE_"] },
             { no: 71, name: "step_type", kind: "enum", opt: true, T: () => ["symbolx.bench.StepType", StepType, "STEP_TYPE_"] },
             { no: 72, name: "file_type", kind: "enum", opt: true, T: () => ["symbolx.bench.FileType", FileType, "FILE_TYPE_"] },
-            { no: 73, name: "file_format", kind: "enum", opt: true, T: () => ["symbolx.bench.FileFormat", FileFormat] }
+            { no: 73, name: "file_format", kind: "enum", opt: true, T: () => ["symbolx.bench.FileFormat", FileFormat, "FILE_FORMAT_"] }
         ]);
     }
     create(value?: PartialMessage<TypeConstraintData>): TypeConstraintData {
@@ -18052,7 +18040,7 @@ class FileData$Type extends MessageType<FileData> {
             { no: 44, name: "inline_content", kind: "scalar", opt: true, T: 12 /*ScalarType.BYTES*/ },
             { no: 50, name: "coarse_type", kind: "enum", T: () => ["symbolx.bench.FileType", FileType, "FILE_TYPE_"] },
             { no: 51, name: "mime_type", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 52, name: "format", kind: "enum", opt: true, T: () => ["symbolx.bench.FileFormat", FileFormat] },
+            { no: 52, name: "format", kind: "enum", opt: true, T: () => ["symbolx.bench.FileFormat", FileFormat, "FILE_FORMAT_"] },
             { no: 53, name: "size", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
             { no: 54, name: "sha256", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 55, name: "width", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
