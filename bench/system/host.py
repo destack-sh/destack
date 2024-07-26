@@ -29,7 +29,7 @@ from bench.language.const import (
     ClientType,
     NodeType,
 )
-from bench.language.file import File, FileInfoBase, FileKind, FileReference
+from bench.language.file import File, FileInfoBase, FileKind
 from bench.language.graph import NodeDataGraphLike, NodeGraphLike, NodeSuperGraph
 from bench.language.log import Log
 from bench.language.node import GraphScope
@@ -834,7 +834,7 @@ class Host(GraphIoServiceBase, HostApi, HostBase):
         # get files
         async with self.session(readonly=True):
             files_refs = [
-                unpack_object_validate(ref, supergraph=None, expect=FileReference)
+                unpack_object_validate(ref, supergraph=None, expect=NodeReference)
                 for ref in request.files
             ]
             files = await File.get(files_refs)
@@ -853,7 +853,7 @@ class Host(GraphIoServiceBase, HostApi, HostBase):
                 Params={"Bucket": bucket, "Key": file_key},
                 ExpiresIn=S3_PRESIGNED_URL_EXPIRY,
             )
-            handle = DownloadFilesResponseDownloadHandle(get_url=get_url)
+            handle = DownloadFilesResponseDownloadHandle(file=file._to_data(), get_url=get_url)
             handles.append(handle)
 
         return DownloadFilesResponse(handles=handles)

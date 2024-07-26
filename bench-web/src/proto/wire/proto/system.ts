@@ -12,7 +12,6 @@ import { UnknownFieldHandler } from "@protobuf-ts/runtime";
 import type { PartialMessage } from "@protobuf-ts/runtime";
 import { reflectionMergePartial } from "@protobuf-ts/runtime";
 import { MessageType } from "@protobuf-ts/runtime";
-import { FileReferenceData } from "./lang";
 import { Struct } from "../google/protobuf/struct";
 import { FileData } from "./lang";
 import { BenchData } from "./lang";
@@ -802,7 +801,7 @@ export interface UploadFilesResponse {
     /**
      * @generated from protobuf field: repeated symbolx.bench.UploadFilesResponse.UploadHandle handles = 1;
      */
-    handles: UploadFilesResponse_UploadHandle[];
+    handles: UploadFilesResponse_UploadHandle[]; // handles for each valid file upload
 }
 /**
  * @generated from protobuf message symbolx.bench.UploadFilesResponse.UploadHandle
@@ -834,9 +833,9 @@ export interface DownloadFilesRequest {
      */
     scope?: GraphScopeData;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.FileReferenceData files = 2;
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData files = 2;
      */
-    files: FileReferenceData[];
+    files: NodeReferenceData[];
 }
 /**
  * @generated from protobuf message symbolx.bench.DownloadFilesResponse
@@ -845,7 +844,7 @@ export interface DownloadFilesResponse {
     /**
      * @generated from protobuf field: repeated symbolx.bench.DownloadFilesResponse.DownloadHandle handles = 1;
      */
-    handles: DownloadFilesResponse_DownloadHandle[];
+    handles: DownloadFilesResponse_DownloadHandle[]; // handles for each valid file download
 }
 /**
  * @generated from protobuf message symbolx.bench.DownloadFilesResponse.DownloadHandle
@@ -3106,7 +3105,7 @@ class DownloadFilesRequest$Type extends MessageType<DownloadFilesRequest> {
     constructor() {
         super("symbolx.bench.DownloadFilesRequest", [
             { no: 1, name: "scope", kind: "message", T: () => GraphScopeData },
-            { no: 2, name: "files", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => FileReferenceData }
+            { no: 2, name: "files", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<DownloadFilesRequest>): DownloadFilesRequest {
@@ -3124,8 +3123,8 @@ class DownloadFilesRequest$Type extends MessageType<DownloadFilesRequest> {
                 case /* symbolx.bench.GraphScopeData scope */ 1:
                     message.scope = GraphScopeData.internalBinaryRead(reader, reader.uint32(), options, message.scope);
                     break;
-                case /* repeated symbolx.bench.FileReferenceData files */ 2:
-                    message.files.push(FileReferenceData.internalBinaryRead(reader, reader.uint32(), options));
+                case /* repeated symbolx.bench.NodeReferenceData files */ 2:
+                    message.files.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -3142,9 +3141,9 @@ class DownloadFilesRequest$Type extends MessageType<DownloadFilesRequest> {
         /* symbolx.bench.GraphScopeData scope = 1; */
         if (message.scope)
             GraphScopeData.internalBinaryWrite(message.scope, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.FileReferenceData files = 2; */
+        /* repeated symbolx.bench.NodeReferenceData files = 2; */
         for (let i = 0; i < message.files.length; i++)
-            FileReferenceData.internalBinaryWrite(message.files[i], writer.tag(2, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.files[i], writer.tag(2, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

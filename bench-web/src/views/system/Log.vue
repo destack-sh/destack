@@ -145,7 +145,7 @@ defineExpose<ViewExposed>({ self, id });
         </template>
         <div v-else class="flex flex-1 flex-row items-center justify-end px-1 py-0.5 text-warning-600">
           <i class="fas fa-empty-set" />
-          <span class="ml-1.5">No View for Type Type</span>
+          <span class="ml-1.5">No View for Type</span>
         </div>
       </div>
     </div>
