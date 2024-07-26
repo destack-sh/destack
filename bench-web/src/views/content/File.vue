@@ -1,12 +1,12 @@
 <script lang="ts" setup>
 import { FileFormat, FileReferenceData, FileType, NodeType, ViewData } from "@/proto/wire";
-import { describeNode, toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
+import { toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
 import {
-  FileDownloadStatus,
-  getFileIcon,
+  FileStatus,
   getFileIconMaybe,
+  getFileStatusIcon,
+  getFileStatusName,
   uploadFile,
-  uploadFiles,
   useFileDownload,
   type FileUpload,
 } from "@/system/file";
@@ -177,8 +177,8 @@ defineExpose<ViewExposed>({ self, id });
       class="flex h-full min-h-[80px] w-full flex-col justify-center rounded border border-gray-200"
       :class="[isInDropZone ? 'border-primary-400 outline outline-1 outline-primary-400' : '']"
     >
-      <template v-if="download?.status.value == FileDownloadStatus.COMPLETED && download?.getUrl.value != null">
-        <!-- NOTE :Incomplete: proper file content views (image, audio, ... generic) -->
+      <template v-if="download?.status.value == FileStatus.COMPLETED && download?.getUrl.value != null">
+        <!-- NOTE :Incomplete: proper file content views (image with proper size & thumbnail, audio, ...) -->
         <!-- Image File -->
         <div v-if="download?.file.value?.coarseType == FileType.IMAGE">
           <img :src="download.getUrl.value" class="h-full w-full rounded" :alt="download?.file.value?.title ?? '???'" />
@@ -194,10 +194,32 @@ defineExpose<ViewExposed>({ self, id });
           </span>
         </div>
       </template>
-      <template v-else>
+      <div
+        v-else
+        class="flex h-full w-full flex-col items-center justify-center"
+        :class="[download?.status.value == FileStatus.FAILED ? 'text-warning-600' : 'text-gray-400']"
+      >
         <!-- File not ready -->
-        {{ download?.status ?? '<!no download>' }}
-      </template>
+        <span>
+          <IconInline
+            v-bind="getFileStatusIcon(download?.status.value ?? FileStatus.PENDING)"
+            :class="[
+              download?.status.value == FileStatus.PREPARING || download?.status.value == FileStatus.TRANSFERRING
+                ? 'animate-spin'
+                : '',
+            ]"
+          />
+          <template v-if="download?.filePtr">
+            <span class="ml-1.5">{{ download.filePtr.title ?? "???" }}</span>
+            <span class="ml-1.5 text-xs text-gray-400">
+              {{ humanizeBytes(Number(download.filePtr.size ?? 0)) }}
+            </span>
+          </template>
+          <span v-else class="ml-1.5">
+            {{ getFileStatusName(download?.status.value ?? FileStatus.PENDING) }} {{ facetName }}
+          </span>
+        </span>
+      </div>
     </div>
   </ViewContentWrapper>
 </template>

@@ -6,11 +6,9 @@ import {
   FILE_FORMAT_BY_MIME_TYPE,
   FileData,
   FileFormat,
-  FileInfoData,
   FileKind,
   FileReferenceData,
   FileType,
-  HostClient,
   IconData,
   NodeReferenceData,
   NodeType,
@@ -19,34 +17,41 @@ import {
   UploadFilesResponse_UploadHandle,
 } from "@/proto/wire";
 import { isNode, isStruct, makeScope, newNodeId, nodeReference, toNodeReference } from "@/proto/wiring";
-import { ICON_BY_FILE_FORMAT, ICON_BY_FILE_TYPE } from "@/system/icon";
-import { makeNode } from "@/system/lang";
+import { ICON_BY_FILE_FORMAT, ICON_BY_FILE_TYPE, makeIcon } from "@/system/icon";
+import { makeNode, toCamelName } from "@/system/lang";
 import { unpackProtoJson, type Transaction } from "@/system/transaction";
-import { AsyncEvent, groupByScalar } from "@/utils/functools";
+import { AsyncEvent, groupByScalar, onEveryTick } from "@/utils/functools";
 import { log } from "@/utils/log";
 import { humanizeBytes } from "@/utils/string";
-import { computed, toRef, watch } from "vue";
-import { markRaw, ref, shallowRef, triggerRef, type MaybeRef, type Ref } from "vue";
+import { computed, markRaw, shallowRef, toRef, triggerRef, watch, type MaybeRef, type Ref } from "vue";
 
-export enum FileUploadStatus {
+export enum FileStatus {
   PENDING = 0,
   PREPARING = 1,
-  UPLOADING = 3,
+  TRANSFERRING = 3,
   COMPLETED = 4,
   FAILED = 5,
 }
 
-export enum FileDownloadStatus {
-  PENDING = 0,
-  PREPARING = 1,
-  DOWNLOADING = 3,
-  COMPLETED = 4,
-  FAILED = 5,
+const ICON_BY_FILE_STATUS: Record<FileStatus, IconData> = {
+  [FileStatus.PENDING]: makeIcon({ faName: "fas fa-hourglass-half" }),
+  [FileStatus.PREPARING]: makeIcon({ faName: "fas fa-circle-notch" }),
+  [FileStatus.TRANSFERRING]: makeIcon({ faName: "fas fa-circle-notch" }),
+  [FileStatus.COMPLETED]: makeIcon({ faName: "fas fa-check" }),
+  [FileStatus.FAILED]: makeIcon({ faName: "fas fa-exclamation-triangle" }),
+};
+
+export function getFileStatusName(status: FileStatus): string {
+  return toCamelName(FileStatus, status);
+}
+
+export function getFileStatusIcon(status: FileStatus): IconData {
+  return ICON_BY_FILE_STATUS[status];
 }
 
 /** A file upload. */
 export type FileUpload = {
-  status: Ref<FileUploadStatus>;
+  status: Ref<FileStatus>;
   parent: PackageData | BlockData;
   nodePtr: NodeReferenceData;
   file: Ref<FileData | null>;
@@ -58,7 +63,7 @@ export type FileUpload = {
 
 /** A file download. */
 export type FileDownload = {
-  status: Ref<FileDownloadStatus>;
+  status: Ref<FileStatus>;
   nodePtr: NodeReferenceData;
   filePtr: FileReferenceData | null;
   file: Ref<FileData | null>;
@@ -140,7 +145,7 @@ async function doUploadFiles(tx: Transaction, uploads: FileUpload[]): Promise<vo
   log.trace("file.uploadFiles", uploads);
   // extract files
   for (const upload of uploads) {
-    upload.status.value = FileUploadStatus.PREPARING;
+    upload.status.value = FileStatus.PREPARING;
     upload.file.value = await extractFile(upload.content, upload.nodePtr, upload.parent);
   }
 
@@ -154,7 +159,7 @@ async function doUploadFiles(tx: Transaction, uploads: FileUpload[]): Promise<vo
   } catch (e) {
     log.error("file.uploadFiles.error", uploads, e);
     for (const upload of uploads) {
-      upload.status.value = FileUploadStatus.FAILED;
+      upload.status.value = FileStatus.FAILED;
       upload.completion.set();
     }
     return;
@@ -166,7 +171,7 @@ async function doUploadFiles(tx: Transaction, uploads: FileUpload[]): Promise<vo
     const handle = handlesById[upload.file.value!.id];
     if (handle == null || handle.file == null) {
       // couldn't get upload handle for file
-      upload.status.value = FileUploadStatus.FAILED;
+      upload.status.value = FileStatus.FAILED;
       upload.completion.set();
       continue;
     }
@@ -177,14 +182,14 @@ async function doUploadFiles(tx: Transaction, uploads: FileUpload[]): Promise<vo
     // actually upload
     try {
       const fields = unpackProtoJson(handle.fields!) as Record<string, string>;
-      upload.status.value = FileUploadStatus.UPLOADING;
+      upload.status.value = FileStatus.TRANSFERRING;
       await doUploadFile(upload.content, handle.postUrl, fields);
-      upload.status.value = FileUploadStatus.COMPLETED;
+      upload.status.value = FileStatus.COMPLETED;
 
       // actually create File node
       tx.create(upload.file.value);
     } catch (e) {
-      upload.status.value = FileUploadStatus.FAILED;
+      upload.status.value = FileStatus.FAILED;
       log.error("file.uploadFile.error", upload, e);
     }
     upload.completion.set();
@@ -197,7 +202,7 @@ export function uploadFiles(tx: Transaction, contents: File[], parent: PackageDa
   const uploads: FileUpload[] = contents.map((content) => {
     const fileIdentity = nodeReference(NodeType.FILE, newNodeId(), { benchId: parent.benchPtr!.id });
     const upload: FileUpload = {
-      status: shallowRef(FileUploadStatus.PENDING),
+      status: shallowRef(FileStatus.PENDING),
       parent,
       nodePtr: fileIdentity,
       file: shallowRef(null),
@@ -234,9 +239,9 @@ const downloadsByFileId: Ref<Record<string, FileDownload>> = shallowRef({});
 function uploadAsDownload(upload: FileUpload): FileDownload {
   const download: FileDownload = {
     status: computed(() => {
-      if (upload.status.value == FileUploadStatus.COMPLETED) return FileDownloadStatus.COMPLETED;
-      else if (upload.status.value == FileUploadStatus.FAILED) return FileDownloadStatus.FAILED;
-      else return FileDownloadStatus.PENDING;
+      if (upload.status.value == FileStatus.COMPLETED) return FileStatus.COMPLETED;
+      else if (upload.status.value == FileStatus.FAILED) return FileStatus.FAILED;
+      else return FileStatus.PENDING;
     }),
     nodePtr: upload.nodePtr,
     filePtr: null, // :RichReferences
@@ -255,6 +260,17 @@ function cacheDownload(download: FileDownload) {
   triggerRef(downloadsByFileId);
 }
 
+const FILE_DOWNLOAD_BATCH_INTERVAL = 40; // ms
+const pendingDownloads: FileDownload[] = [];
+
+// periodically batch downloads
+setInterval(() => {
+  if (pendingDownloads.length > 0) {
+    const toDownload = pendingDownloads.splice(0, pendingDownloads.length);
+    doDownloadFiles(toDownload);
+  }
+}, FILE_DOWNLOAD_BATCH_INTERVAL);
+
 /**
  * 'Downloads' the given files as get URLs from the Host. Returns as soon as the download starts.
  * All pending downloads are batched and execute at some point in the future in parallel.
@@ -265,7 +281,7 @@ export function downloadFiles(
 ): FileDownload[] {
   const downloads = files.map((file) => {
     const download: FileDownload = {
-      status: shallowRef(FileDownloadStatus.PENDING),
+      status: shallowRef(FileStatus.PENDING),
       nodePtr: isNode(file, NodeType.FILE) ? toNodeReference(file) : file,
       filePtr: isStruct(file, StructType.FILE_REFERENCE) ? file : null, // :RichReferences
       file: shallowRef(isNode(file, NodeType.FILE) ? file : null),
@@ -275,10 +291,10 @@ export function downloadFiles(
       completion: new AsyncEvent(),
       includesContent: options?.includeContent ?? false,
     };
+    cacheDownload(download);
     return markRaw(download);
   });
-  // nocheckin: batch downloads (per tick?)
-  doDownloadFiles(downloads); // kick off async
+  pendingDownloads.push(...downloads); // add to pending
   return downloads;
 }
 
@@ -305,7 +321,7 @@ async function doDownloadFiles(downloads: FileDownload[]): Promise<void> {
   } catch (e) {
     log.error("file.downloadFiles.error", downloads, e);
     for (const download of downloads) {
-      download.status.value = FileDownloadStatus.FAILED;
+      download.status.value = FileStatus.FAILED;
       download.completion.set();
     }
     return;
@@ -314,11 +330,11 @@ async function doDownloadFiles(downloads: FileDownload[]): Promise<void> {
 
   // download from get URLs (if content is included)
   for (const download of downloads) {
-    download.status.value = FileDownloadStatus.PREPARING;
+    download.status.value = FileStatus.PREPARING;
     const handle = handlesById[download.nodePtr.id!];
     if (handle == null || handle.file == null) {
       // couldn't get download handle for file
-      download.status.value = FileDownloadStatus.FAILED;
+      download.status.value = FileStatus.FAILED;
       download.completion.set();
       continue;
     }
@@ -329,15 +345,15 @@ async function doDownloadFiles(downloads: FileDownload[]): Promise<void> {
     // download content
     if (download.includesContent) {
       try {
-        download.status.value = FileDownloadStatus.DOWNLOADING;
+        download.status.value = FileStatus.TRANSFERRING;
         download.content.value = await doDownloadFile(download.getUrl.value, download.file.value);
-        download.status.value = FileDownloadStatus.COMPLETED;
+        download.status.value = FileStatus.COMPLETED;
       } catch (e) {
-        download.status.value = FileDownloadStatus.FAILED;
+        download.status.value = FileStatus.FAILED;
         log.error("file.downloadFile.error", download, e);
       }
     } else {
-      download.status.value = FileDownloadStatus.COMPLETED;
+      download.status.value = FileStatus.COMPLETED;
     }
     download.completion.set();
   }

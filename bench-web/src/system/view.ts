@@ -23,8 +23,6 @@ export const VIEW_TYPE_BY_BENCH_TYPE: Partial<Record<BenchType, ViewType>> = {
   [BenchType.FILE]: ViewType.FILE,
 };
 export const VIEW_TYPE_BY_FILE_TYPE: Partial<Record<FileType, ViewType>> = {
-  [FileType.TEXT]: ViewType.TEXT,
-  [FileType.CODE]: ViewType.CODE,
   [FileType.IMAGE]: ViewType.IMAGE,
   [FileType.AUDIO]: ViewType.AUDIO,
   [FileType.VIDEO]: ViewType.VIDEO,
