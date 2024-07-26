@@ -455,10 +455,7 @@ export function onNodeMorphed(tx: Transaction, graph: ReadNodeGraph, node: AnyNo
  */
 export function makeNode<T extends NodeType>(
   data: Partial<
-    Omit<
-      NodeTypeMapping[T],
-      "metatype" | "id" | "ck" | "createdAt" | "updatedAt" | "revision" | "source" | "setProperties"
-    >
+    Omit<NodeTypeMapping[T], "metatype" | "createdAt" | "updatedAt" | "revision" | "source" | "setProperties">
   > & {
     metatype: T;
   },

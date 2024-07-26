@@ -1,29 +1,36 @@
 import { getCachedHostClient } from "@/proto/services";
 import {
   BlockData,
+  DownloadFilesResponse_DownloadHandle,
   FILE_FORMAT_BY_EXTENSION,
   FILE_FORMAT_BY_MIME_TYPE,
   FileData,
   FileFormat,
+  FileInfoData,
   FileKind,
   FileReferenceData,
   FileType,
   HostClient,
+  IconData,
+  NodeReferenceData,
   NodeType,
   PackageData,
+  StructType,
+  UploadFilesResponse_UploadHandle,
 } from "@/proto/wire";
-import { isNode, makeScope, toNodeReference } from "@/proto/wiring";
+import { isNode, isStruct, makeScope, newNodeId, nodeReference, toNodeReference } from "@/proto/wiring";
+import { ICON_BY_FILE_FORMAT, ICON_BY_FILE_TYPE } from "@/system/icon";
 import { makeNode } from "@/system/lang";
-import { unpackProtoJson } from "@/system/transaction";
-import { AsyncEvent } from "@/utils/functools";
+import { unpackProtoJson, type Transaction } from "@/system/transaction";
+import { AsyncEvent, groupByScalar } from "@/utils/functools";
 import { log } from "@/utils/log";
 import { humanizeBytes } from "@/utils/string";
-import { markRaw, ref, shallowRef, type Ref } from "vue";
+import { computed, toRef, watch } from "vue";
+import { markRaw, ref, shallowRef, triggerRef, type MaybeRef, type Ref } from "vue";
 
 export enum FileUploadStatus {
   PENDING = 0,
   PREPARING = 1,
-  WAITING = 2,
   UPLOADING = 3,
   COMPLETED = 4,
   FAILED = 5,
@@ -32,7 +39,6 @@ export enum FileUploadStatus {
 export enum FileDownloadStatus {
   PENDING = 0,
   PREPARING = 1,
-  WAITING = 2,
   DOWNLOADING = 3,
   COMPLETED = 4,
   FAILED = 5,
@@ -42,6 +48,7 @@ export enum FileDownloadStatus {
 export type FileUpload = {
   status: Ref<FileUploadStatus>;
   parent: PackageData | BlockData;
+  nodePtr: NodeReferenceData;
   file: Ref<FileData | null>;
   content: File;
   getUrl: Ref<string | null>;
@@ -52,7 +59,8 @@ export type FileUpload = {
 /** A file download. */
 export type FileDownload = {
   status: Ref<FileDownloadStatus>;
-  filePtr: FileReferenceData;
+  nodePtr: NodeReferenceData;
+  filePtr: FileReferenceData | null;
   file: Ref<FileData | null>;
   content: Ref<File | null>;
   getUrl: Ref<string | null>;
@@ -61,33 +69,24 @@ export type FileDownload = {
   completion: AsyncEvent;
 };
 
-const _cachedDownloadsByFileId: Record<string, FileDownload> = {};
+//
+// Uploads
+//
 
-/** Turn a completed upload into a download. */
-function uploadAsDownload(upload: FileUpload): FileDownload {
-  if (upload.file.value == null) throw new Error(`missing file for ${upload.content.name}`);
-  const download: FileDownload = {
-    status: ref(FileDownloadStatus.COMPLETED),
-    filePtr: toNodeReference(upload.file.value),
-    file: shallowRef(upload.file.value),
-    content: shallowRef(upload.content),
-    getUrl: upload.getUrl,
-    progress: ref(100),
-    completion: upload.completion,
-  };
-  _cachedDownloadsByFileId[upload.file.value.id] = download;
-  return download;
-}
+const uploadsByFileId: Ref<Record<string, FileUpload>> = shallowRef({}); // nocheckin: track uploads
 
 /** Extract file info from a native File. Like in bench :ExtractFileInfo */
-export async function extractFile(content: File, parent: PackageData | BlockData): Promise<FileData> {
+export async function extractFile(
+  content: File,
+  identity: NodeReferenceData,
+  parent: PackageData | BlockData,
+): Promise<FileData> {
   const title = content.name;
 
   // guess file type using extension & mime type
   let format: FileFormat | undefined = undefined;
   const mimeType: string = content.type;
   if (title.includes(".")) {
-    // extension
     const extension = title.split(".").pop();
     if (extension && FILE_FORMAT_BY_EXTENSION[extension.toLowerCase()]) {
       format = FILE_FORMAT_BY_EXTENSION[extension.toLowerCase()];
@@ -106,6 +105,7 @@ export async function extractFile(content: File, parent: PackageData | BlockData
   // TODO :Incomplete: extract more file metadata :ExtractFileInfo
   const file = makeNode({
     metatype: NodeType.FILE,
+    id: identity.id,
     parentPtr: toNodeReference(parent),
     benchPtr: parent.benchPtr,
     packagePtr: isNode(parent, NodeType.PACKAGE) ? toNodeReference(parent) : parent.packagePtr,
@@ -128,10 +128,7 @@ async function doUploadFile(content: File, postUrl: string, fields: Record<strin
     formData.append(key, value);
   }
   formData.append("file", content);
-  const response = await fetch(postUrl, {
-    method: "POST",
-    body: formData,
-  });
+  const response = await fetch(postUrl, { method: "POST", body: formData });
   if (!response.ok) {
     throw new Error(`failed to upload file '${content.name}': ${response.status} ${response.statusText}`);
   }
@@ -139,70 +136,256 @@ async function doUploadFile(content: File, postUrl: string, fields: Record<strin
 }
 
 /** Executes a set of uploads (as parallel as possible). */
-async function doUploadFiles(uploads: FileUpload[]): Promise<void> {
+async function doUploadFiles(tx: Transaction, uploads: FileUpload[]): Promise<void> {
   log.trace("file.uploadFiles", uploads);
   // extract files
   for (const upload of uploads) {
     upload.status.value = FileUploadStatus.PREPARING;
-    upload.file.value = await extractFile(upload.content, upload.parent);
+    upload.file.value = await extractFile(upload.content, upload.nodePtr, upload.parent);
   }
 
   // get post URLs
   const scope = makeScope({ benchId: uploads[0].parent.benchPtr!.id });
   const host = getCachedHostClient(scope);
-  const {
-    response: { handles },
-  } = await host.uploadFiles({ scope, files: uploads.map((u) => u.file.value!) });
+  let handles: UploadFilesResponse_UploadHandle[] = [];
+  try {
+    const { response } = await host.uploadFiles({ scope, files: uploads.map((u) => u.file.value!) });
+    handles = response.handles;
+  } catch (e) {
+    log.error("file.uploadFiles.error", uploads, e);
+    for (const upload of uploads) {
+      upload.status.value = FileUploadStatus.FAILED;
+      upload.completion.set();
+    }
+    return;
+  }
 
+  const handlesById = groupByScalar(handles, (h) => h.file!.id);
   // upload to post URLs
-  for (let i = 0; i < uploads.length; i++) {
-    const upload = uploads[i];
-    const handle = handles[i];
-    if (handle.file == null) throw new Error(`missing file from host for ${upload.content.name}`);
+  for (const upload of uploads) {
+    const handle = handlesById[upload.file.value!.id];
+    if (handle == null || handle.file == null) {
+      // couldn't get upload handle for file
+      upload.status.value = FileUploadStatus.FAILED;
+      upload.completion.set();
+      continue;
+    }
+
     upload.file.value = handle.file; // may have been updated by Host
     upload.getUrl.value = handle.getUrl;
-    const fields = unpackProtoJson(handle.fields!) as Record<string, string>;
-    
+
     // actually upload
-    upload.status.value = FileUploadStatus.UPLOADING;
-    await doUploadFile(upload.content, handle.postUrl, fields);
-    upload.status.value = FileUploadStatus.COMPLETED;
+    try {
+      const fields = unpackProtoJson(handle.fields!) as Record<string, string>;
+      upload.status.value = FileUploadStatus.UPLOADING;
+      await doUploadFile(upload.content, handle.postUrl, fields);
+      upload.status.value = FileUploadStatus.COMPLETED;
+
+      // actually create File node
+      tx.create(upload.file.value);
+    } catch (e) {
+      upload.status.value = FileUploadStatus.FAILED;
+      log.error("file.uploadFile.error", upload, e);
+    }
     upload.completion.set();
   }
   log.trace("file.uploadFiles.complete", uploads);
 }
 
 /** Extracts and uploads the given files to the Host. Returns as soon as the upload starts. */
-export function uploadFiles(contents: File[], parent: PackageData | BlockData): FileUpload[] {
+export function uploadFiles(tx: Transaction, contents: File[], parent: PackageData | BlockData): FileUpload[] {
   const uploads: FileUpload[] = contents.map((content) => {
+    const fileIdentity = nodeReference(NodeType.FILE, newNodeId(), { benchId: parent.benchPtr!.id });
     const upload: FileUpload = {
       status: shallowRef(FileUploadStatus.PENDING),
       parent,
+      nodePtr: fileIdentity,
       file: shallowRef(null),
       content,
       getUrl: shallowRef(null),
       progress: shallowRef(0),
       completion: new AsyncEvent(),
     };
+
+    // immediately cache upload as download
+    const download = uploadAsDownload(upload);
+    cacheDownload(download);
+
     return markRaw(upload);
   });
-  doUploadFiles(uploads); // kick off async
+  doUploadFiles(tx, uploads); // kick off async
   return uploads;
 }
 
 /** Extracts and upload a file to the Host. Returns as soon as the upload starts. */
-export function uploadFile(content: File, parent: PackageData | BlockData): FileUpload {
-  const upload = uploadFiles([content], parent)[0];
+export function uploadFile(tx: Transaction, content: File, parent: PackageData | BlockData): FileUpload {
+  const upload = uploadFiles(tx, [content], parent)[0];
   return upload;
 }
 
-/** 'Downloads' the given files as get URLs from the Host. Returns as soon as the download starts. */
+//
+// Downloads
+//
+
+// NOTE :Performance: persist downloads cache in local storage?
+const downloadsByFileId: Ref<Record<string, FileDownload>> = shallowRef({});
+
+/** Turn a completed upload into a download. */
+function uploadAsDownload(upload: FileUpload): FileDownload {
+  const download: FileDownload = {
+    status: computed(() => {
+      if (upload.status.value == FileUploadStatus.COMPLETED) return FileDownloadStatus.COMPLETED;
+      else if (upload.status.value == FileUploadStatus.FAILED) return FileDownloadStatus.FAILED;
+      else return FileDownloadStatus.PENDING;
+    }),
+    nodePtr: upload.nodePtr,
+    filePtr: null, // :RichReferences
+    file: upload.file,
+    content: shallowRef(upload.content),
+    getUrl: upload.getUrl,
+    progress: upload.progress,
+    completion: upload.completion,
+    includesContent: true,
+  };
+  return markRaw(download);
+}
+
+function cacheDownload(download: FileDownload) {
+  downloadsByFileId.value[download.nodePtr.id!] = download;
+  triggerRef(downloadsByFileId);
+}
+
+/**
+ * 'Downloads' the given files as get URLs from the Host. Returns as soon as the download starts.
+ * All pending downloads are batched and execute at some point in the future in parallel.
+ */
 export function downloadFiles(
-  host: HostClient,
-  files: (FileReferenceData | FileData)[],
-  options?: { includeContent: boolean },
+  files: (FileReferenceData | NodeReferenceData | FileData)[],
+  options?: { includeContent?: boolean },
 ): FileDownload[] {
-  throw new Error("nocheckin: downloadFiles");
+  const downloads = files.map((file) => {
+    const download: FileDownload = {
+      status: shallowRef(FileDownloadStatus.PENDING),
+      nodePtr: isNode(file, NodeType.FILE) ? toNodeReference(file) : file,
+      filePtr: isStruct(file, StructType.FILE_REFERENCE) ? file : null, // :RichReferences
+      file: shallowRef(isNode(file, NodeType.FILE) ? file : null),
+      content: shallowRef(null),
+      getUrl: shallowRef(null),
+      progress: shallowRef(0),
+      completion: new AsyncEvent(),
+      includesContent: options?.includeContent ?? false,
+    };
+    return markRaw(download);
+  });
+  // nocheckin: batch downloads (per tick?)
+  doDownloadFiles(downloads); // kick off async
+  return downloads;
+}
+
+/** Download a single file from the Host. Returns as soon as the download starts. */
+export function downloadFile(
+  file: FileReferenceData | NodeReferenceData | FileData,
+  options?: { includeContent?: boolean },
+): FileDownload {
+  const download = downloadFiles([file], options)[0];
+  return download;
+}
+
+/** Executes a set of downloads (as parallel as possible). */
+async function doDownloadFiles(downloads: FileDownload[]): Promise<void> {
+  log.trace("file.downloadFiles", downloads);
+
+  // get get URLs
+  const scope = makeScope({ benchId: downloads[0].nodePtr.benchId });
+  const host = getCachedHostClient(scope);
+  let handles: DownloadFilesResponse_DownloadHandle[] = [];
+  try {
+    const { response } = await host.downloadFiles({ scope, files: downloads.map((d) => d.nodePtr) });
+    handles = response.handles;
+  } catch (e) {
+    log.error("file.downloadFiles.error", downloads, e);
+    for (const download of downloads) {
+      download.status.value = FileDownloadStatus.FAILED;
+      download.completion.set();
+    }
+    return;
+  }
+  const handlesById = groupByScalar(handles, (h) => h.file!.id);
+
+  // download from get URLs (if content is included)
+  for (const download of downloads) {
+    download.status.value = FileDownloadStatus.PREPARING;
+    const handle = handlesById[download.nodePtr.id!];
+    if (handle == null || handle.file == null) {
+      // couldn't get download handle for file
+      download.status.value = FileDownloadStatus.FAILED;
+      download.completion.set();
+      continue;
+    }
+
+    download.file.value = handle.file;
+    download.getUrl.value = handle.getUrl;
+
+    // download content
+    if (download.includesContent) {
+      try {
+        download.status.value = FileDownloadStatus.DOWNLOADING;
+        download.content.value = await doDownloadFile(download.getUrl.value, download.file.value);
+        download.status.value = FileDownloadStatus.COMPLETED;
+      } catch (e) {
+        download.status.value = FileDownloadStatus.FAILED;
+        log.error("file.downloadFile.error", download, e);
+      }
+    } else {
+      download.status.value = FileDownloadStatus.COMPLETED;
+    }
+    download.completion.set();
+  }
+}
+
+/** Actually download file content from the given URL. */
+async function doDownloadFile(getUrl: string, file: FileData): Promise<File> {
+  const response = await fetch(getUrl);
+  if (!response.ok) {
+    throw new Error(`failed to download file from ${getUrl}: ${response.status} ${response.statusText}`);
+  }
+  const content = await response.blob();
+  return new File([content], file.title, { type: file.mimeType });
+}
+
+type SomeFile = FileData | FileReferenceData | NodeReferenceData;
+
+/** Gets the existing download for the given file. */
+export function getCachedFileDownload(file: SomeFile): FileDownload | null {
+  return downloadsByFileId.value[file.id!];
+}
+
+/** Gets or creates a download for the given file as a ref. */
+export function useFileDownload(
+  file: MaybeRef<SomeFile | null | undefined>,
+  options?: { includeContent?: boolean },
+): Ref<FileDownload | null> {
+  const fileRef = toRef(file) as Ref<SomeFile | null>;
+  const download: Ref<FileDownload | null> = shallowRef(null);
+
+  watch(
+    fileRef,
+    (newFile) => {
+      if (newFile == null) {
+        download.value = null;
+      } else {
+        const existing = getCachedFileDownload(newFile);
+        if (existing != null) {
+          download.value = existing;
+        } else {
+          download.value = downloadFile(newFile, options);
+        }
+      }
+    },
+    { immediate: true },
+  );
+
+  return download;
 }
 
 /** Hash the given file content (SHA-256). */
@@ -212,4 +395,18 @@ async function sha256(content: File): Promise<string> {
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   const hashHex = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
   return hashHex;
+}
+
+/** Gets the icon for the given file. */
+export function getFileIcon(file: FileData | FileReferenceData): IconData | null {
+  if (file.format != null && ICON_BY_FILE_FORMAT[file.format] != null) return ICON_BY_FILE_FORMAT[file.format]!;
+  else if (file.coarseType != null && ICON_BY_FILE_TYPE[file.coarseType] != null)
+    return ICON_BY_FILE_TYPE[file.coarseType]!;
+  else return null;
+}
+
+/** Gets the icon for the given file, if any. */
+export function getFileIconMaybe(file: FileData | FileReferenceData | null): IconData | null {
+  if (file == null) return null;
+  else return getFileIcon(file);
 }

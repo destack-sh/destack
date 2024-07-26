@@ -418,13 +418,13 @@ export interface IHostClient {
     // 
 
     /**
-     * 'Upload' some files (get URLs to upload them to).
+     * 'Upload' some files (get URLs to upload them to). Handles may be incomplete.
      *
      * @generated from protobuf rpc: UploadFiles(symbolx.bench.UploadFilesRequest) returns (symbolx.bench.UploadFilesResponse);
      */
     uploadFiles(input: UploadFilesRequest, options?: OperationOptions): UnaryCall<UploadFilesRequest, UploadFilesResponse>;
     /**
-     * 'Download' some files (get URLs to download them from).
+     * 'Download' some files (get URLs to download them from). Handles may be incomplete.
      *
      * @generated from protobuf rpc: DownloadFiles(symbolx.bench.DownloadFilesRequest) returns (symbolx.bench.DownloadFilesResponse);
      */
@@ -499,7 +499,7 @@ export class HostClient implements IHostClient, ServiceInfo {
     // 
 
     /**
-     * 'Upload' some files (get URLs to upload them to).
+     * 'Upload' some files (get URLs to upload them to). Handles may be incomplete.
      *
      * @generated from protobuf rpc: UploadFiles(symbolx.bench.UploadFilesRequest) returns (symbolx.bench.UploadFilesResponse);
      */
@@ -508,7 +508,7 @@ export class HostClient implements IHostClient, ServiceInfo {
         return stackIntercept<UploadFilesRequest, UploadFilesResponse>("unary", this._transport, method, opt, input);
     }
     /**
-     * 'Download' some files (get URLs to download them from).
+     * 'Download' some files (get URLs to download them from). Handles may be incomplete.
      *
      * @generated from protobuf rpc: DownloadFiles(symbolx.bench.DownloadFilesRequest) returns (symbolx.bench.DownloadFilesResponse);
      */

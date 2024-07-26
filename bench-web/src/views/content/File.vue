@@ -1,10 +1,18 @@
 <script lang="ts" setup>
 import { FileFormat, FileReferenceData, FileType, NodeType, ViewData } from "@/proto/wire";
 import { describeNode, toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
-import { uploadFile, uploadFiles, type FileUpload } from "@/system/file";
+import {
+  FileDownloadStatus,
+  getFileIcon,
+  getFileIconMaybe,
+  uploadFile,
+  uploadFiles,
+  useFileDownload,
+  type FileUpload,
+} from "@/system/file";
 import { ICON_BY_FILE_FORMAT, ICON_BY_FILE_TYPE, IconInline } from "@/system/icon";
 import { toCamelName } from "@/system/lang";
-import { canvas, pkg } from "@/system/space";
+import { canvas, pkg, pkgConnection } from "@/system/space";
 import { FILE_TYPE_BY_VIEW_TYPE } from "@/system/view";
 import { useDropZone } from "@/utils/drag";
 import { humanizeBytes } from "@/utils/string";
@@ -61,13 +69,14 @@ const facetName = computed(() => {
 const fileInputRef = ref<HTMLInputElement | null>(null);
 const containerRef = ref<HTMLElement | null>(null);
 const upload: Ref<FileUpload | null> = ref(null);
+const download = useFileDownload(toRef(props, "modelValue"));
 
 async function onFileSelected(files: File[]) {
   if (files.length == 0) return;
   if (pkg.value == null) throw new Error("no current package");
   const content = files[0];
   // NOTE :Incomplete: uploaded file should be attributed to closest ancestor block, not package (?)
-  upload.value = uploadFile(content, pkg.value);
+  upload.value = uploadFile(pkgConnection.tx, content, pkg.value);
   await upload.value.completion.wait();
   if (upload.value.file.value == null) throw new Error("missing file in upload");
   emit("update:modelValue", toNodeReference(upload.value.file.value));
@@ -146,7 +155,7 @@ defineExpose<ViewExposed>({ self, id });
     <div
       v-else-if="modelValue == null"
       ref="containerRef"
-      class="flex h-full min-h-[60px] w-full cursor-pointer flex-col justify-center rounded border px-2.5 py-1 text-center transition-all duration-75"
+      class="flex h-full min-h-[80px] w-full cursor-pointer flex-col justify-center rounded border px-2.5 py-1 text-center transition-all duration-75"
       :class="[
         isInDropZone
           ? 'border-primary-400 bg-primary-200 text-primary-900 outline outline-1 outline-primary-400'
@@ -160,15 +169,35 @@ defineExpose<ViewExposed>({ self, id });
       </span>
     </div>
 
+    <!-- nocheckin: file upload/download status -->
     <!-- Inline value -->
     <div
       v-else
       ref="containerRef"
-      class="h-full w-full rounded border border-gray-200"
-      :class="[isInDropZone ? 'border-primary-400' : '']"
+      class="flex h-full min-h-[80px] w-full flex-col justify-center rounded border border-gray-200"
+      :class="[isInDropZone ? 'border-primary-400 outline outline-1 outline-primary-400' : '']"
     >
-      <!-- nocheckin: file view (image, audio, ... generic) -->
-      {{ describeNode(modelValue) }}
+      <template v-if="download?.status.value == FileDownloadStatus.COMPLETED && download?.getUrl.value != null">
+        <!-- NOTE :Incomplete: proper file content views (image, audio, ... generic) -->
+        <!-- Image File -->
+        <div v-if="download?.file.value?.coarseType == FileType.IMAGE">
+          <img :src="download.getUrl.value" class="h-full w-full rounded" :alt="download?.file.value?.title ?? '???'" />
+        </div>
+        <!-- Generic File -->
+        <div v-else class="flex h-full w-full justify-center text-center">
+          <span>
+            <IconInline v-bind="getFileIconMaybe(download?.file.value) ?? facetIcon" class="text-gray-700" />
+            <span class="ml-1.5">{{ download?.file.value?.title ?? "???" }}</span>
+            <span class="ml-1.5 text-xs text-gray-400">
+              {{ humanizeBytes(Number(download?.file.value?.size ?? 0)) }}
+            </span>
+          </span>
+        </div>
+      </template>
+      <template v-else>
+        <!-- File not ready -->
+        {{ download?.status ?? '<!no download>' }}
+      </template>
     </div>
   </ViewContentWrapper>
 </template>

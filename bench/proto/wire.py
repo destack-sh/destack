@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.07.25.0"
+VERSION = "2024.07.26.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -3925,7 +3925,7 @@ class UploadFilesResponseUploadHandle(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class DownloadFilesRequest(betterproto.Message):
     scope: "GraphScopeData" = betterproto.message_field(1)
-    files: List["FileReferenceData"] = betterproto.message_field(2)
+    files: List["NodeReferenceData"] = betterproto.message_field(2)
 
 
 @dataclass(eq=False, repr=False)

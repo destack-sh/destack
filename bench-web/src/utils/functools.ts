@@ -136,3 +136,29 @@ export function assertNever(value?: never, msg?: string): never {
     throw new Error(`unexpected value: ${JSON.stringify(value)}`);
   }
 }
+
+/** Groups items by the given key function. */
+export function groupByList<T, K extends string | number>(items: T[], keyFn: (item: T) => K): Record<K, T[]> {
+  const result = {} as Record<K, T[]>;
+  for (const item of items) {
+    const key = keyFn(item);
+    if (result[key] == null) {
+      result[key] = [];
+    }
+    result[key].push(item);
+  }
+  return result;
+}
+
+/** Groups items by the given key function uniquely. */
+export function groupByScalar<T, K extends string | number>(items: T[], keyFn: (item: T) => K): Record<K, T> {
+  const result = {} as Record<K, T>;
+  for (const item of items) {
+    const key = keyFn(item);
+    if (result[key] != null) {
+      throw new Error(`duplicate key ${key}`);
+    }
+    result[key] = item;
+  }
+  return result;
+}
