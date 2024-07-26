@@ -678,7 +678,10 @@ async def _do_download_files(
     # get download URLs
     download_req = DownloadFilesRequest(
         scope=session._get_scope_for_node(session),
-        files=[(f.to_ref() if isinstance(f, File) else f)._to_data() for f in file_refs],
+        files=[
+            (f._to_plain_ref() if isinstance(f, File) else f._to_plain_ref())._to_data()
+            for f in file_refs
+        ],
     )
     download_rep = await session.host.download_files(download_req, metadata=session._rpc_headers)
     files: list[File] = []
@@ -793,6 +796,8 @@ async def upload(
         drive = session.bench.main_drive
         if drive is None:
             raise ValueError(f"no drive to upload file {title!r} to in {session!r}")
+    file.parent = parent
+    file.drive = drive
 
     # upload file, then create in session
     await _do_upload_files(session, [file], [content])

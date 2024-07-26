@@ -1641,7 +1641,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
                 parent = parent.parent
             return "/".join(reversed(path_parts))
 
-    def to_plain_ref(self) -> "NodeReference":
+    def _to_plain_ref(self) -> "NodeReference":
         """Gets a plain reference to this node."""
         return NodeReference._ref_from_node(self)
 
@@ -1958,14 +1958,27 @@ class NodeReferenceBase[NT: Node, ND: AnyNodeData, RT: NodeReferenceBase, RD: An
             **kwargs,
         )
 
+    def _to_plain_ref(self) -> "NodeReference":
+        """Gets a plain reference to this node."""
+        return NodeReference(
+            type=self.type,
+            id=self.id,
+            ck=self.ck,
+            bench_id=self.bench_id,
+            base_ck=self.base_ck,
+            base_bench_id=self.base_bench_id,
+        )
+
     @staticmethod
     @abc.abstractmethod
     def _ref_from_node(node: NT) -> RT:
+        """Turn a node into a reference to that node."""
         raise NotImplementedError
 
     @staticmethod
     @abc.abstractmethod
     def _ref_data_from_node_data(node_data: ND) -> RD:
+        """Turn a data node into a data node reference to that node."""
         raise NotImplementedError
 
 
@@ -2003,9 +2016,12 @@ class NodeReference(Struct[NodeReferenceData], NodeReferenceBase):
         pass  # NOTE :Robustness: we used to require bench_id for sub-bench types here
 
     @override
+    def _to_plain_ref(self) -> "NodeReference":
+        return self
+
+    @override
     @staticmethod
     def _ref_from_node(node: Node) -> "NodeReference":
-        """Turn a node into a reference to that node."""
         assert isinstance(node, Node), f"expected Node, got {node!r}"
         reference = NodeReference(type=node.metatype, id=node.id, ck=node.ck)
 
@@ -2038,7 +2054,6 @@ class NodeReference(Struct[NodeReferenceData], NodeReferenceBase):
     @override
     @staticmethod
     def _ref_data_from_node_data(node_data: AnyNodeData) -> "NodeReferenceData":
-        """Turn a data node into a data node reference to that node."""
         from bench.proto import wire
 
         node_cls = OBJECT_CLASS_BY_TYPE[cast(ObjectType, node_data.metatype)]

@@ -27,8 +27,10 @@ from bench.language.const import (
     LOCAL_NODE_TYPES,
     SOURCE_NODE_TYPES,
     ClientType,
+    ConditionalOp,
     NodeType,
 )
+from bench.language.expression import C
 from bench.language.file import File, FileInfoBase, FileKind
 from bench.language.graph import NodeDataGraphLike, NodeGraphLike, NodeSuperGraph
 from bench.language.log import Log
@@ -830,14 +832,16 @@ class Host(GraphIoServiceBase, HostApi, HostBase):
     async def download_files(
         self, subject: Subject, request: DownloadFilesRequest
     ) -> DownloadFilesResponse:
-        # TODO :Broken :Security: evaluate file download access
+        # TODO :Broken :Security!: evaluate file download access
         # get files
         async with self.session(readonly=True):
             files_refs = [
                 unpack_object_validate(ref, supergraph=None, expect=NodeReference)
                 for ref in request.files
             ]
-            files = await File.get(files_refs)
+            files = await File.search(
+                C(ConditionalOp.IN, property=File.id, value=[f.id for f in files_refs])
+            )
 
         # get pre-signed URLs
         handles: list[DownloadFilesResponseDownloadHandle] = []
