@@ -20,7 +20,7 @@ import { isNode, isStruct, makeScope, newNodeId, nodeReference, toNodeReference 
 import { ICON_BY_FILE_FORMAT, ICON_BY_FILE_TYPE, makeIcon } from "@/system/icon";
 import { makeNode, toCamelName } from "@/system/lang";
 import { unpackProtoJson, type Transaction } from "@/system/transaction";
-import { AsyncEvent, groupByScalar, onEveryTick } from "@/utils/functools";
+import { AsyncEvent, groupByScalar } from "@/utils/functools";
 import { log } from "@/utils/log";
 import { humanizeBytes } from "@/utils/string";
 import { computed, markRaw, shallowRef, toRef, triggerRef, watch, type MaybeRef, type Ref } from "vue";
@@ -52,6 +52,7 @@ export function getFileStatusIcon(status: FileStatus): IconData {
 /** A file upload. */
 export type FileUpload = {
   status: Ref<FileStatus>;
+  isActive: Ref<boolean>;
   parent: PackageData | BlockData;
   nodePtr: NodeReferenceData;
   file: Ref<FileData | null>;
@@ -64,6 +65,7 @@ export type FileUpload = {
 /** A file download. */
 export type FileDownload = {
   status: Ref<FileStatus>;
+  isActive: Ref<boolean>;
   nodePtr: NodeReferenceData;
   filePtr: FileReferenceData | null;
   file: Ref<FileData | null>;
@@ -149,22 +151,45 @@ export async function extractFile(
 }
 
 /** Actually upload a single file to a presigned post URL. */
-async function doUploadFile(content: File, postUrl: string, fields: Record<string, string>): Promise<void> {
+function doUploadFile(
+  content: File,
+  postUrl: string,
+  fields: Record<string, string>,
+  onProgress: (progress: number) => void,
+): Promise<void> {
   log.trace("file.uploadFile", content.name, humanizeBytes(content.size), { content, postUrl, fields });
   const formData = new FormData();
   for (const [key, value] of Object.entries(fields)) {
     formData.append(key, value);
   }
   formData.append("file", content);
-  const response = await fetch(postUrl, { method: "POST", body: formData });
-  if (!response.ok) {
-    throw new Error(`failed to upload file '${content.name}': ${response.status} ${response.statusText}`);
-  }
-  log.trace("file.uploadFile.complete", content.name, humanizeBytes(content.size));
+
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", postUrl, true);
+
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) {
+        onProgress((e.loaded / e.total) * 100);
+      }
+    };
+    xhr.onload = () => {
+      if (xhr.status == 200 || xhr.status == 204) {
+        resolve();
+        onProgress(100);
+      } else {
+        reject(new Error(`failed to upload file '${content.name}': ${xhr.status} ${xhr.statusText}`));
+      }
+    };
+    xhr.onerror = (e) => {
+      reject(new Error(`failed to upload file '${content.name}': ${e}`));
+    };
+    xhr.send(formData);
+  });
 }
 
 /** Executes a set of uploads (as parallel as possible). */
-async function doUploadFiles(tx: Transaction, uploads: FileUpload[]): Promise<void> {
+async function doUploadFiles(txFactory: () => Transaction, uploads: FileUpload[]): Promise<void> {
   log.trace("file.uploadFiles", uploads);
   // extract files
   for (const upload of uploads) {
@@ -206,11 +231,13 @@ async function doUploadFiles(tx: Transaction, uploads: FileUpload[]): Promise<vo
     try {
       const fields = unpackProtoJson(handle.fields!) as Record<string, string>;
       upload.status.value = FileStatus.TRANSFERRING;
-      await doUploadFile(upload.content, handle.postUrl, fields);
+      await doUploadFile(upload.content, handle.postUrl, fields, (progress) => {
+        upload.progress.value = progress;
+      });
       upload.status.value = FileStatus.COMPLETED;
 
       // actually create File node
-      tx.create(upload.file.value);
+      txFactory().create(upload.file.value);
     } catch (e) {
       upload.status.value = FileStatus.FAILED;
       log.error("file.uploadFile.error", upload, e);
@@ -221,11 +248,16 @@ async function doUploadFiles(tx: Transaction, uploads: FileUpload[]): Promise<vo
 }
 
 /** Extracts and uploads the given files to the Host. Returns as soon as the upload starts. */
-export function uploadFiles(tx: Transaction, contents: File[], parent: PackageData | BlockData): FileUpload[] {
+export function uploadFiles(
+  txFactory: () => Transaction,
+  contents: File[],
+  parent: PackageData | BlockData,
+): FileUpload[] {
   const uploads: FileUpload[] = contents.map((content) => {
     const fileIdentity = nodeReference(NodeType.FILE, newNodeId(), { benchId: parent.benchPtr!.id });
     const upload: FileUpload = {
       status: shallowRef(FileStatus.PENDING),
+      isActive: computed(() => upload.status.value != FileStatus.COMPLETED && upload.status.value != FileStatus.FAILED),
       parent,
       nodePtr: fileIdentity,
       file: shallowRef(null),
@@ -234,6 +266,8 @@ export function uploadFiles(tx: Transaction, contents: File[], parent: PackageDa
       progress: shallowRef(0),
       completion: new AsyncEvent(),
     };
+    uploadsByFileId.value[fileIdentity.id!] = upload;
+    triggerRef(uploadsByFileId);
 
     // immediately cache upload as download
     const download = uploadAsDownload(upload);
@@ -241,13 +275,13 @@ export function uploadFiles(tx: Transaction, contents: File[], parent: PackageDa
 
     return markRaw(upload);
   });
-  doUploadFiles(tx, uploads); // kick off async
+  doUploadFiles(txFactory, uploads); // kick off async
   return uploads;
 }
 
 /** Extracts and upload a file to the Host. Returns as soon as the upload starts. */
-export function uploadFile(tx: Transaction, content: File, parent: PackageData | BlockData): FileUpload {
-  const upload = uploadFiles(tx, [content], parent)[0];
+export function uploadFile(txFactory: () => Transaction, content: File, parent: PackageData | BlockData): FileUpload {
+  const upload = uploadFiles(txFactory, [content], parent)[0];
   return upload;
 }
 
@@ -266,6 +300,7 @@ function uploadAsDownload(upload: FileUpload): FileDownload {
       else if (upload.status.value == FileStatus.FAILED) return FileStatus.FAILED;
       else return FileStatus.PENDING;
     }),
+    isActive: upload.isActive,
     nodePtr: upload.nodePtr,
     filePtr: null, // :RichReferences
     file: upload.file,
@@ -305,6 +340,9 @@ export function downloadFiles(
   const downloads = files.map((file) => {
     const download: FileDownload = {
       status: shallowRef(FileStatus.PENDING),
+      isActive: computed(
+        () => download.status.value != FileStatus.COMPLETED && download.status.value != FileStatus.FAILED,
+      ),
       nodePtr: isNode(file, NodeType.FILE) ? toNodeReference(file) : file,
       filePtr: isStruct(file, StructType.FILE_REFERENCE) ? file : null, // :RichReferences
       file: shallowRef(isNode(file, NodeType.FILE) ? file : null),
