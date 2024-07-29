@@ -11,14 +11,14 @@ import {
   TypeKind,
   type AnyNodeData,
   type IconData,
-  type NodeReferenceData
+  type NodeReferenceData,
 } from "@/proto/wire";
 import { toNodeRef, toPlainNodeRef } from "@/proto/wiring";
 import { ACTION_BUILTIN_IDS_INDEX, IMPLEMENTED_ACTIONS, type Action } from "@/system/action";
 import type { NodeKey, ReadNodeGraph } from "@/system/graph";
 import { AVAILABLE_FA_ICONS, DEFAULT_ENUM_ICON, getNodeIcon, type IconMetadata } from "@/system/icon";
 import { TYPE_BLOCK_TYPES, getEnumOptions, isStructType, type EnumOption } from "@/system/lang";
-import type { TypeIdentity } from "@/system/value";
+import { typeIdentityEquals, type TypeIdentity } from "@/system/value";
 import uFuzzy from "@leeoniya/ufuzzy";
 import { tryOnBeforeUnmount } from "@vueuse/core";
 import { markRaw, shallowRef, toRef, toValue, watch, type MaybeRef, type Ref } from "vue";
@@ -231,7 +231,7 @@ export function actionIndex(idx: { id: string } = { id: "action" }): SearchIndex
 /*
  * Search the available options of an enum.
  */
-export function enumIndex(idx: { id: string; enumTypes: EnumType[], enumValues?: any[] }): SearchIndex<EnumOptionItem> {
+export function enumIndex(idx: { id: string; enumTypes: EnumType[]; enumValues?: any[] }): SearchIndex<EnumOptionItem> {
   function itemFromEnumOption(enumTypes: EnumType[], value: EnumOption | number): EnumOptionItem | null {
     if (typeof value == "object") {
       return { ...value, metatype: "enum-option", itemId: value.id };
@@ -265,7 +265,7 @@ export function enumIndex(idx: { id: string; enumTypes: EnumType[], enumValues?:
           .flatMap((enumType) => getEnumOptions(enumType))
           .map((enumOption) => itemFromEnumOption(idx.enumTypes, enumOption)!);
       }
-    }
+    },
   };
   return markRaw(index);
 }
@@ -365,24 +365,7 @@ export function typeIndex(idx: {
     id: idx.id,
     fromValue: fromValue,
     toValue: (candidate: TypeItem) => candidate,
-    valueEquals: (a: TypeIdentity, b: TypeIdentity) => {
-      if (a.primitiveType != null) {
-        return a.primitiveType === b.primitiveType;
-      } else if (a.baseTypePtr != null) {
-        return a.baseTypePtr.id === b.baseTypePtr?.id && a.benchType == b.benchType;
-      } else if (a.benchType != null) {
-        if (a.benchType != b.benchType) {
-          return false;
-        } else if (a.constraint != null && b.constraint != null) {
-          return a.constraint.fileType == b.constraint.fileType && a.constraint.blockType == b.constraint.blockType && a.constraint.stepType == b.constraint.stepType;
-        } else { 
-          return true;
-        }
-      }
-      else {return false;
-
-      }
-    },
+    valueEquals: typeIdentityEquals,
     candidates: () => {
       // intrinsic types
       const enumItems: TypeItem[] = intrinsicEnumTypes.flatMap((enumType) =>
