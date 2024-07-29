@@ -30,7 +30,7 @@ import {
   FileFormat,
 } from "@/proto/wire";
 import type { FunctionalComponent } from "vue";
-// file is generated with:
+// fa-icons is generated with:
 // curl https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/metadata/icons.json
 //  | jq 'to_entries | map(select(.value.free | index("solid") or index("brands")) | {"id": .key, label: .value.label, unicode: .value.unicode, alias: .value.search.terms, family: (if .value.free | index("solid") then "fas" else "fab" end)})'
 //  > fa-icons.json
@@ -64,7 +64,7 @@ export const AVAILABLE_ICONS_BY_ID: Record<string, IconMetadata> = Object.fromEn
 );
 
 type IconInlineProps = Pick<IconData, "emoji" | "filePtr" | "faName"> & {
-  color?: ColorType | ColorData;
+  color?: ColorType | ColorData; 
   shade?: ColorShade;
   forceColor?: "inherit" | ColorType;
   fallbackColor?: ColorType;
@@ -82,7 +82,7 @@ export const IconInline: FunctionalComponent<IconInlineProps> = (props) => {
   } else if (props.emoji) {
     return <span style={{ color: colorHex }}>{props.emoji}</span>;
   } else {
-    if (IS_DEV || isDeveloperMode.value) return <span class="text-danger-500">?invalid: {JSON.stringify(props)}</span>;
+    if (IS_DEV || isDeveloperMode.value) return <span class="text-danger-500">?icon: {JSON.stringify(props)}</span>;
     else return <span style={{ color: colorHex }}>???</span>;
   }
 };
@@ -379,15 +379,13 @@ export const ICON_BY_FILE_TYPE: Partial<Record<FileType, IconData>> = _makeIcons
   [FileType.GENERIC]: "fas fa-file",
 });
 
-// nocheckin :UX: use vscode-icons for file format icons
+// NOTE :UX!: use vscode-icons for file format icons
 export const ICON_BY_FILE_FORMAT: Partial<Record<FileFormat, IconData>> = _makeIcons({
   // text
   [FileFormat.TXT]: "fas fa-file-lines",
   [FileFormat.MARKDOWN]: "fas fa-pen-fancy",
   [FileFormat.RTF]: "fas fa-file-word",
   [FileFormat.LOG]: "fas fa-clipboard-list",
-  // code
-  [FileFormat.PYTHON]: "🐍",
   // image
   [FileFormat.PDF]: "fas fa-file-pdf",
   [FileFormat.DOCX]: "fas fa-file-word",

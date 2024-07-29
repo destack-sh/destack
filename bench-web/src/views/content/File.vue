@@ -3,6 +3,7 @@ import { FileFormat, FileReferenceData, FileType, NodeType, ViewData } from "@/p
 import { toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
 import {
   FileStatus,
+  getFileAcceptFromConstraint,
   getFileIconMaybe,
   getFileStatusIcon,
   getFileStatusName,
@@ -13,8 +14,10 @@ import {
 import { ICON_BY_FILE_FORMAT, ICON_BY_FILE_TYPE, IconInline } from "@/system/icon";
 import { toCamelName } from "@/system/lang";
 import { canvas, pkg, pkgConnection } from "@/system/space";
+import { toaster } from "@/system/toast";
 import { FILE_TYPE_BY_VIEW_TYPE } from "@/system/view";
 import { useDropZone } from "@/utils/drag";
+import { log } from "@/utils/log";
 import { humanizeBytes } from "@/utils/string";
 import { makeViewId, ViewContentWrapper, viewEmits, type ViewExposed } from "@/views/common";
 import { computed, ref, toRef, type Ref } from "vue";
@@ -79,15 +82,23 @@ async function onFileSelected(files: File[]) {
   const content = files[0];
   // NOTE :Incomplete: uploaded file should be attributed to closest ancestor block, not package (?)
   try {
-    upload.value = uploadFile(() => pkgConnection.tx, content, pkg.value);
+    upload.value = uploadFile(() => pkgConnection.tx, content, {
+      parent: pkg.value,
+      allowedTypes: fileType.value != FileType.GENERIC ? [fileType.value] : undefined,
+      allowedFormats: fileFormat.value != null ? [fileFormat.value] : undefined,
+    });
     await upload.value.completion.wait();
     if (upload.value.file.value == null) throw new Error("missing file in upload");
     emit("update:modelValue", toNodeReference(upload.value.file.value));
+  } catch (e) {
+    log.error("file.upload.error", upload, e);
+    toaster.error({ title: "Upload Failed", text: `'${content.name}': ${(e as any)?.message ?? "unknown error"}` });
   } finally {
     upload.value = null;
   }
 }
 
+// NOTE :UX: constrain drop mime types to file types
 const { isInDropZone } = useDropZone({
   name: "file",
   container: containerRef,
@@ -107,11 +118,11 @@ defineExpose<ViewExposed>({ self, id });
 <template>
   <ViewContentWrapper v-bind="props">
     <!-- Actual file input (hidden) -->
-    <!-- nocheckin: constrain file types -->
     <input
       ref="fileInputRef"
       type="file"
       class="hidden"
+      :accept="getFileAcceptFromConstraint(fileType, valueType?.constraint)"
       @change="
         (e) => {
           onFileSelected(Array.from((e.target as HTMLInputElement).files!));
