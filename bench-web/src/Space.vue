@@ -1,30 +1,28 @@
 <script lang="ts" setup>
 import { Anchor, NodeType, Orientation, UserStatus, ViewType } from "@/proto/wire";
-import { toNodeReference } from "@/proto/wiring";
+import { toPlainNodeRef } from "@/proto/wiring";
+import { IS_IN_ALT_MODE, fireActionById } from "@/system/action";
 import { spacePtr } from "@/system/client";
-import { bench, canvas, space, spaceConnection, spaceGraph } from "@/system/space";
+import { makeIcon } from "@/system/icon";
+import { assignSpaceInPackage, bench, canvas, space, spaceConnection, spaceGraph } from "@/system/space";
 import { toaster } from "@/system/toast";
+import { user } from "@/system/user";
+import { DISCORD_URL } from "@/utils/globals";
 import { keytrap } from "@/utils/keymap";
 import { isDraggingGlobal } from "@/utils/layout";
 import { hasActivePopover } from "@/utils/menu";
 import Bar from "@/views/builtins/Bar.vue";
 import DragOverlay from "@/views/builtins/DragOverlay.vue";
-import PopoverOverlay from "@/views/builtins/PopoverOverlay.vue";
+import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import Omnibar from "@/views/builtins/Omnibar.vue";
+import PopoverOverlay from "@/views/builtins/PopoverOverlay.vue";
 import ToastOverlay from "@/views/builtins/ToastOverlay.vue";
 import TooltipOverlay from "@/views/builtins/TooltipOverlay.vue";
-import Split from "@/views/containers/Split.vue";
-import { IS_IN_ALT_MODE, fireActionById } from "@/system/action";
-import { useTitle, useWindowSize } from "@vueuse/core";
-import { computed, onBeforeUnmount, ref, watch, watchEffect } from "vue";
-import { makeIcon } from "@/system/icon";
-import { assignSpaceInPackage } from "@/system/space";
-import Button from "@/views/controls/Button.vue";
 import { DEFAULT_BAR_POSITION, DEFAULT_HEADER_HEIGHT, createDesktopDefaultSpace } from "@/views/canvas";
-import { user } from "@/system/user";
-import Inaccessible from "@/views/builtins/Inaccessible.vue";
-import { GEOLOCATION } from "@/utils/geolocation";
-import { DISCORD_URL } from "@/utils/globals";
+import Split from "@/views/containers/Split.vue";
+import Button from "@/views/controls/Button.vue";
+import { useTitle, useWindowSize } from "@vueuse/core";
+import { computed, onBeforeUnmount, ref, watch } from "vue";
 
 const BAR_WIDTH = DEFAULT_HEADER_HEIGHT;
 const BAR_HEIGHT = DEFAULT_HEADER_HEIGHT;
@@ -142,7 +140,7 @@ watch([canvas.focusedViewPtr, bench], () => {
       class="absolute"
       :style="mainBoxStyle"
       :type="ViewType.WINDOW"
-      :self="toNodeReference(window)"
+      :self="toPlainNodeRef(window)"
       :size="mainBox"
       :focus="window.focus"
       :name="window.name"

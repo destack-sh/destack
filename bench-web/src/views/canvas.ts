@@ -19,9 +19,10 @@ import {
 import {
   describeNode,
   getNodeType,
-  isNodeReference,
+  isNodeRef,
   makeStruct,
-  toNodeReference,
+  toNodeRef,
+  toPlainNodeRef,
   typeNodeReferenceMaybe,
   type AnyNodeReferenceData,
   type TypedNodeReferenceData,
@@ -342,7 +343,7 @@ export class ViewCanvas {
   inspect(inspect: { node: AnyNodeData | AnyNodeReferenceData; view: SomeView; focusInspector?: boolean }): void {
     log.trace("canvas.inspect", inspect);
 
-    const nodePtr = toNodeReference(inspect.node as AnyNodeData);
+    const nodePtr = toPlainNodeRef(inspect.node as AnyNodeData);
     const viewAncestors = this.graph.getAncestors(inspect.view, { metatypes: [NodeType.VIEW], includeSelf: true });
     const rootViewIdx = viewAncestors.findIndex((v) => ROOT_VIEW_TYPES.has(v.type));
     const baseNodePtr = viewAncestors[rootViewIdx - 1]?.nodePtr;
@@ -698,7 +699,7 @@ export class ViewCanvas {
         metatype: NodeType.VIEW,
         packagePtr: parent.packagePtr,
         orderKey: generateOrderKey(rootChildren[-1]?.orderKey ?? null, null),
-        parentPtr: toNodeReference(parent),
+        parentPtr: toPlainNodeRef(parent),
         icon: toIconMaybe(view.icon),
       });
       if ((view.name ?? "").length == 0)
@@ -736,7 +737,7 @@ export class ViewCanvas {
     node: AnyNodeData | NodeReferenceData,
     options?: { graph?: ReadNodeGraph; skipSelf?: boolean } & OpenViewOptions,
   ) {
-    const nodeRef = isNodeReference(node) ? node : toNodeReference(node as AnyNodeData);
+    const nodeRef = isNodeRef(node) ? node : toNodeRef(node as AnyNodeData);
     log.debug("canvas.goToNode", node);
     const tx = this.tx();
     if (nodeRef.type == NodeType.VIEW && this.isInSpace(node)) {
@@ -753,7 +754,7 @@ export class ViewCanvas {
         const view = this.addView(
           {
             type: ViewType.PAGE,
-            nodePtr: toNodeReference(containingPage),
+            nodePtr: toNodeRef(containingPage),
             focus: makeSelection(nodeRef),
           },
           { ifPresent: "upsertAndFocus", ...options },
@@ -813,7 +814,7 @@ export class ViewCanvas {
       });
     }
     if (child.parentPtr?.id != self.id) {
-      tx.move(child, { parentPtr: toNodeReference(self) }, { debounce: "tick" });
+      tx.move(child, { parentPtr: toPlainNodeRef(self) }, { debounce: "tick" });
       this.cleanupRootViews(graph, graph.get(child.parentPtr!) as ViewData);
     }
   }
@@ -864,7 +865,7 @@ export class ViewCanvas {
       });
       tx.create(split);
       tx.move(parent, {
-        parentPtr: toNodeReference(split),
+        parentPtr: toPlainNodeRef(split),
         size: undefined,
         orderKey: isOrderFlipped ? "a0" : "a1",
       });
@@ -873,14 +874,14 @@ export class ViewCanvas {
       const childWrapper = makeNode({
         metatype: NodeType.VIEW,
         type: ViewType.TAB,
-        parentPtr: toNodeReference(split),
+        parentPtr: toPlainNodeRef(split),
         packagePtr: parent.packagePtr,
         name: `${parent.name}${toCasing(anchor.toUpperCase(), Casing.CAMEL)}`,
         orderKey: isOrderFlipped ? "a1" : "a0",
       });
       tx.create(childWrapper);
       tx.move(child, {
-        parentPtr: toNodeReference(childWrapper),
+        parentPtr: toPlainNodeRef(childWrapper),
         size: undefined,
         orderKey: "a0",
       });
@@ -901,7 +902,7 @@ export class ViewCanvas {
         }),
       });
       tx.create(newSplitParent);
-      tx.move(child, { parentPtr: toNodeReference(newSplitParent), size: undefined, orderKey: "a0" });
+      tx.move(child, { parentPtr: toPlainNodeRef(newSplitParent), size: undefined, orderKey: "a0" });
       tx.update(parent, { size: halfSize });
     }
     this.cleanupRootViews(graph, graph.get(child.parentPtr!) as ViewData);
@@ -932,7 +933,7 @@ function makeMainWindow(space: SpaceData, tx: Transaction): ViewData {
   const main = makeNode({
     metatype: NodeType.VIEW,
     type: ViewType.WINDOW,
-    parentPtr: toNodeReference(space),
+    parentPtr: toPlainNodeRef(space),
     packagePtr: space.packagePtr,
     orderKey: "a0",
     name: "Main",
@@ -975,7 +976,7 @@ function makeLayout(
       title: viewIn.name ?? toCamelName(ViewType, viewIn.type),
       ...viewIn,
       name,
-      parentPtr: toNodeReference(parent),
+      parentPtr: toPlainNodeRef(parent),
       packagePtr: root.packagePtr,
     });
     if (viewsByName[view.name] != null) throw new Error(`duplicate view name: ${view.name}`);
@@ -1057,7 +1058,7 @@ export function makeSelection(
   return {
     metatype: ObjectType.SELECTION,
     kind: SelectionKind.LIST,
-    nodesPtr: nodes.map((n) => (isNodeReference(n) ? n : toNodeReference(n as AnyNodeData))),
+    nodesPtr: nodes.map((n) => (isNodeRef(n) ? n : toNodeRef(n as AnyNodeData))),
   };
 }
 
@@ -1076,7 +1077,7 @@ export function expandSelection(
     ...(selection ?? { metatype: ObjectType.SELECTION, kind: SelectionKind.LIST }),
     nodesPtr: [
       ...(selection?.nodesPtr ?? []),
-      ...nodes.map((n) => (isNodeReference(n) ? n : toNodeReference(n as AnyNodeData))),
+      ...nodes.map((n) => (isNodeRef(n) ? n : toNodeRef(n as AnyNodeData))),
     ],
   };
 }

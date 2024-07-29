@@ -13,7 +13,7 @@ import {
   ViewData,
   ViewType,
 } from "@/proto/wire";
-import { propertyReference, toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
+import { propertyReference, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
 import { makeExpression } from "@/system/expression";
 import { isRunnable } from "@/system/lang";
@@ -86,7 +86,7 @@ const runnableNode: Ref<BlockData | StepData | null> = computed(() => {
   }
   return null;
 });
-const runnablePtr = computed(() => (runnableNode.value != null ? toNodeReference(runnableNode.value) : null));
+const runnablePtr = computed(() => (runnableNode.value != null ? toNodeRef(runnableNode.value) : null));
 const inputsPacked: Ref<Record<string, any>> = mapRef(
   useStateProp("inputsPacked", undefined, { debounce: "short" }), // have to :DebounceNestedValue
   (packed) => (packed != null ? unpackProtoJson(packed) : {}) as Record<string, any>,

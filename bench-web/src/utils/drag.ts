@@ -8,7 +8,7 @@ import {
   type AnyNodeData,
   type NodeReferenceData,
 } from "@/proto/wire";
-import { isNodeReference, isStruct, toNodeReference, type AnyNodeReferenceData } from "@/proto/wiring";
+import { isNodeRef, isStruct, toNodeRef, type AnyNodeReferenceData } from "@/proto/wiring";
 import type { ReadNodeGraph } from "@/system/graph";
 import { getElement, getElementRef } from "@/utils/element";
 import { log } from "@/utils/log";
@@ -66,7 +66,7 @@ export function startDragging(
   const trigger = event.target as HTMLElement;
   let dragged: Dragged;
   if ("metatype" in data) {
-    if (isNodeReference(data)) {
+    if (isNodeRef(data)) {
       dragged = {
         id: uuidt(),
         trigger,
@@ -87,7 +87,7 @@ export function startDragging(
         id: uuidt(),
         trigger,
         kind: "node",
-        node: toNodeReference(data),
+        node: toNodeRef(data),
         nodes: [data],
       };
     }

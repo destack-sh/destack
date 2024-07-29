@@ -12,7 +12,7 @@ import {
   ViewType,
   type AnyNodeData,
 } from "@/proto/wire/";
-import { toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
+import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { fireActionById, type ActionContext, type ActionMapImplementation } from "@/system/action";
 import { useFlatNodeMoveActions } from "@/system/block";
 import { PACKAGE_SCOPE } from "@/system/client";
@@ -404,7 +404,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
                 class="w-full px-2 py-1.5 data-[dragging=true]:opacity-50"
                 borderless
                 :variant="Variant.STEALTH"
-                :node-ptr="toNodeReference(block)"
+                :node-ptr="toNodeRef(block)"
                 :prepared-connection="preparedPkgConnection"
                 :draggable="true"
                 @dragstart.stop="(e: DragEvent) => startDragging(e, pkgGraph, block)"
@@ -427,7 +427,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
                     containerMargin: 12,
                     props: {
                       variant: Variant.COMPACT,
-                      nodePtr: toNodeReference(threadsByBlockId[block.id!]?.at(-1)!) ?? block,
+                      nodePtr: toNodeRef(threadsByBlockId[block.id!]?.at(-1)!) ?? block,
                     },
                   })
                 "

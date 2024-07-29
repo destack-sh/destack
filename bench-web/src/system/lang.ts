@@ -15,7 +15,6 @@ import {
   FieldProperty,
   FieldZone,
   IconData,
-  MESSAGE_TYPE_BY_OBJECT_TYPE,
   NODE_PROPERTY_ENUM_BY_TYPE,
   NodeReferenceData,
   NodeType,
@@ -42,19 +41,18 @@ import {
   type EnumTypeMapping,
   type FieldData,
   type NodeTypeMapping,
-  type PropertyInfo,
+  type PropertyInfo
 } from "@/proto/wire";
 import {
   describeNode,
   fillDefaultObject,
-  getDefaultProtoValue,
   isNode,
   newNodeCk,
   newNodeId,
   nodeReference,
-  toNodeReference,
+  toPlainNodeRef,
   type AnyNodeReferenceData,
-  type TypedNodeReferenceData,
+  type TypedNodeReferenceData
 } from "@/proto/wiring";
 import { isDescendantOf, resolveNode, type ReadNodeGraph } from "@/system/graph";
 import { ENUM_ICONS_BY_TYPE, getNodeIcon, makeIcon } from "@/system/icon";
@@ -602,7 +600,7 @@ export function cloneNode<T extends AnyNodeData>(
 
   // clone all children (recursively)
   if (options?.includeChildren) {
-    const clonePtr = toNodeReference(clone);
+    const clonePtr = toPlainNodeRef(clone);
     const children = graph.getChildren(node);
     for (const child of children) {
       cloneNode(tx, graph, child, { includeChildren: true, now, set: { parentPtr: clonePtr }, _isNested: true });
@@ -663,7 +661,7 @@ export function moveNode(
         getNodes: () => graph.getChildren(target!, node.metatype as unknown as NodeType) as any,
       });
     }
-    tx.move(node, { parentPtr: toNodeReference(target) }, { debounce: "tick" });
+    tx.move(node, { parentPtr: toPlainNodeRef(target) }, { debounce: "tick" });
   } else {
     throw new Error(`unexpected anchor: ${anchor}`);
   }
@@ -680,13 +678,13 @@ export function createBlock(
   },
 ): BlockData {
   const target = isNode(options.target) ? options.target : graph.getOrError(options.target);
-  const packagePtr = isNode(target, NodeType.PACKAGE) ? toNodeReference(target) : target.packagePtr;
+  const packagePtr = isNode(target, NodeType.PACKAGE) ? toPlainNodeRef(target) : target.packagePtr;
 
   let parentPtr: NodeReferenceData;
   let orderKey: string;
   let siblings: BlockData[];
   if (options.anchor == "inside") {
-    parentPtr = toNodeReference(target);
+    parentPtr = toPlainNodeRef(target);
     siblings = graph.getChildren(target, NodeType.BLOCK);
     orderKey = generateOrderKey(siblings[siblings.length - 1]?.orderKey ?? null, null);
   } else {
@@ -730,7 +728,7 @@ export function createField(
   if (isNode(target, NodeType.BLOCK)) {
     if (anchor != "inside" && anchor != "center") throw new Error(`unexpected anchor for block: ${anchor}`);
     siblings = graph.getChildren(target, NodeType.FIELD);
-    parentPtr = toNodeReference(target);
+    parentPtr = toPlainNodeRef(target);
     orderKey = getOrderKey({ position: "after", reference: siblings[siblings.length - 1], nodes: siblings });
     // figure out field kind based on block type
     if (target.type == BlockType.CHOICE) {

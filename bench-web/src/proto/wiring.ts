@@ -1,6 +1,8 @@
 import {
   EditData,
   EditType,
+  FileData,
+  FileInfoProperty,
   FileReferenceData,
   GraphScopeData,
   MESSAGE_TYPE_BY_OBJECT_TYPE,
@@ -11,6 +13,8 @@ import {
   PROPERTY_INFOS_BY_TYPE,
   PropertyReferenceData,
   STRUCT_PROPERTY_ENUM_BY_TYPE,
+  SecretData,
+  SecretProperty,
   SecretReferenceData,
   SomeNodeData,
   StructType,
@@ -27,7 +31,6 @@ import { reverseRecord } from "@/utils/functools";
 import { Casing, toCasing } from "@/utils/string";
 import { MessageType, ScalarType, type FieldInfo } from "@protobuf-ts/runtime";
 import { v4 } from "uuid";
-import { computed, toRef, type MaybeRef, type Ref } from "vue";
 
 export const NODE_TYPE_NAME: Record<NodeType, string> = reverseRecord(NodeType);
 export const STRUCT_TYPE_NAME: Record<StructType, string> = reverseRecord(StructType);
@@ -61,12 +64,12 @@ export function describeNode(node: {
   title?: string | null;
 }): string {
   const nodeParts: string[] = [`id=${node.id}`];
-  const nodeType = isNodeReference(node) ? node.type : node.metatype;
+  const nodeType = isNodeRef(node) ? node.type : node.metatype;
   if ("ck" in node) nodeParts.push(`ck=${node.ck}`);
   if ("revision" in node) nodeParts.push(`revision=${node.revision}`);
   if (node.name) nodeParts.push(`name='${node.name}'`);
   if (node.slug) nodeParts.push(`slug=${node.slug}`);
-  if (!isNodeReference(node) && nodeType != null && node.type != null) {
+  if (!isNodeRef(node) && nodeType != null && node.type != null) {
     // coerce 'type' property into actual name
     const messageType = MESSAGE_TYPE_BY_OBJECT_TYPE[nodeType as unknown as ObjectType];
     if (messageType != null) {
@@ -260,25 +263,43 @@ export function propertyInfo(metatype: ObjectType, id: number): PropertyInfo {
 }
 
 // references to some nodes have 'rich' metadata :RichReferences
-export const NODE_REFERENCE_TYPES_BY_NODE_TYPE = {
+export const NODE_REFERENCE_TYPES_BY_NODE_TYPE: Partial<Record<NodeType, StructType>> = {
   [NodeType.FILE]: StructType.FILE_REFERENCE,
   [NodeType.SECRET]: StructType.SECRET_REFERENCE,
 };
 export const NODE_REFERENCE_TYPES = [StructType.NODE_REFERENCE, StructType.FILE_REFERENCE, StructType.SECRET_REFERENCE];
 export type SomeNodeReferenceData = NodeReferenceData | FileReferenceData | SecretReferenceData;
 
-export function isNodeReference(value: any | null | undefined): value is NodeReferenceData {
-  return typeof value == "object" && (value as any).metatype == ObjectType.NODE_REFERENCE;
+export function isPlainNodeRef(value: any | null | undefined): value is NodeReferenceData {
+  return typeof value == "object" && value.metatype == ObjectType.NODE_REFERENCE;
+}
+export function isNodeRef(value: any | null | undefined): value is SomeNodeReferenceData {
+  return typeof value == "object" && NODE_REFERENCE_TYPES.includes((value as any).metatype);
 }
 
-// nocheckin: separate plain/rich references
-export function toNodeReference(node: null): null;
-export function toNodeReference<T extends NodeType>(node: TypedNodeReferenceData<T>): TypedNodeReferenceData<T>;
-export function toNodeReference<T extends NodeType>(node: NodeTypeMapping[T]): TypedNodeReferenceData<T>;
-export function toNodeReference<T extends NodeType>(node: NodeTypeMapping[T] | null): TypedNodeReferenceData<T> | null {
+export function toPlainNodeRef(node: null): null;
+export function toPlainNodeRef<T extends NodeType>(node: TypedNodeReferenceData<T>): TypedNodeReferenceData<T>;
+export function toPlainNodeRef<T extends NodeType>(node: SomeNodeReferenceData): TypedNodeReferenceData<T>;
+export function toPlainNodeRef<T extends NodeType>(node: NodeTypeMapping[T]): TypedNodeReferenceData<T>;
+export function toPlainNodeRef<T extends NodeType>(node: NodeTypeMapping[T] | null): TypedNodeReferenceData<T> | null {
   if (!node) return null;
-  if (isNodeReference(node)) return node as unknown as TypedNodeReferenceData<T>;
-  const reference: TypedNodeReferenceData<T> = {
+  if (isPlainNodeRef(node)) return node as unknown as TypedNodeReferenceData<T>;
+
+  // coerce rich reference into plain
+  if (isNodeRef(node)) {
+    const ref: NodeReferenceData = {
+      metatype: ObjectType.NODE_REFERENCE,
+      type: node.type,
+      id: node.id,
+      ck: node.ck,
+      benchId: node.benchId,
+      baseCk: node.baseCk,
+      baseBenchId: node.baseBenchId,
+    };
+    return ref as TypedNodeReferenceData<T>;
+  }
+
+  const ref: TypedNodeReferenceData<T> = {
     metatype: ObjectType.NODE_REFERENCE,
     type: node.metatype as unknown as T,
     id: node.id,
@@ -286,34 +307,56 @@ export function toNodeReference<T extends NodeType>(node: NodeTypeMapping[T] | n
   };
   // benchId
   if (node.metatype == ObjectType.BENCH) {
-    reference.benchId = node.id;
+    ref.benchId = node.id;
   } else if ("packagePtr" in node) {
-    reference.benchId = node.packagePtr?.benchId;
+    ref.benchId = node.packagePtr?.benchId;
   } else if ("benchPtr" in node) {
-    reference.benchId = node.benchPtr?.id;
+    ref.benchId = node.benchPtr?.id;
   } else {
-    reference.benchId = node.parentPtr?.benchId;
+    ref.benchId = node.parentPtr?.benchId;
   }
   // base
   if (BASED_NODE_TYPES.includes(node.metatype as unknown as NodeType)) {
     const base = getBaseFromNode(node);
     if (base != null) {
-      reference.baseCk = base.ck;
-      reference.baseBenchId = base.benchId;
+      ref.baseCk = base.ck;
+      ref.baseBenchId = base.benchId;
     }
   }
-  return reference;
+  return ref;
 }
 
-export function toNodeReferenceRef<T extends NodeType>(
-  node: MaybeRef<NodeTypeMapping[T] | null>,
-): Ref<TypedNodeReferenceData<T> | null> {
-  const nodeRef = toRef(node) as Ref<NodeTypeMapping[T] | null>;
-  return computed(() => toNodeReference(nodeRef.value!)); // NOTE :Cleanup: shouldn't have to ! to type check here?
+export function toNodeRef(node: null): null;
+export function toNodeRef(node: FileData): FileReferenceData;
+export function toNodeRef(node: SecretData): SecretReferenceData;
+export function toNodeRef<T extends NodeType>(node: TypedNodeReferenceData<T>): TypedNodeReferenceData<T>;
+export function toNodeRef<T extends NodeType>(node: NodeTypeMapping[T]): TypedNodeReferenceData<T>;
+export function toNodeRef<T extends NodeType>(
+  node: NodeTypeMapping[T] | null,
+): TypedNodeReferenceData<T> | FileReferenceData | SecretReferenceData | null {
+  if (!node) return null;
+  if (isNodeRef(node)) return node as unknown as TypedNodeReferenceData<T>;
+
+  const ref = toPlainNodeRef(node);
+
+  // enrich reference properties :RichReferences
+  if (NODE_REFERENCE_TYPES_BY_NODE_TYPE[node.metatype as unknown as NodeType] != null) {
+    const properties = PROPERTY_ENUM_BY_TYPE[node.metatype as unknown as ObjectType]!;
+    ref.metatype = NODE_REFERENCE_TYPES_BY_NODE_TYPE[node.metatype as unknown as NodeType] as unknown as ObjectType;
+    for (const prop of Object.values(properties)) {
+      if (typeof prop == "string" || prop < 40) continue; // ignore identity/tracking properties
+      const propName = properties[prop];
+      if ((node as any)[propName] != null) {
+        (ref as any)[propName] = (node as any)[propName];
+      }
+    }
+  }
+
+  return ref;
 }
 
 export function getNodeType(node: AnyNodeData | AnyNodeReferenceData): NodeType {
-  if (isNodeReference(node)) return (node as NodeReferenceData).type;
+  if (isNodeRef(node)) return (node as NodeReferenceData).type;
   else return node.metatype as unknown as NodeType;
 }
 

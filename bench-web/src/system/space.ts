@@ -3,7 +3,7 @@ import { BenchData, BranchData, ChangeCategory, NodeType, SpaceType } from "@/pr
 import {
   makeScope,
   nodeReference,
-  toNodeReference,
+  toPlainNodeRef,
   typeNodeReference,
   typeNodeReferenceMaybe,
   unwrapSomeNode,
@@ -113,7 +113,7 @@ export async function assignSpaceInPackage() {
   if (ownedSpacesInPkg.value.length > 0) {
     // we already have a space in the package
     const space = ownedSpacesInPkg.value[0];
-    local.setSpace(toNodeReference(ownedSpacesInPkg.value[0]));
+    local.setSpace(toPlainNodeRef(ownedSpacesInPkg.value[0]));
     if (pkgGraph.getChildren(spacePtr.value, NodeType.VIEW).length == 0) {
       // setup default canvas if needed
       createDesktopDefaultSpace(pkgConnection.tx, space);
@@ -124,13 +124,13 @@ export async function assignSpaceInPackage() {
     const space = pkgConnection.tx.create({
       metatype: NodeType.SPACE,
       type: SpaceType.DESKTOP, // should derive this later :HeterogenousClients
-      parentPtr: toNodeReference(pkg.value),
-      packagePtr: toNodeReference(pkg.value),
+      parentPtr: toPlainNodeRef(pkg.value),
+      packagePtr: toPlainNodeRef(pkg.value),
       name: "MySpace",
       orderKey: "a0",
     });
     createEmptySpace(pkgConnection.tx, space);
-    local.setSpace(toNodeReference(space));
+    local.setSpace(toPlainNodeRef(space));
     spaceGraph.graph = pkgGraph;
     await pkgConnection.txBuffer.commit();
   }

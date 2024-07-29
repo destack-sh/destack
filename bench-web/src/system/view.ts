@@ -67,7 +67,11 @@ export function getViewForValueType(type: Omit<TypeIdentity, "kind"> & Partial<T
             isInline: [FileType.IMAGE, FileType.AUDIO, FileType.VIDEO].includes(type.constraint.fileType),
           },
         };
+      } else if (type.benchType == BenchType.FILE) {
+        // generic file type view
+        return { viewType: ViewType.FILE, props: { valueType: makeTypeInfo(type), isInline: true } };
       }
+
       // specific bench type view
       return { viewType: VIEW_TYPE_BY_BENCH_TYPE[type.benchType]!, props: { valueType: makeTypeInfo(type) } };
     } else if (isEnumType(type.benchType)) {

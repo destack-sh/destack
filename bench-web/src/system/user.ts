@@ -1,24 +1,23 @@
 import { supervisor, type OperationOptions } from "@/proto/services";
 import {
   BenchData,
-  ObjectType,
   ClientData,
   NodeReferenceData,
   NodeType,
+  ObjectType,
   Region,
   UserData,
   UserProperty,
   UserStatus,
   ViewType,
-  RegionZone,
 } from "@/proto/wire";
 import {
   EMPTY_SCOPE,
   nodeReference,
   propertyReference,
-  toNodeReferenceRef,
+  toPlainNodeRef,
   toProtoOneOf,
-  type TypedNodeReferenceData,
+  type TypedNodeReferenceData
 } from "@/proto/wiring";
 import { ACTION_COMING_SOON, contributeActionMap } from "@/system/action";
 import local, { persistentInfo } from "@/system/client";
@@ -54,7 +53,10 @@ export const client = userGraph.getRef(
     local.clientInfo.value?.id == null ? null : { type: NodeType.CLIENT, id: local.clientInfo.value.id },
   ),
 );
-export const clients = userGraph.getChildrenRef(toNodeReferenceRef(user), NodeType.CLIENT);
+export const clients = userGraph.getChildrenRef(
+  computed(() => (user.value != null ? toPlainNodeRef(user.value) : null)),
+  NodeType.CLIENT,
+);
 export const isWaitlisted = computed(() => user.value?.status == UserStatus.WAITLISTED);
 export const isActivated = computed(() => user.value?.status == UserStatus.ACTIVATED);
 

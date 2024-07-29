@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { BoxData, NodeType, Orientation, ViewData, ViewType } from "@/proto/wire";
-import { toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
+import { toPlainNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { type Action, type ActionContext, type ActionMapImplementation } from "@/system/action";
 import { useExistingConnection } from "@/system/connection";
 import { ICON_BY_NODE_TYPE, ICON_BY_VIEW_TYPE, IconInline } from "@/system/icon";
@@ -270,7 +270,7 @@ defineExpose<ViewExposed>({ self, actions });
       <component
         :is="getViewComponent(tabs[focusedTabIdx].type)"
         v-if="focusedTabIdx != null && getViewComponent(tabs[focusedTabIdx].type) != null"
-        :self="toNodeReference(tabs[focusedTabIdx])"
+        :self="toPlainNodeRef(tabs[focusedTabIdx])"
         v-bind="getViewBinding(tabs[focusedTabIdx], innerSize)"
       />
       <div

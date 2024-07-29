@@ -13,7 +13,7 @@ import {
   Timestamp,
   Struct,
 } from "@/proto/wire";
-import { EMPTY_SCOPE, toNodeReference } from "@/proto/wiring";
+import { EMPTY_SCOPE, toPlainNodeRef } from "@/proto/wiring";
 import {
   LayerNodeGraph,
   PASSTHROUGH_NODE_FILTER,
@@ -133,11 +133,11 @@ test.each(OBJECT_TYPES_NAMES)(`fabricate(%s)`, (metatype) => {
 describe("node graph", () => {
   const graph = new NodeGraph({ scope: EMPTY_SCOPE, nodeTypes: [NodeType.USER, NodeType.CLIENT] });
   let user1 = fabricate(ObjectType.USER, { unset: ["parentPtr"], set: { id: "user1" } });
-  let clientA = fabricate(ObjectType.CLIENT, { set: { parentPtr: toNodeReference(user1), id: "clientA" } });
-  let clientB = fabricate(ObjectType.CLIENT, { set: { parentPtr: toNodeReference(user1), id: "clientB" } });
+  let clientA = fabricate(ObjectType.CLIENT, { set: { parentPtr: toPlainNodeRef(user1), id: "clientA" } });
+  let clientB = fabricate(ObjectType.CLIENT, { set: { parentPtr: toPlainNodeRef(user1), id: "clientB" } });
   const user2 = fabricate(ObjectType.USER, { unset: ["parentPtr"], set: { id: "user2" } });
-  const clientC = fabricate(ObjectType.CLIENT, { set: { parentPtr: toNodeReference(user2), id: "clientC" } });
-  const clientD = fabricate(ObjectType.CLIENT, { set: { parentPtr: toNodeReference(user2), id: "clientD" } });
+  const clientC = fabricate(ObjectType.CLIENT, { set: { parentPtr: toPlainNodeRef(user2), id: "clientC" } });
+  const clientD = fabricate(ObjectType.CLIENT, { set: { parentPtr: toPlainNodeRef(user2), id: "clientD" } });
   const nodes = [user1, clientA, clientB, user2, clientC, clientD];
 
   // take first refs
@@ -175,7 +175,7 @@ describe("node graph", () => {
     expect(user1ClientsRef.value).toEqual([clientA, clientB]);
 
     // move
-    clientB = { ...clientB, parentPtr: toNodeReference(user2) } as ClientData;
+    clientB = { ...clientB, parentPtr: toPlainNodeRef(user2) } as ClientData;
     graph.update(clientB);
     expect(graph.getChildren(user1, NodeType.CLIENT)).toEqual([clientA]);
     expect(graph.getChildren(user2, NodeType.CLIENT)).toEqual([clientB, clientC, clientD]);
@@ -198,10 +198,10 @@ describe("layered node graph", () => {
   const graph = new LayerNodeGraph({ layers: [base], filter: PASSTHROUGH_NODE_FILTER });
 
   let user1 = fabricate(ObjectType.USER, { unset: ["parentPtr"], set: { id: "user1" } });
-  let clientA = fabricate(ObjectType.CLIENT, { set: { parentPtr: toNodeReference(user1), id: "clientA" } });
-  const clientB = fabricate(ObjectType.CLIENT, { set: { parentPtr: toNodeReference(user1), id: "clientB" } });
-  const clientC = fabricate(ObjectType.CLIENT, { set: { parentPtr: toNodeReference(user1), id: "clientC" } });
-  const clientD = fabricate(ObjectType.CLIENT, { set: { parentPtr: toNodeReference(user1), id: "clientD" } });
+  let clientA = fabricate(ObjectType.CLIENT, { set: { parentPtr: toPlainNodeRef(user1), id: "clientA" } });
+  const clientB = fabricate(ObjectType.CLIENT, { set: { parentPtr: toPlainNodeRef(user1), id: "clientB" } });
+  const clientC = fabricate(ObjectType.CLIENT, { set: { parentPtr: toPlainNodeRef(user1), id: "clientC" } });
+  const clientD = fabricate(ObjectType.CLIENT, { set: { parentPtr: toPlainNodeRef(user1), id: "clientD" } });
   const user2 = fabricate(ObjectType.USER, { unset: ["parentPtr"], set: { id: "user2" } });
 
   const user1Ref = graph.getRef(user1);
@@ -263,7 +263,7 @@ describe("layered node graph", () => {
     // move clientA to user 2
     const user2ClientsRef = graph.getChildrenRef(user2, NodeType.CLIENT);
     base.extend(user2);
-    clientA = { ...clientA, parentPtr: toNodeReference(user2) } as ClientData;
+    clientA = { ...clientA, parentPtr: toPlainNodeRef(user2) } as ClientData;
     overlay.update(clientA);
     expect(graph.getChildren(user1, NodeType.CLIENT)).toEqual([clientB, clientC]);
     expect(graph.getChildren(user2, NodeType.CLIENT)).toEqual([clientA]);
@@ -283,9 +283,9 @@ describe("proxy node graph", () => {
   const graph = new ProxyNodeGraph({ filter: PASSTHROUGH_NODE_FILTER });
 
   let user1 = fabricate(ObjectType.USER, { unset: ["parentPtr"], set: { id: "user1" } });
-  const clientA = fabricate(ObjectType.CLIENT, { set: { parentPtr: toNodeReference(user1), id: "clientA" } });
+  const clientA = fabricate(ObjectType.CLIENT, { set: { parentPtr: toPlainNodeRef(user1), id: "clientA" } });
   const user2 = fabricate(ObjectType.USER, { unset: ["parentPtr"], set: { id: "user2" } });
-  const clientB = fabricate(ObjectType.CLIENT, { set: { parentPtr: toNodeReference(user2), id: "clientB" } });
+  const clientB = fabricate(ObjectType.CLIENT, { set: { parentPtr: toPlainNodeRef(user2), id: "clientB" } });
 
   const user1Ref = graph.getRef(user1);
   const user1ClientsRef = graph.getChildrenRef(user1, NodeType.CLIENT);
@@ -345,23 +345,23 @@ function testFilteredGraph(base: NodeGraph, graph: ReadNodeGraph & { filter: Ref
   let package1 = fabricate(ObjectType.PACKAGE, { unset: ["parentPtr", "archivedAt", "deletedAt"] });
   const space11 = fabricate(ObjectType.SPACE, {
     unset: ["archivedAt", "deletedAt"],
-    set: { parentPtr: toNodeReference(package1), id: "space11", orderKey: "a0" },
+    set: { parentPtr: toPlainNodeRef(package1), id: "space11", orderKey: "a0" },
   });
   let view111 = fabricate(ObjectType.VIEW, {
     unset: ["archivedAt", "deletedAt"],
-    set: { parentPtr: toNodeReference(space11), id: "view111", orderKey: "a0" },
+    set: { parentPtr: toPlainNodeRef(space11), id: "view111", orderKey: "a0" },
   });
   const view112 = fabricate(ObjectType.VIEW, {
     unset: ["archivedAt", "deletedAt"],
-    set: { parentPtr: toNodeReference(space11), id: "view112", orderKey: "a1" },
+    set: { parentPtr: toPlainNodeRef(space11), id: "view112", orderKey: "a1" },
   });
   let space12 = fabricate(ObjectType.SPACE, {
     unset: ["archivedAt", "deletedAt"],
-    set: { parentPtr: toNodeReference(package1), id: "space12", orderKey: "a1" },
+    set: { parentPtr: toPlainNodeRef(package1), id: "space12", orderKey: "a1" },
   });
   const view121 = fabricate(ObjectType.VIEW, {
     unset: ["archivedAt", "deletedAt"],
-    set: { parentPtr: toNodeReference(space12), id: "view121", orderKey: "a0" },
+    set: { parentPtr: toPlainNodeRef(space12), id: "view121", orderKey: "a0" },
   });
 
   const package1Ref = graph.getRef(package1);

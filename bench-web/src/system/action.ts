@@ -6,21 +6,20 @@ import {
   NodeType,
   ObjectType,
   TreeViewPreset,
-  TreeViewStateData,
   ViewType,
   type AnyNodeData,
   type IconData,
   type NodeReferenceData,
-  type TextData,
+  type TextData
 } from "@/proto/wire";
-import { describeNode, isNode, toNodeReference, type AnyNodeReferenceData } from "@/proto/wiring";
+import { describeNode, isNode, toPlainNodeRef, type AnyNodeReferenceData } from "@/proto/wiring";
 import { isDeveloperMode, packagePtr } from "@/system/client";
 import { makeIcon } from "@/system/icon";
 import { EXPOSED_ANCHORS, getRandomEnumOption } from "@/system/lang";
 import { canvas, hasLocalBench, inspectionPtr, pkg, pkgConnection, pkgGraph, space } from "@/system/space";
 import { toaster } from "@/system/toast";
-import { getAllTransactionBuffers, packProtoJson } from "@/system/transaction";
-import { packBuiltinObject, packBuiltinObjectJson } from "@/system/value";
+import { getAllTransactionBuffers } from "@/system/transaction";
+import { packBuiltinObjectJson } from "@/system/value";
 import { generateOrderKey } from "@/utils/fractional";
 import { type FilterPrefix } from "@/utils/functools";
 import { DISCORD_URL, IS_DEV } from "@/utils/globals";
@@ -712,7 +711,7 @@ declareActionMap<"common">({
   },
   // sense
   "common.sense.focus": {
-    icon: "fas fa-magnifying-glass",
+    icon: "fas fa-expand",
     title: "Focus",
     text: "Focus on this node in a new view",
     shortcuts: ["mod+enter"],
@@ -1144,7 +1143,7 @@ contributeActionMap<"developer">({
         const type = getRandomEnumOption(EnumType.BLOCK_TYPE);
         const node = tx.create({
           metatype: NodeType.BLOCK,
-          parentPtr: toNodeReference(parent),
+          parentPtr: toPlainNodeRef(parent),
           packagePtr: packagePtr.value!,
           type,
           name,
@@ -1175,7 +1174,7 @@ contributeActionMap<"developer">({
         const existingChildren = pkgGraph.getChildren(block, NodeType.FIELD);
         const field = tx.create({
           metatype: NodeType.FIELD,
-          parentPtr: toNodeReference(block),
+          parentPtr: toPlainNodeRef(block),
           packagePtr: packagePtr.value!,
           name,
           zone,

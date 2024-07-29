@@ -1,28 +1,27 @@
 <script lang="ts" setup>
 import {
-  ViewData,
+  BenchType,
+  EnumType,
   NodeReferenceData,
   Region,
   UserStatus,
   Variant,
-  RegionZone,
-  BenchType,
-  EnumType,
+  ViewData
 } from "@/proto/wire/";
+import { toPlainNodeRef } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
 import { makeIcon } from "@/system/icon";
-import { createBench, user } from "@/system/user";
-import { viewEmits, type FocusAnchor } from "@/views/common";
-import { toRef, type Ref, ref, watch, computed, watchEffect } from "vue";
-import Button from "@/views/controls/Button.vue";
-import NativeInput from "@/views/content/NativeInput.vue";
-import { toNodeReference } from "@/proto/wiring";
-import { canvas, goToBench } from "@/system/space";
-import { getViewComponentChildren, isVueInstanceOf } from "@/views/canvas";
-import Picker from "@/views/content/Picker.vue";
-import { DEFAULT_REGION_BY_AREA, GEOLOCATION } from "@/utils/geolocation";
-import { makeTypeInfo } from "@/system/value";
 import { enumIndex } from "@/system/search";
+import { canvas, goToBench } from "@/system/space";
+import { createBench, user } from "@/system/user";
+import { makeTypeInfo } from "@/system/value";
+import { DEFAULT_REGION_BY_AREA, GEOLOCATION } from "@/utils/geolocation";
+import { getViewComponentChildren, isVueInstanceOf } from "@/views/canvas";
+import { viewEmits, type FocusAnchor } from "@/views/common";
+import NativeInput from "@/views/content/NativeInput.vue";
+import Picker from "@/views/content/Picker.vue";
+import Button from "@/views/controls/Button.vue";
+import { computed, ref, toRef, watch, watchEffect, type Ref } from "vue";
 
 const props = defineProps<{ self: NodeReferenceData } & Pick<ViewData, "nodePtr">>();
 const emit = defineEmits(viewEmits());
@@ -61,12 +60,12 @@ async function submit() {
   try {
     if (!user.value) throw new Error("no active user");
     const { bench } = await createBench({
-      owner: toNodeReference(user.value),
+      owner: toPlainNodeRef(user.value),
       slug: slug.value,
       region: region.value,
       isMain: true,
     });
-    await goToBench({ bench: toNodeReference(bench) });
+    await goToBench({ bench: toPlainNodeRef(bench) });
   } catch (e) {
     lastError.value = (e as Error).message ?? "Unknown error";
   } finally {
