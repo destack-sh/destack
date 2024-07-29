@@ -120,7 +120,7 @@ There are many more complex types; examples are provided as needed.
     @tracer.start_as_current_span("text.make_messages")
     async def _make_messages(self, projection: Projection) -> list[ChatMessage]:
         # NOTE :Incomplete: add previous attempts errors to messages
-        # NOTE :Incomplete: add images/file references to messages
+        # nocheckin :Incomplete: add images/file references to messages
         if self.inputs is None or len(self.inputs) == 0:
             raise RunImpossibleError(f"no inputs for {self.handle!r}")
         if self.output_type is None or len(self.output_type._fields) == 0:

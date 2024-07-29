@@ -3,11 +3,11 @@ import io
 import pytest
 from PIL import Image
 
-from bench.language.file import FileFormat, FileIn, FileType, upload
+from bench.language.file import FileFormat, FileIn, FileType, extract_file_info, upload
 from bench.test.unit.runtime.conftest import RuntimeHandle
 
 # some random image
-image = Image.new("RGB", (32, 32), color="yellow")
+image = Image.new("RGB", (32, 24), color="yellow")
 image_bytes = io.BytesIO()
 image.save(image_bytes, format="PNG")
 IMAGE_BYTES = image_bytes.getvalue()
@@ -38,3 +38,14 @@ async def test_upload_and_download_file(
     file.clear_cache()
     assert file._cached_content is None
     await file.download()
+
+
+async def test_extract_file_info_image(hosted_runtime: RuntimeHandle):
+    file_info, _ = await extract_file_info(IMAGE_BYTES, title="image")
+    assert file_info.mime_type == "image/png"
+    assert file_info.size == len(IMAGE_BYTES)
+    assert file_info.coarse_type == FileType.IMAGE
+    assert file_info.format == FileFormat.PNG
+    assert file_info.width == 32
+    assert file_info.height == 24
+    assert file_info.aspect_ratio == 32 / 24

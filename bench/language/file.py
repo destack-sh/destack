@@ -1,8 +1,11 @@
 import hashlib
+import io
 from datetime import datetime
 from typing import TYPE_CHECKING, Literal, Optional, Union, assert_never, overload, override
 
 import aiohttp
+import PIL
+import PIL.Image
 import structlog
 from opentelemetry import trace
 
@@ -712,7 +715,7 @@ async def _do_download_files(
 FileIn = Union[str, bytes]
 
 
-def extract_file_info(
+async def extract_file_info(  # noqa: RUF029
     file_in: FileIn,
     title: str,
     *,
@@ -754,7 +757,6 @@ def extract_file_info(
     if format is not None and "." not in title and format.extension is not None:
         title = f"{title}.{format.extension}"
 
-    # TODO :Incomplete: extract more file metadata :ExtractFileInfo
     size = len(content)
     sha256 = hashlib.sha256(content).hexdigest()
     file = File(
@@ -766,6 +768,15 @@ def extract_file_info(
         size=size,
         sha256=sha256,
     )
+
+    # TODO :Incomplete: extract more file metadata :ExtractFileInfo
+
+    # image metadata
+    if coarse_type == FileType.IMAGE:
+        image = PIL.Image.open(io.BytesIO(content))
+        file.width, file.height = image.size
+        file.aspect_ratio = file.width / file.height
+
     return file, content
 
 
@@ -783,7 +794,7 @@ async def upload(
     """Uploads the given file to the given (or current) session."""
 
     # extract file info
-    file, content = extract_file_info(
+    file, content = await extract_file_info(
         file_in, title, mime_type=mime_type, coarse_type=coarse_type, format=format
     )
 
