@@ -6,7 +6,6 @@ import {
   getFileAcceptFromConstraint,
   getFileIconMaybe,
   getFileStatusIcon,
-  getFileStatusName,
   uploadFile,
   useFileDownload,
   type FileUpload,
@@ -152,8 +151,8 @@ defineExpose<ViewExposed>({ self, id });
       @click="download?.getUrl.value != null ? openFile() : fileInputRef!.click()"
     >
       <!-- Current value -->
-      <span v-if="optimisticValue != null" :class="loadFailed ? 'text-warning-600' : 'text-gray-700'">
-        <IconInline v-bind="facetIcon" class="mr-1.5 w-5" :class="loadFailed ? 'text-warning-600' : 'text-gray-700'" />
+      <span v-if="optimisticValue != null" :class="loadFailed ? 'text-danger-600' : 'text-gray-700'">
+        <IconInline v-bind="facetIcon" class="mr-1.5 w-5" :class="loadFailed ? 'text-danger-600' : 'text-gray-700'" />
         <a
           class="decoration-gray-300 underline-offset-3 group-hover/dropdown:underline group-hover/dropdown:decoration-primary-900"
           :class="download?.getUrl.value != null ? 'hover:underline' : ''"
@@ -162,7 +161,7 @@ defineExpose<ViewExposed>({ self, id });
         >
           {{ optimisticValue.title ?? "???" }}
         </a>
-        <span class="ml-1.5 text-xs text-gray-400">{{ humanizeBytes(17000) }}</span>
+        <span class="ml-1.5 text-xs text-gray-400">{{ humanizeBytes(Number(optimisticValue.size)) }}</span>
         <!-- Uploading -->
         <i
           v-if="upload != null && upload.isActive.value"
@@ -221,6 +220,9 @@ defineExpose<ViewExposed>({ self, id });
       ref="containerRef"
       class="group/inline relative flex h-full min-h-[80px] w-full flex-col justify-center rounded border border-gray-200"
       :class="[isInDropZone ? 'border-primary-400 outline outline-1 outline-primary-400' : '']"
+      :style="{
+        aspectRatio: (download?.file.value ?? modelValue)?.aspectRatio ?? undefined,
+      }"
     >
       <!-- NOTE :Incomplete: proper file content views (image with proper size & thumbnail, audio, ...) -->
       <!-- Image File -->
@@ -228,7 +230,7 @@ defineExpose<ViewExposed>({ self, id });
         <img
           :key="download.getUrl.value"
           :src="download.getUrl.value"
-          class="h-full w-full rounded"
+          class="h-full w-full rounded object-contain object-center"
           :alt="optimisticValue?.title ?? '???'"
         />
       </div>
@@ -236,11 +238,11 @@ defineExpose<ViewExposed>({ self, id });
       <div
         v-else-if="optimisticValue != null"
         class="flex h-full w-full items-center justify-center text-center"
-        :class="[loadFailed ? 'text-warning-600' : '']"
+        :class="[loadFailed ? 'text-danger-600' : '']"
       >
         <IconInline
           v-bind="getFileIconMaybe(optimisticValue) ?? facetIcon"
-          :class="loadFailed ? 'text-warning-600' : 'text-gray-700'"
+          :class="loadFailed ? 'text-danger-600' : 'text-gray-700'"
         />
         <a
           class="ml-1.5 decoration-gray-300 underline-offset-3 hover:decoration-primary-900"
