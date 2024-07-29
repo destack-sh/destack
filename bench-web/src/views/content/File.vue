@@ -71,6 +71,7 @@ const containerRef = ref<HTMLElement | null>(null);
 const upload: Ref<FileUpload | null> = ref(null);
 const download = useFileDownload(toRef(props, "modelValue"));
 const optimisticValue = computed(() => upload.value?.file.value ?? download.value?.file.value ?? props.modelValue);
+const loadFailed = computed(() => download.value?.status.value == FileStatus.FAILED);
 
 async function onFileSelected(files: File[]) {
   if (files.length == 0) return;
@@ -132,10 +133,11 @@ defineExpose<ViewExposed>({ self, id });
       @click="fileInputRef!.click()"
     >
       <!-- Current value -->
-      <span v-if="optimisticValue != null">
-        <IconInline v-bind="facetIcon" class="mr-1.5 w-5 text-gray-700" />
+      <span v-if="optimisticValue != null" :class="loadFailed ? 'text-warning-600' : 'text-gray-700'">
+        <IconInline v-bind="facetIcon" class="mr-1.5 w-5" :class="loadFailed ? 'text-warning-600' : 'text-gray-700'" />
         <a
           class="decoration-gray-300 underline-offset-3 hover:underline hover:decoration-primary-900"
+          :class="download?.getUrl.value != null ? 'hover:underline' : ''"
           :href="download?.getUrl.value ?? undefined"
           target="_blank"
         >
@@ -205,54 +207,54 @@ defineExpose<ViewExposed>({ self, id });
         />
       </div>
       <!-- Generic File -->
-      <div v-else-if="optimisticValue != null" class="flex h-full w-full justify-center text-center">
-        <span>
-          <IconInline v-bind="getFileIconMaybe(optimisticValue) ?? facetIcon" class="text-gray-700" />
-          <a
-            class="ml-1.5 decoration-gray-300 underline-offset-3 hover:underline hover:decoration-primary-900"
-            :href="download?.getUrl.value ?? undefined"
-            target="_blank"
-          >
-            {{ optimisticValue?.title ?? "???" }}
-          </a>
-          <span class="ml-1.5 text-xs text-gray-400">
-            {{ humanizeBytes(Number(optimisticValue?.size ?? 0)) }}
-          </span>
-          <!-- Uploading -->
-          <i
-            v-if="upload != null && upload.isActive.value"
-            class="fas fa-spinner-third ml-1.5 animate-spin text-gray-400"
-          />
+      <div
+        v-else-if="optimisticValue != null"
+        class="flex h-full w-full items-center justify-center text-center"
+        :class="[loadFailed ? 'text-warning-600' : 'text-gray-400']"
+      >
+        <IconInline
+          v-bind="getFileIconMaybe(optimisticValue) ?? facetIcon"
+          :class="loadFailed ? 'text-warning-600' : 'text-gray-700'"
+        />
+        <a
+          class="ml-1.5 decoration-gray-300 underline-offset-3 hover:decoration-primary-900"
+          :class="download?.getUrl.value != null ? 'hover:underline' : ''"
+          :href="download?.getUrl.value ?? undefined"
+          target="_blank"
+        >
+          {{ optimisticValue?.title ?? "???" }}
+        </a>
+        <span v-if="optimisticValue.size != null" class="ml-1.5 text-xs text-gray-400">
+          {{ humanizeBytes(Number(optimisticValue?.size)) }}
         </span>
+        <!-- Uploading -->
+        <i
+          v-if="upload != null && upload.isActive.value"
+          class="fas fa-spinner-third ml-1.5 animate-spin text-gray-400"
+        />
       </div>
       <!-- Not ready -->
       <div
         v-else
         class="flex h-full w-full flex-col items-center justify-center"
-        :class="[download?.status.value == FileStatus.FAILED ? 'text-warning-600' : 'text-gray-400']"
+        :class="[loadFailed ? 'text-warning-600' : 'text-gray-400']"
       >
-        <span>
-          <IconInline
-            v-bind="getFileStatusIcon(download?.status.value ?? FileStatus.PENDING)"
-            :class="[
-              download?.status.value == FileStatus.PREPARING || download?.status.value == FileStatus.TRANSFERRING
-                ? 'animate-spin'
-                : '',
-            ]"
-          />
-          <template v-if="download?.filePtr">
-            <span class="ml-1.5">{{ download.filePtr.title ?? "???" }}</span>
-            <span class="ml-1.5 text-xs text-gray-400">
-              {{ humanizeBytes(Number(download.filePtr.size ?? 0)) }}
-            </span>
-          </template>
-          <span v-else class="ml-1.5">{{ facetName }}</span>
-          <!-- Uploading -->
-          <i
-            v-if="upload != null && upload.isActive.value"
-            class="fas fa-spinner-third ml-1.5 animate-spin text-gray-400"
-          />
-        </span>
+        <IconInline
+          v-bind="getFileStatusIcon(download?.status.value ?? FileStatus.PENDING)"
+          :class="[download?.isActive.value ? 'animate-spin' : '']"
+        />
+        <template v-if="download?.filePtr">
+          <span class="ml-1.5">{{ download.filePtr.title ?? "???" }}</span>
+          <span v-if="download.filePtr.size != null" class="ml-1.5 text-xs text-gray-400">
+            {{ humanizeBytes(Number(download.filePtr.size)) }}
+          </span>
+        </template>
+        <span v-else class="ml-1.5">{{ facetName }}</span>
+        <!-- Uploading -->
+        <i
+          v-if="upload != null && upload.isActive.value"
+          class="fas fa-spinner-third ml-1.5 animate-spin text-gray-400"
+        />
       </div>
       <!-- Overlay -->
       <div
@@ -273,7 +275,7 @@ defineExpose<ViewExposed>({ self, id });
           <!-- Replace -->
           <button
             v-if="isInput && !isDisabled"
-            class="rounded-2xl bg-white bg-opacity-50 px-1 text-gray-700 hover:bg-opacity-100 hover:text-primary-900"
+            class="rounded-2xl px-1 text-gray-400 transition-colors duration-75 hover:bg-gray-100 hover:text-primary-900"
             @click="fileInputRef?.click()"
           >
             <i class="fas fa-shuffle" />
@@ -281,7 +283,7 @@ defineExpose<ViewExposed>({ self, id });
           <!-- Remove -->
           <button
             v-if="isInput && !isDisabled && !valueType?.isRequired"
-            class="rounded-2xl bg-white bg-opacity-50 px-1 text-gray-700 hover:bg-opacity-100 hover:text-primary-900"
+            class="rounded-2xl px-1 text-gray-400 transition-colors duration-75 hover:bg-gray-100 hover:text-primary-900"
             @click="emit('update:modelValue', null)"
           >
             <i class="fas fa-xmark" />

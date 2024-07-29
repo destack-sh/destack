@@ -700,7 +700,10 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
             # map to column type
             assert isinstance(annotation.type, type), f"invalid type {annotation!r} for {self!r}"
             if issubclass(annotation.type, IdEnum):
-                self.primitive_type = PrimitiveType.INT16
+                if max(annotation.type) < 2**16:
+                    self.primitive_type = PrimitiveType.INT16
+                else:
+                    self.primitive_type = PrimitiveType.INT32
             elif issubclass(annotation.type, enum.IntFlag):
                 self.primitive_type = PrimitiveType.INT64
             elif getattr(annotation.type, "__is_node__", False):

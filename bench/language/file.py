@@ -99,112 +99,112 @@ class FileFormat(IdEnum):  # :FileFormats
     """The format of a file (roughly an extension)."""
 
     # text
-    TXT = 1000
-    MARKDOWN = 1001
-    RTF = 1002
-    INI = 1003
-    LOG = 1004
+    TXT = 10000
+    MARKDOWN = 10001
+    RTF = 10002
+    INI = 10003
+    LOG = 10004
 
     # code
-    PYTHON = 2000
-    JAVASCRIPT = 2001
-    TYPESCRIPT = 2002
-    GO = 2003
-    C_LANG = 2004
-    CPP = 2005
-    OBJECTIVE_C = 2006
-    SWIFT = 2007
-    RUBY = 2008
-    PHP = 2009
-    HTML = 2010
-    CSS = 2011
-    JAVA = 2012
-    KOTLIN = 2013
-    RUST = 2014
-    SCALA = 2015
-    SHELL = 2016
-    SQL = 2017
-    POWERSHELL = 2018
-    ASSEMBLY = 2019
-    LATEX = 2020
+    PYTHON = 20000
+    JAVASCRIPT = 20001
+    TYPESCRIPT = 20002
+    GO = 20003
+    C_LANG = 20004
+    CPP = 20005
+    OBJECTIVE_C = 20006
+    SWIFT = 20007
+    RUBY = 20008
+    PHP = 20009
+    HTML = 20010
+    CSS = 20011
+    JAVA = 20012
+    KOTLIN = 20013
+    RUST = 20014
+    SCALA = 20015
+    SHELL = 20016
+    SQL = 20017
+    POWERSHELL = 20018
+    ASSEMBLY = 20019
+    LATEX = 20020
 
     # image
-    JPEG = 3000
-    PNG = 3001
-    GIF = 3002
-    BMP = 3003
-    TIFF = 3004
-    WEBP = 3005
-    SVG = 3006
-    ICO = 3007
-    RAW = 3008
+    JPEG = 30000
+    PNG = 30001
+    GIF = 30002
+    BMP = 30003
+    TIFF = 30004
+    WEBP = 30005
+    SVG = 30006
+    ICO = 30007
+    RAW = 30008
 
     # audio
-    MP3 = 4000
-    WAV = 4001
-    FLAC = 4002
-    AAC = 4003
-    OGG = 4004
-    M4A = 4005
-    WMA = 4006
+    MP3 = 40000
+    WAV = 40001
+    FLAC = 40002
+    AAC = 40003
+    OGG = 40004
+    M4A = 40005
+    WMA = 40006
 
     # video
-    MP4 = 5000
-    WEBM = 5001
-    AVI = 5002
-    MOV = 5003
-    WMV = 5004
-    FLV = 5005
-    MKV = 5006
+    MP4 = 50000
+    WEBM = 50001
+    AVI = 50002
+    MOV = 50003
+    WMV = 50004
+    FLV = 50005
+    MKV = 50006
 
     # document
-    PDF = 6000
-    DOCX = 6001
-    PPTX = 6002
-    ODT = 6003
-    XLSX = 6004
-    ODS = 6005
-    EPUB = 6006
-    MOBI = 6007
-    CHM = 6008
-    DOC = 6009
-    XLS = 6010
-    PPT = 6011
+    PDF = 60000
+    DOCX = 60001
+    PPTX = 60002
+    ODT = 60003
+    XLSX = 60004
+    ODS = 60005
+    EPUB = 60006
+    MOBI = 60007
+    CHM = 60008
+    DOC = 60009
+    XLS = 60100
+    PPT = 60101
 
     # data
-    JSON = 7000
-    YAML = 7001
-    CSV = 7002
-    XML = 7003
-    TOML = 7004
-    SQLITE = 7100
-    PARQUET = 7101
-    AVRO = 7102
-    PROTOBUF = 7103
+    JSON = 70000
+    YAML = 70001
+    CSV = 70002
+    XML = 70003
+    TOML = 70004
+    SQLITE = 70100
+    PARQUET = 70101
+    AVRO = 70102
+    PROTOBUF = 70103
 
     # archive
-    ZIP = 8000
-    RAR = 8001
-    TAR = 8002
-    SEVENZIP = 8003
-    CAB = 8004
-    GZIP = 8005
-    BZIP2 = 8006
-    XZ = 8007
+    ZIP = 80000
+    RAR = 80001
+    TAR = 80002
+    SEVENZIP = 80003
+    CAB = 80004
+    GZIP = 80005
+    BZIP2 = 80006
+    XZ = 80007
 
     # executable
-    EXE = 9000
-    APP_IMAGE = 9001
-    APK = 9002
-    DMG = 9003
-    JAR = 9004
-    MSI = 9005
-    DEB = 9006
-    RPM = 9007
+    EXE = 90000
+    APP_IMAGE = 90001
+    APK = 90002
+    DMG = 90003
+    JAR = 90004
+    MSI = 90005
+    DEB = 90006
+    RPM = 90007
 
     @property
     def coarse_type(self) -> FileType:
-        return FileType(self.value // 1000)
+        return FileType(self.value // 10000)
 
     @property
     def extension(self) -> str | None:
