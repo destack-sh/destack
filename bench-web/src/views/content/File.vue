@@ -134,10 +134,15 @@ defineExpose<ViewExposed>({ self, id });
       <!-- Current value -->
       <span v-if="optimisticValue != null">
         <IconInline v-bind="facetIcon" class="mr-1.5 w-5 text-gray-700" />
-        <a class="decoration-gray-300 underline-offset-3 hover:underline hover:decoration-primary-900">
+        <a
+          class="decoration-gray-300 underline-offset-3 hover:underline hover:decoration-primary-900"
+          :href="download?.getUrl.value ?? undefined"
+          target="_blank"
+        >
           {{ optimisticValue.title ?? "???" }}
         </a>
         <span class="ml-1.5 text-xs text-gray-400">{{ humanizeBytes(17000) }}</span>
+        <!-- Uploading -->
         <i
           v-if="upload != null && upload.isActive.value"
           class="fas fa-spinner-third ml-1.5 animate-spin text-gray-400"
@@ -203,12 +208,17 @@ defineExpose<ViewExposed>({ self, id });
       <div v-else-if="optimisticValue != null" class="flex h-full w-full justify-center text-center">
         <span>
           <IconInline v-bind="getFileIconMaybe(optimisticValue) ?? facetIcon" class="text-gray-700" />
-          <a class="ml-1.5 decoration-gray-300 underline-offset-3 hover:underline hover:decoration-primary-900">
+          <a
+            class="ml-1.5 decoration-gray-300 underline-offset-3 hover:underline hover:decoration-primary-900"
+            :href="download?.getUrl.value ?? undefined"
+            target="_blank"
+          >
             {{ optimisticValue?.title ?? "???" }}
           </a>
           <span class="ml-1.5 text-xs text-gray-400">
             {{ humanizeBytes(Number(optimisticValue?.size ?? 0)) }}
           </span>
+          <!-- Uploading -->
           <i
             v-if="upload != null && upload.isActive.value"
             class="fas fa-spinner-third ml-1.5 animate-spin text-gray-400"
@@ -236,15 +246,18 @@ defineExpose<ViewExposed>({ self, id });
               {{ humanizeBytes(Number(download.filePtr.size ?? 0)) }}
             </span>
           </template>
-          <span v-else class="ml-1.5">
-            {{ getFileStatusName(download?.status.value ?? FileStatus.PENDING) }} {{ facetName }}
-          </span>
+          <span v-else class="ml-1.5">{{ facetName }}</span>
+          <!-- Uploading -->
+          <i
+            v-if="upload != null && upload.isActive.value"
+            class="fas fa-spinner-third ml-1.5 animate-spin text-gray-400"
+          />
         </span>
       </div>
       <!-- Overlay -->
       <div
-        class="absolute top-0 h-full w-full"
-        :class="upload?.isActive?.value ? 'bg-white bg-opacity-50 transition-colors duration-150' : ''"
+        class="absolute top-0 w-full"
+        :class="upload?.isActive?.value ? 'h-full bg-white bg-opacity-50 transition-colors  duration-150' : ''"
       >
         <!-- Upload progress -->
         <div v-if="upload != null && upload.isActive.value" class="absolute top-0 w-full">
