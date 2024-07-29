@@ -7,7 +7,7 @@ from bench.language import Bench, NodeReference, Property, Server, Signal
 from bench.language.bench import Client, ServerProfile
 from bench.language.const import BlockType, ClientType, NodeType
 from bench.language.field import Field
-from bench.language.file import File, FileReference, FileType
+from bench.language.file import File, FileKind, FileReference, FileType
 from bench.language.node import BuiltinObject
 from bench.language.session import Session
 from bench.language.setup import NODE_CLASSES, STRUCT_CLASSES
@@ -142,7 +142,13 @@ def test_node_pointers_consistency(session: "Session"):
     assert signal_b.parent_ptr.bench_id == bench_b.id
 
     # rich references
-    file1 = File(title="File1", size=0, coarse_type=FileType.TEXT, mime_type="text/plain")
+    file1 = File(
+        kind=FileKind.DRIVE,
+        title="File1",
+        size=0,
+        coarse_type=FileType.TEXT,
+        mime_type="text/plain",
+    )
     file1_ref = file1.to_ref()
     assert isinstance(file1_ref, FileReference)
     view_a_1_1 = block_a_1.views.append(View.new(ViewType.COLOR, "Color1"))

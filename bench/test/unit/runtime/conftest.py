@@ -146,7 +146,7 @@ def local_runtime(local_runtime_async: RuntimeHandle):  # :PytestAsyncContext
 
 
 @pytest.fixture()
-async def bench(global_store: Store):
+async def hosted_bench(global_store: Store):
     async with create_global_session(global_store, REAL_ORACLE) as session:
         user = User(
             slug="test",
@@ -179,12 +179,17 @@ async def bench(global_store: Store):
             session=session,
         )
         await session.commit()
+
+        bench._untrack_rec()
+        user._untrack_rec()
+        client._untrack_rec()
+
     return bench
 
 
 @pytest.fixture()
-async def host_service(global_store: Store, bench: Bench):
-    host = Host(bench_id=bench.id, global_store=global_store, oracle=REAL_ORACLE)
+async def host_service(global_store: Store, hosted_bench: Bench):
+    host = Host(bench_id=hosted_bench.id, global_store=global_store, oracle=REAL_ORACLE)
     await host.start()
     try:
         yield host
@@ -200,8 +205,8 @@ async def host(host_service: Host):
 
 
 @pytest.fixture()
-async def hosted_runtime_async(bench: Bench, host: HostClient):
-    user = bench.owner
+async def hosted_runtime_async(hosted_bench: Bench, host: HostClient):
+    user = hosted_bench.owner
     assert isinstance(user, User), f"unexpected bench owner: {user!r}"
     client = user.clients[0]
     client_data = client._to_data()
@@ -213,7 +218,7 @@ async def hosted_runtime_async(bench: Bench, host: HostClient):
     )
     engines = (
         RemoteEngine(
-            scope=GraphScope(bench_id=bench.id)._to_data(),
+            scope=GraphScope(bench_id=hosted_bench.id)._to_data(),
             node_types=BENCH_NODE_TYPES | IN_PACKAGE_NODE_TYPES,
             remote=host,
             write_retry=RETRY_GRPC_FOREVER,
@@ -221,22 +226,25 @@ async def hosted_runtime_async(bench: Bench, host: HostClient):
         ),
     )
     session = Session(
-        parent=bench.main_package,
+        parent=hosted_bench.main_package,
         user=user,
         client=client,
         _is_readonly=False,
-        _default_scope=GraphScope(bench_id=bench.id)._to_data(),
+        _default_scope=GraphScope(bench_id=hosted_bench.id)._to_data(),
         _engines=engines,
         _system_epoch=0,
-        _supergraph=bench._supergraph,
+        _supergraph=hosted_bench._supergraph,
         _split_read=True,
         _oracle=REAL_ORACLE,
         _subject=user,
         _host=host,
         _origin=client.to_origin(nonce=None)._to_data(),
     )
+    session.track(hosted_bench)
     runner = RuntimeRunner(session=session, oracle=REAL_ORACLE)
-    handle = RuntimeHandle(user=user, client=client, bench=bench, session=session, runner=runner)
+    handle = RuntimeHandle(
+        user=user, client=client, bench=hosted_bench, session=session, runner=runner
+    )
     async with session:
         yield handle
 
