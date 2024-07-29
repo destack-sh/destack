@@ -70,16 +70,21 @@ const fileInputRef = ref<HTMLInputElement | null>(null);
 const containerRef = ref<HTMLElement | null>(null);
 const upload: Ref<FileUpload | null> = ref(null);
 const download = useFileDownload(toRef(props, "modelValue"));
+const optimisticValue = computed(() => upload.value?.file.value ?? download.value?.file.value ?? props.modelValue);
 
 async function onFileSelected(files: File[]) {
   if (files.length == 0) return;
   if (pkg.value == null) throw new Error("no current package");
   const content = files[0];
   // NOTE :Incomplete: uploaded file should be attributed to closest ancestor block, not package (?)
-  upload.value = uploadFile(pkgConnection.tx, content, pkg.value);
-  await upload.value.completion.wait();
-  if (upload.value.file.value == null) throw new Error("missing file in upload");
-  emit("update:modelValue", toNodeReference(upload.value.file.value));
+  try {
+    upload.value = uploadFile(() => pkgConnection.tx, content, pkg.value);
+    await upload.value.completion.wait();
+    if (upload.value.file.value == null) throw new Error("missing file in upload");
+    emit("update:modelValue", toNodeReference(upload.value.file.value));
+  } finally {
+    upload.value = null;
+  }
 }
 
 const { isInDropZone } = useDropZone({
@@ -101,6 +106,7 @@ defineExpose<ViewExposed>({ self, id });
 <template>
   <ViewContentWrapper v-bind="props">
     <!-- Actual file input (hidden) -->
+    <!-- nocheckin: constrain file types -->
     <input
       ref="fileInputRef"
       type="file"
@@ -112,6 +118,7 @@ defineExpose<ViewExposed>({ self, id });
         }
       "
     />
+
     <!-- Dropdown -->
     <button
       v-if="!isInline"
@@ -125,11 +132,17 @@ defineExpose<ViewExposed>({ self, id });
       @click="fileInputRef!.click()"
     >
       <!-- Current value -->
-      <template v-if="modelValue != null">
+      <span v-if="optimisticValue != null">
         <IconInline v-bind="facetIcon" class="mr-1.5 w-5 text-gray-700" />
-        <span>{{ modelValue.title ?? "???" }}</span>
-        <span class="text-xs text-gray-400">{{ humanizeBytes(17000) }}</span>
-      </template>
+        <a class="decoration-gray-300 underline-offset-3 hover:underline hover:decoration-primary-900">
+          {{ optimisticValue.title ?? "???" }}
+        </a>
+        <span class="ml-1.5 text-xs text-gray-400">{{ humanizeBytes(17000) }}</span>
+        <i
+          v-if="upload != null && upload.isActive.value"
+          class="fas fa-spinner-third ml-1.5 animate-spin text-gray-400"
+        />
+      </span>
       <span
         v-else
         class="select-none transition-colors duration-75"
@@ -153,7 +166,7 @@ defineExpose<ViewExposed>({ self, id });
 
     <!-- Inline drop area -->
     <div
-      v-else-if="modelValue == null"
+      v-else-if="optimisticValue == null"
       ref="containerRef"
       class="flex h-full min-h-[80px] w-full cursor-pointer flex-col justify-center rounded border px-2.5 py-1 text-center transition-all duration-75"
       :class="[
@@ -169,37 +182,45 @@ defineExpose<ViewExposed>({ self, id });
       </span>
     </div>
 
-    <!-- nocheckin: file upload/download status -->
     <!-- Inline value -->
     <div
       v-else
       ref="containerRef"
-      class="flex h-full min-h-[80px] w-full flex-col justify-center rounded border border-gray-200"
+      class="group/inline relative flex h-full min-h-[80px] w-full flex-col justify-center rounded border border-gray-200"
       :class="[isInDropZone ? 'border-primary-400 outline outline-1 outline-primary-400' : '']"
     >
-      <template v-if="download?.status.value == FileStatus.COMPLETED && download?.getUrl.value != null">
-        <!-- NOTE :Incomplete: proper file content views (image with proper size & thumbnail, audio, ...) -->
-        <!-- Image File -->
-        <div v-if="download?.file.value?.coarseType == FileType.IMAGE">
-          <img :src="download.getUrl.value" class="h-full w-full rounded" :alt="download?.file.value?.title ?? '???'" />
-        </div>
-        <!-- Generic File -->
-        <div v-else class="flex h-full w-full justify-center text-center">
-          <span>
-            <IconInline v-bind="getFileIconMaybe(download?.file.value) ?? facetIcon" class="text-gray-700" />
-            <span class="ml-1.5">{{ download?.file.value?.title ?? "???" }}</span>
-            <span class="ml-1.5 text-xs text-gray-400">
-              {{ humanizeBytes(Number(download?.file.value?.size ?? 0)) }}
-            </span>
+      <!-- NOTE :Incomplete: proper file content views (image with proper size & thumbnail, audio, ...) -->
+      <!-- Image File -->
+      <div v-if="optimisticValue?.coarseType == FileType.IMAGE && download?.getUrl.value != null">
+        <img
+          :key="download.getUrl.value"
+          :src="download.getUrl.value"
+          class="h-full w-full rounded"
+          :alt="optimisticValue?.title ?? '???'"
+        />
+      </div>
+      <!-- Generic File -->
+      <div v-else-if="optimisticValue != null" class="flex h-full w-full justify-center text-center">
+        <span>
+          <IconInline v-bind="getFileIconMaybe(optimisticValue) ?? facetIcon" class="text-gray-700" />
+          <a class="ml-1.5 decoration-gray-300 underline-offset-3 hover:underline hover:decoration-primary-900">
+            {{ optimisticValue?.title ?? "???" }}
+          </a>
+          <span class="ml-1.5 text-xs text-gray-400">
+            {{ humanizeBytes(Number(optimisticValue?.size ?? 0)) }}
           </span>
-        </div>
-      </template>
+          <i
+            v-if="upload != null && upload.isActive.value"
+            class="fas fa-spinner-third ml-1.5 animate-spin text-gray-400"
+          />
+        </span>
+      </div>
+      <!-- Not ready -->
       <div
         v-else
         class="flex h-full w-full flex-col items-center justify-center"
         :class="[download?.status.value == FileStatus.FAILED ? 'text-warning-600' : 'text-gray-400']"
       >
-        <!-- File not ready -->
         <span>
           <IconInline
             v-bind="getFileStatusIcon(download?.status.value ?? FileStatus.PENDING)"
@@ -219,6 +240,40 @@ defineExpose<ViewExposed>({ self, id });
             {{ getFileStatusName(download?.status.value ?? FileStatus.PENDING) }} {{ facetName }}
           </span>
         </span>
+      </div>
+      <!-- Overlay -->
+      <div
+        class="absolute top-0 h-full w-full"
+        :class="upload?.isActive?.value ? 'bg-white bg-opacity-50 transition-colors duration-150' : ''"
+      >
+        <!-- Upload progress -->
+        <div v-if="upload != null && upload.isActive.value" class="absolute top-0 w-full">
+          <div
+            class="h-1 transform rounded-full bg-primary-400 transition-transform duration-75"
+            :style="{ width: upload.progress.value + '%' }"
+          />
+        </div>
+        <!-- Controls -->
+        <div
+          class="absolute top-0 flex w-full flex-row justify-end gap-x-1 p-1.5 opacity-0 transition-colors duration-75 group-hover/inline:opacity-100"
+        >
+          <!-- Replace -->
+          <button
+            v-if="isInput && !isDisabled"
+            class="rounded-2xl bg-white bg-opacity-50 px-1 text-gray-700 hover:bg-opacity-100 hover:text-primary-900"
+            @click="fileInputRef?.click()"
+          >
+            <i class="fas fa-shuffle" />
+          </button>
+          <!-- Remove -->
+          <button
+            v-if="isInput && !isDisabled && !valueType?.isRequired"
+            class="rounded-2xl bg-white bg-opacity-50 px-1 text-gray-700 hover:bg-opacity-100 hover:text-primary-900"
+            @click="emit('update:modelValue', null)"
+          >
+            <i class="fas fa-xmark" />
+          </button>
+        </div>
       </div>
     </div>
   </ViewContentWrapper>

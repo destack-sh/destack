@@ -216,7 +216,7 @@ defineExpose<ViewExposed>({ self, id, actions });
   @apply bg-primary-300 text-gray-900;
 }
 .code .cm-editor .cm-completionMatchedText {
-  @apply font-semibold underline underline-offset-2;
+  @apply font-semibold underline underline-offset-3;
 }
 .code .cm-editor .cm-gutters {
   @apply mr-0.5 bg-transparent pr-1.5 text-gray-400;

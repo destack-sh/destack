@@ -193,7 +193,7 @@ defineExpose({ focus, clear, query });
         <input
           ref="queryRef"
           v-model="query"
-          class="max-w-60 cursor-default rounded border-0 bg-transparent font-semibold text-gray-900 decoration-2 underline-offset-2 caret-transparent outline-none ring-0 focus:underline focus:ring-0"
+          class="max-w-60 cursor-default rounded border-0 bg-transparent font-semibold text-gray-900 decoration-2 underline-offset-3 caret-transparent outline-none ring-0 focus:underline focus:ring-0"
           spellcheck="false"
           @keydown.enter.stop.prevent="fire(activeItemIdx ?? 0)"
           @keydown.up.stop.prevent="focus('previous')"
