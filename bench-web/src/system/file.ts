@@ -107,7 +107,6 @@ export async function extractFile(
     coarseType = Math.floor(format / 1000);
   }
 
-  // TODO :Incomplete: extract more file metadata :ExtractFileInfo
   const file = makeNode({
     metatype: NodeType.FILE,
     id: identity.id,
@@ -122,6 +121,30 @@ export async function extractFile(
     size: BigInt(content.size),
     sha256: await sha256(content),
   });
+
+  // TODO :Incomplete: extract more file metadata :ExtractFileInfo
+
+  // image metadata
+  if (coarseType == FileType.IMAGE) {
+    // turn into data URL & load as Image (this feels a bit hacky)
+    const imageLoaded = new AsyncEvent();
+    const contentAsDataUrl = window.URL.createObjectURL(content);
+    const image = new Image();
+    image.src = contentAsDataUrl;
+    image.onload = () => {
+      file.width = image.width;
+      file.height = image.height;
+      file.aspectRatio = file.width / file.height;
+      window.URL.revokeObjectURL(contentAsDataUrl);
+      imageLoaded.set();
+    };
+    image.onerror = (e) => {
+      window.URL.revokeObjectURL(contentAsDataUrl);
+      imageLoaded.reject(e);
+    };
+    await imageLoaded.wait();
+  }
+
   return file;
 }
 
