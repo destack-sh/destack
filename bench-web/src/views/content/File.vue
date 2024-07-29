@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { FileFormat, FileReferenceData, FileType, NodeType, ViewData } from "@/proto/wire";
-import { toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
+import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import {
   FileStatus,
   getFileAcceptFromConstraint,
@@ -60,8 +60,10 @@ const facetIcon = computed(() => {
 const facetName = computed(() => {
   if (fileFormat.value != null) {
     return `${toCamelName(FileFormat, fileFormat.value)} ${toCamelName(FileType, fileType.value)}`;
-  } else {
+  } else if (fileType.value != FileType.GENERIC) {
     return toCamelName(FileType, fileType.value);
+  } else {
+    return "File";
   }
 });
 
@@ -89,13 +91,19 @@ async function onFileSelected(files: File[]) {
     });
     await upload.value.completion.wait();
     if (upload.value.file.value == null) throw new Error("missing file in upload");
-    emit("update:modelValue", toNodeReference(upload.value.file.value));
+    const fileRef = toNodeRef(upload.value.file.value);
+    emit("update:modelValue", fileRef);
   } catch (e) {
     log.error("file.upload.error", upload, e);
     toaster.error({ title: "Upload Failed", text: `'${content.name}': ${(e as any)?.message ?? "unknown error"}` });
   } finally {
     upload.value = null;
   }
+}
+
+function openFile() {
+  if (download.value?.getUrl.value == null) return;
+  window.open(download.value.getUrl.value, "_blank");
 }
 
 // NOTE :UX: constrain drop mime types to file types
@@ -135,19 +143,19 @@ defineExpose<ViewExposed>({ self, id });
     <button
       v-if="!isInline"
       ref="containerRef"
-      class="group flex w-full flex-row items-center rounded border px-2.5 py-1 transition-all duration-75 data-[popover=true]:border-gray-300"
+      class="group/dropdown flex w-full flex-row items-center rounded border px-2.5 py-1 transition-all duration-75 data-[popover=true]:border-gray-300"
       :class="[
         isInDropZone
           ? 'border-primary-400 bg-primary-200 outline outline-1 outline-primary-400'
           : 'border-gray-200  hover:border-gray-300',
       ]"
-      @click="fileInputRef!.click()"
+      @click="download?.getUrl.value != null ? openFile() : fileInputRef!.click()"
     >
       <!-- Current value -->
       <span v-if="optimisticValue != null" :class="loadFailed ? 'text-warning-600' : 'text-gray-700'">
         <IconInline v-bind="facetIcon" class="mr-1.5 w-5" :class="loadFailed ? 'text-warning-600' : 'text-gray-700'" />
         <a
-          class="decoration-gray-300 underline-offset-3 hover:underline hover:decoration-primary-900"
+          class="decoration-gray-300 underline-offset-3 group-hover/dropdown:underline group-hover/dropdown:decoration-primary-900"
           :class="download?.getUrl.value != null ? 'hover:underline' : ''"
           :href="download?.getUrl.value ?? undefined"
           target="_blank"
@@ -170,15 +178,22 @@ defineExpose<ViewExposed>({ self, id });
         <span>Upload {{ facetName }}</span>
       </span>
       <!-- Controls -->
-      <div v-if="!props.isDisabled && props.isInput" class="ml-auto flex-shrink-0 pl-1.5">
+      <div
+        v-if="!props.isDisabled && props.isInput"
+        class="ml-auto flex flex-shrink-0 flex-row items-center gap-x-1 pl-1.5"
+      >
         <!-- Clear -->
-        <i
+        <button
           v-if="modelValue != null && !valueType?.isRequired"
-          role="button"
-          class="fas fa-xmark mr-2 text-gray-400 opacity-0 hover:text-primary-900 group-hover:opacity-100"
+          class="px-0.5 text-gray-400 opacity-0 hover:text-primary-900 group-hover/dropdown:opacity-100"
           @click.stop="emit('update:modelValue', undefined)"
-        />
-        <i class="fas fa-caret-down ml-auto text-gray-400 hover:text-primary-900" />
+        >
+          <i class="fas fa-xmark" />
+        </button>
+        <!-- Select -->
+        <button class="px-0.5 text-gray-400 hover:text-primary-900" @click.stop="fileInputRef?.click()">
+          <i class="fas fa-caret-down" />
+        </button>
       </div>
     </button>
 
@@ -221,7 +236,7 @@ defineExpose<ViewExposed>({ self, id });
       <div
         v-else-if="optimisticValue != null"
         class="flex h-full w-full items-center justify-center text-center"
-        :class="[loadFailed ? 'text-warning-600' : 'text-gray-400']"
+        :class="[loadFailed ? 'text-warning-600' : '']"
       >
         <IconInline
           v-bind="getFileIconMaybe(optimisticValue) ?? facetIcon"
@@ -281,12 +296,20 @@ defineExpose<ViewExposed>({ self, id });
         </div>
         <!-- Controls -->
         <div
-          class="absolute top-0 flex w-full flex-row justify-end gap-x-1 p-1.5 opacity-0 transition-colors duration-75 group-hover/inline:opacity-100"
+          class="absolute right-0 top-0 m-1 flex flex-row justify-end gap-x-1 rounded bg-white p-0.5 opacity-0 transition-colors duration-75 group-hover/inline:text-gray-700 group-hover/inline:opacity-100"
         >
+          <!-- Focus -->
+          <button
+            v-if="isInput && !isDisabled"
+            class="rounded px-1 transition-colors duration-75 hover:bg-gray-100 hover:text-primary-900"
+            @click="openFile()"
+          >
+            <i class="fas fa-expand" />
+          </button>
           <!-- Replace -->
           <button
             v-if="isInput && !isDisabled"
-            class="rounded-2xl px-1 text-gray-400 transition-colors duration-75 hover:bg-gray-100 hover:text-primary-900"
+            class="rounded px-1 transition-colors duration-75 hover:bg-gray-100 hover:text-primary-900"
             @click="fileInputRef?.click()"
           >
             <i class="fas fa-shuffle" />
@@ -294,7 +317,7 @@ defineExpose<ViewExposed>({ self, id });
           <!-- Remove -->
           <button
             v-if="isInput && !isDisabled && !valueType?.isRequired"
-            class="rounded-2xl px-1 text-gray-400 transition-colors duration-75 hover:bg-gray-100 hover:text-primary-900"
+            class="rounded px-1 transition-colors duration-75 hover:bg-gray-100 hover:text-primary-900"
             @click="emit('update:modelValue', null)"
           >
             <i class="fas fa-xmark" />

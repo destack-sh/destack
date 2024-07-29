@@ -24,7 +24,7 @@ import {
   ViewData,
   type AnyNodeData,
 } from "@/proto/wire";
-import { describeNode, isNode, propertyReference, toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
+import { describeNode, isNode, propertyReference, toNodeRef, toPlainNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { PACKAGE_SCOPE } from "@/system/client";
 import {
   supergraph,
@@ -151,7 +151,7 @@ const pills: Ref<FilterPill[]> = computed(() => {
       filterIfActive: makeExpression({
         op: ExpressionOp.EQUALS,
         propertyPtr: propertyReference(ObjectType.LOG, LogProperty.createdByPtr),
-        value: toNodeReference(user.value!),
+        value: toPlainNodeRef(user.value!),
       }),
     });
     pills.push({
@@ -162,7 +162,7 @@ const pills: Ref<FilterPill[]> = computed(() => {
       filterIfActive: makeExpression({
         op: ExpressionOp.NOT_EQUALS,
         propertyPtr: propertyReference(ObjectType.LOG, LogProperty.createdByPtr),
-        value: toNodeReference(user.value!),
+        value: toPlainNodeRef(user.value!),
       }),
     });
   } else if (nodeType.value == NodeType.RUN) {
@@ -327,7 +327,7 @@ function mapToNode(element: HTMLElement | SVGElement | ViewComponent): NodeRefer
     const id = el.getAttribute("data-item-id");
     if (id != null) {
       const node = supergraph.get({ id });
-      if (node != null) return toNodeReference(node);
+      if (node != null) return toNodeRef(node);
     }
     el = el.parentElement;
   }
@@ -528,14 +528,14 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
                 v-if="item.kind == 'log-edit'"
                 is-inline
                 :variant="Variant.COMPACT"
-                :node-ptr="toNodeReference(item.it)"
+                :node-ptr="toNodeRef(item.it)"
                 :prepared-connection="preparedConnection"
               />
               <Run
                 v-else-if="item.kind == 'run'"
                 is-inline
                 :variant="Variant.COMPACT"
-                :node-ptr="toNodeReference(item.it)"
+                :node-ptr="toNodeRef(item.it)"
                 :prepared-connection="preparedConnection"
               />
               <div v-else>

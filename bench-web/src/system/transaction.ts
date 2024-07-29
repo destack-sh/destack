@@ -1,4 +1,4 @@
-import { getCachedGraphClient, HUMANIZED_OPERATION_STATUS, supervisor } from "@/proto/services";
+import { getCachedGraphClient, HUMANIZED_OPERATION_STATUS } from "@/proto/services";
 import {
   BlockProperty,
   ChangeCategory,
@@ -16,21 +16,20 @@ import {
   Timestamp,
   type AnyNodeData,
   type EditData,
-  type IGraphIOClient,
   type NodeTypeMapping,
-  type PropertyInfo,
+  type PropertyInfo
 } from "@/proto/wire";
 import {
-  EMPTY_SCOPE,
   describeEdit,
   describeNode,
+  EMPTY_SCOPE,
   makeDefaultObject,
   makeScope,
   nodeReference,
-  toNodeReference,
+  toPlainNodeRef,
   unwrapSomeNode,
   wrapSomeNode,
-  type TypedNodeReferenceData,
+  type TypedNodeReferenceData
 } from "@/proto/wiring";
 import { nonce, origin, userOrNullPtr, userPtr } from "@/system/client";
 import { type ReadNodeGraph, type WriteNodeGraph } from "@/system/graph";
@@ -38,7 +37,6 @@ import { makeIcon } from "@/system/icon";
 import { makeNode } from "@/system/lang";
 import { toaster } from "@/system/toast";
 import { type JsonValue } from "@/system/value";
-import { AsyncEvent } from "@/utils/functools";
 import { IS_DEV } from "@/utils/globals";
 import { log } from "@/utils/log";
 import { toValueRef } from "@/utils/ref";
@@ -300,7 +298,7 @@ export class TransactionBuilder implements TransactionMeta, Transaction {
       metatype: ObjectType.EDIT,
       id: newEditId(),
       type: editType,
-      nodePtr: toNodeReference(node),
+      nodePtr: toPlainNodeRef(node),
       scope: this._getScope(node),
       oldNodePartial: oldNode != null ? wrapSomeNode(oldNode) : undefined,
       newNodePartial: newNode != null ? wrapSomeNode(newNode) : undefined,
@@ -395,7 +393,7 @@ export class TransactionBuilder implements TransactionMeta, Transaction {
         metatype: ObjectType.EDIT,
         id: newEditId(),
         type: editType,
-        nodePtr: toNodeReference(node),
+        nodePtr: toPlainNodeRef(node),
         scope: this._getScope(node),
         properties: properties.map((p) => p.id),
         oldNodePartial: wrapSomeNode(oldNode),

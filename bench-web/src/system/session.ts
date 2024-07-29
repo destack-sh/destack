@@ -8,7 +8,7 @@ import {
   type RunData,
   type StepData,
 } from "@/proto/wire";
-import { describeNode, isNode, toNodeReference } from "@/proto/wiring";
+import { describeNode, isNode, toPlainNodeRef } from "@/proto/wiring";
 import type { ReadNodeGraph } from "@/system/graph";
 import { makeNode } from "@/system/lang";
 
@@ -46,8 +46,8 @@ export function makeRun(
     packagePtr: runnable.packagePtr,
     kind: getRunKind(runnable),
     status: RunStatus.SCHEDULED,
-    blockPtr: block != null ? toNodeReference(block) : undefined,
-    stepPtr: isNode(runnable, NodeType.STEP) ? toNodeReference(runnable) : undefined,
+    blockPtr: block != null ? toPlainNodeRef(block) : undefined,
+    stepPtr: isNode(runnable, NodeType.STEP) ? toPlainNodeRef(runnable) : undefined,
     inputsPacked: options?.inputsPacked != null ? Struct.fromJson(options?.inputsPacked) : undefined,
   });
   return run;

@@ -10,7 +10,7 @@ import {
   ViewType,
   type AnyNodeData,
 } from "@/proto/wire";
-import { toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
+import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { IS_IN_ALT_MODE, type ActionImplementation, type ActionMapImplementation } from "@/system/action";
 import { ICON_BY_NODE_TYPE, getNodeIcon } from "@/system/icon";
 import { canvas, pkgGraph } from "@/system/space";
@@ -118,7 +118,7 @@ function makeEditorView(): EditorView {
             onApply(node) {
               if (view == null) throw new Error("view no longer mounted");
               // replace @ with mention and focus there
-              const mention = PM_SCHEMA.node("mention", { nodePtr: toNodeReference(node) });
+              const mention = PM_SCHEMA.node("mention", { nodePtr: toNodeRef(node) });
               view.dispatch(
                 view.state.tr
                   .delete(selection.$head.pos - 1, selection.$head.pos)
@@ -221,7 +221,7 @@ const { isInDropZone } = useDropZone({
     // insert node mention at position (surrounded by spaces)
     const pos = view.posAtCoords({ left: event.clientX, top: event.clientY });
     if (pos == null) return; // not in editor
-    const pmNode = PM_SCHEMA.node("mention", { nodePtr: toNodeReference(dragged.node) });
+    const pmNode = PM_SCHEMA.node("mention", { nodePtr: toNodeRef(dragged.node) });
     view.dispatch(view.state.tr.insert(pos.pos, pmNode).insertText(" ", pos.pos + 1, pos.pos + 1));
   },
 });

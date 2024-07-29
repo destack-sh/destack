@@ -19,7 +19,7 @@ import {
   TypeConstraintData,
   UploadFilesResponse_UploadHandle,
 } from "@/proto/wire";
-import { isNode, isStruct, makeScope, newNodeId, nodeReference, toNodeReference } from "@/proto/wiring";
+import { isNode, isStruct, makeScope, newNodeId, nodeReference, toNodeRef, toPlainNodeRef } from "@/proto/wiring";
 import { ICON_BY_FILE_FORMAT, ICON_BY_FILE_TYPE, makeIcon } from "@/system/icon";
 import { makeNode, toCamelName } from "@/system/lang";
 import { unpackProtoJson, type Transaction } from "@/system/transaction";
@@ -97,7 +97,7 @@ export async function extractFile(
 
   // guess file type using extension & mime type
   let format: FileFormat | undefined = undefined;
-  const mimeType: string | undefined = content.type == '' ? undefined : content.type;
+  const mimeType: string | undefined = content.type == "" ? undefined : content.type;
   if (title.includes(".")) {
     const extension = title.split(".").pop();
     if (extension && FILE_FORMAT_BY_EXTENSION[extension.toLowerCase()]) {
@@ -117,9 +117,9 @@ export async function extractFile(
   const file = makeNode({
     metatype: NodeType.FILE,
     id: identity.id,
-    parentPtr: toNodeReference(parent),
+    parentPtr: toPlainNodeRef(parent),
     benchPtr: parent.benchPtr,
-    packagePtr: isNode(parent, NodeType.PACKAGE) ? toNodeReference(parent) : parent.packagePtr,
+    packagePtr: isNode(parent, NodeType.PACKAGE) ? toPlainNodeRef(parent) : parent.packagePtr,
     kind: FileKind.DRIVE,
     title,
     coarseType,
@@ -301,12 +301,12 @@ export function uploadFiles(
     validate: (upload, file) => {
       if (options.allowedTypes && !options.allowedTypes.includes(file.coarseType)) {
         throw new Error(
-          `${toCamelName(FileType, file.coarseType)}, not ${options.allowedTypes.map((t) => toCamelName(FileType, t)).join(" or ")}`,
+          `want ${options.allowedTypes.map((t) => toCamelName(FileType, t)).join(" or ")}, got ${toCamelName(FileType, file.coarseType)}`,
         );
       }
       if (options.allowedFormats && (file.format == null || !options.allowedFormats.includes(file.format))) {
         throw new Error(
-          `${file.format != null ? toCamelName(FileFormat, file.format) : "unknown"}, not ${options.allowedFormats.map((f) => toCamelName(FileFormat, f)).join(" or ")}`,
+          `want ${options.allowedFormats.map((f) => toCamelName(FileFormat, f)).join(" or ")}, got ${file.format != null ? toCamelName(FileFormat, file.format) : "unknown"}`,
         );
       }
     },
@@ -387,7 +387,7 @@ export function downloadFiles(
       isActive: computed(
         () => download.status.value != FileStatus.COMPLETED && download.status.value != FileStatus.FAILED,
       ),
-      nodePtr: isNode(file, NodeType.FILE) ? toNodeReference(file) : file,
+      nodePtr: isNode(file, NodeType.FILE) ? toPlainNodeRef(file) : toPlainNodeRef(file),
       filePtr: isStruct(file, StructType.FILE_REFERENCE) ? file : null, // :RichReferences
       file: shallowRef(isNode(file, NodeType.FILE) ? file : null),
       content: shallowRef(null),

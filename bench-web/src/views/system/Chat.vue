@@ -14,7 +14,7 @@ import {
   type AnyNodeData,
   IconData,
 } from "@/proto/wire";
-import { describeNode, isNode, toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
+import { describeNode, isNode, toPlainNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { makeViewId, viewEmits, type FocusAnchor, type ViewComponent, type ViewExposed } from "@/views/common";
 import { canvas, inspectionPtr, pkg, pkgGraph as localPkgGraph } from "@/system/space";
 import { computed, ref, toRef, watch, type Ref } from "vue";
@@ -168,20 +168,20 @@ function replyTo(message: MessageData) {
 }
 
 function createNewThread(parent: AnyNodeData, title: string = generateRandomName()) {
-  const packagePtr = isNode(parent, NodeType.PACKAGE) ? toNodeReference(parent) : (parent as any).packagePtr;
+  const packagePtr = isNode(parent, NodeType.PACKAGE) ? toPlainNodeRef(parent) : (parent as any).packagePtr;
   if (packagePtr == null) throw new Error(`parent is not in a package: ${describeNode(parent)}`);
-  const tx = findExistingConnectionOrError("get", { scope: PACKAGE_SCOPE.value, roots: [toNodeReference(parent)] }).tx;
+  const tx = findExistingConnectionOrError("get", { scope: PACKAGE_SCOPE.value, roots: [toPlainNodeRef(parent)] }).tx;
   const thread = tx.create({
     metatype: NodeType.MESSAGE,
-    parentPtr: parent != null ? toNodeReference(parent) : undefined,
+    parentPtr: parent != null ? toPlainNodeRef(parent) : undefined,
     packagePtr,
     title,
   });
   if (self.value != null) {
     const selfView = spaceGraph.getOrError(self.value);
-    canvas.tx().update(selfView, { nodePtr: toNodeReference(thread) });
+    canvas.tx().update(selfView, { nodePtr: toPlainNodeRef(thread) });
   } else {
-    emit("update:self", { nodePtr: toNodeReference(thread) });
+    emit("update:self", { nodePtr: toPlainNodeRef(thread) });
   }
   return thread;
 }
@@ -197,11 +197,11 @@ function submit() {
     const thread = createNewThread(parent);
     const tx = findExistingConnectionOrError("get", {
       scope: PACKAGE_SCOPE.value,
-      roots: [toNodeReference(thread)],
+      roots: [toPlainNodeRef(thread)],
     }).tx;
     const message = tx.create({
       metatype: NodeType.MESSAGE,
-      parentPtr: toNodeReference(thread),
+      parentPtr: toPlainNodeRef(thread),
       packagePtr: thread.packagePtr,
       text: text.value,
     });
@@ -213,7 +213,7 @@ function submit() {
       metatype: NodeType.MESSAGE,
       parentPtr: nodePtr.value,
       packagePtr: node.value.packagePtr!,
-      replyToPtr: replyingTo.value != null ? toNodeReference(replyingTo.value) : undefined,
+      replyToPtr: replyingTo.value != null ? toPlainNodeRef(replyingTo.value) : undefined,
       text: text.value,
     });
   }
@@ -232,7 +232,7 @@ function mapToNode(element: HTMLElement | SVGElement | ViewComponent): NodeRefer
     const id = el.getAttribute("data-message-id");
     if (id != null) {
       const message = pkgGraph.get({ id, type: NodeType.MESSAGE });
-      if (message != null) return toNodeReference(message);
+      if (message != null) return toPlainNodeRef(message);
     }
     el = el.parentElement;
   }
@@ -278,14 +278,14 @@ const actions: Partial<ActionMapImplementation<"common">> & ActionMapImplementat
     action: (action, context) => {
       const { message, idx } = getMessageFromContext(context);
       if (message == null) return false;
-      if (idx > 0) focus(toNodeReference(messages.value[idx - 1]));
+      if (idx > 0) focus(toPlainNodeRef(messages.value[idx - 1]));
     },
   },
   "common.navigate.down": {
     action: (action, context) => {
       const { message, idx } = getMessageFromContext(context);
       if (message == null) return false;
-      if (idx < messages.value.length - 1) focus(toNodeReference(messages.value[idx + 1]));
+      if (idx < messages.value.length - 1) focus(toPlainNodeRef(messages.value[idx + 1]));
     },
   },
   // message
@@ -337,7 +337,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
         <div class="flex flex-shrink-0 flex-row items-center">
           <!-- Context (path) -->
           <template v-if="context != null && context?.metatype != ObjectType.PACKAGE && variant != Variant.COMPACT">
-            <NodePath class="flex-shrink-0" :container="toNodeReference(context)" :graph="pkgGraph" />
+            <NodePath class="flex-shrink-0" :container="toPlainNodeRef(context)" :graph="pkgGraph" />
             <i class="fas fa-chevron-right ml-1 mr-1.5 text-gray-400" />
           </template>
           <!-- Icon / Name -->
@@ -510,7 +510,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
               role="button"
               class="my-0.5 rounded border-secondary-200 bg-gray-100 px-2 py-1 hover:cursor-pointer"
               :style="{ borderLeftWidth: HANDLE_WIDTH + 'px' }"
-              @click="focus(toNodeReference(replyToMessage))"
+              @click="focus(toPlainNodeRef(replyToMessage))"
             >
               <span class="truncate font-medium text-secondary-900">{{ replyToAuthor!.name }}</span>
               <span class="ml-1.5 text-xs text-gray-400">{{ formatAbsoluteDate(replyToMessage.createdAt!) }}</span>
@@ -572,7 +572,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
     />
 
     <!-- Draft area -->
-    <div ref="draftRef" class="group mt-auto" @click="textRef?.focus">
+    <div ref="draftRef" class="group mt-auto" @click="() => textRef?.focus?.()">
       <!-- Replying to -->
       <div
         v-if="replyingTo"

@@ -11,8 +11,8 @@ import {
   EMPTY_SCOPE,
   describeNode,
   describeScope,
-  isNodeReference,
-  toNodeReference,
+  isNodeRef,
+  toNodeRef,
   type AnyNodeReferenceData,
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
@@ -1070,7 +1070,7 @@ export function mergeNode<T extends NodeType>(
 
 /** Resolve the node in the given graph if it's a reference */
 export function resolveNode(graph: ReadNodeGraph, node: AnyNodeData | AnyNodeReferenceData): AnyNodeData {
-  return isNodeReference(node) ? graph.getOrError(node) : node;
+  return isNodeRef(node) ? graph.getOrError(node) : node;
 }
 
 export type NodeTreeItem<T extends NodeType> = {
@@ -1113,7 +1113,7 @@ export function walkDescendantsRef<T extends NodeType>(walk: {
       const item: ItemT = {
         id: node.id,
         node,
-        nodePtr: toNodeReference(node) as TypedNodeReferenceData<T>,
+        nodePtr: toNodeRef(node)!,
         depth,
         hasChildren: children.length > 0,
       };
@@ -1131,7 +1131,7 @@ export function walkDescendantsRef<T extends NodeType>(walk: {
             items.push({
               id: child.id,
               node: child,
-              nodePtr: toNodeReference(child),
+              nodePtr: toNodeRef(child),
               depth: depth + 1,
               hasChildren: false,
             });

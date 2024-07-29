@@ -12,7 +12,7 @@ import {
   ViewData,
   type AnyNodeData,
 } from "@/proto/wire";
-import { isNode, toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
+import { isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import type { ActionContext, ActionMapImplementation } from "@/system/action";
 import { useHierarchicalNodeMoveActions } from "@/system/block";
 import { packagePtr } from "@/system/client";
@@ -294,7 +294,7 @@ const actions: Partial<ActionMapImplementation<"common">> = {
     action: (action, ctx) => {
       const node = getItemFromContext(ctx).item?.node;
       if (node == null) return false;
-      editingNodePtr.value = toNodeReference(node);
+      editingNodePtr.value = toNodeRef(node);
       nextTick(() => {
         editingNameRef.value?.[0]?.focus?.();
         editingNameRef.value?.[0]?.select?.();

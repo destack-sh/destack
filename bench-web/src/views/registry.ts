@@ -1,5 +1,5 @@
 import { BoxData, ViewData, ViewType } from "@/proto/wire";
-import { toNodeReference } from "@/proto/wiring";
+import { toPlainNodeRef } from "@/proto/wiring";
 import { getVueComponentType } from "@/views/canvas";
 import type { ViewComponent } from "@/views/common";
 
@@ -89,7 +89,7 @@ export function getViewBinding(view: ViewData, size: Pick<BoxData, "width" | "he
   const filteredProps = {};
   for (const propName in component.props) {
     if (propName == "size") (filteredProps as any)[propName] = size;
-    else if (propName == "self") (filteredProps as any)[propName] = toNodeReference(view);
+    else if (propName == "self") (filteredProps as any)[propName] = toPlainNodeRef(view);
     else if (propName == "id") (filteredProps as any)[propName] = view.id;
     else if (propName in view) (filteredProps as any)[propName] = (view as any)[propName];
   }

@@ -13,7 +13,7 @@ import {
   type IconData,
   type NodeReferenceData
 } from "@/proto/wire";
-import { toNodeReference } from "@/proto/wiring";
+import { toNodeRef, toPlainNodeRef } from "@/proto/wiring";
 import { ACTION_BUILTIN_IDS_INDEX, IMPLEMENTED_ACTIONS, type Action } from "@/system/action";
 import type { NodeKey, ReadNodeGraph } from "@/system/graph";
 import { AVAILABLE_FA_ICONS, DEFAULT_ENUM_ICON, getNodeIcon, type IconMetadata } from "@/system/icon";
@@ -124,7 +124,7 @@ function walkGraph(options: {
     }
     const path = pathParts.map((p) => p ?? VISIBLE_UNNAMED).join(VISIBLE_SEPARATOR);
     const pathToIndex = pathParts.map((p) => p ?? HIDDEN_UNNAMED).join(HIDDEN_SEPARATOR); // lengths must match for highlighting
-    const ref = toNodeReference(node);
+    const ref = toPlainNodeRef(node);
 
     if (ref.id == null) throw new Error(`node has no id: ${node}`);
 
@@ -171,7 +171,7 @@ function itemFromNode(indexId: string, graph: ReadNodeGraph, value: NodeKey<any>
   const node = graph.getMaybe(value);
   if (node == null) return null;
   const item: NodeItem = {
-    ...(toNodeReference(node)! as NodeReferenceData & { id: string }),
+    ...(toPlainNodeRef(node)! as NodeReferenceData & { id: string }),
     metatype: "node",
     itemId: `${indexId}-${value.id}`,
     node,
@@ -199,7 +199,7 @@ export function graphIndex(idx: {
   const index: SearchIndex<NodeItem> = {
     id: idx.id,
     fromValue: (value: NodeKey<any>) => itemFromNode(idx.id, idx.graph, value),
-    toValue: (candidate: NodeItem) => toNodeReference(candidate.node),
+    toValue: (candidate: NodeItem) => toNodeRef(candidate.node),
     valueEquals: (a: NodeKey<any>, b: NodeKey<any>) => a.id === b.id || a.ck == b.ck,
     candidates: () => walkGraph({ ...idx, maxDepth: maxDepthRef.value }),
   };
@@ -357,7 +357,7 @@ export function typeIndex(idx: {
       kind = TypeKind.ALIAS;
     }
     const item: TypeItem = { ...nodeItem, kind, benchType, isList: false, isSecret: false, metatype: "type" };
-    item.baseTypePtr = toNodeReference(nodeItem.node);
+    item.baseTypePtr = toNodeRef(nodeItem.node);
     return item;
   }
 

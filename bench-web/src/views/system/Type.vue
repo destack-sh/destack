@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { BlockType, FieldZone, NodeType, Orientation, Variant, ViewData, type FieldData } from "@/proto/wire";
-import { isNode, toNodeReference, type TypedNodeReferenceData } from "@/proto/wiring";
+import { isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import type { ActionContext, ActionMapImplementation } from "@/system/action";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
 import { RUNNABLE_BLOCK_TYPES, createField, moveNode, onNodeMorphed, toCamelName } from "@/system/lang";
@@ -241,7 +241,7 @@ defineExpose<ViewExposed>({ self, id, actions });
             role="listitem"
             class="max-w-[200px] truncate data-[dragging=true]:opacity-50"
             :prepared-connection="preparedConnection"
-            :node-ptr="toNodeReference(field)"
+            :node-ptr="toNodeRef(field)"
             :draggable="true"
             :variant="Variant.STEALTH"
             @dragstart.stop="(e: DragEvent) => startDragging(e, pkgGraph, field)"
