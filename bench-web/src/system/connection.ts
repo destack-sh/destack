@@ -427,7 +427,7 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
         const delay = Math.min(2 ** (retryCount + 1) * 1000, 60 * 1000);
         setTimeout(() => {
           log.trace(`graph.${this.kind}.retry.backoff`, this.meta.name, { retryCount, delay });
-          retrySignal.set();
+          retrySignal.resolve();
         }, delay);
       } else {
         waitingForOnline = true;
@@ -438,7 +438,7 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
       if (network.isOnline.value && waitingForOnline) {
         waitingForOnline = false;
         log.trace(`graph.${this.kind}.retry.online`, this.meta.name);
-        retrySignal.set();
+        retrySignal.resolve();
       }
     });
 
@@ -463,7 +463,7 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
                 this.abortController?.abort();
               },
             );
-            connectedSignal.set();
+            connectedSignal.resolve();
             this.abortController = null;
             log.debug(`graph.${this.kind}.complete`, this.meta.name, this.params, newResult);
           } finally {

@@ -96,7 +96,7 @@ export class AsyncEvent {
     await this._promise;
   }
 
-  set() {
+  resolve() {
     if (this._resolve) {
       this._resolve();
       this._resolve = null;

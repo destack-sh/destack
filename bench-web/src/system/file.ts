@@ -2,6 +2,7 @@ import { getCachedHostClient } from "@/proto/services";
 import {
   BlockData,
   DownloadFilesResponse_DownloadHandle,
+  EXTENSION_BY_FILE_FORMAT,
   FILE_FORMAT_BY_EXTENSION,
   FILE_FORMAT_BY_MIME_TYPE,
   FileData,
@@ -10,10 +11,12 @@ import {
   FileReferenceData,
   FileType,
   IconData,
+  MIME_TYPE_BY_FILE_FORMAT,
   NodeReferenceData,
   NodeType,
   PackageData,
   StructType,
+  TypeConstraintData,
   UploadFilesResponse_UploadHandle,
 } from "@/proto/wire";
 import { isNode, isStruct, makeScope, newNodeId, nodeReference, toNodeReference } from "@/proto/wiring";
@@ -94,14 +97,14 @@ export async function extractFile(
 
   // guess file type using extension & mime type
   let format: FileFormat | undefined = undefined;
-  const mimeType: string = content.type;
+  const mimeType: string | undefined = content.type == '' ? undefined : content.type;
   if (title.includes(".")) {
     const extension = title.split(".").pop();
     if (extension && FILE_FORMAT_BY_EXTENSION[extension.toLowerCase()]) {
       format = FILE_FORMAT_BY_EXTENSION[extension.toLowerCase()];
     }
   }
-  if (format == null && FILE_FORMAT_BY_MIME_TYPE[mimeType]) {
+  if (format == null && mimeType != null && FILE_FORMAT_BY_MIME_TYPE[mimeType]) {
     format = FILE_FORMAT_BY_MIME_TYPE[mimeType];
   }
   let coarseType: FileType;
@@ -140,7 +143,7 @@ export async function extractFile(
       file.height = image.height;
       file.aspectRatio = file.width / file.height;
       window.URL.revokeObjectURL(contentAsDataUrl);
-      imageLoaded.set();
+      imageLoaded.resolve();
     };
     image.onerror = (e) => {
       window.URL.revokeObjectURL(contentAsDataUrl);
@@ -191,12 +194,24 @@ function doUploadFile(
 }
 
 /** Executes a set of uploads (as parallel as possible). */
-async function doUploadFiles(txFactory: () => Transaction, uploads: FileUpload[]): Promise<void> {
+async function doUploadFiles(
+  txFactory: () => Transaction,
+  uploads: FileUpload[],
+  options?: { validate: (upload: FileUpload, info: FileData) => void },
+): Promise<void> {
   log.trace("file.uploadFiles", uploads);
   // extract files
   for (const upload of uploads) {
-    upload.status.value = FileStatus.PREPARING;
-    upload.file.value = await extractFile(upload.content, upload.nodePtr, upload.parent);
+    try {
+      upload.status.value = FileStatus.PREPARING;
+      if (options?.validate) {
+        upload.file.value = await extractFile(upload.content, upload.nodePtr, upload.parent);
+        options.validate(upload, upload.file.value);
+      }
+    } catch (e) {
+      upload.status.value = FileStatus.FAILED;
+      upload.completion.reject(e);
+    }
   }
 
   // get post URLs
@@ -210,7 +225,7 @@ async function doUploadFiles(txFactory: () => Transaction, uploads: FileUpload[]
     log.error("file.uploadFiles.error", uploads, e);
     for (const upload of uploads) {
       upload.status.value = FileStatus.FAILED;
-      upload.completion.set();
+      upload.completion.reject(e);
     }
     return;
   }
@@ -222,7 +237,7 @@ async function doUploadFiles(txFactory: () => Transaction, uploads: FileUpload[]
     if (handle == null || handle.file == null) {
       // couldn't get upload handle for file
       upload.status.value = FileStatus.FAILED;
-      upload.completion.set();
+      upload.completion.resolve();
       continue;
     }
 
@@ -237,14 +252,14 @@ async function doUploadFiles(txFactory: () => Transaction, uploads: FileUpload[]
         upload.progress.value = progress;
       });
       upload.status.value = FileStatus.COMPLETED;
-
       // actually create File node
       txFactory().create(upload.file.value);
+      upload.completion.resolve();
     } catch (e) {
       upload.status.value = FileStatus.FAILED;
+      upload.completion.reject(e);
       log.error("file.uploadFile.error", upload, e);
     }
-    upload.completion.set();
   }
   log.trace("file.uploadFiles.complete", uploads);
 }
@@ -253,14 +268,18 @@ async function doUploadFiles(txFactory: () => Transaction, uploads: FileUpload[]
 export function uploadFiles(
   txFactory: () => Transaction,
   contents: File[],
-  parent: PackageData | BlockData,
+  options: {
+    parent: PackageData | BlockData;
+    allowedTypes?: FileType[];
+    allowedFormats?: FileFormat[];
+  },
 ): FileUpload[] {
   const uploads: FileUpload[] = contents.map((content) => {
-    const fileIdentity = nodeReference(NodeType.FILE, newNodeId(), { benchId: parent.benchPtr!.id });
+    const fileIdentity = nodeReference(NodeType.FILE, newNodeId(), { benchId: options.parent.benchPtr!.id });
     const upload: FileUpload = {
       status: shallowRef(FileStatus.PENDING),
       isActive: computed(() => upload.status.value != FileStatus.COMPLETED && upload.status.value != FileStatus.FAILED),
-      parent,
+      parent: options.parent,
       nodePtr: fileIdentity,
       file: shallowRef(null),
       content,
@@ -277,13 +296,35 @@ export function uploadFiles(
 
     return markRaw(upload);
   });
-  doUploadFiles(txFactory, uploads); // kick off async
+  // kick off async
+  doUploadFiles(txFactory, uploads, {
+    validate: (upload, file) => {
+      if (options.allowedTypes && !options.allowedTypes.includes(file.coarseType)) {
+        throw new Error(
+          `${toCamelName(FileType, file.coarseType)}, not ${options.allowedTypes.map((t) => toCamelName(FileType, t)).join(" or ")}`,
+        );
+      }
+      if (options.allowedFormats && (file.format == null || !options.allowedFormats.includes(file.format))) {
+        throw new Error(
+          `${file.format != null ? toCamelName(FileFormat, file.format) : "unknown"}, not ${options.allowedFormats.map((f) => toCamelName(FileFormat, f)).join(" or ")}`,
+        );
+      }
+    },
+  });
   return uploads;
 }
 
 /** Extracts and upload a file to the Host. Returns as soon as the upload starts. */
-export function uploadFile(txFactory: () => Transaction, content: File, parent: PackageData | BlockData): FileUpload {
-  const upload = uploadFiles(txFactory, [content], parent)[0];
+export function uploadFile(
+  txFactory: () => Transaction,
+  content: File,
+  options: {
+    parent: PackageData | BlockData;
+    allowedTypes?: FileType[];
+    allowedFormats?: FileFormat[];
+  },
+): FileUpload {
+  const upload = uploadFiles(txFactory, [content], options)[0];
   return upload;
 }
 
@@ -386,7 +427,7 @@ async function doDownloadFiles(downloads: FileDownload[]): Promise<void> {
     log.error("file.downloadFiles.error", downloads, e);
     for (const download of downloads) {
       download.status.value = FileStatus.FAILED;
-      download.completion.set();
+      download.completion.resolve();
     }
     return;
   }
@@ -399,7 +440,7 @@ async function doDownloadFiles(downloads: FileDownload[]): Promise<void> {
     if (handle == null || handle.file == null) {
       // couldn't get download handle for file
       download.status.value = FileStatus.FAILED;
-      download.completion.set();
+      download.completion.resolve();
       continue;
     }
 
@@ -419,7 +460,7 @@ async function doDownloadFiles(downloads: FileDownload[]): Promise<void> {
     } else {
       download.status.value = FileStatus.COMPLETED;
     }
-    download.completion.set();
+    download.completion.resolve();
   }
 }
 
@@ -489,4 +530,54 @@ export function getFileIcon(file: FileData | FileReferenceData): IconData | null
 export function getFileIconMaybe(file: FileData | FileReferenceData | null): IconData | null {
   if (file == null) return null;
   else return getFileIcon(file);
+}
+
+/** Gets the accept string for the given file, if any. */
+export function getFileAccept(options: {
+  allowedTypes?: FileType[];
+  allowedFormats?: FileFormat[];
+}): string | undefined {
+  if (
+    (options.allowedTypes == null && options.allowedFormats == null) ||
+    options.allowedTypes?.some((f) => f == FileType.GENERIC)
+  ) {
+    return undefined; // allow all
+  }
+
+  // get all allowed formats
+  const allowedFormats: FileFormat[] = [];
+  if (options.allowedFormats != null) allowedFormats.push(...options.allowedFormats);
+  if (options.allowedTypes != null) {
+    // iterate over all formats, add those within range of allowed types
+    for (const format of Object.values(FILE_FORMAT_BY_EXTENSION)) {
+      const type = Math.floor(format / 10000);
+      if (options.allowedTypes.includes(type)) allowedFormats.push(format);
+    }
+  }
+
+  // turn allowed formats into accept string (extensions + mime types)
+  const acceptParts: string[] = [];
+  for (const format of allowedFormats) {
+    const mimeType = MIME_TYPE_BY_FILE_FORMAT[format];
+    if (mimeType != null) {
+      acceptParts.push(mimeType);
+    }
+    const extension = EXTENSION_BY_FILE_FORMAT[format];
+    if (extension != null) {
+      acceptParts.push(`.${extension}`);
+    }
+  }
+
+  return acceptParts.join(",");
+}
+
+export function getFileAcceptFromConstraint(
+  type: FileType,
+  constraint: TypeConstraintData | undefined,
+): string | undefined {
+  if (type == FileType.GENERIC) return undefined;
+  return getFileAccept({
+    allowedTypes: [type],
+    allowedFormats: constraint?.fileFormat != null ? [constraint.fileFormat] : undefined,
+  });
 }

@@ -1,4 +1,6 @@
 import {
+  FileFormat,
+  FileType,
   NodeType,
   Orientation,
   SelectionData,
@@ -153,7 +155,8 @@ type DropOptions = {
   /** The metatypes of supported drag nodes (for Dragged with nodes). */
   metatypes?: MaybeRef<NodeType[]>;
   /** The allowed file types for file drops. */
-  fileTypes?: MaybeRef<string[]>;
+  fileTypes?: MaybeRef<FileType[]>;
+  fileFormats?: MaybeRef<FileFormat[]>;
   /** Whether the drop zone is enabled. */
   isEnabled?: Ref<boolean>;
 };
