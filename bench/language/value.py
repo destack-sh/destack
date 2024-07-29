@@ -49,7 +49,6 @@ if TYPE_CHECKING:
         BuiltinObject,
         Field,
         Node,
-        NodeReference,
         Struct,
         Text,
         TypeInfo,
@@ -745,10 +744,10 @@ def pack_value_scalar(value: ScalarValue | ScalarValueData, typ: "TypeInfoBase")
         else:
             return cast(JsonValue, value)
     elif typ.kind == TypeKind.NODE or typ.kind == TypeKind.BASED_NODE:
-        if cast("Struct", value).metatype != StructType.NODE_REFERENCE:
+        if cast("Struct | AnyStructData", value).metatype not in NODE_REFERENCE_TYPES:
             ref = cast("Node", value).to_ref()
         else:
-            ref = cast("NodeReference", value)
+            ref = cast("SomeNodeReference | SomeNodeReferenceData", value)
         if isinstance(ref, BuiltinObject):
             ref = ref._to_data()
         return pack_builtin_object_data(ref)
@@ -1064,11 +1063,14 @@ def unpack_value(
 
 # import later to avoid circular imports (Object is used in node.py)
 from bench.language.node import (  # noqa: E402
+    NODE_REFERENCE_TYPES,
     NODE_REFERENCE_TYPES_BY_NODE_TYPE,
     BuiltinObject,
     HasNodeBase,
     Node,
     NodeReferenceBase,
+    SomeNodeReference,
+    SomeNodeReferenceData,
     Struct,
     object_component,
     struct_,

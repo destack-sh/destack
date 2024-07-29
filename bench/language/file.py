@@ -712,7 +712,7 @@ async def _do_download_files(
     return files
 
 
-FileIn = Union[str, bytes]
+FileIn = Union[str, bytes, PIL.Image.Image]
 
 
 async def extract_file_info(  # noqa: RUF029
@@ -730,6 +730,10 @@ async def extract_file_info(  # noqa: RUF029
         content = file_in.encode()
     elif isinstance(file_in, (bytes, bytearray, memoryview)):
         content = file_in
+    elif isinstance(file_in, PIL.Image.Image):
+        content_io = io.BytesIO()
+        file_in.save(content_io, format="PNG")
+        content = content_io.getvalue()
     else:
         assert_never(file_in)
 
@@ -773,7 +777,10 @@ async def extract_file_info(  # noqa: RUF029
 
     # image metadata
     if coarse_type == FileType.IMAGE:
-        image = PIL.Image.open(io.BytesIO(content))
+        if isinstance(file_in, PIL.Image.Image):
+            image = file_in
+        else:
+            image = PIL.Image.open(io.BytesIO(content))
         file.width, file.height = image.size
         file.aspect_ratio = file.width / file.height
 

@@ -1,10 +1,12 @@
 import pytest
+from PIL import Image
 
 from bench.language.block import Block
-from bench.language.const import BlockType, RunStatus
+from bench.language.const import BlockType, NodeType, RunStatus
 from bench.language.field import Field
+from bench.language.file import FileType, upload
 from bench.language.run import ModelOptions, ModelProvider, RunErrorType, RunOptions
-from bench.language.text import md
+from bench.language.text import Text, md
 from bench.language.validation import constraint
 from bench.test.unit.runtime.conftest import RuntimeHandle
 
@@ -22,11 +24,12 @@ def _for_every_provider():
 
 async def test_run_text_empty(local_runtime: RuntimeHandle):
     """Empty Text without any fields should fail."""
+    runtime = local_runtime
     Text1 = Block.new_text("Text1", "")
-    local_runtime.page().blocks.append(Text1)
-    await local_runtime.commit()
+    runtime.page().blocks.append(Text1)
+    await runtime.commit()
 
-    run = await local_runtime.run(Text1, return_error=True)
+    run = await runtime.run(Text1, return_error=True)
     assert run.status == RunStatus.FAILED
     assert run.error and run.error.type == RunErrorType.RUN_IMPOSSIBLE
     assert len(run.attempts) == 1
@@ -35,16 +38,17 @@ async def test_run_text_empty(local_runtime: RuntimeHandle):
 @pytest.mark.model()
 @_for_every_provider()
 async def test_run_text_output_scalar(local_runtime: RuntimeHandle, model_provider: ModelProvider):
+    runtime = local_runtime
     AnalyzeSentiment = Block.new_text(
         "AnalyzeSentiment",
         "",
         fields=[Field.input("Text", str), Field.output("IsHappy", bool)],
         run_options=RunOptions(max_attempts=1, model_options=ModelOptions(provider=model_provider)),
     )
-    local_runtime.page().blocks.append(AnalyzeSentiment)
-    await local_runtime.commit()
+    runtime.page().blocks.append(AnalyzeSentiment)
+    await runtime.commit()
 
-    run = await local_runtime.run(
+    run = await runtime.run(
         AnalyzeSentiment, inputs={"Text": "Today was a great day."}, return_error=True
     )
     assert run.status == RunStatus.COMPLETED
@@ -54,6 +58,7 @@ async def test_run_text_output_scalar(local_runtime: RuntimeHandle, model_provid
 @pytest.mark.model()
 @_for_every_provider()
 async def test_run_text_output_dict(local_runtime: RuntimeHandle, model_provider: ModelProvider):
+    runtime = local_runtime
     Mood = Block.new(
         BlockType.CHOICE,
         "Mood",
@@ -82,13 +87,35 @@ async def test_run_text_output_dict(local_runtime: RuntimeHandle, model_provider
         ],
         run_options=RunOptions(model_options=ModelOptions(provider=model_provider)),
     )
-    local_runtime.page().blocks.extend(Mood, WritingStyle, AnalyzeSentiment)
-    await local_runtime.commit()
+    runtime.page().blocks.extend(Mood, WritingStyle, AnalyzeSentiment)
+    await runtime.commit()
 
-    run = await local_runtime.run(
+    run = await runtime.run(
         AnalyzeSentiment, inputs={"Text": "today's a great day"}, return_error=True
     )
     assert run.status == RunStatus.COMPLETED
     assert run.outputs
     assert run.outputs.Mood == Mood.fields.Positive
     assert run.outputs.Style and run.outputs.Style.formality > 0  # type: ignore
+
+
+@pytest.mark.model()
+@_for_every_provider()
+async def test_run_text_with_images(hosted_runtime: RuntimeHandle, model_provider: ModelProvider):
+    runtime = hosted_runtime
+    Transcribe = Block.new_text(
+        "Transcribe",
+        "Transcribe the given image",
+        fields=[
+            Field.input("Image", NodeType.FILE, constraint(file_type=FileType.IMAGE)),
+            Field.output("Text", Text),
+        ],
+        run_options=RunOptions(model_options=ModelOptions(provider=model_provider)),
+    )
+    runtime.page().blocks.append(Transcribe)
+    await runtime.commit()
+
+    red_image = Image.new("RGB", (320, 240), color="red")
+    image_file = await upload(red_image, "red.png")
+
+    await runtime.run(Transcribe, inputs={"Image": image_file})

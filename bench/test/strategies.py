@@ -316,6 +316,8 @@ STRATEGY_BY_OBJECT_PROPERTY: dict[tuple[ObjectType, str], st.SearchStrategy] = {
     (StructType.FILE_INFO, "content"): BYTES_STRATEGY,
     (StructType.FILE_REFERENCE, "type"): st.just(NodeType.FILE),
     (StructType.SECRET_REFERENCE, "type"): st.just(NodeType.SECRET),
+    (StructType.CODE, "lines"): st.lists(from_object_type(StructType.CODE_LINE), min_size=0),
+    (StructType.CODE_LINE, "content"): st.text(min_size=1, max_size=64, alphabet=ascii_lowercase),
     # Text is pretty limited right now :CrummyMarkdown
     (StructType.TEXT, "lines"): st.lists(from_object_type(StructType.TEXT_LINE), max_size=0),
     (StructType.TEXT_LINE, "spans"): st.lists(

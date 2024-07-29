@@ -29,7 +29,7 @@ class Projection:
     """
     A projection into the Bench graph, collecting referenced nodes with some settings.
     Should be a proper Struct at some point (so we can inspect it in the editor).
-    NOTE :Incomplete: support loading "missing" (unloaded but referenced) nodes on demand
+    nocheckin :Incomplete: support loading "missing" (unloaded but referenced) nodes on demand
     """
 
     __slots__ = (

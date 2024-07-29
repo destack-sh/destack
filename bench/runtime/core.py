@@ -3,6 +3,8 @@ from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
+from PIL.Image import Image
+
 from bench import language
 from bench.language import render
 from bench.language.const import BenchError
@@ -72,6 +74,7 @@ class ModelIncapableError(RetryableError):
 STATIC_CODE_GLOBALS: dict[str, Any] = {
     **{k: v for k, v in vars(language).items() if not k.startswith("__")},
     **BENCH_CLASS_BY_NAME,
+    "Image": Image,
     # some error types
     "NonRetryableError": NonRetryableError,
     "RetryableError": RetryableError,

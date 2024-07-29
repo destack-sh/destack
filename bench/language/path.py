@@ -418,8 +418,12 @@ def _get_path_to_root(node: Node) -> list[Node]:
     ancestors: list[Node] = [node]
     cur = node
     while cur.parent_ptr is not None and cur.metatype != NodeType.PACKAGE:
-        cur = graph._nodes_by_id[cast(UUID, cur.parent_ptr.id)]
-        ancestors.append(cur)
+        next_cur = graph._nodes_by_id.get(cast(UUID, cur.parent_ptr.id))
+        assert (
+            next_cur is not None
+        ), f"no parent for {cur!r} in {graph!r} (parent_ptr={cur.parent_ptr})"
+        ancestors.append(next_cur)
+        cur = next_cur
     return ancestors
 
 
