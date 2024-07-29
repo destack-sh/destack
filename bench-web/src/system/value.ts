@@ -652,3 +652,29 @@ export function unpackValue(
     }
   }
 }
+
+
+/** Checks whether the type identity contents are equal. */
+export function typeIdentityEquals(a: TypeIdentity, b: TypeIdentity): boolean {
+  if (a.primitiveType != null) {
+    return a.primitiveType === b.primitiveType;
+  } else if (a.baseTypePtr != null) {
+    return a.baseTypePtr.id === b.baseTypePtr?.id && a.benchType == b.benchType;
+  } else if (a.benchType != null) {
+    if (a.benchType != b.benchType) {
+      return false;
+    } else if ((a.constraint != null) != (b.constraint != null)) {
+      return false;
+    } else if (a.constraint != null && b.constraint != null) {
+      return (
+        a.constraint.fileType == b.constraint.fileType &&
+        a.constraint.blockType == b.constraint.blockType &&
+        a.constraint.stepType == b.constraint.stepType
+      );
+    } else {
+      return true;
+    }
+  } else {
+    return false;
+  }
+}
