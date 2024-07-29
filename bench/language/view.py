@@ -514,6 +514,7 @@ class IconKind(IdEnum):
     EMOJI = 1
     FILE = 2
     FONT_AWESOME = 3
+    VS_CODE = 4
 
 
 @struct_(StructType.ICON)
@@ -527,6 +528,7 @@ class Icon(Struct):
         32, require=False, array=False, references=NodeType.FILE, rich=True
     )
     fa_name: Optional[str] = p_internal(33, require=False)
+    vs_name: Optional[str] = p_internal(34, require=False)
     # style
     color: Optional["Color"] = p_internal(40, require=False, array=False, struct=StructType.COLOR)
 

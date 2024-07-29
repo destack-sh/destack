@@ -80,7 +80,9 @@ export type FileDownload = {
 // Uploads
 //
 
-const uploadsByFileId: Ref<Record<string, FileUpload>> = shallowRef({}); // nocheckin: track uploads
+const uploadsByFileId: Ref<Record<string, FileUpload>> = shallowRef({});
+export const fileUploads = computed(() => Object.values(uploadsByFileId.value));
+export const activeFileUploads = computed(() => fileUploads.value.filter((u) => u.isActive.value));
 
 /** Extract file info from a native File. Like in bench :ExtractFileInfo */
 export async function extractFile(
@@ -106,7 +108,7 @@ export async function extractFile(
   if (format == null) {
     coarseType = FileType.GENERIC;
   } else {
-    coarseType = Math.floor(format / 1000);
+    coarseType = Math.floor(format / 10000);
   }
 
   const file = makeNode({
@@ -289,8 +291,9 @@ export function uploadFile(txFactory: () => Transaction, content: File, parent: 
 // Downloads
 //
 
-// NOTE :Performance: persist downloads cache in local storage?
 const downloadsByFileId: Ref<Record<string, FileDownload>> = shallowRef({});
+export const fileDownloads = computed(() => Object.values(downloadsByFileId.value));
+export const activeFileDownloads = computed(() => fileDownloads.value.filter((d) => d.isActive.value));
 
 /** Turn a completed upload into a download. */
 function uploadAsDownload(upload: FileUpload): FileDownload {

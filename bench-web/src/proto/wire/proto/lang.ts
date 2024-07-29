@@ -795,6 +795,10 @@ export interface IconData {
      */
     faName?: string;
     /**
+     * @generated from protobuf field: optional string vs_name = 34;
+     */
+    vsName?: string;
+    /**
      * @generated from protobuf field: optional symbolx.bench.ColorData color = 40;
      */
     color?: ColorData;
@@ -7865,349 +7869,349 @@ export enum FileFormat {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_TXT = 1000;
+     * @generated from protobuf enum value: FILE_FORMAT_TXT = 10000;
      */
-    TXT = 1000,
+    TXT = 10000,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_MARKDOWN = 1001;
+     * @generated from protobuf enum value: FILE_FORMAT_MARKDOWN = 10001;
      */
-    MARKDOWN = 1001,
+    MARKDOWN = 10001,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_RTF = 1002;
+     * @generated from protobuf enum value: FILE_FORMAT_RTF = 10002;
      */
-    RTF = 1002,
+    RTF = 10002,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_INI = 1003;
+     * @generated from protobuf enum value: FILE_FORMAT_INI = 10003;
      */
-    INI = 1003,
+    INI = 10003,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_LOG = 1004;
+     * @generated from protobuf enum value: FILE_FORMAT_LOG = 10004;
      */
-    LOG = 1004,
+    LOG = 10004,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_PYTHON = 2000;
+     * @generated from protobuf enum value: FILE_FORMAT_PYTHON = 20000;
      */
-    PYTHON = 2000,
+    PYTHON = 20000,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_JAVASCRIPT = 2001;
+     * @generated from protobuf enum value: FILE_FORMAT_JAVASCRIPT = 20001;
      */
-    JAVASCRIPT = 2001,
+    JAVASCRIPT = 20001,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_TYPESCRIPT = 2002;
+     * @generated from protobuf enum value: FILE_FORMAT_TYPESCRIPT = 20002;
      */
-    TYPESCRIPT = 2002,
+    TYPESCRIPT = 20002,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_GO = 2003;
+     * @generated from protobuf enum value: FILE_FORMAT_GO = 20003;
      */
-    GO = 2003,
+    GO = 20003,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_C_LANG = 2004;
+     * @generated from protobuf enum value: FILE_FORMAT_C_LANG = 20004;
      */
-    C_LANG = 2004,
+    C_LANG = 20004,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_CPP = 2005;
+     * @generated from protobuf enum value: FILE_FORMAT_CPP = 20005;
      */
-    CPP = 2005,
+    CPP = 20005,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_OBJECTIVE_C = 2006;
+     * @generated from protobuf enum value: FILE_FORMAT_OBJECTIVE_C = 20006;
      */
-    OBJECTIVE_C = 2006,
+    OBJECTIVE_C = 20006,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_SWIFT = 2007;
+     * @generated from protobuf enum value: FILE_FORMAT_SWIFT = 20007;
      */
-    SWIFT = 2007,
+    SWIFT = 20007,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_RUBY = 2008;
+     * @generated from protobuf enum value: FILE_FORMAT_RUBY = 20008;
      */
-    RUBY = 2008,
+    RUBY = 20008,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_PHP = 2009;
+     * @generated from protobuf enum value: FILE_FORMAT_PHP = 20009;
      */
-    PHP = 2009,
+    PHP = 20009,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_HTML = 2010;
+     * @generated from protobuf enum value: FILE_FORMAT_HTML = 20010;
      */
-    HTML = 2010,
+    HTML = 20010,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_CSS = 2011;
+     * @generated from protobuf enum value: FILE_FORMAT_CSS = 20011;
      */
-    CSS = 2011,
+    CSS = 20011,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_JAVA = 2012;
+     * @generated from protobuf enum value: FILE_FORMAT_JAVA = 20012;
      */
-    JAVA = 2012,
+    JAVA = 20012,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_KOTLIN = 2013;
+     * @generated from protobuf enum value: FILE_FORMAT_KOTLIN = 20013;
      */
-    KOTLIN = 2013,
+    KOTLIN = 20013,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_RUST = 2014;
+     * @generated from protobuf enum value: FILE_FORMAT_RUST = 20014;
      */
-    RUST = 2014,
+    RUST = 20014,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_SCALA = 2015;
+     * @generated from protobuf enum value: FILE_FORMAT_SCALA = 20015;
      */
-    SCALA = 2015,
+    SCALA = 20015,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_SHELL = 2016;
+     * @generated from protobuf enum value: FILE_FORMAT_SHELL = 20016;
      */
-    SHELL = 2016,
+    SHELL = 20016,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_SQL = 2017;
+     * @generated from protobuf enum value: FILE_FORMAT_SQL = 20017;
      */
-    SQL = 2017,
+    SQL = 20017,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_POWERSHELL = 2018;
+     * @generated from protobuf enum value: FILE_FORMAT_POWERSHELL = 20018;
      */
-    POWERSHELL = 2018,
+    POWERSHELL = 20018,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_ASSEMBLY = 2019;
+     * @generated from protobuf enum value: FILE_FORMAT_ASSEMBLY = 20019;
      */
-    ASSEMBLY = 2019,
+    ASSEMBLY = 20019,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_LATEX = 2020;
+     * @generated from protobuf enum value: FILE_FORMAT_LATEX = 20020;
      */
-    LATEX = 2020,
+    LATEX = 20020,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_JPEG = 3000;
+     * @generated from protobuf enum value: FILE_FORMAT_JPEG = 30000;
      */
-    JPEG = 3000,
+    JPEG = 30000,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_PNG = 3001;
+     * @generated from protobuf enum value: FILE_FORMAT_PNG = 30001;
      */
-    PNG = 3001,
+    PNG = 30001,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_GIF = 3002;
+     * @generated from protobuf enum value: FILE_FORMAT_GIF = 30002;
      */
-    GIF = 3002,
+    GIF = 30002,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_BMP = 3003;
+     * @generated from protobuf enum value: FILE_FORMAT_BMP = 30003;
      */
-    BMP = 3003,
+    BMP = 30003,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_TIFF = 3004;
+     * @generated from protobuf enum value: FILE_FORMAT_TIFF = 30004;
      */
-    TIFF = 3004,
+    TIFF = 30004,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_WEBP = 3005;
+     * @generated from protobuf enum value: FILE_FORMAT_WEBP = 30005;
      */
-    WEBP = 3005,
+    WEBP = 30005,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_SVG = 3006;
+     * @generated from protobuf enum value: FILE_FORMAT_SVG = 30006;
      */
-    SVG = 3006,
+    SVG = 30006,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_ICO = 3007;
+     * @generated from protobuf enum value: FILE_FORMAT_ICO = 30007;
      */
-    ICO = 3007,
+    ICO = 30007,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_RAW = 3008;
+     * @generated from protobuf enum value: FILE_FORMAT_RAW = 30008;
      */
-    RAW = 3008,
+    RAW = 30008,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_MP3 = 4000;
+     * @generated from protobuf enum value: FILE_FORMAT_MP3 = 40000;
      */
-    MP3 = 4000,
+    MP3 = 40000,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_WAV = 4001;
+     * @generated from protobuf enum value: FILE_FORMAT_WAV = 40001;
      */
-    WAV = 4001,
+    WAV = 40001,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_FLAC = 4002;
+     * @generated from protobuf enum value: FILE_FORMAT_FLAC = 40002;
      */
-    FLAC = 4002,
+    FLAC = 40002,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_AAC = 4003;
+     * @generated from protobuf enum value: FILE_FORMAT_AAC = 40003;
      */
-    AAC = 4003,
+    AAC = 40003,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_OGG = 4004;
+     * @generated from protobuf enum value: FILE_FORMAT_OGG = 40004;
      */
-    OGG = 4004,
+    OGG = 40004,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_M4A = 4005;
+     * @generated from protobuf enum value: FILE_FORMAT_M4A = 40005;
      */
-    M4A = 4005,
+    M4A = 40005,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_WMA = 4006;
+     * @generated from protobuf enum value: FILE_FORMAT_WMA = 40006;
      */
-    WMA = 4006,
+    WMA = 40006,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_MP4 = 5000;
+     * @generated from protobuf enum value: FILE_FORMAT_MP4 = 50000;
      */
-    MP4 = 5000,
+    MP4 = 50000,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_WEBM = 5001;
+     * @generated from protobuf enum value: FILE_FORMAT_WEBM = 50001;
      */
-    WEBM = 5001,
+    WEBM = 50001,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_AVI = 5002;
+     * @generated from protobuf enum value: FILE_FORMAT_AVI = 50002;
      */
-    AVI = 5002,
+    AVI = 50002,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_MOV = 5003;
+     * @generated from protobuf enum value: FILE_FORMAT_MOV = 50003;
      */
-    MOV = 5003,
+    MOV = 50003,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_WMV = 5004;
+     * @generated from protobuf enum value: FILE_FORMAT_WMV = 50004;
      */
-    WMV = 5004,
+    WMV = 50004,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_FLV = 5005;
+     * @generated from protobuf enum value: FILE_FORMAT_FLV = 50005;
      */
-    FLV = 5005,
+    FLV = 50005,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_MKV = 5006;
+     * @generated from protobuf enum value: FILE_FORMAT_MKV = 50006;
      */
-    MKV = 5006,
+    MKV = 50006,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_PDF = 6000;
+     * @generated from protobuf enum value: FILE_FORMAT_PDF = 60000;
      */
-    PDF = 6000,
+    PDF = 60000,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_DOCX = 6001;
+     * @generated from protobuf enum value: FILE_FORMAT_DOCX = 60001;
      */
-    DOCX = 6001,
+    DOCX = 60001,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_PPTX = 6002;
+     * @generated from protobuf enum value: FILE_FORMAT_PPTX = 60002;
      */
-    PPTX = 6002,
+    PPTX = 60002,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_ODT = 6003;
+     * @generated from protobuf enum value: FILE_FORMAT_ODT = 60003;
      */
-    ODT = 6003,
+    ODT = 60003,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_XLSX = 6004;
+     * @generated from protobuf enum value: FILE_FORMAT_XLSX = 60004;
      */
-    XLSX = 6004,
+    XLSX = 60004,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_ODS = 6005;
+     * @generated from protobuf enum value: FILE_FORMAT_ODS = 60005;
      */
-    ODS = 6005,
+    ODS = 60005,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_EPUB = 6006;
+     * @generated from protobuf enum value: FILE_FORMAT_EPUB = 60006;
      */
-    EPUB = 6006,
+    EPUB = 60006,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_MOBI = 6007;
+     * @generated from protobuf enum value: FILE_FORMAT_MOBI = 60007;
      */
-    MOBI = 6007,
+    MOBI = 60007,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_CHM = 6008;
+     * @generated from protobuf enum value: FILE_FORMAT_CHM = 60008;
      */
-    CHM = 6008,
+    CHM = 60008,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_DOC = 6009;
+     * @generated from protobuf enum value: FILE_FORMAT_DOC = 60009;
      */
-    DOC = 6009,
+    DOC = 60009,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_XLS = 6010;
+     * @generated from protobuf enum value: FILE_FORMAT_XLS = 60100;
      */
-    XLS = 6010,
+    XLS = 60100,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_PPT = 6011;
+     * @generated from protobuf enum value: FILE_FORMAT_PPT = 60101;
      */
-    PPT = 6011,
+    PPT = 60101,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_JSON = 7000;
+     * @generated from protobuf enum value: FILE_FORMAT_JSON = 70000;
      */
-    JSON = 7000,
+    JSON = 70000,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_YAML = 7001;
+     * @generated from protobuf enum value: FILE_FORMAT_YAML = 70001;
      */
-    YAML = 7001,
+    YAML = 70001,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_CSV = 7002;
+     * @generated from protobuf enum value: FILE_FORMAT_CSV = 70002;
      */
-    CSV = 7002,
+    CSV = 70002,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_XML = 7003;
+     * @generated from protobuf enum value: FILE_FORMAT_XML = 70003;
      */
-    XML = 7003,
+    XML = 70003,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_TOML = 7004;
+     * @generated from protobuf enum value: FILE_FORMAT_TOML = 70004;
      */
-    TOML = 7004,
+    TOML = 70004,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_SQLITE = 7100;
+     * @generated from protobuf enum value: FILE_FORMAT_SQLITE = 70100;
      */
-    SQLITE = 7100,
+    SQLITE = 70100,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_PARQUET = 7101;
+     * @generated from protobuf enum value: FILE_FORMAT_PARQUET = 70101;
      */
-    PARQUET = 7101,
+    PARQUET = 70101,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_AVRO = 7102;
+     * @generated from protobuf enum value: FILE_FORMAT_AVRO = 70102;
      */
-    AVRO = 7102,
+    AVRO = 70102,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_PROTOBUF = 7103;
+     * @generated from protobuf enum value: FILE_FORMAT_PROTOBUF = 70103;
      */
-    PROTOBUF = 7103,
+    PROTOBUF = 70103,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_ZIP = 8000;
+     * @generated from protobuf enum value: FILE_FORMAT_ZIP = 80000;
      */
-    ZIP = 8000,
+    ZIP = 80000,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_RAR = 8001;
+     * @generated from protobuf enum value: FILE_FORMAT_RAR = 80001;
      */
-    RAR = 8001,
+    RAR = 80001,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_TAR = 8002;
+     * @generated from protobuf enum value: FILE_FORMAT_TAR = 80002;
      */
-    TAR = 8002,
+    TAR = 80002,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_SEVENZIP = 8003;
+     * @generated from protobuf enum value: FILE_FORMAT_SEVENZIP = 80003;
      */
-    SEVENZIP = 8003,
+    SEVENZIP = 80003,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_CAB = 8004;
+     * @generated from protobuf enum value: FILE_FORMAT_CAB = 80004;
      */
-    CAB = 8004,
+    CAB = 80004,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_GZIP = 8005;
+     * @generated from protobuf enum value: FILE_FORMAT_GZIP = 80005;
      */
-    GZIP = 8005,
+    GZIP = 80005,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_BZIP2 = 8006;
+     * @generated from protobuf enum value: FILE_FORMAT_BZIP2 = 80006;
      */
-    BZIP2 = 8006,
+    BZIP2 = 80006,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_XZ = 8007;
+     * @generated from protobuf enum value: FILE_FORMAT_XZ = 80007;
      */
-    XZ = 8007,
+    XZ = 80007,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_EXE = 9000;
+     * @generated from protobuf enum value: FILE_FORMAT_EXE = 90000;
      */
-    EXE = 9000,
+    EXE = 90000,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_APP_IMAGE = 9001;
+     * @generated from protobuf enum value: FILE_FORMAT_APP_IMAGE = 90001;
      */
-    APP_IMAGE = 9001,
+    APP_IMAGE = 90001,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_APK = 9002;
+     * @generated from protobuf enum value: FILE_FORMAT_APK = 90002;
      */
-    APK = 9002,
+    APK = 90002,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_DMG = 9003;
+     * @generated from protobuf enum value: FILE_FORMAT_DMG = 90003;
      */
-    DMG = 9003,
+    DMG = 90003,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_JAR = 9004;
+     * @generated from protobuf enum value: FILE_FORMAT_JAR = 90004;
      */
-    JAR = 9004,
+    JAR = 90004,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_MSI = 9005;
+     * @generated from protobuf enum value: FILE_FORMAT_MSI = 90005;
      */
-    MSI = 9005,
+    MSI = 90005,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_DEB = 9006;
+     * @generated from protobuf enum value: FILE_FORMAT_DEB = 90006;
      */
-    DEB = 9006,
+    DEB = 90006,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_RPM = 9007;
+     * @generated from protobuf enum value: FILE_FORMAT_RPM = 90007;
      */
-    RPM = 9007
+    RPM = 90007
 }
 /**
  * @generated from protobuf enum symbolx.bench.FileKind
@@ -8471,7 +8475,11 @@ export enum IconKind {
     /**
      * @generated from protobuf enum value: ICON_KIND_FONT_AWESOME = 3;
      */
-    FONT_AWESOME = 3
+    FONT_AWESOME = 3,
+    /**
+     * @generated from protobuf enum value: ICON_KIND_VS_CODE = 4;
+     */
+    VS_CODE = 4
 }
 /**
  * @generated from protobuf enum symbolx.bench.IdEnum
@@ -12932,6 +12940,7 @@ class IconData$Type extends MessageType<IconData> {
             { no: 31, name: "emoji", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "file_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 33, name: "fa_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 34, name: "vs_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 40, name: "color", kind: "message", T: () => ColorData }
         ]);
     }
@@ -12963,6 +12972,9 @@ class IconData$Type extends MessageType<IconData> {
                 case /* optional string fa_name */ 33:
                     message.faName = reader.string();
                     break;
+                case /* optional string vs_name */ 34:
+                    message.vsName = reader.string();
+                    break;
                 case /* optional symbolx.bench.ColorData color */ 40:
                     message.color = ColorData.internalBinaryRead(reader, reader.uint32(), options, message.color);
                     break;
@@ -12993,6 +13005,9 @@ class IconData$Type extends MessageType<IconData> {
         /* optional string fa_name = 33; */
         if (message.faName !== undefined)
             writer.tag(33, WireType.LengthDelimited).string(message.faName);
+        /* optional string vs_name = 34; */
+        if (message.vsName !== undefined)
+            writer.tag(34, WireType.LengthDelimited).string(message.vsName);
         /* optional symbolx.bench.ColorData color = 40; */
         if (message.color)
             ColorData.internalBinaryWrite(message.color, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
@@ -26028,6 +26043,7 @@ export enum IconProperty {
   emoji = 31,
   filePtr = 32,
   faName = 33,
+  vsName = 34,
   color = 40,
 }
 
@@ -26753,7 +26769,7 @@ export const TypeConstraintDataInfo: Record<TypeConstraintProperty, PropertyInfo
   [TypeConstraintProperty.blockType]: { id: 70, name: 'block_type', component: ObjectType.TYPE_CONSTRAINT, enumType: EnumType.BLOCK_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [TypeConstraintProperty.stepType]: { id: 71, name: 'step_type', component: ObjectType.TYPE_CONSTRAINT, enumType: EnumType.STEP_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [TypeConstraintProperty.fileType]: { id: 72, name: 'file_type', component: ObjectType.TYPE_CONSTRAINT, enumType: EnumType.FILE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [TypeConstraintProperty.fileFormat]: { id: 73, name: 'file_format', component: ObjectType.TYPE_CONSTRAINT, enumType: EnumType.FILE_FORMAT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [TypeConstraintProperty.fileFormat]: { id: 73, name: 'file_format', component: ObjectType.TYPE_CONSTRAINT, enumType: EnumType.FILE_FORMAT, kind: 'enum', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
 }
 export const ScheduleDataInfo: Record<ScheduleProperty, PropertyInfo> = {
   [ScheduleProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SCHEDULE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -26779,7 +26795,7 @@ export const FileReferenceDataInfo: Record<FileReferenceProperty, PropertyInfo> 
   [FileReferenceProperty.inlineContent]: { id: 44, name: 'inline_content', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.BYTES, constraint: { minLength: 1 }, isRuntime: true, isWired: true, isStored: true },
   [FileReferenceProperty.coarseType]: { id: 50, name: 'coarse_type', component: ObjectType.FILE_REFERENCE, enumType: EnumType.FILE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileReferenceProperty.mimeType]: { id: 51, name: 'mime_type', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 255 }, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileReferenceProperty.format]: { id: 52, name: 'format', component: ObjectType.FILE_REFERENCE, enumType: EnumType.FILE_FORMAT, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileReferenceProperty.format]: { id: 52, name: 'format', component: ObjectType.FILE_REFERENCE, enumType: EnumType.FILE_FORMAT, kind: 'enum', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileReferenceProperty.size]: { id: 53, name: 'size', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.INT64, constraint: { minValue: 0 }, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileReferenceProperty.sha256]: { id: 54, name: 'sha256', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 64, maxLength: 64 }, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileReferenceProperty.width]: { id: 55, name: 'width', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -26797,6 +26813,7 @@ export const IconDataInfo: Record<IconProperty, PropertyInfo> = {
   [IconProperty.emoji]: { id: 31, name: 'emoji', component: ObjectType.ICON, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [IconProperty.filePtr]: { id: 32, name: 'file_ptr', component: ObjectType.ICON, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FILE], referenceStruct: StructType.NODE_REFERENCE },
   [IconProperty.faName]: { id: 33, name: 'fa_name', component: ObjectType.ICON, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [IconProperty.vsName]: { id: 34, name: 'vs_name', component: ObjectType.ICON, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [IconProperty.color]: { id: 40, name: 'color', component: ObjectType.ICON, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.COLOR },
 }
 export const SecretReferenceDataInfo: Record<SecretReferenceProperty, PropertyInfo> = {
@@ -26818,7 +26835,7 @@ export const FileInfoDataInfo: Record<FileInfoProperty, PropertyInfo> = {
   [FileInfoProperty.inlineContent]: { id: 44, name: 'inline_content', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.BYTES, constraint: { minLength: 1 }, isRuntime: true, isWired: true, isStored: true },
   [FileInfoProperty.coarseType]: { id: 50, name: 'coarse_type', component: ObjectType.FILE_INFO, enumType: EnumType.FILE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileInfoProperty.mimeType]: { id: 51, name: 'mime_type', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 255 }, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileInfoProperty.format]: { id: 52, name: 'format', component: ObjectType.FILE_INFO, enumType: EnumType.FILE_FORMAT, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileInfoProperty.format]: { id: 52, name: 'format', component: ObjectType.FILE_INFO, enumType: EnumType.FILE_FORMAT, kind: 'enum', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileInfoProperty.size]: { id: 53, name: 'size', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT64, constraint: { minValue: 0 }, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileInfoProperty.sha256]: { id: 54, name: 'sha256', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 64, maxLength: 64 }, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileInfoProperty.width]: { id: 55, name: 'width', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -27663,7 +27680,7 @@ export const FileDataInfo: Record<FileProperty, PropertyInfo> = {
   [FileProperty.inlineContent]: { id: 44, name: 'inline_content', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.BYTES, constraint: { minLength: 1 }, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.coarseType]: { id: 50, name: 'coarse_type', component: ObjectType.FILE, enumType: EnumType.FILE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.mimeType]: { id: 51, name: 'mime_type', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 255 }, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [FileProperty.format]: { id: 52, name: 'format', component: ObjectType.FILE, enumType: EnumType.FILE_FORMAT, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.format]: { id: 52, name: 'format', component: ObjectType.FILE, enumType: EnumType.FILE_FORMAT, kind: 'enum', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.size]: { id: 53, name: 'size', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT64, constraint: { minValue: 0 }, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.sha256]: { id: 54, name: 'sha256', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 64, maxLength: 64 }, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.width]: { id: 55, name: 'width', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
