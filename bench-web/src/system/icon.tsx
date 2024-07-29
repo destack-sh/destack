@@ -379,7 +379,7 @@ export const ICON_BY_FILE_TYPE: Partial<Record<FileType, IconData>> = _makeIcons
   [FileType.GENERIC]: "fas fa-file",
 });
 
-// TODO :UX: use vscode-icons for file format icons
+// nocheckin :UX: use vscode-icons for file format icons
 export const ICON_BY_FILE_FORMAT: Partial<Record<FileFormat, IconData>> = _makeIcons({
   // text
   [FileFormat.TXT]: "fas fa-file-lines",
