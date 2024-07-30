@@ -45,7 +45,7 @@ from bench.language.property import (
     p_value_packed,
     p_value_runtime,
 )
-from bench.language.setup import OBJECT_TYPE_BY_CLASS
+from bench.language.setup import BENCH_CLASS_BY_TYPE, OBJECT_TYPE_BY_CLASS
 from bench.language.validation import NAME_CONSTRAINT, TypeConstraintIn, ValidationHandler
 from bench.language.value import HasValues, SomeValue, coerce_object_scalar
 from bench.proto.wire import AnyNodeData, FieldData, NodeReferenceData
@@ -488,7 +488,7 @@ def to_type(
     is_list: bool = False,
 ) -> TypeInfoBase:
     """Converts a TypeIn into a TypeInfoBase."""
-    type_scalar = to_type_scalar(typ)
+    type_scalar = to_type_scalar(typ, as_object=as_object, zone=zone)
     type_scalar.is_required = is_required
     type_scalar.is_list = is_list
     return type_scalar
@@ -505,7 +505,8 @@ def reverse_type_scalar(typ: TypeInfoBase) -> TypeIn | None:
             return typ.primitive_type
     elif typ.kind in (TypeKind.NODE, TypeKind.STRUCT, TypeKind.ENUM):
         assert typ.bench_type is not None, f"missing bench type for {typ!r}"
-        return typ.bench_type
+        bench_cls = BENCH_CLASS_BY_TYPE[typ.bench_type]
+        return bench_cls
     elif typ.kind == TypeKind.BASED_NODE:
         assert typ.base_type is not None, f"missing base type for {typ!r}"
         return typ.base_type

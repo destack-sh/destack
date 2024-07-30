@@ -10,6 +10,7 @@ from bench.language.const import (
     LOCAL_NODE_TYPES,
     NODE_TYPES,
     STRUCT_TYPES,
+    BenchType,
     EnumType,
     NodeType,
     ObjectType,
@@ -22,6 +23,7 @@ if TYPE_CHECKING:
     from bench.language import BuiltinObject, Node, Struct
 
 # some global indexes for language types/classes
+# NOTE :Cleanup: organize global type/class indexes better
 ENUM_CLASS_BY_TYPE = _ENUM_CLASS_BY_TYPE  # re-exported to avoid circular imports
 ENUM_TYPE_BY_CLASS: dict[type, EnumType] = {}
 NODE_CLASS_BY_TYPE: dict[NodeType, type["Node"]] = {}
@@ -29,6 +31,7 @@ NODE_COMPONENT_CLASS_BY_NAME: dict[str, type["Node"]] = {}
 STRUCT_CLASS_BY_TYPE: dict[StructType, type["Struct"]] = {}
 OBJECT_CLASS_BY_TYPE: dict[ObjectType, type["BuiltinObject"]] = {}
 OBJECT_TYPE_BY_CLASS: dict[type["BuiltinObject"], ObjectType] = {}
+BENCH_CLASS_BY_TYPE: dict[BenchType, type["Struct"] | type["Node"] | type[IdEnum]] = {}
 FINAL_BENCH_CLASSES_BY_NAME: dict[str, type[Union["BuiltinObject", IdEnum]]] = {}
 FINAL_BENCH_CLASSES: list[type[Union["BuiltinObject", IdEnum]]] = []
 BENCH_CLASS_BY_NAME: dict[str, type[Union["BuiltinObject", IdEnum]]] = {}
@@ -86,10 +89,12 @@ def _complete_bench_setup():
     for node_t in NODE_TYPES:
         OBJECT_CLASS_BY_TYPE[node_t] = NODE_CLASS_BY_TYPE[node_t]
         OBJECT_TYPE_BY_CLASS[NODE_CLASS_BY_TYPE[node_t]] = node_t
+        BENCH_CLASS_BY_TYPE[node_t] = NODE_CLASS_BY_TYPE[node_t]
         NODE_CLASSES.append(NODE_CLASS_BY_TYPE[node_t])
     for struct_t in STRUCT_TYPES:
         OBJECT_CLASS_BY_TYPE[struct_t] = STRUCT_CLASS_BY_TYPE[struct_t]
         OBJECT_TYPE_BY_CLASS[STRUCT_CLASS_BY_TYPE[struct_t]] = struct_t
+        BENCH_CLASS_BY_TYPE[struct_t] = STRUCT_CLASS_BY_TYPE[struct_t]
         STRUCT_CLASSES.append(STRUCT_CLASS_BY_TYPE[struct_t])
 
     # check that we have all the enums & add them
@@ -98,6 +103,7 @@ def _complete_bench_setup():
         raise ValueError(f"missing enums: {missing_enums}")
     for enum_type, enum_cls in ENUM_CLASS_BY_TYPE.items():
         BENCH_CLASS_BY_NAME[enum_cls.__name__] = enum_cls
+        BENCH_CLASS_BY_TYPE[enum_type] = enum_cls
         BENCH_CLASSES.append(enum_cls)
         FINAL_BENCH_CLASSES_BY_NAME[enum_cls.__name__] = enum_cls
         FINAL_BENCH_CLASSES.append(enum_cls)

@@ -957,7 +957,12 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
         if other is None or self.metatype != getattr(other, "metatype", None):
             return False
         for prop in self.__wired_properties__.values():
-            if prop.id < 30 or prop.is_encrypted or prop.name == "order_key":
+            if (
+                prop.id < 30
+                or prop.is_encrypted
+                or prop.is_value_packed  # compared in runtime value
+                or prop.name == "order_key"
+            ):
                 continue  # ignore identity/tracking
             self_value = getattr(self, prop.name)
             other_value = getattr(other, prop.name)
