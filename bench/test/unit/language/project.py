@@ -1,7 +1,8 @@
 from bench.language.bench import Package
 from bench.language.block import Block
 from bench.language.const import BlockType
-from bench.language.field import Field
+from bench.language.field import Field, to_type
+from bench.language.file import File, FileKind, FileType
 from bench.language.project import ProjectOptions, project
 from bench.language.session import Session
 from bench.language.text import Text, TextLine, TextSpan
@@ -46,6 +47,7 @@ def test_project_cross_page(shared_session: Session, shared_package: Package):
 
 
 def test_project_value_objects(shared_session: Session, shared_package: Package):
+    # nest node ref in nested value object
     Class1 = Block.new(
         BlockType.CLASS,
         "Class1",
@@ -63,10 +65,50 @@ def test_project_value_objects(shared_session: Session, shared_package: Package)
     ValueObject1 = Class1(Int=1, String="One", Block=Class2)
     ValueObject2 = Class2(Count=2, Class1=ValueObject1)
 
+    # nested node ref in value object in builtin object
+    Text1 = Block.new_text("Text1", "Hello, world!")
+    Variable1 = Block.new(
+        BlockType.VARIABLE,
+        "Variable1",
+        value_type=to_type(Text),
+        value=Text1,
+    )
+
     # project
-    projection = project(ValueObject2, options=ProjectOptions())
+    projection = project(ValueObject2, Variable1, options=ProjectOptions())
     assert Class2 in projection  # via ValueObject2.Class1.Block
+    assert Text1 in projection  # via ValueObject2.Variable1.Text1
 
 
 def test_project_unloaded_nodes(shared_session: Session, shared_package: Package):
-    pass  # nocheckin: project unloaded nodes
+    File1 = File(
+        parent=shared_package,
+        kind=FileKind.DRIVE,
+        title="myfile.txt",
+        coarse_type=FileType.TEXT,
+        mime_type="text/plain",
+        size=1024,
+    )
+    File2 = File(
+        parent=shared_package,
+        kind=FileKind.DRIVE,
+        title="myfile2.txt",
+        coarse_type=FileType.TEXT,
+        mime_type="text/plain",
+        size=1024,
+    )
+    Variable1 = Block.new(
+        BlockType.VARIABLE,
+        "Variable1",
+        value_type=to_type(File),
+        value=File1,
+        text=Text(lines=[TextLine(spans=[TextSpan(node=File2)])]),
+    )
+    File1._unload_rec()
+    File2._unload_rec()
+
+    # project
+    projection = project(Variable1, options=ProjectOptions())
+    assert Variable1 in projection
+    assert projection.has_missing(File1)
+    assert projection.has_missing(File2)

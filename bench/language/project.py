@@ -8,7 +8,7 @@ from opentelemetry import trace
 from bench.language.block import Block
 from bench.language.const import NODE_TYPES_SET, NodeType, ReferenceKind, TypeKind
 from bench.language.node import BuiltinObject, Node, SomeNodeReference, SourceNode, Struct
-from bench.language.value import ValueObject
+from bench.language.value import SomeValue, ValueObject
 
 if TYPE_CHECKING:
     pass
@@ -54,7 +54,8 @@ class Projection:
     def __str__(self) -> str:
         str_parts = [
             f"nodes={len(self._nodes_by_id)}",
-            f"depths={'|'.join([f'{d}={len(n)}' for d, n in self._nodes_by_depth.items()] or ['<empty>'])}",
+            f"depths={'|'.join([f'{d}:{len(n)}' for d, n in self._nodes_by_depth.items()] or ['<empty>'])}",
+            f"missing={len(self._missing_nodes_by_id)}",
         ]
         return ", ".join(str_parts)
 
@@ -67,6 +68,11 @@ class Projection:
     def __contains__(self, node: Node) -> bool:
         return node.id in self._nodes_by_id
 
+    has = __contains__
+
+    def has_missing(self, node: Node | SomeNodeReference) -> bool:
+        return node.id in self._missing_nodes_by_id
+
     def _visit_node(self, node: Node) -> bool:
         if node.id not in self._nodes_by_id and node.metatype in self._options.node_types:
             self._nodes_by_id[node.id] = node
@@ -77,7 +83,7 @@ class Projection:
 
     def _visit_missing_node(self, node: SomeNodeReference) -> bool:
         assert node.id is not None, f"missing id for {node!r}"
-        if node.id not in self._missing_nodes_by_id and node.metatype in self._options.node_types:
+        if node.id not in self._missing_nodes_by_id and node.type in self._options.node_types:
             self._missing_nodes_by_id[node.id] = node
             return True
         else:
@@ -143,6 +149,10 @@ class Projection:
             elif len(cast(list, struct)) > 0:
                 for item in cast(list, struct):
                     self._collect_builtin_object_scalar(item)
+
+        # visit values
+        for prop in obj.__value_runtime_properties__.values():
+            value: SomeValue | None = getattr(obj, prop.name)  # nocheckin
 
     def _collect_value_object_scalar(self, obj: ValueObject):
         # visit inner objects and referenced nodes

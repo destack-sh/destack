@@ -196,6 +196,7 @@ def create_global_session(global_store: Store, oracle: Oracle):
 class RuntimeHandle:
     """All the stuff you need to do and run inside a Runtime."""
 
+    supergraph: NodeSuperGraph
     user: User
     client: Client
     bench: Bench
@@ -274,7 +275,14 @@ async def local_runtime_async(global_store: Store):
         _supergraph=bench._supergraph,
     )
     runner = RuntimeRunner(session=session, oracle=REAL_ORACLE)
-    handle = RuntimeHandle(user=user, client=client, bench=bench, session=session, runner=runner)
+    handle = RuntimeHandle(
+        supergraph=bench._supergraph,
+        user=user,
+        client=client,
+        bench=bench,
+        session=session,
+        runner=runner,
+    )
     async with session:
         yield handle
 
@@ -389,7 +397,12 @@ async def hosted_runtime_async(hosted_bench: Bench, host: HostClient):
     session.track(hosted_bench)
     runner = RuntimeRunner(session=session, oracle=REAL_ORACLE)
     handle = RuntimeHandle(
-        user=user, client=client, bench=hosted_bench, session=session, runner=runner
+        supergraph=hosted_bench._supergraph,
+        user=user,
+        client=client,
+        bench=hosted_bench,
+        session=session,
+        runner=runner,
     )
     async with session:
         yield handle
