@@ -173,7 +173,7 @@ class ValueObject(Mapping[str, Any]):
             resolved_value = self._type._supergraph.get(value)
             if resolved_value is not None:
                 return resolved_value
-            elif value.type in NODE_REFERENCE_TYPES_BY_NODE_TYPE:
+            elif value.type in RICH_REFERENCE_TYPES_BY_NODE_TYPE:
                 return value  # :RichReferences
             else:
                 return None  # couldn't resolve
@@ -187,21 +187,19 @@ class ValueObject(Mapping[str, Any]):
             raise AttributeError(f"{self._type!r} has no field with identifier {item}")
         if self._type.base_field_zone is not None and field.zone != self._type.base_field_zone:
             raise AttributeError(f"{field!r} is not in the same zone as {self._type!r}")
+        field_type = field._to_resolved()
         # coerce & copy if needed
         value = coerce_value(
-            value, field, parent=self, parent_prop=field, ancestor_prop=self.ancestor_prop
+            value,
+            field_type,
+            as_packed=True,
+            parent=self,
+            parent_prop=field,
+            ancestor_prop=self.ancestor_prop,
         )
-        check_value(value, field, invalid=on_invalid_raise)
+        check_value(value, field_type, invalid=on_invalid_raise)
         if self._value is None:
             self._value = {}
-        if (field.kind == TypeKind.NODE or field.kind == TypeKind.BASED_NODE) and value:
-            # turn nodes into reference
-            if field.is_list:
-                assert isinstance(value, list), f"{value!r} is not a list"
-                value = [cast(Node, n).to_ref() for n in value]
-            else:
-                assert isinstance(value, Node), f"{value!r} is not a Node"
-                value = value.to_ref()
         self._value[field.storage_key] = value
 
         # notify
@@ -320,6 +318,7 @@ class ValueObject(Mapping[str, Any]):
 def _coerce_value_scalar(
     value: ScalarValue,
     typ: "TypeInfoBase",
+    as_packed: bool = False,
     parent: ValueParent | None = None,
     parent_prop: ValueProperty | None = None,
     ancestor_prop: "Property | None" = None,
@@ -335,12 +334,16 @@ def _coerce_value_scalar(
     elif typ.kind == TypeKind.STRUCT and parent is not None and isinstance(value, Struct):
         assert parent_prop is not None, f"{typ!r} got parent {parent!r} but no parent_prop"
         value = cast("Struct", value)._move_to(parent, parent_prop, ancestor_prop)
+    elif as_packed and (typ.kind == TypeKind.NODE or typ.kind == TypeKind.BASED_NODE):
+        assert isinstance(value, (Node, NodeReferenceBase)), f"expected Node, got {value!r}"
+        value = value.to_ref()
     return value
 
 
-def coerce_object_scalar(
+def coerce_value_object_scalar(
     value: dict | ValueObject,
     typ: "TypeInfoBase",
+    as_packed: bool = False,
     parent: ValueParent | None = None,
     parent_prop: ValueProperty | None = None,
     ancestor_prop: "Property | None" = None,
@@ -368,7 +371,12 @@ def coerce_object_scalar(
             if field_value is None:
                 continue
             value_coerced[field.storage_key] = coerce_value(
-                field_value, field_type, parent, parent_prop, ancestor_prop
+                field_value,
+                field_type,
+                as_packed=as_packed,
+                parent=parent,
+                parent_prop=parent_prop,
+                ancestor_prop=ancestor_prop,
             )
         return ValueObject.new(
             value=value_coerced,
@@ -382,6 +390,7 @@ def coerce_object_scalar(
 def coerce_value(
     value: Any,
     typ: "TypeInfoBase",
+    as_packed: bool = False,
     parent: ValueParent | None = None,
     parent_prop: ValueProperty | None = None,
     ancestor_prop: "Property | None" = None,
@@ -394,24 +403,52 @@ def coerce_value(
     """
     if typ.kind == TypeKind.OBJECT:
         if not typ.is_list:
-            return coerce_object_scalar(cast(dict, value), typ, parent, parent_prop, ancestor_prop)
+            return coerce_value_object_scalar(
+                cast(dict, value),
+                typ,
+                as_packed=as_packed,
+                parent=parent,
+                parent_prop=parent_prop,
+                ancestor_prop=ancestor_prop,
+            )
         else:
             if isinstance(value, Sequence):
                 raise TypeError(f"{value!r} is not a sequence (expected {typ!r})")
             return [
-                coerce_object_scalar(cast(dict, element), typ, parent, parent_prop, ancestor_prop)
+                coerce_value_object_scalar(
+                    cast(dict, element),
+                    typ,
+                    as_packed=as_packed,
+                    parent=parent,
+                    parent_prop=parent_prop,
+                    ancestor_prop=ancestor_prop,
+                )
                 for element in value
             ]
     else:
         if value is None:
             return None
         elif not typ.is_list:
-            return _coerce_value_scalar(value, typ, parent, parent_prop, ancestor_prop)
+            return _coerce_value_scalar(
+                value,
+                typ,
+                as_packed=as_packed,
+                parent=parent,
+                parent_prop=parent_prop,
+                ancestor_prop=ancestor_prop,
+            )
         else:
             if not isinstance(value, Sequence):
                 raise TypeError(f"{value!r} is not a sequence (expected {typ!r})")
             return [
-                _coerce_value_scalar(element, typ, parent, parent_prop, ancestor_prop)
+                _coerce_value_scalar(
+                    element,
+                    typ,
+                    as_packed=as_packed,
+                    parent=parent,
+                    parent_prop=parent_prop,
+                    ancestor_prop=ancestor_prop,
+                )
                 for element in value
             ]
 
@@ -486,17 +523,25 @@ def check_value_scalar(value: SomeValue, typ: "TypeInfoBase", invalid: "Validati
         if max_value is not None and value > max_value:
             invalid(value, "too large", typ)
     elif typ.kind == TypeKind.NODE or typ.kind == TypeKind.BASED_NODE:
-        if not getattr(type(cast("Node", value)), "__is_node__", False):
+        from bench.language.node import Node, NodeReferenceBase
+
+        if isinstance(value, Node):
+            if value.metatype != typ.bench_type and (
+                typ._from_property is None
+                # special case :FakeNodePropertyUnion for reference properties
+                or value.metatype not in (typ._from_property.reference_nodes or ())
+            ):
+                invalid(value, "not of type", typ)
+        elif isinstance(value, NodeReferenceBase):
+            # also accept node references in case this is a wired value or a rich reference
+            if value.type != typ.bench_type and (
+                typ._from_property is None
+                # special case :FakeNodePropertyUnion for reference properties
+                or value.type not in (typ._from_property.reference_nodes or ())
+            ):
+                invalid(value, "not of type", typ)
+        else:
             invalid(value, "not a Node", typ)
-        elif cast("Node", value).metatype != typ.bench_type and (
-            typ._from_property is None
-            # special case :FakeNodePropertyUnion for reference properties
-            or cast("Node", value).metatype not in (typ._from_property.reference_nodes or ())
-        ):
-            invalid(value, "not of type", typ)
-        if typ.kind == TypeKind.BASED_NODE:
-            if typ.base_type is not None and cast(HasNodeBase, value).base != typ.base_type:
-                invalid(value, f"not based on {typ.base_type}", typ)
     elif typ.kind == TypeKind.STRUCT:
         if typ.bench_type == StructType.PROPERTY_REFERENCE:
             if not isinstance(value, Property):
@@ -1064,9 +1109,8 @@ def unpack_value(
 # import later to avoid circular imports (Object is used in node.py)
 from bench.language.node import (  # noqa: E402
     NODE_REFERENCE_TYPES,
-    NODE_REFERENCE_TYPES_BY_NODE_TYPE,
+    RICH_REFERENCE_TYPES_BY_NODE_TYPE,
     BuiltinObject,
-    HasNodeBase,
     Node,
     NodeReferenceBase,
     SomeNodeReference,

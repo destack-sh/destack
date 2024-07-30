@@ -3,6 +3,7 @@ import pytest
 from bench.language import Block, BlockType, Field, code
 from bench.language.const import RunStatus
 from bench.language.run import RunErrorType, RunOptions
+from bench.language.value import ValueObject
 from bench.runtime.capture import MAX_LOG_LINE_LENGTH, MAX_LOGS_PER_CAPTURE
 from bench.test.unit.conftest import RuntimeHandle
 
@@ -181,7 +182,7 @@ async def test_run_code_function_output_dict(local_runtime: RuntimeHandle):
     assert run.outputs and run.outputs.Result1 is False and run.outputs.Result2 == 12
 
 
-async def test_run_code_function_complex_output(local_runtime: RuntimeHandle):
+async def test_run_code_function_output_nested(local_runtime: RuntimeHandle):
     subpage = local_runtime.page().blocks.append(Block.new(BlockType.PAGE, "Subpage"))
     ShapeKind = Block.new(
         BlockType.CHOICE,
@@ -214,7 +215,9 @@ return Shape(kind=ShapeKind.Square)
     subpage.blocks.append(Function)
     await local_runtime.commit()
 
-    _ = await local_runtime.run(Function)
+    run = await local_runtime.run(Function)
+    assert run.outputs and isinstance(run.outputs.Result, ValueObject)
+    assert run.outputs.Result.kind == ShapeKind.fields.Square
 
 
 async def test_run_code_raise_retryable_error(local_runtime: RuntimeHandle):

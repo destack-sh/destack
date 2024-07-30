@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.07.29.0"  # auto change via version script
+VERSION = "2024.07.30.0"  # auto change via version script
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -420,15 +420,15 @@ class Cloud(IdEnum):
     # own
     ...
     # big general
-    AWS = 10
-    AZURE = 11
-    GCP = 12
-    OCI = 13
-    ALIBABA = 14
+    AWS = 100
+    AZURE = 101
+    GCP = 102
+    OCI = 103
+    ALIBABA = 104
     # small general
-    HETZNER = 100
+    HETZNER = 200
     # small non-general
-    NEON = 200
+    NEON = 300
     # private
     PRIVATE = 900
 
