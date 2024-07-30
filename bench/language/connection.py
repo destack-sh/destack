@@ -13,7 +13,6 @@ from typing import (
     Callable,
     Collection,
     Optional,
-    TypeVar,
     Union,
     cast,
     final,
@@ -76,8 +75,6 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
-NodeT = TypeVar("NodeT", bound=Node)
-NodeDataT = TypeVar("NodeDataT", bound=AnyNodeData)
 FieldOrProperty = Union[
     Field if TYPE_CHECKING else "Field", Property if TYPE_CHECKING else "Property", Any
 ]

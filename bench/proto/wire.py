@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.07.29.0"
+VERSION = "2024.07.30.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -353,13 +353,13 @@ class Cloud(betterproto.Enum):
     """The cloud provider."""
 
     UNSPECIFIED = 0
-    AWS = 10
-    AZURE = 11
-    GCP = 12
-    OCI = 13
-    ALIBABA = 14
-    HETZNER = 100
-    NEON = 200
+    AWS = 100
+    AZURE = 101
+    GCP = 102
+    OCI = 103
+    ALIBABA = 104
+    HETZNER = 200
+    NEON = 300
     PRIVATE = 900
 
 

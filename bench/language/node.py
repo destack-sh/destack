@@ -645,7 +645,7 @@ def _object_node_ref(prop: Property) -> property:
             value = self._supergraph.get(value_ptr)
             if value is not None:
                 return value
-            elif value_ptr.type in NODE_REFERENCE_TYPES_BY_NODE_TYPE:
+            elif value_ptr.type in RICH_REFERENCE_TYPES_BY_NODE_TYPE:
                 return value_ptr  # :RichReferences
             else:
                 return None
@@ -673,7 +673,7 @@ def _object_node_ref(prop: Property) -> property:
                 value = self._supergraph.get(value_ptr)
                 if value is not None:
                     values.append(value)
-                elif value_ptr.type in NODE_REFERENCE_TYPES_BY_NODE_TYPE:
+                elif value_ptr.type in RICH_REFERENCE_TYPES_BY_NODE_TYPE:
                     values.append(value_ptr)  # :RichReferences
             return values
 
@@ -1030,7 +1030,14 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
             if is_tracked and validate:
                 # coerce & check type
                 if prop._type_info is not None and prop.reference_source is None:
-                    value = coerce_value(value, prop._type_info, self, prop, prop)
+                    value = coerce_value(
+                        value,
+                        prop._type_info,
+                        as_packed=False,
+                        parent=self,
+                        parent_prop=prop,
+                        ancestor_prop=prop,
+                    )
                     check_value(value, prop._type_info, invalid=on_invalid_raise)
                 object.__setattr__(self, key, value)
                 try:
@@ -2088,11 +2095,11 @@ class NodeReference(Struct[NodeReferenceData], NodeReferenceBase):
 # some node types have richer representations in references :RichReferences
 #  (we only store those in Values or when the property explicitly has reference_is_rich,
 #   since otherwise every single ptr to a potential rich type would carry a lot of metadata)
-NODE_REFERENCE_TYPES_BY_NODE_TYPE: dict[NodeType, StructType] = {
+RICH_REFERENCE_TYPES_BY_NODE_TYPE: dict[NodeType, StructType] = {
     NodeType.FILE: StructType.FILE_REFERENCE,
     NodeType.SECRET: StructType.SECRET_REFERENCE,
 }
-NODE_REFERENCE_TYPES = (StructType.NODE_REFERENCE, *NODE_REFERENCE_TYPES_BY_NODE_TYPE.values())
+NODE_REFERENCE_TYPES = (StructType.NODE_REFERENCE, *RICH_REFERENCE_TYPES_BY_NODE_TYPE.values())
 SomeNodeReference = Union[NodeReference, "FileReference", "SecretReference"]
 SomeNodeReferenceData = Union[NodeReferenceData, FileReferenceData, SecretReferenceData]
 

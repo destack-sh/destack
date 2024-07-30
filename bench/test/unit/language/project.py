@@ -7,7 +7,7 @@ from bench.language.session import Session
 from bench.language.text import Text, TextLine, TextSpan
 
 
-def test_project(shared_session: Session, shared_package: Package):
+def test_project_cross_page(shared_session: Session, shared_package: Package):
     GeneralInstruction = Block.new(BlockType.PAGE, "GeneralInstruction")
     SomeInstruction = Block.new_text("SomeInstruction", "Alright, so consider the elephant")
     GeneralInstruction.blocks.append(SomeInstruction)
@@ -43,3 +43,30 @@ def test_project(shared_session: Session, shared_package: Package):
     # get pages
     containing_pages = projection.get_containing_pages()
     assert containing_pages == [Writing, GeneralInstruction]
+
+
+def test_project_value_objects(shared_session: Session, shared_package: Package):
+    Class1 = Block.new(
+        BlockType.CLASS,
+        "Class1",
+        fields=[
+            Field.member("Int", int),
+            Field.member("String", str),
+            Field.member("Block", Block),
+        ],
+    )
+    Class2 = Block.new(
+        BlockType.CLASS,
+        "Class2",
+        fields=[Field.member("Count", int), Field.member("Class1", Class1)],
+    )
+    ValueObject1 = Class1(Int=1, String="One", Block=Class2)
+    ValueObject2 = Class2(Count=2, Class1=ValueObject1)
+
+    # project
+    projection = project(ValueObject2, options=ProjectOptions())
+    assert Class2 in projection  # via ValueObject2.Class1.Block
+
+
+def test_project_unloaded_nodes(shared_session: Session, shared_package: Package):
+    pass  # nocheckin: project unloaded nodes

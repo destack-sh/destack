@@ -6917,33 +6917,33 @@ export enum Cloud {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: CLOUD_AWS = 10;
+     * @generated from protobuf enum value: CLOUD_AWS = 100;
      */
-    AWS = 10,
+    AWS = 100,
     /**
-     * @generated from protobuf enum value: CLOUD_AZURE = 11;
+     * @generated from protobuf enum value: CLOUD_AZURE = 101;
      */
-    AZURE = 11,
+    AZURE = 101,
     /**
-     * @generated from protobuf enum value: CLOUD_GCP = 12;
+     * @generated from protobuf enum value: CLOUD_GCP = 102;
      */
-    GCP = 12,
+    GCP = 102,
     /**
-     * @generated from protobuf enum value: CLOUD_OCI = 13;
+     * @generated from protobuf enum value: CLOUD_OCI = 103;
      */
-    OCI = 13,
+    OCI = 103,
     /**
-     * @generated from protobuf enum value: CLOUD_ALIBABA = 14;
+     * @generated from protobuf enum value: CLOUD_ALIBABA = 104;
      */
-    ALIBABA = 14,
+    ALIBABA = 104,
     /**
-     * @generated from protobuf enum value: CLOUD_HETZNER = 100;
+     * @generated from protobuf enum value: CLOUD_HETZNER = 200;
      */
-    HETZNER = 100,
+    HETZNER = 200,
     /**
-     * @generated from protobuf enum value: CLOUD_NEON = 200;
+     * @generated from protobuf enum value: CLOUD_NEON = 300;
      */
-    NEON = 200,
+    NEON = 300,
     /**
      * @generated from protobuf enum value: CLOUD_PRIVATE = 900;
      */

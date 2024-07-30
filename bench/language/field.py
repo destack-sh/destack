@@ -45,9 +45,9 @@ from bench.language.property import (
     p_value_packed,
     p_value_runtime,
 )
-from bench.language.setup import BENCH_CLASS_BY_TYPE, OBJECT_TYPE_BY_CLASS
+from bench.language.setup import BENCH_CLASS_BY_TYPE, BENCH_TYPE_BY_CLASS
 from bench.language.validation import NAME_CONSTRAINT, TypeConstraintIn, ValidationHandler
-from bench.language.value import HasValues, SomeValue, coerce_object_scalar
+from bench.language.value import HasValues, SomeValue, coerce_value_object_scalar
 from bench.proto.wire import AnyNodeData, FieldData, NodeReferenceData
 from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import decode_b64vlq, encode_b64vlq
@@ -367,7 +367,7 @@ class TypeInfoBase(HasValues):
                     raise ValueError(f"no field {args!r} in {typ.base_type!r}")
                 return field
         elif typ.kind == TypeKind.OBJECT:
-            return coerce_object_scalar(kwargs, typ)
+            return coerce_value_object_scalar(kwargs, typ, as_packed=True)
 
         raise ValueError(f"cannot create {self!r} (resolved={typ!r}) directly")
 
@@ -467,7 +467,7 @@ def to_type_scalar(
         primitive_type = PRIMITIVE_TYPE_BY_PY_TYPE.get(typ)
         if primitive_type:
             return TypeInfo(kind=TypeKind.PRIMITIVE, primitive_type=primitive_type)
-        bench_type = OBJECT_TYPE_BY_CLASS.get(cast(Any, typ))
+        bench_type = BENCH_TYPE_BY_CLASS.get(cast(Any, typ))
         if bench_type is not None:
             if is_node_type(bench_type):
                 return TypeInfo(kind=TypeKind.NODE, bench_type=bench_type)
