@@ -430,7 +430,6 @@ def _pg_lower_conditional(node: Union[type[Node], Block], cond: Expression) -> E
             op=cond.op,
             property=id_prop,
             value=cond.value.id if not is_list else [r.id for r in cond.value],
-            value_packed={},  # no need to pack
         )
         if (
             prop.reference_stored_meta
@@ -442,7 +441,6 @@ def _pg_lower_conditional(node: Union[type[Node], Block], cond: Expression) -> E
                 op=cond.op,
                 property=ck_prop,
                 value=cond.value.ck if not is_list else [r.ck for r in cond.value],
-                value_packed={},
             )
             joint_clause = C(ConditionalOp.OR, clauses=[id_clause, ck_clause])
             return joint_clause
@@ -1414,7 +1412,6 @@ async def pg_walk_graph_down(
                 op=ConditionalOp.IN,
                 property=child_cls.__parent_property__.reference_stored_ids[0],
                 value=parent_ids,
-                value_packed={},  # don't pack this value
             )
             if extra_filter is not None:
                 parent_filter = parent_filter & extra_filter

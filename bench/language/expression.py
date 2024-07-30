@@ -29,7 +29,6 @@ from bench.language.node import (
     struct_,
 )
 from bench.language.property import p_regular, p_value_packed, p_value_runtime
-from bench.language.value import HasValues
 from bench.proto.wire import AnyNodeData, NodeReferenceData
 from bench.utils.func import IdEnum
 from bench.utils.string import Casing, to_casing
@@ -99,7 +98,7 @@ property_ = property
 
 
 @struct_(StructType.EXPRESSION)
-class Expression(Struct, HasValues):
+class Expression(Struct):
     """
     An expression like a value, function, comparison or such.
     """
@@ -753,7 +752,7 @@ class _TypeQueryBuilder:
 
 
 @struct_(StructType.COMPUTED_VALUE)
-class ComputedValue(Struct, HasValues):
+class ComputedValue(Struct):
     """A value computed from an expression or code snippet."""
 
     expression: "Expression | None" = p_regular(

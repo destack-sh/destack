@@ -814,11 +814,9 @@ class ValueList(list, Generic[ValueParentT]):
         self.parent_prop = parent_prop
         if isinstance(parent_prop, Property):
             self.ancestor_prop = parent_prop
-            self.parent_key = parent_prop.id_as_str
         else:
             assert ancestor_prop is not None, f"expected ancestor_prop for {parent_prop!r}"
             self.ancestor_prop = ancestor_prop
-            self.parent_key = parent_prop.identity_key
         self.is_property_reference = (
             isinstance(parent_prop, Property) and parent_prop.is_property_reference
         )

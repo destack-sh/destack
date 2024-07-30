@@ -20,7 +20,6 @@ from bench.language.property import (
 )
 from bench.language.session import HasSessionContext
 from bench.language.validation import constraint
-from bench.language.value import HasValues
 from bench.proto.wire import AnyNodeData, NodeReferenceData, SignalData
 
 if TYPE_CHECKING:
@@ -35,7 +34,7 @@ logger = structlog.get_logger(__name__)
 
 
 @timed_node_(NodeType.SIGNAL, passthrough="value")
-class Signal(PackageNode[SignalData], HasTimeIdentity, HasNodeBase, HasSessionContext, HasValues):
+class Signal(PackageNode[SignalData], HasTimeIdentity, HasNodeBase, HasSessionContext):
     """
     A Signal emitted in this Bench, usually received in Triggers.
     """

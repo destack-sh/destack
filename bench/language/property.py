@@ -662,9 +662,6 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
 
         # resolve & check value type info
         if self.is_value_runtime:
-            from bench.language.value import HasValues
-
-            assert HasValues in self.component.__components__, f"{self.component} is not HasValues"
             assert self.value_packed_ptr is not None, f"{self!r} is missing value_packed_ptr"
             if isinstance(self.value_packed_ptr, int):
                 self.value_packed_ptr = self.component.__properties_by_id__[self.value_packed_ptr]
@@ -962,6 +959,7 @@ def p_value_runtime(
         is_stored=False,
         is_ephemeral=True,
         is_required=False,
+        is_computed=True,
         is_value_runtime=True,
         is_list=False,
         default=None,

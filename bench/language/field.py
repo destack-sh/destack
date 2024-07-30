@@ -24,6 +24,7 @@ from bench.language.const import (
 from bench.language.expression import _TypeQueryBuilder
 from bench.language.graph import NodeList
 from bench.language.node import (
+    BuiltinObject,
     HasNodeBase,
     Node,
     NodeReference,
@@ -47,7 +48,7 @@ from bench.language.property import (
 )
 from bench.language.setup import BENCH_CLASS_BY_TYPE, BENCH_TYPE_BY_CLASS
 from bench.language.validation import NAME_CONSTRAINT, TypeConstraintIn, ValidationHandler
-from bench.language.value import HasValues, SomeValue, coerce_value_object_scalar
+from bench.language.value import SomeValue, coerce_value_object_scalar
 from bench.proto.wire import AnyNodeData, FieldData, NodeReferenceData
 from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import decode_b64vlq, encode_b64vlq
@@ -213,7 +214,7 @@ DEFAULT_CONSTRAINT = TypeConstraint()
 
 
 @object_component()
-class TypeInfoBase(HasValues):
+class TypeInfoBase(BuiltinObject):
     """
     A type is a kind of Value that can go somewhere, often in a place described by a Field.
 

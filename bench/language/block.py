@@ -21,7 +21,6 @@ from bench.language.property import (
     p_value_runtime,
 )
 from bench.language.validation import NAME_CONSTRAINT, ValidationHandler, constraint
-from bench.language.value import HasValues
 from bench.proto.wire import BlockData
 from bench.utils.fractional import INTEGER_ZERO
 
@@ -53,7 +52,7 @@ if TYPE_CHECKING:
 
 
 @local_node_(NodeType.BLOCK, passthrough=("value", "fields"))
-class Block(SourceNode[BlockData], HasValues):
+class Block(SourceNode[BlockData]):
     """A building block with logic, types, UI, data, auth, AI, ..."""
 
     parent: Union["Block", "Package", None] = p_node_parent(4, NodeType.BLOCK, NodeType.PACKAGE)

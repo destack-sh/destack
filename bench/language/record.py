@@ -15,7 +15,6 @@ from bench.language.property import (
     p_value_packed,
     p_value_runtime,
 )
-from bench.language.value import HasValues
 from bench.proto.wire import AnyNodeData, NodeReferenceData, RecordData
 from bench.utils.func import describe_type
 
@@ -28,7 +27,7 @@ logger = structlog.get_logger(__name__)
 
 
 @local_node_(NodeType.RECORD, passthrough="value", stored_custom=True, local=True)
-class Record(RemoteNode[RecordData], HasPersistentIdentity, HasNodeBase, HasValues):
+class Record(RemoteNode[RecordData], HasPersistentIdentity, HasNodeBase):
     """
     A record in a DatabaseBlock.
     If the block is_materialized, the backing table is a real Postgres table.

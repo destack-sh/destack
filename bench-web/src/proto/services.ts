@@ -78,7 +78,7 @@ export const HUMANIZED_OPERATION_STATUS: { [key: string]: string } = {
   FAILED_PRECONDITION: "Cannot do this right now",
   PERMISSION_DENIED: "Not allowed",
   RESOURCE_EXHAUSTED: "Server overloaded",
-  UNAVAILABLE: "Service unavailable",
+  UNAVAILABLE: "System unavailable",
   NOT_IMPLEMENTED: "Not yet supported",
   INTERNAL: "Internal server error",
   CANCELLED: "Request cancelled",
@@ -86,7 +86,7 @@ export const HUMANIZED_OPERATION_STATUS: { [key: string]: string } = {
 };
 export const HUMANIZED_OPERATION_MESSAGE: { [key: string]: string } = {
   UNAUTHENTICATED: "Please log in and try again",
-  UNAVAILABLE: "Server could not be reached",
+  UNAVAILABLE: "System could not be reached",
 };
 
 export function humanizeError(error: OperationError): { title: string; text: string } {

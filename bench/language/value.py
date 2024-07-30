@@ -11,7 +11,6 @@ from typing import (
     TypeGuard,
     Union,
     cast,
-    override,
 )
 from uuid import UUID
 
@@ -21,10 +20,8 @@ from betterproto.lib.google.protobuf import Struct as ProtoStruct
 from opentelemetry import trace
 
 from bench.language.const import (
-    EMPTY_DICT,
     FLOAT_EPSILON,
     PY_TYPE_BY_PRIMITIVE_TYPE,
-    UNSET,
     EnumType,
     NodeType,
     ObjectType,
@@ -94,7 +91,6 @@ class ValueObject(Mapping[str, Any]):
         "order_key",
         "parent",
         "parent_id",
-        "parent_key",
         "parent_prop",
     )
 
@@ -105,14 +101,12 @@ class ValueObject(Mapping[str, Any]):
         parent: ValueParent | None = None,
         parent_prop: ValueProperty | None = None,
         ancestor_prop: Optional["Property"] = None,
-        parent_key: str | None = None,
     ):
         self._type = type
         self._value = value
         self.parent = parent
         self.parent_prop = parent_prop
         self.ancestor_prop = ancestor_prop
-        self.parent_key = parent_key
         if self.parent is not None and self.ancestor_prop is None:
             assert isinstance(self.parent_prop, Property), f"{self.parent_prop!r} is not a Property"
             self.ancestor_prop = self.parent_prop
@@ -249,16 +243,11 @@ class ValueObject(Mapping[str, Any]):
         self, parent: ValueParent, prop: ValueProperty, ancestor_prop: Optional["Property"]
     ) -> "ValueObject":
         """Move or copy this object into the given parent/prop."""
-        prop_key = prop.id_as_str if isinstance(prop, Property) else prop.identity_key
         if self.parent is None:
             # not yet assigned
             self.parent = parent
             self.parent_prop = prop
             self.ancestor_prop = ancestor_prop
-            self.parent_key = prop_key
-            return self
-        elif self.parent is parent and self.parent_key == prop_key:
-            # already there
             return self
         else:
             copy = self._copy_to(parent, prop, ancestor_prop)
@@ -270,7 +259,6 @@ class ValueObject(Mapping[str, Any]):
         """Copy this object into the given parent/prop."""
         value_packed = pack_value_object(self, self._type)
         copy = unpack_value_object(value_packed, self._type, parent, prop, ancestor_prop)
-        copy.parent_key = prop.id_as_str if isinstance(prop, Property) else prop.identity_key
         return copy
 
     def _updated_self(self, properties: tuple[Union["Property", "Field", Any], ...]) -> None:
@@ -308,6 +296,62 @@ class ValueObject(Mapping[str, Any]):
                 return "?Object"
         else:
             return self._type.base_type.absolute_path
+
+
+def _object_value_runtime(prop: Property) -> property:
+    """The computed get/set property for a runtime value property."""
+
+    assert not prop.is_list, f"runtime value cannot be list {prop!r}"
+
+    # nocheckin :Performance!: don't pack/unpack runtime value on every get/set
+
+    def _get_value_runtime(self: BuiltinObject) -> Optional[SomeValue]:
+        wired_prop = prop.value_packed_ptr
+        assert isinstance(wired_prop, Property), f"no wired prop for {prop!r}"
+        value_packed = getattr(self, wired_prop.name)
+        if value_packed is None or (len(value_packed) == 0 and not prop.is_required):
+            value = None
+        value_type = prop.value_type_info_getter(self) if prop.value_type_info_getter else None
+        if (
+            value_packed is None
+            or (len(value_packed) == 0 and not prop.is_required)
+            or value_type is None
+        ):
+            value = None
+        else:
+            value = unpack_value(value_packed, value_type)
+
+        # imitate ValueObject._do_get
+        if (
+            value is None
+            and value_type is not None
+            and self is not value_type
+            and value_type.default_packed
+        ):
+            return value_type.default
+        elif isinstance(value, NodeReferenceBase):
+            # auto resolve references
+            resolved_value = self._supergraph.get(value)
+            if resolved_value is not None:
+                return resolved_value
+            elif value.type in RICH_REFERENCE_TYPES_BY_NODE_TYPE:
+                return value  # :RichReferences
+            else:
+                return None  # couldn't resolve
+        else:
+            return value
+
+    def _set_value_runtime(self: BuiltinObject, value: SomeValue):
+        wired_prop = prop.value_packed_ptr
+        assert isinstance(wired_prop, Property), f"no wired prop for {prop!r}"
+        value_type = prop.value_type_info_getter(self) if prop.value_type_info_getter else None
+        if value_type is not None:
+            value_packed = pack_value(value, value_type)
+            self._do_set(wired_prop.name, value_packed, track=False)
+        else:
+            self._do_set(wired_prop.name, {} if wired_prop.is_required else None, track=False)
+
+    return property(_get_value_runtime, _set_value_runtime)
 
 
 #
@@ -1116,92 +1160,12 @@ from bench.language.node import (  # noqa: E402
     SomeNodeReference,
     SomeNodeReferenceData,
     Struct,
-    object_component,
     struct_,
 )
 
 
-@object_component()
-class HasValues(BuiltinObject):
-    # NOTE :Robustness :Architecture: turn value into computed property? :ComputedValueProp
-    #  Currently, the order of operations for unpacking/packing runtime value properties in
-    #   place is somewhat confused. Maybe we can just turn the runtime value into a (cached?) getter.
-
-    @override
-    def _init_component(self):
-        # if unpacked is set, pack in place, otherwise vice versa
-        # (this is a bit unwieldy and means we don't get value if the object is created
-        #  outside a session, but we'll likely change this soon anyway - see above;
-        #  also, it feels like this should be done in the main BuiltinObject.__init__ loop?)
-        if self._session is None:
-            return
-        for prop in self.__value_runtime_properties__.values():
-            assert type(prop.value_packed_ptr) is Property, f"{prop!r} has no value_packed_ptr"
-            value = getattr(self, prop.name)
-            value_packed = getattr(self, prop.value_packed_ptr.name)
-            if (value is None and value_packed is None) or value_packed is UNSET:
-                continue
-            value_type = prop.value_type_info_getter(self) if prop.value_type_info_getter else None
-            if value_type is None:
-                continue  # not ready yet or :FreeformValues
-            if value is not None:
-                if getattr(self, prop.value_packed_ptr.name) is not None:
-                    continue  # skip if already set
-                value_packed = pack_value(value, value_type)
-                self._do_set(prop.value_packed_ptr.name, value_packed, track=False)
-            else:
-                value = unpack_value(value_packed, value_type)
-                self._do_set(prop.name, value, track=False)
-
-    @override
-    def _updated_component(self, properties: Collection[Property]) -> None:
-        # update packed properties  :ComputedValueProp
-        if any(prop.is_value_runtime for prop in properties):
-            # NOTE :Performance: only update packed values prior to serialization? (see above)
-            #  (but note that we would still need the packed data for the Edit)
-            self._pack_values_inplace(properties)
-
-    def _unpack_values_inplace(self, properties: Collection[Property] = ()) -> None:
-        # also a bit crummy, see above :ComputedValueProp
-        if len(properties) == 0:
-            properties = self.__value_runtime_properties__.values()
-        for prop in properties:
-            if not prop.is_value_runtime:
-                continue
-            assert type(prop.value_packed_ptr) is Property, f"{prop!r} has no value_packed_ptr"
-            value_packed = getattr(self, prop.value_packed_ptr.name)
-            value_type = prop.value_type_info_getter(self) if prop.value_type_info_getter else None
-            if value_type is not None:
-                if value_packed is None:
-                    value_packed = EMPTY_DICT
-                value = unpack_value(value_packed, value_type)
-                self._do_set(prop.name, value, track=False)
-
-    def _pack_values_inplace(
-        self, properties: Collection[Property] = (), skip_already_set: bool = False
-    ) -> None:
-        # more ugh here  :ComputedValueProp
-        for prop in properties:
-            if not prop.is_value_runtime:
-                continue
-            assert type(prop.value_packed_ptr) is Property, f"{prop!r} has no value_packed_ptr"
-            # allow us to bail if we want to force set a temporary value in the constructor
-            if skip_already_set and getattr(self, prop.value_packed_ptr.name) is not None:
-                continue
-            value = getattr(self, prop.name)
-            if value is not None:
-                value_type = (
-                    prop.value_type_info_getter(self) if prop.value_type_info_getter else None
-                )
-                if value_type is not None:
-                    value_packed = pack_value(value, value_type)
-                    self._do_set(prop.value_packed_ptr.name, value_packed, track=False)
-            else:
-                self._do_set(prop.value_packed_ptr.name, None, track=False)
-
-
 @struct_(StructType.VALUE)
-class Value(Struct, HasValues):
+class Value(Struct):
     """A generic 'freeform' value."""
 
     type: "TypeInfo" = p_regular(31, struct=StructType.TYPE_INFO)

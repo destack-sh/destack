@@ -81,12 +81,12 @@ def test_project_value_objects(shared_session: Session, shared_package: Package)
 
 
 def test_project_unloaded_nodes(shared_session: Session, shared_package: Package):
+    Class1 = Block.new(BlockType.CLASS, "Class1", fields=[Field.member("File", File)])
     File1 = File(
         parent=shared_package,
         kind=FileKind.DRIVE,
         title="myfile.txt",
         coarse_type=FileType.TEXT,
-        mime_type="text/plain",
         size=1024,
     )
     File2 = File(
@@ -94,7 +94,13 @@ def test_project_unloaded_nodes(shared_session: Session, shared_package: Package
         kind=FileKind.DRIVE,
         title="myfile2.txt",
         coarse_type=FileType.TEXT,
-        mime_type="text/plain",
+        size=1024,
+    )
+    File3 = File(
+        parent=shared_package,
+        kind=FileKind.DRIVE,
+        title="myfile3.txt",
+        coarse_type=FileType.TEXT,
         size=1024,
     )
     Variable1 = Block.new(
@@ -104,11 +110,20 @@ def test_project_unloaded_nodes(shared_session: Session, shared_package: Package
         value=File1,
         text=Text(lines=[TextLine(spans=[TextSpan(node=File2)])]),
     )
+    Variable2 = Block.new(
+        BlockType.VARIABLE,
+        "Variable2",
+        value_type=to_type(Class1),
+        value=Class1(File=File3),
+    )
     File1._unload_rec()
     File2._unload_rec()
+    File3._unload_rec()
 
     # project
     projection = project(Variable1, options=ProjectOptions())
     assert Variable1 in projection
+    assert Variable2 in projection
     assert projection.has_missing(File1)
     assert projection.has_missing(File2)
+    assert projection.has_missing(File3)

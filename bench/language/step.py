@@ -19,7 +19,6 @@ from bench.language.property import (
     p_value_runtime,
 )
 from bench.language.validation import NAME_CONSTRAINT, constraint
-from bench.language.value import HasValues
 from bench.proto.wire import StepData
 from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import IdEnum
@@ -100,7 +99,7 @@ class Pipe(Struct):
 
 
 @local_node_(NodeType.STEP, passthrough=("value", "fields"))
-class Step(SourceNode[StepData], HasValues):
+class Step(SourceNode[StepData]):
     """
     An data or control flow node in a FlowBlock.
     """
