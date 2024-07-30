@@ -21,7 +21,6 @@ from bench.language.property import (
     p_value_runtime,
 )
 from bench.language.validation import NAME_CONSTRAINT, TITLE_CONSTRAINT
-from bench.language.value import HasValues
 from bench.proto.wire import SpaceData, ViewData
 from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import IdEnum
@@ -388,7 +387,7 @@ class Alignment(IdEnum):
 
 
 @local_node_(NodeType.VIEW, passthrough="value")
-class View(SourceNode[ViewData], HasValues):
+class View(SourceNode[ViewData]):
     """A view of a user interface in a Bench."""
 
     parent: Union["Space", "View", "Block", None] = p_node_parent(

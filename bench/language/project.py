@@ -7,7 +7,9 @@ from opentelemetry import trace
 
 from bench.language.block import Block
 from bench.language.const import NODE_TYPES_SET, NodeType, ReferenceKind, TypeKind
+from bench.language.field import TypeInfoBase
 from bench.language.node import BuiltinObject, Node, SomeNodeReference, SourceNode, Struct
+from bench.language.property import Property
 from bench.language.value import SomeValue, ValueObject
 
 if TYPE_CHECKING:
@@ -74,6 +76,7 @@ class Projection:
         return node.id in self._missing_nodes_by_id
 
     def _visit_node(self, node: Node) -> bool:
+        """Adds a node to the result set."""
         if node.id not in self._nodes_by_id and node.metatype in self._options.node_types:
             self._nodes_by_id[node.id] = node
             self._nodes_to_collect.append(node)
@@ -82,6 +85,7 @@ class Projection:
             return False
 
     def _visit_missing_node(self, node: SomeNodeReference) -> bool:
+        """Adds a node reference to the missing set."""
         assert node.id is not None, f"missing id for {node!r}"
         if node.id not in self._missing_nodes_by_id and node.type in self._options.node_types:
             self._missing_nodes_by_id[node.id] = node
@@ -90,11 +94,12 @@ class Projection:
             return False
 
     def _collect_node(self, node: Node):
+        """Collects a node (recursively)."""
         self._collect_builtin_object_scalar(node)
-        self._collect_node_children(node)
+        self._collect_node_folded_children(node)
 
-    def _collect_node_children(self, node: Node):
-        # visit all folded node children
+    def _collect_node_folded_children(self, node: Node):
+        """Collects the folded children of a node (recursively)."""
         for prop in node.__node_reference_properties__.values():
             if (
                 prop.reference_kind != ReferenceKind.NODE_CHILDREN
@@ -115,8 +120,8 @@ class Projection:
     #  (see ValueObject._do_get, _object_node_ref and :RichReference)
 
     def _collect_builtin_object_scalar(self, obj: BuiltinObject):
+        """Collects a builtin object (recursively)."""
         # visit referenced nodes
-        supergraph = obj._supergraph
         for prop in obj.__node_reference_properties__.values():
             if prop.id is None or prop.id < 30 or prop.reference_kind != ReferenceKind.NODE_REGULAR:
                 continue
@@ -127,13 +132,13 @@ class Projection:
                 continue
             elif prop.is_list:
                 for wired_ptr in cast(list, wired_prop_value):
-                    prop_value = supergraph.get(wired_ptr)
+                    prop_value = obj._supergraph.get(wired_ptr)
                     if prop_value is not None:
                         self._visit_node(cast(Node, prop_value))
                     else:
                         self._visit_missing_node(wired_ptr)
             else:
-                prop_value = supergraph.get(wired_prop_value)
+                prop_value = obj._supergraph.get(wired_prop_value)
                 if prop_value is not None:
                     self._visit_node(cast(Node, prop_value))
                 else:
@@ -152,38 +157,48 @@ class Projection:
 
         # visit values
         for prop in obj.__value_runtime_properties__.values():
-            value: SomeValue | None = getattr(obj, prop.name)  # nocheckin
+            wired_prop = prop.value_packed_ptr
+            assert isinstance(wired_prop, Property), f"no wired prop for {prop!r}"
+            wired_prop_value = getattr(obj, wired_prop.name)
+            value_type = prop.value_type_info_getter(obj) if prop.value_type_info_getter else None
+            if value_type is None:
+                continue
+            self._collect_value(wired_prop_value, value_type)
 
     def _collect_value_object_scalar(self, obj: ValueObject):
-        # visit inner objects and referenced nodes
+        """Collects a ValueObject (recursively)."""
         if obj._value is None:
             return
-        supergraph = obj._type._supergraph
+        # visit fields / inner objects
         for field in obj._type._base_fields:
             wired_field_value = obj._value.get(field.storage_key)
             if wired_field_value is None:
                 continue
             field_type = field._to_resolved()
-            if field_type.kind == TypeKind.OBJECT:
-                if field.is_list:
-                    for item in cast(list, wired_field_value):
-                        self._collect_value_object_scalar(cast(ValueObject, item))
-                else:
-                    self._collect_value_object_scalar(cast(ValueObject, wired_field_value))
-            elif field_type.kind == TypeKind.NODE or field_type.kind == TypeKind.BASED_NODE:
-                if field_type.is_list:
-                    for wired_ptr in cast(list, wired_field_value):
-                        field_value = supergraph.get(wired_ptr)
-                        if field_value is not None:
-                            self._visit_node(cast(Node, field_value))
-                        else:
-                            self._visit_missing_node(wired_ptr)
-                else:
-                    field_value = supergraph.get(cast(SomeNodeReference, wired_field_value))
+            self._collect_value(wired_field_value, field_type)
+
+    def _collect_value(self, value: SomeValue, typ: TypeInfoBase):
+        """Collects a specific value (recursively)."""
+        if typ.kind == TypeKind.OBJECT:
+            if typ.is_list:
+                for item in cast(list, value):
+                    self._collect_value_object_scalar(cast(ValueObject, item))
+            else:
+                self._collect_value_object_scalar(cast(ValueObject, value))
+        elif typ.kind == TypeKind.NODE or typ.kind == TypeKind.BASED_NODE:
+            if typ.is_list:
+                for wired_ptr in cast(list, value):
+                    field_value = typ._supergraph.get(wired_ptr)
                     if field_value is not None:
                         self._visit_node(cast(Node, field_value))
                     else:
-                        self._visit_missing_node(cast(SomeNodeReference, wired_field_value))
+                        self._visit_missing_node(wired_ptr)
+            else:
+                field_value = typ._supergraph.get(cast(SomeNodeReference, value))
+                if field_value is not None:
+                    self._visit_node(cast(Node, field_value))
+                else:
+                    self._visit_missing_node(cast(SomeNodeReference, value))
 
     @tracer.start_as_current_span("projection.project")
     def project(self, *objs: BuiltinObject | ValueObject | None):

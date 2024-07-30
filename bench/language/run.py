@@ -36,7 +36,6 @@ from bench.language.property import (
 from bench.language.session import HasSessionContext
 from bench.language.text import Text
 from bench.language.validation import TITLE_CONSTRAINT, TypeConstraintIn, ValidationHandler
-from bench.language.value import HasValues
 from bench.proto.wire import AnyNodeData, NodeReferenceData, RunData
 from bench.utils.func import IdEnum
 from bench.utils.string import Casing, to_casing
@@ -279,7 +278,7 @@ class RunError(Struct, BenchError):
 
 
 @timed_node_(NodeType.RUN)
-class Run(PackageNode[RunData], HasTimeIdentity, HasNodeBase, HasSessionContext, HasValues):
+class Run(PackageNode[RunData], HasTimeIdentity, HasNodeBase, HasSessionContext):
     """
     A 'run' of Blocks (and Steps within them) or 'lambdas' (just Code/Text).
     When 'running' something that's not directly runnable (like a Text Block, Text Step or Text Lambda),

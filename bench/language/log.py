@@ -29,7 +29,6 @@ from bench.language.property import (
     p_value_runtime,
 )
 from bench.language.session import HasSessionContext
-from bench.language.value import HasValues
 from bench.proto.wire import LogData
 from bench.utils.func import IdEnum
 
@@ -61,7 +60,7 @@ class LogLevel(IdEnum):  # :LogLevel
 
 
 @struct_(StructType.LOG_INFO)
-class LogInfo(Struct, HasValues):
+class LogInfo(Struct):
     """
     A simple log for user-generated logs at runtime.
     This is like a mini-Log that we can attach to Runs and also copy into the combined Log.
@@ -82,7 +81,7 @@ class LogInfo(Struct, HasValues):
 
 
 @timed_node_(NodeType.LOG)
-class Log(PackageNode[LogData], HasTimeIdentity, HasSessionContext, HasValues):
+class Log(PackageNode[LogData], HasTimeIdentity, HasSessionContext):
     """
     A Log of something happening in a Bench.
     """

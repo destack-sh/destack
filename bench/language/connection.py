@@ -953,7 +953,6 @@ class SplitConnection(Connection):
                             ConditionalOp.IN,
                             property=child_cls.get_property("parent_id"),
                             value=parent_ids,
-                            value_packed={},
                         ),
                         options=ReadOptions(descendant_types=list(descendant_types)),
                     )

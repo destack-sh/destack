@@ -25,7 +25,6 @@ from bench.language.property import (
     p_value_runtime,
 )
 from bench.language.validation import TITLE_CONSTRAINT, constraint
-from bench.language.value import HasValues
 from bench.proto.wire import (
     AnyNodeData,
     NodeReferenceData,
@@ -39,7 +38,7 @@ if TYPE_CHECKING:
 
 
 @timed_node_(NodeType.NOTIFICATION, passthrough="value")
-class Notification(RemoteNode[NotificationData], HasTimeIdentity, HasNodeBase, HasValues):
+class Notification(RemoteNode[NotificationData], HasTimeIdentity, HasNodeBase):
     """
     A Notification for a Bench (author = created_by).
     """

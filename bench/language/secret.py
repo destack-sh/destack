@@ -18,7 +18,6 @@ from bench.language.property import (
     p_value_runtime,
 )
 from bench.language.validation import TITLE_CONSTRAINT, ValidationHandler
-from bench.language.value import HasValues
 from bench.proto.wire import SecretData, SecretReferenceData
 
 if TYPE_CHECKING:
@@ -28,7 +27,7 @@ if TYPE_CHECKING:
 
 
 @local_node_(NodeType.SECRET)
-class Secret(SourceNode[SecretData], HasValues):
+class Secret(SourceNode[SecretData]):
     """A secret value."""
 
     parent: Union["Package", "Block", None] = p_node_parent(

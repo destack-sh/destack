@@ -282,36 +282,39 @@ def _process_object_cls[ObjectT: BuiltinObject](
             setattr(cls, name, prop)
 
         for name, prop in properties_by_name.items():
-            if prop.reference_source is not None:
-                continue  # ignore contributed property
+            if prop.reference_source is None:  # not a contributed property
+                # computed property.. property
+                if prop.reference_kind == ReferenceKind.PROPERTY:
+                    setattr(cls, name, _object_property_ref(prop))
+                # computed node property
+                elif prop.reference_kind in (
+                    # NOTE :Performance: maybe Node.parent shouldn't be computed?
+                    ReferenceKind.NODE_PARENT,
+                    ReferenceKind.NODE_REGULAR,
+                    ReferenceKind.NODE_TEMPLATE,
+                ):
+                    setattr(cls, name, _object_node_ref(prop))
+                # computed node ancestor property
+                elif prop.reference_kind in (
+                    ReferenceKind.NODE_ANCESTOR,
+                    ReferenceKind.NODE_ANCESTOR_OR_SELF,
+                ):
+                    setattr(cls, name, _node_ancestor_ref(prop))
+                    setattr(cls, f"{name}_ptr", _node_ancestor_ptr_ref(prop))
+                # computed _x node reference properties (e.g., parent_id, type_ck, node_type, ...)
+                if prop.is_node_reference and prop.reference_kind != ReferenceKind.NODE_CHILDREN:
+                    for key in ("id", "ck", "type"):
+                        if key == "type" and (
+                            not prop.reference_nodes or len(prop.reference_nodes) <= 1
+                        ):
+                            continue  # no need for *_type if only one possible node type
+                        _set_computed(f"{prop.name}_{key}", _object_node_ref_attr(key, prop))
 
-            # computed property.. property
-            if prop.reference_kind == ReferenceKind.PROPERTY:
-                setattr(cls, name, _object_property_ref(prop))
-            # computed node property
-            elif prop.reference_kind in (
-                # NOTE :Performance: maybe Node.parent shouldn't be computed?
-                ReferenceKind.NODE_PARENT,
-                ReferenceKind.NODE_REGULAR,
-                ReferenceKind.NODE_TEMPLATE,
-            ):
-                setattr(cls, name, _object_node_ref(prop))
-            # computed node ancestor property
-            elif prop.reference_kind in (
-                ReferenceKind.NODE_ANCESTOR,
-                ReferenceKind.NODE_ANCESTOR_OR_SELF,
-            ):
-                setattr(cls, name, _node_ancestor_ref(prop))
-                setattr(cls, f"{name}_ptr", _node_ancestor_ptr_ref(prop))
+            # computed runtime value
+            if prop.is_value_runtime:
+                from bench.language.value import _object_value_runtime
 
-            # computed _x node reference properties (e.g., parent_id, type_ck, node_type, ...)
-            if prop.is_node_reference and prop.reference_kind != ReferenceKind.NODE_CHILDREN:
-                for key in ("id", "ck", "type"):
-                    if key == "type" and (
-                        not prop.reference_nodes or len(prop.reference_nodes) <= 1
-                    ):
-                        continue  # no need for *_type if only one possible node type
-                    _set_computed(f"{prop.name}_{key}", _object_node_ref_attr(key, prop))
+                setattr(cls, prop.name, _object_value_runtime(prop))
 
     # finalize props & update reference to transformed class
     for prop in properties_by_name.values():
@@ -838,13 +841,12 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
 
         # init object (from kwargs & defaults)
         for prop in self.__runtime_properties__.values():
-            # NOTE :Cleanup: Struct.parent_key needs to be handled as well because it's not part of any pointer
-            #  (like the other node/property references, which we're excluding with prop.reference_source check)
             if (
-                (prop.reference_source is not None and prop.name != "parent_key")
+                prop.reference_source is not None
                 or prop.name == "_session"
                 or prop.name == "_supergraph"
-            ) or prop.is_computed:
+                or prop.is_computed
+            ) and not prop.is_value_runtime:
                 continue  # only handle top level properties
             wired_ptr_prop = prop.reference_wired_ptr
             prop_value = kwargs.get(prop.name, UNSET)
@@ -903,6 +905,10 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
                     prop_value = value_list
                 elif isinstance(prop_value, Struct):
                     prop_value = prop_value._move_to(self, prop)
+            # runtime value
+            elif prop.is_value_runtime and prop_value is not UNSET:
+                setattr(self, prop.name, prop_value)
+                continue
 
             # default value
             if prop_value is UNSET:
@@ -996,9 +1002,9 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
         return stable_hash(content_props)
 
     def _do_get(self, key):
-        """Called if an attribute doesn't exist in __dict__ or the usual places."""
+        """Called if an attribute doesn't exist in __dict__ / the usual places."""
 
-        # check passthrough (if 'live' in session)
+        # check passthrough (if in a session)
         if self.__passthrough__ is not None and self._session is not None:
             for passthrough_key in self.__passthrough__:
                 target = getattr(self, passthrough_key, UNSET)
@@ -1058,20 +1064,8 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
                         assert session, f"no session for {node!r}"
                         if self._updated_properties is None:
                             self._updated_properties = bitarray(self.__max_property_ord__ + 1)
-                        if not prop.is_value_runtime:
-                            self._updated_properties[prop.ord] = True
-                            session._update(
-                                node, properties=(prop,), old_values={prop.id: old_value}
-                            )
-                        else:
-                            # 'put' value packed update into _packed property :ComputedValueProp
-                            value_packed_ptr = cast(Property, prop.value_packed_ptr)
-                            self._updated_properties[value_packed_ptr.ord] = True
-                            session._update(
-                                node,
-                                properties=(value_packed_ptr,),
-                                old_values={value_packed_ptr.id: old_value},
-                            )
+                        self._updated_properties[prop.ord] = True
+                        session._update(node, properties=(prop,), old_values={prop.id: old_value})
                 else:
                     pass  # TODO :Broken: handle in struct updates
             return
@@ -1304,7 +1298,6 @@ class Struct[StructDataT: AnyStructData](BuiltinObject[StructDataT], abc.ABC):
         """Create a copy of this struct for the given parent/prop."""
         kwargs = {p.name: getattr(self, p.name) for p in self.__wired_properties__.values()}
         kwargs["parent"] = parent
-        kwargs["parent_key"] = prop.id_as_str if isinstance(prop, Property) else prop.identity_key
         copy = self.__class__(**kwargs)
         return copy
 
