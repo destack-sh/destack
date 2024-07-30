@@ -299,6 +299,7 @@ class ValueObject(Mapping[str, Any]):
 
 
 def _do_get_value_runtime(obj: "BuiltinObject", prop: Property):
+    """Computes the runtime value for the given property."""
     wired_prop = prop.value_packed_ptr
     assert isinstance(wired_prop, Property), f"no wired prop for {prop!r}"
     value_packed = getattr(obj, wired_prop.name)
@@ -313,7 +314,6 @@ def _do_get_value_runtime(obj: "BuiltinObject", prop: Property):
         value = None
     else:
         value = unpack_value(value_packed, value_type)
-
     return value_type, value
 
 
@@ -322,10 +322,16 @@ def _object_value_runtime(prop: Property) -> property:
 
     assert not prop.is_list, f"runtime value cannot be list {prop!r}"
 
-    # nocheckin :Performance!: don't pack/unpack runtime value on every get/set
+    cache_key = f"_{prop.name}_cached"
 
     def _get_value_runtime(self: BuiltinObject) -> Optional[SomeValue]:
-        value_type, value = _do_get_value_runtime(self, prop)
+        """Gets the runtime value for this property (with auto resolving)."""
+        if cache_key in self.__dict__:
+            value_type = prop.value_type_info_getter(self) if prop.value_type_info_getter else None
+            value = self.__dict__[cache_key]
+        else:
+            value_type, value = _do_get_value_runtime(self, prop)
+            self.__dict__[cache_key] = value
 
         # imitate ValueObject._do_get
         if (
@@ -356,6 +362,8 @@ def _object_value_runtime(prop: Property) -> property:
             self._do_set(wired_prop.name, value_packed, track=False)
         else:
             self._do_set(wired_prop.name, {} if wired_prop.is_required else None, track=False)
+        # NOTE :Robustness: is it correct to cache runtime value immediately on set?
+        self.__dict__[cache_key] = value
 
     return property(_get_value_runtime, _set_value_runtime)
 
