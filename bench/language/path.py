@@ -34,6 +34,10 @@ class PathLogicError(PathError):
     pass
 
 
+class PathUnnamedNodeError(PathLogicError):
+    pass
+
+
 class PathLookupError(PathError, LookupError):
     pass
 
@@ -450,7 +454,8 @@ def get_path(scope: Node, node: Node) -> Path:
         tokens = [PathToken(type=PathTokenType.BENCH, name=node_path[-1].name)]
         for node_ancestor in node_path[1:]:
             name = getattr(node_ancestor, "name", None)
-            assert name is not None, f"no name for {node_ancestor!r}"
+            if name is None:
+                raise PathUnnamedNodeError(node_ancestor)
             tokens.append(PathToken(type=PathTokenType.CHILD, name=name))
     else:
         # find relative path from scope to node (up/down)
@@ -470,25 +475,29 @@ def get_path(scope: Node, node: Node) -> Path:
             tokens = [PathToken(type=PathTokenType.ROOT)]
             for node_ancestor in reversed(node_path[:-1]):
                 name = getattr(node_ancestor, "name", None)
-                assert name is not None, f"no name for {node_ancestor!r}"
+                if name is None:
+                    raise PathUnnamedNodeError(node_ancestor)
                 tokens.append(PathToken(type=PathTokenType.CHILD, name=name))
         elif node_ancestor_idx == 0:
             # node is a direct ancestor of scope
             tokens = []
             for i in range(1, scope_ancestor_idx + 1):
                 name = getattr(scope_path[i], "name", None)
-                assert name is not None, f"no name for {scope_path[i]!r}"
+                if name is None:
+                    raise PathUnnamedNodeError(scope_path[i])
                 tokens.append(PathToken(type=PathTokenType.CONTAINER, name=name))
         else:
             # get from scope to common ancestor, then from common ancestor to node
             tokens = []
             for i in range(1, scope_ancestor_idx):
                 name = getattr(scope_path[i], "name", None)
-                assert name is not None, f"no name for {scope_path[i]!r}"
+                if name is None:
+                    raise PathUnnamedNodeError(scope_path[i])
                 tokens.append(PathToken(type=PathTokenType.CONTAINER, name=name))
             for i in range(node_ancestor_idx - 1, -1, -1):
                 name = getattr(node_path[i], "name", None)
-                assert name is not None, f"no name for {node_path[i]!r}"
+                if name is None:
+                    raise PathUnnamedNodeError(node_path[i])
                 if not tokens and not _get_child(scope, name):
                     # refer to sibling as unique node
                     tokens.append(PathToken(type=PathTokenType.UNIQUE, name=name))
