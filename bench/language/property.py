@@ -310,7 +310,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
         else:
             constraint = self.constraint
 
-        if self.reference_nodes:
+        if self.reference_nodes and not self.reference_source:
             kind = TypeKind.NODE
             # don't have unions yet so we special case this in validation :FakeNodePropertyUnion
             bench_type = self.reference_nodes[0]

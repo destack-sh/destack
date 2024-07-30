@@ -298,6 +298,25 @@ class ValueObject(Mapping[str, Any]):
             return self._type.base_type.absolute_path
 
 
+def _do_get_value_runtime(obj: "BuiltinObject", prop: Property):
+    wired_prop = prop.value_packed_ptr
+    assert isinstance(wired_prop, Property), f"no wired prop for {prop!r}"
+    value_packed = getattr(obj, wired_prop.name)
+    if value_packed is None or (len(value_packed) == 0 and not prop.is_required):
+        value = None
+    value_type = prop.value_type_info_getter(obj) if prop.value_type_info_getter else None
+    if (
+        value_packed is None
+        or (len(value_packed) == 0 and not prop.is_required)
+        or value_type is None
+    ):
+        value = None
+    else:
+        value = unpack_value(value_packed, value_type)
+
+    return value_type, value
+
+
 def _object_value_runtime(prop: Property) -> property:
     """The computed get/set property for a runtime value property."""
 
@@ -306,20 +325,7 @@ def _object_value_runtime(prop: Property) -> property:
     # nocheckin :Performance!: don't pack/unpack runtime value on every get/set
 
     def _get_value_runtime(self: BuiltinObject) -> Optional[SomeValue]:
-        wired_prop = prop.value_packed_ptr
-        assert isinstance(wired_prop, Property), f"no wired prop for {prop!r}"
-        value_packed = getattr(self, wired_prop.name)
-        if value_packed is None or (len(value_packed) == 0 and not prop.is_required):
-            value = None
-        value_type = prop.value_type_info_getter(self) if prop.value_type_info_getter else None
-        if (
-            value_packed is None
-            or (len(value_packed) == 0 and not prop.is_required)
-            or value_type is None
-        ):
-            value = None
-        else:
-            value = unpack_value(value_packed, value_type)
+        value_type, value = _do_get_value_runtime(self, prop)
 
         # imitate ValueObject._do_get
         if (
@@ -345,7 +351,7 @@ def _object_value_runtime(prop: Property) -> property:
         wired_prop = prop.value_packed_ptr
         assert isinstance(wired_prop, Property), f"no wired prop for {prop!r}"
         value_type = prop.value_type_info_getter(self) if prop.value_type_info_getter else None
-        if value_type is not None:
+        if value is not None and value_type is not None:
             value_packed = pack_value(value, value_type)
             self._do_set(wired_prop.name, value_packed, track=False)
         else:

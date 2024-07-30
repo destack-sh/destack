@@ -70,7 +70,7 @@ def test_project_value_objects(shared_session: Session, shared_package: Package)
     Variable1 = Block.new(
         BlockType.VARIABLE,
         "Variable1",
-        value_type=to_type(Text),
+        value_type=to_type(Block),
         value=Text1,
     )
 
@@ -85,7 +85,7 @@ def test_project_unloaded_nodes(shared_session: Session, shared_package: Package
     File1 = File(
         parent=shared_package,
         kind=FileKind.DRIVE,
-        title="myfile.txt",
+        title="myfile1.txt",
         coarse_type=FileType.TEXT,
         size=1024,
     )
@@ -121,7 +121,7 @@ def test_project_unloaded_nodes(shared_session: Session, shared_package: Package
     File3._unload_rec()
 
     # project
-    projection = project(Variable1, options=ProjectOptions())
+    projection = project(Variable1, Variable2, options=ProjectOptions())
     assert Variable1 in projection
     assert Variable2 in projection
     assert projection.has_missing(File1)

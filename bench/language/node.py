@@ -846,7 +846,7 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
                 or prop.name == "_session"
                 or prop.name == "_supergraph"
                 or prop.is_computed
-            ) and not prop.is_value_runtime:
+            ):
                 continue  # only handle top level properties
             wired_ptr_prop = prop.reference_wired_ptr
             prop_value = kwargs.get(prop.name, UNSET)
@@ -905,10 +905,6 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
                     prop_value = value_list
                 elif isinstance(prop_value, Struct):
                     prop_value = prop_value._move_to(self, prop)
-            # runtime value
-            elif prop.is_value_runtime and prop_value is not UNSET:
-                setattr(self, prop.name, prop_value)
-                continue
 
             # default value
             if prop_value is UNSET:
@@ -934,6 +930,14 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
             self_dict[prop.name] = prop_value
             if wired_ptr_prop is not None:
                 self_dict[wired_ptr_prop.name] = wired_prop_value
+
+        # init object values (from kwargs)
+        for prop in self.__value_runtime_properties__.values():
+            prop_value = kwargs.get(
+                prop.name,
+            )
+            if prop_value is not None:
+                object.__setattr__(self, prop.name, prop_value)
 
         # validate self
         if self._session is not None and not _skip_validate_self:

@@ -9,8 +9,7 @@ from bench.language.block import Block
 from bench.language.const import NODE_TYPES_SET, NodeType, ReferenceKind, TypeKind
 from bench.language.field import TypeInfoBase
 from bench.language.node import BuiltinObject, Node, SomeNodeReference, SourceNode, Struct
-from bench.language.property import Property
-from bench.language.value import SomeValue, ValueObject
+from bench.language.value import SomeValue, ValueObject, _do_get_value_runtime
 
 if TYPE_CHECKING:
     pass
@@ -157,13 +156,9 @@ class Projection:
 
         # visit values
         for prop in obj.__value_runtime_properties__.values():
-            wired_prop = prop.value_packed_ptr
-            assert isinstance(wired_prop, Property), f"no wired prop for {prop!r}"
-            wired_prop_value = getattr(obj, wired_prop.name)
-            value_type = prop.value_type_info_getter(obj) if prop.value_type_info_getter else None
-            if value_type is None:
-                continue
-            self._collect_value(wired_prop_value, value_type)
+            value_type, wired_prop_value = _do_get_value_runtime(obj, prop)
+            if value_type is not None:
+                self._collect_value(wired_prop_value, value_type)
 
     def _collect_value_object_scalar(self, obj: ValueObject):
         """Collects a ValueObject (recursively)."""
@@ -179,6 +174,9 @@ class Projection:
 
     def _collect_value(self, value: SomeValue, typ: TypeInfoBase):
         """Collects a specific value (recursively)."""
+        if value is None:
+            return
+        typ = typ._to_resolved()
         if typ.kind == TypeKind.OBJECT:
             if typ.is_list:
                 for item in cast(list, value):
