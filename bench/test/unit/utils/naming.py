@@ -2,7 +2,7 @@ import pytest
 from hypothesis import assume, given
 from hypothesis import strategies as st
 
-from bench.utils.naming import Casing, to_casing, to_py_name
+from bench.utils.string import Casing, to_casing, to_py_name
 
 
 @given(st.text())

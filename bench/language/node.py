@@ -82,7 +82,7 @@ from bench.proto.wire import (
 from bench.sql.core import Constraint, ConstraintType, Index, IndexType, Table, stable_hash
 from bench.utils.env import IS_DEV
 from bench.utils.func import bittuple, is_close
-from bench.utils.naming import to_py_name
+from bench.utils.string import to_py_name
 from bench.utils.utils import frozendict
 from bench.utils.uuidt import UUIDT
 
@@ -856,45 +856,42 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
                 wired_prop_value = UNSET
 
             # init node references if nodes are passed directly
-            if prop.is_node_reference:
-                if prop_value is not UNSET:
-                    assert wired_ptr_prop is not None, f"no wired prop for {prop!r}"
-                    if wired_prop_value is not UNSET:
-                        raise ValueError(
-                            f"got both {prop} and {wired_ptr_prop}: {prop_value!r}, {wired_prop_value!r}"
-                        )
-                    # init node references (must be in same)
-                    if prop_value is None:
-                        wired_prop_value = None
-                    elif not prop.is_list:
-                        assert isinstance(prop_value, Node), f"{prop}: {prop_value!r} is not a Node"
-                        assert supergraph.has(
-                            prop_value._supergraph
-                        ), f"{prop}: {prop_value!r} is from {prop_value._supergraph!r} not {supergraph!r}"
-                        wired_prop_value = cast(Any, prop_value).to_ref()
-                    else:
-                        assert all(
-                            supergraph.has(v._supergraph) for v in prop_value
-                        ), f"{prop}: {prop_value!r} is from {prop_value[0]._supergraph!r} not {supergraph!r}"
-                        wired_prop_value = [p.to_ref() for p in prop_value]
-                    self_dict[wired_ptr_prop.name] = wired_prop_value
-                    continue
+            if prop.is_node_reference and prop_value is not UNSET:
+                assert wired_ptr_prop is not None, f"no wired prop for {prop!r}"
+                if wired_prop_value is not UNSET:
+                    raise ValueError(
+                        f"got both {prop} and {wired_ptr_prop}: {prop_value!r}, {wired_prop_value!r}"
+                    )
+                # init node references (must be in same)
+                if prop_value is None:
+                    wired_prop_value = None
+                elif not prop.is_list:
+                    assert supergraph.has(
+                        prop_value._supergraph
+                    ), f"{prop}: {prop_value!r} is from {prop_value._supergraph!r} not {supergraph!r}"
+                    wired_prop_value = cast(Any, prop_value).to_ref()
+                else:
+                    assert all(
+                        supergraph.has(v._supergraph) for v in prop_value
+                    ), f"{prop}: {prop_value!r} is from {prop_value[0]._supergraph!r} not {supergraph!r}"
+                    wired_prop_value = [p.to_ref() for p in prop_value]
+                self_dict[wired_ptr_prop.name] = wired_prop_value
+                continue
             # init property references if properties are passed directly
-            elif prop.reference_kind == ReferenceKind.PROPERTY:
-                if prop_value is not UNSET:
-                    assert wired_ptr_prop is not None, f"no wired prop for {prop!r}"
-                    if wired_prop_value is not UNSET:
-                        raise ValueError(
-                            f"got both {prop!r} and {wired_ptr_prop!r}: {prop_value!r}, {wired_prop_value!r}"
-                        )
-                    if prop_value is None:
-                        wired_prop_value = None
-                    elif prop.is_list:
-                        wired_prop_value = [p.to_ref() for p in prop_value]
-                    else:
-                        wired_prop_value = cast(Any, prop_value).to_ref()
-                    self_dict[wired_ptr_prop.name] = wired_prop_value
-                    continue
+            elif prop.reference_kind == ReferenceKind.PROPERTY and prop_value is not UNSET:
+                assert wired_ptr_prop is not None, f"no wired prop for {prop!r}"
+                if wired_prop_value is not UNSET:
+                    raise ValueError(
+                        f"got both {prop!r} and {wired_ptr_prop!r}: {prop_value!r}, {wired_prop_value!r}"
+                    )
+                if prop_value is None:
+                    wired_prop_value = None
+                elif prop.is_list:
+                    wired_prop_value = [p.to_ref() for p in prop_value]
+                else:
+                    wired_prop_value = cast(Any, prop_value).to_ref()
+                self_dict[wired_ptr_prop.name] = wired_prop_value
+                continue
             # move struct values into this object if passed
             elif prop.reference_kind == ReferenceKind.STRUCT_CHILD:
                 if prop.is_list:
@@ -1473,11 +1470,11 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     def __str__(self):  # type: ignore
         # override the default __str__ for nodes
         content_str = self.__content_str__()
+        if content_str:
+            content_str = f" ({content_str})"
         ident_str = self.py_name
         if ident_str is None:
             ident_str = str(self.id)
-        if content_str:
-            content_str = f" ({content_str})"
         if self.archived_at is not None:
             status_str = " [archived, deleted]" if self.deleted_at is not None else " [archived]"
         elif self.deleted_at is not None:
@@ -1958,8 +1955,12 @@ class NodeReferenceBase[NT: Node, ND: AnyNodeData, RT: NodeReferenceBase, RD: An
             **kwargs,
         )
 
+    def to_ref(self) -> "Self":
+        """Gets the reference (noop for compatibility with Node.to_ref)."""
+        return self
+
     def _to_plain_ref(self) -> "NodeReference":
-        """Gets a plain reference to this node."""
+        """Gets a plain reference from this reference."""
         return NodeReference(
             type=self.type,
             id=self.id,

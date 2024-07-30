@@ -82,3 +82,32 @@ def to_casing(name: str, casing: Casing, allow_whitespace: bool = False) -> str:
 def is_valid_casing(name: str, casing: Casing, allow_whitespace: bool = False) -> bool:
     expected = to_casing(name, casing, allow_whitespace=allow_whitespace)
     return name == expected
+
+
+def humanize_number(num: float) -> str:
+    """Formats numbers into their highest 3-exponent of 10 (k, m, b)"""
+    if num < 1000:
+        return str(num)
+    elif num < 1000000:
+        return f"{round(num / 100) / 10}k"
+    elif num < 1000000000:
+        return f"{round(num / 100000) / 10}m"
+    else:
+        return f"{round(num / 100000000) / 10}b"
+
+
+def humanize_bytes(num: float, cutoff: float = 100, round_it: bool = True) -> str:
+    """Shorten bytes into nearest (KB, MB, GB, etc.), keep up to 3 significant digits"""
+    units = ["B", "KB", "MB", "GB", "TB", "PB"]
+    unit = 0
+    while num >= cutoff and unit < len(units) - 1:
+        num /= 1024
+        unit += 1
+    if round_it:
+        return f"{round(num)}{units[unit]}"
+    elif unit == 0:
+        return f"{num:.0f}{units[unit]}"
+    elif num < 10:
+        return f"{num:.1f}{units[unit]}"
+    else:
+        return f"{num:.0f}{units[unit]}"

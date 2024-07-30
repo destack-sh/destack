@@ -40,8 +40,8 @@ from bench.proto.wire import (
 from bench.proto.wiring import BENCH_CLASS_BY_PROTO_CLASS, unpack_rpc_headers
 from bench.sql.engine import SqlAlreadyExistsError, SqlNotExistsError
 from bench.utils.env import IS_DEV, IS_TEST
-from bench.utils.naming import Casing, to_casing
 from bench.utils.oracle import Oracle
+from bench.utils.string import Casing, to_casing
 from bench.utils.task import TaskManager
 from bench.utils.tracing import export_now
 from bench.utils.utils import sentry_capture

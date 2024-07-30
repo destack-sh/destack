@@ -45,6 +45,7 @@ from bench.proto.wire import (
     UploadFilesRequest,
 )
 from bench.utils.func import IdEnum
+from bench.utils.string import humanize_bytes
 from bench.utils.utils import get_from_env
 
 if TYPE_CHECKING:
@@ -490,6 +491,20 @@ class FileInfoBase(BuiltinObject):
     channels: Optional[int] = p_internal(62, default=None)
     sample_rate: Optional[int] = p_internal(63, default=None)
 
+    def __content_str__(self) -> str:
+        content_parts = [f"'{self.title}'", humanize_bytes(self.size)]
+        if self.format:
+            content_parts.append(f"{self.coarse_type.bench_name}/{self.format.bench_name}")
+        else:
+            content_parts.append(self.coarse_type.bench_name)
+        if self.mime_type:
+            content_parts.append(f"'{self.mime_type}'")
+        if self.width and self.height:
+            content_parts.append(f"{self.width}x{self.height}")
+        if self.duration:
+            content_parts.append(f"{self.duration:.3f}s")
+        return ", ".join(content_parts)
+
 
 @struct_(StructType.FILE_INFO)
 class FileInfo(Struct[FileInfoData], FileInfoBase):
@@ -497,7 +512,7 @@ class FileInfo(Struct[FileInfoData], FileInfoBase):
     File metadata.
     """
 
-    ...
+    __content_str__ = FileInfoBase.__content_str__  # type: ignore
 
 
 @local_node_(NodeType.FILE, indexes=(("drive_id", "sha256"),))
@@ -523,6 +538,8 @@ class File(RemoteNode[FileData], FileInfoBase):
     # cached content
     _cached_get_url: Optional[str] = p_runtime(default=None)
     _cached_content: Optional[bytes] = p_runtime(default=None)
+
+    __content_str__ = FileInfoBase.__content_str__
 
     def to_ref(self) -> "FileReference":
         """Gets a reference to this file."""
@@ -601,6 +618,8 @@ class FileReference(
 
     # content/info
     # ...FileInfoBase[40-69]
+
+    __content_str__ = FileInfoBase.__content_str__  # type: ignore
 
     def _validate_component(self, properties: tuple[Property, ...], invalid: ValidationHandler):
         if self.type != NodeType.FILE:

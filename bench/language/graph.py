@@ -27,7 +27,7 @@ from bench.language.validation import on_invalid_raise
 from bench.proto.wire import AnyNodeData, GraphScopeData
 from bench.utils.fractional import get_key_bounds, get_order_key
 from bench.utils.func import IdEnum, bittuple
-from bench.utils.naming import Casing, to_casing
+from bench.utils.string import Casing, to_casing
 
 if TYPE_CHECKING:
     from bench.language import (

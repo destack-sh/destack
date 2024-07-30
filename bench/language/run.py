@@ -39,7 +39,7 @@ from bench.language.validation import TITLE_CONSTRAINT, TypeConstraintIn, Valida
 from bench.language.value import HasValues
 from bench.proto.wire import AnyNodeData, NodeReferenceData, RunData
 from bench.utils.func import IdEnum
-from bench.utils.naming import Casing, to_casing
+from bench.utils.string import Casing, to_casing
 from bench.utils.tenacity import RetryOptions
 
 if TYPE_CHECKING:

@@ -2,13 +2,13 @@ import pytest
 from PIL import Image
 
 from bench.language.block import Block
-from bench.language.const import BlockType, NodeType, RunStatus
+from bench.language.const import BlockType, RunStatus
 from bench.language.field import Field
-from bench.language.file import FileType, upload
+from bench.language.file import File, FileType, upload
 from bench.language.run import ModelOptions, ModelProvider, RunErrorType, RunOptions
 from bench.language.text import Text, md
 from bench.language.validation import constraint
-from bench.test.unit.runtime.conftest import RuntimeHandle
+from bench.test.unit.conftest import RuntimeHandle
 
 TEST_MODEL_PROVIDERS = (
     ModelProvider.OPENAI,
@@ -107,7 +107,7 @@ async def test_run_text_with_images(hosted_runtime: RuntimeHandle, model_provide
         "Transcribe",
         "Transcribe the given image",
         fields=[
-            Field.input("Image", NodeType.FILE, constraint(file_type=FileType.IMAGE)),
+            Field.input("Image", File, constraint(file_type=FileType.IMAGE)),
             Field.output("Text", Text),
         ],
         run_options=RunOptions(model_options=ModelOptions(provider=model_provider)),
