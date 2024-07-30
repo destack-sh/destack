@@ -32,7 +32,7 @@ from bench.language.property import p_regular, p_value_packed, p_value_runtime
 from bench.language.value import HasValues
 from bench.proto.wire import AnyNodeData, NodeReferenceData
 from bench.utils.func import IdEnum
-from bench.utils.naming import Casing, to_casing
+from bench.utils.string import Casing, to_casing
 
 if TYPE_CHECKING:
     from bench.language import Block, Code, Field, TypeInfoBase

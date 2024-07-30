@@ -30,7 +30,7 @@ from bench.language.setup import (
     STRUCT_CLASSES,
 )
 from bench.proto.engine import generate_proto_schema
-from bench.utils.naming import Casing, to_casing
+from bench.utils.string import Casing, to_casing
 
 LANG_PROTO = "proto/lang.proto"
 TEMP_PY_DIR = "bench/proto/wire.tmp"

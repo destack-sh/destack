@@ -5,6 +5,7 @@ from hypothesis import given
 
 from bench.language import Bench, NodeReference, Property, Server, Signal
 from bench.language.bench import Client, ServerProfile
+from bench.language.block import Block
 from bench.language.const import BlockType, ClientType, NodeType
 from bench.language.field import Field
 from bench.language.file import File, FileKind, FileReference, FileType
@@ -13,6 +14,7 @@ from bench.language.session import Session
 from bench.language.setup import NODE_CLASSES, STRUCT_CLASSES
 from bench.language.view import View, ViewType
 from bench.test.strategies import structs
+from bench.test.unit.conftest import RuntimeHandle
 
 
 def test_builtin_object_properties_are_available():
@@ -161,3 +163,27 @@ def test_node_pointers_consistency(session: "Session"):
 def test_builtin_object_clone(obj: BuiltinObject, shared_session: Session):
     obj_clone = obj.clone()
     assert obj_clone._equals_content(obj)
+
+
+async def test_add_detached_subtree(local_runtime: RuntimeHandle):
+    choice = Block.new(BlockType.CHOICE, "Letter")
+    for i in range(0, 26):
+        letter = chr(65 + i)
+        choice.fields.append(Field.option(letter))
+    local_runtime.page().blocks.append(choice)
+    await local_runtime.commit()
+
+
+async def test_clone_subtree(local_runtime: RuntimeHandle):
+    choice = Block.new(BlockType.CHOICE, "Letter")
+    for i in range(0, 26):
+        letter = chr(65 + i)
+        choice.fields.append(Field.option(letter))
+    local_runtime.page().blocks.append(choice)
+    await local_runtime.commit()
+
+    choice_clone = choice.clone()
+    assert choice_clone._equals_content(choice, ignore=(Block.order_key,))
+    for field, field_clone in zip(choice.fields, choice_clone.fields):
+        assert field_clone._equals_content(field)
+    await local_runtime.commit()

@@ -4,7 +4,7 @@ import pytest
 from PIL import Image
 
 from bench.language.file import FileFormat, FileIn, FileType, extract_file_info, upload
-from bench.test.unit.runtime.conftest import RuntimeHandle
+from bench.test.unit.conftest import RuntimeHandle
 
 # some random image
 image = Image.new("RGB", (32, 24), color="yellow")

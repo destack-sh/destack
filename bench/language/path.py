@@ -1,6 +1,5 @@
 import re
 from typing import TYPE_CHECKING, Optional, assert_never, cast
-from uuid import UUID
 
 from cachetools import LRUCache, cached
 
@@ -414,14 +413,14 @@ def get_node_or_error(scope: Node, path: str | Path) -> Node:
 
 def _get_path_to_root(node: Node) -> list[Node]:
     """Gets the path relevant ancestors to a node (including the node, up to package)"""
-    graph = node._graph
+    supergraph = node._supergraph
     ancestors: list[Node] = [node]
     cur = node
     while cur.parent_ptr is not None and cur.metatype != NodeType.PACKAGE:
-        next_cur = graph._nodes_by_id.get(cast(UUID, cur.parent_ptr.id))
+        next_cur = supergraph.get(cur.parent_ptr)
         assert (
             next_cur is not None
-        ), f"no parent for {cur!r} in {graph!r} (parent_ptr={cur.parent_ptr})"
+        ), f"no parent for {cur!r} in {supergraph!r} (parent_ptr={cur.parent_ptr})"
         ancestors.append(next_cur)
         cur = next_cur
     return ancestors

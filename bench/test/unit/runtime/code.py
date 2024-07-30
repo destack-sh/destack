@@ -4,7 +4,7 @@ from bench.language import Block, BlockType, Field, code
 from bench.language.const import RunStatus
 from bench.language.run import RunErrorType, RunOptions
 from bench.runtime.capture import MAX_LOG_LINE_LENGTH, MAX_LOGS_PER_CAPTURE
-from bench.test.unit.runtime.conftest import RuntimeHandle
+from bench.test.unit.conftest import RuntimeHandle
 
 
 async def test_run_code_empty(local_runtime: RuntimeHandle):

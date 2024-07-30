@@ -126,8 +126,24 @@ export function levenshteinDistance(a: string, b: string): number {
   return matrix[b.length][a.length];
 }
 
+/**
+ * Formats numbers into their highest 3-exponent of 10 (k, m, b)
+ *  (like 57 -> 57, 7207 -> 7.2k, 2000000 -> 2m)
+ */
+export function humanizeNumber(num: number): string {
+  if (num < 1000) {
+    return num.toString();
+  } else if (num < 1000000) {
+    return `${Math.round(num / 100) / 10}k`;
+  } else if (num < 1000000000) {
+    return `${Math.round(num / 100000) / 10}m`;
+  } else {
+    return `${Math.round(num / 100000000) / 10}b`;
+  }
+}
+
 /** Shorten bytes into nearest (KB, MB, GB, etc.), keep up to 3 significant digits */
-export function humanizeBytes(bytes: number, options?: { cutoff?: number, round?: boolean }) {
+export function humanizeBytes(bytes: number, options?: { cutoff?: number; round?: boolean }) {
   const cutoff = options?.cutoff ?? 100;
   const units = ["B", "KB", "MB", "GB", "TB", "PB"];
   let unit = 0;
@@ -146,7 +162,6 @@ export function humanizeBytes(bytes: number, options?: { cutoff?: number, round?
     return `${bytes.toFixed(0)}${units[unit]}`;
   }
 }
-
 
 /** XOR encode a 'data' string with a key. */
 export function xorString(data: string, key: number): string {
@@ -172,6 +187,6 @@ export function xorString(data: string, key: number): string {
 export function pseudoRandomNumber(seed: number): number {
   const a = 1664525;
   const c = 1013904223;
-  const m = 2**32;
+  const m = 2 ** 32;
   return (a * seed + c) % m;
 }

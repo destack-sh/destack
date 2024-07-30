@@ -44,7 +44,7 @@ import {
 import { canvas, inspectionPtr } from "@/system/space";
 import { user } from "@/system/user";
 import { getElement } from "@/utils/element";
-import { humanizeNumber } from "@/utils/human";
+import { humanizeNumber } from "@/utils/string";
 import { ScrollbarWidth } from "@/utils/layout";
 import { computedValue } from "@/utils/ref";
 import { ACCENT_COLOR_BY_RUN_STATUS } from "@/utils/style";

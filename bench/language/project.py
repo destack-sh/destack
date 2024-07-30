@@ -7,7 +7,7 @@ from opentelemetry import trace
 
 from bench.language.block import Block
 from bench.language.const import NODE_TYPES_SET, NodeType, ReferenceKind, TypeKind
-from bench.language.node import BuiltinObject, Node, NodeReferenceBase, SourceNode, Struct
+from bench.language.node import BuiltinObject, Node, SourceNode, Struct
 from bench.language.value import ValueObject
 
 if TYPE_CHECKING:
@@ -29,14 +29,12 @@ class Projection:
     """
     A projection into the Bench graph, collecting referenced nodes with some settings.
     Should be a proper Struct at some point (so we can inspect it in the editor).
-    nocheckin :Incomplete: support loading "missing" (unloaded but referenced) nodes on demand
+    NOTE :Incomplete: support loading "missing" (unloaded but referenced) nodes on demand
     """
 
     __slots__ = (
         "_depth",
         "_depth_by_node_id",
-        "_missing_nodes_by_id",
-        "_missing_nodes_by_type",
         "_nodes_by_container_id",
         "_nodes_by_depth",
         "_nodes_by_id",
@@ -47,8 +45,6 @@ class Projection:
     def __init__(self, options: ProjectOptions):
         self._options: ProjectOptions = options
         self._nodes_by_id: dict[UUID, Node] = {}
-        self._missing_nodes_by_id: dict[UUID, NodeReferenceBase] = {}
-        self._missing_nodes_by_type: dict[NodeType, list[NodeReferenceBase]] = {}
         self._depth_by_node_id: dict[UUID, int] = {}
         self._nodes_by_depth: dict[int, list[Node]] = {}
         self._nodes_to_collect: list[Node] = []
@@ -56,7 +52,6 @@ class Projection:
     def __str__(self) -> str:
         str_parts = [
             f"nodes={len(self._nodes_by_id)}",
-            f"missing={len(self._missing_nodes_by_id)}",
             f"depths={'|'.join([f'{d}={len(n)}' for d, n in self._nodes_by_depth.items()])}",
         ]
         return ", ".join(str_parts)
