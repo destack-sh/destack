@@ -9,10 +9,10 @@ from bench.language import md
 from bench.language.bench import Package
 from bench.language.block import Block
 from bench.language.const import BlockType, ReferenceKind, StructType
-from bench.language.field import Field, to_type, to_type_scalar
+from bench.language.field import Field, to_type
 from bench.language.file import File, FileKind, FileType
 from bench.language.node import BuiltinObject, Node
-from bench.language.render import Renderer, RenderOptions, render, render_expr, render_stmt
+from bench.language.render import Renderer, RenderOptions, render, render_expr
 from bench.language.session import Session
 from bench.language.validation import constraint
 from bench.language.view import View, ViewType
@@ -160,6 +160,25 @@ def test_render_field_with_constraint(shared_session: Session, shared_package: P
     return {"Field1": Field1}
 
 
+@_render_as_stmt
+def test_render_variable(shared_session: Session, shared_package: Package):
+    Variable1 = Block.new(BlockType.VARIABLE, "Variable1", value_type=to_type(int), value=5)
+    return {"Variable1": Variable1}
+
+
+@_render_as_stmt
+def test_render_variable_with_file(shared_session: Session, shared_package: Package):
+    File1 = File(
+        kind=FileKind.DRIVE,
+        title="myfile.txt",
+        coarse_type=FileType.TEXT,
+        mime_type="text/plain",
+        size=1024,
+    )
+    Variable1 = Block.new(BlockType.VARIABLE, "Variable1", value_type=to_type(File), value=File1)
+    return {"File1": File1, "Variable1": Variable1}
+
+
 #
 # Other renderings
 #
@@ -186,21 +205,3 @@ def test_render_simple_choice_option_ref(shared_session: Session, shared_package
         Choice.fields.Option2, options=RenderOptions(scope=Function), as_ref=True
     )
     assert rendered_option == "Choice.Option2"
-
-
-def test_render_file(shared_session: Session, shared_package: Package):
-    Page = shared_package.blocks.create(name="Page", type=BlockType.PAGE)
-    File1 = File(
-        parent=Page,
-        kind=FileKind.DRIVE,
-        title="myfile.txt",
-        coarse_type=FileType.TEXT,
-        mime_type="text/plain",
-        size=1024,
-    )
-
-    Variable1 = Page.blocks.append(
-        Block.new(BlockType.VARIABLE, "Variable1", value_type=to_type_scalar(File), value=File1)
-    )
-    rendered_variable = render_stmt(Variable1, options=RenderOptions(scope=Page))
-    print(rendered_variable)
