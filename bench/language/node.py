@@ -80,7 +80,7 @@ from bench.proto.wire import (
     SecretReferenceData,
 )
 from bench.sql.core import Constraint, ConstraintType, Index, IndexType, Table, stable_hash
-from bench.utils.env import IS_DEV
+from bench.utils.env import IS_DEV, IS_TEST
 from bench.utils.func import bittuple, is_close
 from bench.utils.string import to_py_name
 from bench.utils.utils import frozendict
@@ -357,7 +357,7 @@ def _process_object_cls[ObjectT: BuiltinObject](
     )
     cls.__sensitive_properties__ = frozendict({p.name: p for p in props if p.is_sensitive})
     cls.__struct_properties__ = frozendict({p.name: p for p in props if p.is_struct})
-    cls.__value_properties__ = frozendict({p.name: p for p in props if p.is_value_runtime})
+    cls.__value_runtime_properties__ = frozendict({p.name: p for p in props if p.is_value_runtime})
     cls.__stored_properties__ = frozendict(
         {p.name: p for p in cls.__properties__.values() if p.is_stored is True}
     )
@@ -803,7 +803,7 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
     __struct_reference_properties__: ClassVar[dict[str, Property]] = {}
     __sensitive_properties__: ClassVar[dict[str, Property]] = {}
     __struct_properties__: ClassVar[dict[str, Property]] = {}
-    __value_properties__: ClassVar[dict[str, Property]] = {}
+    __value_runtime_properties__: ClassVar[dict[str, Property]] = {}
     __stored_properties__: ClassVar[dict[str, Property]] = {}
     __wired_properties__: ClassVar[dict[str, Property]] = {}
     __runtime_properties__: ClassVar[dict[str, Property]] = {}
@@ -1532,6 +1532,17 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
             parent_list.append(clone)
         return clone
 
+    def __eq__(self, other: Any):
+        """Equals node identity."""
+        return type(self) == type(other) and (self.id == other.id or self is other)
+
+    def _stable_hash(self):
+        """Hash node identity."""
+        return stable_hash((self.metatype, self.id))
+
+    # only define __hash__ for nodes since their id is constant
+    __hash__ = _stable_hash  # type: ignore
+
     @property
     def connection(self):
         """The currently active connection (errors if none)"""
@@ -1544,16 +1555,13 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         assert self._connection.result_data is not None, f"no data graph for {self!r}"
         return self._connection.result_data.graph
 
-    def __eq__(self, other: Any):
-        """Equals node identity."""
-        return type(self) == type(other) and (self.id == other.id or self is other)
-
-    def _stable_hash(self):
-        """Hash node identity."""
-        return stable_hash((self.metatype, self.id))
-
-    # only define __hash__ for nodes since their id is constant
-    __hash__ = _stable_hash  # type: ignore
+    def _unload_rec(self):
+        """Unloads this node from the graph (and supergraph). Only meant for testing."""
+        assert IS_TEST, f"cannot unload {self!r} (not in test mode)"
+        self._graph.remove(self)
+        if len(self._graph) == 0:
+            # remove entire graph from supergraph if it was just this node (and its descendants)
+            self._supergraph.remove_graph(self._graph)
 
     @final
     def _track_self(self, session: "Session"):

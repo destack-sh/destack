@@ -1124,6 +1124,8 @@ from bench.language.node import (  # noqa: E402
 @object_component()
 class HasValues(BuiltinObject):
     # NOTE :Robustness :Architecture: turn value into computed property? :ComputedValueProp
+    #  Currently, the order of operations for unpacking/packing runtime value properties in
+    #   place is somewhat confused. Maybe we can just turn the runtime value into a (cached?) getter.
 
     @override
     def _init_component(self):
@@ -1133,7 +1135,7 @@ class HasValues(BuiltinObject):
         #  also, it feels like this should be done in the main BuiltinObject.__init__ loop?)
         if self._session is None:
             return
-        for prop in self.__value_properties__.values():
+        for prop in self.__value_runtime_properties__.values():
             assert type(prop.value_packed_ptr) is Property, f"{prop!r} has no value_packed_ptr"
             value = getattr(self, prop.name)
             value_packed = getattr(self, prop.value_packed_ptr.name)
@@ -1162,7 +1164,7 @@ class HasValues(BuiltinObject):
     def _unpack_values_inplace(self, properties: Collection[Property] = ()) -> None:
         # also a bit crummy, see above :ComputedValueProp
         if len(properties) == 0:
-            properties = self.__value_properties__.values()
+            properties = self.__value_runtime_properties__.values()
         for prop in properties:
             if not prop.is_value_runtime:
                 continue
