@@ -479,6 +479,21 @@ def to_type_scalar(
     raise ValueError(f"unsupported type {typ!r}")
 
 
+def to_type(
+    typ: TypeIn,
+    *,
+    as_object: bool = False,
+    zone: FieldZone | None = None,
+    is_required: bool = False,
+    is_list: bool = False,
+) -> TypeInfoBase:
+    """Converts a TypeIn into a TypeInfoBase."""
+    type_scalar = to_type_scalar(typ)
+    type_scalar.is_required = is_required
+    type_scalar.is_list = is_list
+    return type_scalar
+
+
 def reverse_type_scalar(typ: TypeInfoBase) -> TypeIn | None:
     """Reverses a TypeInfo into a TypeIn as closely as possible."""
     if typ.kind == TypeKind.PRIMITIVE:

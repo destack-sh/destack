@@ -3,12 +3,14 @@ from typing import List, Tuple
 import pytest
 from more_itertools import first
 
-from bench.language.bench import Bench
+from bench.language.bench import Bench, Package
 from bench.language.const import BlockType, NodeType
 from bench.language.field import Field
+from bench.language.file import File, FileKind, FileType
 from bench.language.path import (
     PathError,
     PathTokenType,
+    PathUnnamedNodeError,
     get_node,
     get_path,
     parse_path,
@@ -131,6 +133,17 @@ def test_parse_path_invalid(invalid_path: str):
 
 @pytest.fixture()
 def mock_package(session: Session):
+    bench = Bench(name="bench1", slug="bench")
+    bench.main_branch = bench.branches.create(name="Main")
+    package = bench.main_branch.packages.create()
+    bench.main_branch.main_package = package
+    session.parent = package  # patch in the session parent
+    session._graph.update(session, _force_update_parent=True)
+    return package
+
+
+@pytest.fixture()
+def mock_package_populated(session: Session):
     # make bench
     bench = Bench(name="bench1", slug="bench")
     bench.main_branch = bench.branches.create(name="Main")
@@ -201,8 +214,12 @@ def mock_package(session: Session):
         ("Flow111", "^Step11121", "Step11121"),
     ],
 )
-def test_get_node(mock_package: Bench, scope_name: str, path: str, expected_node_name: str | None):
-    scope = first(n for n in mock_package._graph.nodes if getattr(n, "name", None) == scope_name)
+def test_get_node(
+    mock_package_populated: Bench, scope_name: str, path: str, expected_node_name: str | None
+):
+    scope = first(
+        n for n in mock_package_populated._graph.nodes if getattr(n, "name", None) == scope_name
+    )
     node = get_node(scope, path)
     if expected_node_name:
         assert node is not None, f"node not found for path '{path}' in scope '{scope}'"
@@ -233,15 +250,18 @@ def test_get_node(mock_package: Bench, scope_name: str, path: str, expected_node
         ("Flow211", "Option2121", "^Choice212.Option2121"),
     ],
 )
-def test_get_path(mock_package: Bench, scope_name: str, node_name: str, expected_path: str):
+def test_get_path(
+    mock_package_populated: Bench, scope_name: str, node_name: str, expected_path: str
+):
+    package = mock_package_populated
     scope = first(
         n
-        for n in mock_package._graph.nodes
+        for n in package._graph.nodes
         if getattr(n, "name", None) == scope_name and n.metatype != NodeType.BENCH
     )
     node = first(
         n
-        for n in mock_package._graph.nodes
+        for n in package._graph.nodes
         if getattr(n, "name", None) == node_name and n.metatype != NodeType.BENCH
     )
 
@@ -257,14 +277,9 @@ def test_get_path(mock_package: Bench, scope_name: str, node_name: str, expected
     assert parsed_node is node
 
 
-def test_shadow_node(session: Session):
+def test_shadow_node(session: Session, mock_package: Package):
     """Siblings before descendants before ancestors. See get_unique_node."""
-    bench = Bench(name="bench1", slug="bench")
-    bench.main_branch = bench.branches.create(name="Main")
-    package = bench.main_branch.packages.create()
-    bench.main_branch.main_package = package
-    session.parent = package  # patch in the session parent
-    session._graph.update(session, _force_update_parent=True)
+    package = mock_package
 
     # shadowing nodes
     page3 = package.blocks.create(name="Page3", type=BlockType.PAGE)
@@ -277,3 +292,21 @@ def test_shadow_node(session: Session):
 
     assert get_node(code332, "^Choice331") is choice331  # sibling before descendants
     assert get_node(code332, "^Choice31") is code332_output3  # descendants before ancestors
+
+
+def test_unnamed_node(session: Session, mock_package: Package):
+    """Cannot create path to an unnamed node (like a File)."""
+    package = mock_package
+
+    file = File(
+        parent=package,
+        kind=FileKind.DRIVE,
+        title="myfile.txt",
+        coarse_type=FileType.TEXT,
+        mime_type="text/plain",
+        size=1024,
+    )
+    session._create(file)
+
+    with pytest.raises(PathUnnamedNodeError):
+        get_path(package, file)

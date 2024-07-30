@@ -23,7 +23,7 @@ from bench.language.const import (
     TypeKind,
 )
 from bench.language.field import Field, TypeConstraint, TypeInfoBase, reverse_type_scalar
-from bench.language.node import BuiltinObject, Node, Struct
+from bench.language.node import BuiltinObject, Node, NodeReferenceBase, SomeNodeReference, Struct
 from bench.language.path import PathTokenType, get_path, render_path
 from bench.language.property import Property
 from bench.language.setup import ENUM_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE
@@ -44,7 +44,7 @@ class RenderOptions:
     # whether the scope's non-inline children should also be rendered (as if it's a page)
     as_page: bool = False
     node_types: Collection[NodeType] = NODE_TYPES_SET
-    # types to 'fold in' directly as children of nodes (without being referenced) :FoldedNodes
+    # types to 'fold in' directly as children of nodes (even if not referenced) :FoldedNodes
     folded_child_types: Collection[NodeType] = (NodeType.FIELD, NodeType.TRIGGER, NodeType.QUERY)
     node_filter: Collection[UUID] | None = None
     stmt_separator: str = "\n"
@@ -65,7 +65,14 @@ class BuiltinObjectRenderer[T: BuiltinObject]:
         for name, value in kwargs.items():
             if name in obj.__properties__:
                 prop = obj.__properties__[name]
-                rendered_kwargs[name] = renderer.render_value_expr(value, prop.type_info)
+                if prop.is_value_runtime:
+                    value_type = (
+                        prop.value_type_info_getter(obj) if prop.value_type_info_getter else None
+                    )
+                    if value_type is not None:
+                        rendered_kwargs[name] = renderer.render_value_expr(value, value_type)
+                else:
+                    rendered_kwargs[name] = renderer.render_value_expr(value, prop.type_info)
             else:
                 # can pass extra kwargs that aren't real properties
                 assert type(value) is str, f"unexpected kwarg str {name}={value!r}"
@@ -132,7 +139,7 @@ class Renderer:
     def __init__(self, options: RenderOptions):
         self._options = options
         self._alias_by_node_id: dict[UUID, str] = {}
-        self._node_by_alias: dict[str, Node] = {}
+        self._node_by_alias: dict[str, Node | SomeNodeReference] = {}
 
     def __str__(self) -> str:
         return f"scope={self.scope!r}, aliases={', '.join(self._node_by_alias)}"
@@ -144,13 +151,18 @@ class Renderer:
     def scope(self) -> Node:
         return self._options.scope
 
-    def add_node(self, obj: Node) -> str:
+    def add_node(self, obj: Node | SomeNodeReference) -> str:
         """Adds the given nodes to the context of this renderer."""
         if obj.id in self._alias_by_node_id:
             return self._alias_by_node_id[obj.id]  # already assigned
-        alias = (
-            getattr(obj, "py_name") if hasattr(obj, "py_name") else obj.metatype.bench_name.lower()
-        )
+        if isinstance(obj, Node):
+            alias = (
+                getattr(obj, "py_name")
+                if hasattr(obj.__class__, "py_name")
+                else obj.metatype.bench_name.lower()
+            )
+        else:
+            alias = obj.type.bench_name.lower()
         # ensure alias is valid python identifier
         if not alias:
             alias = obj.metatype.bench_name.lower()
@@ -164,19 +176,24 @@ class Renderer:
                 alias = re.sub(r"\d+$", str(count + 1), alias)
             else:
                 alias += "2"
-        self._alias_by_node_id[obj.id] = alias
+        self._alias_by_node_id[cast(UUID, obj.id)] = alias
         self._node_by_alias[alias] = obj
         return alias
 
-    def render_node_ref(self, node: Node) -> str:
+    def add_nodes(self, nodes: Collection[SomeNodeReference]):
+        for node in nodes:
+            self.add_node(node)
+
+    def render_node_ref(self, node: Node | NodeReferenceBase) -> str:
         """Renders a python-valid reference to the given node in this context."""
-        alias = self._alias_by_node_id.get(node.id)
+        alias = self._alias_by_node_id.get(cast(UUID, node.id))
         if alias is not None:
             return alias
-        elif node._is_attached:
+        elif isinstance(node, Node) and node._is_attached:
             path = get_path(scope=self.scope, node=node)
             rendered_path = render_path(path)
             if self._options.simplify_paths:
+                # simplify path for use in Code (which treats references as unique get_node)
                 if len(path) == 1 and path[0].type in (PathTokenType.UNIQUE, PathTokenType.CHILD):
                     assert path[0].name is not None, f"no name for {path[0]!r}"
                     return path[0].name
@@ -188,7 +205,7 @@ class Renderer:
                     return f"{path[0].name}.{path[1].name}"
             return f"get_node({rendered_path!r})"
         else:
-            raise RuntimeError(f"node {node!r} is not attached and has no alias")
+            raise RuntimeError(f"node {node!r} is not in the graph and has no alias")
 
     def render_value_scalar_expr(self, value: "ScalarValue", typ: "TypeInfoBase") -> str:
         """Renders single scalar value into an expression."""
@@ -204,7 +221,9 @@ class Renderer:
             else:
                 return repr(value)
         elif typ.kind == TypeKind.NODE or typ.kind == TypeKind.BASED_NODE:
-            assert isinstance(value, Node), f"{value!r} is not a node (expected {typ!r})"
+            assert isinstance(
+                value, (Node, NodeReferenceBase)
+            ), f"{value!r} is not a node or node reference (expected {typ!r})"
             return self.render_node_ref(value)
         elif typ.kind == TypeKind.ENUM:
             enum_cls = ENUM_CLASS_BY_TYPE[cast(EnumType, typ.bench_type)]
@@ -300,7 +319,14 @@ def _get_content_values(obj: BuiltinObject, *, include_defaults: bool = False) -
     """Gets the 'content' values for a BuiltinObject."""
     values: dict[str, Any] = {}
     for prop in obj.__properties__.values():
-        if prop.id is None or prop.id < 30 or prop.reference_source or prop.name == "order_key":
+        if (
+            (
+                (prop.id is None or prop.id < 30 or prop.reference_source)
+                and not prop.is_value_runtime
+            )
+            or prop.is_value_packed
+            or prop.name == "order_key"
+        ):
             continue
         value = getattr(obj, prop.name)
         if (
@@ -424,6 +450,26 @@ class ViewRenderer(BuiltinObjectRenderer[View]):
         return f"View.new({view_args})"
 
 
+def _map_type_info_kwargs(
+    renderer: "Renderer", obj: TypeInfoBase, kwargs: dict[str, Any]
+) -> dict[str, Any]:
+    """Remaps a TypeInfoBase to its TypeIn for rendering."""
+    # remap back to type in if possible
+    type_in = reverse_type_scalar(obj)
+    if type_in is not None:
+        if isinstance(type_in, Node):
+            rendered_type = renderer.render_node_ref(type_in)
+        elif isinstance(type_in, Enum):
+            rendered_type = f"{type_in.__class__.__name__}.{type_in.name}"
+        else:
+            assert isinstance(type_in, type), f"unexpected type {type_in!r}"
+            rendered_type = type_in.__name__
+        kwargs = {"type": rendered_type, **kwargs}
+        for key in ("kind", "primitive_type", "bench_type", "base_type"):
+            kwargs.pop(key, None)
+    return kwargs
+
+
 @_renderer(NodeType.FIELD)
 class FieldRenderer(BuiltinObjectRenderer[Field]):
     @override
@@ -431,18 +477,7 @@ class FieldRenderer(BuiltinObjectRenderer[Field]):
         self, renderer: "Renderer", obj: Field, kwargs: dict[str, Any]
     ) -> dict[str, Any]:
         # remap back to type in if possible
-        type_in = reverse_type_scalar(obj)
-        if type_in is not None:
-            if isinstance(type_in, Node):
-                rendered_type = renderer.render_node_ref(type_in)
-            elif isinstance(type_in, Enum):
-                rendered_type = f"{type_in.__class__.__name__}.{type_in.name}"
-            else:
-                assert isinstance(type_in, type), f"unexpected type {type_in!r}"
-                rendered_type = type_in.__name__
-            kwargs = {"type": rendered_type, **kwargs}
-            for key in ("kind", "primitive_type", "bench_type", "base_type"):
-                kwargs.pop(key, None)
+        kwargs = _map_type_info_kwargs(renderer, obj, kwargs)
         # kind=literal is implicit if option
         if obj.zone == FieldZone.OPTION:
             kwargs.pop("kind")
@@ -469,6 +504,28 @@ class FieldRenderer(BuiltinObjectRenderer[Field]):
                 rendered_kwargs.pop("name"), renderer._render_kwargs(**rendered_kwargs) or None
             )
         return f"Field.{constructor_name}({field_args})"
+
+
+@_renderer(StructType.TYPE_INFO)
+class TypeInfoRenderer(BuiltinObjectRenderer[TypeInfoBase]):
+    @override
+    def map_kwargs(self, renderer: "Renderer", obj: TypeInfoBase, kwargs: dict[str, Any]):
+        kwargs = _map_type_info_kwargs(renderer, obj, kwargs)
+        return kwargs
+
+    @override
+    def render_constructor(
+        self,
+        renderer: "Renderer",
+        obj: TypeInfoBase,
+        kwargs: dict[str, Any],
+        rendered_kwargs: dict[str, str],
+    ) -> str:
+        type_args = renderer._render_args(
+            rendered_kwargs.pop("type"),
+            renderer._render_kwargs(**rendered_kwargs) or None,
+        )
+        return f"to_type({type_args})"
 
 
 @_renderer(StructType.TYPE_CONSTRAINT)

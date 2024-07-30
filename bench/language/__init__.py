@@ -62,7 +62,7 @@ from .const import (
     TriggerType,
 )
 from .expression import A, Aggregation, C, ComputedValue, Expression, S, coerce_conditional
-from .field import Field, FieldZone, TypeConstraint, TypeInfo, TypeInfoBase
+from .field import Field, FieldZone, TypeConstraint, TypeInfo, TypeInfoBase, to_type, to_type_scalar
 from .file import File, FileFormat, FileKind, FileReference, FileRetentionMode, FileType
 from .graph import (
     NodeDataDict,
@@ -315,6 +315,8 @@ __all__ = [
     "render_path",
     "render_stmt",
     "text",
+    "to_type",
+    "to_type_scalar",
 ]
 
 # after all the imports, we can finalize
