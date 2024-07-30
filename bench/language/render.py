@@ -313,22 +313,32 @@ def _get_content_values(obj: BuiltinObject, *, include_defaults: bool = False) -
     values: dict[str, Any] = {}
     for prop in obj.__properties__.values():
         if (
-            (
-                (prop.id is None or prop.id < 30 or prop.reference_source)
-                and not prop.is_value_runtime
-            )
+            prop.id is None
+            or prop.id < 30
+            or prop.reference_source
             or prop.is_value_packed
             or prop.name == "order_key"
         ):
             continue
-        value = getattr(obj, prop.name)
+        prop_value = getattr(obj, prop.name)
         if (
-            (value is None and prop.default is None)
-            or (isinstance(value, Collection) and len(value) == 0)
-            or (value is prop.default and not include_defaults)
+            (prop_value is None and prop.default is None)
+            or (isinstance(prop_value, Collection) and len(prop_value) == 0)
+            or (prop_value is prop.default and not include_defaults)
         ):
             continue
-        values[prop.name] = value
+        values[prop.name] = prop_value
+    # values last (may depend on types, and to simplify control flow for skipping unset values)
+    for prop in obj.__value_runtime_properties__.values():
+        wired_prop = prop.value_packed_ptr
+        assert isinstance(wired_prop, Property), f"no wired prop for {prop!r}"
+        wired_prop_value = getattr(obj, wired_prop.name)
+        if wired_prop_value is None:
+            continue
+        prop_value = getattr(obj, prop.name)
+        if prop_value is None:
+            continue
+        values[prop.name] = prop_value
     return values
 
 

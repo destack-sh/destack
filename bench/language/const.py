@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.07.30.0"  # auto change via version script
+VERSION = "2024.07.30.1"  # auto change via version script
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -565,17 +565,15 @@ REGION_BY_SLUG = {v: k for k, v in REGION_SLUGS.items()}
 
 @enum_(EnumType.BLOCK_TYPE)
 class BlockType(IdEnum):
-    ALIAS = 1  # refer to / 'redefine' an existing block or builtin (like a 'newtype')
-    PAGE = 2  # group of blocks
+    PAGE = 1  # group of blocks
+    # ALIAS   # refer to / 'redefine' an existing block or builtin (like a 'newtype')
 
     # types
     CLASS = 10  # define a class type with fields
     CHOICE = 11  # define a choice type with fields (as literal options)
-    # TAG = 12  # define a tag type with fields
-    PROTOCOL = 14  # define a 'protocol' for a block graph/template with fields
-    SIGNAL = 15  # define a signal type with fields
-    NOTIFICATION = 16  # define a new notification type
-    # ISSUE, METRIC, BLOCK, ...?
+    SIGNAL = 12  # define a signal type with fields
+    NOTIFICATION = 13  # define a new notification type
+    # PROTOCOL, TAG, ISSUE, METRIC, BLOCK, ...?
 
     # runnable
     TEXT = 30  # define a 'paragraph' of text/prompt with fields (optionally incl. input/output)
@@ -584,8 +582,8 @@ class BlockType(IdEnum):
 
     # state
     VARIABLE = 50  # define a single-value variable
+    DATABASE = 51  # define a database with records & queries
     QUERY = 52  # define a set of queries
-    DATABASE = 53  # define a database with records & queries
 
     # view
     VIEW = 70  # define a view (with fields and nested views)
