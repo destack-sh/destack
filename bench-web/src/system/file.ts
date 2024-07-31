@@ -3,6 +3,7 @@ import {
   BlockData,
   DownloadFilesResponse_DownloadHandle,
   EXTENSION_BY_FILE_FORMAT,
+  EXTENSIONS_BY_FILE_FORMAT,
   FILE_FORMAT_BY_EXTENSION,
   FILE_FORMAT_BY_MIME_TYPE,
   FileData,
@@ -12,6 +13,7 @@ import {
   FileType,
   IconData,
   MIME_TYPE_BY_FILE_FORMAT,
+  MIME_TYPES_BY_FILE_FORMAT,
   NodeReferenceData,
   NodeType,
   PackageData,
@@ -532,7 +534,7 @@ export function getFileIconMaybe(file: FileData | FileReferenceData | null): Ico
   else return getFileIcon(file);
 }
 
-/** Gets the accept string for the given file, if any. */
+/** Gets the HTML file input accept string for the given file, if any. */
 export function getFileAccept(options: {
   allowedTypes?: FileType[];
   allowedFormats?: FileFormat[];
@@ -558,13 +560,13 @@ export function getFileAccept(options: {
   // turn allowed formats into accept string (extensions + mime types)
   const acceptParts: string[] = [];
   for (const format of allowedFormats) {
-    const mimeType = MIME_TYPE_BY_FILE_FORMAT[format];
-    if (mimeType != null) {
-      acceptParts.push(mimeType);
+    const mimeTypes = MIME_TYPES_BY_FILE_FORMAT[format];
+    if (mimeTypes != null) {
+      mimeTypes.forEach((mimeType) => acceptParts.push(mimeType));
     }
-    const extension = EXTENSION_BY_FILE_FORMAT[format];
-    if (extension != null) {
-      acceptParts.push(`.${extension}`);
+    const extensions = EXTENSIONS_BY_FILE_FORMAT[format];
+    if (extensions != null) {
+      extensions.forEach((extension) => acceptParts.push(`.${extension}`));
     }
   }
 

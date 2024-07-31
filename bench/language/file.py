@@ -54,7 +54,7 @@ from bench.proto.wire import (
     FileReferenceData,
     UploadFilesRequest,
 )
-from bench.utils.func import IdEnum
+from bench.utils.func import IdEnum, group_by
 from bench.utils.string import humanize_bytes
 from bench.utils.utils import get_from_env
 
@@ -222,8 +222,16 @@ class FileFormat(IdEnum):  # :FileFormats
         return EXTENSION_BY_FILE_FORMAT.get(self)
 
     @property
+    def extensions(self) -> Sequence[str]:
+        return EXTENSIONS_BY_FILE_FORMAT.get(self, ())
+
+    @property
     def mime_type(self) -> str | None:
         return MIME_TYPE_BY_FORMAT.get(self)
+
+    @property
+    def mime_types(self) -> Sequence[str]:
+        return MIME_TYPES_BY_FILE_FORMAT.get(self, ())
 
 
 # NOTE :Cleanup: auto-copy file format mappings into bench-web?
@@ -334,6 +342,9 @@ FILE_FORMAT_BY_EXTENSION = {
     "deb": FileFormat.DEB,
     "rpm": FileFormat.RPM,
 }
+EXTENSIONS_BY_FILE_FORMAT = group_by(
+    FILE_FORMAT_BY_EXTENSION.keys(), lambda ext: FILE_FORMAT_BY_EXTENSION[ext]
+)
 EXTENSION_BY_FILE_FORMAT: dict[FileFormat, str] = {
     v: k for k, v in FILE_FORMAT_BY_EXTENSION.items()
 }
@@ -459,6 +470,9 @@ FILE_FORMAT_BY_MIME_TYPE = {
     "application/x-rpm": FileFormat.RPM,
     "application/x-redhat-package-manager": FileFormat.RPM,
 }
+MIME_TYPES_BY_FILE_FORMAT = group_by(
+    FILE_FORMAT_BY_MIME_TYPE.keys(), lambda mime_type: FILE_FORMAT_BY_MIME_TYPE[mime_type]
+)
 MIME_TYPE_BY_FORMAT: dict[FileFormat, str] = {v: k for k, v in FILE_FORMAT_BY_MIME_TYPE.items()}
 
 

@@ -423,6 +423,7 @@ export type PropertyInfo = {
 export const FILE_FORMAT_BY_EXTENSION: Record<string, FileFormat> = {{
 {file_format_by_extension_str_inner}
 }}
+export const EXTENSIONS_BY_FILE_FORMAT = groupByList(Object.keys(FILE_FORMAT_BY_EXTENSION), ext => FILE_FORMAT_BY_EXTENSION[ext]);
 export const EXTENSION_BY_FILE_FORMAT: Partial<Record<FileFormat, string>> = Object.fromEntries(
     Object.entries(FILE_FORMAT_BY_EXTENSION).map(([k, v]) => [v, k]),
 );
@@ -435,6 +436,7 @@ export const EXTENSION_BY_FILE_FORMAT: Partial<Record<FileFormat, string>> = Obj
 export const FILE_FORMAT_BY_MIME_TYPE: Record<string, FileFormat> = {{
 {file_format_by_mime_type_str_inner}
 }}
+export const MIME_TYPES_BY_FILE_FORMAT = groupByList(Object.keys(FILE_FORMAT_BY_MIME_TYPE), mimeType => FILE_FORMAT_BY_MIME_TYPE[mimeType]);
 export const MIME_TYPE_BY_FILE_FORMAT: Partial<Record<FileFormat, string>> = Object.fromEntries(
     Object.entries(FILE_FORMAT_BY_MIME_TYPE).map(([k, v]) => [v, k]),
 );
@@ -506,9 +508,12 @@ export * from './google/protobuf/timestamp';
         """
     )
 
-    # prepend every TS file in $TARGET_TS_DIR with /* eslint-disable */
+    # prepend every TS file in $TARGET_TS_DIR with /* eslint-disable */ and required imports
+    extra_imports = ["import { groupByList } from '@/utils/functools';"]
     for path in Path(TEMP_TS_DIR).glob("**/*.ts"):
-        path.write_text("/* eslint-disable */\n" + path.read_text())
+        path.write_text(
+            "/* eslint-disable */\n" + "\n".join(extra_imports) + "\n" + path.read_text()
+        )
 
     # amend every .client.ts file with our OperationOptions
     for path in Path(TEMP_TS_DIR).glob("**/*.client.ts"):
