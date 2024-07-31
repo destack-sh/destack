@@ -12,6 +12,7 @@ from typing import (
     overload,
     override,
 )
+from uuid import UUID
 
 import aiohttp
 import PIL
@@ -555,7 +556,7 @@ class FileInfoBase(BuiltinObject):
         else:
             raise ValueError(f"get_url not ready for {self!r}")
 
-    def clear_cache(self):
+    def _clear_cache(self):
         """Clears the cached content and URL."""
         self._cached_content = None
         self._cached_get_url = None
@@ -747,22 +748,28 @@ async def download_batch(
         ],
     )
     download_rep = await session.host.download_files(download_req, metadata=session._rpc_headers)
-    files: list[File] = []
-    for file_ref, handle in zip(file_refs, download_rep.handles):
+    handles_by_id = {h.file.id: h for h in download_rep.handles}
+    file_refs_by_id = {f.id: f for f in file_refs}
+    files_by_id: dict[UUID, File] = {}
+    for file_ref in file_refs:
+        handle = handles_by_id.get(str(file_ref.id))
+        if handle is None:
+            raise RuntimeError(f"missing download handle for {file_ref!r}")
         if isinstance(file_ref, File):
             file = file_ref
         else:
             file = unpack_object(handle.file, supergraph=session._supergraph, expect=File)
-        files.append(file)
+            file_ref._cached_get_url = handle.get_url  # also update input ref
+        files_by_id[file.id] = file
         file._cached_get_url = handle.get_url
 
     # download files
     if include_content is True:
-        files_to_download = files
+        files_to_download = files_by_id.values()
     elif include_content is False:
         files_to_download = []
     else:
-        files_to_download = [f for f in files if f.coarse_type in include_content]
+        files_to_download = [f for f in files_by_id.values() if f.coarse_type in include_content]
     if files_to_download:
         file_contents: list[bytes] = []
         async with aiohttp.ClientSession() as http_session:
@@ -774,8 +781,9 @@ async def download_batch(
                         file_content = await resp.read()
                     file_contents.append(file_content)
                     file._cached_content = file_content
+                    file_refs_by_id[file.id]._cached_content = file_content  # also update input ref
 
-    return files
+    return list(files_by_id.values())
 
 
 FileIn = Union[str, bytes, PIL.Image.Image]

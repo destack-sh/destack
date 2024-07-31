@@ -195,7 +195,7 @@ return {"Joke": "Why did the scarecrow win an award? Because he was outstanding 
         files = [n for n in projection.get_missing_nodes() if isinstance(n, FileReference)]
         if not files:
             return ()
-        _ = await download_batch(files, include_content=False)
+        _ = await download_batch(files, include_content=include_content)
         contents = tuple(ChatMessageFileContent(f) for f in files)
         return contents
 
@@ -289,8 +289,7 @@ class OpenaiModelRunner(ChatModelRunnerBase):
                     await self.render_file_context(
                         projection,
                         render_options,
-                        # openai supports file urls for images
-                        include_content=set(FileType) - {FileType.IMAGE},
+                        include_content=(FileType.TEXT, FileType.CODE, FileType.DOCUMENT),
                     )
                 ),
                 *(await self.render_task(projection, render_options)),
@@ -380,7 +379,18 @@ class AnthropicModelRunner(ChatModelRunnerBase):
             content=[
                 *(await self.render_system_message(projection, render_options)),
                 *(await self.render_page_context(projection, render_options)),
-                *(await self.render_file_context(projection, render_options, include_content=True)),
+                *(
+                    await self.render_file_context(
+                        projection,
+                        render_options,
+                        include_content=(
+                            FileType.TEXT,
+                            FileType.CODE,
+                            FileType.DOCUMENT,
+                            FileType.IMAGE,
+                        ),
+                    )
+                ),
                 *(await self.render_task(projection, render_options)),
                 *(await self.render_examples(projection, render_options)),
             ],
