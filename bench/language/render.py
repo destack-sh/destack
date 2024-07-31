@@ -1,4 +1,5 @@
 import base64
+import dataclasses
 import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -41,6 +42,7 @@ tracer = trace.get_tracer(__name__)
 @dataclass(slots=True)
 class RenderOptions:
     scope: Node
+    aliased_nodes: Collection[Node | SomeNodeReference] = ()
     # whether the scope's non-inline children should also be rendered (as if it's a page)
     as_page: bool = False
     node_types: Collection[NodeType] = NODE_TYPES_SET
@@ -51,6 +53,9 @@ class RenderOptions:
     simplify_paths: bool = True
     format: bool = True
     format_line_length: int = 100
+
+    def replace(self, **kwargs) -> "RenderOptions":
+        return dataclasses.replace(self, **kwargs)
 
 
 class BuiltinObjectRenderer[T: BuiltinObject]:
@@ -140,6 +145,9 @@ class Renderer:
         self._options = options
         self._alias_by_node_id: dict[UUID, str] = {}
         self._node_by_alias: dict[str, Node | SomeNodeReference] = {}
+        if options.aliased_nodes:
+            for node in options.aliased_nodes:
+                self.add_node(node)
 
     def __str__(self) -> str:
         return f"scope={self.scope!r}, aliases={', '.join(self._node_by_alias)}"

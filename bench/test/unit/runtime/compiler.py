@@ -979,7 +979,7 @@ else:
 @pytest.mark.skip(":Incomplete")
 def test_desugar_code_paths():
     code = """\
-my_node = >Node/Something
+my_node = Node/Something
 my_grandchild = $ThisChild/ThatGrandchild
 other_node = $"/OtherNode/Child With Space"
 if ^unique_node/child:
@@ -992,7 +992,7 @@ print("unrelated/^path/dont/@replace/me")
     assert (
         desugared
         == """\
-my_node = get_node("Node/Something")
+my_node = get_node("^Node/Something")
 my_grandchild = get_node("ThisChild/ThatGrandchild")
 other_node = get_node("/OtherNode/Child With Space")
 if get_node("^unique_node/child"):

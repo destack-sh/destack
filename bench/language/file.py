@@ -1,7 +1,17 @@
 import hashlib
 import io
 from datetime import datetime
-from typing import TYPE_CHECKING, Literal, Optional, Union, assert_never, overload, override
+from typing import (
+    TYPE_CHECKING,
+    Collection,
+    Literal,
+    Optional,
+    Sequence,
+    Union,
+    assert_never,
+    overload,
+    override,
+)
 
 import aiohttp
 import PIL
@@ -523,6 +533,14 @@ class FileInfoBase(BuiltinObject):
         else:
             raise ValueError(f"content not ready for {self!r}")
 
+    @property
+    def get_url(self) -> str:
+        """The URL to download the file from."""
+        if self._cached_get_url is not None:
+            return self._cached_get_url
+        else:
+            raise ValueError(f"get_url not ready for {self!r}")
+
     def clear_cache(self):
         """Clears the cached content and URL."""
         self._cached_content = None
@@ -574,7 +592,7 @@ class File(RemoteNode[FileData], FileInfoBase):
     async def download(self, *, include_content: Literal[False] = False) -> str: ...
     async def download(self, *, include_content: bool = True) -> Union[bytes, str]:
         """Downloads the file from the host."""
-        await _do_download_files(self.active_session, [self], include_content=include_content)
+        await download_batch([self], include_content=include_content, session=self.active_session)
         if include_content:
             assert self._cached_content is not None, f"content not ready for {self!r}"
             return self._cached_content
@@ -647,13 +665,17 @@ class FileReference(
 
 
 @tracer.start_as_current_span("file.upload_batch")
-async def _do_upload_files(session: "Session", files: list[File], file_contents: list[bytes]):
+async def upload_batch(
+    files: list[File], file_contents: list[bytes], session: "Session | None" = None
+):
     """Uploads the given Files to their Host."""
     assert len(files) == len(
         file_contents
     ), f"unexpected files: {len(files)} != {len(file_contents)}"
     if not files:
         return
+    if session is None:
+        session = active_session()
 
     # get upload URLs
     upload_req = UploadFilesRequest(
@@ -673,7 +695,7 @@ async def _do_upload_files(session: "Session", files: list[File], file_contents:
                     FileKind.DRIVE_INLINE,
                 ), f"unexpected file: {file!r}"
 
-                # post file to url
+                # POST file to url
                 fields = handle.fields.to_dict()
                 form_data = aiohttp.FormData()
                 for key, value in fields.items():
@@ -688,12 +710,17 @@ async def _do_upload_files(session: "Session", files: list[File], file_contents:
 
 
 @tracer.start_as_current_span("file.download_batch")
-async def _do_download_files(
-    session: "Session", file_refs: list[FileReference | File], *, include_content: bool
+async def download_batch(
+    file_refs: Sequence[FileReference | File],
+    *,
+    include_content: bool | Collection[FileType],
+    session: "Session | None" = None,
 ) -> list[File]:
     """Downloads the given Files from their Host."""
     if not file_refs:
         return []
+    if session is None:
+        session = active_session()
 
     from bench.proto.wiring import unpack_object
 
@@ -716,11 +743,17 @@ async def _do_download_files(
         file._cached_get_url = handle.get_url
 
     # download files
-    if include_content:
+    if include_content is True:
+        files_to_download = files
+    elif include_content is False:
+        files_to_download = []
+    else:
+        files_to_download = [f for f in files if f.coarse_type in include_content]
+    if files_to_download:
         file_contents: list[bytes] = []
         async with aiohttp.ClientSession() as http_session:
-            for file, handle in zip(files, download_rep.handles):
-                # get file from url
+            for file, handle in zip(files_to_download, download_rep.handles):
+                # GET file from url
                 with tracer.start_as_current_span("file.download", attributes={"file": repr(file)}):
                     async with http_session.get(handle.get_url) as resp:
                         resp.raise_for_status()
@@ -837,7 +870,7 @@ async def upload(
     file.drive = drive
 
     # upload file, then create in session
-    await _do_upload_files(session, [file], [content])
+    await upload_batch(files=[file], file_contents=[content], session=session)
     session._create(file)
 
     return file
