@@ -1068,8 +1068,20 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
                         assert session, f"no session for {node!r}"
                         if self._updated_properties is None:
                             self._updated_properties = bitarray(self.__max_property_ord__ + 1)
-                        self._updated_properties[prop.ord] = True
-                        session._update(node, properties=(prop,), old_values={prop.id: old_value})
+                        if not prop.is_value_runtime:
+                            self._updated_properties[prop.ord] = True
+                            session._update(
+                                node, properties=(prop,), old_values={prop.id: old_value}
+                            )
+                        else:
+                            # 'put' value packed update into _packed property :ComputedValueProp
+                            value_packed_ptr = cast(Property, prop.value_packed_ptr)
+                            self._updated_properties[value_packed_ptr.ord] = True
+                            session._update(
+                                node,
+                                properties=(value_packed_ptr,),
+                                old_values={value_packed_ptr.id: old_value},
+                            )
                 else:
                     pass  # TODO :Broken: handle in struct updates
             return

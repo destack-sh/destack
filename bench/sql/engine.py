@@ -7,6 +7,7 @@ from functools import wraps
 from itertools import chain
 from typing import (
     Any,
+    Callable,
     Collection,
     Iterable,
     Mapping,
@@ -98,7 +99,7 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
-def _trace_pg_span(func):
+def _trace_pg_span[F: Callable](func: F) -> F:
     """Instruments a pg function with common parameters as span attributes"""
     func_name = func.__name__
     if func_name.startswith("_"):
@@ -124,7 +125,7 @@ def _trace_pg_span(func):
         # forward call
         return await func(**kwargs)  # type: ignore
 
-    return wrapped
+    return cast(F, wrapped)
 
 
 def get_sanitized_connection_uri(conn: psycopg.AsyncConnection) -> str:
@@ -721,7 +722,7 @@ async def pg_select_raw(
     trace.get_current_span().set_attributes({"sql_query": query_str})
     logger.trace("pg.select_raw", query=query_str, span="current")
     await _pg_execute(cur, cast(sql.Composed, query))
-    return await cur.fetchall()
+    return cast(list[dict[str, Any]], await cur.fetchall())
 
 
 @_trace_pg_span
@@ -783,7 +784,7 @@ async def pg_count(
     logger.trace("pg.count", table=table, cur=cur, query=query)
     try:
         await _pg_execute(cur, statement)
-        result = await cur.fetchone()
+        result = cast(dict, await cur.fetchone())
         if not result:
             raise SqlError(f"no result for {table!r}", cur)
         return result["count"]
@@ -813,7 +814,7 @@ async def pg_exists(
     logger.trace("pg.exists_rows", table=table, cur=cur, query=query_str, span="current")
     try:
         await _pg_execute(cur, statement)
-        result = await cur.fetchone()
+        result = cast(dict, await cur.fetchone())
         if not result:
             raise SqlError(f"no result for {table!r}", cur)
         return result["exists"]
