@@ -58,12 +58,12 @@ class ReplayError(RunImpossibleError):
     run_error_type = RunErrorType.REPLAY
 
 
-class ModelFailedError(NonRetryableError):
-    run_error_type = RunErrorType.MODEL_FAILED
-
-
-class ModelIncapableError(RetryableError):
+class ModelIncapableError(NonRetryableError):
     run_error_type = RunErrorType.MODEL_INCAPABLE
+
+
+class ModelFailedError(RetryableError):
+    run_error_type = RunErrorType.MODEL_FAILED
 
 
 #

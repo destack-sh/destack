@@ -1567,10 +1567,11 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     def _unload_rec(self):
         """Unloads this node from the graph (and supergraph). Only meant for testing."""
         assert IS_TEST, f"cannot unload {self!r} (not in test mode)"
-        self._graph.remove(self)
-        if len(self._graph) == 0:
+        if len(self._graph) == 1:
             # remove entire graph from supergraph if it was just this node (and its descendants)
             self._supergraph.remove_graph(self._graph)
+        else:
+            self._graph.remove(self)
 
     @final
     def _track_self(self, session: "Session"):
