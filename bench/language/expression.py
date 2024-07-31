@@ -22,14 +22,14 @@ from bench.language.const import (
 )
 from bench.language.node import (
     Node,
-    NodeReference,
+    NodeReferenceBase,
     Property,
     PropertyReference,
     Struct,
     struct_,
 )
 from bench.language.property import p_regular, p_value_packed, p_value_runtime
-from bench.proto.wire import AnyNodeData, NodeReferenceData
+from bench.proto.wire import AnyNodeData, FileReferenceData, NodeReferenceData, SecretReferenceData
 from bench.utils.func import IdEnum
 from bench.utils.string import Casing, to_casing
 
@@ -402,7 +402,11 @@ def _lower_expression_value(cond: Expression, prop: Property, value: Any) -> Any
     if isinstance(value, (list, tuple)):
         return [_lower_expression_value(cond, prop, v) for v in value]
 
-    if isinstance(value, (NodeReference, NodeReferenceData)):
+    if isinstance(value, Node):
+        value = value.id
+    if isinstance(
+        value, (NodeReferenceBase, NodeReferenceData, FileReferenceData, SecretReferenceData)
+    ):
         value = value.id
     if isinstance(value, UUID):
         value = str(value)
@@ -430,7 +434,7 @@ def evaluate_conditional(cond: Expression, node: Node | AnyNodeData) -> bool:
         prop = prop.reference_wired_ptr
     node_value = getattr(node, prop.py_name)
     node_value = _lower_expression_value(cond, prop, node_value)
-    cond_value = cond.value  # do we need to unpack condition value here?
+    cond_value = cond.value
     cond_value = _lower_expression_value(cond, prop, cond_value)
     # basic comparison
     if cond.op == ConditionalOp.EQUALS:
