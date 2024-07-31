@@ -103,9 +103,9 @@ async def test_run_text_output_dict(local_runtime: RuntimeHandle, model_provider
 @_for_every_provider()
 async def test_run_text_with_images(hosted_runtime: RuntimeHandle, model_provider: ModelProvider):
     runtime = hosted_runtime
-    Color = Block.new(
+    Hue = Block.new(
         BlockType.CHOICE,
-        "Color",
+        "Hue",
         fields=[Field.option("Red"), Field.option("Green"), Field.option("Blue")],
     )
     DetectColor = Block.new_text(
@@ -113,15 +113,17 @@ async def test_run_text_with_images(hosted_runtime: RuntimeHandle, model_provide
         "Detect the primary color of the given image",
         fields=[
             Field.input("Image", File, constraint(file_type=FileType.IMAGE)),
-            Field.output("Color", Color),
+            Field.output("Hue", Hue),
         ],
         run_options=RunOptions(model_options=ModelOptions(provider=model_provider)),
     )
-    runtime.page().blocks.extend(Color, DetectColor)
+    runtime.page().blocks.extend(Hue, DetectColor)
     await runtime.commit()
 
     red_image = Image.new("RGB", (320, 240), color="red")
     image_file = await upload(red_image, "red.png")
+    await runtime.commit()
     image_file._unload_rec()
+    image_file._clear_cache()
 
     await runtime.run(DetectColor, inputs={"Image": image_file.to_ref()})

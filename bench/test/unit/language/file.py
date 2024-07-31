@@ -35,7 +35,7 @@ async def test_upload_and_download_file(
     assert file.format == expected_file_format
 
     # download
-    file.clear_cache()
+    file._clear_cache()
     assert file._cached_content is None
     await file.download()
 
