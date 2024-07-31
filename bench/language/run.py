@@ -67,7 +67,8 @@ class RunKind(IdEnum):
 
 @enum_(EnumType.MODEL_PROVIDER)
 class ModelProvider(IdEnum):
-    INTERNAL = 1
+    # internal
+    AUTOMAP = 1
     # external
     OPENAI = 100
     ANTHROPIC = 101
@@ -78,7 +79,7 @@ class ModelProvider(IdEnum):
 @enum_(EnumType.MODEL_TYPE)
 class ModelType(IdEnum):
     # internal
-    ...
+    ...  # ?
     # external
     # openai
     GPT40 = 1000
@@ -91,9 +92,7 @@ class ModelType(IdEnum):
 
     @property
     def provider(self) -> ModelProvider:
-        if self <= 999:
-            return ModelProvider.INTERNAL
-        elif self <= 1999:
+        if self <= 1999:
             return ModelProvider.OPENAI
         elif self <= 2999:
             return ModelProvider.ANTHROPIC

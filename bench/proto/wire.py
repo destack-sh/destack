@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.07.31.0"
+VERSION = "2024.07.31.1"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -635,7 +635,6 @@ class FileFormat(betterproto.Enum):
     SWIFT = 20007
     RUBY = 20008
     PHP = 20009
-    HTML = 20010
     CSS = 20011
     JAVA = 20012
     KOTLIN = 20013
@@ -655,6 +654,8 @@ class FileFormat(betterproto.Enum):
     SVG = 30006
     ICO = 30007
     RAW = 30008
+    HEIC = 30009
+    HEIF = 30010
     MP3 = 40000
     WAV = 40001
     FLAC = 40002
@@ -681,6 +682,7 @@ class FileFormat(betterproto.Enum):
     DOC = 60009
     XLS = 60100
     PPT = 60101
+    HTML = 60102
     JSON = 70000
     YAML = 70001
     CSV = 70002
@@ -688,8 +690,6 @@ class FileFormat(betterproto.Enum):
     TOML = 70004
     SQLITE = 70100
     PARQUET = 70101
-    AVRO = 70102
-    PROTOBUF = 70103
     ZIP = 80000
     RAR = 80001
     TAR = 80002
@@ -826,7 +826,7 @@ class MachineProfile(betterproto.Enum):
 
 class ModelProvider(betterproto.Enum):
     UNSPECIFIED = 0
-    INTERNAL = 1
+    AUTOMAP = 1
     OPENAI = 100
     ANTHROPIC = 101
     GOOGLE = 102
@@ -1763,7 +1763,7 @@ class FileInfoData(betterproto.Message):
     kind: "FileKind" = betterproto.enum_field(40)
     title: str = betterproto.string_field(41)
     drive_ptr: Optional["NodeReferenceData"] = betterproto.message_field(42, optional=True)
-    url: Optional[str] = betterproto.string_field(43, optional=True)
+    external_url: Optional[str] = betterproto.string_field(43, optional=True)
     inline_content: Optional[bytes] = betterproto.bytes_field(44, optional=True)
     coarse_type: "FileType" = betterproto.enum_field(50)
     mime_type: Optional[str] = betterproto.string_field(51, optional=True)
@@ -1796,7 +1796,7 @@ class FileReferenceData(betterproto.Message):
     kind: "FileKind" = betterproto.enum_field(40)
     title: str = betterproto.string_field(41)
     drive_ptr: Optional["NodeReferenceData"] = betterproto.message_field(42, optional=True)
-    url: Optional[str] = betterproto.string_field(43, optional=True)
+    external_url: Optional[str] = betterproto.string_field(43, optional=True)
     inline_content: Optional[bytes] = betterproto.bytes_field(44, optional=True)
     coarse_type: "FileType" = betterproto.enum_field(50)
     mime_type: Optional[str] = betterproto.string_field(51, optional=True)
@@ -2680,7 +2680,7 @@ class FileData(betterproto.Message):
     kind: "FileKind" = betterproto.enum_field(40)
     title: str = betterproto.string_field(41)
     drive_ptr: Optional["NodeReferenceData"] = betterproto.message_field(42, optional=True)
-    url: Optional[str] = betterproto.string_field(43, optional=True)
+    external_url: Optional[str] = betterproto.string_field(43, optional=True)
     inline_content: Optional[bytes] = betterproto.bytes_field(44, optional=True)
     coarse_type: "FileType" = betterproto.enum_field(50)
     mime_type: Optional[str] = betterproto.string_field(51, optional=True)

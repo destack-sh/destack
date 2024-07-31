@@ -1,7 +1,6 @@
 import abc
-import base64
 from dataclasses import dataclass
-from typing import ClassVar, Collection, Literal, Mapping, Union, assert_never, cast, override
+from typing import Any, ClassVar, Literal, Mapping, Union, assert_never, cast, override
 
 import anthropic
 import openai
@@ -10,7 +9,14 @@ from openai.types import chat as openai_chat_types
 from opentelemetry import trace
 
 from bench.language.code import Code
-from bench.language.file import FileReference, FileType, download_batch
+from bench.language.file import (
+    File,
+    FileFormat,
+    FileInfoBase,
+    FileReference,
+    FileType,
+    download_batch,
+)
 from bench.language.project import Projection, ProjectOptions, project
 from bench.language.render import RenderOptions, render, render_value_expr
 from bench.language.run import ModelProvider, ModelType, RunKind
@@ -42,6 +48,15 @@ class ModelRouter(Runner):
 
 
 #
+# Automapping
+#
+
+
+class AutomapModelRunnerBase(Runner):
+    pass
+
+
+#
 # Chat models
 #
 
@@ -65,7 +80,7 @@ class ChatMessageTextContent:
 
 @dataclass
 class ChatMessageFileContent:
-    file: FileReference
+    file: FileInfoBase
 
 
 ChatMessageContent = Union[ChatMessageTextContent, ChatMessageFileContent]
@@ -128,7 +143,8 @@ return {"Joke": "Why did the scarecrow win an award? Because he was outstanding 
     @override
     async def run(self) -> None:
         projection = project(self.state.node, self.handle.inputs, options=ProjectOptions())
-        files = [n for n in projection.get_missing_nodes() if isinstance(n, FileReference)]
+        files: list[File | FileReference] = projection.get_nodes_like(File, FileReference)
+        # nocheckin: handle node aliases properly (shared alias index to reference later)
         render_options = RenderOptions(scope=self.node, aliased_nodes=files)
         log = logger.bind(runner=self, projection=projection)
 
@@ -187,16 +203,46 @@ return {"Joke": "Why did the scarecrow win an award? Because he was outstanding 
         self,
         projection: Projection,
         render_options: RenderOptions,
-        include_content: bool | Collection[FileType],
+        *,
+        native_types: tuple[FileType, ...],
+        native_formats_by_type: Mapping[FileType, tuple[FileFormat, ...]] = {},
     ) -> tuple[ChatMessageContent, ...]:
         """
-        Renders the context files from the projection.
+        Renders the context files from the projection, converting into native formats.
         """
-        files = [n for n in projection.get_missing_nodes() if isinstance(n, FileReference)]
-        if not files:
+        processed_types = (FileType.TEXT, FileType.CODE, FileType.IMAGE, FileType.DOCUMENT)
+
+        raw_files: list[File | FileReference] = projection.get_nodes_like(File, FileReference)
+        if not raw_files:
             return ()
-        _ = await download_batch(files, include_content=include_content)
-        contents = tuple(ChatMessageFileContent(f) for f in files)
+
+        # download files
+        _ = await download_batch(
+            raw_files,
+            include_content=[f for f in raw_files if f.coarse_type in processed_types],
+        )
+
+        # convert/preprocess files
+        preprocessed_files: list[FileInfoBase] = []
+        for f in raw_files:
+            if f.coarse_type == FileType.IMAGE:
+                # downscale large images to smaller JPEGs
+                IMAGE_MAX_PIXELS_PER_SIDE = 2000
+                IMAGE_MAX_SIZE_BYTES = 2 * 1024 * 1024
+                assert f.width and f.height, f"missing metadata: {f!r}"
+                if (
+                    f.width > IMAGE_MAX_PIXELS_PER_SIDE
+                    or f.height > IMAGE_MAX_PIXELS_PER_SIDE
+                    or f.size > IMAGE_MAX_SIZE_BYTES
+                ):
+                    f = f.downscale(IMAGE_MAX_PIXELS_PER_SIDE, IMAGE_MAX_SIZE_BYTES)
+
+            if f.coarse_type in native_types:
+                preprocessed_files.append(f)
+            else:  # :Incomplete: automap non-native files (e.g. Document->Text)
+                raise ModelIncapableError(f"cannot convert file {f!r}")
+
+        contents = tuple(ChatMessageFileContent(f) for f in preprocessed_files)
         return contents
 
     async def render_task(
@@ -281,17 +327,16 @@ class OpenaiModelRunner(ChatModelRunnerBase):
             role="system",
             content=[*(await self.render_system_message(projection, render_options))],
         )
+        file_context = await self.render_file_context(
+            projection,
+            render_options,
+            native_types=(FileType.TEXT, FileType.CODE),
+        )
         user_message = ChatMessage(
             role="user",
             content=[
                 *(await self.render_page_context(projection, render_options)),
-                *(
-                    await self.render_file_context(
-                        projection,
-                        render_options,
-                        include_content=(FileType.TEXT, FileType.CODE, FileType.DOCUMENT),
-                    )
-                ),
+                *file_context,
                 *(await self.render_task(projection, render_options)),
                 *(await self.render_examples(projection, render_options)),
             ],
@@ -302,20 +347,20 @@ class OpenaiModelRunner(ChatModelRunnerBase):
         )
         return [system_message, user_message, assistant_message]
 
-    def _convert_message_content(
+    async def _convert_message_content(
         self, content: ChatMessageContent
     ) -> openai_chat_types.ChatCompletionContentPartParam:
         if isinstance(content, ChatMessageTextContent):
             return {"type": "text", "text": content.text}
         elif isinstance(content, ChatMessageFileContent):
             if content.file.coarse_type == FileType.IMAGE:
-                return {"type": "image_url", "image_url": {"url": content.file.get_url}}
+                return {"type": "image_url", "image_url": {"url": content.file.url}}
             else:
                 raise ModelIncapableError(f"cannot convert output {content.file!r}")
         else:
             assert_never(content)
 
-    def _convert_message(
+    async def _convert_message(
         self, message: ChatMessage
     ) -> openai_chat_types.ChatCompletionMessageParam:
         # (for some reason we need to check each message.role separately for typechecking)
@@ -340,7 +385,7 @@ class OpenaiModelRunner(ChatModelRunnerBase):
         elif message.role == "user":
             return {
                 "role": message.role,
-                "content": [self._convert_message_content(c) for c in message.content],
+                "content": [await self._convert_message_content(c) for c in message.content],
             }
         else:
             assert_never(message.role)
@@ -352,7 +397,7 @@ class OpenaiModelRunner(ChatModelRunnerBase):
         if model_key is None:
             raise RunImpossibleError(f"unsupported model type {self.state.key}")
         completion = await openai_client.chat.completions.create(
-            messages=[self._convert_message(message) for message in messages],
+            messages=[await self._convert_message(message) for message in messages],
             model=model_key,
             temperature=0.1,
             user=str(self.runtime.package.id),
@@ -374,23 +419,20 @@ class AnthropicModelRunner(ChatModelRunnerBase):
     async def _prepare_input(
         self, projection: Projection, render_options: RenderOptions
     ) -> list[ChatMessage]:
+        file_context = await self.render_file_context(
+            projection,
+            render_options,
+            native_types=(FileType.TEXT, FileType.CODE, FileType.IMAGE),
+            native_formats_by_type={
+                FileType.IMAGE: (FileFormat.JPEG, FileFormat.PNG, FileFormat.GIF, FileFormat.WEBP)
+            },
+        )
         user_message = ChatMessage(
             role="user",
             content=[
                 *(await self.render_system_message(projection, render_options)),
                 *(await self.render_page_context(projection, render_options)),
-                *(
-                    await self.render_file_context(
-                        projection,
-                        render_options,
-                        include_content=(
-                            FileType.TEXT,
-                            FileType.CODE,
-                            FileType.DOCUMENT,
-                            FileType.IMAGE,
-                        ),
-                    )
-                ),
+                *file_context,
                 *(await self.render_task(projection, render_options)),
                 *(await self.render_examples(projection, render_options)),
             ],
@@ -401,27 +443,20 @@ class AnthropicModelRunner(ChatModelRunnerBase):
         )
         return [user_message, assistant_message]
 
-    def _convert_message_content(
+    async def _convert_message_content(
         self, content: ChatMessageContent
     ) -> Union[anthropic.types.TextBlockParam, anthropic.types.ImageBlockParam]:
         if isinstance(content, ChatMessageTextContent):
             return {"type": "text", "text": content.text}
         elif isinstance(content, ChatMessageFileContent):
             if content.file.coarse_type == FileType.IMAGE:
-                image_b64 = base64.b64encode(content.file.content).decode()
-                if content.file.mime_type not in (
-                    "image/jpeg",
-                    "image/png",
-                    "image/gif",
-                    "image/webp",
-                ):
-                    raise ModelIncapableError(f"unsupported image: {content.file!r}")
                 return {
                     "type": "image",
                     "source": {
                         "type": "base64",
-                        "media_type": content.file.mime_type,
-                        "data": image_b64,
+                        # image must be of right type (see above)
+                        "media_type": cast(Any, content.file.mime_type),
+                        "data": content.file.b64encode(),
                     },
                 }
             else:
@@ -429,11 +464,11 @@ class AnthropicModelRunner(ChatModelRunnerBase):
         else:
             assert_never(content)
 
-    def _convert_message(self, message: ChatMessage) -> anthropic.types.MessageParam:
+    async def _convert_message(self, message: ChatMessage) -> anthropic.types.MessageParam:
         assert message.role != "system", "system messages are not supported"
         return {
             "role": message.role,
-            "content": [self._convert_message_content(c) for c in message.content],
+            "content": [await self._convert_message_content(c) for c in message.content],
         }
 
     @override
@@ -444,7 +479,7 @@ class AnthropicModelRunner(ChatModelRunnerBase):
             raise RunImpossibleError(f"unsupported model type {self.state.key}")
         completion = await anthropic_client.messages.create(
             system=self.SYSTEM_MESSAGE,
-            messages=[self._convert_message(message) for message in messages],
+            messages=[await self._convert_message(message) for message in messages],
             model=model_key,
             temperature=0.1,
             max_tokens=1024 * 4,
