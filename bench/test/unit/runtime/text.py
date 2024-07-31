@@ -6,7 +6,7 @@ from bench.language.const import BlockType, RunStatus
 from bench.language.field import Field
 from bench.language.file import File, FileType, upload
 from bench.language.run import ModelOptions, ModelProvider, RunErrorType, RunOptions
-from bench.language.text import Text, md
+from bench.language.text import md
 from bench.language.validation import constraint
 from bench.test.unit.conftest import RuntimeHandle
 
@@ -103,20 +103,25 @@ async def test_run_text_output_dict(local_runtime: RuntimeHandle, model_provider
 @_for_every_provider()
 async def test_run_text_with_images(hosted_runtime: RuntimeHandle, model_provider: ModelProvider):
     runtime = hosted_runtime
-    Transcribe = Block.new_text(
-        "Transcribe",
-        "Transcribe the given image",
+    Color = Block.new(
+        BlockType.CHOICE,
+        "Color",
+        fields=[Field.option("Red"), Field.option("Green"), Field.option("Blue")],
+    )
+    DetectColor = Block.new_text(
+        "DetectColor",
+        "Detect the primary color of the given image",
         fields=[
             Field.input("Image", File, constraint(file_type=FileType.IMAGE)),
-            Field.output("Text", Text),
+            Field.output("Color", Color),
         ],
         run_options=RunOptions(model_options=ModelOptions(provider=model_provider)),
     )
-    runtime.page().blocks.append(Transcribe)
+    runtime.page().blocks.extend(Color, DetectColor)
     await runtime.commit()
 
     red_image = Image.new("RGB", (320, 240), color="red")
     image_file = await upload(red_image, "red.png")
     image_file._unload_rec()
 
-    await runtime.run(Transcribe, inputs={"Image": image_file.to_ref()})
+    await runtime.run(DetectColor, inputs={"Image": image_file.to_ref()})

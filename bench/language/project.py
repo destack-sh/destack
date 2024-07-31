@@ -228,7 +228,12 @@ class Projection:
                 self._collect_node(node)
 
     def get_containing_pages(self) -> list[Block]:
+        """Gets the pages containing the collected source nodes."""
         return find_containing_pages(*self._nodes_by_id.values())
+
+    def get_missing_nodes(self) -> list[SomeNodeReference]:
+        """Gets the nodes that were referenced but not found."""
+        return list(self._missing_nodes_by_id.values())
 
 
 def find_containing_pages(*nodes: Node) -> list[Block]:

@@ -182,6 +182,27 @@ async def test_run_code_function_output_dict(local_runtime: RuntimeHandle):
     assert run.outputs and run.outputs.Result1 is False and run.outputs.Result2 == 12
 
 
+async def test_run_code_function_output_choice(local_runtime: RuntimeHandle):
+    Color = Block.new(
+        BlockType.CHOICE,
+        "Color",
+        fields=[Field.option("Red"), Field.option("Green"), Field.option("Blue")],
+    )
+    Function = Block.new_code(
+        "Function",
+        """\
+Color = get_node("^Color")
+return {"Color": Color.Red}
+""",
+        fields=[Field.output("Color", Color)],
+    )
+    local_runtime.page().blocks.extend(Color, Function)
+    await local_runtime.commit()
+
+    run = await local_runtime.run(Function)
+    assert run.outputs and run.outputs.Color == Color.fields.Red
+
+
 async def test_run_code_function_output_nested(local_runtime: RuntimeHandle):
     subpage = local_runtime.page().blocks.append(Block.new(BlockType.PAGE, "Subpage"))
     ShapeKind = Block.new(

@@ -795,7 +795,7 @@ class Host(GraphIoServiceBase, HostApi, HostBase):
             file_key = get_file_key(drive, file_data.sha256, file_data.title)
             file_metadata: dict[str, str] = {"2": file_data.id}
             for prop in FileInfoBase.__declared_properties__.values():
-                if prop.id < 50:
+                if prop.id is None or prop.id < 50:
                     continue  # exclude content
                 prop_value = getattr(file_data, prop.name)
                 if prop_value is not None:

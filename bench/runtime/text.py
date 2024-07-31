@@ -1,7 +1,7 @@
 import abc
 import base64
 from dataclasses import dataclass
-from typing import ClassVar, Literal, Mapping, Union, assert_never, cast, override
+from typing import ClassVar, Collection, Literal, Mapping, Union, assert_never, cast, override
 
 import anthropic
 import openai
@@ -10,7 +10,7 @@ from openai.types import chat as openai_chat_types
 from opentelemetry import trace
 
 from bench.language.code import Code
-from bench.language.file import FileReference, FileType
+from bench.language.file import FileReference, FileType, download_batch
 from bench.language.project import Projection, ProjectOptions, project
 from bench.language.render import RenderOptions, render, render_value_expr
 from bench.language.run import ModelProvider, ModelType, RunKind
@@ -100,7 +100,7 @@ TellJoke("I'm very happy!")
 
 return {"Joke": "Why did the scarecrow win an award? Because he was outstanding in his field!"}
 
-# There are many more complex tasks and types; more examples are provided as needed.
+# There are many more complex tasks and types; examples are provided as needed.
 """
     USER_POSTFIX_MESSAGE = """\
 #
@@ -112,8 +112,7 @@ return {"Joke": "Why did the scarecrow win an award? Because he was outstanding 
 # 
 """
     ASSISTANT_PREFIX_MESSAGE = """\
-# Here is the Python method body that returns the specific answer for these specific inputs:
-"""
+# Here is the Python method body that returns the specific answer for these specific inputs:"""
 
     @property
     def model(self) -> ModelType | None:
@@ -129,11 +128,16 @@ return {"Joke": "Why did the scarecrow win an award? Because he was outstanding 
     @override
     async def run(self) -> None:
         projection = project(self.state.node, self.handle.inputs, options=ProjectOptions())
+        files = [n for n in projection.get_missing_nodes() if isinstance(n, FileReference)]
+        render_options = RenderOptions(scope=self.node, aliased_nodes=files)
         log = logger.bind(runner=self, projection=projection)
-        messages = await self._generate_messages(projection)
-        with tracer.start_as_current_span("text.generate_code"):
+
+        with tracer.start_as_current_span("text.prepare_input"):
+            messages = await self._prepare_input(projection, render_options)
+
+        with tracer.start_as_current_span("text.generate_output"):
             try:
-                code = await self._generate_code(messages)
+                code = await self._generate_output(messages)
                 log.trace("text.generate_code", code=code, span="current")
             except BaseException as e:
                 log.trace("text.generate_code.error", exc_info=e, span="current")
@@ -147,16 +151,20 @@ return {"Joke": "Why did the scarecrow win an award? Because he was outstanding 
             await self.runtime.run_handle(code_handle)
         self.handle.outputs = code_handle.outputs
 
-    async def render_system_message(self, projection: Projection):
+    async def render_system_message(
+        self, projection: Projection, render_options: RenderOptions
+    ) -> tuple[ChatMessageContent, ...]:
         """Renders the system message for the projection"""
         return (ChatMessageTextContent(self.SYSTEM_MESSAGE),)
 
-    async def render_page_context(self, projection: Projection):
+    async def render_page_context(
+        self, projection: Projection, render_options: RenderOptions
+    ) -> tuple[ChatMessageContent, ...]:
         """Renders the source context pages from the projection"""
         pages = projection.get_containing_pages()
         rendered_pages = []
         for page in pages:
-            rendered_page = render(page, options=RenderOptions(scope=page, as_page=True))
+            rendered_page = render(page, options=render_options.replace(scope=page, as_page=True))
             rendered_context = f"""\
 # {'=' * 24}
 # `{page.absolute_path}`
@@ -175,17 +183,28 @@ return {"Joke": "Why did the scarecrow win an award? Because he was outstanding 
 """)
         return (rendered,)
 
-    async def render_file_context(self, projection: Projection):
+    async def render_file_context(
+        self,
+        projection: Projection,
+        render_options: RenderOptions,
+        include_content: bool | Collection[FileType],
+    ) -> tuple[ChatMessageContent, ...]:
         """
         Renders the context files from the projection.
         """
-        raise NotImplementedError("nocheckin: render_file_context")
+        files = [n for n in projection.get_missing_nodes() if isinstance(n, FileReference)]
+        if not files:
+            return ()
+        _ = await download_batch(files, include_content=False)
+        contents = tuple(ChatMessageFileContent(f) for f in files)
+        return contents
 
-    async def render_task(self, projection: Projection):
+    async def render_task(
+        self, projection: Projection, render_options: RenderOptions
+    ) -> tuple[ChatMessageContent, ...]:
         """Renders the task from the projection"""
         if self.inputs is None or len(self.inputs) == 0:
             raise RunImpossibleError(f"no inputs for {self.handle!r}")
-        render_options = RenderOptions(scope=self.node)
         rendered_task = render(self.node, options=render_options)
         rendered_inputs = render(self.inputs, options=render_options)
 
@@ -205,12 +224,13 @@ return {"Joke": "Why did the scarecrow win an award? Because he was outstanding 
 """)
         return (rendered,)
 
-    async def render_examples(self, projection: Projection):
+    async def render_examples(
+        self, projection: Projection, render_options: RenderOptions
+    ) -> tuple[ChatMessageContent, ...]:
         """Renders relevant examples for the task / context"""
         if self.output_type is None or len(self.output_type._fields) == 0:
             raise RunImpossibleError(f"no outputs for {self.handle!r}")
 
-        render_options = RenderOptions(scope=self.node)
         rendered_examples = []
         for field in self.output_type._fields:
             example_value = sample_value(field)
@@ -227,76 +247,17 @@ return {"Joke": "Why did the scarecrow win an award? Because he was outstanding 
 """)
         return (rendered,)
 
-    # @tracer.start_as_current_span("text.make_messages")
-    # async def _make_messages(self, projection: Projection) -> list[ChatMessage]:
-    #     # NOTE :Incomplete: add previous attempts errors to messages
-
-    #     contents: list[ChatMessageContent] = []
-    #     task_alias = self.node.absolute_path
-
-    # specific task (repeated) + inputs
-
-    # example values
-
-    # build messages
-    #         messages: list[ChatMessage] = [
-    #             ChatMessage(
-    #                 "user",
-    #                 f"""\
-    # #
-    # # Context around your task '{task_alias}'
-    # # Includes relevant and irrelevant instructions and information to consider.
-    # #
-
-    # {'\n\n'.join(rendered_pages) or "# <no context available>"}
-
-    # #
-    # # Inputs for your specific task '{task_alias}'
-    # #
-
-    # {rendered_inputs}
-
-    # #
-    # # Your specific task is `{task_alias}`
-    # # You MUST focus on this task with these inputs in relation to the provided context.
-    # #
-
-    # {rendered_task}
-
-    # #
-    # # Some random syntax examples for values of the right types
-    # #  (the values are *not* specific to your actual task and semantically irrelevant)
-    # #
-
-    # {'\n'.join(e for e in rendered_examples)}
-
-    #
-    # Return the answer to the specific invocation of task '{task_alias}' with the given inputs.
-    #  - You MUST NOT attempt to generalize over inputs; return the answer for the given inputs only.
-    #  - You MAY generate reasoning *before* the respective answer (especially if it's in the output).
-    #  - You MAY import and use the Python standard library for maths and such, but nothing else.
-    #  - You MAY raise ModelIncapableError("<reason>") if a fitting output is impossible.
-    #
-    # """,
-    #             ),
-    #             ChatMessage(
-    #                 "assistant",
-    #                 """\
-    # # Here is the Python method body that returns the specific answer for these specific inputs:""",
-    #             ),
-    #         ]
-    # if self.INCLUDE_SYSTEM_MESSAGE:
-    #     messages = [
-    #         ChatMessage("system", [ChatMessageTextContent(self.SYSTEM_MESSAGE)]),
-    #         *messages,
-    #     ]
-    # return messages
+    @abc.abstractmethod
+    async def _prepare_input(
+        self, projection: Projection, render_options: RenderOptions
+    ) -> list[ChatMessage]:
+        """Generates the chat messages as input to the model."""
+        ...
 
     @abc.abstractmethod
-    async def _generate_messages(self, projection: Projection) -> list[ChatMessage]: ...
-
-    @abc.abstractmethod
-    async def _generate_code(self, messages: list[ChatMessage]) -> str: ...
+    async def _generate_output(self, messages: list[ChatMessage]) -> str:
+        """Generates the code output from the model."""
+        ...
 
 
 openai_client = openai.AsyncClient(
@@ -313,18 +274,27 @@ class OpenaiModelRunner(ChatModelRunnerBase):
     MODEL_BY_TYPE: ClassVar[Mapping[ModelType, str]] = {ModelType.GPT40: "gpt-4o"}
 
     @override
-    async def _generate_messages(self, projection: Projection) -> list[ChatMessage]:
+    async def _prepare_input(
+        self, projection: Projection, render_options: RenderOptions
+    ) -> list[ChatMessage]:
         system_message = ChatMessage(
             role="system",
-            content=[*(await self.render_system_message(projection))],
+            content=[*(await self.render_system_message(projection, render_options))],
         )
         user_message = ChatMessage(
             role="user",
             content=[
-                *(await self.render_page_context(projection)),
-                *(await self.render_file_context(projection)),
-                *(await self.render_task(projection)),
-                *(await self.render_examples(projection)),
+                *(await self.render_page_context(projection, render_options)),
+                *(
+                    await self.render_file_context(
+                        projection,
+                        render_options,
+                        # openai supports file urls for images
+                        include_content=set(FileType) - {FileType.IMAGE},
+                    )
+                ),
+                *(await self.render_task(projection, render_options)),
+                *(await self.render_examples(projection, render_options)),
             ],
         )
         assistant_message = ChatMessage(
@@ -336,7 +306,15 @@ class OpenaiModelRunner(ChatModelRunnerBase):
     def _convert_message_content(
         self, content: ChatMessageContent
     ) -> openai_chat_types.ChatCompletionContentPartParam:
-        raise NotImplementedError("nocheckin: convert_message_content")
+        if isinstance(content, ChatMessageTextContent):
+            return {"type": "text", "text": content.text}
+        elif isinstance(content, ChatMessageFileContent):
+            if content.file.coarse_type == FileType.IMAGE:
+                return {"type": "image_url", "image_url": {"url": content.file.get_url}}
+            else:
+                raise ModelIncapableError(f"cannot convert output {content.file!r}")
+        else:
+            assert_never(content)
 
     def _convert_message(
         self, message: ChatMessage
@@ -369,7 +347,7 @@ class OpenaiModelRunner(ChatModelRunnerBase):
             assert_never(message.role)
 
     @override
-    async def _generate_code(self, messages: list[ChatMessage]) -> str:
+    async def _generate_output(self, messages: list[ChatMessage]) -> str:
         model = self.model or self.DEFAULT_MODEL
         model_key = self.MODEL_BY_TYPE.get(model)
         if model_key is None:
@@ -392,18 +370,19 @@ class AnthropicModelRunner(ChatModelRunnerBase):
     MODEL_BY_TYPE: ClassVar[Mapping[ModelType, str]] = {
         ModelType.CLAUDE_3_5_SONNET: "claude-3-5-sonnet-20240620"
     }
-    INCLUDE_SYSTEM_MESSAGE: ClassVar[bool] = False
 
     @override
-    async def _generate_messages(self, projection: Projection) -> list[ChatMessage]:
+    async def _prepare_input(
+        self, projection: Projection, render_options: RenderOptions
+    ) -> list[ChatMessage]:
         user_message = ChatMessage(
             role="user",
             content=[
-                *(await self.render_system_message(projection)),
-                *(await self.render_page_context(projection)),
-                *(await self.render_file_context(projection)),
-                *(await self.render_task(projection)),
-                *(await self.render_examples(projection)),
+                *(await self.render_system_message(projection, render_options)),
+                *(await self.render_page_context(projection, render_options)),
+                *(await self.render_file_context(projection, render_options, include_content=True)),
+                *(await self.render_task(projection, render_options)),
+                *(await self.render_examples(projection, render_options)),
             ],
         )
         assistant_message = ChatMessage(
@@ -418,7 +397,7 @@ class AnthropicModelRunner(ChatModelRunnerBase):
         if isinstance(content, ChatMessageTextContent):
             return {"type": "text", "text": content.text}
         elif isinstance(content, ChatMessageFileContent):
-            if content.file.kind == FileType.IMAGE:
+            if content.file.coarse_type == FileType.IMAGE:
                 image_b64 = base64.b64encode(content.file.content).decode()
                 if content.file.mime_type not in (
                     "image/jpeg",
@@ -436,7 +415,7 @@ class AnthropicModelRunner(ChatModelRunnerBase):
                     },
                 }
             else:
-                raise NotImplementedError(f"cannot convert file {content.file!r}")
+                raise ModelIncapableError(f"cannot convert input {content.file!r}")
         else:
             assert_never(content)
 
@@ -448,7 +427,7 @@ class AnthropicModelRunner(ChatModelRunnerBase):
         }
 
     @override
-    async def _generate_code(self, messages: list[ChatMessage]) -> str:
+    async def _generate_output(self, messages: list[ChatMessage]) -> str:
         model = self.model or self.DEFAULT_MODEL
         model_key = self.MODEL_BY_TYPE.get(model)
         if model_key is None:
