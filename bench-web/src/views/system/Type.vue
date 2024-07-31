@@ -3,7 +3,7 @@ import { BlockType, FieldZone, NodeType, Orientation, Variant, ViewData, type Fi
 import { isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import type { ActionContext, ActionMapImplementation } from "@/system/action";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
-import { RUNNABLE_BLOCK_TYPES, createField, moveNode, onNodeMorphed, toCamelName } from "@/system/lang";
+import { RUNNABLE_BLOCK_TYPES, cloneNode, createField, moveNode, onNodeMorphed, toCamelName } from "@/system/lang";
 import { canvas } from "@/system/space";
 import { startDragging, useMultiDropZone, type DraggedContent, type MultiAnchor } from "@/utils/drag";
 import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/utils/menu";
@@ -122,10 +122,10 @@ const activeDropZoneSide = computed(() => {
 // actions
 const getFieldFromContext = (ctx: ActionContext | undefined): { field: FieldData | null } => {
   const field = fields.value.find((f) => f.id == ctx?.triggerNode?.id) ?? null;
-  // TODO :Incomplete: Type fallback to focused/inspection/...? like in other actions?
+  // NOTE :Incomplete: Type fallback to focused/inspection/...? like in other actions?
   return { field };
 };
-// TODO :Incomplete: Type.actions (move, navigate, ...)
+// NOTE :Incomplete: Type.actions (move, navigate, ...)
 const actions: Partial<ActionMapImplementation<"common">> = {
   // common
   "common.create.above": {
@@ -140,6 +140,13 @@ const actions: Partial<ActionMapImplementation<"common">> = {
       const { field } = getFieldFromContext(ctx);
       if (field == null) return false;
       createField(pkgConnection.tx, pkgGraph, { anchor: "after", target: field });
+    },
+  },
+  "common.edit.duplicate": {
+    action: (action, ctx) => {
+      const { field } = getFieldFromContext(ctx);
+      if (field == null) return false;
+      const duplicate = cloneNode(pkgConnection.tx, pkgGraph, field, { includeChildren: true });
     },
   },
   "common.edit.delete": {

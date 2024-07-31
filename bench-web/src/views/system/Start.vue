@@ -133,7 +133,7 @@ defineExpose<ViewExposed>({ self });
     <Scroll
       :size="{ width: size.width, height: size.height - HEADER_HEIGHT }"
       :orientation="Orientation.VERTICAL"
-      :track-width="ScrollbarWidth.md"
+      :track-width="ScrollbarWidth.md" 
       track-is-overlay
     >
       <!-- Inputs -->

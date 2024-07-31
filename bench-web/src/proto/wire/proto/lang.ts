@@ -549,9 +549,9 @@ export interface FileInfoData {
      */
     drivePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional string url = 43;
+     * @generated from protobuf field: optional string external_url = 43;
      */
-    url?: string;
+    externalUrl?: string;
     /**
      * @generated from protobuf field: optional bytes inline_content = 44;
      */
@@ -656,9 +656,9 @@ export interface FileReferenceData {
      */
     drivePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional string url = 43;
+     * @generated from protobuf field: optional string external_url = 43;
      */
-    url?: string;
+    externalUrl?: string;
     /**
      * @generated from protobuf field: optional bytes inline_content = 44;
      */
@@ -2986,9 +2986,9 @@ export interface FileData {
      */
     drivePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional string url = 43;
+     * @generated from protobuf field: optional string external_url = 43;
      */
-    url?: string;
+    externalUrl?: string;
     /**
      * @generated from protobuf field: optional bytes inline_content = 44;
      */
@@ -7922,10 +7922,6 @@ export enum FileFormat {
      */
     PHP = 20009,
     /**
-     * @generated from protobuf enum value: FILE_FORMAT_HTML = 20010;
-     */
-    HTML = 20010,
-    /**
      * @generated from protobuf enum value: FILE_FORMAT_CSS = 20011;
      */
     CSS = 20011,
@@ -8001,6 +7997,14 @@ export enum FileFormat {
      * @generated from protobuf enum value: FILE_FORMAT_RAW = 30008;
      */
     RAW = 30008,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_HEIC = 30009;
+     */
+    HEIC = 30009,
+    /**
+     * @generated from protobuf enum value: FILE_FORMAT_HEIF = 30010;
+     */
+    HEIF = 30010,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_MP3 = 40000;
      */
@@ -8106,6 +8110,10 @@ export enum FileFormat {
      */
     PPT = 60101,
     /**
+     * @generated from protobuf enum value: FILE_FORMAT_HTML = 60102;
+     */
+    HTML = 60102,
+    /**
      * @generated from protobuf enum value: FILE_FORMAT_JSON = 70000;
      */
     JSON = 70000,
@@ -8133,14 +8141,6 @@ export enum FileFormat {
      * @generated from protobuf enum value: FILE_FORMAT_PARQUET = 70101;
      */
     PARQUET = 70101,
-    /**
-     * @generated from protobuf enum value: FILE_FORMAT_AVRO = 70102;
-     */
-    AVRO = 70102,
-    /**
-     * @generated from protobuf enum value: FILE_FORMAT_PROTOBUF = 70103;
-     */
-    PROTOBUF = 70103,
     /**
      * @generated from protobuf enum value: FILE_FORMAT_ZIP = 80000;
      */
@@ -8588,9 +8588,9 @@ export enum ModelProvider {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: MODEL_PROVIDER_INTERNAL = 1;
+     * @generated from protobuf enum value: MODEL_PROVIDER_AUTOMAP = 1;
      */
-    INTERNAL = 1,
+    AUTOMAP = 1,
     /**
      * @generated from protobuf enum value: MODEL_PROVIDER_OPENAI = 100;
      */
@@ -12359,7 +12359,7 @@ class FileInfoData$Type extends MessageType<FileInfoData> {
             { no: 40, name: "kind", kind: "enum", T: () => ["symbolx.bench.FileKind", FileKind, "FILE_KIND_"] },
             { no: 41, name: "title", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 42, name: "drive_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 43, name: "url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 43, name: "external_url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 44, name: "inline_content", kind: "scalar", opt: true, T: 12 /*ScalarType.BYTES*/ },
             { no: 50, name: "coarse_type", kind: "enum", T: () => ["symbolx.bench.FileType", FileType, "FILE_TYPE_"] },
             { no: 51, name: "mime_type", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -12404,8 +12404,8 @@ class FileInfoData$Type extends MessageType<FileInfoData> {
                 case /* optional symbolx.bench.NodeReferenceData drive_ptr */ 42:
                     message.drivePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.drivePtr);
                     break;
-                case /* optional string url */ 43:
-                    message.url = reader.string();
+                case /* optional string external_url */ 43:
+                    message.externalUrl = reader.string();
                     break;
                 case /* optional bytes inline_content */ 44:
                     message.inlineContent = reader.bytes();
@@ -12473,9 +12473,9 @@ class FileInfoData$Type extends MessageType<FileInfoData> {
         /* optional symbolx.bench.NodeReferenceData drive_ptr = 42; */
         if (message.drivePtr)
             NodeReferenceData.internalBinaryWrite(message.drivePtr, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
-        /* optional string url = 43; */
-        if (message.url !== undefined)
-            writer.tag(43, WireType.LengthDelimited).string(message.url);
+        /* optional string external_url = 43; */
+        if (message.externalUrl !== undefined)
+            writer.tag(43, WireType.LengthDelimited).string(message.externalUrl);
         /* optional bytes inline_content = 44; */
         if (message.inlineContent !== undefined)
             writer.tag(44, WireType.LengthDelimited).bytes(message.inlineContent);
@@ -12542,7 +12542,7 @@ class FileReferenceData$Type extends MessageType<FileReferenceData> {
             { no: 40, name: "kind", kind: "enum", T: () => ["symbolx.bench.FileKind", FileKind, "FILE_KIND_"] },
             { no: 41, name: "title", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 42, name: "drive_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 43, name: "url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 43, name: "external_url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 44, name: "inline_content", kind: "scalar", opt: true, T: 12 /*ScalarType.BYTES*/ },
             { no: 50, name: "coarse_type", kind: "enum", T: () => ["symbolx.bench.FileType", FileType, "FILE_TYPE_"] },
             { no: 51, name: "mime_type", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -12606,8 +12606,8 @@ class FileReferenceData$Type extends MessageType<FileReferenceData> {
                 case /* optional symbolx.bench.NodeReferenceData drive_ptr */ 42:
                     message.drivePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.drivePtr);
                     break;
-                case /* optional string url */ 43:
-                    message.url = reader.string();
+                case /* optional string external_url */ 43:
+                    message.externalUrl = reader.string();
                     break;
                 case /* optional bytes inline_content */ 44:
                     message.inlineContent = reader.bytes();
@@ -12693,9 +12693,9 @@ class FileReferenceData$Type extends MessageType<FileReferenceData> {
         /* optional symbolx.bench.NodeReferenceData drive_ptr = 42; */
         if (message.drivePtr)
             NodeReferenceData.internalBinaryWrite(message.drivePtr, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
-        /* optional string url = 43; */
-        if (message.url !== undefined)
-            writer.tag(43, WireType.LengthDelimited).string(message.url);
+        /* optional string external_url = 43; */
+        if (message.externalUrl !== undefined)
+            writer.tag(43, WireType.LengthDelimited).string(message.externalUrl);
         /* optional bytes inline_content = 44; */
         if (message.inlineContent !== undefined)
             writer.tag(44, WireType.LengthDelimited).bytes(message.inlineContent);
@@ -18044,7 +18044,7 @@ class FileData$Type extends MessageType<FileData> {
             { no: 40, name: "kind", kind: "enum", T: () => ["symbolx.bench.FileKind", FileKind, "FILE_KIND_"] },
             { no: 41, name: "title", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 42, name: "drive_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 43, name: "url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 43, name: "external_url", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 44, name: "inline_content", kind: "scalar", opt: true, T: 12 /*ScalarType.BYTES*/ },
             { no: 50, name: "coarse_type", kind: "enum", T: () => ["symbolx.bench.FileType", FileType, "FILE_TYPE_"] },
             { no: 51, name: "mime_type", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -18146,8 +18146,8 @@ class FileData$Type extends MessageType<FileData> {
                 case /* optional symbolx.bench.NodeReferenceData drive_ptr */ 42:
                     message.drivePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.drivePtr);
                     break;
-                case /* optional string url */ 43:
-                    message.url = reader.string();
+                case /* optional string external_url */ 43:
+                    message.externalUrl = reader.string();
                     break;
                 case /* optional bytes inline_content */ 44:
                     message.inlineContent = reader.bytes();
@@ -18267,9 +18267,9 @@ class FileData$Type extends MessageType<FileData> {
         /* optional symbolx.bench.NodeReferenceData drive_ptr = 42; */
         if (message.drivePtr)
             NodeReferenceData.internalBinaryWrite(message.drivePtr, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
-        /* optional string url = 43; */
-        if (message.url !== undefined)
-            writer.tag(43, WireType.LengthDelimited).string(message.url);
+        /* optional string external_url = 43; */
+        if (message.externalUrl !== undefined)
+            writer.tag(43, WireType.LengthDelimited).string(message.externalUrl);
         /* optional bytes inline_content = 44; */
         if (message.inlineContent !== undefined)
             writer.tag(44, WireType.LengthDelimited).bytes(message.inlineContent);
@@ -25484,7 +25484,7 @@ export enum FileProperty {
   kind = 40,
   title = 41,
   drivePtr = 42,
-  url = 43,
+  externalUrl = 43,
   inlineContent = 44,
   coarseType = 50,
   mimeType = 51,
@@ -26013,7 +26013,7 @@ export enum FileReferenceProperty {
   kind = 40,
   title = 41,
   drivePtr = 42,
-  url = 43,
+  externalUrl = 43,
   inlineContent = 44,
   coarseType = 50,
   mimeType = 51,
@@ -26056,7 +26056,7 @@ export enum FileInfoProperty {
   kind = 40,
   title = 41,
   drivePtr = 42,
-  url = 43,
+  externalUrl = 43,
   inlineContent = 44,
   coarseType = 50,
   mimeType = 51,
@@ -26784,7 +26784,7 @@ export const FileReferenceDataInfo: Record<FileReferenceProperty, PropertyInfo> 
   [FileReferenceProperty.kind]: { id: 40, name: 'kind', component: ObjectType.FILE_REFERENCE, enumType: EnumType.FILE_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileReferenceProperty.title]: { id: 41, name: 'title', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 256 }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [FileReferenceProperty.drivePtr]: { id: 42, name: 'drive_ptr', component: ObjectType.FILE_REFERENCE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.DRIVE], referenceStruct: StructType.NODE_REFERENCE },
-  [FileReferenceProperty.url]: { id: 43, name: 'url', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [FileReferenceProperty.externalUrl]: { id: 43, name: 'external_url', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [FileReferenceProperty.inlineContent]: { id: 44, name: 'inline_content', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.BYTES, constraint: { minLength: 1 }, isRuntime: true, isWired: true, isStored: true },
   [FileReferenceProperty.coarseType]: { id: 50, name: 'coarse_type', component: ObjectType.FILE_REFERENCE, enumType: EnumType.FILE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileReferenceProperty.mimeType]: { id: 51, name: 'mime_type', component: ObjectType.FILE_REFERENCE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 255 }, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -26824,7 +26824,7 @@ export const FileInfoDataInfo: Record<FileInfoProperty, PropertyInfo> = {
   [FileInfoProperty.kind]: { id: 40, name: 'kind', component: ObjectType.FILE_INFO, enumType: EnumType.FILE_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileInfoProperty.title]: { id: 41, name: 'title', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 256 }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [FileInfoProperty.drivePtr]: { id: 42, name: 'drive_ptr', component: ObjectType.FILE_INFO, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.DRIVE], referenceStruct: StructType.NODE_REFERENCE },
-  [FileInfoProperty.url]: { id: 43, name: 'url', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [FileInfoProperty.externalUrl]: { id: 43, name: 'external_url', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [FileInfoProperty.inlineContent]: { id: 44, name: 'inline_content', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.BYTES, constraint: { minLength: 1 }, isRuntime: true, isWired: true, isStored: true },
   [FileInfoProperty.coarseType]: { id: 50, name: 'coarse_type', component: ObjectType.FILE_INFO, enumType: EnumType.FILE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileInfoProperty.mimeType]: { id: 51, name: 'mime_type', component: ObjectType.FILE_INFO, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 255 }, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -27669,7 +27669,7 @@ export const FileDataInfo: Record<FileProperty, PropertyInfo> = {
   [FileProperty.kind]: { id: 40, name: 'kind', component: ObjectType.FILE, enumType: EnumType.FILE_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.title]: { id: 41, name: 'title', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 256 }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.drivePtr]: { id: 42, name: 'drive_ptr', component: ObjectType.FILE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.DRIVE], referenceStruct: StructType.NODE_REFERENCE },
-  [FileProperty.url]: { id: 43, name: 'url', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
+  [FileProperty.externalUrl]: { id: 43, name: 'external_url', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.inlineContent]: { id: 44, name: 'inline_content', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.BYTES, constraint: { minLength: 1 }, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.coarseType]: { id: 50, name: 'coarse_type', component: ObjectType.FILE, enumType: EnumType.FILE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.mimeType]: { id: 51, name: 'mime_type', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 255 }, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -28052,8 +28052,6 @@ export const FILE_FORMAT_BY_EXTENSION: Record<string, FileFormat> = {
   "swift": FileFormat.SWIFT,
   "rb": FileFormat.RUBY,
   "php": FileFormat.PHP,
-  "html": FileFormat.HTML,
-  "htm": FileFormat.HTML,
   "css": FileFormat.CSS,
   "java": FileFormat.JAVA,
   "kt": FileFormat.KOTLIN,
@@ -28079,6 +28077,8 @@ export const FILE_FORMAT_BY_EXTENSION: Record<string, FileFormat> = {
   "cr2": FileFormat.RAW,
   "nef": FileFormat.RAW,
   "arw": FileFormat.RAW,
+  "heic": FileFormat.HEIC,
+  "heif": FileFormat.HEIF,
   "mp3": FileFormat.MP3,
   "wav": FileFormat.WAV,
   "flac": FileFormat.FLAC,
@@ -28105,6 +28105,8 @@ export const FILE_FORMAT_BY_EXTENSION: Record<string, FileFormat> = {
   "doc": FileFormat.DOC,
   "xls": FileFormat.XLS,
   "ppt": FileFormat.PPT,
+  "html": FileFormat.HTML,
+  "htm": FileFormat.HTML,
   "json": FileFormat.JSON,
   "yaml": FileFormat.YAML,
   "yml": FileFormat.YAML,
@@ -28112,8 +28114,6 @@ export const FILE_FORMAT_BY_EXTENSION: Record<string, FileFormat> = {
   "sqlite": FileFormat.SQLITE,
   "db": FileFormat.SQLITE,
   "parquet": FileFormat.PARQUET,
-  "avro": FileFormat.AVRO,
-  "proto": FileFormat.PROTOBUF,
   "zip": FileFormat.ZIP,
   "rar": FileFormat.RAR,
   "tar": FileFormat.TAR,
@@ -28163,8 +28163,6 @@ export const FILE_FORMAT_BY_MIME_TYPE: Record<string, FileFormat> = {
   "application/x-ruby": FileFormat.RUBY,
   "text/x-php": FileFormat.PHP,
   "application/x-httpd-php": FileFormat.PHP,
-  "text/html": FileFormat.HTML,
-  "application/xhtml+xml": FileFormat.HTML,
   "text/css": FileFormat.CSS,
   "text/x-java-source": FileFormat.JAVA,
   "image/jpeg": FileFormat.JPEG,
@@ -28180,6 +28178,8 @@ export const FILE_FORMAT_BY_MIME_TYPE: Record<string, FileFormat> = {
   "image/x-adobe-dng": FileFormat.RAW,
   "image/x-canon-cr2": FileFormat.RAW,
   "image/x-nikon-nef": FileFormat.RAW,
+  "image/heic": FileFormat.HEIC,
+  "image/heif": FileFormat.HEIF,
   "audio/mpeg": FileFormat.MP3,
   "audio/mp3": FileFormat.MP3,
   "audio/x-wav": FileFormat.WAV,
@@ -28214,6 +28214,8 @@ export const FILE_FORMAT_BY_MIME_TYPE: Record<string, FileFormat> = {
   "application/msword": FileFormat.DOC,
   "application/vnd.ms-excel": FileFormat.XLS,
   "application/vnd.ms-powerpoint": FileFormat.PPT,
+  "text/html": FileFormat.HTML,
+  "application/xhtml+xml": FileFormat.HTML,
   "application/json": FileFormat.JSON,
   "application/yaml": FileFormat.YAML,
   "text/yaml": FileFormat.YAML,
@@ -28222,9 +28224,6 @@ export const FILE_FORMAT_BY_MIME_TYPE: Record<string, FileFormat> = {
   "application/x-sqlite3": FileFormat.SQLITE,
   "application/vnd.sqlite3": FileFormat.SQLITE,
   "application/vnd.apache.parquet": FileFormat.PARQUET,
-  "avro/binary": FileFormat.AVRO,
-  "application/x-protobuf": FileFormat.PROTOBUF,
-  "application/protobuf": FileFormat.PROTOBUF,
   "application/zip": FileFormat.ZIP,
   "application/x-zip-compressed": FileFormat.ZIP,
   "application/x-rar-compressed": FileFormat.RAR,

@@ -758,7 +758,7 @@ export function createField(
     fieldIn = { ...fieldIn, kind: TypeKind.STRUCT, benchType: BenchType.TEXT };
   }
   // assign kind if forced
-  if (kind != null) {
+  else if (kind != null) {
     fieldIn = { ...fieldIn, kind };
   }
 

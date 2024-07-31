@@ -209,6 +209,7 @@ numpy==1.26.4
     # via
     #   magika
     #   onnxruntime
+    #   opencv-python
     #   pandas
     #   pyarrow
 oauthlib==3.2.2
@@ -218,6 +219,7 @@ oauthlib==3.2.2
 onnxruntime==1.18.1
     # via magika
 openai==1.35.13
+opencv-python==4.10.0.84
 opentelemetry-api==1.24.0
     # via
     #   opentelemetry-exporter-otlp-proto-grpc

@@ -27,6 +27,7 @@ more-itertools==9.0.0
 msgpack==1.0.7
 multidict>=6.0.4
 notion-client>=2.0.0
+opencv-python==4.10.0.84
 pandas>=2.2.2
 playwright==1.43.0
 pillow==10.3.0

@@ -235,6 +235,13 @@ class Projection:
         """Gets the nodes that were referenced but not found."""
         return list(self._missing_nodes_by_id.values())
 
+    def get_nodes_like[T: Node | SomeNodeReference](self, *node_classes: type[T]) -> list[T]:
+        """Gets the nodes of the given type (including missing nodes)."""
+        nodes = [n for n in self._nodes_by_id.values() if isinstance(n, node_classes)] + [
+            n for n in self._missing_nodes_by_id.values() if isinstance(n, node_classes)
+        ]
+        return nodes
+
 
 def find_containing_pages(*nodes: Node) -> list[Block]:
     """Finds the containing pages for the given nodes"""

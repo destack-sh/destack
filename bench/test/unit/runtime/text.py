@@ -1,3 +1,4 @@
+import numpy as np
 import pytest
 from PIL import Image
 
@@ -101,7 +102,10 @@ async def test_run_text_output_dict(local_runtime: RuntimeHandle, model_provider
 
 @pytest.mark.model()
 @_for_every_provider()
-async def test_run_text_with_images(hosted_runtime: RuntimeHandle, model_provider: ModelProvider):
+async def test_run_text_with_solid_images(
+    hosted_runtime: RuntimeHandle, model_provider: ModelProvider
+):
+    # task
     runtime = hosted_runtime
     Hue = Block.new(
         BlockType.CHOICE,
@@ -120,10 +124,50 @@ async def test_run_text_with_images(hosted_runtime: RuntimeHandle, model_provide
     runtime.page().blocks.extend(Hue, DetectColor)
     await runtime.commit()
 
+    # input file
     red_image = Image.new("RGB", (320, 240), color="red")
     image_file = await upload(red_image, "red.png")
     await runtime.commit()
     image_file._unload_rec()
     image_file._clear_cache()
 
-    await runtime.run(DetectColor, inputs={"Image": image_file.to_ref()})
+    run = await runtime.run(DetectColor, inputs={"Image": image_file.to_ref()})
+    assert run.outputs and run.outputs.Hue == Hue.fields.Red
+
+
+@pytest.mark.model()
+@_for_every_provider()
+async def test_run_text_with_giant_images(
+    hosted_runtime: RuntimeHandle, model_provider: ModelProvider
+):
+    # task
+    runtime = hosted_runtime
+    TitleImage = Block.new(
+        BlockType.TEXT,
+        "TitleImage",
+        fields=[
+            Field.input("image", File, constraint(file_type=FileType.IMAGE)),
+            Field.output("title", str, text=md("A fitting title of the image")),
+        ],
+    )
+    runtime.page().blocks.append(TitleImage)
+    await runtime.commit()
+
+    # input file (giant noise image)
+    width, height = 4096, 4096
+    noise = np.random.rand(height, width, 3) * 255
+    noise = Image.fromarray(noise.astype(np.uint8))
+    image_file = await upload(noise, "noise.png")
+    await runtime.commit()
+    image_file._unload_rec()
+    image_file._clear_cache()
+
+    _ = await runtime.run(TitleImage, inputs={"image": image_file.to_ref()})
+
+
+@pytest.mark.model()
+@_for_every_provider()
+async def test_run_text_with_documents(
+    hosted_runtime: RuntimeHandle, model_provider: ModelProvider
+):
+    pass  # nocheckin: convert documents to text

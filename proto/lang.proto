@@ -589,7 +589,6 @@ enum FileFormat {
   FILE_FORMAT_SWIFT = 20007;
   FILE_FORMAT_RUBY = 20008;
   FILE_FORMAT_PHP = 20009;
-  FILE_FORMAT_HTML = 20010;
   FILE_FORMAT_CSS = 20011;
   FILE_FORMAT_JAVA = 20012;
   FILE_FORMAT_KOTLIN = 20013;
@@ -609,6 +608,8 @@ enum FileFormat {
   FILE_FORMAT_SVG = 30006;
   FILE_FORMAT_ICO = 30007;
   FILE_FORMAT_RAW = 30008;
+  FILE_FORMAT_HEIC = 30009;
+  FILE_FORMAT_HEIF = 30010;
   FILE_FORMAT_MP3 = 40000;
   FILE_FORMAT_WAV = 40001;
   FILE_FORMAT_FLAC = 40002;
@@ -635,6 +636,7 @@ enum FileFormat {
   FILE_FORMAT_DOC = 60009;
   FILE_FORMAT_XLS = 60100;
   FILE_FORMAT_PPT = 60101;
+  FILE_FORMAT_HTML = 60102;
   FILE_FORMAT_JSON = 70000;
   FILE_FORMAT_YAML = 70001;
   FILE_FORMAT_CSV = 70002;
@@ -642,8 +644,6 @@ enum FileFormat {
   FILE_FORMAT_TOML = 70004;
   FILE_FORMAT_SQLITE = 70100;
   FILE_FORMAT_PARQUET = 70101;
-  FILE_FORMAT_AVRO = 70102;
-  FILE_FORMAT_PROTOBUF = 70103;
   FILE_FORMAT_ZIP = 80000;
   FILE_FORMAT_RAR = 80001;
   FILE_FORMAT_TAR = 80002;
@@ -780,7 +780,7 @@ enum MachineProfile {
 
 enum ModelProvider {
   MODEL_PROVIDER_UNSPECIFIED = 0;
-  MODEL_PROVIDER_INTERNAL = 1;
+  MODEL_PROVIDER_AUTOMAP = 1;
   MODEL_PROVIDER_OPENAI = 100;
   MODEL_PROVIDER_ANTHROPIC = 101;
   MODEL_PROVIDER_GOOGLE = 102;
@@ -1631,7 +1631,7 @@ message FileInfoData {
   FileKind kind = 40;
   string title = 41;
   optional NodeReferenceData drive_ptr = 42;
-  optional string url = 43;
+  optional string external_url = 43;
   optional bytes inline_content = 44;
   FileType coarse_type = 50;
   optional string mime_type = 51;
@@ -1660,7 +1660,7 @@ message FileReferenceData {
   FileKind kind = 40;
   string title = 41;
   optional NodeReferenceData drive_ptr = 42;
-  optional string url = 43;
+  optional string external_url = 43;
   optional bytes inline_content = 44;
   FileType coarse_type = 50;
   optional string mime_type = 51;
@@ -2394,7 +2394,7 @@ message FileData {
   FileKind kind = 40;
   string title = 41;
   optional NodeReferenceData drive_ptr = 42;
-  optional string url = 43;
+  optional string external_url = 43;
   optional bytes inline_content = 44;
   FileType coarse_type = 50;
   optional string mime_type = 51;

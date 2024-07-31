@@ -1,3 +1,4 @@
+import base64
 import hashlib
 import io
 from datetime import datetime
@@ -9,16 +10,16 @@ from typing import (
     Sequence,
     Union,
     assert_never,
+    cast,
     overload,
     override,
 )
 from uuid import UUID
 
 import aiohttp
-import PIL
-import PIL.Image
 import structlog
 from opentelemetry import trace
+from PIL import Image
 
 from bench.language.bench import Drive
 from bench.language.const import (
@@ -82,7 +83,8 @@ SHA256_CONSTRAINT = constraint(min_length=FILE_HASH_LENGTH, max_length=FILE_HASH
 class FileKind(IdEnum):
     DRIVE = 1
     DRIVE_INLINE = 2
-    EXTERNAL = 3
+    INLINE = 3
+    EXTERNAL = 10
 
 
 @enum_(EnumType.FILE_RETENTION_MODE)
@@ -128,7 +130,6 @@ class FileFormat(IdEnum):  # :FileFormats
     SWIFT = 20007
     RUBY = 20008
     PHP = 20009
-    HTML = 20010
     CSS = 20011
     JAVA = 20012
     KOTLIN = 20013
@@ -150,6 +151,8 @@ class FileFormat(IdEnum):  # :FileFormats
     SVG = 30006
     ICO = 30007
     RAW = 30008
+    HEIC = 30009
+    HEIF = 30010
 
     # audio
     MP3 = 40000
@@ -182,6 +185,7 @@ class FileFormat(IdEnum):  # :FileFormats
     DOC = 60009
     XLS = 60100
     PPT = 60101
+    HTML = 60102
 
     # data
     JSON = 70000
@@ -191,8 +195,6 @@ class FileFormat(IdEnum):  # :FileFormats
     TOML = 70004
     SQLITE = 70100
     PARQUET = 70101
-    AVRO = 70102
-    PROTOBUF = 70103
 
     # archive
     ZIP = 80000
@@ -257,8 +259,6 @@ FILE_FORMAT_BY_EXTENSION = {
     "swift": FileFormat.SWIFT,
     "rb": FileFormat.RUBY,
     "php": FileFormat.PHP,
-    "html": FileFormat.HTML,
-    "htm": FileFormat.HTML,
     "css": FileFormat.CSS,
     "java": FileFormat.JAVA,
     "kt": FileFormat.KOTLIN,
@@ -285,6 +285,8 @@ FILE_FORMAT_BY_EXTENSION = {
     "cr2": FileFormat.RAW,
     "nef": FileFormat.RAW,
     "arw": FileFormat.RAW,
+    "heic": FileFormat.HEIC,
+    "heif": FileFormat.HEIF,
     # audio
     "mp3": FileFormat.MP3,
     "wav": FileFormat.WAV,
@@ -314,6 +316,8 @@ FILE_FORMAT_BY_EXTENSION = {
     "doc": FileFormat.DOC,
     "xls": FileFormat.XLS,
     "ppt": FileFormat.PPT,
+    "html": FileFormat.HTML,
+    "htm": FileFormat.HTML,
     # data
     "json": FileFormat.JSON,
     "yaml": FileFormat.YAML,
@@ -322,8 +326,6 @@ FILE_FORMAT_BY_EXTENSION = {
     "sqlite": FileFormat.SQLITE,
     "db": FileFormat.SQLITE,
     "parquet": FileFormat.PARQUET,
-    "avro": FileFormat.AVRO,
-    "proto": FileFormat.PROTOBUF,
     # archive
     "zip": FileFormat.ZIP,
     "rar": FileFormat.RAR,
@@ -377,8 +379,6 @@ FILE_FORMAT_BY_MIME_TYPE = {
     "application/x-ruby": FileFormat.RUBY,
     "text/x-php": FileFormat.PHP,
     "application/x-httpd-php": FileFormat.PHP,
-    "text/html": FileFormat.HTML,
-    "application/xhtml+xml": FileFormat.HTML,
     "text/css": FileFormat.CSS,
     "text/x-java-source": FileFormat.JAVA,
     # image
@@ -395,6 +395,8 @@ FILE_FORMAT_BY_MIME_TYPE = {
     "image/x-adobe-dng": FileFormat.RAW,
     "image/x-canon-cr2": FileFormat.RAW,
     "image/x-nikon-nef": FileFormat.RAW,
+    "image/heic": FileFormat.HEIC,
+    "image/heif": FileFormat.HEIF,
     # audio
     "audio/mpeg": FileFormat.MP3,
     "audio/mp3": FileFormat.MP3,
@@ -432,6 +434,8 @@ FILE_FORMAT_BY_MIME_TYPE = {
     "application/msword": FileFormat.DOC,
     "application/vnd.ms-excel": FileFormat.XLS,
     "application/vnd.ms-powerpoint": FileFormat.PPT,
+    "text/html": FileFormat.HTML,
+    "application/xhtml+xml": FileFormat.HTML,
     # data
     "application/json": FileFormat.JSON,
     "application/yaml": FileFormat.YAML,
@@ -441,9 +445,6 @@ FILE_FORMAT_BY_MIME_TYPE = {
     "application/x-sqlite3": FileFormat.SQLITE,
     "application/vnd.sqlite3": FileFormat.SQLITE,
     "application/vnd.apache.parquet": FileFormat.PARQUET,
-    "avro/binary": FileFormat.AVRO,
-    "application/x-protobuf": FileFormat.PROTOBUF,
-    "application/protobuf": FileFormat.PROTOBUF,
     # archive
     "application/zip": FileFormat.ZIP,
     "application/x-zip-compressed": FileFormat.ZIP,
@@ -491,7 +492,7 @@ class FileInfoBase(BuiltinObject):
     )
     if TYPE_CHECKING:
         drive_ptr: Optional[NodeReference] = None
-    url: Optional[str] = p_regular(43, default=None)  # if external
+    external_url: Optional[str] = p_regular(43, default=None)  # if external
     inline_content: Optional[bytes] = p_regular(
         44, default=None, constraint=constraint(min_length=1)
     )
@@ -519,6 +520,7 @@ class FileInfoBase(BuiltinObject):
     # cached content
     _cached_get_url: Optional[str] = p_runtime(default=None)
     _cached_content: Optional[bytes] = p_runtime(default=None)
+    _cached_image: Optional[Image.Image] = p_runtime(default=None)
 
     def __content_str__(self) -> str:
         content_parts = [f"'{self.title}'", humanize_bytes(self.size)]
@@ -549,9 +551,11 @@ class FileInfoBase(BuiltinObject):
             raise ValueError(f"content not ready for {self!r}")
 
     @property
-    def get_url(self) -> str:
+    def url(self) -> str:
         """The URL to download the file from."""
-        if self._cached_get_url is not None:
+        if self.external_url is not None:
+            return self.external_url
+        elif self._cached_get_url is not None:
             return self._cached_get_url
         else:
             raise ValueError(f"get_url not ready for {self!r}")
@@ -560,6 +564,79 @@ class FileInfoBase(BuiltinObject):
         """Clears the cached content and URL."""
         self._cached_content = None
         self._cached_get_url = None
+
+    def b64encode(self) -> str:
+        """Encodes the file content as base64."""
+        return base64.b64encode(self.content).decode()
+
+    #
+    # Text content
+    #
+
+    @property
+    def text(self) -> str:
+        """Gets the text content of the file."""
+        if self.coarse_type == FileType.TEXT or self.coarse_type == FileType.CODE:
+            return self.content.decode()
+        else:
+            raise ValueError(f"cannot get text content of {self!r}")
+
+    @property
+    def lines(self) -> list[str]:
+        """Gets the lines of the file."""
+        if self.coarse_type == FileType.TEXT or self.coarse_type == FileType.CODE:
+            return self.text.splitlines()
+        else:
+            raise ValueError(f"cannot get lines of {self!r}")
+
+    #
+    # Image content
+    #
+
+    @property
+    def image(self) -> Image.Image:
+        """Gets the image content of the file."""
+        if self.coarse_type == FileType.IMAGE:
+            if self._cached_image is None:
+                self._cached_image = Image.open(io.BytesIO(self.content))
+            return self._cached_image
+        else:
+            raise ValueError(f"cannot get image content of {self!r}")
+
+    def downscale(self, max_pixels: int, max_size: int) -> "FileInfoBase":
+        """Downscales the image to the given max size and max pixels."""
+
+        # scale down size
+        width, height = self.image.size
+        scale = min(1.0, max_pixels / max(width, height))
+        new_width = int(width * scale)
+        new_height = int(height * scale)
+
+        # resize the image
+        resized_image = self.image.copy().resize((new_width, new_height), Image.LANCZOS)
+        buffer = io.BytesIO()
+        resized_image.save(buffer, format="JPEG", subsampling=0, quality=100)
+        content = buffer.getvalue()
+
+        # reduce quality until it fits
+        quality = 90
+        while len(content) > max_size and quality > 10:
+            quality -= 10
+            buffer = io.BytesIO()
+            resized_image.save(buffer, format="JPEG", subsampling=0, quality=quality)
+            content = buffer.getvalue()
+
+        return FileInfo(
+            kind=FileKind.INLINE,
+            title=self.title,
+            inline_content=content,
+            coarse_type=self.coarse_type,
+            format=FileFormat.JPEG,
+            size=len(content),
+            width=new_width,
+            height=new_height,
+            mime_type="image/jpeg",
+        )
 
 
 @struct_(StructType.FILE_INFO)
@@ -728,7 +805,7 @@ async def upload_batch(
 async def download_batch(
     file_refs: Sequence[FileReference | File],
     *,
-    include_content: bool | Collection[FileType],
+    include_content: bool | Collection[FileReference | File],
     session: "Session | None" = None,
 ) -> list[File]:
     """Downloads the given Files from their Host."""
@@ -769,7 +846,7 @@ async def download_batch(
     elif include_content is False:
         files_to_download = []
     else:
-        files_to_download = [f for f in files_by_id.values() if f.coarse_type in include_content]
+        files_to_download = [files_by_id[cast(UUID, f.id)] for f in include_content]
     if files_to_download:
         file_contents: list[bytes] = []
         async with aiohttp.ClientSession() as http_session:
@@ -786,7 +863,7 @@ async def download_batch(
     return list(files_by_id.values())
 
 
-FileIn = Union[str, bytes, PIL.Image.Image]
+FileIn = Union[str, bytes, Image.Image]
 
 
 async def extract_file_info(  # noqa: RUF029
@@ -804,7 +881,7 @@ async def extract_file_info(  # noqa: RUF029
         content = file_in.encode()
     elif isinstance(file_in, (bytes, bytearray, memoryview)):
         content = file_in
-    elif isinstance(file_in, PIL.Image.Image):
+    elif isinstance(file_in, Image.Image):
         content_io = io.BytesIO()
         file_in.save(content_io, format="PNG")
         content = content_io.getvalue()
@@ -851,10 +928,7 @@ async def extract_file_info(  # noqa: RUF029
 
     # image metadata
     if coarse_type == FileType.IMAGE:
-        if isinstance(file_in, PIL.Image.Image):
-            image = file_in
-        else:
-            image = PIL.Image.open(io.BytesIO(content))
+        image = file_in if isinstance(file_in, Image.Image) else Image.open(io.BytesIO(content))
         file.width, file.height = image.size
         file.aspect_ratio = file.width / file.height
 
