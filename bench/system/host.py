@@ -809,7 +809,7 @@ class Host(GraphIoServiceBase, HostApi, HostBase):
             if file_data.mime_type:
                 file_fields["Content-Type"] = file_data.mime_type
             file_fields["Content-Length"] = str(file_data.size)
-            presigned_post = s3_client.generate_presigned_post(
+            presigned_post: dict = s3_client.generate_presigned_post(
                 Bucket=get_drive_bucket(drive),
                 Key=file_key,
                 Fields=file_fields,
