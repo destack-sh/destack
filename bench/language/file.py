@@ -491,6 +491,10 @@ class FileInfoBase(BuiltinObject):
     channels: Optional[int] = p_internal(62, default=None)
     sample_rate: Optional[int] = p_internal(63, default=None)
 
+    # cached content
+    _cached_get_url: Optional[str] = p_runtime(default=None)
+    _cached_content: Optional[bytes] = p_runtime(default=None)
+
     def __content_str__(self) -> str:
         content_parts = [f"'{self.title}'", humanize_bytes(self.size)]
         if self.format:
@@ -504,6 +508,25 @@ class FileInfoBase(BuiltinObject):
         if self.duration:
             content_parts.append(f"{self.duration:.3f}s")
         return ", ".join(content_parts)
+
+    #
+    # Generic content
+    #
+
+    @property
+    def content(self) -> bytes:
+        """The file content."""
+        if self.inline_content is not None:
+            return self.inline_content
+        elif self._cached_content is not None:
+            return self._cached_content
+        else:
+            raise ValueError(f"content not ready for {self!r}")
+
+    def clear_cache(self):
+        """Clears the cached content and URL."""
+        self._cached_content = None
+        self._cached_get_url = None
 
 
 @struct_(StructType.FILE_INFO)
@@ -535,10 +558,6 @@ class File(RemoteNode[FileData], FileInfoBase):
     # content/info
     # ...FileInfoBase[40-69]
 
-    # cached content
-    _cached_get_url: Optional[str] = p_runtime(default=None)
-    _cached_content: Optional[bytes] = p_runtime(default=None)
-
     __content_str__ = FileInfoBase.__content_str__
 
     def to_ref(self) -> "FileReference":
@@ -548,25 +567,6 @@ class File(RemoteNode[FileData], FileInfoBase):
     def _to_ref_data(self) -> FileReferenceData:
         """Gets a data reference to this file."""
         return FileReference._ref_from_node(self)._to_data()
-
-    #
-    # Generic content
-    #
-
-    @property
-    def content(self) -> bytes:
-        """The file content."""
-        if self.inline_content is not None:
-            return self.inline_content
-        elif self._cached_content is not None:
-            return self._cached_content
-        else:
-            raise ValueError(f"content not ready for {self!r}")
-
-    def clear_cache(self):
-        """Clears the cached content and URL."""
-        self._cached_content = None
-        self._cached_get_url = None
 
     @overload
     async def download(self, *, include_content: Literal[True] = True) -> bytes: ...

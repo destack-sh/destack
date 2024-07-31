@@ -117,5 +117,6 @@ async def test_run_text_with_images(hosted_runtime: RuntimeHandle, model_provide
 
     red_image = Image.new("RGB", (320, 240), color="red")
     image_file = await upload(red_image, "red.png")
+    image_file._unload_rec()
 
-    await runtime.run(Transcribe, inputs={"Image": image_file})
+    await runtime.run(Transcribe, inputs={"Image": image_file.to_ref()})
