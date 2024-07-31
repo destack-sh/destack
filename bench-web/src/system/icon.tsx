@@ -233,12 +233,10 @@ export const ICON_BY_BENCH_TYPE: Partial<Record<BenchType, IconData>> = {
 
 export const ICON_BY_BLOCK_TYPE: Partial<Record<BlockType, IconData>> = _makeIcons<BlockType>({
   [BlockType.PAGE]: "fas fa-memo",
-  [BlockType.ALIAS]: "fas fa-link",
+  
   [BlockType.CLASS]: "fas fa-objects-column",
-
   [BlockType.CHOICE]: "fas fa-circle-chevron-down",
   [BlockType.SIGNAL]: "fas fa-signal-stream",
-  [BlockType.PROTOCOL]: "fas fa-list-check",
 
   [BlockType.TEXT]: "fas fa-text",
   [BlockType.CODE]: "fas fa-code",

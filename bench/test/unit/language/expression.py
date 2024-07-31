@@ -1,12 +1,15 @@
+from bench.language.bench import Package
+from bench.language.block import Block
 from bench.language.const import SortOp
 from bench.language.expression import Expression, S, apply_sort, evaluate_conditional
 from bench.language.field import Field
+from bench.language.run import Run
 from bench.language.session import Session
 
 # NOTE :Test: generate expressions to test with hypothesis
 
 
-def test_evaluate_conditional(session: Session):
+def test_evaluate_conditional_stringy(session: Session):
     NAME = Field.get_property("name")
     ORDER_KEY = Field.get_property("order_key")
 
@@ -29,7 +32,16 @@ def test_evaluate_conditional(session: Session):
     ]
 
 
-def test_apply_sort(session: Session):
+def test_evaluate_conditional_node(session: Session, package: Package):
+    Code1 = Block.new_code("Code1", "pass")
+    package.blocks.append(Code1)
+    Run1 = Run.from_runnable(Code1)
+
+    cond = Run.get_property("block").equals(Code1)
+    assert evaluate_conditional(cond, Run1) is True
+
+
+def test_apply_sort_stringy(session: Session):
     field_0 = Field.new("b", bool, order_key="a0")
     field_1 = Field.new("a", bool, order_key="a1")
     field_2 = Field.new("c", bool, order_key="a2")
