@@ -2,7 +2,7 @@ import asyncio
 import functools
 from contextlib import asynccontextmanager
 from itertools import chain
-from typing import Any, Callable, cast, override
+from typing import TYPE_CHECKING, Any, Callable, Optional, cast, override
 from uuid import UUID
 
 import betterproto
@@ -84,6 +84,11 @@ from bench.utils.oracle import Oracle
 from bench.utils.utils import get_from_env
 from bench.utils.uuidt import UUIDT
 
+if TYPE_CHECKING:
+    from mypy_boto3_s3 import S3Client
+else:
+    S3Client = Any
+
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
@@ -94,9 +99,6 @@ HOST_MEMORY_ENGINE_ENABLED = get_from_env(
     description="Whether to provide in-memory caches for Bench/Package",
 )
 
-S3_ENDPOINT = get_from_env("S3_ENDPOINT", description="S3 endpoint URL")
-S3_ACCESS_KEY = get_from_env("S3_ACCESS_KEY", description="S3 access key")
-S3_SECRET_KEY = get_from_env("S3_SECRET_KEY", description="S3 secret key")
 S3_PRESIGNED_URL_EXPIRY = get_from_env(
     "S3_PRESIGNED_URL_EXPIRY",
     typ=int,
@@ -104,12 +106,27 @@ S3_PRESIGNED_URL_EXPIRY = get_from_env(
     description="S3 presigned URL expiry (in seconds)",
 )
 
-s3_client = boto3.client(
-    "s3",
-    endpoint_url=S3_ENDPOINT,
-    aws_access_key_id=S3_ACCESS_KEY,
-    aws_secret_access_key=S3_SECRET_KEY,
-)
+_s3_client: Optional[S3Client] = None
+
+
+# get the S3 client if needed to avoid requiring its env vars everywhere
+def get_s3_client():
+    global _s3_client
+    if _s3_client is not None:
+        return _s3_client
+
+    S3_ENDPOINT = get_from_env("S3_ENDPOINT", description="S3 endpoint URL")
+    S3_ACCESS_KEY = get_from_env("S3_ACCESS_KEY", description="S3 access key")
+    S3_SECRET_KEY = get_from_env("S3_SECRET_KEY", description="S3 secret key")
+
+    _s3_client = boto3.client(
+        "s3",
+        endpoint_url=S3_ENDPOINT,
+        aws_access_key_id=S3_ACCESS_KEY,
+        aws_secret_access_key=S3_SECRET_KEY,
+    )
+    return _s3_client
+
 
 LOADED_HOST_NODE_TYPES = LOADED_BENCH_NODE_TYPES | SOURCE_NODE_TYPES
 BENCH_QUERY = Bench.descendants(*LOADED_BENCH_NODE_TYPES).select_all()
@@ -768,6 +785,7 @@ class Host(GraphIoServiceBase, HostApi, HostBase):
         self, subject: Subject, request: UploadFilesRequest
     ) -> UploadFilesResponse:
         # TODO :Broken :Security: evaluate file upload access
+        s3_client = get_s3_client()
         handles: list[UploadFilesResponseUploadHandle] = []
         for file_data in request.files:
             # get drive (from in-memory graph)
@@ -833,6 +851,8 @@ class Host(GraphIoServiceBase, HostApi, HostBase):
         self, subject: Subject, request: DownloadFilesRequest
     ) -> DownloadFilesResponse:
         # TODO :Broken :Security!: evaluate file download access
+        s3_client = get_s3_client()
+
         # get files
         async with self.session(readonly=True):
             files_refs = [
