@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING, Any, Optional
 
 import boto3
+import botocore.config
 
 from bench.utils.utils import get_from_env
 
@@ -34,5 +35,6 @@ def get_s3_client() -> S3Client:
         endpoint_url=S3_ENDPOINT,
         aws_access_key_id=S3_ACCESS_KEY,
         aws_secret_access_key=S3_SECRET_KEY,
+        config=botocore.config.Config(signature_version="s3v4"),
     )
     return _s3_client

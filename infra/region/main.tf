@@ -250,7 +250,6 @@ resource "aws_s3_bucket" "bench_files" {
     Name = "bench-${var.env}-${var.cloud}-${var.region}-files"
   }
 }
-
 # CORS (allow all)
 resource "aws_s3_bucket_cors_configuration" "bench_files_cors" {
   bucket = aws_s3_bucket.bench_files.id

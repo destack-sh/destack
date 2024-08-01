@@ -26,7 +26,7 @@ locals {
     OPENAI_API_KEY    = var.openai_api_key
     ANTHROPIC_API_KEY = var.anthropic_api_key
     GHCR_TOKEN        = var.ghcr_token
-    S3_ENDPOINT       = "https://${aws_s3_bucket.bench_files.bucket_regional_domain_name}"
+    S3_ENDPOINT       = "https://s3.${aws_s3_bucket.bench_files.region}.amazonaws.com"
     S3_ACCESS_KEY     = aws_iam_access_key.host.id
     S3_SECRET_KEY     = aws_iam_access_key.host.secret
   }
@@ -49,11 +49,14 @@ resource "aws_iam_policy" "host_s3" {
           "s3:GetObject",
           "s3:ListBucket",
           "s3:PutObject",
+          "s3:PutObjectAcl",
           "s3:DeleteObject",
+          "s3:AbortMultipartUpload",
+          "s3:ListMultipartUploadParts",
         ]
         Resource = [
-          "arn:aws:s3:::bench-${var.env}-${var.cloud}-${var.region}*",
-          "arn:aws:s3:::bench-${var.env}-${var.cloud}-${var.region}*/*",
+          "arn:aws:s3:::bench-${var.env}*",
+          "arn:aws:s3:::bench-${var.env}*/*",
         ]
       }
     ]
