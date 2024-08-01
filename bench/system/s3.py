@@ -26,6 +26,7 @@ def get_s3_client() -> S3Client:
     if _s3_client is not None:
         return _s3_client
 
+    S3_REGION = get_from_env("S3_REGION", description="S3 region")
     S3_ENDPOINT = get_from_env("S3_ENDPOINT", description="S3 endpoint URL")
     S3_ACCESS_KEY = get_from_env("S3_ACCESS_KEY", description="S3 access key")
     S3_SECRET_KEY = get_from_env("S3_SECRET_KEY", description="S3 secret key")
@@ -35,6 +36,6 @@ def get_s3_client() -> S3Client:
         endpoint_url=S3_ENDPOINT,
         aws_access_key_id=S3_ACCESS_KEY,
         aws_secret_access_key=S3_SECRET_KEY,
-        config=botocore.config.Config(signature_version="s3v4"),
+        config=botocore.config.Config(signature_version="s3v4", region_name=S3_REGION),
     )
     return _s3_client

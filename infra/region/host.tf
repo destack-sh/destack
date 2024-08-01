@@ -26,6 +26,7 @@ locals {
     OPENAI_API_KEY    = var.openai_api_key
     ANTHROPIC_API_KEY = var.anthropic_api_key
     GHCR_TOKEN        = var.ghcr_token
+    S3_REGION         = aws_s3_bucket.bench_files.region
     S3_ENDPOINT       = "https://s3.${aws_s3_bucket.bench_files.region}.amazonaws.com"
     S3_ACCESS_KEY     = aws_iam_access_key.host.id
     S3_SECRET_KEY     = aws_iam_access_key.host.secret
