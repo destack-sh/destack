@@ -72,7 +72,8 @@ resource "aws_iam_policy" "supervisor_s3" {
           "s3:DeleteObject",
         ]
         Resource = [
-          "bench-${var.env}*"
+          "arn:aws:s3:::bench-${var.env}*",
+          "arn:aws:s3:::bench-${var.env}*/*"
         ]
       }
     ]
