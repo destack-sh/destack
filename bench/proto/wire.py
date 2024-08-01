@@ -712,7 +712,8 @@ class FileKind(betterproto.Enum):
     UNSPECIFIED = 0
     DRIVE = 1
     DRIVE_INLINE = 2
-    EXTERNAL = 3
+    INLINE = 3
+    EXTERNAL = 10
 
 
 class FileRetentionMode(betterproto.Enum):
@@ -826,19 +827,20 @@ class MachineProfile(betterproto.Enum):
 
 class ModelProvider(betterproto.Enum):
     UNSPECIFIED = 0
-    AUTOMAP = 1
     OPENAI = 100
-    ANTHROPIC = 101
-    GOOGLE = 102
-    META = 103
+    ANTHROPIC = 200
+    GOOGLE = 300
+    META = 400
 
 
 class ModelType(betterproto.Enum):
     UNSPECIFIED = 0
-    GPT40 = 1000
-    CLAUDE_3_5_SONNET = 2000
-    GEMINI_1_5_PRO = 3000
-    LLAMA_3_80B = 4000
+    GPT4_0 = 101
+    GPT4_O_MINI = 102
+    CLAUDE_3_5_SONNET = 201
+    GEMINI_1_5_PRO = 301
+    LLAMA_3_1_80B = 401
+    LLAMA_3_1_400B = 402
 
 
 class Month(betterproto.Enum):

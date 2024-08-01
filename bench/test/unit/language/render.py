@@ -49,7 +49,7 @@ def test_render_builtin_object_expr(
                 continue
             reference_node = BUILTIN_OBJECTS_BY_TYPE[wired_prop.reference_nodes[0]]
             assert isinstance(reference_node, Node), f"expected Node, got {reference_node!r}"
-            reference_alias = renderer.add_node(reference_node)
+            reference_alias = renderer.aliasing.add(reference_node)
             node_references[reference_alias] = reference_node
             setattr(o, prop.name, reference_node)
 
