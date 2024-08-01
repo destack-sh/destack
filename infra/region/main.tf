@@ -251,6 +251,19 @@ resource "aws_s3_bucket" "bench_files" {
   }
 }
 
+# CORS (allow all)
+resource "aws_s3_bucket_cors_configuration" "bench_files_cors" {
+  bucket = aws_s3_bucket.bench_files.id
+
+  cors_rule {
+    allowed_headers = ["*"]
+    allowed_methods = ["GET", "HEAD", "PUT", "POST", "DELETE"]
+    allowed_origins = ["*"]
+    expose_headers  = ["ETag"]
+    max_age_seconds = 3000
+  }
+}
+
 #
 # Supervisor (if primary)
 # NOTE :Infra: supervisor should probably be in its own cluster (or even just a lone EC2 instance)
