@@ -6,7 +6,7 @@ LABEL org.opencontainers.image.description="Bench"
 
 RUN apt-get update
 # install postgresql-libs
-RUN apt-get install -y libpq-dev libzbar-dev
+RUN apt-get install -y libpq-dev libzbar-dev postgresql-client
 # install ML libs
 RUN apt-get install -y ffmpeg
 # install GCC and Fortran
