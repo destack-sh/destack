@@ -32,7 +32,7 @@ locals {
   }
 }
 
-# s3 access
+# s3 access (to region)
 resource "aws_iam_user" "host" {
   name = "bench-${var.env}-host"
 }
@@ -52,8 +52,8 @@ resource "aws_iam_policy" "host_s3" {
           "s3:DeleteObject",
         ]
         Resource = [
-          "arn:aws:s3:::bench-${var.env}*",
-          "arn:aws:s3:::bench-${var.env}*/*",
+          "arn:aws:s3:::bench-${var.env}-${var.cloud}-${var.region}*",
+          "arn:aws:s3:::bench-${var.env}-${var.cloud}-${var.region}*/*",
         ]
       }
     ]

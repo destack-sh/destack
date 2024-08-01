@@ -39,15 +39,51 @@ locals {
     GLOBAL_PG_PASSWORD   = var.global_pg_password
     GLOBAL_PG_CRYPTO_KEY = var.global_pg_crypto_key
 
-    TRACING                  = 0
-    LOG_LEVEL                = "DEBUG"
-    LOG_MODE                 = "JSON"
-    USE_WAITLIST             = 1
+    TRACING      = 0
+    LOG_LEVEL    = "DEBUG"
+    LOG_MODE     = "JSON"
+    USE_WAITLIST = 1
 
     SENTRY_DSN    = var.sentry_dsn
     NEON_API_KEY  = var.neon_api_key
     NEON_BASE_URL = var.neon_base_url
+    S3_ACCESS_KEY = aws_iam_access_key.supervisor.id
+    S3_SECRET_KEY = aws_iam_access_key.supervisor.secret
   }
+}
+
+# s3 access (to everything)
+resource "aws_iam_user" "supervisor" {
+  name = "bench-${var.env}-supervisor"
+}
+resource "aws_iam_policy" "supervisor_s3" {
+  name        = "bench-${var.env}-supervisor-s3"
+  description = "Allow access to S3 buckets for supervisor"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:ListBucket",
+          "s3:PutObject",
+          "s3:DeleteObject",
+        ]
+        Resource = [
+          "bench-${var.env}*"
+        ]
+      }
+    ]
+  })
+}
+resource "aws_iam_user_policy_attachment" "supervisor_s3" {
+  user       = aws_iam_user.supervisor.name
+  policy_arn = aws_iam_policy.supervisor_s3.arn
+}
+resource "aws_iam_access_key" "supervisor" {
+  user = aws_iam_user.supervisor.name
 }
 
 # Supervisor deployment
