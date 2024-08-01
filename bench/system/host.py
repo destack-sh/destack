@@ -2,7 +2,7 @@ import asyncio
 import functools
 from contextlib import asynccontextmanager
 from itertools import chain
-from typing import TYPE_CHECKING, Any, Callable, cast, override
+from typing import Any, Callable, cast, override
 from uuid import UUID
 
 import betterproto
@@ -83,11 +83,6 @@ from bench.utils.func import to_uuid
 from bench.utils.oracle import Oracle
 from bench.utils.utils import get_from_env
 from bench.utils.uuidt import UUIDT
-
-if TYPE_CHECKING:
-    from mypy_boto3_s3 import S3Client
-else:
-    S3Client = Any
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)

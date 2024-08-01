@@ -20,7 +20,7 @@ _s3_client: Optional[S3Client] = None
 
 
 # get the S3 client if needed to avoid requiring its env vars everywhere
-def get_s3_client():
+def get_s3_client() -> S3Client:
     global _s3_client
     if _s3_client is not None:
         return _s3_client
