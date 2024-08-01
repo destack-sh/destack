@@ -48,15 +48,6 @@ class ModelRouter(Runner):
 
 
 #
-# Automapping
-#
-
-
-class AutomapModelRunnerBase(Runner):
-    pass
-
-
-#
 # Chat models
 #
 
@@ -206,6 +197,8 @@ return {"Joke": "Why did the scarecrow win an award? Because he was outstanding 
         *,
         native_types: tuple[FileType, ...],
         native_formats_by_type: Mapping[FileType, tuple[FileFormat, ...]] = {},
+        image_max_pixels: int = 2000,
+        image_max_size: int = 2 * 1024 * 1024,
     ) -> tuple[ChatMessageContent, ...]:
         """
         Renders the context files from the projection, converting into native formats.
@@ -223,24 +216,31 @@ return {"Joke": "Why did the scarecrow win an award? Because he was outstanding 
         )
 
         # convert/preprocess files
+        # NOTE :Performance: cache preprocessed files in the session/some other cache?
         preprocessed_files: list[FileInfoBase] = []
-        for f in raw_files:
-            if f.coarse_type == FileType.IMAGE:
-                # downscale large images to smaller JPEGs
-                IMAGE_MAX_PIXELS_PER_SIDE = 2000
-                IMAGE_MAX_SIZE_BYTES = 2 * 1024 * 1024
-                assert f.width and f.height, f"missing metadata: {f!r}"
-                if (
-                    f.width > IMAGE_MAX_PIXELS_PER_SIDE
-                    or f.height > IMAGE_MAX_PIXELS_PER_SIDE
-                    or f.size > IMAGE_MAX_SIZE_BYTES
-                ):
-                    f = f.downscale(IMAGE_MAX_PIXELS_PER_SIDE, IMAGE_MAX_SIZE_BYTES)
+        for file in raw_files:
+            # downscale large images to smaller JPEGs
+            if file.coarse_type == FileType.IMAGE and (
+                (file.width or 0) > image_max_pixels
+                or (file.height or 0) > image_max_pixels
+                or file.size > image_max_size
+            ):
+                file = await file.downscale(max_pixels=image_max_pixels, max_size=image_max_size)
 
-            if f.coarse_type in native_types:
-                preprocessed_files.append(f)
-            else:  # :Incomplete: automap non-native files (e.g. Document->Text)
-                raise ModelIncapableError(f"cannot convert file {f!r}")
+            # convert files to native types
+            if file.coarse_type not in native_types:
+                # NOTE :Incomplete: automap non-document files (e.g. Audio->Text?)
+                assert FileType.TEXT in native_types, f"{self!r} has no text type"
+                file = await file.convert(FileFormat.MARKDOWN)
+
+            # convert files to native format (if there are specific formats)
+            if (
+                native_formats_by_type.get(file.coarse_type)
+                and file.format not in native_formats_by_type[file.coarse_type]
+            ):
+                file = await file.convert(native_formats_by_type[file.coarse_type][0])
+
+            preprocessed_files.append(file)
 
         contents = tuple(ChatMessageFileContent(f) for f in preprocessed_files)
         return contents
@@ -353,7 +353,9 @@ class OpenaiModelRunner(ChatModelRunnerBase):
         if isinstance(content, ChatMessageTextContent):
             return {"type": "text", "text": content.text}
         elif isinstance(content, ChatMessageFileContent):
-            if content.file.coarse_type == FileType.IMAGE:
+            if content.file.coarse_type in (FileType.TEXT, FileType.CODE):
+                return {"type": "text", "text": content.file.text}
+            elif content.file.coarse_type == FileType.IMAGE:
                 return {"type": "image_url", "image_url": {"url": content.file.url}}
             else:
                 raise ModelIncapableError(f"cannot convert output {content.file!r}")
@@ -449,7 +451,9 @@ class AnthropicModelRunner(ChatModelRunnerBase):
         if isinstance(content, ChatMessageTextContent):
             return {"type": "text", "text": content.text}
         elif isinstance(content, ChatMessageFileContent):
-            if content.file.coarse_type == FileType.IMAGE:
+            if content.file.coarse_type in (FileType.TEXT, FileType.CODE):
+                return {"type": "text", "text": content.file.text}
+            elif content.file.coarse_type == FileType.IMAGE:
                 return {
                     "type": "image",
                     "source": {

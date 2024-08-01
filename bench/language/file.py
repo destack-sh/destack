@@ -1,6 +1,7 @@
 import base64
 import hashlib
 import io
+import tempfile
 from datetime import datetime
 from typing import (
     TYPE_CHECKING,
@@ -519,6 +520,7 @@ class FileInfoBase(BuiltinObject):
 
     # cached content
     _cached_get_url: Optional[str] = p_runtime(default=None)
+    _cached_tmp_path: Optional[str] = p_runtime(default=None)
     _cached_content: Optional[bytes] = p_runtime(default=None)
     _cached_image: Optional[Image.Image] = p_runtime(default=None)
 
@@ -539,6 +541,39 @@ class FileInfoBase(BuiltinObject):
     #
     # Generic content
     #
+
+    async def upload(self) -> "File":
+        """Uploads the file to the host (if not already uploaded)."""
+        raise NotImplementedError
+
+    @overload
+    async def download(self, *, include_content: Literal[True] = True) -> bytes: ...
+    @overload
+    async def download(self, *, include_content: Literal[False] = False) -> str: ...
+    async def download(self, *, include_content: bool = True) -> Union[bytes, str]:
+        """Downloads the file from the source."""
+        assert isinstance(self, (File, FileReference)), f"cannot download {self!r}"
+        if include_content:
+            if self._cached_content is not None:
+                return self._cached_content
+        elif self._cached_get_url is not None:
+            return self._cached_get_url
+        await download_batch([self], include_content=include_content, session=self.active_session)
+        if include_content:
+            assert self._cached_content is not None, f"content not ready for {self!r}"
+            return self._cached_content
+        else:
+            assert self._cached_get_url is not None, f"content not ready for {self!r}"
+            return self._cached_get_url
+
+    def to_tmp_file(self) -> str:
+        """Downloads the file to a temporary file."""
+        if self._cached_tmp_path is None:
+            with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
+                tmp_file.write(self.content)
+            assert isinstance(tmp_file.name, str), f"no path in tmp file {tmp_file!r} for {self!r}"
+            self._cached_tmp_path = tmp_file.name
+        return self._cached_tmp_path
 
     @property
     def content(self) -> bytes:
@@ -568,6 +603,79 @@ class FileInfoBase(BuiltinObject):
     def b64encode(self) -> str:
         """Encodes the file content as base64."""
         return base64.b64encode(self.content).decode()
+
+    @tracer.start_as_current_span("file.convert")
+    async def convert(self, target_format: FileFormat) -> "FileInfoBase":
+        """Converts the file to the given type/format."""
+        if target_format == self.format:
+            return self
+        elif self.coarse_type == FileType.IMAGE:
+            assert (
+                target_format.coarse_type == self.coarse_type
+            ), f"cannot convert {self!r} to {target_format!r}"
+            buffer = io.BytesIO()
+            self.image.save(buffer, format=target_format.name)
+            text = buffer.getvalue()
+            return FileInfo(
+                kind=FileKind.INLINE,
+                title=self.title,
+                mime_type=target_format.mime_type,
+                coarse_type=target_format.coarse_type,
+                format=target_format,
+                size=len(text),
+                width=self.width,
+                height=self.height,
+                aspect_ratio=self.aspect_ratio,
+                inline_content=text,
+            )
+        elif self.coarse_type == FileType.DOCUMENT:
+            # NOTE :Incomplete: handle images when converting documents
+            if target_format == FileFormat.MARKDOWN and self.format in (
+                FileFormat.DOC,
+                FileFormat.DOCX,
+                FileFormat.ODT,
+                FileFormat.PPT,
+                FileFormat.PPTX,
+            ):
+                # convert with pandoc
+                import pypandoc
+
+                tmp_file_path = self.to_tmp_file()
+                text = pypandoc.convert_file(
+                    tmp_file_path, target_format.name.lower(), format=self.format.name.lower()
+                )
+                content = text.encode()
+                return FileInfo(
+                    kind=FileKind.INLINE,
+                    title=self.title,
+                    mime_type="text/markdown",
+                    coarse_type=target_format.coarse_type,
+                    format=target_format,
+                    size=len(content),
+                    inline_content=content,
+                )
+            elif target_format == FileFormat.MARKDOWN and self.format == FileFormat.PDF:
+                # convert with pypdf
+                import pypdf
+
+                reader = pypdf.PdfReader(io.BytesIO(self.content))
+                pages_text: list[str] = []
+                for page in reader.pages:
+                    page_text = page.extract_text()
+                    pages_text.append(page_text)
+                text = "\n\n".join(pages_text)
+                content = text.encode()
+                return FileInfo(
+                    kind=FileKind.INLINE,
+                    title=self.title,
+                    mime_type="text/markdown",
+                    coarse_type=target_format.coarse_type,
+                    format=target_format,
+                    size=len(content),
+                    inline_content=content,
+                )
+
+        raise ValueError(f"cannot convert {self!r} to {target_format!r}")
 
     #
     # Text content
@@ -603,27 +711,38 @@ class FileInfoBase(BuiltinObject):
         else:
             raise ValueError(f"cannot get image content of {self!r}")
 
-    def downscale(self, max_pixels: int, max_size: int) -> "FileInfoBase":
+    @tracer.start_as_current_span("file.downscale")
+    async def downscale(
+        self, max_pixels: int, max_size: int, quality_step: int = 20
+    ) -> "FileInfoBase":
         """Downscales the image to the given max size and max pixels."""
 
         # scale down size
         width, height = self.image.size
         scale = min(1.0, max_pixels / max(width, height))
-        new_width = int(width * scale)
-        new_height = int(height * scale)
 
-        # resize the image
-        resized_image = self.image.copy().resize((new_width, new_height), Image.LANCZOS)
-        buffer = io.BytesIO()
-        resized_image.save(buffer, format="JPEG", subsampling=0, quality=100)
-        content = buffer.getvalue()
+        # resize the image if needed
+        if scale < 1.0:
+            new_width = int(width * scale)
+            new_height = int(height * scale)
+            optimized_image = self.image.copy().resize(
+                (new_width, new_height), Image.Resampling.LANCZOS
+            )
+            buffer = io.BytesIO()
+            optimized_image.save(buffer, format="JPEG", subsampling=0, quality=100)
+            content = buffer.getvalue()
+        else:
+            new_width = width
+            new_height = height
+            optimized_image = self.image
+            content = self.content
 
         # reduce quality until it fits
-        quality = 90
-        while len(content) > max_size and quality > 10:
-            quality -= 10
+        quality = 100 - quality_step
+        while len(content) > max_size and quality > quality_step:
+            quality -= quality_step
             buffer = io.BytesIO()
-            resized_image.save(buffer, format="JPEG", subsampling=0, quality=quality)
+            optimized_image.save(buffer, format="JPEG", subsampling=0, quality=quality)
             content = buffer.getvalue()
 
         return FileInfo(
@@ -635,6 +754,7 @@ class FileInfoBase(BuiltinObject):
             size=len(content),
             width=new_width,
             height=new_height,
+            aspect_ratio=new_width / new_height,
             mime_type="image/jpeg",
         )
 
@@ -677,41 +797,6 @@ class File(RemoteNode[FileData], FileInfoBase):
     def _to_ref_data(self) -> FileReferenceData:
         """Gets a data reference to this file."""
         return FileReference._ref_from_node(self)._to_data()
-
-    @overload
-    async def download(self, *, include_content: Literal[True] = True) -> bytes: ...
-    @overload
-    async def download(self, *, include_content: Literal[False] = False) -> str: ...
-    async def download(self, *, include_content: bool = True) -> Union[bytes, str]:
-        """Downloads the file from the host."""
-        await download_batch([self], include_content=include_content, session=self.active_session)
-        if include_content:
-            assert self._cached_content is not None, f"content not ready for {self!r}"
-            return self._cached_content
-        else:
-            assert self._cached_get_url is not None, f"content not ready for {self!r}"
-            return self._cached_get_url
-
-    @staticmethod
-    async def upload(
-        file: "FileIn",
-        title: str,
-        *,
-        mime_type: str | None = None,
-        coarse_type: FileType | None = None,
-        format: FileFormat | None = None,
-        parent: "Block | Package | None" = None,
-        session: "Session | None" = None,
-    ) -> "File":
-        return await upload(
-            file,
-            title,
-            mime_type=mime_type,
-            coarse_type=coarse_type,
-            format=format,
-            parent=parent,
-            session=session,
-        )
 
 
 @struct_(StructType.FILE_REFERENCE)
@@ -770,13 +855,14 @@ async def upload_batch(
         session = active_session()
 
     # get upload URLs
-    upload_req = UploadFilesRequest(
-        scope=session._get_scope_for_node(files[0]), files=[f._to_data() for f in files]
-    )
-    upload_rep = await session.host.upload_files(upload_req, metadata=session._rpc_headers)
-    assert len(upload_rep.handles) == len(
-        files
-    ), f"unexpected handles: {len(upload_rep.handles)} != {len(files)}"
+    with tracer.start_as_current_span("file.prepare_upload"):
+        upload_req = UploadFilesRequest(
+            scope=session._get_scope_for_node(files[0]), files=[f._to_data() for f in files]
+        )
+        upload_rep = await session.host.upload_files(upload_req, metadata=session._rpc_headers)
+        assert len(upload_rep.handles) == len(
+            files
+        ), f"unexpected handles: {len(upload_rep.handles)} != {len(files)}"
 
     # upload files
     async with aiohttp.ClientSession() as http_session:
@@ -817,28 +903,31 @@ async def download_batch(
     from bench.proto.wiring import unpack_object
 
     # get download URLs
-    download_req = DownloadFilesRequest(
-        scope=session._get_scope_for_node(session),
-        files=[
-            (f._to_plain_ref() if isinstance(f, File) else f._to_plain_ref())._to_data()
-            for f in file_refs
-        ],
-    )
-    download_rep = await session.host.download_files(download_req, metadata=session._rpc_headers)
-    handles_by_id = {h.file.id: h for h in download_rep.handles}
-    file_refs_by_id = {f.id: f for f in file_refs}
-    files_by_id: dict[UUID, File] = {}
-    for file_ref in file_refs:
-        handle = handles_by_id.get(str(file_ref.id))
-        if handle is None:
-            raise RuntimeError(f"missing download handle for {file_ref!r}")
-        if isinstance(file_ref, File):
-            file = file_ref
-        else:
-            file = unpack_object(handle.file, supergraph=session._supergraph, expect=File)
-            file_ref._cached_get_url = handle.get_url  # also update input ref
-        files_by_id[file.id] = file
-        file._cached_get_url = handle.get_url
+    with tracer.start_as_current_span("file.prepare_download"):
+        download_req = DownloadFilesRequest(
+            scope=session._get_scope_for_node(session),
+            files=[
+                (f._to_plain_ref() if isinstance(f, File) else f._to_plain_ref())._to_data()
+                for f in file_refs
+            ],
+        )
+        download_rep = await session.host.download_files(
+            download_req, metadata=session._rpc_headers
+        )
+        handles_by_id = {h.file.id: h for h in download_rep.handles}
+        file_refs_by_id = {f.id: f for f in file_refs}
+        files_by_id: dict[UUID, File] = {}
+        for file_ref in file_refs:
+            handle = handles_by_id.get(str(file_ref.id))
+            if handle is None:
+                raise RuntimeError(f"missing download handle for {file_ref!r}")
+            if isinstance(file_ref, File):
+                file = file_ref
+            else:
+                file = unpack_object(handle.file, supergraph=session._supergraph, expect=File)
+                file_ref._cached_get_url = handle.get_url  # also update input ref
+            files_by_id[file.id] = file
+            file._cached_get_url = handle.get_url
 
     # download files
     if include_content is True:

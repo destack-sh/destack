@@ -142,7 +142,7 @@ defineExpose<ViewExposed>({ self, id });
     <button
       v-if="!isInline"
       ref="containerRef"
-      class="group/dropdown flex w-full flex-row items-center rounded border px-2.5 py-1 transition-all duration-75 data-[popover=true]:border-gray-300"
+      class="group/dropdown flex w-full flex-row items-center truncate rounded border px-2.5 py-1 transition-all duration-75 data-[popover=true]:border-gray-300"
       :class="[
         isInDropZone
           ? 'border-primary-400 bg-primary-200 outline outline-1 outline-primary-400'
@@ -154,14 +154,16 @@ defineExpose<ViewExposed>({ self, id });
       <span v-if="optimisticValue != null" :class="loadFailed ? 'text-danger-600' : 'text-gray-700'">
         <IconInline v-bind="facetIcon" class="mr-1.5 w-5" :class="loadFailed ? 'text-danger-600' : 'text-gray-700'" />
         <a
-          class="decoration-gray-300 underline-offset-3 group-hover/dropdown:underline group-hover/dropdown:decoration-primary-900"
+          class="max-w-full truncate decoration-gray-300 underline-offset-3 group-hover/dropdown:underline group-hover/dropdown:decoration-primary-900"
           :class="download?.getUrl.value != null ? 'hover:underline' : ''"
           :href="download?.getUrl.value ?? undefined"
           target="_blank"
         >
           {{ optimisticValue.title ?? "???" }}
         </a>
-        <span class="ml-1.5 text-xs text-gray-400">{{ humanizeBytes(Number(optimisticValue.size)) }}</span>
+        <span class="ml-1.5 flex-shrink-0 text-xs text-gray-400">
+          {{ humanizeBytes(Number(optimisticValue.size)) }}
+        </span>
         <!-- Uploading -->
         <i
           v-if="upload != null && upload.isActive.value"
