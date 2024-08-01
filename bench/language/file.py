@@ -587,13 +587,13 @@ class FileInfoBase(BuiltinObject):
 
     @property
     def url(self) -> str:
-        """The URL to download the file from."""
+        """The URL to GET the file from."""
         if self.external_url is not None:
             return self.external_url
         elif self._cached_get_url is not None:
             return self._cached_get_url
         else:
-            raise ValueError(f"get_url not ready for {self!r}")
+            raise ValueError(f"url not ready for {self!r}")
 
     def _clear_cache(self):
         """Clears the cached content and URL."""

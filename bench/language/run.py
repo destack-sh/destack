@@ -82,26 +82,19 @@ class ModelType(IdEnum):
     ...  # ?
     # external
     # openai
-    GPT40 = 1000
+    GPT4_0 = 101
+    GPT4_O_MINI = 102
     # anthropic
-    CLAUDE_3_5_SONNET = 2000
+    CLAUDE_3_5_SONNET = 201
     # google
-    GEMINI_1_5_PRO = 3000
+    GEMINI_1_5_PRO = 301
     # meta
-    LLAMA_3_80B = 4000
+    LLAMA_3_1_80B = 401
+    LLAMA_3_1_400B = 402
 
     @property
     def provider(self) -> ModelProvider:
-        if self <= 1999:
-            return ModelProvider.OPENAI
-        elif self <= 2999:
-            return ModelProvider.ANTHROPIC
-        elif self <= 3999:
-            return ModelProvider.GOOGLE
-        elif self <= 4999:
-            return ModelProvider.META
-        else:
-            raise RuntimeError(f"unexpected model {self!r}")
+        return ModelProvider((self.value // 100) * 100)
 
 
 @struct_(StructType.MODEL_OPTIONS)

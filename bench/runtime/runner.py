@@ -267,6 +267,8 @@ class RuntimeRunner:
                 key = CodeType.SCRIPT
         elif kind == RunKind.TEXT:
             text = text or node.text
+            if options and options.model_options:
+                key = options.model_options.provider
         state = RunnableState(
             id=node.id,
             kind=kind,

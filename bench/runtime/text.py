@@ -1,4 +1,5 @@
 import abc
+import re
 from dataclasses import dataclass
 from typing import Any, ClassVar, Literal, Mapping, Union, assert_never, cast, override
 
@@ -18,7 +19,7 @@ from bench.language.file import (
     download_batch,
 )
 from bench.language.project import Projection, ProjectOptions, project
-from bench.language.render import RenderOptions, render, render_value_expr
+from bench.language.render import Aliasing, RenderOptions, render, render_value_expr
 from bench.language.run import ModelProvider, ModelType, RunKind
 from bench.language.value import sample_value
 from bench.runtime.core import RUN_ONCE, ModelFailedError, ModelIncapableError, RunImpossibleError
@@ -37,7 +38,7 @@ class ModelRouter(Runner):
     async def run(self) -> None:
         model_handle = await self.runtime.make_run_handle(
             RunKind.TEXT,
-            key=ModelProvider.ANTHROPIC,
+            key=ModelProvider.OPENAI,
             node=self.node,
             options=RUN_ONCE,
             inputs=self.inputs,
@@ -106,15 +107,15 @@ TellJoke("I'm very happy!")
 
 return {"Joke": "Why did the scarecrow win an award? Because he was outstanding in his field!"}
 
-# There are many more complex tasks and types; examples are provided as needed.
+# There are more complex tasks and types; examples will be provided.
 """
     USER_POSTFIX_MESSAGE = """\
 #
 # Return the answer to the specific invocation of task '{task_alias}' with the given inputs.
-#  - You MUST NOT attempt to generalize over inputs; return the answer for the given inputs only.
-#  - You MAY generate reasoning *before* the respective answer (especially if it's in the output).
-#  - You MAY import and use the Python standard library for maths and such, but nothing else.
-#  - You MAY raise ModelIncapableError("<reason>") if a fitting output is impossible.
+#  - You MUST NOT attempt to generalize over inputs; you MUST return the answer for the given inputs only.
+#  - You MAY add reasoning comments *before* the output (especially if it's required for the output).
+#  - You MAY import and use the Python standard library for math and similar, but nothing else.
+#  - You MAY raise ModelIncapableError("<reason>") if an output for the given inputs is impossible.
 # 
 """
     ASSISTANT_PREFIX_MESSAGE = """\
@@ -134,9 +135,7 @@ return {"Joke": "Why did the scarecrow win an award? Because he was outstanding 
     @override
     async def run(self) -> None:
         projection = project(self.state.node, self.handle.inputs, options=ProjectOptions())
-        files: list[File | FileReference] = projection.get_nodes_like(File, FileReference)
-        # nocheckin: handle node aliases properly (shared alias index to reference later)
-        render_options = RenderOptions(scope=self.node, aliased_nodes=files)
+        render_options = RenderOptions(scope=self.node, aliasing=Aliasing())
         log = logger.bind(runner=self, projection=projection)
 
         with tracer.start_as_current_span("text.prepare_input"):
@@ -316,8 +315,11 @@ anthropic_client = anthropic.AsyncClient(
 
 @runner(RunKind.TEXT, ModelProvider.OPENAI)
 class OpenaiModelRunner(ChatModelRunnerBase):
-    DEFAULT_MODEL = ModelType.GPT40
-    MODEL_BY_TYPE: ClassVar[Mapping[ModelType, str]] = {ModelType.GPT40: "gpt-4o"}
+    DEFAULT_MODEL = ModelType.GPT4_0
+    MODEL_BY_TYPE: ClassVar[Mapping[ModelType, str]] = {
+        ModelType.GPT4_0: "gpt-4o",
+        ModelType.GPT4_O_MINI: "gpt-4o-mini",
+    }
 
     @override
     async def _prepare_input(
@@ -330,7 +332,7 @@ class OpenaiModelRunner(ChatModelRunnerBase):
         file_context = await self.render_file_context(
             projection,
             render_options,
-            native_types=(FileType.TEXT, FileType.CODE),
+            native_types=(FileType.TEXT, FileType.CODE, FileType.IMAGE),
         )
         user_message = ChatMessage(
             role="user",
@@ -356,7 +358,12 @@ class OpenaiModelRunner(ChatModelRunnerBase):
             if content.file.coarse_type in (FileType.TEXT, FileType.CODE):
                 return {"type": "text", "text": content.file.text}
             elif content.file.coarse_type == FileType.IMAGE:
-                return {"type": "image_url", "image_url": {"url": content.file.url}}
+                return {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": f"data:{content.file.mime_type};base64,{content.file.b64encode()}"
+                    },
+                }
             else:
                 raise ModelIncapableError(f"cannot convert output {content.file!r}")
         else:
@@ -407,6 +414,13 @@ class OpenaiModelRunner(ChatModelRunnerBase):
         completion_text = completion.choices[0].message.content
         if not completion_text:
             raise ModelFailedError(f"bad completion to {self!r}: {completion}")
+
+        # clean completion
+        completion_text = completion_text.strip()
+        # strip ```[python] ... ``` wrapper
+        completion_text = re.sub(r"^```[a-zA-Z]*\n", "", completion_text)
+        completion_text = re.sub(r"\n```$", "", completion_text)
+
         return completion_text
 
 

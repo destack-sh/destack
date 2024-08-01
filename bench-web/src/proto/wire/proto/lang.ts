@@ -8223,9 +8223,13 @@ export enum FileKind {
      */
     DRIVE_INLINE = 2,
     /**
-     * @generated from protobuf enum value: FILE_KIND_EXTERNAL = 3;
+     * @generated from protobuf enum value: FILE_KIND_INLINE = 3;
      */
-    EXTERNAL = 3
+    INLINE = 3,
+    /**
+     * @generated from protobuf enum value: FILE_KIND_EXTERNAL = 10;
+     */
+    EXTERNAL = 10
 }
 /**
  * @generated from protobuf enum symbolx.bench.FileRetentionMode
@@ -8588,25 +8592,21 @@ export enum ModelProvider {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: MODEL_PROVIDER_AUTOMAP = 1;
-     */
-    AUTOMAP = 1,
-    /**
      * @generated from protobuf enum value: MODEL_PROVIDER_OPENAI = 100;
      */
     OPENAI = 100,
     /**
-     * @generated from protobuf enum value: MODEL_PROVIDER_ANTHROPIC = 101;
+     * @generated from protobuf enum value: MODEL_PROVIDER_ANTHROPIC = 200;
      */
-    ANTHROPIC = 101,
+    ANTHROPIC = 200,
     /**
-     * @generated from protobuf enum value: MODEL_PROVIDER_GOOGLE = 102;
+     * @generated from protobuf enum value: MODEL_PROVIDER_GOOGLE = 300;
      */
-    GOOGLE = 102,
+    GOOGLE = 300,
     /**
-     * @generated from protobuf enum value: MODEL_PROVIDER_META = 103;
+     * @generated from protobuf enum value: MODEL_PROVIDER_META = 400;
      */
-    META = 103
+    META = 400
 }
 /**
  * @generated from protobuf enum symbolx.bench.ModelType
@@ -8617,21 +8617,29 @@ export enum ModelType {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: MODEL_TYPE_GPT40 = 1000;
+     * @generated from protobuf enum value: MODEL_TYPE_GPT4_0 = 101;
      */
-    GPT40 = 1000,
+    GPT4_0 = 101,
     /**
-     * @generated from protobuf enum value: MODEL_TYPE_CLAUDE_3_5_SONNET = 2000;
+     * @generated from protobuf enum value: MODEL_TYPE_GPT4_O_MINI = 102;
      */
-    CLAUDE_3_5_SONNET = 2000,
+    GPT4_O_MINI = 102,
     /**
-     * @generated from protobuf enum value: MODEL_TYPE_GEMINI_1_5_PRO = 3000;
+     * @generated from protobuf enum value: MODEL_TYPE_CLAUDE_3_5_SONNET = 201;
      */
-    GEMINI_1_5_PRO = 3000,
+    CLAUDE_3_5_SONNET = 201,
     /**
-     * @generated from protobuf enum value: MODEL_TYPE_LLAMA_3_80B = 4000;
+     * @generated from protobuf enum value: MODEL_TYPE_GEMINI_1_5_PRO = 301;
      */
-    LLAMA_3_80B = 4000
+    GEMINI_1_5_PRO = 301,
+    /**
+     * @generated from protobuf enum value: MODEL_TYPE_LLAMA_3_1_80B = 401;
+     */
+    LLAMA_3_1_80B = 401,
+    /**
+     * @generated from protobuf enum value: MODEL_TYPE_LLAMA_3_1_400B = 402;
+     */
+    LLAMA_3_1_400B = 402
 }
 /**
  * @generated from protobuf enum symbolx.bench.Month

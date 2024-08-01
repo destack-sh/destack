@@ -42,7 +42,7 @@ tracer = trace.get_tracer(__name__)
 @dataclass(slots=True)
 class RenderOptions:
     scope: Node
-    aliased_nodes: Collection[Node | SomeNodeReference] = ()
+    aliasing: "Aliasing | None" = None
     # whether the scope's non-inline children should also be rendered (as if it's a page)
     as_page: bool = False
     node_types: Collection[NodeType] = NODE_TYPES_SET
@@ -138,28 +138,20 @@ def _get_renderer(object_type: ObjectType) -> BuiltinObjectRenderer:
     return _renderers.get(object_type, DEFAULT_BUILTIN_OBJECT_RENDERER)
 
 
-class Renderer:
-    """A renderer for one pass of rendering related objects (in one scope)."""
+class Aliasing:
+    """A mapping of aliases for nodes / node references."""
 
-    def __init__(self, options: RenderOptions):
-        self._options = options
+    def __init__(self):
         self._alias_by_node_id: dict[UUID, str] = {}
-        self._node_by_alias: dict[str, Node | SomeNodeReference] = {}
-        if options.aliased_nodes:
-            for node in options.aliased_nodes:
-                self.add_node(node)
+        self._node_by_alias: dict[str, Node | NodeReferenceBase] = {}
 
     def __str__(self) -> str:
-        return f"scope={self.scope!r}, aliases={', '.join(self._node_by_alias)}"
+        return ", ".join(self._node_by_alias)
 
     def __repr__(self) -> str:
-        return f"<Renderer {self}>"
+        return f"<Aliasing {self}>"
 
-    @property
-    def scope(self) -> Node:
-        return self._options.scope
-
-    def add_node(self, obj: Node | SomeNodeReference) -> str:
+    def add(self, obj: Node | NodeReferenceBase) -> str:
         """Adds the given nodes to the context of this renderer."""
         if obj.id in self._alias_by_node_id:
             return self._alias_by_node_id[obj.id]  # already assigned
@@ -181,16 +173,66 @@ class Renderer:
         self._node_by_alias[alias] = obj
         return alias
 
-    def add_nodes(self, nodes: Collection[SomeNodeReference]):
-        for node in nodes:
-            self.add_node(node)
+    def get(self, node: Node | NodeReferenceBase | UUID) -> str | None:
+        """Gets the alias for the given node."""
+        if isinstance(node, Node):
+            return self._alias_by_node_id.get(node.id)
+        elif isinstance(node, NodeReferenceBase):
+            return self._alias_by_node_id.get(cast(UUID, node.id))
+        elif isinstance(node, UUID):
+            return self._alias_by_node_id.get(node)
+        else:
+            assert_never(node)
+
+    def get_or_error(self, node: Node | NodeReferenceBase | UUID) -> str:
+        """Gets the alias for the given node (error if not found)."""
+        alias = self.get(node)
+        if alias is None:
+            raise LookupError(f"no alias for {node!r} in {self!r}")
+        return alias
+
+    def get_or_add(self, obj: Node | SomeNodeReference) -> str:
+        """Gets the alias for the given node (add if not found)."""
+        alias = self.get(obj)
+        if alias is None:
+            alias = self.add(obj)
+        return alias
+
+    __getitem__ = get_or_error
+
+    def __contains__(self, node: Node | NodeReferenceBase | UUID) -> bool:
+        return self.get(node) is not None
+
+
+class Renderer:
+    """A renderer to render related objects (in one scope)."""
+
+    def __init__(self, options: RenderOptions):
+        self._options = options
+        self._aliasing = options.aliasing or Aliasing()
+
+    def __str__(self) -> str:
+        return f"scope={self.scope!r}, aliases={', '.join(self._aliasing._node_by_alias)}"
+
+    def __repr__(self) -> str:
+        return f"<Renderer {self}>"
+
+    @property
+    def scope(self) -> Node:
+        return self._options.scope
+
+    @property
+    def aliasing(self) -> Aliasing:
+        return self._aliasing
 
     def render_node_ref(self, node: Node | NodeReferenceBase) -> str:
         """Renders a python-valid reference to the given node in this context."""
-        alias = self._alias_by_node_id.get(cast(UUID, node.id))
+        alias = self._aliasing.get(node)
         if alias is not None:
+            # already have an alias
             return alias
-        elif isinstance(node, Node) and node._is_attached:
+        elif isinstance(node, Node) and node._is_attached and "name" in node.__properties__:
+            # reference as path
             path = get_path(scope=self.scope, node=node)
             rendered_path = render_path(path)
             if self._options.simplify_paths:
@@ -206,7 +248,9 @@ class Renderer:
                     return f"{path[0].name}.{path[1].name}"
             return f"get_node({rendered_path!r})"
         else:
-            raise RuntimeError(f"node {node!r} is not in the graph and has no alias")
+            # create new alias
+            alias = self._aliasing.add(node)
+            return alias
 
     def render_value_scalar_expr(self, value: "ScalarValue", typ: "TypeInfoBase") -> str:
         """Renders single scalar value into an expression."""
@@ -299,16 +343,16 @@ class Renderer:
 
     @tracer.start_as_current_span("renderer.render_stmt")
     def render_stmt(self, *objs: Node) -> str:
-        """Renders the given objects to a Python block where the objects are defined."""
+        """Renders the given objects to a Python block that defines those objects."""
         # render
         rendered_objs = []
         for obj in objs:
             rendered = self.render_obj_expr(obj)
-            obj_ref = self._alias_by_node_id[obj.id]
+            obj_ref = self._aliasing.get(obj)
             rendered_objs.append(f"{obj_ref} = {rendered}")
-            if obj.parent_ptr and obj.parent_ptr.id in self._alias_by_node_id:
+            if obj.parent_ptr and obj.parent_ptr in self.aliasing:
                 # append to parent
-                parent_ref = self._alias_by_node_id[cast(UUID, obj.parent_ptr.id)]
+                parent_ref = self._aliasing.get(obj.parent_ptr)
                 parent_cls = NODE_CLASS_BY_TYPE[obj.parent_ptr.type]
                 parent_child_prop = parent_cls.get_node_child_property(obj.metatype)
                 rendered_objs.append(f"{parent_ref}.{parent_child_prop.name}.append({obj_ref})")
@@ -384,7 +428,7 @@ def render_stmt(*objs: Node, options: RenderOptions) -> str:
     """Renders the given object to a python block where the objects are defined."""
     renderer = Renderer(options)
     for obj in objs:
-        renderer.add_node(obj)
+        renderer.aliasing.add(obj)
     rendered = renderer.render_stmt(*objs)
     if options.format:
         rendered = format_code(rendered, line_length=options.format_line_length)
