@@ -1,3 +1,5 @@
+import pathlib
+
 import numpy as np
 import pytest
 from PIL import Image
@@ -11,10 +13,7 @@ from bench.language.text import md
 from bench.language.validation import constraint
 from bench.test.unit.conftest import RuntimeHandle
 
-TEST_MODEL_PROVIDERS = (
-    ModelProvider.OPENAI,
-    ModelProvider.ANTHROPIC,
-)
+TEST_MODEL_PROVIDERS = (ModelProvider.OPENAI, ModelProvider.ANTHROPIC)
 
 
 def _for_every_provider():
@@ -166,8 +165,33 @@ async def test_run_text_with_giant_images(
 
 
 @pytest.mark.model()
-@_for_every_provider()
+@pytest.mark.parametrize(
+    ("file_path", "expected_secret"),
+    [("test_text.docx", "blobfish"), ("test_text.pdf", "blobfish")],
+)
 async def test_run_text_with_documents(
-    hosted_runtime: RuntimeHandle, model_provider: ModelProvider
+    hosted_runtime: RuntimeHandle,
+    file_path: str,
+    expected_secret: str,
 ):
-    pass  # nocheckin: convert documents to text
+    # task
+    runtime = hosted_runtime
+    ExtractSecretPhrase = Block.new(
+        BlockType.TEXT,
+        "ExtractSecretPhrase",
+        fields=[
+            Field.input("Document", FileType.DOCUMENT),
+            Field.output("SecretPhrase", str),
+        ],
+    )
+    runtime.page().blocks.extend(ExtractSecretPhrase)
+
+    # input file (from path relative to this file)
+    file_content = pathlib.Path(pathlib.Path(__file__).parent / file_path).read_bytes()
+    file = await upload(file_content, file_path)
+    await runtime.commit()
+    file._unload_rec()
+    file._clear_cache()
+
+    run = await runtime.run(ExtractSecretPhrase, inputs={"Document": file.to_ref()})
+    assert run.outputs and run.outputs.SecretPhrase == expected_secret

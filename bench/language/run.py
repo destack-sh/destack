@@ -68,12 +68,12 @@ class RunKind(IdEnum):
 @enum_(EnumType.MODEL_PROVIDER)
 class ModelProvider(IdEnum):
     # internal
-    AUTOMAP = 1
+    # ...?
     # external
     OPENAI = 100
-    ANTHROPIC = 101
-    GOOGLE = 102
-    META = 103
+    ANTHROPIC = 200
+    GOOGLE = 300
+    META = 400
 
 
 @enum_(EnumType.MODEL_TYPE)

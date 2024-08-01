@@ -47,7 +47,11 @@ from bench.language.property import (
     p_value_runtime,
 )
 from bench.language.setup import BENCH_CLASS_BY_TYPE, BENCH_TYPE_BY_CLASS
-from bench.language.validation import NAME_CONSTRAINT, TypeConstraintIn, ValidationHandler
+from bench.language.validation import (
+    NAME_CONSTRAINT,
+    TypeConstraintIn,
+    ValidationHandler,
+)
 from bench.language.value import SomeValue, coerce_value_object_scalar
 from bench.proto.wire import AnyNodeData, FieldData, NodeReferenceData
 from bench.utils.fractional import INTEGER_ZERO
@@ -437,6 +441,8 @@ TypeIn = Union[
     "Step",
     "PrimitiveType",
     "BenchType",
+    "FileType",
+    "FileFormat",
     Type[Struct],
     Type[Node],
     Type[PrimitiveValue],
@@ -447,6 +453,7 @@ def to_type_scalar(
     typ: TypeIn, *, as_object: bool = False, zone: FieldZone | None = None
 ) -> "TypeInfo":
     """Converts a type-like object to a TypeInfo."""
+    from bench.language.file import FileFormat, FileType
 
     if isinstance(typ, TypeInfoBase):
         return cast("TypeInfo", typ)
@@ -464,6 +471,16 @@ def to_type_scalar(
             return TypeInfo(kind=TypeKind.STRUCT, bench_type=typ)
         elif is_enum_type(typ):
             return TypeInfo(kind=TypeKind.ENUM, bench_type=typ)
+    elif isinstance(typ, FileType):
+        return TypeInfo(
+            kind=TypeKind.NODE, bench_type=NodeType.FILE, constraint=TypeConstraint(file_type=typ)
+        )
+    elif isinstance(typ, FileFormat):
+        return TypeInfo(
+            kind=TypeKind.PRIMITIVE,
+            bench_type=NodeType.FILE,
+            constraint=TypeConstraint(file_format=typ),
+        )
     elif isinstance(typ, type):
         primitive_type = PRIMITIVE_TYPE_BY_PY_TYPE.get(typ)
         if primitive_type:
@@ -505,6 +522,11 @@ def reverse_type_scalar(typ: TypeInfoBase) -> TypeIn | None:
         else:
             return typ.primitive_type
     elif typ.kind in (TypeKind.NODE, TypeKind.STRUCT, TypeKind.ENUM):
+        if typ.constraint:
+            if typ.constraint.file_format:
+                return typ.constraint.file_format
+            elif typ.constraint.file_type:
+                return typ.constraint.file_type
         assert typ.bench_type is not None, f"missing bench type for {typ!r}"
         bench_cls = BENCH_CLASS_BY_TYPE[typ.bench_type]
         return bench_cls

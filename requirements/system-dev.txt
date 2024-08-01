@@ -284,8 +284,10 @@ pydantic-core==2.18.2
     # via pydantic
 pygments==2.18.0
     # via rich
+pypandoc==1.13
 pyparsing==3.1.2
     # via httplib2
+pypdf==4.3.1
 pyproject-hooks==1.1.0
     # via build
 pyright==1.1.366
