@@ -519,6 +519,7 @@ class FileInfoBase(BuiltinObject):
     sample_rate: Optional[int] = p_internal(63, default=None)
 
     # cached content
+    _original: Optional["File | FileReference"] = p_runtime(default=None)  # if converted
     _cached_get_url: Optional[str] = p_runtime(default=None)
     _cached_tmp_path: Optional[str] = p_runtime(default=None)
     _cached_content: Optional[bytes] = p_runtime(default=None)
@@ -537,6 +538,22 @@ class FileInfoBase(BuiltinObject):
         if self.duration:
             content_parts.append(f"{self.duration:.3f}s")
         return ", ".join(content_parts)
+
+    def get_original(self) -> "File | FileReference | None":
+        """The original file (if converted or self)."""
+        if self._original is not None:
+            return self._original
+        elif isinstance(self, (File, FileReference)):
+            return self
+        else:
+            return None
+
+    @property
+    def original(self) -> "File | FileReference":
+        """The original file (if converted or self)."""
+        original = self.get_original()
+        assert original is not None, f"no original for {self!r}"
+        return original
 
     #
     # Generic content
@@ -627,6 +644,7 @@ class FileInfoBase(BuiltinObject):
                 height=self.height,
                 aspect_ratio=self.aspect_ratio,
                 inline_content=text,
+                _original=self.original,
             )
         elif self.coarse_type == FileType.DOCUMENT:
             # NOTE :Incomplete: handle images when converting documents
@@ -634,8 +652,6 @@ class FileInfoBase(BuiltinObject):
                 FileFormat.DOC,
                 FileFormat.DOCX,
                 FileFormat.ODT,
-                FileFormat.PPT,
-                FileFormat.PPTX,
             ):
                 # convert with pandoc
                 import pypandoc
@@ -653,6 +669,7 @@ class FileInfoBase(BuiltinObject):
                     format=target_format,
                     size=len(content),
                     inline_content=content,
+                    _original=self.original,
                 )
             elif target_format == FileFormat.MARKDOWN and self.format == FileFormat.PDF:
                 # convert with pypdf
@@ -673,6 +690,7 @@ class FileInfoBase(BuiltinObject):
                     format=target_format,
                     size=len(content),
                     inline_content=content,
+                    _original=self.original,
                 )
 
         raise ValueError(f"cannot convert {self!r} to {target_format!r}")
@@ -756,6 +774,7 @@ class FileInfoBase(BuiltinObject):
             height=new_height,
             aspect_ratio=new_width / new_height,
             mime_type="image/jpeg",
+            _original=self.original,
         )
 
 

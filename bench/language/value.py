@@ -1180,7 +1180,7 @@ from bench.language.node import (  # noqa: E402
 
 @struct_(StructType.VALUE)
 class Value(Struct):
-    """A generic 'freeform' value."""
+    """A generic typed 'freeform' value."""
 
     type: "TypeInfo" = p_regular(31, struct=StructType.TYPE_INFO)
     name: str | None = p_regular(32, constraint=NAME_CONSTRAINT)
