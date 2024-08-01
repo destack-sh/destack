@@ -1,4 +1,4 @@
-import pathlib
+import io
 
 import numpy as np
 import pytest
@@ -6,8 +6,8 @@ from PIL import Image
 
 from bench.language.block import Block
 from bench.language.const import BlockType, RunStatus
-from bench.language.field import Field
-from bench.language.file import File, FileType, upload
+from bench.language.field import Field, to_type
+from bench.language.file import File, FileFormat, FileType, upload
 from bench.language.run import ModelOptions, ModelProvider, RunErrorType, RunOptions
 from bench.language.text import md
 from bench.language.validation import constraint
@@ -131,7 +131,7 @@ async def test_run_text_with_solid_images(
     image_file._clear_cache()
 
     run = await runtime.run(DetectColor, inputs={"Image": image_file.to_ref()})
-    assert run.outputs and run.outputs.Hue == Hue.fields.Red
+    assert run.outputs and run.outputs.Hue is Hue.fields.Red
 
 
 @pytest.mark.model()
@@ -164,16 +164,30 @@ async def test_run_text_with_giant_images(
     _ = await runtime.run(TitleImage, inputs={"image": image_file.to_ref()})
 
 
+def generate_docx_file(text: str) -> bytes:
+    """Generate a docx file with the given text."""
+    from docx import Document
+
+    document = Document()
+    document.add_paragraph(text)
+    buffer = io.BytesIO()
+    document.save(buffer)
+    return buffer.getvalue()
+
+
 @pytest.mark.model()
 @pytest.mark.parametrize(
-    ("file_path", "expected_secret"),
-    [("test_text.docx", "blobfish"), ("test_text.pdf", "blobfish")],
+    ("format", "secret"),
+    [
+        (FileFormat.DOCX, "blobfish"),
+    ],
 )
-async def test_run_text_with_documents(
+async def test_run_text_with_single_document(
     hosted_runtime: RuntimeHandle,
-    file_path: str,
-    expected_secret: str,
+    format: FileFormat,
+    secret: str,
 ):
+    """Get the secret phrase from a single document"""
     # task
     runtime = hosted_runtime
     ExtractSecretPhrase = Block.new(
@@ -187,11 +201,60 @@ async def test_run_text_with_documents(
     runtime.page().blocks.extend(ExtractSecretPhrase)
 
     # input file (from path relative to this file)
-    file_content = pathlib.Path(pathlib.Path(__file__).parent / file_path).read_bytes()
-    file = await upload(file_content, file_path)
+    text = f"The secret phrase is: '{secret}'"
+    if format == FileFormat.DOCX:
+        file_content = generate_docx_file(text)
+    else:
+        raise ValueError(f"unexpected format: {format!r}")
+
+    file = await upload(file_content, f"test_text.{format.extension}")
     await runtime.commit()
     file._unload_rec()
     file._clear_cache()
 
     run = await runtime.run(ExtractSecretPhrase, inputs={"Document": file.to_ref()})
-    assert run.outputs and run.outputs.SecretPhrase == expected_secret
+    assert run.outputs and run.outputs.SecretPhrase == secret
+
+
+@pytest.mark.model()
+async def test_run_text_with_multiple_documents(hosted_runtime: RuntimeHandle):
+    """Provide multiple 'example' documents as context and another one as input. Ensure it's clear which is which."""
+    runtime = hosted_runtime
+
+    # task
+    example_doc_1 = await upload(
+        generate_docx_file("The secret phrase is: 'beluga'"), "example_doc_1.docx"
+    )
+    variable_1 = Block.new(
+        BlockType.VARIABLE, "example_doc_1", value_type=to_type(File), value=example_doc_1
+    )
+    example_doc_2 = await upload(
+        generate_docx_file("The secret phrase is: 'blobfish'"), "example_doc_2.docx"
+    )
+    variable_2 = Block.new(
+        BlockType.VARIABLE, "example_doc_2", value_type=to_type(File), value=example_doc_2
+    )
+    GetSecretPhrase = Block.new(
+        BlockType.TEXT,
+        "GetSecretPhrase",
+        text=md(
+            "Get the secret phrase from the input document. If not mentioned, get it from example_doc_2"
+        ),
+        fields=[Field.input("Document", File), Field.output("SecretPhrase", str)],
+    )
+    runtime.page().blocks.extend(variable_1, variable_2, GetSecretPhrase)
+    await runtime.commit()
+
+    # run with document
+    #  (to ensure that it's aliased properly)
+    input_doc = await upload(generate_docx_file("The secret phrase is: 'zebra'"), "input_doc.docx")
+    await runtime.commit()
+    input_doc._clear_cache()
+    input_doc._unload_rec()
+    run = await runtime.run(GetSecretPhrase, inputs={"Document": input_doc.to_ref()})
+    assert run.outputs and run.outputs.SecretPhrase == "zebra"
+
+    # run without document
+    #  (to ensure files in context are available)
+    run = await runtime.run(GetSecretPhrase)
+    assert run.outputs and run.outputs.SecretPhrase == "blobfish"

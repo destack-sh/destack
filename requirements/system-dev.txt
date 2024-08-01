@@ -174,6 +174,10 @@ jmespath==1.0.1
     #   botocore
 kubernetes==27.2.0
 kubernetes-asyncio==24.2.3
+lxml==5.2.2
+    # via
+    #   python-docx
+    #   python-pptx
 magika==0.5.1
 markdown-it-py==3.0.0
     # via rich
@@ -235,6 +239,7 @@ packaging==24.0
 pathspec==0.12.1
     # via black
 pillow==10.3.0
+    # via python-pptx
 pip==24.0
     # via pip-tools
 pip-tools==7.3.0
@@ -311,8 +316,10 @@ python-dateutil==2.9.0.post0
     #   kubernetes
     #   kubernetes-asyncio
     #   posthog
+python-docx==1.1.2
 python-dotenv==1.0.1
     # via magika
+python-pptx==0.6.23
 pytz==2024.1
 pyyaml==6.0.1
     # via
@@ -393,6 +400,7 @@ typing-extensions==4.11.0
     #   psycopg-pool
     #   pydantic
     #   pydantic-core
+    #   python-docx
     #   typer
 uritemplate==4.1.1
     # via google-api-python-client
@@ -417,6 +425,8 @@ wheel==0.43.0
     # via pip-tools
 wrapt==1.16.0
     # via deprecated
+xlsxwriter==3.2.0
+    # via python-pptx
 yarl==1.9.4
     # via aiohttp
 zipp==3.19.0

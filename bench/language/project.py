@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Collection, cast
+from typing import TYPE_CHECKING, Collection, assert_never, cast
 from uuid import UUID
 
 import structlog
@@ -21,9 +21,11 @@ tracer = trace.get_tracer(__name__)
 @dataclass(slots=True)
 class ProjectOptions:
     max_depth: int = 10
+    inline_pages: bool = True  # whether to include all source nodes of contained pages
     node_types: Collection[NodeType] = NODE_TYPES_SET
     # child ndoes to 'consider' implicitly references by parents :FoldedNodes
-    folded_child_types: Collection[NodeType] = (NodeType.FIELD, NodeType.TRIGGER, NodeType.QUERY)
+    inline_node_types: Collection[NodeType] = (NodeType.FIELD, NodeType.TRIGGER, NodeType.QUERY)
+    inline_page_node_types: Collection[NodeType] = (NodeType.BLOCK,)
 
 
 class Projection:
@@ -95,15 +97,15 @@ class Projection:
     def _collect_node(self, node: Node):
         """Collects a node (recursively)."""
         self._collect_builtin_object_scalar(node)
-        self._collect_node_folded_children(node)
+        self._collect_node_children(node, self._options.inline_node_types)
 
-    def _collect_node_folded_children(self, node: Node):
-        """Collects the folded children of a node (recursively)."""
+    def _collect_node_children(self, node: Node, node_types: Collection[NodeType]):
+        """Collects children of a node (recursively)."""
         for prop in node.__node_reference_properties__.values():
             if (
                 prop.reference_kind != ReferenceKind.NODE_CHILDREN
                 or not prop.reference_nodes
-                or prop.reference_nodes[0] not in self._options.folded_child_types
+                or prop.reference_nodes[0] not in node_types
             ):
                 continue
             children = getattr(node, prop.name)
@@ -198,22 +200,9 @@ class Projection:
                 else:
                     self._visit_missing_node(cast(SomeNodeReference, value))
 
-    @tracer.start_as_current_span("projection.project")
-    def project(self, *objs: BuiltinObject | ValueObject | None):
-        """Collect all referenced nodes from the given objects."""
-        depth = 0
-
-        # collect nodes from initial values
-        for obj in objs:
-            if isinstance(obj, ValueObject):
-                self._collect_value_object_scalar(obj)
-            elif isinstance(obj, Node):
-                self._visit_node(obj)
-            elif obj is not None:
-                self._collect_builtin_object_scalar(obj)
-
-        # keep collecting nodes until we run out or hit the depth limit
-        while depth < self._options.max_depth and self._nodes_to_collect:
+    def _do_project(self, depth: int, max_depth: int):
+        """Projects the current nodes to the given depth (or until we run out)."""
+        while depth < max_depth and self._nodes_to_collect:
             nodes_at_layer = self._nodes_to_collect
             # index these nodes
             if depth not in self._nodes_by_depth:
@@ -226,6 +215,51 @@ class Projection:
             depth += 1
             for node in nodes_at_layer:
                 self._collect_node(node)
+        return depth
+
+    @tracer.start_as_current_span("projection.project")
+    def project(
+        self,
+        *objs: BuiltinObject | ValueObject | None,
+        max_depth: int | None = None,
+        inline_pages: bool | None = None,
+    ):
+        """
+        Collect all referenced nodes from the given objects.
+        If inlining pages, we do a second pass where we collect all source children of contained pages.
+        """
+
+        max_depth = self._options.max_depth if max_depth is None else max_depth
+        inline_pages = self._options.inline_pages if inline_pages is None else inline_pages
+        old_nodes_by_id = {**self._nodes_by_id}
+
+        # collect nodes from initial values
+        for obj in objs:
+            if obj is None:
+                continue  # convenient when passing multiple objects
+            elif isinstance(obj, ValueObject):
+                self._collect_value_object_scalar(obj)
+            elif isinstance(obj, Node):
+                self._visit_node(obj)
+            elif isinstance(obj, BuiltinObject):
+                self._collect_builtin_object_scalar(obj)
+            else:
+                assert_never(obj)
+
+        # first pass
+        depth = self._do_project(0, max_depth)
+
+        # second pass if inlining pages
+        if inline_pages:
+            new_nodes_by_id = {
+                k: v for k, v in self._nodes_by_id.items() if k not in old_nodes_by_id
+            }
+            containing_pages = find_containing_pages(*new_nodes_by_id.values())
+            for page in containing_pages:
+                self._collect_node(page)
+                self._collect_node_children(page, self._options.inline_page_node_types)
+            # and project that
+            self._do_project(depth, depth + 1)
 
     def get_containing_pages(self) -> list[Block]:
         """Gets the pages containing the collected source nodes."""
@@ -259,7 +293,10 @@ def find_containing_pages(*nodes: Node) -> list[Block]:
 
 
 def project(*objs: BuiltinObject | ValueObject | None, options: ProjectOptions) -> Projection:
-    """Project the nodes, objects and values referenced by the given objects."""
+    """
+    Project the nodes, objects and values referenced by the given objects recursively.
+    If inlining pages, also include all referenced pages (non-recursively).
+    """
     projection: Projection = Projection(options)
     projection.project(*objs)
     return projection
