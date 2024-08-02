@@ -561,18 +561,7 @@ export function packValue(
   }
 }
 
-export function packValueSimple(
-  value: any,
-  type: TypeIdentity,
-  options: { graph?: ReadNodeGraph; wrapScalar: boolean; recurseValueObject: boolean } = {
-    wrapScalar: true,
-    recurseValueObject: true,
-  },
-): JsonValue {
-  return packValue(value, type, options);
-}
-
-export function packValueSimpleStruct(
+export function packValueJson(
   value: any,
   type: TypeIdentity,
   options: { graph?: ReadNodeGraph; wrapScalar: boolean; recurseValueObject: boolean } = {
@@ -580,7 +569,7 @@ export function packValueSimpleStruct(
     recurseValueObject: true,
   },
 ): ProtoStruct {
-  return ProtoStruct.fromJson(packValueSimple(value, type, options));
+  return ProtoStruct.fromJson(packValue(value, type, options));
 }
 
 /**
@@ -652,7 +641,6 @@ export function unpackValue(
     }
   }
 }
-
 
 /** Checks whether the type identity contents are equal. */
 export function typeIdentityEquals(a: TypeIdentity, b: TypeIdentity): boolean {

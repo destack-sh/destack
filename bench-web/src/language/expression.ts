@@ -11,7 +11,7 @@ import {
   type SortOp,
 } from "@/proto/wire";
 import { supergraph } from "@/system/connection";
-import { getPropertyType, packValueSimpleStruct } from "@/language/value";
+import { getPropertyType, packValueJson } from "@/language/value";
 
 export function makeExpression(options: { op: ExpressionOp; value?: any } & Partial<ExpressionData>): ExpressionData {
   let valuePacked;
@@ -21,7 +21,7 @@ export function makeExpression(options: { op: ExpressionOp; value?: any } & Part
     if (options.op == ExpressionOp.IN || options.op == ExpressionOp.NOT_IN) {
       propertyType = { ...propertyType, isList: true }; // coerce type to list
     }
-    valuePacked = packValueSimpleStruct(options.value, propertyType);
+    valuePacked = packValueJson(options.value, propertyType);
   } else {
     valuePacked = options.valuePacked;
   }

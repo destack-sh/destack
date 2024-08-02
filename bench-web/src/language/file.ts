@@ -83,6 +83,7 @@ export type FileDownload = {
 
 //
 // Uploads
+// TODO :UX: indicate active uploads in UI (maybe as sticky notification) 
 //
 
 const uploadsByFileId: Ref<Record<string, FileUpload>> = shallowRef({});

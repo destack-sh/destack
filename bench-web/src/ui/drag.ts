@@ -40,8 +40,7 @@ export type DraggedContent =
       files: FileList | undefined; // only on drop
     };
 export type Dragged = {
-  id: string;
-  trigger: HTMLElement | undefined;
+  trigger?: HTMLElement | undefined;
 } & DraggedContent;
 
 // NOTE: we render the drag image globally in DragOverlay.vue
@@ -68,7 +67,6 @@ export function startDragging(
   if ("metatype" in data) {
     if (isNodeRef(data)) {
       dragged = {
-        id: uuidt(),
         trigger,
         kind: "node",
         node: data,
@@ -76,7 +74,6 @@ export function startDragging(
       };
     } else if (isStruct(data, StructType.SELECTION)) {
       dragged = {
-        id: uuidt(),
         trigger,
         kind: "selection",
         selection: data,
@@ -84,7 +81,6 @@ export function startDragging(
       };
     } else {
       dragged = {
-        id: uuidt(),
         trigger,
         kind: "node",
         node: toNodeRef(data),
@@ -92,12 +88,12 @@ export function startDragging(
       };
     }
   } /* DraggedContent */ else {
-    dragged = { id: uuidt(), trigger, ...data };
+    dragged = { trigger, ...data };
   }
 
   const dt = event.dataTransfer;
   if (!dt) throw new Error(`no dataTransfer on event: ${event}`);
-  dt.setData("application/symbolx.bench." + dragged.id, JSON.stringify({ ...dragged, trigger: null, nodes: [] }));
+  dt.setData("application/symbol.bench." + uuidt(), JSON.stringify({ ...dragged, trigger: null, nodes: [] }));
   dt.setDragImage(dragImageRef.value!, -10, 0);
 
   trigger.dataset.dragging = "true";
@@ -121,23 +117,15 @@ function stopDragging() {
 function getDragged(event: DragEvent): DraggedContent | null {
   // get dragged metatype while dragging (can only read keys set in startDragging above)
   if (event.dataTransfer?.types == null) return null;
-
-  // check if it's one of our dragged items
-  const draggedId = event.dataTransfer.types
-    .find((t) => t.startsWith("application/symbolx.bench."))
-    ?.split(".")
-    .pop();
-  if (draggedId != null) {
-    if (activeDragged.value?.id == draggedId) {
-      return activeDragged.value;
-    } else {
-      log.warn("drag.notFound", draggedId, activeDragged);
-    }
-  }
-
-  // might be a file drop
+  
+  // might be a new file drop
   if (event.dataTransfer.types.includes("Files")) {
     return { kind: "file", files: event.dataTransfer.files };
+  }
+
+  // check if it's one of our current dragged items
+  if (activeDragged.value != null) {
+    return activeDragged.value;
   }
 
   // something else
@@ -204,14 +192,23 @@ function updateDragging(event: DragEvent) {
     return;
   }
   event.preventDefault();
+
+  // update dragged
+  if (activeDragged.value == null) {
+    activeDragged.value = dragged;
+    log.trace("drag.activeDragged", dragged);
+  }
+
+  // update zone
   const zone = findCompatibleDropZone(event.target as HTMLElement | SVGElement, dragged);
   if (zone?.id !== activeDropZone.value?.id) {
     activeDropZone.value = zone;
     log.trace("drag.activeZone", zone);
   }
-  lastDraggedAt.value = DateTime.now();
+
   // schedule check if still active
   //  (this handles the case where something external is dragged into bench-web and we don't get a dragleave/drop/dragend)
+  lastDraggedAt.value = DateTime.now();
   setTimeout(() => {
     if (activeDropZone.value == null) return;
     if (DateTime.now().diff(lastDraggedAt.value!).milliseconds > 200) {
@@ -224,7 +221,7 @@ useEventListener("dragenter", updateDragging);
 useEventListener("dragover", updateDragging);
 useEventListener("dragleave", updateDragging);
 useEventListener("drop", (event) => {
-  const dragged = getDragged(event);
+  const dragged = getDragged(event) ?? activeDragged.value;
   if (dragged == null) return;
   const zone = findCompatibleDropZone(event.target as HTMLElement | SVGElement, dragged);
   if (zone) {
@@ -336,7 +333,7 @@ export function useMultiDropZone(
       const targetStart = options.orientation == Orientation.HORIZONTAL ? targetRect.left : targetRect.top;
       const targetEnd = options.orientation == Orientation.HORIZONTAL ? targetRect.right : targetRect.bottom;
       if (cursorP >= targetStart && cursorP <= targetEnd) {
-        // if hasCenterAnchor we split like in useSplitDropZone, otherwise just 50/50
+        // if hasCenterAnchor we consider edges only like in useSplitDropZone, otherwise just 50/50
         if (options.hasCenterAnchor) {
           const edgeZone = options.orientation == Orientation.HORIZONTAL ? targetRect.width : targetRect.height;
           const centerZone = edgeZone * SPLIT_EDGE_ZONE_FRACTION;

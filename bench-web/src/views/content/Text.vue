@@ -13,7 +13,7 @@ import {
 import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { IS_IN_ALT_MODE, type ActionImplementation, type ActionMapImplementation } from "@/ui/action";
 import { ICON_BY_NODE_TYPE, getNodeIcon } from "@/ui/icon";
-import { canvas, pkgGraph } from "@/system/space";
+import { canvas, pkg, pkgConnection, pkgGraph } from "@/system/space";
 import { isTextEmpty, mapPmNodeToText, mapTextToPmNode } from "@/language/text";
 import { useDropZone } from "@/ui/drag";
 import { pushPopover, menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/menu";
@@ -32,6 +32,7 @@ import { computed, nextTick, onBeforeUnmount, ref, toRef, watch } from "vue";
 import { getElement } from "@/utils/element";
 import { makeTypeInfo } from "@/language/value";
 import { getColorHex } from "@/ui/style";
+import { uploadFile, uploadFiles } from "@/language/file";
 
 const MENTION_TRIGGER_CHAR = "@";
 
@@ -210,19 +211,37 @@ watch(toRef(props, "modelValue"), () => {
   view.updateState(updatedState);
 });
 
+function insertMention(nodePtr: NodeReferenceData, pos: { pos: number }) {
+  if (view == null) throw new Error("view not mounted");
+  const pmNode = PM_SCHEMA.node("mention", { nodePtr });
+  view.dispatch(view.state.tr.insert(pos.pos, pmNode).insertText(" ", pos.pos + 1, pos.pos + 1));
+}
+
 // drag/drop
 const { isInDropZone } = useDropZone({
   name: "text",
   container: textRef,
   isEnabled: toRef(props, "isInput"),
-  kinds: ["node"],
+  kinds: ["node", "file"],
   onDrop: (dragged, event) => {
-    if (view == null || dragged.kind != "node") return;
-    // insert node mention at position (surrounded by spaces)
-    const pos = view.posAtCoords({ left: event.clientX, top: event.clientY });
-    if (pos == null) return; // not in editor
-    const pmNode = PM_SCHEMA.node("mention", { nodePtr: toNodeRef(dragged.node) });
-    view.dispatch(view.state.tr.insert(pos.pos, pmNode).insertText(" ", pos.pos + 1, pos.pos + 1));
+    if (view == null) return;
+    if (dragged.kind == "file") {
+      // upload files and insert as mentions at position (surrounded by spaces)
+      if (dragged.files == null) return;
+      const pos = view.posAtCoords({ left: event.clientX, top: event.clientY });
+      if (pos == null) return; // not in editor
+      Array.from(dragged.files).forEach(async (file) => {
+        const upload = uploadFile(() => pkgConnection.tx, file, { parent: pkg.value! });
+        await upload.completion.wait();
+        if (view == null) throw new Error("view not mounted");
+        insertMention(toNodeRef(upload.file.value!), pos);
+      });
+    } else if (dragged.kind == "node") {
+      // insert node mention at position (surrounded by spaces)
+      const pos = view.posAtCoords({ left: event.clientX, top: event.clientY });
+      if (pos == null) return; // not in editor
+      insertMention(toNodeRef(dragged.node), pos);
+    }
   },
 });
 
