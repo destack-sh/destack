@@ -30,7 +30,7 @@ import {
 import { BASED_NODE_TYPES, getBaseFromNode, toCamelName } from "@/language/utils";
 import { reverseRecord } from "@/utils/functools";
 import { Casing, toCasing } from "@/utils/string";
-import { MessageType, ScalarType, type FieldInfo } from "@protobuf-ts/runtime";
+import { MessageType, reflectionMergePartial, ScalarType, type FieldInfo } from "@protobuf-ts/runtime";
 import { v4 } from "uuid";
 
 export const NODE_TYPE_NAME: Record<NodeType, string> = reverseRecord(NodeType);
@@ -108,10 +108,7 @@ export function makeStruct<T extends StructType>(
   const properties = STRUCT_PROPERTY_ENUM_BY_TYPE[data.metatype as unknown as ObjectType]!;
   let struct;
   if ("id" in properties) {
-    struct = {
-      id: newStructId(),
-      ...data,
-    };
+    struct = { id: newStructId(), ...data };
   } else {
     struct = { ...data };
   }
@@ -120,31 +117,16 @@ export function makeStruct<T extends StructType>(
 
 /** Fills unset properties in the given object with default values. */
 export function fillDefaultObject<T extends AnyNodeData | AnyStructData>(obj: T) {
-  const properties = PROPERTY_ENUM_BY_TYPE[obj.metatype as unknown as ObjectType]!;
   const messageType = MESSAGE_TYPE_BY_OBJECT_TYPE[obj.metatype as unknown as ObjectType]!;
-  let ord = 1; // skip metatype
-  for (const propName of Object.keys(properties)) {
-    if (!isNaN(Number(propName))) continue; // skip numeric keys
-    if (propName == "metatype") continue; // already set
-    if (!Object.prototype.hasOwnProperty.call(obj, propName)) {
-      const field = messageType.fields[ord];
-      const value = getDefaultProtoValue(field);
-      if (value !== undefined) (obj as any)[propName] = value;
-    }
-    ord += 1;
-  }
+  return messageType.create(obj);
 }
 
 /** Makes an object from partial properties */
 export function makeDefaultObject<T extends ObjectType>(
   data: Partial<Omit<AnyTypeMapping[T], "metatype" | "id">> & { metatype: T },
 ): AnyTypeMapping[T] {
-  const allProperties = STRUCT_PROPERTY_ENUM_BY_TYPE[data.metatype as unknown as ObjectType];
-  if (allProperties == null)
-    throw new Error(`missing properties for struct type: ${data.metatype} (${typeof data.metatype})`);
-  const struct = { ...data } as unknown as AnyTypeMapping[T];
-  fillDefaultObject(struct);
-  return struct;
+  const messageType = MESSAGE_TYPE_BY_OBJECT_TYPE[data.metatype as unknown as ObjectType]!;
+  return messageType.create(data);
 }
 
 export const SCALAR_DEFAULTS: Partial<Record<ScalarType, any>> = {
@@ -161,44 +143,9 @@ export const SCALAR_DEFAULTS: Partial<Record<ScalarType, any>> = {
   [ScalarType.BYTES]: new Uint8Array(),
 };
 
-/** Initializes the Bench type proto with default proto values. */
-export function makeDefaultBenchProto<T extends ObjectType>(metatype: T): AnyTypeMapping[T] {
-  const allProperties: AnyPropertyType = PROPERTY_ENUM_BY_TYPE[metatype as unknown as ObjectType]!;
-  const messageType = MESSAGE_TYPE_BY_OBJECT_TYPE[metatype as unknown as ObjectType]!;
-  let ord = 1; // skip metatype
-  const proto = { metatype } as AnyTypeMapping[T];
-  for (const propName of Object.keys(allProperties)) {
-    if (!isNaN(Number(propName))) continue; // skip numeric keys
-    if (propName == "metatype") continue; // already set
-    const field = messageType.fields[ord];
-    (proto as any)[propName] = getDefaultProtoValue(field);
-    ord += 1;
-  }
-  return proto;
-}
-
 /** Initializes any proto message with default proto values. */
 export function makeDefaultProto<T extends object>(messageType: MessageType<T>): T {
-  const proto = {} as T;
-  for (const field of messageType.fields) {
-    (proto as any)[field.name] = getDefaultProtoValue(field);
-  }
-  return proto;
-}
-
-/** Gets the default 'empty' value for the property of a proto message */
-export function getDefaultProtoValue(field: FieldInfo): any {
-  if (field.repeat) {
-    return [];
-  } else if (field.opt) {
-    return undefined;
-  } else if (field.kind == "scalar") {
-    return SCALAR_DEFAULTS[field.T];
-  } else if (field.kind == "enum") {
-    return 0;
-  } else {
-    return undefined; // NOTE :Robustness: is this correct?
-  }
+  return messageType.create();
 }
 
 export function newNodeCk(): string {

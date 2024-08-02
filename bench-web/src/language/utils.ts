@@ -37,7 +37,7 @@ import {
   type AnyStructData,
   type BlockData,
   type FieldData,
-  type NodeTypeMapping
+  type NodeTypeMapping,
 } from "@/proto/wire";
 import {
   describeNode,
@@ -332,12 +332,11 @@ export function makeNode<T extends NodeType>(
   options?: { omit: (keyof NodeTypeMapping[T])[] },
 ): NodeTypeMapping[T] {
   const now = Timestamp.now();
-  const node = {
+  let node = {
     ...data,
     createdAt: now,
     updatedAt: now,
     revision: 0,
-    setProperties: [],
   } as unknown as NodeTypeMapping[T];
   const properties = NODE_PROPERTY_ENUM_BY_TYPE[data.metatype as unknown as ObjectType]!;
 
@@ -369,7 +368,7 @@ export function makeNode<T extends NodeType>(
   }
 
   // assign default values to unset properties
-  fillDefaultObject(node);
+  node = fillDefaultObject(node);
 
   return node;
 }
@@ -378,7 +377,7 @@ export function makeNode<T extends NodeType>(
  * Creates a clone of this struct and its nested structs with the same content (and different identity)
  */
 export function cloneStruct<T extends AnyStructData>(struct: T): T {
-  const clone = { metatype: struct.metatype } as Record<string, any>;
+  let clone = { metatype: struct.metatype } as Record<string, any>;
   const allProperties = PROPERTY_ENUM_BY_TYPE[struct.metatype as unknown as ObjectType]!;
   const propertyInfos = PROPERTY_INFOS_BY_TYPE[struct.metatype as unknown as StructType];
   for (const prop of Object.values(propertyInfos)) {
@@ -399,7 +398,7 @@ export function cloneStruct<T extends AnyStructData>(struct: T): T {
       }
     }
   }
-  fillDefaultObject(clone as T);
+  clone = fillDefaultObject(clone as T);
   return clone as T;
 }
 
