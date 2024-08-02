@@ -11,12 +11,12 @@ import {
   type AnyNodeData,
 } from "@/proto/wire";
 import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
-import { IS_IN_ALT_MODE, type ActionImplementation, type ActionMapImplementation } from "@/system/action";
-import { ICON_BY_NODE_TYPE, getNodeIcon } from "@/system/icon";
+import { IS_IN_ALT_MODE, type ActionImplementation, type ActionMapImplementation } from "@/ui/action";
+import { ICON_BY_NODE_TYPE, getNodeIcon } from "@/ui/icon";
 import { canvas, pkgGraph } from "@/system/space";
-import { isTextEmpty, mapPmNodeToText, mapTextToPmNode } from "@/system/text";
-import { useDropZone } from "@/utils/drag";
-import { pushPopover, menuActionsLike, type PopoverContext, type PopoverInfo } from "@/utils/menu";
+import { isTextEmpty, mapPmNodeToText, mapTextToPmNode } from "@/language/text";
+import { useDropZone } from "@/ui/drag";
+import { pushPopover, menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/menu";
 import { PM_INPUT_RULES, PM_SCHEMA, type TextMarkType, PM_KEYMAP_EXTRA } from "@/utils/prosemirror";
 import { deepValueEquals } from "@/utils/ref";
 import { ViewContentWrapper, makeViewId, viewEmits, type ViewExposed } from "@/views/common";
@@ -30,8 +30,8 @@ import { EditorView, type NodeView as PmNodeView } from "prosemirror-view";
 import { dropCursor } from "prosemirror-dropcursor";
 import { computed, nextTick, onBeforeUnmount, ref, toRef, watch } from "vue";
 import { getElement } from "@/utils/element";
-import { makeTypeInfo } from "@/system/value";
-import { getColorHex } from "@/utils/style";
+import { makeTypeInfo } from "@/language/value";
+import { getColorHex } from "@/ui/style";
 
 const MENTION_TRIGGER_CHAR = "@";
 

@@ -10,20 +10,19 @@ import {
   type AnyNodeData,
   type IconData,
   type NodeReferenceData,
-  type TextData
+  type TextData,
 } from "@/proto/wire";
 import { describeNode, isNode, toPlainNodeRef, type AnyNodeReferenceData } from "@/proto/wiring";
 import { isDeveloperMode, packagePtr } from "@/system/client";
-import { makeIcon } from "@/system/icon";
-import { EXPOSED_ANCHORS, getRandomEnumOption } from "@/system/lang";
+import { makeIcon } from "@/ui/icon";
 import { canvas, hasLocalBench, inspectionPtr, pkg, pkgConnection, pkgGraph, space } from "@/system/space";
-import { toaster } from "@/system/toast";
-import { getAllTransactionBuffers } from "@/system/transaction";
-import { packBuiltinObjectJson } from "@/system/value";
+import { toaster } from "@/ui/toast";
+import { getAllTransactionBuffers } from "@/language/transaction";
+import { packBuiltinObjectJson } from "@/language/value";
 import { generateOrderKey } from "@/utils/fractional";
 import { type FilterPrefix } from "@/utils/functools";
 import { DISCORD_URL, IS_DEV } from "@/utils/globals";
-import { keytrap, type KeySignature } from "@/utils/keymap";
+import { keytrap, type KeySignature } from "@/ui/keymap";
 import { log } from "@/utils/log";
 import { generateRandomName } from "@/utils/naming";
 import { Casing, toCasing } from "@/utils/string";
@@ -34,7 +33,7 @@ import {
   createDesktopAdvancedSpace,
   createDesktopDefaultSpace,
   createEmptySpace,
-} from "@/views/canvas";
+} from "@/ui/canvas";
 import type { ViewComponent } from "@/views/common";
 import { useKeyModifier } from "@vueuse/core";
 import {
@@ -48,6 +47,7 @@ import {
   type MaybeRef,
   type Ref,
 } from "vue";
+import { EXPOSED_ANCHORS, getRandomEnumOption } from "@/ui/inspect";
 
 export const IS_IN_ALT_MODE = useKeyModifier("Alt");
 

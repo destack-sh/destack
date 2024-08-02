@@ -1,7 +1,5 @@
+import { defaultSortStruct } from "@/language/order";
 import { ObjectType, TextData, TextLineData, TextLineType, TextSpanData } from "@/proto/wire";
-import { newStructId } from "@/proto/wiring";
-import { defaultSortStruct } from "@/system/lang";
-import { generateOrderKeys } from "@/utils/fractional";
 import { PM_SCHEMA, type TextMarkType } from "@/utils/prosemirror";
 import { Node as PmNode } from "prosemirror-model";
 

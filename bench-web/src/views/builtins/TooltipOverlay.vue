@@ -1,7 +1,7 @@
 <script lang="ts" setup>
-import { IconInline, toIconMaybe } from "@/system/icon";
+import { IconInline, toIconMaybe } from "@/ui/icon";
 import { getFloatingPosition, type FloatingOptions } from "@/utils/floating";
-import { Shortcut, activeTooltips, type TooltipInstance } from "@/utils/tooltip";
+import { Shortcut, activeTooltips, type TooltipInstance } from "@/ui/tooltip";
 import { ref, type Ref } from "vue";
 
 const tooltipRefs: Ref<Record<string, HTMLDivElement>> = ref({});

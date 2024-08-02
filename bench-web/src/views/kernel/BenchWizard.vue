@@ -10,13 +10,13 @@ import {
 } from "@/proto/wire/";
 import { toPlainNodeRef } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
-import { makeIcon } from "@/system/icon";
-import { enumIndex } from "@/system/search";
+import { makeIcon } from "@/ui/icon";
+import { enumIndex } from "@/ui/search";
 import { canvas, goToBench } from "@/system/space";
 import { createBench, user } from "@/system/user";
-import { makeTypeInfo } from "@/system/value";
+import { makeTypeInfo } from "@/language/value";
 import { DEFAULT_REGION_BY_AREA, GEOLOCATION } from "@/utils/geolocation";
-import { getViewComponentChildren, isVueInstanceOf } from "@/views/canvas";
+import { getViewComponentChildren, isVueInstanceOf } from "@/ui/canvas";
 import { viewEmits, type FocusAnchor } from "@/views/common";
 import NativeInput from "@/views/content/NativeInput.vue";
 import Picker from "@/views/content/Picker.vue";

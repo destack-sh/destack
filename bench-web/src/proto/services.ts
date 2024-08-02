@@ -7,7 +7,7 @@ import {
   type IGraphIOClient,
 } from "@/proto/wire";
 import { CLIENT_TYPE, clientInfo, clientMeta } from "@/system/client";
-import { toaster } from "@/system/toast";
+import { toaster } from "@/ui/toast";
 import { SUPERVISOR_URL } from "@/utils/globals";
 import { log } from "@/utils/log";
 import { formatDuration } from "@/utils/time";

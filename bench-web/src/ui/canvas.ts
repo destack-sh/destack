@@ -27,28 +27,26 @@ import {
   type AnyNodeReferenceData,
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
-import { isDescendantOf, type NodeKey, type ReadNodeGraph } from "@/system/graph";
-import { toIconMaybe } from "@/system/icon";
+import { isDescendantOf, type NodeKey, type ReadNodeGraph } from "@/language/graph";
+import { toIconMaybe } from "@/ui/icon";
 import {
   HELPER_VIEW_TYPES,
   PAGE_BLOCK_TYPES,
   ROOT_VIEW_TYPES,
   cloneNode,
   generateNodeName,
-  getOrderKey,
   makeNode,
   toCamelName,
-  updateOrder,
-} from "@/system/lang";
+} from "@/language/utils";
 import { canvas, inspectionBasePtr, inspectionPtr } from "@/system/space";
-import { packProtoJson, unpackProtoJson, type DebounceLevel, type Transaction } from "@/system/transaction";
-import { isProtoJson, packBuiltinObject, packBuiltinObjectJson, unpackBuiltinObject } from "@/system/value";
-import type { SplitAnchor } from "@/utils/drag";
+import { packProtoJson, unpackProtoJson, type DebounceLevel, type Transaction } from "@/language/transaction";
+import { isProtoJson, packBuiltinObject, packBuiltinObjectJson, unpackBuiltinObject } from "@/language/value";
+import type { SplitAnchor } from "@/ui/drag";
 import { getElement, isFocusableElement } from "@/utils/element";
 import { generateOrderKey, generateOrderKeys } from "@/utils/fractional";
 import { assertNever } from "@/utils/functools";
 import { IS_DEV, isDeveloperMode } from "@/utils/globals";
-import { DEFAULT_ORIENTATION, splitBox } from "@/utils/layout";
+import { DEFAULT_ORIENTATION, splitBox } from "@/ui/layout";
 import { log } from "@/utils/log";
 import { computedValue, deepValueEquals } from "@/utils/ref";
 import { Casing, toCasing } from "@/utils/string";
@@ -69,6 +67,7 @@ import {
   type MaybeRef,
   type Ref,
 } from "vue";
+import { getOrderKey, updateOrder } from "@/language/order";
 
 export const DEFAULT_BAR_POSITION = Anchor.TOP;
 export const DEFAULT_HEADER_HEIGHT = 36;
@@ -1075,10 +1074,7 @@ export function expandSelection(
 ): SelectionData {
   return {
     ...(selection ?? { metatype: ObjectType.SELECTION, kind: SelectionKind.LIST }),
-    nodesPtr: [
-      ...(selection?.nodesPtr ?? []),
-      ...nodes.map((n) => (isNodeRef(n) ? n : toNodeRef(n as AnyNodeData))),
-    ],
+    nodesPtr: [...(selection?.nodesPtr ?? []), ...nodes.map((n) => (isNodeRef(n) ? n : toNodeRef(n as AnyNodeData)))],
   };
 }
 

@@ -1,12 +1,12 @@
 /* eslint-disable no-console */
 import "./assets/index.css";
 
-import { toaster } from "@/system/toast";
-import { setupTransactionManagement } from "@/system/transaction";
+import { toaster } from "@/ui/toast";
+import { setupTransactionManagement } from "@/language/transaction";
 import { COMMIT, ENV, IS_DEV, SENTRY_DSN, SUPERVISOR_URL, VERSION } from "@/utils/globals";
-import { keytrap } from "@/utils/keymap";
-import { CONTEXT_MENU_DIRECTIVE, MENU_DIRECTIVE } from "@/utils/menu";
-import { EVENT_OUTSIDE_DIRECTIVE, HOVER_DIRECTIVE, TOOLTIP_DIRECTIVE } from "@/utils/tooltip";
+import { keytrap } from "@/ui/keymap";
+import { CONTEXT_MENU_DIRECTIVE, MENU_DIRECTIVE } from "@/ui/menu";
+import { EVENT_OUTSIDE_DIRECTIVE, HOVER_DIRECTIVE, TOOLTIP_DIRECTIVE } from "@/ui/tooltip";
 import { registerViewComponents } from "@/views/registry";
 import * as Sentry from "@sentry/vue";
 import posthog from "posthog-js";

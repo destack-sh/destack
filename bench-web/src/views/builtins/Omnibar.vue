@@ -1,14 +1,14 @@
 <script lang="tsx" setup>
 import { NodeType, Orientation, ViewData, ViewType } from "@/proto/wire";
-import { OMNIBAR_MODES, addAction, fireAction, type ActionBuiltinId, type OmnibarMode } from "@/system/action";
+import { OMNIBAR_MODES, addAction, fireAction, type ActionBuiltinId, type OmnibarMode } from "@/ui/action";
 import { packagePtr } from "@/system/client";
-import { IconInline, makeIcon } from "@/system/icon";
-import { actionIndex, graphIndex, useSearch, type SearchIndex, type NodeItem, type ActionItem } from "@/system/search";
+import { IconInline, makeIcon } from "@/ui/icon";
+import { actionIndex, graphIndex, useSearch, type SearchIndex, type NodeItem, type ActionItem } from "@/ui/search";
 import { bench, spaceGraph, canvas, pkgGraph, space, hasLocalPkg } from "@/system/space";
 import { nowOrNextTick } from "@/utils/functools";
-import { ScrollbarWidth } from "@/utils/layout";
+import { ScrollbarWidth } from "@/ui/layout";
 import { Casing, toCasing } from "@/utils/string";
-import { Shortcut } from "@/utils/tooltip";
+import { Shortcut } from "@/ui/tooltip";
 import Scroll from "@/views/containers/Scroll.vue";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 

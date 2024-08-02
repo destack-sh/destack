@@ -1,14 +1,14 @@
 <script lang="ts" setup>
 import { NodeType, Variant, ViewData } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
-import type { ActionMapImplementation } from "@/system/action";
+import type { ActionMapImplementation } from "@/ui/action";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
-import { IconInline, getNodeIcon } from "@/system/icon";
-import { NAME_CONSTRAINT } from "@/system/lang";
+import { IconInline, getNodeIcon } from "@/ui/icon";
+import { NAME_CONSTRAINT } from "@/language/utils";
 import { canvas, inspectionPtr } from "@/system/space";
-import { getNativeConstraintProps, guardNativeInput } from "@/system/view";
-import { type PopoverInfoIn } from "@/utils/menu";
-import type { TooltipInfo } from "@/utils/tooltip";
+import { getNativeConstraintProps, guardNativeInput } from "@/ui/view";
+import { type PopoverInfoIn } from "@/ui/menu";
+import type { TooltipInfo } from "@/ui/tooltip";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import Icon from "@/views/content/Icon.vue";

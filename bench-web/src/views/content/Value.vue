@@ -3,7 +3,7 @@ import { NodeType, ViewData } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import type { PreparedGetConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
-import { getViewForValueType } from "@/system/view";
+import { getViewForValueType } from "@/ui/view";
 import { ViewContentWrapper, makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import { getViewComponent, hasViewComponent } from "@/views/registry";
 import { computed, toRef } from "vue";

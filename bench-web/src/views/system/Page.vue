@@ -13,34 +13,29 @@ import {
   type AnyNodeData,
 } from "@/proto/wire/";
 import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
-import { fireActionById, type ActionContext, type ActionMapImplementation } from "@/system/action";
-import { useFlatNodeMoveActions } from "@/system/block";
+import { fireActionById, type ActionContext, type ActionMapImplementation } from "@/ui/action";
+import { useFlatNodeMoveActions } from "@/language/block";
 import { PACKAGE_SCOPE } from "@/system/client";
 import { useExistingConnection, useGetConnection } from "@/system/connection";
-import { getGroupedChildrenRef, isDescendantOf } from "@/system/graph";
-import { ICON_BY_BLOCK_TYPE, IconInline } from "@/system/icon";
-import {
-  EXPOSED_BLOCK_TYPES,
-  cloneNode,
-  createBlock,
-  moveNode,
-  toCamelName
-} from "@/system/lang";
-import { makeRun } from "@/system/session";
+import { getGroupedChildrenRef, isDescendantOf } from "@/language/graph";
+import { ICON_BY_BLOCK_TYPE, IconInline } from "@/ui/icon";
+import { cloneNode, createBlock, moveNode, toCamelName } from "@/language/utils";
+import { makeRun } from "@/language/session";
 import { canvas, inspectionPtr } from "@/system/space";
-import { makeTypeInfo } from "@/system/value";
-import { startDragging, useMultiDropZone } from "@/utils/drag";
+import { makeTypeInfo } from "@/language/value";
+import { startDragging, useMultiDropZone } from "@/ui/drag";
 import { blurDocument } from "@/utils/element";
-import { ScrollbarWidth } from "@/utils/layout";
-import { menuActionsLike, type PopoverContext, type PopoverInfo, type PopoverInfoIn } from "@/utils/menu";
+import { ScrollbarWidth } from "@/ui/layout";
+import { menuActionsLike, type PopoverContext, type PopoverInfo, type PopoverInfoIn } from "@/ui/menu";
 import { computedValue } from "@/utils/ref";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import NodePath from "@/views/builtins/NodePath.vue";
-import { DEFAULT_HEADER_HEIGHT } from "@/views/canvas";
+import { DEFAULT_HEADER_HEIGHT } from "@/ui/canvas";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Block from "@/views/system/Block.vue";
 import { computed, nextTick, ref, toRef, type Ref } from "vue";
+import { EXPOSED_BLOCK_TYPES } from "@/ui/inspect";
 
 const HEADER_HEIGHT = DEFAULT_HEADER_HEIGHT;
 const MIN_BLOCK_WIDTH = 500;

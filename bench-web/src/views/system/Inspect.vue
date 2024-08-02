@@ -2,16 +2,17 @@
 import { BoxData, ColorShade, NodeType, ObjectType, Orientation, ViewData, ViewType } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
-import { ICON_BY_NODE_TYPE, IconInline } from "@/system/icon";
-import { getInspectionLayout, getNodeSubtype, toCamelName } from "@/system/lang";
+import { ICON_BY_NODE_TYPE, IconInline } from "@/ui/icon";
+import { getNodeSubtype, toCamelName } from "@/language/utils";
 import { canvas, inspectionPtr } from "@/system/space";
-import { ScrollbarWidth } from "@/utils/layout";
+import { ScrollbarWidth } from "@/ui/layout";
 import NodeCrumb from "@/views/builtins/NodeCrumb.vue";
-import { DEFAULT_HEADER_HEIGHT, DEFAULT_MAX_WIDTH, DEFAULT_MIN_WIDTH } from "@/views/canvas";
+import { DEFAULT_HEADER_HEIGHT, DEFAULT_MAX_WIDTH, DEFAULT_MIN_WIDTH } from "@/ui/canvas";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import { getViewComponent, hasViewComponent } from "@/views/registry";
 import { computed, toRef } from "vue";
+import { getInspectionLayout } from "@/ui/inspect";
 
 const HEADER_HEIGHT = DEFAULT_HEADER_HEIGHT;
 const MIN_WIDTH = DEFAULT_MIN_WIDTH;

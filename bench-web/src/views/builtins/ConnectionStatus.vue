@@ -2,11 +2,11 @@
 import { Orientation, RegionArea } from "@/proto/wire";
 import { isDeveloperMode } from "@/system/client";
 import { connections, hasPendingConnections } from "@/system/connection";
-import { ICON_BY_REGION_AREA, IconInline, makeIcon } from "@/system/icon";
-import { toCamelName } from "@/system/lang";
+import { ICON_BY_REGION_AREA, IconInline, makeIcon } from "@/ui/icon";
+import { toCamelName } from "@/language/utils";
 import { GEOLOCATION } from "@/utils/geolocation";
 import { IS_DEV } from "@/utils/globals";
-import { ScrollbarWidth } from "@/utils/layout";
+import { ScrollbarWidth } from "@/ui/layout";
 import Popover from "@/views/builtins/Popover.vue";
 import Scroll from "@/views/containers/Scroll.vue";
 import { computed, ref, type Ref } from "vue";

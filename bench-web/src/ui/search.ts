@@ -14,14 +14,15 @@ import {
   type NodeReferenceData,
 } from "@/proto/wire";
 import { toNodeRef, toPlainNodeRef } from "@/proto/wiring";
-import { ACTION_BUILTIN_IDS_INDEX, IMPLEMENTED_ACTIONS, type Action } from "@/system/action";
-import type { NodeKey, ReadNodeGraph } from "@/system/graph";
-import { AVAILABLE_FA_ICONS, DEFAULT_ENUM_ICON, getNodeIcon, type IconMetadata } from "@/system/icon";
-import { TYPE_BLOCK_TYPES, getEnumOptions, isStructType, type EnumOption } from "@/system/lang";
-import { typeIdentityEquals, type TypeIdentity } from "@/system/value";
+import { ACTION_BUILTIN_IDS_INDEX, IMPLEMENTED_ACTIONS, type Action } from "@/ui/action";
+import type { NodeKey, ReadNodeGraph } from "@/language/graph";
+import { AVAILABLE_FA_ICONS, DEFAULT_ENUM_ICON, getNodeIcon, type IconMetadata } from "@/ui/icon";
+import { TYPE_BLOCK_TYPES, isStructType } from "@/language/utils";
+import { typeIdentityEquals, type TypeIdentity } from "@/language/value";
 import uFuzzy from "@leeoniya/ufuzzy";
 import { tryOnBeforeUnmount } from "@vueuse/core";
 import { markRaw, shallowRef, toRef, toValue, watch, type MaybeRef, type Ref } from "vue";
+import { getEnumOptions, type EnumOption } from "@/ui/inspect";
 
 export type NodeItem = Omit<NodeReferenceData, "metatype" | "id"> & {
   metatype: "node";

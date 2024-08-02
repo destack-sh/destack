@@ -1,4 +1,4 @@
-import { parseKeymapSignature, renderKeymapSignature } from "@/utils/keymap";
+import { parseKeymapSignature, renderKeymapSignature } from "@/ui/keymap";
 import { describe, expect, test } from "vitest";
 
 describe("keymap", () => {

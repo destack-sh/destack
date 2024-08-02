@@ -9,8 +9,8 @@ import {
   type StepData,
 } from "@/proto/wire";
 import { describeNode, isNode, toPlainNodeRef } from "@/proto/wiring";
-import type { ReadNodeGraph } from "@/system/graph";
-import { makeNode } from "@/system/lang";
+import type { ReadNodeGraph } from "@/language/graph";
+import { makeNode } from "@/language/utils";
 
 export type RunnableNode = BlockData | StepData;
 

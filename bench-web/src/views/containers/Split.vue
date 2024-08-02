@@ -1,17 +1,17 @@
 <script lang="ts" setup>
 import { BoxData, NodeReferenceData, NodeType, Orientation, ViewData, ViewType } from "@/proto/wire";
-import type { ActionContext, ActionMapImplementation } from "@/system/action";
+import type { ActionContext, ActionMapImplementation } from "@/ui/action";
 import { useExistingConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
-import { DEFAULT_ORIENTATION, MIN_SPLIT_SIZE, useSplitView } from "@/utils/layout";
-import type { SplitLayout } from "@/utils/layout";
+import { DEFAULT_ORIENTATION, MIN_SPLIT_SIZE, useSplitView } from "@/ui/layout";
+import type { SplitLayout } from "@/ui/layout";
 import { getViewBinding, getViewComponent } from "@/views/registry";
 import { viewEmits } from "@/views/common";
 import type { ViewExposed } from "@/views/common";
 import { computed, ref, toRef, type Ref } from "vue";
 import Empty from "@/views/builtins/Empty.vue";
 import type { TypedNodeReferenceData } from "@/proto/wiring";
-import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/utils/menu";
+import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/menu";
 
 const props = defineProps<
   {

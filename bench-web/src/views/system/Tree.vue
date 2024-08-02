@@ -13,19 +13,19 @@ import {
   type AnyNodeData,
 } from "@/proto/wire";
 import { isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
-import type { ActionContext, ActionMapImplementation } from "@/system/action";
-import { useHierarchicalNodeMoveActions } from "@/system/block";
+import type { ActionContext, ActionMapImplementation } from "@/ui/action";
+import { useHierarchicalNodeMoveActions } from "@/language/block";
 import { packagePtr } from "@/system/client";
 import { useExistingConnection, type Connection } from "@/system/connection";
-import { isDescendantOf, walkDescendantsRef, type NodeTreeItem } from "@/system/graph";
-import { DEFAULT_BENCH_ICON, IconInline, getNodeIcon } from "@/system/icon";
-import { cloneNode, createBlock, moveNode, NAME_CONSTRAINT, PAGE_BLOCK_TYPES } from "@/system/lang";
-import { highlightMatches } from "@/system/search";
+import { isDescendantOf, walkDescendantsRef, type NodeTreeItem } from "@/language/graph";
+import { DEFAULT_BENCH_ICON, IconInline, getNodeIcon } from "@/ui/icon";
+import { cloneNode, createBlock, moveNode, NAME_CONSTRAINT, PAGE_BLOCK_TYPES } from "@/language/utils";
+import { highlightMatches } from "@/ui/search";
 import { bench, canvas, inspectionBasePtr, inspectionPtr, pkg } from "@/system/space";
-import { getNativeConstraintProps, guardNativeInput } from "@/system/view";
-import { startDragging, useMultiDropZone } from "@/utils/drag";
-import { ScrollbarWidth } from "@/utils/layout";
-import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/utils/menu";
+import { getNativeConstraintProps, guardNativeInput } from "@/ui/view";
+import { startDragging, useMultiDropZone } from "@/ui/drag";
+import { ScrollbarWidth } from "@/ui/layout";
+import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/menu";
 import { computedValue } from "@/utils/ref";
 import NodePath from "@/views/builtins/NodePath.vue";
 import {
@@ -35,7 +35,7 @@ import {
   makeSelection,
   useExpansion,
   useViewState,
-} from "@/views/canvas";
+} from "@/ui/canvas";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import uFuzzy from "@leeoniya/ufuzzy";

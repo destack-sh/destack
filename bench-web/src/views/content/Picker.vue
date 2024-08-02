@@ -13,14 +13,14 @@ import {
   type AnyNodeData,
 } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
-import { ICON_BY_BENCH_TYPE, ICON_BY_BLOCK_TYPE, IconInline, makeIcon } from "@/system/icon";
-import { isEnumType, isNodeType } from "@/system/lang";
-import type { NodeItem, TypeItem } from "@/system/search";
-import { enumIndex, graphIndex, typeIndex, useSearch, type EnumOptionItem, type SearchIndex } from "@/system/search";
+import { ICON_BY_BENCH_TYPE, ICON_BY_BLOCK_TYPE, IconInline, makeIcon } from "@/ui/icon";
+import { isEnumType, isNodeType } from "@/language/utils";
+import type { NodeItem, TypeItem } from "@/ui/search";
+import { enumIndex, graphIndex, typeIndex, useSearch, type EnumOptionItem, type SearchIndex } from "@/ui/search";
 import { canvas, pkgGraph } from "@/system/space";
-import { getConstrainedTypeName, nodeMatchesConstraint } from "@/system/value";
-import { ScrollbarWidth } from "@/utils/layout";
-import type { PopoverInfoIn } from "@/utils/menu";
+import { getConstrainedTypeName, nodeMatchesConstraint } from "@/language/value";
+import { ScrollbarWidth } from "@/ui/layout";
+import type { PopoverInfoIn } from "@/ui/menu";
 import {
   makeViewId,
   ViewContentWrapper,

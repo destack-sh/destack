@@ -15,11 +15,11 @@ import {
 } from "@/proto/wire";
 import { propertyReference, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
-import { makeExpression } from "@/system/expression";
-import { isRunnable } from "@/system/lang";
-import { makeRun } from "@/system/session";
+import { makeExpression } from "@/language/expression";
+import { isRunnable } from "@/language/utils";
+import { makeRun } from "@/language/session";
 import { canvas, inspectionPtr } from "@/system/space";
-import { packProtoJson, unpackProtoJson } from "@/system/transaction";
+import { packProtoJson, unpackProtoJson } from "@/language/transaction";
 import {
   packBuiltinObject,
   packValue,
@@ -27,12 +27,12 @@ import {
   propertyType,
   unpackBuiltinObject,
   unpackValue,
-} from "@/system/value";
-import { getFieldViews } from "@/system/view";
-import { ScrollbarWidth } from "@/utils/layout";
+} from "@/language/value";
+import { getFieldViews } from "@/ui/view";
+import { ScrollbarWidth } from "@/ui/layout";
 import { computedValue, mapRef } from "@/utils/ref";
 import NodeCrumb from "@/views/builtins/NodeCrumb.vue";
-import { DEFAULT_HEADER_HEIGHT, useViewState } from "@/views/canvas";
+import { DEFAULT_HEADER_HEIGHT, useViewState } from "@/ui/canvas";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import { getViewComponent, hasViewComponent } from "@/views/registry";

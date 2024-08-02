@@ -1,6 +1,5 @@
+import { defaultSortStruct } from "@/language/order";
 import { ObjectType, type CodeData, type CodeLineData } from "@/proto/wire";
-import { newStructId } from "@/proto/wiring";
-import { defaultSortStruct } from "@/system/lang";
 import { Text as PmText } from "@codemirror/state";
 
 export function mapCodeToCmDoc(code: CodeData): string {

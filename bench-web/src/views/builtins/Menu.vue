@@ -1,11 +1,11 @@
 <script lang="ts" setup>
-import { IconInline, toIconMaybe } from "@/system/icon";
-import { highlightMatches } from "@/system/search";
+import { IconInline, toIconMaybe } from "@/ui/icon";
+import { highlightMatches } from "@/ui/search";
 import { useFloating } from "@/utils/floating";
 import type { FloatingPlacement } from "@/utils/floating";
 import { log } from "@/utils/log";
-import type { MenuInfo, MenuItem } from "@/utils/menu";
-import { Shortcut } from "@/utils/tooltip";
+import type { MenuInfo, MenuItem } from "@/ui/menu";
+import { Shortcut } from "@/ui/tooltip";
 import uFuzzy from "@leeoniya/ufuzzy";
 import { computed, nextTick, onMounted, ref, shallowRef, watch } from "vue";
 import type { Ref, ComponentPublicInstance } from "vue";

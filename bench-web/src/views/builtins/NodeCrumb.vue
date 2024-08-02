@@ -1,10 +1,10 @@
 <script lang="ts" setup>
 import { ObjectType, PROPERTY_ENUM_BY_TYPE, ViewType, type AnyNodeData } from "@/proto/wire";
 import type { Connection } from "@/system/connection";
-import { IconInline, getNodeIcon } from "@/system/icon";
-import { NAME_CONSTRAINT, toCamelName } from "@/system/lang";
-import { getNativeConstraintProps, guardNativeInput } from "@/system/view";
-import type { PopoverInfoIn } from "@/utils/menu";
+import { IconInline, getNodeIcon } from "@/ui/icon";
+import { NAME_CONSTRAINT, toCamelName } from "@/language/utils";
+import { getNativeConstraintProps, guardNativeInput } from "@/ui/view";
+import type { PopoverInfoIn } from "@/ui/menu";
 import { computed } from "vue";
 
 const props = defineProps<{

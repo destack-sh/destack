@@ -9,7 +9,7 @@ import {
   type NodeReferenceData,
 } from "@/proto/wire";
 import { isNodeRef, isStruct, toNodeRef, type AnyNodeReferenceData } from "@/proto/wiring";
-import type { ReadNodeGraph } from "@/system/graph";
+import type { ReadNodeGraph } from "@/language/graph";
 import { getElement, getElementRef } from "@/utils/element";
 import { log } from "@/utils/log";
 import { uuidt } from "@/utils/uuidt";

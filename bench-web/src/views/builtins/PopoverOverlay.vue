@@ -9,9 +9,9 @@ import {
   updatePopover,
   type PopoverInfo,
   type PopoverInstance,
-} from "@/utils/menu";
+} from "@/ui/menu";
 import Menu from "@/views/builtins/Menu.vue";
-import { focusInElement } from "@/views/canvas";
+import { focusInElement } from "@/ui/canvas";
 import { getViewComponent } from "@/views/registry";
 import { useElementSize, useEventListener, type MaybeElement } from "@vueuse/core";
 import { computed, nextTick, ref, shallowRef, toValue, triggerRef, watch, watchEffect, type Ref } from "vue";

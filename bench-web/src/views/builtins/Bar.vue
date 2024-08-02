@@ -1,15 +1,15 @@
 <script lang="ts" setup>
 import { Anchor, ClientType, NodeType, Orientation } from "@/proto/wire";
-import { DECLARED_ACTIONS_BY_ID, fireActionById, type Action, type ActionBuiltinId } from "@/system/action";
+import { DECLARED_ACTIONS_BY_ID, fireActionById, type Action, type ActionBuiltinId } from "@/ui/action";
 import { CLIENT_TYPE, isDeveloperMode } from "@/system/client";
-import { DEFAULT_USER_ICON, ICON_BY_NODE_TYPE, IconInline, makeIcon } from "@/system/icon";
-import { toCamelName } from "@/system/lang";
+import { DEFAULT_USER_ICON, ICON_BY_NODE_TYPE, IconInline, makeIcon } from "@/ui/icon";
+import { toCamelName } from "@/language/utils";
 import { bench, hasLocalBench } from "@/system/space";
 import { isAuthenticated, user } from "@/system/user";
 import type { FloatingPlacement } from "@/utils/floating";
 import { COMMIT, ENV, VERSION } from "@/utils/globals";
-import { menuActionsLike, menuItemFromAction, type MenuItem } from "@/utils/menu";
-import { tooltipFromAction } from "@/utils/tooltip";
+import { menuActionsLike, menuItemFromAction, type MenuItem } from "@/ui/menu";
+import { tooltipFromAction } from "@/ui/tooltip";
 import Menu from "@/views/builtins/Menu.vue";
 import Popover from "@/views/builtins/Popover.vue";
 import { useElementSize } from "@vueuse/core";

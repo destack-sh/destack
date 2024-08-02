@@ -22,9 +22,9 @@ import {
   UploadFilesResponse_UploadHandle,
 } from "@/proto/wire";
 import { isNode, isStruct, makeScope, newNodeId, nodeReference, toNodeRef, toPlainNodeRef } from "@/proto/wiring";
-import { ICON_BY_FILE_FORMAT, ICON_BY_FILE_TYPE, makeIcon } from "@/system/icon";
-import { makeNode, toCamelName } from "@/system/lang";
-import { unpackProtoJson, type Transaction } from "@/system/transaction";
+import { ICON_BY_FILE_FORMAT, ICON_BY_FILE_TYPE, makeIcon } from "@/ui/icon";
+import { makeNode, toCamelName } from "@/language/utils";
+import { unpackProtoJson, type Transaction } from "@/language/transaction";
 import { AsyncEvent, groupByScalar } from "@/utils/functools";
 import { log } from "@/utils/log";
 import { humanizeBytes } from "@/utils/string";

@@ -1,8 +1,8 @@
 <script lang="ts" setup>
 import { NodeType } from "@/proto/wire";
-import { IconInline, getNodeIcon } from "@/system/icon";
-import { toCamelName } from "@/system/lang";
-import { _setDragImage, activeDragged } from "@/utils/drag";
+import { IconInline, getNodeIcon } from "@/ui/icon";
+import { toCamelName } from "@/language/utils";
+import { _setDragImage, activeDragged } from "@/ui/drag";
 import { Casing, toCasing } from "@/utils/string";
 </script>
 <template>

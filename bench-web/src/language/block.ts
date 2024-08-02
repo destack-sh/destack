@@ -1,11 +1,12 @@
 import { BlockData, NodeReferenceData, NodeType, type NodeTypeMapping } from "@/proto/wire";
 import { describeNode, isNode } from "@/proto/wiring";
-import type { ActionContext, ActionMapImplementation } from "@/system/action";
-import { type NodeTreeItem, type ReadNodeGraph } from "@/system/graph";
-import { moveNode, updateOrder } from "@/system/lang";
+import type { ActionContext, ActionMapImplementation } from "@/ui/action";
+import { type NodeTreeItem, type ReadNodeGraph } from "@/language/graph";
+import { moveNode } from "@/language/utils";
 import { pkgGraph } from "@/system/space";
-import type { Transaction } from "@/system/transaction";
+import type { Transaction } from "@/language/transaction";
 import type { Ref } from "vue";
+import { updateOrder } from "@/language/order";
 
 /** Actions to smoothly move up/down/left/right inside a node tree */
 export function useHierarchicalNodeMoveActions<T extends NodeType>(options: {

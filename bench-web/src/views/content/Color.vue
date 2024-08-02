@@ -2,8 +2,8 @@
 import { ColorData, ColorShade, ColorType, NodeReferenceData, NodeType, ViewData, ViewType } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
-import type { PopoverInfoIn } from "@/utils/menu";
-import { REAL_COLORS, getColorHex, getColorTitle, makeColor } from "@/utils/style";
+import type { PopoverInfoIn } from "@/ui/menu";
+import { REAL_COLORS, getColorHex, getColorTitle, makeColor } from "@/ui/style";
 import { ViewContentWrapper, makeViewId, viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import { ref, toRef, type Ref } from "vue";
 

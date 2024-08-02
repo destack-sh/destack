@@ -2,10 +2,10 @@
 import { BlockType, BoxData, FieldZone, NodeType, ObjectType, ViewData, ViewType } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
-import { ICON_BY_BLOCK_TYPE, IconInline } from "@/system/icon";
+import { ICON_BY_BLOCK_TYPE, IconInline } from "@/ui/icon";
 import { canvas } from "@/system/space";
-import { getFieldViews } from "@/system/view";
-import type { PopoverInfoIn } from "@/utils/menu";
+import { getFieldViews } from "@/ui/view";
+import type { PopoverInfoIn } from "@/ui/menu";
 import {
   ViewContentWrapper,
   makeViewId,

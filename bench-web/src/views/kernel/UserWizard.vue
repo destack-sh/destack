@@ -9,15 +9,15 @@ import {
   type NodeReferenceData,
 } from "@/proto/wire";
 import type { TypedNodeReferenceData } from "@/proto/wiring";
-import { fireActionById } from "@/system/action";
+import { fireActionById } from "@/ui/action";
 import { benchPtr } from "@/system/client";
 import { useExistingConnection } from "@/system/connection";
-import { makeIcon } from "@/system/icon";
+import { makeIcon } from "@/ui/icon";
 import { canvas, goToBench } from "@/system/space";
-import { packProtoJson } from "@/system/transaction";
+import { packProtoJson } from "@/language/transaction";
 import { logIn, signUp, user } from "@/system/user";
-import { makeTypeInfo } from "@/system/value";
-import { getViewComponentChildren, isVueInstanceOf, useViewState } from "@/views/canvas";
+import { makeTypeInfo } from "@/language/value";
+import { getViewComponentChildren, isVueInstanceOf, useViewState } from "@/ui/canvas";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import NativeInput from "@/views/content/NativeInput.vue";
 import Button from "@/views/controls/Button.vue";

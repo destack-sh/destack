@@ -1,11 +1,11 @@
 import { NodeType, ObjectType, ViewData } from "@/proto/wire";
 import { EMPTY_SCOPE, toPlainNodeRef } from "@/proto/wiring";
-import { NodeGraph } from "@/system/graph";
-import { fabricate } from "@/system/graph.test";
-import { fixOrderKeys } from "@/system/lang";
-import { TransactionBuilder, TransactionState, editGraph } from "@/system/transaction";
+import { NodeGraph } from "@/language/graph";
+import { fabricate } from "@/language/graph.test";
+import { TransactionBuilder, TransactionState, editGraph } from "@/language/transaction";
 import { uuidt } from "@/utils/uuidt";
 import { describe, expect, test } from "vitest";
+import { fixOrderKeys } from "@/language/order";
 
 describe("order keys", () => {
   test("fix", () => {

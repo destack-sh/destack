@@ -9,13 +9,13 @@ import {
   uploadFile,
   useFileDownload,
   type FileUpload,
-} from "@/system/file";
-import { ICON_BY_FILE_FORMAT, ICON_BY_FILE_TYPE, IconInline } from "@/system/icon";
-import { toCamelName } from "@/system/lang";
+} from "@/language/file";
+import { ICON_BY_FILE_FORMAT, ICON_BY_FILE_TYPE, IconInline } from "@/ui/icon";
+import { toCamelName } from "@/language/utils";
 import { canvas, pkg, pkgConnection } from "@/system/space";
-import { toaster } from "@/system/toast";
-import { FILE_TYPE_BY_VIEW_TYPE } from "@/system/view";
-import { useDropZone } from "@/utils/drag";
+import { toaster } from "@/ui/toast";
+import { FILE_TYPE_BY_VIEW_TYPE } from "@/ui/view";
+import { useDropZone } from "@/ui/drag";
 import { log } from "@/utils/log";
 import { humanizeBytes } from "@/utils/string";
 import { makeViewId, ViewContentWrapper, viewEmits, type ViewExposed } from "@/views/common";

@@ -2,7 +2,7 @@
 
 import { Orientation, Variant, ViewData, ViewType, type NodeReferenceData, type NodeType } from "@/proto/wire";
 import type { TypedNodeReferenceData } from "@/proto/wiring";
-import type { ActionMapImplementation } from "@/system/action";
+import type { ActionMapImplementation } from "@/ui/action";
 import { Casing, toCasing } from "@/utils/string";
 import { v4 } from "uuid";
 import { computed, getCurrentInstance, type ComponentInstance, type FunctionalComponent, type Ref } from "vue";
