@@ -11,11 +11,11 @@ import {
 } from "@/proto/wiring";
 import local, { BENCH_SCOPE, LOCAL_SPACE_ID, PACKAGE_SCOPE, spaceGraphLocal, spacePtr } from "@/system/client";
 import { makeReadOptions, useExistingConnection, useGetConnection } from "@/system/connection";
-import { DEFAULT_NODE_FILTER, NodeGraph, ProxyNodeGraph } from "@/system/graph";
-import { SOURCE_NODE_TYPES } from "@/system/lang";
-import { toaster } from "@/system/toast";
+import { DEFAULT_NODE_FILTER, NodeGraph, ProxyNodeGraph } from "@/language/graph";
+import { SOURCE_NODE_TYPES } from "@/language/utils";
+import { toaster } from "@/ui/toast";
 import { log } from "@/utils/log";
-import { ViewCanvas, createDesktopDefaultSpace, createEmptySpace } from "@/views/canvas";
+import { ViewCanvas, createDesktopDefaultSpace, createEmptySpace } from "@/ui/canvas";
 import { computed, nextTick, watch } from "vue";
 
 // bench/packages

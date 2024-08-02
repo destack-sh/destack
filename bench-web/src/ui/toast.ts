@@ -1,5 +1,5 @@
 import { LogLevel, type IconData, type TextData } from "@/proto/wire";
-import { makeIcon } from "@/system/icon";
+import { makeIcon } from "@/ui/icon";
 import { DateTime } from "luxon";
 import { ref, type Ref } from "vue";
 

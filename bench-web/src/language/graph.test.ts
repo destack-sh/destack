@@ -22,8 +22,8 @@ import {
   ProxyNodeGraph,
   type ReadNodeGraph,
   DEFAULT_NODE_FILTER,
-} from "@/system/graph";
-import { OBJECT_TYPES } from "@/system/lang";
+} from "@/language/graph";
+import { OBJECT_TYPES } from "@/language/utils";
 import { ScalarType, type FieldInfo } from "@protobuf-ts/runtime";
 import { v4 } from "uuid";
 import { describe, expect, test } from "vitest";

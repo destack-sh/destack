@@ -24,7 +24,14 @@ import {
   ViewData,
   type AnyNodeData,
 } from "@/proto/wire";
-import { describeNode, isNode, propertyReference, toNodeRef, toPlainNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
+import {
+  describeNode,
+  isNode,
+  propertyReference,
+  toNodeRef,
+  toPlainNodeRef,
+  type TypedNodeReferenceData,
+} from "@/proto/wiring";
 import { PACKAGE_SCOPE } from "@/system/client";
 import {
   supergraph,
@@ -32,33 +39,24 @@ import {
   useSearchConnection,
   type PreparedSearchConnection,
 } from "@/system/connection";
-import { makeExpression, resolveSubject, type EditSubject } from "@/system/expression";
-import { ICON_BY_NODE_TYPE, ICON_BY_RUN_STATUS, IconInline, getNodeIcon, makeIcon } from "@/system/icon";
-import {
-  ACTIVE_RUN_STATUSES,
-  EDIT_TYPE_PAST_VERB,
-  TERMINAL_RUN_STATUSES,
-  getPropertyTitle,
-  toCamelName,
-} from "@/system/lang";
+import { makeExpression, resolveSubject, type EditSubject } from "@/language/expression";
+import { ICON_BY_NODE_TYPE, ICON_BY_RUN_STATUS, IconInline, getNodeIcon, makeIcon } from "@/ui/icon";
+import { ACTIVE_RUN_STATUSES, TERMINAL_RUN_STATUSES, toCamelName } from "@/language/utils";
 import { canvas, inspectionPtr } from "@/system/space";
 import { user } from "@/system/user";
 import { getElement } from "@/utils/element";
 import { humanizeNumber } from "@/utils/string";
-import { ScrollbarWidth } from "@/utils/layout";
+import { ScrollbarWidth } from "@/ui/layout";
 import { computedValue } from "@/utils/ref";
-import { ACCENT_COLOR_BY_RUN_STATUS } from "@/utils/style";
-import {
-  formatDuration,
-  formatRelativeDate,
-  getDurationFromNow
-} from "@/utils/time";
-import { DEFAULT_HEADER_HEIGHT, useExpansion, useViewState } from "@/views/canvas";
+import { ACCENT_COLOR_BY_RUN_STATUS } from "@/ui/style";
+import { formatDuration, formatRelativeDate, getDurationFromNow } from "@/utils/time";
+import { DEFAULT_HEADER_HEIGHT, useExpansion, useViewState } from "@/ui/canvas";
 import { makeViewId, viewEmits, type ViewComponent, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Log from "@/views/system/Log.vue";
 import Run from "@/views/system/Run.vue";
 import { computed, ref, toRef, type Ref } from "vue";
+import { EDIT_TYPE_PAST_VERB, getPropertyTitle } from "@/ui/inspect";
 
 const HEADER_HEIGHT = DEFAULT_HEADER_HEIGHT;
 const MIN_WIDTH = 320;

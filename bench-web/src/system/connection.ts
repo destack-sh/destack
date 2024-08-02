@@ -34,8 +34,8 @@ import {
   ProxyNodeGraph,
   type ReadNodeGraph,
   type WriteNodeGraph,
-} from "@/system/graph";
-import { toaster } from "@/system/toast";
+} from "@/language/graph";
+import { toaster } from "@/ui/toast";
 import {
   ImmediateTransactionBuffer,
   editGraph,
@@ -43,7 +43,7 @@ import {
   newBufferId,
   type Transaction,
   type TransactionBuffer,
-} from "@/system/transaction";
+} from "@/language/transaction";
 import { AsyncEvent } from "@/utils/functools";
 import { GRPC_KEEPALIVE_INTERVAL as GRPC_KEEPALIVE_INTERVAL_SECONDS, IS_DEV } from "@/utils/globals";
 import { log } from "@/utils/log";

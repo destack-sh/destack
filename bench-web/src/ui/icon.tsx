@@ -36,7 +36,7 @@ import type { FunctionalComponent } from "vue";
 //  > fa-icons.json
 import _AVAILABLE_FA_ICONS from "@/assets/fa-icons.json";
 import { IS_DEV, isDeveloperMode } from "@/utils/globals";
-import { getColorHex, makeColor } from "@/utils/style";
+import { getColorHex, makeColor } from "@/ui/style";
 
 export type IconMetadata = {
   id: string;

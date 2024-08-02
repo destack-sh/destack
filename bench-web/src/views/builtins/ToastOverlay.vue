@@ -1,8 +1,8 @@
 <script lang="ts" setup>
-import { ICON_BY_LOG_LEVEL, IconInline } from "@/system/icon";
-import { toaster, type ToastAnchor } from "@/system/toast";
+import { ICON_BY_LOG_LEVEL, IconInline } from "@/ui/icon";
+import { toaster, type ToastAnchor } from "@/ui/toast";
 import { assertNever } from "@/utils/functools";
-import { ACCENT_COLOR_BY_LOG_LEVEL } from "@/utils/style";
+import { ACCENT_COLOR_BY_LOG_LEVEL } from "@/ui/style";
 import { computed } from "vue";
 
 const props = defineProps<{ anchor: ToastAnchor; box: { left: number; top: number; width: number; height: number } }>();

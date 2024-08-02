@@ -6,13 +6,13 @@ import { canvas, pkgConnection } from "@/system/space";
 import { computed, toRef, type Ref } from "vue";
 import { useExistingConnection, useGetConnection, type PreparedNodeConnection } from "@/system/connection";
 import { PACKAGE_SCOPE } from "@/system/client";
-import { unpackProtoJson } from "@/system/transaction";
-import { getFieldViews } from "@/system/view";
+import { unpackProtoJson } from "@/language/transaction";
+import { getFieldViews } from "@/ui/view";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import { getViewComponent, hasViewComponent } from "@/views/registry";
-import { toCamelName } from "@/system/lang";
+import { toCamelName } from "@/language/utils";
 import Text from "@/views/content/Text.vue";
-import { unpackValue } from "@/system/value";
+import { unpackValue } from "@/language/value";
 import { formatAbsoluteDate, tsToDt } from "@/utils/time";
 
 const props = defineProps<

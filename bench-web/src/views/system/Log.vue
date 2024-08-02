@@ -12,15 +12,15 @@ import {
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { PACKAGE_SCOPE } from "@/system/client";
 import { useGetConnection, type PreparedNodeConnection } from "@/system/connection";
-import { FULL_WIDTH_VIEW_TYPES, getPropertyTitle } from "@/system/lang";
 import { canvas } from "@/system/space";
-import { unpackProtoJson } from "@/system/transaction";
-import { getPropertyType, unpackBuiltinObject, type TypeIdentity } from "@/system/value";
-import { getViewForValueType } from "@/system/view";
+import { unpackProtoJson } from "@/language/transaction";
+import { getPropertyType, unpackBuiltinObject, type TypeIdentity } from "@/language/value";
+import { getViewForValueType } from "@/ui/view";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import { getViewComponent, hasViewComponent } from "@/views/registry";
 import { computed, toRef, type Ref } from "vue";
+import { FULL_WIDTH_VIEW_TYPES, getPropertyTitle } from "@/ui/inspect";
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; preparedConnection?: PreparedNodeConnection } & Partial<

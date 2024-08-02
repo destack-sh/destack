@@ -15,12 +15,12 @@ import { makeViewId, ViewContentWrapper, viewEmits, type FocusAnchor, type ViewE
 import { canvas } from "@/system/space";
 import { computed, ref, toRef, watch, type Ref } from "vue";
 import Scroll from "@/views/containers/Scroll.vue";
-import { IconInline, getIconMetadata, makeIcon, metadataToIcon, type IconMetadata } from "@/system/icon";
-import { ScrollbarWidth } from "@/utils/layout";
-import { iconIndex, useSearch, type IconItem, type SearchIndex } from "@/system/search";
-import type { TooltipInfo } from "@/utils/tooltip";
-import type { PopoverInfoIn } from "@/utils/menu";
-import { getColorHex, makeColor } from "@/utils/style";
+import { IconInline, getIconMetadata, makeIcon, metadataToIcon, type IconMetadata } from "@/ui/icon";
+import { ScrollbarWidth } from "@/ui/layout";
+import { iconIndex, useSearch, type IconItem, type SearchIndex } from "@/ui/search";
+import type { TooltipInfo } from "@/ui/tooltip";
+import type { PopoverInfoIn } from "@/ui/menu";
+import { getColorHex, makeColor } from "@/ui/style";
 
 const DEFAULT_WIDTH = 380;
 const MAX_HEIGHT = 280;

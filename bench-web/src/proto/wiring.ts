@@ -26,7 +26,7 @@ import {
   type PropertyInfo,
   type StructTypeMapping,
 } from "@/proto/wire";
-import { BASED_NODE_TYPES, getBaseFromNode, toCamelName } from "@/system/lang";
+import { BASED_NODE_TYPES, getBaseFromNode, toCamelName } from "@/language/utils";
 import { reverseRecord } from "@/utils/functools";
 import { Casing, toCasing } from "@/utils/string";
 import { MessageType, ScalarType, type FieldInfo } from "@protobuf-ts/runtime";

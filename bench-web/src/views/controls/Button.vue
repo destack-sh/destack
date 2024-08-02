@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { ColorShade, NodeType, Variant, ViewData } from "@/proto/wire";
 import type { TypedNodeReferenceData } from "@/proto/wiring";
-import { IconInline } from "@/system/icon";
+import { IconInline } from "@/ui/icon";
 import { canvas } from "@/system/space";
 import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import { computed, ref, toRef, type Ref } from "vue";

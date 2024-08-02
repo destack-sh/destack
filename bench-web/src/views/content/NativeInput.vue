@@ -1,9 +1,9 @@
 <script lang="ts" setup>
 import { ColorShade, ColorType, NodeType, Variant, ViewType, type ViewData } from "@/proto/wire";
 import type { TypedNodeReferenceData } from "@/proto/wiring";
-import { IconInline } from "@/system/icon";
+import { IconInline } from "@/ui/icon";
 import { canvas } from "@/system/space";
-import { getNativeConstraintProps, guardNativeInput } from "@/system/view";
+import { getNativeConstraintProps, guardNativeInput } from "@/ui/view";
 import { ViewContentWrapper, makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import { computed, ref, toRef } from "vue";
 

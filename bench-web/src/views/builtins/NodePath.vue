@@ -1,11 +1,11 @@
 <script lang="ts" setup>
 import { NodeType } from "@/proto/wire";
 import type { NodeReferenceData } from "@/proto/wire";
-import type { ReadNodeGraph } from "@/system/graph";
-import { IconInline, getNodeIcon } from "@/system/icon";
-import { toCamelName } from "@/system/lang";
+import type { ReadNodeGraph } from "@/language/graph";
+import { IconInline, getNodeIcon } from "@/ui/icon";
+import { toCamelName } from "@/language/utils";
 import { canvas } from "@/system/space";
-import { startDragging } from "@/utils/drag";
+import { startDragging } from "@/ui/drag";
 import { computed, toRef } from "vue";
 
 const props = defineProps<{

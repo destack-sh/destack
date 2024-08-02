@@ -5,7 +5,7 @@ import {
   NodeType,
   type AnyNodeData,
   type AnyPropertyType,
-  type NodeTypeMapping
+  type NodeTypeMapping,
 } from "@/proto/wire";
 import {
   EMPTY_SCOPE,
@@ -16,7 +16,7 @@ import {
   type AnyNodeReferenceData,
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
-import { defaultSortNode, toCamelName } from "@/system/lang";
+import { toCamelName } from "@/language/utils";
 import { computedValue, manualSubRef, watchValue, type SubRef } from "@/utils/ref";
 import { tryOnBeforeUnmount } from "@vueuse/core";
 import {
@@ -30,6 +30,7 @@ import {
   type ShallowRef,
   type WatchSource,
 } from "vue";
+import { defaultSortNode } from "@/language/order";
 
 /** A NodeReference but with proper typing */
 export type NodeKey<T extends NodeType> = { type?: T; id?: string; ck?: string };

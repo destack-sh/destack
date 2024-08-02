@@ -13,10 +13,10 @@ import {
   ViewType,
 } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
-import type { ActionMapImplementation } from "@/system/action";
+import type { ActionMapImplementation } from "@/ui/action";
 import type { PreparedGetConnection } from "@/system/connection";
 import { useExistingConnection } from "@/system/connection";
-import { IconInline, getNodeIcon } from "@/system/icon";
+import { IconInline, getNodeIcon } from "@/ui/icon";
 import {
   NAME_CONSTRAINT,
   RUNNABLE_BLOCK_TYPES,
@@ -24,13 +24,13 @@ import {
   createField,
   isGeneratedNodeName,
   isRunnableRef,
-} from "@/system/lang";
+} from "@/language/utils";
 import { canvas, inspectionPtr } from "@/system/space";
-import { makeTypeInfo, packValue, resolveType, unpackValue, type TypeIdentity } from "@/system/value";
-import { getNativeConstraintProps as getNativeConstraintProps, guardNativeInput } from "@/system/view";
-import { onMouseReleasedOnce } from "@/utils/layout";
-import { menuActionsLike, pushPopover, type PopoverInfo, type PopoverInfoIn } from "@/utils/menu";
-import type { TooltipInfo } from "@/utils/tooltip";
+import { makeTypeInfo, packValue, resolveType, unpackValue, type TypeIdentity } from "@/language/value";
+import { getNativeConstraintProps as getNativeConstraintProps, guardNativeInput } from "@/ui/view";
+import { onMouseReleasedOnce } from "@/ui/layout";
+import { menuActionsLike, pushPopover, type PopoverInfo, type PopoverInfoIn } from "@/ui/menu";
+import type { TooltipInfo } from "@/ui/tooltip";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import { makeViewId, viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Code from "@/views/content/Code.vue";

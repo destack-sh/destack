@@ -19,14 +19,14 @@ import {
   toProtoOneOf,
   type TypedNodeReferenceData
 } from "@/proto/wiring";
-import { ACTION_COMING_SOON, contributeActionMap } from "@/system/action";
+import { ACTION_COMING_SOON, contributeActionMap } from "@/ui/action";
 import local, { persistentInfo } from "@/system/client";
 import { clearConnections, useGetConnection } from "@/system/connection";
-import { makeNode } from "@/system/lang";
+import { makeNode } from "@/language/utils";
 import { bench, canvas, goToBench } from "@/system/space";
-import { toaster } from "@/system/toast";
+import { toaster } from "@/ui/toast";
 import { log } from "@/utils/log";
-import type { ViewDataIn } from "@/views/canvas";
+import type { ViewDataIn } from "@/ui/canvas";
 import type { RpcError } from "@protobuf-ts/runtime-rpc";
 import { computed, ref } from "vue";
 

@@ -32,11 +32,11 @@ import {
   type TypedNodeReferenceData
 } from "@/proto/wiring";
 import { nonce, origin, userOrNullPtr, userPtr } from "@/system/client";
-import { type ReadNodeGraph, type WriteNodeGraph } from "@/system/graph";
-import { makeIcon } from "@/system/icon";
-import { makeNode } from "@/system/lang";
-import { toaster } from "@/system/toast";
-import { type JsonValue } from "@/system/value";
+import { type ReadNodeGraph, type WriteNodeGraph } from "@/language/graph";
+import { makeIcon } from "@/ui/icon";
+import { makeNode } from "@/language/utils";
+import { toaster } from "@/ui/toast";
+import { type JsonValue } from "@/language/value";
 import { IS_DEV } from "@/utils/globals";
 import { log } from "@/utils/log";
 import { toValueRef } from "@/utils/ref";

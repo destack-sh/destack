@@ -25,7 +25,7 @@ import {
   type TypeInfoData,
 } from "@/proto/wire";
 import { describeNode, isNode, isNodeRef, isStruct, makeDefaultObject, propertyInfo } from "@/proto/wiring";
-import type { ReadNodeGraph } from "@/system/graph";
+import type { ReadNodeGraph } from "@/language/graph";
 import {
   CLASSY_BLOCK_TYPES,
   TK_LENGTH_B64,
@@ -33,7 +33,7 @@ import {
   getTkB64FromPtr,
   padCkFromTkB64,
   toCamelName,
-} from "@/system/lang";
+} from "@/language/utils";
 import { decodeB64VLQ, encodeB64VLQ } from "@/utils/functools";
 
 export type TypeIdentity = Pick<

@@ -10,11 +10,12 @@ import {
   Variant,
   ViewType,
 } from "@/proto/wire";
-import type { ReadNodeGraph } from "@/system/graph";
-import { ENUM_ICONS_BY_TYPE } from "@/system/icon";
-import { FULL_WIDTH_VIEW_TYPES, getEnumOptions, isEnumType, isNodeType } from "@/system/lang";
-import { type TypeIdentity, getStorageKey, makeTypeInfo, packValue, resolveType, unpackValue } from "@/system/value";
+import type { ReadNodeGraph } from "@/language/graph";
+import { ENUM_ICONS_BY_TYPE } from "@/ui/icon";
+import { isEnumType, isNodeType } from "@/language/utils";
+import { type TypeIdentity, getStorageKey, makeTypeInfo, packValue, resolveType, unpackValue } from "@/language/value";
 import type { ViewProps } from "@/views/common";
+import { FULL_WIDTH_VIEW_TYPES, getEnumOptions } from "@/ui/inspect";
 
 export const VIEW_TYPE_BY_BENCH_TYPE: Partial<Record<BenchType, ViewType>> = {
   [BenchType.ICON]: ViewType.ICON,

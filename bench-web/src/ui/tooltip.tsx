@@ -1,8 +1,8 @@
 import type { IconData, TextData, Timestamp } from "@/proto/wire";
-import type { Action } from "@/system/action";
+import type { Action } from "@/ui/action";
 import { isOnMac } from "@/utils/browser";
 import { findFloatingContainer, type FloatingOptions, type FloatingPlacement } from "@/utils/floating";
-import { normalizeKeymapKey, parseKeymapSignature } from "@/utils/keymap";
+import { normalizeKeymapKey, parseKeymapSignature } from "@/ui/keymap";
 import { log } from "@/utils/log";
 import { pretendReadonly } from "@/utils/ref";
 import { Casing, toCasing } from "@/utils/string";

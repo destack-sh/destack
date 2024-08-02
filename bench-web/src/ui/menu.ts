@@ -8,13 +8,13 @@ import {
   type ActionBuiltinId,
   type ActionContext,
   type ActionFilter,
-} from "@/system/action";
-import { ROOT_VIEW_TYPES } from "@/system/lang";
+} from "@/ui/action";
+import { ROOT_VIEW_TYPES } from "@/language/utils";
 import { canvas } from "@/system/space";
 import { getElement } from "@/utils/element";
 import { type FloatingOptions } from "@/utils/floating";
 import { pretendReadonly } from "@/utils/ref";
-import { collectViewComponentsUp, findViewComponentUp, isViewComponentIn } from "@/views/canvas";
+import { collectViewComponentsUp, findViewComponentUp, isViewComponentIn } from "@/ui/canvas";
 import type { ViewComponent } from "@/views/common";
 import type { MaybeElement } from "@vueuse/core";
 import { computed, shallowRef, toValue, triggerRef, type Directive, type Ref } from "vue";

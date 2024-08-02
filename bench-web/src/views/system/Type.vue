@@ -1,12 +1,12 @@
 <script lang="ts" setup>
 import { BlockType, FieldZone, NodeType, Orientation, Variant, ViewData, type FieldData } from "@/proto/wire";
 import { isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
-import type { ActionContext, ActionMapImplementation } from "@/system/action";
+import type { ActionContext, ActionMapImplementation } from "@/ui/action";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
-import { RUNNABLE_BLOCK_TYPES, cloneNode, createField, moveNode, onNodeMorphed, toCamelName } from "@/system/lang";
+import { RUNNABLE_BLOCK_TYPES, cloneNode, createField, moveNode, onNodeMorphed, toCamelName } from "@/language/utils";
 import { canvas } from "@/system/space";
-import { startDragging, useMultiDropZone, type DraggedContent, type MultiAnchor } from "@/utils/drag";
-import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/utils/menu";
+import { startDragging, useMultiDropZone, type DraggedContent, type MultiAnchor } from "@/ui/drag";
+import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/menu";
 import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import Field from "@/views/system/Field.vue";
 import { computed, ref, toRef, type Ref } from "vue";
