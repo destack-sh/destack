@@ -13,7 +13,14 @@ import {
   ViewType,
   type AnyNodeData,
 } from "@/proto/wire/";
-import { describeNode, isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
+import {
+  describeNode,
+  isNode,
+  toNodeRef,
+  toNodeRefOneOf,
+  unwrapProtoOneOf,
+  type TypedNodeReferenceData,
+} from "@/proto/wiring";
 import { fireActionById, type ActionContext, type ActionMapImplementation } from "@/ui/action";
 import { useFlatNodeMoveActions } from "@/language/block";
 import { PACKAGE_SCOPE } from "@/system/client";
@@ -57,20 +64,20 @@ const props = defineProps<
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
+const nodePtr = computed(() => unwrapProtoOneOf(props.nodePtr));
 
 const { graph: spaceGraph } = useExistingConnection(self);
 const selfView = spaceGraph.getRef(self);
 const preparedPkgConnection = useGetConnection(
-  { name: `page.${props.nodePtr?.id}` },
+  { name: `page.${nodePtr.value?.id}` },
   computed(() => ({
     scope: PACKAGE_SCOPE.value,
-    roots: [props.nodePtr!],
+    roots: [nodePtr.value!],
     options: { descendantTypes: [NodeType.BLOCK] },
-    isEnabled: props.nodePtr != null,
+    isEnabled: nodePtr.value != null,
   })),
 );
 const { graph: pkgGraph, connection: pkgConnection } = preparedPkgConnection;
-const nodePtr = toRef(props, "nodePtr");
 const page = pkgGraph.getRef(nodePtr) as Ref<BlockData | undefined>;
 const blocks = pkgGraph.getChildrenRef(nodePtr, NodeType.BLOCK);
 const blocksWithSelf: Ref<BlockData[]> = computed(() => {
@@ -221,7 +228,7 @@ const actions: Partial<ActionMapImplementation<"common">> = {
       const { block, idx } = getBlockFromContext(context);
       let toFocus = blocks.value[idx - 1];
       if (block == null) {
-        if (props.nodePtr?.id == focusedNodePtr.value?.id) toFocus = blocks.value[blocks.value.length - 1];
+        if (nodePtr.value?.id == focusedNodePtr.value?.id) toFocus = blocks.value[blocks.value.length - 1];
         else return false;
       }
       if (toFocus != null) canvas.focus({ node: toFocus, view: self.value });
@@ -232,7 +239,7 @@ const actions: Partial<ActionMapImplementation<"common">> = {
       const { block, idx } = getBlockFromContext(context);
       let toFocus = blocks.value[idx + 1];
       if (block == null) {
-        if (props.nodePtr?.id == focusedNodePtr.value?.id) toFocus = blocks.value[0];
+        if (nodePtr.value?.id == focusedNodePtr.value?.id) toFocus = blocks.value[0];
         else return false;
       }
       if (toFocus != null) canvas.focus({ node: toFocus, view: self.value });
@@ -269,7 +276,7 @@ function focus(anchor?: FocusAnchor | NodeReferenceData | AnyNodeData) {
       blockEl?.$el.scrollIntoView({ block: "end", behavior: "instant" });
     }
   } else {
-    if (anchor.id == props.nodePtr?.id) {
+    if (anchor.id == nodePtr.value?.id) {
       // just focus first
       if (blocks.value.length > 0) {
         blockEl = expandedBlockRefs.value[blocks.value[0].id!];
@@ -439,7 +446,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
                 class="w-full px-2 py-1.5 data-[dragging=true]:opacity-50"
                 borderless
                 :variant="Variant.STEALTH"
-                :node-ptr="toNodeRef(block)"
+                :node-ptr="toNodeRefOneOf(block)"
                 :prepared-connection="preparedPkgConnection"
                 :draggable="true"
                 @dragstart.stop="(e: DragEvent) => startDragging(e, pkgGraph, block)"
@@ -462,7 +469,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
                     containerMargin: 12,
                     props: {
                       variant: Variant.COMPACT,
-                      nodePtr: toNodeRef(threadsByBlockId[block.id!]?.at(-1)!) ?? block,
+                      nodePtr: toNodeRefOneOf(threadsByBlockId[block.id!]?.at(-1)!) ?? block,
                     },
                   })
                 "

@@ -9,7 +9,7 @@ import {
   ViewType,
   type PropertyInfo,
 } from "@/proto/wire";
-import { type TypedNodeReferenceData } from "@/proto/wiring";
+import { unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import { PACKAGE_SCOPE } from "@/system/client";
 import { useGetConnection, type PreparedNodeConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
@@ -30,18 +30,19 @@ const props = defineProps<
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 const id = makeViewId(props);
+const nodePtr = computed(() => unwrapProtoOneOf(props.nodePtr))
 
 const { connection, graph } =
   props.preparedConnection ??
   useGetConnection(
-    { name: `log.${props.nodePtr?.id}` },
+    { name: `log.${nodePtr.value?.id}` },
     computed(() => ({
       scope: PACKAGE_SCOPE.value,
-      roots: [props.nodePtr!],
-      isEnabled: props.nodePtr != null,
+      roots: [nodePtr.value!],
+      isEnabled: nodePtr.value != null,
     })),
   );
-const log = graph.getRef(props.nodePtr, { ignoreAncestors: true }) as Ref<LogData | undefined>;
+const log = graph.getRef(nodePtr.value, { ignoreAncestors: true }) as Ref<LogData | undefined>;
 const newNode = computed(() => {
   if (log.value?.newNodePacked == null || log.value.nodePtr == null) return null;
   else

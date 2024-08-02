@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.07.31.1"
+VERSION = "2024.08.02.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -182,8 +182,8 @@ HANDLE_TABLE = Table(
     "bench_handle",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("parent_id", PrimitiveType.UUID),
-        Column("parent_type", PrimitiveType.INT16),
+        Column("parent_id", PrimitiveType.UUID, is_nullable=True),
+        Column("parent_type", PrimitiveType.INT16, is_nullable=True),
         Column("bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("revision", PrimitiveType.INT64),
         Column("created_at", PrimitiveType.DATETIME),
@@ -217,8 +217,8 @@ CLIENT_TABLE = Table(
     "bench_client",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("parent_id", PrimitiveType.UUID),
-        Column("parent_type", PrimitiveType.INT16),
+        Column("parent_id", PrimitiveType.UUID, is_nullable=True),
+        Column("parent_type", PrimitiveType.INT16, is_nullable=True),
         Column("bench_id", PrimitiveType.UUID, is_nullable=True),
         Column("revision", PrimitiveType.INT64),
         Column("created_at", PrimitiveType.DATETIME),
@@ -271,7 +271,7 @@ SERVER_TABLE = Table(
     "bench_server",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("parent_id", PrimitiveType.UUID),
+        Column("parent_id", PrimitiveType.UUID, is_nullable=True),
         Column("bench_id", PrimitiveType.UUID),
         Column("revision", PrimitiveType.INT64),
         Column("created_at", PrimitiveType.DATETIME),
@@ -304,7 +304,7 @@ STORE_TABLE = Table(
     "bench_store",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("parent_id", PrimitiveType.UUID),
+        Column("parent_id", PrimitiveType.UUID, is_nullable=True),
         Column("bench_id", PrimitiveType.UUID),
         Column("revision", PrimitiveType.INT64),
         Column("created_at", PrimitiveType.DATETIME),
@@ -336,7 +336,7 @@ MACHINE_TABLE = Table(
     "bench_machine",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("parent_id", PrimitiveType.UUID),
+        Column("parent_id", PrimitiveType.UUID, is_nullable=True),
         Column("bench_id", PrimitiveType.UUID),
         Column("revision", PrimitiveType.INT64),
         Column("created_at", PrimitiveType.DATETIME),
@@ -373,7 +373,7 @@ DRIVE_TABLE = Table(
     "bench_drive",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("parent_id", PrimitiveType.UUID),
+        Column("parent_id", PrimitiveType.UUID, is_nullable=True),
         Column("bench_id", PrimitiveType.UUID),
         Column("revision", PrimitiveType.INT64),
         Column("created_at", PrimitiveType.DATETIME),
@@ -400,7 +400,7 @@ BRANCH_TABLE = Table(
     "bench_branch",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("parent_id", PrimitiveType.UUID),
+        Column("parent_id", PrimitiveType.UUID, is_nullable=True),
         Column("bench_id", PrimitiveType.UUID),
         Column("revision", PrimitiveType.INT64),
         Column("created_at", PrimitiveType.DATETIME),
@@ -448,7 +448,7 @@ PACKAGE_TABLE = Table(
     "bench_package",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("parent_id", PrimitiveType.UUID),
+        Column("parent_id", PrimitiveType.UUID, is_nullable=True),
         Column("bench_id", PrimitiveType.UUID),
         Column("revision", PrimitiveType.INT64),
         Column("created_at", PrimitiveType.DATETIME),
@@ -484,9 +484,9 @@ DEPENDENCY_TABLE = Table(
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column("ck", PrimitiveType.UUID),
-        Column("parent_id", PrimitiveType.UUID),
-        Column("parent_ck", PrimitiveType.UUID),
-        Column("parent_type", PrimitiveType.INT16),
+        Column("parent_id", PrimitiveType.UUID, is_nullable=True),
+        Column("parent_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("parent_type", PrimitiveType.INT16, is_nullable=True),
         Column("package_id", PrimitiveType.UUID),
         Column("bench_id", PrimitiveType.UUID),
         Column("template_id", PrimitiveType.UUID, is_nullable=True),
@@ -519,9 +519,9 @@ SPACE_TABLE = Table(
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column("ck", PrimitiveType.UUID),
-        Column("parent_id", PrimitiveType.UUID),
-        Column("parent_ck", PrimitiveType.UUID),
-        Column("parent_type", PrimitiveType.INT16),
+        Column("parent_id", PrimitiveType.UUID, is_nullable=True),
+        Column("parent_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("parent_type", PrimitiveType.INT16, is_nullable=True),
         Column("package_id", PrimitiveType.UUID),
         Column("bench_id", PrimitiveType.UUID),
         Column("template_id", PrimitiveType.UUID, is_nullable=True),
@@ -568,9 +568,9 @@ BLOCK_TABLE = Table(
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column("ck", PrimitiveType.UUID),
-        Column("parent_id", PrimitiveType.UUID),
-        Column("parent_ck", PrimitiveType.UUID),
-        Column("parent_type", PrimitiveType.INT16),
+        Column("parent_id", PrimitiveType.UUID, is_nullable=True),
+        Column("parent_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("parent_type", PrimitiveType.INT16, is_nullable=True),
         Column("package_id", PrimitiveType.UUID),
         Column("bench_id", PrimitiveType.UUID),
         Column("template_id", PrimitiveType.UUID, is_nullable=True),
@@ -621,8 +621,8 @@ TRIGGER_TABLE = Table(
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column("ck", PrimitiveType.UUID),
-        Column("parent_id", PrimitiveType.UUID),
-        Column("parent_ck", PrimitiveType.UUID),
+        Column("parent_id", PrimitiveType.UUID, is_nullable=True),
+        Column("parent_ck", PrimitiveType.UUID, is_nullable=True),
         Column("package_id", PrimitiveType.UUID),
         Column("bench_id", PrimitiveType.UUID),
         Column("template_id", PrimitiveType.UUID, is_nullable=True),
@@ -659,9 +659,9 @@ FIELD_TABLE = Table(
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column("ck", PrimitiveType.UUID),
-        Column("parent_id", PrimitiveType.UUID),
-        Column("parent_ck", PrimitiveType.UUID),
-        Column("parent_type", PrimitiveType.INT16),
+        Column("parent_id", PrimitiveType.UUID, is_nullable=True),
+        Column("parent_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("parent_type", PrimitiveType.INT16, is_nullable=True),
         Column("package_id", PrimitiveType.UUID),
         Column("bench_id", PrimitiveType.UUID),
         Column("template_id", PrimitiveType.UUID, is_nullable=True),
@@ -711,8 +711,8 @@ QUERY_TABLE = Table(
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column("ck", PrimitiveType.UUID),
-        Column("parent_id", PrimitiveType.UUID),
-        Column("parent_ck", PrimitiveType.UUID),
+        Column("parent_id", PrimitiveType.UUID, is_nullable=True),
+        Column("parent_ck", PrimitiveType.UUID, is_nullable=True),
         Column("package_id", PrimitiveType.UUID),
         Column("bench_id", PrimitiveType.UUID),
         Column("template_id", PrimitiveType.UUID, is_nullable=True),
@@ -749,9 +749,9 @@ VIEW_TABLE = Table(
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column("ck", PrimitiveType.UUID),
-        Column("parent_id", PrimitiveType.UUID),
-        Column("parent_ck", PrimitiveType.UUID),
-        Column("parent_type", PrimitiveType.INT16),
+        Column("parent_id", PrimitiveType.UUID, is_nullable=True),
+        Column("parent_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("parent_type", PrimitiveType.INT16, is_nullable=True),
         Column("package_id", PrimitiveType.UUID),
         Column("bench_id", PrimitiveType.UUID),
         Column("template_id", PrimitiveType.UUID, is_nullable=True),
@@ -805,9 +805,9 @@ STEP_TABLE = Table(
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column("ck", PrimitiveType.UUID),
-        Column("parent_id", PrimitiveType.UUID),
-        Column("parent_ck", PrimitiveType.UUID),
-        Column("parent_type", PrimitiveType.INT16),
+        Column("parent_id", PrimitiveType.UUID, is_nullable=True),
+        Column("parent_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("parent_type", PrimitiveType.INT16, is_nullable=True),
         Column("package_id", PrimitiveType.UUID),
         Column("bench_id", PrimitiveType.UUID),
         Column("template_id", PrimitiveType.UUID, is_nullable=True),
@@ -859,9 +859,9 @@ BADGE_TABLE = Table(
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column("ck", PrimitiveType.UUID),
-        Column("parent_id", PrimitiveType.UUID),
-        Column("parent_ck", PrimitiveType.UUID),
-        Column("parent_type", PrimitiveType.INT16),
+        Column("parent_id", PrimitiveType.UUID, is_nullable=True),
+        Column("parent_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("parent_type", PrimitiveType.INT16, is_nullable=True),
         Column("package_id", PrimitiveType.UUID),
         Column("bench_id", PrimitiveType.UUID),
         Column("template_id", PrimitiveType.UUID, is_nullable=True),
@@ -911,9 +911,9 @@ SECRET_TABLE = Table(
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column("ck", PrimitiveType.UUID),
-        Column("parent_id", PrimitiveType.UUID),
-        Column("parent_ck", PrimitiveType.UUID),
-        Column("parent_type", PrimitiveType.INT16),
+        Column("parent_id", PrimitiveType.UUID, is_nullable=True),
+        Column("parent_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("parent_type", PrimitiveType.INT16, is_nullable=True),
         Column("package_id", PrimitiveType.UUID),
         Column("bench_id", PrimitiveType.UUID),
         Column("template_id", PrimitiveType.UUID, is_nullable=True),
@@ -943,9 +943,9 @@ FILE_TABLE = Table(
     "bench_file",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("parent_id", PrimitiveType.UUID),
-        Column("parent_ck", PrimitiveType.UUID),
-        Column("parent_type", PrimitiveType.INT16),
+        Column("parent_id", PrimitiveType.UUID, is_nullable=True),
+        Column("parent_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("parent_type", PrimitiveType.INT16, is_nullable=True),
         Column("package_id", PrimitiveType.UUID),
         Column("bench_id", PrimitiveType.UUID),
         Column("revision", PrimitiveType.INT64),
@@ -989,9 +989,9 @@ MESSAGE_TABLE = Table(
     "bench_message",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("parent_id", PrimitiveType.UUID),
-        Column("parent_ck", PrimitiveType.UUID),
-        Column("parent_type", PrimitiveType.INT16),
+        Column("parent_id", PrimitiveType.UUID, is_nullable=True),
+        Column("parent_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("parent_type", PrimitiveType.INT16, is_nullable=True),
         Column("parent_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("package_id", PrimitiveType.UUID),
         Column("bench_id", PrimitiveType.UUID),
@@ -1036,7 +1036,7 @@ MEMBERSHIP_TABLE = Table(
     "bench_membership",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("parent_id", PrimitiveType.UUID),
+        Column("parent_id", PrimitiveType.UUID, is_nullable=True),
         Column("package_id", PrimitiveType.UUID),
         Column("bench_id", PrimitiveType.UUID),
         Column("revision", PrimitiveType.INT64),
@@ -1061,7 +1061,7 @@ INVITE_TABLE = Table(
     "bench_invite",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("parent_id", PrimitiveType.UUID),
+        Column("parent_id", PrimitiveType.UUID, is_nullable=True),
         Column("package_id", PrimitiveType.UUID),
         Column("bench_id", PrimitiveType.UUID),
         Column("revision", PrimitiveType.INT64),
@@ -1090,7 +1090,7 @@ NOTIFICATION_TABLE = Table(
     "bench_notification",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("parent_id", PrimitiveType.UUID),
+        Column("parent_id", PrimitiveType.UUID, is_nullable=True),
         Column("package_id", PrimitiveType.UUID),
         Column("bench_id", PrimitiveType.UUID),
         Column("revision", PrimitiveType.INT64),
@@ -1130,7 +1130,7 @@ SESSION_TABLE = Table(
     "bench_session",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("parent_id", PrimitiveType.UUID),
+        Column("parent_id", PrimitiveType.UUID, is_nullable=True),
         Column("package_id", PrimitiveType.UUID),
         Column("bench_id", PrimitiveType.UUID),
         Column("revision", PrimitiveType.INT64),
@@ -1173,8 +1173,8 @@ RUN_TABLE = Table(
     "bench_run",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("parent_id", PrimitiveType.UUID),
-        Column("parent_type", PrimitiveType.INT16),
+        Column("parent_id", PrimitiveType.UUID, is_nullable=True),
+        Column("parent_type", PrimitiveType.INT16, is_nullable=True),
         Column("parent_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("package_id", PrimitiveType.UUID),
         Column("bench_id", PrimitiveType.UUID),
@@ -1248,7 +1248,7 @@ SIGNAL_TABLE = Table(
     "bench_signal",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("parent_id", PrimitiveType.UUID),
+        Column("parent_id", PrimitiveType.UUID, is_nullable=True),
         Column("package_id", PrimitiveType.UUID),
         Column("bench_id", PrimitiveType.UUID),
         Column("revision", PrimitiveType.INT64),
@@ -1301,7 +1301,7 @@ LOG_TABLE = Table(
     "bench_log",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("parent_id", PrimitiveType.UUID),
+        Column("parent_id", PrimitiveType.UUID, is_nullable=True),
         Column("package_id", PrimitiveType.UUID),
         Column("bench_id", PrimitiveType.UUID),
         Column("revision", PrimitiveType.INT64),

@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { BoxData, NodeType, Orientation, ViewData, ViewType } from "@/proto/wire";
-import { toPlainNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
+import { toPlainNodeRef, unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import { type Action, type ActionContext, type ActionMapImplementation } from "@/ui/action";
 import { useExistingConnection } from "@/system/connection";
 import { ICON_BY_NODE_TYPE, ICON_BY_VIEW_TYPE, IconInline } from "@/ui/icon";
@@ -27,14 +27,14 @@ const self = toRef(props, "self");
 // focus
 const { graph: spaceGraph } = useExistingConnection(self);
 const tabs = spaceGraph.getChildrenRef(self, NodeType.VIEW, { ignoreAncestors: true });
-const tabsNodes = spaceGraph.getManyMaybeRef(computed(() => tabs.value.map((t) => t.nodePtr ?? null)));
+const tabsNodes = spaceGraph.getManyMaybeRef(computed(() => tabs.value.map((t) => unwrapProtoOneOf(t.nodePtr) ?? null)));
 const tabsTitles = computed(() => {
   const tabsTitles: string[] = [];
   for (let tabIdx = 0; tabIdx < tabs.value.length; tabIdx++) {
     const tab = tabs.value[tabIdx];
     if (tab.title) {
       tabsTitles.push(tab.title);
-    } else if (tab.nodePtr != null) {
+    } else if (tab.nodePtr?.oneofKind != null) {
       const tabNode = tabsNodes.value[tabIdx];
       tabsTitles.push((tabNode as any)?.name ?? "???");
     } else {

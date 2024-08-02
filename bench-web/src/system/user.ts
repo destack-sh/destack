@@ -16,7 +16,7 @@ import {
   nodeReference,
   propertyReference,
   toPlainNodeRef,
-  toProtoOneOf,
+  wrapProtoOneOf,
   type TypedNodeReferenceData
 } from "@/proto/wiring";
 import { ACTION_COMING_SOON, contributeActionMap } from "@/ui/action";
@@ -132,7 +132,7 @@ export async function logIn(
   if (local.clientInfo.value != null) throw new Error("already logged in");
   const {
     response: { user, client, accessToken },
-  } = await supervisor.loginUser({ user: toProtoOneOf(userIn), password, client: makeCurrentClient() }, options);
+  } = await supervisor.loginUser({ user: wrapProtoOneOf(userIn), password, client: makeCurrentClient() }, options);
   if (user == null || client == null) throw new Error("unexpected null user or client");
   onLogIn({ user, client, accessToken });
   toaster.info({ icon: "fas fa-right-from-bracket", title: "Logged In", text: `Welcome back, ${user.slug}.` });

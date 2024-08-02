@@ -12,7 +12,7 @@ import {
   ViewData,
   type AnyNodeData,
 } from "@/proto/wire";
-import { isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
+import { isNode, toNodeRef, unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import type { ActionContext, ActionMapImplementation } from "@/ui/action";
 import { useHierarchicalNodeMoveActions } from "@/language/block";
 import { packagePtr } from "@/system/client";
@@ -82,7 +82,7 @@ const inspectedNodeTypes = computed(() => {
   else return state.value.nodeTypes;
 });
 const rootPtr = computedValue(() => {
-  if (props.nodePtr != null) return props.nodePtr;
+  if (props.nodePtr?.oneofKind != null) return unwrapProtoOneOf(props.nodePtr);
   else if (preset.value == TreeViewPreset.EXPLORE) return packagePtr.value;
   else if (preset.value == TreeViewPreset.OUTLINE) return inspectionBasePtr.value;
   else return null;

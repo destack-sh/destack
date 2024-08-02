@@ -1,7 +1,7 @@
 import { pretendReadonly } from "@/utils/ref";
 import { ref } from "vue";
 
-export const VERSION = "2024.07.31.1";
+export const VERSION = "2024.08.02.0";
 
 // global constants given from env :BenchWebEnv
 

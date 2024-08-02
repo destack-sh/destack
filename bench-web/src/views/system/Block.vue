@@ -12,7 +12,7 @@ import {
   ViewData,
   ViewType,
 } from "@/proto/wire";
-import { type TypedNodeReferenceData } from "@/proto/wiring";
+import { unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import type { ActionMapImplementation } from "@/ui/action";
 import type { PreparedGetConnection } from "@/system/connection";
 import { useExistingConnection } from "@/system/connection";
@@ -55,7 +55,7 @@ const blockRef = ref<HTMLElement | null>(null);
 const nameRef = ref<HTMLElement | null>(null);
 const textRef: Ref<InstanceType<typeof Text> | null> = ref(null);
 
-const nodePtr = toRef(props, "nodePtr") as Ref<TypedNodeReferenceData<NodeType.BLOCK>>;
+const nodePtr = computed(() => unwrapProtoOneOf(props.nodePtr) as TypedNodeReferenceData<NodeType.BLOCK>);
 const pkgGetConnection = props.preparedConnection ?? useExistingConnection(nodePtr);
 const { graph: pkgGraph, connection: pkgConnection } = pkgGetConnection;
 const block = pkgGraph.getRef(nodePtr, { ignoreAncestors: props.self == null });
@@ -301,7 +301,7 @@ defineExpose<ViewExposed & { isRunnable: Ref<boolean> }>({
         "
         :node="block"
         :prepared-connection="pkgGetConnection"
-        :node-ptr="nodePtr"
+        :node-ptr="props.nodePtr"
       />
       <!-- TODO :UX: Text/Code empty states? -->
       <Text

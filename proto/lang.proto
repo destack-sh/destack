@@ -1704,7 +1704,6 @@ message IconData {
   ObjectType metatype = 1;
   IconKind kind = 30;
   optional string emoji = 31;
-  optional NodeReferenceData file_ptr = 32;
   optional string fa_name = 33;
   optional string vs_name = 34;
   optional ColorData color = 40;
@@ -2033,7 +2032,11 @@ message TextLineData {
 message TextSpanData {
   ObjectType metatype = 1;
   optional string content = 33;
-  optional NodeReferenceData node_ptr = 34;
+  oneof node_ptr {
+    optional NodeReferenceData node_ptr_node = 340;
+    optional FileReferenceData node_ptr_file = 341;
+    optional SecretReferenceData node_ptr_secret = 342;
+  };
   optional ColorType color = 50;
   optional bool is_bold = 60;
   optional bool is_italic = 61;
@@ -2117,7 +2120,7 @@ message UserWizardViewStateData {
   optional UserWizardViewStage stage = 30;
 }
 
-// A generic 'freeform' value.
+// A generic typed 'freeform' value.
 message ValueData {
   ObjectType metatype = 1;
   TypeInfoData type = 31;
@@ -3090,7 +3093,11 @@ message ViewData {
   optional IconData icon = 35;
   optional TypeInfoData value_type = 40;
   optional google.protobuf.Struct value_packed = 41;
-  optional NodeReferenceData node_ptr = 42;
+  oneof node_ptr {
+    optional NodeReferenceData node_ptr_node = 420;
+    optional FileReferenceData node_ptr_file = 421;
+    optional SecretReferenceData node_ptr_secret = 422;
+  };
   optional Variant variant = 50;
   optional FontData font = 51;
   optional OffsetData position = 60;

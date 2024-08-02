@@ -26,7 +26,7 @@ from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
-    from bench.language import Block, Expression, File, Icon, Package, Policy, Run, Text, TypeInfo
+    from bench.language import Block, Expression, Icon, Package, Policy, Run, Text, TypeInfo
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -410,7 +410,6 @@ class View(SourceNode[ViewData]):
     )
     value_packed: Any = p_value_packed(41)
     value: Any = p_value_runtime(packed=41, typ=None)  # freely typed for now
-    # NOTE :Architecture: View.node_ptr is rich, but ViewData.node_ptr is not (yet) :RichReferences
     node: Optional["Node"] = p_regular(
         42, default=None, require=False, array=False, references=NODE_TYPES.tuple, rich=True
     )
@@ -524,9 +523,6 @@ class Icon(Struct):
     kind: IconKind = p_internal(30, default=False)
     # content
     emoji: Optional[str] = p_internal(31, require=False)
-    file: Optional["File"] = p_internal(
-        32, require=False, array=False, references=NodeType.FILE, rich=True
-    )
     fa_name: Optional[str] = p_internal(33, require=False)
     vs_name: Optional[str] = p_internal(34, require=False)
     # style

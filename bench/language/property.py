@@ -404,7 +404,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
         elif self.reference_kind == ReferenceKind.NODE_PARENT:
             is_wired = True
             is_stored = True
-            is_required = not is_root
+            is_required = False  # parent is always optional
             is_list = False
             is_computed = False
             is_internal = True
@@ -867,6 +867,7 @@ def p_node_parent(id: int, *node_type: NodeType, is_system: bool = False) -> Any
         is_stored=False,
         is_list=False,
         is_runtime=True,
+        is_required=False,
         is_system=is_system,
     )
 

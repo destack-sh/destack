@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.07.31.1"
+VERSION = "2024.08.02.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -1848,7 +1848,6 @@ class IconData(betterproto.Message):
     metatype: "ObjectType" = betterproto.enum_field(1)
     kind: "IconKind" = betterproto.enum_field(30)
     emoji: Optional[str] = betterproto.string_field(31, optional=True)
-    file_ptr: Optional["NodeReferenceData"] = betterproto.message_field(32, optional=True)
     fa_name: Optional[str] = betterproto.string_field(33, optional=True)
     vs_name: Optional[str] = betterproto.string_field(34, optional=True)
     color: Optional["ColorData"] = betterproto.message_field(40, optional=True)
@@ -2263,7 +2262,9 @@ class TextSpanData(betterproto.Message):
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     content: Optional[str] = betterproto.string_field(33, optional=True)
-    node_ptr: Optional["NodeReferenceData"] = betterproto.message_field(34, optional=True)
+    node_ptr_node: "NodeReferenceData" = betterproto.message_field(340, group="node_ptr")
+    node_ptr_file: "FileReferenceData" = betterproto.message_field(341, group="node_ptr")
+    node_ptr_secret: "SecretReferenceData" = betterproto.message_field(342, group="node_ptr")
     color: Optional["ColorType"] = betterproto.enum_field(50, optional=True)
     is_bold: Optional[bool] = betterproto.bool_field(60, optional=True)
     is_italic: Optional[bool] = betterproto.bool_field(61, optional=True)
@@ -2367,7 +2368,7 @@ class UserWizardViewStateData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class ValueData(betterproto.Message):
-    """A generic 'freeform' value."""
+    """A generic typed 'freeform' value."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     type: "TypeInfoData" = betterproto.message_field(31)
@@ -3468,7 +3469,9 @@ class ViewData(betterproto.Message):
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         41, optional=True
     )
-    node_ptr: Optional["NodeReferenceData"] = betterproto.message_field(42, optional=True)
+    node_ptr_node: "NodeReferenceData" = betterproto.message_field(420, group="node_ptr")
+    node_ptr_file: "FileReferenceData" = betterproto.message_field(421, group="node_ptr")
+    node_ptr_secret: "SecretReferenceData" = betterproto.message_field(422, group="node_ptr")
     variant: Optional["Variant"] = betterproto.enum_field(50, optional=True)
     font: Optional["FontData"] = betterproto.message_field(51, optional=True)
     position: Optional["OffsetData"] = betterproto.message_field(60, optional=True)
