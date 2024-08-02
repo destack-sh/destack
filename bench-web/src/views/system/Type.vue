@@ -6,7 +6,7 @@ import { useExistingConnection, type PreparedGetConnection } from "@/system/conn
 import { RUNNABLE_BLOCK_TYPES, cloneNode, createField, moveNode, onNodeMorphed, toCamelName } from "@/language/utils";
 import { canvas } from "@/system/space";
 import { startDragging, useMultiDropZone, type DraggedContent, type MultiAnchor } from "@/ui/drag";
-import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/menu";
+import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/popover";
 import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import Field from "@/views/system/Field.vue";
 import { computed, ref, toRef, type Ref } from "vue";

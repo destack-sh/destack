@@ -4,7 +4,7 @@ import type { Connection } from "@/system/connection";
 import { IconInline, getNodeIcon } from "@/ui/icon";
 import { NAME_CONSTRAINT, toCamelName } from "@/language/utils";
 import { getNativeConstraintProps, guardNativeInput } from "@/ui/view";
-import type { PopoverInfoIn } from "@/ui/menu";
+import type { PopoverInfoIn } from "@/ui/popover";
 import { computed } from "vue";
 
 const props = defineProps<{

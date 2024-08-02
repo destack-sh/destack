@@ -1,7 +1,6 @@
 <script lang="ts" setup>
 import { canvas } from "@/system/space";
-import { getElement } from "@/utils/element";
-import { getFloatingPosition, type FloatingPlacement } from "@/utils/floating";
+import { focusInElement } from "@/ui/canvas";
 import {
   activePopovers,
   popPopover,
@@ -9,12 +8,13 @@ import {
   updatePopover,
   type PopoverInfo,
   type PopoverInstance,
-} from "@/ui/menu";
+} from "@/ui/popover";
+import { getElement } from "@/utils/element";
+import { getFloatingPosition, type FloatingPlacement } from "@/utils/floating";
 import Menu from "@/views/builtins/Menu.vue";
-import { focusInElement } from "@/ui/canvas";
 import { getViewComponent } from "@/views/registry";
 import { useElementSize, useEventListener, type MaybeElement } from "@vueuse/core";
-import { computed, nextTick, ref, shallowRef, toValue, triggerRef, watch, watchEffect, type Ref } from "vue";
+import { computed, nextTick, shallowRef, toValue, triggerRef, watch, watchEffect, type Ref } from "vue";
 
 const popoverContainerRefs: Ref<Record<number, MaybeElement>> = shallowRef({});
 const popoverInnerRefs: Ref<Record<number, MaybeElement>> = shallowRef({});
@@ -22,10 +22,11 @@ const popoverValues: Ref<Record<number, any>> = shallowRef({});
 const topPopoverContainer = computed(() => popoverContainerRefs.value[topPopover.value?.id]);
 const topPopoverSize = useElementSize(topPopoverContainer);
 
-function registerContainerRef(id: number, ref: any | undefined) {
-  if (ref === popoverContainerRefs.value[id]) return;
-  else if (ref != null) popoverContainerRefs.value[id] = ref;
-  else delete popoverContainerRefs.value[id];
+function registerContainerRef(popover: PopoverInstance, ref: any | undefined) {
+  popover.element = ref;
+  if (ref === popoverContainerRefs.value[popover.id]) return;
+  else if (ref != null) popoverContainerRefs.value[popover.id] = ref;
+  else delete popoverContainerRefs.value[popover.id];
   triggerRef(popoverContainerRefs);
 }
 
@@ -154,10 +155,10 @@ function close(popover: PopoverInstance | undefined) {
     :leave-to-class="'opacity-0 ' + getEnterFrom(topPopover?.info?.placement ?? 'top')"
   >
     <template v-for="popover in activePopovers" :key="popover.id">
-      <!-- Classic popover -->
+      <!-- Context menu popover -->
       <Menu
         v-if="popover?.info.kind == 'menu'"
-        :ref="(el) => registerContainerRef(popover.id, el)"
+        :ref="(el) => registerContainerRef(popover, el)"
         :key="popover.id"
         class="pointer-events-auto absolute z-70"
         data-outside-view="true"
@@ -167,8 +168,12 @@ function close(popover: PopoverInstance | undefined) {
       <!-- Generic component popover -->
       <div
         v-else-if="popover?.info.kind == 'component'"
-        :ref="(el) => registerContainerRef(popover.id, el)"
+        :ref="(el) => registerContainerRef(popover, el)"
         class="pointer-events-auto absolute z-70 flex flex-col rounded border border-gray-300 bg-white text-gray-900"
+        :style="{
+          width: popover.info.props?.size?.width != null ? popover.info.props.size.width + 'px' : '',
+          height: popover.info.props?.size?.height != null ? popover.info.props.size.height + 'px' : '',
+        }"
         :class="popover.info.containerClass"
         data-outside-view="true"
         @keydown.esc.stop.prevent="() => close(popover)"

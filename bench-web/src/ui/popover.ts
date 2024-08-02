@@ -104,7 +104,7 @@ export function menuActionsLike(
 }
 
 //
-// Overlay menus
+// Popover stack
 //
 
 export type PopoverContext = ActionContext & {
@@ -148,6 +148,7 @@ type PopoverTriggerElement = HTMLElement & {
 
 export type PopoverInstance = {
   id: number;
+  element: HTMLElement | undefined; // the actual popover (set in PopoverOverlay)
   info: PopoverInfo;
   trigger: HTMLElement | SVGElement;
   reference: { x: number; y: number } | HTMLElement | SVGElement;
@@ -198,6 +199,7 @@ export function pushPopover(push: {
 
   const instance: PopoverInstance = {
     id: newPopoverId(),
+    element: undefined, // set in PopoverOverlay
     info,
     trigger: push.trigger,
     reference: info.reference ?? push.reference,
@@ -223,6 +225,10 @@ export function popPopover(fromIdx: number = -1) {
   else _activePopovers.value = [];
   return closedMenus;
 }
+
+//
+// Popover directives
+//
 
 function makePopoverDirective(options: {
   event: "contextmenu" | "click";
@@ -255,3 +261,126 @@ function makePopoverDirective(options: {
 
 export const CONTEXT_MENU_DIRECTIVE = makePopoverDirective({ event: "contextmenu", reference: "trigger" });
 export const MENU_DIRECTIVE = makePopoverDirective({ event: "click", reference: "self" });
+
+type HoverMenuTriggerElement = PopoverTriggerElement & {
+  hoverShowTimeout?: number;
+  hoverHideTimeout?: number;
+  hoverOnMouseEnter?: (e: MouseEvent) => void;
+  hoverOnMouseMove?: (e: MouseEvent) => void;
+};
+
+export type HoverMenuOptions = {
+  showDelay?: number;
+  hideDelay?: number;
+  reference: "trigger" | "self";
+  isEnabled?: () => boolean;
+  popover: (context: PopoverContext) => PopoverInfoIn;
+};
+
+const DEFAULT_SHOW_DELAY = 300;
+const DEFAULT_HIDE_DELAY = 300;
+
+/** Checks whether the cursor position is overlapping any of the given elements. */
+function isMouseOverlapping(e: MouseEvent, ...els: (HTMLElement | undefined)[]): boolean {
+  for (const el of els) {
+    if (el == null) continue;
+    const rect = el.getBoundingClientRect();
+    if (e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom) {
+      return true;
+    }
+  }
+  return false;
+}
+
+export const HOVER_MENU_DIRECTIVE: Directive<MaybeElement, HoverMenuOptions> = {
+  mounted(el, binding) {
+    const triggerEl = el as HoverMenuTriggerElement;
+    const options = binding.value;
+    const showDelay = options.showDelay ?? DEFAULT_SHOW_DELAY;
+    const hideDelay = options.hideDelay ?? DEFAULT_HIDE_DELAY;
+
+    let isHovering = false;
+    let popoverInstance: PopoverInstance | undefined;
+
+    const showPopover = (e: MouseEvent) => {
+      const reference = options.reference === "self" ? triggerEl : { x: e.clientX, y: e.clientY };
+      const triggerNode = (window as any).canvas?.findViewData(triggerEl) ?? undefined;
+      const popoverInfo =
+        typeof options.popover === "function"
+          ? options.popover({ triggerElement: triggerEl, triggerNode })
+          : options.popover;
+      if (popoverInfo.isEnabled === false) return;
+
+      e.preventDefault();
+      e.stopPropagation();
+      popoverInstance = pushPopover({ trigger: triggerEl, reference, info: popoverInfo });
+    };
+
+    const hidePopover = () => {
+      if (popoverInstance != null) {
+        popPopover();
+        popoverInstance = undefined;
+      }
+    };
+
+    const startShowTimer = (e: MouseEvent) => {
+      clearTimeout(triggerEl.hoverShowTimeout);
+      triggerEl.hoverShowTimeout = window.setTimeout(() => showPopover(e), showDelay);
+    };
+
+    const cancelShowTimer = () => {
+      clearTimeout(triggerEl.hoverShowTimeout);
+    };
+
+    const startHideTimer = () => {
+      clearTimeout(triggerEl.hoverHideTimeout);
+      triggerEl.hoverHideTimeout = window.setTimeout(hidePopover, hideDelay);
+    };
+
+    const cancelHideTimer = () => {
+      clearTimeout(triggerEl.hoverHideTimeout);
+    };
+
+    triggerEl.hoverOnMouseEnter = (e: MouseEvent) => {
+      isHovering = true;
+      cancelHideTimer();
+      startShowTimer(e);
+    };
+
+    triggerEl.hoverOnMouseMove = (e: MouseEvent) => {
+      if (isMouseOverlapping(e, triggerEl, popoverInstance?.element)) {
+        if (!isHovering) {
+          const isEnabled = options.isEnabled?.() !== false;
+          if (isEnabled) {
+            isHovering = true;
+            cancelHideTimer();
+            startShowTimer(e);
+          }
+        }
+      } else {
+        if (isHovering) {
+          isHovering = false;
+          cancelShowTimer();
+          startHideTimer();
+        }
+      }
+    };
+
+    triggerEl.addEventListener("mouseenter", triggerEl.hoverOnMouseEnter);
+    document.addEventListener("mousemove", triggerEl.hoverOnMouseMove);
+  },
+
+  unmounted(el) {
+    const triggerEl = el as HoverMenuTriggerElement;
+
+    clearTimeout(triggerEl.hoverShowTimeout);
+    clearTimeout(triggerEl.hoverHideTimeout);
+
+    if (triggerEl.hoverOnMouseEnter) {
+      triggerEl.removeEventListener("mouseenter", triggerEl.hoverOnMouseEnter);
+    }
+    if (triggerEl.hoverOnMouseMove) {
+      document.removeEventListener("mousemove", triggerEl.hoverOnMouseMove);
+    }
+  },
+};

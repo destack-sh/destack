@@ -4,7 +4,7 @@ import { highlightMatches } from "@/ui/search";
 import { useFloating } from "@/utils/floating";
 import type { FloatingPlacement } from "@/utils/floating";
 import { log } from "@/utils/log";
-import type { MenuInfo, MenuItem } from "@/ui/menu";
+import type { MenuInfo, MenuItem } from "@/ui/popover";
 import { Shortcut } from "@/ui/tooltip";
 import uFuzzy from "@leeoniya/ufuzzy";
 import { computed, nextTick, onMounted, ref, shallowRef, watch } from "vue";

@@ -16,6 +16,7 @@ import {
   type AnyNodeData,
 } from "@/proto/wire";
 import {
+  isNodeOrRef,
   isNodeRef,
   isStruct,
   NODE_REFERENCE_TYPES_BY_NODE_TYPE,
@@ -28,7 +29,7 @@ import { canvas, pkg, pkgConnection, pkgGraph } from "@/system/space";
 import { IS_IN_ALT_MODE, type ActionImplementation, type ActionMapImplementation } from "@/ui/action";
 import { useDropZone } from "@/ui/drag";
 import { ICON_BY_NODE_TYPE, getNodeIcon } from "@/ui/icon";
-import { menuActionsLike, pushPopover, type PopoverContext, type PopoverInfo } from "@/ui/menu";
+import { menuActionsLike, pushPopover, type PopoverContext, type PopoverInfo } from "@/ui/popover";
 import { getColorHex } from "@/ui/style";
 import { getElement } from "@/utils/element";
 import { groupByScalar } from "@/utils/functools";
@@ -192,11 +193,16 @@ class MentionView implements PmNodeView {
   }
 
   updateNode(node: AnyNodeData | FileReferenceData | SecretReferenceData) {
+    // content
+    const nodeType = isNodeRef(node) ? node.type : node.metatype;
+    this.nameDom.textContent = (node as any).name ?? (node as any).title ?? "???";
+
+    // style
     const icon = getNodeIcon(node);
     this.iconDom.className = icon?.faName != null ? `icon ${icon.faName}` : "icon fa fa-question";
     if (icon.color != null) this.iconDom.style.color = getColorHex(icon.color, ColorShade.S600)!;
     else this.iconDom.style.removeProperty("color");
-    this.nameDom.textContent = (node as any).name ?? (node as any).title ?? "???";
+    this.dom.classList.add(NodeType[nodeType].toLowerCase());
   }
 }
 
@@ -430,10 +436,12 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
 .text span.textMirror-selectednode.mention .name {
   @apply bg-primary-100 text-primary-900  decoration-primary-900;
 }
-.altmode .text span.mention:hover {
+.altmode .text span.mention:hover,
+.text span.mention.file:hover {
   @apply cursor-pointer;
 }
-.altmode .text span.mention:hover .name {
+.altmode .text span.mention:hover .name,
+.text span.mention.file:hover .name {
   @apply decoration-primary-900;
 }
 </style>

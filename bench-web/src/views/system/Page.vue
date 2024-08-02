@@ -34,7 +34,7 @@ import { makeTypeInfo, packBuiltinObject, packBuiltinObjectJson, packValue, pack
 import { startDragging, useMultiDropZone } from "@/ui/drag";
 import { blurDocument } from "@/utils/element";
 import { ScrollbarWidth } from "@/ui/layout";
-import { menuActionsLike, type PopoverContext, type PopoverInfo, type PopoverInfoIn } from "@/ui/menu";
+import { menuActionsLike, type PopoverContext, type PopoverInfo, type PopoverInfoIn } from "@/ui/popover";
 import { computedValue } from "@/utils/ref";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import NodePath from "@/views/builtins/NodePath.vue";

@@ -19,7 +19,7 @@ import { IconInline, getIconMetadata, makeIcon, metadataToIcon, type IconMetadat
 import { ScrollbarWidth } from "@/ui/layout";
 import { iconIndex, useSearch, type IconItem, type SearchIndex } from "@/ui/search";
 import type { TooltipInfo } from "@/ui/tooltip";
-import type { PopoverInfoIn } from "@/ui/menu";
+import type { PopoverInfoIn } from "@/ui/popover";
 import { getColorHex, makeColor } from "@/ui/style";
 
 const DEFAULT_WIDTH = 380;

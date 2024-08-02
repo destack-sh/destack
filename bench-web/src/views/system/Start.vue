@@ -133,7 +133,7 @@ defineExpose<ViewExposed>({ self });
     <Scroll
       :size="{ width: size.width, height: size.height - HEADER_HEIGHT }"
       :orientation="Orientation.VERTICAL"
-      :track-width="ScrollbarWidth.md" 
+      :track-width="ScrollbarWidth.md"
       track-is-overlay
     >
       <!-- Inputs -->
@@ -150,7 +150,7 @@ defineExpose<ViewExposed>({ self });
           :style="{ minWidth: MIN_WIDTH + 'px', maxWidth: MAX_WIDTH + 'px' }"
         >
           <!-- Title & Controls -->
-          <span class="w-[100px]">
+          <span class="w-[100px] self-start">
             <span class="max-w-full truncate py-1 font-medium">{{ field.name }}</span>
           </span>
           <!-- Value -->

@@ -20,7 +20,7 @@ import { enumIndex, graphIndex, typeIndex, useSearch, type EnumOptionItem, type 
 import { canvas, pkgGraph } from "@/system/space";
 import { getConstrainedTypeName, nodeMatchesConstraint } from "@/language/value";
 import { ScrollbarWidth } from "@/ui/layout";
-import type { PopoverInfoIn } from "@/ui/menu";
+import type { PopoverInfoIn } from "@/ui/popover";
 import {
   makeViewId,
   ViewContentWrapper,

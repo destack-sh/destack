@@ -11,7 +11,7 @@ import type { ViewExposed } from "@/views/common";
 import { computed, ref, toRef, type Ref } from "vue";
 import Empty from "@/views/builtins/Empty.vue";
 import type { TypedNodeReferenceData } from "@/proto/wiring";
-import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/menu";
+import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/popover";
 
 const props = defineProps<
   {

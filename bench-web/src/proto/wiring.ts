@@ -225,6 +225,13 @@ export function isNodeRef(value: any | null | undefined): value is SomeNodeRefer
   return typeof value == "object" && NODE_REFERENCE_TYPES.includes((value as any).metatype);
 }
 
+export function isNodeOrRef<T extends NodeType>(
+  value: any | null | undefined,
+  nodeType?: T,
+): value is TypedNodeReferenceData<T> | NodeTypeMapping[T] {
+  return typeof value == "object" && ((isNodeRef(value) && value.type == nodeType) || isNode(value, NodeType.BLOCK));
+}
+
 export function toPlainNodeRef(node: null): null;
 export function toPlainNodeRef<T extends NodeType>(node: TypedNodeReferenceData<T>): TypedNodeReferenceData<T>;
 export function toPlainNodeRef<T extends NodeType>(node: SomeNodeReferenceData): TypedNodeReferenceData<T>;
