@@ -5,7 +5,7 @@ import { toaster } from "@/ui/toast";
 import { setupTransactionManagement } from "@/language/transaction";
 import { COMMIT, ENV, IS_DEV, SENTRY_DSN, SUPERVISOR_URL, VERSION } from "@/utils/globals";
 import { keytrap } from "@/ui/keymap";
-import { CONTEXT_MENU_DIRECTIVE, MENU_DIRECTIVE } from "@/ui/menu";
+import { CONTEXT_MENU_DIRECTIVE, HOVER_MENU_DIRECTIVE, MENU_DIRECTIVE } from "@/ui/popover";
 import { EVENT_OUTSIDE_DIRECTIVE, HOVER_DIRECTIVE, TOOLTIP_DIRECTIVE } from "@/ui/tooltip";
 import { registerViewComponents } from "@/views/registry";
 import * as Sentry from "@sentry/vue";
@@ -63,6 +63,7 @@ async function init() {
   app.directive("tooltip", TOOLTIP_DIRECTIVE);
   app.directive("contextmenu", CONTEXT_MENU_DIRECTIVE);
   app.directive("menu", MENU_DIRECTIVE);
+  app.directive("hovermenu", HOVER_MENU_DIRECTIVE);
   app.directive("hover", HOVER_DIRECTIVE);
   app.directive("outside", EVENT_OUTSIDE_DIRECTIVE);
 

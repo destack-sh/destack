@@ -8,7 +8,7 @@ import { bench, hasLocalBench } from "@/system/space";
 import { isAuthenticated, user } from "@/system/user";
 import type { FloatingPlacement } from "@/utils/floating";
 import { COMMIT, ENV, VERSION } from "@/utils/globals";
-import { menuActionsLike, menuItemFromAction, type MenuItem } from "@/ui/menu";
+import { menuActionsLike, menuItemFromAction, type MenuItem } from "@/ui/popover";
 import { tooltipFromAction } from "@/ui/tooltip";
 import Menu from "@/views/builtins/Menu.vue";
 import Popover from "@/views/builtins/Popover.vue";

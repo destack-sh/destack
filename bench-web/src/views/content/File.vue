@@ -1,6 +1,4 @@
 <script lang="ts" setup>
-import { FileFormat, FileReferenceData, FileType, NodeType, ViewData } from "@/proto/wire";
-import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import {
   FileStatus,
   getFileAcceptFromConstraint,
@@ -10,19 +8,36 @@ import {
   useFileDownload,
   type FileUpload,
 } from "@/language/file";
-import { ICON_BY_FILE_FORMAT, ICON_BY_FILE_TYPE, IconInline } from "@/ui/icon";
 import { toCamelName } from "@/language/utils";
+import {
+  BoxData,
+  FileFormat,
+  FileReferenceData,
+  FileType,
+  NodeType,
+  ObjectType,
+  ViewData,
+  ViewType,
+} from "@/proto/wire";
+import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas, pkg, pkgConnection } from "@/system/space";
+import { useDropZone } from "@/ui/drag";
+import { ICON_BY_FILE_FORMAT, ICON_BY_FILE_TYPE, IconInline } from "@/ui/icon";
+import { type HoverMenuOptions, type PopoverContext } from "@/ui/popover";
 import { toaster } from "@/ui/toast";
 import { FILE_TYPE_BY_VIEW_TYPE } from "@/ui/view";
-import { useDropZone } from "@/ui/drag";
+import { getElement } from "@/utils/element";
 import { log } from "@/utils/log";
 import { humanizeBytes } from "@/utils/string";
-import { makeViewId, ViewContentWrapper, viewEmits, type ViewExposed } from "@/views/common";
+import { makeViewId, ViewContentWrapper, viewEmits, type ViewExposed, type ViewProps } from "@/views/common";
 import { computed, ref, toRef, type Ref } from "vue";
 
 const props = defineProps<
-  { self?: TypedNodeReferenceData<NodeType.VIEW>; modelValue?: FileReferenceData } & Partial<
+  {
+    self?: TypedNodeReferenceData<NodeType.VIEW>;
+    modelValue?: FileReferenceData;
+    size?: Partial<Pick<BoxData, "width" | "height">>;
+  } & Partial<
     Pick<
       ViewData,
       | "type"
@@ -123,7 +138,7 @@ canvas.registerView(self, id);
 defineExpose<ViewExposed>({ self, id });
 </script>
 <template>
-  <ViewContentWrapper v-bind="props">
+  <ViewContentWrapper v-bind="props" :class="[size?.height != null ? 'h-full' : 's']">
     <!-- Actual file input (hidden) -->
     <input
       ref="fileInputRef"
@@ -142,6 +157,26 @@ defineExpose<ViewExposed>({ self, id });
     <button
       v-if="!isInline"
       ref="containerRef"
+      v-hovermenu="
+        {
+          isEnabled: () => optimisticValue != null,
+          popover: (context: PopoverContext) => ({
+            component: ViewType.FILE,
+            props: {
+              ...(props as ViewProps),
+              title: undefined,
+              size: {
+                metatype: ObjectType.BOX,
+                width: Math.min(400, getElement(context.triggerElement)!.getBoundingClientRect().width),
+                height: 300,
+              },
+              isInline: true,
+              isInput: false,
+              modelValue: optimisticValue,
+            },
+          }),
+        } as HoverMenuOptions
+      "
       class="group/dropdown flex w-full flex-row items-center truncate rounded border px-2.5 py-1 transition-all duration-75 data-[popover=true]:border-gray-300"
       :class="[
         isInDropZone
@@ -298,10 +333,18 @@ defineExpose<ViewExposed>({ self, id });
             :style="{ width: upload.progress.value + '%' }"
           />
         </div>
-        <!-- Controls -->
+        <!-- Meta/Controls -->
         <div
-          class="absolute right-0 top-0 m-1 flex flex-row justify-end gap-x-1 rounded bg-white p-0.5 opacity-0 transition-colors duration-75 group-hover/inline:text-gray-700 group-hover/inline:opacity-100"
+          class="absolute right-0 top-0 m-1 flex flex-row justify-end gap-x-1 rounded bg-white px-1 py-0.5 opacity-0 transition-colors duration-75 group-hover/inline:text-gray-700 group-hover/inline:opacity-100"
         >
+          <!-- Format -->
+          <span v-if="optimisticValue?.format" class="">
+            {{ FileFormat[optimisticValue.format].toUpperCase().replace(/_/g, " ") }}
+          </span>
+          <!-- Size -->
+          <span v-if="optimisticValue != null && optimisticValue?.coarseType == FileType.IMAGE" class="text-gray-400">
+            ({{ humanizeBytes(Number(optimisticValue.size)) }})
+          </span>
           <!-- Focus -->
           <button
             v-if="isInput && !isDisabled"

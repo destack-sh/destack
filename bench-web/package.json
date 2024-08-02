@@ -37,6 +37,7 @@
     "cronstrue": "^2.48.0",
     "grpc-web": "^1.5.0",
     "luxon": "^3.4.4",
+    "pdfjs-dist": "^4.5.136",
     "posthog-js": "^1.108.2",
     "prosemirror-commands": "^1.5.2",
     "prosemirror-dropcursor": "^1.8.1",

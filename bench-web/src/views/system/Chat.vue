@@ -29,7 +29,7 @@ import { formatAbsoluteDate, tsToDt } from "@/utils/time";
 import { user } from "@/system/user";
 import { DateTime } from "luxon";
 import { generateRandomName } from "@/utils/naming";
-import { menuActionsLike, type PopoverContext, type PopoverInfo, type PopoverInfoIn } from "@/ui/menu";
+import { menuActionsLike, type PopoverContext, type PopoverInfo, type PopoverInfoIn } from "@/ui/popover";
 import { makeTypeInfo } from "@/language/value";
 import { graphIndex } from "@/ui/search";
 import { computedValue } from "@/utils/ref";

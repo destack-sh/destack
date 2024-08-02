@@ -25,7 +25,7 @@ import { bench, canvas, inspectionBasePtr, inspectionPtr, pkg } from "@/system/s
 import { getNativeConstraintProps, guardNativeInput } from "@/ui/view";
 import { startDragging, useMultiDropZone } from "@/ui/drag";
 import { ScrollbarWidth } from "@/ui/layout";
-import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/menu";
+import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/popover";
 import { computedValue } from "@/utils/ref";
 import NodePath from "@/views/builtins/NodePath.vue";
 import {

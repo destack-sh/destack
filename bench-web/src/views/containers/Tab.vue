@@ -8,7 +8,7 @@ import { canvas } from "@/system/space";
 import { startDragging, useMultiDropZone, useSplitDropZone, type SplitAnchor } from "@/ui/drag";
 import { IS_DEV, isDeveloperMode } from "@/utils/globals";
 import { ScrollbarWidth } from "@/ui/layout";
-import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/menu";
+import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/popover";
 import Empty from "@/views/builtins/Empty.vue";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";

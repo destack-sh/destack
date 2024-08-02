@@ -10,7 +10,7 @@ import { user } from "@/system/user";
 import { DISCORD_URL } from "@/utils/globals";
 import { keytrap } from "@/ui/keymap";
 import { isDraggingGlobal } from "@/ui/layout";
-import { hasActivePopover } from "@/ui/menu";
+import { hasActivePopover } from "@/ui/popover";
 import Bar from "@/views/builtins/Bar.vue";
 import DragOverlay from "@/views/builtins/DragOverlay.vue";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";

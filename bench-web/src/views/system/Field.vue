@@ -7,7 +7,7 @@ import { IconInline, getNodeIcon } from "@/ui/icon";
 import { NAME_CONSTRAINT } from "@/language/utils";
 import { canvas, inspectionPtr } from "@/system/space";
 import { getNativeConstraintProps, guardNativeInput } from "@/ui/view";
-import { type PopoverInfoIn } from "@/ui/menu";
+import { type PopoverInfoIn } from "@/ui/popover";
 import type { TooltipInfo } from "@/ui/tooltip";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";

@@ -9,6 +9,7 @@ import { Casing, toCasing } from "@/utils/string";
 import type { MaybeElement } from "@vueuse/core";
 import { DateTime } from "luxon";
 import { computed, shallowRef, toValue, type Directive, type FunctionalComponent, type Ref } from "vue";
+import type { PopoverInfo, PopoverInfoIn } from "@/ui/popover";
 
 //
 // Shortcut
@@ -221,10 +222,11 @@ export const TOOLTIP_DIRECTIVE: Directive<MaybeElement, TooltipInfo> = {
 //
 
 export type HoverInfo = {
-  show?: (e: MouseEvent) => void;
-  hide?: (e: MouseEvent) => void;
   showDelay?: number;
   hideDelay?: number;
+  popover?: () => PopoverInfoIn;
+  show?: (e: MouseEvent) => void;
+  hide?: (e: MouseEvent) => void;
 };
 
 type HoverTriggerElement = {

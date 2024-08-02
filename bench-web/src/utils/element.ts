@@ -14,8 +14,7 @@ import {
   watch,
   type ComponentInstance,
   type ComponentPublicInstance,
-  type Directive,
-  type Ref,
+  type Ref
 } from "vue";
 
 export function blurDocument() {

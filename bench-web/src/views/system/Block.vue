@@ -29,7 +29,7 @@ import { canvas, inspectionPtr } from "@/system/space";
 import { makeTypeInfo, packValue, resolveType, unpackValue, type TypeIdentity } from "@/language/value";
 import { getNativeConstraintProps as getNativeConstraintProps, guardNativeInput } from "@/ui/view";
 import { onMouseReleasedOnce } from "@/ui/layout";
-import { menuActionsLike, pushPopover, type PopoverInfo, type PopoverInfoIn } from "@/ui/menu";
+import { menuActionsLike, pushPopover, type PopoverInfo, type PopoverInfoIn } from "@/ui/popover";
 import type { TooltipInfo } from "@/ui/tooltip";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import { makeViewId, viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";

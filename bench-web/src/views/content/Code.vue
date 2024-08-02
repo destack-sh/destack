@@ -8,7 +8,7 @@ import { EditorView, keymap, lineNumbers } from "@codemirror/view";
 import { EditorState, StateEffect } from "@codemirror/state";
 import { useDropZone } from "@/ui/drag";
 import type { ActionMapImplementation } from "@/ui/action";
-import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/menu";
+import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/popover";
 import { deepValueEquals } from "@/utils/ref";
 import { whenever } from "@vueuse/core";
 import { python } from "@codemirror/lang-python";

@@ -5,7 +5,7 @@ import { useExistingConnection, type PreparedGetConnection } from "@/system/conn
 import { ICON_BY_BLOCK_TYPE, IconInline } from "@/ui/icon";
 import { canvas } from "@/system/space";
 import { getFieldViews } from "@/ui/view";
-import type { PopoverInfoIn } from "@/ui/menu";
+import type { PopoverInfoIn } from "@/ui/popover";
 import {
   ViewContentWrapper,
   makeViewId,
