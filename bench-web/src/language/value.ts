@@ -24,7 +24,17 @@ import {
   type PropertyInfo,
   type TypeInfoData,
 } from "@/proto/wire";
-import { describeNode, isNode, isNodeRef, isStruct, makeDefaultObject, propertyInfo } from "@/proto/wiring";
+import {
+  describeNode,
+  isNode,
+  isNodeRef,
+  isStruct,
+  makeDefaultObject,
+  propertyInfo,
+  toNodeRefOneOf,
+  unwrapProtoOneOf,
+  type SomeNodeReferenceData,
+} from "@/proto/wiring";
 import type { ReadNodeGraph } from "@/language/graph";
 import {
   CLASSY_BLOCK_TYPES,
@@ -376,13 +386,17 @@ export function packBuiltinObject(
   for (const prop of Object.values(properties)) {
     const propName = propertyEnum[prop.id];
     const propType = getPropertyType(prop);
-    const propValue = (value as any)[propName];
+    let propValue = (value as any)[propName];
     let propValuePacked;
     if (propValue == null || (prop.isList && propValue.length == 0)) {
       continue;
     } else if (prop.isList) {
       propValuePacked = propValue.map((v: any) => packValueScalar(v, propType));
     } else {
+      if (prop.referenceIsRich) {
+        // :RichReferences
+        propValue = unwrapProtoOneOf(propValue);
+      }
       propValuePacked = packValueScalar(propValue, propType);
     }
     valuePacked[prop.id.toString()] = propValuePacked;
@@ -427,6 +441,10 @@ export function unpackBuiltinObject<T extends ObjectType>(valuePacked: any, obje
         }
       } else {
         propValue = unpackValueScalarData(propValuePacked, propType);
+        if (prop.referenceIsRich) {
+          // :RichReferences
+          propValue = toNodeRefOneOf(propValue as SomeNodeReferenceData);
+        }
       }
     }
     (value as any)[propName] = propValue;

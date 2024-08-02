@@ -310,6 +310,7 @@ export function getNodeType(node: AnyNodeData | SomeNodeReferenceData): NodeType
 
 export function toNodeRefOneOf(node: AnyNodeData | SomeNodeReferenceData): ViewData["nodePtr"] {
   if (!isNodeRef(node)) node = toNodeRef(node);
+  if (!isNodeRef(node)) throw new Error(`expected Node, got ${JSON.stringify(node)}`);
 
   if (node.type == NodeType.FILE) {
     return { oneofKind: "nodePtrFile", nodePtrFile: node as FileReferenceData };

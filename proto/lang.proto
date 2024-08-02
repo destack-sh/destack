@@ -2033,9 +2033,9 @@ message TextSpanData {
   ObjectType metatype = 1;
   optional string content = 33;
   oneof node_ptr {
-    optional NodeReferenceData node_ptr_node = 340;
-    optional FileReferenceData node_ptr_file = 341;
-    optional SecretReferenceData node_ptr_secret = 342;
+    NodeReferenceData node_ptr_node = 340;
+    FileReferenceData node_ptr_file = 341;
+    SecretReferenceData node_ptr_secret = 342;
   };
   optional ColorType color = 50;
   optional bool is_bold = 60;
@@ -3094,9 +3094,9 @@ message ViewData {
   optional TypeInfoData value_type = 40;
   optional google.protobuf.Struct value_packed = 41;
   oneof node_ptr {
-    optional NodeReferenceData node_ptr_node = 420;
-    optional FileReferenceData node_ptr_file = 421;
-    optional SecretReferenceData node_ptr_secret = 422;
+    NodeReferenceData node_ptr_node = 420;
+    FileReferenceData node_ptr_file = 421;
+    SecretReferenceData node_ptr_secret = 422;
   };
   optional Variant variant = 50;
   optional FontData font = 51;

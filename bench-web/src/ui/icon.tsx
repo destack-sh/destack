@@ -37,6 +37,7 @@ import type { FunctionalComponent } from "vue";
 import _AVAILABLE_FA_ICONS from "@/assets/fa-icons.json";
 import { IS_DEV, isDeveloperMode } from "@/utils/globals";
 import { getColorHex, makeColor } from "@/ui/style";
+import { isNode, isNodeRef, isStruct, type SomeNodeReferenceData } from "@/proto/wiring";
 
 export type IconMetadata = {
   id: string;
@@ -496,6 +497,7 @@ export const ENUM_ICONS_BY_TYPE: Partial<Record<EnumType, Record<any, IconData>>
 export function getNodeIcon(
   node:
     | AnyNodeData
+    | SomeNodeReferenceData
     | {
         metatype: ObjectType;
         type?: BlockType | ViewType | StepType;
@@ -505,22 +507,29 @@ export function getNodeIcon(
 ) {
   if ((node as any).icon != null) {
     return (node as any).icon;
-  } else if (node.metatype == ObjectType.BLOCK) {
-    const icon = ICON_BY_BLOCK_TYPE[(node as BlockData).type! as BlockType];
+  } else if (isNode(node, NodeType.BLOCK)) {
+    const icon = ICON_BY_BLOCK_TYPE[node.type];
     if (icon != null) return icon;
-  } else if (node.metatype == ObjectType.VIEW) {
-    const icon = ICON_BY_VIEW_TYPE[(node as ViewData).type! as ViewType];
+  } else if (isNode(node, NodeType.VIEW)) {
+    const icon = ICON_BY_VIEW_TYPE[node.type];
     if (icon != null) return icon;
-  } else if (node.metatype == ObjectType.FIELD) {
-    if ((node as FieldData).zone == FieldZone.OPTION) {
+  } else if (isNode(node, NodeType.FIELD)) {
+    if (node.zone == FieldZone.OPTION) {
       return ICON_BY_FIELD_ZONE[FieldZone.OPTION];
-    } else if ((node as any).primitiveType != null) {
-      const icon = ICON_BY_PRIMITIVE_TYPE[(node as any).primitiveType as PrimitiveType];
+    } else if (node.primitiveType != null) {
+      const icon = ICON_BY_PRIMITIVE_TYPE[node.primitiveType];
       if (icon != null) return icon;
-    } else if ((node as any).benchType != null) {
-      const icon = ICON_BY_BENCH_TYPE[(node as any).benchType as BenchType];
+    } else if (node.benchType != null) {
+      const icon = ICON_BY_BENCH_TYPE[node.benchType];
       if (icon != null) return icon;
     }
+  } else if (isNode(node, NodeType.FILE) || isStruct(node, StructType.FILE_REFERENCE)) {
+    if (ICON_BY_FILE_TYPE[node.coarseType] != null) return ICON_BY_FILE_TYPE[node.coarseType];
   }
-  return ICON_BY_NODE_TYPE[node.metatype! as unknown as NodeType] ?? DEFAULT_MISSING_ICON;
+
+  if (isNodeRef(node)) {
+    return ICON_BY_NODE_TYPE[node.type] ?? DEFAULT_MISSING_ICON;
+  } else {
+    return ICON_BY_NODE_TYPE[node.metatype! as unknown as NodeType] ?? DEFAULT_MISSING_ICON;
+  }
 }

@@ -1,6 +1,6 @@
 import { defaultSortStruct } from "@/language/order";
 import { ObjectType, TextData, TextLineData, TextLineType, TextSpanData } from "@/proto/wire";
-import { toNodeRefOneOf } from "@/proto/wiring";
+import { toNodeRefOneOf, unwrapProtoOneOf } from "@/proto/wiring";
 import { PM_SCHEMA, type TextMarkType } from "@/utils/prosemirror";
 import { Node as PmNode } from "prosemirror-model";
 
@@ -23,7 +23,7 @@ export function mapTextToPmNode(text: TextData, prev: PmNode | undefined): PmNod
       } else if (span.content != null) {
         spanNode = schema.text(span.content);
       } else if (span.nodePtr?.oneofKind != null) {
-        spanNode = schema.node("mention", { nodePtr: span.nodePtr });
+        spanNode = schema.node("mention", { nodePtr: unwrapProtoOneOf(span.nodePtr) });
       } else {
         throw new Error(`unexpected span: ${JSON.stringify(span)}`);
       }
@@ -87,7 +87,10 @@ export function mapPmNodeToText(node: PmNode, prev: TextData | undefined): TextD
       } else if (spanNode.type.name == "text") {
         span = { metatype: ObjectType.TEXT_SPAN, content: spanNode.text, nodePtr: { oneofKind: undefined } };
       } else if (spanNode.type.name == "mention") {
-        span = { metatype: ObjectType.TEXT_SPAN, nodePtr: toNodeRefOneOf(spanNode.attrs.nodePtr) };
+        span = {
+          metatype: ObjectType.TEXT_SPAN,
+          nodePtr: toNodeRefOneOf(spanNode.attrs.nodePtr) ?? { oneofKind: undefined },
+        };
       } else {
         throw new Error(`unexpected span node type: ${spanNode.type.name}`);
       }
@@ -111,11 +114,7 @@ export function mapPmNodeToText(node: PmNode, prev: TextData | undefined): TextD
     }
 
     // map line
-    const line: TextLineData = {
-      metatype: ObjectType.TEXT_LINE,
-      type: lineNode.attrs.type,
-      spans,
-    };
+    const line: TextLineData = { metatype: ObjectType.TEXT_LINE, type: lineNode.attrs.type, spans };
     lines.push(line);
   }
 

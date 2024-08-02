@@ -5,15 +5,25 @@ import { makeTypeInfo } from "@/language/value";
 import {
   BenchType,
   ColorShade,
+  FileReferenceData,
   NodeReferenceData,
   NodeType,
+  SecretReferenceData,
   TextData,
   Variant,
   ViewData,
   ViewType,
-  type AnyNodeData
+  type AnyNodeData,
 } from "@/proto/wire";
-import { toNodeRef, unwrapProtoOneOf, type SomeNodeReferenceData, type TypedNodeReferenceData } from "@/proto/wiring";
+import {
+  isNodeRef,
+  isStruct,
+  NODE_REFERENCE_TYPES_BY_NODE_TYPE,
+  toNodeRef,
+  unwrapProtoOneOf,
+  type SomeNodeReferenceData,
+  type TypedNodeReferenceData,
+} from "@/proto/wiring";
 import { canvas, pkg, pkgConnection, pkgGraph } from "@/system/space";
 import { IS_IN_ALT_MODE, type ActionImplementation, type ActionMapImplementation } from "@/ui/action";
 import { useDropZone } from "@/ui/drag";
@@ -21,6 +31,7 @@ import { ICON_BY_NODE_TYPE, getNodeIcon } from "@/ui/icon";
 import { menuActionsLike, pushPopover, type PopoverContext, type PopoverInfo } from "@/ui/menu";
 import { getColorHex } from "@/ui/style";
 import { getElement } from "@/utils/element";
+import { groupByScalar } from "@/utils/functools";
 import { PM_INPUT_RULES, PM_KEYMAP_EXTRA, PM_SCHEMA, type TextMarkType } from "@/utils/prosemirror";
 import { deepValueEquals } from "@/utils/ref";
 import { ViewContentWrapper, makeViewId, viewEmits, type ViewExposed } from "@/views/common";
@@ -32,7 +43,7 @@ import { keymap } from "prosemirror-keymap";
 import { Node as PmNode } from "prosemirror-model";
 import { EditorState } from "prosemirror-state";
 import { EditorView, type NodeView as PmNodeView } from "prosemirror-view";
-import { computed, nextTick, onBeforeUnmount, ref, toRef, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, ref, toRef, watch, type Ref } from "vue";
 
 const MENTION_TRIGGER_CHAR = "@";
 
@@ -51,7 +62,7 @@ const id = makeViewId(props);
 const textRef = ref<HTMLDivElement | null>(null);
 let view: EditorView | null = null;
 let lastAppliedModelValue: TextData | null = null;
-const mentionPtrs = computed(() => {
+const mentionPtrs: Ref<SomeNodeReferenceData[]> = computed(() => {
   const mentionPtrs: SomeNodeReferenceData[] = [];
   for (const line of props.modelValue?.lines ?? []) {
     for (const span of line.spans ?? []) {
@@ -62,8 +73,17 @@ const mentionPtrs = computed(() => {
 });
 // TODO :Incomplete: some mentioned nodes may not be in package graph for Text
 const mentions = pkgGraph.getManyRef(mentionPtrs);
-function resolveMention(mention: { id: string; ck: string }): AnyNodeData | null {
-  return pkgGraph.get(mention);
+function resolveMention(mention: {
+  id: string;
+  ck: string;
+  type: NodeType;
+}): AnyNodeData | FileReferenceData | SecretReferenceData | null {
+  const node = pkgGraph.get(mention);
+  if (node != null) return node;
+  if (NODE_REFERENCE_TYPES_BY_NODE_TYPE[mention.type] == null) return null; // not a rich reference
+  // find rich reference
+  const ref = mentionPtrs.value.find((r) => r.id == mention.id || r.ck == mention.ck) ?? null;
+  return ref as FileReferenceData | SecretReferenceData | null;
 }
 
 function makeEditorState(text?: TextData): EditorState {
@@ -171,26 +191,34 @@ class MentionView implements PmNodeView {
     if (node != null) this.updateNode(node);
   }
 
-  updateNode(node: AnyNodeData) {
+  updateNode(node: AnyNodeData | FileReferenceData | SecretReferenceData) {
     const icon = getNodeIcon(node);
     this.iconDom.className = icon?.faName != null ? `icon ${icon.faName}` : "icon fa fa-question";
     if (icon.color != null) this.iconDom.style.color = getColorHex(icon.color, ColorShade.S600)!;
     else this.iconDom.style.removeProperty("color");
-    this.nameDom.textContent = (node as any).name ?? "???";
+    this.nameDom.textContent = (node as any).name ?? (node as any).title ?? "???";
   }
 }
 
 // sync mentions with mention views
-watch(mentions, () => {
-  if (view == null) return;
-  view.dom.querySelectorAll(".mention").forEach((mentionDom) => {
-    if (!(mentionDom instanceof HTMLElement)) return;
-    const node = resolveMention({ id: mentionDom.dataset.nodeId!, ck: mentionDom.dataset.nodeCk! });
-    const pmView = (mentionDom as any).__pmView as MentionView;
-    if (node == null || pmView == null) return;
-    pmView.updateNode(node);
-  });
-});
+watch(
+  mentions,
+  () => {
+    if (view == null) return;
+    view.dom.querySelectorAll(".mention").forEach((mentionDom) => {
+      if (!(mentionDom instanceof HTMLElement)) return;
+      const node = resolveMention({
+        type: Number.parseInt(mentionDom.dataset.nodeType!),
+        id: mentionDom.dataset.nodeId!,
+        ck: mentionDom.dataset.nodeCk!,
+      });
+      const pmView = (mentionDom as any).__pmView as MentionView;
+      if (node == null || pmView == null) return;
+      pmView.updateNode(node);
+    });
+  },
+  { immediate: true },
+);
 
 // mount the editor view
 whenever(textRef, () => {

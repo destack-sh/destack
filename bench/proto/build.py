@@ -314,6 +314,7 @@ export type PropertyInfo = {
     referenceNodes?: NodeType[];
     referenceStruct?: StructType;
     referenceIsNodeData?: boolean;
+    referenceIsRich?: boolean;
 }
     """
     type_info_definitions_parts = []
@@ -385,6 +386,8 @@ export type PropertyInfo = {
                 prop_info_parts["referenceStruct"] = f"StructType.{prop.reference_struct.name}"
             if prop.reference_is_node_data:
                 prop_info_parts["referenceIsNodeData"] = "true"
+            if prop.reference_is_rich:
+                prop_info_parts["referenceIsRich"] = "true"
 
             prop_info_str = ", ".join(f"{k}: {v}" for k, v in prop_info_parts.items())
             prop_infos_strs.append(
