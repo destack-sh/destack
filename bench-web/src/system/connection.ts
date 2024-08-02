@@ -1,4 +1,21 @@
 import {
+  DEFAULT_NODE_FILTER,
+  LayerNodeGraph,
+  NodeGraph,
+  NodeSuperGraph,
+  ProxyNodeGraph,
+  type ReadNodeGraph,
+  type WriteNodeGraph,
+} from "@/language/graph";
+import {
+  ImmediateTransactionBuffer,
+  editGraph,
+  getTransactionBuffer,
+  newBufferId,
+  type Transaction,
+  type TransactionBuffer,
+} from "@/language/transaction";
+import {
   HUMANIZED_OPERATION_STATUS,
   getGraphClient,
   getGraphTransport,
@@ -8,6 +25,7 @@ import {
 import {
   AggregationData,
   ExpressionData,
+  MESSAGE_TYPE_BY_OBJECT_TYPE,
   NodeType,
   ObjectType,
   type GraphScopeData,
@@ -20,30 +38,12 @@ import {
   EMPTY_SCOPE,
   deepContentEquals,
   describeNode,
-  makeDefaultBenchProto,
   makeScope,
   unwrapSomeNode,
-  type TypedNodeReferenceData,
+  type TypedNodeReferenceData
 } from "@/proto/wiring";
 import { LOCAL_SPACE_PTR, PACKAGE_SCOPE, packagePtr, spaceGraphLocal } from "@/system/client";
-import {
-  DEFAULT_NODE_FILTER,
-  LayerNodeGraph,
-  NodeGraph,
-  NodeSuperGraph,
-  ProxyNodeGraph,
-  type ReadNodeGraph,
-  type WriteNodeGraph,
-} from "@/language/graph";
 import { toaster } from "@/ui/toast";
-import {
-  ImmediateTransactionBuffer,
-  editGraph,
-  getTransactionBuffer,
-  newBufferId,
-  type Transaction,
-  type TransactionBuffer,
-} from "@/language/transaction";
 import { AsyncEvent } from "@/utils/functools";
 import { GRPC_KEEPALIVE_INTERVAL as GRPC_KEEPALIVE_INTERVAL_SECONDS, IS_DEV } from "@/utils/globals";
 import { log } from "@/utils/log";
@@ -66,10 +66,10 @@ import {
 } from "vue";
 
 export function makeReadOptions(options: Partial<ReadOptionsData>): ReadOptionsData {
-  return {
-    ...makeDefaultBenchProto(ObjectType.READ_OPTIONS),
-    ...options,
-  };
+  const messageType = MESSAGE_TYPE_BY_OBJECT_TYPE[ObjectType.READ_OPTIONS]!;
+  const data = messageType.create(options);
+  data.metatype = ObjectType.READ_OPTIONS;
+  return data;
 }
 
 export function getScopeKey(scope: GraphScopeData): string {
