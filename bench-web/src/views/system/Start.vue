@@ -23,7 +23,7 @@ import { packProtoJson, unpackProtoJson } from "@/language/transaction";
 import {
   packBuiltinObject,
   packValue,
-  packValueSimpleStruct,
+  packValueJson,
   propertyType,
   unpackBuiltinObject,
   unpackValue,
@@ -70,7 +70,7 @@ const feedState = computed(
     filter: makeExpression({
       op: ExpressionOp.EQUALS,
       propertyPtr: propertyReference(ObjectType.RUN, RunProperty.blockPtr),
-      valuePacked: packValueSimpleStruct(runnablePtr.value, propertyType(ObjectType.RUN, RunProperty.blockPtr)),
+      valuePacked: packValueJson(runnablePtr.value, propertyType(ObjectType.RUN, RunProperty.blockPtr)),
     }),
     filterPills: state.value.feed?.filterPills ?? [],
   }),

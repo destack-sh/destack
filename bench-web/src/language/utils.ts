@@ -320,7 +320,7 @@ export function onNodeMorphed(tx: Transaction, graph: ReadNodeGraph, node: AnyNo
 }
 
 /**
- * Create a node from the given data and assign it an id (and ck if in package).
+ *   a node from the given data and assign it an id (and ck if in package).
  * NOTE: id/ck are only assigned if not present. To copy, use copyNode.
  */
 export function makeNode<T extends NodeType>(
@@ -544,7 +544,7 @@ export function createBlock(
   tx: Transaction,
   graph: ReadNodeGraph,
   options: {
-    block: { type: BlockType; isPage?: boolean; isProtocol?: boolean };
+    block: { type: BlockType } & Partial<BlockData>;
     anchor: "before" | "after" | "inside";
     target: BlockData | TypedNodeReferenceData<NodeType.BLOCK> | PackageData | TypedNodeReferenceData<NodeType.PACKAGE>;
   },
@@ -570,6 +570,7 @@ export function createBlock(
     metatype: NodeType.BLOCK,
     parentPtr,
     packagePtr,
+    ...options.block,
     type: options.block.type,
     orderKey,
     name: makeNodeName(graph, { metatype: ObjectType.BLOCK, type: options.block.type, parentPtr }),

@@ -7,12 +7,13 @@ import {
   NodeReferenceData,
   NodeType,
   Orientation,
+  TypeKind,
   Variant,
   ViewData,
   ViewType,
   type AnyNodeData,
 } from "@/proto/wire/";
-import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
+import { describeNode, isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import { fireActionById, type ActionContext, type ActionMapImplementation } from "@/ui/action";
 import { useFlatNodeMoveActions } from "@/language/block";
 import { PACKAGE_SCOPE } from "@/system/client";
@@ -22,7 +23,7 @@ import { ICON_BY_BLOCK_TYPE, IconInline } from "@/ui/icon";
 import { cloneNode, createBlock, moveNode, toCamelName } from "@/language/utils";
 import { makeRun } from "@/language/session";
 import { canvas, inspectionPtr } from "@/system/space";
-import { makeTypeInfo } from "@/language/value";
+import { makeTypeInfo, packBuiltinObject, packBuiltinObjectJson, packValue, packValueJson } from "@/language/value";
 import { startDragging, useMultiDropZone } from "@/ui/drag";
 import { blurDocument } from "@/utils/element";
 import { ScrollbarWidth } from "@/ui/layout";
@@ -36,6 +37,9 @@ import Scroll from "@/views/containers/Scroll.vue";
 import Block from "@/views/system/Block.vue";
 import { computed, nextTick, ref, toRef, type Ref } from "vue";
 import { EXPOSED_BLOCK_TYPES } from "@/ui/inspect";
+import { uploadFile } from "@/language/file";
+import { log } from "console";
+import { packProtoJson } from "@/language/transaction";
 
 const HEADER_HEIGHT = DEFAULT_HEADER_HEIGHT;
 const MIN_BLOCK_WIDTH = 500;
@@ -118,20 +122,44 @@ const { activeDropZone } = useMultiDropZone({
   container: contentRef,
   targets: expandedBlockRefs,
   orientation: Orientation.VERTICAL,
-  kinds: ["node"],
+  kinds: ["node", "file"],
   metatypes: [NodeType.BLOCK],
   fallbackToClosest: true,
   allowDrop: (dragged, anchor, targetId) => {
     const target = pkgGraph.get({ id: targetId });
     return (
-      dragged.kind == "node" &&
-      target != null &&
-      target.id != page.value?.id && // page block is also a block, but 'dropping' there is confusing (moves block outside of page)
-      !isDescendantOf(pkgGraph, target, dragged.node)
+      dragged.kind == "file" ||
+      (dragged.kind == "node" &&
+        target != null &&
+        target.id != page.value?.id && // page block is also a block, but 'dropping' there is confusing (moves block outside of page)
+        !isDescendantOf(pkgGraph, target, dragged.node))
     );
   },
   onDrop: (dragged, anchor, targetId) => {
-    if (targetId != null && dragged.kind == "node") {
+    if (targetId == null) return; // need target
+    if (dragged.kind == "file") {
+      // create variable with file
+      const container = page.value;
+      if (container == null || !dragged.files) return;
+      const target = pkgGraph.getOrError({ id: targetId });
+      if (!isNode(target, NodeType.BLOCK)) throw new Error(`unexpected target node type: ${describeNode(target)}`);
+      Array.from(dragged.files).forEach(async (file) => {
+        const upload = uploadFile(() => pkgConnection.tx, file, { parent: container });
+        await upload.completion.wait();
+        const variableType = makeTypeInfo({ kind: TypeKind.NODE, benchType: BenchType.FILE });
+        const block = createBlock(pkgConnection.tx, pkgGraph, {
+          block: {
+            type: BlockType.VARIABLE,
+            valueType: variableType,
+            valuePacked: packValueJson(toNodeRef(upload.file.value!), variableType),
+          },
+          anchor: anchor == "start" ? "before" : "after",
+          target: target,
+        });
+        focus(toNodeRef(block));
+      });
+    } else if (dragged.kind == "node") {
+      // move node
       const target = pkgGraph.getOrError({ id: targetId });
       moveNode(pkgConnection.tx, pkgGraph, dragged.node, { anchor, target });
     }
@@ -150,14 +178,16 @@ const actions: Partial<ActionMapImplementation<"common">> = {
   // create
   "common.create.above": {
     action: (action, context) => {
-      const { block } = getBlockFromContext(context);
+      let { block } = getBlockFromContext(context);
+      if (block == null) block = blocks.value[0];
       if (block == null) return false;
       createAndFocusBlock({ type: BlockType.TEXT }, "before", block);
     },
   },
   "common.create.below": {
     action: (action, context) => {
-      const { block } = getBlockFromContext(context);
+      let { block } = getBlockFromContext(context);
+      if (block == null) block = blocks.value[blocks.value.length - 1];
       if (block == null) return false;
       createAndFocusBlock({ type: BlockType.TEXT }, "after", block);
     },
@@ -284,12 +314,24 @@ defineExpose<ViewExposed>({ self, actions, focus });
 
     <!-- Page content -->
     <Scroll
+      v-contextmenu="
+        (context: PopoverContext): PopoverInfo => ({
+          kind: 'menu',
+          placement: 'bottom-right',
+          items: menuActionsLike(
+            ['common.create.above', 'common.create.below', 'common.edit.paste', 'message.handle.startThread'],
+            {
+              context: { ...context, triggerNode: page },
+            },
+          ),
+        })
+      "
       :size="{ width: size.width, height: size.height - HEADER_HEIGHT }"
       :orientation="Orientation.VERTICAL"
       :track-width="ScrollbarWidth.md"
       track-is-overlay
     >
-      <div ref="contentRef" class="mb-16 flex flex-col">
+      <div ref="contentRef" class="mb-16 flex min-h-full flex-col">
         <!--  (while still retaining all the functionality of a full block 'line') -->
         <!-- Block 'line' -->
         <template v-for="(block, i) in blocksWithSelf" :key="block.id">
@@ -390,9 +432,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
                         'common.edit.delete',
                         'message.handle.startThread',
                       ],
-                      {
-                        context: { ...context, triggerNode: block },
-                      },
+                      { context: { ...context, triggerNode: block } },
                     ),
                   })
                 "

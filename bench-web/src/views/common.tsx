@@ -49,7 +49,6 @@ export type ViewExposed = (
   actions?: Partial<ActionMapImplementation<any>>;
   /** The supported variants (if any) */
   variants?: Variant[];
-
   /** Focus the element at the given anchor inside the view OR return the element to focus. May be a view or any element. */
   focus?: (anchor?: FocusAnchor | NodeReferenceData) => void | boolean | ViewComponent | HTMLElement | null;
   /** Map the relevant node at the given element. */
