@@ -4,7 +4,7 @@ import pytest
 from hypothesis import given
 
 from bench.language import Bench, NodeReference, Property, Server, Signal
-from bench.language.bench import Client, ServerProfile
+from bench.language.bench import Client, Package, ServerProfile
 from bench.language.block import Block
 from bench.language.const import BlockType, ClientType, NodeType
 from bench.language.field import Field
@@ -13,6 +13,7 @@ from bench.language.node import BuiltinObject
 from bench.language.session import Session
 from bench.language.setup import NODE_CLASSES, STRUCT_CLASSES
 from bench.language.view import View, ViewType
+from bench.proto.wiring import unpack_object
 from bench.test.strategies import structs
 from bench.test.unit.conftest import RuntimeHandle
 
@@ -187,3 +188,30 @@ async def test_clone_subtree(local_runtime: RuntimeHandle):
     for field, field_clone in zip(choice.fields, choice_clone.fields):
         assert field_clone._equals_content(field)
     await local_runtime.commit()
+
+
+def test_roundtrip_rich_reference(shared_session: Session, shared_package: Package):
+    # plain reference
+    block = Block.new_text("Text1", "Hello, world!")
+    view = View.new(ViewType.PAGE, "Page1", node=block)
+    view_data = view._to_data()
+    unpacked_view = unpack_object(
+        view_data, supergraph=shared_session._supergraph, session=shared_session
+    )
+    assert unpacked_view._equals_content(view)
+
+    # file reference (rich)
+    file = File(
+        parent=shared_package,
+        kind=FileKind.DRIVE,
+        title="myfile.txt",
+        coarse_type=FileType.TEXT,
+        mime_type="text/plain",
+        size=1024,
+    )
+    view.node = file
+    view_data = view._to_data()
+    unpacked_view = unpack_object(
+        view_data, supergraph=shared_session._supergraph, session=shared_session
+    )
+    assert unpacked_view._equals_content(view)

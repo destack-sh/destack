@@ -6,9 +6,10 @@ Auto-pasted into the generated wire files.
 import dataclasses
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Any, Collection, Iterable, Mapping, Self, Union
+from typing import TYPE_CHECKING, Any, Collection, Iterable, Mapping, Self, Union
 
 import betterproto
+from betterproto import PLACEHOLDER
 from betterproto import Message as ProtoMessage
 from betterproto import _Duration as ProtoDuration
 from betterproto.lib.google.protobuf import ListValue, NullValue
@@ -98,12 +99,95 @@ class _PatchedMessage(ProtoMessage):
         else:
             return f"<{self.__class__.__name__}>"
 
+    if not TYPE_CHECKING:
+
+        def __getattribute__(self, name: str) -> Any:
+            """
+            Lazily initialize default values to avoid infinite recursion for recursive
+            message types.
+            Return None on attempts to access unset ``oneof`` fields,
+             and proxy oneof group get to the currently set field.
+            """
+            try:
+                group_current = object.__getattribute__(self, "_group_current")
+            except AttributeError:
+                pass
+            else:
+                if name not in ("__class__", "_betterproto"):
+                    if name in self._betterproto.oneof_group_by_field:
+                        # union: get field via specific field name (None if not current instead of default)
+                        current_field = group_current[self._betterproto.oneof_group_by_field[name]]
+                        if current_field != name:
+                            return None
+                    elif name in self._betterproto.oneof_field_by_group:
+                        # union: get field via group name
+                        current_field = group_current[name]
+                        if not current_field:
+                            return None
+                        else:
+                            return getattr(self, current_field)
+
+            value = object.__getattribute__(self, name)
+            if value is not PLACEHOLDER:
+                return value
+
+            value = self._get_field_default(name)
+            object.__setattr__(self, name, value)
+            return value
+
+    def __setattr__(self, attr: str, value: Any) -> None:
+        if (
+            isinstance(value, betterproto.Message)
+            and hasattr(value, "_betterproto")
+            and not value._betterproto.meta_by_field_name
+        ):
+            value._serialized_on_wire = True
+
+        if attr != "_serialized_on_wire":
+            # Track when a field has been set.
+            self.__dict__["_serialized_on_wire"] = True
+
+        if hasattr(self, "_group_current"):  # __post_init__ had already run
+            if attr in self._betterproto.oneof_group_by_field:
+                # union: set specific field
+                group = self._betterproto.oneof_group_by_field[attr]
+                for field in self._betterproto.oneof_field_by_group[group]:
+                    if field.name == attr:
+                        self._group_current[group] = field.name
+                    else:
+                        object.__setattr__(self, field.name, PLACEHOLDER)
+            elif attr in self._betterproto.oneof_field_by_group:
+                # union: set directly via group
+                # clear all fields
+                group = self._betterproto.oneof_field_by_group[attr]
+                for field in group:
+                    object.__setattr__(self, field.name, PLACEHOLDER)
+                if value is not None:
+                    # figure out which field to set (simple type check)
+                    value_type_name = type(value).__name__
+                    for field in group:
+                        if field.type == value_type_name:
+                            object.__setattr__(self, field.name, value)
+                            self._group_current[attr] = field.name
+                            break
+                    else:
+                        raise AttributeError(
+                            f"cannot set {value!r} to {attr!r} in {self.__class__.__name__}"
+                        )
+                else:
+                    self._group_current[attr] = ""
+
+        object.__setattr__(self, attr, value)
+
 
 # NOTE: betterproto has a very annoying default __bool__ where it checks for non-default fields
 #  (recursively!, which is very flow and leads to weird performance regressions)
 betterproto.Message.__bool__ = lambda self: True  # type: ignore
 betterproto.Message.__str__ = _PatchedMessage.__str__  # type: ignore
 betterproto.Message.__repr__ = _PatchedMessage.__repr__  # type: ignore
+# override get/set attr to enable direct setting of oneof fields
+betterproto.Message.__getattribute__ = _PatchedMessage.__getattribute__  # type: ignore
+betterproto.Message.__setattr__ = _PatchedMessage.__setattr__  # type: ignore
 
 
 def _wrap_value(value: Any) -> ProtoValue:

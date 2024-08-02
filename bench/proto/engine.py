@@ -1,9 +1,10 @@
 import enum
 from itertools import chain
-from typing import TYPE_CHECKING, Any, Collection, Union, cast
+from typing import TYPE_CHECKING, Any, Collection, Sequence, Union, cast
 
 from bench.language.const import PrimitiveType
-from bench.language.node import BuiltinObject
+from bench.language.node import NODE_REFERENCE_TYPES, BuiltinObject
+from bench.language.setup import STRUCT_CLASS_BY_TYPE
 from bench.proto.core import Enum, EnumValue, Field, FieldType, Message, ProtoSchema, ProtoThing
 from bench.utils.func import IdEnum
 from bench.utils.string import Casing, to_casing
@@ -34,23 +35,43 @@ PROTO_FIELD_TYPE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, FieldType] = {
 _ThingType = type[Union["BuiltinObject", "Property", IdEnum, enum.IntFlag]]
 
 
-def map_bench_property_to_proto(prop: "Property", cache: dict[_ThingType, ProtoThing]) -> Field:
+def map_bench_property_to_proto(
+    prop: "Property", cache: dict[_ThingType, ProtoThing]
+) -> Field | Sequence[Field]:
     assert prop.id == 1 or not prop.is_ephemeral, f"shouldn't map runtime property: {prop!r}"
     assert isinstance(prop.id, int), f"stored properties need an id: {prop!r}"
-    # store typed enum/struct references (except for int/flag enums, which proto doesn't have)
-    if prop.is_struct or prop.is_enum:
+    if prop.is_node_reference:
+        if prop.reference_is_rich:
+            # union of reference types
+            sub_fields = [
+                Field(
+                    id=prop.id * 10 + i,
+                    name=f"{prop.name}_{st.name.split('_')[0].lower()}",
+                    type=cast(Any, map_object_type_to_proto(STRUCT_CLASS_BY_TYPE[st], cache)),
+                )
+                for i, st in enumerate(NODE_REFERENCE_TYPES)
+            ]
+            wrapper_field = Field(
+                id=prop.id, name=prop.name, type=FieldType.ONE_OF, sub_fields=sub_fields
+            )
+            return wrapper_field
+        else:
+            # plain reference
+            return Field(
+                id=prop.id,
+                name=prop.name,
+                type="NodeReferenceData",
+                optional=prop.is_optional or prop.is_deferred or prop.is_sensitive,
+                repeated=prop.is_list,
+            )
+    elif prop.is_struct or prop.is_enum:
         proto_t = map_object_type_to_proto(prop.py_type_stripped, cache)
         assert isinstance(proto_t, (Enum, Message)), f"unexpected property type: {proto_t!r}"
         return Field(
             id=prop.id,
             name=prop.name,
             type=proto_t,
-            optional=prop.is_optional
-            or prop.is_deferred
-            or prop.is_sensitive
-            # NOTE: parent_ptr always needs to be optional since betterproto doesn'default inits it to an invalid object
-            #  otherwise if unset (this is usually set, but sometimes we want to send around detached nodes)
-            or prop.name == "parent_ptr",
+            optional=prop.is_optional or prop.is_deferred or prop.is_sensitive,
             repeated=prop.is_list,
         )
     elif prop.primitive_type in PROTO_FIELD_TYPE_BY_PRIMITIVE_TYPE:
@@ -59,14 +80,6 @@ def map_bench_property_to_proto(prop: "Property", cache: dict[_ThingType, ProtoT
             id=prop.id,
             name=prop.name,
             type=field_type,
-            optional=prop.is_optional or prop.is_deferred or prop.is_sensitive,
-            repeated=prop.is_list,
-        )
-    elif prop.reference_kind is not None:
-        return Field(
-            id=prop.id,
-            name=prop.name,
-            type="NodeReferenceData",
             optional=prop.is_optional or prop.is_deferred or prop.is_sensitive,
             repeated=prop.is_list,
         )
@@ -92,8 +105,10 @@ def map_builtin_object_to_proto(
     for prop in cls.__properties__.values():
         if not prop.is_wired:
             continue
-        field = map_bench_property_to_proto(prop, cache)
-        message.fields.append(field)
+        fields = map_bench_property_to_proto(prop, cache)
+        if isinstance(fields, Field):
+            fields = [fields]
+        message.fields.extend(fields)
     message.fields.sort(key=lambda f: cast(int, f.id))
     return message
 

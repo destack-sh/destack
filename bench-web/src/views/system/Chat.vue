@@ -14,7 +14,7 @@ import {
   type AnyNodeData,
   IconData,
 } from "@/proto/wire";
-import { describeNode, isNode, toPlainNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
+import { describeNode, isNode, toNodeRefOneOf, toPlainNodeRef, unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import { makeViewId, viewEmits, type FocusAnchor, type ViewComponent, type ViewExposed } from "@/views/common";
 import { canvas, inspectionPtr, pkg, pkgGraph as localPkgGraph } from "@/system/space";
 import { computed, ref, toRef, watch, type Ref } from "vue";
@@ -63,6 +63,7 @@ const props = defineProps<
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 const id = makeViewId(props);
+const nodePtr = computed(() => unwrapProtoOneOf(props.nodePtr));
 
 const headerHeight = computed(() => (props.variant == Variant.COMPACT ? HEADER_HEIGHT_COMPACT : HEADER_HEIGHT_NORMAL));
 const asideSize = computed(() => (props.variant == Variant.COMPACT ? ASIDE_WIDTH_COMPACT : ASIDE_WIDTH_NORMAL));
@@ -77,7 +78,6 @@ const messageRefs: Ref<Record<string, HTMLElement | null>> = ref({});
 const focusedNodePtr = computedValue(() => props.focus?.nodesPtr[0]);
 
 // NOTE: threadPtr can point to a message node if we already have a thread or to any node to create a thread on
-const nodePtr = toRef(props, "nodePtr");
 const { graph: spaceGraph } = useExistingConnection(self);
 const preparedPkgConnection = useExistingConnection(nodePtr);
 const { graph: pkgGraph, connection: pkgConnection } = preparedPkgConnection;
@@ -179,7 +179,7 @@ function createNewThread(parent: AnyNodeData, title: string = generateRandomName
   });
   if (self.value != null) {
     const selfView = spaceGraph.getOrError(self.value);
-    canvas.tx().update(selfView, { nodePtr: toPlainNodeRef(thread) });
+    canvas.tx().update(selfView, { nodePtr: toNodeRefOneOf(thread) });
   } else {
     emit("update:self", { nodePtr: toPlainNodeRef(thread) });
   }
@@ -383,7 +383,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
                 onApply: (value) => {
                   if (value != null) {
                     const selfView = spaceGraph.getOrError(self!);
-                    canvas.tx().update(selfView, { nodePtr: value });
+                    canvas.tx().update(selfView, { nodePtr: toNodeRefOneOf(value) });
                     $nextTick(followEnd);
                   }
                 },
@@ -402,7 +402,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
             class="text-gray-400 enabled:hover:text-primary-900"
             @click="
               () => {
-                canvas.addView({ type: ViewType.CHAT, nodePtr }, { ifPresent: 'upsertAndFocus', where: 'bestFrame' });
+                canvas.addView({ type: ViewType.CHAT, nodePtr: props.nodePtr }, { ifPresent: 'upsertAndFocus', where: 'bestFrame' });
                 $emit('close');
               }
             "

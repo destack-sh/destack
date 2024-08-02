@@ -63,8 +63,8 @@ export const AVAILABLE_ICONS_BY_ID: Record<string, IconMetadata> = Object.fromEn
   AVAILABLE_FA_ICONS.map((i) => [i.id, i]),
 );
 
-type IconInlineProps = Pick<IconData, "emoji" | "filePtr" | "faName"> & {
-  color?: ColorType | ColorData; 
+type IconInlineProps = Pick<IconData, "emoji" | "faName"> & {
+  color?: ColorType | ColorData;
   shade?: ColorShade;
   forceColor?: "inherit" | ColorType;
   fallbackColor?: ColorType;
@@ -103,7 +103,7 @@ export function newIconId(): number {
 }
 
 type ColorIn = ColorData | ColorType;
-type IconIn = string | (Pick<IconData, "emoji" | "filePtr" | "faName"> & { color?: ColorIn });
+type IconIn = string | (Pick<IconData, "emoji" | "faName"> & { color?: ColorIn });
 export function makeIcon(icon: IconIn): IconData {
   let kind: IconKind;
   if (typeof icon == "string") {
@@ -114,8 +114,6 @@ export function makeIcon(icon: IconIn): IconData {
     }
   } else if (icon.emoji) {
     kind = IconKind.EMOJI;
-  } else if (icon.filePtr) {
-    kind = IconKind.FILE;
   } else if (icon.faName) {
     kind = IconKind.FONT_AWESOME;
   } else {
@@ -233,7 +231,7 @@ export const ICON_BY_BENCH_TYPE: Partial<Record<BenchType, IconData>> = {
 
 export const ICON_BY_BLOCK_TYPE: Partial<Record<BlockType, IconData>> = _makeIcons<BlockType>({
   [BlockType.PAGE]: "fas fa-memo",
-  
+
   [BlockType.CLASS]: "fas fa-objects-column",
   [BlockType.CHOICE]: "fas fa-circle-chevron-down",
   [BlockType.SIGNAL]: "fas fa-signal-stream",

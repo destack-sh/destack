@@ -13,7 +13,7 @@ import {
   ViewData,
   ViewType,
 } from "@/proto/wire";
-import { propertyReference, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
+import { propertyReference, toNodeRef, unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
 import { makeExpression } from "@/language/expression";
 import { isRunnable } from "@/language/utils";
@@ -52,7 +52,7 @@ const props = defineProps<
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 
-const focusPtr = computedValue(() => props.nodePtr ?? inspectionPtr.value);
+const focusPtr = computedValue(() => unwrapProtoOneOf(props.nodePtr) ?? inspectionPtr.value);
 const { graph: spaceGraph } = useExistingConnection(self);
 const { graph: pkgGraph, connection: pkgConnection } = useExistingConnection(focusPtr);
 const { state, updateState, useStateProp } = useViewState({

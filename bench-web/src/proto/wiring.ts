@@ -18,6 +18,7 @@ import {
   SecretReferenceData,
   SomeNodeData,
   StructType,
+  ViewData,
   type AnyNodeData,
   type AnyPropertyType,
   type AnyStructData,
@@ -355,19 +356,41 @@ export function toNodeRef<T extends NodeType>(
   return ref;
 }
 
-export function getNodeType(node: AnyNodeData | AnyNodeReferenceData): NodeType {
+export function getNodeType(node: AnyNodeData | SomeNodeReferenceData): NodeType {
   if (isNodeRef(node)) return (node as NodeReferenceData).type;
   else return node.metatype as unknown as NodeType;
 }
 
-export function toObjectType(type: NodeType | StructType): ObjectType {
-  return type as unknown as ObjectType;
+export function toNodeRefOneOf(node: AnyNodeData | SomeNodeReferenceData): ViewData["nodePtr"] {
+  if (!isNodeRef(node)) node = toNodeRef(node);
+
+  if (node.type == NodeType.FILE) {
+    return { oneofKind: "nodePtrFile", nodePtrFile: node as FileReferenceData };
+  } else if (node.type == NodeType.SECRET) {
+    return { oneofKind: "nodePtrSecret", nodePtrSecret: node as SecretReferenceData };
+  } else {
+    return { oneofKind: "nodePtrNode", nodePtrNode: node as NodeReferenceData };
+  }
 }
 
-export function toProtoOneOf<T extends object>(value: T): T & { oneofKind: keyof T } {
-  /** Turn { [key]: value } into { key: value, oneofKind: key } for protobuf unions */
+/** Turn { [key]: value } into { key: value, oneofKind: key } for protobuf unions */
+export function wrapProtoOneOf<T extends object>(value: T): T & { oneofKind: keyof T } {
   const key = Object.keys(value)[0] as keyof T;
   return { ...value, oneofKind: key };
+}
+
+type OneOfUnion = { oneofKind: string; [key: string]: any } | { oneofKind: undefined };
+type UnwrappedOneOf<T extends OneOfUnion> = T extends { oneofKind: infer K }
+  ? K extends keyof T
+    ? Exclude<T[K], undefined>
+    : never
+  : never;
+/** Turn union of { key: value, oneofKind: key } into { [key]: value } */
+export function unwrapProtoOneOf<T extends OneOfUnion>(value: T | undefined): UnwrappedOneOf<T> | undefined {
+  if (value == null) return undefined;
+  const { oneofKind, ...rest } = value;
+  if (oneofKind == null) return undefined;
+  return (rest as any)[oneofKind] as UnwrappedOneOf<T>;
 }
 
 export function wrapSomeNode(node: AnyNodeData): SomeNodeData {

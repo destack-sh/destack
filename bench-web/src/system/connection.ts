@@ -1058,6 +1058,9 @@ export function useExistingConnection<T extends NodeType = any>(
     if (connection.value) releaseConnection(connection.value);
 
     if (nodeRef.value != null && options?.isEnabled?.value !== false) {
+      if (nodeRef.value?.id == null) {
+        throw new Error(`missing id for connection: ${describeNode(nodeRef.value)}`);
+      }
       newConnection = acquireExistingConnection(
         "get",
         { scope: PACKAGE_SCOPE.value, roots: [nodeRef.value as TypedNodeReferenceData<T>] },

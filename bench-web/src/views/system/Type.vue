@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { BlockType, FieldZone, NodeType, Orientation, Variant, ViewData, type FieldData } from "@/proto/wire";
-import { isNode, toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
+import { isNode, toNodeRef, toNodeRefOneOf, unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import type { ActionContext, ActionMapImplementation } from "@/ui/action";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
 import { RUNNABLE_BLOCK_TYPES, cloneNode, createField, moveNode, onNodeMorphed, toCamelName } from "@/language/utils";
@@ -25,7 +25,7 @@ const rightRef = ref<HTMLElement | null>(null);
 const leftFieldRefs: Ref<Record<string, InstanceType<typeof Field> | null>> = ref({});
 const rightFieldRefs: Ref<Record<string, InstanceType<typeof Field> | null>> = ref({});
 
-const nodePtr = toRef(props, "nodePtr") as Ref<TypedNodeReferenceData<NodeType.BLOCK>>;
+const nodePtr = computed(() => unwrapProtoOneOf(props.nodePtr) as TypedNodeReferenceData<NodeType.BLOCK>);
 const { graph: pkgGraph, connection: pkgConnection } = props.preparedConnection ?? useExistingConnection(nodePtr);
 const block = pkgGraph.getRef(nodePtr, { ignoreAncestors: props.self == null });
 const isFunction = computed(() => block.value != null && RUNNABLE_BLOCK_TYPES.includes(block.value.type));
@@ -248,7 +248,7 @@ defineExpose<ViewExposed>({ self, id, actions });
             role="listitem"
             class="max-w-[200px] truncate data-[dragging=true]:opacity-50"
             :prepared-connection="preparedConnection"
-            :node-ptr="toNodeRef(field)"
+            :node-ptr="toNodeRefOneOf(field)"
             :draggable="true"
             :variant="Variant.STEALTH"
             @dragstart.stop="(e: DragEvent) => startDragging(e, pkgGraph, field)"

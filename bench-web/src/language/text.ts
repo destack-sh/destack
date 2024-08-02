@@ -1,5 +1,6 @@
 import { defaultSortStruct } from "@/language/order";
 import { ObjectType, TextData, TextLineData, TextLineType, TextSpanData } from "@/proto/wire";
+import { toNodeRefOneOf } from "@/proto/wiring";
 import { PM_SCHEMA, type TextMarkType } from "@/utils/prosemirror";
 import { Node as PmNode } from "prosemirror-model";
 
@@ -21,7 +22,7 @@ export function mapTextToPmNode(text: TextData, prev: PmNode | undefined): PmNod
         spanNode = schema.node("hardBreak");
       } else if (span.content != null) {
         spanNode = schema.text(span.content);
-      } else if (span.nodePtr != null) {
+      } else if (span.nodePtr?.oneofKind != null) {
         spanNode = schema.node("mention", { nodePtr: span.nodePtr });
       } else {
         throw new Error(`unexpected span: ${JSON.stringify(span)}`);
@@ -82,11 +83,11 @@ export function mapPmNodeToText(node: PmNode, prev: TextData | undefined): TextD
       const spanNode = lineNode.child(spanIdx);
       let span: TextSpanData;
       if (spanNode.type.name == "hardBreak") {
-        span = { metatype: ObjectType.TEXT_SPAN, content: "\n" };
+        span = { metatype: ObjectType.TEXT_SPAN, content: "\n", nodePtr: { oneofKind: undefined } };
       } else if (spanNode.type.name == "text") {
-        span = { metatype: ObjectType.TEXT_SPAN, content: spanNode.text };
+        span = { metatype: ObjectType.TEXT_SPAN, content: spanNode.text, nodePtr: { oneofKind: undefined } };
       } else if (spanNode.type.name == "mention") {
-        span = { metatype: ObjectType.TEXT_SPAN, nodePtr: spanNode.attrs.nodePtr };
+        span = { metatype: ObjectType.TEXT_SPAN, nodePtr: toNodeRefOneOf(spanNode.attrs.nodePtr) };
       } else {
         throw new Error(`unexpected span node type: ${spanNode.type.name}`);
       }

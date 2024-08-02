@@ -22,9 +22,12 @@ import {
   isNodeRef,
   makeStruct,
   toNodeRef,
+  toNodeRefOneOf,
   toPlainNodeRef,
   typeNodeReferenceMaybe,
+  unwrapProtoOneOf,
   type AnyNodeReferenceData,
+  type SomeNodeReferenceData,
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
 import { isDescendantOf, type NodeKey, type ReadNodeGraph } from "@/language/graph";
@@ -50,7 +53,7 @@ import { DEFAULT_ORIENTATION, splitBox } from "@/ui/layout";
 import { log } from "@/utils/log";
 import { computedValue, deepValueEquals } from "@/utils/ref";
 import { Casing, toCasing } from "@/utils/string";
-import { getViewTypeByComponentName, type FocusAnchor, type ViewComponent } from "@/views/common";
+import { getViewTypeByComponentName, type FocusAnchor, type ViewComponent, type ViewProps } from "@/views/common";
 import { useActiveElement, useEventListener, type MaybeElement } from "@vueuse/core";
 import {
   computed,
@@ -260,12 +263,13 @@ export class ViewCanvas {
   }
 
   /** Gets the node ptr of the given view */
-  getViewNodePtr(view: ViewComponent, element?: HTMLElement | ViewComponent | null) {
+  getViewNodePtr(view: ViewComponent, element?: HTMLElement | ViewComponent | null): SomeNodeReferenceData | null {
     if (element != null) {
       const nodePtr = view?.exposed?.mapToNode?.(element);
       if (nodePtr != null) return nodePtr;
     }
-    return this.graph.getMaybe(getViewComponentPtrMaybe(view))?.nodePtr ?? (view.props as any).nodePtr;
+    const nodePtr = this.graph.getMaybe(getViewComponentPtrMaybe(view))?.nodePtr ?? (view.props as ViewProps).nodePtr;
+    return unwrapProtoOneOf(nodePtr) ?? null;
   }
 
   /** Gets the view component for a certain view identity (self.id or anonymous id) */
@@ -310,7 +314,7 @@ export class ViewCanvas {
     // update root/inspection/base
     const rootViewComponentIdx = viewComponents.findIndex((v) => isViewComponentIn(v, ROOT_VIEW_TYPES));
     const baseView = this.graph.getMaybe(getViewComponentPtrMaybe(viewComponents[rootViewComponentIdx - 1]));
-    let nodePtr: NodeReferenceData | null = null;
+    let nodePtr: SomeNodeReferenceData | null = null;
     for (const viewComponent of viewComponents) {
       nodePtr = this.getViewNodePtr(viewComponent, element as HTMLElement);
       if (nodePtr != null) break;
@@ -345,7 +349,7 @@ export class ViewCanvas {
     const nodePtr = toPlainNodeRef(inspect.node as AnyNodeData);
     const viewAncestors = this.graph.getAncestors(inspect.view, { metatypes: [NodeType.VIEW], includeSelf: true });
     const rootViewIdx = viewAncestors.findIndex((v) => ROOT_VIEW_TYPES.has(v.type));
-    const baseNodePtr = viewAncestors[rootViewIdx - 1]?.nodePtr;
+    const baseNodePtr = unwrapProtoOneOf(viewAncestors[rootViewIdx - 1]?.nodePtr);
     if (inspectionPtr.value?.id != nodePtr.id || inspectionBasePtr.value?.id != baseNodePtr?.id) {
       const space = this.graph.getOrError(this.spacePtr.value!);
       this.tx().update(space, { inspectionPtr: nodePtr, basePtr: baseNodePtr }, { debounce: "short" });
@@ -645,13 +649,17 @@ export class ViewCanvas {
   }
 
   /** Finds a view with properties exactly like the criteria */
-  findView(like: Pick<ViewData, "type" | "nodePtr"> & { predicate?: (view: ViewData) => boolean }): ViewData | null {
+  findView(like: {
+    type: ViewType;
+    nodePtr: AnyNodeReferenceData | undefined;
+    predicate?: (view: ViewData) => boolean;
+  }): ViewData | null {
     if (Object.keys(like).length == 0) return null;
     if (this.spacePtr.value == null) return null;
     const views = this.graph.getDescendants(this.spacePtr.value, { metatypes: [NodeType.VIEW] });
     const match = views.find((v) => {
       if (like.type != null && v.type != like.type) return false;
-      if (like.nodePtr != null && v.nodePtr?.id != like.nodePtr.id) return false;
+      if (like.nodePtr != null && unwrapProtoOneOf(v.nodePtr)?.id != like.nodePtr?.id) return false;
       if (like.predicate != null && !like.predicate(v)) return false;
       return true;
     });
@@ -661,7 +669,11 @@ export class ViewCanvas {
   /** Add a new view to the canvas at the current root.  */
   addView(view: ViewDataIn, options?: OpenViewOptions) {
     const tx = this.tx();
-    const existing = this.findView({ type: view.type, nodePtr: view.nodePtr, predicate: options?.predicate });
+    const existing = this.findView({
+      type: view.type,
+      nodePtr: unwrapProtoOneOf(view.nodePtr),
+      predicate: options?.predicate,
+    });
     const currentFrame = this.focusedRoot;
     log.debug("canvas.addView", view, { existing, options, focusedRoot: currentFrame });
 
@@ -753,7 +765,7 @@ export class ViewCanvas {
         const view = this.addView(
           {
             type: ViewType.PAGE,
-            nodePtr: toNodeRef(containingPage),
+            nodePtr: toNodeRefOneOf(containingPage),
             focus: makeSelection(nodeRef),
           },
           { ifPresent: "upsertAndFocus", ...options },

@@ -29,6 +29,7 @@ import {
   isNode,
   propertyReference,
   toNodeRef,
+  toNodeRefOneOf,
   toPlainNodeRef,
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
@@ -526,14 +527,14 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
                 v-if="item.kind == 'log-edit'"
                 is-inline
                 :variant="Variant.COMPACT"
-                :node-ptr="toNodeRef(item.it)"
+                :node-ptr="toNodeRefOneOf(item.it)"
                 :prepared-connection="preparedConnection"
               />
               <Run
                 v-else-if="item.kind == 'run'"
                 is-inline
                 :variant="Variant.COMPACT"
-                :node-ptr="toNodeRef(item.it)"
+                :node-ptr="toNodeRefOneOf(item.it)"
                 :prepared-connection="preparedConnection"
               />
               <div v-else>

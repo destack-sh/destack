@@ -1,4 +1,7 @@
 <script lang="ts" setup>
+import { uploadFile } from "@/language/file";
+import { isTextEmpty, mapPmNodeToText, mapTextToPmNode } from "@/language/text";
+import { makeTypeInfo } from "@/language/value";
 import {
   BenchType,
   ColorShade,
@@ -8,31 +11,28 @@ import {
   Variant,
   ViewData,
   ViewType,
-  type AnyNodeData,
+  type AnyNodeData
 } from "@/proto/wire";
-import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
-import { IS_IN_ALT_MODE, type ActionImplementation, type ActionMapImplementation } from "@/ui/action";
-import { ICON_BY_NODE_TYPE, getNodeIcon } from "@/ui/icon";
+import { toNodeRef, unwrapProtoOneOf, type SomeNodeReferenceData, type TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas, pkg, pkgConnection, pkgGraph } from "@/system/space";
-import { isTextEmpty, mapPmNodeToText, mapTextToPmNode } from "@/language/text";
+import { IS_IN_ALT_MODE, type ActionImplementation, type ActionMapImplementation } from "@/ui/action";
 import { useDropZone } from "@/ui/drag";
-import { pushPopover, menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/menu";
-import { PM_INPUT_RULES, PM_SCHEMA, type TextMarkType, PM_KEYMAP_EXTRA } from "@/utils/prosemirror";
+import { ICON_BY_NODE_TYPE, getNodeIcon } from "@/ui/icon";
+import { menuActionsLike, pushPopover, type PopoverContext, type PopoverInfo } from "@/ui/menu";
+import { getColorHex } from "@/ui/style";
+import { getElement } from "@/utils/element";
+import { PM_INPUT_RULES, PM_KEYMAP_EXTRA, PM_SCHEMA, type TextMarkType } from "@/utils/prosemirror";
 import { deepValueEquals } from "@/utils/ref";
 import { ViewContentWrapper, makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import { whenever } from "@vueuse/core";
 import * as commands from "prosemirror-commands";
+import { dropCursor } from "prosemirror-dropcursor";
 import { inputRules } from "prosemirror-inputrules";
 import { keymap } from "prosemirror-keymap";
 import { Node as PmNode } from "prosemirror-model";
 import { EditorState } from "prosemirror-state";
 import { EditorView, type NodeView as PmNodeView } from "prosemirror-view";
-import { dropCursor } from "prosemirror-dropcursor";
 import { computed, nextTick, onBeforeUnmount, ref, toRef, watch } from "vue";
-import { getElement } from "@/utils/element";
-import { makeTypeInfo } from "@/language/value";
-import { getColorHex } from "@/ui/style";
-import { uploadFile, uploadFiles } from "@/language/file";
 
 const MENTION_TRIGGER_CHAR = "@";
 
@@ -52,10 +52,10 @@ const textRef = ref<HTMLDivElement | null>(null);
 let view: EditorView | null = null;
 let lastAppliedModelValue: TextData | null = null;
 const mentionPtrs = computed(() => {
-  const mentionPtrs: NodeReferenceData[] = [];
+  const mentionPtrs: SomeNodeReferenceData[] = [];
   for (const line of props.modelValue?.lines ?? []) {
     for (const span of line.spans ?? []) {
-      if (span.nodePtr != null) mentionPtrs.push(span.nodePtr);
+      if (span.nodePtr?.oneofKind != null) mentionPtrs.push(unwrapProtoOneOf(span.nodePtr)!);
     }
   }
   return mentionPtrs;

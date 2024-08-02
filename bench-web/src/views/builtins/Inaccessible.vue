@@ -1,6 +1,6 @@
 <script lang="ts" setup>
-import { NodeType, type NodeReferenceData } from "@/proto/wire";
 import { toCamelName } from "@/language/utils";
+import { NodeType, type NodeReferenceData } from "@/proto/wire";
 import { DISCORD_URL } from "@/utils/globals";
 import { getDurationFromNow, TimeUpdateInterval } from "@/utils/time";
 import { DateTime } from "luxon";

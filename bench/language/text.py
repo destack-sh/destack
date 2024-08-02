@@ -9,7 +9,7 @@ from bench.language.node import (
     BuiltinObject,
     Node,
     NodeReference,
-    NodeReferenceBase,
+    SomeNodeReference,
     Struct,
     object_component,
     struct_,
@@ -71,7 +71,7 @@ class TextSpan(TextOptions, Struct):
         34, array=False, default=None, require=False, references=NODE_TYPES.tuple, rich=True
     )
     if TYPE_CHECKING:
-        node_ptr: Optional[NodeReferenceBase] = None
+        node_ptr: Optional[SomeNodeReference] = None
 
     def __content_str__(self):
         if self.content:

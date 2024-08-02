@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { ViewData, NodeType, RunData, FieldZone, RunErrorKind, RunErrorType, Variant } from "@/proto/wire";
-import { describeNode, type TypedNodeReferenceData } from "@/proto/wiring";
+import { describeNode, unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import { canvas, pkgConnection } from "@/system/space";
 import { computed, toRef, type Ref } from "vue";
@@ -23,20 +23,21 @@ const props = defineProps<
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 const id = makeViewId(props);
+const nodePtr = computed(() => unwrapProtoOneOf(props.nodePtr));
 
 const { graph: runGraph } =
   props.preparedConnection ??
   useGetConnection(
-    { name: `log.${props.nodePtr?.id}` },
+    { name: `log.${nodePtr.value?.id}` },
     computed(() => ({
       scope: PACKAGE_SCOPE.value,
-      roots: [props.nodePtr!],
-      isEnabled: props.nodePtr != null,
+      roots: [nodePtr.value!],
+      isEnabled: nodePtr.value != null,
       ancestorTypes: [NodeType.RUN],
       descendantTypes: [NodeType.RUN],
     })),
   );
-const run = runGraph.getRef(props.nodePtr, { ignoreAncestors: true }) as Ref<RunData | undefined>;
+const run = runGraph.getRef(nodePtr.value, { ignoreAncestors: true }) as Ref<RunData | undefined>;
 const basePtr = computed(() => run.value?.stepPtr ?? run.value?.blockPtr);
 
 const { graph: pkgGraph } = useExistingConnection(basePtr);
