@@ -1,13 +1,13 @@
-import { BenchType, EnumType, NodeType, ObjectType, PrimitiveType, StructType, TypeKind } from "@/proto/wire";
 import { fabricate } from "@/language/graph.test";
 import { OBJECT_TYPES, getTkFromPtrMaybe } from "@/language/utils";
 import {
-  packBuiltinObject,
-  unpackBuiltinObject,
   decodeTypeIdentity,
   encodeTypeIdentity,
+  packBuiltinObject,
+  unpackBuiltinObject,
   type TypeIdentity,
 } from "@/language/value";
+import { BenchType, NodeType, ObjectType, PrimitiveType, TypeKind } from "@/proto/wire";
 import { describe, expect, test } from "vitest";
 
 // the test data & targets are from the backend bench implementation
