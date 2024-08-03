@@ -18,11 +18,10 @@ import {
   type AnyNodeData,
 } from "@/proto/wire";
 import {
+  NODE_REFERENCE_TYPES_BY_NODE_TYPE,
   describeNode,
-  isNodeOrRef,
   isNodeRef,
   isStruct,
-  NODE_REFERENCE_TYPES_BY_NODE_TYPE,
   toNodeRef,
   unwrapProtoOneOf,
   type SomeNodeReferenceData,
@@ -44,7 +43,6 @@ import {
 import { getColorHex } from "@/ui/style";
 import { toaster } from "@/ui/toast";
 import { getElement } from "@/utils/element";
-import { groupByScalar } from "@/utils/functools";
 import { log } from "@/utils/log";
 import { PM_INPUT_RULES, PM_KEYMAP_EXTRA, PM_SCHEMA, type TextMarkType } from "@/utils/prosemirror";
 import { deepValueEquals } from "@/utils/ref";
@@ -226,7 +224,6 @@ class MentionView implements PmNodeView {
       this.dom.addEventListener("mouseenter", () => {
         // prefetch (to speed up load on hover)
         prefetchFile(pmNode.attrs.nodePtr);
-
         // keep preview open on hover
         trackHoverElement(this.dom, {
           getOtherElements: () => (popoverInstance?.element != null ? [popoverInstance.element] : []),
@@ -273,7 +270,7 @@ class MentionView implements PmNodeView {
     this.iconDom.className = icon?.faName != null ? `icon ${icon.faName}` : "icon fa fa-question";
     if (icon.color != null) this.iconDom.style.color = getColorHex(icon.color, ColorShade.S600)!;
     else this.iconDom.style.removeProperty("color");
-    this.dom.classList.add(NodeType[nodeType].toLowerCase());
+    this.dom.dataset.nodeType = NodeType[nodeType].toLowerCase();
   }
 }
 
@@ -336,9 +333,10 @@ const { isInDropZone } = useDropZone({
       const pos = view.posAtCoords({ left: event.clientX, top: event.clientY });
       if (pos == null) return; // not in editor
       Array.from(dragged.files).forEach(async (file) => {
+        // upload and insert each file individually
         const upload = uploadFile(() => pkgConnection.tx, file, { parent: pkg.value! });
         await upload.completion.wait();
-        if (view == null) throw new Error("view not mounted");
+        if (view == null) throw new Error("view no mounted");
         insertMention(toNodeRef(upload.file.value!), pos);
       });
     } else if (dragged.kind == "node") {
@@ -508,11 +506,11 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
   @apply bg-primary-100 text-primary-900  decoration-primary-900;
 }
 .altmode .text span.mention:hover,
-.text span.mention.file:hover {
+.text span.mention[data-node-type="file"]:hover .name {
   @apply cursor-pointer;
 }
 .altmode .text span.mention:hover .name,
-.text span.mention.file:hover .name {
+.text span.mention[data-node-type="file"]:hover .name {
   @apply decoration-primary-900;
 }
 </style>
