@@ -6,7 +6,7 @@ import { ICON_BY_NODE_TYPE, IconInline } from "@/ui/icon";
 import { getNodeSubtype, toCamelName } from "@/language/utils";
 import { canvas, inspectionPtr } from "@/system/space";
 import { ScrollbarWidth } from "@/ui/layout";
-import NodeCrumb from "@/views/builtins/NodeCrumb.vue";
+import NodeReference from "@/views/builtins/NodeReference.vue";
 import { DEFAULT_HEADER_HEIGHT, DEFAULT_MAX_WIDTH, DEFAULT_MIN_WIDTH } from "@/ui/canvas";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
@@ -54,7 +54,7 @@ defineExpose<ViewExposed>({ self });
         :style="{ minWidth: MIN_WIDTH + 'px' }"
       >
         <!-- Node -->
-        <NodeCrumb :node="node" :connection="pkgConnection" class="font-medium" />
+        <NodeReference :node="node" :connection="pkgConnection" class="font-medium" />
         <!-- Meta & Controls  -->
         <div class="ml-auto flex flex-row items-center pl-1.5">
           <IconInline

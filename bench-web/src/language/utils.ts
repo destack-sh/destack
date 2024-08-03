@@ -43,11 +43,13 @@ import {
   describeNode,
   fillDefaultObject,
   isNode,
+  isNodeRef,
   newNodeCk,
   newNodeId,
   nodeReference,
   toPlainNodeRef,
   type AnyNodeReferenceData,
+  type SomeNodeReferenceData,
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
 import { getNodeIcon, makeIcon } from "@/ui/icon";
@@ -229,6 +231,11 @@ function getNodeDiscriminator(node: { metatype: ObjectType } & Partial<AnyNodeDa
   const key = NODE_NAME_DISCRIMINATORS[node.metatype as unknown as NodeType];
   if (key != null) return (node as any)[key];
   else return undefined;
+}
+
+export function getNodeType(node: AnyNodeData | SomeNodeReferenceData): NodeType {
+  if (isNodeRef(node)) return node.type;
+  else return node.metatype as unknown as NodeType;
 }
 
 /** Gets the discriminating subtype for a node, if any */
