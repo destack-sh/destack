@@ -396,6 +396,7 @@ export function packBuiltinObject(
       if (prop.referenceIsRich) {
         // :RichReferences
         propValue = unwrapProtoOneOf(propValue);
+        if (propValue == null) continue; // one-of fields are always nullable
       }
       propValuePacked = packValueScalar(propValue, propType);
     }
@@ -438,6 +439,9 @@ export function unpackBuiltinObject<T extends ObjectType>(valuePacked: any, obje
           continue;
         } else {
           propValue = null;
+          if (prop.referenceIsRich) {
+            propValue = { oneofKind: undefined };
+          }
         }
       } else {
         propValue = unpackValueScalarData(propValuePacked, propType);

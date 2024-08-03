@@ -1,29 +1,31 @@
 import {
-  OBJECT_TYPE_BY_MESSAGE_TYPE_NAME,
-  ObjectType,
+  DEFAULT_NODE_FILTER,
+  LayerNodeGraph,
+  NodeGraph,
+  PASSTHROUGH_NODE_FILTER,
+  ProxyNodeGraph,
+  type NodeGraphFilter,
+  type ReadNodeGraph,
+} from "@/language/graph";
+import { OBJECT_TYPES } from "@/language/utils";
+import {
   ClientData,
   ClientProperty,
   MESSAGE_TYPE_BY_OBJECT_TYPE,
   NodeType,
+  OBJECT_TYPE_BY_MESSAGE_TYPE_NAME,
+  ObjectType,
   PROPERTY_ENUM_BY_TYPE,
+  PROPERTY_INFOS_BY_TYPE,
+  Struct,
+  Timestamp,
   UserData,
   type AnyNodeData,
   type AnyPropertyType,
   type AnyTypeMapping,
-  Timestamp,
-  Struct,
+  type PropertyInfo,
 } from "@/proto/wire";
-import { EMPTY_SCOPE, toPlainNodeRef } from "@/proto/wiring";
-import {
-  LayerNodeGraph,
-  PASSTHROUGH_NODE_FILTER,
-  type NodeGraphFilter,
-  NodeGraph,
-  ProxyNodeGraph,
-  type ReadNodeGraph,
-  DEFAULT_NODE_FILTER,
-} from "@/language/graph";
-import { OBJECT_TYPES } from "@/language/utils";
+import { EMPTY_SCOPE, toNodeRefOneOf, toPlainNodeRef } from "@/proto/wiring";
 import { ScalarType, type FieldInfo } from "@protobuf-ts/runtime";
 import { v4 } from "uuid";
 import { describe, expect, test } from "vitest";
@@ -64,19 +66,23 @@ export function fabricate<T extends ObjectType>(
 ): AnyTypeMapping[T] {
   const allProperties: AnyPropertyType | undefined = PROPERTY_ENUM_BY_TYPE[metatype];
   if (allProperties == null) throw new Error(`no properties for ${ObjectType[metatype]}`);
+  const propertyInfos = PROPERTY_INFOS_BY_TYPE[metatype];
   const messageType = MESSAGE_TYPE_BY_OBJECT_TYPE[metatype]!;
 
-  function fabricateScalarProp(propName: string, field: FieldInfo): any {
+  function fabricateScalarProp(propName: string, field: FieldInfo | undefined, prop: PropertyInfo): any {
     let value: any;
     if (options?.set != null && (options.set as any)[propName] !== undefined) {
       value = (options.set as any)[propName];
     } else if (options?.unset?.includes(propName as any)) {
       value = undefined;
-    } else if (field.name.endsWith("_id") || field.name.endsWith("_ck")) {
+    } else if (prop.name.endsWith("_id") || prop.name.endsWith("_ck")) {
       value = v4();
-    } else if (field.kind == "scalar" && SCALAR_GENERATORS[field.T] != null) {
+    } else if (prop?.referenceIsRich) {
+      const ref = MESSAGE_TYPE_GENERATORS["symbolx.bench.NodeReferenceData"]();
+      value = toNodeRefOneOf(ref); // :RichReferences
+    } else if (field?.kind == "scalar" && SCALAR_GENERATORS[field.T] != null) {
       value = SCALAR_GENERATORS[field.T]!();
-    } else if (field.kind == "enum") {
+    } else if (field?.kind == "enum") {
       const [typeName, enu] = field.T();
       if (MEMBERS_BY_ENUM[typeName] == null) {
         MEMBERS_BY_ENUM[typeName] = Object.keys(enu)
@@ -85,42 +91,43 @@ export function fabricate<T extends ObjectType>(
       }
       const members = MEMBERS_BY_ENUM[typeName];
       value = members[Math.floor(Math.random() * members.length)];
-    } else if (field.kind == "message" && OBJECT_TYPE_BY_MESSAGE_TYPE_NAME[field.T().typeName]) {
+    } else if (field?.kind == "message" && OBJECT_TYPE_BY_MESSAGE_TYPE_NAME[field.T().typeName]) {
       const benchType = OBJECT_TYPE_BY_MESSAGE_TYPE_NAME[field.T().typeName]!;
       const path = (options?.path ?? []).concat(metatype);
       value = fabricate(benchType, { path });
-    } else if (field.kind == "message" && MESSAGE_TYPE_GENERATORS[field.T().typeName]) {
+    } else if (field?.kind == "message" && MESSAGE_TYPE_GENERATORS[field.T().typeName]) {
       value = MESSAGE_TYPE_GENERATORS[field.T().typeName]!();
     } else if (PROP_NAME_GENERATORS[propName]) {
       value = PROP_NAME_GENERATORS[propName]!();
     } else {
-      throw new Error(`no generator for field ${messageType.typeName}.${propName} [kind=${field.kind}]`);
+      throw new Error(
+        `no generator for field ${messageType.typeName}.${propName} [prop=${prop.id}, kind=${field?.kind}]`,
+      );
     }
     return value;
   }
 
   const struct = {};
-  let ord = 0;
   for (const propName of Object.keys(allProperties)) {
-    const field = messageType.fields[ord];
     if (!Number.isNaN(Number(propName))) continue; // skip numeric keys
+    const propId = allProperties[propName as any] as unknown as number;
+    const prop = propertyInfos[propId];
+    const field = messageType.fields.find((f) => f.no == propId);
+
     let value: any;
-    // skip recursive fields
-    const fieldObjectType = field.kind == "message" ? OBJECT_TYPE_BY_MESSAGE_TYPE_NAME[field.T().typeName] : null;
-    if (fieldObjectType && options?.path?.includes(fieldObjectType)) {
+    if (prop.referenceStruct && options?.path?.includes(prop.referenceStruct as unknown as ObjectType)) {
       // skip recursive fields
-      value = field.repeat ? [] : null;
+      value = prop.isList ? [] : null;
     } else if (propName == "metatype") {
       value = metatype;
     } else if (propName == "setProperties") {
       value = []; // never
-    } else if (field.repeat) {
-      value = [fabricateScalarProp(propName, field)];
+    } else if (prop.isList) {
+      value = [fabricateScalarProp(propName, field, prop)];
     } else {
-      value = fabricateScalarProp(propName, field);
+      value = fabricateScalarProp(propName, field, prop);
     }
     (struct as any)[propName] = value;
-    ord += 1;
   }
   return struct as AnyTypeMapping[T];
 }
