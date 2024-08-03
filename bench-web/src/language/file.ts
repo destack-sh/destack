@@ -21,7 +21,16 @@ import {
   TypeConstraintData,
   UploadFilesResponse_UploadHandle,
 } from "@/proto/wire";
-import { isNode, isStruct, makeScope, newNodeId, nodeReference, toNodeRef, toPlainNodeRef } from "@/proto/wiring";
+import {
+  isNode,
+  isNodeOrRef,
+  isStruct,
+  makeScope,
+  newNodeId,
+  nodeReference,
+  toNodeRef,
+  toPlainNodeRef,
+} from "@/proto/wiring";
 import { ICON_BY_FILE_FORMAT, ICON_BY_FILE_TYPE, makeIcon } from "@/ui/icon";
 import { makeNode, toCamelName } from "@/language/utils";
 import { unpackProtoJson, type Transaction } from "@/language/transaction";
@@ -83,7 +92,7 @@ export type FileDownload = {
 
 //
 // Uploads
-// TODO :UX: indicate active uploads in UI (maybe as sticky notification) 
+// TODO :UX: indicate active uploads in UI (maybe as sticky notification)
 //
 
 const uploadsByFileId: Ref<Record<string, FileUpload>> = shallowRef({});
@@ -382,7 +391,7 @@ setInterval(() => {
  */
 export function downloadFiles(
   files: (FileReferenceData | NodeReferenceData | FileData)[],
-  options?: { includeContent?: boolean },
+  options?: { includeContent?: boolean | ((file: FileData | NodeReferenceData | FileReferenceData) => boolean) },
 ): FileDownload[] {
   const downloads = files.map((file) => {
     const download: FileDownload = {
@@ -397,7 +406,8 @@ export function downloadFiles(
       getUrl: shallowRef(null),
       progress: shallowRef(0),
       completion: new AsyncEvent(),
-      includesContent: options?.includeContent ?? false,
+      includesContent:
+        typeof options?.includeContent == "function" ? options.includeContent(file) : options?.includeContent ?? false,
     };
     cacheDownload(download);
     return markRaw(download);
@@ -511,6 +521,28 @@ export function useFileDownload(
 
   return download;
 }
+
+const PREFETCH_FILE_TYPES = [FileType.TEXT, FileType.CODE, FileType.IMAGE, FileType.AUDIO, FileType.DOCUMENT];
+
+/** Prefetch the given files (incl. content where it makes sense). */
+export async function prefetchFiles(files: (FileData | FileReferenceData)[]): Promise<void> {
+  downloadFiles(files, {
+    includeContent: (file) => {
+      if (!isNodeOrRef(file, NodeType.FILE)) return false;
+      if (PREFETCH_FILE_TYPES.includes((file as FileData).coarseType)) return true;
+      else return false;
+    },
+  });
+}
+
+/** Prefetch the given file. */
+export async function prefetchFile(file: FileData | FileReferenceData): Promise<void> {
+  await prefetchFiles([file]);
+}
+
+//
+// File utilities
+//
 
 /** Hash the given file content (SHA-256). */
 async function sha256(content: File): Promise<string> {

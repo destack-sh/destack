@@ -31,7 +31,7 @@ import {
 import { getFieldViews } from "@/ui/view";
 import { ScrollbarWidth } from "@/ui/layout";
 import { computedValue, mapRef } from "@/utils/ref";
-import NodeCrumb from "@/views/builtins/NodeCrumb.vue";
+import NodeReference from "@/views/builtins/NodeReference.vue";
 import { DEFAULT_HEADER_HEIGHT, useViewState } from "@/ui/canvas";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
@@ -109,7 +109,7 @@ defineExpose<ViewExposed>({ self });
         :style="{ minWidth: MIN_WIDTH + 'px' }"
       >
         <!-- Runnable -->
-        <NodeCrumb class="font-medium" :node="runnableNode" :connection="pkgConnection" />
+        <NodeReference class="font-medium" :node="runnableNode" :connection="pkgConnection" />
         <!-- Controls -->
         <div class="ml-auto flex flex-row items-center pl-1.5">
           <button

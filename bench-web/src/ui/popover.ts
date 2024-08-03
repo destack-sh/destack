@@ -18,6 +18,7 @@ import { collectViewComponentsUp, findViewComponentUp, isViewComponentIn } from 
 import type { ViewComponent } from "@/views/common";
 import type { MaybeElement } from "@vueuse/core";
 import { computed, shallowRef, toValue, triggerRef, type Directive, type Ref } from "vue";
+import { log } from "@/utils/log";
 
 export type MenuInfo = {
   icon?: string | IconData;
@@ -209,10 +210,14 @@ export function pushPopover(push: {
   triggerRef(_activePopovers);
   instance.trigger.dataset[POPOVER_DATA_SET_ATTRIBUTE] = "true";
   instance.trigger.dataset[POPOVER_DATA_ID_ATTRIBUTE] = instance.id.toString();
+  log.trace("popover.push", instance);
   return instance;
 }
 
-export function popPopover(fromIdx: number = -1) {
+export function popPopover(fromIdx: number | PopoverInstance = -1) {
+  if (typeof fromIdx == "object") {
+    fromIdx = _activePopovers.value.indexOf(fromIdx);
+  }
   const closedMenus = activePopovers.value.slice(fromIdx < 0 ? 0 : fromIdx);
   if (closedMenus.length === 0) return;
   closedMenus.forEach((instance) => {
@@ -223,6 +228,7 @@ export function popPopover(fromIdx: number = -1) {
   });
   if (fromIdx >= 0) _activePopovers.value = _activePopovers.value.slice(0, fromIdx);
   else _activePopovers.value = [];
+  log.trace("popover.pop", closedMenus);
   return closedMenus;
 }
 
@@ -263,8 +269,8 @@ export const CONTEXT_MENU_DIRECTIVE = makePopoverDirective({ event: "contextmenu
 export const MENU_DIRECTIVE = makePopoverDirective({ event: "click", reference: "self" });
 
 type HoverMenuTriggerElement = PopoverTriggerElement & {
-  hoverShowTimeout?: number;
-  hoverHideTimeout?: number;
+  hoverTimeout?: number;
+  hideTimeout?: number;
   hoverOnMouseEnter?: (e: MouseEvent) => void;
   hoverOnMouseMove?: (e: MouseEvent) => void;
 };
@@ -277,8 +283,8 @@ export type HoverMenuOptions = {
   popover: (context: PopoverContext) => PopoverInfoIn;
 };
 
-const DEFAULT_SHOW_DELAY = 300;
-const DEFAULT_HIDE_DELAY = 300;
+const DEFAULT_HOVER_DELAY = 800;
+const DEFAULT_LEAVE_DELAY = 400;
 
 /** Checks whether the cursor position is overlapping any of the given elements. */
 function isMouseOverlapping(e: MouseEvent, ...els: (HTMLElement | undefined)[]): boolean {
@@ -296,8 +302,8 @@ export const HOVER_MENU_DIRECTIVE: Directive<MaybeElement, HoverMenuOptions> = {
   mounted(el, binding) {
     const triggerEl = el as HoverMenuTriggerElement;
     const options = binding.value;
-    const showDelay = options.showDelay ?? DEFAULT_SHOW_DELAY;
-    const hideDelay = options.hideDelay ?? DEFAULT_HIDE_DELAY;
+    const hoverDelay = options.showDelay ?? DEFAULT_HOVER_DELAY;
+    const leaveDelay = options.hideDelay ?? DEFAULT_LEAVE_DELAY;
 
     let isHovering = false;
     let popoverInstance: PopoverInstance | undefined;
@@ -323,28 +329,28 @@ export const HOVER_MENU_DIRECTIVE: Directive<MaybeElement, HoverMenuOptions> = {
       }
     };
 
-    const startShowTimer = (e: MouseEvent) => {
-      clearTimeout(triggerEl.hoverShowTimeout);
-      triggerEl.hoverShowTimeout = window.setTimeout(() => showPopover(e), showDelay);
+    const startHoverTimer = (e: MouseEvent) => {
+      clearTimeout(triggerEl.hoverTimeout);
+      triggerEl.hoverTimeout = window.setTimeout(() => showPopover(e), hoverDelay);
     };
 
     const cancelShowTimer = () => {
-      clearTimeout(triggerEl.hoverShowTimeout);
+      clearTimeout(triggerEl.hoverTimeout);
     };
 
     const startHideTimer = () => {
-      clearTimeout(triggerEl.hoverHideTimeout);
-      triggerEl.hoverHideTimeout = window.setTimeout(hidePopover, hideDelay);
+      clearTimeout(triggerEl.hideTimeout);
+      triggerEl.hideTimeout = window.setTimeout(hidePopover, leaveDelay);
     };
 
     const cancelHideTimer = () => {
-      clearTimeout(triggerEl.hoverHideTimeout);
+      clearTimeout(triggerEl.hideTimeout);
     };
 
     triggerEl.hoverOnMouseEnter = (e: MouseEvent) => {
       isHovering = true;
       cancelHideTimer();
-      startShowTimer(e);
+      startHoverTimer(e);
     };
 
     triggerEl.hoverOnMouseMove = (e: MouseEvent) => {
@@ -354,7 +360,7 @@ export const HOVER_MENU_DIRECTIVE: Directive<MaybeElement, HoverMenuOptions> = {
           if (isEnabled) {
             isHovering = true;
             cancelHideTimer();
-            startShowTimer(e);
+            startHoverTimer(e);
           }
         }
       } else {
@@ -373,8 +379,8 @@ export const HOVER_MENU_DIRECTIVE: Directive<MaybeElement, HoverMenuOptions> = {
   unmounted(el) {
     const triggerEl = el as HoverMenuTriggerElement;
 
-    clearTimeout(triggerEl.hoverShowTimeout);
-    clearTimeout(triggerEl.hoverHideTimeout);
+    clearTimeout(triggerEl.hoverTimeout);
+    clearTimeout(triggerEl.hideTimeout);
 
     if (triggerEl.hoverOnMouseEnter) {
       triggerEl.removeEventListener("mouseenter", triggerEl.hoverOnMouseEnter);
@@ -384,3 +390,87 @@ export const HOVER_MENU_DIRECTIVE: Directive<MaybeElement, HoverMenuOptions> = {
     }
   },
 };
+
+/**
+ * Starts checking whether the mouse is in the given elements.
+ *  Much like hover menu, but tied to an element on demand (instead of always).
+ */
+export function trackHoverElement(
+  triggerEl: HTMLElement,
+  options: {
+    hoverDelay?: number;
+    hideDelay?: number;
+    getOtherElements?: () => HTMLElement[];
+    onHover?: () => void;
+    onLeave?: () => void;
+    immediate?: boolean; // start tracking immediately, stop on leave
+  },
+) {
+  const {
+    hoverDelay = DEFAULT_HOVER_DELAY,
+    hideDelay = DEFAULT_LEAVE_DELAY,
+    getOtherElements = () => [],
+    onHover = () => {},
+    onLeave = () => {},
+  } = options;
+
+  let isHovering = false;
+
+  let hoverTimeout: number | undefined = undefined;
+  let hideTimeout: number | undefined = undefined;
+
+  const startHoverTimer = () => {
+    clearTimeout(hoverTimeout);
+    hoverTimeout = window.setTimeout(() => {
+      onHover();
+    }, hoverDelay);
+  };
+  const startHideTimer = () => {
+    clearTimeout(hideTimeout);
+    hideTimeout = window.setTimeout(() => {
+      stopTracking();
+      onLeave();
+    }, hideDelay);
+  };
+  const cancelHoverTimer = () => {
+    clearTimeout(hoverTimeout);
+  };
+  const cancelHideTimer = () => {
+    clearTimeout(hideTimeout);
+  };
+
+  const onMouseMove = (e: MouseEvent) => {
+    const elements = getOtherElements();
+    if (isMouseOverlapping(e, triggerEl, ...elements)) {
+      if (!isHovering) {
+        isHovering = true;
+        cancelHideTimer();
+        startHoverTimer();
+      }
+    } else {
+      if (isHovering) {
+        isHovering = false;
+        cancelHoverTimer();
+        startHideTimer();
+      }
+    }
+  };
+
+  const startTracking = () => {
+    document.addEventListener("mousemove", onMouseMove);
+  };
+
+  const stopTracking = () => {
+    if (isHovering) {
+      isHovering = false;
+      cancelHoverTimer();
+    }
+    document.removeEventListener("mousemove", onMouseMove);
+  };
+
+  if (options.immediate) {
+    startTracking();
+  }
+
+  return { startTracking, stopTracking };
+}

@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { uploadFile } from "@/language/file";
+import { downloadFile, prefetchFile, uploadFile } from "@/language/file";
 import { isTextEmpty, mapPmNodeToText, mapTextToPmNode } from "@/language/text";
 import { makeTypeInfo } from "@/language/value";
 import {
@@ -8,7 +8,9 @@ import {
   FileReferenceData,
   NodeReferenceData,
   NodeType,
+  ObjectType,
   SecretReferenceData,
+  StructType,
   TextData,
   Variant,
   ViewData,
@@ -16,6 +18,7 @@ import {
   type AnyNodeData,
 } from "@/proto/wire";
 import {
+  describeNode,
   isNodeOrRef,
   isNodeRef,
   isStruct,
@@ -29,10 +32,20 @@ import { canvas, pkg, pkgConnection, pkgGraph } from "@/system/space";
 import { IS_IN_ALT_MODE, type ActionImplementation, type ActionMapImplementation } from "@/ui/action";
 import { useDropZone } from "@/ui/drag";
 import { ICON_BY_NODE_TYPE, getNodeIcon } from "@/ui/icon";
-import { menuActionsLike, pushPopover, type PopoverContext, type PopoverInfo } from "@/ui/popover";
+import {
+  menuActionsLike,
+  popPopover,
+  pushPopover,
+  trackHoverElement,
+  type PopoverContext,
+  type PopoverInfo,
+  type PopoverInstance,
+} from "@/ui/popover";
 import { getColorHex } from "@/ui/style";
+import { toaster } from "@/ui/toast";
 import { getElement } from "@/utils/element";
 import { groupByScalar } from "@/utils/functools";
+import { log } from "@/utils/log";
 import { PM_INPUT_RULES, PM_KEYMAP_EXTRA, PM_SCHEMA, type TextMarkType } from "@/utils/prosemirror";
 import { deepValueEquals } from "@/utils/ref";
 import { ViewContentWrapper, makeViewId, viewEmits, type ViewExposed } from "@/views/common";
@@ -181,12 +194,70 @@ class MentionView implements PmNodeView {
     this.nameDom.classList.add("name");
     this.nameDom.textContent = "???";
 
-    // go to mention on alt-click
-    this.dom.addEventListener("click", () => {
+    // click
+    this.dom.addEventListener("click", async () => {
+      // go to mention on alt-click
       if (IS_IN_ALT_MODE.value) {
         canvas.goToNode(pmNode.attrs.nodePtr);
+      } else if (pmNode.attrs.nodePtr.type == NodeType.FILE) {
+        // open file on click
+        if (!isStruct(pmNode.attrs.nodePtr, StructType.FILE_REFERENCE)) {
+          throw new Error(`unexpected file type: ${describeNode(pmNode.attrs.nodePtr)}`);
+        }
+        const download = downloadFile(pmNode.attrs.nodePtr);
+        try {
+          await download.completion.wait();
+          if (download.getUrl.value == null) throw new Error(`missing GET url`);
+        } catch (e) {
+          log.error("text.file.download.error", download, e);
+          toaster.error({
+            title: "Download Failed",
+            text: `'${pmNode.attrs.nodePtr.title}': ${(e as any).message ?? "unknown error"}`,
+          });
+        }
+        window.open(download.getUrl.value!, "_blank");
       }
     });
+
+    // open file preview on hover
+    // (would be nice to have this be more general :NodePreviews)
+    if (pmNode.attrs.nodePtr.type == NodeType.FILE) {
+      let popoverInstance: PopoverInstance | undefined;
+      this.dom.addEventListener("mouseenter", () => {
+        // prefetch (to speed up load on hover)
+        prefetchFile(pmNode.attrs.nodePtr);
+
+        // keep preview open on hover
+        trackHoverElement(this.dom, {
+          getOtherElements: () => (popoverInstance?.element != null ? [popoverInstance.element] : []),
+          onHover: () => {
+            if (popoverInstance != null) {
+              return;
+            }
+            popoverInstance = pushPopover({
+              trigger: this.dom,
+              reference: this.dom,
+              info: {
+                placement: "bottom",
+                component: ViewType.FILE,
+                props: {
+                  modelValue: pmNode.attrs.nodePtr,
+                  isInline: true,
+                  size: { metatype: ObjectType.BOX, width: 400 },
+                },
+              },
+            });
+          },
+          onLeave: () => {
+            if (popoverInstance != null) {
+              popPopover(popoverInstance);
+              popoverInstance = undefined;
+            }
+          },
+          immediate: true,
+        });
+      });
+    }
 
     const node = resolveMention(pmNode.attrs.nodePtr);
     if (node != null) this.updateNode(node);

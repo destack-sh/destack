@@ -11,6 +11,7 @@ import {
 } from "@/ui/popover";
 import { getElement } from "@/utils/element";
 import { getFloatingPosition, type FloatingPlacement } from "@/utils/floating";
+import { log } from "@/utils/log";
 import Menu from "@/views/builtins/Menu.vue";
 import { getViewComponent } from "@/views/registry";
 import { useElementSize, useEventListener, type MaybeElement } from "@vueuse/core";
@@ -100,7 +101,9 @@ watch(activePopovers, () => {
 // focus
 function focus() {
   const focusTarget = popoverInnerRefs.value[topPopover.value?.id] ?? popoverContainerRefs.value[topPopover.value?.id];
-  if (!focusInElement(focusTarget)) throw new Error(`failed to focus in ${topPopover.value?.info.kind}`);
+  if (!focusInElement(focusTarget)) {
+    log.warn("popover.focusFailed", topPopover.value?.info.kind, topPopover);
+  }
 }
 watch(popoverContainerRefs, () => {
   if (topPopover.value != null && !topPopover.value?.info.dontFocus) {

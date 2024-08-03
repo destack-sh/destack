@@ -167,8 +167,7 @@ defineExpose<ViewExposed>({ self, id });
               title: undefined,
               size: {
                 metatype: ObjectType.BOX,
-                width: Math.min(400, getElement(context.triggerElement)!.getBoundingClientRect().width),
-                height: 300,
+                width: Math.max(400, Math.min(800, getElement(context.triggerElement)!.getBoundingClientRect().width)),
               },
               isInline: true,
               isInput: false,
