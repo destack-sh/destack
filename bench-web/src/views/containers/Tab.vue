@@ -27,7 +27,9 @@ const self = toRef(props, "self");
 // focus
 const { graph: spaceGraph } = useExistingConnection(self);
 const tabs = spaceGraph.getChildrenRef(self, NodeType.VIEW, { ignoreAncestors: true });
-const tabsNodes = spaceGraph.getManyMaybeRef(computed(() => tabs.value.map((t) => unwrapProtoOneOf(t.nodePtr) ?? null)));
+const tabsNodes = spaceGraph.getManyMaybeRef(
+  computed(() => tabs.value.map((t) => unwrapProtoOneOf(t.nodePtr) ?? null)),
+);
 const tabsTitles = computed(() => {
   const tabsTitles: string[] = [];
   for (let tabIdx = 0; tabIdx < tabs.value.length; tabIdx++) {
@@ -196,8 +198,7 @@ defineExpose<ViewExposed>({ self, actions });
           context,
         })
       "
-      class="scrollbar-none relative flex w-full flex-row"
-      :class="[activeHeaderDropZone != null ? 'bg-primary-50' : 'bg-gray-100']"
+      class="scrollbar-none relative flex w-full flex-row bg-gray-100"
       :orientation="Orientation.HORIZONTAL"
       :track-width="ScrollbarWidth.sm"
       track-is-overlay
@@ -247,7 +248,7 @@ defineExpose<ViewExposed>({ self, actions });
         <!-- Drop indicator -->
         <div
           v-if="activeHeaderDropZone?.targetId == tab.id"
-          class="absolute z-10 h-full w-1 bg-primary-400"
+          class="absolute z-10 h-full w-1 bg-primary-900"
           :class="[activeHeaderDropZone.anchor == 'start' ? (i == 0 ? 'left-0' : '-left-[3px]') : '-right-[3px]']"
         />
       </button>
@@ -256,7 +257,7 @@ defineExpose<ViewExposed>({ self, actions });
       <!-- Drop indicator if no tab -->
       <div
         v-if="activeHeaderDropZone != null && activeHeaderDropZone.targetId == null"
-        class="absolute left-0 z-10 h-full w-1 bg-primary-400"
+        class="absolute left-0 z-10 h-full w-1 bg-primary-900"
       />
     </Scroll>
     <!-- Tab body -->
@@ -301,7 +302,7 @@ defineExpose<ViewExposed>({ self, actions });
       >
         <div class="relative h-full w-full">
           <div
-            class="absolute z-20 transform bg-primary-400 opacity-40 transition-all duration-100"
+            class="absolute z-20 transform bg-gray-400 opacity-40 transition-all duration-100"
             :class="activeBodyDropZone.splitClass"
           />
         </div>

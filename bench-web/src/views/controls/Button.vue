@@ -23,8 +23,8 @@ const classByVariant: Ref<Partial<Record<Variant, string[]>>> = computed(() => (
     "rounded border border-gray-900",
     props.title ? "px-2 py-1" : "px-1 py-0.5",
     props.isDisabled
-      ? "text-gray-600 bg-primary-200 hover:cursor-not-allowed"
-      : "text-gray-900 bg-primary-300 hover:bg-primary-400",
+      ? "text-gray-600 bg-gray-200 hover:cursor-not-allowed"
+      : "text-gray-900 bg-primary-300 hover:border-primary-900 hover:text-primary-900",
   ],
   // outline button
   [Variant.SECONDARY]: [
@@ -39,7 +39,7 @@ const classByVariant: Ref<Partial<Record<Variant, string[]>>> = computed(() => (
     "rounded underline decoration-2 underline-offset-3",
     props.isDisabled
       ? "text-gray-500 decoration-gray-200 hover:cursor-not-allowed"
-      : "text-gray-900 decoration-gray-300 hover:text-primary-900 hover:decoration-primary-400 focus:decoration-primary-900",
+      : "text-gray-900 decoration-gray-300 hover:text-primary-900 hover:decoration-primary-900 focus:decoration-primary-900",
   ],
   // 'stealth' button
   [Variant.STEALTH]: [

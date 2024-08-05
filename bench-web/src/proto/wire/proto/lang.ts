@@ -3368,7 +3368,8 @@ export interface LogData {
     identityPtr?: NodeReferenceData;
 }
 /**
- * A Machine provides some isolated compute for a Server.
+ * A Machine provides some isolated compute, usually for a Server.
+ * A Machine may also be manually provisioned with specific image/profiles.
  *
  * @generated from protobuf message symbolx.bench.MachineData
  */
@@ -24220,7 +24221,7 @@ export const PARENT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.CLIENT]: [NodeType.USER, NodeType.SERVER],
   [NodeType.SERVER]: [NodeType.BENCH],
   [NodeType.STORE]: [NodeType.BENCH],
-  [NodeType.MACHINE]: [NodeType.SERVER],
+  [NodeType.MACHINE]: [NodeType.BENCH, NodeType.SERVER],
   [NodeType.DRIVE]: [NodeType.BENCH],
   [NodeType.MEMBERSHIP]: [NodeType.BENCH],
   [NodeType.INVITE]: [NodeType.BENCH],
@@ -24249,7 +24250,7 @@ export const PARENT_NODE_TYPES: Record<NodeType, NodeType[]> = {
 
 export const CHILD_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.UNSPECIFIED]: [],
-  [NodeType.BENCH]: [NodeType.HANDLE, NodeType.SKIP, NodeType.BRANCH, NodeType.SERVER, NodeType.STORE, NodeType.DRIVE, NodeType.MEMBERSHIP, NodeType.INVITE],
+  [NodeType.BENCH]: [NodeType.HANDLE, NodeType.SKIP, NodeType.BRANCH, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.MEMBERSHIP, NodeType.INVITE],
   [NodeType.USER]: [NodeType.SKIP, NodeType.HANDLE, NodeType.CLIENT],
   [NodeType.ORGANIZATION]: [NodeType.SKIP, NodeType.HANDLE],
   [NodeType.HANDLE]: [NodeType.SKIP],
@@ -27284,7 +27285,7 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
 export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.MACHINE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [MachineProperty.id]: { id: 2, name: 'id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.MACHINE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.SERVER], referenceStruct: StructType.NODE_REFERENCE },
+  [MachineProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.MACHINE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.SERVER, NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [MachineProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.MACHINE, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [MachineProperty.revision]: { id: 10, name: 'revision', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: 0, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.createdAt]: { id: 11, name: 'created_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },

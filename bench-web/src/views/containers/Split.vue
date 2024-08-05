@@ -165,7 +165,7 @@ defineExpose<ViewExposed>({ self, actions });
         class="pointer-events-auto absolute transition-colors duration-200"
         :class="[
           isHorizontal ? 'cursor-ew-resize' : 'cursor-ns-resize',
-          draggingIdx == viewIdx - 1 ? 'bg-primary-400' : 'bg-transparent hover:bg-primary-300',
+          draggingIdx == viewIdx - 1 ? 'bg-gray-400' : 'bg-transparent hover:bg-gray-300',
         ]"
         :style="
           isHorizontal

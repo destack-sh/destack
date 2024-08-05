@@ -424,7 +424,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
         variant != Variant.STEALTH
           ? 'border border-gray-200 px-2 py-0.5 focus-within:border-primary-900 not-focus-within:hover:border-gray-300'
           : '',
-        isInDropZone ? 'outline-dotted outline-2 outline-primary-400' : '',
+        isInDropZone ? 'outline-dotted outline-2 outline-primary-900' : '',
       ]"
       :draggable="true"
       @dragstart.stop.prevent="false /* prevent accidentally dragging ancestors from text selection here */"
@@ -522,6 +522,6 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
   outline: none;
 }
 .ProseMirror-selectednode {
-  @apply p-2 outline-primary-400;
+  @apply p-2 outline-primary-900;
 }
 </style>

@@ -64,12 +64,11 @@ export default {
         3: "3px",
       },
       colors: {
-        // :ColorMapping
-        primary: colors.amber,
+        primary: colors.orange,
         secondary: colors.sky,
-        accent: colors.amber,
-        gray: colors.slate,
-        canvas: colors.slate,
+        accent: colors.orange,
+        gray: colors.stone,
+        canvas: colors.stone,
         success: colors.lime,
         hint: colors.sky,
         warning: colors.yellow,

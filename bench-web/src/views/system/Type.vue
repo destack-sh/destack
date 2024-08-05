@@ -192,7 +192,7 @@ defineExpose<ViewExposed>({ self, id, actions });
         :ref="(ref: any) => (side == 'left' ? (leftRef = ref) : (rightRef = ref))"
         class="relative flex flex-1 flex-col gap-y-1 rounded"
         :class="[
-          activeDropZoneSide == side ? 'outline-dotted outline-2 outline-primary-900' : '',
+          activeDropZoneSide == side ? 'outline outline-2 outline-primary-900' : '',
           sideFields.length == 0 && shouldHaveFields ? 'min-h-7 justify-center' : '',
         ]"
       >
@@ -210,7 +210,7 @@ defineExpose<ViewExposed>({ self, id, actions });
           <span class="text-gray-500">No {{ toCamelName(FieldZone, side == "left" ? leftZone : rightZone) }}s</span>
         </div>
         <!-- Drop indicator -->
-        <div v-else-if="activeDropZoneSide == side" class="absolute right-1 top-1 text-gray-400">
+        <div v-else-if="activeDropZoneSide == side" class="absolute right-1 top-1 text-primary-900">
           {{ toCamelName(FieldZone, side == "left" ? leftZone : rightZone) }}
         </div>
         <!-- Field wrapper -->
@@ -218,7 +218,7 @@ defineExpose<ViewExposed>({ self, id, actions });
           <!-- Drop indicator -->
           <div
             v-if="activeDropZone?.targetId == field.id"
-            class="absolute z-10 h-1 w-full rounded-sm bg-primary-400"
+            class="absolute z-10 h-1 w-full rounded-sm bg-primary-900"
             :class="[activeDropZone?.anchor == 'start' ? (i == 0 ? 'top-0' : '-top-[4px]') : '-bottom-[3px]']"
           />
           <!-- Field -->
