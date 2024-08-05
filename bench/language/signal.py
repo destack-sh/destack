@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 # NOTE :Architecture: should Signal be materialized like Records?
-#  (although generally, we want to query Signals together more than Records...)
+#  (although generally, we want to query Signals jointly more than Records?...)
 
 
 @timed_node_(NodeType.SIGNAL, passthrough="value")
@@ -71,12 +71,12 @@ class Signal(PackageNode[SignalData], HasTimeIdentity, HasNodeBase, HasSessionCo
 
 
 #
-# Custom signal states
+# Custom signal state :NodeInheritance
 #
 
 
 @object_component()
-class SignalState(Struct):
+class SignalState(Struct):  # :NodeInheritance
     """Builtin special Value as the state of some specific signal type (in Signal.value)."""
 
     pass

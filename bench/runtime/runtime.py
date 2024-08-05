@@ -58,6 +58,7 @@ class Runtime(ServiceBase, RuntimeBase):
         client_type: ClientType,
         client_id: UUID,
         client_access_token: str,
+        server_id: UUID | None,
         machine_id: UUID | None,
         max_threads: int,
         oracle: Oracle,
@@ -85,6 +86,7 @@ class Runtime(ServiceBase, RuntimeBase):
             client_access_token=self._client_access_token,
         )
         self._rpc_headers = pack_rpc_headers(self._rpc_metadata)
+        self._server_id = server_id
         self._machine_id = machine_id
         self._machine: Machine | None = None
         self._engines: tuple[RemoteEngine, ...] = ()
@@ -145,6 +147,7 @@ class Runtime(ServiceBase, RuntimeBase):
                 supervisor=self._supervisor,
                 host=self._host,
                 client_id=self._client_id,
+                server_id=self._server_id,
                 machine_id=self._machine_id,
                 engines=self._engines,
                 process_queue=self._start_queue,

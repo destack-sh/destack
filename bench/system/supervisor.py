@@ -9,7 +9,6 @@ from opentelemetry import trace
 
 from bench.language import Bench, Client, NodeReference, Server, Store, User
 from bench.language.access import Subject
-from bench.language.bench import ServerProfile
 from bench.language.const import (
     USER_NODE_TYPES,
     ClientType,
@@ -421,11 +420,7 @@ async def create_default_bench(
     await session.flush()
 
     # create resources (in pending state, resources are managed by hosts)
-    server = bench.servers.create(
-        region=bench.region,
-        profile=ServerProfile.SMALL,
-        name="Server",
-    )
+    server = bench.servers.create(region=bench.region, name="Server")
     store = bench.stores.create(region=bench.region, name="Store")
     drive = bench.drives.create(region=bench.region, name="Drive")
     await session.flush()

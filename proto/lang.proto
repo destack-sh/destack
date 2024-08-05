@@ -191,9 +191,7 @@ enum BenchType {
   BENCH_TYPE_REGION = 20051;
   BENCH_TYPE_REGION_ZONE = 20052;
   BENCH_TYPE_REGION_AREA = 20053;
-  BENCH_TYPE_SERVER_PROFILE = 20055;
-  BENCH_TYPE_MACHINE_PROFILE = 20056;
-  BENCH_TYPE_RESOURCE_STATUS = 20057;
+  BENCH_TYPE_RESOURCE_STATUS = 20054;
   BENCH_TYPE_FILE_RETENTION_MODE = 2060;
   BENCH_TYPE_FILE_KIND = 2061;
   BENCH_TYPE_FILE_TYPE = 2062;
@@ -447,9 +445,7 @@ enum EnumType {
   ENUM_TYPE_REGION = 20051;
   ENUM_TYPE_REGION_ZONE = 20052;
   ENUM_TYPE_REGION_AREA = 20053;
-  ENUM_TYPE_SERVER_PROFILE = 20055;
-  ENUM_TYPE_MACHINE_PROFILE = 20056;
-  ENUM_TYPE_RESOURCE_STATUS = 20057;
+  ENUM_TYPE_RESOURCE_STATUS = 20054;
   ENUM_TYPE_FILE_RETENTION_MODE = 2060;
   ENUM_TYPE_FILE_KIND = 2061;
   ENUM_TYPE_FILE_TYPE = 2062;
@@ -770,13 +766,6 @@ enum LogLevel {
   LOG_LEVEL_WARNING = 4;
   LOG_LEVEL_ERROR = 5;
   LOG_LEVEL_CRITICAL = 6;
-}
-
-enum MachineProfile {
-  MACHINE_PROFILE_UNSPECIFIED = 0;
-  MACHINE_PROFILE_TINY = 3;
-  MACHINE_PROFILE_SMALL = 5;
-  MACHINE_PROFILE_MEDIUM = 7;
 }
 
 enum ModelProvider {
@@ -1137,13 +1126,6 @@ enum SelectionKind {
   SELECTION_KIND_UNSPECIFIED = 0;
   SELECTION_KIND_RANGE = 1;
   SELECTION_KIND_LIST = 2;
-}
-
-enum ServerProfile {
-  SERVER_PROFILE_UNSPECIFIED = 0;
-  SERVER_PROFILE_TINY = 3;
-  SERVER_PROFILE_SMALL = 5;
-  SERVER_PROFILE_MEDIUM = 7;
 }
 
 enum SessionStatus {
@@ -2499,7 +2481,8 @@ message LogData {
   optional NodeReferenceData identity_ptr = 79;
 }
 
-// A Machine provides some isolated compute for a Server.
+// A Machine provides some isolated compute, usually for a Server.
+// A Machine may also be manually provisioned with specific image/profiles.
 message MachineData {
   ObjectType metatype = 1;
   string id = 2;
@@ -2520,13 +2503,15 @@ message MachineData {
   Region region = 35;
   ResourceStatus status = 36;
   optional ResourceStatus current_status = 37;
-  MachineProfile profile = 40;
-  optional MachineProfile current_profile = 41;
-  optional string version = 42;
-  optional string current_version = 43;
-  optional string external_name = 50;
-  optional string external_id = 51;
-  optional string connection_uri = 52;
+  optional string version = 40;
+  optional string current_version = 41;
+  optional string external_name = 42;
+  optional string external_id = 43;
+  optional string connection_uri = 44;
+  float cpu = 50;
+  optional float current_cpu = 51;
+  float ram = 52;
+  optional float current_ram = 53;
   optional google.protobuf.Timestamp started_at = 60;
   optional google.protobuf.Timestamp terminated_at = 61;
   optional google.protobuf.Timestamp active_at = 62;
@@ -2823,10 +2808,12 @@ message ServerData {
   Region region = 35;
   ResourceStatus status = 36;
   optional ResourceStatus current_status = 37;
-  ServerProfile profile = 40;
-  optional ServerProfile current_profile = 41;
-  optional string version = 42;
-  optional string current_version = 43;
+  optional string version = 40;
+  optional string current_version = 41;
+  optional float min_cpu = 50;
+  optional float max_cpu = 51;
+  optional float min_ram = 52;
+  optional float max_ram = 53;
   optional google.protobuf.Timestamp active_at = 60;
   optional google.protobuf.Timestamp bumped_at = 61;
 }

@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.08.05.0"
+VERSION = "2024.08.05.4"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -291,10 +291,12 @@ SERVER_TABLE = Table(
         Column("region", PrimitiveType.INT16),
         Column("status", PrimitiveType.INT16, default="1"),
         Column("current_status", PrimitiveType.INT16, is_nullable=True),
-        Column("profile", PrimitiveType.INT16),
-        Column("current_profile", PrimitiveType.INT16, is_nullable=True),
         Column("version", PrimitiveType.STRING, is_nullable=True),
         Column("current_version", PrimitiveType.STRING, is_nullable=True),
+        Column("min_cpu", PrimitiveType.FLOAT32, is_nullable=True),
+        Column("max_cpu", PrimitiveType.FLOAT32, is_nullable=True),
+        Column("min_ram", PrimitiveType.FLOAT32, is_nullable=True),
+        Column("max_ram", PrimitiveType.FLOAT32, is_nullable=True),
         Column("active_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("bumped_at", PrimitiveType.DATETIME, is_nullable=True),
     ),
@@ -337,6 +339,7 @@ MACHINE_TABLE = Table(
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
         Column("parent_id", PrimitiveType.UUID, is_nullable=True),
+        Column("parent_type", PrimitiveType.INT16, is_nullable=True),
         Column("bench_id", PrimitiveType.UUID),
         Column("revision", PrimitiveType.INT64),
         Column("created_at", PrimitiveType.DATETIME),
@@ -356,13 +359,15 @@ MACHINE_TABLE = Table(
         Column("region", PrimitiveType.INT16),
         Column("status", PrimitiveType.INT16, default="1"),
         Column("current_status", PrimitiveType.INT16, is_nullable=True),
-        Column("profile", PrimitiveType.INT16),
-        Column("current_profile", PrimitiveType.INT16, is_nullable=True),
         Column("version", PrimitiveType.STRING, is_nullable=True),
         Column("current_version", PrimitiveType.STRING, is_nullable=True),
         Column("external_name", PrimitiveType.STRING, is_nullable=True),
         Column("external_id", PrimitiveType.STRING, is_nullable=True),
         Column("connection_uri", PrimitiveType.STRING, is_nullable=True, is_encrypted=True),
+        Column("cpu", PrimitiveType.FLOAT32),
+        Column("current_cpu", PrimitiveType.FLOAT32, is_nullable=True),
+        Column("ram", PrimitiveType.FLOAT32),
+        Column("current_ram", PrimitiveType.FLOAT32, is_nullable=True),
         Column("started_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("terminated_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("active_at", PrimitiveType.DATETIME, is_nullable=True),

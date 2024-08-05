@@ -2,6 +2,7 @@
 
 -r requirements/base.in
 
+docker==7.1.0
 kubernetes-asyncio==24.2.3
 kubernetes==27.2.0
 orjson==3.10.3

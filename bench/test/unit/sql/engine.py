@@ -14,7 +14,6 @@ from bench.language import (
     NodeReference,
     PrimitiveType,
     Server,
-    ServerProfile,
     Store,
 )
 from bench.language.const import ClientType, EnumType, NodeType, Region, UserStatus
@@ -278,7 +277,7 @@ async def test_crud_node_pointers(omni_session: Session):
         )
         session._create(bench)
         await session.flush()
-        server = bench.servers.create(name="Production A", profile=ServerProfile.TINY)
+        server = bench.servers.create(name="Production A")
         store = bench.stores.create(name="Production A")
         drive = bench.drives.create(name="Production A")
         client = server.clients.create(
