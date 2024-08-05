@@ -383,16 +383,13 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
     # NOTE :Cleanup: Session suspend/unsuspend is pretty clumsy
 
     def suspend(self):
-        """Suspend the session, *erroring* on further edits. Deactivates context (if active)."""
+        """Suspend the session, *erroring* on further edits."""
         self._is_suspended = True
-        assert self._active_session_token is not None, f"session not active {self!r}"
-        _active_session.reset(self._active_session_token)
         self._active_session_token = None
 
     def unsuspend(self):
-        """Stop suspending the session, allowing further edits. Activates context."""
+        """Stop suspending the session, allowing further edits."""
         self._is_suspended = False
-        self._active_session_token = _active_session.set(self)
 
     @asynccontextmanager
     async def active(self, readonly: bool = False):
@@ -402,6 +399,7 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
         was_active = self._active_session_token is not None
         self._is_readonly = readonly
         self.unsuspend()
+        self._active_session_token = _active_session.set(self)
         try:
             yield self
         finally:

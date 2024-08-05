@@ -7,7 +7,7 @@ import structlog
 from sentry_sdk.integrations.logging import LoggingIntegration
 
 from bench.utils.env import ENV, IS_DEV, IS_TEST
-from bench.utils.utils import get_from_env
+from bench.utils.utils import get_from_env_maybe
 
 logger = structlog.get_logger(__name__)
 
@@ -22,22 +22,24 @@ def traces_sampler(sampling_context: dict):
     return 1.0  # by default sample everything
 
 
+SENTRY_DSN = get_from_env_maybe("SENTRY_DSN", description="Sentry DSN")
+
+
 def init_sentry():
     sentry_sdk.utils.MAX_STRING_LENGTH = 10_000_000  # type: ignore
     # https://docs.sentry.io/platforms/python/
     sentry_logging = LoggingIntegration(level=logging.DEBUG, event_level=None)
-    dsn = get_from_env("SENTRY_DSN", description="Sentry DSN")
     integrations = (sentry_logging,)
 
     sentry_sdk.init(
-        dsn=dsn,
+        dsn=SENTRY_DSN,
         environment=ENV,
         integrations=integrations,
         sample_rate=1.0,
         send_default_pii=True,
         traces_sampler=traces_sampler,
     )
-    logger.debug("sentry.initialized", environment=ENV, dsn=dsn[:12] + "..." + dsn[-4:])
+    logger.debug("sentry.initialized", environment=ENV, dsn=SENTRY_DSN)
 
 
 def setup_analytics():
