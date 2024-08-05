@@ -95,6 +95,8 @@ export const BASED_NODE_TYPES = [
   NodeType.SIGNAL,
   NodeType.NOTIFICATION,
 ];
+export const SOURCE_NODE_TYPES = NODE_TYPES.filter((nt) => nt >= 1000 && nt < 1100);
+export const STATE_NODE_TYPES = SOURCE_NODE_TYPES.filter((nt) => nt >= 1100 && nt < 1200);
 export const RUNTIME_NODE_TYPES = NODE_TYPES.filter((nt) => nt >= 1200 && nt < 1300);
 export const TIMED_NODE_TYPES = [
   NodeType.SESSION,
@@ -104,10 +106,7 @@ export const TIMED_NODE_TYPES = [
   NodeType.NOTIFICATION,
   NodeType.MESSAGE,
 ];
-export const ETERNAL_NODE_TYPES = [NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG];
 export const RESOURCE_NODE_TYPES = NODE_TYPES.filter((nt) => nt >= 500 && nt < 600);
-export const SOURCE_NODE_TYPES = NODE_TYPES.filter((nt) => nt >= 1000 && nt < 1100);
-export const REMOTE_NODE_TYPES = SOURCE_NODE_TYPES.filter((nt) => nt >= 1100 && nt < 1200);
 
 export const PAGE_BLOCK_TYPES = [BlockType.PAGE, BlockType.FLOW, BlockType.DATABASE, BlockType.VIEW];
 export const TYPE_BLOCK_TYPES = [BlockType.CLASS, BlockType.CHOICE, BlockType.SIGNAL, BlockType.DATABASE];

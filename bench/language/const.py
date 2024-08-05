@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.08.02.0"  # auto change via version script
+VERSION = "2024.08.05.0"  # auto change via version script
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -179,7 +179,7 @@ class NodeType(IdEnum):
     # Global
     #
 
-    # universe (global)
+    # universe
     BENCH = 1
     USER = 2
     ORGANIZATION = 3
@@ -187,23 +187,30 @@ class NodeType(IdEnum):
     CLIENT = 5
     # CHALLENGE?
 
-    # resource (global, later maybe regional, per Bench)
+    #
+    # Regional
+    #
+
+    # resource
     SERVER = 500  # virtual infinitely scalable server
     STORE = 501  # our trusted postgres store
     MACHINE = 502  # actual machine providing compute and such
     DRIVE = 503  # object store like S3/MinIO, maybe block storage later
     # CACHE, DOMAIN, EMAIL?, PHONE?, ... # (maybe Email/Phone/... should be in source?)
 
+    # auth
+    MEMBERSHIP = 600
+    INVITE = 601
+
     #
     # Local (per Bench)
     #
 
-    # source (local)
+    # source (per package, can be templated/instantiated)
     BRANCH = 1000
     PACKAGE = 1001
     DEPENDENCY = 1002
     SPACE = 1003
-    SKIP = 1005
     BLOCK = 1010
     TRIGGER = 1011
     FIELD = 1012  # (based)
@@ -211,22 +218,23 @@ class NodeType(IdEnum):
     VIEW = 1014
     STEP = 1015
     BADGE = 1016
-    SECRET = 1017
     # TAG?
 
-    # remote (local, deferred)
+    # state (must be resolved against Package)
     FILE = 1100
-    MESSAGE = 1101  # (based, timed)
-    RECORD = 1102  # (based)
-    MEMBERSHIP = 1103
-    INVITE = 1104
-    NOTIFICATION = 1105  # (based, timed)
+    SECRET = 1101
+    MESSAGE = 1102  # (based, timed)
+    RECORD = 1103  # (based)
+    NOTIFICATION = 1104  # (based, timed)
 
-    # runtime (local)
+    # runtime (eternal)
     SESSION = 1200  # (timed)
     RUN = 1201  # (based, timed)
     SIGNAL = 1202  # (based, timed)
     LOG = 1203  # (timed)
+
+    # misc
+    SKIP = 9000
 
 
 # :NodeTypes
@@ -237,7 +245,8 @@ UNIVERSE_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if nt.id < 100))
 GLOBAL_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if nt.id < 1000))
 LOCAL_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if nt.id >= 1000))
 SOURCE_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if nt.id >= 1000 and nt.id < 1100))
-REMOTE_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if nt.id >= 1100 and nt.id < 1200))
+STATE_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if nt.id >= 1100 and nt.id < 1200))
+RUNTIME_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if nt.id >= 1200 and nt.id < 1300))
 
 BASED_NODE_TYPES = bittuple(  # :HasBase
     NodeType.FIELD,
@@ -255,9 +264,6 @@ TIMED_NODE_TYPES = bittuple(
     NodeType.NOTIFICATION,
     NodeType.MESSAGE,
 )
-ETERNAL_NODE_TYPES: bittuple[NodeType] = bittuple(
-    NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG
-)
 IN_PACKAGE_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if nt.id >= 1001))
 SUB_PACKAGE_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if nt.id > 1001))
 IN_BENCH_NODE_TYPES = bittuple(
@@ -272,16 +278,15 @@ IN_BENCH_GLOBAL_NODE_TYPES = bittuple(
     *tuple(nt for nt in IN_BENCH_NODE_TYPES if nt not in LOCAL_NODE_TYPES)
 )
 SUB_BENCH_NODE_TYPES = bittuple(*tuple(nt for nt in IN_BENCH_NODE_TYPES if nt != NodeType.BENCH))
-RESOURCE_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if nt.id >= 500 and nt.id < 600))
 BENCH_NODE_TYPES = bittuple(
     NodeType.BENCH,
     NodeType.BRANCH,
     NodeType.PACKAGE,
     NodeType.HANDLE,
     NodeType.CLIENT,
-    *RESOURCE_NODE_TYPES,
+    *(nt for nt in NODE_TYPES if nt.id >= 500 and nt.id < 700),
 )
-LOADED_BENCH_NODE_TYPES = bittuple(*(nt for nt in BENCH_NODE_TYPES if nt not in REMOTE_NODE_TYPES))
+LOADED_BENCH_NODE_TYPES = bittuple(*(nt for nt in BENCH_NODE_TYPES if nt not in STATE_NODE_TYPES))
 PUBLIC_NODE_TYPES = bittuple(NodeType.USER, NodeType.ORGANIZATION)
 USER_NODE_TYPES = bittuple(NodeType.USER, NodeType.ORGANIZATION, NodeType.CLIENT, NodeType.HANDLE)
 
