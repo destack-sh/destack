@@ -320,23 +320,6 @@ class ResourceNode(BenchNode[NodeDataT], abc.ABC, Generic[NodeDataT]):
         return ", ".join(value_strs)
 
 
-# NOTE: ServerProfile/MachineProfile will be overhauled
-
-
-@enum_(EnumType.SERVER_PROFILE)
-class ServerProfile(IdEnum):
-    TINY = 3
-    SMALL = 5
-    MEDIUM = 7
-
-
-@enum_(EnumType.MACHINE_PROFILE)
-class MachineProfile(IdEnum):
-    TINY = 3
-    SMALL = 5
-    MEDIUM = 7
-
-
 @node_(NodeType.SERVER)
 class Server(ResourceNode[ServerData]):
     """
@@ -344,10 +327,13 @@ class Server(ResourceNode[ServerData]):
     Physical compute is materialized (on-demand) as Machines.
     """
 
-    profile: ServerProfile = p_regular(40)
-    current_profile: Optional[ServerProfile] = p_system(41, default=None)
-    version: Optional[str] = p_system(42, default=None)
-    current_version: Optional[str] = p_system(43, default=None)
+    version: Optional[str] = p_system(40, default=None)
+    current_version: Optional[str] = p_system(41, default=None)
+
+    min_cpu: Optional[float] = p_system(50, default=None, description="vCPU count")
+    max_cpu: Optional[float] = p_system(51, default=None, description="vCPU count")
+    min_ram: Optional[float] = p_system(52, default=None, description="GB")
+    max_ram: Optional[float] = p_system(53, default=None, description="GB")
 
     active_at: Optional[datetime] = p_internal(60, default=None)
     bumped_at: Optional[datetime] = p_internal(61, default=None)
@@ -359,21 +345,24 @@ class Server(ResourceNode[ServerData]):
 @node_(NodeType.MACHINE)
 class Machine(ResourceNode[MachineData]):
     """
-    A Machine provides some isolated compute for a Server.
+    A Machine provides some isolated compute, usually for a Server.
+    A Machine may also be manually provisioned with specific image/profiles.
     """
 
-    parent: Server | None = p_node_parent(4, NodeType.SERVER)
+    parent: Server | Bench | None = p_node_parent(4, NodeType.SERVER, NodeType.BENCH)
 
-    profile: MachineProfile = p_system(40)
-    current_profile: Optional[MachineProfile] = p_system(41, default=None)
-    version: Optional[str] = p_system(42, default=None)
-    current_version: Optional[str] = p_system(43, default=None)
-
-    external_name: Optional[str] = p_kernel(50, require=False, default=None, sensitive=True)
-    external_id: Optional[str] = p_kernel(51, require=False, default=None, sensitive=True)
+    version: Optional[str] = p_system(40, default=None)
+    current_version: Optional[str] = p_system(41, default=None)
+    external_name: Optional[str] = p_kernel(42, require=False, default=None, sensitive=True)
+    external_id: Optional[str] = p_kernel(43, require=False, default=None, sensitive=True)
     connection_uri: Optional[str] = p_kernel(
-        52, require=False, default=None, encrypt=True, defer=True, sensitive=True
+        44, require=False, default=None, encrypt=True, defer=True, sensitive=True
     )
+
+    cpu: float = p_system(50, description="vCPU count")
+    current_cpu: Optional[float] = p_system(51, default=None, description="vCPU count")
+    ram: float = p_system(52, description="GB")
+    current_ram: Optional[float] = p_system(53, default=None, description="GB")
 
     started_at: Optional[datetime] = p_internal(60, default=None)
     terminated_at: Optional[datetime] = p_internal(61, default=None)

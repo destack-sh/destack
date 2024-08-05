@@ -86,6 +86,9 @@ async def runtime(host: str, port: int, watch: bool = False, no_check: bool = Fa
         client_access_token=get_from_env(
             "CLIENT_ACCESS_TOKEN", description="Access token for client"
         ),
+        server_id=get_from_env_maybe(
+            "SERVER_ID", typ=UUID, description="Node id of current server"
+        ),
         machine_id=get_from_env_maybe(
             "MACHINE_ID", typ=UUID, description="Node id of current machine"
         ),

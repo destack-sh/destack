@@ -4,7 +4,7 @@ import pytest
 from hypothesis import given
 
 from bench.language import Bench, NodeReference, Property, Server, Signal
-from bench.language.bench import Client, Package, ServerProfile
+from bench.language.bench import Client, Package
 from bench.language.block import Block
 from bench.language.const import BlockType, ClientType, NodeType
 from bench.language.field import Field
@@ -61,9 +61,7 @@ def test_node_pointers_consistency(session: "Session"):
     assert bench_a.to_ref()._equals_content(
         NodeReference(type=NodeType.BENCH, id=bench_a.id, ck=bench_a.ck, bench_id=bench_a.id)
     )
-    bench_a.main_server = server_a = bench_a.servers.create(
-        name="Server", profile=ServerProfile.TINY
-    )
+    bench_a.main_server = server_a = bench_a.servers.create(name="Server")
     bench_a.main_store = bench_a.stores.create(name="Store")
     bench_a.main_drive = bench_a.drives.create(name="Drive")
 
@@ -77,7 +75,7 @@ def test_node_pointers_consistency(session: "Session"):
     assert branch_a.parent_ptr.id == bench_a.id
 
     # sub bench nested pointers
-    server_a: Server = Server(parent=bench_a, name="Main", profile=ServerProfile.TINY)
+    server_a: Server = Server(parent=bench_a, name="Main")
     assert server_a.bench_id == bench_a.id
     client_a = Client(
         parent=server_a,
@@ -120,7 +118,7 @@ def test_node_pointers_consistency(session: "Session"):
 
     # refs pointing to different bench
     bench_b = Bench(slug="testb", name="testb")
-    bench_b.main_server = bench_b.servers.create(name="Server", profile=ServerProfile.TINY)
+    bench_b.main_server = bench_b.servers.create(name="Server")
     bench_b.main_store = bench_b.stores.create(name="Store")
     bench_b.main_drive = bench_b.drives.create(name="Drive")
     branch_b = bench_b.branches.create(name="main b")

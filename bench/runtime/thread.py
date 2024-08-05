@@ -6,7 +6,7 @@ from uuid import UUID, uuid4
 import structlog
 from opentelemetry import trace
 
-from bench.language import Bench, NodeReference, Package
+from bench.language import Bench, NodeReference, Package, Server
 from bench.language.bench import Branch, Client, Machine
 from bench.language.connection import GraphEngine
 from bench.language.const import LOADED_BENCH_NODE_TYPES, SOURCE_NODE_TYPES, NodeType
@@ -52,6 +52,7 @@ class RuntimeThread:
         supervisor: SupervisorClient,
         host: HostClient,
         client_id: UUID,
+        server_id: UUID | None,
         machine_id: UUID | None,
         engines: tuple[GraphEngine, ...],
         process_queue: asyncio.Queue[RunData],
@@ -73,8 +74,10 @@ class RuntimeThread:
 
         # context
         self._client_id = client_id
+        self._server_id = server_id
         self._machine_id = machine_id
         self._client: Client | None = None
+        self._server: Server | None = None
         self._machine: Machine | None = None
         self._engines = engines
         self._oracle = oracle
@@ -124,7 +127,6 @@ class RuntimeThread:
     async def start(self):
         # setup thread
         self._session = Session(
-            server=self._machine.parent if self._machine else None,
             _is_readonly=False,
             _default_scope=GraphScope(bench_id=self._bench_id)._to_data(),
             _engines=self._engines,
@@ -146,6 +148,8 @@ class RuntimeThread:
             assert main_server, f"{self._bench!r} has no main server"
             self._client = main_server.clients.get(self._client_id)
             assert self._client, f"{main_server!r} has no client {self._client_id}"
+            if self._server_id:
+                self._server = self._bench.servers.get(self._server_id)
             if self._machine_id:
                 self._machine = main_server.machines.get(self._machine_id)
 
@@ -156,7 +160,7 @@ class RuntimeThread:
         # update session context
         self._session.client = self._client
         self._session.machine = self._machine
-        self._session.server = self._machine.parent if self._machine else None
+        self._session.server = self._server
         self._session.user = self._client.parent if isinstance(self._client.parent, User) else None
         self._session._subject = self._client.parent
         self._session._origin = (

@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.08.05.0"
+VERSION = "2024.08.05.4"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -226,9 +226,7 @@ class BenchType(betterproto.Enum):
     REGION = 20051
     REGION_ZONE = 20052
     REGION_AREA = 20053
-    SERVER_PROFILE = 20055
-    MACHINE_PROFILE = 20056
-    RESOURCE_STATUS = 20057
+    RESOURCE_STATUS = 20054
     FILE_RETENTION_MODE = 2060
     FILE_KIND = 2061
     FILE_TYPE = 2062
@@ -491,9 +489,7 @@ class EnumType(betterproto.Enum):
     REGION = 20051
     REGION_ZONE = 20052
     REGION_AREA = 20053
-    SERVER_PROFILE = 20055
-    MACHINE_PROFILE = 20056
-    RESOURCE_STATUS = 20057
+    RESOURCE_STATUS = 20054
     FILE_RETENTION_MODE = 2060
     FILE_KIND = 2061
     FILE_TYPE = 2062
@@ -816,13 +812,6 @@ class LogLevel(betterproto.Enum):
     WARNING = 4
     ERROR = 5
     CRITICAL = 6
-
-
-class MachineProfile(betterproto.Enum):
-    UNSPECIFIED = 0
-    TINY = 3
-    SMALL = 5
-    MEDIUM = 7
 
 
 class ModelProvider(betterproto.Enum):
@@ -1197,13 +1186,6 @@ class SelectionKind(betterproto.Enum):
     UNSPECIFIED = 0
     RANGE = 1
     LIST = 2
-
-
-class ServerProfile(betterproto.Enum):
-    UNSPECIFIED = 0
-    TINY = 3
-    SMALL = 5
-    MEDIUM = 7
 
 
 class SessionStatus(betterproto.Enum):
@@ -2799,7 +2781,10 @@ class LogData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class MachineData(betterproto.Message):
-    """A Machine provides some isolated compute for a Server."""
+    """
+    A Machine provides some isolated compute, usually for a Server.
+     A Machine may also be manually provisioned with specific image/profiles.
+    """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
@@ -2820,13 +2805,15 @@ class MachineData(betterproto.Message):
     region: "Region" = betterproto.enum_field(35)
     status: "ResourceStatus" = betterproto.enum_field(36)
     current_status: Optional["ResourceStatus"] = betterproto.enum_field(37, optional=True)
-    profile: "MachineProfile" = betterproto.enum_field(40)
-    current_profile: Optional["MachineProfile"] = betterproto.enum_field(41, optional=True)
-    version: Optional[str] = betterproto.string_field(42, optional=True)
-    current_version: Optional[str] = betterproto.string_field(43, optional=True)
-    external_name: Optional[str] = betterproto.string_field(50, optional=True)
-    external_id: Optional[str] = betterproto.string_field(51, optional=True)
-    connection_uri: Optional[str] = betterproto.string_field(52, optional=True)
+    version: Optional[str] = betterproto.string_field(40, optional=True)
+    current_version: Optional[str] = betterproto.string_field(41, optional=True)
+    external_name: Optional[str] = betterproto.string_field(42, optional=True)
+    external_id: Optional[str] = betterproto.string_field(43, optional=True)
+    connection_uri: Optional[str] = betterproto.string_field(44, optional=True)
+    cpu: float = betterproto.float_field(50)
+    current_cpu: Optional[float] = betterproto.float_field(51, optional=True)
+    ram: float = betterproto.float_field(52)
+    current_ram: Optional[float] = betterproto.float_field(53, optional=True)
     started_at: Optional[datetime] = betterproto.message_field(60, optional=True)
     terminated_at: Optional[datetime] = betterproto.message_field(61, optional=True)
     active_at: Optional[datetime] = betterproto.message_field(62, optional=True)
@@ -3171,10 +3158,12 @@ class ServerData(betterproto.Message):
     region: "Region" = betterproto.enum_field(35)
     status: "ResourceStatus" = betterproto.enum_field(36)
     current_status: Optional["ResourceStatus"] = betterproto.enum_field(37, optional=True)
-    profile: "ServerProfile" = betterproto.enum_field(40)
-    current_profile: Optional["ServerProfile"] = betterproto.enum_field(41, optional=True)
-    version: Optional[str] = betterproto.string_field(42, optional=True)
-    current_version: Optional[str] = betterproto.string_field(43, optional=True)
+    version: Optional[str] = betterproto.string_field(40, optional=True)
+    current_version: Optional[str] = betterproto.string_field(41, optional=True)
+    min_cpu: Optional[float] = betterproto.float_field(50, optional=True)
+    max_cpu: Optional[float] = betterproto.float_field(51, optional=True)
+    min_ram: Optional[float] = betterproto.float_field(52, optional=True)
+    max_ram: Optional[float] = betterproto.float_field(53, optional=True)
     active_at: Optional[datetime] = betterproto.message_field(60, optional=True)
     bumped_at: Optional[datetime] = betterproto.message_field(61, optional=True)
 

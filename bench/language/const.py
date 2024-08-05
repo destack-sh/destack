@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.08.05.0"  # auto change via version script
+VERSION = "2024.08.05.4"  # auto change via version script
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -89,9 +89,7 @@ class EnumType(IdEnum):
     REGION = 20051
     REGION_ZONE = 20052
     REGION_AREA = 20053
-    SERVER_PROFILE = 20055
-    MACHINE_PROFILE = 20056
-    RESOURCE_STATUS = 20057
+    RESOURCE_STATUS = 20054
     FILE_RETENTION_MODE = 2060
     FILE_KIND = 2061
     FILE_TYPE = 2062

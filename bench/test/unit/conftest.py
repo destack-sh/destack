@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from bench.language import Session, Store
-from bench.language.bench import Bench, Client, ServerProfile
+from bench.language.bench import Bench, Client
 from bench.language.block import Block
 from bench.language.connection import NullEngine, RemoteEngine
 from bench.language.const import (
@@ -117,7 +117,7 @@ async def session_async(request):
 
 def make_package(session: Session):
     bench = Bench(name="test", slug="test")
-    bench.main_server = bench.servers.create(name="Server", profile=ServerProfile.TINY)
+    bench.main_server = bench.servers.create(name="Server")
     bench.main_store = bench.stores.create(name="Store")
     bench.main_drive = bench.drives.create(name="Drive")
     branch = bench.branches.create(name="Branch")

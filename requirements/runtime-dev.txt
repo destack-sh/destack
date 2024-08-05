@@ -86,7 +86,6 @@ distro==1.9.0
     # via
     #   anthropic
     #   openai
-docker==7.0.0
 dropbox==11.36.2
 duckdb==1.0.0
 execnet==2.1.1
@@ -269,7 +268,6 @@ packaging==24.0
     # via
     #   black
     #   build
-    #   docker
     #   huggingface-hub
     #   marshmallow
     #   onnxruntime
@@ -390,7 +388,6 @@ regex==2024.5.15
 requests==2.31.0
     # via
     #   atlassian-python-api
-    #   docker
     #   dropbox
     #   google-api-core
     #   google-search-results
@@ -492,7 +489,6 @@ uritemplate==4.1.1
 urllib3==2.2.1
     # via
     #   botocore
-    #   docker
     #   pyairtable
     #   pygithub
     #   requests

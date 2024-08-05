@@ -57,6 +57,7 @@ distro==1.9.0
     # via
     #   anthropic
     #   openai
+docker==7.1.0
 filelock==3.15.4
     # via huggingface-hub
 flatbuffers==24.3.25
@@ -261,6 +262,7 @@ pyyaml==6.0.1
 redis==4.5.4
 requests==2.31.0
     # via
+    #   docker
     #   google-api-core
     #   huggingface-hub
     #   kubernetes
@@ -324,6 +326,7 @@ uritemplate==4.1.1
 urllib3==2.2.1
     # via
     #   botocore
+    #   docker
     #   kubernetes
     #   kubernetes-asyncio
     #   requests

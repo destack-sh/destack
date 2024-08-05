@@ -97,6 +97,7 @@ async def make_server_client(bench_slug: str, name: str = "Localhost"):
 
         client_env = {
             "BENCH_ID": str(bench.id),
+            "SERVER_ID": str(server.id),
             "MACHINE_ID": str(machine.id),
             "CLIENT_TYPE": str(int(client.type)),
             "CLIENT_ID": str(client.id),

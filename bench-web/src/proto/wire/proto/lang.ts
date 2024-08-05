@@ -3451,33 +3451,41 @@ export interface MachineData {
      */
     currentStatus?: ResourceStatus;
     /**
-     * @generated from protobuf field: symbolx.bench.MachineProfile profile = 40;
-     */
-    profile: MachineProfile;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.MachineProfile current_profile = 41;
-     */
-    currentProfile?: MachineProfile;
-    /**
-     * @generated from protobuf field: optional string version = 42;
+     * @generated from protobuf field: optional string version = 40;
      */
     version?: string;
     /**
-     * @generated from protobuf field: optional string current_version = 43;
+     * @generated from protobuf field: optional string current_version = 41;
      */
     currentVersion?: string;
     /**
-     * @generated from protobuf field: optional string external_name = 50;
+     * @generated from protobuf field: optional string external_name = 42;
      */
     externalName?: string;
     /**
-     * @generated from protobuf field: optional string external_id = 51;
+     * @generated from protobuf field: optional string external_id = 43;
      */
     externalId?: string;
     /**
-     * @generated from protobuf field: optional string connection_uri = 52;
+     * @generated from protobuf field: optional string connection_uri = 44;
      */
     connectionUri?: string;
+    /**
+     * @generated from protobuf field: float cpu = 50;
+     */
+    cpu: number;
+    /**
+     * @generated from protobuf field: optional float current_cpu = 51;
+     */
+    currentCpu?: number;
+    /**
+     * @generated from protobuf field: float ram = 52;
+     */
+    ram: number;
+    /**
+     * @generated from protobuf field: optional float current_ram = 53;
+     */
+    currentRam?: number;
     /**
      * @generated from protobuf field: optional google.protobuf.Timestamp started_at = 60;
      */
@@ -4534,21 +4542,29 @@ export interface ServerData {
      */
     currentStatus?: ResourceStatus;
     /**
-     * @generated from protobuf field: symbolx.bench.ServerProfile profile = 40;
-     */
-    profile: ServerProfile;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.ServerProfile current_profile = 41;
-     */
-    currentProfile?: ServerProfile;
-    /**
-     * @generated from protobuf field: optional string version = 42;
+     * @generated from protobuf field: optional string version = 40;
      */
     version?: string;
     /**
-     * @generated from protobuf field: optional string current_version = 43;
+     * @generated from protobuf field: optional string current_version = 41;
      */
     currentVersion?: string;
+    /**
+     * @generated from protobuf field: optional float min_cpu = 50;
+     */
+    minCpu?: number;
+    /**
+     * @generated from protobuf field: optional float max_cpu = 51;
+     */
+    maxCpu?: number;
+    /**
+     * @generated from protobuf field: optional float min_ram = 52;
+     */
+    minRam?: number;
+    /**
+     * @generated from protobuf field: optional float max_ram = 53;
+     */
+    maxRam?: number;
     /**
      * @generated from protobuf field: optional google.protobuf.Timestamp active_at = 60;
      */
@@ -6506,17 +6522,9 @@ export enum BenchType {
      */
     REGION_AREA = 20053,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_SERVER_PROFILE = 20055;
+     * @generated from protobuf enum value: BENCH_TYPE_RESOURCE_STATUS = 20054;
      */
-    SERVER_PROFILE = 20055,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_MACHINE_PROFILE = 20056;
-     */
-    MACHINE_PROFILE = 20056,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_RESOURCE_STATUS = 20057;
-     */
-    RESOURCE_STATUS = 20057,
+    RESOURCE_STATUS = 20054,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_FILE_RETENTION_MODE = 2060;
      */
@@ -7415,17 +7423,9 @@ export enum EnumType {
      */
     REGION_AREA = 20053,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_SERVER_PROFILE = 20055;
+     * @generated from protobuf enum value: ENUM_TYPE_RESOURCE_STATUS = 20054;
      */
-    SERVER_PROFILE = 20055,
-    /**
-     * @generated from protobuf enum value: ENUM_TYPE_MACHINE_PROFILE = 20056;
-     */
-    MACHINE_PROFILE = 20056,
-    /**
-     * @generated from protobuf enum value: ENUM_TYPE_RESOURCE_STATUS = 20057;
-     */
-    RESOURCE_STATUS = 20057,
+    RESOURCE_STATUS = 20054,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_FILE_RETENTION_MODE = 2060;
      */
@@ -8590,27 +8590,6 @@ export enum LogLevel {
      * @generated from protobuf enum value: LOG_LEVEL_CRITICAL = 6;
      */
     CRITICAL = 6
-}
-/**
- * @generated from protobuf enum symbolx.bench.MachineProfile
- */
-export enum MachineProfile {
-    /**
-     * @generated from protobuf enum value: MACHINE_PROFILE_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: MACHINE_PROFILE_TINY = 3;
-     */
-    TINY = 3,
-    /**
-     * @generated from protobuf enum value: MACHINE_PROFILE_SMALL = 5;
-     */
-    SMALL = 5,
-    /**
-     * @generated from protobuf enum value: MACHINE_PROFILE_MEDIUM = 7;
-     */
-    MEDIUM = 7
 }
 /**
  * @generated from protobuf enum symbolx.bench.ModelProvider
@@ -9860,27 +9839,6 @@ export enum SelectionKind {
      * @generated from protobuf enum value: SELECTION_KIND_LIST = 2;
      */
     LIST = 2
-}
-/**
- * @generated from protobuf enum symbolx.bench.ServerProfile
- */
-export enum ServerProfile {
-    /**
-     * @generated from protobuf enum value: SERVER_PROFILE_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: SERVER_PROFILE_TINY = 3;
-     */
-    TINY = 3,
-    /**
-     * @generated from protobuf enum value: SERVER_PROFILE_SMALL = 5;
-     */
-    SMALL = 5,
-    /**
-     * @generated from protobuf enum value: SERVER_PROFILE_MEDIUM = 7;
-     */
-    MEDIUM = 7
 }
 /**
  * @generated from protobuf enum symbolx.bench.SessionStatus
@@ -19069,13 +19027,15 @@ class MachineData$Type extends MessageType<MachineData> {
             { no: 35, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
             { no: 36, name: "status", kind: "enum", T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
             { no: 37, name: "current_status", kind: "enum", opt: true, T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
-            { no: 40, name: "profile", kind: "enum", T: () => ["symbolx.bench.MachineProfile", MachineProfile, "MACHINE_PROFILE_"] },
-            { no: 41, name: "current_profile", kind: "enum", opt: true, T: () => ["symbolx.bench.MachineProfile", MachineProfile, "MACHINE_PROFILE_"] },
-            { no: 42, name: "version", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 43, name: "current_version", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 50, name: "external_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 51, name: "external_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 52, name: "connection_uri", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 40, name: "version", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 41, name: "current_version", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 42, name: "external_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 43, name: "external_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 44, name: "connection_uri", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 50, name: "cpu", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
+            { no: 51, name: "current_cpu", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 52, name: "ram", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
+            { no: 53, name: "current_ram", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
             { no: 60, name: "started_at", kind: "message", T: () => Timestamp },
             { no: 61, name: "terminated_at", kind: "message", T: () => Timestamp },
             { no: 62, name: "active_at", kind: "message", T: () => Timestamp }
@@ -19092,7 +19052,8 @@ class MachineData$Type extends MessageType<MachineData> {
         message.name = "";
         message.region = 0;
         message.status = 0;
-        message.profile = 0;
+        message.cpu = 0;
+        message.ram = 0;
         if (value !== undefined)
             reflectionMergePartial<MachineData>(this, message, value);
         return message;
@@ -19163,26 +19124,32 @@ class MachineData$Type extends MessageType<MachineData> {
                 case /* optional symbolx.bench.ResourceStatus current_status */ 37:
                     message.currentStatus = reader.int32();
                     break;
-                case /* symbolx.bench.MachineProfile profile */ 40:
-                    message.profile = reader.int32();
-                    break;
-                case /* optional symbolx.bench.MachineProfile current_profile */ 41:
-                    message.currentProfile = reader.int32();
-                    break;
-                case /* optional string version */ 42:
+                case /* optional string version */ 40:
                     message.version = reader.string();
                     break;
-                case /* optional string current_version */ 43:
+                case /* optional string current_version */ 41:
                     message.currentVersion = reader.string();
                     break;
-                case /* optional string external_name */ 50:
+                case /* optional string external_name */ 42:
                     message.externalName = reader.string();
                     break;
-                case /* optional string external_id */ 51:
+                case /* optional string external_id */ 43:
                     message.externalId = reader.string();
                     break;
-                case /* optional string connection_uri */ 52:
+                case /* optional string connection_uri */ 44:
                     message.connectionUri = reader.string();
+                    break;
+                case /* float cpu */ 50:
+                    message.cpu = reader.float();
+                    break;
+                case /* optional float current_cpu */ 51:
+                    message.currentCpu = reader.float();
+                    break;
+                case /* float ram */ 52:
+                    message.ram = reader.float();
+                    break;
+                case /* optional float current_ram */ 53:
+                    message.currentRam = reader.float();
                     break;
                 case /* optional google.protobuf.Timestamp started_at */ 60:
                     message.startedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.startedAt);
@@ -19266,27 +19233,33 @@ class MachineData$Type extends MessageType<MachineData> {
         /* optional symbolx.bench.ResourceStatus current_status = 37; */
         if (message.currentStatus !== undefined)
             writer.tag(37, WireType.Varint).int32(message.currentStatus);
-        /* symbolx.bench.MachineProfile profile = 40; */
-        if (message.profile !== 0)
-            writer.tag(40, WireType.Varint).int32(message.profile);
-        /* optional symbolx.bench.MachineProfile current_profile = 41; */
-        if (message.currentProfile !== undefined)
-            writer.tag(41, WireType.Varint).int32(message.currentProfile);
-        /* optional string version = 42; */
+        /* optional string version = 40; */
         if (message.version !== undefined)
-            writer.tag(42, WireType.LengthDelimited).string(message.version);
-        /* optional string current_version = 43; */
+            writer.tag(40, WireType.LengthDelimited).string(message.version);
+        /* optional string current_version = 41; */
         if (message.currentVersion !== undefined)
-            writer.tag(43, WireType.LengthDelimited).string(message.currentVersion);
-        /* optional string external_name = 50; */
+            writer.tag(41, WireType.LengthDelimited).string(message.currentVersion);
+        /* optional string external_name = 42; */
         if (message.externalName !== undefined)
-            writer.tag(50, WireType.LengthDelimited).string(message.externalName);
-        /* optional string external_id = 51; */
+            writer.tag(42, WireType.LengthDelimited).string(message.externalName);
+        /* optional string external_id = 43; */
         if (message.externalId !== undefined)
-            writer.tag(51, WireType.LengthDelimited).string(message.externalId);
-        /* optional string connection_uri = 52; */
+            writer.tag(43, WireType.LengthDelimited).string(message.externalId);
+        /* optional string connection_uri = 44; */
         if (message.connectionUri !== undefined)
-            writer.tag(52, WireType.LengthDelimited).string(message.connectionUri);
+            writer.tag(44, WireType.LengthDelimited).string(message.connectionUri);
+        /* float cpu = 50; */
+        if (message.cpu !== 0)
+            writer.tag(50, WireType.Bit32).float(message.cpu);
+        /* optional float current_cpu = 51; */
+        if (message.currentCpu !== undefined)
+            writer.tag(51, WireType.Bit32).float(message.currentCpu);
+        /* float ram = 52; */
+        if (message.ram !== 0)
+            writer.tag(52, WireType.Bit32).float(message.ram);
+        /* optional float current_ram = 53; */
+        if (message.currentRam !== undefined)
+            writer.tag(53, WireType.Bit32).float(message.currentRam);
         /* optional google.protobuf.Timestamp started_at = 60; */
         if (message.startedAt)
             Timestamp.internalBinaryWrite(message.startedAt, writer.tag(60, WireType.LengthDelimited).fork(), options).join();
@@ -21417,10 +21390,12 @@ class ServerData$Type extends MessageType<ServerData> {
             { no: 35, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
             { no: 36, name: "status", kind: "enum", T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
             { no: 37, name: "current_status", kind: "enum", opt: true, T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
-            { no: 40, name: "profile", kind: "enum", T: () => ["symbolx.bench.ServerProfile", ServerProfile, "SERVER_PROFILE_"] },
-            { no: 41, name: "current_profile", kind: "enum", opt: true, T: () => ["symbolx.bench.ServerProfile", ServerProfile, "SERVER_PROFILE_"] },
-            { no: 42, name: "version", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 43, name: "current_version", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 40, name: "version", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 41, name: "current_version", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 50, name: "min_cpu", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 51, name: "max_cpu", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 52, name: "min_ram", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 53, name: "max_ram", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
             { no: 60, name: "active_at", kind: "message", T: () => Timestamp },
             { no: 61, name: "bumped_at", kind: "message", T: () => Timestamp }
         ]);
@@ -21436,7 +21411,6 @@ class ServerData$Type extends MessageType<ServerData> {
         message.name = "";
         message.region = 0;
         message.status = 0;
-        message.profile = 0;
         if (value !== undefined)
             reflectionMergePartial<ServerData>(this, message, value);
         return message;
@@ -21507,17 +21481,23 @@ class ServerData$Type extends MessageType<ServerData> {
                 case /* optional symbolx.bench.ResourceStatus current_status */ 37:
                     message.currentStatus = reader.int32();
                     break;
-                case /* symbolx.bench.ServerProfile profile */ 40:
-                    message.profile = reader.int32();
-                    break;
-                case /* optional symbolx.bench.ServerProfile current_profile */ 41:
-                    message.currentProfile = reader.int32();
-                    break;
-                case /* optional string version */ 42:
+                case /* optional string version */ 40:
                     message.version = reader.string();
                     break;
-                case /* optional string current_version */ 43:
+                case /* optional string current_version */ 41:
                     message.currentVersion = reader.string();
+                    break;
+                case /* optional float min_cpu */ 50:
+                    message.minCpu = reader.float();
+                    break;
+                case /* optional float max_cpu */ 51:
+                    message.maxCpu = reader.float();
+                    break;
+                case /* optional float min_ram */ 52:
+                    message.minRam = reader.float();
+                    break;
+                case /* optional float max_ram */ 53:
+                    message.maxRam = reader.float();
                     break;
                 case /* optional google.protobuf.Timestamp active_at */ 60:
                     message.activeAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.activeAt);
@@ -21598,18 +21578,24 @@ class ServerData$Type extends MessageType<ServerData> {
         /* optional symbolx.bench.ResourceStatus current_status = 37; */
         if (message.currentStatus !== undefined)
             writer.tag(37, WireType.Varint).int32(message.currentStatus);
-        /* symbolx.bench.ServerProfile profile = 40; */
-        if (message.profile !== 0)
-            writer.tag(40, WireType.Varint).int32(message.profile);
-        /* optional symbolx.bench.ServerProfile current_profile = 41; */
-        if (message.currentProfile !== undefined)
-            writer.tag(41, WireType.Varint).int32(message.currentProfile);
-        /* optional string version = 42; */
+        /* optional string version = 40; */
         if (message.version !== undefined)
-            writer.tag(42, WireType.LengthDelimited).string(message.version);
-        /* optional string current_version = 43; */
+            writer.tag(40, WireType.LengthDelimited).string(message.version);
+        /* optional string current_version = 41; */
         if (message.currentVersion !== undefined)
-            writer.tag(43, WireType.LengthDelimited).string(message.currentVersion);
+            writer.tag(41, WireType.LengthDelimited).string(message.currentVersion);
+        /* optional float min_cpu = 50; */
+        if (message.minCpu !== undefined)
+            writer.tag(50, WireType.Bit32).float(message.minCpu);
+        /* optional float max_cpu = 51; */
+        if (message.maxCpu !== undefined)
+            writer.tag(51, WireType.Bit32).float(message.maxCpu);
+        /* optional float min_ram = 52; */
+        if (message.minRam !== undefined)
+            writer.tag(52, WireType.Bit32).float(message.minRam);
+        /* optional float max_ram = 53; */
+        if (message.maxRam !== undefined)
+            writer.tag(53, WireType.Bit32).float(message.maxRam);
         /* optional google.protobuf.Timestamp active_at = 60; */
         if (message.activeAt)
             Timestamp.internalBinaryWrite(message.activeAt, writer.tag(60, WireType.LengthDelimited).fork(), options).join();
@@ -24566,8 +24552,6 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.REGION]: Region,
   [EnumType.REGION_ZONE]: RegionZone,
   [EnumType.REGION_AREA]: RegionArea,
-  [EnumType.SERVER_PROFILE]: ServerProfile,
-  [EnumType.MACHINE_PROFILE]: MachineProfile,
   [EnumType.RESOURCE_STATUS]: ResourceStatus,
   [EnumType.FILE_RETENTION_MODE]: FileRetentionMode,
   [EnumType.FILE_KIND]: FileKind,
@@ -24841,8 +24825,6 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.REGION]: Region,
   [EnumType.REGION_ZONE]: RegionZone,
   [EnumType.REGION_AREA]: RegionArea,
-  [EnumType.SERVER_PROFILE]: ServerProfile,
-  [EnumType.MACHINE_PROFILE]: MachineProfile,
   [EnumType.RESOURCE_STATUS]: ResourceStatus,
   [EnumType.FILE_RETENTION_MODE]: FileRetentionMode,
   [EnumType.FILE_KIND]: FileKind,
@@ -25050,10 +25032,12 @@ export enum ServerProperty {
   region = 35,
   status = 36,
   currentStatus = 37,
-  profile = 40,
-  currentProfile = 41,
-  version = 42,
-  currentVersion = 43,
+  version = 40,
+  currentVersion = 41,
+  minCpu = 50,
+  maxCpu = 51,
+  minRam = 52,
+  maxRam = 53,
   activeAt = 60,
   bumpedAt = 61,
 }
@@ -25105,13 +25089,15 @@ export enum MachineProperty {
   region = 35,
   status = 36,
   currentStatus = 37,
-  profile = 40,
-  currentProfile = 41,
-  version = 42,
-  currentVersion = 43,
-  externalName = 50,
-  externalId = 51,
-  connectionUri = 52,
+  version = 40,
+  currentVersion = 41,
+  externalName = 42,
+  externalId = 43,
+  connectionUri = 44,
+  cpu = 50,
+  currentCpu = 51,
+  ram = 52,
+  currentRam = 53,
   startedAt = 60,
   terminatedAt = 61,
   activeAt = 62,
@@ -27249,10 +27235,12 @@ export const ServerDataInfo: Record<ServerProperty, PropertyInfo> = {
   [ServerProperty.region]: { id: 35, name: 'region', component: ObjectType.SERVER, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.status]: { id: 36, name: 'status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.profile]: { id: 40, name: 'profile', component: ObjectType.SERVER, enumType: EnumType.SERVER_PROFILE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.currentProfile]: { id: 41, name: 'current_profile', component: ObjectType.SERVER, enumType: EnumType.SERVER_PROFILE, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.version]: { id: 42, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.currentVersion]: { id: 43, name: 'current_version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.minCpu]: { id: 50, name: 'min_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.maxCpu]: { id: 51, name: 'max_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.minRam]: { id: 52, name: 'min_ram', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.maxRam]: { id: 53, name: 'max_ram', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.activeAt]: { id: 60, name: 'active_at', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.bumpedAt]: { id: 61, name: 'bumped_at', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
 }
@@ -27302,13 +27290,15 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.region]: { id: 35, name: 'region', component: ObjectType.MACHINE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.status]: { id: 36, name: 'status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.profile]: { id: 40, name: 'profile', component: ObjectType.MACHINE, enumType: EnumType.MACHINE_PROFILE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.currentProfile]: { id: 41, name: 'current_profile', component: ObjectType.MACHINE, enumType: EnumType.MACHINE_PROFILE, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 42, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.currentVersion]: { id: 43, name: 'current_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.externalName]: { id: 50, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
-  [MachineProperty.externalId]: { id: 51, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
-  [MachineProperty.connectionUri]: { id: 52, name: 'connection_uri', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
+  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.externalName]: { id: 42, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
+  [MachineProperty.externalId]: { id: 43, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
+  [MachineProperty.connectionUri]: { id: 44, name: 'connection_uri', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
+  [MachineProperty.cpu]: { id: 50, name: 'cpu', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.currentCpu]: { id: 51, name: 'current_cpu', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.ram]: { id: 52, name: 'ram', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.currentRam]: { id: 53, name: 'current_ram', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.startedAt]: { id: 60, name: 'started_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.terminatedAt]: { id: 61, name: 'terminated_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.activeAt]: { id: 62, name: 'active_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },

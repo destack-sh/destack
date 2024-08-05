@@ -18,7 +18,6 @@ from .bench import (
     ResourceNode,
     ResourceStatus,
     Server,
-    ServerProfile,
     Store,
 )
 from .block import Block
@@ -262,7 +261,6 @@ __all__ = [
     "Secret",
     "SecretReference",
     "Server",
-    "ServerProfile",
     "Session",
     "SessionContext",
     "Signal",

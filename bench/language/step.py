@@ -202,12 +202,12 @@ class Step(SourceNode[StepData]):
 
 
 #
-# Custom view states
+# Custom step state :NodeInheritance
 #
 
 
 @object_component()
-class StepState(Struct):
+class StepState(Struct):  # :NodeInheritance
     """Builtin special Value as the state of some specific step type (in Step.value)."""
 
     pass

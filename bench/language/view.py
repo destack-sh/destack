@@ -547,12 +547,12 @@ def to_icon(icon: IconIn) -> Icon:
 
 
 #
-# Custom view states
+# Custom view state :NodeInheritance
 #
 
 
 @object_component()
-class ViewState(Struct):
+class ViewState(Struct):  # :NodeInheritance
     """Builtin special Value as the state of some specific view type (in View.value)."""
 
     pass

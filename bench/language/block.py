@@ -50,6 +50,8 @@ if TYPE_CHECKING:
 #   auto-naming currently only works in NodeList where we know the siblings).
 #  see :AutoNaming
 
+# NOTE :Architecture: blocks will probably eventually also need type-specific info :NodeInheritance
+
 
 @local_node_(NodeType.BLOCK, passthrough=("value", "fields"))
 class Block(SourceNode[BlockData]):
