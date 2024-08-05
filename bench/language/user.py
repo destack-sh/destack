@@ -10,7 +10,7 @@ from bench.language.const import (
     UserStatus,
 )
 from bench.language.graph import NodeList
-from bench.language.node import BenchNode, Node, RemoteNode, local_node_, node_
+from bench.language.node import BenchNode, Node, node_
 from bench.language.property import (
     p_internal,
     p_kernel,
@@ -36,7 +36,7 @@ from bench.proto.wire import (
 from bench.sql.core import Constraint, ConstraintType
 
 if TYPE_CHECKING:
-    from bench.language import Bench, Block, Client, Icon, NodeReference, Package, Text
+    from bench.language import Bench, Block, Client, Icon, NodeReference, Text
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -145,22 +145,22 @@ class Organization(Node[OrganizationData]):
         return self.main_bench
 
 
-@local_node_(NodeType.MEMBERSHIP)
-class Membership(RemoteNode[MembershipData]):
+@node_(NodeType.MEMBERSHIP)
+class Membership(BenchNode[MembershipData]):
     """
     A membership to this Bench (and its owner if it's the main Bench).
     """
 
-    parent: "Package | None" = p_node_parent(4, NodeType.PACKAGE)
+    parent: "Bench | None" = p_node_parent(4, NodeType.BENCH)
     user: "User" = p_internal(30, require=True, array=False, references=NodeType.USER)
     is_owner: bool = p_regular(31, default=False)
 
 
-@local_node_(NodeType.INVITE)
-class Invite(RemoteNode[InviteData]):
+@node_(NodeType.INVITE)
+class Invite(BenchNode[InviteData]):
     """An invitation to become a member of this Bench."""
 
-    parent: "Package | None" = p_node_parent(4, NodeType.PACKAGE)
+    parent: "Bench | None" = p_node_parent(4, NodeType.BENCH)
     user: Optional["User"] = p_internal(30, require=False, array=False, references=NodeType.USER)
     user_email: Optional[str] = p_regular(31)
 

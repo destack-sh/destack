@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.08.02.0"
+VERSION = "2024.08.05.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -393,6 +393,58 @@ DRIVE_TABLE = Table(
         Column("region", PrimitiveType.INT16),
         Column("status", PrimitiveType.INT16, default="1"),
         Column("current_status", PrimitiveType.INT16, is_nullable=True),
+    ),
+)
+
+MEMBERSHIP_TABLE = Table(
+    "bench_membership",
+    (
+        Column("id", PrimitiveType.UUID, is_primary_key=True),
+        Column("parent_id", PrimitiveType.UUID, is_nullable=True),
+        Column("bench_id", PrimitiveType.UUID),
+        Column("revision", PrimitiveType.INT64),
+        Column("created_at", PrimitiveType.DATETIME),
+        Column("created_epoch", PrimitiveType.INT64),
+        Column("updated_at", PrimitiveType.DATETIME),
+        Column("updated_epoch", PrimitiveType.INT64),
+        Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("archived_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
+        Column("created_by_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("created_by_type", PrimitiveType.INT16, is_nullable=True),
+        Column("updated_by_id", PrimitiveType.UUID, is_nullable=True),
+        Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
+        Column("user_id", PrimitiveType.UUID),
+        Column("is_owner", PrimitiveType.BOOLEAN, default="false"),
+    ),
+)
+
+INVITE_TABLE = Table(
+    "bench_invite",
+    (
+        Column("id", PrimitiveType.UUID, is_primary_key=True),
+        Column("parent_id", PrimitiveType.UUID, is_nullable=True),
+        Column("bench_id", PrimitiveType.UUID),
+        Column("revision", PrimitiveType.INT64),
+        Column("created_at", PrimitiveType.DATETIME),
+        Column("created_epoch", PrimitiveType.INT64),
+        Column("updated_at", PrimitiveType.DATETIME),
+        Column("updated_epoch", PrimitiveType.INT64),
+        Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("archived_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
+        Column("created_by_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("created_by_type", PrimitiveType.INT16, is_nullable=True),
+        Column("updated_by_id", PrimitiveType.UUID, is_nullable=True),
+        Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
+        Column("user_id", PrimitiveType.UUID, is_nullable=True),
+        Column("user_email", PrimitiveType.STRING, is_nullable=True),
+        Column("is_owner", PrimitiveType.BOOLEAN, default="false"),
+        Column("roles_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
+        Column("roles_ck", PrimitiveType.UUID, is_array=True, is_nullable=True),
+        Column("roles_bench_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
     ),
 )
 
@@ -906,39 +958,6 @@ BADGE_TABLE = Table(
     ),
 )
 
-SECRET_TABLE = Table(
-    "bench_secret",
-    (
-        Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("ck", PrimitiveType.UUID),
-        Column("parent_id", PrimitiveType.UUID, is_nullable=True),
-        Column("parent_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("parent_type", PrimitiveType.INT16, is_nullable=True),
-        Column("package_id", PrimitiveType.UUID),
-        Column("bench_id", PrimitiveType.UUID),
-        Column("template_id", PrimitiveType.UUID, is_nullable=True),
-        Column("template_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("template_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("templated_epoch", PrimitiveType.INT64, is_nullable=True),
-        Column("revision", PrimitiveType.INT64),
-        Column("created_at", PrimitiveType.DATETIME),
-        Column("created_epoch", PrimitiveType.INT64),
-        Column("updated_at", PrimitiveType.DATETIME),
-        Column("updated_epoch", PrimitiveType.INT64),
-        Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("archived_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
-        Column("created_by_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("created_by_type", PrimitiveType.INT16, is_nullable=True),
-        Column("updated_by_id", PrimitiveType.UUID, is_nullable=True),
-        Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
-        Column("title", PrimitiveType.STRING),
-        Column("value_type", PrimitiveType.JSON),
-        Column("value_packed", PrimitiveType.JSON, is_nullable=True, is_encrypted=True),
-    ),
-)
-
 FILE_TABLE = Table(
     "bench_file",
     (
@@ -985,6 +1004,39 @@ FILE_TABLE = Table(
     indexes=(Index("bench_idx_drive_id_sha256", IndexType.BTREE, ("drive_id", "sha256")),),
 )
 
+SECRET_TABLE = Table(
+    "bench_secret",
+    (
+        Column("id", PrimitiveType.UUID, is_primary_key=True),
+        Column("ck", PrimitiveType.UUID),
+        Column("parent_id", PrimitiveType.UUID, is_nullable=True),
+        Column("parent_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("parent_type", PrimitiveType.INT16, is_nullable=True),
+        Column("package_id", PrimitiveType.UUID),
+        Column("bench_id", PrimitiveType.UUID),
+        Column("template_id", PrimitiveType.UUID, is_nullable=True),
+        Column("template_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("template_bench_id", PrimitiveType.UUID, is_nullable=True),
+        Column("templated_epoch", PrimitiveType.INT64, is_nullable=True),
+        Column("revision", PrimitiveType.INT64),
+        Column("created_at", PrimitiveType.DATETIME),
+        Column("created_epoch", PrimitiveType.INT64),
+        Column("updated_at", PrimitiveType.DATETIME),
+        Column("updated_epoch", PrimitiveType.INT64),
+        Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("archived_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
+        Column("created_by_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("created_by_type", PrimitiveType.INT16, is_nullable=True),
+        Column("updated_by_id", PrimitiveType.UUID, is_nullable=True),
+        Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
+        Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
+        Column("title", PrimitiveType.STRING),
+        Column("value_type", PrimitiveType.JSON),
+        Column("value_packed", PrimitiveType.JSON, is_nullable=True, is_encrypted=True),
+    ),
+)
+
 MESSAGE_TABLE = Table(
     "bench_message",
     (
@@ -1029,60 +1081,6 @@ MESSAGE_TABLE = Table(
         Index(
             "bench_idx_package_id_created_epoch", IndexType.BTREE, ("package_id", "created_epoch")
         ),
-    ),
-)
-
-MEMBERSHIP_TABLE = Table(
-    "bench_membership",
-    (
-        Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("parent_id", PrimitiveType.UUID, is_nullable=True),
-        Column("package_id", PrimitiveType.UUID),
-        Column("bench_id", PrimitiveType.UUID),
-        Column("revision", PrimitiveType.INT64),
-        Column("created_at", PrimitiveType.DATETIME),
-        Column("created_epoch", PrimitiveType.INT64),
-        Column("updated_at", PrimitiveType.DATETIME),
-        Column("updated_epoch", PrimitiveType.INT64),
-        Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("archived_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
-        Column("created_by_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("created_by_type", PrimitiveType.INT16, is_nullable=True),
-        Column("updated_by_id", PrimitiveType.UUID, is_nullable=True),
-        Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
-        Column("user_id", PrimitiveType.UUID),
-        Column("is_owner", PrimitiveType.BOOLEAN, default="false"),
-    ),
-)
-
-INVITE_TABLE = Table(
-    "bench_invite",
-    (
-        Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("parent_id", PrimitiveType.UUID, is_nullable=True),
-        Column("package_id", PrimitiveType.UUID),
-        Column("bench_id", PrimitiveType.UUID),
-        Column("revision", PrimitiveType.INT64),
-        Column("created_at", PrimitiveType.DATETIME),
-        Column("created_epoch", PrimitiveType.INT64),
-        Column("updated_at", PrimitiveType.DATETIME),
-        Column("updated_epoch", PrimitiveType.INT64),
-        Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("archived_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
-        Column("created_by_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("created_by_type", PrimitiveType.INT16, is_nullable=True),
-        Column("updated_by_id", PrimitiveType.UUID, is_nullable=True),
-        Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
-        Column("user_id", PrimitiveType.UUID, is_nullable=True),
-        Column("user_email", PrimitiveType.STRING, is_nullable=True),
-        Column("is_owner", PrimitiveType.BOOLEAN, default="false"),
-        Column("roles_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
-        Column("roles_ck", PrimitiveType.UUID, is_array=True, is_nullable=True),
-        Column("roles_bench_id", PrimitiveType.UUID, is_array=True, is_nullable=True),
     ),
 )
 

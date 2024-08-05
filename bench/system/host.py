@@ -19,11 +19,11 @@ from bench.language.bench import Branch, Client
 from bench.language.connection import GraphEngine, MemoryEngine, PostgresEngine
 from bench.language.const import (
     CLOUD,
-    ETERNAL_NODE_TYPES,
     IN_BENCH_GLOBAL_NODE_TYPES,
     IN_BENCH_NODE_TYPES,
     LOADED_BENCH_NODE_TYPES,
     LOCAL_NODE_TYPES,
+    RUNTIME_NODE_TYPES,
     SOURCE_NODE_TYPES,
     ClientType,
     ConditionalOp,
@@ -572,7 +572,7 @@ class Host(GraphIoServiceBase, HostApi, HostBase):
         log_edits: list[EditData] = []
         for edit in chain(edits, extended_edits):
             node_type = NodeType(edit.node_ptr.type)
-            if node_type in ETERNAL_NODE_TYPES:
+            if node_type in RUNTIME_NODE_TYPES:
                 continue
             assert edit.revision is not None, f"revision not set in {edit!r}"
             assert edit.epoch is not None, f"epoch not set in {edit!r}"

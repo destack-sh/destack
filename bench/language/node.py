@@ -1912,16 +1912,16 @@ class HasNodeBase(BuiltinObject, abc.ABC):
     """A node which may have a 'base' in another node (e.g., its type definition)."""
 
     @property
-    def base(self) -> Optional[BenchNode]:
-        raise NotImplementedError
+    @abc.abstractmethod
+    def base(self) -> Optional[BenchNode]: ...
 
     @property
     def base_ck(self) -> Optional[UUID]:
         return self.base.ck if self.base is not None else None
 
     @staticmethod
-    def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]:
-        raise NotImplementedError
+    @abc.abstractmethod
+    def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]: ...
 
 
 def is_node[T: Node](obj: Any, node_cls: type[T]) -> TypeGuard[T]:
