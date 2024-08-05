@@ -112,10 +112,10 @@ defineExpose<ViewExposed & { isScrolling: Ref<boolean>; isAtEnd: Ref<boolean>; s
         :class="[
           'hover:opacity-100 group-hover:opacity-80',
           trackIsAlwaysVisible || isVisiblyScrolling
-            ? 'bg-primary-400 opacity-100'
+            ? 'bg-gray-300 opacity-100'
             : isMouseInArea
-              ? 'bg-primary-300 opacity-80'
-              : 'bg-primary-300 opacity-0',
+              ? 'bg-gray-200 opacity-80'
+              : 'bg-gray-200 opacity-0',
         ]"
         :style="{
           left: thumb.left + 'px',

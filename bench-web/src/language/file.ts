@@ -47,22 +47,6 @@ export enum FileStatus {
   FAILED = 5,
 }
 
-const ICON_BY_FILE_STATUS: Record<FileStatus, IconData> = {
-  [FileStatus.PENDING]: makeIcon({ faName: "fas fa-hourglass-half" }),
-  [FileStatus.PREPARING]: makeIcon({ faName: "fas fa-circle-notch" }),
-  [FileStatus.TRANSFERRING]: makeIcon({ faName: "fas fa-circle-notch" }),
-  [FileStatus.COMPLETED]: makeIcon({ faName: "fas fa-check" }),
-  [FileStatus.FAILED]: makeIcon({ faName: "fas fa-exclamation-triangle" }),
-};
-
-export function getFileStatusName(status: FileStatus): string {
-  return toCamelName(FileStatus, status);
-}
-
-export function getFileStatusIcon(status: FileStatus): IconData {
-  return ICON_BY_FILE_STATUS[status];
-}
-
 /** A file upload. */
 export type FileUpload = {
   status: Ref<FileStatus>;

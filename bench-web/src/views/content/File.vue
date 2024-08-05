@@ -3,7 +3,6 @@ import {
   FileStatus,
   getFileAcceptFromConstraint,
   getFileIconMaybe,
-  getFileStatusIcon,
   uploadFile,
   useFileDownload,
   type FileUpload,
@@ -159,7 +158,9 @@ defineExpose<ViewExposed>({ self, id });
       ref="containerRef"
       v-hovermenu="
         {
-          isEnabled: () => optimisticValue != null,
+          isEnabled: () =>
+            optimisticValue != null &&
+            [FileType.TEXT, FileType.CODE, FileType.IMAGE, FileType.AUDIO].includes(optimisticValue.coarseType),
           popover: (context: PopoverContext) => ({
             component: ViewType.FILE,
             props: {
@@ -179,7 +180,7 @@ defineExpose<ViewExposed>({ self, id });
       class="group/dropdown flex w-full flex-row items-center truncate rounded border px-2.5 py-1 transition-all duration-75 data-[popover=true]:border-gray-300"
       :class="[
         isInDropZone
-          ? 'border-primary-400 bg-primary-200 outline outline-1 outline-primary-400'
+          ? 'border-primary-900 outline outline-1 outline-primary-900'
           : 'border-gray-200  hover:border-gray-300',
       ]"
       @click="download?.getUrl.value != null ? openFile() : fileInputRef!.click()"
@@ -239,7 +240,7 @@ defineExpose<ViewExposed>({ self, id });
       class="flex h-full min-h-[80px] w-full cursor-pointer flex-col justify-center rounded border px-2.5 py-1 text-center transition-all duration-75"
       :class="[
         isInDropZone
-          ? 'border-primary-400 bg-primary-200 text-primary-900 outline outline-1 outline-primary-400'
+          ? 'border-primary-900 text-primary-900 outline outline-1 outline-primary-900'
           : ' border-gray-200 text-gray-400  hover:border-gray-300',
       ]"
       @click="fileInputRef!.click()"
@@ -255,7 +256,7 @@ defineExpose<ViewExposed>({ self, id });
       v-else
       ref="containerRef"
       class="group/inline relative flex h-full min-h-[80px] w-full flex-col justify-center rounded border border-gray-200"
-      :class="[isInDropZone ? 'border-primary-400 outline outline-1 outline-primary-400' : '']"
+      :class="[isInDropZone ? 'border-primary-900 outline outline-1 outline-primary-900' : '']"
       :style="{
         aspectRatio: (download?.file.value ?? modelValue)?.aspectRatio ?? undefined,
       }"
@@ -300,25 +301,24 @@ defineExpose<ViewExposed>({ self, id });
       <!-- Not ready -->
       <div
         v-else
-        class="flex h-full w-full flex-col items-center justify-center"
+        class="flex h-full w-full flex-row items-center justify-center"
         :class="[loadFailed ? 'text-warning-600' : 'text-gray-400']"
       >
-        <IconInline
-          v-bind="getFileStatusIcon(download?.status.value ?? FileStatus.PENDING)"
-          :class="[download?.isActive.value ? 'animate-spin' : '']"
-        />
-        <template v-if="download?.filePtr">
-          <span class="ml-1.5">{{ download.filePtr.title ?? "???" }}</span>
-          <span v-if="download.filePtr.size != null" class="ml-1.5 text-xs text-gray-400">
-            {{ humanizeBytes(Number(download.filePtr.size)) }}
-          </span>
-        </template>
-        <span v-else class="ml-1.5">{{ facetName }}</span>
-        <!-- Uploading -->
-        <i
-          v-if="upload != null && upload.isActive.value"
-          class="fas fa-spinner-third ml-1.5 animate-spin text-gray-400"
-        />
+        <span>
+          <!-- Uploading -->
+          <i v-if="upload != null && upload.isActive.value" class="fas fa-spinner-third animate-spin text-gray-400" />
+          <i
+            v-else-if="download?.status.value == FileStatus.FAILED"
+            class="fas fa-exclamation-triangle text-danger-600"
+          />
+          <template v-if="download?.filePtr">
+            <span class="ml-1.5">{{ download.filePtr.title ?? "???" }}</span>
+            <span v-if="download.filePtr.size != null" class="ml-1.5 text-xs text-gray-400">
+              {{ humanizeBytes(Number(download.filePtr.size)) }}
+            </span>
+          </template>
+          <span v-else class="ml-1.5">{{ facetName }}</span>
+        </span>
       </div>
       <!-- Overlay -->
       <div
@@ -328,7 +328,7 @@ defineExpose<ViewExposed>({ self, id });
         <!-- Upload progress -->
         <div v-if="upload != null && upload.isActive.value" class="absolute top-0 w-full">
           <div
-            class="h-1 transform rounded-full bg-primary-400 transition-transform duration-75"
+            class="h-1 transform rounded-full bg-gray-400 transition-transform duration-75"
             :style="{ width: upload.progress.value + '%' }"
           />
         </div>

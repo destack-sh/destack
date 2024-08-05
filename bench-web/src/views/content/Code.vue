@@ -191,7 +191,7 @@ defineExpose<ViewExposed>({ self, id, actions });
         variant != Variant.STEALTH
           ? 'border border-gray-200 focus-within:border-primary-900 not-focus-within:hover:border-gray-300'
           : '',
-        isInDropZone ? 'outline-dotted outline-2 outline-primary-400' : '',
+        isInDropZone ? 'outline-dotted outline-2 outline-primary-900' : '',
       ]"
       :draggable="true"
       @dragstart.stop.prevent="false /* prevent accidentally dragging ancestors from text selection here */"
@@ -213,7 +213,7 @@ defineExpose<ViewExposed>({ self, id, actions });
   @apply rounded border border-transparent px-0.5 py-0.5;
 }
 .code .cm-editor .cm-tooltip > ul > li[aria-selected] {
-  @apply bg-primary-300 text-gray-900;
+  @apply text-primary-900;
 }
 .code .cm-editor .cm-completionMatchedText {
   @apply font-semibold underline underline-offset-3;

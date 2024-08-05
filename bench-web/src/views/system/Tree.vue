@@ -442,11 +442,11 @@ defineExpose<ViewExposed>({ self, actions, focus });
           "
           class="group relative mx-1 flex flex-row items-center rounded border py-[3px] hover:cursor-pointer hover:bg-gray-100 hover:text-primary-900 data-[dragging=true]:opacity-50"
           :class="[
-            focusedNode?.id == node.id && isFocusAbsolute ? 'border-primary-900' : 'border-transparent',
+            (focusedNode?.id == node.id && isFocusAbsolute) ||
+            (activeDropZone?.targetId == node.id && activeDropZone?.anchor == 'center')
+              ? 'border-primary-900'
+              : 'border-transparent',
             isFocused(node) ? 'bg-gray-100' : '',
-            activeDropZone?.targetId == node.id && activeDropZone?.anchor == 'center'
-              ? 'border-primary-400 bg-primary-200'
-              : '',
           ]"
           :style="{ paddingLeft: 4 + depth * DEPTH_OFFSET + 'px', paddingRight: 4 + 'px' }"
           role="treeitem"
@@ -457,7 +457,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
           <!-- Drop indicator -->
           <div
             v-if="activeDropZone?.targetId == node.id && activeDropZone?.anchor != 'center'"
-            class="absolute z-10 h-1 rounded-sm bg-primary-400"
+            class="absolute z-10 h-1 rounded-sm bg-primary-900"
             :class="[activeDropZone?.anchor == 'start' ? (i == 0 ? 'top-0' : '-top-[4px]') : '-bottom-[3px]']"
             :style="{
               left: 8 + depth * DEPTH_OFFSET + 'px',

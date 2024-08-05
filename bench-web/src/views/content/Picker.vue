@@ -287,15 +287,24 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
             <li
               :ref="(ref?: any) => (ref != null ? (resultsRefs[item.id] = ref) : delete resultsRefs[item.id])"
               role="menuitem"
-              class="mx-0.5 mb-[1px] mr-1.5 mt-[1px] flex h-[28px] max-w-full flex-row items-center rounded border border-transparent px-2 hover:border-gray-300 hover:bg-primary-300 data-[active=true]:border-gray-300 data-[active=true]:bg-primary-300"
+              class="mx-0.5 mb-[1px] mr-1.5 mt-[1px] flex h-[28px] max-w-full cursor-pointer flex-row items-center rounded border border-transparent px-2 hover:bg-gray-100 data-[active=true]:border-primary-900"
               :data-selected="isSelected(item)"
               :data-active="isActive(item)"
               @click.prevent="fire(item)"
             >
               <!-- Content -->
-              <IconInline v-if="item.icon" v-bind="item.icon" class="mr-1.5 w-5 flex-shrink-0 text-gray-700" />
+              <IconInline
+                v-if="item.icon"
+                v-bind="item.icon"
+                class="mr-1.5 w-5 flex-shrink-0"
+                :class="isActive(item) ? 'text-primary-900' : 'text-gray-700'"
+              />
               <span v-else class="mr-1.5 w-5 flex-shrink-0 text-gray-700" />
-              <span class="select-none truncate" v-html="item.titleMarked ?? item.title" />
+              <span
+                class="select-none truncate"
+                :class="isActive(item) ? 'text-primary-900' : ''"
+                v-html="item.titleMarked ?? item.title"
+              />
               <!-- Metadata -->
               <span class="ml-auto truncate pl-2">
                 <!-- Checked -->

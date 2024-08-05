@@ -419,7 +419,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
               <!-- Drag above/below -->
               <div
                 v-if="activeDropZone?.targetId == block.id"
-                class="absolute z-10 h-1 w-full rounded-sm bg-primary-400"
+                class="absolute z-10 h-1 w-full rounded-sm bg-primary-900"
                 :style="getAnchorPositionStyle(activeDropZone?.anchor as 'start' | 'end', i, 4)"
               />
 
