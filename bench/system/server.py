@@ -147,17 +147,17 @@ class DockerMachineProvisioner(Provisioner[Machine, Machine]):
     async def _do_provision(self, resource: Machine):
         project_dir = Path(__file__).parent.parent.parent
         assert project_dir.exists() and project_dir.name == "bench", f"{project_dir!r}"
-        container = self._docker_api.containers.run(
-            MACHINE_RUNTIME_IMAGE,
-            environment=_get_machine_env_vars(resource, is_trusted=True),
-            detach=True,
-            name=f"bench-{ENV.value}-{CLOUD.slug}-{resource.region.slug}-machine-{resource.id.hex}",
-            # nocheckin: mount local bench code
-            # volumes={"/bench", "/bench:ro"},
-        )
-        async with self.host.session(autocommit=True):
-            resource.external_id = container.id
-            resource.status = ResourceStatus.HEALTHY
+        # container = self._docker_api.containers.run(
+        #     MACHINE_RUNTIME_IMAGE,
+        #     environment=_get_machine_env_vars(resource, is_trusted=True),
+        #     detach=True,
+        #     name=f"bench-{ENV.value}-{CLOUD.slug}-{resource.region.slug}-machine-{resource.id.hex}",
+        #     # nocheckin: mount local bench code
+        #     # volumes={"/bench", "/bench:ro"},
+        # )
+        # async with self.host.session(autocommit=True):
+        #     resource.external_id = container.id
+        #     resource.status = ResourceStatus.HEALTHY
 
     @override
     async def _do_update(self, resource: Machine):

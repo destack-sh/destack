@@ -348,15 +348,20 @@ export const HOVER_MENU_DIRECTIVE: Directive<MaybeElement, HoverMenuOptions> = {
     };
 
     triggerEl.hoverOnMouseEnter = (e: MouseEvent) => {
-      isHovering = true;
-      cancelHideTimer();
-      startHoverTimer(e);
+      if (!isHovering) {
+        const isEnabled = options.isEnabled != null ? options.isEnabled() : true;
+        if (isEnabled) {
+          isHovering = true;
+          cancelHideTimer();
+          startHoverTimer(e);
+        }
+      }
     };
 
     triggerEl.hoverOnMouseMove = (e: MouseEvent) => {
       if (isMouseOverlapping(e, triggerEl, popoverInstance?.element)) {
         if (!isHovering) {
-          const isEnabled = options.isEnabled?.() !== false;
+          const isEnabled = options.isEnabled != null ? options.isEnabled() : true;
           if (isEnabled) {
             isHovering = true;
             cancelHideTimer();

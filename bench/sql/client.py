@@ -1,6 +1,7 @@
 import contextvars
 import re
 from contextlib import asynccontextmanager
+from typing import ClassVar
 
 import psycopg
 import psycopg_pool
@@ -26,7 +27,7 @@ PG_CONNECT_TIMEOUT = get_from_env(
     "PG_CONNECT_TIMEOUT", typ=int, default=10, description="Postgres connection timeout in seconds"
 )
 PG_RECONNECT_TIMEOUT = get_from_env(
-    "PG_RECONNECT_TIMEOUT", typ=int, default=20, description="Postgres reconnect timeout in seconds"
+    "PG_RECONNECT_TIMEOUT", typ=int, default=15, description="Postgres reconnect timeout in seconds"
 )
 
 logger = structlog.get_logger(__name__)
@@ -71,8 +72,8 @@ async def get_pg_connection_pool(connection_uri: str) -> AsyncConnectionPool:
         assert match, f"connection_uri {connection_uri!r} does not match expected format"
         pool = AsyncConnectionPool(
             connection_uri,
-            min_size=1,
-            max_size=4,
+            min_size=2,
+            max_size=10,
             max_idle=60 * 60,
             timeout=PG_CONNECT_TIMEOUT,
             reconnect_timeout=PG_RECONNECT_TIMEOUT,
@@ -121,14 +122,18 @@ async def pg_cursor(connection_uri: str, autocommit: bool = False):
             yield cur
 
 
-class PgStoreConnection:
+class AsyncPostgresConnection:
     """A Postgres connection to a Store. Wraps an underlying psycopg connection."""
 
-    __slots__ = ("_conn", "_pool", "_reset_token", "autocommit", "bench", "database", "store")
+    __slots__ = ("_conn", "_pool", "_reset_token", "autocommit", "bench", "database", "id", "store")
+
+    _connection_id: ClassVar[int] = 0
 
     def __init__(
         self, store: Store, bench: Bench, database: str | None = None, autocommit: bool = False
     ):
+        self.id = self._connection_id
+        AsyncPostgresConnection._connection_id += 1
         self.store = store
         self.bench = bench
         self.database = database
@@ -137,15 +142,16 @@ class PgStoreConnection:
         self._conn: psycopg.AsyncConnection | None = None
 
     async def open(self) -> psycopg.AsyncCursor:
-        connection_uri = get_pg_connection_uri(self.store, database=self.database)
-        trace.get_current_span().set_attribute(
-            "pg_connection_uri", sanitize_connection_uri(connection_uri)
-        )
-        self._pool = await get_pg_connection_pool(connection_uri)
+        raw_connection_uri = get_pg_connection_uri(self.store, database=self.database)
+        self._pool = await get_pg_connection_pool(raw_connection_uri)
+        sanitized_connection_uri = sanitize_connection_uri(raw_connection_uri)
+        trace.get_current_span().set_attribute("pg_connection_uri", sanitized_connection_uri)
+        log = logger.bind(id=self.id, store=self.store, pool=self._pool)
         try:
             self._conn = await self._pool.getconn()
+            log.trace("pg.pool.acquire")
         except psycopg_pool.PoolTimeout as e:
-            logger.error("pg_pool_timeout", store=self.store, pool=self._pool, exc_info=e)
+            log.error("pg.pool.timeout", exc_info=e)
             raise
         if self._conn.autocommit != self.autocommit:
             await self._conn.set_autocommit(self.autocommit)
@@ -154,6 +160,7 @@ class PgStoreConnection:
     async def close(self) -> None:
         if self._pool is not None and self._conn is not None:
             await self._pool.putconn(self._conn)
+            logger.trace("pg.pool.release", id=self.id, store=self.store, pool=self._pool)
             self._conn = None
 
     async def __aenter__(self) -> psycopg.AsyncCursor:
@@ -166,4 +173,6 @@ class PgStoreConnection:
 def pg_store_connection(
     store: Store, bench: Bench | None = None, autocommit: bool = False, database: str | None = None
 ):
-    return PgStoreConnection(store, bench or store.bench, database=database, autocommit=autocommit)
+    return AsyncPostgresConnection(
+        store, bench or store.bench, database=database, autocommit=autocommit
+    )

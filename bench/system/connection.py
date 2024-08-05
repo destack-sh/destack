@@ -503,20 +503,22 @@ class AggregateConnection(Connection[AggregateResultData, WatchAggregateUpdate])
 class ConnectionIndex:
     """Connect and cache queries to the graph."""
 
-    def __init__(self, scope: GraphScopeData, oracle: Oracle):
+    def __init__(self, owner: Any, scope: GraphScopeData, oracle: Oracle):
+        self.owner = owner
         self.scope = scope
         self.oracle = oracle
         self._connections_by_hash: dict[int, Connection] = {}
         self._connections_by_token: dict[str, Connection] = {}
         self._lock_by_connection: dict[int, asyncio.Lock] = {}
+        self._log = logger.bind(owner=owner, scope=scope)
 
     def _add_connection(self, connection: Connection):
-        logger.trace("connect.add", connection=connection)
+        self._log.trace("connect.add", connection=connection)
         self._connections_by_hash[connection.hash] = connection
         self._connections_by_token[connection.token] = connection
 
     def _remove_connection(self, connection: Connection):
-        logger.trace("connect.remove", connection=connection)
+        self._log.trace("connect.remove", connection=connection)
         assert not connection.has_subscribers, f"cannot remove {connection!r} with subscribers"
         del self._connections_by_hash[connection.hash]
         del self._connections_by_token[connection.token]
@@ -534,9 +536,9 @@ class ConnectionIndex:
                 not connection.has_subscribers
                 and (connection._last_referenced_at_ns - now_ns) > CONNECTION_CACHE_EXPIRE_SECONDS
             ):
-                logger.debug("connect.gc", connection=connection)
+                self._log.debug("connect.gc", connection=connection)
                 self._remove_connection(connection)
-        logger.trace(
+        self._log.trace(
             "connect.gc",
             now_ns=now_ns,
             before_connections=before_count,
@@ -553,7 +555,7 @@ class ConnectionIndex:
         if not cache:
             connection = connection_t(self.scope, query, self.oracle)
             await connection.connect(session)
-            logger.debug(
+            self._log.debug(
                 f"connect.{query._read_type.name.lower()}",
                 query=query,
                 query_hash=connection.hash,
@@ -578,7 +580,7 @@ class ConnectionIndex:
                     assert isinstance(connection, connection_t), f"unexpected {connection!r}"
                     connection.bump_active()
                     connection.bump_referenced()
-                logger.debug(
+                self._log.debug(
                     f"connect.{query._read_type.name.lower()}",
                     query=query,
                     was_cached=was_cached,

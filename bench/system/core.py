@@ -25,7 +25,7 @@ from bench.language.node import EMPTY_SCOPE, GraphScope
 from bench.language.session import Session
 from bench.proto import wiring
 from bench.proto.wire import EditData, GraphScopeData
-from bench.sql.client import PgStoreConnection
+from bench.sql.client import AsyncPostgresConnection
 from bench.utils.func import bittuple
 from bench.utils.oracle import Oracle
 from bench.utils.task import TaskManager
@@ -117,7 +117,7 @@ def global_session(
 
 def global_pg_cursor(store: Store, *, autocommit: bool = False):
     assert store.parent is not None, f"missing parent for {store!r}"
-    return PgStoreConnection(store, store.parent, autocommit=autocommit)
+    return AsyncPostgresConnection(store, store.parent, autocommit=autocommit)
 
 
 @dataclass(slots=True)

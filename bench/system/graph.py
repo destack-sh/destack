@@ -123,7 +123,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
         self.tx_lock: asyncio.Lock = CriticalLock(
             name=f"{self.__class__.__name__}_{bench_id or ''}"
         )
-        self.connector = ConnectionIndex(scope=self.scope, oracle=self.oracle)
+        self.connector = ConnectionIndex(owner=self, scope=self.scope, oracle=self.oracle)
 
     @abc.abstractmethod
     def get_engines(self) -> tuple[GraphEngine, ...]:

@@ -68,7 +68,7 @@ if TYPE_CHECKING:
         Session,
         Store,
     )
-    from bench.sql.client import PgStoreConnection
+    from bench.sql.client import AsyncPostgresConnection
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -1316,7 +1316,7 @@ class PostgresChannel(WritableChannel[PostgresEngine]):
         self,
         engine: "PostgresEngine",
         session: "Session",
-        conn: "PgStoreConnection",
+        conn: "AsyncPostgresConnection",
         cur: psycopg.AsyncCursor,
     ):
         super().__init__(engine, session)
