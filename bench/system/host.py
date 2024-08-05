@@ -456,6 +456,7 @@ class Host(GraphIoServiceBase, HostApi, HostBase):
         self._bench._track_rec(self._session)
         self._main_package._track_rec(self._session)
         await self._session.open(set_in_context=False)
+        self._session.suspend()
 
         # resume log
         async with self.session(readonly=True):

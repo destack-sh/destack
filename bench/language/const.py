@@ -435,6 +435,10 @@ class Cloud(IdEnum):
     # private
     PRIVATE = 900
 
+    @property
+    def slug(self) -> str:
+        return self.name.lower().replace("_", "-")
+
 
 @enum_(EnumType.REGION_AREA)
 class RegionArea(IdEnum):

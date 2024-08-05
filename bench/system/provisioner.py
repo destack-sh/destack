@@ -1,5 +1,5 @@
 import abc
-from typing import TYPE_CHECKING, ClassVar, Collection, cast, final, override
+from typing import TYPE_CHECKING, ClassVar, Collection, cast, final
 
 import docker
 import structlog
@@ -28,7 +28,7 @@ class Provisioner[PT: ResourceNode, WT: ResourceNode](DeferredHostPlugin[WT], ab
     """The nodes this Provisioner can handle (separate from node types to watch in HostPlugin.)"""
     provision_types: ClassVar[bittuple[NodeType]]
 
-    @override
+    @final
     async def start(self) -> None:
         # check resources
         resources = tuple(
@@ -52,6 +52,11 @@ class Provisioner[PT: ResourceNode, WT: ResourceNode](DeferredHostPlugin[WT], ab
         #   and we assume exclusivity in the provisioning methods. Host plugins starts the queue in .start).
         await super().start()
 
+        await self._do_start()
+
+    async def _do_start(self) -> None:
+        pass  # to be overridden
+
     @final
     @tracer.start_as_current_span("provisioner.on_commit_deferred")
     async def on_commit_deferred(self, commit: Commit[WT]) -> None:
@@ -71,7 +76,7 @@ class Provisioner[PT: ResourceNode, WT: ResourceNode](DeferredHostPlugin[WT], ab
         await self._do_on_commit_deferred(commit)
 
     async def _do_on_commit_deferred(self, commit: Commit[WT]) -> None:
-        pass
+        pass  # to be overridden
 
     @final
     async def provision(self, resource: PT):

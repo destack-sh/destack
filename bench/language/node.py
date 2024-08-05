@@ -1548,7 +1548,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
 
     def __eq__(self, other: Any):
         """Equals node identity."""
-        return type(self) == type(other) and (self.id == other.id or self is other)
+        return self is other or (type(self) == type(other) and (self.id == other.id))
 
     def _stable_hash(self):
         """Hash node identity."""
