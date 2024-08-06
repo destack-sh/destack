@@ -83,12 +83,12 @@ async def host(host: str, port: int, watch: bool = False, no_check: bool = False
 
 @app.command()
 @async_to_sync_blocking
-async def runtime(host: str, port: int, watch: bool = False, no_check: bool = False):
+async def runtime(host: str, port: int, watch: bool = False):
     from bench.runtime.runtime import Runtime
 
     logger.info("serve.runtime", host=host, port=port, env=ENV)
     runtime = Runtime(
-        supervisor_url=get_from_env("SUPERVISOR_URL", description="URL of the supervisor"),
+        supervisor_url=get_from_env("SUPERVISOR_URL", description="Supervisor URL"),
         bench_id=get_from_env("BENCH_ID", typ=UUID, description="Node of current Bench"),
         client_type=get_from_env("CLIENT_TYPE", typ=ClientType, description="Type of client"),
         client_id=get_from_env("CLIENT_ID", typ=UUID, description="Node id of current client"),
@@ -106,4 +106,4 @@ async def runtime(host: str, port: int, watch: bool = False, no_check: bool = Fa
         ),
         oracle=REAL_ORACLE,
     )
-    await _do_serve(handlers=[runtime], host=host, port=port, watch=watch, no_check=no_check)
+    await _do_serve(handlers=[runtime], host=host, port=port, watch=watch, no_check=True)

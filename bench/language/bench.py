@@ -50,6 +50,7 @@ from bench.utils.func import IdEnum, bittuple, generate_encryption_key
 if TYPE_CHECKING:
     from bench.language import (
         Block,
+        Client,
         Drive,
         Handle,
         Icon,
@@ -358,6 +359,9 @@ class Machine(ResourceNode[MachineData]):
     connection_uri: Optional[str] = p_kernel(
         44, require=False, default=None, encrypt=True, defer=True, sensitive=True
     )
+    client: Optional["Client"] = p_system(
+        45, require=False, array=False, references=NodeType.CLIENT, fk=True, same_bench=True
+    )
 
     cpu: float = p_system(50, description="vCPU count")
     current_cpu: Optional[float] = p_system(51, default=None, description="vCPU count")
@@ -408,7 +412,7 @@ class Client(BenchNode[ClientData]):
     access_token: Optional[str] = p_kernel(
         50, default=None, defer=True, unique=True, sensitive=True
     )
-    seen_at: datetime = p_system(51)
+    seen_at: Optional[datetime] = p_system(51, default=None)
     logged_in_at: Optional[datetime] = p_system(52, default=None)
 
     space: Optional["Space"] = p_system(

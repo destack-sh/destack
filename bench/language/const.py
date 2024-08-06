@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.08.06.1"  # auto change via version script
+VERSION = "2024.08.06.2"  # auto change via version script
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -1168,6 +1168,16 @@ CLOUD = get_from_env("CLOUD", typ=Cloud, description="Cloud we're running in")
 REGION = get_from_env("REGION", typ=Region, description="Region we're running in")
 REGION_ZONE = REGION.zone
 REGION_AREA = REGION.area
+IS_IN_DOCKER = get_from_env(
+    "IS_IN_DOCKER", typ=bool, default=False, description="Whether we're running in Docker"
+)
+
+
+def dockerify_domain(domain: str) -> str:
+    """Converts a domain name to something we can reach inside Docker."""
+    domain = domain.replace("localhost", "host.docker.internal")
+    domain = domain.replace("127.0.0.1", "host.docker.internal")
+    return domain
 
 
 class BenchError(Exception):

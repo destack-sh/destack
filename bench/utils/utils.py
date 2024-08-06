@@ -5,6 +5,7 @@ import typing
 from enum import Enum, StrEnum
 from typing import Optional, Type, cast
 
+import cachetools
 import sentry_sdk
 
 
@@ -13,6 +14,7 @@ def str_to_bool(value: str) -> bool:
     return value is not None and str(value).lower() in truthy_strs_lower
 
 
+@cachetools.cached({}, key=lambda key, *args, **kwargs: key)
 def get_from_env_maybe[T](
     key: str,
     *,

@@ -86,17 +86,22 @@ export const HUMANIZED_OPERATION_STATUS: { [key: string]: string } = {
 };
 export const HUMANIZED_OPERATION_MESSAGE: { [key: string]: string } = {
   UNAUTHENTICATED: "Please log in and try again",
-  UNAVAILABLE: "System could not be reached",
+  UNAVAILABLE: "Our systems could not be reached",
 };
 
 export function humanizeError(error: OperationError): { title: string; text: string } {
+  let humanized: { title: string; text: string };
   if (error instanceof RpcError) {
     const title = HUMANIZED_OPERATION_STATUS[error.code] ?? "Server error";
     const message = HUMANIZED_OPERATION_MESSAGE[error.code] ?? error.message;
-    return { title, text: message };
+    humanized = { title, text: message };
   } else {
-    return { title: "Unknown Error", text: error.message };
+    humanized = { title: "Unknown Error", text: error.message };
   }
+  if (!humanized.text.endsWith(".")) {
+    humanized.text += ".";
+  }
+  return humanized;
 }
 
 const operationsTracker = {

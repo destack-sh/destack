@@ -562,8 +562,10 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
 
     def _create(self, *nodes: Node):
         """Creates a new node. Errors if the node already exists."""
-        assert self._tx is not None, f"no active transaction in {self!r}"
-        assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
+        assert self._tx is not None, f"no active transaction for {nodes!r} in {self!r}"
+        assert (
+            not self._is_readonly and not self._is_suspended
+        ), f"cannot edit {nodes!r} in {self!r}"
         subject, context = self._get_edit_context()
         for node in nodes:
             if node._is_attached:  # ignore detached create (is created on attach)
@@ -574,7 +576,9 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
     def _upsert(self, *nodes: Node):
         """Creates or updates a node. Any non-id properties will be overwritten."""
         assert self._tx is not None, f"no active transaction in {self!r}"
-        assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
+        assert (
+            not self._is_readonly and not self._is_suspended
+        ), f"cannot edit {nodes!r} in {self!r}"
         subject, context = self._get_edit_context()
         for node in nodes:
             assert node._is_attached, f"cannot upsert detached node {node!r}"
@@ -583,8 +587,8 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
 
     def _update(self, node: Node, properties: Collection[Property], old_values: dict[int, Any]):
         """Updates an existing node. Cannot move. The given properties are overwritten."""
-        assert self._tx is not None, f"no active transaction in {self!r}"
-        assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
+        assert self._tx is not None, f"no active transaction for {node!r} in {self!r}"
+        assert not self._is_readonly and not self._is_suspended, f"cannot edit {node!r} in {self!r}"
         if node._is_attached:  # ignore detached updates
             self._edited_nodes_by_id[node.id] = node
             subject, context = self._get_edit_context()
@@ -594,8 +598,8 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
 
     def _move(self, node: Node, properties: Collection[Property], old_values: dict[int, Any]):
         """Moves and updates an existing node."""
-        assert self._tx is not None, f"no active transaction in {self!r}"
-        assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
+        assert self._tx is not None, f"no active transaction for {node!r} in {self!r}"
+        assert not self._is_readonly and not self._is_suspended, f"cannot edit {node!r} in {self!r}"
         if node._is_attached:  # ignore detached moves
             self._edited_nodes_by_id[node.id] = node
             subject, context = self._get_edit_context()
@@ -605,8 +609,10 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
 
     def _archive(self, *nodes: Node):
         """Marks a node as archived, so it will be hidden by default."""
-        assert self._tx is not None, f"no active transaction in {self!r}"
-        assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
+        assert self._tx is not None, f"no active transaction for {nodes!r} in {self!r}"
+        assert (
+            not self._is_readonly and not self._is_suspended
+        ), f"cannot edit {nodes!r} in {self!r}"
         subject, context = self._get_edit_context()
         for node in nodes:
             assert node._is_attached, f"cannot archive detached node {node!r}"
@@ -621,8 +627,10 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
 
     def _unarchive(self, *nodes: Node):
         """Restore a node from the archive in its original place."""
-        assert self._tx is not None, f"no active transaction in {self!r}"
-        assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
+        assert self._tx is not None, f"no active transaction for {nodes!r} in {self!r}"
+        assert (
+            not self._is_readonly and not self._is_suspended
+        ), f"cannot edit {nodes!r} in {self!r}"
         subject, context = self._get_edit_context()
         for node in nodes:
             assert node._is_attached, f"cannot unarchive detached node {node!r}"
@@ -632,8 +640,10 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
 
     def _delete(self, *nodes: Node):
         """Deletes a node with the option to recover it for a limited time."""
-        assert self._tx is not None, f"no active transaction in {self!r}"
-        assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
+        assert self._tx is not None, f"no active transaction for {nodes!r} in {self!r}"
+        assert (
+            not self._is_readonly and not self._is_suspended
+        ), f"cannot edit {nodes!r} in {self!r}"
         subject, context = self._get_edit_context()
         for node in nodes:
             assert node._is_attached, f"cannot delete detached node {node!r}"
@@ -648,8 +658,10 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
 
     def _restore(self, *nodes: Node):
         """Restore a deleted node."""
-        assert self._tx is not None, f"no active  transaction in {self!r}"
-        assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
+        assert self._tx is not None, f"no active transaction for {nodes!r} in {self!r}"
+        assert (
+            not self._is_readonly and not self._is_suspended
+        ), f"cannot edit {nodes!r} in {self!r}"
         subject, context = self._get_edit_context()
         for node in nodes:
             assert node._is_attached, f"cannot restore detached node {node!r}"
@@ -660,8 +672,10 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
 
     def _erase(self, *nodes: Node):
         """Irreversibly wipe a node and its descendants from the graph."""
-        assert self._tx is not None, f"no active transaction in {self!r}"
-        assert not self._is_readonly and not self._is_suspended, f"cannot edit in {self!r}"
+        assert self._tx is not None, f"no active transaction for {nodes!r} in {self!r}"
+        assert (
+            not self._is_readonly and not self._is_suspended
+        ), f"cannot edit {nodes!r} in {self!r}"
         subject, context = self._get_edit_context()
         for node in nodes:
             assert node._is_attached, f"cannot erase detached node {node!r}"
