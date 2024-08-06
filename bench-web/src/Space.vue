@@ -150,7 +150,7 @@ watch([canvas.focusedViewPtr, bench], () => {
     />
     <!-- Loading... -->
     <div v-else-if="!spaceConnection.isConnected.value" class="absolute bg-white" :style="{ ...mainBoxStyle }">
-      <Inaccessible class="h-full w-full" :node="spacePtr" :is-connected="spaceConnection.isConnected.value" />
+      <Inaccessible class="h-full w-full" :node="spacePtr" :connection="spaceConnection" />
     </div>
     <!-- Does not have a space (not signed, space empty or disappeared) -->
     <div v-else class="absolute flex flex-col justify-center bg-white text-center" :style="{ ...mainBoxStyle }">
@@ -167,17 +167,35 @@ watch([canvas.focusedViewPtr, bench], () => {
           @click="() => createDesktopDefaultSpace(canvas.tx(), space!)"
         />
       </div>
-      <div v-else-if="bench" class="flex w-fit flex-col gap-y-2 self-center">
+      <div v-else-if="bench" class="flex w-fit flex-col self-center">
         <!-- Space inaccessible for some reason -->
         <span>
           <i class="fas fa-exclamation-triangle mr-1.5 text-gray-500" />
-          <span class="text-gray-600">Space Not Found</span>
+          <span class="text-gray-600"
+            >Space not found in <span class="font-medium">@{{ bench.slug }}</span></span
+          >
+        </span>
+        <span class="text-gray-400">
+          (<span v-if="user"
+            >Logged in as <span class="font-medium">{{ user.slug }}</span></span
+          >
+          <span v-else>Not logged in</span>)
         </span>
         <Button
+          v-if="user"
+          class="mt-2"
           name="Create"
           :icon="makeIcon('fas fa-plus')"
           title="Create Space"
           @click="() => assignSpaceInPackage()"
+        />
+        <Button
+          v-else
+          class="mt-2"
+          name="LogIn"
+          :icon="makeIcon('fas fa-arrow-right-to-bracket')"
+          title="Log In"
+          @click="fireActionById('user.auth.login')"
         />
       </div>
       <div v-else-if="user && user.status == UserStatus.WAITLISTED" class="flex flex-col gap-y-2 self-center">

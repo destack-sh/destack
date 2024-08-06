@@ -320,5 +320,5 @@ defineExpose<ViewExposed & { isRunnable: Ref<boolean> }>({
       />
     </div>
   </div>
-  <Inaccessible v-else class="h-full w-full" :node="nodePtr" :is-connected="pkgConnection.isConnected.value" />
+  <Inaccessible v-else class="h-full w-full" :node="nodePtr" :connection="pkgConnection" />
 </template>

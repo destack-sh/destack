@@ -95,7 +95,7 @@ export function humanizeError(error: OperationError): { title: string; text: str
     const message = HUMANIZED_OPERATION_MESSAGE[error.code] ?? error.message;
     return { title, text: message };
   } else {
-    return { title: "Error", text: error.message };
+    return { title: "Unknown Error", text: error.message };
   }
 }
 

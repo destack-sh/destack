@@ -73,10 +73,10 @@
         // this is the 'test' bench (should probably set this in a local.env?)
         "BENCH_ID": "d52bbc09-e583-44f3-bbd7-a4893d2f45be",
         "SERVER_ID": "5555bf22-fca4-4c26-83a2-746c4b9ae386",
-        "MACHINE_ID": "667dd0c7-37b8-4a8b-bdd6-8a7e70b02262",
+        "MACHINE_ID": "897dc2a3-79b6-4716-8492-e0ea1c383a5b",
         "CLIENT_TYPE": "10",
-        "CLIENT_ID": "e6842dd0-a46c-43df-a6a4-d315e7fb6fa4",
-        "CLIENT_ACCESS_TOKEN": "FPugKRZYYZXds33R3d9pL9xFnpvsZbXZwe7EFtbSrDH2"
+        "CLIENT_ID": "5c143496-556d-4f72-89f8-36ff3bb32373",
+        "CLIENT_ACCESS_TOKEN": "3GrLxpM4twhe4iYs9D4pMTkCtjSsPdfS1Y8cTabugxGY"
       },
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",

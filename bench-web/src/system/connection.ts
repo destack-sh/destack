@@ -40,7 +40,7 @@ import {
   describeNode,
   makeScope,
   unwrapSomeNode,
-  type TypedNodeReferenceData
+  type TypedNodeReferenceData,
 } from "@/proto/wiring";
 import { LOCAL_SPACE_PTR, PACKAGE_SCOPE, packagePtr, spaceGraphLocal } from "@/system/client";
 import { toaster } from "@/ui/toast";
@@ -250,6 +250,8 @@ export type Connection<K extends GraphConnectionKind, T extends NodeType> = {
   readonly isPaused: Readonly<Ref<boolean>>;
   /** Closed and will not re-connect again. */
   readonly isClosed: Readonly<Ref<boolean>>;
+  /** The last error that caused this connection to be in an error state. */
+  readonly lastError: Readonly<Ref<RpcError | null>>;
 
   /** Increment reference count */
   incRefCount: () => void;
@@ -281,6 +283,8 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
   readonly isConnecting: Ref<boolean> = ref(false);
   readonly isPaused: Ref<boolean> = ref(false);
   readonly isClosed: Ref<boolean> = ref(false);
+  readonly isError: Ref<boolean> = ref(false);
+  readonly lastError: Ref<RpcError | null> = ref(null);
 
   private onErrorSubs: ((status: GrpcStatusName) => void)[] = [];
   private abortController: AbortController | null = null; // for active fetch
@@ -392,20 +396,23 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
 
     const onError = (error: Error) => {
       // notify
+      this.lastError.value = error as RpcError;
       log.error(`graph.${this.kind}.error`, { name: this.meta.name, error });
       const errorCode = (error as RpcError).code ?? "UNKNOWN";
-      if (errorCode) this.onErrorSubs.forEach((sub) => sub(errorCode as GrpcStatusName));
+      if (errorCode) {
+        this.onErrorSubs.forEach((sub) => sub(errorCode as GrpcStatusName));
+      }
       const retry = shouldRetry(error);
-      if (errorCode != lastErrorCode && lastErrorCode != null) {
+      if (errorCode != lastErrorCode) {
         const op = `${this.kind}:${this.meta.name}`;
         toaster.error({
-          title: `'${op}' connection lost`,
+          title: `'${op}' connection ${retry ? "lost" : "failed"}`,
           text: `'${op}' failed: ${IS_DEV ? error.message : (error as RpcError).code}`,
           override: `connection:${this.meta.id}`,
           summarize: {
             key: "connection.error",
             info: [{ op, error: error as RpcError }],
-            title: (infos) => `${infos.length} connections lost`,
+            title: (infos) => `${infos.length} connections ${retry ? "lost" : "failed"}`,
             text: (infos) => {
               // distinct errors
               const errors = new Set(infos.map((info) => HUMANIZED_OPERATION_STATUS[info.error.code]));
@@ -498,6 +505,7 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
             lastErrorCode = null;
           }
           this.isConnected.value = true;
+          this.lastError.value = null;
         } catch (error) {
           onError(error as Error);
           this.isConnected.value = false;
@@ -717,6 +725,7 @@ export class ProxyConnection<K extends GraphConnectionKind, T extends NodeType> 
   readonly isConnecting: Ref<boolean>;
   readonly isPaused: Ref<boolean>;
   readonly isClosed: Ref<boolean>;
+  readonly lastError: Ref<RpcError | null>;
 
   constructor(connection: MaybeRef<ConnectionBase<K, T> | null>) {
     this.connection = isRef(connection) ? connection : shallowRef(connection);
@@ -724,6 +733,7 @@ export class ProxyConnection<K extends GraphConnectionKind, T extends NodeType> 
     this.isConnecting = computed(() => this.connection.value?.isConnecting.value ?? false);
     this.isPaused = computed(() => this.connection.value?.isPaused.value ?? false);
     this.isClosed = computed(() => this.connection.value?.isClosed.value ?? false);
+    this.lastError = computed(() => this.connection.value?.lastError.value ?? null);
   }
 
   get lastReferencedAt(): DateTime | null {

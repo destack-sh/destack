@@ -4,7 +4,7 @@ import logging.config
 from dataclasses import dataclass
 from io import StringIO
 from time import time_ns
-from typing import Callable
+from typing import Any, Callable
 
 import structlog
 from opentelemetry import trace
@@ -232,7 +232,7 @@ LOGGING = {
 }
 
 
-def trim_logger(_, __, event_dict):
+def trim_logger(_, __, event_dict: Any):
     """Removes the logger name from the event dict."""
     if "logger" in event_dict:
         if event_dict["logger"].startswith("bench."):
@@ -240,7 +240,7 @@ def trim_logger(_, __, event_dict):
     return event_dict
 
 
-def trim_otel_span(_, __, event_dict):
+def trim_otel_span(_, __, event_dict: Any):
     """Removes the span, adds a duration if it's the current main span"""
     event_dict["duration"] = ""  # default to blank duration (for padding)
     if event_dict.get("span") == "current":
@@ -254,7 +254,7 @@ def trim_otel_span(_, __, event_dict):
     return event_dict
 
 
-def inline_otel_span(_, __, event_dict):
+def inline_otel_span(_, __, event_dict: Any):
     """Always adds the current span"""
     span = trace.get_current_span()
     event_dict["trace_id"] = span.get_span_context().trace_id

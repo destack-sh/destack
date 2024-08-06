@@ -101,5 +101,5 @@ defineExpose<ViewExposed>({ self, id, actions });
       "
     />
   </div>
-  <Inaccessible v-else class="bg-white" :node="nodePtr" :is-connected="pkgConnection.isConnected.value" />
+  <Inaccessible v-else class="bg-white" :node="nodePtr" :connection="pkgConnection" />
 </template>

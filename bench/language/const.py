@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.08.06.0"  # auto change via version script
+VERSION = "2024.08.06.1"  # auto change via version script
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -1130,7 +1130,7 @@ class ClientType(IdEnum):
     BENCH_MOBILE = 4
 
     # server
-    BENCH_SERVER = 10
+    BENCH_MACHINE = 10
 
 
 @enum_(EnumType.USER_STATUS)

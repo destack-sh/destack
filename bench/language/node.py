@@ -1246,7 +1246,7 @@ class Struct[StructDataT: AnyStructData](BuiltinObject[StructDataT], abc.ABC):
         if content_str:
             return f"<{self.__class__.__name__} {content_str}>"
         else:
-            return f"<{self.__class__.__name__}"
+            return f"<{self.__class__.__name__}>"
 
     def replace(self, **kwargs) -> Self:
         """Replaces specific properties in this struct (in a copy)."""

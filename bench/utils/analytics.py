@@ -1,5 +1,5 @@
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import posthog
 import sentry_sdk
@@ -14,7 +14,7 @@ logger = structlog.get_logger(__name__)
 IGNORED_PATHS = {"/", "/metrics", "/healthz", "/readiness", "/liveness"}
 
 
-def traces_sampler(sampling_context: dict):
+def traces_sampler(sampling_context: Any):
     if "asgi_scope" in sampling_context:
         path = sampling_context["asgi_scope"]["path"]
         if path in IGNORED_PATHS:

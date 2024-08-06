@@ -179,7 +179,7 @@ class DockerMachineProvisioner(Provisioner[Machine, Machine]):
             detach=True,
             name=f"bench-{ENV.value}-{CLOUD.slug}-{resource.region.slug}-machine-{resource.id.hex}",
             command=["python", "bench.py", "serve", "runtime", "0.0.0.0", str(assigned_port)],
-            volumes=[f"{bench_dir}:/bench:ro"],
+            volumes=[f"{bench_dir}:/bench:ro"],  # mount the code live
             ports={f"{assigned_port}/tcp": ("0.0.0.0", assigned_port)},
         )
         async with self.host.session(commit=True):

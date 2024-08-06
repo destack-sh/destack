@@ -14,7 +14,14 @@ import {
   type AnyNodeData,
   IconData,
 } from "@/proto/wire";
-import { describeNode, isNode, toNodeRefOneOf, toPlainNodeRef, unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
+import {
+  describeNode,
+  isNode,
+  toNodeRefOneOf,
+  toPlainNodeRef,
+  unwrapProtoOneOf,
+  type TypedNodeReferenceData,
+} from "@/proto/wiring";
 import { makeViewId, viewEmits, type FocusAnchor, type ViewComponent, type ViewExposed } from "@/views/common";
 import { canvas, inspectionPtr, pkg, pkgGraph as localPkgGraph } from "@/system/space";
 import { computed, ref, toRef, watch, type Ref } from "vue";
@@ -402,7 +409,10 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
             class="text-gray-400 enabled:hover:text-primary-900"
             @click="
               () => {
-                canvas.addView({ type: ViewType.CHAT, nodePtr: props.nodePtr }, { ifPresent: 'upsertAndFocus', where: 'bestFrame' });
+                canvas.addView(
+                  { type: ViewType.CHAT, nodePtr: props.nodePtr },
+                  { ifPresent: 'upsertAndFocus', where: 'bestFrame' },
+                );
                 $emit('close');
               }
             "
@@ -568,7 +578,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
       v-else-if="nodePtr != null && nodePtr.type == NodeType.MESSAGE"
       class="my-1 h-full w-full"
       :node="nodePtr"
-      :is-connected="pkgConnection.isConnected.value"
+      :connection="pkgConnection"
     />
 
     <!-- Draft area -->

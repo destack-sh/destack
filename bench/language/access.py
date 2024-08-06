@@ -306,6 +306,11 @@ class PolicyRule(Struct):
             and self.subject_is_authenticated != subject.is_authenticated
         ):
             return False
+        # NOTE :Incomplete: handle subject_is_member properly :Memberships
+        if self.subject_is_member is not None and self.subject_is_member != (
+            subject.owned and any(node.id == root_id for node in subject.owned)
+        ):
+            return False
         if self.subject_is_owner is not None and self.subject_is_owner != (
             subject.owned and any(node.id == root_id for node in subject.owned)
         ):
@@ -432,6 +437,30 @@ class Subject(Struct):
         constraint=constraint(block_type=BlockType.ROLE),
     )
 
+    def __content_str__(self):
+        content_parts = []
+        if self.is_authenticated:
+            content_parts.append("is_authenticated")
+        else:
+            content_parts.append("is_anonymous")
+        if self.is_staff:
+            content_parts.append("is_staff")
+        if self.client:
+            content_parts.append(f"client={self.client}")
+        elif self.user:
+            content_parts.append(f"user={self.user}")
+        elif self.server:
+            content_parts.append(f"server={self.server}")
+        if self.badges:
+            content_parts.append(f"badges={len(self.badges)}")
+        if self.identity:
+            content_parts.append(f"identity={self.identity}")
+        return ", ".join(content_parts)
+
+    @property
+    def is_anonymous(self) -> bool:
+        return not self.is_authenticated and not self.is_staff
+
     def split_into_acting_subjects(self, graph: NodeDataGraph) -> tuple["Subject", ...]:
         """
         Split into different subjects that may have different access and are relevant in the given graph.
@@ -471,24 +500,6 @@ class Subject(Struct):
 
         assert len(subjects) > 0, f"no applicable principals in {self!r}"
         return tuple(subjects)
-
-    def __content_str__(self):
-        content_parts = []
-        if self.is_authenticated:
-            content_parts.append("is_authenticated")
-        if self.is_staff:
-            content_parts.append("is_staff")
-        if self.client:
-            content_parts.append(f"client={self.client}")
-        elif self.user:
-            content_parts.append(f"user={self.user}")
-        elif self.server:
-            content_parts.append(f"server={self.server}")
-        if self.badges:
-            content_parts.append(f"badges={len(self.badges)}")
-        if self.identity:
-            content_parts.append(f"identity={self.identity}")
-        return ", ".join(content_parts)
 
 
 def _enums_to_mask(values: list[IdEnum], cls: type[IdEnum]) -> bitarray:
@@ -680,7 +691,7 @@ class AccessError(BenchError):
         access: Access | Collection[Access],
         cause: Exception | None = None,
     ):
-        super().__init__(repr(access), cause)
+        super().__init__(repr(access))
         self.evaluation = access
         self.cause = cause
 

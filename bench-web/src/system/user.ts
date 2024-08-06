@@ -17,7 +17,7 @@ import {
   propertyReference,
   toPlainNodeRef,
   wrapProtoOneOf,
-  type TypedNodeReferenceData
+  type TypedNodeReferenceData,
 } from "@/proto/wiring";
 import { ACTION_COMING_SOON, contributeActionMap } from "@/ui/action";
 import local, { persistentInfo } from "@/system/client";
@@ -90,9 +90,7 @@ function onLogIn(info: { user: UserData; client: ClientData; accessToken: string
 
 function onLogout() {
   local.clearUser();
-  if (user.value?.mainBenchPtr?.id == local.benchPtr.value?.id) {
-    local.clearBench();
-  }
+  local.clearBench();
   local.clearSpace();
   clearConnections();
 }
@@ -164,6 +162,7 @@ export function onAuthenticationError(error: RpcError) {
   // TODO :Robustness: handle user auth error & badge auth error separately
   log.error("user.unauthenticated");
   local.clearUser();
+  local.clearBench();
 }
 
 export async function createBench(
