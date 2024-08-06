@@ -16,7 +16,7 @@ from opentelemetry import trace
 from bench.language import Bench, Drive, NodeReference, Package, Run, Server, Store, Subject
 from bench.language.access import Badge, Ownable
 from bench.language.bench import Branch, Client
-from bench.language.connection import GraphEngine, MemoryEngine, PostgresEngine
+from bench.language.connection import GraphEngine, MemoryEngine
 from bench.language.const import (
     CLOUD,
     IN_BENCH_GLOBAL_NODE_TYPES,
@@ -75,6 +75,7 @@ from bench.system.core import (
     unpack_commit,
 )
 from bench.system.graph import CommitArea, GraphIoServiceBase, parse_commit_scope, validate_edit
+from bench.system.postgres import PostgresEngine
 from bench.system.provisioner import Provisioner, get_provisioners_for
 from bench.system.s3 import S3_PRESIGNED_URL_EXPIRY, get_s3_client
 from bench.system.scheduler import QueueRunPlugin

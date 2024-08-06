@@ -320,10 +320,28 @@ def map_node_class_to_pg_table(node: type[Node]) -> Table:
     # NOTE :Robustness: add Bench check constraints in Postgres?
     table_name = get_bench_table_name(node.metatype)
     columns: list[Column] = []
-    constraints: list[Constraint] = [*(node.__extra_constraints__ or ())]
-    indexes: list[Index] = [*(node.__extra_indexes__ or ())]
     properties = list(node.__properties__.values())
     properties.sort(key=lambda p: p.id or -1)
+
+    # extra constraints/indexes
+    constraints: list[Constraint] = []
+    indexes: list[Index] = []
+    for uniqued_columns in node.__extra_uniques__:
+        uniqued_columns = tuple(sorted(uniqued_columns))  # for consistency
+        index_name = f"bench_idx_{'_'.join(uniqued_columns)}"
+        index = Index(index_name, type=IndexType.BTREE, is_unique=True, columns=uniqued_columns)
+        constraint = Constraint(
+            index.inner_name,
+            type=ConstraintType.UNIQUE,
+            columns=uniqued_columns,
+            index=index.inner_name,
+        )
+        indexes.append(index)
+        constraints.append(constraint)
+    for index in node.__extra_indexes__:
+        index_name = f"bench_idx_{'_'.join(index)}"
+        extra_index = Index(index_name, type=IndexType.BTREE, is_unique=False, columns=index)
+        indexes.append(extra_index)
 
     # map properties to columns, add per-column indices
     for prop in properties:
@@ -366,8 +384,10 @@ def map_node_class_to_pg_table(node: type[Node]) -> Table:
         ):
             assert len(prop.reference_nodes) == 1, f"stored prop {prop!r} has multiple references"
             column.is_foreign_key_to = get_bench_table_name(prop.reference_nodes[0])
-            assert isinstance(prop.reference_on_delete, CascadeAction)
-            column.on_delete = prop.reference_on_delete
+            if prop.reference_kind in (ReferenceKind.NODE_PARENT, ReferenceKind.NODE_ANCESTOR):
+                column.on_delete = CascadeAction.CASCADE
+            else:
+                column.on_delete = CascadeAction.SET_NULL
 
         if prop.is_indexed_in_pg or prop.is_unique:
             index = Index(
@@ -704,7 +724,7 @@ async def _pg_fetchall_from_many(cur: psycopg.AsyncCursor, expected: int) -> lis
     # see https://www.psycopg.org/psycopg3/docs/api/cursors.html#psycopg.Cursor.executemany
     results: list[RowOut] = []
     while True:
-        row = await cur.fetchone()
+        row = cast(RowOut | None, await cur.fetchone())
         assert row, f"expected {expected} results, got {len(results)}"
         results.append(row)
         if not cur.nextset():
@@ -737,7 +757,7 @@ async def pg_select(
     first: int | None = None,
     skip: int | None = None,
     params: Mapping | None = None,
-) -> list[RowOut]:
+) -> Sequence[RowOut]:
     """Selects from the given table."""
     columns = columns or table.columns
     statement = sqlstr("SELECT {fields} FROM {table}").format(
@@ -763,7 +783,7 @@ async def pg_select(
         await _pg_execute(cur, statement, params)
     except psycopg.errors.Error as e:
         raise _pg_wrap_error(table, cur, e) from e
-    return await cur.fetchall()
+    return cast(Sequence[RowOut], await cur.fetchall())
 
 
 @_trace_pg_span
@@ -931,7 +951,7 @@ async def pg_update_static(
     where: SqlNode | None = None,
     static_value: RowIn,
     returning: Collection[Column] | None = None,
-) -> list[RowOut] | None:
+) -> Sequence[RowOut] | None:
     """Updates the given table with static values. Expects values to be adapted and wrapped."""
     trace.get_current_span().set_attribute("table", table.name)
     statement = sqlstr("UPDATE {table} SET {values}").format(
@@ -966,7 +986,7 @@ async def pg_update_static(
     except psycopg.errors.Error as e:
         raise _pg_wrap_error(table, cur, e) from e
     if returning:
-        return await cur.fetchall()
+        return cast(Sequence[RowOut], await cur.fetchall())
 
 
 @_trace_pg_span
@@ -1060,7 +1080,7 @@ async def pg_delete(
     table: Table,
     where: SqlNode | None = None,
     returning: Collection[Column] | None = None,
-) -> list[RowOut] | None:
+) -> Sequence[RowOut] | None:
     """Deletes from the given table."""
     statement = sqlstr("DELETE FROM {table}").format(
         table=sqlident(table.name),
@@ -1079,7 +1099,7 @@ async def pg_delete(
     except psycopg.errors.Error as e:
         raise _pg_wrap_error(table, cur, e) from e
     if returning:
-        return await cur.fetchall()
+        return cast(Sequence[RowOut], await cur.fetchall())
 
 
 @_trace_pg_span
@@ -1339,14 +1359,14 @@ async def pg_get_nodes(
 ) -> list[AnyNodeData]:
     """Selects regular nodes from the given PG database."""
     node_cls = NODE_CLASS_BY_TYPE[node_type]
-    assert node_cls.__table__, f"no table for {node_cls!r}"
-    columns = [prop.column for prop in properties]
+    node_table = TABLE_BY_NODE_TYPE[node_type]
+    columns = [node_table._columns_by_name[prop.name] for prop in properties]
     assert any(c.is_primary_key for c in columns), f"no primary key selected in {columns!r}"
     where = pg_compile_conditional(node_cls, filter) if filter is not None else None
     order_by = pg_compile_sorts(node_cls, sort) if sort else None
     rows = await pg_select(
         cur=cur,
-        table=node_cls.__table__,
+        table=node_table,
         columns=columns,
         where=where,
         order_by=order_by,
@@ -1387,7 +1407,7 @@ async def pg_walk_graph_down(
         t
         for t in descendant_types
         if NODE_CLASS_BY_TYPE[t].__parent_property__.reference_stored_ids
-        and NODE_CLASS_BY_TYPE[t].__table__ is not None
+        and t in TABLE_BY_NODE_TYPE
     ]
 
     # descend
@@ -1418,7 +1438,7 @@ async def pg_walk_graph_down(
                 parent_filter = parent_filter & extra_filter
 
             # collect children
-            child_table = child_cls.__table__
+            child_table = TABLE_BY_NODE_TYPE[child_type]
             assert child_table, f"no table for {child_cls!r}"
             assert child_table._primary_key, f"no primary key for {child_cls!r}"
             parent_where = pg_compile_conditional(child_cls, parent_filter)
@@ -1793,10 +1813,14 @@ async def _pg_edit_batch(
     )
 
     node_cls = NODE_CLASS_BY_TYPE[node_type]
-    table = node_cls.__table__
-    assert table is not None, f"no table for {node_cls!r}"
-    assert table._primary_key is not None, f"no primary key for {node_cls!r}: {table!r}"
-    selected_columns = tuple(prop.column for prop in selected_properties) if return_nodes else None
+    node_table = TABLE_BY_NODE_TYPE[node_type]
+    assert node_table is not None, f"no table for {node_cls!r}"
+    assert node_table._primary_key is not None, f"no primary key for {node_cls!r}: {node_table!r}"
+    selected_columns = (
+        tuple(node_table._columns_by_name[prop.name] for prop in selected_properties)
+        if return_nodes
+        else None
+    )
 
     if edit_type in (EditType.CREATE, EditType.UPSERT):
         nodes = []
@@ -1820,7 +1844,7 @@ async def _pg_edit_batch(
             rows.append(row)
 
         if edit_type == EditType.CREATE:
-            _ = await pg_insert(cur=cur, table=table, rows=rows)
+            _ = await pg_insert(cur=cur, table=node_table, rows=rows)
             if return_nodes:
                 return nodes  # ithe nodes are equivalent to the rows (no need to unpack again)
             else:
@@ -1828,11 +1852,11 @@ async def _pg_edit_batch(
         else:
             rows = await pg_upsert(
                 cur=cur,
-                table=table,
+                table=node_table,
                 rows=rows,
-                conflict_columns=(table._primary_key,),
-                static_columns=tuple(c for c in table.columns if c != table._primary_key),
-                static_values={"revision": sqlstr(f"{table.name}.revision + 1")},
+                conflict_columns=(node_table._primary_key,),
+                static_columns=tuple(c for c in node_table.columns if c != node_table._primary_key),
+                static_values={"revision": sqlstr(f"{node_table.name}.revision + 1")},
                 returning=selected_columns if return_nodes else None,
             )
             if return_nodes:
@@ -1860,12 +1884,14 @@ async def _pg_edit_batch(
             implicit_properties.append(node_cls.archived_at)
         elif edit_type in (EditType.DELETE, EditType.RESTORE):
             implicit_properties.append(node_cls.deleted_at)
-        dynamic_columns: list[Column] = [table._primary_key]
+        dynamic_columns: list[Column] = [node_table._primary_key]
         for prop in chain(implicit_properties, updated_properties):
             if prop.is_node_reference:
-                dynamic_columns.extend(p.column for p in prop.reference_stored_props or ())
+                dynamic_columns.extend(
+                    node_table._columns_by_name[p.name] for p in prop.reference_stored_props or ()
+                )
             else:
-                dynamic_columns.append(prop.column)
+                dynamic_columns.append(node_table._columns_by_name[prop.name])
 
         # collect dynamic values
         dynamic_values: list[RowIn] = []
@@ -1909,11 +1935,11 @@ async def _pg_edit_batch(
         static_values = {"revision": sqlstr("revision + 1")}
         rows = await pg_update_variable(
             cur=cur,
-            table=table,
+            table=node_table,
             static_values=static_values,
             dynamic_columns=dynamic_columns,
             dynamic_values=dynamic_values,
-            returning=selected_columns if return_nodes else (table._primary_key,),
+            returning=selected_columns if return_nodes else (node_table._primary_key,),
         )
         if rows is None or len(rows) != len(batch) or any(r is None for r in rows):
             missing_rows = {edit.node_ptr.id for edit in batch} - {
@@ -1934,9 +1960,9 @@ async def _pg_edit_batch(
         )
         rows = await pg_delete(
             cur=cur,
-            table=table,
+            table=node_table,
             where=where,
-            returning=selected_columns if return_nodes else (table._primary_key,),
+            returning=selected_columns if return_nodes else (node_table._primary_key,),
         )
         if rows is None or len(rows) != len(batch) or any(r is None for r in rows):
             missing_rows = set(nodes_ids) - {cast(str, row["id"]) for row in rows or () if row}
@@ -2005,3 +2031,10 @@ ALL_TABLES: tuple[Table, ...] = (
 GLOBAL_SCHEMA = Schema(GLOBAL_EXTENSIONS, GLOBAL_TABLES)
 LOCAL_SCHEMA = Schema(LOCAL_EXTENSIONS, LOCAL_TABLES)
 OMNI_SCHEMA = Schema(ALL_EXTENSIONS, ALL_TABLES)
+
+
+def get_column(prop: "Property") -> Column:
+    """Gets the column for a given property."""
+    table = TABLE_BY_NODE_TYPE.get(cast(NodeType, prop.component.metatype))
+    assert table is not None, f"no table for {prop!r}"
+    return table._columns_by_name[prop.name]

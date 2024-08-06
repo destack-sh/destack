@@ -3,7 +3,7 @@ from pathlib import Path
 import structlog
 import typer
 
-from bench.cli.utils import _shell
+from bench.cli.utils import run_shell_sync
 from bench.proto.build import _build_proto, _build_proto_schema
 from bench.sql.build import _build_sql_schema
 from bench.utils.oracle import REAL_ORACLE
@@ -20,8 +20,8 @@ def build(no_sql: bool = False, no_proto: bool = False):
         start = REAL_ORACLE.time_ns()
         source = _build_sql_schema()
         Path("bench/sql/schema.py").write_text(source)
-        _shell("ruff check --fix bench/sql/schema.py")
-        _shell("ruff format bench/sql/schema.py")
+        run_shell_sync("ruff check --fix bench/sql/schema.py")
+        run_shell_sync("ruff format bench/sql/schema.py")
         logger.info("sql.build", duration=REAL_ORACLE.time_ns() - start)
 
     # proto

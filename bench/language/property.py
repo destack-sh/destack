@@ -30,12 +30,7 @@ from bench.language.const import (
     TypeKind,
 )
 from bench.language.graph import GraphNodeList, NodeList, ValueList
-from bench.language.setup import (
-    BENCH_CLASS_BY_NAME,
-    ENUM_TYPE_BY_CLASS,
-    _on_completing_setup,
-)
-from bench.sql.core import CascadeAction, Column, Table
+from bench.language.setup import BENCH_CLASS_BY_NAME, ENUM_TYPE_BY_CLASS, _on_completing_setup
 from bench.utils.env import IS_DEV
 from bench.utils.func import IdEnum, parse_py_annotation, try_tuple
 from bench.utils.utils import frozendict
@@ -119,7 +114,6 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
     reference_stored_ids_by_type: dict[NodeType, "Property"] | None = None
     reference_stored_meta: dict[PropertyReferenceMetadata, "Property"] | None = None
     reference_source: Optional["Property"] = None
-    reference_on_delete: CascadeAction | None = UNSET
     reference_struct: StructType | None = None  # for struct child types
     reference_is_node_data: bool = False
     reference_list_type: type["NodeList"] | type["ValueList"] | None = None
@@ -219,14 +213,6 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
     def py_name(self) -> str:
         assert self.name is not None, f"{self!r} has no name"
         return self.name
-
-    @property
-    def column(self) -> Column:
-        table = getattr(self.component, "__table__", None)
-        assert isinstance(table, Table), f"{self.component} has no table"
-        column = table._columns_by_name.get(self.name)
-        assert column is not None, f"{self!r} has no column in {table!r}"
-        return column
 
     @property
     def type(self) -> Optional[ObjectType]:
@@ -408,7 +394,6 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
             is_list = False
             is_computed = False
             is_internal = True
-            on_delete = CascadeAction.CASCADE
         elif self.reference_kind in (
             ReferenceKind.NODE_ANCESTOR_OR_SELF,
             ReferenceKind.NODE_ANCESTOR,
@@ -421,7 +406,6 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
             is_list = False
             is_computed = True
             is_internal = True
-            on_delete = CascadeAction.CASCADE
         elif self.reference_kind in (ReferenceKind.NODE_REGULAR, ReferenceKind.NODE_TEMPLATE):
             assert self.is_required is not UNSET, f"must set is_required on {self!r}"
             assert self.is_list is not UNSET, f"must set is_list on {self!r}"
@@ -431,7 +415,6 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
             is_list = self.is_list
             is_computed = False
             is_internal = False
-            on_delete = CascadeAction.SET_NULL
         else:
             raise ValueError(f"unexpected reference kind {self.reference_kind!r} for {self!r}")
 
@@ -497,7 +480,6 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
                         reference_kind=self.reference_kind,
                         reference_nodes=(ref_type,),
                         reference_source=self,
-                        reference_on_delete=on_delete,
                         reference_force_fk=True,
                         is_runtime=False,
                         is_wired=False,
@@ -582,7 +564,6 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
                     reference_kind=self.reference_kind,
                     reference_source=self,
                     reference_nodes=(NodeType.BENCH,),
-                    reference_on_delete=CascadeAction.SET_NULL,
                     is_runtime=False,
                     is_wired=False,
                     is_stored=True,

@@ -186,14 +186,6 @@ def _complete_bench_setup():
     for hook in _setup_hooks:
         hook()
 
-    # set tables (depends on completion hooks)
-    from bench.sql.engine import TABLE_BY_NODE_TYPE
-
-    for node_cls in NODE_CLASS_BY_TYPE.values():
-        if node_cls.__is_stored__ and not node_cls.__is_stored_custom__:
-            # NOTE: table usually should exist, but maybe we're just creating the node type
-            node_cls.__table__ = TABLE_BY_NODE_TYPE.get(node_cls.metatype)
-
     if IS_DEV:
         # check that is_in_package/is_in_bench was declared correctly
         #  (need to set that in @node upfront because traversing parents like here can only happen in finalization)

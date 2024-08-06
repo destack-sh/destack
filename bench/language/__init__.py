@@ -1,4 +1,3 @@
-from ..sql.core import PrimitiveType
 from .access import (
     Access,
     AccessError,
@@ -53,6 +52,7 @@ from .const import (
     NodeType,
     ObjectType,
     PolicyEffect,
+    PrimitiveType,
     Region,
     ScheduleType,
     SortMode,

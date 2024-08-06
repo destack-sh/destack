@@ -23,7 +23,6 @@ from bench.language.validation import (
     EMAIL_CONSTRAINT,
     NAME_CONSTRAINT,
     SLUG_CONSTRAINT,
-    SLUG_REGEX,
     constraint,
 )
 from bench.proto.wire import (
@@ -33,7 +32,6 @@ from bench.proto.wire import (
     OrganizationData,
     UserData,
 )
-from bench.sql.core import Constraint, ConstraintType
 
 if TYPE_CHECKING:
     from bench.language import Bench, Block, Client, Icon, NodeReference, Text
@@ -41,18 +39,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@node_(
-    NodeType.HANDLE,
-    roots=(NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH),
-    constraints=(
-        Constraint(
-            "bench_slug_is_slug",
-            ConstraintType.CHECK,
-            # ::casts are to match the introspected postgres format
-            condition=f"((slug)::text ~ '{SLUG_REGEX}'::text)",
-        ),
-    ),
-)
+@node_(NodeType.HANDLE, roots=(NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH))
 class Handle(BenchNode[HandleData]):
     """A Bench @handle. Can only be created/edited by the system."""
 

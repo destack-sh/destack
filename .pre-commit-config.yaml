@@ -13,11 +13,20 @@ repos:
         name: ruff format (py)
   - repo: local
     hooks: # (on all files)
+      # typing
       - id: pyright
         name: pyright (py)
         entry: pyright
         language: system
         always_run: true
+        types: [ python ]
+      # tach
+      - id: tach-check
+        name: tach check (py)
+        entry: tach check
+        language: system
+        always_run: true
+        pass_filenames: false
         types: [ python ]
 
   # JS/TS

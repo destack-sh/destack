@@ -204,6 +204,8 @@ mypy-boto3==1.34.151
 mypy-boto3-s3==1.34.138
 mypy-extensions==1.0.0
     # via black
+networkx==3.3
+    # via tach
 nodeenv==1.8.0
     # via
     #   pre-commit
@@ -293,11 +295,15 @@ pydantic==2.7.1
     #   tach
 pydantic-core==2.18.2
     # via pydantic
+pydot==2.0.0
+    # via tach
 pygments==2.18.0
     # via rich
 pypandoc==1.13
 pyparsing==3.1.2
-    # via httplib2
+    # via
+    #   httplib2
+    #   pydot
 pypdf==4.3.1
 pyproject-hooks==1.1.0
     # via build
@@ -384,7 +390,7 @@ sympy==1.13.1
     # via onnxruntime
 tabulate==0.9.0
     # via magika
-tach==0.6.9
+tach==0.9.3
 tokenizers==0.19.1
     # via anthropic
 tqdm==4.66.4

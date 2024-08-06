@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.08.05.9"
+VERSION = "2024.08.06.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -202,11 +202,6 @@ HANDLE_TABLE = Table(
     ),
     indexes=(Index("bench_idx_slug", IndexType.BTREE, ("slug",), is_unique=True),),
     constraints=(
-        Constraint(
-            "bench_slug_is_slug",
-            ConstraintType.CHECK,
-            condition="((slug)::text ~ '^[a-z0-9-]{3,}$'::text)",
-        ),
         Constraint(
             "bench_idx_slug", ConstraintType.UNIQUE, columns=("slug",), index="bench_idx_slug"
         ),

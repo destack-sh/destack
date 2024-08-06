@@ -79,9 +79,8 @@ from bench.proto.wire import (
     NodeReferenceData,
     SecretReferenceData,
 )
-from bench.sql.core import Constraint, ConstraintType, Index, IndexType, Table, stable_hash
 from bench.utils.env import IS_DEV, IS_TEST
-from bench.utils.func import bittuple, is_close
+from bench.utils.func import bittuple, is_close, stable_hash
 from bench.utils.string import to_py_name
 from bench.utils.utils import frozendict
 from bench.utils.uuidt import UUIDT
@@ -505,8 +504,7 @@ def node_(
     stored_custom: bool = False,
     local: bool = False,
     roots: tuple[NodeType, ...] = (NodeType.BENCH,),
-    constraints: tuple[Constraint, ...] = (),
-    indexes: tuple[Index | tuple[str, ...], ...] = (),
+    indexes: tuple[tuple[str, ...], ...] = (),
     unique: tuple[tuple[str, ...], ...] = (),
 ):
     """Register a class as a concrete node for the given node type."""
@@ -526,31 +524,8 @@ def node_(
         cls.__is_stored_custom__ = stored_custom
         cls.__is_local__ = local
 
-        extra_indexes: list[Index] = []
-        extra_constraints: list[Constraint] = [*constraints]
-        for columns in unique:
-            columns = tuple(sorted(columns))  # for consistency
-            index_name = f"bench_idx_{'_'.join(columns)}"
-            index = Index(index_name, type=IndexType.BTREE, is_unique=True, columns=columns)
-            constraint = Constraint(
-                index.inner_name,
-                type=ConstraintType.UNIQUE,
-                columns=columns,
-                index=index.inner_name,
-            )
-            extra_indexes.append(index)
-            extra_constraints.append(constraint)
-        for index in indexes:
-            if isinstance(index, Index):
-                extra_indexes.append(index)
-            else:
-                index_name = f"bench_idx_{'_'.join(index)}"
-                extra_index = Index(
-                    index_name, type=IndexType.BTREE, is_unique=False, columns=index
-                )
-                extra_indexes.append(extra_index)
-        cls.__extra_indexes__ = tuple(extra_indexes)
-        cls.__extra_constraints__ = tuple(extra_constraints)
+        cls.__extra_indexes__ = indexes
+        cls.__extra_uniques__ = unique
 
         cls.__roots__ = bittuple(*roots, enum_cls=NodeType)
         cls.__is_in_package__ = in_package
@@ -574,7 +549,7 @@ if TYPE_CHECKING:
 def timed_node_(
     node_type: NodeType,
     passthrough: str | None = None,
-    indexes: tuple[Index | tuple[str, ...], ...] = (),
+    indexes: tuple[tuple[str, ...], ...] = (),
 ):
     """Register a class as a concrete node for the given node type."""
     return local_node_(
@@ -1361,9 +1336,8 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     __is_stored__: ClassVar[bool] = False  # stored in primary store (runtime or local)
     __is_stored_custom__: ClassVar[bool] = False  # custom storage logic (for records)
     __is_local__: ClassVar[bool] = False  # stored in Bench-local DB (instead of global Bench DB)
-    __extra_indexes__: ClassVar[tuple[Index, ...]] = ()  # extra indexes for PG
-    __extra_constraints__: ClassVar[tuple[Constraint, ...]] = ()  # extra constraints for PG
-    __table__: ClassVar[Table | None] = None  # if stored regularly, set after finalization
+    __extra_indexes__: ClassVar[tuple[tuple[str, ...], ...]] = ()  # extra indexes for PG
+    __extra_uniques__: ClassVar[tuple[tuple[str, ...], ...]] = ()  # extra constraints for PG
 
     # 1-9: reserved for node identity
     id: UUID = p_system(2, default=None, require=True, autoset=True)

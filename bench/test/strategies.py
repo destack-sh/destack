@@ -311,9 +311,9 @@ STRATEGY_BY_PROPERTY: dict[str, st.SearchStrategy] = {
     "order_key": ORDER_KEY_STRATEGY,
 }
 STRATEGY_BY_OBJECT_PROPERTY: dict[tuple[ObjectType, str], st.SearchStrategy] = {
-    (NodeType.FILE, "content"): BYTES_STRATEGY,
-    (StructType.FILE_REFERENCE, "content"): BYTES_STRATEGY,
-    (StructType.FILE_INFO, "content"): BYTES_STRATEGY,
+    (NodeType.FILE, "inline_content"): BYTES_STRATEGY,
+    (StructType.FILE_REFERENCE, "inline_content"): BYTES_STRATEGY,
+    (StructType.FILE_INFO, "inline_content"): BYTES_STRATEGY,
     (StructType.FILE_REFERENCE, "type"): st.just(NodeType.FILE),
     (StructType.SECRET_REFERENCE, "type"): st.just(NodeType.SECRET),
     (StructType.CODE, "lines"): st.lists(from_object_type(StructType.CODE_LINE), min_size=0),

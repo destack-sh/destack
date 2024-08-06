@@ -7,6 +7,7 @@ import pytest
 import uvloop
 
 from bench.language.validation import clean_name
+from bench.runtime.remote import RemoteEngine
 from bench.test.conftest import _setup_test_env
 
 # NOTE: must run setup before importing from bench
@@ -18,7 +19,7 @@ from typing import Any
 from bench.language import Session, Store
 from bench.language.bench import Bench, Client
 from bench.language.block import Block
-from bench.language.connection import NullEngine, RemoteEngine
+from bench.language.connection import NullEngine
 from bench.language.const import (
     BENCH_NODE_TYPES,
     IN_PACKAGE_NODE_TYPES,

@@ -1,5 +1,7 @@
+import os
 import re
 import shutil
+import subprocess
 from enum import Enum
 from itertools import chain
 from pathlib import Path
@@ -9,7 +11,6 @@ from typing import Any
 import structlog
 import typer
 
-from bench.cli.utils import _shell
 from bench.language import Node
 from bench.language.const import ENUM_TYPES, NODE_TYPES, STRUCT_TYPES, UNSET, VERSION
 from bench.language.field import TypeConstraint
@@ -43,6 +44,13 @@ EXTRA_PROTO_TS_FILES = "proto/common.proto proto/system.proto proto/web.proto"
 
 logger = structlog.get_logger(__name__)
 app = typer.Typer(short_help="proto management")
+
+
+def run_shell_sync(cmd: str, check=True, **kwargs):
+    """Executes a shell command in a subprocess."""
+    cwd = os.getcwd()
+    logger.trace("shell", cmd=cmd, cwd=cwd, check=check, **kwargs)
+    subprocess.run(cmd, shell=True, check=check, **kwargs)
 
 
 def _build_proto_schema() -> str:
@@ -92,10 +100,10 @@ def _build_proto(schema_str: str) -> None:
 
     Path(TEMP_PY_FILE).unlink(missing_ok=True)
     Path(TEMP_PY_DIR).mkdir(parents=True, exist_ok=True)
-    _shell(
+    run_shell_sync(
         f"protoc -I . --python_betterproto_out={TEMP_PY_DIR} {LANG_PROTO} {EXTRA_PROTO_PY_FILES}",
     )
-    _shell(f"mv {TEMP_PY_DIR}/symbolx/bench/__init__.py {TEMP_PY_FILE}")
+    run_shell_sync(f"mv {TEMP_PY_DIR}/symbolx/bench/__init__.py {TEMP_PY_FILE}")
 
     # patch in our extra stuff
     wire_py = Path(TEMP_PY_FILE).read_text()
@@ -147,8 +155,8 @@ AnyStructData = Union[{', '.join([cls.__name__ + 'Data' for cls in STRUCT_CLASSE
         patch_prefix_code + "\n\n" + wire_py + "\n\n" + patch_postfix_code
     )
     shutil.rmtree(TEMP_PY_DIR, ignore_errors=True)
-    _shell(f"ruff check {TEMP_PY_FILE} --fix", check=True, stdout=DEVNULL)
-    _shell(f"ruff format {TEMP_PY_FILE}", check=True, stdout=DEVNULL)
+    run_shell_sync(f"ruff check {TEMP_PY_FILE} --fix", check=True, stdout=DEVNULL)
+    run_shell_sync(f"ruff format {TEMP_PY_FILE}", check=True, stdout=DEVNULL)
     on_apply.append(lambda: shutil.move(TEMP_PY_FILE, WIRE_PY_FILE))
 
     #
@@ -157,7 +165,7 @@ AnyStructData = Union[{', '.join([cls.__name__ + 'Data' for cls in STRUCT_CLASSE
 
     shutil.rmtree(TEMP_TS_DIR, ignore_errors=True)
     Path(TEMP_TS_DIR).mkdir(parents=True, exist_ok=True)
-    _shell(
+    run_shell_sync(
         f"bun x protoc --ts_out {TEMP_TS_DIR} --proto_path . {LANG_PROTO} {EXTRA_PROTO_TS_FILES}",
     )
 
