@@ -12,31 +12,6 @@ from rich.console import Console
 from bench.cli.utils import async_to_sync_blocking
 from bench.language import Bench, Store
 from bench.language.const import VERSION, NodeType
-from bench.sql.client import pg_store_connection
-from bench.sql.core import Schema
-from bench.sql.engine import (
-    GLOBAL_SCHEMA,
-    LOCAL_SCHEMA,
-    SqlUndefinedObjectError,
-)
-from bench.sql.migration import (
-    Migration,
-    add_migration_to_fs,
-    delete_migrations_in_fs,
-    delete_migrations_in_pg,
-    generate_sql_migration_code,
-    generate_sql_migration_ops,
-    introspect_sql_schema,
-    read_migrations_from_fs,
-    read_migrations_from_pg,
-)
-from bench.sql.migration import sql_migrate as _migrate
-from bench.system.core import (
-    global_pg_cursor,
-    global_session,
-    pg_engine_from_store,
-    system_store_from_env,
-)
 from bench.utils.oracle import REAL_ORACLE
 from bench.utils.utils import format_python
 
@@ -55,6 +30,29 @@ async def make(
     overwrite: bool = typer.Option(default=False, help="overwrite existing migration for version"),
     from_scratch: bool = typer.Option(default=False, help="generate migration from scratch"),
 ):
+    from bench.sql.client import pg_store_connection
+    from bench.sql.core import Schema
+    from bench.sql.engine import (
+        GLOBAL_SCHEMA,
+        LOCAL_SCHEMA,
+        SqlUndefinedObjectError,
+    )
+    from bench.sql.migration import (
+        Migration,
+        add_migration_to_fs,
+        generate_sql_migration_code,
+        generate_sql_migration_ops,
+        introspect_sql_schema,
+        read_migrations_from_fs,
+        read_migrations_from_pg,
+    )
+    from bench.system.core import (
+        global_pg_cursor,
+        global_session,
+        pg_engine_from_store,
+        system_store_from_env,
+    )
+
     start = time.time()
     global_store = system_store_from_env()
     global_pg_engine = pg_engine_from_store(global_store)
@@ -143,6 +141,10 @@ async def apply(
     ),
     dry_run: bool = typer.Option(default=False, help="only try, don't commit"),
 ):
+    from bench.sql.client import pg_store_connection
+    from bench.sql.migration import sql_migrate as _migrate
+    from bench.system.core import global_session, pg_engine_from_store, system_store_from_env
+
     start = time.time()
     global_store = system_store_from_env()
     global_pg_engine = pg_engine_from_store(global_store)
@@ -170,32 +172,20 @@ async def apply(
     logger.info("migrate", duration=time.time() - start)
 
 
-@app.command(help="delete migrations")
-@async_to_sync_blocking
-async def clear(from_id: int, to_id: int):
-    start = time.time()
-    global_store = system_store_from_env()
-    global_pg_engine = pg_engine_from_store(global_store)
-
-    delete_migrations_in_fs(from_id, to_id)
-    async with global_pg_cursor(global_store) as cur:
-        await delete_migrations_in_pg(cur, from_id=from_id, to_id=to_id)
-        await cur.connection.commit()
-    async with global_session(global_store, (global_pg_engine,), REAL_ORACLE):
-        benches = await Bench.search()
-        for bench in benches:
-            for store in bench.stores:
-                async with pg_store_connection(store) as cur:
-                    await delete_migrations_in_pg(cur, from_id=from_id, to_id=to_id)
-                    await cur.connection.commit()
-
-    logger.info("clear_migrations", duration=time.time() - start)
-
-
 @app.command()
 @async_to_sync_blocking
 async def introspect(bench: Optional[str] = None):  # type: ignore
     """Introspect the current schema of the Postgres instance."""
+
+    from bench.sql.client import pg_store_connection
+    from bench.sql.migration import introspect_sql_schema
+    from bench.system.core import (
+        global_pg_cursor,
+        global_session,
+        pg_engine_from_store,
+        system_store_from_env,
+    )
+
     start = time.perf_counter()
     global_store = system_store_from_env()
     global_pg_engine = pg_engine_from_store(global_store)

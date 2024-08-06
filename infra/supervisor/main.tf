@@ -22,11 +22,11 @@ terraform {
 locals {
   prefix = "bench-${var.env}-${var.cloud}-${var.region}"
   supervisor_env_vars = {
-    SERVICE_NAME = "supervisor"
-    ENVIRONMENT  = var.env
-    CLOUD        = var.cloud
-    REGION       = var.region
-    # encode host map as k=v,k=v,...
+    SERVICE_NAME   = "supervisor"
+    ENVIRONMENT    = var.env
+    CLOUD          = var.cloud
+    REGION         = var.region
+    SUPERVISOR_URL = "supervisor.justbench.com"
     HOST_MAP = join(",", flatten([
       for k, v in var.host_map : [
         format("%s=%s", k, v)

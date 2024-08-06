@@ -9,11 +9,6 @@ from grpclib.utils import graceful_exit
 from bench.cli.utils import async_to_sync_blocking, check_is_consistent
 from bench.language.const import ClientType
 from bench.proto.services import GrpcServer, ServiceBase
-from bench.runtime.runtime import Runtime
-from bench.system.core import system_store_from_env
-from bench.system.host import HostRouter
-from bench.system.sharding import host_map_from_env
-from bench.system.supervisor import Supervisor
 from bench.utils.env import ENV, IS_DEV
 from bench.utils.oracle import REAL_ORACLE
 from bench.utils.utils import get_from_env, get_from_env_maybe
@@ -47,6 +42,11 @@ async def _do_serve(
 async def system(
     host: str, port: int, watch: bool = False, no_supervisor: bool = False, no_check: bool = False
 ):
+    from bench.system.core import system_store_from_env
+    from bench.system.host import HostRouter
+    from bench.system.sharding import host_map_from_env
+    from bench.system.supervisor import Supervisor
+
     global_store = system_store_from_env()
     host_router = HostRouter(global_store=global_store, oracle=REAL_ORACLE)
     host_map = host_map_from_env()
@@ -60,6 +60,10 @@ async def system(
 @app.command()
 @async_to_sync_blocking
 async def supervisor(host: str, port: int, watch: bool = False, no_check: bool = False):
+    from bench.system.core import system_store_from_env
+    from bench.system.sharding import host_map_from_env
+    from bench.system.supervisor import Supervisor
+
     global_store = system_store_from_env()
     host_map = host_map_from_env()
     supervisor = Supervisor(global_store=global_store, oracle=REAL_ORACLE, host_map=host_map)
@@ -69,6 +73,9 @@ async def supervisor(host: str, port: int, watch: bool = False, no_check: bool =
 @app.command()
 @async_to_sync_blocking
 async def host(host: str, port: int, watch: bool = False, no_check: bool = False):
+    from bench.system.core import system_store_from_env
+    from bench.system.host import HostRouter
+
     global_store = system_store_from_env()
     host_router = HostRouter(global_store=global_store, oracle=REAL_ORACLE)
     await _do_serve(handlers=[host_router], host=host, port=port, watch=watch, no_check=no_check)
@@ -77,6 +84,8 @@ async def host(host: str, port: int, watch: bool = False, no_check: bool = False
 @app.command()
 @async_to_sync_blocking
 async def runtime(host: str, port: int, watch: bool = False, no_check: bool = False):
+    from bench.runtime.runtime import Runtime
+
     logger.info("serve.runtime", host=host, port=port, env=ENV)
     runtime = Runtime(
         supervisor_url=get_from_env("SUPERVISOR_URL", description="URL of the supervisor"),
@@ -93,7 +102,7 @@ async def runtime(host: str, port: int, watch: bool = False, no_check: bool = Fa
             "MACHINE_ID", typ=UUID, description="Node id of current machine"
         ),
         max_threads=get_from_env(
-            "RUNTIME_THREADS", typ=int, description="Maximum number of runtime threads"
+            "RUNTIME_THREADS", typ=int, default=1, description="Maximum number of runtime threads"
         ),
         oracle=REAL_ORACLE,
     )

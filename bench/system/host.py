@@ -299,13 +299,13 @@ class Host(GraphIoServiceBase, HostApi, HostBase):
 
     @override
     @asynccontextmanager
-    async def session(self, *, readonly: bool = False, autocommit: bool = False):
+    async def session(self, *, readonly: bool = False, commit: bool = False):
         """Gets exclusive query and edit access to the main session. :ExclusiveHostSession"""
         assert self._session is not None, f"no session for {self!r}"
         async with self.tx_lock, self._session.active(readonly=readonly):
             self._session._system_epoch = self.epoch
             yield self._session
-            if autocommit:
+            if commit:
                 await self._session.commit()
 
     @tracer.start_as_current_span("host.get_request_subject")

@@ -297,7 +297,7 @@ class HostApi(abc.ABC):
     @abc.abstractmethod
     @asynccontextmanager
     async def session(
-        self, *, readonly: bool = False, autocommit: bool = False
+        self, *, readonly: bool = False, commit: bool = False
     ) -> Generator[Session, None, None]:
         """Gets the Session for short-lived, *exclusive access."""
         ...
@@ -324,7 +324,7 @@ class HostProxy(HostApi):
         return self._session._oracle
 
     @asynccontextmanager
-    async def session(self, *, readonly: bool = False, autocommit: bool = False):
+    async def session(self, *, readonly: bool = False, commit: bool = False):
         yield self._session
 
 
