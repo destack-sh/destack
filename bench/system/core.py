@@ -419,7 +419,7 @@ class DeferredHostPlugin[T: Node](HostPlugin, abc.ABC):
         await self._do_on_commit(session, commit)
 
     async def _do_on_commit(self, session: Session, commit: Commit[T]) -> None:
-        pass
+        pass  # to be overridden
 
     @final
     async def wait_idle(self, timeout: float) -> None:
@@ -438,4 +438,4 @@ class DeferredHostPlugin[T: Node](HostPlugin, abc.ABC):
         React to the committed changes (outside the request, later).
         NOTE :Robustness: the nodes in each commit may change before this is called
         """
-        pass
+        pass  # to be overridden

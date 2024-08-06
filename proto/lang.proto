@@ -2264,7 +2264,7 @@ message ClientData {
   optional string browser_version = 44;
   optional string place_id = 45;
   optional string access_token = 50;
-  google.protobuf.Timestamp seen_at = 51;
+  optional google.protobuf.Timestamp seen_at = 51;
   optional google.protobuf.Timestamp logged_in_at = 52;
   optional NodeReferenceData space_ptr = 60;
   optional NodeReferenceData machine_ptr = 61;
@@ -2508,6 +2508,7 @@ message MachineData {
   optional string external_name = 42;
   optional string external_id = 43;
   optional string connection_uri = 44;
+  optional NodeReferenceData client_ptr = 45;
   float cpu = 50;
   optional float current_cpu = 51;
   float ram = 52;

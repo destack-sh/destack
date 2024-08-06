@@ -64,7 +64,10 @@ const humanizedError = computed(() => {
           <span class="font-semibold">{{ humanizedError.title }}</span>
         </span>
       </p>
-      <span class="text-gray-400">{{ humanizedError.text }}</span>
+      <p class="text-gray-900">{{ humanizedError.text }}</p>
+      <p class="text-gray-400">
+        (We'll keep trying. Join the <a :href="DISCORD_URL" class="mt-1 underline">Discord</a>.)
+      </p>
     </template>
   </div>
 </template>

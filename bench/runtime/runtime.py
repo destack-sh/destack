@@ -4,6 +4,8 @@ from urllib.parse import urlparse
 from uuid import UUID, uuid4
 
 import cachetools
+import grpclib
+import grpclib.metadata
 import structlog
 from grpclib.client import Channel
 from opentelemetry import trace
@@ -13,9 +15,11 @@ from bench.language.bench import Machine
 from bench.language.const import (
     BENCH_NODE_TYPES,
     IN_PACKAGE_NODE_TYPES,
+    IS_IN_DOCKER,
     PUBLIC_NODE_TYPES,
     ClientType,
     NodeType,
+    dockerify_domain,
 )
 from bench.language.node import EMPTY_SCOPE
 from bench.proto import wire
@@ -36,8 +40,8 @@ from bench.proto.wire import (
 from bench.proto.wiring import pack_rpc_headers
 from bench.runtime.remote import RemoteEngine
 from bench.runtime.thread import RuntimeThread
-from bench.utils.oracle import REAL_ORACLE, Oracle
-from bench.utils.tenacity import RETRY_GRPC_FOREVER, retry
+from bench.utils.oracle import Oracle
+from bench.utils.tenacity import RETRY_GRPC_FOREVER
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -169,12 +173,36 @@ class Runtime(ServiceBase, RuntimeBase):
         return QueueRunResponse()
 
     @cachetools.cached({})
-    @retry(RETRY_GRPC_FOREVER, REAL_ORACLE)
-    @tracer.start_as_current_span("runtime.resolve_host")
     async def _get_host_client(self, bench_id: UUID) -> HostClient:
         request = ResolveHostsRequest(benches=[ResolveHostsRequestBenchKey(id=str(bench_id))])
-        response = await self._supervisor.resolve_hosts(request, metadata=self._rpc_headers)
-        host_info = response.hosts[0]
-        self.logger.info("runtime.resolve_host", bench_id=bench_id, host_info=host_info)
-        host_channel = Channel(host_info.domain, host_info.grpc_port)
-        return HostClient(host_channel)
+        retry = RETRY_GRPC_FOREVER.new(self.oracle)
+        while retry.should_retry:
+            retry.on_attempt()
+            try:
+                response = await self._supervisor.resolve_hosts(
+                    request,
+                    metadata=self._rpc_headers,
+                    deadline=grpclib.metadata.Deadline.from_timeout(5),
+                )
+                host_info = response.hosts[0]
+                if IS_IN_DOCKER:
+                    host_info.domain = dockerify_domain(host_info.domain)
+                self.logger.info(
+                    "runtime.resolve_host",
+                    supervisor=self._supervisor,
+                    bench_id=bench_id,
+                    host_domain=host_info.domain,
+                    host_port=host_info.grpc_port,
+                )
+                host_channel = Channel(host_info.domain, host_info.grpc_port)
+                return HostClient(host_channel)
+            except Exception as e:
+                interval = retry.get_wait_interval()
+                self.logger.error(
+                    "runtime.resolve_host.error", bench_id=bench_id, exc_info=e, interval=interval
+                )
+                if not retry.on_error(e):
+                    raise
+                await self.oracle.sleep(interval)
+        else:
+            raise retry.to_error(operation=request)

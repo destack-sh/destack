@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.08.06.1"
+VERSION = "2024.08.06.2"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -237,7 +237,7 @@ CLIENT_TABLE = Table(
         Column("browser_version", PrimitiveType.STRING, is_nullable=True),
         Column("place_id", PrimitiveType.STRING, is_nullable=True),
         Column("access_token", PrimitiveType.STRING, is_unique=True, is_nullable=True),
-        Column("seen_at", PrimitiveType.DATETIME),
+        Column("seen_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("logged_in_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("space_id", PrimitiveType.UUID, is_nullable=True),
         Column("space_ck", PrimitiveType.UUID, is_nullable=True),
@@ -359,6 +359,13 @@ MACHINE_TABLE = Table(
         Column("external_name", PrimitiveType.STRING, is_nullable=True),
         Column("external_id", PrimitiveType.STRING, is_nullable=True),
         Column("connection_uri", PrimitiveType.STRING, is_nullable=True, is_encrypted=True),
+        Column(
+            "client_id",
+            PrimitiveType.UUID,
+            is_foreign_key_to="bench_client",
+            on_delete=CascadeAction.SET_NULL,
+            is_nullable=True,
+        ),
         Column("cpu", PrimitiveType.FLOAT32),
         Column("current_cpu", PrimitiveType.FLOAT32, is_nullable=True),
         Column("ram", PrimitiveType.FLOAT32),

@@ -2579,7 +2579,7 @@ export interface ClientData {
      */
     accessToken?: string;
     /**
-     * @generated from protobuf field: google.protobuf.Timestamp seen_at = 51;
+     * @generated from protobuf field: optional google.protobuf.Timestamp seen_at = 51;
      */
     seenAt?: Timestamp;
     /**
@@ -3470,6 +3470,10 @@ export interface MachineData {
      * @generated from protobuf field: optional string connection_uri = 44;
      */
     connectionUri?: string;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData client_ptr = 45;
+     */
+    clientPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: float cpu = 50;
      */
@@ -17223,7 +17227,7 @@ class ClientData$Type extends MessageType<ClientData> {
                 case /* optional string access_token */ 50:
                     message.accessToken = reader.string();
                     break;
-                case /* google.protobuf.Timestamp seen_at */ 51:
+                case /* optional google.protobuf.Timestamp seen_at */ 51:
                     message.seenAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.seenAt);
                     break;
                 case /* optional google.protobuf.Timestamp logged_in_at */ 52:
@@ -17320,7 +17324,7 @@ class ClientData$Type extends MessageType<ClientData> {
         /* optional string access_token = 50; */
         if (message.accessToken !== undefined)
             writer.tag(50, WireType.LengthDelimited).string(message.accessToken);
-        /* google.protobuf.Timestamp seen_at = 51; */
+        /* optional google.protobuf.Timestamp seen_at = 51; */
         if (message.seenAt)
             Timestamp.internalBinaryWrite(message.seenAt, writer.tag(51, WireType.LengthDelimited).fork(), options).join();
         /* optional google.protobuf.Timestamp logged_in_at = 52; */
@@ -19032,6 +19036,7 @@ class MachineData$Type extends MessageType<MachineData> {
             { no: 42, name: "external_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 43, name: "external_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 44, name: "connection_uri", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 45, name: "client_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "cpu", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
             { no: 51, name: "current_cpu", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
             { no: 52, name: "ram", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
@@ -19138,6 +19143,9 @@ class MachineData$Type extends MessageType<MachineData> {
                     break;
                 case /* optional string connection_uri */ 44:
                     message.connectionUri = reader.string();
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData client_ptr */ 45:
+                    message.clientPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
                     break;
                 case /* float cpu */ 50:
                     message.cpu = reader.float();
@@ -19248,6 +19256,9 @@ class MachineData$Type extends MessageType<MachineData> {
         /* optional string connection_uri = 44; */
         if (message.connectionUri !== undefined)
             writer.tag(44, WireType.LengthDelimited).string(message.connectionUri);
+        /* optional symbolx.bench.NodeReferenceData client_ptr = 45; */
+        if (message.clientPtr)
+            NodeReferenceData.internalBinaryWrite(message.clientPtr, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
         /* float cpu = 50; */
         if (message.cpu !== 0)
             writer.tag(50, WireType.Bit32).float(message.cpu);
@@ -25094,6 +25105,7 @@ export enum MachineProperty {
   externalName = 42,
   externalId = 43,
   connectionUri = 44,
+  clientPtr = 45,
   cpu = 50,
   currentCpu = 51,
   ram = 52,
@@ -27210,7 +27222,7 @@ export const ClientDataInfo: Record<ClientProperty, PropertyInfo> = {
   [ClientProperty.browserVersion]: { id: 44, name: 'browser_version', component: ObjectType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [ClientProperty.placeId]: { id: 45, name: 'place_id', component: ObjectType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [ClientProperty.accessToken]: { id: 50, name: 'access_token', component: ObjectType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isUnique: true, isDeferred: true, isSensitive: true },
-  [ClientProperty.seenAt]: { id: 51, name: 'seen_at', component: ObjectType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ClientProperty.seenAt]: { id: 51, name: 'seen_at', component: ObjectType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ClientProperty.loggedInAt]: { id: 52, name: 'logged_in_at', component: ObjectType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ClientProperty.spacePtr]: { id: 60, name: 'space_ptr', component: ObjectType.CLIENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SPACE], referenceStruct: StructType.NODE_REFERENCE },
   [ClientProperty.machinePtr]: { id: 61, name: 'machine_ptr', component: ObjectType.CLIENT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MACHINE], referenceStruct: StructType.NODE_REFERENCE },
@@ -27295,6 +27307,7 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.externalName]: { id: 42, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 43, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.connectionUri]: { id: 44, name: 'connection_uri', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
+  [MachineProperty.clientPtr]: { id: 45, name: 'client_ptr', component: ObjectType.MACHINE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
   [MachineProperty.cpu]: { id: 50, name: 'cpu', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentCpu]: { id: 51, name: 'current_cpu', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.ram]: { id: 52, name: 'ram', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },

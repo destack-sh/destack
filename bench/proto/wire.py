@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.08.06.1"
+VERSION = "2024.08.06.2"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -2530,7 +2530,7 @@ class ClientData(betterproto.Message):
     browser_version: Optional[str] = betterproto.string_field(44, optional=True)
     place_id: Optional[str] = betterproto.string_field(45, optional=True)
     access_token: Optional[str] = betterproto.string_field(50, optional=True)
-    seen_at: datetime = betterproto.message_field(51)
+    seen_at: Optional[datetime] = betterproto.message_field(51, optional=True)
     logged_in_at: Optional[datetime] = betterproto.message_field(52, optional=True)
     space_ptr: Optional["NodeReferenceData"] = betterproto.message_field(60, optional=True)
     machine_ptr: Optional["NodeReferenceData"] = betterproto.message_field(61, optional=True)
@@ -2810,6 +2810,7 @@ class MachineData(betterproto.Message):
     external_name: Optional[str] = betterproto.string_field(42, optional=True)
     external_id: Optional[str] = betterproto.string_field(43, optional=True)
     connection_uri: Optional[str] = betterproto.string_field(44, optional=True)
+    client_ptr: Optional["NodeReferenceData"] = betterproto.message_field(45, optional=True)
     cpu: float = betterproto.float_field(50)
     current_cpu: Optional[float] = betterproto.float_field(51, optional=True)
     ram: float = betterproto.float_field(52)

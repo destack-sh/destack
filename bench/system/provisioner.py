@@ -30,6 +30,8 @@ class Provisioner[PT: ResourceNode, WT: ResourceNode](DeferredHostPlugin[WT], ab
 
     @final
     async def start(self) -> None:
+        await self._do_start()
+
         # check resources
         resources = tuple(
             cast(PT, r) for r in self.bench.resources if r.metatype in self.provision_types
@@ -52,8 +54,6 @@ class Provisioner[PT: ResourceNode, WT: ResourceNode](DeferredHostPlugin[WT], ab
         #   and we assume exclusivity in the provisioning methods. Host plugins starts the queue in .start).
         await super().start()
 
-        await self._do_start()
-
     async def _do_start(self) -> None:
         pass  # to be overridden
 
@@ -68,7 +68,9 @@ class Provisioner[PT: ResourceNode, WT: ResourceNode](DeferredHostPlugin[WT], ab
                 if resource.status == ResourceStatus.DECLARED:
                     await self.provision(resource)
             for resource in subcommit.updated:
-                if resource.status.is_extant:
+                if resource.status == ResourceStatus.DECLARED:
+                    await self.provision(resource)
+                elif resource.status.is_extant:
                     await self.update(resource)
             for resource in subcommit.removed:
                 if resource.status.is_extant:
@@ -161,7 +163,6 @@ def get_provisioners_for(host: HostApi, bench: Bench) -> list[Provisioner]:
     """Gets all available provisioners for that Bench in *this* environment"""
     from bench.system.neon import neon_api
     from bench.system.server import (
-        DockerApi,
         DockerMachineProvisioner,
         ElasticServerProvisioner,
         KubernetesMachineProvisioner,
@@ -185,7 +186,7 @@ def get_provisioners_for(host: HostApi, bench: Bench) -> list[Provisioner]:
         return [
             LocalhostStoreProvisioner(host, bench),
             ElasticServerProvisioner(host, bench),
-            DockerMachineProvisioner(host, bench, docker_api=DockerApi(docker.from_env())),
+            DockerMachineProvisioner(host, bench, docker_client=docker.from_env()),
             S3DriveProvisioner(host, bench),
         ]
     elif ENV == Env.STAGE or ENV == Env.PROD:
