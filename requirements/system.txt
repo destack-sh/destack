@@ -148,8 +148,8 @@ jmespath==1.0.1
     # via
     #   boto3
     #   botocore
-kubernetes==27.2.0
-kubernetes-asyncio==24.2.3
+kubernetes==30.1.0
+kubernetes-asyncio==30.3.0
 magika==0.5.1
 markdown-it-py==3.0.0
     # via rich
@@ -277,8 +277,6 @@ rsa==4.9
 s3transfer==0.10.1
     # via boto3
 sentry-sdk==2.2.0
-setuptools==69.5.1
-    # via kubernetes-asyncio
 shellingham==1.5.4
     # via typer
 six==1.16.0

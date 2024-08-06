@@ -1,7 +1,7 @@
 import abc
-from typing import TYPE_CHECKING, ClassVar, Collection, cast, final
+import enum
+from typing import TYPE_CHECKING, ClassVar, Collection, assert_never, cast, final
 
-import docker
 import structlog
 from opentelemetry import trace
 
@@ -10,7 +10,7 @@ from bench.language.const import VERSION, NodeType
 from bench.system.core import Commit, DeferredHostPlugin, HostApi
 from bench.utils.env import ENV, Env
 from bench.utils.func import bittuple
-from bench.utils.utils import get_from_env_maybe
+from bench.utils.utils import get_from_env
 
 if TYPE_CHECKING:
     pass
@@ -154,9 +154,10 @@ class Provisioner[PT: ResourceNode, WT: ResourceNode](DeferredHostPlugin[WT], ab
     async def _do_decommission(self, resource: PT): ...
 
 
-LOCAL_NACHINE_URL = get_from_env_maybe(
-    "LOCAL_MACHINE_URL", description="URL for local machine runtime"
-)
+class MachineProvisionerType(enum.StrEnum):
+    LOCALHOST = "localhost"
+    DOCKER = "docker"
+    KUBERNETES = "kubernetes"
 
 
 def get_provisioners_for(host: HostApi, bench: Bench) -> list[Provisioner]:
@@ -175,18 +176,32 @@ def get_provisioners_for(host: HostApi, bench: Bench) -> list[Provisioner]:
     )
 
     if ENV == Env.TEST:
-        assert LOCAL_NACHINE_URL, "no LOCAL_MACHINE_URL"
         return [
             LocalhostStoreProvisioner(host, bench),
             ElasticServerProvisioner(host, bench),
-            LocalhostMachineProvisioner(host, bench, local_machine_url=LOCAL_NACHINE_URL),
+            LocalhostMachineProvisioner(host, bench),
             S3DriveProvisioner(host, bench),
         ]
     elif ENV == Env.DEV:
+        # dynamic machine provisioner
+        MACHINE_PROVISIONER_TYPE = get_from_env(
+            "MACHINE_PROVISIONER_TYPE",
+            typ=MachineProvisionerType,
+            description="The machine provisioner to use (only works in dev)",
+        )
+        if MACHINE_PROVISIONER_TYPE == MachineProvisionerType.LOCALHOST:
+            machine_provisioner = LocalhostMachineProvisioner(host, bench)
+        elif MACHINE_PROVISIONER_TYPE == MachineProvisionerType.DOCKER:
+            machine_provisioner = DockerMachineProvisioner(host, bench)
+        elif MACHINE_PROVISIONER_TYPE == MachineProvisionerType.KUBERNETES:
+            machine_provisioner = KubernetesMachineProvisioner(host, bench)
+        else:
+            assert_never(MACHINE_PROVISIONER_TYPE)
+
         return [
             LocalhostStoreProvisioner(host, bench),
             ElasticServerProvisioner(host, bench),
-            DockerMachineProvisioner(host, bench, docker_client=docker.from_env()),
+            machine_provisioner,
             S3DriveProvisioner(host, bench),
         ]
     elif ENV == Env.STAGE or ENV == Env.PROD:
