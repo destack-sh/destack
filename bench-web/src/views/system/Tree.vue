@@ -94,7 +94,6 @@ const focusPtr = computedValue(() => {
 });
 
 const { graph: pkgGraph, connection: pkgConnection } = useExistingConnection(rootPtr, {
-  isOptional: true,
   match: {
     predicate: (c) => {
       // NOTE: hack to exclude Bench connection (which also contains package) :ConnectionMatching

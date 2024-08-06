@@ -7,7 +7,7 @@ import {
   typeNodeReference,
   typeNodeReferenceMaybe,
   unwrapSomeNode,
-  type TypedNodeReferenceData
+  type TypedNodeReferenceData,
 } from "@/proto/wiring";
 import local, { BENCH_SCOPE, LOCAL_SPACE_ID, PACKAGE_SCOPE, spaceGraphLocal, spacePtr } from "@/system/client";
 import { makeReadOptions, useExistingConnection, useGetConnection } from "@/system/connection";
@@ -57,7 +57,7 @@ export const space = spaceGraph.getRef(local.spacePtr);
 export const inspectionPtr = computed(() => space.value?.inspectionPtr);
 export const inspectionBasePtr = computed(() => space.value?.basePtr);
 export const { connection: spaceConnection } = useExistingConnection(local.spacePtr, {
-  isOptional: true,
+  isRequired: false,
 });
 export const canvas = new ViewCanvas(local.spacePtr, spaceGraph, () =>
   spaceConnection.tx.with({ category: ChangeCategory.SPACE }),
@@ -168,7 +168,13 @@ export async function goToBench(go: {
   // figure out space once package is loaded
   await pkgConnection.waitForResult((result) => result?.graph.get({ id: pkg.id }) != null);
   await assignSpaceInPackage();
-  nextTick(() => canvas.restoreComponentFocus());
+  nextTick(() => {
+    try {
+      canvas.restoreComponentFocus();
+    } catch (e) {
+      log.warn("space.restoreFocus.error", e);
+    }
+  });
 }
 
 /** 'Goes' to a Space and sets it as the current main Space. */

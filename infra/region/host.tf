@@ -5,11 +5,12 @@
 locals {
   prefix = "bench-${var.env}-${var.cloud}-${var.region}"
   host_env_vars = {
-    SERVICE_NAME = "host"
-    ENVIRONMENT  = var.env
-    CLOUD        = var.cloud
-    REGION       = var.region
-    SUPERVISOR_URL = "supervisor.justbench.com"
+    SERVICE_NAME          = "host"
+    ENVIRONMENT           = var.env
+    CLOUD                 = var.cloud
+    REGION                = var.region
+    SUPERVISOR_URL        = "supervisor.justbench.com"
+    MACHINE_RUNTIME_IMAGE = "ghcr.io/symbolx/bench-runtime"
 
     GLOBAL_PG_HOST       = var.global_pg_host
     GLOBAL_PG_NAME       = var.global_pg_name
