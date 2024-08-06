@@ -257,8 +257,8 @@ function clearBench() {
   if (_benchPtr.value != null) {
     _packagePtrs.value = (_packagePtrs.value ?? []).filter((p) => p.benchId != _benchPtr.value!.id);
     _benchPtr.value = null;
-    setSpaceToLocal();
   }
+  setSpaceToLocal();
 }
 
 function clearSpace() {

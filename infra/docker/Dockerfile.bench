@@ -1,5 +1,5 @@
 # define the common base image
-FROM python:3.12-slim as bench-base
+FROM python:3.12-slim AS bench-base
 
 LABEL org.opencontainers.image.source=https://github.com/symbolx/bench
 LABEL org.opencontainers.image.description="Bench"
@@ -24,7 +24,7 @@ ENV PYTHONUNBUFFERED 1
 ENV PYTHONPATH "${PYTHONPATH}:/bench"
 
 # --- System (Supervisor/Host) ---
-FROM bench-base as bench-system
+FROM bench-base AS bench-system
 
 COPY requirements/system.txt requirements.txt
 RUN /root/.cargo/bin/uv pip install --system --no-cache -r requirements.txt
@@ -48,7 +48,7 @@ EXPOSE 5432
 EXPOSE 80
 
 # --- Runtime ---
-FROM bench-base as bench-runtime
+FROM bench-base AS bench-runtime
 
 # install pandoc
 RUN apt-get install -y pandoc

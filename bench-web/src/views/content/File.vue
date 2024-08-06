@@ -240,7 +240,7 @@ defineExpose<ViewExposed>({ self, id });
       class="flex h-full min-h-[80px] w-full cursor-pointer flex-col justify-center rounded border px-2.5 py-1 text-center transition-all duration-75"
       :class="[
         isInDropZone
-          ? 'border-primary-900 text-primary-900 outline outline-1 outline-primary-900'
+          ? 'border-primary-900 text-primary-900 outline outline-2 outline-primary-900'
           : ' border-gray-200 text-gray-400  hover:border-gray-300',
       ]"
       @click="fileInputRef!.click()"
@@ -256,7 +256,7 @@ defineExpose<ViewExposed>({ self, id });
       v-else
       ref="containerRef"
       class="group/inline relative flex h-full min-h-[80px] w-full flex-col justify-center rounded border border-gray-200"
-      :class="[isInDropZone ? 'border-primary-900 outline outline-1 outline-primary-900' : '']"
+      :class="[isInDropZone ? 'border-primary-900 outline outline-2 outline-primary-900' : '']"
       :style="{
         aspectRatio: (download?.file.value ?? modelValue)?.aspectRatio ?? undefined,
       }"

@@ -697,8 +697,8 @@ export class ViewCanvas {
         parent = currentFrame;
       }
       if (parent == null) {
-        // no parent at all, reset space (got messed up somehow)
-        log.warn("canvas.repairCanvas", this.spacePtr.value);
+        // no parent at all, reset space (either we're in a local empty space or it got messed up somehow)
+        log.debug("canvas.repairCanvas", this.spacePtr.value);
         const space = this.graph.getOrError(this.spacePtr.value!);
         parent = createEmptySpace(tx, space).primary;
       }

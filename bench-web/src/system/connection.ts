@@ -1050,13 +1050,17 @@ export function useExistingConnection<T extends NodeType = any>(
   node: MaybeRef<NodeReferenceData | TypedNodeReferenceData<any> | null | undefined>,
   options?: {
     isEnabled?: Ref<boolean>;
-    isOptional?: boolean;
+    isRequired?: boolean;
     match?: ConnectionMatchOptions<"get", T>;
   },
 ): {
   graph: ReadNodeGraph;
   connection: Connection<"get", T>;
 } {
+  // NOTE :Architecture: the graphs and the current bench/pkg/space pointers are not atomically updated,
+  //  so sometimes it can happen that we need a new connection but the new graph isn't loaded yet.
+  //  For those cases it's useful to just default to not required and keeping previous connections.
+
   const nodeRef = toValueRef(toRef(node)) as Ref<NodeReferenceData>;
   const connection: ShallowRef<ConnectionBase<"get", T> | null> = shallowRef(null);
   const graph = useConnectionOverlayGraph(connection);
@@ -1076,28 +1080,33 @@ export function useExistingConnection<T extends NodeType = any>(
         { scope: PACKAGE_SCOPE.value, roots: [nodeRef.value as TypedNodeReferenceData<T>] },
         options?.match,
       );
-      if (newConnection == null && !options?.isOptional)
-        throw new Error(
-          `missing connection for ${describeNode(nodeRef.value)} (available: ${_connections.value.map((c) => c.name).join(", ") ?? "<none>"})`,
-        );
+      if (newConnection == null && options?.isRequired) {
+        if (connection.value != null) {
+          return; // ignore, we already have a connection
+        } else {
+          throw new Error(
+            `missing connection for ${describeNode(nodeRef.value)} (available: ${_connections.value.map((c) => c.name).join(", ") ?? "<none>"})`,
+          );
+        }
+      }
     }
-    if (newConnection !== oldConnection) connection.value = newConnection as ConnectionBase<"get", T> | null;
+    if (newConnection !== oldConnection) {
+      connection.value = newConnection as ConnectionBase<"get", T> | null;
+    }
   };
   watch(() => [nodeRef.value, () => options?.isEnabled?.value], refreshConnection, { immediate: true });
 
   // NOTE: useExistingConnection is usually used where a connection must exist (inside View components).
   //  Otherwise if we don't have a connection we need to check *every* new connection until we get a match.
-  if (options?.isOptional) {
-    let stopGlobalWatch = null as (() => void) | null;
-    watch(
-      connection,
-      () => {
-        stopGlobalWatch?.();
-        if (!connection.value) stopGlobalWatch = watch(_connections, refreshConnection);
-      },
-      { immediate: true, flush: "sync" },
-    );
-  }
+  let stopGlobalWatch = null as (() => void) | null;
+  watch(
+    connection,
+    () => {
+      stopGlobalWatch?.();
+      if (!connection.value) stopGlobalWatch = watch(_connections, refreshConnection);
+    },
+    { immediate: true, flush: "sync" },
+  );
 
   // release on unmount
   tryOnBeforeUnmount(() => {
