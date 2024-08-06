@@ -6,11 +6,6 @@ from bench.language import User
 from bench.language.const import (
     UserStatus,
 )
-from bench.system.core import (
-    global_session,
-    pg_engine_from_store,
-    system_store_from_env,
-)
 from bench.utils.oracle import REAL_ORACLE
 
 app = typer.Typer(short_help="some language-level utilities")
@@ -21,6 +16,8 @@ logger = structlog.get_logger(__name__)
 @app.command(help="check whether the current Bench state is properly migrated")
 @async_to_sync_blocking
 async def unwaitlist(user_slug: str):
+    from bench.system.core import global_session, pg_engine_from_store, system_store_from_env
+
     global_store = system_store_from_env()
     global_pg_engine = pg_engine_from_store(global_store)
     async with global_session(global_store, (global_pg_engine,), REAL_ORACLE, epoch=0) as session:

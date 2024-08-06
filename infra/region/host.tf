@@ -9,6 +9,7 @@ locals {
     ENVIRONMENT  = var.env
     CLOUD        = var.cloud
     REGION       = var.region
+    SUPERVISOR_URL = "supervisor.justbench.com"
 
     GLOBAL_PG_HOST       = var.global_pg_host
     GLOBAL_PG_NAME       = var.global_pg_name

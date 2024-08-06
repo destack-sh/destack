@@ -2,11 +2,6 @@ import typer
 from rich.console import Console
 
 from bench.cli.utils import async_to_sync_blocking
-from bench.sql.engine import pg_select_raw, sqlstr
-from bench.system.core import (
-    global_pg_cursor,
-    system_store_from_env,
-)
 
 app = typer.Typer(short_help="test utilities")
 
@@ -14,6 +9,9 @@ app = typer.Typer(short_help="test utilities")
 @app.command("prune")
 @async_to_sync_blocking
 async def prune(prefix="test"):
+    from bench.sql.engine import pg_select_raw, sqlstr
+    from bench.system.core import global_pg_cursor, system_store_from_env
+
     """Prune all artifacts with the given prefix"""
     console = Console()
     global_store = system_store_from_env()

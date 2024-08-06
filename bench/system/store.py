@@ -39,7 +39,7 @@ class StoreProvisioner(Provisioner[Store, Store]):
                 oracle=self.host.oracle,
             )
             await cur.connection.commit()
-        async with self.host.session(autocommit=True):
+        async with self.host.session(commit=True):
             resource.current_version = resource.version
 
     @override
@@ -61,13 +61,13 @@ class NeonStoreProvisioner(StoreProvisioner):
         # assign a name
         if resource.external_name is None:
             assert resource.bench_id, f"{resource!r} has no bench"
-            async with self.host.session(autocommit=True):
+            async with self.host.session(commit=True):
                 resource.external_name = f"{ENV}-{resource.bench_id}"
         # create postgres database ('project')
         neon_project = await self._neon_api.create_project(
             name=resource.external_name, region=resource.region, pg_version=16
         )
-        async with self.host.session(autocommit=True):
+        async with self.host.session(commit=True):
             resource.external_id = neon_project.project_id
             resource.connection_uri = neon_project.connection_uri
             if not resource.version:
@@ -80,7 +80,7 @@ class NeonStoreProvisioner(StoreProvisioner):
     async def _do_decommission(self, resource: Store):
         assert resource.external_id, f"{resource!r} has no external ID"
         await self._neon_api.delete_project(project_id=resource.external_id)
-        async with self.host.session(autocommit=True):
+        async with self.host.session(commit=True):
             resource.status = ResourceStatus.DECOMMISSIONED
 
 
@@ -93,13 +93,13 @@ class LocalhostStoreProvisioner(StoreProvisioner):
         # assign a name
         if resource.external_name is None:
             assert resource.bench_id, f"{resource!r} has no bench"
-            async with self.host.session(autocommit=True):
+            async with self.host.session(commit=True):
                 resource.external_name = f"{ENV}-{resource.bench_id}"
         # create database through existing connection
         # (use same postgres instance as global store)
         async with pg_store_connection(self.host.global_store, autocommit=True) as cur:
             await cur.execute(sqlstr(f'CREATE DATABASE "{resource.external_name}"'))
-        async with self.host.session(autocommit=True):
+        async with self.host.session(commit=True):
             connection_uri = self.host.global_store.connection_uri
             assert connection_uri, f"{self.host.global_store!r} has no connection URI"
             resource.connection_uri = f"{connection_uri.rsplit('/', 1)[0]}/{resource.external_name}"
@@ -126,10 +126,10 @@ class S3DriveProvisioner(Provisioner[Drive, Drive]):
 
     @override
     async def _do_provision(self, resource: Drive):
-        async with self.host.session(autocommit=True):
+        async with self.host.session(commit=True):
             resource.status = ResourceStatus.HEALTHY
 
     @override
     async def _do_decommission(self, resource: Drive):
-        async with self.host.session(autocommit=True):
+        async with self.host.session(commit=True):
             resource.status = ResourceStatus.DECOMMISSIONED

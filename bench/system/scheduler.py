@@ -95,7 +95,7 @@ class QueueRunPlugin(HostPlugin[Run]):
                 title="Failed to queue run",
                 text=Text.from_markdown("Could not contact any currently available machine."),
             )
-            async with self.host.session(autocommit=True):
+            async with self.host.session(commit=True):
                 run.fail(error)
             log.error(
                 "scheduler.queue.failed",

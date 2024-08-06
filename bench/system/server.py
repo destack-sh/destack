@@ -1,3 +1,4 @@
+import random
 from pathlib import Path
 from typing import TYPE_CHECKING, cast, override
 
@@ -33,7 +34,7 @@ class ElasticServerProvisioner(Provisioner[Server, Server | Machine]):
         # "rescale server" (just ensure a single machine exists for now)
         # nocheckin? :Incomplete: scale ElasticServerProvisioner properly (up/down/sleep/...)
         if not machines:
-            async with self.host.session(autocommit=True):
+            async with self.host.session(commit=True):
                 machine = Machine(name="Machine1", cpu=0.25, ram=0.5)
                 server.machines.append(machine)
                 server.status = ResourceStatus.PROVISIONING
@@ -46,7 +47,7 @@ class ElasticServerProvisioner(Provisioner[Server, Server | Machine]):
         else:
             actual_status = ResourceStatus.HEALTHY  # not sure?
         if server.status != actual_status:
-            async with self.host.session(autocommit=True):
+            async with self.host.session(commit=True):
                 server.status = actual_status
 
     @override
@@ -77,7 +78,7 @@ class ElasticServerProvisioner(Provisioner[Server, Server | Machine]):
     @override
     async def _do_decommission(self, resource: Server):
         # nothing special, child machines are automatically removed too
-        async with self.host.session(autocommit=True):
+        async with self.host.session(commit=True):
             resource.status = ResourceStatus.DECOMMISSIONED
 
 
@@ -93,23 +94,29 @@ class LocalhostMachineProvisioner(Provisioner[Machine, Machine]):
 
     @override
     async def _do_provision(self, resource: Machine):
-        async with self.host.session(autocommit=True):
+        async with self.host.session(commit=True):
             resource.connection_uri = self._local_machine_url
             resource.status = ResourceStatus.HEALTHY
 
     @override
     async def _do_decommission(self, resource: Machine):
-        async with self.host.session(autocommit=True):
+        async with self.host.session(commit=True):
             resource.status = ResourceStatus.DECOMMISSIONED
 
 
 def _get_machine_env_vars(machine: Machine, *, is_trusted: bool) -> dict[str, str]:
     """Gets the environment variables for a Machine."""
-    env_vars: dict[str, str] = {
+    env_vars: dict[str, str | None] = {
+        # hosting
         "SERVICE_NAME": "runtime",
         "ENVIRONMENT": ENV.value,
         "CLOUD": CLOUD.slug,
         "REGION": machine.region.slug,
+        # bench
+        "BENCH_ID": str(machine.bench.id),
+        "SERVER_ID": str(machine.parent.id) if isinstance(machine.parent, Server) else None,
+        "MACHINE_ID": str(machine.id),
+        # config
         "TRACING": "0",
         "LOG_LEVEL": "DEBUG",
         "LOG_MODE": "JSON",
@@ -118,12 +125,31 @@ def _get_machine_env_vars(machine: Machine, *, is_trusted: bool) -> dict[str, st
         env_vars["SENTRY_DSN"] = SENTRY_DSN
     if is_trusted:
         ...  # nocheckin: add trusted env vars
-    return env_vars
+    return {k: v for k, v in env_vars.items() if v}
 
 
 MACHINE_RUNTIME_IMAGE = get_from_env(
     "MACHINE_RUNTIME_IMAGE", description="Runtime container image for machine"
 )
+
+
+class DockerApi:
+    def __init__(self, docker_api: docker.DockerClient):
+        self._docker_api = docker_api
+
+    @property
+    def api(self):
+        return self._docker_api
+
+    async def start(self):
+        # nocheckin: get current containers, watch docker containers
+        pass
+
+    def close(self):
+        pass
+
+    async def wait_closed(self):
+        pass
 
 
 class DockerMachineProvisioner(Provisioner[Machine, Machine]):
@@ -134,31 +160,32 @@ class DockerMachineProvisioner(Provisioner[Machine, Machine]):
     watch_types = bittuple(NodeType.MACHINE)
     provision_types = bittuple(NodeType.MACHINE)
 
-    def __init__(self, host: HostApi, bench: Bench, docker_api: docker.DockerClient):
+    def __init__(self, host: HostApi, bench: Bench, docker_api: DockerApi):
         super().__init__(host, bench)
         self._docker_api = docker_api
 
     @override
-    async def _do_start(self) -> None:
-        # nocheckin: start watching docker containers
-        ...
+    async def _do_start(self) -> None: ...
 
     @override
     async def _do_provision(self, resource: Machine):
         project_dir = Path(__file__).parent.parent.parent
         assert project_dir.exists() and project_dir.name == "bench", f"{project_dir!r}"
-        container = self._docker_api.containers.run(
+        bench_dir = (project_dir / "bench").absolute().as_posix()
+        assigned_port = random.randint(60100, 65000)
+        container = self._docker_api.api.containers.run(
             MACHINE_RUNTIME_IMAGE,
             environment=_get_machine_env_vars(resource, is_trusted=True),
             detach=True,
             name=f"bench-{ENV.value}-{CLOUD.slug}-{resource.region.slug}-machine-{resource.id.hex}",
-            command=["python", "bench.py", "serve", "runtime", "0.0.0.0", "60062"],
-            # nocheckin: mount local bench code
-            # volumes={"/bench", "/bench:ro"},
+            command=["python", "bench.py", "serve", "runtime", "0.0.0.0", str(assigned_port)],
+            volumes=[f"{bench_dir}:/bench:ro"],
+            ports={f"{assigned_port}/tcp": ("0.0.0.0", assigned_port)},
         )
-        async with self.host.session(autocommit=True):
+        async with self.host.session(commit=True):
             resource.external_id = container.id
             resource.status = ResourceStatus.HEALTHY
+            resource.connection_uri = f"http://localhost:{assigned_port}"
 
     @override
     async def _do_update(self, resource: Machine):
@@ -168,13 +195,11 @@ class DockerMachineProvisioner(Provisioner[Machine, Machine]):
     async def _do_decommission(self, resource: Machine):
         # remove container with same external_id if exists
         assert resource.external_id is not None, f"{resource!r} has no external id"
-        container = self._docker_api.containers.get(resource.external_id)
+        container = self._docker_api.api.containers.get(resource.external_id)
         if container is not None:
             container.remove(force=True)
-        async with self.host.session(autocommit=True):
+        async with self.host.session(commit=True):
             resource.status = ResourceStatus.DECOMMISSIONED
-
-    # nocheckin: DockerMachineProvisioner
 
 
 class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):

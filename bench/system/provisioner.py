@@ -43,7 +43,7 @@ class Provisioner[PT: ResourceNode, WT: ResourceNode](DeferredHostPlugin[WT], ab
                 # auto migrate resources to current version
                 # NOTE :Robustness: unsure when to migrate resources
                 if "version" in resource.__properties__ and getattr(resource, "version") != VERSION:
-                    async with self.host.session(autocommit=True):
+                    async with self.host.session(commit=True):
                         setattr(resource, "version", VERSION)
                 await self.update(resource)
 
@@ -161,6 +161,7 @@ def get_provisioners_for(host: HostApi, bench: Bench) -> list[Provisioner]:
     """Gets all available provisioners for that Bench in *this* environment"""
     from bench.system.neon import neon_api
     from bench.system.server import (
+        DockerApi,
         DockerMachineProvisioner,
         ElasticServerProvisioner,
         KubernetesMachineProvisioner,
@@ -184,7 +185,7 @@ def get_provisioners_for(host: HostApi, bench: Bench) -> list[Provisioner]:
         return [
             LocalhostStoreProvisioner(host, bench),
             ElasticServerProvisioner(host, bench),
-            DockerMachineProvisioner(host, bench, docker_api=docker.from_env()),
+            DockerMachineProvisioner(host, bench, docker_api=DockerApi(docker.from_env())),
             S3DriveProvisioner(host, bench),
         ]
     elif ENV == Env.STAGE or ENV == Env.PROD:
