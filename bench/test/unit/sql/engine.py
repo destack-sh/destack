@@ -186,6 +186,7 @@ async def test_crud_rows(test_cur: psycopg.AsyncCursor, table: Table):
         returning=table.columns,
     )
     assert db_rows is not None
+    db_rows = list(db_rows)
     db_rows.sort(key=lambda r: cast(int, r["id"]))
     assert db_rows == target_rows
     db_rows = await pg_select(cur=test_cur, table=table, order_by=sql.SQL("id"))
@@ -196,6 +197,7 @@ async def test_crud_rows(test_cur: psycopg.AsyncCursor, table: Table):
     target_rows = target_rows[:4]
     db_rows = await pg_select(cur=test_cur, table=table, order_by=sql.SQL("id"))
     assert db_rows is not None
+    db_rows = list(db_rows)
     db_rows.sort(key=lambda r: cast(int, r["id"]))
     assert db_rows == target_rows
 

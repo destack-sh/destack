@@ -49,7 +49,7 @@ def async_to_sync_blocking(func=None):
         return decorate(func)
 
 
-def _shell(cmd: str, check=True, **kwargs):
+def run_shell_sync(cmd: str, check=True, **kwargs):
     """Executes a shell command in a subprocess."""
     cwd = os.getcwd()
     logger.trace("shell", cmd=cmd, cwd=cwd, check=check, **kwargs)

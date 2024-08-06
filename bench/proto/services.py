@@ -38,7 +38,6 @@ from bench.proto.wire import (
     ServiceKind,
 )
 from bench.proto.wiring import BENCH_CLASS_BY_PROTO_CLASS, unpack_rpc_headers
-from bench.sql.engine import SqlAlreadyExistsError, SqlNotExistsError
 from bench.utils.env import IS_DEV, IS_TEST
 from bench.utils.oracle import Oracle
 from bench.utils.string import Casing, to_casing
@@ -62,8 +61,6 @@ RpcCallable = UnaryRpcCallable | ServerStreamingRpcCallable
 GRPC_STATUS_BY_BENCH_ERROR_CLASS: Mapping[type, GRPCStatus] = {
     NotImplementedError: GRPCStatus.UNIMPLEMENTED,
     NodeNotFoundError: GRPCStatus.NOT_FOUND,
-    SqlNotExistsError: GRPCStatus.NOT_FOUND,
-    SqlAlreadyExistsError: GRPCStatus.ALREADY_EXISTS,
     AccessError: GRPCStatus.PERMISSION_DENIED,
     ValidationError: GRPCStatus.INVALID_ARGUMENT,
 }

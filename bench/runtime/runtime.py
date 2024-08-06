@@ -10,7 +10,6 @@ from opentelemetry import trace
 
 from bench.language import NodeReference
 from bench.language.bench import Machine
-from bench.language.connection import RemoteEngine
 from bench.language.const import (
     BENCH_NODE_TYPES,
     IN_PACKAGE_NODE_TYPES,
@@ -35,6 +34,7 @@ from bench.proto.wire import (
     SupervisorClient,
 )
 from bench.proto.wiring import pack_rpc_headers
+from bench.runtime.remote import RemoteEngine
 from bench.runtime.thread import RuntimeThread
 from bench.utils.oracle import REAL_ORACLE, Oracle
 from bench.utils.tenacity import RETRY_GRPC_FOREVER, retry

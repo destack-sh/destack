@@ -12,7 +12,7 @@ import structlog
 from opentelemetry import trace
 
 from bench.language import Bench, Node, NodeReference, NodeType, Store
-from bench.language.connection import GraphEngine, PostgresEngine
+from bench.language.connection import GraphEngine
 from bench.language.const import (
     GLOBAL_NODE_TYPES,
     LOCAL_NODE_TYPES,
@@ -26,6 +26,7 @@ from bench.language.session import Session
 from bench.proto import wiring
 from bench.proto.wire import EditData, GraphScopeData
 from bench.sql.client import AsyncPostgresConnection
+from bench.system.postgres import PostgresEngine
 from bench.utils.func import bittuple
 from bench.utils.oracle import Oracle
 from bench.utils.task import TaskManager
