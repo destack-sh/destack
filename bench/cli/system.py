@@ -30,11 +30,7 @@ async def check(check_db: bool = False):
 @app.command(help="create 'bench' and 'system' Benches (owned by 'system' User)")
 @async_to_sync_blocking
 async def bootstrap(region: Region):
-    from bench.system.core import (
-        global_session,
-        pg_engine_from_store,
-        system_store_from_env,
-    )
+    from bench.system.core import global_session, pg_engine_from_store, system_store_from_env
     from bench.system.supervisor import create_default_bench
 
     global_store = system_store_from_env()
@@ -70,15 +66,11 @@ async def bootstrap(region: Region):
         await session.commit()
 
 
-@app.command(name="make-server-client", help="gets or creates a server Client for a Bench")
+@app.command(name="make-machine-client", help="gets or creates a Machine Client for a Bench")
 @async_to_sync_blocking
-async def make_server_client(bench_slug: str, name: str = "Localhost"):
+async def make_machine_client(bench_slug: str, name: str = "Localhost"):
     from bench.system.access import ACCESS_TOKEN_LENGTH
-    from bench.system.core import (
-        global_session,
-        pg_engine_from_store,
-        system_store_from_env,
-    )
+    from bench.system.core import global_session, pg_engine_from_store, system_store_from_env
 
     global_store = system_store_from_env()
     global_pg_engine = pg_engine_from_store(global_store)
@@ -90,10 +82,10 @@ async def make_server_client(bench_slug: str, name: str = "Localhost"):
         )
         assert len(bench.servers) == 1, f"{bench!r} has unexpected servers: {bench.servers!r}"
         server = bench.servers[0]
-        client = first((c for c in server.clients if c.type == ClientType.BENCH_SERVER), None)
+        client = first((c for c in server.clients if c.type == ClientType.BENCH_MACHINE), None)
         if client is None:
             client = server.clients.create(
-                type=ClientType.BENCH_SERVER,
+                type=ClientType.BENCH_MACHINE,
                 name=name,
                 access_token=generate_access_token(ACCESS_TOKEN_LENGTH),
                 seen_at=REAL_ORACLE.utc(),

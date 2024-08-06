@@ -39,7 +39,7 @@ def _get_field_default_gen(cls: type["betterproto.Message"], field: dataclasses.
             return dict
         elif t.__origin__ is list:
             return list
-        elif t.__origin__ is Union and t.__args__[1] is type(None):
+        elif t.__origin__ is Union and t.__args__[1] is type(None):  # type: ignore
             return _default_gen_none
         else:
             return t

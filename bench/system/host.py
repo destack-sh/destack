@@ -324,7 +324,7 @@ class Host(GraphIoServiceBase, HostApi, HostBase):
             if metadata.client_type is None:
                 raise GRPCError(GRPCStatus.UNAUTHENTICATED, "missing client type")
             client_id = UUID(metadata.client_id)
-            if metadata.client_type != wire.ClientType.BENCH_SERVER:
+            if metadata.client_type != wire.ClientType.BENCH_MACHINE:
                 # user client
                 if CLIENT_CACHE_ENABLED and self._client_cache.has(client_id):
                     client = await self._client_cache.get(client_id, metadata.client_access_token)
@@ -872,7 +872,7 @@ def validate_context(subject: Subject, context: SessionContext, edits: list[Edit
             GRPCStatus.INVALID_ARGUMENT,
             f"bad server context for {subject!r}: {context.server_ptr!r}",
         )
-    if subject.client.type == ClientType.BENCH_SERVER:
+    if subject.client.type == ClientType.BENCH_MACHINE:
         if not context.machine or context.machine.parent != subject.server:
             raise GRPCError(
                 GRPCStatus.INVALID_ARGUMENT,

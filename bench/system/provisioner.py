@@ -178,7 +178,7 @@ def get_provisioners_for(host: HostApi, bench: Bench) -> list[Provisioner]:
         return [
             LocalhostStoreProvisioner(host, bench),
             ElasticServerProvisioner(host, bench),
-            LocalhostMachineProvisioner(host, bench, LOCAL_NACHINE_URL),
+            LocalhostMachineProvisioner(host, bench, local_machine_url=LOCAL_NACHINE_URL),
             S3DriveProvisioner(host, bench),
         ]
     elif ENV == Env.DEV:

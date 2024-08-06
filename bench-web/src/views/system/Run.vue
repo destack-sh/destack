@@ -127,7 +127,7 @@ defineExpose<ViewExposed>({ self, id });
         </div>
       </div>
     </div>
-    <Inaccessible v-else :node="basePtr" :is-connected="pkgConnection.isConnected.value" />
+    <Inaccessible v-else :node="basePtr" :connection="pkgConnection" />
 
     <!-- Error -->
     <div v-if="run?.error" class="mt-2">
@@ -139,8 +139,8 @@ defineExpose<ViewExposed>({ self, id });
           <!-- Details -->
           <div class="ml-auto flex-shrink-0 pl-4 text-gray-400">
             <span>{{ toCamelName(RunErrorKind, run.error.kind) }}</span>
-            <template v-if="run.error.type"
-              > / <span>{{ toCamelName(RunErrorType, run.error.type) }}</span></template
+            <template v-if="run.error.type">
+              / <span>{{ toCamelName(RunErrorType, run.error.type) }}</span></template
             >
           </div>
         </div>

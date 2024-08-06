@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.08.06.0"
+VERSION = "2024.08.06.1"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -342,7 +342,7 @@ class ClientType(betterproto.Enum):
     BENCH_BROWSER_PLUGIN = 2
     BENCH_DESKTOP = 3
     BENCH_MOBILE = 4
-    BENCH_SERVER = 10
+    BENCH_MACHINE = 10
 
 
 class Cloud(betterproto.Enum):

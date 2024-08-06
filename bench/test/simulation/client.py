@@ -53,7 +53,7 @@ class UserHandle:
     async def prepare(self, supervisor_client: SupervisorClient):
         """Creates the User"""
         client_in = ClientDataIn(
-            type=wire.ClientType.BENCH_SERVER, name=f"{self.name}-signup", device_name="test"
+            type=wire.ClientType.BENCH_MACHINE, name=f"{self.name}-signup", device_name="test"
         )
         signup_req = SignupUserRequest(
             slug=self.name,

@@ -6932,9 +6932,9 @@ export enum ClientType {
      */
     BENCH_MOBILE = 4,
     /**
-     * @generated from protobuf enum value: CLIENT_TYPE_BENCH_SERVER = 10;
+     * @generated from protobuf enum value: CLIENT_TYPE_BENCH_MACHINE = 10;
      */
-    BENCH_SERVER = 10
+    BENCH_MACHINE = 10
 }
 /**
  * The cloud provider.

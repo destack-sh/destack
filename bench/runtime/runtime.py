@@ -75,7 +75,7 @@ class Runtime(ServiceBase, RuntimeBase):
         self._supervisor = SupervisorClient(Channel(self._supervisor_host, self._supervisor_port))
 
         # context
-        if client_type == ClientType.BENCH_SERVER and machine_id is None:
+        if client_type == ClientType.BENCH_MACHINE and machine_id is None:
             raise ValueError(f"missing machine_id for {client_type} {client_id}")
         self._client_type = client_type
         self._client_id = client_id

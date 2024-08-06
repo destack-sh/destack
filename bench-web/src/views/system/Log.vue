@@ -30,7 +30,7 @@ const props = defineProps<
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 const id = makeViewId(props);
-const nodePtr = computed(() => unwrapProtoOneOf(props.nodePtr))
+const nodePtr = computed(() => unwrapProtoOneOf(props.nodePtr));
 
 const { connection, graph } =
   props.preparedConnection ??
@@ -156,5 +156,5 @@ defineExpose<ViewExposed>({ self, id });
     </div>
     <!-- ... context, details, etc. -->
   </div>
-  <Inaccessible v-else class="h-full w-full" :node="nodePtr" :is-connected="connection.isConnected.value" />
+  <Inaccessible v-else class="h-full w-full" :node="nodePtr" :connection="connection" />
 </template>
