@@ -16,7 +16,7 @@ from bench.system.provisioner import Provisioner
 from bench.utils.analytics import SENTRY_DSN
 from bench.utils.env import ENV
 from bench.utils.func import bittuple, generate_access_token
-from bench.utils.utils import get_from_env
+from bench.utils.utils import get_from_env, get_from_env_maybe
 
 if TYPE_CHECKING:
     pass
@@ -94,26 +94,9 @@ class ElasticServerProvisioner(Provisioner[Server, Server | Machine]):
             resource.status = ResourceStatus.DECOMMISSIONED
 
 
-class LocalhostMachineProvisioner(Provisioner[Machine, Machine]):
-    """Provision Machines by short-circuiting to localhost."""
-
-    watch_types = bittuple(NodeType.MACHINE)
-    provision_types = bittuple(NodeType.MACHINE)
-
-    def __init__(self, host: HostApi, bench: Bench, local_machine_url: str):
-        super().__init__(host, bench)
-        self._local_machine_url = local_machine_url
-
-    @override
-    async def _do_provision(self, resource: Machine):
-        async with self.host.session(commit=True):
-            resource.connection_uri = self._local_machine_url
-            resource.status = ResourceStatus.HEALTHY
-
-    @override
-    async def _do_decommission(self, resource: Machine):
-        async with self.host.session(commit=True):
-            resource.status = ResourceStatus.DECOMMISSIONED
+MACHINE_RUNTIME_IMAGE = get_from_env(
+    "MACHINE_RUNTIME_IMAGE", description="Runtime container image for machine"
+)
 
 
 def _get_machine_env_vars(machine: Machine, *, is_trusted: bool, is_docker: bool) -> dict[str, str]:
@@ -155,22 +138,42 @@ def _get_machine_env_vars(machine: Machine, *, is_trusted: bool, is_docker: bool
     return {k: v for k, v in env_vars.items() if v}
 
 
-MACHINE_RUNTIME_IMAGE = get_from_env(
-    "MACHINE_RUNTIME_IMAGE", description="Runtime container image for machine"
-)
+class LocalhostMachineProvisioner(Provisioner[Machine, Machine]):
+    """Provision Machines by short-circuiting to localhost."""
+
+    watch_types = bittuple(NodeType.MACHINE)
+    provision_types = bittuple(NodeType.MACHINE)
+
+    def __init__(self, host: HostApi, bench: Bench):
+        super().__init__(host, bench)
+        self._local_machine_url = get_from_env_maybe(
+            "LOCAL_MACHINE_URL", description="URL for local machine runtime"
+        )
+
+    @override
+    async def _do_provision(self, resource: Machine):
+        async with self.host.session(commit=True):
+            resource.connection_uri = self._local_machine_url
+            resource.status = ResourceStatus.HEALTHY
+
+    @override
+    async def _do_decommission(self, resource: Machine):
+        async with self.host.session(commit=True):
+            resource.status = ResourceStatus.DECOMMISSIONED
 
 
 class DockerMachineProvisioner(Provisioner[Machine, Machine]):
     """Provision Machines as containers in a Docker installation."""
 
     # NOTE :DevX: use async docker api (instead of blocking sync)
+    # TODO :Test: test docker machine provisioner
 
     watch_types = bittuple(NodeType.MACHINE)
     provision_types = bittuple(NodeType.MACHINE)
 
-    def __init__(self, host: HostApi, bench: Bench, docker_client: docker.DockerClient):
+    def __init__(self, host: HostApi, bench: Bench):
         super().__init__(host, bench)
-        self._docker_client = docker_client
+        self._docker_client = docker.from_env()
 
     @override
     async def _do_start(self) -> None:
@@ -197,7 +200,7 @@ class DockerMachineProvisioner(Provisioner[Machine, Machine]):
         assigned_port = random.randint(60100, 65000)
         env_vars = _get_machine_env_vars(resource, is_trusted=True, is_docker=True)
         container = self._docker_client.containers.run(
-            MACHINE_RUNTIME_IMAGE,
+            f"{MACHINE_RUNTIME_IMAGE}:{resource.version}",
             environment=env_vars,
             detach=True,
             name=f"bench-{ENV.value}-{CLOUD.slug}-{resource.region.slug}-machine-{resource.id}",
@@ -225,6 +228,11 @@ class DockerMachineProvisioner(Provisioner[Machine, Machine]):
             resource.status = ResourceStatus.DECOMMISSIONED
 
 
+KUBERNETES_KUBECONFIG_PATH = get_from_env_maybe(
+    "KUBERNETES_KUBECONFIG_PATH", description="Path to kubeconfig file"
+)
+
+
 class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
     """Provision Machines as Pods on Kubernetes."""
 
@@ -232,15 +240,26 @@ class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
     provision_types = bittuple(NodeType.MACHINE)
 
     @override
+    async def _do_start(self) -> None:
+        from kubernetes_asyncio import config
+
+        # setup kubernetes config
+        if KUBERNETES_KUBECONFIG_PATH is not None:
+            await config.load_kube_config(KUBERNETES_KUBECONFIG_PATH)
+        else:
+            config.load_incluster_config()
+
+        # nocheckin: get k8 pods & listen to updates
+
+    @override
     async def _do_provision(self, resource: Machine):
-        pass
+        print("PROVISION KUBERNETES POD", repr(resource))
+        # nocheckin: create k8 pod
 
     @override
     async def _do_update(self, resource: Machine):
-        pass
+        pass  # nocheckin: update k8 pod?
 
     @override
     async def _do_decommission(self, resource: Machine):
-        pass
-
-    # nocheckin: KubernetesMachineProvisioner
+        pass  # nocheckin: delete k8 pod

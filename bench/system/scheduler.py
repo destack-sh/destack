@@ -93,7 +93,7 @@ class QueueRunPlugin(HostPlugin[Run]):
                 kind=RunErrorKind.RUNTIME,
                 type=RunErrorType.RUNTIME_UNAVAILABLE,
                 title="Failed to queue run",
-                text=Text.from_markdown("Could not contact any currently available machine."),
+                text=Text.from_markdown("Could not reach any currently available machine."),
             )
             async with self.host.session(commit=True):
                 run.fail(error)
