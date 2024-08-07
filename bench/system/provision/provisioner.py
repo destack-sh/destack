@@ -7,7 +7,7 @@ from opentelemetry import trace
 
 from bench.language import Bench, ResourceNode, ResourceStatus
 from bench.language.const import VERSION, NodeType
-from bench.system.core import Commit, DeferredHostPlugin, HostApi
+from bench.system.host.core import Commit, DeferredHostPlugin, HostApi
 from bench.utils.env import ENV, Env
 from bench.utils.func import bittuple
 from bench.utils.utils import get_from_env
@@ -57,7 +57,7 @@ class Provisioner[PT: ResourceNode, WT: ResourceNode](DeferredHostPlugin[WT], ab
     async def _do_start(self) -> None:
         pass  # to be overridden
 
-    # nocheckin: handle resource status/current_status properly
+    # nocheckin: handle resource current_* properly
 
     @final
     @tracer.start_as_current_span("provisioner.on_commit_deferred")
@@ -164,17 +164,17 @@ class MachineProvisionerType(enum.StrEnum):
 
 def get_provisioners_for(host: HostApi, bench: Bench) -> list[Provisioner]:
     """Gets all available provisioners for that Bench in *this* environment"""
-    from bench.system.neon import neon_api
-    from bench.system.server import (
+    from bench.system.provision.machine import (
         DockerMachineProvisioner,
-        ElasticServerProvisioner,
         KubernetesMachineProvisioner,
         LocalhostMachineProvisioner,
     )
-    from bench.system.store import (
+    from bench.system.provision.server import ElasticServerProvisioner
+    from bench.system.provision.store import (
         LocalhostStoreProvisioner,
         NeonStoreProvisioner,
         S3DriveProvisioner,
+        neon_api,
     )
 
     if ENV == Env.TEST:

@@ -7,6 +7,7 @@ import typer
 
 from bench.cli.utils import async_to_sync_blocking
 from bench.language import Bench, Store
+from bench.system.utils.session import pg_engine_from_store, system_store_from_env
 from bench.utils.func import sanitize_connection_uri
 from bench.utils.oracle import REAL_ORACLE
 
@@ -20,7 +21,7 @@ logger = structlog.get_logger(__name__)
 async def shell(bench: Optional[str] = None):  # type: ignore
     """Open a psql shell to either the global or a Bench-local database."""
     from bench.sql.client import get_pg_connection_uri
-    from bench.system.core import global_session, pg_engine_from_store, system_store_from_env
+    from bench.system.utils.session import global_session
 
     global_store = system_store_from_env()
     global_pg_engine = pg_engine_from_store(global_store)

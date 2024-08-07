@@ -65,20 +65,27 @@ from bench.proto.wiring import (
     unwrap_some_node,
     wrap_some_node,
 )
-from bench.system.access import CLIENT_CACHE_ENABLED, ClientCache, get_client
-from bench.system.core import (
+from bench.system.graph.graph import (
+    CommitArea,
+    GraphIoServiceBase,
+    parse_commit_scope,
+    validate_edit,
+)
+from bench.system.graph.postgres import PostgresEngine
+from bench.system.host.core import (
     HostApi,
     HostPlugin,
+    unpack_commit,
+)
+from bench.system.host.scheduler import QueueRunPlugin
+from bench.system.provision.provisioner import Provisioner, get_provisioners_for
+from bench.system.utils.access import CLIENT_CACHE_ENABLED, ClientCache, get_client
+from bench.system.utils.s3 import get_s3_client
+from bench.system.utils.session import (
     global_session,
     local_pg_engine_from_store,
     pg_engine_from_store,
-    unpack_commit,
 )
-from bench.system.graph import CommitArea, GraphIoServiceBase, parse_commit_scope, validate_edit
-from bench.system.postgres import PostgresEngine
-from bench.system.provisioner import Provisioner, get_provisioners_for
-from bench.system.s3 import S3_PRESIGNED_URL_EXPIRY, get_s3_client
-from bench.system.scheduler import QueueRunPlugin
 from bench.utils.env import ENV
 from bench.utils.func import to_uuid
 from bench.utils.oracle import Oracle
@@ -94,7 +101,12 @@ HOST_MEMORY_ENGINE_ENABLED = get_from_env(
     default=True,
     description="Whether to provide in-memory caches for Bench/Package",
 )
-
+S3_PRESIGNED_URL_EXPIRY = get_from_env(
+    "S3_PRESIGNED_URL_EXPIRY",
+    typ=int,
+    default=3600,
+    description="S3 presigned URL expiry (in seconds)",
+)
 LOADED_HOST_NODE_TYPES = LOADED_BENCH_NODE_TYPES | SOURCE_NODE_TYPES
 BENCH_QUERY = Bench.descendants(*LOADED_BENCH_NODE_TYPES).select_all()
 PACKAGE_QUERY = (

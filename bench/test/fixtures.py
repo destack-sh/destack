@@ -7,6 +7,7 @@ import grpclib
 import pytest
 
 from bench.language.validation import clean_name
+from bench.system.utils.session import BEGINNING_OF_TIME, global_pg_cursor
 from bench.test.conftest import _setup_test_env
 
 # NOTE: must run setup before importing from bench
@@ -25,7 +26,6 @@ from bench.sql.migration import (
     generate_sql_migration_ops,
     introspect_sql_schema,
 )
-from bench.system.core import BEGINNING_OF_TIME, global_pg_cursor
 from bench.utils.utils import get_from_env
 
 

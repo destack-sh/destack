@@ -14,7 +14,7 @@ from bench.language.text import Text
 from bench.language.trigger import Trigger
 from bench.proto.services import get_channel_cached
 from bench.proto.wire import QueueRunRequest, RuntimeClient
-from bench.system.core import Commit, DeferredHostPlugin, HostApi, HostPlugin
+from bench.system.host.core import Commit, DeferredHostPlugin, HostApi, HostPlugin
 from bench.utils.func import bittuple
 from bench.utils.tenacity import RETRY_GRPC, RetryOptions, RetryState
 

@@ -9,6 +9,7 @@ import uvloop
 from opentelemetry import trace
 
 from bench.language.setup import NODE_CLASSES
+from bench.system.utils.session import system_store_from_env
 
 if TYPE_CHECKING:
     pass
@@ -67,7 +68,7 @@ async def check_is_consistent(*, check_db: bool) -> None:
     from bench.sql.engine import GLOBAL_SCHEMA, NODE_TABLES, map_node_class_to_pg_table
     from bench.sql.migration import generate_sql_migration_ops, introspect_sql_schema
     from bench.sql.schema import VERSION as SQL_VERSION
-    from bench.system.core import global_pg_cursor, system_store_from_env
+    from bench.system.utils.session import global_pg_cursor
 
     log = logger.bind(version=LANG_VERSION)
 

@@ -10,12 +10,6 @@ if TYPE_CHECKING:
 else:
     S3Client = Any
 
-S3_PRESIGNED_URL_EXPIRY = get_from_env(
-    "S3_PRESIGNED_URL_EXPIRY",
-    typ=int,
-    default=3600,
-    description="S3 presigned URL expiry (in seconds)",
-)
 
 _s3_client: Optional[S3Client] = None
 
