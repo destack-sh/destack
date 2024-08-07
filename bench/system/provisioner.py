@@ -32,7 +32,7 @@ class Provisioner[PT: ResourceNode, WT: ResourceNode](DeferredHostPlugin[WT], ab
     async def start(self) -> None:
         await self._do_start()
 
-        # check resources
+        # check resources / provision declared resources
         resources = tuple(
             cast(PT, r) for r in self.bench.resources if r.metatype in self.provision_types
         )
