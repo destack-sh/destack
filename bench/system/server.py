@@ -6,12 +6,9 @@ import docker
 import docker.models
 import docker.models.containers
 import structlog
-from kubernetes_asyncio.client import (
-    ApiClient as KubernetesApiClient,
-)
-from kubernetes_asyncio.client import (
-    CoreV1Api as KubernetesCoreV1Api,
-)
+from kubernetes_asyncio import client as k8
+from kubernetes_asyncio.client import ApiClient as KubernetesApiClient
+from kubernetes_asyncio.client import CoreV1Api as KubernetesCoreV1Api
 from opentelemetry import trace
 
 from bench.language import Bench, Client, Machine, ResourceStatus, Server
@@ -205,8 +202,9 @@ class DockerMachineProvisioner(Provisioner[Machine, Machine]):
         bench_dir = (project_dir / "bench").absolute().as_posix()
         assigned_port = random.randint(60100, 65000)
         env_vars = _get_machine_env_vars(resource, is_trusted=True, is_docker=True)
+        machine_id_prefix = str(resource.id).split("-")[0]
         external_name = (
-            f"bench-{ENV.value}-{CLOUD.slug}-{resource.region.slug}-machine-{resource.id}"
+            f"bench-{ENV.value}-{CLOUD.slug}-{resource.region.slug}-machine-{machine_id_prefix}"
         )
         container = self._docker_client.containers.run(
             f"{MACHINE_RUNTIME_IMAGE}:{resource.version}",
@@ -241,17 +239,14 @@ class DockerMachineProvisioner(Provisioner[Machine, Machine]):
 KUBERNETES_KUBECONFIG_PATH = get_from_env_maybe(
     "KUBERNETES_KUBECONFIG_PATH", description="Path to kubeconfig file"
 )
-KUBERNETES_NAMESPACE = get_from_env_maybe(
+KUBERNETES_NAMESPACE = get_from_env(
     "KUBERNETES_NAMESPACE",
     default="default",
     description="Namespace to use for Kubernetes resources",
 )
-KUBERNETES_IMAGE_PULL_SECRET = get_from_env_maybe(
-    "KUBERNETES_IMAGE_PULL_SECRET",
-    description="Name of the image pull secret",
-)
-KUBERNETES_APP_LABEL = get_from_env_maybe(
-    "KUBERNETES_APP_LABEL",
+
+KUBERNETES_MACHINE_APP_LABEL = get_from_env_maybe(
+    "KUBERNETES_MACHINE_APP_LABEL",
     default="bench-machine",
     description="Label to use for Kubernetes resources",
 )
@@ -263,6 +258,81 @@ KUBERNETES_OVER_ALLOCATION = get_from_env(
 )
 
 
+async def get_kubernetes_client() -> KubernetesApiClient:
+    """Gets the Kubernetes client."""
+    from kubernetes_asyncio import config
+
+    if KUBERNETES_KUBECONFIG_PATH is not None:
+        await config.load_kube_config(KUBERNETES_KUBECONFIG_PATH)
+    else:
+        config.load_incluster_config()
+    kubernetes_api = KubernetesApiClient()
+    return kubernetes_api
+
+
+class KubernetesApi:
+    """Kubernetes API wrapper (because the generated kubernetes client is pretty bad)."""
+
+    def __init__(self, namespace: str):
+        self._namespace = namespace
+        self._kubernetes_api: KubernetesApiClient | None = None
+        self._kubernetes_core_api: KubernetesCoreV1Api | None = None
+
+    @property
+    def api(self) -> KubernetesApiClient:
+        assert self._kubernetes_api is not None, "kubernetes api not ready"
+        return self._kubernetes_api
+
+    @property
+    def core_api(self) -> KubernetesCoreV1Api:
+        assert self._kubernetes_core_api is not None, "kubernetes core api not ready"
+        return self._kubernetes_core_api
+
+    async def start(self):
+        self._kubernetes_api = await get_kubernetes_client()
+        self._kubernetes_core_api = KubernetesCoreV1Api(self._kubernetes_api)
+
+    async def close(self):
+        if self._kubernetes_api is not None:
+            await self._kubernetes_api.close()
+            self._kubernetes_api = None
+        self._kubernetes_core_api = None
+
+    async def create_pod(self, pod: k8.V1Pod) -> None:
+        """Create a Pod."""
+        await self.core_api.create_namespaced_pod(namespace=self._namespace, body=pod)  # type: ignore
+
+    async def patch_pod(self, pod: k8.V1Pod) -> None:
+        """Patch a Pod. We only patch specific fields"""
+        assert pod.spec and pod.spec.containers, f"missing containers for {pod!r}"
+        pod_patch = {
+            "spec": {
+                "containers": [
+                    {
+                        "name": pod.spec.containers[0].name,
+                        "image": pod.spec.containers[0].resources,
+                    }
+                ]
+            }
+        }
+        await self.core_api.patch_namespaced_pod(
+            namespace=self._namespace,
+            name=pod.metadata.name,  # type: ignore
+            body=pod_patch,
+        )
+
+    async def delete_pod(self, name: str) -> None:
+        """Delete a Pod."""
+        await self.core_api.delete_namespaced_pod(namespace=self._namespace, name=name)  # type: ignore
+
+    async def get_pods(self, label_selector: str) -> tuple[list[k8.V1Pod], str]:
+        """Get all Pods with the given label selector."""
+        pods = await self.core_api.list_namespaced_pod(
+            namespace=self._namespace, label_selector=label_selector
+        )
+        return pods.items, pods.metadata.resource_version
+
+
 class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
     """Provision Machines as Pods on Kubernetes."""
 
@@ -271,26 +341,29 @@ class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
 
     def __init__(self, host: HostApi, bench: Bench):
         super().__init__(host, bench)
-        self._kubernetes_api: KubernetesApiClient | None = None
-        self._kubernetes_core_api: KubernetesCoreV1Api | None = None
+        self._kubernetes_api: KubernetesApi | None = None
+        self._kubernetes_pods_by_name: dict[str, k8.V1Pod] = {}
 
     @property
-    def api(self) -> KubernetesApiClient:
+    def kubernetes_api(self) -> KubernetesApi:
         assert self._kubernetes_api is not None, "no kubernetes api"
         return self._kubernetes_api
 
-    @property
-    def core_api(self) -> KubernetesCoreV1Api:
-        assert self._kubernetes_core_api is not None, "no kubernetes core api"
-        return self._kubernetes_core_api
+    def _get_machine_external_name(self, machine: Machine) -> str:
+        """Gets the external name of the given Machine."""
+        machine_id_prefix = str(machine.id).split("-")[0]
+        external_name = (
+            f"bench-{ENV.value}-{CLOUD.slug}-{machine.region.slug}-machine-{machine_id_prefix}"
+        )
+        return external_name
 
-    def _make_pod(self, machine: Machine):
-        from kubernetes_asyncio import client as k8s_client
-
+    def _make_pod_from_machine(self, machine: Machine):
+        """Creates a Kubernetes Pod for the Machine."""
         # context
-        external_name = f"bench-{ENV.value}-{CLOUD.slug}-{machine.region.slug}-machine-{machine.id}"
+        # NOTE: kubernetes resource names must be valid DNS labels (<= 63 chars)
+
         labels = {
-            "app": external_name,
+            "app": KUBERNETES_MACHINE_APP_LABEL,
             "bench_id": str(machine.bench.id),
             "machine_id": str(machine.id),
             "environment": ENV.value,
@@ -303,7 +376,7 @@ class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
         env_vars = _get_machine_env_vars(machine, is_trusted=True, is_docker=False)
 
         # pod
-        resources = k8s_client.V1ResourceRequirements(
+        resources = k8.V1ResourceRequirements(
             requests={
                 "cpu": f"{round((machine.cpu / KUBERNETES_OVER_ALLOCATION) * 1000)}m",
                 "memory": f"{round((machine.ram / KUBERNETES_OVER_ALLOCATION) * 1000)}Mi",
@@ -313,79 +386,114 @@ class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
                 "memory": f"{round(machine.ram * 1000)}Mi",
             },
         )
-        health_probe = k8s_client.V1Probe(
-            grpc=k8s_client.V1GRPCAction(port=60062, service="runtime"),
+        health_probe = k8.V1Probe(
+            grpc=k8.V1GRPCAction(port=60062, service="runtime"),
             initial_delay_seconds=5,
             period_seconds=10,
             failure_threshold=3,
         )
-        main_container = k8s_client.V1Container(
+        main_container = k8.V1Container(
             name="main",
             image=f"{MACHINE_RUNTIME_IMAGE}:{machine.version}",
             command=["python", "bench.py", "serve", "runtime", "0.0.0.0", "60062"],
             env=[
-                *(k8s_client.V1EnvVar(name=k, value=v) for k, v in env_vars.items()),
-                k8s_client.V1EnvVar(
+                *(k8.V1EnvVar(name=k, value=v) for k, v in env_vars.items()),
+                k8.V1EnvVar(
                     name="KUBERNETES_NODE_ID",
-                    value_from=k8s_client.V1EnvVarSource(
-                        field_ref=k8s_client.V1ObjectFieldSelector(field_path="spec.nodeName")
+                    value_from=k8.V1EnvVarSource(
+                        field_ref=k8.V1ObjectFieldSelector(field_path="spec.nodeName")
                     ),
                 ),
             ],
-            ports=[k8s_client.V1ContainerPort(container_port=60062)],
+            ports=[k8.V1ContainerPort(container_port=60062)],
             resources=resources,
             readiness_probe=health_probe,
             liveness_probe=health_probe,
         )
-        pod = k8s_client.V1Pod(
-            metadata=k8s_client.V1ObjectMeta(
-                name=external_name,
-                labels=labels,
-            ),
-            spec=k8s_client.V1PodSpec(
+        image_pull_secret = get_from_env(
+            "KUBERNETES_IMAGE_PULL_SECRET", description="Name of the image pull secret"
+        )
+        pod = k8.V1Pod(
+            metadata=k8.V1ObjectMeta(name=self._get_machine_external_name(machine), labels=labels),
+            spec=k8.V1PodSpec(
                 containers=[main_container],
-                image_pull_secrets=[
-                    k8s_client.V1LocalObjectReference(name=KUBERNETES_IMAGE_PULL_SECRET)
-                ],
+                image_pull_secrets=[k8.V1LocalObjectReference(name=image_pull_secret)],
                 termination_grace_period_seconds=20,
             ),
         )
         return pod
 
+    def _update_machine_from_pod(self, machine: Machine, pod: k8.V1Pod):
+        """Updates the current config of the Machine from the given Pod."""
+        machine.current_cpu = machine.cpu
+        machine.current_ram = machine.ram
+        machine.current_version = machine.version
+        machine.status = machine.current_status = ResourceStatus.HEALTHY  # nocheckin
+
     @override
     async def _do_start(self) -> None:
-        from kubernetes_asyncio import config
-
-        # setup kubernetes config
-        if KUBERNETES_KUBECONFIG_PATH is not None:
-            await config.load_kube_config(KUBERNETES_KUBECONFIG_PATH)
-        else:
-            config.load_incluster_config()
-
-        self._kubernetes_api = KubernetesApiClient()
-        self._kubernetes_core_api = KubernetesCoreV1Api(self._kubernetes_api)
-
-        # nocheckin: get k8 pods & listen to updates
         servers = self.bench.servers.tolist()
         machines = [m for s in servers for m in s.machines]
+        machines_by_external_name: dict[str, Machine] = {
+            m.external_name or self._get_machine_external_name(m): m for m in machines
+        }
+
+        self._kubernetes_api = KubernetesApi(namespace=KUBERNETES_NAMESPACE)
+        await self._kubernetes_api.start()
+
+        # sync machines with current pods
+        pod_selector = f"app={KUBERNETES_MACHINE_APP_LABEL},bench_id={self.bench.id}"
+        pods, pod_marker = await self._kubernetes_api.get_pods(label_selector=pod_selector)
+        for pod in pods:
+            assert pod.metadata is not None, f"missing metadata for pod {pod!r}"
+            self._kubernetes_pods_by_name[pod.metadata.name] = pod
+            machine = machines_by_external_name.get(pod.metadata.name)
+            if machine is None:
+                # delete old pod
+                await self._kubernetes_api.delete_pod(pod.metadata.name)
+            else:
+                async with self.host.session(commit=True):
+                    self._update_machine_from_pod(machine, pod)
+        async with self.host.session(commit=True):
+            for machine in machines:
+                if (
+                    machine.external_name
+                    and machine.external_name not in self._kubernetes_pods_by_name
+                ):
+                    machine.status = ResourceStatus.DECLARED
+
+        # and keep watching for pod changes
+        # nocheckin
 
     @override
     async def _do_provision(self, resource: Machine):
-        print("PROVISION KUBERNETES POD", repr(resource))
-        pod = await self.core_api.create_namespaced_pod(
-            namespace=KUBERNETES_NAMESPACE, body=self._make_pod(resource)
-        )
-        # nocheckin: create k8 pod
+        pod = self._make_pod_from_machine(resource)
+        await self.kubernetes_api.create_pod(pod)
+        async with self.host.session(commit=True):
+            resource.external_name = self._get_machine_external_name(resource)
+            self._update_machine_from_pod(resource, pod)
 
     @override
     async def _do_update(self, resource: Machine):
-        pass  # nocheckin: update k8 pod?
+        target_diff = resource._get_target_diff("cpu", "ram", "version")
+        if target_diff:
+            # only update if we need to
+            assert resource.external_name is not None, f"{resource!r} has no external name"
+            pod = self._make_pod_from_machine(resource)
+            await self.kubernetes_api.patch_pod(pod)
+            async with self.host.session(commit=True):
+                self._update_machine_from_pod(resource, pod)
 
     @override
     async def _do_decommission(self, resource: Machine):
-        pass  # nocheckin: delete k8 pod
+        if resource.external_name:
+            await self.kubernetes_api.delete_pod(resource.external_name)
+        async with self.host.session(commit=True):
+            resource.status = ResourceStatus.DECOMMISSIONED
 
     @override
     async def wait_closed(self) -> None:
-        # nocheckin: close
-        ...
+        await super().wait_closed()
+        if self._kubernetes_api is not None:
+            await self._kubernetes_api.close()
+            self._kubernetes_api = None

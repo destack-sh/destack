@@ -5,12 +5,16 @@
 locals {
   prefix = "bench-${var.env}-${var.cloud}-${var.region}"
   host_env_vars = {
-    SERVICE_NAME          = "host"
-    ENVIRONMENT           = var.env
-    CLOUD                 = var.cloud
-    REGION                = var.region
-    SUPERVISOR_URL        = "supervisor.justbench.com"
-    MACHINE_RUNTIME_IMAGE = "ghcr.io/symbolx/bench-runtime"
+    SERVICE_NAME = "host"
+    ENVIRONMENT  = var.env
+    CLOUD        = var.cloud
+    REGION       = var.region
+
+    SUPERVISOR_URL               = "supervisor.justbench.com"
+    MACHINE_RUNTIME_IMAGE        = "ghcr.io/symbolx/bench-runtime"
+    KUBERNETES_NAMESPACE         = "default"
+    KUBERNETES_MACHINE_APP_LABEL = "bench-machine"
+    KUBERNETES_IMAGE_PULL_SECRET = kubernetes_secret.image_pull_secret.metadata[0].name
 
     GLOBAL_PG_HOST       = var.global_pg_host
     GLOBAL_PG_NAME       = var.global_pg_name

@@ -13,6 +13,10 @@ class Env(StrEnum):
     STAGE = "stage"
     PROD = "prod"
 
+    @property
+    def slug(self) -> str:
+        return self.value
+
 
 def setup_env():
     """Loads .env files according to the local environment at the project root."""

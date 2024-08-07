@@ -1,3 +1,4 @@
+import base64
 import json
 
 import structlog
@@ -8,11 +9,14 @@ from rich import print_json
 from bench.cli.utils import async_to_sync_blocking, check_is_consistent
 from bench.language import Bench, User
 from bench.language.const import (
+    CLOUD,
+    REGION,
     ClientType,
     NodeType,
     Region,
     UserStatus,
 )
+from bench.utils.env import ENV
 from bench.utils.func import generate_access_token
 from bench.utils.oracle import REAL_ORACLE
 
@@ -105,3 +109,47 @@ async def make_machine_client(bench_slug: str, name: str = "Localhost"):
         print_json(json.dumps(client_env, indent=4))
 
         await session.commit()
+
+
+@app.command(name="create-image-pull-secret", help="create image pull secret in local cluster")
+@async_to_sync_blocking
+async def create_image_pull_secret(*, ghcr_username: str, ghcr_token: str):
+    from kubernetes_asyncio import client as k8
+    from kubernetes_asyncio.client import CoreV1Api as KubernetesCoreV1Api
+
+    from bench.system.server import KUBERNETES_NAMESPACE, get_kubernetes_client
+
+    kubernetes_api = await get_kubernetes_client()
+    kubernetes_core_api = KubernetesCoreV1Api(kubernetes_api)
+    namespace = KUBERNETES_NAMESPACE
+
+    docker_config = {
+        "auths": {
+            "ghcr.io": {"auth": base64.b64encode(f"{ghcr_username}:{ghcr_token}".encode()).decode()}
+        }
+    }
+
+    secret_name = f"bench-{ENV.slug}-{CLOUD.slug}-{REGION.slug}-image-pull-secret"
+    secret = k8.V1Secret(
+        api_version="v1",
+        kind="Secret",
+        metadata=k8.V1ObjectMeta(name=secret_name, namespace=namespace),
+        type="kubernetes.io/dockerconfigjson",
+        data={".dockerconfigjson": base64.b64encode(json.dumps(docker_config).encode()).decode()},
+    )
+
+    try:
+        await kubernetes_core_api.create_namespaced_secret(namespace=namespace, body=secret)  # type: ignore
+        logger.info("secret.create", secret_name=secret_name, namespace=namespace)
+    except k8.ApiException as e:
+        if e.status == 409:
+            logger.info("secret.update.attempt", secret_name=secret_name, namespace=namespace)
+            await kubernetes_core_api.patch_namespaced_secret(
+                name=secret_name, namespace=namespace, body=secret
+            )
+            logger.info("secret.update.success", secret_name=secret_name, namespace=namespace)
+        else:
+            logger.error(
+                "secret.create.error", secret_name=secret_name, namespace=namespace, error=str(e)
+            )
+            raise

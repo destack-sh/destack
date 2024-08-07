@@ -2,7 +2,7 @@ import abc
 from datetime import datetime
 from enum import Enum
 from itertools import chain
-from typing import TYPE_CHECKING, Generic, Iterable, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Generic, Iterable, Optional, TypeVar, Union
 from uuid import UUID
 
 from bench.language.const import (
@@ -319,6 +319,21 @@ class ResourceNode(BenchNode[NodeDataT], abc.ABC, Generic[NodeDataT]):
                     value = value.name
                 value_strs.append(f"{prop.name}={value}")
         return ", ".join(value_strs)
+
+    def _get_target_diff(self, *keys: str) -> dict[str, Any]:
+        """
+        Checks whether specific properties <key> differ from their current_<key> values.
+        Returns the target values (not current) for any different from the given properties.
+        """
+        current_diff: dict[str, Any] = {}
+        for key in keys:
+            prop = self.__properties__.get(key)
+            assert prop is not None, f"no property {key} in {self.__class__.__name__}"
+            value = getattr(self, key)
+            current_value = getattr(self, f"current_{key}")
+            if value != current_value:
+                current_diff[key] = value
+        return current_diff
 
 
 @node_(NodeType.SERVER)
