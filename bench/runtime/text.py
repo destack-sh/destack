@@ -339,7 +339,7 @@ anthropic_client = anthropic.AsyncClient(
 class OpenaiModelRunner(ChatModelRunnerBase):
     DEFAULT_MODEL = ModelType.GPT4_0
     MODEL_BY_TYPE: ClassVar[Mapping[ModelType, str]] = {
-        ModelType.GPT4_0: "gpt-4o",
+        ModelType.GPT4_0: "gpt-4o-2024-08-06",
         ModelType.GPT4_O_MINI: "gpt-4o-mini",
     }
 
