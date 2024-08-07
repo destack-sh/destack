@@ -1070,11 +1070,10 @@ enum RegionZone {
 enum ResourceStatus {
   RESOURCE_STATUS_UNSPECIFIED = 0;
   RESOURCE_STATUS_DECLARED = 1;
-  RESOURCE_STATUS_PROVISIONING = 5;
-  RESOURCE_STATUS_HEALTHY = 10;
-  RESOURCE_STATUS_UNHEALTHY = 15;
+  RESOURCE_STATUS_READY = 10;
+  RESOURCE_STATUS_NOT_READY = 15;
   RESOURCE_STATUS_SLEEPING = 20;
-  RESOURCE_STATUS_DECOMMISSIONED = 30;
+  RESOURCE_STATUS_GONE = 30;
 }
 
 enum RunErrorKind {
@@ -2315,7 +2314,7 @@ message DriveData {
   optional TextData text = 34;
   Region region = 35;
   ResourceStatus status = 36;
-  optional ResourceStatus current_status = 37;
+  ResourceStatus current_status = 37;
 }
 
 // A used-defined attribute of some value
@@ -2502,8 +2501,8 @@ message MachineData {
   optional TextData text = 34;
   Region region = 35;
   ResourceStatus status = 36;
-  optional ResourceStatus current_status = 37;
-  optional string version = 40;
+  ResourceStatus current_status = 37;
+  string version = 40;
   optional string current_version = 41;
   optional string external_name = 42;
   optional string external_id = 43;
@@ -2808,8 +2807,8 @@ message ServerData {
   optional TextData text = 34;
   Region region = 35;
   ResourceStatus status = 36;
-  optional ResourceStatus current_status = 37;
-  optional string version = 40;
+  ResourceStatus current_status = 37;
+  string version = 40;
   optional string current_version = 41;
   optional float min_cpu = 50;
   optional float max_cpu = 51;
@@ -2987,8 +2986,8 @@ message StoreData {
   optional TextData text = 34;
   Region region = 35;
   ResourceStatus status = 36;
-  optional ResourceStatus current_status = 37;
-  optional string version = 40;
+  ResourceStatus current_status = 37;
+  string version = 40;
   optional string current_version = 41;
   optional string external_name = 50;
   optional string external_id = 51;

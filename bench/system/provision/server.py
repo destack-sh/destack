@@ -43,19 +43,16 @@ class ElasticServerProvisioner(Provisioner[Server, Server | Machine]):
                 await session.flush()
                 machine = Machine(name="Machine1", cpu=0.25, ram=0.5, client=client)
                 server.machines.append(machine)
-                server.status = ResourceStatus.PROVISIONING
                 client.machine = machine
 
         # update server status to reflect machines (if needed)
-        if machines and all(m.status == ResourceStatus.HEALTHY for m in machines):
-            actual_status = ResourceStatus.HEALTHY
-        elif machines and any(m.status == ResourceStatus.UNHEALTHY for m in machines):
-            actual_status = ResourceStatus.UNHEALTHY
+        if machines and all(m.status == ResourceStatus.READY for m in machines):
+            current_status = ResourceStatus.READY
         else:
-            actual_status = ResourceStatus.HEALTHY  # not sure?
-        if server.status != actual_status:
+            current_status = ResourceStatus.NOT_READY
+        if server.status != current_status:
             async with self.host.session(commit=True):
-                server.status = actual_status
+                server.current_status = current_status
 
     @override
     async def _do_on_commit_deferred(self, commit: Commit[Server | Machine]) -> None:
@@ -71,7 +68,7 @@ class ElasticServerProvisioner(Provisioner[Server, Server | Machine]):
 
         # and check/update them
         for server in servers:
-            if server.status != ResourceStatus.DECOMMISSIONED:
+            if server.status != ResourceStatus.GONE:
                 await self._reconcile(server)
 
     @override
@@ -86,4 +83,4 @@ class ElasticServerProvisioner(Provisioner[Server, Server | Machine]):
     async def _do_decommission(self, resource: Server):
         # nothing special, child machines are automatically removed too
         async with self.host.session(commit=True):
-            resource.status = ResourceStatus.DECOMMISSIONED
+            resource.status = ResourceStatus.GONE
