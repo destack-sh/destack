@@ -15,11 +15,10 @@ from bench.language.bench import Machine
 from bench.language.const import (
     BENCH_NODE_TYPES,
     IN_PACKAGE_NODE_TYPES,
-    IS_IN_DOCKER,
     PUBLIC_NODE_TYPES,
     ClientType,
     NodeType,
-    dockerify_domain,
+    localize_domain,
 )
 from bench.language.node import EMPTY_SCOPE
 from bench.proto import wire
@@ -185,8 +184,7 @@ class Runtime(ServiceBase, RuntimeBase):
                     deadline=grpclib.metadata.Deadline.from_timeout(5),
                 )
                 host_info = response.hosts[0]
-                if IS_IN_DOCKER:
-                    host_info.domain = dockerify_domain(host_info.domain)
+                host_info.domain = localize_domain(host_info.domain)
                 self.logger.info(
                     "runtime.resolve_host",
                     supervisor=self._supervisor,

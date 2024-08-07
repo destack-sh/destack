@@ -323,7 +323,7 @@ class ResourceNode(BenchNode[NodeDataT], abc.ABC, Generic[NodeDataT]):
     def _get_target_diff(self, *keys: str) -> dict[str, Any]:
         """
         Checks whether specific properties <key> differ from their current_<key> values.
-        Returns the target values (not current) for any different from the given properties.
+        Returns the target values (not current) of differing properties.
         """
         current_diff: dict[str, Any] = {}
         for key in keys:

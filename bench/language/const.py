@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.08.06.2"  # auto change via version script
+VERSION = "2024.08.07.0"  # auto change via version script
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -1171,12 +1171,32 @@ REGION_AREA = REGION.area
 IS_IN_DOCKER = get_from_env(
     "IS_IN_DOCKER", typ=bool, default=False, description="Whether we're running in Docker"
 )
+IS_IN_MINIKUBE = get_from_env(
+    "IS_IN_MINIKUBE", typ=bool, default=False, description="Whether we're running in Minikube"
+)
+
+
+def localize_domain(domain: str) -> str:
+    """Converts a domain name to something we can reach inside the current environment."""
+    if IS_IN_DOCKER:
+        return dockerify_domain(domain)
+    elif IS_IN_MINIKUBE:
+        return minikubeify_domain(domain)
+    else:
+        return domain
 
 
 def dockerify_domain(domain: str) -> str:
     """Converts a domain name to something we can reach inside Docker."""
     domain = domain.replace("localhost", "host.docker.internal")
     domain = domain.replace("127.0.0.1", "host.docker.internal")
+    return domain
+
+
+def minikubeify_domain(domain: str) -> str:
+    """Converts a domain name to something we can reach inside Minikube."""
+    domain = domain.replace("localhost", "host.minikube.internal")
+    domain = domain.replace("127.0.0.1", "host.minikube.internal")
     return domain
 
 
