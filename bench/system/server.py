@@ -6,6 +6,12 @@ import docker
 import docker.models
 import docker.models.containers
 import structlog
+from kubernetes_asyncio.client import (
+    ApiClient as KubernetesApiClient,
+)
+from kubernetes_asyncio.client import (
+    CoreV1Api as KubernetesCoreV1Api,
+)
 from opentelemetry import trace
 
 from bench.language import Bench, Client, Machine, ResourceStatus, Server
@@ -177,12 +183,12 @@ class DockerMachineProvisioner(Provisioner[Machine, Machine]):
 
     @override
     async def _do_start(self) -> None:
+        servers = self.bench.servers.tolist()
+        machines = [m for s in servers for m in s.machines]
         containers: list[docker.models.containers.Container] = self._docker_client.containers.list(
             all=True
         )
         containers_by_id = {cast(str, c.id): c for c in containers}
-        servers = self.bench.servers.tolist()
-        machines = [m for s in servers for m in s.machines]
 
         async with self.host.session(commit=True):
             for machine in machines:
@@ -199,16 +205,20 @@ class DockerMachineProvisioner(Provisioner[Machine, Machine]):
         bench_dir = (project_dir / "bench").absolute().as_posix()
         assigned_port = random.randint(60100, 65000)
         env_vars = _get_machine_env_vars(resource, is_trusted=True, is_docker=True)
+        external_name = (
+            f"bench-{ENV.value}-{CLOUD.slug}-{resource.region.slug}-machine-{resource.id}"
+        )
         container = self._docker_client.containers.run(
             f"{MACHINE_RUNTIME_IMAGE}:{resource.version}",
             environment=env_vars,
             detach=True,
-            name=f"bench-{ENV.value}-{CLOUD.slug}-{resource.region.slug}-machine-{resource.id}",
+            name=external_name,
             command=["python", "bench.py", "serve", "runtime", "0.0.0.0", str(assigned_port)],
             volumes=[f"{bench_dir}:/bench:ro"],  # mount our local code directly
             ports={f"{assigned_port}/tcp": ("0.0.0.0", assigned_port)},
         )
         async with self.host.session(commit=True):
+            resource.external_name = external_name
             resource.external_id = container.id
             resource.status = ResourceStatus.HEALTHY
             resource.connection_uri = f"http://localhost:{assigned_port}"
@@ -231,6 +241,26 @@ class DockerMachineProvisioner(Provisioner[Machine, Machine]):
 KUBERNETES_KUBECONFIG_PATH = get_from_env_maybe(
     "KUBERNETES_KUBECONFIG_PATH", description="Path to kubeconfig file"
 )
+KUBERNETES_NAMESPACE = get_from_env_maybe(
+    "KUBERNETES_NAMESPACE",
+    default="default",
+    description="Namespace to use for Kubernetes resources",
+)
+KUBERNETES_IMAGE_PULL_SECRET = get_from_env_maybe(
+    "KUBERNETES_IMAGE_PULL_SECRET",
+    description="Name of the image pull secret",
+)
+KUBERNETES_APP_LABEL = get_from_env_maybe(
+    "KUBERNETES_APP_LABEL",
+    default="bench-machine",
+    description="Label to use for Kubernetes resources",
+)
+KUBERNETES_OVER_ALLOCATION = get_from_env(
+    "KUBERNETES_OVER_ALLOCATION",
+    default=4.0,
+    typ=float,
+    description="Whether to over-allocate resources",
+)
 
 
 class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
@@ -238,6 +268,89 @@ class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
 
     watch_types = bittuple(NodeType.MACHINE)
     provision_types = bittuple(NodeType.MACHINE)
+
+    def __init__(self, host: HostApi, bench: Bench):
+        super().__init__(host, bench)
+        self._kubernetes_api: KubernetesApiClient | None = None
+        self._kubernetes_core_api: KubernetesCoreV1Api | None = None
+
+    @property
+    def api(self) -> KubernetesApiClient:
+        assert self._kubernetes_api is not None, "no kubernetes api"
+        return self._kubernetes_api
+
+    @property
+    def core_api(self) -> KubernetesCoreV1Api:
+        assert self._kubernetes_core_api is not None, "no kubernetes core api"
+        return self._kubernetes_core_api
+
+    def _make_pod(self, machine: Machine):
+        from kubernetes_asyncio import client as k8s_client
+
+        # context
+        external_name = f"bench-{ENV.value}-{CLOUD.slug}-{machine.region.slug}-machine-{machine.id}"
+        labels = {
+            "app": external_name,
+            "bench_id": str(machine.bench.id),
+            "machine_id": str(machine.id),
+            "environment": ENV.value,
+            "cloud": CLOUD.slug,
+            "region": machine.region.slug,
+        }
+        if isinstance(machine.parent, Server):
+            labels["server_id"] = str(machine.parent.id)
+        # nocheckin :Security: kubernetes-deployed machines should not trusted
+        env_vars = _get_machine_env_vars(machine, is_trusted=True, is_docker=False)
+
+        # pod
+        resources = k8s_client.V1ResourceRequirements(
+            requests={
+                "cpu": f"{round((machine.cpu / KUBERNETES_OVER_ALLOCATION) * 1000)}m",
+                "memory": f"{round((machine.ram / KUBERNETES_OVER_ALLOCATION) * 1000)}Mi",
+            },
+            limits={
+                "cpu": f"{round(machine.cpu * 1000)}m",
+                "memory": f"{round(machine.ram * 1000)}Mi",
+            },
+        )
+        health_probe = k8s_client.V1Probe(
+            grpc=k8s_client.V1GRPCAction(port=60062, service="runtime"),
+            initial_delay_seconds=5,
+            period_seconds=10,
+            failure_threshold=3,
+        )
+        main_container = k8s_client.V1Container(
+            name="main",
+            image=f"{MACHINE_RUNTIME_IMAGE}:{machine.version}",
+            command=["python", "bench.py", "serve", "runtime", "0.0.0.0", "60062"],
+            env=[
+                *(k8s_client.V1EnvVar(name=k, value=v) for k, v in env_vars.items()),
+                k8s_client.V1EnvVar(
+                    name="KUBERNETES_NODE_ID",
+                    value_from=k8s_client.V1EnvVarSource(
+                        field_ref=k8s_client.V1ObjectFieldSelector(field_path="spec.nodeName")
+                    ),
+                ),
+            ],
+            ports=[k8s_client.V1ContainerPort(container_port=60062)],
+            resources=resources,
+            readiness_probe=health_probe,
+            liveness_probe=health_probe,
+        )
+        pod = k8s_client.V1Pod(
+            metadata=k8s_client.V1ObjectMeta(
+                name=external_name,
+                labels=labels,
+            ),
+            spec=k8s_client.V1PodSpec(
+                containers=[main_container],
+                image_pull_secrets=[
+                    k8s_client.V1LocalObjectReference(name=KUBERNETES_IMAGE_PULL_SECRET)
+                ],
+                termination_grace_period_seconds=20,
+            ),
+        )
+        return pod
 
     @override
     async def _do_start(self) -> None:
@@ -249,11 +362,19 @@ class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
         else:
             config.load_incluster_config()
 
+        self._kubernetes_api = KubernetesApiClient()
+        self._kubernetes_core_api = KubernetesCoreV1Api(self._kubernetes_api)
+
         # nocheckin: get k8 pods & listen to updates
+        servers = self.bench.servers.tolist()
+        machines = [m for s in servers for m in s.machines]
 
     @override
     async def _do_provision(self, resource: Machine):
         print("PROVISION KUBERNETES POD", repr(resource))
+        pod = await self.core_api.create_namespaced_pod(
+            namespace=KUBERNETES_NAMESPACE, body=self._make_pod(resource)
+        )
         # nocheckin: create k8 pod
 
     @override
@@ -263,3 +384,8 @@ class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
     @override
     async def _do_decommission(self, resource: Machine):
         pass  # nocheckin: delete k8 pod
+
+    @override
+    async def wait_closed(self) -> None:
+        # nocheckin: close
+        ...
