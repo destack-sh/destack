@@ -1,6 +1,6 @@
 import random
 from pathlib import Path
-from typing import TYPE_CHECKING, cast, override
+from typing import TYPE_CHECKING, Literal, assert_never, cast, override
 
 import docker
 import docker.models
@@ -12,12 +12,18 @@ from kubernetes_asyncio.client import CoreV1Api as KubernetesCoreV1Api
 from opentelemetry import trace
 
 from bench.language import Bench, Client, Machine, ResourceStatus, Server
-from bench.language.const import CLOUD, ClientType, NodeType, dockerify_domain
+from bench.language.const import (
+    CLOUD,
+    ClientType,
+    NodeType,
+    dockerify_domain,
+    minikubeify_domain,
+)
 from bench.system.access import ACCESS_TOKEN_LENGTH
 from bench.system.core import Commit, HostApi
 from bench.system.provisioner import Provisioner
 from bench.utils.analytics import SENTRY_DSN
-from bench.utils.env import ENV
+from bench.utils.env import ENV, IS_DEV, IS_TEST
 from bench.utils.func import bittuple, generate_access_token
 from bench.utils.utils import get_from_env, get_from_env_maybe
 
@@ -102,13 +108,17 @@ MACHINE_RUNTIME_IMAGE = get_from_env(
 )
 
 
-def _get_machine_env_vars(machine: Machine, *, is_trusted: bool, is_docker: bool) -> dict[str, str]:
+def _get_machine_env_vars(
+    machine: Machine, *, is_trusted: bool, is_in_docker: bool = False, is_in_minikube: bool = False
+) -> dict[str, str]:
     """Gets the environment variables for a Machine."""
     client = machine.client
     assert client, f"{machine!r} has no client"
     supervisor_url = get_from_env("SUPERVISOR_URL", description="Supervisor URL")
-    if is_docker:
+    if is_in_docker:
         supervisor_url = dockerify_domain(supervisor_url)
+    elif is_in_minikube:
+        supervisor_url = minikubeify_domain(supervisor_url)
     env_vars: dict[str, str | None] = {
         # hosting
         "SERVICE_NAME": "runtime",
@@ -128,8 +138,10 @@ def _get_machine_env_vars(machine: Machine, *, is_trusted: bool, is_docker: bool
         "LOG_LEVEL": "DEBUG",
         "LOG_MODE": "JSON",
     }
-    if is_docker:
+    if is_in_docker:
         env_vars["IS_IN_DOCKER"] = "1"
+    if is_in_minikube:
+        env_vars["IS_IN_MINIKUBE"] = "1"
     if SENTRY_DSN:
         env_vars["SENTRY_DSN"] = SENTRY_DSN
     if is_trusted:
@@ -139,6 +151,13 @@ def _get_machine_env_vars(machine: Machine, *, is_trusted: bool, is_docker: bool
             "ANTHROPIC_API_KEY", description="Anthropic API key"
         )
     return {k: v for k, v in env_vars.items() if v}
+
+
+def _get_bench_dir() -> str:
+    project_dir = Path(__file__).parent.parent.parent
+    assert project_dir.exists() and project_dir.name == "bench", f"{project_dir!r}"
+    bench_dir = (project_dir / "bench").absolute().as_posix()
+    return bench_dir
 
 
 class LocalhostMachineProvisioner(Provisioner[Machine, Machine]):
@@ -197,11 +216,9 @@ class DockerMachineProvisioner(Provisioner[Machine, Machine]):
 
     @override
     async def _do_provision(self, resource: Machine):
-        project_dir = Path(__file__).parent.parent.parent
-        assert project_dir.exists() and project_dir.name == "bench", f"{project_dir!r}"
-        bench_dir = (project_dir / "bench").absolute().as_posix()
+        bench_dir = _get_bench_dir()
         assigned_port = random.randint(60100, 65000)
-        env_vars = _get_machine_env_vars(resource, is_trusted=True, is_docker=True)
+        env_vars = _get_machine_env_vars(resource, is_trusted=True, is_in_docker=True)
         machine_id_prefix = str(resource.id).split("-")[0]
         external_name = (
             f"bench-{ENV.value}-{CLOUD.slug}-{resource.region.slug}-machine-{machine_id_prefix}"
@@ -239,12 +256,16 @@ class DockerMachineProvisioner(Provisioner[Machine, Machine]):
 KUBERNETES_KUBECONFIG_PATH = get_from_env_maybe(
     "KUBERNETES_KUBECONFIG_PATH", description="Path to kubeconfig file"
 )
+KUBERNETES_KUBECONFIG_CONTEXT = get_from_env_maybe(
+    "KUBERNETES_KUBECONFIG_CONTEXT",
+    description="Context to use in kubeconfig file",
+    default="minikube",
+)
 KUBERNETES_NAMESPACE = get_from_env(
     "KUBERNETES_NAMESPACE",
     default="default",
     description="Namespace to use for Kubernetes resources",
 )
-
 KUBERNETES_MACHINE_APP_LABEL = get_from_env_maybe(
     "KUBERNETES_MACHINE_APP_LABEL",
     default="bench-machine",
@@ -254,7 +275,7 @@ KUBERNETES_OVER_ALLOCATION = get_from_env(
     "KUBERNETES_OVER_ALLOCATION",
     default=4.0,
     typ=float,
-    description="Whether to over-allocate resources",
+    description="By how much to over-commit resources",
 )
 
 
@@ -263,7 +284,9 @@ async def get_kubernetes_client() -> KubernetesApiClient:
     from kubernetes_asyncio import config
 
     if KUBERNETES_KUBECONFIG_PATH is not None:
-        await config.load_kube_config(KUBERNETES_KUBECONFIG_PATH)
+        await config.load_kube_config(
+            KUBERNETES_KUBECONFIG_PATH, context=KUBERNETES_KUBECONFIG_CONTEXT
+        )
     else:
         config.load_incluster_config()
     kubernetes_api = KubernetesApiClient()
@@ -302,24 +325,9 @@ class KubernetesApi:
         """Create a Pod."""
         await self.core_api.create_namespaced_pod(namespace=self._namespace, body=pod)  # type: ignore
 
-    async def patch_pod(self, pod: k8.V1Pod) -> None:
+    async def patch_pod(self, name: str, patch: dict) -> None:
         """Patch a Pod. We only patch specific fields"""
-        assert pod.spec and pod.spec.containers, f"missing containers for {pod!r}"
-        pod_patch = {
-            "spec": {
-                "containers": [
-                    {
-                        "name": pod.spec.containers[0].name,
-                        "image": pod.spec.containers[0].resources,
-                    }
-                ]
-            }
-        }
-        await self.core_api.patch_namespaced_pod(
-            namespace=self._namespace,
-            name=pod.metadata.name,  # type: ignore
-            body=pod_patch,
-        )
+        await self.core_api.patch_namespaced_pod(namespace=self._namespace, name=name, body=patch)
 
     async def delete_pod(self, name: str) -> None:
         """Delete a Pod."""
@@ -331,6 +339,26 @@ class KubernetesApi:
             namespace=self._namespace, label_selector=label_selector
         )
         return pods.items, pods.metadata.resource_version
+
+    async def watch_pods(self, *, label_selector: str, resource_version: str):
+        """Watch for Pod changes with the given label selector."""
+        from kubernetes_asyncio.watch import Watch as KubernetesWatch
+
+        async with KubernetesWatch().stream(
+            self.core_api.list_namespaced_pod,
+            namespace=self._namespace,
+            label_selector=label_selector,
+            resource_version=resource_version,
+        ) as stream:
+            async for event in stream:
+                event_type = cast(Literal["ADDED", "MODIFIED", "DELETED"], event["type"])  # type: ignore
+                assert event_type in (
+                    "ADDED",
+                    "MODIFIED",
+                    "DELETED",
+                ), f"unexpected event type: {event_type}"
+                event_object = cast(k8.V1Pod, event["object"])  # type: ignore
+                yield event_type, event_object
 
 
 class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
@@ -357,6 +385,28 @@ class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
         )
         return external_name
 
+    def _get_machine_by_external_name(self, external_name: str) -> Machine | None:
+        """Gets the Machine with the given external name."""
+        for server in self.bench.servers:
+            for machine in server.machines:
+                if machine.external_name == external_name:
+                    return machine
+        return None
+
+    def _get_pod_resources_requests(self, machine: Machine) -> dict[str, str]:
+        """Gets the resource requests for the given Machine."""
+        return {
+            "cpu": f"{round((machine.cpu / KUBERNETES_OVER_ALLOCATION) * 1000)}m",
+            "memory": f"{round((machine.ram / KUBERNETES_OVER_ALLOCATION) * 1000)}Mi",
+        }
+
+    def _get_pod_resources_limits(self, machine: Machine) -> dict[str, str]:
+        """Gets the resource limits for the given Machine."""
+        return {
+            "cpu": f"{round(machine.cpu * 1000)}m",
+            "memory": f"{round(machine.ram * 1000)}Mi",
+        }
+
     def _make_pod_from_machine(self, machine: Machine):
         """Creates a Kubernetes Pod for the Machine."""
         # context
@@ -373,18 +423,12 @@ class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
         if isinstance(machine.parent, Server):
             labels["server_id"] = str(machine.parent.id)
         # nocheckin :Security: kubernetes-deployed machines should not trusted
-        env_vars = _get_machine_env_vars(machine, is_trusted=True, is_docker=False)
+        env_vars = _get_machine_env_vars(machine, is_trusted=True, is_in_minikube=IS_DEV or IS_TEST)
 
         # pod
         resources = k8.V1ResourceRequirements(
-            requests={
-                "cpu": f"{round((machine.cpu / KUBERNETES_OVER_ALLOCATION) * 1000)}m",
-                "memory": f"{round((machine.ram / KUBERNETES_OVER_ALLOCATION) * 1000)}Mi",
-            },
-            limits={
-                "cpu": f"{round(machine.cpu * 1000)}m",
-                "memory": f"{round(machine.ram * 1000)}Mi",
-            },
+            requests=self._get_pod_resources_requests(machine),
+            limits=self._get_pod_resources_limits(machine),
         )
         health_probe = k8.V1Probe(
             grpc=k8.V1GRPCAction(port=60062, service="runtime"),
@@ -425,10 +469,40 @@ class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
 
     def _update_machine_from_pod(self, machine: Machine, pod: k8.V1Pod):
         """Updates the current config of the Machine from the given Pod."""
-        machine.current_cpu = machine.cpu
-        machine.current_ram = machine.ram
-        machine.current_version = machine.version
-        machine.status = machine.current_status = ResourceStatus.HEALTHY  # nocheckin
+        # NOTE :Robustness: shouldn't we get current_* from the pod?
+        if machine.current_cpu != machine.cpu:
+            machine.current_cpu = machine.cpu
+        if machine.current_ram != machine.ram:
+            machine.current_ram = machine.ram
+        if machine.current_version != machine.version:
+            machine.current_version = machine.version
+        # NOTE :Robustness: reflect actual pod status in Machine status
+        machine.status = machine.current_status = ResourceStatus.HEALTHY
+        if pod.status and pod.status.pod_ip:  # type: ignore
+            connection_uri = (
+                f"http://{pod.status.pod_ip}:{pod.spec.containers[0].ports[0].container_port}"  # type: ignore
+            )
+        else:
+            connection_uri = None
+        if machine.connection_uri != connection_uri:
+            machine.connection_uri = connection_uri
+
+    async def _do_watch_pods(self, *, label_selector: str, resource_version: str) -> None:
+        async for event_type, pod in self.kubernetes_api.watch_pods(
+            label_selector=label_selector, resource_version=resource_version
+        ):
+            assert pod.metadata is not None, f"missing metadata for pod {pod!r}"
+            machine = self._get_machine_by_external_name(pod.metadata.name)
+            if machine is None:
+                continue  # ignore
+            if event_type == "ADDED" or event_type == "MODIFIED":
+                async with self.host.session(commit=True):
+                    self._update_machine_from_pod(machine, pod)
+            elif event_type == "DELETED":
+                async with self.host.session(commit=True):
+                    machine.current_status = machine.status = ResourceStatus.DECLARED
+            else:
+                assert_never(event_type)
 
     @override
     async def _do_start(self) -> None:
@@ -463,7 +537,10 @@ class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
                     machine.status = ResourceStatus.DECLARED
 
         # and keep watching for pod changes
-        # nocheckin
+        self.tasks.run(
+            self._do_watch_pods(label_selector=pod_selector, resource_version=pod_marker),
+            task_id=f"{self.bench.slug}.kubernetes.watch_pods",
+        )
 
     @override
     async def _do_provision(self, resource: Machine):
@@ -475,12 +552,25 @@ class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
 
     @override
     async def _do_update(self, resource: Machine):
+        # only update if we need to
         target_diff = resource._get_target_diff("cpu", "ram", "version")
         if target_diff:
-            # only update if we need to
             assert resource.external_name is not None, f"{resource!r} has no external name"
             pod = self._make_pod_from_machine(resource)
-            await self.kubernetes_api.patch_pod(pod)
+            pod_patch = {
+                "spec": {
+                    "containers": [
+                        {
+                            "image": f"{MACHINE_RUNTIME_IMAGE}:{resource.version}",
+                            "resources": {
+                                "requests": self._get_pod_resources_requests(resource),
+                                "limits": self._get_pod_resources_limits(resource),
+                            },
+                        }
+                    ]
+                }
+            }
+            await self.kubernetes_api.patch_pod(resource.external_name, pod_patch)
             async with self.host.session(commit=True):
                 self._update_machine_from_pod(resource, pod)
 

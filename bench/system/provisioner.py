@@ -57,6 +57,8 @@ class Provisioner[PT: ResourceNode, WT: ResourceNode](DeferredHostPlugin[WT], ab
     async def _do_start(self) -> None:
         pass  # to be overridden
 
+    # nocheckin: handle resource status/current_status properly
+
     @final
     @tracer.start_as_current_span("provisioner.on_commit_deferred")
     async def on_commit_deferred(self, commit: Commit[WT]) -> None:
