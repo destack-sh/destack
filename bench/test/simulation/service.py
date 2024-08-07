@@ -9,9 +9,9 @@ from bench.language import NodeReference
 from bench.proto import wire
 from bench.proto.services import ServiceBase
 from bench.proto.wire import CreateBenchRequest, HostClient, SupervisorClient
-from bench.system.host import Host
-from bench.system.sharding import HostMap
-from bench.system.supervisor import Supervisor
+from bench.system.host.host import Host
+from bench.system.supervisor.supervisor import Supervisor
+from bench.system.utils.sharding import HostMap
 from bench.test.simulation.spec import HostSpec, ServiceSpec, SupervisorSpec
 from bench.test.simulation.transport import SimulatedChannel
 from bench.utils.oracle import Oracle

@@ -71,7 +71,7 @@ from bench.proto.wire import (
     WatchSearchRequest,
     WatchSearchResponse,
 )
-from bench.system.connection import (
+from bench.system.graph.connection import (
     AggregateConnection,
     ConnectionIndex,
     GetConnection,

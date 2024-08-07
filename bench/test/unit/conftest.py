@@ -39,9 +39,9 @@ from bench.language.step import Step
 from bench.language.user import User
 from bench.proto.wire import HostClient, RpcMetadata
 from bench.runtime.runner import RunHandle, RuntimeRunner
-from bench.system.core import pg_engine_from_store
-from bench.system.host import Host
-from bench.system.supervisor import create_default_bench
+from bench.system.host.host import Host
+from bench.system.supervisor.supervisor import create_default_bench
+from bench.system.utils.session import pg_engine_from_store
 from bench.test.simulation.transport import SimulatedChannel
 from bench.test.strategies import draw_direct, from_object_type
 from bench.utils.oracle import REAL_ORACLE, Oracle

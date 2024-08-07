@@ -42,10 +42,10 @@ async def _do_serve(
 async def system(
     host: str, port: int, watch: bool = False, no_supervisor: bool = False, no_check: bool = False
 ):
-    from bench.system.core import system_store_from_env
-    from bench.system.host import HostRouter
-    from bench.system.sharding import host_map_from_env
-    from bench.system.supervisor import Supervisor
+    from bench.system.host.host import HostRouter
+    from bench.system.supervisor.supervisor import Supervisor
+    from bench.system.utils.session import system_store_from_env
+    from bench.system.utils.sharding import host_map_from_env
 
     global_store = system_store_from_env()
     host_router = HostRouter(global_store=global_store, oracle=REAL_ORACLE)
@@ -60,9 +60,9 @@ async def system(
 @app.command()
 @async_to_sync_blocking
 async def supervisor(host: str, port: int, watch: bool = False, no_check: bool = False):
-    from bench.system.core import system_store_from_env
-    from bench.system.sharding import host_map_from_env
-    from bench.system.supervisor import Supervisor
+    from bench.system.supervisor.supervisor import Supervisor
+    from bench.system.utils.session import system_store_from_env
+    from bench.system.utils.sharding import host_map_from_env
 
     global_store = system_store_from_env()
     host_map = host_map_from_env()
@@ -73,8 +73,8 @@ async def supervisor(host: str, port: int, watch: bool = False, no_check: bool =
 @app.command()
 @async_to_sync_blocking
 async def host(host: str, port: int, watch: bool = False, no_check: bool = False):
-    from bench.system.core import system_store_from_env
-    from bench.system.host import HostRouter
+    from bench.system.host.host import HostRouter
+    from bench.system.utils.session import system_store_from_env
 
     global_store = system_store_from_env()
     host_router = HostRouter(global_store=global_store, oracle=REAL_ORACLE)

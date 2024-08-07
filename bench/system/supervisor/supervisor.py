@@ -39,7 +39,12 @@ from bench.proto.wire import (
     SignupUserResponse,
     SupervisorBase,
 )
-from bench.system.access import (
+from bench.system.graph.graph import GraphIoServiceBase
+from bench.system.host.core import (
+    HostProxy,
+)
+from bench.system.provision.provisioner import provision
+from bench.system.utils.access import (
     ACCESS_TOKEN_LENGTH,
     SALT_LENGTH,
     check_password,
@@ -47,15 +52,12 @@ from bench.system.access import (
     hash_password,
     purge_client_caches,
 )
-from bench.system.core import (
-    HostProxy,
+from bench.system.utils.session import (
     global_session,
     local_pg_engine_from_store,
     pg_engine_from_store,
 )
-from bench.system.graph import GraphIoServiceBase
-from bench.system.provisioner import provision
-from bench.system.sharding import HostMap
+from bench.system.utils.sharding import HostMap
 from bench.utils.func import generate_access_token, generate_salt, to_uuid
 from bench.utils.oracle import Oracle
 from bench.utils.utils import get_from_env

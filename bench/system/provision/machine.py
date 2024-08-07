@@ -11,20 +11,18 @@ from kubernetes_asyncio.client import ApiClient as KubernetesApiClient
 from kubernetes_asyncio.client import CoreV1Api as KubernetesCoreV1Api
 from opentelemetry import trace
 
-from bench.language import Bench, Client, Machine, ResourceStatus, Server
+from bench.language import Bench, Machine, ResourceStatus, Server
 from bench.language.const import (
     CLOUD,
-    ClientType,
     NodeType,
     dockerify_domain,
     minikubeify_domain,
 )
-from bench.system.access import ACCESS_TOKEN_LENGTH
-from bench.system.core import Commit, HostApi
-from bench.system.provisioner import Provisioner
+from bench.system.host.core import HostApi
+from bench.system.provision.provisioner import Provisioner
 from bench.utils.analytics import SENTRY_DSN
 from bench.utils.env import ENV, IS_DEV, IS_TEST
-from bench.utils.func import bittuple, generate_access_token
+from bench.utils.func import bittuple
 from bench.utils.utils import get_from_env, get_from_env_maybe
 
 if TYPE_CHECKING:
@@ -32,75 +30,6 @@ if TYPE_CHECKING:
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
-
-
-class ElasticServerProvisioner(Provisioner[Server, Server | Machine]):
-    """Provision Servers by creating/deleting/scaling Machines (and their Clients) on-demand."""
-
-    watch_types = bittuple(NodeType.SERVER, NodeType.MACHINE)
-    provision_types = bittuple(NodeType.SERVER)
-
-    async def _reconcile(self, server: Server):
-        machines = server.machines.tolist()
-
-        # "rescale server" (just ensure a single machine exists for now)
-        # TODO :Incomplete!: scale ElasticServerProvisioner properly (up/down/sleep/...)
-        if not machines:
-            async with self.host.session(commit=True) as session:
-                client = Client(
-                    parent=server,
-                    type=ClientType.BENCH_MACHINE,
-                    name="Machine1",
-                    access_token=generate_access_token(ACCESS_TOKEN_LENGTH),
-                )
-                session._create(client)
-                await session.flush()
-                machine = Machine(name="Machine1", cpu=0.25, ram=0.5, client=client)
-                server.machines.append(machine)
-                server.status = ResourceStatus.PROVISIONING
-                client.machine = machine
-
-        # update server status to reflect machines (if needed)
-        if machines and all(m.status == ResourceStatus.HEALTHY for m in machines):
-            actual_status = ResourceStatus.HEALTHY
-        elif machines and any(m.status == ResourceStatus.UNHEALTHY for m in machines):
-            actual_status = ResourceStatus.UNHEALTHY
-        else:
-            actual_status = ResourceStatus.HEALTHY  # not sure?
-        if server.status != actual_status:
-            async with self.host.session(commit=True):
-                server.status = actual_status
-
-    @override
-    async def _do_on_commit_deferred(self, commit: Commit[Server | Machine]) -> None:
-        # find any changed servers (directly or indirectly via machines)
-        servers: set[Server] = set()
-        for node in commit.edited:
-            if isinstance(node, Server):
-                servers.add(node)
-            elif isinstance(node, Machine):
-                servers.add(cast(Server, node.parent))
-            else:
-                raise TypeError(f"unexpected node type {type(node)}")
-
-        # and check/update them
-        for server in servers:
-            if server.status != ResourceStatus.DECOMMISSIONED:
-                await self._reconcile(server)
-
-    @override
-    async def _do_provision(self, resource: Server):
-        await self._reconcile(resource)
-
-    @override
-    async def _do_update(self, resource: Server):
-        await self._reconcile(resource)
-
-    @override
-    async def _do_decommission(self, resource: Server):
-        # nothing special, child machines are automatically removed too
-        async with self.host.session(commit=True):
-            resource.status = ResourceStatus.DECOMMISSIONED
 
 
 MACHINE_RUNTIME_IMAGE = get_from_env(
@@ -377,7 +306,7 @@ class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
         assert self._kubernetes_api is not None, "no kubernetes api"
         return self._kubernetes_api
 
-    def _get_machine_external_name(self, machine: Machine) -> str:
+    def _get_external_name(self, machine: Machine) -> str:
         """Gets the external name of the given Machine."""
         machine_id_prefix = str(machine.id).split("-")[0]
         external_name = (
@@ -458,7 +387,7 @@ class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
             "KUBERNETES_IMAGE_PULL_SECRET", description="Name of the image pull secret"
         )
         pod = k8.V1Pod(
-            metadata=k8.V1ObjectMeta(name=self._get_machine_external_name(machine), labels=labels),
+            metadata=k8.V1ObjectMeta(name=self._get_external_name(machine), labels=labels),
             spec=k8.V1PodSpec(
                 containers=[main_container],
                 image_pull_secrets=[k8.V1LocalObjectReference(name=image_pull_secret)],
@@ -469,7 +398,6 @@ class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
 
     def _update_machine_from_pod(self, machine: Machine, pod: k8.V1Pod):
         """Updates the current config of the Machine from the given Pod."""
-        # NOTE :Robustness: shouldn't we get current_* from the pod?
         if machine.current_cpu != machine.cpu:
             machine.current_cpu = machine.cpu
         if machine.current_ram != machine.ram:
@@ -509,7 +437,7 @@ class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
         servers = self.bench.servers.tolist()
         machines = [m for s in servers for m in s.machines]
         machines_by_external_name: dict[str, Machine] = {
-            m.external_name or self._get_machine_external_name(m): m for m in machines
+            m.external_name or self._get_external_name(m): m for m in machines
         }
 
         self._kubernetes_api = KubernetesApi(namespace=KUBERNETES_NAMESPACE)
@@ -547,7 +475,7 @@ class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
         pod = self._make_pod_from_machine(resource)
         await self.kubernetes_api.create_pod(pod)
         async with self.host.session(commit=True):
-            resource.external_name = self._get_machine_external_name(resource)
+            resource.external_name = self._get_external_name(resource)
             self._update_machine_from_pod(resource, pod)
 
     @override
