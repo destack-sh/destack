@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.08.07.0"
+VERSION = "2024.08.07.1"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -1129,11 +1129,10 @@ class ResourceStatus(betterproto.Enum):
 
     UNSPECIFIED = 0
     DECLARED = 1
-    PROVISIONING = 5
-    HEALTHY = 10
-    UNHEALTHY = 15
+    READY = 10
+    NOT_READY = 15
     SLEEPING = 20
-    DECOMMISSIONED = 30
+    GONE = 30
 
 
 class RunErrorKind(betterproto.Enum):
@@ -2587,7 +2586,7 @@ class DriveData(betterproto.Message):
     text: Optional["TextData"] = betterproto.message_field(34, optional=True)
     region: "Region" = betterproto.enum_field(35)
     status: "ResourceStatus" = betterproto.enum_field(36)
-    current_status: Optional["ResourceStatus"] = betterproto.enum_field(37, optional=True)
+    current_status: "ResourceStatus" = betterproto.enum_field(37)
 
 
 @dataclass(eq=False, repr=False)
@@ -2804,8 +2803,8 @@ class MachineData(betterproto.Message):
     text: Optional["TextData"] = betterproto.message_field(34, optional=True)
     region: "Region" = betterproto.enum_field(35)
     status: "ResourceStatus" = betterproto.enum_field(36)
-    current_status: Optional["ResourceStatus"] = betterproto.enum_field(37, optional=True)
-    version: Optional[str] = betterproto.string_field(40, optional=True)
+    current_status: "ResourceStatus" = betterproto.enum_field(37)
+    version: str = betterproto.string_field(40)
     current_version: Optional[str] = betterproto.string_field(41, optional=True)
     external_name: Optional[str] = betterproto.string_field(42, optional=True)
     external_id: Optional[str] = betterproto.string_field(43, optional=True)
@@ -3158,8 +3157,8 @@ class ServerData(betterproto.Message):
     text: Optional["TextData"] = betterproto.message_field(34, optional=True)
     region: "Region" = betterproto.enum_field(35)
     status: "ResourceStatus" = betterproto.enum_field(36)
-    current_status: Optional["ResourceStatus"] = betterproto.enum_field(37, optional=True)
-    version: Optional[str] = betterproto.string_field(40, optional=True)
+    current_status: "ResourceStatus" = betterproto.enum_field(37)
+    version: str = betterproto.string_field(40)
     current_version: Optional[str] = betterproto.string_field(41, optional=True)
     min_cpu: Optional[float] = betterproto.float_field(50, optional=True)
     max_cpu: Optional[float] = betterproto.float_field(51, optional=True)
@@ -3357,8 +3356,8 @@ class StoreData(betterproto.Message):
     text: Optional["TextData"] = betterproto.message_field(34, optional=True)
     region: "Region" = betterproto.enum_field(35)
     status: "ResourceStatus" = betterproto.enum_field(36)
-    current_status: Optional["ResourceStatus"] = betterproto.enum_field(37, optional=True)
-    version: Optional[str] = betterproto.string_field(40, optional=True)
+    current_status: "ResourceStatus" = betterproto.enum_field(37)
+    version: str = betterproto.string_field(40)
     current_version: Optional[str] = betterproto.string_field(41, optional=True)
     external_name: Optional[str] = betterproto.string_field(50, optional=True)
     external_id: Optional[str] = betterproto.string_field(51, optional=True)

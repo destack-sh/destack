@@ -105,12 +105,12 @@ class LocalhostMachineProvisioner(Provisioner[Machine, Machine]):
     async def _do_provision(self, resource: Machine):
         async with self.host.session(commit=True):
             resource.connection_uri = self._local_machine_url
-            resource.status = ResourceStatus.HEALTHY
+            resource.status = ResourceStatus.READY
 
     @override
     async def _do_decommission(self, resource: Machine):
         async with self.host.session(commit=True):
-            resource.status = ResourceStatus.DECOMMISSIONED
+            resource.status = ResourceStatus.GONE
 
 
 class DockerMachineProvisioner(Provisioner[Machine, Machine]):
@@ -164,7 +164,7 @@ class DockerMachineProvisioner(Provisioner[Machine, Machine]):
         async with self.host.session(commit=True):
             resource.external_name = external_name
             resource.external_id = container.id
-            resource.status = ResourceStatus.HEALTHY
+            resource.status = ResourceStatus.READY
             resource.connection_uri = f"http://localhost:{assigned_port}"
 
     @override
@@ -179,7 +179,7 @@ class DockerMachineProvisioner(Provisioner[Machine, Machine]):
         if container is not None:
             container.remove(force=True)
         async with self.host.session(commit=True):
-            resource.status = ResourceStatus.DECOMMISSIONED
+            resource.status = ResourceStatus.GONE
 
 
 KUBERNETES_KUBECONFIG_PATH = get_from_env_maybe(
@@ -405,7 +405,7 @@ class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
         if machine.current_version != machine.version:
             machine.current_version = machine.version
         # NOTE :Robustness: reflect actual pod status in Machine status
-        machine.status = machine.current_status = ResourceStatus.HEALTHY
+        machine.status = machine.current_status = ResourceStatus.READY
         if pod.status and pod.status.pod_ip:  # type: ignore
             connection_uri = (
                 f"http://{pod.status.pod_ip}:{pod.spec.containers[0].ports[0].container_port}"  # type: ignore
@@ -489,6 +489,7 @@ class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
                 "spec": {
                     "containers": [
                         {
+                            "name": resource.external_name,
                             "image": f"{MACHINE_RUNTIME_IMAGE}:{resource.version}",
                             "resources": {
                                 "requests": self._get_pod_resources_requests(resource),
@@ -507,7 +508,7 @@ class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
         if resource.external_name:
             await self.kubernetes_api.delete_pod(resource.external_name)
         async with self.host.session(commit=True):
-            resource.status = ResourceStatus.DECOMMISSIONED
+            resource.status = ResourceStatus.GONE
 
     @override
     async def wait_closed(self) -> None:

@@ -7,7 +7,7 @@ from opentelemetry import trace
 
 from bench.language import Bench, Drive, ResourceStatus, Store
 from bench.language.bench import Region
-from bench.language.const import VERSION, NodeType
+from bench.language.const import NodeType
 from bench.sql.client import pg_store_connection
 from bench.sql.engine import sqlstr
 from bench.sql.migration import sql_migrate
@@ -79,9 +79,7 @@ class NeonStoreProvisioner(StoreProvisioner):
         async with self.host.session(commit=True):
             resource.external_id = neon_project.project_id
             resource.connection_uri = neon_project.connection_uri
-            if not resource.version:
-                resource.version = VERSION
-            resource.status = ResourceStatus.HEALTHY
+            resource.current_status = ResourceStatus.READY
         # migrate it immediately
         await self._do_migrate(resource)
 
@@ -90,7 +88,7 @@ class NeonStoreProvisioner(StoreProvisioner):
         assert resource.external_id, f"{resource!r} has no external ID"
         await self._neon_api.delete_project(project_id=resource.external_id)
         async with self.host.session(commit=True):
-            resource.status = ResourceStatus.DECOMMISSIONED
+            resource.current_status = ResourceStatus.GONE
 
 
 class LocalhostStoreProvisioner(StoreProvisioner):
@@ -112,9 +110,7 @@ class LocalhostStoreProvisioner(StoreProvisioner):
             connection_uri = self.host.global_store.connection_uri
             assert connection_uri, f"{self.host.global_store!r} has no connection URI"
             resource.connection_uri = f"{connection_uri.rsplit('/', 1)[0]}/{resource.external_name}"
-            if not resource.version:
-                resource.version = VERSION
-            resource.status = ResourceStatus.HEALTHY
+            resource.current_status = ResourceStatus.READY
         # migrate it immediately
         await self._do_migrate(resource)
 
@@ -136,12 +132,12 @@ class S3DriveProvisioner(Provisioner[Drive, Drive]):
     @override
     async def _do_provision(self, resource: Drive):
         async with self.host.session(commit=True):
-            resource.status = ResourceStatus.HEALTHY
+            resource.current_status = ResourceStatus.READY
 
     @override
     async def _do_decommission(self, resource: Drive):
         async with self.host.session(commit=True):
-            resource.status = ResourceStatus.DECOMMISSIONED
+            resource.current_status = ResourceStatus.GONE
 
 
 class NeonCreateProjectRep(NamedTuple):

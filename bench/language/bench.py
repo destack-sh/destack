@@ -7,6 +7,7 @@ from uuid import UUID
 
 from bench.language.const import (
     REGION,
+    VERSION,
     ClientType,
     EnumType,
     NodeType,
@@ -267,17 +268,22 @@ class ResourceStatus(IdEnum):
 
     # preparing
     DECLARED = 1
-    PROVISIONING = 5
     # extant
-    HEALTHY = 10
-    UNHEALTHY = 15
+    READY = 10
+    NOT_READY = 15
     SLEEPING = 20
     # terminal
-    DECOMMISSIONED = 30
+    GONE = 30
 
     @property
     def is_extant(self) -> bool:
+        """Whether this resouce does/should exist."""
         return 10 <= self.value <= 20
+
+    @property
+    def is_target(self) -> bool:
+        """Whether this status can be a target status for a resource."""
+        return self != ResourceStatus.NOT_READY
 
 
 EXTANT_RESOURCE_STATUSES = bittuple(*(s for s in ResourceStatus if 10 <= s.value <= 20))
@@ -297,8 +303,8 @@ class ResourceNode(BenchNode[NodeDataT], abc.ABC, Generic[NodeDataT]):
     name: str = p_regular(32, constraint=NAME_CONSTRAINT)
     text: Optional["Text"] = p_regular(34, default=None, struct=StructType.TEXT)
     region: Region = p_system(35, default=REGION, default_sql=None)
-    status: ResourceStatus = p_system(36, default=ResourceStatus.DECLARED)
-    current_status: Optional[ResourceStatus] = p_system(37, default=None)
+    status: ResourceStatus = p_system(36, default=ResourceStatus.READY, default_sql=None)
+    current_status: ResourceStatus = p_system(37, default=ResourceStatus.GONE, default_sql=None)
 
     def __content_str__(self):
         value_strs: list[str] = []
@@ -343,7 +349,7 @@ class Server(ResourceNode[ServerData]):
     Physical compute is materialized (on-demand) as Machines.
     """
 
-    version: Optional[str] = p_system(40, default=None)
+    version: str = p_system(40, default=VERSION, default_sql=None)
     current_version: Optional[str] = p_system(41, default=None)
 
     min_cpu: Optional[float] = p_system(50, default=None, description="vCPU count")
@@ -367,7 +373,7 @@ class Machine(ResourceNode[MachineData]):
 
     parent: Server | Bench | None = p_node_parent(4, NodeType.SERVER, NodeType.BENCH)
 
-    version: Optional[str] = p_system(40, default=None)
+    version: str = p_system(40, default=VERSION, default_sql=None)
     current_version: Optional[str] = p_system(41, default=None)
     external_name: Optional[str] = p_kernel(42, require=False, default=None, sensitive=True)
     external_id: Optional[str] = p_kernel(43, require=False, default=None, sensitive=True)
@@ -392,7 +398,7 @@ class Machine(ResourceNode[MachineData]):
 class Store(ResourceNode[StoreData]):
     """A trusty Postgres-compatible database."""
 
-    version: Optional[str] = p_system(40, default=None)
+    version: str = p_system(40, default=VERSION, default_sql=None)
     current_version: Optional[str] = p_system(41, default=None)
 
     external_name: Optional[str] = p_kernel(50, require=False, default=None, sensitive=True)

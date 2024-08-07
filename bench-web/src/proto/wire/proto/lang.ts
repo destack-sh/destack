@@ -2762,9 +2762,9 @@ export interface DriveData {
      */
     status: ResourceStatus;
     /**
-     * @generated from protobuf field: optional symbolx.bench.ResourceStatus current_status = 37;
+     * @generated from protobuf field: symbolx.bench.ResourceStatus current_status = 37;
      */
-    currentStatus?: ResourceStatus;
+    currentStatus: ResourceStatus;
 }
 /**
  * A used-defined attribute of some value
@@ -3447,13 +3447,13 @@ export interface MachineData {
      */
     status: ResourceStatus;
     /**
-     * @generated from protobuf field: optional symbolx.bench.ResourceStatus current_status = 37;
+     * @generated from protobuf field: symbolx.bench.ResourceStatus current_status = 37;
      */
-    currentStatus?: ResourceStatus;
+    currentStatus: ResourceStatus;
     /**
-     * @generated from protobuf field: optional string version = 40;
+     * @generated from protobuf field: string version = 40;
      */
-    version?: string;
+    version: string;
     /**
      * @generated from protobuf field: optional string current_version = 41;
      */
@@ -4542,13 +4542,13 @@ export interface ServerData {
      */
     status: ResourceStatus;
     /**
-     * @generated from protobuf field: optional symbolx.bench.ResourceStatus current_status = 37;
+     * @generated from protobuf field: symbolx.bench.ResourceStatus current_status = 37;
      */
-    currentStatus?: ResourceStatus;
+    currentStatus: ResourceStatus;
     /**
-     * @generated from protobuf field: optional string version = 40;
+     * @generated from protobuf field: string version = 40;
      */
-    version?: string;
+    version: string;
     /**
      * @generated from protobuf field: optional string current_version = 41;
      */
@@ -5195,13 +5195,13 @@ export interface StoreData {
      */
     status: ResourceStatus;
     /**
-     * @generated from protobuf field: optional symbolx.bench.ResourceStatus current_status = 37;
+     * @generated from protobuf field: symbolx.bench.ResourceStatus current_status = 37;
      */
-    currentStatus?: ResourceStatus;
+    currentStatus: ResourceStatus;
     /**
-     * @generated from protobuf field: optional string version = 40;
+     * @generated from protobuf field: string version = 40;
      */
-    version?: string;
+    version: string;
     /**
      * @generated from protobuf field: optional string current_version = 41;
      */
@@ -9664,25 +9664,21 @@ export enum ResourceStatus {
      */
     DECLARED = 1,
     /**
-     * @generated from protobuf enum value: RESOURCE_STATUS_PROVISIONING = 5;
+     * @generated from protobuf enum value: RESOURCE_STATUS_READY = 10;
      */
-    PROVISIONING = 5,
+    READY = 10,
     /**
-     * @generated from protobuf enum value: RESOURCE_STATUS_HEALTHY = 10;
+     * @generated from protobuf enum value: RESOURCE_STATUS_NOT_READY = 15;
      */
-    HEALTHY = 10,
-    /**
-     * @generated from protobuf enum value: RESOURCE_STATUS_UNHEALTHY = 15;
-     */
-    UNHEALTHY = 15,
+    NOT_READY = 15,
     /**
      * @generated from protobuf enum value: RESOURCE_STATUS_SLEEPING = 20;
      */
     SLEEPING = 20,
     /**
-     * @generated from protobuf enum value: RESOURCE_STATUS_DECOMMISSIONED = 30;
+     * @generated from protobuf enum value: RESOURCE_STATUS_GONE = 30;
      */
-    DECOMMISSIONED = 30
+    GONE = 30
 }
 /**
  * @generated from protobuf enum symbolx.bench.RunErrorKind
@@ -17563,7 +17559,7 @@ class DriveData$Type extends MessageType<DriveData> {
             { no: 34, name: "text", kind: "message", T: () => TextData },
             { no: 35, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
             { no: 36, name: "status", kind: "enum", T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
-            { no: 37, name: "current_status", kind: "enum", opt: true, T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] }
+            { no: 37, name: "current_status", kind: "enum", T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] }
         ]);
     }
     create(value?: PartialMessage<DriveData>): DriveData {
@@ -17577,6 +17573,7 @@ class DriveData$Type extends MessageType<DriveData> {
         message.name = "";
         message.region = 0;
         message.status = 0;
+        message.currentStatus = 0;
         if (value !== undefined)
             reflectionMergePartial<DriveData>(this, message, value);
         return message;
@@ -17644,7 +17641,7 @@ class DriveData$Type extends MessageType<DriveData> {
                 case /* symbolx.bench.ResourceStatus status */ 36:
                     message.status = reader.int32();
                     break;
-                case /* optional symbolx.bench.ResourceStatus current_status */ 37:
+                case /* symbolx.bench.ResourceStatus current_status */ 37:
                     message.currentStatus = reader.int32();
                     break;
                 default:
@@ -17717,8 +17714,8 @@ class DriveData$Type extends MessageType<DriveData> {
         /* symbolx.bench.ResourceStatus status = 36; */
         if (message.status !== 0)
             writer.tag(36, WireType.Varint).int32(message.status);
-        /* optional symbolx.bench.ResourceStatus current_status = 37; */
-        if (message.currentStatus !== undefined)
+        /* symbolx.bench.ResourceStatus current_status = 37; */
+        if (message.currentStatus !== 0)
             writer.tag(37, WireType.Varint).int32(message.currentStatus);
         let u = options.writeUnknownFields;
         if (u !== false)
@@ -19030,8 +19027,8 @@ class MachineData$Type extends MessageType<MachineData> {
             { no: 34, name: "text", kind: "message", T: () => TextData },
             { no: 35, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
             { no: 36, name: "status", kind: "enum", T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
-            { no: 37, name: "current_status", kind: "enum", opt: true, T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
-            { no: 40, name: "version", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 37, name: "current_status", kind: "enum", T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
+            { no: 40, name: "version", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 41, name: "current_version", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 42, name: "external_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 43, name: "external_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -19057,6 +19054,8 @@ class MachineData$Type extends MessageType<MachineData> {
         message.name = "";
         message.region = 0;
         message.status = 0;
+        message.currentStatus = 0;
+        message.version = "";
         message.cpu = 0;
         message.ram = 0;
         if (value !== undefined)
@@ -19126,10 +19125,10 @@ class MachineData$Type extends MessageType<MachineData> {
                 case /* symbolx.bench.ResourceStatus status */ 36:
                     message.status = reader.int32();
                     break;
-                case /* optional symbolx.bench.ResourceStatus current_status */ 37:
+                case /* symbolx.bench.ResourceStatus current_status */ 37:
                     message.currentStatus = reader.int32();
                     break;
-                case /* optional string version */ 40:
+                case /* string version */ 40:
                     message.version = reader.string();
                     break;
                 case /* optional string current_version */ 41:
@@ -19238,11 +19237,11 @@ class MachineData$Type extends MessageType<MachineData> {
         /* symbolx.bench.ResourceStatus status = 36; */
         if (message.status !== 0)
             writer.tag(36, WireType.Varint).int32(message.status);
-        /* optional symbolx.bench.ResourceStatus current_status = 37; */
-        if (message.currentStatus !== undefined)
+        /* symbolx.bench.ResourceStatus current_status = 37; */
+        if (message.currentStatus !== 0)
             writer.tag(37, WireType.Varint).int32(message.currentStatus);
-        /* optional string version = 40; */
-        if (message.version !== undefined)
+        /* string version = 40; */
+        if (message.version !== "")
             writer.tag(40, WireType.LengthDelimited).string(message.version);
         /* optional string current_version = 41; */
         if (message.currentVersion !== undefined)
@@ -21400,8 +21399,8 @@ class ServerData$Type extends MessageType<ServerData> {
             { no: 34, name: "text", kind: "message", T: () => TextData },
             { no: 35, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
             { no: 36, name: "status", kind: "enum", T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
-            { no: 37, name: "current_status", kind: "enum", opt: true, T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
-            { no: 40, name: "version", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 37, name: "current_status", kind: "enum", T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
+            { no: 40, name: "version", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 41, name: "current_version", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 50, name: "min_cpu", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
             { no: 51, name: "max_cpu", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
@@ -21422,6 +21421,8 @@ class ServerData$Type extends MessageType<ServerData> {
         message.name = "";
         message.region = 0;
         message.status = 0;
+        message.currentStatus = 0;
+        message.version = "";
         if (value !== undefined)
             reflectionMergePartial<ServerData>(this, message, value);
         return message;
@@ -21489,10 +21490,10 @@ class ServerData$Type extends MessageType<ServerData> {
                 case /* symbolx.bench.ResourceStatus status */ 36:
                     message.status = reader.int32();
                     break;
-                case /* optional symbolx.bench.ResourceStatus current_status */ 37:
+                case /* symbolx.bench.ResourceStatus current_status */ 37:
                     message.currentStatus = reader.int32();
                     break;
-                case /* optional string version */ 40:
+                case /* string version */ 40:
                     message.version = reader.string();
                     break;
                 case /* optional string current_version */ 41:
@@ -21586,11 +21587,11 @@ class ServerData$Type extends MessageType<ServerData> {
         /* symbolx.bench.ResourceStatus status = 36; */
         if (message.status !== 0)
             writer.tag(36, WireType.Varint).int32(message.status);
-        /* optional symbolx.bench.ResourceStatus current_status = 37; */
-        if (message.currentStatus !== undefined)
+        /* symbolx.bench.ResourceStatus current_status = 37; */
+        if (message.currentStatus !== 0)
             writer.tag(37, WireType.Varint).int32(message.currentStatus);
-        /* optional string version = 40; */
-        if (message.version !== undefined)
+        /* string version = 40; */
+        if (message.version !== "")
             writer.tag(40, WireType.LengthDelimited).string(message.version);
         /* optional string current_version = 41; */
         if (message.currentVersion !== undefined)
@@ -22796,8 +22797,8 @@ class StoreData$Type extends MessageType<StoreData> {
             { no: 34, name: "text", kind: "message", T: () => TextData },
             { no: 35, name: "region", kind: "enum", T: () => ["symbolx.bench.Region", Region, "REGION_"] },
             { no: 36, name: "status", kind: "enum", T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
-            { no: 37, name: "current_status", kind: "enum", opt: true, T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
-            { no: 40, name: "version", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 37, name: "current_status", kind: "enum", T: () => ["symbolx.bench.ResourceStatus", ResourceStatus, "RESOURCE_STATUS_"] },
+            { no: 40, name: "version", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 41, name: "current_version", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 50, name: "external_name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 51, name: "external_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -22815,6 +22816,8 @@ class StoreData$Type extends MessageType<StoreData> {
         message.name = "";
         message.region = 0;
         message.status = 0;
+        message.currentStatus = 0;
+        message.version = "";
         if (value !== undefined)
             reflectionMergePartial<StoreData>(this, message, value);
         return message;
@@ -22882,10 +22885,10 @@ class StoreData$Type extends MessageType<StoreData> {
                 case /* symbolx.bench.ResourceStatus status */ 36:
                     message.status = reader.int32();
                     break;
-                case /* optional symbolx.bench.ResourceStatus current_status */ 37:
+                case /* symbolx.bench.ResourceStatus current_status */ 37:
                     message.currentStatus = reader.int32();
                     break;
-                case /* optional string version */ 40:
+                case /* string version */ 40:
                     message.version = reader.string();
                     break;
                 case /* optional string current_version */ 41:
@@ -22970,11 +22973,11 @@ class StoreData$Type extends MessageType<StoreData> {
         /* symbolx.bench.ResourceStatus status = 36; */
         if (message.status !== 0)
             writer.tag(36, WireType.Varint).int32(message.status);
-        /* optional symbolx.bench.ResourceStatus current_status = 37; */
-        if (message.currentStatus !== undefined)
+        /* symbolx.bench.ResourceStatus current_status = 37; */
+        if (message.currentStatus !== 0)
             writer.tag(37, WireType.Varint).int32(message.currentStatus);
-        /* optional string version = 40; */
-        if (message.version !== undefined)
+        /* string version = 40; */
+        if (message.version !== "")
             writer.tag(40, WireType.LengthDelimited).string(message.version);
         /* optional string current_version = 41; */
         if (message.currentVersion !== undefined)
@@ -27245,9 +27248,9 @@ export const ServerDataInfo: Record<ServerProperty, PropertyInfo> = {
   [ServerProperty.name]: { id: 32, name: 'name', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[a-zA-Z0-9_'`˚ \\-]+$" }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.text]: { id: 34, name: 'text', component: ObjectType.SERVER, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [ServerProperty.region]: { id: 35, name: 'region', component: ObjectType.SERVER, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.status]: { id: 36, name: 'status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.status]: { id: 36, name: 'status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.08.07.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.minCpu]: { id: 50, name: 'min_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.maxCpu]: { id: 51, name: 'max_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -27274,9 +27277,9 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.name]: { id: 32, name: 'name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[a-zA-Z0-9_'`˚ \\-]+$" }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.text]: { id: 34, name: 'text', component: ObjectType.STORE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [StoreProperty.region]: { id: 35, name: 'region', component: ObjectType.STORE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.status]: { id: 36, name: 'status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.status]: { id: 36, name: 'status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.08.07.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 50, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 51, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -27300,9 +27303,9 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.name]: { id: 32, name: 'name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[a-zA-Z0-9_'`˚ \\-]+$" }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.text]: { id: 34, name: 'text', component: ObjectType.MACHINE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [MachineProperty.region]: { id: 35, name: 'region', component: ObjectType.MACHINE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.status]: { id: 36, name: 'status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.status]: { id: 36, name: 'status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.08.07.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 42, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 43, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -27334,8 +27337,8 @@ export const DriveDataInfo: Record<DriveProperty, PropertyInfo> = {
   [DriveProperty.name]: { id: 32, name: 'name', component: ObjectType.DRIVE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[a-zA-Z0-9_'`˚ \\-]+$" }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [DriveProperty.text]: { id: 34, name: 'text', component: ObjectType.DRIVE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [DriveProperty.region]: { id: 35, name: 'region', component: ObjectType.DRIVE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [DriveProperty.status]: { id: 36, name: 'status', component: ObjectType.DRIVE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [DriveProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.DRIVE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [DriveProperty.status]: { id: 36, name: 'status', component: ObjectType.DRIVE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [DriveProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.DRIVE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const MembershipDataInfo: Record<MembershipProperty, PropertyInfo> = {
   [MembershipProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.MEMBERSHIP, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },

@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.08.07.0"
+VERSION = "2024.08.07.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -284,9 +284,9 @@ SERVER_TABLE = Table(
         Column("name", PrimitiveType.STRING),
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("region", PrimitiveType.INT16),
-        Column("status", PrimitiveType.INT16, default="1"),
-        Column("current_status", PrimitiveType.INT16, is_nullable=True),
-        Column("version", PrimitiveType.STRING, is_nullable=True),
+        Column("status", PrimitiveType.INT16),
+        Column("current_status", PrimitiveType.INT16),
+        Column("version", PrimitiveType.STRING),
         Column("current_version", PrimitiveType.STRING, is_nullable=True),
         Column("min_cpu", PrimitiveType.FLOAT32, is_nullable=True),
         Column("max_cpu", PrimitiveType.FLOAT32, is_nullable=True),
@@ -319,9 +319,9 @@ STORE_TABLE = Table(
         Column("name", PrimitiveType.STRING),
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("region", PrimitiveType.INT16),
-        Column("status", PrimitiveType.INT16, default="1"),
-        Column("current_status", PrimitiveType.INT16, is_nullable=True),
-        Column("version", PrimitiveType.STRING, is_nullable=True),
+        Column("status", PrimitiveType.INT16),
+        Column("current_status", PrimitiveType.INT16),
+        Column("version", PrimitiveType.STRING),
         Column("current_version", PrimitiveType.STRING, is_nullable=True),
         Column("external_name", PrimitiveType.STRING, is_nullable=True),
         Column("external_id", PrimitiveType.STRING, is_nullable=True),
@@ -352,9 +352,9 @@ MACHINE_TABLE = Table(
         Column("name", PrimitiveType.STRING),
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("region", PrimitiveType.INT16),
-        Column("status", PrimitiveType.INT16, default="1"),
-        Column("current_status", PrimitiveType.INT16, is_nullable=True),
-        Column("version", PrimitiveType.STRING, is_nullable=True),
+        Column("status", PrimitiveType.INT16),
+        Column("current_status", PrimitiveType.INT16),
+        Column("version", PrimitiveType.STRING),
         Column("current_version", PrimitiveType.STRING, is_nullable=True),
         Column("external_name", PrimitiveType.STRING, is_nullable=True),
         Column("external_id", PrimitiveType.STRING, is_nullable=True),
@@ -398,8 +398,8 @@ DRIVE_TABLE = Table(
         Column("name", PrimitiveType.STRING),
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("region", PrimitiveType.INT16),
-        Column("status", PrimitiveType.INT16, default="1"),
-        Column("current_status", PrimitiveType.INT16, is_nullable=True),
+        Column("status", PrimitiveType.INT16),
+        Column("current_status", PrimitiveType.INT16),
     ),
 )
 
