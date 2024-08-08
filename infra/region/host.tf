@@ -156,7 +156,7 @@ resource "kubernetes_deployment" "host" {
         service_account_name = kubernetes_service_account.host.metadata[0].name
         container {
           name  = "host"
-          image = "ghcr.io/symbolx/bench-system:${var.git_commit}"
+          image = "ghcr.io/symbolx/bench-system:${var.bench_version}"
 
           port {
             container_port = 60051
