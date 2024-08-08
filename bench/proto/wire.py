@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.08.08.3"
+VERSION = "2024.08.08.4"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -1129,9 +1129,10 @@ class ResourceStatus(betterproto.Enum):
 
     UNSPECIFIED = 0
     DECLARED = 1
-    READY = 10
-    NOT_READY = 15
-    SLEEPING = 20
+    UP = 10
+    SLEEPING = 11
+    DOWN = 15
+    DEGRADED = 16
     GONE = 30
 
 

@@ -46,10 +46,15 @@ class ElasticServerProvisioner(Provisioner[Server, Server | Machine]):
                 client.machine = machine
 
         # update server status to reflect machines (if needed)
-        if machines and all(m.current_status == ResourceStatus.READY for m in machines):
-            current_status = ResourceStatus.READY
+        if machines:
+            if all(m.current_status == ResourceStatus.UP for m in machines):
+                current_status = ResourceStatus.UP
+            elif any(m.current_status == ResourceStatus.UP for m in machines):
+                current_status = ResourceStatus.DEGRADED
+            else:
+                current_status = ResourceStatus.DOWN
         else:
-            current_status = ResourceStatus.NOT_READY
+            current_status = ResourceStatus.DOWN
         if server.current_status != current_status:
             async with self.host.session(commit=True):
                 server.current_status = current_status

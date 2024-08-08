@@ -71,7 +71,7 @@ class QueueRunPlugin(HostPlugin[Run]):
 
         # find machine to queue run on
         for machine in self.bench.main_server.machines:
-            if machine.status != ResourceStatus.READY:
+            if machine.status != ResourceStatus.UP:
                 continue
             assert machine.connection_uri, f"missing connection uri for machine {machine!r}"
             channel = get_channel_cached(machine.connection_uri)

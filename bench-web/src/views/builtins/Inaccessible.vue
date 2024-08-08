@@ -59,7 +59,7 @@ const humanizedError = computed(() => {
     <template v-else>
       <!-- Error -->
       <p>
-        <i class="fas fa-exclamation-triangle text-danger-600" />
+        <i class="fas fa-circle-exclamation text-danger-600" />
         <span class="ml-1.5">
           <span class="font-semibold">{{ humanizedError.title }}</span>
         </span>

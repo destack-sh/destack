@@ -466,10 +466,11 @@ export const ICON_BY_REGION: Partial<Record<Region, IconData>> = _makeIcons<Regi
 
 export const ICON_BY_RESOURCE_STATUS: Partial<Record<ResourceStatus, IconData>> = _makeIcons<ResourceStatus>({
   [ResourceStatus.DECLARED]: "fas fa-circle-dot",
-  [ResourceStatus.READY]: "fas fa-circle-check",
-  [ResourceStatus.NOT_READY]: "fas fa-exclamation-triangle",
+  [ResourceStatus.UP]: "fas fa-circle-check",
+  [ResourceStatus.DOWN]: "fas fa-circle-xmark",
+  [ResourceStatus.DEGRADED]: "fas fa-circle-exclamation",
   [ResourceStatus.SLEEPING]: "fas fa-zzz",
-  [ResourceStatus.GONE]: "fas fa-skull",
+  [ResourceStatus.GONE]: "fas fa-empty-set",
 });
 
 // big registry of ICON_BY_* by enum type
