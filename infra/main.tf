@@ -161,7 +161,7 @@ module "region_aws_eu_frankfurt" {
   # web
   web_zone_id                     = data.cloudflare_zone.main_website.id
   web_certificate_arn             = aws_acm_certificate.main_website.arn
-  web_certificate_pem             = acme_certificate.main_website.certificate_pem
+  web_certificate_pem             = "${acme_certificate.main_website.certificate_pem}${acme_certificate.main_website.issuer_pem}"
   web_certificate_private_key_pem = acme_certificate.main_website.private_key_pem
 
   # 3rd party secrets
