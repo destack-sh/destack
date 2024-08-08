@@ -1,6 +1,6 @@
 # Run ./scripts/update-requirements.sh to update downstream requirements
 
--r requirements/base.in
+-r bench/requirements/base.in
 
 atlassian-python-api==3.41.11
 base58==2.1.1
