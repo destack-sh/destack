@@ -199,7 +199,6 @@ provider "helm" {
   }
 }
 
-
 # image pull secret (GHCR)
 resource "kubernetes_secret" "image_pull_secret" {
   metadata {
@@ -265,7 +264,7 @@ resource "aws_s3_bucket_cors_configuration" "bench_files_cors" {
 
 #
 # Supervisor (if primary)
-# NOTE :Infra: supervisor should probably be in its own cluster (or even just a lone EC2 instance)
+# NOTE :Infra: supervisor should probably be in its own cluster? (or even just a lone EC2 instance)
 #
 
 module "supervisor" {

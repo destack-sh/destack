@@ -39,7 +39,7 @@ locals {
   }
 }
 
-# s3 access (to region)
+# host s3 access
 resource "aws_iam_user" "host" {
   name = "bench-${var.env}-host"
 }
@@ -77,6 +77,52 @@ resource "aws_iam_access_key" "host" {
   user = aws_iam_user.host.name
 }
 
+# host role / service account (to manage resources in cluster)
+resource "kubernetes_service_account" "host" {
+  metadata {
+    name      = "${local.prefix}-host"
+    namespace = "default"
+  }
+}
+resource "kubernetes_cluster_role" "host" {
+  metadata {
+    name = "${local.prefix}-host"
+  }
+
+  rule {
+    api_groups = [""]
+    resources  = ["secrets", "configmaps", "pods", "services", "namespaces", "persistentvolumes", "persistentvolumeclaims"]
+    verbs      = ["get", "list", "watch", "create", "update", "patch", "delete"]
+  }
+  rule {
+    api_groups = ["apps"]
+    resources  = ["deployments", "replicasets", "statefulsets"]
+    verbs      = ["get", "list", "watch", "create", "update", "patch", "delete"]
+  }
+  rule {
+    api_groups = ["batch"]
+    resources  = ["jobs", "cronjobs"]
+    verbs      = ["get", "list", "watch", "create", "update", "patch", "delete"]
+  }
+}
+resource "kubernetes_cluster_role_binding" "host" {
+  metadata {
+    name = "${local.prefix}-host"
+  }
+
+  role_ref {
+    api_group = "rbac.authorization.k8s.io"
+    kind      = "ClusterRole"
+    name      = kubernetes_cluster_role.host.metadata[0].name
+  }
+
+  subject {
+    kind      = "ServiceAccount"
+    name      = kubernetes_service_account.host.metadata[0].name
+    namespace = "default"
+  }
+}
+
 # host deployment
 resource "kubernetes_deployment" "host" {
   metadata {
@@ -107,6 +153,7 @@ resource "kubernetes_deployment" "host" {
       }
 
       spec {
+        service_account_name = kubernetes_service_account.host.metadata[0].name
         container {
           name  = "host"
           image = "ghcr.io/symbolx/bench-system:${var.git_commit}"
