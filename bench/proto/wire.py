@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.08.08.2"
+VERSION = "2024.08.08.3"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -3062,14 +3062,14 @@ class RunData(betterproto.Message):
     code: Optional["CodeData"] = betterproto.message_field(36, optional=True)
     options: Optional["RunOptionsData"] = betterproto.message_field(38, optional=True)
     status: "RunStatus" = betterproto.enum_field(40)
-    current_status: Optional["RunStatus"] = betterproto.enum_field(41, optional=True)
-    duration: Optional[float] = betterproto.float_field(42, optional=True)
-    attempts: List["RunAttemptData"] = betterproto.message_field(43)
-    error: Optional["RunErrorData"] = betterproto.message_field(44, optional=True)
-    scheduled_at: Optional[datetime] = betterproto.message_field(45, optional=True)
-    scheduled_epoch: Optional[int] = betterproto.int32_field(46, optional=True)
-    started_at: Optional[datetime] = betterproto.message_field(47, optional=True)
-    started_epoch: Optional[int] = betterproto.int32_field(48, optional=True)
+    duration: Optional[float] = betterproto.float_field(41, optional=True)
+    attempts: List["RunAttemptData"] = betterproto.message_field(42)
+    error: Optional["RunErrorData"] = betterproto.message_field(43, optional=True)
+    scheduled_at: Optional[datetime] = betterproto.message_field(44, optional=True)
+    scheduled_epoch: Optional[int] = betterproto.int32_field(45, optional=True)
+    started_at: Optional[datetime] = betterproto.message_field(46, optional=True)
+    started_epoch: Optional[int] = betterproto.int32_field(47, optional=True)
+    killed_at: Optional[datetime] = betterproto.message_field(48, optional=True)
     halted_at: Optional[datetime] = betterproto.message_field(49, optional=True)
     halted_epoch: Optional[int] = betterproto.int32_field(50, optional=True)
     halted_on_run_ptr: Optional["NodeReferenceData"] = betterproto.message_field(51, optional=True)

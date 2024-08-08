@@ -176,11 +176,11 @@ const { activeDropZone } = useMultiDropZone({
 // actions
 const getBlockFromContext = (ctx: ActionContext | undefined): { block: BlockData | null; idx: number } => {
   let blockIdx: number | undefined = undefined;
-  if (!blockIdx && ctx?.triggerNode?.id != null)
+  if (blockIdx === undefined && ctx?.triggerNode?.id != null)
     blockIdx = blocks.value.findIndex((block) => block.id == ctx!.triggerNode!.id);
-  if (!blockIdx && focusedNodePtr.value?.id != null)
+  if (blockIdx === undefined && focusedNodePtr.value?.id != null)
     blockIdx = blocks.value.findIndex((block) => block.id == focusedNodePtr.value!.id);
-  if (!blockIdx) return { block: null, idx: -1 };
+  if (blockIdx === undefined) return { block: null, idx: -1 };
   const block = blocks.value[blockIdx];
   return { block, idx: blockIdx };
 };
