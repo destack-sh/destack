@@ -32,6 +32,12 @@ variable "host_map" {
   description = "Host map"
 }
 
+variable "supervisor_grpc_port" {
+  type        = number
+  description = "Supervisor GRPC port"
+  default     = 60061
+}
+
 # 
 # AWS
 # 
@@ -86,14 +92,14 @@ variable "image_pull_secret_name" {
   description = "Name of the image pull secret"
 }
 
+#
+# Web
+# 
+
 variable "web_certificate_secret_name" {
   type        = string
   description = "Name of the cert secret"
 }
-
-#
-# Web
-# 
 
 variable "web_certificate_arn" {
   type        = string
