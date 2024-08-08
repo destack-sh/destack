@@ -105,12 +105,12 @@ class LocalhostMachineProvisioner(Provisioner[Machine, Machine]):
     async def _do_provision(self, resource: Machine):
         async with self.host.session(commit=True):
             resource.connection_uri = self._local_machine_url
-            resource.status = ResourceStatus.READY
+            resource.current_status = ResourceStatus.READY
 
     @override
     async def _do_decommission(self, resource: Machine):
         async with self.host.session(commit=True):
-            resource.status = ResourceStatus.GONE
+            resource.current_status = ResourceStatus.GONE
 
 
 class DockerMachineProvisioner(Provisioner[Machine, Machine]):
@@ -141,7 +141,7 @@ class DockerMachineProvisioner(Provisioner[Machine, Machine]):
                     continue
                 container = containers_by_id.get(machine.external_id)
                 if container is None:
-                    machine.status = ResourceStatus.DECLARED
+                    machine.current_status = ResourceStatus.DECLARED
 
     @override
     async def _do_provision(self, resource: Machine):
@@ -164,7 +164,7 @@ class DockerMachineProvisioner(Provisioner[Machine, Machine]):
         async with self.host.session(commit=True):
             resource.external_name = external_name
             resource.external_id = container.id
-            resource.status = ResourceStatus.READY
+            resource.current_status = ResourceStatus.READY
             resource.connection_uri = f"http://localhost:{assigned_port}"
 
     @override
@@ -179,7 +179,7 @@ class DockerMachineProvisioner(Provisioner[Machine, Machine]):
         if container is not None:
             container.remove(force=True)
         async with self.host.session(commit=True):
-            resource.status = ResourceStatus.GONE
+            resource.current_status = ResourceStatus.GONE
 
 
 KUBERNETES_KUBECONFIG_PATH = get_from_env_maybe(
@@ -405,15 +405,15 @@ class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
         if machine.current_version != machine.version:
             machine.current_version = machine.version
         # NOTE :Robustness: reflect actual pod status in Machine status
-        machine.status = machine.current_status = ResourceStatus.READY
+        current_status = ResourceStatus.READY
+        if machine.current_status != current_status:
+            machine.current_status = current_status
         if pod.status and pod.status.pod_ip:  # type: ignore
             connection_uri = (
                 f"http://{pod.status.pod_ip}:{pod.spec.containers[0].ports[0].container_port}"  # type: ignore
             )
-        else:
-            connection_uri = None
-        if machine.connection_uri != connection_uri:
-            machine.connection_uri = connection_uri
+            if machine.connection_uri != connection_uri:
+                machine.connection_uri = connection_uri
 
     async def _do_watch_pods(self, *, label_selector: str, resource_version: str) -> None:
         async for event_type, pod in self.kubernetes_api.watch_pods(
@@ -428,7 +428,7 @@ class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
                     self._update_machine_from_pod(machine, pod)
             elif event_type == "DELETED":
                 async with self.host.session(commit=True):
-                    machine.current_status = machine.status = ResourceStatus.DECLARED
+                    machine.current_status = ResourceStatus.GONE
             else:
                 assert_never(event_type)
 
@@ -462,7 +462,7 @@ class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
                     machine.external_name
                     and machine.external_name not in self._kubernetes_pods_by_name
                 ):
-                    machine.status = ResourceStatus.DECLARED
+                    machine.current_status = ResourceStatus.DECLARED
 
         # and keep watching for pod changes
         self.tasks.run(
@@ -506,9 +506,13 @@ class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
     @override
     async def _do_decommission(self, resource: Machine):
         if resource.external_name:
-            await self.kubernetes_api.delete_pod(resource.external_name)
+            try:
+                await self.kubernetes_api.delete_pod(resource.external_name)
+            except k8.ApiException as e:
+                # probably already gone
+                logger.warn("machine.decommission.error", resource=resource, exc_info=e)
         async with self.host.session(commit=True):
-            resource.status = ResourceStatus.GONE
+            resource.current_status = ResourceStatus.GONE
 
     @override
     async def wait_closed(self) -> None:

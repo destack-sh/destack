@@ -740,7 +740,7 @@ class Host(GraphIoServiceBase, HostApi, HostBase):
                     ):
                         trimmed_commit = commit.trim_to(plugin.watch_types)
                         await plugin.on_commit(self._session, trimmed_commit)
-                        logger.debug(
+                        logger.trace(
                             "host.on_commit.plugin",
                             host=self,
                             plugin=plugin,
