@@ -267,12 +267,13 @@ class Dependency(SourceNode[DependencyData]):
 class ResourceStatus(IdEnum):
     """Generalized status of a Resource in its lifecycle."""
 
-    # preparing
+    # definition
     DECLARED = 1
     # extant
-    READY = 10
-    NOT_READY = 15
-    SLEEPING = 20
+    UP = 10
+    SLEEPING = 11
+    DOWN = 15
+    DEGRADED = 16
     # terminal
     GONE = 30
 
@@ -284,7 +285,7 @@ class ResourceStatus(IdEnum):
     @property
     def is_target(self) -> bool:
         """Whether this status can be a target status for a resource."""
-        return self != ResourceStatus.NOT_READY
+        return self < 15 or self > 20
 
 
 EXTANT_RESOURCE_STATUSES = bittuple(*(s for s in ResourceStatus if 10 <= s.value <= 20))
@@ -304,7 +305,7 @@ class ResourceNode(BenchNode[NodeDataT], abc.ABC, Generic[NodeDataT]):
     name: str = p_regular(32, constraint=NAME_CONSTRAINT)
     text: Optional["Text"] = p_regular(34, default=None, struct=StructType.TEXT)
     region: Region = p_system(35, default=REGION, default_sql=None)
-    status: ResourceStatus = p_system(36, default=ResourceStatus.READY, default_sql=None)
+    status: ResourceStatus = p_system(36, default=ResourceStatus.UP, default_sql=None)
     current_status: ResourceStatus = p_system(37, default=ResourceStatus.GONE, default_sql=None)
 
     def __content_str__(self):

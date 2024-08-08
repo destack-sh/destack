@@ -121,7 +121,7 @@ class LocalhostMachineProvisioner(Provisioner[Machine, Machine]):
     async def _do_provision(self, resource: Machine):
         async with self.host.session(commit=True):
             resource.connection_uri = self._local_machine_url
-            resource.current_status = ResourceStatus.READY
+            resource.current_status = ResourceStatus.UP
 
     @override
     async def _do_decommission(self, resource: Machine):
@@ -180,7 +180,7 @@ class DockerMachineProvisioner(Provisioner[Machine, Machine]):
         async with self.host.session(commit=True):
             resource.external_name = external_name
             resource.external_id = container.id
-            resource.current_status = ResourceStatus.READY
+            resource.current_status = ResourceStatus.UP
             resource.connection_uri = f"http://localhost:{assigned_port}"
 
     @override
@@ -337,10 +337,7 @@ class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
 
         # status
         pod_phase = cast(str, pod.status.phase)  # type: ignore
-        if pod_phase == "Running":
-            current_status = ResourceStatus.READY
-        else:
-            current_status = ResourceStatus.NOT_READY
+        current_status = ResourceStatus.UP if pod_phase == "Running" else ResourceStatus.DOWN
         if machine.current_status != current_status:
             machine.current_status = current_status
 

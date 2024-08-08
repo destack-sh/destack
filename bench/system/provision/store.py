@@ -79,7 +79,7 @@ class NeonStoreProvisioner(StoreProvisioner):
         async with self.host.session(commit=True):
             resource.external_id = neon_project.project_id
             resource.connection_uri = neon_project.connection_uri
-            resource.current_status = ResourceStatus.READY
+            resource.current_status = ResourceStatus.UP
         # migrate it immediately
         await self._do_migrate(resource)
 
@@ -110,7 +110,7 @@ class LocalhostStoreProvisioner(StoreProvisioner):
             connection_uri = self.host.global_store.connection_uri
             assert connection_uri, f"{self.host.global_store!r} has no connection URI"
             resource.connection_uri = f"{connection_uri.rsplit('/', 1)[0]}/{resource.external_name}"
-            resource.current_status = ResourceStatus.READY
+            resource.current_status = ResourceStatus.UP
         # migrate it immediately
         await self._do_migrate(resource)
 
@@ -132,7 +132,7 @@ class S3DriveProvisioner(Provisioner[Drive, Drive]):
     @override
     async def _do_provision(self, resource: Drive):
         async with self.host.session(commit=True):
-            resource.current_status = ResourceStatus.READY
+            resource.current_status = ResourceStatus.UP
 
     @override
     async def _do_decommission(self, resource: Drive):
