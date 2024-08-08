@@ -46,11 +46,11 @@ class ElasticServerProvisioner(Provisioner[Server, Server | Machine]):
                 client.machine = machine
 
         # update server status to reflect machines (if needed)
-        if machines and all(m.status == ResourceStatus.READY for m in machines):
+        if machines and all(m.current_status == ResourceStatus.READY for m in machines):
             current_status = ResourceStatus.READY
         else:
             current_status = ResourceStatus.NOT_READY
-        if server.status != current_status:
+        if server.current_status != current_status:
             async with self.host.session(commit=True):
                 server.current_status = current_status
 
@@ -68,7 +68,7 @@ class ElasticServerProvisioner(Provisioner[Server, Server | Machine]):
 
         # and check/update them
         for server in servers:
-            if server.status != ResourceStatus.GONE:
+            if server.current_status != ResourceStatus.GONE:
                 await self._reconcile(server)
 
     @override
@@ -83,4 +83,4 @@ class ElasticServerProvisioner(Provisioner[Server, Server | Machine]):
     async def _do_decommission(self, resource: Server):
         # nothing special, child machines are automatically removed too
         async with self.host.session(commit=True):
-            resource.status = ResourceStatus.GONE
+            resource.current_status = ResourceStatus.GONE

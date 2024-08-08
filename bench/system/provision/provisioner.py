@@ -57,13 +57,6 @@ class Provisioner[PT: ResourceNode, WT: ResourceNode](DeferredHostPlugin[WT], ab
     async def _do_start(self) -> None:
         pass  # to be overridden
 
-    async def _ensure_target_status(self, resource: ResourceNode, status: ResourceStatus) -> None:
-        if resource.status != status:
-            async with self.host.session(commit=True):
-                resource.status = status
-
-    # nocheckin: handle resource current_* properly
-
     @final
     @tracer.start_as_current_span("provisioner.on_commit_deferred")
     async def on_commit_deferred(self, commit: Commit[WT]) -> None:
@@ -73,20 +66,16 @@ class Provisioner[PT: ResourceNode, WT: ResourceNode](DeferredHostPlugin[WT], ab
             subcommit = cast(Commit[PT], commit.trim_to(self.provision_types))
             for resource in subcommit.added:
                 if resource.status.is_extant and not resource.current_status.is_extant:
-                    await self._ensure_target_status(resource, ResourceStatus.READY)
                     await self.provision(resource)
             for resource in subcommit.updated:
                 if resource.status.is_extant and not resource.current_status.is_extant:
-                    await self._ensure_target_status(resource, ResourceStatus.READY)
                     await self.provision(resource)
                 elif resource.status.is_extant:
                     await self.update(resource)
-                else:
-                    await self._ensure_target_status(resource, ResourceStatus.GONE)
+                elif not resource.status.is_extant and resource.current_status.is_extant:
                     await self.decommission(resource)
             for resource in subcommit.removed:
                 if resource.current_status.is_extant:
-                    await self._ensure_target_status(resource, ResourceStatus.GONE)
                     await self.decommission(resource)
         await self._do_on_commit_deferred(commit)
 
