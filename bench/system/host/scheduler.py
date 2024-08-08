@@ -12,7 +12,7 @@ from bench.language.session import Session
 from bench.language.signal import Signal
 from bench.language.text import Text
 from bench.language.trigger import Trigger
-from bench.proto.services import get_channel_cached
+from bench.proto.services import get_channel
 from bench.proto.wire import QueueRunRequest, RuntimeClient
 from bench.system.host.core import Commit, DeferredHostPlugin, HostApi, HostPlugin
 from bench.utils.func import bittuple
@@ -74,7 +74,7 @@ class QueueRunPlugin(HostPlugin[Run]):
             if machine.status != ResourceStatus.UP:
                 continue
             assert machine.connection_uri, f"missing connection uri for machine {machine!r}"
-            channel = get_channel_cached(machine.connection_uri)
+            channel = get_channel(machine.connection_uri)
             runtime = RuntimeClient(channel)
             request = QueueRunRequest(run=run._to_data())
             try:
