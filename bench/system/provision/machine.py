@@ -99,8 +99,8 @@ def _get_machine_env_vars(
 
 
 def _get_bench_dir() -> str:
-    project_dir = Path(__file__).parent.parent.parent
-    assert project_dir.exists() and project_dir.name == "bench", f"{project_dir!r}"
+    project_dir = Path(__file__).parent.parent.parent.parent
+    assert project_dir.exists() and project_dir.name == "bench", f"bad project dir: {project_dir!r}"
     bench_dir = (project_dir / "bench").absolute().as_posix()
     return bench_dir
 
@@ -201,7 +201,7 @@ class DockerMachineProvisioner(Provisioner[Machine, Machine]):
 class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
     """Provision Machines as Pods on Kubernetes."""
 
-    # TODO :Test: test kubernetes machine provisioner
+    # TODO :Test!: test kubernetes machine provisioner
 
     watch_types = bittuple(NodeType.MACHINE)
     provision_types = bittuple(NodeType.MACHINE)
