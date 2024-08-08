@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.08.08.4"
+VERSION = "2024.08.08.5"
 
 if TYPE_CHECKING:
     from bench.language import Subject

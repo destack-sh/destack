@@ -136,7 +136,7 @@ resource "kubernetes_deployment" "supervisor" {
         # main container
         container {
           name  = "supervisor"
-          image = "ghcr.io/symbolx/bench-system:${var.git_commit}"
+          image = "ghcr.io/symbolx/bench-system:${var.bench_version}"
 
           port {
             container_port = 60051
