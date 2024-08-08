@@ -46,7 +46,7 @@ canvas.registerView(self);
 defineExpose<ViewExposed>({ self });
 </script>
 <template>
-  <div v-if="node && inspectionLayout" class="h-full w-full bg-white">
+  <div v-if="node && inspectionLayout" class="h-full w-full">
     <!-- Header -->
     <div class="group w-full" :style="{ height: HEADER_HEIGHT + 'px' }">
       <div
@@ -126,7 +126,7 @@ defineExpose<ViewExposed>({ self });
       </ul>
     </Scroll>
   </div>
-  <div v-else class="flex h-full w-full flex-col justify-center bg-white text-center">
+  <div v-else class="flex h-full w-full flex-col justify-center text-center">
     <!-- Empty/missing state -->
     <span>
       <i class="fas fa-empty-set text-gray-500" />

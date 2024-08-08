@@ -16,6 +16,7 @@ from bench.language.const import (
     StructType,
     enum_,
 )
+from bench.language.field import TypeConstraint
 from bench.language.graph import NodeList
 from bench.language.node import (
     BenchNode,
@@ -342,6 +343,13 @@ class ResourceNode(BenchNode[NodeDataT], abc.ABC, Generic[NodeDataT]):
         return current_diff
 
 
+CPU_CONSTRAINT = TypeConstraint(
+    min_value=0.1,
+    max_value=4.0,
+)
+RAM_CONSTRAINT = TypeConstraint(min_value=0.1, max_value=16.0)
+
+
 @node_(NodeType.SERVER)
 class Server(ResourceNode[ServerData]):
     """
@@ -352,10 +360,18 @@ class Server(ResourceNode[ServerData]):
     version: str = p_system(40, default=VERSION, default_sql=None)
     current_version: Optional[str] = p_system(41, default=None)
 
-    min_cpu: Optional[float] = p_system(50, default=None, description="vCPU count")
-    max_cpu: Optional[float] = p_system(51, default=None, description="vCPU count")
-    min_ram: Optional[float] = p_system(52, default=None, description="GB")
-    max_ram: Optional[float] = p_system(53, default=None, description="GB")
+    min_cpu: Optional[float] = p_system(
+        50, default=None, description="vCPU count", constraint=CPU_CONSTRAINT
+    )
+    max_cpu: Optional[float] = p_system(
+        51, default=None, description="vCPU count", constraint=CPU_CONSTRAINT
+    )
+    min_ram: Optional[float] = p_system(
+        52, default=None, description="GB", constraint=RAM_CONSTRAINT
+    )
+    max_ram: Optional[float] = p_system(
+        53, default=None, description="GB", constraint=RAM_CONSTRAINT
+    )
 
     active_at: Optional[datetime] = p_internal(60, default=None)
     bumped_at: Optional[datetime] = p_internal(61, default=None)
@@ -384,9 +400,9 @@ class Machine(ResourceNode[MachineData]):
         45, require=False, array=False, references=NodeType.CLIENT, fk=True, same_bench=True
     )
 
-    cpu: float = p_system(50, description="vCPU count")
+    cpu: float = p_regular(50, description="vCPU count", constraint=CPU_CONSTRAINT)
     current_cpu: Optional[float] = p_system(51, default=None, description="vCPU count")
-    ram: float = p_system(52, description="GB")
+    ram: float = p_regular(52, description="GB", constraint=RAM_CONSTRAINT)
     current_ram: Optional[float] = p_system(53, default=None, description="GB")
 
     started_at: Optional[datetime] = p_internal(60, default=None)
