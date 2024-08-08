@@ -336,7 +336,7 @@ class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
             machine.current_version = current_version
 
         # status
-        pod_phase = cast(str, pod.status.phase)  # type: ignore
+        pod_phase = cast(str, pod.status.phase) if pod.status else None  # type: ignore
         current_status = ResourceStatus.UP if pod_phase == "Running" else ResourceStatus.DOWN
         if machine.current_status != current_status:
             machine.current_status = current_status
