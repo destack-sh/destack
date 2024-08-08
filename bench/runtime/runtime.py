@@ -75,7 +75,12 @@ class Runtime(ServiceBase, RuntimeBase):
         self._supervisor_port = _supervisor_url.port
         if self._supervisor_host is None or self._supervisor_port is None:
             raise ValueError(f"invalid supervisor URL: {supervisor_url}")
-        self._supervisor = SupervisorClient(Channel(self._supervisor_host, self._supervisor_port))
+        _supervisor_channel = Channel(
+            host=self._supervisor_host,
+            port=self._supervisor_port,
+            ssl=_supervisor_url.scheme == "https",
+        )
+        self._supervisor = SupervisorClient(_supervisor_channel)
 
         # context
         if client_type == ClientType.BENCH_MACHINE and machine_id is None:
@@ -192,7 +197,9 @@ class Runtime(ServiceBase, RuntimeBase):
                     host_domain=host_info.domain,
                     host_port=host_info.grpc_port,
                 )
-                host_channel = Channel(host_info.domain, host_info.grpc_port)
+                host_channel = Channel(
+                    host=host_info.domain, port=host_info.grpc_port, ssl=host_info.ssl
+                )
                 return HostClient(host_channel)
             except Exception as e:
                 interval = retry.get_wait_interval()

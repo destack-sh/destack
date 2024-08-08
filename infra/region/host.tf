@@ -10,7 +10,7 @@ locals {
     CLOUD        = var.cloud
     REGION       = var.region
 
-    SUPERVISOR_URL               = "supervisor.justbench.com"
+    SUPERVISOR_URL               = var.supervisor_url
     MACHINE_RUNTIME_IMAGE        = "ghcr.io/symbolx/bench-runtime"
     KUBERNETES_NAMESPACE         = "default"
     KUBERNETES_MACHINE_APP_LABEL = "bench-machine"

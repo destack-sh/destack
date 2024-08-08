@@ -23,7 +23,7 @@ locals {
   main_website  = "justbench.com"
 
   host_map = {
-    "eu-frankfurt" = "aws-eu-frankfurt.host.${local.main_website}:60061/443"
+    "eu-frankfurt" = "aws-eu-frankfurt.host.${local.main_website}:60061/443s"
   }
 
   aws_global_vpc_network_cidr = "10.0.0.0/16"
@@ -140,8 +140,9 @@ module "region_aws_eu_frankfurt" {
   cloud                  = "aws"
   region                 = "eu-frankfurt"
   is_primary             = true
-  host_map               = local.host_map
   aws_availability_zones = ["eu-central-1a", "eu-central-1b"]
+  host_map               = local.host_map
+  supervisor_url         = "https://supervisor.justbench.com:60061"
 
   # aws
   vpc_network_cidr            = "10.1.0.0/16"

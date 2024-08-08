@@ -774,7 +774,11 @@ export interface ResolveHostsResponse_HostInfo {
      */
     grpcWebPort: number;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench = 4;
+     * @generated from protobuf field: bool ssl = 4;
+     */
+    ssl: boolean;
+    /**
+     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench = 5;
      */
     bench?: NodeReferenceData;
 }
@@ -2868,7 +2872,8 @@ class ResolveHostsResponse_HostInfo$Type extends MessageType<ResolveHostsRespons
             { no: 1, name: "domain", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 2, name: "grpc_port", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
             { no: 3, name: "grpc_web_port", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
-            { no: 4, name: "bench", kind: "message", T: () => NodeReferenceData }
+            { no: 4, name: "ssl", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 5, name: "bench", kind: "message", T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<ResolveHostsResponse_HostInfo>): ResolveHostsResponse_HostInfo {
@@ -2876,6 +2881,7 @@ class ResolveHostsResponse_HostInfo$Type extends MessageType<ResolveHostsRespons
         message.domain = "";
         message.grpcPort = 0;
         message.grpcWebPort = 0;
+        message.ssl = false;
         if (value !== undefined)
             reflectionMergePartial<ResolveHostsResponse_HostInfo>(this, message, value);
         return message;
@@ -2894,7 +2900,10 @@ class ResolveHostsResponse_HostInfo$Type extends MessageType<ResolveHostsRespons
                 case /* int32 grpc_web_port */ 3:
                     message.grpcWebPort = reader.int32();
                     break;
-                case /* symbolx.bench.NodeReferenceData bench */ 4:
+                case /* bool ssl */ 4:
+                    message.ssl = reader.bool();
+                    break;
+                case /* symbolx.bench.NodeReferenceData bench */ 5:
                     message.bench = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.bench);
                     break;
                 default:
@@ -2918,9 +2927,12 @@ class ResolveHostsResponse_HostInfo$Type extends MessageType<ResolveHostsRespons
         /* int32 grpc_web_port = 3; */
         if (message.grpcWebPort !== 0)
             writer.tag(3, WireType.Varint).int32(message.grpcWebPort);
-        /* symbolx.bench.NodeReferenceData bench = 4; */
+        /* bool ssl = 4; */
+        if (message.ssl !== false)
+            writer.tag(4, WireType.Varint).bool(message.ssl);
+        /* symbolx.bench.NodeReferenceData bench = 5; */
         if (message.bench)
-            NodeReferenceData.internalBinaryWrite(message.bench, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.bench, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

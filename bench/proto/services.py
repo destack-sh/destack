@@ -296,10 +296,10 @@ class GrpcServer(grpclib.server.Server):
 @cachetools.cached(
     cachetools.TTLCache(maxsize=128, ttl=300), key=lambda connection_uri: connection_uri
 )
-def get_channel_cached(connection_uri: str):
+def get_channel(connection_uri: str):
     connection_info = urlparse(connection_uri)
     assert isinstance(connection_info.netloc, str), f"invalid connection uri: {connection_uri}"
     assert connection_info.port is not None, f"invalid connection uri: {connection_uri}"
     netloc = connection_info.netloc.split(":", 1)[0]
-    channel = Channel(netloc, connection_info.port)
+    channel = Channel(host=netloc, port=connection_info.port, ssl=connection_info.scheme == "https")
     return channel

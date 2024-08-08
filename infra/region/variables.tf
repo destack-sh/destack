@@ -37,16 +37,22 @@ variable "host_map" {
   description = "Host map"
 }
 
+variable "aws_availability_zones" {
+  type        = list(string)
+  description = "AWS availability zones"
+}
+
 variable "host_grpc_port" {
   type        = number
   description = "Host GRPC port"
   default     = 60061
 }
 
-variable "aws_availability_zones" {
-  type        = list(string)
-  description = "AWS availability zones"
+variable "supervisor_url" {
+  type        = string
+  description = "Supervisor URL"
 }
+
 
 #
 # AWS

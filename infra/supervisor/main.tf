@@ -120,7 +120,7 @@ resource "kubernetes_deployment" "supervisor" {
         # init container
         init_container {
           name    = "supervisor-migrate"
-          image   = "ghcr.io/symbolx/bench-system:${var.git_commit}"
+          image   = "ghcr.io/symbolx/bench-system:${var.bench_version}"
           command = ["/bin/sh", "-c"]
           args    = ["python bench.py migrate apply"]
 

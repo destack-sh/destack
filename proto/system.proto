@@ -278,7 +278,8 @@ message ResolveHostsResponse {
     string domain = 1;
     int32 grpc_port = 2;
     int32 grpc_web_port = 3;
-    NodeReferenceData bench = 4;
+    bool ssl = 4;
+    NodeReferenceData bench = 5;
   }
   repeated HostInfo hosts = 1;
 }

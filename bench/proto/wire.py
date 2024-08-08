@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.08.08.7"
+VERSION = "2024.08.08.8"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -3875,7 +3875,8 @@ class ResolveHostsResponseHostInfo(betterproto.Message):
     domain: str = betterproto.string_field(1)
     grpc_port: int = betterproto.int32_field(2)
     grpc_web_port: int = betterproto.int32_field(3)
-    bench: "NodeReferenceData" = betterproto.message_field(4)
+    ssl: bool = betterproto.bool_field(4)
+    bench: "NodeReferenceData" = betterproto.message_field(5)
 
 
 @dataclass(eq=False, repr=False)
