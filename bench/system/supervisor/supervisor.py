@@ -40,10 +40,7 @@ from bench.proto.wire import (
     SupervisorBase,
 )
 from bench.system.graph.graph import GraphIoServiceBase
-from bench.system.host.core import (
-    HostProxy,
-)
-from bench.system.provision.provisioner import provision
+from bench.system.host.core import HostProxy
 from bench.system.utils.access import (
     ACCESS_TOKEN_LENGTH,
     SALT_LENGTH,
@@ -410,6 +407,8 @@ async def create_default_bench(
     global_store: Store,
     session: Session,
 ) -> Bench:
+    from bench.system.provision.provisioner import provision
+
     # create bench
     bench = Bench(
         main_handle=main_handle,

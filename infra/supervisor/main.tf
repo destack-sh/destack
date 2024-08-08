@@ -26,7 +26,7 @@ locals {
     ENVIRONMENT    = var.env
     CLOUD          = var.cloud
     REGION         = var.region
-    SUPERVISOR_URL = "supervisor.justbench.com"
+    SUPERVISOR_URL = "https://supervisor.justbench.com:${var.supervisor_grpc_port}"
     HOST_MAP = join(",", flatten([
       for k, v in var.host_map : [
         format("%s=%s", k, v)
@@ -139,7 +139,7 @@ resource "kubernetes_deployment" "supervisor" {
           image = "ghcr.io/symbolx/bench-system:${var.bench_version}"
 
           port {
-            container_port = 60051
+            container_port = 60061
             name           = "grpc"
           }
 
@@ -205,7 +205,7 @@ resource "kubernetes_config_map" "supervisor_envoy_config" {
     "envoy.yaml" = <<-EOT
       static_resources:
         listeners:
-        - name: grpc_listener
+        - name: grpc_web_listener
           address:
             socket_address: { address: 0.0.0.0, port_value: 8080 }
           filter_chains:
@@ -263,6 +263,47 @@ resource "kubernetes_config_map" "supervisor_envoy_config" {
                           filename: /etc/envoy/tls/tls.crt
                         private_key:
                           filename: /etc/envoy/tls/tls.key
+        - name: grpc_listener
+          address:
+            socket_address: { address: 0.0.0.0, port_value: ${var.supervisor_grpc_port} }
+          filter_chains:
+          - filters:
+            - name: envoy.filters.network.http_connection_manager
+              typed_config:
+                "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+                codec_type: auto
+                stat_prefix: grpc_json
+                route_config:
+                  name: local_route
+                  virtual_hosts:
+                  - name: local_service
+                    domains: ["*"]
+                    routes:
+                    - match: { prefix: "/" }
+                      route:
+                        cluster: supervisor_service
+                        timeout: 0s
+                http_filters:
+                - name: envoy.filters.http.router
+                  typed_config:
+                    "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+                access_log:
+                - name: envoy.access_loggers.file
+                  typed_config:
+                    "@type": type.googleapis.com/envoy.extensions.access_loggers.file.v3.FileAccessLog
+                    log_format:
+                      text_format: "[%START_TIME%] \"%REQ(:METHOD)% %REQ(X-ENVOY-ORIGIN)% %REQ(:AUTHORITY)% %UPSTREAM_HOST%\" %RESP(STATUS)% %BYTES_RECEIVED% %BYTES_SENT% %DURATION% %RESP(X-ENVOY-UPSTREAM-SERVICE-TIME)% \"%REQ(X-FORWARDED-FOR)%\" \"%REQ(USER-AGENT)%\" \"%REQ(X-REQUEST-ID)%\" \"%REQ(:AUTHORITY)%\" \"%UPSTREAM_HOST%\"\n"
+            transport_socket:
+              name: envoy.transport_sockets.tls
+              typed_config:
+                "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.DownstreamTlsContext
+                common_tls_context:
+                  alpn_protocols: ["h2"]
+                  tls_certificates:
+                    - certificate_chain:
+                        filename: /etc/envoy/tls/tls.crt
+                      private_key:
+                        filename: /etc/envoy/tls/tls.key
         clusters:
           - name: supervisor_service
             connect_timeout: 0.25s
@@ -314,6 +355,9 @@ resource "kubernetes_deployment" "supervisor_envoy_proxy" {
 
           port {
             container_port = 8080
+          }
+          port {
+            container_port = var.supervisor_grpc_port
           }
 
           volume_mount {
@@ -382,6 +426,12 @@ resource "kubernetes_service" "supervisor_envoy_proxy" {
       name        = "grpc-web"
       port        = 443
       target_port = 8080
+    }
+
+    port {
+      name        = "grpc"
+      port        = var.supervisor_grpc_port
+      target_port = var.supervisor_grpc_port
     }
 
     type = "LoadBalancer"
