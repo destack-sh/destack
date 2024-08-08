@@ -277,7 +277,7 @@ class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
         main_container = k8.V1Container(
             name="main",
             image=f"{MACHINE_RUNTIME_IMAGE}:{machine.version}",
-            command=["python", "bench.py", "serve", "runtime", "0.0.0.0", MACHINE_PORT],
+            command=["python", "bench.py", "serve", "runtime", "0.0.0.0", str(MACHINE_PORT)],
             env=[
                 *(k8.V1EnvVar(name=k, value=v) for k, v in env_vars.items()),
                 k8.V1EnvVar(

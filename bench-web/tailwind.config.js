@@ -72,7 +72,7 @@ export default {
         success: colors.lime,
         hint: colors.sky,
         warning: colors.yellow,
-        danger: colors.rose,
+        danger: colors.red,
       },
       transitionProperty: {
         // extend 'colors' to include opacity

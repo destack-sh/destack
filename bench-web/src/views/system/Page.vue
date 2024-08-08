@@ -175,11 +175,14 @@ const { activeDropZone } = useMultiDropZone({
 
 // actions
 const getBlockFromContext = (ctx: ActionContext | undefined): { block: BlockData | null; idx: number } => {
-  let block = blocks.value.find((block) => block.id == ctx?.triggerNode?.id);
-  if (!block) block = blocks.value.find((block) => block.id == focusedNodePtr.value?.id);
-  if (!block) return { block: null, idx: -1 };
-  const idx = blocks.value.findIndex((block) => block.id == block!.id);
-  return { block, idx };
+  let blockIdx: number | undefined = undefined;
+  if (!blockIdx && ctx?.triggerNode?.id != null)
+    blockIdx = blocks.value.findIndex((block) => block.id == ctx!.triggerNode!.id);
+  if (!blockIdx && focusedNodePtr.value?.id != null)
+    blockIdx = blocks.value.findIndex((block) => block.id == focusedNodePtr.value!.id);
+  if (!blockIdx) return { block: null, idx: -1 };
+  const block = blocks.value[blockIdx];
+  return { block, idx: blockIdx };
 };
 const actions: Partial<ActionMapImplementation<"common">> = {
   // create
@@ -270,21 +273,21 @@ function focus(anchor?: FocusAnchor | NodeReferenceData | AnyNodeData) {
   if (typeof anchor != "object") {
     if (anchor != "bottom") {
       blockEl = expandedBlockRefs.value[blocks.value[0].id!];
-      blockEl?.$el.scrollIntoView({ block: "start", behavior: "instant" });
+      blockEl?.$el?.scrollIntoView({ block: "start", behavior: "instant" });
     } else {
       blockEl = expandedBlockRefs.value[blocks.value[blocks.value.length - 1].id!];
-      blockEl?.$el.scrollIntoView({ block: "end", behavior: "instant" });
+      blockEl?.$el?.scrollIntoView({ block: "end", behavior: "instant" });
     }
   } else {
     if (anchor.id == nodePtr.value?.id) {
       // just focus first
       if (blocks.value.length > 0) {
         blockEl = expandedBlockRefs.value[blocks.value[0].id!];
-        blockEl.$el.scrollIntoView({ block: "nearest", behavior: "instant" });
+        blockEl.$el?.scrollIntoView({ block: "nearest", behavior: "instant" });
       }
     } else {
       blockEl = expandedBlockRefs.value[anchor.id!];
-      blockEl?.$el.scrollIntoView({ block: "nearest", behavior: "instant" });
+      blockEl?.$el?.scrollIntoView({ block: "nearest", behavior: "instant" });
     }
   }
 

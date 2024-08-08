@@ -1,15 +1,6 @@
 import { ColorData, ColorShade, ColorType, LogLevel, ObjectType, RunStatus } from "@/proto/wire";
 import { Casing, toCasing } from "@/utils/string";
 
-export const BG_COLOR_BY_LOG_LEVEL: Record<LogLevel, string> = {
-  [LogLevel.UNSPECIFIED]: "bg-gray-500",
-  [LogLevel.TRACE]: "bg-gray-500",
-  [LogLevel.DEBUG]: "bg-gray-500",
-  [LogLevel.INFO]: "bg-hint-500",
-  [LogLevel.WARNING]: "bg-yellow-400",
-  [LogLevel.ERROR]: "bg-danger-500",
-  [LogLevel.CRITICAL]: "bg-danger-500",
-};
 export const ACCENT_COLOR_BY_LOG_LEVEL: Record<LogLevel, string> = {
   [LogLevel.UNSPECIFIED]: "text-gray-700",
   [LogLevel.TRACE]: "text-gray-700",
@@ -21,9 +12,9 @@ export const ACCENT_COLOR_BY_LOG_LEVEL: Record<LogLevel, string> = {
 };
 
 export const ACCENT_COLOR_BY_RUN_STATUS: Record<RunStatus, string> = {
-  [RunStatus.UNSPECIFIED]: "text-gray-700",
-  [RunStatus.SCHEDULED]: "text-hint-700",
-  [RunStatus.QUEUED]: "text-hint-700",
+  [RunStatus.UNSPECIFIED]: "text-gray-500",
+  [RunStatus.SCHEDULED]: "text-gray-500",
+  [RunStatus.QUEUED]: "text-gray-500",
   [RunStatus.RUNNING]: "text-primary-900",
   [RunStatus.PAUSED]: "text-primary-900",
   [RunStatus.SUSPENDED]: "text-primary-900",
@@ -51,7 +42,6 @@ export const COLOR_SHADE_INDEX: Record<ColorShade, number> = {
 // prettier-ignore
 export const COLOR_HEX_BY_TYPE: Partial<Record<ColorType, string[]>> = {
   // NOTE: This is exactly the Tailwind color palette. We inline it for direct access (and to avoid Tailwind JIT performance issues)
-  // first the real ones so we can define the others using this
   [ColorType.GRAY]: ["#f8fafc", "#f1f5f9", "#e2e8f0", "#cbd5e1", "#94a3b8", "#64748b", "#475569", "#334155", "#1e293b", "#0f172a", "#020617"],
   [ColorType.RED]: ["#fef2f2", "#fee2e2", "#fecaca", "#fca5a5", "#f87171", "#ef4444", "#dc2626", "#b91c1c", "#991b1b", "#7f1d1d", "#450a0a"],
   [ColorType.ORANGE]: ["#fff7ed", "#ffedd5", "#fed7aa", "#fdba74", "#fb923c", "#f97316", "#ea580c", "#c2410c", "#9a3412", "#7c2d12", "#431407"],
