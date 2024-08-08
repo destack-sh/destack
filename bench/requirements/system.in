@@ -1,7 +1,8 @@
 # run ./scripts/update-requirements.sh
 
--r requirements/base.in
+-r bench/requirements/base.in
 
+aiodocker==0.22.2
 docker==7.1.0
 kubernetes-asyncio==30.3.0
 kubernetes==30.1.0

@@ -26,7 +26,7 @@ ENV PYTHONPATH "${PYTHONPATH}:/bench"
 # --- System (Supervisor/Host) ---
 FROM bench-base AS bench-system
 
-COPY requirements/system.txt requirements.txt
+COPY bench/requirements/system.txt requirements.txt
 RUN /root/.cargo/bin/uv pip install --system --no-cache -r requirements.txt
 
 # copy relevant files
@@ -53,7 +53,7 @@ FROM bench-base AS bench-runtime
 # install pandoc
 RUN apt-get install -y pandoc
 
-COPY requirements/runtime.txt requirements.txt
+COPY bench/requirements/runtime.txt requirements.txt
 RUN /root/.cargo/bin/uv pip install --system --no-cache -r requirements.txt
 
 # copy relevant files
