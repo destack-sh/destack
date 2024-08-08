@@ -388,7 +388,7 @@ class RuntimeRunner:
         if not run.started_at:
             run.started_epoch = self.session.epoch
             run.started_at = self.oracle.utc()
-        run.status = run.current_status = RunStatus.RUNNING
+        run.status = RunStatus.RUNNING
 
         # actually attempt Run
         try:
@@ -400,7 +400,7 @@ class RuntimeRunner:
             run.logs = handle.logs
             run.outputs = handle.outputs
             run.error = handle.error
-            run.status = run.current_status = handle.status
+            run.status = handle.status
             run.duration = last_attempt.duration
             run.terminated_at = last_attempt.terminated_at
             run.terminated_epoch = last_attempt.terminated_epoch
@@ -441,16 +441,18 @@ class RuntimeRunner:
                 # NOTE: Robustness: should we really commit the entire session on failure?
                 #  (maybe have some sort of atomic flag or context manager to prevent it as needed?)
                 # re-raised inner user error
-                if run.current_status != RunStatus.FAILED:
-                    run.fail(RunError.from_exception(RunErrorKind.RUNTIME, e))
+                if run.status != RunStatus.FAILED:
+                    run.status = RunStatus.FAILED
+                    run.error = RunError.from_exception(RunErrorKind.RUNTIME, e)
                 await self.session.commit()
                 logger.info("runner.process_run.error", run=run, exc_info=e, span="current")
                 if not suppress_error:
                     raise
             except Exception as e:
                 # some unexpected internal error
-                if run.current_status != RunStatus.FAILED:
-                    run.fail(RunError.from_exception(RunErrorKind.INTERNAL, e), _force=True)
+                if run.status != RunStatus.FAILED:
+                    run.status = RunStatus.FAILED
+                    run.error = RunError.from_exception(RunErrorKind.INTERNAL, e)
                 await self.session.commit()
                 logger.error(
                     "runner.process_run.internal_error", run=run, exc_info=e, span="current"

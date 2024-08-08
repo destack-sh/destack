@@ -96,7 +96,8 @@ class QueueRunPlugin(HostPlugin[Run]):
                 text=Text.from_markdown("Could not reach any currently available machine."),
             )
             async with self.host.session(commit=True):
-                run.fail(error)
+                run.status = RunStatus.FAILED
+                run.error = error
             log.error(
                 "scheduler.queue.failed",
                 machines=self.bench.main_server.machines,

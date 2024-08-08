@@ -294,21 +294,21 @@ class Run(PackageNode[RunData], HasTimeIdentity, HasNodeBase, HasSessionContext)
     )
 
     # status (overall)
-    status: RunStatus = p_regular(40, default=RunStatus.SCHEDULED)  # desired status
-    current_status: Optional[RunStatus] = p_regular(41, default=None)
+    status: RunStatus = p_internal(40, default=RunStatus.SCHEDULED)  # desired status
     duration: Optional[float] = p_regular(
-        42,
+        41,
         default=None,
         description="Duration in seconds from first attempt start to last attempt termination.",
     )
-    attempts: list[RunAttempt] = p_internal(43, array=True, struct=StructType.RUN_ATTEMPT)
+    attempts: list[RunAttempt] = p_internal(42, array=True, struct=StructType.RUN_ATTEMPT)
     error: Optional["RunError"] = p_internal(
-        44, default=None, require=False, array=False, struct=StructType.RUN_ERROR
+        43, default=None, require=False, array=False, struct=StructType.RUN_ERROR
     )
-    scheduled_at: Optional[datetime] = p_regular(45, default=None)
-    scheduled_epoch: Optional[int] = p_regular(46, default=None)
-    started_at: Optional[datetime] = p_regular(47, default=None)
-    started_epoch: Optional[int] = p_regular(48, default=None)
+    scheduled_at: Optional[datetime] = p_regular(44, default=None)
+    scheduled_epoch: Optional[int] = p_regular(45, default=None)
+    started_at: Optional[datetime] = p_regular(46, default=None)
+    started_epoch: Optional[int] = p_regular(47, default=None)
+    killed_at: Optional[datetime] = p_regular(48, default=None)
     halted_at: Optional[datetime] = p_regular(49, default=None)
     halted_epoch: Optional[int] = p_regular(50, default=None)
     halted_on_run: Optional["Run"] = p_regular(
@@ -333,8 +333,6 @@ class Run(PackageNode[RunData], HasTimeIdentity, HasNodeBase, HasSessionContext)
 
     # ...HasSessionContext[70-79]
 
-    # NOTE :Architecture :Performance: (some) Runs will likely be stored outside the main user DB later.
-    #  And maybe we'll also have 'inline runs' for non-Bench constructs that were run (like deeper profiling).
     runs: list["Run"] = p_node_children(NodeType.RUN)
 
     def __content_str__(self):
@@ -377,37 +375,23 @@ class Run(PackageNode[RunData], HasTimeIdentity, HasNodeBase, HasSessionContext)
 
     def pause(self):
         """Pauses the Run."""
-        assert self.current_status == RunStatus.RUNNING, f"cannot pause {self!r}"
-        self.status = RunStatus.PAUSED
+        self.halted_at = self.active_session._oracle.utc()
 
     def resume(self):
         """Resumes the Run."""
-        assert self.current_status == RunStatus.PAUSED, f"cannot resume {self!r}"
-        self.status = RunStatus.RUNNING
+        self.halted_at = None
 
     def cancel(self):
         """Cancels the Run before it happens."""
-        assert not self.status.is_terminal and not self.status.is_active, f"cannot cancel {self!r}"
-        self.status = RunStatus.CANCELLED
+        self.killed_at = self.active_session._oracle.utc()
 
     def abort(self):
         """Stops an active Run forcefully."""
-        assert self.status.is_active, f"cannot abort {self!r}"
-        self.status = RunStatus.ABORTED
+        self.killed_at = self.active_session._oracle.utc()
 
     def kill(self):
         """Kills a Run by any means necessary."""
-        assert not self.status.is_terminal, f"cannot kill {self!r}"
-        if self.status.is_active:
-            self.abort()
-        else:
-            self.cancel()
-
-    def fail(self, error: "RunError", _force: bool = False):
-        """Fails the Run with the given error."""
-        assert not self.status.is_terminal or _force, f"cannot fail {self!r}"
-        self.status = RunStatus.FAILED
-        self.error = error
+        self.killed_at = self.active_session._oracle.utc()
 
     def _validate_component(
         self, properties: Collection[Property], invalid: ValidationHandler

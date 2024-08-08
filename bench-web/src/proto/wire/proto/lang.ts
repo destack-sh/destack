@@ -4263,37 +4263,37 @@ export interface RunData {
      */
     status: RunStatus;
     /**
-     * @generated from protobuf field: optional symbolx.bench.RunStatus current_status = 41;
-     */
-    currentStatus?: RunStatus;
-    /**
-     * @generated from protobuf field: optional float duration = 42;
+     * @generated from protobuf field: optional float duration = 41;
      */
     duration?: number;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.RunAttemptData attempts = 43;
+     * @generated from protobuf field: repeated symbolx.bench.RunAttemptData attempts = 42;
      */
     attempts: RunAttemptData[];
     /**
-     * @generated from protobuf field: optional symbolx.bench.RunErrorData error = 44;
+     * @generated from protobuf field: optional symbolx.bench.RunErrorData error = 43;
      */
     error?: RunErrorData;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp scheduled_at = 45;
+     * @generated from protobuf field: optional google.protobuf.Timestamp scheduled_at = 44;
      */
     scheduledAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional int32 scheduled_epoch = 46;
+     * @generated from protobuf field: optional int32 scheduled_epoch = 45;
      */
     scheduledEpoch?: number;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp started_at = 47;
+     * @generated from protobuf field: optional google.protobuf.Timestamp started_at = 46;
      */
     startedAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional int32 started_epoch = 48;
+     * @generated from protobuf field: optional int32 started_epoch = 47;
      */
     startedEpoch?: number;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp killed_at = 48;
+     */
+    killedAt?: Timestamp;
     /**
      * @generated from protobuf field: optional google.protobuf.Timestamp halted_at = 49;
      */
@@ -20813,14 +20813,14 @@ class RunData$Type extends MessageType<RunData> {
             { no: 36, name: "code", kind: "message", T: () => CodeData },
             { no: 38, name: "options", kind: "message", T: () => RunOptionsData },
             { no: 40, name: "status", kind: "enum", T: () => ["symbolx.bench.RunStatus", RunStatus, "RUN_STATUS_"] },
-            { no: 41, name: "current_status", kind: "enum", opt: true, T: () => ["symbolx.bench.RunStatus", RunStatus, "RUN_STATUS_"] },
-            { no: 42, name: "duration", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 43, name: "attempts", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => RunAttemptData },
-            { no: 44, name: "error", kind: "message", T: () => RunErrorData },
-            { no: 45, name: "scheduled_at", kind: "message", T: () => Timestamp },
-            { no: 46, name: "scheduled_epoch", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 47, name: "started_at", kind: "message", T: () => Timestamp },
-            { no: 48, name: "started_epoch", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 41, name: "duration", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 42, name: "attempts", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => RunAttemptData },
+            { no: 43, name: "error", kind: "message", T: () => RunErrorData },
+            { no: 44, name: "scheduled_at", kind: "message", T: () => Timestamp },
+            { no: 45, name: "scheduled_epoch", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 46, name: "started_at", kind: "message", T: () => Timestamp },
+            { no: 47, name: "started_epoch", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 48, name: "killed_at", kind: "message", T: () => Timestamp },
             { no: 49, name: "halted_at", kind: "message", T: () => Timestamp },
             { no: 50, name: "halted_epoch", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 51, name: "halted_on_run_ptr", kind: "message", T: () => NodeReferenceData },
@@ -20927,29 +20927,29 @@ class RunData$Type extends MessageType<RunData> {
                 case /* symbolx.bench.RunStatus status */ 40:
                     message.status = reader.int32();
                     break;
-                case /* optional symbolx.bench.RunStatus current_status */ 41:
-                    message.currentStatus = reader.int32();
-                    break;
-                case /* optional float duration */ 42:
+                case /* optional float duration */ 41:
                     message.duration = reader.float();
                     break;
-                case /* repeated symbolx.bench.RunAttemptData attempts */ 43:
+                case /* repeated symbolx.bench.RunAttemptData attempts */ 42:
                     message.attempts.push(RunAttemptData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* optional symbolx.bench.RunErrorData error */ 44:
+                case /* optional symbolx.bench.RunErrorData error */ 43:
                     message.error = RunErrorData.internalBinaryRead(reader, reader.uint32(), options, message.error);
                     break;
-                case /* optional google.protobuf.Timestamp scheduled_at */ 45:
+                case /* optional google.protobuf.Timestamp scheduled_at */ 44:
                     message.scheduledAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.scheduledAt);
                     break;
-                case /* optional int32 scheduled_epoch */ 46:
+                case /* optional int32 scheduled_epoch */ 45:
                     message.scheduledEpoch = reader.int32();
                     break;
-                case /* optional google.protobuf.Timestamp started_at */ 47:
+                case /* optional google.protobuf.Timestamp started_at */ 46:
                     message.startedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.startedAt);
                     break;
-                case /* optional int32 started_epoch */ 48:
+                case /* optional int32 started_epoch */ 47:
                     message.startedEpoch = reader.int32();
+                    break;
+                case /* optional google.protobuf.Timestamp killed_at */ 48:
+                    message.killedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.killedAt);
                     break;
                 case /* optional google.protobuf.Timestamp halted_at */ 49:
                     message.haltedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.haltedAt);
@@ -21084,30 +21084,30 @@ class RunData$Type extends MessageType<RunData> {
         /* symbolx.bench.RunStatus status = 40; */
         if (message.status !== 0)
             writer.tag(40, WireType.Varint).int32(message.status);
-        /* optional symbolx.bench.RunStatus current_status = 41; */
-        if (message.currentStatus !== undefined)
-            writer.tag(41, WireType.Varint).int32(message.currentStatus);
-        /* optional float duration = 42; */
+        /* optional float duration = 41; */
         if (message.duration !== undefined)
-            writer.tag(42, WireType.Bit32).float(message.duration);
-        /* repeated symbolx.bench.RunAttemptData attempts = 43; */
+            writer.tag(41, WireType.Bit32).float(message.duration);
+        /* repeated symbolx.bench.RunAttemptData attempts = 42; */
         for (let i = 0; i < message.attempts.length; i++)
-            RunAttemptData.internalBinaryWrite(message.attempts[i], writer.tag(43, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.RunErrorData error = 44; */
+            RunAttemptData.internalBinaryWrite(message.attempts[i], writer.tag(42, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.RunErrorData error = 43; */
         if (message.error)
-            RunErrorData.internalBinaryWrite(message.error, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp scheduled_at = 45; */
+            RunErrorData.internalBinaryWrite(message.error, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp scheduled_at = 44; */
         if (message.scheduledAt)
-            Timestamp.internalBinaryWrite(message.scheduledAt, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
-        /* optional int32 scheduled_epoch = 46; */
+            Timestamp.internalBinaryWrite(message.scheduledAt, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
+        /* optional int32 scheduled_epoch = 45; */
         if (message.scheduledEpoch !== undefined)
-            writer.tag(46, WireType.Varint).int32(message.scheduledEpoch);
-        /* optional google.protobuf.Timestamp started_at = 47; */
+            writer.tag(45, WireType.Varint).int32(message.scheduledEpoch);
+        /* optional google.protobuf.Timestamp started_at = 46; */
         if (message.startedAt)
-            Timestamp.internalBinaryWrite(message.startedAt, writer.tag(47, WireType.LengthDelimited).fork(), options).join();
-        /* optional int32 started_epoch = 48; */
+            Timestamp.internalBinaryWrite(message.startedAt, writer.tag(46, WireType.LengthDelimited).fork(), options).join();
+        /* optional int32 started_epoch = 47; */
         if (message.startedEpoch !== undefined)
-            writer.tag(48, WireType.Varint).int32(message.startedEpoch);
+            writer.tag(47, WireType.Varint).int32(message.startedEpoch);
+        /* optional google.protobuf.Timestamp killed_at = 48; */
+        if (message.killedAt)
+            Timestamp.internalBinaryWrite(message.killedAt, writer.tag(48, WireType.LengthDelimited).fork(), options).join();
         /* optional google.protobuf.Timestamp halted_at = 49; */
         if (message.haltedAt)
             Timestamp.internalBinaryWrite(message.haltedAt, writer.tag(49, WireType.LengthDelimited).fork(), options).join();
@@ -25707,14 +25707,14 @@ export enum RunProperty {
   code = 36,
   options = 38,
   status = 40,
-  currentStatus = 41,
-  duration = 42,
-  attempts = 43,
-  error = 44,
-  scheduledAt = 45,
-  scheduledEpoch = 46,
-  startedAt = 47,
-  startedEpoch = 48,
+  duration = 41,
+  attempts = 42,
+  error = 43,
+  scheduledAt = 44,
+  scheduledEpoch = 45,
+  startedAt = 46,
+  startedEpoch = 47,
+  killedAt = 48,
   haltedAt = 49,
   haltedEpoch = 50,
   haltedOnRunPtr = 51,
@@ -27250,7 +27250,7 @@ export const ServerDataInfo: Record<ServerProperty, PropertyInfo> = {
   [ServerProperty.region]: { id: 35, name: 'region', component: ObjectType.SERVER, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.status]: { id: 36, name: 'status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.08.08.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.08.08.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.minCpu]: { id: 50, name: 'min_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.maxCpu]: { id: 51, name: 'max_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -27279,7 +27279,7 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.region]: { id: 35, name: 'region', component: ObjectType.STORE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.status]: { id: 36, name: 'status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.08.08.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.08.08.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 50, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 51, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -27305,7 +27305,7 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.region]: { id: 35, name: 'region', component: ObjectType.MACHINE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.status]: { id: 36, name: 'status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.08.08.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.08.08.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 42, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 43, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -27887,15 +27887,15 @@ export const RunDataInfo: Record<RunProperty, PropertyInfo> = {
   [RunProperty.rootPtr]: { id: 32, name: 'root_ptr', component: ObjectType.RUN, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [RunProperty.code]: { id: 36, name: 'code', component: ObjectType.RUN, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
   [RunProperty.options]: { id: 38, name: 'options', component: ObjectType.RUN, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_OPTIONS },
-  [RunProperty.status]: { id: 40, name: 'status', component: ObjectType.RUN, enumType: EnumType.RUN_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.currentStatus]: { id: 41, name: 'current_status', component: ObjectType.RUN, enumType: EnumType.RUN_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.duration]: { id: 42, name: 'duration', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.attempts]: { id: 43, name: 'attempts', component: ObjectType.RUN, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_ATTEMPT },
-  [RunProperty.error]: { id: 44, name: 'error', component: ObjectType.RUN, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_ERROR },
-  [RunProperty.scheduledAt]: { id: 45, name: 'scheduled_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.scheduledEpoch]: { id: 46, name: 'scheduled_epoch', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.startedAt]: { id: 47, name: 'started_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.startedEpoch]: { id: 48, name: 'started_epoch', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.status]: { id: 40, name: 'status', component: ObjectType.RUN, enumType: EnumType.RUN_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.duration]: { id: 41, name: 'duration', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.attempts]: { id: 42, name: 'attempts', component: ObjectType.RUN, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_ATTEMPT },
+  [RunProperty.error]: { id: 43, name: 'error', component: ObjectType.RUN, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_ERROR },
+  [RunProperty.scheduledAt]: { id: 44, name: 'scheduled_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.scheduledEpoch]: { id: 45, name: 'scheduled_epoch', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.startedAt]: { id: 46, name: 'started_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.startedEpoch]: { id: 47, name: 'started_epoch', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.killedAt]: { id: 48, name: 'killed_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRuntime: true, isWired: true, isStored: true },
   [RunProperty.haltedAt]: { id: 49, name: 'halted_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRuntime: true, isWired: true, isStored: true },
   [RunProperty.haltedEpoch]: { id: 50, name: 'halted_epoch', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
   [RunProperty.haltedOnRunPtr]: { id: 51, name: 'halted_on_run_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
