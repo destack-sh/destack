@@ -39,8 +39,10 @@ TEMP_PY_FILE = "bench/proto/wire.py.tmp"
 WIRE_PY_FILE = "bench/proto/wire.py"
 TEMP_TS_DIR = "bench-web/src/proto/wire.tmp"
 WIRE_TS_DIR = "bench-web/src/proto/wire"
-EXTRA_PROTO_PY_FILES = "proto/common.proto proto/system.proto proto/runtime.proto"
-EXTRA_PROTO_TS_FILES = "proto/common.proto proto/system.proto proto/web.proto"
+EXTRA_PROTO_PY_FILES = (
+    "proto/common.proto proto/health.proto proto/system.proto proto/runtime.proto"
+)
+EXTRA_PROTO_TS_FILES = "proto/common.proto proto/health.proto proto/system.proto proto/web.proto"
 
 logger = structlog.get_logger(__name__)
 app = typer.Typer(short_help="proto management")
@@ -103,7 +105,9 @@ def _build_proto(schema_str: str) -> None:
     run_shell_sync(
         f"protoc -I . --python_betterproto_out={TEMP_PY_DIR} {LANG_PROTO} {EXTRA_PROTO_PY_FILES}",
     )
-    run_shell_sync(f"mv {TEMP_PY_DIR}/symbolx/bench/__init__.py {TEMP_PY_FILE}")
+    run_shell_sync(
+        f"cat {TEMP_PY_DIR}/symbolx/bench/__init__.py {TEMP_PY_DIR}/grpc/health/v1/__init__.py > {TEMP_PY_FILE}"
+    )
 
     # patch in our extra stuff
     wire_py = Path(TEMP_PY_FILE).read_text()

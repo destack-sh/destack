@@ -44,6 +44,12 @@ MACHINE_OVERCOMMITMENT = get_from_env(
     typ=float,
     description="By how much to over-commit resources",
 )
+MACHINE_PORT = get_from_env(
+    "MACHINE_PORT",
+    default=60062,
+    typ=int,
+    description="Port to expose for the machine",
+)
 
 
 def _get_machine_env_vars(
@@ -263,15 +269,15 @@ class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
             limits=self._get_pod_resources_limits(machine),
         )
         health_probe = k8.V1Probe(
-            grpc=k8.V1GRPCAction(port=60062, service="runtime"),
-            initial_delay_seconds=5,
+            grpc=k8.V1GRPCAction(port=MACHINE_PORT, service="runtime"),
+            initial_delay_seconds=10,
             period_seconds=10,
             failure_threshold=3,
         )
         main_container = k8.V1Container(
             name="main",
             image=f"{MACHINE_RUNTIME_IMAGE}:{machine.version}",
-            command=["python", "bench.py", "serve", "runtime", "0.0.0.0", "60062"],
+            command=["python", "bench.py", "serve", "runtime", "0.0.0.0", MACHINE_PORT],
             env=[
                 *(k8.V1EnvVar(name=k, value=v) for k, v in env_vars.items()),
                 k8.V1EnvVar(
@@ -281,7 +287,7 @@ class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
                     ),
                 ),
             ],
-            ports=[k8.V1ContainerPort(container_port=60062)],
+            ports=[k8.V1ContainerPort(container_port=MACHINE_PORT)],
             resources=resources,
             readiness_probe=health_probe,
             liveness_probe=health_probe,
@@ -294,7 +300,7 @@ class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
             spec=k8.V1PodSpec(
                 containers=[main_container],
                 image_pull_secrets=[k8.V1LocalObjectReference(name=image_pull_secret)],
-                termination_grace_period_seconds=20,
+                termination_grace_period_seconds=30,
             ),
         )
         return pod
@@ -312,9 +318,7 @@ class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
         if machine.current_status != current_status:
             machine.current_status = current_status
         if pod.status and pod.status.pod_ip:  # type: ignore
-            connection_uri = (
-                f"http://{pod.status.pod_ip}:{pod.spec.containers[0].ports[0].container_port}"  # type: ignore
-            )
+            connection_uri = f"http://{pod.status.pod_ip}:{MACHINE_PORT}"  # type: ignore
             if machine.connection_uri != connection_uri:
                 machine.connection_uri = connection_uri
 

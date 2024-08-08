@@ -33,7 +33,7 @@ import {
   type NodeTypeMapping,
   type ReadOptionsData,
 } from "@/proto/wire";
-import { HealthClient } from "@/proto/wire/proto/common.client";
+import { HealthClient } from "@/proto/wire/proto/health.client";
 import {
   EMPTY_SCOPE,
   deepContentEquals,

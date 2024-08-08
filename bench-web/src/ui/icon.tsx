@@ -440,13 +440,13 @@ export const ICON_BY_EDIT_TYPE: Partial<Record<EditType, IconData>> = _makeIcons
 });
 
 export const ICON_BY_REGION_AREA: Partial<Record<RegionArea, IconData>> = _makeIcons<RegionArea>({
-  [RegionArea.EUROPE]: "fas fas fa-earth-europe",
-  [RegionArea.NORTH_AMERICA]: "fas fas fa-globe-americas",
+  [RegionArea.EUROPE]: "🇪🇺",
+  [RegionArea.NORTH_AMERICA]: "🇺🇸",
   [RegionArea.SOUTH_AMERICA]: "fas fas fa-globe-americas",
   [RegionArea.MIDDLE_EAST]: "fas fas fa-globe-asia",
   [RegionArea.AFRICA]: "fas fas fa-globe-africa",
   [RegionArea.ASIA]: "fas fas fa-globe-asia",
-  [RegionArea.AUSTRALIA]: "fas fas fa-globe-oceania",
+  [RegionArea.AUSTRALIA]: "🇦🇺",
   [RegionArea.GLOBAL]: "fas fas fa-globe",
 });
 
