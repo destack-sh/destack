@@ -94,7 +94,7 @@ class Provisioner[PT: ResourceNode, WT: ResourceNode](DeferredHostPlugin[WT], ab
                 "resource.provision", attributes={"resource": str(resource)}
             ):
                 await self._do_provision(resource)
-                logger.trace(
+                logger.debug(
                     "resource.provision", provisioner=self, resource=resource, span="current"
                 )
         except Exception as e:
@@ -119,7 +119,7 @@ class Provisioner[PT: ResourceNode, WT: ResourceNode](DeferredHostPlugin[WT], ab
                 "resource.update", attributes={"resource": str(resource)}
             ):
                 await self._do_update(resource)
-                logger.trace("resource.update", provisioner=self, resource=resource, span="current")
+                logger.debug("resource.update", provisioner=self, resource=resource, span="current")
         except Exception as e:
             logger.error(
                 "resource.update.error",
@@ -142,7 +142,7 @@ class Provisioner[PT: ResourceNode, WT: ResourceNode](DeferredHostPlugin[WT], ab
                 "resource.decommission", attributes={"resource": str(resource)}
             ):
                 await self._do_decommission(resource)
-                logger.trace(
+                logger.debug(
                     "resource.decommission", provisioner=self, resource=resource, span="current"
                 )
         except Exception as e:

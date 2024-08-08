@@ -2,7 +2,7 @@ import abc
 from datetime import datetime
 from enum import Enum
 from itertools import chain
-from typing import TYPE_CHECKING, Any, Generic, Iterable, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Generic, Iterable, Optional, Self, TypeVar, Union
 from uuid import UUID
 
 from bench.language.const import (
@@ -327,6 +327,11 @@ class ResourceNode(BenchNode[NodeDataT], abc.ABC, Generic[NodeDataT]):
                     value = value.name
                 value_strs.append(f"{prop.name}={value}")
         return ", ".join(value_strs)
+
+    def as_declared(self) -> "Self":
+        """Marks this resource as declared (to prevent it from being provisioned immediately)."""
+        self.status = ResourceStatus.DECLARED
+        return self
 
     def _get_target_diff(self, *keys: str) -> dict[str, Any]:
         """
