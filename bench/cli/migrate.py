@@ -12,7 +12,6 @@ from rich.console import Console
 from bench.cli.utils import async_to_sync_blocking
 from bench.language import Bench, Store
 from bench.language.const import VERSION, NodeType
-from bench.system.utils.session import global_session, pg_engine_from_store, system_store_from_env
 from bench.utils.oracle import REAL_ORACLE
 from bench.utils.utils import format_python
 
@@ -49,6 +48,9 @@ async def make(
     )
     from bench.system.utils.session import (
         global_pg_cursor,
+        global_session,
+        pg_engine_from_store,
+        system_store_from_env,
     )
 
     start = time.time()
@@ -141,7 +143,11 @@ async def apply(
 ):
     from bench.sql.client import pg_store_connection
     from bench.sql.migration import sql_migrate as _migrate
-    from bench.system.utils.session import global_session
+    from bench.system.utils.session import (
+        global_session,
+        pg_engine_from_store,
+        system_store_from_env,
+    )
 
     start = time.time()
     global_store = system_store_from_env()
@@ -179,6 +185,9 @@ async def introspect(bench: Optional[str] = None):  # type: ignore
     from bench.sql.migration import introspect_sql_schema
     from bench.system.utils.session import (
         global_pg_cursor,
+        global_session,
+        pg_engine_from_store,
+        system_store_from_env,
     )
 
     start = time.perf_counter()
