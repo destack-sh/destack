@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, ClassVar, Collection, assert_never, cast, fina
 import structlog
 from opentelemetry import trace
 
-from bench.language import Bench, ResourceNode, ResourceStatus
+from bench.language import Bench, ResourceNode
 from bench.language.const import VERSION, NodeType
 from bench.system.host.core import Commit, DeferredHostPlugin, HostApi
 from bench.utils.env import ENV, Env
@@ -30,6 +30,7 @@ class Provisioner[PT: ResourceNode, WT: ResourceNode](DeferredHostPlugin[WT], ab
 
     @final
     async def start(self) -> None:
+        # custom start for provisioner first to update resource status from external state
         await self._do_start()
 
         # check resources / provision declared resources
@@ -37,19 +38,21 @@ class Provisioner[PT: ResourceNode, WT: ResourceNode](DeferredHostPlugin[WT], ab
             cast(PT, r) for r in self.bench.resources if r.metatype in self.provision_types
         )
         for resource in resources:
-            # provision newly declared resources
-            if resource.status == ResourceStatus.DECLARED:
-                await self.provision(resource)
-            # 'update' other resources
-            else:
-                # auto migrate resources to current version
-                # NOTE :Robustness: unsure when to migrate resources
-                if "version" in resource.__properties__ and getattr(resource, "version") != VERSION:
-                    async with self.host.session(commit=True):
-                        setattr(resource, "version", VERSION)
-                await self.update(resource)
+            # auto migrate resources to current version
+            # NOTE :Robustness: unsure when to migrate resources
+            if "version" in resource.__properties__ and getattr(resource, "version") != VERSION:
+                async with self.host.session(commit=True):
+                    setattr(resource, "version", VERSION)
+            # provision/update/decommission
+            if resource.status.is_extant:
+                if resource.current_status.is_extant:
+                    await self.update(resource)
+                else:
+                    await self.provision(resource)
+            elif resource.current_status.is_extant:
+                await self.decommission(resource)
 
-        # then start watching
+        # then start watching in host plugin
         #  (Starting watch after above is important because there is no lock between this and on_commit_deferred,
         #   and we assume exclusivity in the provisioning methods. Host plugins starts the queue in .start).
         await super().start()
@@ -68,11 +71,12 @@ class Provisioner[PT: ResourceNode, WT: ResourceNode](DeferredHostPlugin[WT], ab
                 if resource.status.is_extant and not resource.current_status.is_extant:
                     await self.provision(resource)
             for resource in subcommit.updated:
-                if resource.status.is_extant and not resource.current_status.is_extant:
-                    await self.provision(resource)
-                elif resource.status.is_extant:
-                    await self.update(resource)
-                elif not resource.status.is_extant and resource.current_status.is_extant:
+                if resource.status.is_extant:
+                    if resource.current_status.is_extant:
+                        await self.update(resource)
+                    else:
+                        await self.provision(resource)
+                elif resource.current_status.is_extant:
                     await self.decommission(resource)
             for resource in subcommit.removed:
                 if resource.current_status.is_extant:
