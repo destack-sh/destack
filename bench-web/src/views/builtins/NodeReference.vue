@@ -41,7 +41,7 @@ const nodeProperties = computed(() => (nodeType.value != null ? PROPERTY_ENUM_BY
     <!-- Name (editable & has name) -->
     <input
       v-if="nodeProperties != null && 'name' in nodeProperties && !isDisabled"
-      class="ml-1 truncate rounded border-0 px-1 py-0.5 outline-none ring-0 hover:bg-gray-100 focus:ring-0"
+      class="ml-1 truncate rounded border-0 bg-transparent px-1 py-0.5 outline-none ring-0 hover:bg-gray-100 focus:ring-0"
       spellcheck="false"
       :value="'name' in node ? node.name : toCamelName(ObjectType, node.metatype)"
       :disabled="!('name' in node)"

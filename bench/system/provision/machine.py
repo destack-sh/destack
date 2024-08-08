@@ -1,4 +1,5 @@
 import random
+import re
 from pathlib import Path
 from typing import TYPE_CHECKING, assert_never, cast, override
 
@@ -245,6 +246,18 @@ class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
             "memory": f"{round(machine.ram * 1000)}Mi",
         }
 
+    def _parse_pod_resource_scalar(self, scalar: str) -> float | None:
+        """Parses a pod scalar into a float in G units."""
+        try:
+            # use regex (we assume the format is as above)
+            match = re.match(r"^([0-9.]+)(m|Mi)$", scalar)
+            if match:
+                return float(match.group(1)) / 1000
+            else:
+                return None
+        except Exception:
+            return None
+
     def _make_pod_from_machine(self, machine: Machine):
         """Creates a Kubernetes Pod for the Machine."""
         # context
@@ -254,6 +267,7 @@ class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
             "app": KUBERNETES_MACHINE_APP_LABEL,
             "bench_id": str(machine.bench.id),
             "machine_id": str(machine.id),
+            "version": machine.version,
             "environment": ENV.value,
             "cloud": CLOUD.slug,
             "region": machine.region.slug,
@@ -306,17 +320,31 @@ class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
         return pod
 
     def _update_machine_from_pod(self, machine: Machine, pod: k8.V1Pod):
-        """Updates the current config of the Machine from the given Pod."""
-        if machine.current_cpu != machine.cpu:
-            machine.current_cpu = machine.cpu
-        if machine.current_ram != machine.ram:
-            machine.current_ram = machine.ram
-        if machine.current_version != machine.version:
-            machine.current_version = machine.version
-        # NOTE :Robustness: reflect actual pod status in Machine status
-        current_status = ResourceStatus.READY
+        """Updates the current state of the Machine from its respective Pod."""
+        # resources
+        resources_limits = cast(dict, pod.spec.containers[0].resources.limits)  # type: ignore
+        current_cpu = self._parse_pod_resource_scalar(resources_limits["cpu"])
+        if current_cpu is not None and machine.current_cpu != current_cpu:
+            machine.current_cpu = current_cpu
+        current_ram = self._parse_pod_resource_scalar(resources_limits["memory"])
+        if current_ram is not None and machine.current_ram != current_ram:
+            machine.current_ram = current_ram
+
+        # version
+        current_version = cast(str, pod.metadata.labels.get("version"))  # type: ignore
+        if current_version is not None and machine.current_version != current_version:
+            machine.current_version = current_version
+
+        # status
+        pod_phase = cast(str, pod.status.phase)  # type: ignore
+        if pod_phase == "Running":
+            current_status = ResourceStatus.READY
+        else:
+            current_status = ResourceStatus.NOT_READY
         if machine.current_status != current_status:
             machine.current_status = current_status
+
+        # connection uri (using pod ip, only works inside cluster for now)
         if pod.status and pod.status.pod_ip:  # type: ignore
             connection_uri = f"http://{pod.status.pod_ip}:{MACHINE_PORT}"  # type: ignore
             if machine.connection_uri != connection_uri:
@@ -398,7 +426,7 @@ class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
                 "spec": {
                     "containers": [
                         {
-                            "name": resource.external_name,
+                            "name": "main",
                             "image": f"{MACHINE_RUNTIME_IMAGE}:{resource.version}",
                             "resources": {
                                 "requests": self._get_pod_resources_requests(resource),

@@ -80,7 +80,7 @@ from bench.system.host.core import (
 from bench.system.host.scheduler import QueueRunPlugin
 from bench.system.provision.provisioner import Provisioner, get_provisioners_for
 from bench.system.utils.access import CLIENT_CACHE_ENABLED, ClientCache, get_client
-from bench.system.utils.s3 import get_s3_client
+from bench.system.utils.aws import get_s3_client
 from bench.system.utils.session import (
     global_session,
     local_pg_engine_from_store,
