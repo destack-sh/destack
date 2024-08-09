@@ -101,7 +101,7 @@ canvas.registerView(self);
 defineExpose<ViewExposed>({ self });
 </script>
 <template>
-  <div v-if="runnableNode" class="h-full w-full bg-white">
+  <div v-if="runnableNode" class="h-full w-full">
     <!-- Header -->
     <div class="group mx-auto flex w-full flex-row items-center" :style="{ height: HEADER_HEIGHT + 'px' }">
       <div

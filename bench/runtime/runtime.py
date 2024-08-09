@@ -18,7 +18,6 @@ from bench.language.const import (
     PUBLIC_NODE_TYPES,
     ClientType,
     NodeType,
-    localize_domain,
 )
 from bench.language.node import EMPTY_SCOPE
 from bench.proto import wire
@@ -39,6 +38,7 @@ from bench.proto.wire import (
 from bench.proto.wiring import pack_rpc_headers
 from bench.runtime.remote import RemoteEngine
 from bench.runtime.thread import RuntimeThread
+from bench.utils.networking import localize_url
 from bench.utils.oracle import Oracle
 from bench.utils.tenacity import RETRY_GRPC_FOREVER
 
@@ -189,7 +189,7 @@ class Runtime(ServiceBase, RuntimeBase):
                     deadline=grpclib.metadata.Deadline.from_timeout(5),
                 )
                 host_info = response.hosts[0]
-                host_info.domain = localize_domain(host_info.domain)
+                host_info.domain = localize_url(host_info.domain)
                 self.logger.info(
                     "runtime.resolve_host",
                     supervisor=self._supervisor,

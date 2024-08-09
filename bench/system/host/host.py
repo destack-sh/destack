@@ -78,9 +78,12 @@ from bench.system.host.core import (
     unpack_commit,
 )
 from bench.system.host.scheduler import QueueRunPlugin
-from bench.system.provision.provisioner import Provisioner, get_provisioners_for
+from bench.system.provision.provisioner import (
+    Provisioner,
+    get_provisioners_for,
+)
 from bench.system.utils.access import CLIENT_CACHE_ENABLED, ClientCache, get_client
-from bench.system.utils.aws import get_s3_client
+from bench.system.utils.aws import get_s3_client_for_presigning
 from bench.system.utils.session import (
     global_session,
     local_pg_engine_from_store,
@@ -765,7 +768,7 @@ class Host(GraphIoServiceBase, HostApi, HostBase):
         self, subject: Subject, request: UploadFilesRequest
     ) -> UploadFilesResponse:
         # TODO :Broken :Security: evaluate file upload access
-        s3_client = get_s3_client()
+        s3_client = get_s3_client_for_presigning(request.environment)
         handles: list[UploadFilesResponseUploadHandle] = []
         for file_data in request.files:
             # get drive (from in-memory graph)
@@ -831,7 +834,7 @@ class Host(GraphIoServiceBase, HostApi, HostBase):
         self, subject: Subject, request: DownloadFilesRequest
     ) -> DownloadFilesResponse:
         # TODO :Broken :Security!: evaluate file download access
-        s3_client = get_s3_client()
+        s3_client = get_s3_client_for_presigning(request.environment)
 
         # get files
         async with self.session(readonly=True):

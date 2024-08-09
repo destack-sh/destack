@@ -10,7 +10,7 @@ from bench.language.const import VERSION, NodeType
 from bench.system.host.core import Commit, DeferredHostPlugin, HostApi
 from bench.utils.env import ENV, Env
 from bench.utils.func import bittuple
-from bench.utils.utils import get_from_env
+from bench.utils.utils import get_from_env_maybe
 
 if TYPE_CHECKING:
     pass
@@ -166,6 +166,13 @@ class MachineProvisionerType(enum.StrEnum):
     KUBERNETES = "kubernetes"
 
 
+MACHINE_PROVISIONER_TYPE = get_from_env_maybe(
+    "MACHINE_PROVISIONER_TYPE",
+    typ=MachineProvisionerType,
+    description="The machine provisioner to use (during development)",
+)
+
+
 def get_provisioners_for(host: HostApi, bench: Bench) -> list[Provisioner]:
     """Gets all available provisioners for that Bench in *this* environment"""
     from bench.system.provision.machine import (
@@ -190,11 +197,7 @@ def get_provisioners_for(host: HostApi, bench: Bench) -> list[Provisioner]:
         ]
     elif ENV == Env.DEV:
         # dynamic machine provisioner
-        MACHINE_PROVISIONER_TYPE = get_from_env(
-            "MACHINE_PROVISIONER_TYPE",
-            typ=MachineProvisionerType,
-            description="The machine provisioner to use (only works in dev)",
-        )
+        assert MACHINE_PROVISIONER_TYPE is not None, "MACHINE_PROVISIONER_TYPE not set"
         if MACHINE_PROVISIONER_TYPE == MachineProvisionerType.LOCALHOST:
             machine_provisioner = LocalhostMachineProvisioner(host, bench)
         elif MACHINE_PROVISIONER_TYPE == MachineProvisionerType.DOCKER:

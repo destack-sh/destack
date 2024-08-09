@@ -327,9 +327,16 @@ service Supervisor {
 // Host
 //
 
+enum MachineEnvironment {
+  REGULAR = 0;
+  DOCKER = 1;
+  MINIKUBE = 2;
+}
+
 message UploadFilesRequest {
   GraphScopeData scope = 1;
   repeated FileData files = 2;
+  optional MachineEnvironment environment = 3;
 }
 
 message UploadFilesResponse {
@@ -345,6 +352,7 @@ message UploadFilesResponse {
 message DownloadFilesRequest {
   GraphScopeData scope = 1;
   repeated NodeReferenceData files = 2;
+  optional MachineEnvironment environment = 3;
 }
 
 message DownloadFilesResponse {

@@ -58,6 +58,7 @@ from bench.proto.wire import (
     UploadFilesRequest,
 )
 from bench.utils.func import IdEnum, group_by
+from bench.utils.networking import MACHINE_ENVIRONMENT
 from bench.utils.string import humanize_bytes
 from bench.utils.utils import get_from_env
 
@@ -876,16 +877,21 @@ async def upload_batch(
     # get upload URLs
     with tracer.start_as_current_span("file.prepare_upload"):
         upload_req = UploadFilesRequest(
-            scope=session._get_scope_for_node(files[0]), files=[f._to_data() for f in files]
+            scope=session._get_scope_for_node(files[0]),
+            files=[f._to_data() for f in files],
+            environment=MACHINE_ENVIRONMENT,
         )
         upload_rep = await session.host.upload_files(upload_req, metadata=session._rpc_headers)
         assert len(upload_rep.handles) == len(
             files
         ), f"unexpected handles: {len(upload_rep.handles)} != {len(files)}"
+        handles_by_id = {h.file.id: h for h in upload_rep.handles}
+        del upload_rep
 
     # upload files
     async with aiohttp.ClientSession() as http_session:
-        for file, file_content, handle in zip(files, file_contents, upload_rep.handles):
+        for file, file_content in zip(files, file_contents):
+            handle = handles_by_id[str(file.id)]
             with tracer.start_as_current_span("file.upload", attributes={"file": repr(file)}):
                 assert file.kind in (
                     FileKind.DRIVE,
@@ -929,11 +935,14 @@ async def download_batch(
                 (f._to_plain_ref() if isinstance(f, File) else f._to_plain_ref())._to_data()
                 for f in file_refs
             ],
+            environment=MACHINE_ENVIRONMENT,
         )
         download_rep = await session.host.download_files(
             download_req, metadata=session._rpc_headers
         )
         handles_by_id = {h.file.id: h for h in download_rep.handles}
+        del download_rep
+
         file_refs_by_id = {f.id: f for f in file_refs}
         files_by_id: dict[UUID, File] = {}
         for file_ref in file_refs:
@@ -958,7 +967,8 @@ async def download_batch(
     if files_to_download:
         file_contents: list[bytes] = []
         async with aiohttp.ClientSession() as http_session:
-            for file, handle in zip(files_to_download, download_rep.handles):
+            for file in files_to_download:
+                handle = handles_by_id[str(file.id)]
                 # GET file from url
                 with tracer.start_as_current_span("file.download", attributes={"file": repr(file)}):
                     async with http_session.get(handle.get_url) as resp:
