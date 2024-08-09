@@ -505,7 +505,7 @@ export function createField(
       } else {
         name = getEnumTitle(EnumType.BENCH_TYPE, fieldIn.benchType!);
       }
-    } else if (kind == TypeKind.BASED_NODE || kind == TypeKind.ALIAS) {
+    } else if (kind == TypeKind.BASED_NODE || kind == TypeKind.OBJECT || kind == TypeKind.ALIAS) {
       if (fieldIn?.baseTypePtr == null) throw new Error(`missing base type for field in ${describeNode(target)}`);
       const baseType = graph.getOrError(fieldIn.baseTypePtr);
       if ((baseType as any).name != null) {

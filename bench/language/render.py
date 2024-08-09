@@ -520,7 +520,7 @@ def _map_type_info_kwargs(
             assert isinstance(type_in, type), f"unexpected type {type_in!r}"
             rendered_type = type_in.__name__
         kwargs = {"type": rendered_type, **kwargs}
-        for key in ("kind", "primitive_type", "bench_type", "base_type"):
+        for key in ("kind", "primitive_type", "bench_type", "base_type", "base_field_zone"):
             kwargs.pop(key, None)
     return kwargs
 

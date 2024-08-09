@@ -568,7 +568,8 @@ class Transaction:
                 edit.epoch = self.session._system_epoch
                 self.session._system_epoch += 1
 
-        # TODO :Robustness: use :2PC in Transaction.commit (if there are more than 2 channels)
+        # NOTE :Robustness: use :2PC in Transaction.commit? (if there are more than 2 channels)
+        #  (in general, all bench source & logs is in the same DB, so inconsistent reads are ok)
         edits_by_engine_id: dict[Any, list[EditData]] = defaultdict(list)
         for edit in edits:
             engine = self.session._get_engine_for(

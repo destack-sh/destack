@@ -4,6 +4,7 @@ import {
   BlockType,
   ENUM_BY_TYPE,
   EnumType,
+  FieldZone,
   FileType,
   NodeType,
   ObjectType,
@@ -345,9 +346,13 @@ export function typeIndex(idx: {
     const blockType = (nodeItem.node as BlockData).type;
     let kind: TypeKind;
     let benchType: BenchType | undefined;
+    let baseFieldZone: FieldZone | undefined;
     if (blockType == BlockType.CHOICE) {
       benchType = BenchType.FIELD;
       kind = TypeKind.BASED_NODE;
+      baseFieldZone = FieldZone.OPTION;
+    } else if (blockType == BlockType.CLASS) {
+      kind = TypeKind.OBJECT;
     } else if (blockType == BlockType.SIGNAL) {
       benchType = BenchType.SIGNAL;
       kind = TypeKind.BASED_NODE;
@@ -357,7 +362,15 @@ export function typeIndex(idx: {
     } else {
       kind = TypeKind.ALIAS;
     }
-    const item: TypeItem = { ...nodeItem, kind, benchType, isList: false, isSecret: false, metatype: "type" };
+    const item: TypeItem = {
+      ...nodeItem,
+      kind,
+      benchType,
+      baseFieldZone,
+      isList: false,
+      isSecret: false,
+      metatype: "type",
+    };
     item.baseTypePtr = toNodeRef(nodeItem.node);
     return item;
   }

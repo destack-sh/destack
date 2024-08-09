@@ -48,7 +48,7 @@ class QueueRunPlugin(HostPlugin[Run]):
 
     @override
     async def start(self) -> None:
-        # TODO :Robustness: cancel/re-queue forlorn Runs (like those 'stuck' on dead Machines)
+        # TODO :Robustness: cancel (or re-queue?) forlorn Runs (like those 'stuck' on dead Machines)
         self.tasks.start_queue(self._runs_to_queue, self._queue_run, skip_errors=True)
 
     @override
@@ -127,7 +127,7 @@ class SignalTriggerPlugin(DeferredHostPlugin[Signal | Trigger]):
 
 
 class ScheduleTriggerPlugin(DeferredHostPlugin[Trigger]):
-    """Process active Triggers when their Schedule fires."""
+    """Process active Triggers on their Schedule."""
 
     watch_types = bittuple(NodeType.TRIGGER)
 
