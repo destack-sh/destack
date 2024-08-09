@@ -144,7 +144,7 @@ class SqlError(BenchError):
             if isinstance(conn, psycopg.AsyncCursor):
                 conn = conn.connection
             conn_str = get_sanitized_connection_uri(conn)
-            super().__init__(f"{conn_str}: {message}")
+            super().__init__(f"{conn_str}: {message} (conn={id(conn)})")
         else:
             super().__init__(message)
 

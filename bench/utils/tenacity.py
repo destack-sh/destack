@@ -31,7 +31,8 @@ class RetryOptions:
         return f"<RetryOptions {self}>"
 
     def get_wait_interval(self, attempt: int, oracle: Oracle) -> float:
-        interval = min(self.retry_interval * (self.backoff**attempt), self.max_retry_interval)
+        backoff = self.backoff ** (max(1, attempt) - 1)  # no backoff on first attempt
+        interval = min(self.retry_interval * backoff, self.max_retry_interval)
         if self.jitter is not None:
             interval *= 1 + self.jitter * (2 * oracle.random.random() - 1)
         return interval
@@ -70,12 +71,12 @@ class RetryState:
     def __repr__(self) -> str:
         return f"<RetryState {self}>"
 
+    def on_attempt(self):
+        self.attempt += 1
+
     def on_success(self):
         self.attempt = 0
         self.errors = None
-
-    def on_attempt(self):
-        self.attempt += 1
 
     def on_error(self, error: Exception) -> bool:
         if self.errors is None:

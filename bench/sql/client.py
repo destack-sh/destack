@@ -65,32 +65,42 @@ def get_pg_crypto_key(object: TableObject | Table) -> str:
 
 
 async def get_pg_connection_pool(connection_uri: str) -> AsyncConnectionPool:
-    if connection_uri not in _connection_pools:
-        assert isinstance(connection_uri, str), f"connection_uri {connection_uri!r} is not a str"
-        # parse out key parts for pool name
-        match = _CONNECTION_STR_REGEX.match(connection_uri)
-        assert match, f"connection_uri {connection_uri!r} does not match expected format"
-        pool = AsyncConnectionPool(
-            connection_uri,
-            min_size=2,
-            max_size=10,
-            max_idle=60 * 60,
-            timeout=PG_CONNECT_TIMEOUT,
-            reconnect_timeout=PG_RECONNECT_TIMEOUT,
-            connection_class=psycopg.AsyncConnection,
-            kwargs={"row_factory": dict_row},
-            name=f"{match['username']}@{match['host']}/{match['database']}",
-        )
-        await pool.open()
-        _connection_pools[connection_uri] = pool
-    return _connection_pools[connection_uri]
+    """Gets an open connection pool"""
+    if connection_uri in _connection_pools:
+        return _connection_pools[connection_uri]
+
+    # parse out key parts for pool name
+    match = _CONNECTION_STR_REGEX.match(connection_uri)
+    assert match, f"connection_uri {connection_uri!r} does not match expected format"
+    pool = AsyncConnectionPool(
+        connection_uri,
+        min_size=2,
+        max_size=10,
+        max_idle=60 * 60,
+        timeout=PG_CONNECT_TIMEOUT,
+        reconnect_timeout=PG_RECONNECT_TIMEOUT,
+        connection_class=psycopg.AsyncConnection,
+        kwargs={"row_factory": dict_row},
+        name=f"{match['username']}@{match['host']}/{match['database']}",
+    )
+    await pool.open()
+    _connection_pools[connection_uri] = pool
+    return pool
 
 
-async def close_pg_connection_pool(connection: Store | str) -> None:
-    if isinstance(connection, Store):
-        connection_uri = get_pg_connection_uri(connection)
-    else:
-        connection_uri = connection
+async def cycle_pg_connection_pool(connection_uri: str) -> None:
+    """Cycles a connection pool (discarding all current connections and removing the pool)."""
+    pool = _connection_pools.get(connection_uri)
+    if pool is not None:
+        for conn in pool._pool:
+            if conn._pool is pool:
+                await conn.close()
+                await pool.putconn(conn)
+    del _connection_pools[connection_uri]
+
+
+async def close_pg_connection_pool(connection_uri: str) -> None:
+    """Closes a connection pool."""
     pool = _connection_pools.get(connection_uri)
     if pool is None:
         raise ValueError(f"no pool for connection_uri {connection_uri!r}")

@@ -79,6 +79,14 @@ class RemoteChannel(WritableChannel[RemoteEngine]):
     def __str__(self):
         return f"engine={self.engine!r}, session={self.session}"
 
+    @override
+    async def reconnect(self):
+        pass  # remote channels use a shared client
+
+    @override
+    async def close(self):
+        pass  # remote channels use a shared client
+
     def _get_connection_cls(
         self, query: "QueryBuilder", scope: GraphScopeData, options: ConnectionOptions
     ) -> type[Connection]:
