@@ -50,6 +50,7 @@ from bench.language.property import (
     p_system,
 )
 from bench.language.validation import TITLE_CONSTRAINT, ValidationHandler, constraint
+from bench.proto.networking import MACHINE_ENVIRONMENT
 from bench.proto.wire import (
     DownloadFilesRequest,
     FileData,
@@ -58,7 +59,6 @@ from bench.proto.wire import (
     UploadFilesRequest,
 )
 from bench.utils.func import IdEnum, group_by
-from bench.utils.networking import MACHINE_ENVIRONMENT
 from bench.utils.string import humanize_bytes
 from bench.utils.utils import get_from_env
 
