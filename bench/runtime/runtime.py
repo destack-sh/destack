@@ -21,6 +21,7 @@ from bench.language.const import (
 )
 from bench.language.node import EMPTY_SCOPE
 from bench.proto import wire
+from bench.proto.networking import localize_url
 from bench.proto.services import ServiceBase
 from bench.proto.wire import (
     GraphScopeData,
@@ -38,7 +39,6 @@ from bench.proto.wire import (
 from bench.proto.wiring import pack_rpc_headers
 from bench.runtime.remote import RemoteEngine
 from bench.runtime.thread import RuntimeThread
-from bench.utils.networking import localize_url
 from bench.utils.oracle import Oracle
 from bench.utils.tenacity import RETRY_GRPC_FOREVER
 

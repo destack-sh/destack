@@ -12,6 +12,7 @@ from opentelemetry import trace
 
 from bench.language import Bench, Machine, ResourceStatus, Server
 from bench.language.const import CLOUD, NodeType
+from bench.proto.networking import dockerify_url, minikubeify_url
 from bench.system.host.core import HostApi
 from bench.system.provision.kubernetes import (
     KUBERNETES_MACHINE_APP_LABEL,
@@ -22,7 +23,6 @@ from bench.system.provision.provisioner import Provisioner
 from bench.utils.analytics import SENTRY_DSN
 from bench.utils.env import ENV, IS_DEV, IS_TEST
 from bench.utils.func import bittuple
-from bench.utils.networking import dockerify_url, minikubeify_url
 from bench.utils.utils import get_from_env, get_from_env_maybe
 
 if TYPE_CHECKING:

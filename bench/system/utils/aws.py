@@ -3,8 +3,8 @@ from typing import TYPE_CHECKING, Any, Literal, Optional, assert_never
 import boto3
 import botocore.config
 
+from bench.proto.networking import dockerify_url, minikubeify_url
 from bench.proto.wire import MachineEnvironment
-from bench.utils.networking import dockerify_url, minikubeify_url
 from bench.utils.utils import get_from_env
 
 if TYPE_CHECKING:
