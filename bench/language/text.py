@@ -89,6 +89,12 @@ class TextSpan(TextOptions, Struct):
         else:
             return 0
 
+    def __contains__(self, other: str) -> bool:
+        if self.content is not None:
+            return other in self.content
+        else:
+            return False
+
     @staticmethod
     def new(
         content: str | Node | None,
@@ -137,9 +143,23 @@ class TextLine(TextOptions, Struct):
     def __len__(self):
         return sum(len(span) for span in self.spans)
 
+    def __contains__(self, other: str) -> bool:
+        return any(other in span for span in self.spans)
+
     @staticmethod
     def plain(text: str) -> "TextLine":
-        return TextLine(type=TextLineType.PLAIN, spans=[TextSpan(content=text)])
+        if text:
+            return TextLine(type=TextLineType.PLAIN, spans=[TextSpan(content=text)])
+        else:
+            return TextLine(type=TextLineType.PLAIN, spans=[])
+
+    @staticmethod
+    def code(text: str) -> "TextLine":
+        # NOTE :CrummyMarkdown: we don't support proper code blocks yet
+        if text:
+            return TextLine(type=TextLineType.PLAIN, spans=[TextSpan(content=text, is_code=True)])
+        else:
+            return TextLine(type=TextLineType.PLAIN, spans=[])
 
     @staticmethod
     def new(
@@ -187,6 +207,9 @@ class Text(Struct):
     def __len__(self):
         return sum(len(line) for line in self.lines)
 
+    def __contains__(self, other: str) -> bool:
+        return any(other in line for line in self.lines)
+
     @staticmethod
     def plain(text: str) -> "Text":
         return Text(lines=[TextLine.plain(line) for line in text.splitlines(keepends=False)])
@@ -196,6 +219,10 @@ class Text(Struct):
     @staticmethod
     def from_markdown(markdown: str) -> "Text":
         return markdown_to_text(markdown)
+
+    @staticmethod
+    def code(code: str) -> "Text":
+        return Text(lines=[TextLine.code(line) for line in code.splitlines(keepends=False)])
 
     @staticmethod
     def empty() -> "Text":

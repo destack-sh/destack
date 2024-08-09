@@ -610,7 +610,7 @@ class CompiledCode:
     kind: CodeType
     code: str
     transformed_code: str
-    transformation: "CodeTransformation | None"
+    transformation: "CodeTransformation"
     definitions: Mapping[str, "CodeDefinition"]
     references: Mapping[str, "CodeReference"]
     imports: Mapping[str, "CodeImport"]
@@ -749,7 +749,7 @@ def compile_code(
             kind=kind,
             code=code,
             transformed_code=transformed_code,
-            transformation=None,
+            transformation=CodeTransformation.identity(),
             imports={},
             definitions={},
             references={},
