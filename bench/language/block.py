@@ -185,7 +185,12 @@ class Block(SourceNode[BlockData]):
             #  we have to resolve them again (unnecessarily) before instantiating.
             typ = TypeInfo(kind=TypeKind.ALIAS, base_type=self)
         elif self.type == BlockType.CHOICE:
-            typ = TypeInfo(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.FIELD)
+            typ = TypeInfo(
+                kind=TypeKind.BASED_NODE,
+                base_type=self,
+                bench_type=NodeType.FIELD,
+                base_field_zone=FieldZone.OPTION,
+            )
         elif self.type == BlockType.SIGNAL:
             if not as_object:
                 typ = TypeInfo(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.SIGNAL)
