@@ -50,7 +50,19 @@ class CodeRunnerBase(Runner):
                 self.runtime.combined_glbls,
             )
         if compiled.syntax_error:
-            raise SyntaxError(repr(self)) from compiled.syntax_error  # re-raise
+            syntax_e = compiled.syntax_error
+            # wrap in our own SyntaxError
+            wrapped = SyntaxError(self.state.code.to_string())
+            if syntax_e.lineno is not None and syntax_e.offset is not None:
+                wrapped.lineno, wrapped.offset = compiled.transformation.reverse(
+                    syntax_e.lineno, syntax_e.offset
+                )
+            if syntax_e.end_lineno is not None and syntax_e.end_offset is not None:
+                wrapped.end_lineno, wrapped.end_offset = compiled.transformation.reverse(
+                    syntax_e.end_lineno, syntax_e.end_offset
+                )
+            wrapped.msg = syntax_e.msg
+            raise wrapped from compiled.syntax_error  # re-raise
         return compiled
 
     @contextmanager

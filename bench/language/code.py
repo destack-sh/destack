@@ -34,6 +34,18 @@ class CodeLine(Struct):
 
     content: str | None = p_regular(32, require=False)
 
+    def __len__(self) -> int:
+        if self.content is None:
+            return 0
+        else:
+            return len(self.content)
+
+    def __contains__(self, other: str) -> bool:
+        if self.content is None:
+            return False
+        else:
+            return other in self.content
+
 
 @struct_(StructType.CODE)
 class Code(Struct):
@@ -47,6 +59,12 @@ class Code(Struct):
         if len(preview_str) > 100:
             preview_str = preview_str[:100] + "..."
         return f"'{preview_str}', {len(self.lines)} lines"
+
+    def __len__(self) -> int:
+        return sum(len(line) for line in self.lines)
+
+    def __contains__(self, other: str) -> bool:
+        return any(other in line for line in self.lines)
 
     def to_string(self) -> str:
         return code_to_string(self)

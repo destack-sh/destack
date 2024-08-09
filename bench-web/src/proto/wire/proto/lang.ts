@@ -9718,6 +9718,14 @@ export enum RunErrorType {
      */
     RUN_IMPOSSIBLE = 2,
     /**
+     * @generated from protobuf enum value: RUN_ERROR_TYPE_CODE_INVALID = 3;
+     */
+    CODE_INVALID = 3,
+    /**
+     * @generated from protobuf enum value: RUN_ERROR_TYPE_TEXT_INVALID = 4;
+     */
+    TEXT_INVALID = 4,
+    /**
      * @generated from protobuf enum value: RUN_ERROR_TYPE_REPLAY = 10;
      */
     REPLAY = 10,

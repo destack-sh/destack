@@ -1,5 +1,3 @@
-import pytest
-
 from bench.language import Block, BlockType, Field, code
 from bench.language.const import RunStatus
 from bench.language.run import RunErrorType, RunOptions
@@ -22,8 +20,10 @@ async def test_run_code_with_syntax_error(local_runtime: RuntimeHandle):
     local_runtime.page().blocks.append(InvalidCode)
     await local_runtime.commit()
 
-    with pytest.raises(SyntaxError):
-        _ = await local_runtime.run(InvalidCode)
+    run = await local_runtime.run(InvalidCode, return_error=True)
+    assert run.status == RunStatus.FAILED
+    assert run.error is not None and run.error.type == RunErrorType.CODE_INVALID
+    assert run.error.text and "!!invalid!!" in run.error.text
 
 
 async def test_run_code_capture_logs(local_runtime: RuntimeHandle):

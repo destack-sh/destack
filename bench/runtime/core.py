@@ -51,7 +51,7 @@ class RunImpossibleError(NonRetryableError):
 
 
 class SyntaxError(RunImpossibleError, SyntaxError):
-    pass
+    run_error_type = RunErrorType.CODE_INVALID
 
 
 class ReplayError(RunImpossibleError):

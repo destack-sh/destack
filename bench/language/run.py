@@ -34,7 +34,7 @@ from bench.language.property import (
     p_value_runtime,
 )
 from bench.language.session import HasSessionContext
-from bench.language.text import Text
+from bench.language.text import Text, TextLine
 from bench.language.validation import TITLE_CONSTRAINT, TypeConstraintIn, ValidationHandler
 from bench.proto.wire import AnyNodeData, NodeReferenceData, RunData
 from bench.utils.func import IdEnum
@@ -218,6 +218,8 @@ class RunErrorType(IdEnum):
     # unretryable
     RUNTIME_UNAVAILABLE = 1
     RUN_IMPOSSIBLE = 2
+    CODE_INVALID = 3
+    TEXT_INVALID = 4
     REPLAY = 10
     MODEL_INCAPABLE = 100
     UNKNOWN_NONRETRYABLE = 499
@@ -259,6 +261,7 @@ class RunError(Struct, BenchError):
     def from_exception(kind: RunErrorKind, e: Exception) -> "RunError":
         # NOTE :Incomplete: get run error trace/frames/node/...
         title = to_casing(e.__class__.__name__, Casing.CAMEL, allow_whitespace=True)
+        text = Text.plain(str(e))
         if hasattr(e, "run_error_type"):
             typ = getattr(e, "run_error_type")
             assert isinstance(typ, RunErrorType), f"unexpected {typ!r} from {e!r}"
@@ -266,7 +269,11 @@ class RunError(Struct, BenchError):
             typ = RunErrorType.UNKNOWN_RETRYABLE
         else:
             typ = RunErrorType.UNKNOWN_NONRETRYABLE
-        return RunError(kind=kind, type=typ, title=title, text=Text.plain(str(e)))
+        if isinstance(e, SyntaxError):
+            header_line = TextLine.plain(f"Syntax error at line {e.lineno}, column {e.offset}:")
+            code_lines = Text.code(e.args[0])
+            text = Text(lines=[header_line, *code_lines.lines])
+        return RunError(kind=kind, type=typ, title=title, text=text)
 
 
 @timed_node_(NodeType.RUN)
