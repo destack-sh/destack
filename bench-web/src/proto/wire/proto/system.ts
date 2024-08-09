@@ -782,10 +782,6 @@ export interface ResolveHostsResponse_HostInfo {
      */
     bench?: NodeReferenceData;
 }
-// 
-// Host
-// 
-
 /**
  * @generated from protobuf message symbolx.bench.UploadFilesRequest
  */
@@ -798,6 +794,10 @@ export interface UploadFilesRequest {
      * @generated from protobuf field: repeated symbolx.bench.FileData files = 2;
      */
     files: FileData[];
+    /**
+     * @generated from protobuf field: optional symbolx.bench.MachineEnvironment environment = 3;
+     */
+    environment?: MachineEnvironment;
 }
 /**
  * @generated from protobuf message symbolx.bench.UploadFilesResponse
@@ -841,6 +841,10 @@ export interface DownloadFilesRequest {
      * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData files = 2;
      */
     files: NodeReferenceData[];
+    /**
+     * @generated from protobuf field: optional symbolx.bench.MachineEnvironment environment = 3;
+     */
+    environment?: MachineEnvironment;
 }
 /**
  * @generated from protobuf message symbolx.bench.DownloadFilesResponse
@@ -863,6 +867,27 @@ export interface DownloadFilesResponse_DownloadHandle {
      * @generated from protobuf field: string get_url = 2;
      */
     getUrl: string;
+}
+// 
+// Host
+// 
+
+/**
+ * @generated from protobuf enum symbolx.bench.MachineEnvironment
+ */
+export enum MachineEnvironment {
+    /**
+     * @generated from protobuf enum value: REGULAR = 0;
+     */
+    REGULAR = 0,
+    /**
+     * @generated from protobuf enum value: DOCKER = 1;
+     */
+    DOCKER = 1,
+    /**
+     * @generated from protobuf enum value: MINIKUBE = 2;
+     */
+    MINIKUBE = 2
 }
 // @generated message type with reflection information, may provide speed optimized methods
 class GetNodesRequest$Type extends MessageType<GetNodesRequest> {
@@ -2948,7 +2973,8 @@ class UploadFilesRequest$Type extends MessageType<UploadFilesRequest> {
     constructor() {
         super("symbolx.bench.UploadFilesRequest", [
             { no: 1, name: "scope", kind: "message", T: () => GraphScopeData },
-            { no: 2, name: "files", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => FileData }
+            { no: 2, name: "files", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => FileData },
+            { no: 3, name: "environment", kind: "enum", opt: true, T: () => ["symbolx.bench.MachineEnvironment", MachineEnvironment] }
         ]);
     }
     create(value?: PartialMessage<UploadFilesRequest>): UploadFilesRequest {
@@ -2969,6 +2995,9 @@ class UploadFilesRequest$Type extends MessageType<UploadFilesRequest> {
                 case /* repeated symbolx.bench.FileData files */ 2:
                     message.files.push(FileData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
+                case /* optional symbolx.bench.MachineEnvironment environment */ 3:
+                    message.environment = reader.int32();
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -2987,6 +3016,9 @@ class UploadFilesRequest$Type extends MessageType<UploadFilesRequest> {
         /* repeated symbolx.bench.FileData files = 2; */
         for (let i = 0; i < message.files.length; i++)
             FileData.internalBinaryWrite(message.files[i], writer.tag(2, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.MachineEnvironment environment = 3; */
+        if (message.environment !== undefined)
+            writer.tag(3, WireType.Varint).int32(message.environment);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -3118,7 +3150,8 @@ class DownloadFilesRequest$Type extends MessageType<DownloadFilesRequest> {
     constructor() {
         super("symbolx.bench.DownloadFilesRequest", [
             { no: 1, name: "scope", kind: "message", T: () => GraphScopeData },
-            { no: 2, name: "files", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData }
+            { no: 2, name: "files", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
+            { no: 3, name: "environment", kind: "enum", opt: true, T: () => ["symbolx.bench.MachineEnvironment", MachineEnvironment] }
         ]);
     }
     create(value?: PartialMessage<DownloadFilesRequest>): DownloadFilesRequest {
@@ -3139,6 +3172,9 @@ class DownloadFilesRequest$Type extends MessageType<DownloadFilesRequest> {
                 case /* repeated symbolx.bench.NodeReferenceData files */ 2:
                     message.files.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
+                case /* optional symbolx.bench.MachineEnvironment environment */ 3:
+                    message.environment = reader.int32();
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -3157,6 +3193,9 @@ class DownloadFilesRequest$Type extends MessageType<DownloadFilesRequest> {
         /* repeated symbolx.bench.NodeReferenceData files = 2; */
         for (let i = 0; i < message.files.length; i++)
             NodeReferenceData.internalBinaryWrite(message.files[i], writer.tag(2, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.MachineEnvironment environment = 3; */
+        if (message.environment !== undefined)
+            writer.tag(3, WireType.Varint).int32(message.environment);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

@@ -277,26 +277,28 @@ defineExpose<ViewExposed>({ self, id });
         class="flex h-full w-full items-center justify-center text-center"
         :class="[loadFailed ? 'text-danger-600' : '']"
       >
-        <IconInline
-          v-bind="getFileIconMaybe(optimisticValue) ?? facetIcon"
-          :class="loadFailed ? 'text-danger-600' : 'text-gray-700'"
-        />
-        <a
-          class="ml-1.5 decoration-gray-300 underline-offset-3 hover:decoration-primary-900"
-          :class="download?.getUrl.value != null ? 'hover:underline' : ''"
-          :href="download?.getUrl.value ?? undefined"
-          target="_blank"
-        >
-          {{ optimisticValue?.title ?? "???" }}
-        </a>
-        <span v-if="optimisticValue.size != null" class="ml-1.5 text-xs text-gray-400">
-          {{ humanizeBytes(Number(optimisticValue?.size)) }}
+        <span>
+          <IconInline
+            v-bind="getFileIconMaybe(optimisticValue) ?? facetIcon"
+            :class="loadFailed ? 'text-danger-600' : 'text-gray-700'"
+          />
+          <a
+            class="ml-1.5 decoration-gray-300 underline-offset-3 hover:decoration-primary-900"
+            :class="download?.getUrl.value != null ? 'hover:underline' : ''"
+            :href="download?.getUrl.value ?? undefined"
+            target="_blank"
+          >
+            {{ optimisticValue?.title ?? "???" }}
+          </a>
+          <span v-if="optimisticValue.size != null" class="ml-1.5 text-xs text-gray-400">
+            {{ humanizeBytes(Number(optimisticValue?.size)) }}
+          </span>
+          <!-- Uploading -->
+          <i
+            v-if="upload != null && upload.isActive.value"
+            class="fas fa-spinner-third ml-1.5 animate-spin text-gray-400"
+          />
         </span>
-        <!-- Uploading -->
-        <i
-          v-if="upload != null && upload.isActive.value"
-          class="fas fa-spinner-third ml-1.5 animate-spin text-gray-400"
-        />
       </div>
       <!-- Not ready -->
       <div

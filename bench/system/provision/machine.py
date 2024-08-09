@@ -11,12 +11,7 @@ from kubernetes_asyncio import client as k8
 from opentelemetry import trace
 
 from bench.language import Bench, Machine, ResourceStatus, Server
-from bench.language.const import (
-    CLOUD,
-    NodeType,
-    dockerify_domain,
-    minikubeify_domain,
-)
+from bench.language.const import CLOUD, NodeType
 from bench.system.host.core import HostApi
 from bench.system.provision.kubernetes import (
     KUBERNETES_MACHINE_APP_LABEL,
@@ -27,6 +22,7 @@ from bench.system.provision.provisioner import Provisioner
 from bench.utils.analytics import SENTRY_DSN
 from bench.utils.env import ENV, IS_DEV, IS_TEST
 from bench.utils.func import bittuple
+from bench.utils.networking import dockerify_url, minikubeify_url
 from bench.utils.utils import get_from_env, get_from_env_maybe
 
 if TYPE_CHECKING:
@@ -61,9 +57,9 @@ def _get_machine_env_vars(
     assert client, f"{machine!r} has no client"
     supervisor_url = get_from_env("SUPERVISOR_URL", description="Supervisor URL")
     if is_in_docker:
-        supervisor_url = dockerify_domain(supervisor_url)
+        supervisor_url = dockerify_url(supervisor_url)
     elif is_in_minikube:
-        supervisor_url = minikubeify_domain(supervisor_url)
+        supervisor_url = minikubeify_url(supervisor_url)
     env_vars: dict[str, str | None] = {
         # hosting
         "SERVICE_NAME": "runtime",

@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.08.08.10"
+VERSION = "2024.08.09.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -1506,6 +1506,12 @@ class ServiceKind(betterproto.Enum):
     UNSPECIFIED = 0
     INTERNAL = 1
     PUBLIC = 2
+
+
+class MachineEnvironment(betterproto.Enum):
+    REGULAR = 0
+    DOCKER = 1
+    MINIKUBE = 2
 
 
 @dataclass(eq=False, repr=False)
@@ -3883,6 +3889,7 @@ class ResolveHostsResponseHostInfo(betterproto.Message):
 class UploadFilesRequest(betterproto.Message):
     scope: "GraphScopeData" = betterproto.message_field(1)
     files: List["FileData"] = betterproto.message_field(2)
+    environment: Optional["MachineEnvironment"] = betterproto.enum_field(3, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -3902,6 +3909,7 @@ class UploadFilesResponseUploadHandle(betterproto.Message):
 class DownloadFilesRequest(betterproto.Message):
     scope: "GraphScopeData" = betterproto.message_field(1)
     files: List["NodeReferenceData"] = betterproto.message_field(2)
+    environment: Optional["MachineEnvironment"] = betterproto.enum_field(3, optional=True)
 
 
 @dataclass(eq=False, repr=False)

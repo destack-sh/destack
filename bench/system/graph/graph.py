@@ -613,7 +613,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
         """
         Commits a system session (outside a request context).
         This is like GraphIo.commit_transaction but without validation.
-        TODO :Robustness: also retry system commits if channel is unavailable
+        nocheckin :Robustness: also retry system commits if channel is unavailable
         """
         assert session._tx is not None, f"no active tx in {session!r}"
         edit_graph = NodeDict(session._edited_nodes_by_id)

@@ -1,4 +1,10 @@
 <script lang="ts" setup>
+import { useFlatNodeMoveActions } from "@/language/block";
+import { uploadFile } from "@/language/file";
+import { getGroupedChildrenRef, isDescendantOf } from "@/language/graph";
+import { makeRun } from "@/language/session";
+import { cloneNode, createBlock, moveNode, toCamelName } from "@/language/utils";
+import { makeTypeInfo, packValueJson } from "@/language/value";
 import {
   BenchType,
   BlockData,
@@ -21,45 +27,37 @@ import {
   unwrapProtoOneOf,
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
-import { fireActionById, type ActionContext, type ActionMapImplementation } from "@/ui/action";
-import { useFlatNodeMoveActions } from "@/language/block";
 import { PACKAGE_SCOPE } from "@/system/client";
 import { useExistingConnection, useGetConnection } from "@/system/connection";
-import { getGroupedChildrenRef, isDescendantOf } from "@/language/graph";
-import { ICON_BY_BLOCK_TYPE, IconInline } from "@/ui/icon";
-import { cloneNode, createBlock, moveNode, toCamelName } from "@/language/utils";
-import { makeRun } from "@/language/session";
 import { canvas, inspectionPtr } from "@/system/space";
-import { makeTypeInfo, packBuiltinObject, packBuiltinObjectJson, packValue, packValueJson } from "@/language/value";
+import { fireActionById, type ActionContext, type ActionMapImplementation } from "@/ui/action";
+import { DEFAULT_HEADER_HEIGHT } from "@/ui/canvas";
 import { startDragging, useMultiDropZone } from "@/ui/drag";
-import { blurDocument } from "@/utils/element";
+import { ICON_BY_BLOCK_TYPE, IconInline } from "@/ui/icon";
+import { EXPOSED_BLOCK_TYPES } from "@/ui/inspect";
 import { ScrollbarWidth } from "@/ui/layout";
 import { menuActionsLike, type PopoverContext, type PopoverInfo, type PopoverInfoIn } from "@/ui/popover";
+import { blurDocument } from "@/utils/element";
 import { computedValue } from "@/utils/ref";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import NodePath from "@/views/builtins/NodePath.vue";
-import { DEFAULT_HEADER_HEIGHT } from "@/ui/canvas";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Block from "@/views/system/Block.vue";
 import { computed, nextTick, ref, toRef, type Ref } from "vue";
-import { EXPOSED_BLOCK_TYPES } from "@/ui/inspect";
-import { uploadFile } from "@/language/file";
-import { log } from "console";
-import { packProtoJson } from "@/language/transaction";
 
 const HEADER_HEIGHT = DEFAULT_HEADER_HEIGHT;
 const MIN_BLOCK_WIDTH = 500;
 const MAX_BLOCK_WIDTH = 800;
 const MIN_GUTTER_WIDTH = 44;
-const ROOT_BLOCK_GAP_Y = 8;
+const BLOCK_GAP_Y = 8;
 const HANDLE_WIDTH = 6;
 const SEPARATOR_WIDTH = 6;
 
 const props = defineProps<
   { self: TypedNodeReferenceData<NodeType.VIEW>; size: Required<Pick<BoxData, "width" | "height">> } & Pick<
     ViewData,
-    "name" | "text" | "icon" | "nodePtr" | "focus" | "selection" | "expansion"
+    "name" | "text" | "icon" | "nodePtr" | "focus" | "variant" | "selection" | "expansion"
   >
 >();
 const emit = defineEmits(viewEmits());
@@ -110,11 +108,11 @@ const widths = computed(() => {
 function getAnchorPositionStyle(anchor: "start" | "end", blockIdx: number, anchorWidth: number) {
   if (anchor == "start") {
     return {
-      top: -ROOT_BLOCK_GAP_Y / 2 - anchorWidth / 2 + "px",
+      top: -BLOCK_GAP_Y / 2 - anchorWidth / 2 + "px",
     };
   } else {
     return {
-      bottom: -ROOT_BLOCK_GAP_Y / 2 - anchorWidth / 2 + "px",
+      bottom: -BLOCK_GAP_Y / 2 - anchorWidth / 2 + "px",
     };
   }
 }
@@ -305,6 +303,10 @@ defineExpose<ViewExposed>({ self, actions, focus });
     :style="{ width: size.width + 'px', height: size.height + 'px' }"
     class="flex w-full flex-col bg-white text-gray-900"
   >
+    <!-- TODO :UX: entire Page/Block/.. design -->
+    <!-- (should it be more notebook like or more page like? where should extra block interactions & metadata go?,
+          what about a line with multiple block 'columns' in it? how to navigate around these blocks? ...) -->
+
     <!-- Header -->
     <div
       data-keep-inspection-in-base="true"
@@ -342,13 +344,12 @@ defineExpose<ViewExposed>({ self, actions, focus });
       track-is-overlay
     >
       <div ref="contentRef" class="mb-16 flex min-h-full flex-col">
-        <!--  (while still retaining all the functionality of a full block 'line') -->
-        <!-- Block 'line' -->
+        <!-- Block full width line -->
         <template v-for="(block, i) in blocksWithSelf" :key="block.id">
           <div
             class="group/block-line relative flex min-w-fit flex-row"
             :style="{
-              marginTop: ROOT_BLOCK_GAP_Y + 'px',
+              marginTop: BLOCK_GAP_Y + 'px',
             }"
           >
             <!-- Left gutter -->
@@ -383,7 +384,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
 
             <!-- Block wrapper -->
             <div
-              class="group/block-wrapper relative rounded border-gray-100"
+              class="group/block-wrapper relative rounded"
               :style="{
                 width: widths.block + 'px',
               }"
