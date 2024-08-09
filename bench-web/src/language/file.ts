@@ -1,8 +1,10 @@
+import { toCamelName } from "@/language/const";
+import { unpackProtoJson, type Transaction } from "@/language/transaction";
+import { makeNode } from "@/language/node";
 import { getCachedHostClient } from "@/proto/services";
 import {
   BlockData,
   DownloadFilesResponse_DownloadHandle,
-  EXTENSION_BY_FILE_FORMAT,
   EXTENSIONS_BY_FILE_FORMAT,
   FILE_FORMAT_BY_EXTENSION,
   FILE_FORMAT_BY_MIME_TYPE,
@@ -12,7 +14,6 @@ import {
   FileReferenceData,
   FileType,
   IconData,
-  MIME_TYPE_BY_FILE_FORMAT,
   MIME_TYPES_BY_FILE_FORMAT,
   NodeReferenceData,
   NodeType,
@@ -21,19 +22,8 @@ import {
   TypeConstraintData,
   UploadFilesResponse_UploadHandle,
 } from "@/proto/wire";
-import {
-  isNode,
-  isNodeOrRef,
-  isStruct,
-  makeScope,
-  newNodeId,
-  nodeReference,
-  toNodeRef,
-  toPlainNodeRef,
-} from "@/proto/wiring";
-import { ICON_BY_FILE_FORMAT, ICON_BY_FILE_TYPE, makeIcon } from "@/ui/icon";
-import { makeNode, toCamelName } from "@/language/utils";
-import { unpackProtoJson, type Transaction } from "@/language/transaction";
+import { isNode, isNodeOrRef, isStruct, makeScope, newNodeId, nodeReference, toPlainNodeRef } from "@/proto/wiring";
+import { ICON_BY_FILE_FORMAT, ICON_BY_FILE_TYPE } from "@/ui/icon";
 import { AsyncEvent, groupByScalar } from "@/utils/functools";
 import { log } from "@/utils/log";
 import { humanizeBytes } from "@/utils/string";

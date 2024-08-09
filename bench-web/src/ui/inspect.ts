@@ -30,19 +30,13 @@ import {
   type FieldData,
   type PropertyInfo,
 } from "@/proto/wire";
-import {
-  ENUM_TYPES,
-  NODE_NAME_DISCRIMINATORS,
-  NODE_TYPES,
-  onNodeMorphed,
-  PAGE_BLOCK_TYPES,
-  RUNNABLE_BLOCK_TYPES,
-} from "@/language/utils";
+import { NODE_NAME_DISCRIMINATORS, onNodeMorphed } from "@/language/node";
 import { ENUM_ICONS_BY_TYPE } from "@/ui/icon";
 import { getViewForValueType } from "@/ui/view";
 import { log } from "@/utils/log";
 import { toCasing, Casing } from "@/utils/string";
 import type { ViewProps } from "@/views/common";
+import { ENUM_TYPES, NODE_TYPES, PAGE_BLOCK_TYPES, RUNNABLE_BLOCK_TYPES, toCamelName } from "@/language/const";
 
 //
 // Enums
@@ -182,6 +176,10 @@ function makeEnumOptions<T extends EnumType>(enumType: T): EnumOption<T>[] {
 
 export function getEnumOptions<T extends EnumType>(enumType: T): EnumOption<T>[] {
   return ENUM_OPTIONS_BY_TYPE[enumType] as EnumOption<T>[];
+}
+
+export function getEnumTitle<T extends EnumType>(enumType: T, enumValue: EnumTypeMapping[T]): string {
+  return ENUM_TITLE_BY_TYPE[enumType]?.[enumValue] ?? toCamelName(ENUM_BY_TYPE[enumType], enumValue);
 }
 
 /** Gets a random value from an enum, ignoring the number keys (which are for protobuf). */

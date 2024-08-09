@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { ViewType } from "@/proto/wire";
-import { toCamelName } from "@/language/utils";
+import { toCamelName } from "@/language/const";
 
 const props = defineProps<{ type: ViewType }>();
 </script>

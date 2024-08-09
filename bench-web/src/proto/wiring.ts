@@ -1,8 +1,8 @@
+import { BASED_NODE_TYPES, getBaseFromNode, toCamelName } from "@/language/const";
 import {
   EditData,
   EditType,
   FileData,
-  FileInfoProperty,
   FileReferenceData,
   GraphScopeData,
   MESSAGE_TYPE_BY_OBJECT_TYPE,
@@ -12,25 +12,22 @@ import {
   PROPERTY_ENUM_BY_TYPE,
   PROPERTY_INFOS_BY_TYPE,
   PropertyReferenceData,
-  STRUCT_PROPERTY_ENUM_BY_TYPE,
   SecretData,
-  SecretProperty,
   SecretReferenceData,
   SomeNodeData,
+  STRUCT_PROPERTY_ENUM_BY_TYPE,
   StructType,
   ViewData,
   type AnyNodeData,
-  type AnyPropertyType,
   type AnyStructData,
   type AnyTypeMapping,
   type NodeTypeMapping,
   type PropertyInfo,
   type StructTypeMapping,
 } from "@/proto/wire";
-import { BASED_NODE_TYPES, getBaseFromNode, toCamelName } from "@/language/utils";
 import { reverseRecord } from "@/utils/functools";
 import { Casing, toCasing } from "@/utils/string";
-import { MessageType, reflectionMergePartial, ScalarType, type FieldInfo } from "@protobuf-ts/runtime";
+import { MessageType, ScalarType } from "@protobuf-ts/runtime";
 import { v4 } from "uuid";
 
 export const NODE_TYPE_NAME: Record<NodeType, string> = reverseRecord(NodeType);

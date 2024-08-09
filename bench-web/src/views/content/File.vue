@@ -7,7 +7,7 @@ import {
   useFileDownload,
   type FileUpload,
 } from "@/language/file";
-import { toCamelName } from "@/language/utils";
+import { toCamelName } from "@/language/const";
 import {
   BoxData,
   FileFormat,

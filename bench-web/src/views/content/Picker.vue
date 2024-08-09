@@ -14,7 +14,7 @@ import {
 } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { ICON_BY_BENCH_TYPE, ICON_BY_BLOCK_TYPE, IconInline, makeIcon } from "@/ui/icon";
-import { isEnumType, isNodeType } from "@/language/utils";
+import { isEnumType, isNodeType } from "@/language/const";
 import type { NodeItem, TypeItem } from "@/ui/search";
 import { enumIndex, graphIndex, typeIndex, useSearch, type EnumOptionItem, type SearchIndex } from "@/ui/search";
 import { canvas, pkgGraph } from "@/system/space";

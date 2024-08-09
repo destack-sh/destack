@@ -43,7 +43,7 @@ import {
   getTkB64FromPtr,
   padCkFromTkB64,
   toCamelName,
-} from "@/language/utils";
+} from "@/language/const";
 import { decodeB64VLQ, encodeB64VLQ } from "@/utils/functools";
 
 export type TypeIdentity = Pick<
@@ -678,6 +678,7 @@ export function typeIdentityEquals(a: TypeIdentity, b: TypeIdentity): boolean {
     } else if (a.constraint != null && b.constraint != null) {
       return (
         a.constraint.fileType == b.constraint.fileType &&
+        a.constraint.fileFormat == b.constraint.fileFormat &&
         a.constraint.blockType == b.constraint.blockType &&
         a.constraint.stepType == b.constraint.stepType
       );

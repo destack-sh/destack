@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { toCamelName } from "@/language/utils";
+import { toCamelName } from "@/language/const";
 import { humanizeError } from "@/proto/services";
 import { NodeType, type NodeReferenceData } from "@/proto/wire";
 import type { Connection } from "@/system/connection";

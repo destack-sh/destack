@@ -1,12 +1,11 @@
 <script lang="ts" setup>
+import { toCamelName } from "@/language/const";
 import { Orientation, RegionArea } from "@/proto/wire";
 import { isDeveloperMode } from "@/system/client";
 import { connections, hasPendingConnections } from "@/system/connection";
 import { ICON_BY_REGION_AREA, IconInline, makeIcon } from "@/ui/icon";
-import { toCamelName } from "@/language/utils";
-import { GEOLOCATION } from "@/utils/geolocation";
-import { IS_DEV } from "@/utils/globals";
 import { ScrollbarWidth } from "@/ui/layout";
+import { GEOLOCATION } from "@/utils/geolocation";
 import Popover from "@/views/builtins/Popover.vue";
 import Scroll from "@/views/containers/Scroll.vue";
 import { computed, ref, type Ref } from "vue";

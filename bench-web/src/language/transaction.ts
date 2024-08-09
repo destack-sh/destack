@@ -34,7 +34,7 @@ import {
 import { nonce, origin, userOrNullPtr, userPtr } from "@/system/client";
 import { type ReadNodeGraph, type WriteNodeGraph } from "@/language/graph";
 import { makeIcon } from "@/ui/icon";
-import { makeNode } from "@/language/utils";
+import { makeNode } from "@/language/node";
 import { toaster } from "@/ui/toast";
 import { type JsonValue } from "@/language/value";
 import { IS_DEV } from "@/utils/globals";

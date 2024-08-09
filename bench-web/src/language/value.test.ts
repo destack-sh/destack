@@ -1,5 +1,5 @@
 import { fabricate } from "@/language/graph.test";
-import { OBJECT_TYPES, getTkFromPtrMaybe } from "@/language/utils";
+import { OBJECT_TYPES, getTkFromPtrMaybe } from "@/language/const";
 import {
   decodeTypeIdentity,
   encodeTypeIdentity,

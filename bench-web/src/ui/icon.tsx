@@ -28,6 +28,7 @@ import {
   Region,
   ResourceStatus,
   FileFormat,
+  TypeKind,
 } from "@/proto/wire";
 import type { FunctionalComponent } from "vue";
 // fa-icons is generated with:
@@ -519,6 +520,10 @@ export function getNodeIcon(
     } else if (node.primitiveType != null) {
       const icon = ICON_BY_PRIMITIVE_TYPE[node.primitiveType];
       if (icon != null) return icon;
+    } else if (node.kind == TypeKind.BASED_NODE && node.benchType == BenchType.FIELD) {
+      return ICON_BY_BLOCK_TYPE[BlockType.CHOICE];
+    } else if (node.kind == TypeKind.OBJECT) {
+      return ICON_BY_BLOCK_TYPE[BlockType.CLASS];
     } else if (node.benchType != null) {
       const icon = ICON_BY_BENCH_TYPE[node.benchType];
       if (icon != null) return icon;

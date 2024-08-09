@@ -16,7 +16,7 @@ import {
 import { propertyReference, toNodeRef, unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
 import { makeExpression } from "@/language/expression";
-import { isRunnable } from "@/language/utils";
+import { isRunnable } from "@/language/node";
 import { makeRun } from "@/language/session";
 import { canvas, inspectionPtr } from "@/system/space";
 import { packProtoJson, unpackProtoJson } from "@/language/transaction";

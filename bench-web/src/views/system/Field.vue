@@ -4,7 +4,7 @@ import { unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import type { ActionMapImplementation } from "@/ui/action";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
 import { IconInline, getNodeIcon } from "@/ui/icon";
-import { NAME_CONSTRAINT } from "@/language/utils";
+import { NAME_CONSTRAINT } from "@/language/const";
 import { canvas, inspectionPtr } from "@/system/space";
 import { getNativeConstraintProps, guardNativeInput } from "@/ui/view";
 import { type PopoverInfoIn } from "@/ui/popover";

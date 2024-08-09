@@ -12,7 +12,7 @@ import {
 } from "@/proto/wire";
 import type { ReadNodeGraph } from "@/language/graph";
 import { ENUM_ICONS_BY_TYPE } from "@/ui/icon";
-import { isEnumType, isNodeType } from "@/language/utils";
+import { isEnumType, isNodeType } from "@/language/const";
 import { type TypeIdentity, getStorageKey, makeTypeInfo, packValue, resolveType, unpackValue } from "@/language/value";
 import type { ViewProps } from "@/views/common";
 import { FULL_WIDTH_VIEW_TYPES, getEnumOptions } from "@/ui/inspect";

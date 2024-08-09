@@ -12,7 +12,7 @@ import {
 import local, { BENCH_SCOPE, LOCAL_SPACE_ID, PACKAGE_SCOPE, spaceGraphLocal, spacePtr } from "@/system/client";
 import { makeReadOptions, useExistingConnection, useGetConnection } from "@/system/connection";
 import { DEFAULT_NODE_FILTER, NodeGraph, ProxyNodeGraph } from "@/language/graph";
-import { SOURCE_NODE_TYPES } from "@/language/utils";
+import { SOURCE_NODE_TYPES } from "@/language/const";
 import { toaster } from "@/ui/toast";
 import { log } from "@/utils/log";
 import { ViewCanvas, createDesktopDefaultSpace, createEmptySpace } from "@/ui/canvas";

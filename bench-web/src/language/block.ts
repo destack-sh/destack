@@ -2,7 +2,7 @@ import { BlockData, NodeReferenceData, NodeType, type NodeTypeMapping } from "@/
 import { describeNode, isNode } from "@/proto/wiring";
 import type { ActionContext, ActionMapImplementation } from "@/ui/action";
 import { type NodeTreeItem, type ReadNodeGraph } from "@/language/graph";
-import { moveNode } from "@/language/utils";
+import { moveNode } from "@/language/node";
 import { pkgGraph } from "@/system/space";
 import type { Transaction } from "@/language/transaction";
 import type { Ref } from "vue";

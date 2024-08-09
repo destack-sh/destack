@@ -1,19 +1,18 @@
 <script lang="ts" setup>
-import { ViewData, NodeType, RunData, FieldZone, RunErrorKind, RunErrorType, Variant } from "@/proto/wire";
-import { describeNode, unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
-import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
-import { canvas, pkgConnection } from "@/system/space";
-import { computed, toRef, type Ref } from "vue";
-import { useExistingConnection, useGetConnection, type PreparedNodeConnection } from "@/system/connection";
-import { PACKAGE_SCOPE } from "@/system/client";
+import { toCamelName } from "@/language/const";
 import { unpackProtoJson } from "@/language/transaction";
+import { FieldZone, NodeType, RunData, RunErrorKind, RunErrorType, Variant, ViewData } from "@/proto/wire";
+import { unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
+import { PACKAGE_SCOPE } from "@/system/client";
+import { useExistingConnection, useGetConnection, type PreparedNodeConnection } from "@/system/connection";
+import { canvas, pkgConnection } from "@/system/space";
 import { getFieldViews } from "@/ui/view";
+import { tsToDt } from "@/utils/time";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
-import { getViewComponent, hasViewComponent } from "@/views/registry";
-import { toCamelName } from "@/language/utils";
+import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import Text from "@/views/content/Text.vue";
-import { unpackValue } from "@/language/value";
-import { formatAbsoluteDate, tsToDt } from "@/utils/time";
+import { getViewComponent, hasViewComponent } from "@/views/registry";
+import { computed, toRef, type Ref } from "vue";
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; preparedConnection?: PreparedNodeConnection } & Partial<
