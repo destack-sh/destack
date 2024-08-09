@@ -288,9 +288,15 @@ class Channel[E: GraphEngine](abc.ABC):
     def read_retry(self) -> RetryOptions:
         return RetryOptions(retry_on=(ChannelUnavailableError,))
 
-    async def close(self):  # noqa: B027
+    @abc.abstractmethod
+    async def reconnect(self):
+        """Attempt to reconnect this channel."""
+        ...
+
+    @abc.abstractmethod
+    async def close(self):
         """Closes this channel to all further operations."""
-        pass  # nothing to do
+        ...
 
     #
     # Read
@@ -478,6 +484,10 @@ class Connection[
                             if not retry.on_error(e):
                                 raise
                             await self.session._oracle.sleep(interval)
+                            if isinstance(e, ChannelUnavailableError):
+                                # try reconnecting the channel
+                                await self.channel.reconnect()
+                                self.log.debug("connect.reconnect")
                 else:
                     raise retry.to_error(operation=self.query)
                 # unpack (should not be retried)
@@ -781,6 +791,14 @@ class MemoryChannel(Channel[MemoryEngine]):
         return f"engine={self.engine!r}, session={self.session}"
 
     @override
+    async def reconnect(self):
+        pass  # nothing to do
+
+    @override
+    async def close(self):
+        pass  # nothing to do
+
+    @override
     def _get_connection_cls(
         self, query: "QueryBuilder", scope: GraphScopeData, options: ConnectionOptions
     ) -> type[Connection]:
@@ -868,6 +886,14 @@ class MemoryGetConnection[T: Node](GetConnection[MemoryChannel, T]):
 
 class SplitChannel(Channel[NullEngine]):
     """A read-only channel splits queries across channels."""
+
+    @override
+    async def reconnect(self):
+        pass  # nothing to do
+
+    @override
+    async def close(self):
+        pass  # nothing to do
 
     @override
     def _get_connection_cls(

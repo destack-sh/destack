@@ -293,10 +293,10 @@ defineExpose<ViewExposed>({ self, id });
           <span v-if="optimisticValue.size != null" class="ml-1.5 text-xs text-gray-400">
             {{ humanizeBytes(Number(optimisticValue?.size)) }}
           </span>
-          <!-- Uploading -->
+          <!-- Transferring -->
           <i
-            v-if="upload != null && upload.isActive.value"
-            class="fas fa-spinner-third ml-1.5 animate-spin text-gray-400"
+            v-if="(upload != null && upload.isActive.value) || (download != null && download.isActive.value)"
+            class="fas fa-spinner-third ml-2 animate-spin text-gray-400"
           />
         </span>
       </div>
@@ -322,6 +322,7 @@ defineExpose<ViewExposed>({ self, id });
           <span v-else class="ml-1.5">{{ facetName }}</span>
         </span>
       </div>
+
       <!-- Overlay -->
       <div
         class="absolute top-0 w-full"

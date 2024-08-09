@@ -32,7 +32,11 @@ from bench.proto.wire import (
     EditData,
     GraphScopeData,
 )
-from bench.sql.client import AsyncPostgresConnection
+from bench.sql.client import (
+    AsyncPostgresConnection,
+    cycle_pg_connection_pool,
+    get_pg_connection_uri,
+)
 from bench.sql.engine import (
     TABLE_BY_NODE_TYPE,
     pg_compile_conditional_maybe,
@@ -75,6 +79,23 @@ class PostgresEngine(GraphEngine):
         return PostgresChannel(self, session, conn, cur)
 
 
+def _pg_method(func):
+    """Wraps a Postgres function with tracing & error wrapping."""
+    method_name = func.__name__
+
+    @wraps(func)
+    @tracer.start_as_current_span(f"pg.{method_name}")
+    async def wrapper(self: "PostgresChannel", *args, **kwargs):
+        from bench.sql.engine import SqlConnectionError
+
+        try:
+            return await func(self, *args, **kwargs)
+        except (SqlConnectionError, psycopg.OperationalError) as e:
+            raise ChannelUnavailableError(self, args[0] if args else None, reason=str(e)) from e
+
+    return wrapper
+
+
 class PostgresChannel(WritableChannel[PostgresEngine]):
     """A channel to a Postgres store (usually maps to a postgres connection)."""
 
@@ -105,23 +126,6 @@ class PostgresChannel(WritableChannel[PostgresEngine]):
         else:
             raise RuntimeError(f"unsupported read type {query._read_type}")
 
-    @staticmethod
-    def _pg_method(func):
-        """Wraps a Postgres function with tracing & error wrapping."""
-        method_name = func.__name__
-
-        @wraps(func)
-        @tracer.start_as_current_span(f"pg.{method_name}")
-        async def wrapper(self: "PostgresChannel", *args, **kwargs):
-            from bench.sql.engine import SqlConnectionError
-
-            try:
-                return await func(self, *args, **kwargs)
-            except (SqlConnectionError, psycopg.OperationalError) as e:
-                raise ChannelUnavailableError(self, args[0] if args else None, reason=str(e)) from e
-
-        return wrapper
-
     @override
     @_pg_method
     async def flush(self, edits: list[EditData] | tuple[EditData, ...]) -> FlushResultData:
@@ -138,6 +142,15 @@ class PostgresChannel(WritableChannel[PostgresEngine]):
         new_revisions, cascaded_edits = await pg_edit(cur=self.cur, edits=edits)
         await self.cur.connection.commit()
         return CommitResultData(revisions=new_revisions, cascaded_edits=cascaded_edits)
+
+    @override
+    async def reconnect(self):
+        from bench.sql.client import pg_store_connection
+
+        await self.conn.close()
+        await cycle_pg_connection_pool(get_pg_connection_uri(self.engine.store))
+        self.conn = pg_store_connection(self.engine.store)
+        self.cur = await self.conn.open()
 
     @override
     @_pg_method
@@ -174,6 +187,7 @@ class PostgresSearchConnection[T: Node](SearchConnection[PostgresChannel, T]):
     """Search a Postgres channel."""
 
     @override
+    @_pg_method
     async def _do_read(self, query: "QueryBuilder") -> SearchResultData:
         node_table = TABLE_BY_NODE_TYPE[query._node_type]
         roots, graph = await pg_search_node_graph(
@@ -208,6 +222,7 @@ class PostgresAggregateConnection(AggregateConnection):
     """Aggregate a Postgres channel."""
 
     @override
+    @_pg_method
     async def _do_read(self, query: "QueryBuilder") -> AggregateResultData:
         node_table = TABLE_BY_NODE_TYPE[query._node_type]
         assert query._aggregation is not None
