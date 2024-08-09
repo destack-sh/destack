@@ -42,7 +42,7 @@ import {
 } from "@/system/connection";
 import { makeExpression, resolveSubject, type EditSubject } from "@/language/expression";
 import { ICON_BY_NODE_TYPE, ICON_BY_RUN_STATUS, IconInline, getNodeIcon, makeIcon } from "@/ui/icon";
-import { ACTIVE_RUN_STATUSES, TERMINAL_RUN_STATUSES, toCamelName } from "@/language/utils";
+import { ACTIVE_RUN_STATUSES, TERMINAL_RUN_STATUSES, toCamelName } from "@/language/const";
 import { canvas, inspectionPtr } from "@/system/space";
 import { user } from "@/system/user";
 import { getElement } from "@/utils/element";

@@ -2,11 +2,12 @@
 import { ObjectType, PROPERTY_ENUM_BY_TYPE, ViewType, type AnyNodeData } from "@/proto/wire";
 import type { Connection } from "@/system/connection";
 import { IconInline, getNodeIcon } from "@/ui/icon";
-import { getNodeType, NAME_CONSTRAINT, toCamelName } from "@/language/utils";
+import { getNodeType } from "@/language/node";
 import { getNativeConstraintProps, guardNativeInput } from "@/ui/view";
 import type { PopoverInfoIn } from "@/ui/popover";
 import { computed } from "vue";
 import { describeNode, isNode, type SomeNodeReferenceData } from "@/proto/wiring";
+import { NAME_CONSTRAINT, toCamelName } from "@/language/const";
 
 const props = defineProps<{
   node: AnyNodeData | SomeNodeReferenceData;

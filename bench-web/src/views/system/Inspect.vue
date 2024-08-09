@@ -1,5 +1,6 @@
 <script lang="ts" setup>
-import { getNodeSubtype, toCamelName } from "@/language/utils";
+import { toCamelName } from "@/language/const";
+import { getNodeSubtype } from "@/language/node";
 import { BoxData, ColorShade, NodeType, ObjectType, Orientation, ViewData, ViewType } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";

@@ -44,7 +44,7 @@ import type { ActionContext, ActionMapImplementation } from "@/ui/action";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import { makeSelection } from "@/ui/canvas";
 import { getElement } from "@/utils/element";
-import { TITLE_CONSTRAINT, toCamelName } from "@/language/utils";
+import { TITLE_CONSTRAINT, toCamelName } from "@/language/const";
 import NodePath from "@/views/builtins/NodePath.vue";
 import { PACKAGE_SCOPE } from "@/system/client";
 import { getNativeConstraintProps, guardNativeInput } from "@/ui/view";

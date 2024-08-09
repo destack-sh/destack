@@ -22,7 +22,7 @@ import {
 import { ACTION_COMING_SOON, contributeActionMap } from "@/ui/action";
 import local, { persistentInfo } from "@/system/client";
 import { clearConnections, useGetConnection } from "@/system/connection";
-import { makeNode } from "@/language/utils";
+import { makeNode } from "@/language/node";
 import { bench, canvas, goToBench } from "@/system/space";
 import { toaster } from "@/ui/toast";
 import { log } from "@/utils/log";

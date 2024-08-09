@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { NodeType } from "@/proto/wire";
 import { IconInline, getNodeIcon } from "@/ui/icon";
-import { toCamelName } from "@/language/utils";
+import { toCamelName } from "@/language/const";
 import { _setDragImage, activeDragged } from "@/ui/drag";
 import { Casing, toCasing } from "@/utils/string";
 </script>

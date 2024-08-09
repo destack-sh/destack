@@ -444,6 +444,7 @@ sortedcontainers==2.4.0
     # via hypothesis
 soupsieve==2.5
     # via beautifulsoup4
+sqlglot==25.10.0
 stone==3.3.6
     # via dropbox
 structlog==24.2.0

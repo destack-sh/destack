@@ -1,3 +1,4 @@
+import { OBJECT_TYPES } from "@/language/const";
 import {
   DEFAULT_NODE_FILTER,
   LayerNodeGraph,
@@ -7,7 +8,6 @@ import {
   type NodeGraphFilter,
   type ReadNodeGraph,
 } from "@/language/graph";
-import { OBJECT_TYPES } from "@/language/utils";
 import {
   ClientData,
   ClientProperty,

@@ -3,7 +3,7 @@ import { Anchor, ClientType, NodeType, Orientation } from "@/proto/wire";
 import { DECLARED_ACTIONS_BY_ID, fireActionById, type Action, type ActionBuiltinId } from "@/ui/action";
 import { CLIENT_TYPE, isDeveloperMode } from "@/system/client";
 import { DEFAULT_USER_ICON, ICON_BY_NODE_TYPE, IconInline, makeIcon } from "@/ui/icon";
-import { toCamelName } from "@/language/utils";
+import { toCamelName } from "@/language/const";
 import { bench, hasLocalBench } from "@/system/space";
 import { isAuthenticated, user } from "@/system/user";
 import type { FloatingPlacement } from "@/utils/floating";

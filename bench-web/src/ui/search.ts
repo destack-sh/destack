@@ -17,7 +17,7 @@ import { toNodeRef, toPlainNodeRef } from "@/proto/wiring";
 import { ACTION_BUILTIN_IDS_INDEX, IMPLEMENTED_ACTIONS, type Action } from "@/ui/action";
 import type { NodeKey, ReadNodeGraph } from "@/language/graph";
 import { AVAILABLE_FA_ICONS, DEFAULT_ENUM_ICON, getNodeIcon, type IconMetadata } from "@/ui/icon";
-import { TYPE_BLOCK_TYPES, isStructType } from "@/language/utils";
+import { TYPE_BLOCK_TYPES, isStructType } from "@/language/const";
 import { typeIdentityEquals, type TypeIdentity } from "@/language/value";
 import uFuzzy from "@leeoniya/ufuzzy";
 import { tryOnBeforeUnmount } from "@vueuse/core";
@@ -282,7 +282,7 @@ export function typeIndex(idx: {
 }): SearchIndex<TypeItem> {
   const intrinsicEnumTypes = [EnumType.PRIMITIVE_TYPE, EnumType.FILE_TYPE, EnumType.BLOCK_TYPE, EnumType.OBJECT_TYPE];
 
-  function fromValue(value: TypeIdentity): TypeItem | null {
+  function mapFromValue(value: TypeIdentity): TypeItem | null {
     if (value.baseTypePtr != null) {
       const nodeItem = itemFromNode(idx.id, idx.graph, value.baseTypePtr);
       if (nodeItem != null) return mapFromNode(nodeItem);
@@ -364,7 +364,7 @@ export function typeIndex(idx: {
 
   const index: SearchIndex<TypeItem> = {
     id: idx.id,
-    fromValue: fromValue,
+    fromValue: mapFromValue,
     toValue: (candidate: TypeItem) => candidate,
     valueEquals: typeIdentityEquals,
     candidates: () => {
@@ -373,7 +373,7 @@ export function typeIndex(idx: {
         getEnumOptions(enumType).map((option) => mapFromIntrinsicOption(enumType, option)),
       );
 
-      // and any type definitions fro blocks
+      // and any type definitions from blocks
       const graphItems: TypeItem[] = walkGraph({
         id: idx.id,
         graph: idx.graph,

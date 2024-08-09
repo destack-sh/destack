@@ -9,7 +9,7 @@ import {
   type ActionContext,
   type ActionFilter,
 } from "@/ui/action";
-import { ROOT_VIEW_TYPES } from "@/language/utils";
+import { ROOT_VIEW_TYPES } from "@/language/const";
 import { canvas } from "@/system/space";
 import { getElement } from "@/utils/element";
 import { type FloatingOptions } from "@/utils/floating";

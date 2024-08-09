@@ -17,14 +17,7 @@ import type { ActionMapImplementation } from "@/ui/action";
 import type { PreparedGetConnection } from "@/system/connection";
 import { useExistingConnection } from "@/system/connection";
 import { IconInline, getNodeIcon } from "@/ui/icon";
-import {
-  NAME_CONSTRAINT,
-  RUNNABLE_BLOCK_TYPES,
-  TYPE_BLOCK_TYPES,
-  createField,
-  isGeneratedNodeName,
-  isRunnableRef,
-} from "@/language/utils";
+import { createField, isGeneratedNodeName, isRunnableRef } from "@/language/node";
 import { canvas, inspectionPtr } from "@/system/space";
 import { makeTypeInfo, packValue, resolveType, unpackValue, type TypeIdentity } from "@/language/value";
 import { getNativeConstraintProps as getNativeConstraintProps, guardNativeInput } from "@/ui/view";
@@ -39,6 +32,7 @@ import Text from "@/views/content/Text.vue";
 import Value from "@/views/content/Value.vue";
 import Type from "@/views/system/Type.vue";
 import { computed, nextTick, ref, toRef, type Ref } from "vue";
+import { NAME_CONSTRAINT, RUNNABLE_BLOCK_TYPES, TYPE_BLOCK_TYPES } from "@/language/const";
 
 const props = defineProps<
   {
@@ -119,10 +113,8 @@ defineExpose<ViewExposed & { isRunnable: Ref<boolean> }>({
     ref="blockRef"
     class="group/block relative rounded"
     :class="[
-      borderless ? '' : 'border',
-      nodePtr?.id == inspectionPtr?.id
-        ? 'border-primary-900'
-        : [variant != Variant.STEALTH ? 'border-gray-200 px-2 py-1.5' : 'border-transparent', 'hover:border-gray-200'],
+      borderless || variant == Variant.STEALTH ? '' : 'border',
+      nodePtr?.id == inspectionPtr?.id ? 'border-primary-900' : ['border-gray-200 px-2 py-1.5 hover:border-gray-200'],
     ]"
   >
     <!-- Header -->

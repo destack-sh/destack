@@ -32,15 +32,7 @@ import {
 } from "@/proto/wiring";
 import { isDescendantOf, type NodeKey, type ReadNodeGraph } from "@/language/graph";
 import { toIconMaybe } from "@/ui/icon";
-import {
-  HELPER_VIEW_TYPES,
-  PAGE_BLOCK_TYPES,
-  ROOT_VIEW_TYPES,
-  cloneNode,
-  generateNodeName,
-  makeNode,
-  toCamelName,
-} from "@/language/utils";
+import { cloneNode, generateNodeName, makeNode } from "@/language/node";
 import { canvas, inspectionBasePtr, inspectionPtr } from "@/system/space";
 import { packProtoJson, unpackProtoJson, type DebounceLevel, type Transaction } from "@/language/transaction";
 import { isProtoJson, packBuiltinObject, packBuiltinObjectJson, unpackBuiltinObject } from "@/language/value";
@@ -71,6 +63,7 @@ import {
   type Ref,
 } from "vue";
 import { getOrderKey, updateOrder } from "@/language/order";
+import { ROOT_VIEW_TYPES, HELPER_VIEW_TYPES, PAGE_BLOCK_TYPES, toCamelName } from "@/language/const";
 
 export const DEFAULT_BAR_POSITION = Anchor.TOP;
 export const DEFAULT_HEADER_HEIGHT = 36;

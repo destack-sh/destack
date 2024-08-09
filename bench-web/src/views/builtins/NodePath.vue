@@ -3,7 +3,7 @@ import { NodeType } from "@/proto/wire";
 import type { NodeReferenceData } from "@/proto/wire";
 import type { ReadNodeGraph } from "@/language/graph";
 import { IconInline, getNodeIcon } from "@/ui/icon";
-import { toCamelName } from "@/language/utils";
+import { toCamelName } from "@/language/const";
 import { canvas } from "@/system/space";
 import { startDragging } from "@/ui/drag";
 import { computed, toRef } from "vue";

@@ -19,7 +19,7 @@ import { packagePtr } from "@/system/client";
 import { useExistingConnection, type Connection } from "@/system/connection";
 import { isDescendantOf, walkDescendantsRef, type NodeTreeItem } from "@/language/graph";
 import { DEFAULT_BENCH_ICON, IconInline, getNodeIcon } from "@/ui/icon";
-import { cloneNode, createBlock, moveNode, NAME_CONSTRAINT, PAGE_BLOCK_TYPES } from "@/language/utils";
+import { cloneNode, createBlock, moveNode } from "@/language/node";
 import { highlightMatches } from "@/ui/search";
 import { bench, canvas, inspectionBasePtr, inspectionPtr, pkg } from "@/system/space";
 import { getNativeConstraintProps, guardNativeInput } from "@/ui/view";
@@ -41,6 +41,7 @@ import Scroll from "@/views/containers/Scroll.vue";
 import uFuzzy from "@leeoniya/ufuzzy";
 import { whenever } from "@vueuse/core";
 import { computed, nextTick, ref, toRef, watch, type Ref } from "vue";
+import { NAME_CONSTRAINT, PAGE_BLOCK_TYPES } from "@/language/const";
 
 const DEPTH_OFFSET = 12;
 const HEADER_HEIGHT = DEFAULT_HEADER_HEIGHT;

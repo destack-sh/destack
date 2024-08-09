@@ -1,9 +1,10 @@
 <script lang="ts" setup>
 import { useFlatNodeMoveActions } from "@/language/block";
+import { toCamelName } from "@/language/const";
 import { uploadFile } from "@/language/file";
 import { getGroupedChildrenRef, isDescendantOf } from "@/language/graph";
 import { makeRun } from "@/language/session";
-import { cloneNode, createBlock, moveNode, toCamelName } from "@/language/utils";
+import { cloneNode, createBlock, moveNode } from "@/language/node";
 import { makeTypeInfo, packValueJson } from "@/language/value";
 import {
   BenchType,
@@ -403,7 +404,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
                   })
                 "
                 role="button"
-                class="absolute w-full flex-shrink-0 text-center text-gray-300 opacity-0 transition-colors duration-75 hover:z-10 hover:text-gray-300 hover:opacity-100 data-[popover=true]:text-primary-900 data-[popover=true]:opacity-100"
+                class="absolute w-full flex-shrink-0 text-center text-gray-200 opacity-0 transition-colors duration-75 hover:z-10 hover:text-gray-300 hover:opacity-100 data-[popover=true]:text-primary-900 data-[popover=true]:opacity-100"
                 :style="{
                   ...getAnchorPositionStyle(anchor as 'start' | 'end', i, SEPARATOR_WIDTH),
                   height: `${SEPARATOR_WIDTH}px`,

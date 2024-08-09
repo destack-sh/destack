@@ -16,7 +16,7 @@ import {
   type AnyNodeReferenceData,
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
-import { toCamelName } from "@/language/utils";
+import { toCamelName } from "@/language/const";
 import { computedValue, manualSubRef, watchValue, type SubRef } from "@/utils/ref";
 import { tryOnBeforeUnmount } from "@vueuse/core";
 import {
