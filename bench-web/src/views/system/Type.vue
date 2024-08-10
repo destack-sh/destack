@@ -1,6 +1,13 @@
 <script lang="ts" setup>
 import { BlockType, FieldZone, NodeType, Orientation, Variant, ViewData, type FieldData } from "@/proto/wire";
-import { isNode, toNodeRef, toNodeRefOneOf, unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
+import {
+  describeNode,
+  isNode,
+  toNodeRef,
+  toNodeRefOneOf,
+  unwrapProtoOneOf,
+  type TypedNodeReferenceData,
+} from "@/proto/wiring";
 import type { ActionContext, ActionMapImplementation } from "@/ui/action";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
 import { cloneNode, createField, moveNode, onNodeMorphed } from "@/language/node";
@@ -10,7 +17,8 @@ import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/pop
 import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import Field from "@/views/system/Field.vue";
 import { computed, ref, toRef, type Ref } from "vue";
-import { RUNNABLE_BLOCK_TYPES, toCamelName } from "@/language/const";
+import { RUNNABLE_BLOCK_TYPES, toCamelName, TYPE_BLOCK_TYPES } from "@/language/const";
+import { blockToType } from "@/language/block";
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; preparedConnection?: PreparedGetConnection } & Partial<
@@ -66,27 +74,53 @@ const rightFields = computed(() => {
 function allowDrop(dragged: DraggedContent, anchor: MultiAnchor, targetId: string | null, event?: DragEvent): boolean {
   if (dragged.kind != "node") return false;
   const node = pkgGraph.get(dragged.node);
-  if (!isNode(node, NodeType.FIELD)) return false;
-  if ((node.zone == FieldZone.OPTION) != (block.value?.type == BlockType.CHOICE)) return false;
-  return true;
+  if (isNode(node, NodeType.FIELD) && (node.zone == FieldZone.OPTION) == (block.value?.type == BlockType.CHOICE)) {
+    return true;
+  } else if (
+    isNode(node, NodeType.BLOCK) &&
+    block.value?.type != BlockType.CHOICE &&
+    TYPE_BLOCK_TYPES.includes(node.type)
+  ) {
+    return true;
+  } else {
+    return false;
+  }
 }
 function onDrop(dragged: DraggedContent, anchor: MultiAnchor, targetId: string | null, event: DragEvent) {
   if (dragged.kind == "node") {
-    const node = pkgGraph.getOrError(dragged.node) as FieldData;
+    const node = pkgGraph.getOrError(dragged.node);
     const side = leftRef.value?.contains(event.target as Node) ? "left" : "right";
     const sideZone = side == "left" ? leftZone.value : rightZone.value;
-    if (targetId != null) {
-      const target = pkgGraph.getOrError({ id: targetId }) as FieldData;
-      moveNode(pkgConnection.tx, pkgGraph, dragged.node, { anchor, target });
-      if (node.zone != target.zone) {
-        pkgConnection.tx.update(node, { zone: target.zone });
-        onNodeMorphed(pkgConnection.tx, pkgGraph, node);
+    const target = targetId != null ? pkgGraph.get({ id: targetId }) : null;
+    if (isNode(node, NodeType.FIELD)) {
+      // move field here
+      if (target != null) {
+        if (!isNode(target, NodeType.FIELD)) throw new Error(`unexpected target node: ${describeNode(target)}`);
+        moveNode(pkgConnection.tx, pkgGraph, dragged.node, { anchor, target });
+        if (node.zone != target.zone) {
+          pkgConnection.tx.update(node, { zone: target.zone });
+          onNodeMorphed(pkgConnection.tx, pkgGraph, node);
+        }
+      } else {
+        moveNode(pkgConnection.tx, pkgGraph, dragged.node, { anchor: "center", target: block.value! });
+        if (node.zone != sideZone) {
+          pkgConnection.tx.update(node, { zone: sideZone ?? undefined }, { debounce: "tick" });
+          onNodeMorphed(pkgConnection.tx, pkgGraph, node);
+        }
       }
-    } else {
-      moveNode(pkgConnection.tx, pkgGraph, dragged.node, { anchor: "center", target: block.value! });
-      if (node.zone != sideZone) {
-        pkgConnection.tx.update(node, { zone: sideZone ?? undefined }, { debounce: "tick" });
-        onNodeMorphed(pkgConnection.tx, pkgGraph, node);
+    } else if (isNode(node, NodeType.BLOCK)) {
+      // add field here
+      const type = blockToType(node);
+      const fieldIn = { ...type, zone: sideZone! };
+      if (target != null) {
+        if (!isNode(target, NodeType.FIELD)) throw new Error(`unexpected target node: ${describeNode(target)}`);
+        createField(pkgConnection.tx, pkgGraph, {
+          field: fieldIn,
+          anchor: anchor == "start" ? "before" : "after",
+          target,
+        });
+      } else {
+        createField(pkgConnection.tx, pkgGraph, { field: fieldIn, anchor: "inside", target: block.value! });
       }
     }
   }
@@ -97,7 +131,7 @@ const { activeDropZone: activeLeftDropZone } = useMultiDropZone({
   targets: leftFieldRefs,
   orientation: Orientation.VERTICAL,
   kinds: ["node"],
-  metatypes: [NodeType.FIELD],
+  metatypes: [NodeType.BLOCK, NodeType.FIELD],
   fallbackToClosest: true,
   allowDrop,
   onDrop,
@@ -108,7 +142,7 @@ const { activeDropZone: activeRightDropZone } = useMultiDropZone({
   targets: rightFieldRefs,
   orientation: Orientation.VERTICAL,
   kinds: ["node"],
-  metatypes: [NodeType.FIELD],
+  metatypes: [NodeType.BLOCK, NodeType.FIELD],
   fallbackToClosest: true,
   allowDrop,
   onDrop,
@@ -189,6 +223,8 @@ defineExpose<ViewExposed>({ self, id, actions });
         <i class="fas fa-arrow-right-long text-lg text-gray-400" />
       </div>
       <!-- Fields in zone -->
+      <!-- NOTE :UX: field zone drop outline should be dotted if dragged is not a field
+        (since it's not a move, but a sort of 'copy', and that's how we signal it elsewhere) -->
       <ul
         :ref="(ref: any) => (side == 'left' ? (leftRef = ref) : (rightRef = ref))"
         class="relative flex flex-1 flex-col gap-y-1 rounded"

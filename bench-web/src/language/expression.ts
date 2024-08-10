@@ -11,7 +11,8 @@ import {
   type SortOp,
 } from "@/proto/wire";
 import { supergraph } from "@/system/connection";
-import { getPropertyType, packValueJson } from "@/language/value";
+import { packValueJson } from "@/language/value";
+import { getPropertyType } from "@/language/field";
 
 export function makeExpression(options: { op: ExpressionOp; value?: any } & Partial<ExpressionData>): ExpressionData {
   let valuePacked;

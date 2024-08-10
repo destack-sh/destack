@@ -1,14 +1,9 @@
 import { fabricate } from "@/language/graph.test";
 import { OBJECT_TYPES, getTkFromPtrMaybe } from "@/language/const";
-import {
-  decodeTypeIdentity,
-  encodeTypeIdentity,
-  packBuiltinObject,
-  unpackBuiltinObject,
-  type TypeIdentity,
-} from "@/language/value";
 import { BenchType, NodeType, ObjectType, PrimitiveType, TypeKind } from "@/proto/wire";
 import { describe, expect, test } from "vitest";
+import { type TypeIdentity, encodeTypeIdentity, decodeTypeIdentity } from "@/language/field";
+import { packBuiltinObject, unpackBuiltinObject } from "@/language/value";
 
 // the test data & targets are from the backend bench implementation
 const TEST_TYPE_IDENTITIES: (Partial<TypeIdentity> & { kind: TypeKind, identityKey: string })[] = [

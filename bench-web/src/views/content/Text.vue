@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { downloadFile, prefetchFile, uploadFile } from "@/language/file";
 import { isTextEmpty, mapPmNodeToText, mapTextToPmNode } from "@/language/text";
-import { makeTypeInfo } from "@/language/value";
+import { makeTypeInfo } from "@/language/field";
 import {
   BenchType,
   ColorShade,

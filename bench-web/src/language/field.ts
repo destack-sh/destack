@@ -1,0 +1,283 @@
+import {
+  CLASSY_BLOCK_TYPES,
+  getTkB64FromCk,
+  getTkB64FromPtr,
+  padCkFromTkB64,
+  TK_LENGTH_B64,
+  toCamelName,
+} from "@/language/const";
+import type { ReadNodeGraph } from "@/language/graph";
+import {
+  TypeInfoData,
+  type AnyNodeData,
+  PrimitiveType,
+  BenchType,
+  TypeKind,
+  BlockData,
+  BlockType,
+  FieldData,
+  FieldZone,
+  FileType,
+  NodeType,
+  ObjectType,
+  PropertyReferenceData,
+  StepType,
+  StructType,
+  TypeConstraintData,
+  type PropertyInfo,
+} from "@/proto/wire";
+import { describeNode, isNode, isStruct, makeDefaultObject, propertyInfo } from "@/proto/wiring";
+import { encodeB64VLQ, decodeB64VLQ } from "@/utils/functools";
+
+export type TypeIdentity = Pick<
+  TypeInfoData,
+  "kind" | "primitiveType" | "benchType" | "baseTypePtr" | "baseFieldZone" | "isList" | "isSecret" | "constraint"
+> & { id?: any; ck?: string };
+
+export function describeTypeIdentity(type: TypeIdentity & Partial<AnyNodeData>): string {
+  if (type.kind == null) return "<empty>";
+  const typeParts: string[] = [];
+  if ("id" in type) typeParts.push(`id=${type.id}`);
+  if ("ck" in type) typeParts.push(`ck=${type.ck}`);
+  if ("revision" in type) typeParts.push(`revision=${type.revision}`);
+  if (type.primitiveType != null) typeParts.push(toCamelName(PrimitiveType, type.primitiveType!));
+  if (type.benchType != null) typeParts.push(toCamelName(BenchType, type.benchType!));
+  if (type.baseTypePtr != null) typeParts.push(`base=${describeNode(type.baseTypePtr)}`);
+  if (type.isList) typeParts.push("list");
+  if (type.isSecret) typeParts.push("secret");
+  const kindName = toCamelName(TypeKind, type.kind);
+  return `${kindName}[${typeParts.join(", ")}]`;
+}
+
+/** Checks whether the type identity contents are equal. */
+export function typeIdentityEquals(a: TypeIdentity, b: TypeIdentity): boolean {
+  if (a.primitiveType != null) {
+    return a.primitiveType === b.primitiveType;
+  } else if (a.baseTypePtr != null) {
+    return a.baseTypePtr.id === b.baseTypePtr?.id && a.benchType == b.benchType;
+  } else if (a.benchType != null) {
+    if (a.benchType != b.benchType) {
+      return false;
+    } else if ((a.constraint != null) != (b.constraint != null)) {
+      return false;
+    } else if (a.constraint != null && b.constraint != null) {
+      return (
+        a.constraint.fileType == b.constraint.fileType &&
+        a.constraint.fileFormat == b.constraint.fileFormat &&
+        a.constraint.blockType == b.constraint.blockType &&
+        a.constraint.stepType == b.constraint.stepType
+      );
+    } else {
+      return true;
+    }
+  } else {
+    return false;
+  }
+}
+
+export function makeTypeInfo(partial: Partial<Omit<TypeInfoData, "metatype">>): TypeInfoData {
+  return makeDefaultObject({ ...partial, metatype: ObjectType.TYPE_INFO });
+}
+
+const _propertyTypeInfos: Record<string, TypeIdentity> = {};
+
+export function getPropertyType(property: PropertyInfo | PropertyReferenceData): TypeIdentity {
+  if (isStruct(property, StructType.PROPERTY_REFERENCE)) {
+    property = propertyInfo(property.type as unknown as ObjectType, property.id);
+  }
+  const cacheKey = `${property.component}.${property.id}`;
+  const cached = _propertyTypeInfos[cacheKey];
+  if (cached == null) {
+    let kind: TypeKind;
+    let benchType: BenchType | undefined;
+    let primitiveType: PrimitiveType | undefined;
+    if ((property.referenceNodes?.length ?? 0) > 0) {
+      kind = TypeKind.NODE;
+      benchType = property.referenceNodes![0] as unknown as BenchType;
+    } else if (property.referenceStruct != null) {
+      kind = TypeKind.STRUCT;
+      benchType = property.referenceStruct as unknown as BenchType;
+    } else if (property.enumType != null) {
+      kind = TypeKind.ENUM;
+      benchType = property.enumType as unknown as BenchType;
+    } else if (property.primitiveType != null) {
+      kind = TypeKind.PRIMITIVE;
+      primitiveType = property.primitiveType;
+    } else if (property.referenceIsNodeData) {
+      kind = TypeKind.PRIMITIVE;
+      primitiveType = PrimitiveType.JSON; // not sure what to put here, this is inaccessible outside of the system
+    } else {
+      throw new Error(`cannot determine type info for ${JSON.stringify(property)}`);
+    }
+
+    const type: TypeIdentity = {
+      kind,
+      benchType,
+      primitiveType,
+      isList: property.isList ?? false,
+      isSecret: property.isEncrypted ?? false,
+    };
+    _propertyTypeInfos[cacheKey] = type;
+  }
+  return _propertyTypeInfos[cacheKey]!;
+}
+
+export function propertyType(metatype: ObjectType, id: number, override?: Partial<TypeInfoData>) {
+  const prop = propertyInfo(metatype, id);
+  const type = getPropertyType(prop);
+  if (override != null) {
+    return { ...type, ...override };
+  } else {
+    return type;
+  }
+}
+
+const LETTER_BY_TYPE_KIND: Partial<Record<TypeKind, string>> = {
+  [TypeKind.PRIMITIVE]: "p",
+  [TypeKind.STRUCT]: "s",
+  [TypeKind.NODE]: "n",
+  [TypeKind.ENUM]: "e",
+  [TypeKind.BASED_NODE]: "b",
+  [TypeKind.OBJECT]: "o",
+};
+const TYPE_KIND_BY_LETTER: Partial<Record<string, TypeKind>> = {
+  p: TypeKind.PRIMITIVE,
+  s: TypeKind.STRUCT,
+  n: TypeKind.NODE,
+  e: TypeKind.ENUM,
+  b: TypeKind.BASED_NODE,
+  o: TypeKind.OBJECT,
+};
+
+/**
+ * Encodes the type identity into a key for storage & implicit typing.
+ * Format is <kind>[id] (with id encoded as base64).
+ * :TypeInfoEncoding
+ */
+export function encodeTypeIdentity(type: TypeIdentity): string {
+  let value: string | null = null;
+  if (type.kind == TypeKind.PRIMITIVE) {
+    value = encodeB64VLQ(type.primitiveType!);
+  } else if (type.kind == TypeKind.NODE || type.kind == TypeKind.STRUCT || type.kind == TypeKind.ENUM) {
+    value = encodeB64VLQ(type.benchType!);
+  } else if (type.kind == TypeKind.BASED_NODE) {
+    value = `${getTkB64FromPtr(type.baseTypePtr!)}${encodeB64VLQ(type.benchType!)}`;
+  } else if (type.kind == TypeKind.OBJECT) {
+    value = getTkB64FromPtr(type.baseTypePtr!);
+  } else {
+    throw new Error(`unsupported type kind ${type?.kind} in ${describeTypeIdentity(type)}`);
+  }
+
+  const prefix = type.isList ? LETTER_BY_TYPE_KIND[type.kind]!.toUpperCase() : LETTER_BY_TYPE_KIND[type.kind]!;
+  if (type.isSecret) return `!${prefix}${value}`;
+  else return `${prefix}${value}`;
+}
+
+/** Decodes the type-related info back from the identity key. See encode. :TypeInfoEncoding */
+export function decodeTypeIdentity(key: string): TypeIdentity {
+  let isSecret: boolean;
+  if (key[0] === "!") {
+    key = key.slice(1);
+    isSecret = true;
+  } else {
+    isSecret = false;
+  }
+  let isList: boolean;
+  let kind: TypeKind;
+  if (key[0].toUpperCase() === key[0]) {
+    isList = true;
+    kind = TYPE_KIND_BY_LETTER[key[0].toLowerCase()]!;
+  } else {
+    isList = false;
+    kind = TYPE_KIND_BY_LETTER[key[0]]!;
+  }
+  const value = key.slice(1);
+
+  if (kind === TypeKind.PRIMITIVE) {
+    return { kind, primitiveType: decodeB64VLQ(value) as PrimitiveType, isList, isSecret };
+  } else if (kind === TypeKind.NODE || kind === TypeKind.STRUCT || kind === TypeKind.ENUM) {
+    return { kind, benchType: decodeB64VLQ(value) as BenchType, isList, isSecret };
+  } else if (kind === TypeKind.BASED_NODE) {
+    const baseTypePtr = {
+      metatype: ObjectType.NODE_REFERENCE,
+      type: NodeType.BLOCK,
+      ck: padCkFromTkB64(value.slice(0, TK_LENGTH_B64)),
+    };
+    const benchType = decodeB64VLQ(value.slice(TK_LENGTH_B64)) as BenchType;
+    return { kind, baseTypePtr, benchType, isList, isSecret };
+  } else if (kind === TypeKind.OBJECT) {
+    const baseTypePtr = { metatype: ObjectType.NODE_REFERENCE, type: NodeType.BLOCK, ck: padCkFromTkB64(value) };
+    return { kind, baseTypePtr, isList, isSecret };
+  } else {
+    throw new Error(`unsupported type kind ${kind}`);
+  }
+}
+
+/** Gets the eternal storage key for values of this type identity. :FieldStorageKey */
+export function getStorageKey(field: FieldData, fieldType?: TypeIdentity): string {
+  fieldType = fieldType ?? field;
+  if (field.ck == null) throw new Error(`missing ck for type ${describeTypeIdentity(field)}`);
+  return `${getTkB64FromCk(field.ck)}${encodeTypeIdentity(fieldType)}`;
+}
+
+/** Gets the implied subtype node name  */
+export function getConstrainedTypeName(type: TypeIdentity): string | null {
+  const metatypeName = toCamelName(BenchType, type.benchType);
+  if (type.constraint?.blockType != null) {
+    const subtypeName = toCamelName(BlockType, type.constraint!.blockType);
+    return `${subtypeName} ${metatypeName}`;
+  } else if (type.constraint?.stepType != null) {
+    const subtypeName = toCamelName(StepType, type.constraint!.stepType);
+    return `${subtypeName} ${metatypeName}`;
+  } else if (type.constraint?.fileType != null) {
+    const subtypeName = toCamelName(FileType, type.constraint!.fileType);
+    return `${subtypeName} ${metatypeName}`;
+  } else {
+    return metatypeName;
+  }
+}
+
+/** Whether the value meets the type constraints */
+export function nodeMatchesConstraint(node: AnyNodeData, constraint: TypeConstraintData): boolean {
+  if (constraint.blockType != null) {
+    return isNode(node, NodeType.BLOCK) && node.type == constraint.blockType;
+  } else if (constraint.stepType != null) {
+    return isNode(node, NodeType.STEP) && node.type == constraint.stepType;
+  } else if (constraint.fileType != null && isNode(node, NodeType.FILE)) {
+    if (constraint.fileFormat != null && node.format != constraint.fileFormat) return false;
+    if (constraint.fileType != null && node.coarseType != constraint.fileType) return false;
+    return true;
+  } else {
+    return true; // no constraint
+  }
+}
+
+// NOTE :Architecture: :TypeResolution in frontend should probably happen reactively in a dedicated.. something.
+
+/** Resolves the actual type identity :TypeResolution */
+export function resolveType(type: TypeIdentity, graph: ReadNodeGraph): TypeIdentity {
+  if (type.kind == TypeKind.ALIAS && type.baseTypePtr != null) {
+    if (type.baseTypePtr.type == NodeType.STEP) {
+      return makeTypeInfo({ kind: TypeKind.OBJECT, baseTypePtr: type.baseTypePtr });
+    } else if (type.baseTypePtr.type == NodeType.BLOCK) {
+      const block = graph.get(type.baseTypePtr) as BlockData | null;
+      if (CLASSY_BLOCK_TYPES.includes(block?.type!)) {
+        return makeTypeInfo({ kind: TypeKind.OBJECT, baseTypePtr: type.baseTypePtr });
+      } else if (block?.valueType != null) {
+        return block.valueType;
+      }
+    }
+  } else {
+    return type;
+  }
+
+  throw new Error(`unexpected base ${describeNode(type.baseTypePtr)} for type ${describeTypeIdentity(type)}`);
+}
+
+/** Resolves the actual fields of the given type. :TypeResolution */
+export function resolveFields(type: TypeIdentity, graph: ReadNodeGraph): FieldData[] {
+  if (type.baseTypePtr == null) return [];
+  const fields = graph.getChildren(type.baseTypePtr, NodeType.FIELD);
+  if (type.baseFieldZone == null) return fields.filter((f) => f.zone != FieldZone.OPTION);
+  else return fields.filter((f) => f.zone == type.baseFieldZone);
+}

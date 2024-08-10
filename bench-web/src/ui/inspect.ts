@@ -4,7 +4,6 @@
 
 import { type ReadNodeGraph } from "@/language/graph";
 import type { Transaction } from "@/language/transaction";
-import { makeTypeInfo, type TypeIdentity } from "@/language/value";
 import {
   Anchor,
   BenchType,
@@ -37,6 +36,7 @@ import { log } from "@/utils/log";
 import { toCasing, Casing } from "@/utils/string";
 import type { ViewProps } from "@/views/common";
 import { ENUM_TYPES, NODE_TYPES, PAGE_BLOCK_TYPES, RUNNABLE_BLOCK_TYPES, toCamelName } from "@/language/const";
+import { makeTypeInfo, type TypeIdentity } from "@/language/field";
 
 //
 // Enums

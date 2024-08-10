@@ -170,7 +170,7 @@ watch([canvas.focusedViewPtr, bench], () => {
       <div v-else-if="bench" class="flex w-fit flex-col self-center">
         <!-- Space inaccessible for some reason -->
         <span>
-          <i class="fas fa-exclamation-triangle mr-1.5 text-gray-500" />
+          <i class="fas fa-circle-exclamation mr-1.5 text-gray-500" />
           <span class="text-gray-600"
             >Space not found in <span class="font-medium">@{{ bench.slug }}</span></span
           >
@@ -211,7 +211,7 @@ watch([canvas.focusedViewPtr, bench], () => {
       <div v-else-if="user" class="flex flex-col gap-y-2 self-center">
         <!-- Logged in but not on any space (not sure if this should even show or just auto-redirect?) -->
         <span>
-          <i class="fas fa-exclamation-triangle mr-1.5 text-gray-500" />
+          <i class="fas fa-circle-exclamation mr-1.5 text-gray-500" />
           <span class="text-gray-600">You're Lost in Space</span>
         </span>
         <Button

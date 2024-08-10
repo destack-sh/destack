@@ -19,11 +19,12 @@ import { ACTION_BUILTIN_IDS_INDEX, IMPLEMENTED_ACTIONS, type Action } from "@/ui
 import type { NodeKey, ReadNodeGraph } from "@/language/graph";
 import { AVAILABLE_FA_ICONS, DEFAULT_ENUM_ICON, getNodeIcon, type IconMetadata } from "@/ui/icon";
 import { TYPE_BLOCK_TYPES, isStructType } from "@/language/const";
-import { typeIdentityEquals, type TypeIdentity } from "@/language/value";
 import uFuzzy from "@leeoniya/ufuzzy";
 import { tryOnBeforeUnmount } from "@vueuse/core";
 import { markRaw, shallowRef, toRef, toValue, watch, type MaybeRef, type Ref } from "vue";
 import { getEnumOptions, type EnumOption } from "@/ui/inspect";
+import { blockToType } from "@/language/block";
+import { type TypeIdentity, typeIdentityEquals } from "@/language/field";
 
 export type NodeItem = Omit<NodeReferenceData, "metatype" | "id"> & {
   metatype: "node";
@@ -341,37 +342,14 @@ export function typeIndex(idx: {
   }
 
   function mapFromNode(nodeItem: NodeItem): TypeItem {
-    // NOTE: technically there is more than one possible mapping from node to type identity
-    //  (for instance Signal blocks could map to both Signal nodes based in that block or Values of that Signal type)
-    const blockType = (nodeItem.node as BlockData).type;
-    let kind: TypeKind;
-    let benchType: BenchType | undefined;
-    let baseFieldZone: FieldZone | undefined;
-    if (blockType == BlockType.CHOICE) {
-      benchType = BenchType.FIELD;
-      kind = TypeKind.BASED_NODE;
-      baseFieldZone = FieldZone.OPTION;
-    } else if (blockType == BlockType.CLASS) {
-      kind = TypeKind.OBJECT;
-    } else if (blockType == BlockType.SIGNAL) {
-      benchType = BenchType.SIGNAL;
-      kind = TypeKind.BASED_NODE;
-    } else if (blockType == BlockType.DATABASE) {
-      benchType = BenchType.RECORD;
-      kind = TypeKind.BASED_NODE;
-    } else {
-      kind = TypeKind.ALIAS;
-    }
+    const blockAsType = blockToType(nodeItem.node as BlockData);
     const item: TypeItem = {
       ...nodeItem,
-      kind,
-      benchType,
-      baseFieldZone,
+      ...blockAsType,
       isList: false,
       isSecret: false,
       metatype: "type",
     };
-    item.baseTypePtr = toNodeRef(nodeItem.node);
     return item;
   }
 

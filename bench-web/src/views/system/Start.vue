@@ -1,4 +1,10 @@
 <script lang="ts" setup>
+import { makeExpression } from "@/language/expression";
+import { propertyType } from "@/language/field";
+import { isRunnable } from "@/language/node";
+import { makeRun } from "@/language/session";
+import { packProtoJson, unpackProtoJson } from "@/language/transaction";
+import { packBuiltinObject, packValueJson, unpackBuiltinObject } from "@/language/value";
 import {
   BlockData,
   BoxData,
@@ -15,24 +21,12 @@ import {
 } from "@/proto/wire";
 import { propertyReference, toNodeRef, unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
-import { makeExpression } from "@/language/expression";
-import { isRunnable } from "@/language/node";
-import { makeRun } from "@/language/session";
 import { canvas, inspectionPtr } from "@/system/space";
-import { packProtoJson, unpackProtoJson } from "@/language/transaction";
-import {
-  packBuiltinObject,
-  packValue,
-  packValueJson,
-  propertyType,
-  unpackBuiltinObject,
-  unpackValue,
-} from "@/language/value";
-import { getFieldViews } from "@/ui/view";
+import { DEFAULT_HEADER_HEIGHT, useViewState } from "@/ui/canvas";
 import { ScrollbarWidth } from "@/ui/layout";
+import { getFieldViews } from "@/ui/view";
 import { computedValue, mapRef } from "@/utils/ref";
 import NodeReference from "@/views/builtins/NodeReference.vue";
-import { DEFAULT_HEADER_HEIGHT, useViewState } from "@/ui/canvas";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import { getViewComponent, hasViewComponent } from "@/views/registry";

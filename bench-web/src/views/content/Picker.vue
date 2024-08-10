@@ -18,7 +18,6 @@ import { isEnumType, isNodeType } from "@/language/const";
 import type { NodeItem, TypeItem } from "@/ui/search";
 import { enumIndex, graphIndex, typeIndex, useSearch, type EnumOptionItem, type SearchIndex } from "@/ui/search";
 import { canvas, pkgGraph } from "@/system/space";
-import { getConstrainedTypeName, nodeMatchesConstraint } from "@/language/value";
 import { ScrollbarWidth } from "@/ui/layout";
 import type { PopoverInfoIn } from "@/ui/popover";
 import {
@@ -31,6 +30,7 @@ import {
 } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import { computed, ref, toRef, watch, type Ref } from "vue";
+import { getConstrainedTypeName, nodeMatchesConstraint } from "@/language/field";
 
 const MIN_WIDTH = 200;
 const DEFAULT_WIDTH = 280;

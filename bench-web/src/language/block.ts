@@ -1,5 +1,15 @@
-import { BlockData, NodeReferenceData, NodeType, type NodeTypeMapping } from "@/proto/wire";
-import { describeNode, isNode } from "@/proto/wiring";
+import {
+  BenchType,
+  BlockData,
+  BlockType,
+  FieldZone,
+  NodeReferenceData,
+  NodeType,
+  TypeInfoData,
+  TypeKind,
+  type NodeTypeMapping,
+} from "@/proto/wire";
+import { describeNode, isNode, toNodeRef } from "@/proto/wiring";
 import type { ActionContext, ActionMapImplementation } from "@/ui/action";
 import { type NodeTreeItem, type ReadNodeGraph } from "@/language/graph";
 import { moveNode } from "@/language/node";
@@ -7,6 +17,7 @@ import { pkgGraph } from "@/system/space";
 import type { Transaction } from "@/language/transaction";
 import type { Ref } from "vue";
 import { updateOrder } from "@/language/order";
+import { makeTypeInfo } from "@/language/field";
 
 /** Actions to smoothly move up/down/left/right inside a node tree */
 export function useHierarchicalNodeMoveActions<T extends NodeType>(options: {
@@ -167,4 +178,31 @@ export function useFlatNodeMoveActions<T extends NodeType>(options: {
       },
     },
   };
+}
+
+/** Gets the (primary) type represented by the Block. */
+export function blockToType(block: BlockData): TypeInfoData {
+  // NOTE: technically there is more than one possible mapping from node to type identity
+  //  (for instance Signal blocks could map to both Signal nodes based in that block or Values of that Signal type)
+  let kind: TypeKind;
+  let benchType: BenchType | undefined;
+  let baseFieldZone: FieldZone | undefined;
+  if (block.type == BlockType.CHOICE) {
+    benchType = BenchType.FIELD;
+    kind = TypeKind.BASED_NODE;
+    baseFieldZone = FieldZone.OPTION;
+  } else if (block.type == BlockType.CLASS) {
+    kind = TypeKind.OBJECT;
+  } else if (block.type == BlockType.SIGNAL) {
+    benchType = BenchType.SIGNAL;
+    kind = TypeKind.BASED_NODE;
+  } else if (block.type == BlockType.DATABASE) {
+    benchType = BenchType.RECORD;
+    kind = TypeKind.BASED_NODE;
+  } else {
+    kind = TypeKind.ALIAS;
+  }
+  const type = makeTypeInfo({ kind, benchType, baseFieldZone });
+  type.baseTypePtr = toNodeRef(block);
+  return type;
 }
