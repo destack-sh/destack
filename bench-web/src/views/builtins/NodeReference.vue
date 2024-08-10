@@ -12,7 +12,7 @@ import { NAME_CONSTRAINT, toCamelName } from "@/language/const";
 const props = defineProps<{
   node: AnyNodeData | SomeNodeReferenceData;
   connection: Connection<"get", any>;
-  isDisabled?: boolean;
+  isInput?: boolean;
 }>();
 
 const nodeType = computed(() => getNodeType(props.node));
@@ -29,7 +29,7 @@ const nodeProperties = computed(() => (nodeType.value != null ? PROPERTY_ENUM_BY
           placement: 'bottom-right',
           offset: '-referenceWidth',
           props: { modelValue: getNodeIcon(node!), isInput: true },
-          isEnabled: nodeProperties != null && 'icon' in nodeProperties,
+          isEnabled: isInput && nodeProperties != null && 'icon' in nodeProperties,
           onApply: (newIcon) => {
             if (!isNode(node)) throw new Error(`unexpected node: ${describeNode(node)}`);
             connection.tx.update(node, { icon: newIcon });
@@ -37,11 +37,12 @@ const nodeProperties = computed(() => (nodeType.value != null ? PROPERTY_ENUM_BY
         })
       "
       v-bind="getNodeIcon(node)"
-      class="w-5 rounded p-1 text-gray-700 hover:cursor-pointer hover:bg-gray-100 data-[popover=true]:bg-gray-100"
+      class="w-5 rounded p-1 text-gray-700 hover:bg-gray-100 data-[popover=true]:bg-gray-100"
+      :class="isInput ? 'cursor-pointer' : ''"
     />
     <!-- Name (editable & has name) -->
     <input
-      v-if="nodeProperties != null && 'name' in nodeProperties && !isDisabled"
+      v-if="nodeProperties != null && 'name' in nodeProperties && isInput"
       class="ml-1 truncate rounded border-0 bg-transparent px-1 py-0.5 outline-none ring-0 hover:bg-gray-100 focus:ring-0"
       spellcheck="false"
       :value="'name' in node ? node.name : toCamelName(ObjectType, node.metatype)"

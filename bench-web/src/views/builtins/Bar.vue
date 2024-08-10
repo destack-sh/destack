@@ -85,7 +85,7 @@ const BENCH_MENU_ITEMS = computed(() => {
       category: "main",
       icon: "fas fa-play",
       title: "Run",
-      action: { items: menuActionsLike(["common.session*"], { context: undefined }) },
+      action: { items: menuActionsLike(["session.run*"], { context: undefined }) },
     },
     // extra
     menuItemFromAction("space.launch.explorer"),
@@ -136,7 +136,7 @@ const dockActions: Ref<Action[]> = computed(
         "space.omnibar.space",
         "space.edit.inspect",
         "space.launch.create",
-        "space.launch.assist",
+        "space.launch.chat",
         "space.launch.docs",
       ] as ActionBuiltinId[]
     )

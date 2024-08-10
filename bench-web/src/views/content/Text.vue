@@ -480,7 +480,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
 }
 /* TODO: UI: callout/heading/etc. line icons should be editable */
 .text div.callout::before {
-  content: "\f06a"; /* fa-icon: exclamation-circle */
+  content: "\f06a"; /* fa-icon: circle-exclamation */
   font-family: "Font Awesome 6 Pro";
   font-weight: 900;
   @apply mr-1 px-1 text-gray-700;

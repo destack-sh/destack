@@ -89,7 +89,7 @@ defineExpose<ViewExposed & { isScrolling: Ref<boolean>; isAtEnd: Ref<boolean>; s
       @scroll="(e) => $emit('scroll', e)"
     >
       <!-- Inner wrapper -->
-      <div ref="innerRef" class="w-full h-full" :class="$attrs.class">
+      <div ref="innerRef" class="h-full w-full" :class="$attrs.class">
         <slot />
       </div>
     </div>
@@ -111,11 +111,13 @@ defineExpose<ViewExposed & { isScrolling: Ref<boolean>; isAtEnd: Ref<boolean>; s
         class="absolute z-40 rounded transition-colors duration-300"
         :class="[
           'hover:opacity-100 group-hover:opacity-80',
-          trackIsAlwaysVisible || isVisiblyScrolling
-            ? 'bg-gray-300 opacity-100'
-            : isMouseInArea
-              ? 'bg-gray-200 opacity-80'
-              : 'bg-gray-200 opacity-0',
+          isVisiblyScrolling ? 'bg-gray-400 opacity-100' : '',
+          !isVisiblyScrolling && trackIsAlwaysVisible ? 'bg-gray-300 opacity-100' : '',
+          !isVisiblyScrolling && !trackIsAlwaysVisible
+            ? isMouseInArea
+              ? 'bg-gray-300 opacity-80'
+              : 'bg-gray-300 opacity-0'
+            : '',
         ]"
         :style="{
           left: thumb.left + 'px',

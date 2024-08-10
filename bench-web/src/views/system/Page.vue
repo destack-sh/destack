@@ -184,7 +184,7 @@ const getBlockFromContext = (ctx: ActionContext | undefined): { block: BlockData
   const block = blocks.value[blockIdx];
   return { block, idx: blockIdx };
 };
-const actions: Partial<ActionMapImplementation<"common">> = {
+const actions: Partial<ActionMapImplementation<"common" | "session">> = {
   // create
   "common.create.above": {
     action: (action, context) => {
@@ -257,6 +257,14 @@ const actions: Partial<ActionMapImplementation<"common">> = {
       return { node: block, idx };
     },
   }),
+  // session
+  "session.run.start": {
+    action: (action, context) => {
+      const { block } = getBlockFromContext(context);
+      if (block == null) return false;
+      pkgConnection.tx.create(makeRun(block, pkgGraph));
+    },
+  },
 };
 function createAndFocusBlock(
   blockIn: { type: BlockType } & Partial<BlockData>,
@@ -333,7 +341,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
           kind: 'menu',
           placement: 'bottom-right',
           items: menuActionsLike(
-            ['common.create.above', 'common.create.below', 'common.edit.paste', 'message.handle.startThread'],
+            ['common.create.above', 'common.create.below', 'common.edit.paste', 'message.chat.message'],
             {
               context: { ...context, triggerNode: page },
             },
@@ -443,7 +451,8 @@ defineExpose<ViewExposed>({ self, actions, focus });
                         'common.edit.duplicate',
                         'common.edit.archive',
                         'common.edit.delete',
-                        'message.handle.startThread',
+                        'session.run.start',
+                        'message.chat.message',
                       ],
                       { context: { ...context, triggerNode: block } },
                     ),

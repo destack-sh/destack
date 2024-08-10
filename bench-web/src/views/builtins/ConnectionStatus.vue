@@ -99,12 +99,12 @@ const expandedConnectionId: Ref<number | null> = ref(null);
                       :class="
                         connection.isConnected.value
                           ? 'fa-check text-success-600'
-                          : 'fa-exclamation-circle text-warning-600'
+                          : 'fa-circle-exclamation text-warning-600'
                       "
                     />
                   </span>
                   <template v-if="isDeveloperMode">
-                    <!-- Down (status & toggle) -->
+                    <!-- Receive (status & toggle) -->
                     <button class="rounded px-1 hover:bg-primary-200" @click="connection.togglePaused()">
                       <i
                         :class="
@@ -116,7 +116,7 @@ const expandedConnectionId: Ref<number | null> = ref(null);
                         "
                       />
                     </button>
-                    <!-- Up (toggle) -->
+                    <!-- Send (toggle) -->
                     <button class="rounded px-1 hover:bg-primary-200" @click="connection.txBuffer.togglePaused()">
                       <i
                         class="fas fa-up"
