@@ -14,6 +14,7 @@ import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import { getViewBinding, getViewComponent } from "@/views/registry";
 import { computed, nextTick, ref, toRef, type Ref } from "vue";
+import { cloneNode } from "@/language/node";
 
 const props = defineProps<
   { self: TypedNodeReferenceData<NodeType.VIEW>; size: Required<Pick<BoxData, "width" | "height">> } & Pick<
@@ -25,7 +26,7 @@ const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 
 // focus
-const { graph: spaceGraph } = useExistingConnection(self);
+const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self);
 const tabs = spaceGraph.getChildrenRef(self, NodeType.VIEW, { ignoreAncestors: true });
 const tabsNodes = spaceGraph.getManyMaybeRef(
   computed(() => tabs.value.map((t) => unwrapProtoOneOf(t.nodePtr) ?? null)),
@@ -139,40 +140,48 @@ const splitAction = (anchor: SplitAnchor) => ({
   },
 });
 const actions: Partial<ActionMapImplementation<"view">> = {
+  "view.navigate.duplicateTab": {
+    isEnabled: computed(() => focusedTabIdx.value != null),
+    action: (action, ctx) => {
+      const tab = getTabFromContext(ctx);
+      if (tab == null) return false;
+      const clonedTab = cloneNode(spaceConnection.tx, spaceGraph, tab);
+      focus(clonedTab);
+    },
+  },
   "view.navigate.closeTab": {
     isEnabled: computed(() => focusedTabIdx.value != null),
     action: (action, ctx) => {
-      const focusedTab = getTabFromContext(ctx);
-      if (focusedTab) remove(focusedTab);
-      return focusedTab != null;
+      const tab = getTabFromContext(ctx);
+      if (tab == null) return false;
+      remove(tab);
     },
   },
   "view.navigate.closeOtherTabs": {
     isEnabled: hasMultipleTabs,
     action: (action, ctx) => {
-      const focusedTab = getTabFromContext(ctx);
-      if (focusedTab == null) return false;
-      for (const tab of tabs.value) {
-        if (tab != focusedTab) canvas.removeView(spaceGraph, tab);
+      const tab = getTabFromContext(ctx);
+      if (tab == null) return false;
+      for (const t of tabs.value) {
+        if (t != tab) canvas.removeView(spaceGraph, t);
       }
-      return true;
     },
   },
   "view.navigate.focusPreviousTab": {
     isEnabled: hasMultipleTabs,
     action: (action, ctx) => {
-      const focusedTab = getTabFromContext(ctx);
-      if (focusedTab == null) return false;
-      const newIdx = (tabs.value.indexOf(focusedTab) - 1 + tabs.value.length) % tabs.value.length;
+      const tab = getTabFromContext(ctx);
+      if (tab == null) return false;
+      const newIdx = (tabs.value.indexOf(tab) - 1 + tabs.value.length) % tabs.value.length;
       focus(tabs.value[newIdx]);
     },
   },
   "view.navigate.focusNextTab": {
     isEnabled: hasMultipleTabs,
     action: (action, ctx) => {
-      const focusedTab = getTabFromContext(ctx);
-      if (focusedTab == null) return false;
-      const newIdx = (tabs.value.indexOf(focusedTab) + 1) % tabs.value.length;
+      const tab = getTabFromContext(ctx);
+      if (tab == null) return false;
+      const newIdx = (tabs.value.indexOf(tab) + 1) % tabs.value.length;
       focus(tabs.value[newIdx]);
     },
   },
@@ -215,7 +224,9 @@ defineExpose<ViewExposed>({ self, actions });
             return {
               kind: 'menu',
               placement: 'bottom-right',
-              items: menuActionsLike(['view.navigate*close*tab*', 'view.layout*'], { context }),
+              items: menuActionsLike(['view.navigate*close*tab*', 'view.navigate.duplicateTab', 'view.layout*'], {
+                context,
+              }),
               context,
             };
           }

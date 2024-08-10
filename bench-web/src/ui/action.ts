@@ -166,6 +166,7 @@ export const ACTION_BUILTIN_IDS = [
   "code.edit.format",
   "code.edit.comment",
   // view
+  "view.navigate.duplicateTab",
   "view.navigate.focusPreviousTab",
   "view.navigate.focusNextTab",
   "view.navigate.closeTab",
@@ -892,6 +893,11 @@ declareActionMap<"code">({
 // view
 declareActionMap<"view">({
   // navigate
+  "view.navigate.duplicateTab": {
+    icon: "fas fa-copy",
+    title: "Duplicate Tab",
+    text: "Duplicate the current tab",
+  },
   "view.navigate.focusPreviousTab": {
     icon: "fas fa-chevron-left",
     title: "Focus Previous Tab",
