@@ -117,7 +117,7 @@ function stopDragging() {
 function getDragged(event: DragEvent): DraggedContent | null {
   // get dragged metatype while dragging (can only read keys set in startDragging above)
   if (event.dataTransfer?.types == null) return null;
-  
+
   // might be a new file drop
   if (event.dataTransfer.types.includes("Files")) {
     return { kind: "file", files: event.dataTransfer.files };
@@ -308,7 +308,7 @@ export function useMultiDropZone(
     orientation: MaybeRef<Orientation>;
     fallbackToClosest?: boolean;
     hasCenterAnchor?: boolean;
-    allowDrop?: (dragged: DraggedContent, anchor: MultiAnchor, targetId: string, event?: DragEvent) => boolean;
+    allowDrop?: (dragged: DraggedContent, anchor: MultiAnchor, targetId: string | null, event?: DragEvent) => boolean;
     onDrop?: (dragged: DraggedContent, anchor: MultiAnchor, targetId: string | null, event: DragEvent) => void;
   },
 ): { activeDropZone: Ref<{ anchor: MultiAnchor; targetId: string | null } | null> } {
@@ -364,10 +364,7 @@ export function useMultiDropZone(
   const activeDropZone: Ref<{ anchor: MultiAnchor; targetId: string | null } | null> = computed(() => {
     if (singleDropZone.value == null) return null;
     const activeDropZone = getActiveDropZone();
-    if (
-      activeDropZone.targetId != null &&
-      options.allowDrop?.(activeDragged.value!, activeDropZone.anchor, activeDropZone.targetId) === false
-    )
+    if (options.allowDrop?.(activeDragged.value!, activeDropZone.anchor, activeDropZone.targetId) === false)
       return null;
     return activeDropZone;
   });

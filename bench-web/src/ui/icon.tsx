@@ -411,8 +411,8 @@ export const ICON_BY_LOG_LEVEL: Record<LogLevel, IconData> = {
   [LogLevel.TRACE]: makeIcon({ faName: "fas fa-bug" }),
   [LogLevel.DEBUG]: makeIcon({ faName: "fas fa-bug" }),
   [LogLevel.INFO]: makeIcon({ faName: "fas fa-circle-check" }),
-  [LogLevel.WARNING]: makeIcon({ faName: "fas fa-exclamation-triangle" }),
-  [LogLevel.ERROR]: makeIcon({ faName: "fas fa-exclamation-circle" }),
+  [LogLevel.WARNING]: makeIcon({ faName: "fas fa-circle-exclamation" }),
+  [LogLevel.ERROR]: makeIcon({ faName: "fas fa-circle-exclamation" }),
   [LogLevel.CRITICAL]: makeIcon({ faName: "fas fa-skull" }),
 };
 
@@ -426,7 +426,7 @@ export const ICON_BY_RUN_STATUS: Record<RunStatus, IconData> = {
   [RunStatus.COMPLETED]: makeIcon({ faName: "fas fa-circle-check" }),
   [RunStatus.CANCELLED]: makeIcon({ faName: "fas fa-circle-xmark" }),
   [RunStatus.ABORTED]: makeIcon({ faName: "fas fa-skull" }),
-  [RunStatus.FAILED]: makeIcon({ faName: "fas fa-exclamation-triangle" }),
+  [RunStatus.FAILED]: makeIcon({ faName: "fas fa-circle-exclamation" }),
 };
 
 export const ICON_BY_EDIT_TYPE: Partial<Record<EditType, IconData>> = _makeIcons<EditType>({

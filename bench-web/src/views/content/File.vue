@@ -311,7 +311,7 @@ defineExpose<ViewExposed>({ self, id });
           <i v-if="upload != null && upload.isActive.value" class="fas fa-spinner-third animate-spin text-gray-400" />
           <i
             v-else-if="download?.status.value == FileStatus.FAILED"
-            class="fas fa-exclamation-triangle text-danger-600"
+            class="fas fa-circle-exclamation text-danger-600"
           />
           <template v-if="download?.filePtr">
             <span class="ml-1.5">{{ download.filePtr.title ?? "???" }}</span>

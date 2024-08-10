@@ -184,8 +184,9 @@ class RuntimeThread:
 
     @tracer.start_as_current_span("thread.process_run")
     async def _process_run_queue(self, run_data: RunData):
-        # nocheckin :Robustness!: Run's epoch may be ahead of our own if the sync takes longer to
-        #  arrive than the request from the scheduler (both from Host).
+        # TODO :Robustness Run.created_epoch may be ahead of our own epoch if the sync takes longer to
+        #  arrive than the request from the scheduler (both from our Host). This means the caller/user
+        #  may expect a different current state than we actually have (so we may be behind).
         assert self._session is not None, f"no session for {self!r}"
         assert self._runner is not None, f"no runner for {self!r}"
         assert self._main_package is not None, f"no main package for {self!r}"

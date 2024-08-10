@@ -3,10 +3,10 @@
  */
 
 import { RUNNABLE_BLOCK_TYPES, TIMED_NODE_TYPES, toCamelName, TYPE_BLOCK_TYPES } from "@/language/const";
+import { makeTypeInfo } from "@/language/field";
 import { isDescendantOf, resolveNode, type ReadNodeGraph } from "@/language/graph";
 import { getOrderKey, updateOrder } from "@/language/order";
 import type { Transaction } from "@/language/transaction";
-import { makeTypeInfo } from "@/language/value";
 import {
   BenchType,
   BlockType,

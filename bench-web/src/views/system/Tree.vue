@@ -260,7 +260,7 @@ const { activeDropZone } = useMultiDropZone({
   metatypes: inspectedNodeTypes,
   allowDrop: (dragged, anchor, targetId) => {
     if (dragged.kind != "node") return false;
-    const target = pkgGraph.get({ id: targetId });
+    const target = targetId != null ? pkgGraph.get({ id: targetId }) : null;
     if (target == null || isDescendantOf(pkgGraph, target, dragged.node)) return false;
     const targetParentType = anchor == "center" ? (target.metatype as unknown as NodeType) : target.parentPtr!.type;
     if (!CHILD_NODE_TYPES[targetParentType].includes(dragged.node.type)) return false;

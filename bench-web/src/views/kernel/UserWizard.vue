@@ -1,4 +1,6 @@
 <script lang="ts" setup>
+import { packProtoJson } from "@/language/transaction";
+import { makeTypeInfo } from "@/language/field";
 import {
   NodeType,
   ObjectType,
@@ -9,15 +11,12 @@ import {
   type NodeReferenceData,
 } from "@/proto/wire";
 import type { TypedNodeReferenceData } from "@/proto/wiring";
-import { fireActionById } from "@/ui/action";
 import { benchPtr } from "@/system/client";
 import { useExistingConnection } from "@/system/connection";
-import { makeIcon } from "@/ui/icon";
 import { canvas, goToBench } from "@/system/space";
-import { packProtoJson } from "@/language/transaction";
 import { logIn, signUp, user } from "@/system/user";
-import { makeTypeInfo } from "@/language/value";
 import { getViewComponentChildren, isVueInstanceOf, useViewState } from "@/ui/canvas";
+import { makeIcon } from "@/ui/icon";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import NativeInput from "@/views/content/NativeInput.vue";
 import Button from "@/views/controls/Button.vue";
@@ -179,7 +178,7 @@ defineExpose<ViewExposed>({ self, focus });
     <!-- Error -->
     <div v-if="lastError" class="mt-3 flex w-full flex-col gap-y-1 border-t border-t-gray-200 pt-3">
       <div class="flex flex-row items-center gap-x-2">
-        <i class="fas fa-exclamation-triangle text-danger-600" />
+        <i class="fas fa-circle-exclamation text-danger-600" />
         <span class="text-danger-600">Error</span>
       </div>
       <div class="flex flex-row items-center gap-x-2">

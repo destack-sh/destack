@@ -14,7 +14,7 @@ import { makeIcon } from "@/ui/icon";
 import { enumIndex } from "@/ui/search";
 import { canvas, goToBench } from "@/system/space";
 import { createBench, user } from "@/system/user";
-import { makeTypeInfo } from "@/language/value";
+import { makeTypeInfo } from "@/language/field";
 import { DEFAULT_REGION_BY_AREA, GEOLOCATION } from "@/utils/geolocation";
 import { getViewComponentChildren, isVueInstanceOf } from "@/ui/canvas";
 import { viewEmits, type FocusAnchor } from "@/views/common";
@@ -140,7 +140,7 @@ defineExpose({ self, focus });
     <!-- Error -->
     <div v-if="lastError" class="mt-3 flex w-full flex-col gap-y-1 border-t border-t-gray-200 pt-3">
       <div class="flex flex-row items-center gap-x-2">
-        <i class="fas fa-exclamation-triangle text-danger-600" />
+        <i class="fas fa-circle-exclamation text-danger-600" />
         <span class="text-danger-600">Error</span>
       </div>
       <div class="flex flex-row items-center gap-x-2">

@@ -22,7 +22,7 @@ const humanizedError = computed(() => {
     <template v-if="connection.isConnected.value">
       <!-- Not found -->
       <span>
-        <i class="fas fa-exclamation-triangle mr-1.5 text-gray-500" />
+        <i class="fas fa-circle-exclamation mr-1.5 text-gray-500" />
         <span class="text-gray-600">{{ node != null ? toCamelName(NodeType, node.type) : "Node" }} Not Found</span>
       </span>
       <!-- TODO :UX: help to restore node if not found (and is accessible, else help with policies) -->
@@ -64,7 +64,7 @@ const humanizedError = computed(() => {
           <span class="font-semibold">{{ humanizedError.title }}</span>
         </span>
       </p>
-      <p class="text-gray-900">{{ humanizedError.text }}</p>
+      <p class="text-gray-900 max-w-80 break-words">{{ humanizedError.text }}</p>
       <p class="text-gray-400">
         (We'll try again. Try the <a :href="DISCORD_URL" class="mt-1 underline" target="_blank">Discord</a>.)
       </p>

@@ -5,7 +5,7 @@ import { uploadFile } from "@/language/file";
 import { getGroupedChildrenRef, isDescendantOf } from "@/language/graph";
 import { makeRun } from "@/language/session";
 import { cloneNode, createBlock, moveNode } from "@/language/node";
-import { makeTypeInfo, packValueJson } from "@/language/value";
+import { packValueJson } from "@/language/value";
 import {
   BenchType,
   BlockData,
@@ -46,6 +46,7 @@ import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Block from "@/views/system/Block.vue";
 import { computed, nextTick, ref, toRef, type Ref } from "vue";
+import { makeTypeInfo } from "@/language/field";
 
 const HEADER_HEIGHT = DEFAULT_HEADER_HEIGHT;
 const MIN_BLOCK_WIDTH = 500;
@@ -132,7 +133,7 @@ const { activeDropZone } = useMultiDropZone({
   metatypes: [NodeType.BLOCK],
   fallbackToClosest: true,
   allowDrop: (dragged, anchor, targetId) => {
-    const target = pkgGraph.get({ id: targetId });
+    const target = targetId != null ? pkgGraph.get({ id: targetId }) : null;
     return (
       dragged.kind == "file" ||
       (dragged.kind == "node" &&

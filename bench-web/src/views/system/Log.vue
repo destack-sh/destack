@@ -14,13 +14,14 @@ import { PACKAGE_SCOPE } from "@/system/client";
 import { useGetConnection, type PreparedNodeConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import { unpackProtoJson } from "@/language/transaction";
-import { getPropertyType, unpackBuiltinObject, type TypeIdentity } from "@/language/value";
 import { getViewForValueType } from "@/ui/view";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import { getViewComponent, hasViewComponent } from "@/views/registry";
 import { computed, toRef, type Ref } from "vue";
 import { FULL_WIDTH_VIEW_TYPES, getPropertyTitle } from "@/ui/inspect";
+import { unpackBuiltinObject } from "@/language/value";
+import { getPropertyType, type TypeIdentity } from "@/language/field";
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; preparedConnection?: PreparedNodeConnection } & Partial<

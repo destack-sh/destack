@@ -1,18 +1,21 @@
 <script lang="ts" setup>
+import { TITLE_CONSTRAINT, toCamelName } from "@/language/const";
+import { makeTypeInfo } from "@/language/field";
+import { emptyText, isTextEmpty, trimText } from "@/language/text";
 import {
-  ViewData,
-  NodeType,
+  BenchType,
   BoxData,
-  Variant,
+  IconData,
+  MessageData,
+  NodeReferenceData,
+  NodeType,
   ObjectType,
   Orientation,
   TextData,
-  MessageData,
+  Variant,
+  ViewData,
   ViewType,
-  BenchType,
-  NodeReferenceData,
   type AnyNodeData,
-  IconData,
 } from "@/proto/wire";
 import {
   describeNode,
@@ -22,32 +25,29 @@ import {
   unwrapProtoOneOf,
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
-import { makeViewId, viewEmits, type FocusAnchor, type ViewComponent, type ViewExposed } from "@/views/common";
-import { canvas, inspectionPtr, pkg, pkgGraph as localPkgGraph } from "@/system/space";
-import { computed, ref, toRef, watch, type Ref } from "vue";
-import { findExistingConnectionOrError, useExistingConnection } from "@/system/connection";
-import Scroll from "@/views/containers/Scroll.vue";
-import { ScrollbarWidth } from "@/ui/layout";
-import { useElementSize } from "@vueuse/core";
-import Text from "@/views/content/Text.vue";
-import { DEFAULT_USER_ICON, IconInline, getNodeIcon, makeIcon } from "@/ui/icon";
-import { emptyText, isTextEmpty, trimText } from "@/language/text";
-import { formatAbsoluteDate, tsToDt } from "@/utils/time";
-import { user } from "@/system/user";
-import { DateTime } from "luxon";
-import { generateRandomName } from "@/utils/naming";
-import { menuActionsLike, type PopoverContext, type PopoverInfo, type PopoverInfoIn } from "@/ui/popover";
-import { makeTypeInfo } from "@/language/value";
-import { graphIndex } from "@/ui/search";
-import { computedValue } from "@/utils/ref";
-import type { ActionContext, ActionMapImplementation } from "@/ui/action";
-import Inaccessible from "@/views/builtins/Inaccessible.vue";
-import { makeSelection } from "@/ui/canvas";
-import { getElement } from "@/utils/element";
-import { TITLE_CONSTRAINT, toCamelName } from "@/language/const";
-import NodePath from "@/views/builtins/NodePath.vue";
 import { PACKAGE_SCOPE } from "@/system/client";
+import { findExistingConnectionOrError, useExistingConnection } from "@/system/connection";
+import { canvas, inspectionPtr, pkgGraph as localPkgGraph, pkg } from "@/system/space";
+import { user } from "@/system/user";
+import type { ActionContext, ActionMapImplementation } from "@/ui/action";
+import { makeSelection } from "@/ui/canvas";
+import { DEFAULT_USER_ICON, IconInline, makeIcon } from "@/ui/icon";
+import { ScrollbarWidth } from "@/ui/layout";
+import { menuActionsLike, type PopoverContext, type PopoverInfo, type PopoverInfoIn } from "@/ui/popover";
+import { graphIndex } from "@/ui/search";
 import { getNativeConstraintProps, guardNativeInput } from "@/ui/view";
+import { getElement } from "@/utils/element";
+import { generateRandomName } from "@/utils/naming";
+import { computedValue } from "@/utils/ref";
+import { formatAbsoluteDate, tsToDt } from "@/utils/time";
+import Inaccessible from "@/views/builtins/Inaccessible.vue";
+import NodePath from "@/views/builtins/NodePath.vue";
+import { makeViewId, viewEmits, type FocusAnchor, type ViewComponent, type ViewExposed } from "@/views/common";
+import Scroll from "@/views/containers/Scroll.vue";
+import Text from "@/views/content/Text.vue";
+import { useElementSize } from "@vueuse/core";
+import { DateTime } from "luxon";
+import { computed, ref, toRef, watch, type Ref } from "vue";
 
 const HEADER_HEIGHT_NORMAL = 36;
 const HEADER_HEIGHT_COMPACT = 32;
