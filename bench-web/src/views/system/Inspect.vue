@@ -62,6 +62,7 @@ defineExpose<ViewExposed>({ self });
         <NodeReference :node="inspectedNode" :connection="pkgConnection" class="font-medium" />
         <!-- Pin/unpin node -->
         <button
+          v-tooltip="{ title: 'Pin node', small: true, placement: 'bottom' }"
           :disabled="nodePtr == null && inspectedNode == null"
           class="ml-1.5 hover:text-primary-900"
           :class="nodePtr != null ? 'text-gray-700' : 'text-gray-400'"

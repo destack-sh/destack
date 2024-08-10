@@ -20,7 +20,7 @@ const COMPONENT_BY_VIEW_TYPE_LAZY = {
   [ViewType.BLOCK]: () => import("@/views/system/Block.vue"),
   [ViewType.FIELD]: () => import("@/views/system/Field.vue"),
   [ViewType.TYPE]: () => import("@/views/system/Type.vue"),
-  [ViewType.OBJECT]: () => import("@/views/system/Object.vue"),
+  [ViewType.OBJECT]: () => import("@/views/system/ValueObject.vue"),
   // helpers
   [ViewType.EMPTY]: () => import("@/views/system/Empty.vue"),
   [ViewType.TREE]: () => import("@/views/system/Tree.vue"),

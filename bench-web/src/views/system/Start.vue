@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { makeExpression } from "@/language/expression";
-import { propertyType } from "@/language/field";
+import { makeTypeInfo, propertyType } from "@/language/field";
 import { isRunnable } from "@/language/node";
 import { makeRun } from "@/language/session";
 import { packProtoJson, unpackProtoJson } from "@/language/transaction";
@@ -16,13 +16,15 @@ import {
   Orientation,
   RunProperty,
   StepData,
+  TypeKind,
+  Variant,
   ViewData,
   ViewType,
 } from "@/proto/wire";
 import {
   propertyReference,
   toNodeRef,
-  toNodeRefOneOf,
+  toPlainNodeRef,
   unwrapProtoOneOf,
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
@@ -37,6 +39,7 @@ import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import { getViewComponent, hasViewComponent } from "@/views/registry";
 import Feed from "@/views/system/Feed.vue";
+import ValueObject from "@/views/system/ValueObject.vue";
 import { computed, toRef, type Ref } from "vue";
 
 const HEADER_HEIGHT = DEFAULT_HEADER_HEIGHT;
@@ -87,15 +90,16 @@ const runnableNode: Ref<BlockData | StepData | null> = computed(() => {
   }
   return null;
 });
-const runnablePtr = computed(() => (runnableNode.value != null ? toNodeRef(runnableNode.value) : null));
+const runnablePtr = computed(() => (runnableNode.value != null ? toPlainNodeRef(runnableNode.value) : null));
 const inputsPacked: Ref<Record<string, any>> = mapRef(
   useStateProp("inputsPacked", undefined, { debounce: "short" }), // have to :DebounceNestedValue
   (packed) => (packed != null ? unpackProtoJson(packed) : {}) as Record<string, any>,
   (unpacked) => packProtoJson(unpacked),
 );
-const inputFields = pkgGraph.getChildrenRef(runnableNode, NodeType.FIELD); // these need to be resolved later :TypeResolution
-const inputViews = computed(() =>
-  getFieldViews(inputFields.value, inputsPacked.value, pkgGraph, { zones: [FieldZone.INPUT], isInput: true }),
+const inputType = computed(() =>
+  runnablePtr.value != null
+    ? makeTypeInfo({ kind: TypeKind.OBJECT, baseTypePtr: runnablePtr.value, baseFieldZone: FieldZone.INPUT })
+    : undefined,
 );
 
 canvas.registerView(self);
@@ -113,6 +117,7 @@ defineExpose<ViewExposed>({ self });
         <NodeReference class="font-medium" :node="runnableNode" :connection="pkgConnection" />
         <!-- Pin/unpin node -->
         <button
+          v-tooltip="{ title: 'Pin node', small: true, placement: 'bottom' }"
           :disabled="nodePtr == null && runnableNode == null"
           class="ml-1.5 hover:text-primary-900"
           :class="nodePtr != null ? 'text-gray-700' : 'text-gray-400'"
@@ -149,43 +154,16 @@ defineExpose<ViewExposed>({ self });
       <!-- Inputs -->
       <div class="mx-auto px-5 pt-1" :style="{ minWidth: MIN_WIDTH + 'px', maxWidth: MAX_WIDTH + 'px' }">
         <h4 class="font-semibold">Inputs</h4>
+        <ValueObject
+          class="w-full py-2"
+          :model-value="inputsPacked"
+          :value-type="inputType"
+          is-inline
+          is-input
+          :variant="Variant.STEALTH"
+          @update:model-value="(value) => inputsPacked = value"
+        />
       </div>
-      <ul class="flex flex-col gap-y-2.5 py-3">
-        <!-- Property -->
-        <li
-          v-for="{ field, value, prepareUpdate: update, viewType, viewProps, isFullWidth } of inputViews"
-          :key="field.id"
-          class="mx-auto w-full px-5"
-          :class="[isFullWidth ? 'flex flex-col gap-y-0.5' : 'flex flex-row flex-wrap items-center gap-x-[10%]']"
-          :style="{ minWidth: MIN_WIDTH + 'px', maxWidth: MAX_WIDTH + 'px' }"
-        >
-          <!-- Title & Controls -->
-          <span class="w-[100px]">
-            <span class="max-w-full truncate py-1 font-medium">{{ field.name }}</span>
-          </span>
-          <!-- Value -->
-          <component
-            :is="getViewComponent(viewType)"
-            v-if="viewType != null && hasViewComponent(viewType)"
-            :class="['ml-auto flex-shrink-0', isFullWidth ? '' : 'text-right']"
-            :style="{ width: isFullWidth ? '100%' : 'calc(90% - 100px)' }"
-            v-bind="viewProps"
-            :model-value="value"
-            @update:model-value="(value: any) => (inputsPacked = update(value))"
-          />
-          <div v-else class="ml-auto text-warning-600">
-            {{ viewType != null ? ViewType[viewType] : "No View for Type" }}
-          </div>
-        </li>
-        <!-- Empty -->
-        <li
-          v-if="inputViews.length === 0"
-          class="mx-auto w-full px-5"
-          :style="{ minWidth: MIN_WIDTH + 'px', maxWidth: MAX_WIDTH + 'px' }"
-        >
-          <span class="text-gray-500">No Inputs</span>
-        </li>
-      </ul>
       <!-- Divider -->
       <div class="mx-auto my-2 w-full px-5" :style="{ minWidth: MIN_WIDTH + 'px', maxWidth: MAX_WIDTH + 'px' }">
         <div class="h-[1px] w-full min-w-fit bg-gray-200" />

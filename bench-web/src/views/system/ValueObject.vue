@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { BlockType, BoxData, FieldZone, NodeType, ObjectType, ViewData, ViewType } from "@/proto/wire";
+import { BlockType, BoxData, FieldZone, NodeType, ObjectType, Variant, ViewData, ViewType } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
 import { ICON_BY_BLOCK_TYPE, IconInline } from "@/ui/icon";
@@ -36,7 +36,9 @@ const id = makeViewId(props);
 
 const buttonRef: Ref<HTMLButtonElement | null> = ref(null);
 const componentRefs: Ref<Record<string, ViewComponent | null>> = ref({});
-const width = computed(() => Math.max(MIN_WIDTH, props.size?.width ?? DEFAULT_WIDTH));
+const width = computed(() =>
+  props.variant == Variant.STEALTH ? null : Math.max(MIN_WIDTH, props.size?.width ?? DEFAULT_WIDTH),
+);
 
 const hasValue = computed(() => props.modelValue != null);
 const baseTypePtr = computed(() => props.valueType?.baseTypePtr as TypedNodeReferenceData<NodeType.BLOCK> | undefined);
@@ -44,7 +46,10 @@ const { graph: pkgGraph } = props.preparedConnection ?? useExistingConnection(ba
 const baseType = pkgGraph.getRef(baseTypePtr);
 const fields = pkgGraph.getChildrenRef(baseType, NodeType.FIELD); // these need to be resolved later :TypeResolution
 const fieldViews = computed(() =>
-  getFieldViews(fields.value, props.modelValue, pkgGraph, { zones: [FieldZone.MEMBER], isInput: props.isInput }),
+  getFieldViews(fields.value, props.modelValue, pkgGraph, {
+    zones: [props.valueType?.baseFieldZone ?? FieldZone.MEMBER],
+    isInput: props.isInput,
+  }),
 );
 
 function focus() {
@@ -84,7 +89,7 @@ defineExpose<ViewExposed>({ self, id, focus });
       "
       role="button"
       :disabled="isDisabled"
-      class="group flex w-full flex-row items-center rounded border border-gray-200 px-2.5 py-1 hover:border-gray-300 disabled:bg-gray-100 data-[popover=true]:border-gray-300"
+      class="group flex w-full flex-row items-center rounded border border-gray-200 bg-white px-2.5 py-1 hover:border-gray-300 disabled:bg-gray-100 data-[popover=true]:border-gray-300"
     >
       <!-- Icon/Type name -->
       <IconInline
@@ -111,9 +116,9 @@ defineExpose<ViewExposed>({ self, id, focus });
     </div>
 
     <!-- Inline Object -->
-    <div v-else>
+    <div v-else class="w-full">
       <!-- Header? -->
-      <div class="flex w-full flex-row border-b px-2.5 py-1">
+      <div v-if="variant != Variant.STEALTH" class="flex w-full flex-row border-b px-2.5 py-1">
         <!-- Icon/Type name -->
         <span>
           <IconInline
@@ -134,17 +139,24 @@ defineExpose<ViewExposed>({ self, id, focus });
         </div>
       </div>
       <!-- Fields -->
-      <ul class="flex w-full flex-col gap-y-2.5 py-3" :style="{ width: width + 'px' }">
+      <ul
+        class="flex flex-col gap-y-2.5"
+        :class="variant != Variant.STEALTH ? 'py-3' : ''"
+        :style="{ width: width != null ? width + 'px' : '100%' }"
+      >
         <li
           v-for="{ field, value, prepareUpdate: update, viewType, isFullWidth, viewProps } of fieldViews"
           :key="field.id"
-          class="mx-auto w-full px-4"
-          :class="[isFullWidth ? 'flex flex-col' : 'flex flex-row flex-wrap items-center gap-x-[10%]']"
+          class="mx-auto w-full"
+          :class="[
+            isFullWidth ? 'flex flex-col' : 'flex flex-row flex-wrap items-center gap-x-[10%]',
+            variant != Variant.STEALTH ? 'px-4' : '',
+          ]"
           :style="{ minWidth: MIN_WIDTH + 'px' }"
         >
           <!-- Field -->
           <span class="w-[100px]">
-            <span class="max-w-full truncate py-1 font-medium text-gray-700">{{ field.name }}</span>
+            <span class="max-w-full truncate py-1 font-medium text-gray-900">{{ field.name }}</span>
           </span>
           <!-- Value -->
           <component
