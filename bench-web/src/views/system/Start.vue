@@ -18,26 +18,23 @@ import {
   StepData,
   TypeKind,
   Variant,
-  ViewData,
-  ViewType,
+  ViewData
 } from "@/proto/wire";
 import {
   propertyReference,
-  toNodeRef,
   toPlainNodeRef,
   unwrapProtoOneOf,
-  type TypedNodeReferenceData,
+  type TypedNodeReferenceData
 } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
 import { canvas, inspectionPtr } from "@/system/space";
 import { DEFAULT_HEADER_HEIGHT, useViewState } from "@/ui/canvas";
 import { ScrollbarWidth } from "@/ui/layout";
-import { getFieldViews, toggleHelperViewPin } from "@/ui/view";
+import { toggleHelperViewPin } from "@/ui/view";
 import { computedValue, mapRef } from "@/utils/ref";
 import NodeReference from "@/views/builtins/NodeReference.vue";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
-import { getViewComponent, hasViewComponent } from "@/views/registry";
 import Feed from "@/views/system/Feed.vue";
 import ValueObject from "@/views/system/ValueObject.vue";
 import { computed, toRef, type Ref } from "vue";
@@ -81,6 +78,7 @@ const feedState = computed(
 );
 const ancestors = pkgGraph.getAncestorsRef(focusPtr, { includeSelf: true });
 
+// current runnable / inputs
 const runnableNode: Ref<BlockData | StepData | null> = computed(() => {
   // for some reason this type checks but ancestors.find doesn't
   for (const ancestor of ancestors.value) {
@@ -102,6 +100,8 @@ const inputType = computed(() =>
     : undefined,
 );
 
+// last run
+
 canvas.registerView(self);
 defineExpose<ViewExposed>({ self });
 </script>
@@ -117,7 +117,7 @@ defineExpose<ViewExposed>({ self });
         <NodeReference class="font-medium" :node="runnableNode" :connection="pkgConnection" />
         <!-- Pin/unpin node -->
         <button
-          v-tooltip="{ title: 'Pin node', small: true, placement: 'bottom' }"
+          v-tooltip="{ title: 'Pin node in view', small: true, placement: 'bottom' }"
           :disabled="nodePtr == null && runnableNode == null"
           class="ml-1.5 hover:text-primary-900"
           :class="nodePtr != null ? 'text-gray-700' : 'text-gray-400'"
@@ -161,14 +161,14 @@ defineExpose<ViewExposed>({ self });
           is-inline
           is-input
           :variant="Variant.STEALTH"
-          @update:model-value="(value) => inputsPacked = value"
+          @update:model-value="(value) => (inputsPacked = value)"
         />
       </div>
       <!-- Divider -->
       <div class="mx-auto my-2 w-full px-5" :style="{ minWidth: MIN_WIDTH + 'px', maxWidth: MAX_WIDTH + 'px' }">
         <div class="h-[1px] w-full min-w-fit bg-gray-200" />
       </div>
-      <!-- Feed -->
+      <!-- Past runs -->
       <div class="mx-auto mt-1 px-5 py-3" :style="{ minWidth: MIN_WIDTH + 'px', maxWidth: MAX_WIDTH + 'px' }">
         <h4 class="font-semibold">Runs</h4>
         <Feed
