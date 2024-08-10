@@ -394,7 +394,7 @@ export class ViewCanvas {
         if (!focused) {
           const component = this.getViewComponent(viewData!.id!);
           if (component != null) this.onComponentFocused(component);
-          log.warn("canvas.focusFailed", focus, { viewData, component });
+          log.debug("canvas.focusFailed", focus, { viewData, component });
         }
       });
     } else if ("view" in focus) {
@@ -459,8 +459,13 @@ export class ViewCanvas {
       viewData = component.exposed?.self?.value != null ? this.getViewData(component.exposed.self.value) : null;
     }
     if (component == null) {
+      // component currrently not available, log and bail
       const viewPtr = viewData ?? (view as ViewComponent).exposed?.self.value;
-      throw new Error(`no component for view: ${viewPtr != null ? describeNode(viewPtr) : getVueComponentType(view)}`);
+      const error = new Error(
+        `no component for view: ${viewPtr != null ? describeNode(viewPtr) : getVueComponentType(view)}`,
+      );
+      log.debug("canvas.focusInComponent.error", { view, viewPtr, error });
+      return false;
     }
 
     // if no anchor is given, try to use existing focus state

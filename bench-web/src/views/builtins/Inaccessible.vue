@@ -18,7 +18,7 @@ const humanizedError = computed(() => {
 });
 </script>
 <template>
-  <div class="flex flex-col justify-center text-center">
+  <div class="flex flex-col justify-center text-center align-middle">
     <template v-if="connection.isConnected.value">
       <!-- Not found -->
       <span>
@@ -58,16 +58,18 @@ const humanizedError = computed(() => {
     </template>
     <template v-else>
       <!-- Error -->
-      <p>
-        <i class="fas fa-circle-exclamation text-danger-600" />
-        <span class="ml-1.5">
-          <span class="font-semibold">{{ humanizedError.title }}</span>
-        </span>
-      </p>
-      <p class="text-gray-900 max-w-80 break-words">{{ humanizedError.text }}</p>
-      <p class="text-gray-400">
-        (We'll try again. Try the <a :href="DISCORD_URL" class="mt-1 underline" target="_blank">Discord</a>.)
-      </p>
+      <div class="w-fit self-center">
+        <p>
+          <i class="fas fa-circle-exclamation text-danger-600" />
+          <span class="ml-1.5">
+            <span class="font-semibold">{{ humanizedError.title }}</span>
+          </span>
+        </p>
+        <p class="max-w-80 text-gray-900">{{ humanizedError.text }}</p>
+        <p class="text-gray-400">
+          (We'll try again. Try the <a :href="DISCORD_URL" class="mt-1 underline" target="_blank">Discord</a>.)
+        </p>
+      </div>
     </template>
   </div>
 </template>
