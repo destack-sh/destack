@@ -41,6 +41,7 @@ import {
   newNodeId,
   nodeReference,
   toPlainNodeRef,
+  unwrapProtoOneOf,
   type AnyNodeReferenceData,
   type SomeNodeReferenceData,
   type TypedNodeReferenceData,
@@ -225,9 +226,11 @@ export function makeNode<T extends NodeType>(
  * Creates a clone of this struct and its nested structs with the same content (and different identity)
  */
 export function cloneStruct<T extends AnyStructData>(struct: T): T {
+  if (struct?.metatype == null) throw new Error(`missing metatype for ${JSON.stringify(struct)}`);
   let clone = { metatype: struct.metatype } as Record<string, any>;
   const allProperties = PROPERTY_ENUM_BY_TYPE[struct.metatype as unknown as ObjectType]!;
   const propertyInfos = PROPERTY_INFOS_BY_TYPE[struct.metatype as unknown as StructType];
+  if (propertyInfos == null) throw new Error(`no property info for ${struct.metatype}`);
   for (const prop of Object.values(propertyInfos)) {
     if (prop.id < 30) continue; // ignore identity/tracking properties
     const propName = allProperties[prop.id];
@@ -236,7 +239,11 @@ export function cloneStruct<T extends AnyStructData>(struct: T): T {
       if (prop.isList) {
         clone[propName] = propValue.map((v: any) => cloneStruct(v));
       } else if (propValue) {
-        clone[propName] = cloneStruct(propValue);
+        if (prop.referenceIsRich) {
+          clone[propName] = propValue; // one of struct, and no need to clone anyway
+        } else {
+          clone[propName] = cloneStruct(propValue);
+        }
       }
     } else {
       if (prop.isList) {
@@ -246,6 +253,7 @@ export function cloneStruct<T extends AnyStructData>(struct: T): T {
       }
     }
   }
+  if ("orderKey" in struct) (clone as any).orderKey = struct.orderKey;
   clone = fillDefaultObject(clone as T);
   return clone as T;
 }
@@ -260,7 +268,6 @@ function _cloneNode<T extends AnyNodeData>(node: T, now: Timestamp): T {
   if ("benchPtr" in node) (clone as any).benchPtr = node.benchPtr;
   if ("templatePtr" in node) (clone as any).templatePtr = node.templatePtr;
   if ("templatedEpoch" in node) (clone as any).templatedEpoch = node.templatedEpoch;
-  if ("orderKey" in node) (clone as any).orderKey = node.orderKey;
   clone.revision = BigInt(0);
   clone.createdAt = now;
   clone.updatedAt = now;
