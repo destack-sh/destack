@@ -2,13 +2,15 @@
 import { toCamelName } from "@/language/const";
 import { getNodeSubtype } from "@/language/node";
 import { BoxData, ColorShade, NodeType, ObjectType, Orientation, ViewData, ViewType } from "@/proto/wire";
-import { type TypedNodeReferenceData } from "@/proto/wiring";
+import { toNodeRefOneOf, unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
 import { canvas, inspectionPtr } from "@/system/space";
 import { DEFAULT_HEADER_HEIGHT, DEFAULT_MAX_WIDTH, DEFAULT_MIN_WIDTH } from "@/ui/canvas";
 import { ICON_BY_NODE_TYPE, IconInline } from "@/ui/icon";
 import { getInspectionLayout } from "@/ui/inspect";
 import { ScrollbarWidth } from "@/ui/layout";
+import { toggleHelperViewPin } from "@/ui/view";
+import { computedValue } from "@/utils/ref";
 import NodeReference from "@/views/builtins/NodeReference.vue";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
@@ -27,17 +29,19 @@ const props = defineProps<
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
+const nodePtr = computedValue(() => unwrapProtoOneOf(props.nodePtr));
+const inspectedPtr = computedValue(() => nodePtr.value ?? inspectionPtr.value);
 
-const { graph: spaceGraph } = useExistingConnection(self);
-const { graph: pkgGraph, connection: pkgConnection } = useExistingConnection(inspectionPtr);
-const node = pkgGraph.getRef(inspectionPtr);
-const nodeMetatype = computed(() => node.value?.metatype);
-const nodeSubtype = computed(() => (node.value != null ? getNodeSubtype(node.value) : null));
-const ancestors = pkgGraph.getAncestorsRef(node, { includeSelf: true });
+const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self);
+const { graph: pkgGraph, connection: pkgConnection } = useExistingConnection(inspectedPtr);
+const inspectedNode = pkgGraph.getRef(inspectedPtr);
+const inspectedNodeType = computed(() => inspectedNode.value?.metatype);
+const inspectedNodeSubtype = computed(() => (inspectedNode.value != null ? getNodeSubtype(inspectedNode.value) : null));
+const ancestors = pkgGraph.getAncestorsRef(inspectedNode, { includeSelf: true });
 
 const inspectionLayout = computed(() => {
-  if (nodeMetatype.value == null) return null;
-  const layout = getInspectionLayout(nodeMetatype.value, nodeSubtype.value, {
+  if (inspectedNodeType.value == null) return null;
+  const layout = getInspectionLayout(inspectedNodeType.value, inspectedNodeSubtype.value, {
     exclude: ["icon", "name"] /* separate in header */,
   });
   return layout;
@@ -47,7 +51,7 @@ canvas.registerView(self);
 defineExpose<ViewExposed>({ self });
 </script>
 <template>
-  <div v-if="node && inspectionLayout" class="h-full w-full">
+  <div v-if="inspectedNode && inspectionLayout" class="h-full w-full">
     <!-- Header -->
     <div class="group w-full" :style="{ height: HEADER_HEIGHT + 'px' }">
       <div
@@ -55,15 +59,24 @@ defineExpose<ViewExposed>({ self });
         :style="{ minWidth: MIN_WIDTH + 'px' }"
       >
         <!-- Node -->
-        <NodeReference :node="node" :connection="pkgConnection" class="font-medium" />
+        <NodeReference :node="inspectedNode" :connection="pkgConnection" class="font-medium" />
+        <!-- Pin/unpin node -->
+        <button
+          :disabled="nodePtr == null && inspectedNode == null"
+          class="ml-1.5 hover:text-primary-900"
+          :class="nodePtr != null ? 'text-gray-700' : 'text-gray-400'"
+          @click="toggleHelperViewPin(spaceConnection.tx, spaceGraph, { self, nodePtr: inspectedNode })"
+        >
+          <i class="fas mr-1.5" :class="nodePtr == null ? 'fa-unlock' : 'fa-lock'" />
+        </button>
         <!-- Meta & Controls  -->
         <div class="ml-auto flex flex-row items-center pl-1.5">
           <IconInline
-            v-bind="ICON_BY_NODE_TYPE[node.metatype as unknown as NodeType]"
+            v-bind="ICON_BY_NODE_TYPE[inspectedNode.metatype as unknown as NodeType]"
             :shade="ColorShade.S500"
             class="mr-1 w-5 text-gray-500"
           />
-          <span class="text-gray-500">{{ toCamelName(ObjectType, node.metatype) }}</span>
+          <span class="text-gray-500">{{ toCamelName(ObjectType, inspectedNode.metatype) }}</span>
         </div>
       </div>
     </div>
@@ -109,13 +122,13 @@ defineExpose<ViewExposed>({ self });
               :class="['ml-auto flex-shrink-0', isFullWidth ? '' : 'text-right']"
               :style="{ width: isFullWidth ? '100%' : 'calc(90% - 100px)' }"
               v-bind="{ ...viewProps, isInput: true }"
-              :model-value="read != null ? read(node) : (node as any)[protoName!]"
+              :model-value="read != null ? read(inspectedNode) : (inspectedNode as any)[protoName!]"
               @update:model-value="
                 (value: any) => {
                   // not sure how to :DebounceNestedValue properly (different types with different debounce needs)
-                  if (write != null) write(pkgConnection.tx, node!, value);
-                  else pkgConnection.tx.update(node!, { [protoName!]: value }, { debounce: 'short' });
-                  inspectionLayout?.onWrite?.(pkgConnection.tx, pkgGraph, node!, property);
+                  if (write != null) write(pkgConnection.tx, inspectedNode!, value);
+                  else pkgConnection.tx.update(inspectedNode!, { [protoName!]: value }, { debounce: 'short' });
+                  inspectionLayout?.onWrite?.(pkgConnection.tx, pkgGraph, inspectedNode!, property);
                 }
               "
             />

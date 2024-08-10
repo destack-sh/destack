@@ -338,7 +338,7 @@ canvas.registerView(self, id);
 defineExpose<ViewExposed>({ self, id, mapToNode });
 </script>
 <template>
-  <div>
+  <div class="">
     <!-- Header -->
     <div
       class="group flex w-full flex-row items-center gap-x-1.5"

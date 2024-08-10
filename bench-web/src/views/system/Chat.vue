@@ -296,26 +296,26 @@ const actions: Partial<ActionMapImplementation<"common">> & ActionMapImplementat
     },
   },
   // message
-  "message.handle.reply": {
+  "message.chat.reply": {
     action: (action, context) => {
       const { message } = getMessageFromContext(context);
       if (message == null) return false;
       replyTo(message);
     },
   },
-  "message.handle.startThread": {
+  "message.chat.message": {
     isEnabled: () => false, // not yet supported
     action: (action, context) => {
       throw new Error(":Incomplete: start nested thread");
     },
   },
-  "message.handle.edit": {
+  "message.edit.edit": {
     isEnabled: () => false, // not yet supported
     action: (action, context) => {
       throw new Error(":Incomplete: edit message");
     },
   },
-  "message.handle.pin": {
+  "message.edit.pin": {
     isChecked: (action, context) => {
       const { message } = getMessageFromContext(context);
       return message?.isPinned ?? false;
@@ -417,7 +417,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
               }
             "
           >
-            <i class="fas fa-expand w-5 text-center" />
+            <i class="fas fa-magnifying-glass-plus w-5 text-center" />
           </button>
           <!-- Search -->
           <button v-if="variant != Variant.COMPACT" class="text-gray-400 enabled:hover:text-primary-900">

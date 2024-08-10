@@ -19,12 +19,18 @@ import {
   ViewData,
   ViewType,
 } from "@/proto/wire";
-import { propertyReference, toNodeRef, unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
+import {
+  propertyReference,
+  toNodeRef,
+  toNodeRefOneOf,
+  unwrapProtoOneOf,
+  type TypedNodeReferenceData,
+} from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
 import { canvas, inspectionPtr } from "@/system/space";
 import { DEFAULT_HEADER_HEIGHT, useViewState } from "@/ui/canvas";
 import { ScrollbarWidth } from "@/ui/layout";
-import { getFieldViews } from "@/ui/view";
+import { getFieldViews, toggleHelperViewPin } from "@/ui/view";
 import { computedValue, mapRef } from "@/utils/ref";
 import NodeReference from "@/views/builtins/NodeReference.vue";
 import { viewEmits, type ViewExposed } from "@/views/common";
@@ -46,8 +52,9 @@ const props = defineProps<
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 
-const focusPtr = computedValue(() => unwrapProtoOneOf(props.nodePtr) ?? inspectionPtr.value);
-const { graph: spaceGraph } = useExistingConnection(self);
+const nodePtr = computedValue(() => unwrapProtoOneOf(props.nodePtr));
+const focusPtr = computedValue(() => nodePtr.value ?? inspectionPtr.value);
+const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self);
 const { graph: pkgGraph, connection: pkgConnection } = useExistingConnection(focusPtr);
 const { state, updateState, useStateProp } = useViewState({
   selfPtr: self,
@@ -104,7 +111,16 @@ defineExpose<ViewExposed>({ self });
       >
         <!-- Runnable -->
         <NodeReference class="font-medium" :node="runnableNode" :connection="pkgConnection" />
-        <!-- Controls -->
+        <!-- Pin/unpin node -->
+        <button
+          :disabled="nodePtr == null && runnableNode == null"
+          class="ml-1.5 hover:text-primary-900"
+          :class="nodePtr != null ? 'text-gray-700' : 'text-gray-400'"
+          @click="toggleHelperViewPin(spaceConnection.tx, spaceGraph, { self, nodePtr: runnableNode })"
+        >
+          <i class="fas mr-1.5" :class="nodePtr == null ? 'fa-unlock' : 'fa-lock'" />
+        </button>
+        <!-- Meta & Controls -->
         <div class="ml-auto flex flex-row items-center pl-1.5">
           <button
             :disabled="runnableNode == null"
@@ -202,7 +218,7 @@ defineExpose<ViewExposed>({ self });
       </div>
     </Scroll>
   </div>
-  <div v-else class="flex h-full w-full flex-col justify-center bg-white text-center">
+  <div v-else class="flex h-full w-full flex-col justify-center text-center">
     <!-- NOTE :UX: display possible nodes to start in context & all runs if nothing runnable selected -->
     <!-- Empty state -->
     <span>

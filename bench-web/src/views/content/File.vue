@@ -353,7 +353,7 @@ defineExpose<ViewExposed>({ self, id });
             class="rounded px-1 transition-colors duration-75 hover:bg-gray-100 hover:text-primary-900"
             @click="openFile()"
           >
-            <i class="fas fa-expand" />
+            <i class="fas fa-magnifying-glass-plus" />
           </button>
           <!-- Replace -->
           <button

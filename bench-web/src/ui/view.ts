@@ -3,12 +3,14 @@ import {
   FieldData,
   FieldZone,
   FileType,
+  NodeType,
   PrimitiveType,
   TypeConstraintData,
   TypeInfoData,
   TypeKind,
   Variant,
   ViewType,
+  type AnyNodeData,
 } from "@/proto/wire";
 import type { ReadNodeGraph } from "@/language/graph";
 import { ENUM_ICONS_BY_TYPE } from "@/ui/icon";
@@ -17,6 +19,8 @@ import type { ViewProps } from "@/views/common";
 import { FULL_WIDTH_VIEW_TYPES, getEnumOptions } from "@/ui/inspect";
 import { type TypeIdentity, makeTypeInfo, resolveType, getStorageKey } from "@/language/field";
 import { unpackValue, packValue } from "@/language/value";
+import type { Transaction } from "@/language/transaction";
+import { toNodeRefOneOf, type SomeNodeReferenceData, type TypedNodeReferenceData } from "@/proto/wiring";
 
 export const VIEW_TYPE_BY_BENCH_TYPE: Partial<Record<BenchType, ViewType>> = {
   [BenchType.ICON]: ViewType.ICON,
@@ -210,5 +214,22 @@ export function guardNativeInput<T extends string | number>(
     input.value = oldValue?.toString() ?? "";
   } else {
     onAccept(newValue);
+  }
+}
+
+/** Set or unset the pinned 'nodePtr' for a Helper View (they normally default to some active node or some other empty state). */
+export function toggleHelperViewPin(
+  tx: Transaction,
+  graph: ReadNodeGraph,
+  options: { self: TypedNodeReferenceData<NodeType.VIEW>; nodePtr: AnyNodeData | SomeNodeReferenceData | null },
+) {
+  const self = graph.getOrError(options.self);
+  if (self.nodePtr?.oneofKind == null) {
+    if (options.nodePtr == null) return; // shouldn't happen?
+    // strip title so it's dynamically tied to the node
+    tx.update(self, { nodePtr: toNodeRefOneOf(options.nodePtr), title: undefined }, { debounce: "tick" });
+  } else {
+    const title = self.name?.replace(/\d+$/, ""); // title = name without postfix numbers
+    tx.update(self, { nodePtr: { oneofKind: undefined }, title }, { debounce: "tick" });
   }
 }

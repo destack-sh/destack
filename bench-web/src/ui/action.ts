@@ -72,7 +72,7 @@ export const ACTION_BUILTIN_IDS = [
   "space.omnibar.space",
   "space.omnibar.views",
   "space.omnibar.view",
-  "space.launch.assist",
+  "space.launch.chat",
   "space.launch.inspect",
   "space.launch.create",
   "space.launch.explorer",
@@ -138,12 +138,12 @@ export const ACTION_BUILTIN_IDS = [
   "common.sense.goToDefinition",
   "common.sense.findReferences",
   "common.sense.findImplementations",
-  "common.session.run",
-  "common.session.pause",
-  "common.session.resume",
-  "common.session.stop",
-  "common.session.kill",
-  "common.session.logs",
+  // session
+  "session.run.start",
+  "session.run.pause",
+  "session.run.resume",
+  "session.run.kill",
+  "session.run.logs",
   // type
   "type.edit.isList",
   "type.edit.isRequired",
@@ -151,10 +151,10 @@ export const ACTION_BUILTIN_IDS = [
   // block
   "block.edit.isPaused",
   // message
-  "message.handle.startThread",
-  "message.handle.reply",
-  "message.handle.edit",
-  "message.handle.pin",
+  "message.chat.message",
+  "message.chat.reply",
+  "message.edit.edit",
+  "message.edit.pin",
   // text
   "text.format.bold",
   "text.format.italic",
@@ -711,7 +711,7 @@ declareActionMap<"common">({
   },
   // sense
   "common.sense.focus": {
-    icon: "fas fa-expand",
+    icon: "fas fa-magnifying-glass-plus",
     title: "Focus",
     text: "Focus on this node in a new view",
     shortcuts: ["mod+enter"],
@@ -733,35 +733,34 @@ declareActionMap<"common">({
     title: "Find Implementations",
     text: "Find implementations of this node",
   },
+});
+
+// session
+declareActionMap<"session">({
   // session
   // TODO :Incomplete: session.* action handling (in Block/Step/Page/...)
-  "common.session.run": {
+  "session.run.start": {
     icon: "fas fa-play",
     title: "Run",
     text: "Run this node",
-    shortcuts: ["ctrl+r", "cmd+enter"],
+    shortcuts: ["ctrl+r", "meta+enter"],
   },
-  "common.session.pause": {
+  "session.run.pause": {
     icon: "fas fa-pause",
     title: "Pause",
     text: "Pause this node",
   },
-  "common.session.resume": {
+  "session.run.resume": {
     icon: "fas fa-play",
     title: "Resume",
     text: "Resume this node",
   },
-  "common.session.stop": {
+  "session.run.kill": {
     icon: "fas fa-stop",
-    title: "Stop",
-    text: "Stop this node",
-  },
-  "common.session.kill": {
-    icon: "fas fa-skull",
     title: "Kill",
     text: "Kill this node",
   },
-  "common.session.logs": {
+  "session.run.logs": {
     icon: "fas fa-clipboard-list",
     title: "View Logs",
     text: "View the logs of this run",
@@ -805,23 +804,22 @@ declareActionMap<"block">({
 // message
 declareActionMap<"message">({
   // handle
-  "message.handle.startThread": {
+  "message.chat.message": {
     icon: "fas fa-message",
     title: "Message",
-    text: "Start a message thread about this",
-    shortcuts: ["mod+enter"],
+    text: "Add to the message thread",
   },
-  "message.handle.reply": {
+  "message.chat.reply": {
     icon: "fas fa-reply",
     title: "Reply",
     text: "Reply to this message",
   },
-  "message.handle.edit": {
+  "message.edit.edit": {
     icon: "fas fa-pencil",
     title: "Edit",
     text: "Edit this message",
   },
-  "message.handle.pin": {
+  "message.edit.pin": {
     type: "toggle",
     icon: "fas fa-thumbtack",
     title: "Pin",
@@ -1191,9 +1189,9 @@ contributeActionMap<"developer">({
 
 // space actions
 contributeActionMap<"space">({
-  "space.launch.assist": {
+  "space.launch.chat": {
     title: "Open Chat",
-    text: "Chat and collaborate with your Bench",
+    text: "Chat on your Bench",
     icon: "fas fa-message",
     action: () => {
       canvas.addView({ type: ViewType.CHAT, title: "Chat" }, { ifPresent: "upsertAndFocus" });
@@ -1209,7 +1207,7 @@ contributeActionMap<"space">({
   },
   "space.launch.create": {
     title: "Open Creator",
-    text: "Get relevant building blocks and templates",
+    text: "Get relevant blocks and templates",
     icon: "fas fa-plus",
     action: ACTION_COMING_SOON,
   },
@@ -1298,7 +1296,7 @@ contributeActionMap<"space">({
   // full screen
   "space.display.fullscreen": {
     type: "toggle",
-    icon: "fas fa-expand",
+    icon: "fas fa-maximize",
     title: "Toggle Fullscreen",
     text: "Toggle fullscreen mode",
     action: () => {
