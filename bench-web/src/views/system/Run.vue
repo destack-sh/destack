@@ -1,17 +1,17 @@
 <script lang="ts" setup>
 import { toCamelName } from "@/language/const";
+import { makeTypeInfo } from "@/language/field";
 import { unpackProtoJson } from "@/language/transaction";
-import { FieldZone, NodeType, RunData, RunErrorKind, RunErrorType, Variant, ViewData } from "@/proto/wire";
+import { FieldZone, NodeType, RunData, RunErrorKind, RunErrorType, TypeKind, Variant, ViewData } from "@/proto/wire";
 import { unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import { PACKAGE_SCOPE } from "@/system/client";
 import { useExistingConnection, useGetConnection, type PreparedNodeConnection } from "@/system/connection";
 import { canvas, pkgConnection } from "@/system/space";
-import { getFieldViews } from "@/ui/view";
 import { tsToDt } from "@/utils/time";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import Text from "@/views/content/Text.vue";
-import { getViewComponent, hasViewComponent } from "@/views/registry";
+import ValueObject from "@/views/system/ValueObject.vue";
 import { computed, toRef, type Ref } from "vue";
 
 const props = defineProps<
@@ -45,17 +45,16 @@ const runnableNode = pkgGraph.getRef(basePtr, { ignoreAncestors: true });
 const inputsPacked = computed(
   () => (run.value?.inputsPacked != null ? unpackProtoJson(run.value.inputsPacked) : {}) as Record<string, any>,
 );
-const inputFields = pkgGraph.getChildrenRef(runnableNode, NodeType.FIELD); // resolve these later :TypeResolution
-const inputViews = computed(() =>
-  getFieldViews(inputFields.value, inputsPacked.value, pkgGraph, { zones: [FieldZone.INPUT], isInput: false }),
+const inputType = computed(() =>
+  makeTypeInfo({ kind: TypeKind.OBJECT, baseTypePtr: basePtr.value, baseFieldZone: FieldZone.INPUT }),
 );
 const outputsPacked = computed(
   () => (run.value?.outputsPacked != null ? unpackProtoJson(run.value.outputsPacked) : {}) as Record<string, any>,
 );
-const outputFields = pkgGraph.getChildrenRef(runnableNode, NodeType.FIELD); // resolve these later :TypeResolution
-const outputViews = computed(() =>
-  getFieldViews(outputFields.value, outputsPacked.value, pkgGraph, { zones: [FieldZone.OUTPUT], isInput: false }),
+const outputType = computed(() =>
+  makeTypeInfo({ kind: TypeKind.OBJECT, baseTypePtr: basePtr.value, baseFieldZone: FieldZone.OUTPUT }),
 );
+
 canvas.registerView(self, id);
 defineExpose<ViewExposed>({ self, id });
 </script>
@@ -66,65 +65,21 @@ defineExpose<ViewExposed>({ self, id });
     <!-- IO -->
     <div v-if="runnableNode">
       <!-- Inputs -->
-      <div class="flex flex-col">
-        <div
-          v-for="{ field, value, viewType, viewProps, isFullWidth, storageKey } in inputViews"
-          :key="field.id"
-          class="py-1"
-          :class="[isFullWidth ? 'flex flex-col gap-y-1' : 'flex flex-row gap-x-2.5']"
-        >
-          <!-- Title -->
-          <span class="font-medium">{{ field.name }}</span>
-          <!-- Value -->
-          <template v-if="viewType != null && hasViewComponent(viewType)">
-            <!-- Old -->
-            <component
-              :is="getViewComponent(viewType)"
-              v-if="inputsPacked[storageKey] != null"
-              :class="['ml-auto flex-shrink-0', isFullWidth ? '' : 'text-right']"
-              :style="{ width: isFullWidth ? '100%' : 'calc(45%)' }"
-              v-bind="viewProps"
-              :model-value="value"
-            />
-            <div v-else class="w-full text-right"><span class="italic text-gray-400">Unset</span></div>
-          </template>
-          <div v-else class="flex flex-row items-center px-1 py-0.5 text-warning-600">
-            <i class="fas fa-empty-set" />
-            <span class="ml-1.5">No View for Type</span>
-          </div>
-        </div>
-      </div>
-
+      <ValueObject
+        class="w-full py-2"
+        :model-value="inputsPacked"
+        :value-type="inputType"
+        is-inline
+        :variant="Variant.STEALTH"
+      />
       <!-- Output -->
-      <!-- NOTE :Cleanup: Run inputs/outputs are basically duplicated -->
-      <div v-if="!run?.error" class="mt-2 flex flex-col">
-        <div
-          v-for="{ field, value, viewType, viewProps, isFullWidth, storageKey } in outputViews"
-          :key="field.id"
-          class="py-1"
-          :class="[isFullWidth ? 'flex flex-col gap-y-1' : 'flex flex-row  gap-x-2.5']"
-        >
-          <!-- Title -->
-          <span class="font-medium">{{ field.name }}</span>
-          <!-- Value -->
-          <template v-if="viewType != null && hasViewComponent(viewType)">
-            <!-- Old -->
-            <component
-              :is="getViewComponent(viewType)"
-              v-if="outputsPacked[storageKey] != null"
-              :class="['ml-auto flex-shrink-0', isFullWidth ? '' : 'text-right']"
-              :style="{ width: isFullWidth ? '100%' : 'calc(45%)' }"
-              v-bind="viewProps"
-              :model-value="value"
-            />
-            <div v-else class="w-full text-right"><span class="italic text-gray-400">Unset</span></div>
-          </template>
-          <div v-else class="flex flex-row items-center px-1 py-0.5 text-warning-600">
-            <i class="fas fa-empty-set" />
-            <span class="ml-1.5">No View for Type</span>
-          </div>
-        </div>
-      </div>
+      <ValueObject
+        class="mt-2 w-full py-2"
+        :model-value="outputsPacked"
+        :value-type="outputType"
+        is-inline
+        :variant="Variant.STEALTH"
+      />
     </div>
     <Inaccessible v-else :node="basePtr" :connection="pkgConnection" />
 

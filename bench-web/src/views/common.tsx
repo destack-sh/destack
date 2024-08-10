@@ -7,7 +7,7 @@ import { Casing, toCasing } from "@/utils/string";
 import { v4 } from "uuid";
 import { computed, getCurrentInstance, type ComponentInstance, type FunctionalComponent, type Ref } from "vue";
 
-export type ViewProps = { self?: NodeReferenceData; modelValue?: any, placeholder?: string } & Partial<
+export type ViewProps = { self?: NodeReferenceData; modelValue?: any; placeholder?: string } & Partial<
   Omit<ViewData, "metatype" | "id" | "ck" | "revision" | "setProperties">
 >;
 export type ViewComponent = {
@@ -111,6 +111,8 @@ export function makeViewId(props: { self?: NodeReferenceData; name?: string | nu
 export function getViewTypeByComponentName(name: string): ViewType | null {
   if (name == "NativeInput") {
     return ViewType.STRING;
+  } else if (name == "ValueObject") {
+    return ViewType.OBJECT;
   } else {
     const capsName = toCasing(name, Casing.ALL_CAPS);
     return (ViewType[capsName as any] as unknown as ViewType) ?? null;
