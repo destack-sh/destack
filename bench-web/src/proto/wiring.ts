@@ -199,8 +199,8 @@ export function typeNodeReferenceMaybe<T extends NodeType>(
   return typeNodeReference(nodeType, ref);
 }
 
-export function propertyReference<T extends ObjectType>(metatype: T, id: number): PropertyReferenceData {
-  return { metatype: ObjectType.PROPERTY_REFERENCE, type: metatype, id };
+export function propertyReference(metatype: ObjectType | NodeType | StructType, id: number): PropertyReferenceData {
+  return { metatype: ObjectType.PROPERTY_REFERENCE, type: metatype as unknown as ObjectType, id };
 }
 
 export function propertyInfo(metatype: ObjectType, id: number): PropertyInfo {

@@ -1,4 +1,8 @@
 <script lang="ts" setup>
+import { useHierarchicalNodeMoveActions } from "@/language/block";
+import { NAME_CONSTRAINT, PAGE_BLOCK_TYPES } from "@/language/const";
+import { isDescendantOf, walkDescendantsRef, type NodeTreeItem } from "@/language/graph";
+import { cloneNode, createBlock, moveNode } from "@/language/node";
 import {
   BlockData,
   BlockType,
@@ -13,21 +17,10 @@ import {
   type AnyNodeData,
 } from "@/proto/wire";
 import { isNode, toNodeRef, unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
-import type { ActionContext, ActionMapImplementation } from "@/ui/action";
-import { useHierarchicalNodeMoveActions } from "@/language/block";
 import { packagePtr } from "@/system/client";
 import { useExistingConnection, type Connection } from "@/system/connection";
-import { isDescendantOf, walkDescendantsRef, type NodeTreeItem } from "@/language/graph";
-import { DEFAULT_BENCH_ICON, IconInline, getNodeIcon } from "@/ui/icon";
-import { cloneNode, createBlock, moveNode } from "@/language/node";
-import { highlightMatches } from "@/ui/search";
 import { bench, canvas, inspectionBasePtr, inspectionPtr, pkg } from "@/system/space";
-import { getNativeConstraintProps, guardNativeInput } from "@/ui/view";
-import { startDragging, useMultiDropZone } from "@/ui/drag";
-import { ScrollbarWidth } from "@/ui/layout";
-import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/popover";
-import { computedValue } from "@/utils/ref";
-import NodePath from "@/views/builtins/NodePath.vue";
+import type { ActionContext, ActionMapImplementation } from "@/ui/action";
 import {
   DEFAULT_HEADER_HEIGHT,
   DEFAULT_MAX_WIDTH,
@@ -36,12 +29,18 @@ import {
   useExpansion,
   useViewState,
 } from "@/ui/canvas";
+import { startDragging, useMultiDropZone } from "@/ui/drag";
+import { DEFAULT_BENCH_ICON, IconInline, getNodeIcon } from "@/ui/icon";
+import { ScrollbarWidth } from "@/ui/layout";
+import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/popover";
+import { highlightMatches } from "@/ui/search";
+import { getNativeConstraintProps, guardNativeInput } from "@/ui/view";
+import { computedValue } from "@/utils/ref";
+import NodePath from "@/views/builtins/NodePath.vue";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import uFuzzy from "@leeoniya/ufuzzy";
-import { whenever } from "@vueuse/core";
 import { computed, nextTick, ref, toRef, watch, type Ref } from "vue";
-import { NAME_CONSTRAINT, PAGE_BLOCK_TYPES } from "@/language/const";
 
 const DEPTH_OFFSET = 12;
 const HEADER_HEIGHT = DEFAULT_HEADER_HEIGHT;

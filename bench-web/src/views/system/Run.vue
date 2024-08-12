@@ -62,6 +62,8 @@ defineExpose<ViewExposed>({ self, id });
 <template>
   <div v-if="run">
     <!-- NOTE :Incomplete :UX: Run View is currently only intended for inline display in Feed -->
+    <!-- Header -->
+    <!-- ... -->
     <!--  (also :Architecture views like Run should respond to their size) -->
     <!-- IO -->
     <div v-if="runnableNode">
@@ -87,17 +89,7 @@ defineExpose<ViewExposed>({ self, id });
     <!-- Error -->
     <RunError v-if="run?.error" class="mt-2" :run="run" :error="run.error" />
 
-    <!-- Logs -->
-    <div v-if="run?.logs != null && run.logs.length > 0" class="mt-2 flex flex-col gap-y-1 font-mono">
-      <span class="font-medium">Logs</span>
-      <div v-for="(log, i) in run?.logs" :key="i" class="flex flex-row text-gray-900">
-        <span class="mr-2 flex-shrink-0 text-gray-400">{{ tsToDt(log.createdAt!).toFormat("HH:mm:ss:SSS") }}</span>
-        <pre v-if="log.textPlain" class="w-fit">{{ log.textPlain }}</pre>
-        <Text v-else-if="log.text" :model-value="log.text" :variant="Variant.STEALTH" />
-      </div>
-    </div>
-
-    <!-- Attempts/Timeline/Inner runs/etc. (see above) -->
+    <!-- Logs/Spans/Events/Attempts/Timeline/... -->
     <!-- ... -->
   </div>
   <Inaccessible v-else :node="nodePtr" :connection="runConnection" />
