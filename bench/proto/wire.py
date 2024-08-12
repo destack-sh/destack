@@ -2231,9 +2231,6 @@ class StartViewStateData(betterproto.Message):
         30, optional=True
     )
     last_run_ptr: Optional["NodeReferenceData"] = betterproto.message_field(40, optional=True)
-    last_outputs_packed: Optional["betterproto_lib_google_protobuf.Struct"] = (
-        betterproto.message_field(41, optional=True)
-    )
     feed: Optional["FeedViewStateData"] = betterproto.message_field(50, optional=True)
 
 
