@@ -445,6 +445,7 @@ def _pg_lower_conditional(node: Union[type[Node], Block], cond: Expression) -> E
     # translate general pointer queries into underlying id/ck queries
     if prop is not None and prop.reference_kind is not None and cond.value_packed is not None:
         assert prop.reference_stored_ids, f"unexpected stored ids: {prop!r}"
+        assert cond.value is not None, f"missing value for {cond!r}"
         is_list = cond.op == ConditionalOp.IN or cond.op == ConditionalOp.NOT_IN
         id_prop = prop.reference_stored_ids[0]
         id_clause = C(

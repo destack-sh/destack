@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.08.10.1"
+VERSION = "2024.08.12.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -192,6 +192,8 @@ class BenchType(betterproto.Enum):
     RUN_ATTEMPT = 10502
     RUN_TRACE = 10503
     RUN_FRAME = 10504
+    RUN_SPAN = 10505
+    RUN_EVENT = 10506
     BREAKPOINT = 10520
     MODEL_OPTIONS = 10430
     LOG_INFO = 10550
@@ -266,6 +268,8 @@ class BenchType(betterproto.Enum):
     BREAKPOINT_KIND = 20511
     BREAKPOINT_ACTION = 20512
     CODE_TYPE = 20513
+    RUN_SPAN_TYPE = 20514
+    RUN_EVENT_TYPE = 20515
     MODEL_PROVIDER = 20530
     MODEL_TYPE = 20531
     SPACE_TYPE = 21000
@@ -529,6 +533,8 @@ class EnumType(betterproto.Enum):
     BREAKPOINT_KIND = 20511
     BREAKPOINT_ACTION = 20512
     CODE_TYPE = 20513
+    RUN_SPAN_TYPE = 20514
+    RUN_EVENT_TYPE = 20515
     MODEL_PROVIDER = 20530
     MODEL_TYPE = 20531
     SPACE_TYPE = 21000
@@ -970,6 +976,8 @@ class ObjectType(betterproto.Enum):
     RUN_ATTEMPT = 10502
     RUN_TRACE = 10503
     RUN_FRAME = 10504
+    RUN_SPAN = 10505
+    RUN_EVENT = 10506
     BREAKPOINT = 10520
     MODEL_OPTIONS = 10430
     LOG_INFO = 10550
@@ -1155,6 +1163,11 @@ class RunErrorType(betterproto.Enum):
     UNKNOWN_RETRYABLE = 999
 
 
+class RunEventType(betterproto.Enum):
+    UNSPECIFIED = 0
+    CUSTOM = 1000
+
+
 class RunKind(betterproto.Enum):
     """The kind of some runnable."""
 
@@ -1163,6 +1176,11 @@ class RunKind(betterproto.Enum):
     TEXT = 2
     STEP = 3
     FLOW = 4
+
+
+class RunSpanType(betterproto.Enum):
+    UNSPECIFIED = 0
+    CUSTOM = 1000
 
 
 class RunStatus(betterproto.Enum):
@@ -1325,6 +1343,8 @@ class StructType(betterproto.Enum):
     RUN_ATTEMPT = 10502
     RUN_TRACE = 10503
     RUN_FRAME = 10504
+    RUN_SPAN = 10505
+    RUN_EVENT = 10506
     BREAKPOINT = 10520
     MODEL_OPTIONS = 10430
     LOG_INFO = 10550
@@ -2081,6 +2101,20 @@ class RunErrorData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class RunEventData(betterproto.Message):
+    """An event in a Run of something that happened."""
+
+    metatype: "ObjectType" = betterproto.enum_field(1)
+    type: "RunEventType" = betterproto.enum_field(30)
+    name: str = betterproto.string_field(32)
+    title: Optional[str] = betterproto.string_field(33, optional=True)
+    text: Optional["TextData"] = betterproto.message_field(34, optional=True)
+    text_plain: Optional[str] = betterproto.string_field(35, optional=True)
+    created_at: Optional[datetime] = betterproto.message_field(40, optional=True)
+    level: Optional["LogLevel"] = betterproto.enum_field(41, optional=True)
+
+
+@dataclass(eq=False, repr=False)
 class RunFrameData(betterproto.Message):
     """A single frame in a stacktrace."""
 
@@ -2106,6 +2140,21 @@ class RunOptionsData(betterproto.Message):
     retry_on: List["RunErrorType"] = betterproto.enum_field(44)
     breakpoints: List["BreakpointData"] = betterproto.message_field(50)
     model_options: Optional["ModelOptionsData"] = betterproto.message_field(60, optional=True)
+
+
+@dataclass(eq=False, repr=False)
+class RunSpanData(betterproto.Message):
+    """A span in a Run (a sort of sub-Run)."""
+
+    metatype: "ObjectType" = betterproto.enum_field(1)
+    type: "RunSpanType" = betterproto.enum_field(30)
+    name: str = betterproto.string_field(32)
+    title: Optional[str] = betterproto.string_field(33, optional=True)
+    text: Optional["TextData"] = betterproto.message_field(34, optional=True)
+    text_plain: Optional[str] = betterproto.string_field(35, optional=True)
+    started_at: Optional[datetime] = betterproto.message_field(40, optional=True)
+    ended_at: Optional[datetime] = betterproto.message_field(41, optional=True)
+    duration: Optional[float] = betterproto.float_field(42, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -3094,6 +3143,8 @@ class RunData(betterproto.Message):
         62, optional=True
     )
     logs: List["LogInfoData"] = betterproto.message_field(65)
+    spans: List["RunSpanData"] = betterproto.message_field(66)
+    events: List["RunEventData"] = betterproto.message_field(67)
     block_ptr: Optional["NodeReferenceData"] = betterproto.message_field(70, optional=True)
     step_ptr: Optional["NodeReferenceData"] = betterproto.message_field(71, optional=True)
     session_ptr: Optional["NodeReferenceData"] = betterproto.message_field(72, optional=True)
@@ -5312,6 +5363,8 @@ AnyStructData = Union[
     RunAttemptData,
     RunTraceData,
     RunFrameData,
+    RunSpanData,
+    RunEventData,
     BreakpointData,
     ModelOptionsData,
     LogInfoData,

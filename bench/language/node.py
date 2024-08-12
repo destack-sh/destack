@@ -1437,7 +1437,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         else:
             # no parent, create our own graph
             # if we're not in a graph, start a new one
-            # NOTE: cleanup NodeGraph definition "depends on itself", causing pyright errors
+            # NOTE :Cleanup: NodeGraph definition "depends on itself", causing pyright errors
             graph = NodeGraph(  # type: ignore
                 scope=GraphScope()._to_data(),
                 node_types=(self.metatype, *DESCENDANT_NODE_TYPES[self.metatype].tuple),

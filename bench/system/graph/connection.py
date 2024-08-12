@@ -251,7 +251,7 @@ class NodeConnection[
             ):
                 # parent must be in our result graph
                 # nocheckin: missing parent error when this is a root (user signup)
-                #  (cannot be a root type here, so must have a parent)
+                #  (cannot be a root type here, so must have a parent?)
                 parent_id = updated_node.parent_ptr.id if updated_node.parent_ptr else None
                 assert parent_id, f"missing parent for {updated_node!r}"
                 is_in_scope = parent_id in result_graph

@@ -18,14 +18,9 @@ import {
   StepData,
   TypeKind,
   Variant,
-  ViewData
+  ViewData,
 } from "@/proto/wire";
-import {
-  propertyReference,
-  toPlainNodeRef,
-  unwrapProtoOneOf,
-  type TypedNodeReferenceData
-} from "@/proto/wiring";
+import { propertyReference, toPlainNodeRef, unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
 import { canvas, inspectionPtr } from "@/system/space";
 import { DEFAULT_HEADER_HEIGHT, useViewState } from "@/ui/canvas";
@@ -156,13 +151,22 @@ defineExpose<ViewExposed>({ self });
         <h4 class="font-semibold">Inputs</h4>
         <ValueObject
           class="w-full py-2"
-          :model-value="inputsPacked"
           :value-type="inputType"
           is-inline
           is-input
           :variant="Variant.STEALTH"
+          :model-value="inputsPacked"
           @update:model-value="(value) => (inputsPacked = value)"
         />
+      </div>
+      <!-- Divider -->
+      <div class="mx-auto my-2 w-full px-5" :style="{ minWidth: MIN_WIDTH + 'px', maxWidth: MAX_WIDTH + 'px' }">
+        <div class="h-[1px] w-full min-w-fit bg-gray-200" />
+      </div>
+      <!-- Outputs (last Run) -->
+      <div class="mx-auto mt-1 px-5 py-3" :style="{ minWidth: MIN_WIDTH + 'px', maxWidth: MAX_WIDTH + 'px' }">
+        <h4 class="font-semibold">Outputs</h4>
+        <!-- nocheckin  -->
       </div>
       <!-- Divider -->
       <div class="mx-auto my-2 w-full px-5" :style="{ minWidth: MIN_WIDTH + 'px', maxWidth: MAX_WIDTH + 'px' }">

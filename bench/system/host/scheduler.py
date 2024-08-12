@@ -71,7 +71,7 @@ class QueueRunPlugin(HostPlugin[Run]):
 
         # find machine to queue run on
         for machine in self.bench.main_server.machines:
-            if machine.status != ResourceStatus.UP:
+            if machine.current_status != ResourceStatus.UP:
                 continue
             assert machine.connection_uri, f"missing connection uri for machine {machine!r}"
             channel = get_channel(machine.connection_uri)
@@ -106,7 +106,7 @@ class QueueRunPlugin(HostPlugin[Run]):
             )
         else:
             # retry run later
-            asyncio.get_event_loop().call_later(
+            self.host.oracle.call_later(
                 op.retry.get_wait_interval(), self._runs_to_queue.put_nowait, op
             )
             log.debug(

@@ -46,6 +46,7 @@ if TYPE_CHECKING:
         Block,
         Expression,
         LogInfo,
+        LogLevel,
         NodeReference,
         Package,
         Step,
@@ -213,6 +214,43 @@ class RunFrame(Struct):
     pass
 
 
+@enum_(EnumType.RUN_SPAN_TYPE)
+class RunSpanType(IdEnum):
+    CUSTOM = 1000
+
+
+@struct_(StructType.RUN_SPAN)
+class RunSpan(Struct):
+    """A span in a Run (a sort of sub-Run)."""
+
+    type: RunSpanType = p_regular(30, default=RunSpanType.CUSTOM)
+    name: str = p_regular(32, default=None)
+    title: Optional[str] = p_regular(33, default=None, constraint=TITLE_CONSTRAINT)
+    text: Optional["Text"] = p_regular(34, default=None, struct=StructType.TEXT)
+    text_plain: Optional[str] = p_regular(35, default=None)
+    started_at: Optional[datetime] = p_regular(40, default=None)
+    ended_at: Optional[datetime] = p_regular(41, default=None)
+    duration: Optional[float] = p_regular(42, default=None)
+
+
+@enum_(EnumType.RUN_EVENT_TYPE)
+class RunEventType(IdEnum):
+    CUSTOM = 1000
+
+
+@struct_(StructType.RUN_EVENT)
+class RunEvent(Struct):
+    """An event in a Run of something that happened."""
+
+    type: RunEventType = p_regular(30, default=RunEventType.CUSTOM)
+    name: str = p_regular(32, default=None)
+    title: Optional[str] = p_regular(33, default=None, constraint=TITLE_CONSTRAINT)
+    text: Optional["Text"] = p_regular(34, default=None, struct=StructType.TEXT)
+    text_plain: Optional[str] = p_regular(35, default=None)
+    created_at: Optional[datetime] = p_regular(40, default=None)
+    level: Optional["LogLevel"] = p_regular(41, default=None)
+
+
 @enum_(EnumType.RUN_ERROR_TYPE)
 class RunErrorType(IdEnum):
     # unretryable
@@ -337,6 +375,8 @@ class Run(PackageNode[RunData], HasTimeIdentity, HasNodeBase, HasSessionContext)
     value_packed: Any = p_value_packed(62)
     value: "ValueObject | None" = p_value_runtime(62, typ=None)  # freely typed
     logs: list["LogInfo"] = p_internal(65, array=True, struct=StructType.LOG_INFO)
+    spans: list["RunSpan"] = p_internal(66, array=True, struct=StructType.RUN_SPAN)
+    events: list["RunEvent"] = p_internal(67, array=True, struct=StructType.RUN_EVENT)
 
     # ...HasSessionContext[70-79]
 
