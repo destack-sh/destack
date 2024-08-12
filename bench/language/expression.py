@@ -126,7 +126,10 @@ class Expression(Struct):
             or self.op in ExpressionOps.COND_STRING
         ):
             py_name = self.target.py_name if self.target is not None else "???"
-            value_str = str(self.value)
+            try:
+                value_str = str(self.value)
+            except Exception:  # don't crash if value is invalid
+                value_str = "???"
             if len(value_str) > 60:
                 value_str = f"{value_str[:48]}...{value_str[-12:]}"
             return f"{py_name}{_CONDITIONAL_OP_SIGN[self.op]}{value_str}"

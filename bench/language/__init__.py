@@ -102,7 +102,17 @@ from .query import (
 )
 from .record import Record
 from .render import render, render_expr, render_stmt
-from .run import Run, RunAttempt, RunKind, RunOptions
+from .run import (
+    Run,
+    RunAttempt,
+    RunError,
+    RunErrorKind,
+    RunErrorType,
+    RunEvent,
+    RunKind,
+    RunOptions,
+    RunSpan,
+)
 from .secret import Secret, SecretReference
 from .session import EditContext, Session, SessionContext
 from .setup import _complete_bench_setup
@@ -250,8 +260,13 @@ __all__ = [
     "ResourceStatus",
     "Run",
     "RunAttempt",
+    "RunError",
+    "RunErrorKind",
+    "RunErrorType",
+    "RunEvent",
     "RunKind",
     "RunOptions",
+    "RunSpan",
     "S",
     "ScheduleType",
     "SearchConnection",
