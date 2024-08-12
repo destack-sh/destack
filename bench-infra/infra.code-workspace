@@ -1,7 +1,8 @@
 {
 	"folders": [
 		{
-			"path": "../bench-infra"
+			"name": "bench",
+			"path": ".."
 		}
 	],
 	"settings": {
