@@ -157,6 +157,8 @@ enum BenchType {
   BENCH_TYPE_RUN_ATTEMPT = 10502;
   BENCH_TYPE_RUN_TRACE = 10503;
   BENCH_TYPE_RUN_FRAME = 10504;
+  BENCH_TYPE_RUN_SPAN = 10505;
+  BENCH_TYPE_RUN_EVENT = 10506;
   BENCH_TYPE_BREAKPOINT = 10520;
   BENCH_TYPE_MODEL_OPTIONS = 10430;
   BENCH_TYPE_LOG_INFO = 10550;
@@ -231,6 +233,8 @@ enum BenchType {
   BENCH_TYPE_BREAKPOINT_KIND = 20511;
   BENCH_TYPE_BREAKPOINT_ACTION = 20512;
   BENCH_TYPE_CODE_TYPE = 20513;
+  BENCH_TYPE_RUN_SPAN_TYPE = 20514;
+  BENCH_TYPE_RUN_EVENT_TYPE = 20515;
   BENCH_TYPE_MODEL_PROVIDER = 20530;
   BENCH_TYPE_MODEL_TYPE = 20531;
   BENCH_TYPE_SPACE_TYPE = 21000;
@@ -485,6 +489,8 @@ enum EnumType {
   ENUM_TYPE_BREAKPOINT_KIND = 20511;
   ENUM_TYPE_BREAKPOINT_ACTION = 20512;
   ENUM_TYPE_CODE_TYPE = 20513;
+  ENUM_TYPE_RUN_SPAN_TYPE = 20514;
+  ENUM_TYPE_RUN_EVENT_TYPE = 20515;
   ENUM_TYPE_MODEL_PROVIDER = 20530;
   ENUM_TYPE_MODEL_TYPE = 20531;
   ENUM_TYPE_SPACE_TYPE = 21000;
@@ -923,6 +929,8 @@ enum ObjectType {
   OBJECT_TYPE_RUN_ATTEMPT = 10502;
   OBJECT_TYPE_RUN_TRACE = 10503;
   OBJECT_TYPE_RUN_FRAME = 10504;
+  OBJECT_TYPE_RUN_SPAN = 10505;
+  OBJECT_TYPE_RUN_EVENT = 10506;
   OBJECT_TYPE_BREAKPOINT = 10520;
   OBJECT_TYPE_MODEL_OPTIONS = 10430;
   OBJECT_TYPE_LOG_INFO = 10550;
@@ -1096,6 +1104,11 @@ enum RunErrorType {
   RUN_ERROR_TYPE_UNKNOWN_RETRYABLE = 999;
 }
 
+enum RunEventType {
+  RUN_EVENT_TYPE_UNSPECIFIED = 0;
+  RUN_EVENT_TYPE_CUSTOM = 1000;
+}
+
 // The kind of some runnable.
 enum RunKind {
   RUN_KIND_UNSPECIFIED = 0;
@@ -1103,6 +1116,11 @@ enum RunKind {
   RUN_KIND_TEXT = 2;
   RUN_KIND_STEP = 3;
   RUN_KIND_FLOW = 4;
+}
+
+enum RunSpanType {
+  RUN_SPAN_TYPE_UNSPECIFIED = 0;
+  RUN_SPAN_TYPE_CUSTOM = 1000;
 }
 
 enum RunStatus {
@@ -1262,6 +1280,8 @@ enum StructType {
   STRUCT_TYPE_RUN_ATTEMPT = 10502;
   STRUCT_TYPE_RUN_TRACE = 10503;
   STRUCT_TYPE_RUN_FRAME = 10504;
+  STRUCT_TYPE_RUN_SPAN = 10505;
+  STRUCT_TYPE_RUN_EVENT = 10506;
   STRUCT_TYPE_BREAKPOINT = 10520;
   STRUCT_TYPE_MODEL_OPTIONS = 10430;
   STRUCT_TYPE_LOG_INFO = 10550;
@@ -1888,6 +1908,18 @@ message RunErrorData {
   optional RunTraceData trace = 35;
 }
 
+// An event in a Run of something that happened.
+message RunEventData {
+  ObjectType metatype = 1;
+  RunEventType type = 30;
+  string name = 32;
+  optional string title = 33;
+  optional TextData text = 34;
+  optional string text_plain = 35;
+  optional google.protobuf.Timestamp created_at = 40;
+  optional LogLevel level = 41;
+}
+
 // A single frame in a stacktrace.
 message RunFrameData {
   ObjectType metatype = 1;
@@ -1908,6 +1940,19 @@ message RunOptionsData {
   repeated RunErrorType retry_on = 44;
   repeated BreakpointData breakpoints = 50;
   optional ModelOptionsData model_options = 60;
+}
+
+// A span in a Run (a sort of sub-Run).
+message RunSpanData {
+  ObjectType metatype = 1;
+  RunSpanType type = 30;
+  string name = 32;
+  optional string title = 33;
+  optional TextData text = 34;
+  optional string text_plain = 35;
+  optional google.protobuf.Timestamp started_at = 40;
+  optional google.protobuf.Timestamp ended_at = 41;
+  optional float duration = 42;
 }
 
 // A stacktrace for a Run.
@@ -2752,6 +2797,8 @@ message RunData {
   optional google.protobuf.Struct outputs_packed = 61;
   optional google.protobuf.Struct value_packed = 62;
   repeated LogInfoData logs = 65;
+  repeated RunSpanData spans = 66;
+  repeated RunEventData events = 67;
   optional NodeReferenceData block_ptr = 70;
   optional NodeReferenceData step_ptr = 71;
   optional NodeReferenceData session_ptr = 72;

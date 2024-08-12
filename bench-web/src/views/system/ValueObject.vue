@@ -161,7 +161,7 @@ defineExpose<ViewExposed>({ self, id, focus });
           <!-- Value -->
           <component
             :is="getViewComponent(viewType)"
-            v-if="viewType != null && hasViewComponent(viewType)"
+            v-if="(value != null || (isInput && !isDisabled)) && viewType != null && hasViewComponent(viewType)"
             :ref="(ref: any) => (ref != null ? (componentRefs[field.id] = ref) : delete componentRefs[field.id])"
             :class="['ml-auto flex-shrink-0', isFullWidth ? '' : 'text-right']"
             :style="{ width: isFullWidth ? '100%' : 'calc(90% - 100px)' }"
@@ -174,7 +174,14 @@ defineExpose<ViewExposed>({ self, id, focus });
               }
             "
           />
-          <div v-else class="ml-auto text-warning-600">
+          <div
+            v-else-if="value == null"
+            class="ml-auto flex-shrink-0 text-gray-400"
+            :class="isFullWidth ? '' : 'text-right'"
+          >
+            <span class="italic">Unset</span>
+          </div>
+          <div v-else class="ml-auto flex-shrink-0 text-warning-600" :class="isFullWidth ? '' : 'text-right'">
             {{ viewType != null ? ViewType[viewType] : "No View for Type" }}
           </div>
         </li>

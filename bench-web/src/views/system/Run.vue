@@ -9,6 +9,7 @@ import { useExistingConnection, useGetConnection, type PreparedNodeConnection } 
 import { canvas, pkgConnection } from "@/system/space";
 import { tsToDt } from "@/utils/time";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
+import RunError from "@/views/builtins/RunError.vue";
 import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import Text from "@/views/content/Text.vue";
 import ValueObject from "@/views/system/ValueObject.vue";
@@ -24,7 +25,7 @@ const self = toRef(props, "self");
 const id = makeViewId(props);
 const nodePtr = computed(() => unwrapProtoOneOf(props.nodePtr));
 
-const { graph: runGraph } =
+const { graph: runGraph, connection: runConnection } =
   props.preparedConnection ??
   useGetConnection(
     { name: `log.${nodePtr.value?.id}` },
@@ -59,7 +60,7 @@ canvas.registerView(self, id);
 defineExpose<ViewExposed>({ self, id });
 </script>
 <template>
-  <div>
+  <div v-if="run">
     <!-- NOTE :Incomplete :UX: Run View is currently only intended for inline display in Feed -->
     <!--  (also :Architecture views like Run should respond to their size) -->
     <!-- IO -->
@@ -84,29 +85,7 @@ defineExpose<ViewExposed>({ self, id });
     <Inaccessible v-else :node="basePtr" :connection="pkgConnection" />
 
     <!-- Error -->
-    <div v-if="run?.error" class="mt-2">
-      <div class="">
-        <!-- Header -->
-        <div class="flex flex-row">
-          <!-- Title -->
-          <span class="max-w-60 truncate font-medium">{{ run.error.title ?? "Error" }}</span>
-          <!-- Details -->
-          <div class="ml-auto flex-shrink-0 pl-4 text-gray-400">
-            <span>{{ toCamelName(RunErrorKind, run.error.kind) }}</span>
-            <template v-if="run.error.type">
-              / <span>{{ toCamelName(RunErrorType, run.error.type) }}</span></template
-            >
-          </div>
-        </div>
-        <!-- Text -->
-        <div v-if="run.error.text" class="mt-1">
-          <Text :model-value="run.error.text" :variant="Variant.STEALTH" />
-        </div>
-        <div v-else class="mt-1">
-          <span class="text-gray-400">No Error Message</span>
-        </div>
-      </div>
-    </div>
+    <RunError v-if="run?.error" class="mt-2" :run="run" :error="run.error" />
 
     <!-- Logs -->
     <div v-if="run?.logs != null && run.logs.length > 0" class="mt-2 flex flex-col gap-y-1 font-mono">
@@ -121,4 +100,5 @@ defineExpose<ViewExposed>({ self, id });
     <!-- Attempts/Timeline/Inner runs/etc. (see above) -->
     <!-- ... -->
   </div>
+  <Inaccessible v-else :node="nodePtr" :connection="runConnection" />
 </template>
