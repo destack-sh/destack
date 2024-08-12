@@ -1,3 +1,4 @@
+import { makeExpression } from "@/language/expression";
 import {
   DEFAULT_NODE_FILTER,
   LayerNodeGraph,
@@ -25,6 +26,7 @@ import {
 import {
   AggregationData,
   ExpressionData,
+  ExpressionOp,
   MESSAGE_TYPE_BY_OBJECT_TYPE,
   NodeType,
   ObjectType,
@@ -39,12 +41,14 @@ import {
   deepContentEquals,
   describeNode,
   makeScope,
+  propertyReference,
+  toPlainNodeRef,
   unwrapSomeNode,
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
 import { LOCAL_SPACE_PTR, PACKAGE_SCOPE, packagePtr, spaceGraphLocal } from "@/system/client";
 import { toaster } from "@/ui/toast";
-import { AsyncEvent } from "@/utils/functools";
+import { assertNever, AsyncEvent } from "@/utils/functools";
 import { GRPC_KEEPALIVE_INTERVAL as GRPC_KEEPALIVE_INTERVAL_SECONDS, IS_DEV } from "@/utils/globals";
 import { log } from "@/utils/log";
 import { immediateStopWatch, pretendReadonly, toValueRef } from "@/utils/ref";
@@ -58,6 +62,7 @@ import {
   ref,
   shallowRef,
   toRef,
+  toValue,
   triggerRef,
   watch,
   type MaybeRef,
@@ -1148,6 +1153,74 @@ export function useGetConnection<T extends NodeType>(
     isConnected,
     isStale,
   };
+}
+
+/**
+ * Gets the given node from the relevant subgraph, fetching/caching automatically.
+ * Wrapper around useGetConnection that just gives you the node directly.
+ */
+export function useNode<T extends NodeType>(paramsIn: {
+  name: string;
+  live?: boolean;
+  type?: "get" | "search";
+  scope?: MaybeRef<GraphScopeData>;
+  nodePtr: MaybeRef<NodeReferenceData | TypedNodeReferenceData<T> | null | undefined>;
+  ancestorTypes?: MaybeRef<NodeType[]>;
+  descendantTypes?: MaybeRef<NodeType[]>;
+  isEnabled?: MaybeRef<boolean | undefined>;
+}): {
+  connection: Connection<"get" | "search", T>;
+  node: Ref<NodeTypeMapping[T] | null>;
+  isConnecting: Ref<boolean>;
+  isConnected: Ref<boolean>;
+  isStale: Ref<boolean>;
+} {
+  if (paramsIn.type == null || paramsIn.type == "get") {
+    const { graph, connection, isConnecting, isConnected, isStale } = useGetConnection<T>(
+      { name: paramsIn.name, live: paramsIn.live === undefined ? true : paramsIn.live },
+      computed(
+        () =>
+          ({
+            scope: toValue(paramsIn.scope) ?? PACKAGE_SCOPE.value,
+            roots: [toValue(paramsIn.nodePtr)!],
+            isEnabled: toValue(paramsIn.nodePtr) != null,
+            ancestorTypes: toValue(paramsIn.ancestorTypes),
+            descendantTypes: toValue(paramsIn.descendantTypes),
+          }) as GetConnectionParams<T>,
+      ),
+    );
+    const node = graph.getRef(paramsIn.nodePtr) as Ref<NodeTypeMapping[T] | null>;
+    return { connection, node, isConnecting, isConnected, isStale };
+  } else if (paramsIn.type == "search") {
+    // NOTE :Architecture: there should be a simpler way to watch a "maybe get" connection than to make it a search
+    const { graph, connection, isConnecting, isConnected, isStale } = useSearchConnection<T>(
+      { name: paramsIn.name, live: paramsIn.live === undefined ? true : paramsIn.live },
+      computed(() => {
+        const nodePtr = toValue(paramsIn.nodePtr);
+        const filter =
+          nodePtr != null
+            ? makeExpression({
+                op: ExpressionOp.EQUALS,
+                propertyPtr: propertyReference(nodePtr.type, 2),
+                value: nodePtr.id,
+              })
+            : null;
+        return {
+          scope: toValue(paramsIn.scope) ?? PACKAGE_SCOPE.value,
+          nodeType: toValue(paramsIn.nodePtr)!.type,
+          filter,
+          first: 1,
+          isEnabled: toValue(paramsIn.nodePtr) != null,
+          ancestorTypes: toValue(paramsIn.ancestorTypes),
+          descendantTypes: toValue(paramsIn.descendantTypes),
+        } as SearchConnectionParams<T>;
+      }),
+    );
+    const node = graph.getRef(paramsIn.nodePtr) as Ref<NodeTypeMapping[T] | null>;
+    return { connection, node, isConnecting, isConnected, isStale };
+  } else {
+    assertNever(paramsIn.type);
+  }
 }
 
 /**

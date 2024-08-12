@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import { toCamelName } from "@/language/const";
 import { makeExpression } from "@/language/expression";
 import { makeTypeInfo, propertyType } from "@/language/field";
 import { isRunnable } from "@/language/node";
@@ -15,19 +16,30 @@ import {
   ObjectType,
   Orientation,
   RunProperty,
+  RunStatus,
   StepData,
   TypeKind,
   Variant,
   ViewData,
 } from "@/proto/wire";
-import { propertyReference, toPlainNodeRef, unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
-import { useExistingConnection } from "@/system/connection";
+import {
+  propertyReference,
+  toNodeRef,
+  toPlainNodeRef,
+  unwrapProtoOneOf,
+  type TypedNodeReferenceData,
+} from "@/proto/wiring";
+import { useExistingConnection, useNode } from "@/system/connection";
 import { canvas, inspectionPtr } from "@/system/space";
 import { DEFAULT_HEADER_HEIGHT, useViewState } from "@/ui/canvas";
+import { ICON_BY_RUN_STATUS, IconInline } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
+import { ACCENT_COLOR_BY_RUN_STATUS } from "@/ui/style";
 import { toggleHelperViewPin } from "@/ui/view";
 import { computedValue, mapRef } from "@/utils/ref";
+import { tsToDt } from "@/utils/time";
 import NodeReference from "@/views/builtins/NodeReference.vue";
+import RunError from "@/views/builtins/RunError.vue";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Feed from "@/views/system/Feed.vue";
@@ -41,7 +53,7 @@ const MAX_WIDTH = 800;
 const props = defineProps<
   { self: TypedNodeReferenceData<NodeType.VIEW>; size: Required<Pick<BoxData, "width" | "height">> } & Pick<
     ViewData,
-    "name" | "title" | "nodePtr" | "valuePacked" | "focus" | "expansion"
+    "name" | "title" | "nodePtr" | "valuePacked" | "focus" | "expansion" | "variant"
   >
 >();
 const emit = defineEmits(viewEmits());
@@ -58,6 +70,8 @@ const { state, updateState, useStateProp } = useViewState({
   props,
   emit,
 });
+const lastRunPtr = useStateProp("lastRunPtr", undefined) as Ref<TypedNodeReferenceData<NodeType.RUN> | undefined>;
+const { node: lastRun } = useNode({ name: "start.lastRun", type: "search", live: true, nodePtr: lastRunPtr });
 const feedState = computed(
   (): FeedViewStateData => ({
     // pre-filter to only runs of this node
@@ -94,14 +108,18 @@ const inputType = computed(() =>
     ? makeTypeInfo({ kind: TypeKind.OBJECT, baseTypePtr: runnablePtr.value, baseFieldZone: FieldZone.INPUT })
     : undefined,
 );
-
-// last run
+const outputType = computed(() =>
+  runnablePtr.value != null
+    ? makeTypeInfo({ kind: TypeKind.OBJECT, baseTypePtr: runnablePtr.value, baseFieldZone: FieldZone.OUTPUT })
+    : undefined,
+);
 
 canvas.registerView(self);
 defineExpose<ViewExposed>({ self });
 </script>
 <template>
   <div v-if="runnableNode" class="h-full w-full">
+    <!-- NOTE :UX: start view is ugly -->
     <!-- Header -->
     <div class="group mx-auto flex w-full flex-row items-center" :style="{ height: HEADER_HEIGHT + 'px' }">
       <div
@@ -130,6 +148,7 @@ defineExpose<ViewExposed>({ self });
                 if (runnableNode == null) return;
                 const run = makeRun(runnableNode, pkgGraph, { inputsPacked });
                 pkgConnection.tx.create(run);
+                lastRunPtr = toNodeRef(run);
               }
             "
           >
@@ -146,57 +165,100 @@ defineExpose<ViewExposed>({ self });
       :track-width="ScrollbarWidth.md"
       track-is-overlay
     >
-      <!-- Inputs -->
-      <div class="mx-auto px-5 pt-1" :style="{ minWidth: MIN_WIDTH + 'px', maxWidth: MAX_WIDTH + 'px' }">
-        <h4 class="font-semibold">Inputs</h4>
-        <ValueObject
-          class="w-full py-2"
-          :value-type="inputType"
-          is-inline
-          is-input
-          :variant="Variant.STEALTH"
-          :model-value="inputsPacked"
-          @update:model-value="(value) => (inputsPacked = value)"
-        />
-      </div>
-      <!-- Divider -->
-      <div class="mx-auto my-2 w-full px-5" :style="{ minWidth: MIN_WIDTH + 'px', maxWidth: MAX_WIDTH + 'px' }">
-        <div class="h-[1px] w-full min-w-fit bg-gray-200" />
-      </div>
-      <!-- Outputs (last Run) -->
-      <div class="mx-auto mt-1 px-5 py-3" :style="{ minWidth: MIN_WIDTH + 'px', maxWidth: MAX_WIDTH + 'px' }">
-        <h4 class="font-semibold">Outputs</h4>
-        <!-- nocheckin  -->
-      </div>
-      <!-- Divider -->
-      <div class="mx-auto my-2 w-full px-5" :style="{ minWidth: MIN_WIDTH + 'px', maxWidth: MAX_WIDTH + 'px' }">
-        <div class="h-[1px] w-full min-w-fit bg-gray-200" />
-      </div>
-      <!-- Past runs -->
-      <div class="mx-auto mt-1 px-5 py-3" :style="{ minWidth: MIN_WIDTH + 'px', maxWidth: MAX_WIDTH + 'px' }">
-        <h4 class="font-semibold">Runs</h4>
-        <Feed
-          is-inline
-          :value-packed="packProtoJson(packBuiltinObject(feedState))"
-          :expansion="expansion"
-          :focus="focus"
-          @update:self="
-            (update) => {
-              if ('expansion' in update) {
-                const selfNode = spaceGraph.getOrError(self);
-                canvas.tx().update(selfNode, { expansion: update.expansion });
+      <div class="mx-auto px-5" :style="{ minWidth: MIN_WIDTH + 'px', maxWidth: MAX_WIDTH + 'px' }">
+        <!-- Inputs -->
+        <div class="mx-auto">
+          <h4 class="font-semibold">Inputs</h4>
+          <ValueObject
+            class="w-full py-2"
+            :value-type="inputType"
+            is-inline
+            is-input
+            :variant="Variant.STEALTH"
+            :model-value="inputsPacked"
+            @update:model-value="(value) => (inputsPacked = value)"
+          />
+        </div>
+        <!-- Divider -->
+        <div class="mx-auto my-2 w-full">
+          <div class="h-[1px] w-full min-w-fit bg-gray-200" />
+        </div>
+        <!-- Outputs (last run) -->
+        <div v-if="lastRun?.outputsPacked != null" class="mx-auto mt-1 py-3">
+          <h4 class="font-semibold">Outputs</h4>
+          <ValueObject
+            class="w-full py-2"
+            :value-type="outputType"
+            is-inline
+            is-input
+            :variant="Variant.STEALTH"
+            :model-value="lastRun?.outputsPacked"
+          />
+        </div>
+        <!-- Error (last run) -->
+        <div v-else-if="lastRun?.error != null" class="mx-auto mt-1 py-3">
+          <h4 class="font-semibold">Error</h4>
+          <RunError class="mt-2" :run="lastRun" :error="lastRun.error" />
+        </div>
+        <!-- Logs (last run) -->
+        <div v-if="lastRun?.logs != null && lastRun.logs.length > 0" class="mt-1 flex flex-col gap-y-1 py-3">
+          <span class="font-medium">Logs</span>
+          <div v-for="(log, i) in lastRun.logs" :key="i" class="flex flex-row text-gray-900">
+            <span class="mr-2 flex-shrink-0 text-gray-400">{{ tsToDt(log.createdAt!).toFormat("HH:mm:ss:SSS") }}</span>
+            <pre v-if="log.textPlain" class="w-fit">{{ log.textPlain }}</pre>
+            <Text v-else-if="log.text" :model-value="log.text" :variant="Variant.STEALTH" />
+          </div>
+        </div>
+        <!-- No terminated last run yet -->
+        <div v-else-if="variant != Variant.COMPACT" class="mx-auto mt-1 py-3">
+          <h4 class="font-semibold">Outputs</h4>
+          <!-- Placeholder -->
+          <div class="mt-2 w-full">
+            <span v-if="lastRun != null">
+              <IconInline
+                :class="ACCENT_COLOR_BY_RUN_STATUS[lastRun.status]"
+                v-bind="ICON_BY_RUN_STATUS[lastRun.status]"
+              />
+              <span class="ml-1.5" :class="ACCENT_COLOR_BY_RUN_STATUS[lastRun.status]">
+                {{ toCamelName(RunStatus, lastRun.status) }}
+              </span>
+            </span>
+            <span v-else>
+              <i class="fas fa-circle-dot w-5 text-gray-400" />
+              <span class="ml-1">Not yet run</span>
+            </span>
+          </div>
+        </div>
+        <!-- Divider -->
+        <div class="mx-auto my-2 w-full">
+          <div class="h-[1px] w-full min-w-fit bg-gray-200" />
+        </div>
+        <!-- Past runs -->
+        <div class="mx-auto mt-1 py-3">
+          <h4 class="font-semibold">Runs</h4>
+          <Feed
+            is-inline
+            :value-packed="packProtoJson(packBuiltinObject(feedState))"
+            :expansion="expansion"
+            :focus="focus"
+            @update:self="
+              (update) => {
+                if ('expansion' in update) {
+                  const selfNode = spaceGraph.getOrError(self);
+                  canvas.tx().update(selfNode, { expansion: update.expansion });
+                }
+                if ('valuePacked' in update) {
+                  updateState({
+                    feed: {
+                      ...unpackBuiltinObject(unpackProtoJson(update.valuePacked), ObjectType.FEED_VIEW_STATE),
+                      filter: undefined,
+                    },
+                  });
+                }
               }
-              if ('valuePacked' in update) {
-                updateState({
-                  feed: {
-                    ...unpackBuiltinObject(unpackProtoJson(update.valuePacked), ObjectType.FEED_VIEW_STATE),
-                    filter: undefined,
-                  },
-                });
-              }
-            }
-          "
-        />
+            "
+          />
+        </div>
       </div>
     </Scroll>
   </div>

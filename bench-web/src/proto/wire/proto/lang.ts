@@ -1639,10 +1639,6 @@ export interface StartViewStateData {
      */
     lastRunPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional google.protobuf.Struct last_outputs_packed = 41;
-     */
-    lastOutputsPacked?: Struct;
-    /**
      * @generated from protobuf field: optional symbolx.bench.FeedViewStateData feed = 50;
      */
     feed?: FeedViewStateData;
@@ -15284,7 +15280,6 @@ class StartViewStateData$Type extends MessageType<StartViewStateData> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 30, name: "inputs_packed", kind: "message", T: () => Struct },
             { no: 40, name: "last_run_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 41, name: "last_outputs_packed", kind: "message", T: () => Struct },
             { no: 50, name: "feed", kind: "message", T: () => FeedViewStateData }
         ]);
     }
@@ -15308,9 +15303,6 @@ class StartViewStateData$Type extends MessageType<StartViewStateData> {
                     break;
                 case /* optional symbolx.bench.NodeReferenceData last_run_ptr */ 40:
                     message.lastRunPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.lastRunPtr);
-                    break;
-                case /* optional google.protobuf.Struct last_outputs_packed */ 41:
-                    message.lastOutputsPacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.lastOutputsPacked);
                     break;
                 case /* optional symbolx.bench.FeedViewStateData feed */ 50:
                     message.feed = FeedViewStateData.internalBinaryRead(reader, reader.uint32(), options, message.feed);
@@ -15336,9 +15328,6 @@ class StartViewStateData$Type extends MessageType<StartViewStateData> {
         /* optional symbolx.bench.NodeReferenceData last_run_ptr = 40; */
         if (message.lastRunPtr)
             NodeReferenceData.internalBinaryWrite(message.lastRunPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Struct last_outputs_packed = 41; */
-        if (message.lastOutputsPacked)
-            Struct.internalBinaryWrite(message.lastOutputsPacked, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.FeedViewStateData feed = 50; */
         if (message.feed)
             FeedViewStateData.internalBinaryWrite(message.feed, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
@@ -26759,7 +26748,6 @@ export enum StartViewStateProperty {
   metatype = 1,
   inputsPacked = 30,
   lastRunPtr = 40,
-  lastOutputsPacked = 41,
   feed = 50,
 }
 
@@ -27527,7 +27515,6 @@ export const StartViewStateDataInfo: Record<StartViewStateProperty, PropertyInfo
   [StartViewStateProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.START_VIEW_STATE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [StartViewStateProperty.inputsPacked]: { id: 30, name: 'inputs_packed', component: ObjectType.START_VIEW_STATE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [StartViewStateProperty.lastRunPtr]: { id: 40, name: 'last_run_ptr', component: ObjectType.START_VIEW_STATE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [StartViewStateProperty.lastOutputsPacked]: { id: 41, name: 'last_outputs_packed', component: ObjectType.START_VIEW_STATE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [StartViewStateProperty.feed]: { id: 50, name: 'feed', component: ObjectType.START_VIEW_STATE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.FEED_VIEW_STATE },
 }
 export const FeedViewStateDataInfo: Record<FeedViewStateProperty, PropertyInfo> = {
