@@ -1085,7 +1085,6 @@ export function makeEditFromLog(
   ) {
     oldNode = oldNode ?? newNode; // oldNode is always set
     if (oldNode == null) throw new Error(`missing old node for ${editType}: ${describeNode(log)}`);
-
     newNode = null;
   }
 

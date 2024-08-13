@@ -27,6 +27,7 @@ from bench.language.const import (
     SOURCE_NODE_TYPES,
     ClientType,
     ConditionalOp,
+    EditType,
     NodeType,
 )
 from bench.language.expression import C
@@ -695,7 +696,10 @@ class Host(GraphIoServiceBase, HostApi, HostBase):
         # apply edits to loaded graphs (bench/package)
         bench_edits: list[EditData] = []
         package_edits: list[EditData] = []
-        for edit in edits:
+        for i, edit in enumerate(chain(edits, cascaded_edits)):
+            is_cascaded = i >= len(edits)
+            if is_cascaded and edit.type in (EditType.ARCHIVE, EditType.DELETE, EditType.ERASE):
+                continue  # remove cascades are implicit
             node_type = NodeType(edit.node_ptr.type)
             if node_type not in LOADED_HOST_NODE_TYPES:
                 continue  # not loaded
