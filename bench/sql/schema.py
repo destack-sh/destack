@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.08.12.0"
+VERSION = "2024.08.13.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1327,6 +1327,7 @@ LOG_TABLE = Table(
         Column("kind", PrimitiveType.INT16),
         Column("level", PrimitiveType.INT16, default="3"),
         Column("change_id", PrimitiveType.UUID, is_nullable=True),
+        Column("undo_of_id", PrimitiveType.UUID, is_nullable=True),
         Column("type", PrimitiveType.INT16, is_nullable=True),
         Column("node_id", PrimitiveType.UUID, is_nullable=True),
         Column("node_ck", PrimitiveType.UUID, is_nullable=True),

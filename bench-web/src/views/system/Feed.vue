@@ -43,7 +43,7 @@ import {
 import { makeExpression, resolveSubject, type EditSubject } from "@/language/expression";
 import { ICON_BY_NODE_TYPE, ICON_BY_RUN_STATUS, IconInline, getNodeIcon, makeIcon } from "@/ui/icon";
 import { ACTIVE_RUN_STATUSES, TERMINAL_RUN_STATUSES, toCamelName } from "@/language/const";
-import { canvas, inspectionPtr } from "@/system/space";
+import { canvas, inspectionPtr, pkgConnection } from "@/system/space";
 import { user } from "@/system/user";
 import { getElement } from "@/utils/element";
 import { humanizeNumber } from "@/utils/string";
@@ -58,6 +58,7 @@ import Log from "@/views/system/Log.vue";
 import Run from "@/views/system/Run.vue";
 import { computed, ref, toRef, type Ref } from "vue";
 import { EDIT_TYPE_PAST_VERB, getPropertyTitle } from "@/ui/inspect";
+import { makeEditFromLog } from "@/language/transaction";
 
 const HEADER_HEIGHT = DEFAULT_HEADER_HEIGHT;
 const MIN_WIDTH = 320;
@@ -85,10 +86,12 @@ const nodeType = useStateProp("nodeType", NodeType.LOG);
 const activeFilterKeys = useStateProp("filterPills", []);
 const focusedNodePtr = computedValue(() => props.focus?.nodesPtr[0]);
 
+// NOTE :UX: MiniActions should probably be integrated with our regular Actions
 type MiniAction = {
   id: string;
   title: string;
   icon: IconData;
+  action: () => void;
 };
 type FeedItemBase = {
   kind: string;
@@ -258,6 +261,19 @@ const items = computed<FeedItem[]>(() => {
   const items: FeedItem[] = [];
   for (const it of roots.value) {
     if (isNode(it, NodeType.LOG)) {
+      const actions: MiniAction[] = [];
+      if (it.type != AccessType.ERASE && it.createdByPtr != null) {
+        // can't invert erase edits and shouldn't undo system edits (where Log.createdBy==null)
+        actions.push({
+          id: "common.edit.undo",
+          title: "Undo",
+          icon: makeIcon("fas fa-undo"),
+          action: () => {
+            const edit = makeEditFromLog(it, "undo");
+            pkgConnection.tx.addEdit(edit);
+          },
+        });
+      }
       const item: LogEditItem = {
         kind: "log-edit",
         id: it.id,
@@ -266,7 +282,7 @@ const items = computed<FeedItem[]>(() => {
         nodeType: it.nodePtr!.type,
         createdAt: it.createdAt!,
         createdBy: resolveSubject(it.createdByPtr),
-        actions: [],
+        actions,
       };
       items.push(item);
     } else if (isNode(it, NodeType.RUN)) {
@@ -386,7 +402,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
       :track-width="ScrollbarWidth.md"
       track-is-overlay
     >
-      <!-- NOTE :UX :Incomplete: make feed not so ugly, support more feed variants (like table) -->
+      <!-- NOTE :UX :Incomplete: make feed not ugly -->
       <ul v-if="isConnected" class="flex flex-col gap-y-1 pt-1">
         <!-- Feed item -->
         <li
@@ -448,13 +464,18 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
                 <!-- Object -->
                 <button
                   class="group/node flex-shrink-0 px-1 hover:bg-primary-100 hover:text-primary-900"
-                  @click="item.node && canvas.goToNode(item.node)"
+                  @click.stop="item.node && canvas.goToNode(item.node)"
                 >
                   <IconInline
-                    v-bind="item.node != null ? getNodeIcon(item.node) : ICON_BY_NODE_TYPE[item.nodeType]"
+                    v-bind="
+                      item.it.vignette?.icon ??
+                      (item.node != null ? getNodeIcon(item.node) : ICON_BY_NODE_TYPE[item.nodeType])
+                    "
                     class="mr-1 w-5 text-gray-700 group-hover/node:text-primary-900"
                   />
-                  <span>{{ (item.node as any)?.name ?? toCamelName(NodeType, item.nodeType) }}</span>
+                  <span>
+                    {{ (item.node as any)?.name ?? item.it.vignette?.name ?? toCamelName(NodeType, item.nodeType) }}
+                  </span>
                   <!-- Old name if new name is different -->
                   <span
                     v-if="
@@ -510,6 +531,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
                   v-tooltip="{ title: action.title, small: true }"
                   class="text-gray-400 hover:text-gray-900 hover:opacity-100 group-hover/item:opacity-100"
                   :class="focusedNode?.id == item.id ? '' : 'opacity-0'"
+                  @click.stop="action.action"
                 >
                   <IconInline v-bind="action.icon" />
                 </button>

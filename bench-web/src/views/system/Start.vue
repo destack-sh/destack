@@ -42,6 +42,7 @@ import NodeReference from "@/views/builtins/NodeReference.vue";
 import RunError from "@/views/builtins/RunError.vue";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
+import Text from "@/views/content/Text.vue";
 import Feed from "@/views/system/Feed.vue";
 import ValueObject from "@/views/system/ValueObject.vue";
 import { computed, toRef, type Ref } from "vue";

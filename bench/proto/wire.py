@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.08.12.0"
+VERSION = "2024.08.13.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -1719,6 +1719,7 @@ class EditData(betterproto.Message):
     edited_at: datetime = betterproto.message_field(66)
     revision: Optional[int] = betterproto.int64_field(67, optional=True)
     epoch: Optional[int] = betterproto.int64_field(68, optional=True)
+    undo_of_ptr: Optional["NodeReferenceData"] = betterproto.message_field(69, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2797,6 +2798,7 @@ class LogData(betterproto.Message):
     kind: "LogKind" = betterproto.enum_field(30)
     level: "LogLevel" = betterproto.enum_field(31)
     change_ptr: Optional["NodeReferenceData"] = betterproto.message_field(32, optional=True)
+    undo_of_ptr: Optional["NodeReferenceData"] = betterproto.message_field(33, optional=True)
     type: Optional["AccessType"] = betterproto.enum_field(40, optional=True)
     node_ptr: Optional["NodeReferenceData"] = betterproto.message_field(41, optional=True)
     properties: List[int] = betterproto.int32_field(42)

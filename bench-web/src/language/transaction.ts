@@ -1,10 +1,12 @@
 import { getCachedGraphClient, HUMANIZED_OPERATION_STATUS } from "@/proto/services";
 import {
+  AccessType,
   BlockProperty,
   ChangeCategory,
   CommitTransactionRequest,
   EditType,
   GraphScopeData,
+  LogData,
   NODE_PROPERTY_ENUM_BY_TYPE,
   NodeReferenceData,
   NodeType,
@@ -17,32 +19,34 @@ import {
   type AnyNodeData,
   type EditData,
   type NodeTypeMapping,
-  type PropertyInfo
+  type PropertyInfo,
 } from "@/proto/wire";
 import {
   describeEdit,
   describeNode,
   EMPTY_SCOPE,
+  fillDefaultObject,
   makeDefaultObject,
   makeScope,
   nodeReference,
   toPlainNodeRef,
   unwrapSomeNode,
   wrapSomeNode,
-  type TypedNodeReferenceData
+  type TypedNodeReferenceData,
 } from "@/proto/wiring";
 import { nonce, origin, userOrNullPtr, userPtr } from "@/system/client";
 import { type ReadNodeGraph, type WriteNodeGraph } from "@/language/graph";
 import { makeIcon } from "@/ui/icon";
 import { makeNode } from "@/language/node";
 import { toaster } from "@/ui/toast";
-import { type JsonValue } from "@/language/value";
+import { unpackBuiltinObject, type JsonValue } from "@/language/value";
 import { IS_DEV } from "@/utils/globals";
 import { log } from "@/utils/log";
 import { toValueRef } from "@/utils/ref";
 import { uuidt } from "@/utils/uuidt";
 import type { RpcError } from "grpc-web";
 import { nextTick, ref, shallowRef, toRef, triggerRef, watch, type MaybeRef, type Ref } from "vue";
+import { toCamelName } from "@/language/const";
 
 export type DebounceLevel = "tick" | "short" | "long";
 const DEBOUNCE_LEVELS: Record<"short" | "long", number> = {
@@ -233,7 +237,7 @@ export class TransactionBuilder implements TransactionMeta, Transaction {
     };
   }
 
-  _getScope(node: AnyNodeData): GraphScopeData {
+  getScope(node: AnyNodeData): GraphScopeData {
     const allProperties = NODE_PROPERTY_ENUM_BY_TYPE[node.metatype]!;
     const benchId = (node as any).benchPtr?.id ?? this.scope.benchId;
     const packageId = (node as any).packagePtr?.id ?? this.scope.packageId;
@@ -242,7 +246,7 @@ export class TransactionBuilder implements TransactionMeta, Transaction {
     return makeScope({ benchId, packageId });
   }
 
-  _checkInScope(node: AnyNodeData) {
+  checkInScope(node: AnyNodeData) {
     if (this.scope.benchId != null && (!("benchPtr" in node) || node.benchPtr?.id != this.scope.benchId)) {
       throw new Error(`node from other bench: ${describeNode(node)} != ${this.scope.benchId}`);
     }
@@ -264,7 +268,7 @@ export class TransactionBuilder implements TransactionMeta, Transaction {
     node: AnyNodeData,
     debounce: DebounceLevel | null,
   ) {
-    this._checkInScope(node);
+    this.checkInScope(node);
 
     // pack 'old' and 'new' node delta
     let newNode: AnyNodeData | undefined = undefined;
@@ -272,6 +276,7 @@ export class TransactionBuilder implements TransactionMeta, Transaction {
     if (editType == EditType.CREATE || editType == EditType.UPSERT) {
       newNode = node;
     } else if (editType == EditType.ERASE || editType == EditType.ARCHIVE || editType == EditType.DELETE) {
+      // clear deletedAt/archivedAt
       if (node.deletedAt != null || node.archivedAt != null) {
         oldNode = { ...node, deletedAt: undefined, archivedAt: undefined };
       } else {
@@ -299,7 +304,7 @@ export class TransactionBuilder implements TransactionMeta, Transaction {
       id: newEditId(),
       type: editType,
       nodePtr: toPlainNodeRef(node),
-      scope: this._getScope(node),
+      scope: this.getScope(node),
       oldNodePartial: oldNode != null ? wrapSomeNode(oldNode) : undefined,
       newNodePartial: newNode != null ? wrapSomeNode(newNode) : undefined,
       properties: [],
@@ -361,7 +366,7 @@ export class TransactionBuilder implements TransactionMeta, Transaction {
     update: Partial<T>,
     options?: { debounce?: DebounceLevel },
   ) {
-    this._checkInScope(node);
+    this.checkInScope(node);
 
     const propertiesEnum = NODE_PROPERTY_ENUM_BY_TYPE[node.metatype]!;
     const allProperties = PROPERTY_INFOS_BY_TYPE[node.metatype]!;
@@ -394,7 +399,7 @@ export class TransactionBuilder implements TransactionMeta, Transaction {
         id: newEditId(),
         type: editType,
         nodePtr: toPlainNodeRef(node),
-        scope: this._getScope(node),
+        scope: this.getScope(node),
         properties: properties.map((p) => p.id),
         oldNodePartial: wrapSomeNode(oldNode),
         newNodePartial: wrapSomeNode(newNode),
@@ -1003,4 +1008,83 @@ export function setupTransactionManagement() {
   watch(toValueRef(userPtr), () => flushTransactionBuffers());
   // commit before exit
   window.addEventListener("beforeunload", (e) => flushTransactionBuffers());
+}
+
+export const EDIT_TYPES = [
+  EditType.CREATE,
+  EditType.UPSERT,
+  EditType.UPDATE,
+  EditType.MOVE,
+  EditType.ARCHIVE,
+  EditType.UNARCHIVE,
+  EditType.DELETE,
+  EditType.RESTORE,
+  EditType.ERASE,
+];
+/** Map edit type to inverted edit type */
+export const UNDO_EDIT_BY_TYPE: Partial<Record<EditType, EditType>> = {
+  [EditType.CREATE]: EditType.DELETE,
+  [EditType.UPSERT]: EditType.DELETE,
+  [EditType.UPDATE]: EditType.UPDATE,
+  [EditType.MOVE]: EditType.MOVE,
+  [EditType.ARCHIVE]: EditType.UNARCHIVE,
+  [EditType.UNARCHIVE]: EditType.ARCHIVE,
+  [EditType.DELETE]: EditType.RESTORE,
+  [EditType.RESTORE]: EditType.DELETE,
+};
+
+/** Turns a logged edit back into an edit (to redo/undo) */
+export function makeEditFromLog(
+  log: LogData,
+  mode: "redo" | "undo",
+  options?: {
+    category?: ChangeCategory;
+    subjectPtr?: NodeReferenceData;
+  },
+): EditData {
+  // unpack
+  if (log.nodePtr == null) throw new Error(`missing node for ${log.type}: ${describeNode(log)}`);
+  const nodeType = log.nodePtr.type;
+  let editType = log.type as unknown as EditType | undefined;
+  if (!EDIT_TYPES.includes(editType!)) throw new Error(`unexpected edit ${editType}: ${describeNode(log)}`);
+  let oldNode =
+    log.oldNodePacked != null
+      ? (makeDefaultObject(
+          unpackBuiltinObject(unpackProtoJson(log.oldNodePacked), nodeType as unknown as ObjectType),
+        ) as AnyNodeData)
+      : null;
+  let newNode =
+    log.newNodePacked != null
+      ? (makeDefaultObject(
+          unpackBuiltinObject(unpackProtoJson(log.newNodePacked), nodeType as unknown as ObjectType),
+        ) as AnyNodeData)
+      : null;
+
+  // invert if undo
+  if (mode == "undo") {
+    editType = UNDO_EDIT_BY_TYPE[editType!];
+    if (editType == null) throw new Error(`cannot undo edit ${toCamelName(EditType, editType!)}: ${describeNode(log)}`);
+    [oldNode, newNode] = [newNode, oldNode];
+  }
+
+  // make edit
+  const subjectPtr = options?.subjectPtr ?? userPtr.value;
+  if (subjectPtr == null) throw new Error(`missing subject for ${log.type}: ${describeNode(log)}`);
+  const scope = makeScope({ benchId: log.benchPtr?.id, packageId: log.packagePtr?.id });
+  const edit: EditData = {
+    metatype: ObjectType.EDIT,
+    id: newEditId(),
+    type: editType!,
+    nodePtr: log.nodePtr,
+    scope: scope,
+    properties: log.properties,
+    oldNodePartial: oldNode != null ? wrapSomeNode(oldNode) : undefined,
+    newNodePartial: newNode != null ? wrapSomeNode(newNode) : undefined,
+    origin: origin.value,
+    category: options?.category ?? log.category,
+    subjectPtr: subjectPtr,
+    editedAt: Timestamp.now(),
+    undoOfPtr: mode == "undo" ? toPlainNodeRef(log) : undefined,
+  };
+  return edit;
 }

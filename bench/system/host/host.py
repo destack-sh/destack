@@ -598,12 +598,12 @@ class Host(GraphIoServiceBase, HostApi, HostBase):
             properties = tuple(node_cls.__properties_by_id__[p] for p in edit.properties)
             if edit.old_node_partial:
                 old_node = unwrap_some_node(edit.old_node_partial)
-                old_node_packed = pack_builtin_object_data(old_node, only=properties)
+                old_node_packed = pack_builtin_object_data(old_node, only=properties or None)
             else:
                 old_node_packed = None
             if edit.new_node_partial:
                 new_node = unwrap_some_node(edit.new_node_partial)
-                new_node_packed = pack_builtin_object_data(new_node, only=properties)
+                new_node_packed = pack_builtin_object_data(new_node, only=properties or None)
             else:
                 new_node_packed = None
             # break out secret properties
@@ -627,9 +627,11 @@ class Host(GraphIoServiceBase, HostApi, HostBase):
                 updated_at=edit.edited_at,
                 updated_epoch=edit.epoch,
                 updated_by_ptr=edit.subject_ptr,
-                # content
+                # meta
                 kind=wire.LogKind.CHANGE,
                 level=wire.LogLevel.INFO,
+                undo_of_ptr=edit.undo_of_ptr,
+                # content
                 type=cast(wire.AccessType, edit.type),
                 node_ptr=edit.node_ptr,
                 properties=edit.properties,

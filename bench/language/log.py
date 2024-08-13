@@ -94,6 +94,9 @@ class Log(PackageNode[LogData], HasTimeIdentity, HasSessionContext):
     change: Optional["Log"] = p_system(
         32, require=False, array=False, references=NodeType.LOG, same_bench=True
     )
+    undo_of: Optional["Log"] = p_system(
+        33, require=False, array=False, references=NodeType.LOG, same_bench=True
+    )
 
     # content
     type: AccessType | None = p_system(40, default=None)
