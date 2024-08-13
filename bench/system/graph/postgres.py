@@ -78,6 +78,14 @@ class PostgresEngine(GraphEngine):
         cur = await conn.open()
         return PostgresChannel(self, session, conn, cur)
 
+    @property
+    def includes_hidden(self) -> bool:
+        return True
+
+    @property
+    def is_readonly(self) -> bool:
+        return False
+
 
 def _pg_method(func):
     """Wraps a Postgres function with tracing & error wrapping."""

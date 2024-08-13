@@ -89,8 +89,8 @@ export function describeEdit(edit: Pick<EditData, "type" | "nodePtr" | "revision
   const editParts: string[] = [EditType[edit.type]];
   if (edit.nodePtr) editParts.push(describeNode(edit.nodePtr));
   if (edit.revision) editParts.push(`revision=${edit.revision}`);
-  if (edit.properties) editParts.push(`properties=${Object.keys(edit.properties).join(",")}`);
-  return editParts.join(" ");
+  if (edit.properties) editParts.push(`properties=${Object.keys(edit.properties).join("|")}`);
+  return editParts.join(", ");
 }
 
 export function newStructId(): number {

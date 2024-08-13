@@ -486,7 +486,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
                         options=options,
                     )
                     channel = await session._get_channel_for(
-                        scope, query.all_node_types, is_readonly=True
+                        scope, query.all_node_types, include_hidden=False, is_readonly=True
                     )
                     connection = await channel.get(query, GetOptions(live=False, unpack=False))
                     # merge result into data_graph (there may be duplicates)

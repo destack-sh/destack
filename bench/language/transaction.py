@@ -580,7 +580,7 @@ class Transaction:
         edits_by_engine_id: dict[Any, list[EditData]] = defaultdict(list)
         for edit in edits:
             engine = self.session._get_engine_for(
-                edit.scope, NodeType(edit.node_ptr.type), is_readonly=False
+                edit.scope, NodeType(edit.node_ptr.type), include_hidden=False, is_readonly=False
             )
             edits_by_engine_id[engine.id].append(edit)
         for engine in self.session._engines:

@@ -72,6 +72,14 @@ class RemoteEngine(GraphEngine["RemoteChannel"]):
     async def connect(self, session: "Session") -> "RemoteChannel":
         return RemoteChannel(self, session)
 
+    @property
+    def includes_hidden(self) -> bool:
+        return True
+
+    @property
+    def is_readonly(self) -> bool:
+        return False
+
 
 class RemoteChannel(WritableChannel[RemoteEngine]):
     """A channel to a remote graph."""

@@ -450,11 +450,13 @@ class Host(GraphIoServiceBase, HostApi, HostBase):
                     scope=self._scope,
                     node_types=LOADED_BENCH_NODE_TYPES,
                     graph=self._bench._data_graph,
+                    includes_hidden=False,
                 ),
                 MemoryEngine(
                     scope=self._scope,
                     node_types=SOURCE_NODE_TYPES,
                     graph=self._main_package._data_graph,
+                    includes_hidden=False,
                 ),
             )
             self._engines = (*inmemory_engines, *self._engines)  # in order of priority

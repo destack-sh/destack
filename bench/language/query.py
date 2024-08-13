@@ -303,6 +303,12 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
     def is_aggregation(self) -> bool:
         return self._aggregation is not None
 
+    @property
+    def include_hidden(self) -> bool:
+        return (
+            self._options.include_hidden if self._options else DEFAULT_READ_OPTIONS.include_hidden
+        )
+
     #
     # Builder
     #
@@ -444,7 +450,12 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
     async def _get_read_channel(self) -> "Channel":
         session = active_session()
         scope = session._get_scope_for_query(self)
-        return await session._get_channel_for(scope, self.all_node_types, is_readonly=True)
+        return await session._get_channel_for(
+            scope,
+            self.all_node_types,
+            include_hidden=self.include_hidden,
+            is_readonly=True,
+        )
 
     @overload
     async def get(
