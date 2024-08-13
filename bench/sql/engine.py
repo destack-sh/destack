@@ -1714,7 +1714,7 @@ async def _pg_edit_cascade(
 
     # figure out which nodes to cascade to
     root_nodes = tuple(root_edit.node_ptr for root_edit in batch)
-    root_edit_by_node_id = {cast(str, root_edit.node_ptr.id): root_edit for root_edit in batch}
+    root_edit_by_root_node_id = {cast(str, root_edit.node_ptr.id): root_edit for root_edit in batch}
     if edit_type in (EditType.UNARCHIVE, EditType.RESTORE):
         # only cascade to nodes that were removed at the exact same time
         removed_dts = []
@@ -1752,8 +1752,9 @@ async def _pg_edit_cascade(
 
     # turn into cascaded edits with source root for exact context
     all_cascaded_edits: list[EditData] = []
+    root_edit_by_cascaded_node_id: dict[str, EditData] = {}
     for root_id, node_ptrs in cascaded_nodes_by_root_id.items():
-        root_edit = root_edit_by_node_id[root_id]
+        root_edit = root_edit_by_root_node_id[root_id]
         for node_ptr in node_ptrs:
             cascaded_edit = EditData(
                 id=str(UUIDT()),
@@ -1765,6 +1766,7 @@ async def _pg_edit_cascade(
                 context=root_edit.context,
             )
             all_cascaded_edits.append(cascaded_edit)
+            root_edit_by_cascaded_node_id[cast(str, node_ptr.id)] = root_edit
 
     # batch operations by edit kind and node type
     cascaded_edits_by_type = group_by(all_cascaded_edits, lambda edit: edit.node_ptr.type)
@@ -1779,12 +1781,21 @@ async def _pg_edit_cascade(
             selected_properties=SELECT_ALL_PROPERTIES[cast(NodeType, descendant_node_type)],
         )
 
-        # and assign new/old node to edit that we have the full data
-        assert nodes
-        assert len(nodes) == len(cascaded_edits)
+        # and assign new/old node to edit that we have the full data :EditData
+        assert nodes and len(nodes) == len(cascaded_edits)
         for node, cascaded_edit in zip(nodes, cascaded_edits):
             if edit_type in (EditType.UNARCHIVE, EditType.RESTORE):
-                cascaded_edit.new_node_partial = wiring.wrap_some_node(node)
+                cascaded_edit.old_node_partial = wiring.wrap_some_node(node)
+                # set root edit removed_at in cascaded_edit.old_node_partial
+                root_edit = root_edit_by_cascaded_node_id[cast(str, node.id)]
+                assert root_edit.old_node_partial, f"{root_edit!r} has no old node"
+                root_node = wiring.unwrap_some_node(root_edit.old_node_partial)
+                if edit_type == EditType.UNARCHIVE:
+                    cascaded_edit.old_node_partial.archived_at = root_node.archived_at
+                elif edit_type == EditType.RESTORE:
+                    cascaded_edit.old_node_partial.deleted_at = root_node.deleted_at
+                else:
+                    assert_never(edit_type)
             elif edit_type in (EditType.ARCHIVE, EditType.DELETE, EditType.ERASE):
                 cascaded_edit.old_node_partial = wiring.wrap_some_node(node)
             else:
