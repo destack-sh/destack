@@ -308,11 +308,7 @@ canvas.registerView(self);
 defineExpose<ViewExposed>({ self, actions, focus });
 </script>
 <template>
-  <div
-    v-if="page"
-    :style="{ width: size.width + 'px', height: size.height + 'px' }"
-    class="flex w-full flex-col bg-white text-gray-900"
-  >
+  <div v-if="page" class="flex w-full flex-col bg-white text-gray-900">
     <!-- TODO :UX: entire Page/Block/.. design -->
     <!-- (should it be more notebook like or more page like? where should extra block interactions & metadata go?,
           what about a line with multiple block 'columns' in it? how to navigate around these blocks? ...) -->

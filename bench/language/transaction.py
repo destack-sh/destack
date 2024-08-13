@@ -166,6 +166,13 @@ class Edit(Struct):
         description="Epoch at that edit (client if submitting, system if accepted).",
         primitive_type=PrimitiveType.INT64,
     )
+    undo_of: Optional["Log"] = p_system(
+        69,
+        require=False,
+        array=False,
+        references=NodeType.LOG,
+        description="The logged change that is being undon with this edit.",
+    )
 
 
 @enum_(EnumType.CHANGE_KIND)
