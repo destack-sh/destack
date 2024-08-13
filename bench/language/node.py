@@ -1919,6 +1919,10 @@ NODE_SUBTYPE_PROPERTY_BY_TYPE: dict[NodeType, str] = {
     NodeType.VIEW: "type",
     NodeType.FILE: "coarse_type",
 }
+NODE_SUBSUBTYPE_PROPERTY_BY_TYPE: dict[NodeType, str] = {
+    NodeType.FIELD: "kind",
+    NodeType.FILE: "format",
+}
 
 #
 # Utility types

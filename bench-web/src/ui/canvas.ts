@@ -1,3 +1,9 @@
+import { HELPER_VIEW_TYPES, PAGE_BLOCK_TYPES, ROOT_VIEW_TYPES, toCamelName } from "@/language/const";
+import { isDescendantOf, type NodeKey, type ReadNodeGraph } from "@/language/graph";
+import { cloneNode, generateNodeName, makeNode } from "@/language/node";
+import { getOrderKey, updateOrder } from "@/language/order";
+import { packProtoJson, unpackProtoJson, type DebounceLevel, type Transaction } from "@/language/transaction";
+import { isProtoJson, packBuiltinObject, packBuiltinObjectJson, unpackBuiltinObject } from "@/language/value";
 import {
   Anchor,
   DESCENDANT_NODE_TYPES,
@@ -18,7 +24,6 @@ import {
 } from "@/proto/wire";
 import {
   describeNode,
-  getNodeType,
   isNodeRef,
   makeStruct,
   toNodeRef,
@@ -30,18 +35,14 @@ import {
   type SomeNodeReferenceData,
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
-import { isDescendantOf, type NodeKey, type ReadNodeGraph } from "@/language/graph";
-import { toIconMaybe } from "@/ui/icon";
-import { cloneNode, generateNodeName, makeNode } from "@/language/node";
 import { canvas, inspectionBasePtr, inspectionPtr } from "@/system/space";
-import { packProtoJson, unpackProtoJson, type DebounceLevel, type Transaction } from "@/language/transaction";
-import { isProtoJson, packBuiltinObject, packBuiltinObjectJson, unpackBuiltinObject } from "@/language/value";
 import type { SplitAnchor } from "@/ui/drag";
+import { toIconMaybe } from "@/ui/icon";
+import { DEFAULT_ORIENTATION, splitBox } from "@/ui/layout";
 import { getElement, isFocusableElement } from "@/utils/element";
 import { generateOrderKey, generateOrderKeys } from "@/utils/fractional";
 import { assertNever } from "@/utils/functools";
 import { IS_DEV, isDeveloperMode } from "@/utils/globals";
-import { DEFAULT_ORIENTATION, splitBox } from "@/ui/layout";
 import { log } from "@/utils/log";
 import { computedValue, deepValueEquals } from "@/utils/ref";
 import { Casing, toCasing } from "@/utils/string";
@@ -62,8 +63,6 @@ import {
   type MaybeRef,
   type Ref,
 } from "vue";
-import { getOrderKey, updateOrder } from "@/language/order";
-import { ROOT_VIEW_TYPES, HELPER_VIEW_TYPES, PAGE_BLOCK_TYPES, toCamelName } from "@/language/const";
 
 export const DEFAULT_BAR_POSITION = Anchor.TOP;
 export const DEFAULT_HEADER_HEIGHT = 36;
@@ -366,7 +365,7 @@ export class ViewCanvas {
   ) {
     log.trace("canvas.focus", focus);
     focus.node = this.graph.getOrError({ id: focus.node.id }); // 'refresh' node in graph since it may have moved
-    const nodeType = getNodeType(focus.node);
+    const nodeType = isNodeRef(focus.node) ? (focus.node as NodeReferenceData).type : focus.node.metatype;
 
     if (nodeType == NodeType.VIEW && this.isInSpace(focus.node)) {
       // focus as a view in canvas

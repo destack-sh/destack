@@ -20,6 +20,7 @@ from bench.language.const import (
 from bench.language.graph import NodeDataGraph, NodeGraph
 from bench.language.node import (
     EDIT_SUBJECT_TYPES,
+    NODE_SUBSUBTYPE_PROPERTY_BY_TYPE,
     NODE_SUBTYPE_PROPERTY_BY_TYPE,
     ClientOrigin,
     EditSubject,
@@ -81,6 +82,7 @@ class ChangeVignette(Struct):
     name: str | None = p_system(30, require=False, description="Name of the object.")
     title: str | None = p_system(31, require=False, description="Title of the object.")
     subtype: int | None = p_system(32, require=False, description="Subtype of the object.")
+    subsubtype: int | None = p_system(33, require=False, description="Subsubtype of the object.")
     icon: Optional["Icon"] = p_system(
         35, require=False, struct=StructType.ICON, description="Icon of the object."
     )
@@ -779,13 +781,16 @@ def edit_data_graph(
 
     def _make_vignette(node: AnyNodeData) -> ChangeVignetteData:
         node_subtype = NODE_SUBTYPE_PROPERTY_BY_TYPE.get(cast(NodeType, node.metatype))
-        return ChangeVignetteData(
+        node_subsubtype = NODE_SUBSUBTYPE_PROPERTY_BY_TYPE.get(cast(NodeType, node.metatype))
+        vignette = ChangeVignetteData(
             metatype=wire.ObjectType.CHANGE_VIGNETTE,
             name=getattr(node, "name", None),
             title=getattr(node, "title", None),
             subtype=getattr(node, node_subtype, None) if node_subtype else None,
+            subsubtype=getattr(node, node_subsubtype, None) if node_subsubtype else None,
             icon=getattr(node, "icon", None),
         )
+        return vignette
 
     for edit in edits:
         assert edit.epoch is not None, f"missing epoch for {edit!r}"

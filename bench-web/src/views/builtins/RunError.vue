@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import { toCamelName } from "@/language/const";
 import { RunErrorKind, RunErrorType, Variant, type RunData, type RunErrorData } from "@/proto/wire";
+import Text from "@/views/content/Text.vue";
 
 const props = defineProps<{ run?: RunData; error: RunErrorData }>();
 </script>

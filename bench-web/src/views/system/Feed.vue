@@ -469,7 +469,9 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
                   <IconInline
                     v-bind="
                       item.it.vignette?.icon ??
-                      (item.node != null ? getNodeIcon(item.node) : ICON_BY_NODE_TYPE[item.nodeType])
+                      (item.node != null ? getNodeIcon(item.node) : null) ??
+                      (item.it.vignette != null ? getNodeIcon({ ...item.it.vignette, type: item.nodeType }) : null) ??
+                      ICON_BY_NODE_TYPE[item.nodeType]
                     "
                     class="mr-1 w-5 text-gray-700 group-hover/node:text-primary-900"
                   />
