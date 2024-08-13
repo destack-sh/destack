@@ -20,6 +20,7 @@ from bench.language.const import (
 from bench.language.graph import NodeDataGraph, NodeGraph
 from bench.language.node import (
     EDIT_SUBJECT_TYPES,
+    NODE_SUBTYPE_PROPERTY_BY_TYPE,
     ClientOrigin,
     EditSubject,
     GraphScope,
@@ -79,6 +80,7 @@ class ChangeVignette(Struct):
 
     name: str | None = p_system(30, require=False, description="Name of the object.")
     title: str | None = p_system(31, require=False, description="Title of the object.")
+    subtype: int | None = p_system(32, require=False, description="Subtype of the object.")
     icon: Optional["Icon"] = p_system(
         35, require=False, struct=StructType.ICON, description="Icon of the object."
     )
@@ -776,10 +778,12 @@ def edit_data_graph(
         options = DEFAULT_READ_OPTIONS
 
     def _make_vignette(node: AnyNodeData) -> ChangeVignetteData:
+        node_subtype = NODE_SUBTYPE_PROPERTY_BY_TYPE.get(cast(NodeType, node.metatype))
         return ChangeVignetteData(
             metatype=wire.ObjectType.CHANGE_VIGNETTE,
             name=getattr(node, "name", None),
             title=getattr(node, "title", None),
+            subtype=getattr(node, node_subtype, None) if node_subtype else None,
             icon=getattr(node, "icon", None),
         )
 
