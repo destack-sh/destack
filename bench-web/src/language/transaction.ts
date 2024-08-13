@@ -492,7 +492,11 @@ export function editGraph(
 ) {
   for (const edit of edits) {
     const nodeType = edit.nodePtr!.type;
-    if (edit.type == EditType.CREATE || edit.type == EditType.UPSERT) {
+    if (
+      edit.type == EditType.CREATE ||
+      edit.type == EditType.UPSERT ||
+      ((edit.type == EditType.UNARCHIVE || edit.type == EditType.RESTORE) && !graph.has(edit.nodePtr!))
+    ) {
       // add
       if (edit.newNodePartial == null) throw new Error(`missing newNodePacked in edit: ${describeEdit(edit)}`);
       const newNode = unwrapSomeNode(edit.newNodePartial);
@@ -518,9 +522,9 @@ export function editGraph(
       // update
       let updatedNode: AnyNodeData | null;
       if (edit.type == EditType.UNARCHIVE || edit.type == EditType.RESTORE) {
-        if (edit.oldNodePartial == null)
-          throw new Error(`missing old node in edit: ${describeEdit(edit)} in ${graph.describeSelf()}`);
-        updatedNode = unwrapSomeNode(edit.oldNodePartial);
+        if (edit.newNodePartial == null)
+          throw new Error(`missing new node in edit: ${describeEdit(edit)} in ${graph.describeSelf()}`);
+        updatedNode = unwrapSomeNode(edit.newNodePartial);
       } else {
         updatedNode = graph.get(edit.nodePtr!);
         if (!updatedNode && options?.base) {
@@ -1066,6 +1070,8 @@ export function makeEditFromLog(
     if (editType == null) throw new Error(`cannot undo edit ${toCamelName(EditType, editType!)}: ${describeNode(log)}`);
     [oldNode, newNode] = [newNode, oldNode];
   }
+  // NOTE :Broken: technically we need to clear archivedAt/deletedAt for restore/unarchive, but we don't yet
+  //  because we may not have the descendant nodes anyway, and that would look weird (?). 
 
   // make edit
   const subjectPtr = options?.subjectPtr ?? userPtr.value;

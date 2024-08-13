@@ -1103,7 +1103,7 @@ def evaluate_edit(
             else:
                 scope_id = new_node_scopes_by_child_id.get(node_id, node_id)
             scope = graph.get(scope_id)
-            assert scope is not None, f"scope {scope_id} for {edit!r} not in {graph!r}"
+            assert scope is not None, f"node {scope_id} for {edit!r} not in {graph!r}"
             root = graph.get_root(scope)
         else:
             if edit.type in (EditType.CREATE, EditType.UPSERT):

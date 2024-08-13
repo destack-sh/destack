@@ -247,8 +247,16 @@ class GraphEngine[C: Channel](abc.ABC):
             return f"<{self.__class__.__name__}>"
 
     @property
+    @abc.abstractmethod
     def is_readonly(self) -> bool:
-        return False
+        """Whether this channel is read-only."""
+        ...
+
+    @property
+    @abc.abstractmethod
+    def includes_hidden(self) -> bool:
+        """Whether this channel includes hidden nodes."""
+        ...
 
     @property
     def id(self) -> int | str | UUID:
@@ -265,6 +273,14 @@ class NullEngine(GraphEngine):
 
     async def connect(self, session: "Session"):
         raise ChannelIncapableError(self, reason="null engine")
+
+    @property
+    def includes_hidden(self) -> bool:
+        return False
+
+    @property
+    def is_readonly(self) -> bool:
+        return True
 
 
 class Channel[E: GraphEngine](abc.ABC):
@@ -763,10 +779,15 @@ class MemoryEngine(GraphEngine["MemoryChannel"]):
     """A read-only engine that reads from an in-memory graph."""
 
     def __init__(
-        self, scope: GraphScopeData, node_types: bittuple[NodeType], graph: "NodeDataGraph"
+        self,
+        scope: GraphScopeData,
+        node_types: bittuple[NodeType],
+        graph: "NodeDataGraph",
+        includes_hidden: bool,
     ):
         super().__init__(scope, node_types)
         self.graph = graph
+        self._includes_hidden = includes_hidden
 
     def __str__(self):
         return (
@@ -776,6 +797,10 @@ class MemoryEngine(GraphEngine["MemoryChannel"]):
     @property
     def is_readonly(self) -> bool:
         return True
+
+    @property
+    def includes_hidden(self) -> bool:
+        return self._includes_hidden
 
     async def connect(self, session: "Session"):
         return MemoryChannel(self, session)
@@ -921,7 +946,7 @@ class SplitConnection(Connection):
         from bench.language import NodeReference, QueryBuilder, ReadOptions
         from bench.proto import wiring
 
-        assert query._options is not None, f"{query!r} has no options"
+        assert query._options is not None, f"{query!r} has no options"  # checked by caller
         remaining_ancestors_types = [
             t for t in query._options.ancestor_types if t not in initial_types
         ]
@@ -947,7 +972,10 @@ class SplitConnection(Connection):
             descendants_scope = GraphScopeData(bench_id=bench.id) if bench else self.scope
             inner_nodes_by_type = group_by(combined_graph.nodes, lambda n: NodeType(n.metatype))
             descendants_engine = self.session._get_engine_for(
-                descendants_scope, remaining_descendants_types, is_readonly=True
+                descendants_scope,
+                remaining_descendants_types,
+                include_hidden=query._options.include_hidden,
+                is_readonly=True,
             )
             descendants_channel = await self.session._get_channel(descendants_engine)
             for parent_type, parents in inner_nodes_by_type.items():
@@ -978,7 +1006,10 @@ class SplitConnection(Connection):
             inner_roots_parents = tuple(n.parent_ptr for n in inner_roots if n.parent_ptr)
             inner_roots_parents_by_type = group_by(inner_roots_parents, lambda n: n.type)
             ancestor_engine = self.session._get_engine_for(
-                self.scope, remaining_ancestors_types, is_readonly=True
+                self.scope,
+                remaining_ancestors_types,
+                include_hidden=query._options.include_hidden,
+                is_readonly=True,
             )
             ancestor_channel = await self.session._get_channel(ancestor_engine)
             for parent_type, parents in inner_roots_parents_by_type.items():
@@ -1006,7 +1037,11 @@ class SplitSearchConnection[T: Node](SearchConnection[SplitChannel, T], SplitCon
     async def _do_read(self, query: "QueryBuilder") -> SearchResultData:
         # first trim query to nucleus around core node type (use best match)
         engine = self.session._get_engine_for(
-            self.scope, query._node_type, best_match=self.node_types, is_readonly=True
+            self.scope,
+            query._node_type,
+            best_match=self.node_types,
+            include_hidden=query.include_hidden,
+            is_readonly=True,
         )
         channel = await self.session._get_channel(engine)
         connection = await channel.search(
@@ -1037,7 +1072,11 @@ class SplitGetConnection[T: Node](GetConnection[SplitChannel, T], SplitConnectio
     async def _do_read(self, query: "QueryBuilder") -> GetResultData:
         # first trim query to nucleus around core node type (use best match)
         engine = self.session._get_engine_for(
-            self.scope, query._node_type, best_match=self.node_types, is_readonly=True
+            self.scope,
+            query._node_type,
+            best_match=self.node_types,
+            include_hidden=query.include_hidden,
+            is_readonly=True,
         )
         channel = await self.session._get_channel(engine)
         connection = await channel.get(
