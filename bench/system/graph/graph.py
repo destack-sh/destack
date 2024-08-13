@@ -806,20 +806,15 @@ def validate_edit(edit: EditData, subject: Subject, now: datetime) -> None:
             f"bad edited_at in {edit!r}: {edit.edited_at} !~= {now}",
         )
 
-    # old/new node packed
-    should_set_new = edit.type in (
-        EditType.CREATE,
-        EditType.UPSERT,
-        EditType.UPDATE,
-        EditType.MOVE,
-        EditType.UNARCHIVE,
-        EditType.RESTORE,
-    )
+    # old/new node packed :EditData
+    should_set_new = edit.type in (EditType.CREATE, EditType.UPSERT, EditType.UPDATE, EditType.MOVE)
     should_set_old = edit.type in (
         EditType.UPDATE,
         EditType.MOVE,
-        EditType.DELETE,
         EditType.ARCHIVE,
+        EditType.UNARCHIVE,
+        EditType.DELETE,
+        EditType.RESTORE,
         EditType.ERASE,
     )
     if should_set_new != (edit.new_node_partial is not None):

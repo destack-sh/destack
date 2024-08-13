@@ -270,7 +270,7 @@ export class TransactionBuilder implements TransactionMeta, Transaction {
   ) {
     this.checkInScope(node);
 
-    // pack 'old' and 'new' node delta
+    // pack 'old' and 'new' node delta :EditData
     let newNode: AnyNodeData | undefined = undefined;
     let oldNode: AnyNodeData | undefined = undefined;
     if (editType == EditType.CREATE || editType == EditType.UPSERT) {
@@ -284,18 +284,10 @@ export class TransactionBuilder implements TransactionMeta, Transaction {
       }
     } else if (editType == EditType.UNARCHIVE) {
       // remember old 'archived_at' in old node, put full restored node in new node
-      oldNode = makeDefaultObject({
-        metatype: node.metatype as any,
-        archivedAt: node.archivedAt,
-      }) as AnyNodeData;
-      newNode = { ...node, archivedAt: undefined };
+      oldNode = makeDefaultObject({ metatype: node.metatype as any, archivedAt: node.archivedAt }) as AnyNodeData;
     } else if (editType == EditType.RESTORE) {
       // remember old 'deleted_at' in old node, put full restored node in new node
-      oldNode = makeDefaultObject({
-        metatype: node.metatype as any,
-        deletedAt: node.deletedAt,
-      }) as AnyNodeData;
-      newNode = { ...node, deletedAt: undefined };
+      oldNode = makeDefaultObject({ metatype: node.metatype as any, deletedAt: node.deletedAt }) as AnyNodeData;
     }
 
     // make edit & notify
@@ -498,8 +490,19 @@ export function editGraph(
       ((edit.type == EditType.UNARCHIVE || edit.type == EditType.RESTORE) && !graph.has(edit.nodePtr!))
     ) {
       // add
-      if (edit.newNodePartial == null) throw new Error(`missing newNodePacked in edit: ${describeEdit(edit)}`);
-      const newNode = unwrapSomeNode(edit.newNodePartial);
+      let newNode: AnyNodeData;
+      if (edit.type == EditType.CREATE || edit.type == EditType.UPSERT) {
+        if (edit.newNodePartial == null) throw new Error(`missing newNodePacked in edit: ${describeEdit(edit)}`);
+        newNode = unwrapSomeNode(edit.newNodePartial);
+      } else {
+        if (edit.oldNodePartial == null) throw new Error(`missing oldNodePacked in edit: ${describeEdit(edit)}`);
+        newNode = unwrapSomeNode(edit.oldNodePartial);
+        if (edit.type == EditType.UNARCHIVE) {
+          newNode = { ...newNode, archivedAt: undefined };
+        } else if (edit.type == EditType.RESTORE) {
+          newNode = { ...newNode, deletedAt: undefined };
+        }
+      }
       // implicit metadata
       newNode.createdAt = newNode.updatedAt = edit.editedAt;
       if (edit.epoch != null && "createdEpoch" in newNode && "updatedEpoch" in newNode) {
@@ -522,9 +525,10 @@ export function editGraph(
       // update
       let updatedNode: AnyNodeData | null;
       if (edit.type == EditType.UNARCHIVE || edit.type == EditType.RESTORE) {
-        if (edit.newNodePartial == null)
-          throw new Error(`missing new node in edit: ${describeEdit(edit)} in ${graph.describeSelf()}`);
-        updatedNode = unwrapSomeNode(edit.newNodePartial);
+        if (edit.oldNodePartial == null)
+          throw new Error(`missing old node in edit: ${describeEdit(edit)} in ${graph.describeSelf()}`);
+        updatedNode = unwrapSomeNode(edit.oldNodePartial);
+        updatedNode = { ...updatedNode, archivedAt: undefined };
       } else {
         updatedNode = graph.get(edit.nodePtr!);
         if (!updatedNode && options?.base) {
@@ -1070,8 +1074,19 @@ export function makeEditFromLog(
     if (editType == null) throw new Error(`cannot undo edit ${toCamelName(EditType, editType!)}: ${describeNode(log)}`);
     [oldNode, newNode] = [newNode, oldNode];
   }
-  // NOTE :Broken: technically we need to clear archivedAt/deletedAt for restore/unarchive, but we don't yet
-  //  because we may not have the descendant nodes anyway, and that would look weird (?). 
+
+  // shuffle oldNode/newNode :EditData
+  if (
+    editType == EditType.ARCHIVE ||
+    editType == EditType.UNARCHIVE ||
+    editType == EditType.DELETE ||
+    editType == EditType.RESTORE
+  ) {
+    oldNode = oldNode ?? newNode; // oldNode is always set
+    if (oldNode == null) throw new Error(`missing old node for ${editType}: ${describeNode(log)}`);
+
+    newNode = null; 
+  }
 
   // make edit
   const subjectPtr = options?.subjectPtr ?? userPtr.value;
