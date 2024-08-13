@@ -599,8 +599,9 @@ export class RemoteGetConnection<T extends NodeType> extends ConnectionBase<"get
         if (rep == null) return;
         if (rep.epoch < epoch.value) throw new Error(`epoch regression: ${epoch.value} -> ${rep.epoch}`); // sanity check
         epoch.value = rep.epoch;
-        editGraph(graph, rep.edits);
-        this.txBuffer.accept(rep.edits);
+        const allEdits = [...rep.edits, ...rep.cascadedEdits];
+        editGraph(graph, allEdits);
+        this.txBuffer.accept(allEdits);
       });
       editStream.responses.onError(onError);
       editStream.responses.onComplete(() => onError(new Error("edit stream closed")));
@@ -660,8 +661,9 @@ export class RemoteSearchConnection<T extends NodeType> extends ConnectionBase<"
         if (rep == null) return;
         if (rep.epoch < epoch.value) throw new Error(`epoch regression: ${epoch.value} -> ${rep.epoch}`); // sanity check
         epoch.value = rep.epoch;
-        this.txBuffer.accept(rep.edits);
-        editGraph(graph, rep.edits);
+        const allEdits = [...rep.edits, ...rep.cascadedEdits];
+        this.txBuffer.accept(allEdits);
+        editGraph(graph, allEdits);
         // apply other added/removed nodes
         for (const node of rep.addedNodes) {
           graph.add(unwrapSomeNode(node));

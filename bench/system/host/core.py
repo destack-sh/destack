@@ -144,8 +144,12 @@ def unpack_commit(
             assert edit.old_node_partial, f"missing old node data for {edit!r}"
             node = wiring.unwrap_some_node(edit.old_node_partial)
         elif edit.type in (EditType.UNARCHIVE, EditType.RESTORE):
-            assert edit.new_node_partial, f"missing new node data for {edit!r}"
-            node = wiring.unwrap_some_node(edit.new_node_partial)
+            assert edit.old_node_partial, f"missing new node data for {edit!r}"
+            node = wiring.copy_struct(wiring.unwrap_some_node(edit.old_node_partial))
+            if edit.type == EditType.UNARCHIVE:
+                node.archived_at = None
+            elif edit.type == EditType.RESTORE:
+                node.deleted_at = None
         else:
             raise RuntimeError(f"unexpected cascaded edit type {edit.type} in {edit!r}")
         assert node.parent_ptr, f"missing parent ptr for {node!r} in {edit!r}"

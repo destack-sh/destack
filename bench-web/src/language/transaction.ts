@@ -625,7 +625,7 @@ export interface TransactionBuffer {
   commit(): void | Promise<void>;
   /** Resets the current transaction and overlay. */
   reset(): void | Promise<void>;
-  /** Accepts the given edits from an external source (does not trigger committed) */
+  /** Accepts the given edits from an external source (does not trigger committed, just to mark them as done) */
   accept(edits: EditData[]): void;
   /** Subscribes to *pending* edits from this buffer */
   onPending(sub: PendingCallback): () => void;
@@ -765,7 +765,7 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
 
       // commit
       const {
-        response: { epoch, revisions },
+        response: { epoch, revisions, cascadedEdits },
       } = await client.commitTransaction(
         { edits, id: this.pendingTx.id, scope: this.scope },
         {
@@ -789,7 +789,8 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
 
       // notify on success
       // (we do not directly edit state on success, when/how/which edits to accept is up to the caller)
-      this.committedSubs.forEach((sub) => sub(edits));
+      const allEdits = [...edits, ...cascadedEdits];
+      this.committedSubs.forEach((sub) => sub(allEdits));
     } catch (error) {
       // failed
       const fail: CommitFailure = { id: this.pendingTx!.id, edits: this.pendingTx!.edits, error: error as RpcError };
@@ -1085,7 +1086,7 @@ export function makeEditFromLog(
     oldNode = oldNode ?? newNode; // oldNode is always set
     if (oldNode == null) throw new Error(`missing old node for ${editType}: ${describeNode(log)}`);
 
-    newNode = null; 
+    newNode = null;
   }
 
   // make edit
