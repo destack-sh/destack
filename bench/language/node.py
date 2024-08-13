@@ -1911,6 +1911,15 @@ def is_struct[T: Struct | Struct](obj: Any, struct_cls: type[T]) -> TypeGuard[T]
     return isinstance(obj, (Struct, Struct)) and obj.metatype == struct_cls.metatype
 
 
+# :NodeSubtype
+NODE_SUBTYPE_PROPERTY_BY_TYPE: dict[NodeType, str] = {
+    NodeType.BLOCK: "type",
+    NodeType.STEP: "type",
+    NodeType.FIELD: "zone",
+    NodeType.VIEW: "type",
+    NodeType.FILE: "coarse_type",
+}
+
 #
 # Utility types
 #

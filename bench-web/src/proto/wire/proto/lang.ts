@@ -243,6 +243,10 @@ export interface ChangeVignetteData {
      */
     title?: string;
     /**
+     * @generated from protobuf field: optional int32 subtype = 32;
+     */
+    subtype?: number;
+    /**
      * @generated from protobuf field: optional symbolx.bench.IconData icon = 35;
      */
     icon?: IconData;
@@ -11684,6 +11688,7 @@ class ChangeVignetteData$Type extends MessageType<ChangeVignetteData> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 30, name: "name", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 31, name: "title", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 32, name: "subtype", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 35, name: "icon", kind: "message", T: () => IconData }
         ]);
     }
@@ -11707,6 +11712,9 @@ class ChangeVignetteData$Type extends MessageType<ChangeVignetteData> {
                     break;
                 case /* optional string title */ 31:
                     message.title = reader.string();
+                    break;
+                case /* optional int32 subtype */ 32:
+                    message.subtype = reader.int32();
                     break;
                 case /* optional symbolx.bench.IconData icon */ 35:
                     message.icon = IconData.internalBinaryRead(reader, reader.uint32(), options, message.icon);
@@ -11732,6 +11740,9 @@ class ChangeVignetteData$Type extends MessageType<ChangeVignetteData> {
         /* optional string title = 31; */
         if (message.title !== undefined)
             writer.tag(31, WireType.LengthDelimited).string(message.title);
+        /* optional int32 subtype = 32; */
+        if (message.subtype !== undefined)
+            writer.tag(32, WireType.Varint).int32(message.subtype);
         /* optional symbolx.bench.IconData icon = 35; */
         if (message.icon)
             IconData.internalBinaryWrite(message.icon, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
@@ -26296,6 +26307,7 @@ export enum ChangeVignetteProperty {
   metatype = 1,
   name = 30,
   title = 31,
+  subtype = 32,
   icon = 35,
 }
 
@@ -27113,6 +27125,7 @@ export const ChangeVignetteDataInfo: Record<ChangeVignetteProperty, PropertyInfo
   [ChangeVignetteProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.CHANGE_VIGNETTE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [ChangeVignetteProperty.name]: { id: 30, name: 'name', component: ObjectType.CHANGE_VIGNETTE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ChangeVignetteProperty.title]: { id: 31, name: 'title', component: ObjectType.CHANGE_VIGNETTE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ChangeVignetteProperty.subtype]: { id: 32, name: 'subtype', component: ObjectType.CHANGE_VIGNETTE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ChangeVignetteProperty.icon]: { id: 35, name: 'icon', component: ObjectType.CHANGE_VIGNETTE, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
 }
 export const GraphScopeDataInfo: Record<GraphScopeProperty, PropertyInfo> = {

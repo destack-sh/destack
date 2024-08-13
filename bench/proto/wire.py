@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.08.13.0"
+VERSION = "2024.08.13.1"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -1636,6 +1636,7 @@ class ChangeVignetteData(betterproto.Message):
     metatype: "ObjectType" = betterproto.enum_field(1)
     name: Optional[str] = betterproto.string_field(30, optional=True)
     title: Optional[str] = betterproto.string_field(31, optional=True)
+    subtype: Optional[int] = betterproto.int32_field(32, optional=True)
     icon: Optional["IconData"] = betterproto.message_field(35, optional=True)
 
 

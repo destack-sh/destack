@@ -495,17 +495,7 @@ export const ENUM_ICONS_BY_TYPE: Partial<Record<EnumType, Record<any, IconData>>
   [EnumType.RESOURCE_STATUS]: ICON_BY_RESOURCE_STATUS,
 };
 
-export function getNodeIcon(
-  node:
-    | AnyNodeData
-    | SomeNodeReferenceData
-    | {
-        metatype: ObjectType;
-        type?: BlockType | ViewType | StepType;
-        primitiveType?: PrimitiveType;
-        benchType?: BenchType;
-      },
-) {
+export function getNodeIcon(node: { metatype: NodeType | ObjectType } & Partial<AnyNodeData | SomeNodeReferenceData>) {
   if ((node as any).icon != null) {
     return (node as any).icon;
   } else if (isNode(node, NodeType.BLOCK)) {
@@ -535,6 +525,6 @@ export function getNodeIcon(
   if (isNodeRef(node)) {
     return ICON_BY_NODE_TYPE[node.type] ?? DEFAULT_MISSING_ICON;
   } else {
-    return ICON_BY_NODE_TYPE[node.metatype! as unknown as NodeType] ?? DEFAULT_MISSING_ICON;
+    return ICON_BY_NODE_TYPE[node.metatype as unknown as NodeType] ?? DEFAULT_MISSING_ICON;
   }
 }

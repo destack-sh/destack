@@ -61,6 +61,7 @@ export function extractNameId(name: string): number | null {
   return match ? parseInt(match[0]) : null;
 }
 
+// :NodeSubtype
 export const NODE_NAME_DISCRIMINATORS: Partial<Record<NodeType, string>> = {
   [NodeType.FIELD]: "zone",
   [NodeType.BLOCK]: "type",
@@ -75,12 +76,13 @@ function getNodeDiscriminator(node: { metatype: ObjectType } & Partial<AnyNodeDa
   else return undefined;
 }
 
+/** Gets the node type for a node or reference */
 export function getNodeType(node: AnyNodeData | SomeNodeReferenceData): NodeType {
   if (isNodeRef(node)) return node.type;
   else return node.metatype as unknown as NodeType;
 }
 
-/** Gets the discriminating subtype for a node, if any */
+/** Gets the discriminating subtype for a node, if any :NodeSubtype */
 export function getNodeSubtype(node: AnyNodeData): FieldZone | BlockType | ViewType | StepType | any {
   const key = NODE_NAME_DISCRIMINATORS[node.metatype as unknown as NodeType];
   if (key != null) return (node as any)[key];

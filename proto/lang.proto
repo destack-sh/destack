@@ -1532,6 +1532,7 @@ message ChangeVignetteData {
   ObjectType metatype = 1;
   optional string name = 30;
   optional string title = 31;
+  optional int32 subtype = 32;
   optional IconData icon = 35;
 }
 
