@@ -29,13 +29,13 @@ import {
   type FieldData,
   type PropertyInfo,
 } from "@/proto/wire";
-import { NODE_NAME_DISCRIMINATORS, onNodeMorphed } from "@/language/node";
-import { ENUM_ICONS_BY_TYPE } from "@/ui/icon";
+import { onNodeMorphed } from "@/language/node";
+import { ICONS_BY_ENUM_TYPE } from "@/ui/icon";
 import { getViewForValueType } from "@/ui/view";
 import { log } from "@/utils/log";
 import { toCasing, Casing } from "@/utils/string";
 import type { ViewProps } from "@/views/common";
-import { ENUM_TYPES, NODE_TYPES, PAGE_BLOCK_TYPES, RUNNABLE_BLOCK_TYPES, toCamelName } from "@/language/const";
+import { ENUM_TYPES, NODE_SUBTYPE_BY_TYPE, NODE_TYPES, PAGE_BLOCK_TYPES, RUNNABLE_BLOCK_TYPES, toCamelName } from "@/language/const";
 import { makeTypeInfo, type TypeIdentity } from "@/language/field";
 
 //
@@ -159,7 +159,7 @@ const ENUM_OPTIONS_BY_TYPE: Record<EnumType, EnumOption[]> = Object.fromEntries(
 
 function makeEnumOptions<T extends EnumType>(enumType: T): EnumOption<T>[] {
   const protoEnum = ENUM_BY_TYPE[enumType];
-  const icons = ENUM_ICONS_BY_TYPE[enumType];
+  const icons = ICONS_BY_ENUM_TYPE[enumType];
   const titles = ENUM_TITLE_BY_TYPE[enumType];
   const availableEnums =
     FILTERED_ENUMS[enumType] ?? Object.values(protoEnum).filter((v) => typeof v == "number" && v > 0);
@@ -395,7 +395,7 @@ export function getInspectionLayout(
     }
   }
 
-  const discriminator = NODE_NAME_DISCRIMINATORS[metatype as unknown as NodeType];
+  const discriminator = NODE_SUBTYPE_BY_TYPE[metatype as unknown as NodeType];
   function onWrite(tx: Transaction, graph: ReadNodeGraph, node: AnyNodeData, property: PropertyInfo) {
     // trigger morph
     if (discriminator == property.name) {

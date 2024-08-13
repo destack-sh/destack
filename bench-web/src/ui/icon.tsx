@@ -1,44 +1,47 @@
 import {
-  IconKind,
-  type IconData,
-  ObjectType,
-  ViewType,
-  NodeType,
-  BlockType,
-  type AnyNodeData,
-  BlockData,
-  ViewData,
-  EnumType,
-  PrimitiveType,
-  StructType,
-  BenchType,
-  FieldZone,
-  FieldData,
-  ColorType,
-  ColorShade,
-  ColorData,
-  LogLevel,
   Alignment,
-  StepType,
   Anchor,
+  BenchType,
+  BlockType,
+  ChangeVignetteData,
+  ColorData,
+  ColorShade,
+  ColorType,
   EditType,
-  RunStatus,
-  FileType,
-  RegionArea,
-  Region,
-  ResourceStatus,
+  ENUM_BY_TYPE,
+  EnumType,
+  FieldData,
+  FieldZone,
   FileFormat,
+  FileType,
+  IconKind,
+  LogLevel,
+  NodeReferenceData,
+  NodeType,
+  ObjectType,
+  PrimitiveType,
+  PROPERTY_ENUM_BY_TYPE,
+  PROPERTY_INFOS_BY_TYPE,
+  Region,
+  RegionArea,
+  ResourceStatus,
+  RunStatus,
+  StructType,
   TypeKind,
+  ViewType,
+  type AnyNodeData,
+  type IconData,
 } from "@/proto/wire";
 import type { FunctionalComponent } from "vue";
 // fa-icons is generated with:
 // curl https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/metadata/icons.json
-//  | jq 'to_entries | map(select(.value.free | index("solid") or index("brands")) | {"id": .key, label: .value.label, unicode: .value.unicode, alias: .value.search.terms, family: (if .value.free | index("solid") then "fas" else "fab" end)})'
+//  | jq 'to_entries | map(select(.value.free | index("s@olid") or index("brands")) | {"id": .key, label: .value.label, unicode: .value.unicode, alias: .value.search.terms, family: (if .value.free | index("solid") then "fas" else "fab" end)})'
 //  > fa-icons.json
 import _AVAILABLE_FA_ICONS from "@/assets/fa-icons.json";
-import { IS_DEV, isDeveloperMode } from "@/utils/globals";
-import { getColorHex, makeColor } from "@/ui/style";
 import { isNode, isNodeRef, isStruct, type SomeNodeReferenceData } from "@/proto/wiring";
+import { getColorHex, makeColor } from "@/ui/style";
+import { IS_DEV, isDeveloperMode } from "@/utils/globals";
+import { NODE_SUBSUBTYPE_BY_TYPE, NODE_SUBTYPE_BY_TYPE } from "@/language/const";
 
 export type IconMetadata = {
   id: string;
@@ -157,7 +160,6 @@ export const ICON_BY_NODE_TYPE: Partial<Record<NodeType, IconData>> = _makeIcons
   [NodeType.MACHINE]: "fas fa-desktop",
   [NodeType.STORE]: "fas fa-database",
   [NodeType.DRIVE]: "fas fa-hdd",
-  [NodeType.FILE]: "fas fa-file",
 
   // source
   [NodeType.BRANCH]: "fas fa-code-branch",
@@ -175,14 +177,17 @@ export const ICON_BY_NODE_TYPE: Partial<Record<NodeType, IconData>> = _makeIcons
   [NodeType.MEMBERSHIP]: "fas fa-book-user",
   [NodeType.INVITE]: "fas fa-circle-nodes",
 
+  // state
+  [NodeType.FILE]: "fas fa-file",
+  [NodeType.MESSAGE]: "fas fa-message",
+  [NodeType.RECORD]: "fas fa-database",
+
   // runtime
   [NodeType.SESSION]: "fas fa-circle-play",
   [NodeType.RUN]: "fas fa-play",
   [NodeType.SIGNAL]: "fas fa-signal-stream",
   [NodeType.LOG]: "fas fa-file-alt",
   [NodeType.NOTIFICATION]: "fas fa-bell",
-  [NodeType.MESSAGE]: "fas fa-message",
-  [NodeType.RECORD]: "fas fa-database",
 });
 
 export const ICON_BY_STRUCT_TYPE: Partial<Record<StructType, IconData>> = _makeIcons<StructType>({
@@ -475,7 +480,7 @@ export const ICON_BY_RESOURCE_STATUS: Partial<Record<ResourceStatus, IconData>> 
 });
 
 // big registry of ICON_BY_* by enum type
-export const ENUM_ICONS_BY_TYPE: Partial<Record<EnumType, Record<any, IconData>>> = {
+export const ICONS_BY_ENUM_TYPE: Partial<Record<EnumType, Record<any, IconData>>> = {
   [EnumType.NODE_TYPE]: ICON_BY_NODE_TYPE,
   [EnumType.STRUCT_TYPE]: ICON_BY_STRUCT_TYPE,
   [EnumType.OBJECT_TYPE]: ICON_BY_OBJECT_TYPE,
@@ -495,36 +500,78 @@ export const ENUM_ICONS_BY_TYPE: Partial<Record<EnumType, Record<any, IconData>>
   [EnumType.RESOURCE_STATUS]: ICON_BY_RESOURCE_STATUS,
 };
 
+/** Gets the icon for a field. */
+export function getTypeIcon(node: Partial<FieldData>): IconData | undefined {
+  if (node.zone == FieldZone.OPTION) {
+    return ICON_BY_FIELD_ZONE[FieldZone.OPTION];
+  } else if (node.primitiveType != null) {
+    const icon = ICON_BY_PRIMITIVE_TYPE[node.primitiveType];
+    if (icon != null) return icon;
+  } else if (node.kind == TypeKind.BASED_NODE && node.benchType == BenchType.FIELD) {
+    return ICON_BY_BLOCK_TYPE[BlockType.CHOICE];
+  } else if (node.kind == TypeKind.OBJECT) {
+    return ICON_BY_BLOCK_TYPE[BlockType.CLASS];
+  } else if (node.benchType != null) {
+    const icon = ICON_BY_BENCH_TYPE[node.benchType];
+    if (icon != null) return icon;
+  }
+  return undefined;
+}
+
+function getNodeSubtypeIcon(nodeType: NodeType, subtypeKey: string, subtype: any): IconData | undefined {
+  const allProperties = PROPERTY_ENUM_BY_TYPE[nodeType]!;
+  const prop = PROPERTY_INFOS_BY_TYPE[nodeType][allProperties[subtypeKey as any]];
+  if (prop?.enumType != null) {
+    const enumIcons = ICONS_BY_ENUM_TYPE[prop.enumType];
+    if (enumIcons?.[subtype] != null) {
+      return enumIcons[subtype];
+    }
+  }
+  return undefined;
+}
+
+/** Gets the icon for a node or node reference. */
 export function getNodeIcon(node: { metatype: NodeType | ObjectType } & Partial<AnyNodeData | SomeNodeReferenceData>) {
   if ((node as any).icon != null) {
+    // already has specific icon
     return (node as any).icon;
-  } else if (isNode(node, NodeType.BLOCK)) {
-    const icon = ICON_BY_BLOCK_TYPE[node.type];
-    if (icon != null) return icon;
-  } else if (isNode(node, NodeType.VIEW)) {
-    const icon = ICON_BY_VIEW_TYPE[node.type];
-    if (icon != null) return icon;
   } else if (isNode(node, NodeType.FIELD)) {
-    if (node.zone == FieldZone.OPTION) {
-      return ICON_BY_FIELD_ZONE[FieldZone.OPTION];
-    } else if (node.primitiveType != null) {
-      const icon = ICON_BY_PRIMITIVE_TYPE[node.primitiveType];
-      if (icon != null) return icon;
-    } else if (node.kind == TypeKind.BASED_NODE && node.benchType == BenchType.FIELD) {
-      return ICON_BY_BLOCK_TYPE[BlockType.CHOICE];
-    } else if (node.kind == TypeKind.OBJECT) {
-      return ICON_BY_BLOCK_TYPE[BlockType.CLASS];
-    } else if (node.benchType != null) {
-      const icon = ICON_BY_BENCH_TYPE[node.benchType];
-      if (icon != null) return icon;
-    }
-  } else if (isNode(node, NodeType.FILE) || isStruct(node, StructType.FILE_REFERENCE)) {
-    if (ICON_BY_FILE_TYPE[node.coarseType] != null) return ICON_BY_FILE_TYPE[node.coarseType];
+    // more specific icons for fields
+    return getTypeIcon(node);
   }
 
-  if (isNodeRef(node)) {
-    return ICON_BY_NODE_TYPE[node.type] ?? DEFAULT_MISSING_ICON;
-  } else {
-    return ICON_BY_NODE_TYPE[node.metatype as unknown as NodeType] ?? DEFAULT_MISSING_ICON;
+  // get icon for subsubtype/subtype
+  const nodeType = isNode(node) ? (node.metatype as unknown as NodeType) : (node as NodeReferenceData).type;
+  const nodeSubsubtypeKey = NODE_SUBSUBTYPE_BY_TYPE[nodeType];
+  const nodeSubsubtype =
+    nodeSubsubtypeKey != null ? (node as ChangeVignetteData).subsubtype ?? (node as any)[nodeSubsubtypeKey] : undefined;
+  if (nodeSubsubtype != null) {
+    const nodeSubsubtypeIcon = getNodeSubtypeIcon(nodeType, nodeSubsubtypeKey!, nodeSubsubtype);
+    if (nodeSubsubtypeIcon != null) {
+      return nodeSubsubtypeIcon;
+    }
   }
+  const nodeSubtypeKey = NODE_SUBTYPE_BY_TYPE[nodeType];
+  const nodeSubtype =
+    nodeSubtypeKey != null ? (node as ChangeVignetteData).subtype ?? (node as any)[nodeSubtypeKey] : undefined;
+  if (nodeSubtype != null) {
+    const nodeSubtypeIcon = getNodeSubtypeIcon(nodeType, nodeSubtypeKey!, nodeSubtype);
+    if (nodeSubtypeIcon != null) {
+      return nodeSubtypeIcon;
+    }
+  }
+
+  // generic icon for node type
+  if (isNode(node)) {
+    if (ICON_BY_NODE_TYPE[node.metatype as unknown as NodeType] != null) {
+      return ICON_BY_NODE_TYPE[node.metatype as unknown as NodeType];
+    }
+  } else {
+    if (ICON_BY_NODE_TYPE[(node as any).type as unknown as NodeType] != null) {
+      return ICON_BY_NODE_TYPE[(node as any).type as unknown as NodeType];
+    }
+  }
+
+  // missing icon
+  return DEFAULT_MISSING_ICON;
 }

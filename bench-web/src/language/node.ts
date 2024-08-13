@@ -2,7 +2,14 @@
  * Many constants are generated into proto/wire, here some additional ones.
  */
 
-import { RUNNABLE_BLOCK_TYPES, TIMED_NODE_TYPES, toCamelName, TYPE_BLOCK_TYPES } from "@/language/const";
+import {
+  NODE_SUBSUBTYPE_BY_TYPE,
+  NODE_SUBTYPE_BY_TYPE,
+  RUNNABLE_BLOCK_TYPES,
+  TIMED_NODE_TYPES,
+  toCamelName,
+  TYPE_BLOCK_TYPES,
+} from "@/language/const";
 import { makeTypeInfo } from "@/language/field";
 import { isDescendantOf, resolveNode, type ReadNodeGraph } from "@/language/graph";
 import { getOrderKey, updateOrder } from "@/language/order";
@@ -14,6 +21,7 @@ import {
   ENUM_BY_TYPE,
   EnumType,
   FieldZone,
+  FileFormat,
   NODE_PROPERTY_ENUM_BY_TYPE,
   NodeReferenceData,
   NodeType,
@@ -41,7 +49,6 @@ import {
   newNodeId,
   nodeReference,
   toPlainNodeRef,
-  unwrapProtoOneOf,
   type AnyNodeReferenceData,
   type SomeNodeReferenceData,
   type TypedNodeReferenceData,
@@ -60,22 +67,6 @@ export function extractNameId(name: string): number | null {
   const match = name.match(/\d+$/);
   return match ? parseInt(match[0]) : null;
 }
-
-// :NodeSubtype
-export const NODE_NAME_DISCRIMINATORS: Partial<Record<NodeType, string>> = {
-  [NodeType.FIELD]: "zone",
-  [NodeType.BLOCK]: "type",
-  [NodeType.VIEW]: "type",
-  [NodeType.STEP]: "type",
-  [NodeType.FILE]: "coarseType",
-};
-
-function getNodeDiscriminator(node: { metatype: ObjectType } & Partial<AnyNodeData>): any | undefined {
-  const key = NODE_NAME_DISCRIMINATORS[node.metatype as unknown as NodeType];
-  if (key != null) return (node as any)[key];
-  else return undefined;
-}
-
 /** Gets the node type for a node or reference */
 export function getNodeType(node: AnyNodeData | SomeNodeReferenceData): NodeType {
   if (isNodeRef(node)) return node.type;
@@ -83,15 +74,22 @@ export function getNodeType(node: AnyNodeData | SomeNodeReferenceData): NodeType
 }
 
 /** Gets the discriminating subtype for a node, if any :NodeSubtype */
-export function getNodeSubtype(node: AnyNodeData): FieldZone | BlockType | ViewType | StepType | any {
-  const key = NODE_NAME_DISCRIMINATORS[node.metatype as unknown as NodeType];
+export function getNodeSubtype(node: Partial<AnyNodeData>): FieldZone | BlockType | ViewType | StepType | any {
+  const key = NODE_SUBTYPE_BY_TYPE[node.metatype as unknown as NodeType];
+  if (key != null) return (node as any)[key];
+  else return null;
+}
+
+/** Gets the discriminating subsubtype for a node, if any :NodeSubtype */
+export function getNodeSubsubtype(node: AnyNodeData): TypeKind | FileFormat | any {
+  const key = NODE_SUBSUBTYPE_BY_TYPE[node.metatype as unknown as NodeType];
   if (key != null) return (node as any)[key];
   else return null;
 }
 
 /** Gets the proper name for the discriminating subtype for a node, if any */
 export function getNodeSubtypeName(metatype: NodeType, value?: number): string | null {
-  const discriminator = NODE_NAME_DISCRIMINATORS[metatype];
+  const discriminator = NODE_SUBTYPE_BY_TYPE[metatype];
   if (discriminator != null) {
     if (value == null) throw new Error(`value is required for discriminator ${discriminator}`);
     const properties = PROPERTY_ENUM_BY_TYPE[metatype as unknown as ObjectType];
@@ -109,7 +107,7 @@ export function getNodeSubtypeName(metatype: NodeType, value?: number): string |
 
 /** Generates a node name for our :AutoNaming. */
 export function generateNodeName(metatype: NodeType, siblings: AnyNodeData[], value?: number): string {
-  const discriminator = NODE_NAME_DISCRIMINATORS[metatype];
+  const discriminator = NODE_SUBTYPE_BY_TYPE[metatype];
   if (discriminator != null && value != null) {
     if (value == null) throw new Error(`value is required for discriminator ${discriminator}`);
     const subtypeName = getNodeSubtypeName(metatype, value);
@@ -132,7 +130,7 @@ export function isGeneratedNodeName(metatype: NodeType, name: string): boolean {
   const match = name.match(/([a-zA-Z]+)(\d+)/);
   if (match == null) return false;
   const typeName = toCasing(match[1], Casing.ALL_CAPS);
-  const key = NODE_NAME_DISCRIMINATORS[metatype];
+  const key = NODE_SUBTYPE_BY_TYPE[metatype];
   if (key != null) {
     const properties = PROPERTY_ENUM_BY_TYPE[metatype as unknown as ObjectType];
     const propertyInfos = PROPERTY_INFOS_BY_TYPE[metatype as unknown as ObjectType];
@@ -147,7 +145,7 @@ export function isGeneratedNodeName(metatype: NodeType, name: string): boolean {
 export function makeNodeName(graph: ReadNodeGraph, node: { metatype: ObjectType } & Partial<AnyNodeData>): string {
   if (node.parentPtr == null) throw new Error("parentPtr is required");
   const siblings = graph.getChildren(node.parentPtr, node.metatype as unknown as NodeType);
-  return generateNodeName(node.metatype as unknown as NodeType, siblings, getNodeDiscriminator(node));
+  return generateNodeName(node.metatype as unknown as NodeType, siblings, getNodeSubtype(node));
 }
 
 /**
@@ -162,7 +160,7 @@ export function onNodeMorphed(tx: Transaction, graph: ReadNodeGraph, node: AnyNo
     const siblings = graph
       .getChildren(node.parentPtr!, node.metatype as unknown as NodeType)
       .filter((n) => n.id != node.id);
-    const name = generateNodeName(node.metatype as unknown as NodeType, siblings, getNodeDiscriminator(node));
+    const name = generateNodeName(node.metatype as unknown as NodeType, siblings, getNodeSubtype(node));
     if (name != node.name) tx.update(node, { name }, { debounce: "tick" });
   }
 
@@ -171,7 +169,7 @@ export function onNodeMorphed(tx: Transaction, graph: ReadNodeGraph, node: AnyNo
 }
 
 /**
- *   a node from the given data and assign it an id (and ck if in package).
+ * Make a node from the given data and assign it an id (and ck if in package).
  * NOTE: id/ck are only assigned if not present. To copy, use copyNode.
  */
 export function makeNode<T extends NodeType>(
@@ -535,12 +533,9 @@ export function createField(
     name = makeNodeName(graph, { metatype: ObjectType.FIELD, parentPtr, zone: zone });
   }
 
-  // reset icon if it's the default one (so we can easily change the type & icon will auto-change too)
-  if (
-    fieldIn?.icon != null &&
-    fieldIn?.icon?.faName == getNodeIcon({ metatype: ObjectType.FIELD, ...fieldIn })?.faName
-  ) {
-    fieldIn = { ...fieldIn, icon: undefined };
+  // assign icon if not set
+  if (fieldIn?.icon == null) {
+    fieldIn = { ...fieldIn, icon: getNodeIcon({ metatype: ObjectType.FIELD, ...fieldIn }) };
   }
 
   // assign color if it's an option

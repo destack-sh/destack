@@ -13,7 +13,7 @@ import {
   type AnyNodeData,
 } from "@/proto/wire";
 import type { ReadNodeGraph } from "@/language/graph";
-import { ENUM_ICONS_BY_TYPE } from "@/ui/icon";
+import { ICONS_BY_ENUM_TYPE } from "@/ui/icon";
 import { isEnumType, isNodeType } from "@/language/const";
 import type { ViewProps } from "@/views/common";
 import { FULL_WIDTH_VIEW_TYPES, getEnumOptions } from "@/ui/inspect";
@@ -82,9 +82,9 @@ export function getViewForValueType(type: Omit<TypeIdentity, "kind"> & Partial<T
       return { viewType: VIEW_TYPE_BY_BENCH_TYPE[type.benchType]!, props: { valueType: makeTypeInfo(type) } };
     } else if (isEnumType(type.benchType)) {
       // enum type -> picker
-      if (getEnumOptions(type.benchType).length <= 5 && ENUM_ICONS_BY_TYPE[type.benchType] != null) {
+      if (getEnumOptions(type.benchType).length <= 5 && ICONS_BY_ENUM_TYPE[type.benchType] != null) {
         // prefer inline picker for small enums
-        const variant = ENUM_ICONS_BY_TYPE[type.benchType] != null ? Variant.STEALTH : Variant.COMPACT;
+        const variant = ICONS_BY_ENUM_TYPE[type.benchType] != null ? Variant.STEALTH : Variant.COMPACT;
         return {
           viewType: ViewType.PICKER,
           props: { valueType: makeTypeInfo(type), variant, isInline: true },

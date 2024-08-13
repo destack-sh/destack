@@ -173,3 +173,16 @@ export function toCamelName<T extends object>(cls: T, key: any) {
   if (name == null) throw new Error(`invalid key into ${cls}: ${key}`);
   return toCasing(name, Casing.CAMEL, true);
 }
+
+// :NodeSubtype
+export const NODE_SUBTYPE_BY_TYPE: Partial<Record<NodeType, string>> = {
+  [NodeType.FIELD]: "zone",
+  [NodeType.BLOCK]: "type",
+  [NodeType.VIEW]: "type",
+  [NodeType.STEP]: "type",
+  [NodeType.FILE]: "coarseType",
+};
+export const NODE_SUBSUBTYPE_BY_TYPE: Partial<Record<NodeType, string>> = {
+  [NodeType.FIELD]: "kind",
+  [NodeType.FILE]: "format",
+};
