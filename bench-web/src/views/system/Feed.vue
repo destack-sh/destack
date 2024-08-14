@@ -41,7 +41,14 @@ import {
   type PreparedSearchConnection,
 } from "@/system/connection";
 import { makeExpression, resolveSubject, type EditSubject } from "@/language/expression";
-import { ICON_BY_NODE_TYPE, ICON_BY_RUN_STATUS, IconInline, getNodeIcon, makeIcon } from "@/ui/icon";
+import {
+  DEFAULT_SYSTEM_ICON,
+  ICON_BY_NODE_TYPE,
+  ICON_BY_RUN_STATUS,
+  IconInline,
+  getNodeIcon,
+  makeIcon,
+} from "@/ui/icon";
 import { ACTIVE_RUN_STATUSES, TERMINAL_RUN_STATUSES, toCamelName } from "@/language/const";
 import { canvas, inspectionPtr, pkgConnection } from "@/system/space";
 import { user } from "@/system/user";
@@ -307,12 +314,6 @@ const items = computed<FeedItem[]>(() => {
 });
 const itemRefs: Ref<Record<string, HTMLElement>> = ref({});
 
-function toSubjectIcon(item: FeedItem) {
-  return item.createdBy != null
-    ? getNodeIcon(item.createdBy)
-    : ICON_BY_NODE_TYPE[item.it.metatype as unknown as NodeType];
-}
-
 //
 // Interaction
 //
@@ -440,7 +441,10 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
               <template v-if="item.kind == 'log-edit'">
                 <!-- Subject -->
                 <button class="flex-shrink-0">
-                  <IconInline v-bind="toSubjectIcon(item)" class="mr-1 w-5 text-gray-700" />
+                  <IconInline
+                    v-bind="item.createdBy != null ? getNodeIcon(item.createdBy) : DEFAULT_SYSTEM_ICON"
+                    class="mr-1 w-5 text-gray-700"
+                  />
                   <span v-if="item.it.createdByPtr != null">
                     {{ (item.createdBy as any)?.name ?? toCamelName(NodeType, item.it.createdByPtr.type) }}
                   </span>
@@ -470,7 +474,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
                     v-bind="
                       item.it.vignette?.icon ??
                       (item.node != null ? getNodeIcon(item.node) : null) ??
-                      (item.it.vignette != null ? getNodeIcon({ ...item.it.vignette, type: item.nodeType }) : null) ??
+                      (item.it.vignette != null ? getNodeIcon(item.it.vignette, { nodeType: item.nodeType }) : null) ??
                       ICON_BY_NODE_TYPE[item.nodeType]
                     "
                     class="mr-1 w-5 text-gray-700 group-hover/node:text-primary-900"
@@ -511,7 +515,10 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
                 <!-- Subject -->
                 by
                 <button class="flex-shrink-0">
-                  <IconInline v-bind="toSubjectIcon(item)" class="mr-1 w-5 text-gray-700" />
+                  <IconInline
+                    v-bind="item.createdBy != null ? getNodeIcon(item.createdBy) : DEFAULT_SYSTEM_ICON"
+                    class="mr-1 w-5 text-gray-700"
+                  />
                   <span>{{ (item.createdBy as any)?.name ?? toCamelName(NodeType, item.it.createdByPtr?.type) }}</span>
                 </button>
                 <!-- Duration -->
