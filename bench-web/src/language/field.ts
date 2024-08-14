@@ -35,6 +35,7 @@ import {
   NodeReferenceData,
 } from "@/proto/wire";
 import {
+  contentEquals,
   describeNode,
   isNode,
   isStruct,
@@ -43,7 +44,7 @@ import {
   toPlainNodeRef,
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
-import { getNodeIcon, makeIcon } from "@/ui/icon";
+import { getNodeIcon, getTypeIcon, makeIcon } from "@/ui/icon";
 import { getEnumTitle } from "@/ui/inspect";
 import { getRandomColorType } from "@/ui/style";
 import { encodeB64VLQ, decodeB64VLQ, assertNever } from "@/utils/functools";
@@ -301,6 +302,31 @@ export function resolveFields(type: TypeIdentity, graph: ReadNodeGraph): FieldDa
   else return fields.filter((f) => f.zone == type.baseFieldZone);
 }
 
+function getFieldNameFromType(graph: ReadNodeGraph, field: Partial<FieldData>): string {
+  if (field == null) throw new Error(`missing type for field in ${describeNode(field)}`);
+  if (field.kind == TypeKind.PRIMITIVE) {
+    return getEnumTitle(EnumType.PRIMITIVE_TYPE, field.primitiveType!);
+  } else if (field.kind == TypeKind.STRUCT || field.kind == TypeKind.NODE || field.kind == TypeKind.ENUM) {
+    if (field.benchType == BenchType.FILE && field.constraint?.fileFormat != null) {
+      return getEnumTitle(EnumType.FILE_FORMAT, field.constraint.fileFormat);
+    } else if (field.benchType == BenchType.FILE && field.constraint?.fileType != null) {
+      return getEnumTitle(EnumType.FILE_TYPE, field.constraint.fileType);
+    } else {
+      return getEnumTitle(EnumType.BENCH_TYPE, field.benchType!);
+    }
+  } else if (field.kind == TypeKind.BASED_NODE || field.kind == TypeKind.OBJECT || field.kind == TypeKind.ALIAS) {
+    if (field?.baseTypePtr == null) throw new Error(`missing base type for field in ${describeNode(field)}`);
+    const baseType = graph.getOrError(field.baseTypePtr);
+    if ((baseType as any).name != null) {
+      return (baseType as any).name;
+    } else {
+      return getEnumTitle(EnumType.BENCH_TYPE, field.benchType!);
+    }
+  } else {
+    throw new Error(`unexpected type kind: ${field.kind}`);
+  }
+}
+
 /** Create a Field relative to a Field or a Block. */
 export function createField(
   tx: Transaction,
@@ -363,30 +389,8 @@ export function createField(
   if (fieldIn?.name != null) {
     name = fieldIn.name;
   } else if (zone != FieldZone.OPTION) {
-    // derive name from type
-    if (fieldIn == null) throw new Error(`missing type for field in ${describeNode(target)}`);
-    if (kind == TypeKind.PRIMITIVE) {
-      name = getEnumTitle(EnumType.PRIMITIVE_TYPE, fieldIn.primitiveType!);
-    } else if (kind == TypeKind.STRUCT || kind == TypeKind.NODE || kind == TypeKind.ENUM) {
-      if (fieldIn.benchType == BenchType.FILE && fieldIn.constraint?.fileFormat != null) {
-        name = getEnumTitle(EnumType.FILE_FORMAT, fieldIn.constraint.fileFormat);
-      } else if (fieldIn.benchType == BenchType.FILE && fieldIn.constraint?.fileType != null) {
-        name = getEnumTitle(EnumType.FILE_TYPE, fieldIn.constraint.fileType);
-      } else {
-        name = getEnumTitle(EnumType.BENCH_TYPE, fieldIn.benchType!);
-      }
-    } else if (kind == TypeKind.BASED_NODE || kind == TypeKind.OBJECT || kind == TypeKind.ALIAS) {
-      if (fieldIn?.baseTypePtr == null) throw new Error(`missing base type for field in ${describeNode(target)}`);
-      const baseType = graph.getOrError(fieldIn.baseTypePtr);
-      if ((baseType as any).name != null) {
-        name = (baseType as any).name;
-      } else {
-        name = getEnumTitle(EnumType.BENCH_TYPE, fieldIn.benchType!);
-      }
-    } else {
-      throw new Error(`unexpected type kind: ${kind}`);
-    }
     // make name unique (bumping number if needed)
+    name = getFieldNameFromType(graph, fieldIn!);
     const siblings = graph.getChildren(parentPtr, NodeType.FIELD);
     let i = 2;
     while (siblings.some((s) => s.name == name)) {
@@ -396,7 +400,7 @@ export function createField(
     name = makeNodeName(graph, { metatype: ObjectType.FIELD, parentPtr, zone: zone });
   }
 
-  // assign color icon if it's an option
+  // assign color icon if it's an option :FieldIcon
   if (fieldIn?.icon == null) {
     if (zone == FieldZone.OPTION) {
       const occupiedColors = siblings.map((f) => f.icon?.color?.type ?? ColorType.GRAY);
@@ -423,4 +427,37 @@ export function createField(
     orderKey,
   });
   return field;
+}
+
+/** Updates the field type to a new type identity. */
+export function updateFieldType(tx: Transaction, graph: ReadNodeGraph, field: FieldData, type: TypeIdentity | null) {
+  const update: Partial<FieldData> = {};
+  // update changed properties
+  for (const key of ["kind", "primitiveType", "benchType", "baseTypePtr", "constraint"] as (keyof TypeIdentity)[]) {
+    if (field[key] != type?.[key]) {
+      update[key] = type?.[key];
+    }
+  }
+
+  if (type != null) {
+    // update name if it was generated
+    const oldName = getFieldNameFromType(graph, field);
+    if (field.name.startsWith(oldName)) {
+      // make it unique (bumping number if needed)
+      update.name = getFieldNameFromType(graph, type);
+      const siblings = graph.getChildren(field.parentPtr!, NodeType.FIELD);
+      let i = 2;
+      while (siblings.some((s) => s.name == update.name)) {
+        update.name = `${update.name}${i++}`;
+      }
+    }
+
+    // update icon if it was the default one
+    const oldIcon = getNodeIcon(field);
+    if (field.icon == null || (oldIcon != null && contentEquals(field.icon, oldIcon))) {
+      update.icon = getTypeIcon(type);
+    }
+  }
+
+  tx.update(field, update, { debounce: "tick" });
 }

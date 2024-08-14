@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.08.14.0"
+VERSION = "2024.08.14.1"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -1856,7 +1856,7 @@ class IconData(betterproto.Message):
     kind: "IconKind" = betterproto.enum_field(30)
     emoji: Optional[str] = betterproto.string_field(31, optional=True)
     fa_name: Optional[str] = betterproto.string_field(33, optional=True)
-    vs_name: Optional[str] = betterproto.string_field(34, optional=True)
+    vsc_name: Optional[str] = betterproto.string_field(34, optional=True)
     color: Optional["ColorData"] = betterproto.message_field(40, optional=True)
 
 

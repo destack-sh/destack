@@ -53,7 +53,7 @@ import {
   type SomeNodeReferenceData,
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
-import { getNodeIcon, makeIcon } from "@/ui/icon";
+import { getNodeIcon, getTypeIcon, makeIcon } from "@/ui/icon";
 import { getEnumTitle } from "@/ui/inspect";
 import { getRandomColorType } from "@/ui/style";
 import { generateOrderKey } from "@/utils/fractional";

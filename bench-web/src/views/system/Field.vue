@@ -71,7 +71,7 @@ defineExpose<ViewExposed>({ self, id, actions });
         : [variant != Variant.STEALTH ? 'border-gray-200' : 'border-gray-200', 'hover:border-gray-300'],
     ]"
   >
-    <!-- TODO :UX!: Field is annoying (should be double-click to edit, change type in contextmenu, etc.) -->
+    <!-- TODO :UX: Field is annoying (should be double-click to edit, change type in contextmenu, indicate metadata, ...) -->
     <IconInline
       v-tooltip="{ small: true, text: `Change icon` } as TooltipInfo"
       v-menu="

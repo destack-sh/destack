@@ -35,8 +35,15 @@ import { getViewForValueType } from "@/ui/view";
 import { log } from "@/utils/log";
 import { toCasing, Casing } from "@/utils/string";
 import type { ViewProps } from "@/views/common";
-import { ENUM_TYPES, NODE_SUBTYPE_BY_TYPE, NODE_TYPES, PAGE_BLOCK_TYPES, RUNNABLE_BLOCK_TYPES, toCamelName } from "@/language/const";
-import { makeTypeInfo, type TypeIdentity } from "@/language/field";
+import {
+  ENUM_TYPES,
+  NODE_SUBTYPE_BY_TYPE,
+  NODE_TYPES,
+  PAGE_BLOCK_TYPES,
+  RUNNABLE_BLOCK_TYPES,
+  toCamelName,
+} from "@/language/const";
+import { makeTypeInfo, updateFieldType, type TypeIdentity } from "@/language/field";
 
 //
 // Enums
@@ -219,7 +226,7 @@ type InspectedProperty = {
   props?: ViewProps;
   isFullWidth?: boolean;
   read?: (node: AnyNodeData) => any;
-  write?: (tx: Transaction, node: AnyNodeData, value: any) => void;
+  write?: (tx: Transaction, graph: ReadNodeGraph, node: AnyNodeData, value: any) => void;
 };
 type InspectedPropertyIn = Pick<InspectedProperty, "title" | "viewType" | "props" | "isFullWidth" | "read" | "write">;
 type InspectionLayout = {
@@ -228,7 +235,7 @@ type InspectionLayout = {
 };
 
 // NOTE: we (try to) only use metatype/type to avoid recomputing inspection layouts on every change (might have to revisit)
-// NOTE :Architecture: the inspection layout generation is a bit clumsy
+// NOTE :Architecture: the inspection layout generation is pretty clumsy
 function getInspectionInfo(metatype: ObjectType, type: any): Record<string, InspectionCategory> | null {
   if (metatype == ObjectType.FIELD) {
     if (type == FieldZone.OPTION) {
@@ -236,7 +243,6 @@ function getInspectionInfo(metatype: ObjectType, type: any): Record<string, Insp
     }
     const properties = {
       Common: [
-        FieldProperty.zone,
         {
           from: 40,
           to: 43,
@@ -245,18 +251,8 @@ function getInspectionInfo(metatype: ObjectType, type: any): Record<string, Insp
             viewType: ViewType.PICKER,
             props: { valueType: makeTypeInfo({ isRequired: true, benchType: BenchType.TYPE_INFO }) },
             read: (node: FieldData) => node,
-            write: (tx: Transaction, node: FieldData, value: TypeIdentity | null) => {
-              tx.update(
-                node,
-                {
-                  kind: value?.kind,
-                  primitiveType: value?.primitiveType,
-                  benchType: value?.benchType,
-                  baseTypePtr: value?.baseTypePtr,
-                  constraint: value?.constraint,
-                },
-                { debounce: "tick" },
-              );
+            write: (tx: Transaction, graph: ReadNodeGraph, node: FieldData, value: TypeIdentity | null) => {
+              updateFieldType(tx, graph, node, value);
             },
           }),
         },
@@ -267,7 +263,7 @@ function getInspectionInfo(metatype: ObjectType, type: any): Record<string, Insp
     return properties;
   } else if (metatype == ObjectType.BLOCK) {
     const properties: Record<string, InspectionCategory> = {
-      Common: [BlockProperty.type],
+      Common: [],
       Run: [],
     };
     if (RUNNABLE_BLOCK_TYPES.includes(type) || PAGE_BLOCK_TYPES.includes(type)) {
@@ -284,17 +280,8 @@ function getInspectionInfo(metatype: ObjectType, type: any): Record<string, Insp
           viewType: ViewType.PICKER,
           props: { valueType: makeTypeInfo({ benchType: BenchType.TYPE_INFO }) },
           read: (node: AnyNodeData) => (node as BlockData).valueType,
-          write: (tx: Transaction, node: AnyNodeData, value: TypeIdentity | null) => {
-            const valueType =
-              value == null
-                ? undefined
-                : makeTypeInfo({
-                    kind: value.kind,
-                    primitiveType: value.primitiveType,
-                    benchType: value.benchType,
-                    baseTypePtr: value.baseTypePtr,
-                    constraint: value.constraint,
-                  });
+          write: (tx: Transaction, graph: ReadNodeGraph, node: AnyNodeData, value: TypeIdentity | null) => {
+            const valueType = value == null ? undefined : makeTypeInfo(value);
             tx.update(node as BlockData, { valueType }, { debounce: "tick" });
           },
         }),

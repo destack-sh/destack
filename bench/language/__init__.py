@@ -144,6 +144,8 @@ from .view import (
     Variant,
     View,
     ViewType,
+    icon,
+    to_icon,
 )
 
 __all__ = [
@@ -320,6 +322,7 @@ __all__ = [
     "constraint",
     "get_node",
     "get_node_or_error",
+    "icon",
     "md",
     "parse_path",
     "project",
@@ -328,6 +331,7 @@ __all__ = [
     "render_path",
     "render_stmt",
     "text",
+    "to_icon",
     "to_type",
     "to_type_scalar",
 ]
