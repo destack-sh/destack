@@ -1,6 +1,9 @@
+import { toCamelName } from "@/language/const";
+import { type ReadNodeGraph, type WriteNodeGraph } from "@/language/graph";
+import { makeNode } from "@/language/node";
+import { unpackBuiltinObject, type JsonValue } from "@/language/value";
 import { getCachedGraphClient, HUMANIZED_OPERATION_STATUS } from "@/proto/services";
 import {
-  AccessType,
   BlockProperty,
   ChangeCategory,
   CommitTransactionRequest,
@@ -16,6 +19,7 @@ import {
   Struct as ProtoStruct,
   TextData,
   Timestamp,
+  ViewData,
   type AnyNodeData,
   type EditData,
   type NodeTypeMapping,
@@ -25,7 +29,6 @@ import {
   describeEdit,
   describeNode,
   EMPTY_SCOPE,
-  fillDefaultObject,
   makeDefaultObject,
   makeScope,
   nodeReference,
@@ -35,18 +38,15 @@ import {
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
 import { nonce, origin, userOrNullPtr, userPtr } from "@/system/client";
-import { type ReadNodeGraph, type WriteNodeGraph } from "@/language/graph";
 import { makeIcon } from "@/ui/icon";
-import { makeNode } from "@/language/node";
 import { toaster } from "@/ui/toast";
-import { unpackBuiltinObject, type JsonValue } from "@/language/value";
+import { assertNever } from "@/utils/functools";
 import { IS_DEV } from "@/utils/globals";
 import { log } from "@/utils/log";
 import { toValueRef } from "@/utils/ref";
 import { uuidt } from "@/utils/uuidt";
 import type { RpcError } from "grpc-web";
 import { nextTick, ref, shallowRef, toRef, triggerRef, watch, type MaybeRef, type Ref } from "vue";
-import { toCamelName } from "@/language/const";
 
 export type DebounceLevel = "tick" | "short" | "long";
 const DEBOUNCE_LEVELS: Record<"short" | "long", number> = {
@@ -78,6 +78,10 @@ function newEditId(): string {
 function newTransactionId(): string {
   return uuidt({ nonce: NONCE_POSTFIX });
 }
+
+//
+// Transaction
+//
 
 /** A transaction on the Bench state graph. */
 export type Transaction = {
@@ -126,7 +130,7 @@ export class TransactionState {
   readonly benchPtr: TypedNodeReferenceData<NodeType.BENCH> | null;
   readonly edits: EditData[] = [];
 
-  readonly _debouncedUpdates: Record<string, EditData> = {};
+  readonly _debouncedUpdatesByNodeId: Record<string, EditData> = {};
   readonly _subs: Array<(edit: EditData, meta: TransactionMeta, debounce: DebounceLevel | null) => void> = [];
   readonly _txByConnectionId: Record<number, TransactionBuilder> = {};
 
@@ -134,6 +138,11 @@ export class TransactionState {
     this.id = id;
     this.scope = scope;
     this.benchPtr = scope.benchId != null ? nodeReference(NodeType.BENCH, scope.benchId) : null;
+  }
+
+  clearDebounce(nodeId: string) {
+    if (!this._debouncedUpdatesByNodeId[nodeId]) return;
+    delete this._debouncedUpdatesByNodeId[nodeId];
   }
 }
 
@@ -377,7 +386,7 @@ export class TransactionBuilder implements TransactionMeta, Transaction {
       properties.push(propInfo);
     }
 
-    if (!options?.debounce || !this.state._debouncedUpdates[node.id]) {
+    if (!options?.debounce || !this.state._debouncedUpdatesByNodeId[node.id]) {
       // create new edit
       const oldNode = { ...node } as T;
       const newNode = { ...oldNode, ...update } as T;
@@ -401,13 +410,13 @@ export class TransactionBuilder implements TransactionMeta, Transaction {
         editedAt: Timestamp.now(),
       };
       if (options?.debounce) {
-        this.state._debouncedUpdates[node.id] = edit;
+        this.state._debouncedUpdatesByNodeId[node.id] = edit;
       }
       this.state.edits.push(edit);
       this._notifyEdit(edit, options?.debounce ?? null);
     } else {
       // merge into existing edit & notify directly :DebouncedUpdate
-      const edit = this.state._debouncedUpdates[node.id];
+      const edit = this.state._debouncedUpdatesByNodeId[node.id];
       if (edit.oldNodePartial == null || edit.newNodePartial == null) {
         throw new Error(`missing old/new node in debounced edit: ${describeEdit(edit)}`);
       }
@@ -599,6 +608,10 @@ export function editGraph(
   }
 }
 
+//
+// Transaction buffers
+//
+
 type CommitFailure = {
   id: string;
   edits: EditData[];
@@ -609,7 +622,7 @@ type PendingCallback = (
     | { type: "add"; meta: TransactionMeta; edits: EditData[]; debounce: DebounceLevel | null }
     | { type: "reset"; meta: TransactionMeta; edits: EditData[] },
 ) => void;
-type CommittedCallback = (edits: EditData[]) => void;
+type CommitCallback = (event: { connectionIdByEditId: Record<string, number>; edits: EditData[] }) => void;
 
 /**
  * A transaction buffer provides Transactions and applies them to the graph.
@@ -625,12 +638,12 @@ export interface TransactionBuffer {
   commit(): void | Promise<void>;
   /** Resets the current transaction and overlay. */
   reset(): void | Promise<void>;
-  /** Accepts the given edits from an external source (does not trigger committed, just to mark them as done) */
-  accept(edits: EditData[]): void;
+  /** Accepts the given edits from an external source (does not trigger commit, just to mark them as successfully committed) */
+  acceptCommitted(edits: EditData[]): void;
   /** Subscribes to *pending* edits from this buffer */
-  onPending(sub: PendingCallback): () => void;
+  subscribePending(sub: PendingCallback): () => void;
   /** Subscribes to *committed* edits from this buffer */
-  onCommitted(sub: CommittedCallback): () => void;
+  subscribeCommit(sub: CommitCallback): () => void;
   /** Force retries the given commit (for debugging) */
   retry?(id: string): Promise<void>;
 
@@ -653,7 +666,7 @@ export class ImmediateTransactionBuffer implements TransactionBuffer {
   public readonly scope: GraphScopeData;
   public readonly graph: ReadNodeGraph & WriteNodeGraph;
   public readonly isPaused: Ref<boolean> = ref(false);
-  private _committedSubs: Array<CommittedCallback> = [];
+  private _committedSubs: Array<CommitCallback> = [];
   private _currentTx: TransactionBuilder | null = null; // always keep a single transaction
 
   constructor(id: number, scope: GraphScopeData, graph: ReadNodeGraph & WriteNodeGraph) {
@@ -684,23 +697,23 @@ export class ImmediateTransactionBuffer implements TransactionBuffer {
       // apply edit directly
       editGraph(this.graph, [edit]);
       // notify
-      this._committedSubs.forEach((sub) => sub([edit]));
+      this._committedSubs.forEach((sub) => sub({ connectionIdByEditId: {}, edits: [edit] }));
       // 'reset'
       newTx.state.edits.length = 0;
     });
     this._currentTx = newTx;
   }
 
-  accept(edits: EditData[]) {
+  acceptCommitted(edits: EditData[]) {
     // nothing to do
   }
 
-  onPending(sub: PendingCallback): () => void {
+  subscribePending(sub: PendingCallback): () => void {
     // nothing to do
     return () => {};
   }
 
-  onCommitted(sub: CommittedCallback): () => void {
+  subscribeCommit(sub: CommitCallback): () => void {
     this._committedSubs.push(sub);
     return () => {
       const idx = this._committedSubs.indexOf(sub);
@@ -729,7 +742,7 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
   public readonly scope: GraphScopeData;
   public readonly isPaused: Ref<boolean> = ref(false);
   private pendingSubs: Array<PendingCallback> = [];
-  private committedSubs: Array<CommittedCallback> = [];
+  private committedSubs: Array<CommitCallback> = [];
   private currentTx: Transaction | null;
   private pendingTx: Transaction | null;
   private pendingEditsById: Record<string, EditData> = {};
@@ -788,9 +801,9 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
       }
 
       // notify on success
-      // (we do not directly edit state on success, when/how/which edits to accept is up to the caller)
+      // (we do not directly edit state on success, when/how/which edits to 'accept' is up to the caller)
       const allEdits = [...edits, ...cascadedEdits];
-      this.committedSubs.forEach((sub) => sub(allEdits));
+      this.committedSubs.forEach((sub) => sub({ connectionIdByEditId: null, edits: allEdits }));
     } catch (error) {
       // failed
       const fail: CommitFailure = { id: this.pendingTx!.id, edits: this.pendingTx!.edits, error: error as RpcError };
@@ -802,13 +815,7 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
       toaster.error({
         title: HUMANIZED_OPERATION_STATUS[(error as RpcError).code] ?? "Synchronization error",
         text: `Saving ${this.pendingTx?.edits.length ?? 0} edits failed: ${IS_DEV ? (error as Error).message : (error as RpcError).code}`,
-        actions: [
-          {
-            title: "Retry",
-            icon: makeIcon("fas fa-redo"),
-            action: () => this.retry(fail.id),
-          },
-        ],
+        actions: [{ title: "Retry", icon: makeIcon("fas fa-redo"), action: () => this.retry(fail.id) }],
       });
       this.reset();
     } finally {
@@ -853,7 +860,7 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
     return tx;
   }
 
-  accept(edits: EditData[]): void {
+  acceptCommitted(edits: EditData[]): void {
     let pendingEditsChanged = false;
     for (const edit of edits) {
       if (this.pendingEditsById[edit.id]) {
@@ -885,7 +892,7 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
     }
   }
 
-  onPending(sub: PendingCallback): () => void {
+  subscribePending(sub: PendingCallback): () => void {
     this.pendingSubs.push(sub);
     return () => {
       const idx = this.pendingSubs.indexOf(sub);
@@ -893,7 +900,7 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
     };
   }
 
-  onCommitted(sub: CommittedCallback): () => void {
+  subscribeCommit(sub: CommitCallback): () => void {
     this.committedSubs.push(sub);
     return () => {
       const idx = this.committedSubs.indexOf(sub);
@@ -920,6 +927,10 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
   }
 }
 
+//
+// Transaction buffer management
+//
+
 let bufferId = 0;
 export function newBufferId() {
   return bufferId++;
@@ -933,18 +944,15 @@ export function getAllTransactionBuffers(): TransactionBuffer[] {
 
 /**
  * Gets the transaction buffer for the given scope (non-exclusively).
- * Currently we maintain one shared buffer per Bench and one for other global nodes.
+ * We maintain one transaction buffer per Bench and one for other universal nodes (outside of Benches).
  * */
-export async function getTransactionBuffer(scope: GraphScopeData): Promise<TransactionBuffer> {
+export function getTransactionBuffer(scope: GraphScopeData): TransactionBuffer {
   if (scope.benchId) {
     if (!txBuffersByBenchId.value[scope.benchId]) {
-      // synchronize so that only one buffer is created per bench even when called concurrently
-      if (!txBuffersByBenchId.value[scope.benchId]) {
-        const buffer = new RemoteTransactionBuffer(newBufferId(), scope);
-        txBuffersByBenchId.value[scope.benchId] = buffer;
-        triggerRef(txBuffersByBenchId);
-        watchTransactionBuffer(buffer);
-      }
+      const buffer = new RemoteTransactionBuffer(newBufferId(), scope);
+      txBuffersByBenchId.value[scope.benchId] = buffer;
+      triggerRef(txBuffersByBenchId);
+      watchTransactionBuffer(buffer);
     }
     return txBuffersByBenchId.value[scope.benchId];
   } else {
@@ -956,15 +964,17 @@ export async function getTransactionBuffer(scope: GraphScopeData): Promise<Trans
 function watchTransactionBuffer(buffer: TransactionBuffer) {
   let scheduledCommit = false;
   let scheduledDebouncedCommit: any | null = null;
+  let scheduledDebouncedCommitLevel: DebounceLevel | null = null;
 
   // watch pending edit
-  buffer.onPending((event) => {
+  buffer.subscribePending((event) => {
     if (event.type != "add") return; // only react to added edits
-    if (scheduledCommit) return; // already wanted
+    if (scheduledCommit) return; // already scheduled/committing
     if (event.debounce != null && event.debounce != "tick") {
       // schedule commit after debounce
       if (scheduledDebouncedCommit != null) clearTimeout(scheduledDebouncedCommit);
       scheduledDebouncedCommit = setTimeout(scheduleCommit, DEBOUNCE_LEVELS[event.debounce]);
+      scheduledDebouncedCommitLevel = event.debounce;
     } else {
       // commit on next tick
       scheduleCommit();
@@ -978,9 +988,12 @@ function watchTransactionBuffer(buffer: TransactionBuffer) {
     nextTick(() => {
       scheduledCommit = false;
       if (scheduledDebouncedCommit != null) clearTimeout(scheduledDebouncedCommit);
+      scheduledDebouncedCommitLevel = null;
       if (!buffer.isCommitting && !buffer.isPaused.value) {
+        // commit if there is something to commit
         if (buffer.isDirty) buffer.commit();
       } else {
+        // can't commit right now, try again in a bit
         setTimeout(() => nextTick(scheduleCommit), 50);
       }
     });
@@ -1019,6 +1032,10 @@ export function setupTransactionManagement() {
   window.addEventListener("beforeunload", (e) => flushTransactionBuffers());
 }
 
+//
+// Edit handling
+//
+
 export const EDIT_TYPES = [
   EditType.CREATE,
   EditType.UPSERT,
@@ -1042,6 +1059,122 @@ export const UNDO_EDIT_BY_TYPE: Partial<Record<EditType, EditType>> = {
   [EditType.RESTORE]: EditType.DELETE,
 };
 
+/**
+ * A stack of edits for undo/redo.
+ * NOTE :UX: it would be cool to use the edit logs to provide cross-device undo/redo
+ * */
+class EditStack {
+  private _editStack: EditData[] = [];
+  private _editsById: Record<string, EditData> = {};
+  private _connectionIdByEdit: Record<string, number> = {};
+  private _undoStackEditsByEdit: Record<string, EditData> = {};
+  private _undoIndex: number = 0;
+  private _filter: (edit: EditData) => boolean;
+
+  constructor(filter: (edit: EditData) => boolean) {
+    this._filter = filter;
+  }
+
+  get canUndo() {
+    return this._undoIndex > 0;
+  }
+
+  get canRedo() {
+    return this._undoIndex < this._editStack.length;
+  }
+
+  /**
+   * Apply the inverse of the last edit to the stack. Noop if impossible.
+   * If there are multiple successive edits belonging to the same change, all of them are undone.
+   */
+  undo() {
+    // nocheckin
+    const edit = this._editStack[this._undoIndex - 1];
+    if (edit == null) return;
+    const undoEdit = { ...edit, id: newEditId() };
+    invertEdit(undoEdit, "undo");
+    this._undoIndex--;
+    this._undoStackEditsByEdit[undoEdit.id] = undoEdit;
+    const buffer = getTransactionBuffer(edit.scope ?? EMPTY_SCOPE);
+    console.log("undo", { edit, buffer, editStack: this._editStack, undoIndex: this._undoIndex, undoEdit });
+    buffer.tx.addEdit(undoEdit);
+  }
+
+  /**
+   * Reapply the next undone edit (technically, the inverse of the inverse). Noop if impossible.
+   * If there are multiple successive edits belonging to the same change, all of them are redone.
+   */
+  redo() {
+    // nocheckin
+    console.log("redo", { editStack: this._editStack, undoIndex: this._undoIndex });
+  }
+
+  subscribeToBuffer(buffer: TransactionBuffer): () => void {
+    // NOTE :UX: EditStack should handle pending edits as well (not just committed)
+    const sub = buffer.subscribeCommit((event) => {
+      let hasNewEdits = false;
+      for (const edit of event.edits) {
+        if (this._filter(edit) && !this._editsById[edit.id] && !this._undoStackEditsByEdit[edit.id]) {
+          this._editStack.push(edit);
+          this._editsById[edit.id] = edit;
+          hasNewEdits = true;
+        }
+      }
+      if (hasNewEdits) {
+        this._undoIndex = this._editStack.length;
+        this._undoStackEditsByEdit = {};
+      }
+    });
+    return sub;
+  }
+}
+
+// one edit stack for all bench tx buffers
+// NOTE :UX: we currently only have one shared edit stack, should probably be per view root?
+const editStack = new EditStack((e) => e.category != ChangeCategory.SPACE);
+const editStackSubs: Array<() => void> = [];
+watch(txBuffersByBenchId, () => {
+  editStackSubs.forEach((sub) => sub());
+  Object.values(txBuffersByBenchId.value).forEach((buffer) => {
+    const sub = editStack.subscribeToBuffer(buffer);
+    editStackSubs.push(sub);
+  });
+});
+
+/** Gets the relevant edit stack in the given view. */
+export function getEditStack(graph: ReadNodeGraph, focusedView: ViewData | null): EditStack {
+  // only one for now (see above)
+  return editStack;
+}
+
+/** Inverts an edit as an undo/redo of the given edit (in place). */
+function invertEdit(edit: EditData, mode: "undo" | "redo"): void {
+  const undoType = UNDO_EDIT_BY_TYPE[edit.type!];
+  if (undoType == null) throw new Error(`cannot undo edit ${toCamelName(EditType, edit.type!)}}`);
+  if (mode == "undo") {
+    edit.type = undoType;
+    [edit.oldNodePartial, edit.newNodePartial] = [edit.newNodePartial, edit.oldNodePartial];
+  } else if (mode == "redo") {
+    const redoType = UNDO_EDIT_BY_TYPE[undoType!];
+    if (redoType == null) throw new Error(`cannot redo edit ${toCamelName(EditType, undoType!)}}`);
+    edit.type = redoType;
+  } else {
+    assertNever(mode);
+  }
+
+  // shuffle oldNode/newNode :EditData
+  if (
+    edit.type == EditType.ARCHIVE ||
+    edit.type == EditType.UNARCHIVE ||
+    edit.type == EditType.DELETE ||
+    edit.type == EditType.RESTORE
+  ) {
+    edit.oldNodePartial = edit.oldNodePartial ?? edit.newNodePartial; // oldNode is set, newNode is unset
+    if (edit.oldNodePartial == null) throw new Error(`missing old node for ${edit.type}}`);
+    edit.newNodePartial = undefined;
+  }
+}
+
 /** Turns a logged edit back into an edit (to redo/undo) */
 export function makeEditFromLog(
   log: LogData,
@@ -1054,39 +1187,20 @@ export function makeEditFromLog(
   // unpack
   if (log.nodePtr == null) throw new Error(`missing node for ${log.type}: ${describeNode(log)}`);
   const nodeType = log.nodePtr.type;
-  let editType = log.type as unknown as EditType | undefined;
+  const editType = log.type as unknown as EditType | undefined;
   if (!EDIT_TYPES.includes(editType!)) throw new Error(`unexpected edit ${editType}: ${describeNode(log)}`);
-  let oldNode =
+  const oldNode =
     log.oldNodePacked != null
       ? (makeDefaultObject(
           unpackBuiltinObject(unpackProtoJson(log.oldNodePacked), nodeType as unknown as ObjectType),
         ) as AnyNodeData)
       : null;
-  let newNode =
+  const newNode =
     log.newNodePacked != null
       ? (makeDefaultObject(
           unpackBuiltinObject(unpackProtoJson(log.newNodePacked), nodeType as unknown as ObjectType),
         ) as AnyNodeData)
       : null;
-
-  // invert if undo
-  if (mode == "undo") {
-    editType = UNDO_EDIT_BY_TYPE[editType!];
-    if (editType == null) throw new Error(`cannot undo edit ${toCamelName(EditType, editType!)}: ${describeNode(log)}`);
-    [oldNode, newNode] = [newNode, oldNode];
-  }
-
-  // shuffle oldNode/newNode :EditData
-  if (
-    editType == EditType.ARCHIVE ||
-    editType == EditType.UNARCHIVE ||
-    editType == EditType.DELETE ||
-    editType == EditType.RESTORE
-  ) {
-    oldNode = oldNode ?? newNode; // oldNode is always set
-    if (oldNode == null) throw new Error(`missing old node for ${editType}: ${describeNode(log)}`);
-    newNode = null;
-  }
 
   // make edit
   const subjectPtr = options?.subjectPtr ?? userPtr.value;
@@ -1107,5 +1221,9 @@ export function makeEditFromLog(
     editedAt: Timestamp.now(),
     undoOfPtr: mode == "undo" ? toPlainNodeRef(log) : undefined,
   };
+
+  // invert edit
+  invertEdit(edit, mode);
+
   return edit;
 }

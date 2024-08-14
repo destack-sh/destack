@@ -255,6 +255,11 @@ export class ViewCanvas {
     return Object.values(this.focusedViewComponentsById.value);
   }
 
+  /** The currently focused View */
+  get focusedView(): ViewData | null {
+    return this.focusedViewPtr.value != null ? this.graph.get(this.focusedViewPtr.value) : null;
+  }
+
   /** Gets the node ptr of the given view */
   getViewNodePtr(view: ViewComponent, element?: HTMLElement | ViewComponent | null): SomeNodeReferenceData | null {
     if (element != null) {
