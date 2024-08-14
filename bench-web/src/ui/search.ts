@@ -14,7 +14,7 @@ import {
   type IconData,
   type NodeReferenceData,
 } from "@/proto/wire";
-import { toNodeRef, toPlainNodeRef } from "@/proto/wiring";
+import { isNode, toNodeRef, toPlainNodeRef, unwrapProtoOneOf } from "@/proto/wiring";
 import { ACTION_BUILTIN_IDS_INDEX, IMPLEMENTED_ACTIONS, type Action } from "@/ui/action";
 import type { NodeKey, ReadNodeGraph } from "@/language/graph";
 import { AVAILABLE_FA_ICONS, DEFAULT_ENUM_ICON, DEFAULT_MISSING_ICON, getNodeIcon, type IconMetadata } from "@/ui/icon";
@@ -126,12 +126,21 @@ function walkGraph(options: {
       pathParts.push(ancestors[i].title);
     }
     const path = pathParts.map((p) => p ?? VISIBLE_UNNAMED).join(VISIBLE_SEPARATOR);
-    const pathToIndex = pathParts.map((p) => p ?? HIDDEN_UNNAMED).join(HIDDEN_SEPARATOR); // lengths must match for highlighting
+    const pathToIndex = pathParts.map((p) => p ?? HIDDEN_UNNAMED).join(HIDDEN_SEPARATOR);
     const ref = toPlainNodeRef(node);
 
     if (ref.id == null) throw new Error(`node has no id: ${node}`);
 
     // make item
+    let title: string = (node as any).title ?? (node as any).name ?? "";
+    if (isNode(node, NodeType.VIEW) && node.nodePtr?.oneofKind != null) {
+      // take title from wrapped node for node views :ViewNodeTitles
+      //  (maybe we should indicate the real name and index that too somehow?)
+      const referencedNode = options.graph.get(unwrapProtoOneOf(node.nodePtr)!);
+      if (referencedNode != null) {
+        title = (referencedNode as any).title ?? (referencedNode as any).name ?? "";
+      }
+    }
     const item: NodeItem = {
       ...(ref as NodeReferenceData & { id: string }),
       metatype: "node",
@@ -139,7 +148,7 @@ function walkGraph(options: {
       node,
       path,
       pathToIndex,
-      title: (node as any).title ?? (node as any).name ?? "",
+      title,
       icon: getNodeIcon(node) ?? DEFAULT_MISSING_ICON,
       ancestors: ancestors,
     };

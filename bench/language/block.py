@@ -110,9 +110,7 @@ class Block(SourceNode[BlockData]):
     is_paused: bool = p_regular(
         64, default=False, description="Whether to pause any runtime activity within this block."
     )
-    # is_method? (bound to instances of parent)
-    # is_unique? (by name in some scope, like in Godot)
-    # is_frozen? (read-only in instances of template)
+    # is_test? (for testing)
 
     blocks: NodeList["Block"] = p_node_children(NodeType.BLOCK)
     badges: NodeList["Badge"] = p_node_children(NodeType.BADGE)

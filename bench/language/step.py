@@ -162,6 +162,7 @@ class Step(SourceNode[StepData]):
     )
 
     # flags
+    # is_test? (for testing)
     ...
 
     steps: NodeList["Step"] = p_node_children(NodeType.STEP)
