@@ -135,7 +135,7 @@ function walkGraph(options: {
     let title: string = (node as any).title ?? (node as any).name ?? "";
     if (isNode(node, NodeType.VIEW) && node.nodePtr?.oneofKind != null) {
       // take title from wrapped node for node views :ViewNodeTitles
-      //  (maybe we should indicate the real name and index that too somehow?)
+      //  (NOTE :UX: maybe we should indicate the real name and index that too somehow?)
       const referencedNode = options.graph.get(unwrapProtoOneOf(node.nodePtr)!);
       if (referencedNode != null) {
         title = (referencedNode as any).title ?? (referencedNode as any).name ?? "";
