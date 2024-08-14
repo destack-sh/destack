@@ -14,6 +14,7 @@ import {
   Orientation,
   SelectionData,
   SelectionKind,
+  SelectionTarget,
   SpaceData,
   StructType,
   TreeViewPreset,
@@ -1065,6 +1066,7 @@ export function makeSelection(
   nodes = Array.isArray(nodes) ? nodes : [nodes];
   return {
     metatype: ObjectType.SELECTION,
+    target: SelectionTarget.NODE,
     kind: SelectionKind.LIST,
     nodesPtr: nodes.map((n) => (isNodeRef(n) ? n : toNodeRef(n as AnyNodeData))),
   };
@@ -1082,7 +1084,7 @@ export function expandSelection(
   nodes: (AnyNodeData | NodeReferenceData)[],
 ): SelectionData {
   return {
-    ...(selection ?? { metatype: ObjectType.SELECTION, kind: SelectionKind.LIST }),
+    ...(selection ?? { metatype: ObjectType.SELECTION, target: SelectionTarget.NODE, kind: SelectionKind.LIST }),
     nodesPtr: [...(selection?.nodesPtr ?? []), ...nodes.map((n) => (isNodeRef(n) ? n : toNodeRef(n as AnyNodeData)))],
   };
 }

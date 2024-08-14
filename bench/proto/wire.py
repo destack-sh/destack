@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.08.14.1"
+VERSION = "2024.08.14.2"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -253,6 +253,7 @@ class BenchType(betterproto.Enum):
     SORT_MODE = 20206
     SORT_OP = 20207
     SELECTION_KIND = 20208
+    SELECTION_TARGET = 20209
     PATH_TOKEN_TYPE = 20210
     STEP_TYPE = 20500
     PIPE_TYPE = 20501
@@ -518,6 +519,7 @@ class EnumType(betterproto.Enum):
     SORT_MODE = 20206
     SORT_OP = 20207
     SELECTION_KIND = 20208
+    SELECTION_TARGET = 20209
     PATH_TOKEN_TYPE = 20210
     STEP_TYPE = 20500
     PIPE_TYPE = 20501
@@ -1206,6 +1208,12 @@ class SelectionKind(betterproto.Enum):
     UNSPECIFIED = 0
     RANGE = 1
     LIST = 2
+
+
+class SelectionTarget(betterproto.Enum):
+    UNSPECIFIED = 0
+    NODE = 1
+    VALUE = 2
 
 
 class SessionStatus(betterproto.Enum):
@@ -2203,9 +2211,10 @@ class SelectionData(betterproto.Message):
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     kind: "SelectionKind" = betterproto.enum_field(30)
-    nodes_ptr: List["NodeReferenceData"] = betterproto.message_field(31)
-    from_node_ptr: Optional["NodeReferenceData"] = betterproto.message_field(32, optional=True)
-    to_node_ptr: Optional["NodeReferenceData"] = betterproto.message_field(33, optional=True)
+    target: "SelectionTarget" = betterproto.enum_field(31)
+    nodes_ptr: List["NodeReferenceData"] = betterproto.message_field(40)
+    from_node_ptr: Optional["NodeReferenceData"] = betterproto.message_field(41, optional=True)
+    to_node_ptr: Optional["NodeReferenceData"] = betterproto.message_field(42, optional=True)
 
 
 @dataclass(eq=False, repr=False)
