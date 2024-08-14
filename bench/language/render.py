@@ -30,7 +30,7 @@ from bench.language.property import Property
 from bench.language.setup import ENUM_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE
 from bench.language.text import Text
 from bench.language.value import ScalarValue, SomeValue, ValueObject
-from bench.language.view import View
+from bench.language.view import Icon, View, reverse_icon
 
 if TYPE_CHECKING:
     pass
@@ -608,3 +608,14 @@ class CodeRenderer(BuiltinObjectRenderer[Code]):
     @override
     def render(self, renderer: "Renderer", obj: Code) -> str:
         return f"code({obj.to_string()!r})"
+
+
+@_renderer(StructType.ICON)
+class IconRenderer(BuiltinObjectRenderer[Icon]):
+    @override
+    def render(self, renderer: "Renderer", obj: Icon) -> str:
+        simplified = reverse_icon(obj)
+        if isinstance(simplified, str):
+            return f"icon({simplified!r})"
+        else:
+            return super().render(renderer, obj)

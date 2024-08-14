@@ -1712,7 +1712,7 @@ message IconData {
   IconKind kind = 30;
   optional string emoji = 31;
   optional string fa_name = 33;
-  optional string vs_name = 34;
+  optional string vsc_name = 34;
   optional ColorData color = 40;
 }
 

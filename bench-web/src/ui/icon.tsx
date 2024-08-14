@@ -42,6 +42,7 @@ import { isNode, isNodeRef, isStruct, type SomeNodeReferenceData } from "@/proto
 import { getColorHex, makeColor } from "@/ui/style";
 import { IS_DEV, isDeveloperMode } from "@/utils/globals";
 import { NODE_SUBSUBTYPE_BY_TYPE, NODE_SUBTYPE_BY_TYPE } from "@/language/const";
+import type { TypeIdentity } from "@/language/field";
 
 export type IconMetadata = {
   id: string;
@@ -501,9 +502,9 @@ export const ICONS_BY_ENUM_TYPE: Partial<Record<EnumType, Record<any, IconData>>
   [EnumType.RESOURCE_STATUS]: ICON_BY_RESOURCE_STATUS,
 };
 
-/** Gets the icon for a field. */
-export function getTypeIcon(node: Partial<FieldData>): IconData | undefined {
-  if (node.zone == FieldZone.OPTION) {
+/** Resolves the icon for a field :FieldIcon */
+export function getTypeIcon(node: Partial<FieldData> | TypeIdentity): IconData | undefined {
+  if ((node as FieldData).zone == FieldZone.OPTION) {
     return ICON_BY_FIELD_ZONE[FieldZone.OPTION];
   } else if (node.primitiveType != null) {
     const icon = ICON_BY_PRIMITIVE_TYPE[node.primitiveType];

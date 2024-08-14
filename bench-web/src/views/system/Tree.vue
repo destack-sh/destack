@@ -360,7 +360,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
             class="rounded py-0.5 text-gray-400 hover:text-primary-900"
             @click="
               () => {
-                // NOTE: we assume that pkg == pkgGraph root here (may be incorrect later)
+                // NOTE: we assume that pkgGraph root == pkg (may be incorrect later)
                 if (pkg == null) return;
                 const block = createBlock(pkgConnection.tx, pkgGraph, {
                   anchor: 'inside',
@@ -457,7 +457,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
           <div
             v-if="activeDropZone?.targetId == node.id && activeDropZone?.anchor != 'center'"
             class="absolute z-10 h-1 rounded-sm bg-primary-900"
-            :class="[activeDropZone?.anchor == 'start' ? (i == 0 ? 'top-0' : '-top-[4px]') : '-bottom-[3px]']"
+            :class="[activeDropZone?.anchor == 'start' ? (i == 0 ? 'top-0' : '-top-[4px]') : '-bottom-[2px]']"
             :style="{
               left: 8 + depth * DEPTH_OFFSET + 'px',
               width: 'calc(100% - ' + (8 + depth * DEPTH_OFFSET) + 'px)',

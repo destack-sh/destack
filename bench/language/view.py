@@ -533,7 +533,7 @@ class Icon(Struct):
     # content
     emoji: Optional[str] = p_internal(31, require=False)
     fa_name: Optional[str] = p_internal(33, require=False)
-    vs_name: Optional[str] = p_internal(34, require=False)
+    vsc_name: Optional[str] = p_internal(34, require=False)
     # style
     color: Optional["Color"] = p_internal(40, require=False, array=False, struct=StructType.COLOR)
 
@@ -546,6 +546,7 @@ IconIn = Icon | str
 
 
 def to_icon(icon: IconIn) -> Icon:
+    """Turn something that could be an Icon into an Icon."""
     if isinstance(icon, str):
         if icon.startswith("fa-"):
             return Icon(kind=IconKind.FONT_AWESOME, fa_name=icon)
@@ -554,6 +555,20 @@ def to_icon(icon: IconIn) -> Icon:
     else:
         return icon
 
+
+def reverse_icon(icon: Icon) -> IconIn:
+    """Turn an Icon back into something simpler that can be turned back into an Icon."""
+    if icon.kind == IconKind.FONT_AWESOME:
+        assert icon.fa_name, f"no fa_name for {icon!r}"
+        return icon.fa_name
+    elif icon.kind == IconKind.EMOJI:
+        assert icon.emoji, f"no emoji for {icon!r}"
+        return icon.emoji
+    else:
+        return icon
+
+
+icon = to_icon
 
 #
 # Custom view state :NodeInheritance

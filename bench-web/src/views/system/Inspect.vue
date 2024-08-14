@@ -127,7 +127,7 @@ defineExpose<ViewExposed>({ self });
               @update:model-value="
                 (value: any) => {
                   // not sure how to :DebounceNestedValue properly (different types with different debounce needs)
-                  if (write != null) write(pkgConnection.tx, inspectedNode!, value);
+                  if (write != null) write(pkgConnection.tx, pkgGraph, inspectedNode!, value);
                   else pkgConnection.tx.update(inspectedNode!, { [protoName!]: value }, { debounce: 'short' });
                   inspectionLayout?.onWrite?.(pkgConnection.tx, pkgGraph, inspectedNode!, property);
                 }

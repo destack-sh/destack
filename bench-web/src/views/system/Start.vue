@@ -194,7 +194,7 @@ defineExpose<ViewExposed>({ self });
             :value-type="outputType"
             is-inline
             :variant="Variant.STEALTH"
-            :model-value="lastRunOfBase?.outputsPacked"
+            :model-value="unpackProtoJson(lastRunOfBase.outputsPacked)"
           />
         </div>
         <!-- Error (last run) -->
