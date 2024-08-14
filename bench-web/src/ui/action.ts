@@ -17,7 +17,7 @@ import { isDeveloperMode, packagePtr } from "@/system/client";
 import { makeIcon } from "@/ui/icon";
 import { canvas, hasLocalBench, inspectionPtr, pkg, pkgConnection, pkgGraph, space } from "@/system/space";
 import { toaster } from "@/ui/toast";
-import { getAllTransactionBuffers } from "@/language/transaction";
+import { getAllTransactionBuffers, getEditStack } from "@/language/transaction";
 import { packBuiltinObjectJson } from "@/language/value";
 import { generateOrderKey } from "@/utils/fractional";
 import { type FilterPrefix } from "@/utils/functools";
@@ -499,18 +499,6 @@ declareActionMap<"common">({
     text: "Create a new item below this item",
   },
   // edit
-  "common.history.undo": {
-    icon: "fas fa-arrow-turn-left",
-    title: "Undo",
-    text: "Undo the last action or edit",
-    shortcuts: ["mod+z"],
-  },
-  "common.history.redo": {
-    icon: "fas fa-arrow-turn-right",
-    title: "Redo",
-    text: "Redo the last undone action or edit",
-    shortcuts: ["mod+shift+z"],
-  },
   "common.edit.rename": {
     icon: "fas fa-pencil",
     title: "Rename",
@@ -733,6 +721,32 @@ declareActionMap<"common">({
     icon: "fas fa-turn-down-left",
     title: "Find Implementations",
     text: "Find implementations of this node",
+  },
+});
+
+// history
+contributeActionMap<"common.history">({
+  "common.history.undo": {
+    icon: "fas fa-arrow-turn-left",
+    title: "Undo",
+    text: "Undo the last action or edit",
+    shortcuts: ["mod+z"],
+    isEnabled: () => getEditStack(canvas.graph, canvas.focusedView).canUndo,
+    action: (action, ctx) => {
+      const stack = getEditStack(canvas.graph, canvas.focusedView);
+      stack.undo();
+    },
+  },
+  "common.history.redo": {
+    icon: "fas fa-arrow-turn-right",
+    title: "Redo",
+    text: "Redo the last undone action or edit",
+    shortcuts: ["mod+shift+z"],
+    isEnabled: () => getEditStack(canvas.graph, canvas.focusedView).canRedo,
+    action: (action, ctx) => {
+      const stack = getEditStack(canvas.graph, canvas.focusedView);
+      stack.redo();
+    },
   },
 });
 
