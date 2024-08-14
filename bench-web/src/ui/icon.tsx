@@ -146,6 +146,7 @@ export const DEFAULT_VIEW_ICON = makeIcon({ faName: "fas fa-browser" });
 export const DEFAULT_USER_ICON = makeIcon({ faName: "fas fa-user-tie" });
 export const DEFAULT_BENCH_ICON = makeIcon({ faName: "fas fa-circle-dot" });
 export const DEFAULT_ENUM_ICON = makeIcon({ faName: "fas fa-caret-circle-down" });
+export const DEFAULT_SYSTEM_ICON = makeIcon({ faName: "fas fa-gear" });
 
 export const ICON_BY_NODE_TYPE: Partial<Record<NodeType, IconData>> = _makeIcons<NodeType>({
   // universe
@@ -518,6 +519,7 @@ export function getTypeIcon(node: Partial<FieldData>): IconData | undefined {
   return undefined;
 }
 
+/** Gets the icon for a node 'subtype' (enum property) with the given name/value.  */
 function getNodeSubtypeIcon(nodeType: NodeType, subtypeKey: string, subtype: any): IconData | undefined {
   const allProperties = PROPERTY_ENUM_BY_TYPE[nodeType]!;
   const prop = PROPERTY_INFOS_BY_TYPE[nodeType][allProperties[subtypeKey as any]];
@@ -531,7 +533,10 @@ function getNodeSubtypeIcon(nodeType: NodeType, subtypeKey: string, subtype: any
 }
 
 /** Gets the icon for a node or node reference. */
-export function getNodeIcon(node: { metatype: NodeType | ObjectType } & Partial<AnyNodeData | SomeNodeReferenceData>) {
+export function getNodeIcon(
+  node: ({ metatype: NodeType | ObjectType } & Partial<AnyNodeData | SomeNodeReferenceData>) | ChangeVignetteData,
+  options?: { nodeType?: NodeType },
+) {
   if ((node as any).icon != null) {
     // already has specific icon
     return (node as any).icon;
@@ -541,7 +546,8 @@ export function getNodeIcon(node: { metatype: NodeType | ObjectType } & Partial<
   }
 
   // get icon for subsubtype/subtype
-  const nodeType = isNode(node) ? (node.metatype as unknown as NodeType) : (node as NodeReferenceData).type;
+  const nodeType =
+    options?.nodeType ?? (isNode(node) ? (node.metatype as unknown as NodeType) : (node as NodeReferenceData).type);
   const nodeSubsubtypeKey = NODE_SUBSUBTYPE_BY_TYPE[nodeType];
   const nodeSubsubtype =
     nodeSubsubtypeKey != null ? (node as ChangeVignetteData).subsubtype ?? (node as any)[nodeSubsubtypeKey] : undefined;
@@ -562,14 +568,8 @@ export function getNodeIcon(node: { metatype: NodeType | ObjectType } & Partial<
   }
 
   // generic icon for node type
-  if (isNode(node)) {
-    if (ICON_BY_NODE_TYPE[node.metatype as unknown as NodeType] != null) {
-      return ICON_BY_NODE_TYPE[node.metatype as unknown as NodeType];
-    }
-  } else {
-    if (ICON_BY_NODE_TYPE[(node as any).type as unknown as NodeType] != null) {
-      return ICON_BY_NODE_TYPE[(node as any).type as unknown as NodeType];
-    }
+  if (ICON_BY_NODE_TYPE[nodeType] != null) {
+    return ICON_BY_NODE_TYPE[nodeType];
   }
 
   // missing icon

@@ -22,7 +22,7 @@ for IMAGE in ${IMAGES[@]}; do
   docker build . \
     --target $IMAGE \
     --platform linux/amd64 \
-    -f infra/docker/Dockerfile.bench \
+    -f bench-infra/docker/Dockerfile.bench \
     -t symbolx/$IMAGE:latest \
     -t symbolx/$IMAGE:$GIT_COMMIT \
     -t symbolx/$IMAGE:$VERSION \
