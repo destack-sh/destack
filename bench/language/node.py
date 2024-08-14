@@ -1314,7 +1314,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     Nodes resolve references to each through a super graph composed of *currently loaded* NodeGraphs.
     """
 
-    # NOTE :Architecture: we may want some better :NodeInheritance mechanism since some
+    # NOTE :Architecture!: we may need a better :NodeInheritance mechanism since some
     #  nodes have different subtypes with varying properties (e.g. Step or View).
     # Mapping their union into database columns is annoying since there may be many,
     #  so maybe this has to wait until we have custom storage engines.

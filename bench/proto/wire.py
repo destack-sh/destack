@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.08.13.2"
+VERSION = "2024.08.14.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -3526,11 +3526,11 @@ class ViewData(betterproto.Message):
     selection: Optional["SelectionData"] = betterproto.message_field(70, optional=True)
     focus: Optional["SelectionData"] = betterproto.message_field(71, optional=True)
     expansion: Optional["SelectionData"] = betterproto.message_field(72, optional=True)
-    is_visible: Optional[bool] = betterproto.bool_field(80, optional=True)
-    is_disabled: Optional[bool] = betterproto.bool_field(81, optional=True)
-    is_input: Optional[bool] = betterproto.bool_field(82, optional=True)
-    is_inline: Optional[bool] = betterproto.bool_field(83, optional=True)
-    is_loading: Optional[bool] = betterproto.bool_field(90, optional=True)
+    is_hidden: bool = betterproto.bool_field(80)
+    is_disabled: bool = betterproto.bool_field(81)
+    is_input: bool = betterproto.bool_field(82)
+    is_inline: bool = betterproto.bool_field(83)
+    is_loading: bool = betterproto.bool_field(90)
 
 
 @dataclass(eq=False, repr=False)

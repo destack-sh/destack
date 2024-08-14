@@ -3148,11 +3148,11 @@ message ViewData {
   optional SelectionData selection = 70;
   optional SelectionData focus = 71;
   optional SelectionData expansion = 72;
-  optional bool is_visible = 80;
-  optional bool is_disabled = 81;
-  optional bool is_input = 82;
-  optional bool is_inline = 83;
-  optional bool is_loading = 90;
+  bool is_hidden = 80;
+  bool is_disabled = 81;
+  bool is_input = 82;
+  bool is_inline = 83;
+  bool is_loading = 90;
 }
 
 message SomeNodeData {

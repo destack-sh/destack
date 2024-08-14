@@ -5710,25 +5710,25 @@ export interface ViewData {
      */
     expansion?: SelectionData;
     /**
-     * @generated from protobuf field: optional bool is_visible = 80;
+     * @generated from protobuf field: bool is_hidden = 80;
      */
-    isVisible?: boolean;
+    isHidden: boolean;
     /**
-     * @generated from protobuf field: optional bool is_disabled = 81;
+     * @generated from protobuf field: bool is_disabled = 81;
      */
-    isDisabled?: boolean;
+    isDisabled: boolean;
     /**
-     * @generated from protobuf field: optional bool is_input = 82;
+     * @generated from protobuf field: bool is_input = 82;
      */
-    isInput?: boolean;
+    isInput: boolean;
     /**
-     * @generated from protobuf field: optional bool is_inline = 83;
+     * @generated from protobuf field: bool is_inline = 83;
      */
-    isInline?: boolean;
+    isInline: boolean;
     /**
-     * @generated from protobuf field: optional bool is_loading = 90;
+     * @generated from protobuf field: bool is_loading = 90;
      */
-    isLoading?: boolean;
+    isLoading: boolean;
 }
 /**
  * @generated from protobuf message symbolx.bench.SomeNodeData
@@ -23913,11 +23913,11 @@ class ViewData$Type extends MessageType<ViewData> {
             { no: 70, name: "selection", kind: "message", T: () => SelectionData },
             { no: 71, name: "focus", kind: "message", T: () => SelectionData },
             { no: 72, name: "expansion", kind: "message", T: () => SelectionData },
-            { no: 80, name: "is_visible", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 81, name: "is_disabled", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 82, name: "is_input", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 83, name: "is_inline", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 90, name: "is_loading", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
+            { no: 80, name: "is_hidden", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 81, name: "is_disabled", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 82, name: "is_input", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 83, name: "is_inline", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 90, name: "is_loading", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<ViewData>): ViewData {
@@ -23933,6 +23933,11 @@ class ViewData$Type extends MessageType<ViewData> {
         message.name = "";
         message.orderKey = "";
         message.nodePtr = { oneofKind: undefined };
+        message.isHidden = false;
+        message.isDisabled = false;
+        message.isInput = false;
+        message.isInline = false;
+        message.isLoading = false;
         if (value !== undefined)
             reflectionMergePartial<ViewData>(this, message, value);
         return message;
@@ -24078,19 +24083,19 @@ class ViewData$Type extends MessageType<ViewData> {
                 case /* optional symbolx.bench.SelectionData expansion */ 72:
                     message.expansion = SelectionData.internalBinaryRead(reader, reader.uint32(), options, message.expansion);
                     break;
-                case /* optional bool is_visible */ 80:
-                    message.isVisible = reader.bool();
+                case /* bool is_hidden */ 80:
+                    message.isHidden = reader.bool();
                     break;
-                case /* optional bool is_disabled */ 81:
+                case /* bool is_disabled */ 81:
                     message.isDisabled = reader.bool();
                     break;
-                case /* optional bool is_input */ 82:
+                case /* bool is_input */ 82:
                     message.isInput = reader.bool();
                     break;
-                case /* optional bool is_inline */ 83:
+                case /* bool is_inline */ 83:
                     message.isInline = reader.bool();
                     break;
-                case /* optional bool is_loading */ 90:
+                case /* bool is_loading */ 90:
                     message.isLoading = reader.bool();
                     break;
                 default:
@@ -24232,20 +24237,20 @@ class ViewData$Type extends MessageType<ViewData> {
         /* optional symbolx.bench.SelectionData expansion = 72; */
         if (message.expansion)
             SelectionData.internalBinaryWrite(message.expansion, writer.tag(72, WireType.LengthDelimited).fork(), options).join();
-        /* optional bool is_visible = 80; */
-        if (message.isVisible !== undefined)
-            writer.tag(80, WireType.Varint).bool(message.isVisible);
-        /* optional bool is_disabled = 81; */
-        if (message.isDisabled !== undefined)
+        /* bool is_hidden = 80; */
+        if (message.isHidden !== false)
+            writer.tag(80, WireType.Varint).bool(message.isHidden);
+        /* bool is_disabled = 81; */
+        if (message.isDisabled !== false)
             writer.tag(81, WireType.Varint).bool(message.isDisabled);
-        /* optional bool is_input = 82; */
-        if (message.isInput !== undefined)
+        /* bool is_input = 82; */
+        if (message.isInput !== false)
             writer.tag(82, WireType.Varint).bool(message.isInput);
-        /* optional bool is_inline = 83; */
-        if (message.isInline !== undefined)
+        /* bool is_inline = 83; */
+        if (message.isInline !== false)
             writer.tag(83, WireType.Varint).bool(message.isInline);
-        /* optional bool is_loading = 90; */
-        if (message.isLoading !== undefined)
+        /* bool is_loading = 90; */
+        if (message.isLoading !== false)
             writer.tag(90, WireType.Varint).bool(message.isLoading);
         let u = options.writeUnknownFields;
         if (u !== false)
@@ -25887,7 +25892,7 @@ export enum ViewProperty {
   selection = 70,
   focus = 71,
   expansion = 72,
-  isVisible = 80,
+  isHidden = 80,
   isDisabled = 81,
   isInput = 82,
   isInline = 83,
@@ -27737,7 +27742,7 @@ export const ServerDataInfo: Record<ServerProperty, PropertyInfo> = {
   [ServerProperty.region]: { id: 35, name: 'region', component: ObjectType.SERVER, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.status]: { id: 36, name: 'status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.08.13.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.08.14.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.minCpu]: { id: 50, name: 'min_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 4.0 }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.maxCpu]: { id: 51, name: 'max_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 4.0 }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -27766,7 +27771,7 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.region]: { id: 35, name: 'region', component: ObjectType.STORE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.status]: { id: 36, name: 'status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.08.13.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.08.14.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 50, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 51, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -27792,7 +27797,7 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.region]: { id: 35, name: 'region', component: ObjectType.MACHINE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.status]: { id: 36, name: 'status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.08.13.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.08.14.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 42, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 43, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -28132,11 +28137,11 @@ export const ViewDataInfo: Record<ViewProperty, PropertyInfo> = {
   [ViewProperty.selection]: { id: 70, name: 'selection', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SELECTION },
   [ViewProperty.focus]: { id: 71, name: 'focus', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SELECTION },
   [ViewProperty.expansion]: { id: 72, name: 'expansion', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SELECTION },
-  [ViewProperty.isVisible]: { id: 80, name: 'is_visible', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: true, isRuntime: true, isWired: true, isStored: true },
-  [ViewProperty.isDisabled]: { id: 81, name: 'is_disabled', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRuntime: true, isWired: true, isStored: true },
-  [ViewProperty.isInput]: { id: 82, name: 'is_input', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRuntime: true, isWired: true, isStored: true },
-  [ViewProperty.isInline]: { id: 83, name: 'is_inline', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRuntime: true, isWired: true, isStored: true },
-  [ViewProperty.isLoading]: { id: 90, name: 'is_loading', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRuntime: true, isWired: true, isStored: true },
+  [ViewProperty.isHidden]: { id: 80, name: 'is_hidden', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ViewProperty.isDisabled]: { id: 81, name: 'is_disabled', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ViewProperty.isInput]: { id: 82, name: 'is_input', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ViewProperty.isInline]: { id: 83, name: 'is_inline', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ViewProperty.isLoading]: { id: 90, name: 'is_loading', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const StepDataInfo: Record<StepProperty, PropertyInfo> = {
   [StepProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.STEP, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
