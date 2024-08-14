@@ -73,6 +73,10 @@ const { state, updateState, useStateProp } = useViewState({
 });
 const lastRunPtr = useStateProp("lastRunPtr", undefined) as Ref<TypedNodeReferenceData<NodeType.RUN> | undefined>;
 const { node: lastRun } = useNode({ name: "start.lastRun", type: "search", live: true, nodePtr: lastRunPtr });
+const lastRunOfBase = computed(() => {
+  if (lastRunPtr.value == null || lastRunPtr.value.baseCk != runnablePtr.value?.ck) return null;
+  else return lastRun.value;
+});
 const feedState = computed(
   (): FeedViewStateData => ({
     // pre-filter to only runs of this node
@@ -183,33 +187,33 @@ defineExpose<ViewExposed>({ self });
         <!-- Divider -->
         <div class="mx-auto my-2 w-full"><div class="h-[1px] w-full min-w-fit bg-gray-200" /></div>
         <!-- Outputs (last run) -->
-        <div v-if="lastRun?.outputsPacked != null" class="mx-auto mt-1 py-3">
+        <div v-if="lastRunOfBase?.outputsPacked != null" class="mx-auto mt-1 py-3">
           <h4 class="font-semibold">Outputs</h4>
           <ValueObject
             class="w-full py-2"
             :value-type="outputType"
             is-inline
             :variant="Variant.STEALTH"
-            :model-value="lastRun?.outputsPacked"
+            :model-value="lastRunOfBase?.outputsPacked"
           />
         </div>
         <!-- Error (last run) -->
-        <div v-else-if="lastRun?.error != null" class="mx-auto mt-1 py-3">
+        <div v-else-if="lastRunOfBase?.error != null" class="mx-auto mt-1 py-3">
           <h4 class="font-semibold">Error</h4>
-          <RunError class="mt-2" :run="lastRun" :error="lastRun.error" />
+          <RunError class="mt-2" :run="lastRunOfBase" :error="lastRunOfBase.error" />
         </div>
         <!-- No terminated last run yet -->
         <div v-else-if="variant != Variant.COMPACT" class="mx-auto mt-1 py-3">
           <h4 class="font-semibold">Outputs</h4>
           <!-- Placeholder -->
           <div class="mt-2 w-full">
-            <span v-if="lastRun != null">
+            <span v-if="lastRunOfBase != null">
               <IconInline
-                :class="ACCENT_COLOR_BY_RUN_STATUS[lastRun.status]"
-                v-bind="ICON_BY_RUN_STATUS[lastRun.status]"
+                :class="ACCENT_COLOR_BY_RUN_STATUS[lastRunOfBase.status]"
+                v-bind="ICON_BY_RUN_STATUS[lastRunOfBase.status]"
               />
-              <span class="ml-1.5" :class="ACCENT_COLOR_BY_RUN_STATUS[lastRun.status]">
-                {{ toCamelName(RunStatus, lastRun.status) }}
+              <span class="ml-1.5" :class="ACCENT_COLOR_BY_RUN_STATUS[lastRunOfBase.status]">
+                {{ toCamelName(RunStatus, lastRunOfBase.status) }}
               </span>
             </span>
             <span v-else>
@@ -221,9 +225,12 @@ defineExpose<ViewExposed>({ self });
         <!-- Divider -->
         <div class="mx-auto my-2 w-full"><div class="h-[1px] w-full min-w-fit bg-gray-200" /></div>
         <!-- Logs (last run) -->
-        <div v-if="lastRun?.logs != null && lastRun.logs.length > 0" class="mt-1 flex flex-col gap-y-1 py-3">
+        <div
+          v-if="lastRunOfBase?.logs != null && lastRunOfBase.logs.length > 0"
+          class="mt-1 flex flex-col gap-y-1 py-3"
+        >
           <h4 class="mb-2 font-semibold">Logs</h4>
-          <div v-for="(log, i) in lastRun.logs" :key="i" class="flex flex-row text-gray-900">
+          <div v-for="(log, i) in lastRunOfBase.logs" :key="i" class="flex flex-row text-gray-900">
             <span class="mr-2 flex-shrink-0 text-gray-400">{{ tsToDt(log.createdAt!).toFormat("HH:mm:ss:SSS") }}</span>
             <pre v-if="log.textPlain" class="w-fit">{{ log.textPlain }}</pre>
             <Text v-else-if="log.text" :model-value="log.text" :variant="Variant.STEALTH" />

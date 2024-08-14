@@ -58,10 +58,7 @@ const focusedTabIdx: Ref<number | null> = computed(() => {
     return 0;
   }
 });
-const innerSize = computed(() => ({
-  width: props.size.width,
-  height: props.size.height - 30,
-}));
+const innerSize = computed(() => ({ width: props.size.width, height: props.size.height - 30 }));
 
 function focus(tab: ViewData) {
   canvas.focus({ node: tab });
