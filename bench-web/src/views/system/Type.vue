@@ -1,24 +1,18 @@
 <script lang="ts" setup>
+import { blockToType } from "@/language/block";
+import { RUNNABLE_BLOCK_TYPES, toCamelName, TYPE_BLOCK_TYPES } from "@/language/const";
+import { createField } from "@/language/field";
+import { cloneNode, moveNode, onNodeMorphed } from "@/language/node";
 import { BlockType, FieldZone, NodeType, Orientation, Variant, ViewData, type FieldData } from "@/proto/wire";
-import {
-  describeNode,
-  isNode,
-  toNodeRef,
-  toNodeRefOneOf,
-  unwrapProtoOneOf,
-  type TypedNodeReferenceData,
-} from "@/proto/wiring";
-import type { ActionContext, ActionMapImplementation } from "@/ui/action";
+import { describeNode, isNode, toNodeRefOneOf, unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
-import { cloneNode, createField, moveNode, onNodeMorphed } from "@/language/node";
 import { canvas } from "@/system/space";
+import type { ActionContext, ActionMapImplementation } from "@/ui/action";
 import { startDragging, useMultiDropZone, type DraggedContent, type MultiAnchor } from "@/ui/drag";
 import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/popover";
 import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import Field from "@/views/system/Field.vue";
 import { computed, ref, toRef, type Ref } from "vue";
-import { RUNNABLE_BLOCK_TYPES, toCamelName, TYPE_BLOCK_TYPES } from "@/language/const";
-import { blockToType } from "@/language/block";
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; preparedConnection?: PreparedGetConnection } & Partial<

@@ -1,8 +1,8 @@
 <script lang="ts" setup>
-import { useHierarchicalNodeMoveActions } from "@/language/block";
+import { createBlock, useHierarchicalNodeMoveActions } from "@/language/block";
 import { NAME_CONSTRAINT, PAGE_BLOCK_TYPES } from "@/language/const";
 import { isDescendantOf, walkDescendantsRef, type NodeTreeItem } from "@/language/graph";
-import { cloneNode, createBlock, moveNode } from "@/language/node";
+import { cloneNode, moveNode } from "@/language/node";
 import {
   BlockData,
   BlockType,

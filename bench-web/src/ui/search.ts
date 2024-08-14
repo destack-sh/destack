@@ -17,7 +17,7 @@ import {
 import { toNodeRef, toPlainNodeRef } from "@/proto/wiring";
 import { ACTION_BUILTIN_IDS_INDEX, IMPLEMENTED_ACTIONS, type Action } from "@/ui/action";
 import type { NodeKey, ReadNodeGraph } from "@/language/graph";
-import { AVAILABLE_FA_ICONS, DEFAULT_ENUM_ICON, getNodeIcon, type IconMetadata } from "@/ui/icon";
+import { AVAILABLE_FA_ICONS, DEFAULT_ENUM_ICON, DEFAULT_MISSING_ICON, getNodeIcon, type IconMetadata } from "@/ui/icon";
 import { TYPE_BLOCK_TYPES, isStructType } from "@/language/const";
 import uFuzzy from "@leeoniya/ufuzzy";
 import { tryOnBeforeUnmount } from "@vueuse/core";
@@ -140,7 +140,7 @@ function walkGraph(options: {
       path,
       pathToIndex,
       title: (node as any).title ?? (node as any).name ?? "",
-      icon: getNodeIcon(node),
+      icon: getNodeIcon(node) ?? DEFAULT_MISSING_ICON,
       ancestors: ancestors,
     };
 
@@ -179,7 +179,7 @@ function itemFromNode(indexId: string, graph: ReadNodeGraph, value: NodeKey<any>
     itemId: `${indexId}-${value.id}`,
     node,
     title: (node as any).title ?? (node as any).name ?? "",
-    icon: getNodeIcon(node),
+    icon: getNodeIcon(node) ?? DEFAULT_MISSING_ICON,
     ancestors: [], // not needed?
   };
   return item;

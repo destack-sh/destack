@@ -17,8 +17,8 @@ import type { ActionMapImplementation } from "@/ui/action";
 import type { PreparedGetConnection } from "@/system/connection";
 import { useExistingConnection } from "@/system/connection";
 import { IconInline, getNodeIcon } from "@/ui/icon";
-import { createField, isGeneratedNodeName, isRunnableRef } from "@/language/node";
 import { canvas, inspectionPtr } from "@/system/space";
+import { isGeneratedNodeName, isRunnableRef } from "@/language/node";
 import { getNativeConstraintProps as getNativeConstraintProps, guardNativeInput } from "@/ui/view";
 import { onMouseReleasedOnce } from "@/ui/layout";
 import { menuActionsLike, pushPopover, type PopoverInfo, type PopoverInfoIn } from "@/ui/popover";
@@ -32,7 +32,7 @@ import Value from "@/views/content/Value.vue";
 import Type from "@/views/system/Type.vue";
 import { computed, nextTick, ref, toRef, type Ref } from "vue";
 import { NAME_CONSTRAINT, RUNNABLE_BLOCK_TYPES, TYPE_BLOCK_TYPES } from "@/language/const";
-import { makeTypeInfo, resolveType, type TypeIdentity } from "@/language/field";
+import { createField, makeTypeInfo, resolveType, type TypeIdentity } from "@/language/field";
 import { packValue, unpackValue } from "@/language/value";
 
 const props = defineProps<

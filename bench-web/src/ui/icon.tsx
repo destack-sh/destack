@@ -535,14 +535,15 @@ function getNodeSubtypeIcon(nodeType: NodeType, subtypeKey: string, subtype: any
 /** Gets the icon for a node or node reference. */
 export function getNodeIcon(
   node: ({ metatype: NodeType | ObjectType } & Partial<AnyNodeData | SomeNodeReferenceData>) | ChangeVignetteData,
-  options?: { nodeType?: NodeType },
-) {
+  options?: { nodeType?: NodeType; defaultToUndefined?: boolean },
+): IconData | undefined {
   if ((node as any).icon != null) {
     // already has specific icon
     return (node as any).icon;
   } else if (isNode(node, NodeType.FIELD)) {
     // more specific icons for fields
-    return getTypeIcon(node);
+    const icon = getTypeIcon(node);
+    if (icon != null) return icon;
   }
 
   // get icon for subsubtype/subtype
@@ -573,5 +574,9 @@ export function getNodeIcon(
   }
 
   // missing icon
-  return DEFAULT_MISSING_ICON;
+  if (options?.defaultToUndefined) {
+    return undefined;
+  } else {
+    return DEFAULT_MISSING_ICON;
+  }
 }

@@ -3,10 +3,15 @@ import {
   getTkB64FromCk,
   getTkB64FromPtr,
   padCkFromTkB64,
+  RUNNABLE_BLOCK_TYPES,
   TK_LENGTH_B64,
   toCamelName,
+  TYPE_BLOCK_TYPES,
 } from "@/language/const";
 import type { ReadNodeGraph } from "@/language/graph";
+import { makeNodeName } from "@/language/node";
+import { getOrderKey } from "@/language/order";
+import type { Transaction } from "@/language/transaction";
 import {
   TypeInfoData,
   type AnyNodeData,
@@ -25,9 +30,23 @@ import {
   StructType,
   TypeConstraintData,
   type PropertyInfo,
+  ColorType,
+  EnumType,
+  NodeReferenceData,
 } from "@/proto/wire";
-import { describeNode, isNode, isStruct, makeDefaultObject, propertyInfo } from "@/proto/wiring";
-import { encodeB64VLQ, decodeB64VLQ } from "@/utils/functools";
+import {
+  describeNode,
+  isNode,
+  isStruct,
+  makeDefaultObject,
+  propertyInfo,
+  toPlainNodeRef,
+  type TypedNodeReferenceData,
+} from "@/proto/wiring";
+import { getNodeIcon, makeIcon } from "@/ui/icon";
+import { getEnumTitle } from "@/ui/inspect";
+import { getRandomColorType } from "@/ui/style";
+import { encodeB64VLQ, decodeB64VLQ, assertNever } from "@/utils/functools";
 
 export type TypeIdentity = Pick<
   TypeInfoData,
@@ -280,4 +299,128 @@ export function resolveFields(type: TypeIdentity, graph: ReadNodeGraph): FieldDa
   const fields = graph.getChildren(type.baseTypePtr, NodeType.FIELD);
   if (type.baseFieldZone == null) return fields.filter((f) => f.zone != FieldZone.OPTION);
   else return fields.filter((f) => f.zone == type.baseFieldZone);
+}
+
+/** Create a Field relative to a Field or a Block. */
+export function createField(
+  tx: Transaction,
+  graph: ReadNodeGraph,
+  options: {
+    field?: Partial<FieldData>;
+    anchor: "before" | "above" | "after" | "below" | "inside" | "center";
+    target: FieldData | TypedNodeReferenceData<NodeType.FIELD> | BlockData | TypedNodeReferenceData<NodeType.BLOCK>;
+  },
+): FieldData {
+  // eslint-disable-next-line prefer-const
+  let { anchor, field: fieldIn } = options;
+  const target = isNode(options.target) ? options.target : graph.getOrError(options.target);
+
+  // position
+  let parentPtr: NodeReferenceData;
+  let orderKey: string;
+  let zone: FieldZone;
+  let kind: TypeKind | null = fieldIn?.kind ?? null;
+  let siblings: FieldData[];
+  if (isNode(target, NodeType.BLOCK)) {
+    if (anchor != "inside" && anchor != "center") throw new Error(`unexpected anchor for block: ${anchor}`);
+    siblings = graph.getChildren(target, NodeType.FIELD);
+    parentPtr = toPlainNodeRef(target);
+    orderKey = getOrderKey({ position: "after", reference: siblings[siblings.length - 1], nodes: siblings });
+    // figure out field kind based on block type
+    if (target.type == BlockType.CHOICE) {
+      zone = FieldZone.OPTION;
+      kind = TypeKind.LITERAL;
+    } else if (TYPE_BLOCK_TYPES.includes(target.type)) {
+      zone = FieldZone.MEMBER;
+    } else if (RUNNABLE_BLOCK_TYPES.includes(target.type)) {
+      zone = FieldZone.INPUT;
+    } else {
+      zone = FieldZone.VARIABLE;
+    }
+  } else if (isNode(target, NodeType.FIELD)) {
+    if (anchor == "inside" || anchor == "center") throw new Error(`unexpected anchor for field: ${anchor}`);
+    siblings = graph.getChildren(target.parentPtr!, NodeType.FIELD);
+    parentPtr = target.parentPtr!;
+    orderKey = getOrderKey({ position: anchor, reference: target, nodes: siblings });
+    zone = target.zone;
+    // copy kind if none given
+    kind = fieldIn?.kind ?? (target as FieldData).kind;
+  } else {
+    assertNever(target, `unexpected target node type: ${describeNode(target)}`);
+  }
+
+  // type
+  if (zone != FieldZone.OPTION && fieldIn?.kind == null) {
+    // default to Text if no type given
+    fieldIn = { ...fieldIn, kind: TypeKind.STRUCT, benchType: BenchType.TEXT };
+  } else if (kind != null) {
+    // override kind if forced
+    fieldIn = { ...fieldIn, kind };
+  }
+
+  // name
+  let name: string;
+  if (fieldIn?.name != null) {
+    name = fieldIn.name;
+  } else if (zone != FieldZone.OPTION) {
+    // derive name from type
+    if (fieldIn == null) throw new Error(`missing type for field in ${describeNode(target)}`);
+    if (kind == TypeKind.PRIMITIVE) {
+      name = getEnumTitle(EnumType.PRIMITIVE_TYPE, fieldIn.primitiveType!);
+    } else if (kind == TypeKind.STRUCT || kind == TypeKind.NODE || kind == TypeKind.ENUM) {
+      if (fieldIn.benchType == BenchType.FILE && fieldIn.constraint?.fileFormat != null) {
+        name = getEnumTitle(EnumType.FILE_FORMAT, fieldIn.constraint.fileFormat);
+      } else if (fieldIn.benchType == BenchType.FILE && fieldIn.constraint?.fileType != null) {
+        name = getEnumTitle(EnumType.FILE_TYPE, fieldIn.constraint.fileType);
+      } else {
+        name = getEnumTitle(EnumType.BENCH_TYPE, fieldIn.benchType!);
+      }
+    } else if (kind == TypeKind.BASED_NODE || kind == TypeKind.OBJECT || kind == TypeKind.ALIAS) {
+      if (fieldIn?.baseTypePtr == null) throw new Error(`missing base type for field in ${describeNode(target)}`);
+      const baseType = graph.getOrError(fieldIn.baseTypePtr);
+      if ((baseType as any).name != null) {
+        name = (baseType as any).name;
+      } else {
+        name = getEnumTitle(EnumType.BENCH_TYPE, fieldIn.benchType!);
+      }
+    } else {
+      throw new Error(`unexpected type kind: ${kind}`);
+    }
+    // make name unique (bumping number if needed)
+    const siblings = graph.getChildren(parentPtr, NodeType.FIELD);
+    let i = 2;
+    while (siblings.some((s) => s.name == name)) {
+      name = `${name}${i++}`;
+    }
+  } else {
+    name = makeNodeName(graph, { metatype: ObjectType.FIELD, parentPtr, zone: zone });
+  }
+
+  // assign color icon if it's an option
+  if (fieldIn?.icon == null) {
+    if (zone == FieldZone.OPTION) {
+      const occupiedColors = siblings.map((f) => f.icon?.color?.type ?? ColorType.GRAY);
+      const colorType = getRandomColorType({ except: occupiedColors });
+      fieldIn = { ...fieldIn, icon: makeIcon({ faName: "fas fa-circle-small", color: colorType }) };
+    } else {
+      fieldIn = {
+        ...fieldIn,
+        icon: getNodeIcon({ metatype: ObjectType.FIELD, ...fieldIn }, { defaultToUndefined: true }),
+      };
+    }
+  }
+
+  const field = tx.create({
+    name,
+    zone,
+    ...fieldIn,
+    // overwrite non-required properties
+    id: undefined,
+    ck: undefined,
+    metatype: NodeType.FIELD,
+    parentPtr,
+    packagePtr: target.packagePtr,
+    orderKey,
+  });
+  return field;
 }

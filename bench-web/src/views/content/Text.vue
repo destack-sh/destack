@@ -30,7 +30,7 @@ import {
 import { canvas, pkg, pkgConnection, pkgGraph } from "@/system/space";
 import { IS_IN_ALT_MODE, type ActionImplementation, type ActionMapImplementation } from "@/ui/action";
 import { useDropZone } from "@/ui/drag";
-import { ICON_BY_NODE_TYPE, getNodeIcon } from "@/ui/icon";
+import { DEFAULT_MISSING_ICON, ICON_BY_NODE_TYPE, getNodeIcon } from "@/ui/icon";
 import {
   menuActionsLike,
   popPopover,
@@ -266,7 +266,7 @@ class MentionView implements PmNodeView {
     this.nameDom.textContent = (node as any).name ?? (node as any).title ?? "???";
 
     // style
-    const icon = getNodeIcon(node);
+    const icon = getNodeIcon(node) ?? DEFAULT_MISSING_ICON;
     this.iconDom.className = icon?.faName != null ? `icon ${icon.faName}` : "icon fa fa-question";
     if (icon.color != null) this.iconDom.style.color = getColorHex(icon.color, ColorShade.S600)!;
     else this.iconDom.style.removeProperty("color");

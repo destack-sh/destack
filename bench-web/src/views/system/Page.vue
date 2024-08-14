@@ -1,10 +1,10 @@
 <script lang="ts" setup>
-import { useFlatNodeMoveActions } from "@/language/block";
+import { createBlock, useFlatNodeMoveActions } from "@/language/block";
 import { toCamelName } from "@/language/const";
 import { uploadFile } from "@/language/file";
 import { getGroupedChildrenRef, isDescendantOf } from "@/language/graph";
 import { makeRun } from "@/language/session";
-import { cloneNode, createBlock, moveNode } from "@/language/node";
+import { cloneNode, moveNode } from "@/language/node";
 import { packValueJson } from "@/language/value";
 import {
   BenchType,
