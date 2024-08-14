@@ -32,6 +32,7 @@ const tabsNodes = spaceGraph.getManyMaybeRef(
   computed(() => tabs.value.map((t) => unwrapProtoOneOf(t.nodePtr) ?? null)),
 );
 const tabsTitles = computed(() => {
+  // views with a nodePtr are titled by the node name :ViewNodeTitles
   const tabsTitles: string[] = [];
   for (let tabIdx = 0; tabIdx < tabs.value.length; tabIdx++) {
     const tab = tabs.value[tabIdx];

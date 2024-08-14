@@ -189,7 +189,6 @@ defineExpose<ViewExposed>({ self });
             class="w-full py-2"
             :value-type="outputType"
             is-inline
-            is-input
             :variant="Variant.STEALTH"
             :model-value="lastRun?.outputsPacked"
           />
@@ -223,7 +222,7 @@ defineExpose<ViewExposed>({ self });
         <div class="mx-auto my-2 w-full"><div class="h-[1px] w-full min-w-fit bg-gray-200" /></div>
         <!-- Logs (last run) -->
         <div v-if="lastRun?.logs != null && lastRun.logs.length > 0" class="mt-1 flex flex-col gap-y-1 py-3">
-          <span class="font-medium">Logs</span>
+          <h4 class="mb-2 font-semibold">Logs</h4>
           <div v-for="(log, i) in lastRun.logs" :key="i" class="flex flex-row text-gray-900">
             <span class="mr-2 flex-shrink-0 text-gray-400">{{ tsToDt(log.createdAt!).toFormat("HH:mm:ss:SSS") }}</span>
             <pre v-if="log.textPlain" class="w-fit">{{ log.textPlain }}</pre>
