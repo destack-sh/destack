@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.08.13.2"
+VERSION = "2024.08.14.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -851,11 +851,11 @@ VIEW_TABLE = Table(
         Column("selection", PrimitiveType.JSON, is_nullable=True),
         Column("focus", PrimitiveType.JSON, is_nullable=True),
         Column("expansion", PrimitiveType.JSON, is_nullable=True),
-        Column("is_visible", PrimitiveType.BOOLEAN, is_nullable=True, default="true"),
-        Column("is_disabled", PrimitiveType.BOOLEAN, is_nullable=True, default="false"),
-        Column("is_input", PrimitiveType.BOOLEAN, is_nullable=True, default="false"),
-        Column("is_inline", PrimitiveType.BOOLEAN, is_nullable=True, default="false"),
-        Column("is_loading", PrimitiveType.BOOLEAN, is_nullable=True, default="false"),
+        Column("is_hidden", PrimitiveType.BOOLEAN, default="false"),
+        Column("is_disabled", PrimitiveType.BOOLEAN, default="false"),
+        Column("is_input", PrimitiveType.BOOLEAN, default="false"),
+        Column("is_inline", PrimitiveType.BOOLEAN, default="false"),
+        Column("is_loading", PrimitiveType.BOOLEAN, default="false"),
     ),
 )
 

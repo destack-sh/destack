@@ -1765,7 +1765,7 @@ async def _pg_edit_cascade(
                 node_ptr=node_ptr,
                 edited_at=root_edit.edited_at,
                 epoch=root_edit.epoch,
-                scope=root_edit.scope,
+                scope=root_edit.scope,  # should always be the same
                 subject_ptr=root_edit.subject_ptr,
                 category=root_edit.category,
                 context=root_edit.context,
@@ -1786,7 +1786,7 @@ async def _pg_edit_cascade(
             selected_properties=SELECT_ALL_PROPERTIES[cast(NodeType, descendant_node_type)],
         )
 
-        # and assign new/old node to edit that we have the full data :EditData
+        # and assign new/old node to edit now that we have the full data :EditData
         assert nodes and len(nodes) == len(cascaded_edits)
         for node, cascaded_edit in zip(nodes, cascaded_edits):
             cascaded_edit.revision = node.revision

@@ -465,12 +465,12 @@ class View(SourceNode[ViewData]):
     ...  # actions/effects/...
 
     # flags
-    is_visible: Optional[bool] = p_regular(80, default=True)
-    is_disabled: Optional[bool] = p_regular(81, default=False)
-    is_input: Optional[bool] = p_regular(82, default=False)
-    is_inline: Optional[bool] = p_regular(83, default=False)
+    is_hidden: bool = p_regular(80, default=False)
+    is_disabled: bool = p_regular(81, default=False)
+    is_input: bool = p_regular(82, default=False)
+    is_inline: bool = p_regular(83, default=False)
     ...
-    is_loading: Optional[bool] = p_regular(90, default=False)
+    is_loading: bool = p_regular(90, default=False)
 
     views: NodeList["View"] = p_node_children(NodeType.VIEW)
 

@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.08.13.2"  # auto change via version script
+VERSION = "2024.08.14.0"  # auto change via version script
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -376,15 +376,6 @@ class StructType(IdEnum):
     USER_WIZARD_VIEW_STATE = 11205
     PAGE_VIEW_STATE = 11206
     TREE_VIEW_STATE = 11207
-
-    # steps
-    ...
-
-    # signals
-    ...
-
-    # notifications
-    ...
 
 
 STRUCT_TYPES: bittuple[StructType] = bittuple(*StructType)

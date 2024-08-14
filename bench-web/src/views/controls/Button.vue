@@ -7,9 +7,8 @@ import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import { computed, ref, toRef, type Ref } from "vue";
 
 const props = defineProps<
-  { self?: TypedNodeReferenceData<NodeType.VIEW> } & Pick<
-    ViewData,
-    "name" | "title" | "text" | "icon" | "variant" | "isDisabled" | "isLoading"
+  { self?: TypedNodeReferenceData<NodeType.VIEW> } & Partial<
+    Pick<ViewData, "name" | "title" | "text" | "icon" | "variant" | "isDisabled" | "isLoading">
   >
 >();
 const emit = defineEmits(viewEmits());
