@@ -5,19 +5,22 @@ import {
   FieldZone,
   NodeReferenceData,
   NodeType,
+  ObjectType,
+  PackageData,
   TypeInfoData,
   TypeKind,
   type NodeTypeMapping,
 } from "@/proto/wire";
-import { describeNode, isNode, toNodeRef } from "@/proto/wiring";
+import { describeNode, isNode, toNodeRef, toPlainNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import type { ActionContext, ActionMapImplementation } from "@/ui/action";
 import { type NodeTreeItem, type ReadNodeGraph } from "@/language/graph";
-import { moveNode } from "@/language/node";
+import { makeNodeName, moveNode } from "@/language/node";
 import { pkgGraph } from "@/system/space";
 import type { Transaction } from "@/language/transaction";
 import type { Ref } from "vue";
-import { updateOrder } from "@/language/order";
+import { getOrderKey, updateOrder } from "@/language/order";
 import { makeTypeInfo } from "@/language/field";
+import { generateOrderKey } from "@/utils/fractional";
 
 /** Actions to smoothly move up/down/left/right inside a node tree */
 export function useHierarchicalNodeMoveActions<T extends NodeType>(options: {
@@ -178,6 +181,51 @@ export function useFlatNodeMoveActions<T extends NodeType>(options: {
       },
     },
   };
+}
+
+/** Create a Block relative to another. */
+export function createBlock(
+  tx: Transaction,
+  graph: ReadNodeGraph,
+  options: {
+    block: { type: BlockType } & Partial<BlockData>;
+    anchor: "before" | "after" | "inside";
+    target: BlockData | TypedNodeReferenceData<NodeType.BLOCK> | PackageData | TypedNodeReferenceData<NodeType.PACKAGE>;
+  },
+): BlockData {
+  const target = isNode(options.target) ? options.target : graph.getOrError(options.target);
+  const packagePtr = isNode(target, NodeType.PACKAGE) ? toPlainNodeRef(target) : target.packagePtr;
+
+  // position
+  let parentPtr: NodeReferenceData;
+  let orderKey: string;
+  let siblings: BlockData[];
+  if (options.anchor == "inside") {
+    parentPtr = toPlainNodeRef(target);
+    siblings = graph.getChildren(target, NodeType.BLOCK);
+    orderKey = generateOrderKey(siblings[siblings.length - 1]?.orderKey ?? null, null);
+  } else {
+    if (isNode(target, NodeType.PACKAGE)) throw new Error(`unexpected target node type: ${describeNode(target)}`);
+    parentPtr = target.parentPtr!;
+    siblings = graph.getChildren(target.parentPtr!, NodeType.BLOCK);
+    orderKey = getOrderKey({ position: options.anchor, reference: target, nodes: siblings });
+  }
+
+  // add value type if not given
+  if (options.block.type == BlockType.VARIABLE && options.block.valueType == null) {
+    options.block.valueType = makeTypeInfo({ kind: TypeKind.STRUCT, benchType: BenchType.TEXT });
+  }
+
+  const block = tx.create({
+    metatype: NodeType.BLOCK,
+    parentPtr,
+    packagePtr,
+    ...options.block,
+    type: options.block.type,
+    orderKey,
+    name: makeNodeName(graph, { metatype: ObjectType.BLOCK, type: options.block.type, parentPtr }),
+  });
+  return block;
 }
 
 /** Gets the (primary) type represented by the Block. */
