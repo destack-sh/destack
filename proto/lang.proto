@@ -218,6 +218,7 @@ enum BenchType {
   BENCH_TYPE_SORT_MODE = 20206;
   BENCH_TYPE_SORT_OP = 20207;
   BENCH_TYPE_SELECTION_KIND = 20208;
+  BENCH_TYPE_SELECTION_TARGET = 20209;
   BENCH_TYPE_PATH_TOKEN_TYPE = 20210;
   BENCH_TYPE_STEP_TYPE = 20500;
   BENCH_TYPE_PIPE_TYPE = 20501;
@@ -474,6 +475,7 @@ enum EnumType {
   ENUM_TYPE_SORT_MODE = 20206;
   ENUM_TYPE_SORT_OP = 20207;
   ENUM_TYPE_SELECTION_KIND = 20208;
+  ENUM_TYPE_SELECTION_TARGET = 20209;
   ENUM_TYPE_PATH_TOKEN_TYPE = 20210;
   ENUM_TYPE_STEP_TYPE = 20500;
   ENUM_TYPE_PIPE_TYPE = 20501;
@@ -1146,6 +1148,12 @@ enum SelectionKind {
   SELECTION_KIND_UNSPECIFIED = 0;
   SELECTION_KIND_RANGE = 1;
   SELECTION_KIND_LIST = 2;
+}
+
+enum SelectionTarget {
+  SELECTION_TARGET_UNSPECIFIED = 0;
+  SELECTION_TARGET_NODE = 1;
+  SELECTION_TARGET_VALUE = 2;
 }
 
 enum SessionStatus {
@@ -1991,9 +1999,10 @@ message SecretReferenceData {
 message SelectionData {
   ObjectType metatype = 1;
   SelectionKind kind = 30;
-  repeated NodeReferenceData nodes_ptr = 31;
-  optional NodeReferenceData from_node_ptr = 32;
-  optional NodeReferenceData to_node_ptr = 33;
+  SelectionTarget target = 31;
+  repeated NodeReferenceData nodes_ptr = 40;
+  optional NodeReferenceData from_node_ptr = 41;
+  optional NodeReferenceData to_node_ptr = 42;
 }
 
 // Context information for runtime nodes created in a session.

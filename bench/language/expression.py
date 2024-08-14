@@ -78,19 +78,28 @@ class SelectionKind(IdEnum):
     LIST = 2
 
 
+@enum_(EnumType.SELECTION_TARGET)
+class SelectionTarget(IdEnum):
+    NODE = 1
+    VALUE = 2
+
+
 @struct_(StructType.SELECTION)
 class Selection(Struct):
     """A selection of nodes/values."""
 
     kind: SelectionKind = p_regular(30, require=True)
+    target: SelectionTarget = p_regular(31, require=True)
+
+    # node selection
     nodes: list[Node] | None = p_regular(
-        31, require=False, array=True, references=IN_BENCH_NODE_TYPES.tuple
+        40, require=False, array=True, references=IN_BENCH_NODE_TYPES.tuple
     )
     from_node: Optional[Node] = p_regular(
-        32, require=False, array=False, references=IN_BENCH_NODE_TYPES.tuple
+        41, require=False, array=False, references=IN_BENCH_NODE_TYPES.tuple
     )
     to_node: Optional[Node] = p_regular(
-        33, require=False, array=False, references=IN_BENCH_NODE_TYPES.tuple
+        42, require=False, array=False, references=IN_BENCH_NODE_TYPES.tuple
     )
 
 

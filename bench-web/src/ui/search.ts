@@ -182,12 +182,17 @@ function walkGraph(options: {
 function itemFromNode(indexId: string, graph: ReadNodeGraph, value: NodeKey<any>): NodeItem | null {
   const node = graph.getMaybe(value);
   if (node == null) return null;
+  let title = (node as any).title ?? (node as any).name ?? "";
+  if (isNode(node, NodeType.VIEW) && node.nodePtr?.oneofKind != null) {
+    const referencedNode = graph.get(unwrapProtoOneOf(node.nodePtr)!); // :ViewNodeTitles
+    title = (referencedNode as any).title ?? (referencedNode as any).name ?? "";
+  }
   const item: NodeItem = {
     ...(toPlainNodeRef(node)! as NodeReferenceData & { id: string }),
     metatype: "node",
     itemId: `${indexId}-${value.id}`,
     node,
-    title: (node as any).title ?? (node as any).name ?? "",
+    title: title,
     icon: getNodeIcon(node) ?? DEFAULT_MISSING_ICON,
     ancestors: [], // not needed?
   };

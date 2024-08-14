@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.08.14.1"  # auto change via version script
+VERSION = "2024.08.14.2"  # auto change via version script
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -120,6 +120,7 @@ class EnumType(IdEnum):
     SORT_MODE = 20206
     SORT_OP = 20207
     SELECTION_KIND = 20208
+    SELECTION_TARGET = 20209
     PATH_TOKEN_TYPE = 20210
 
     # run
