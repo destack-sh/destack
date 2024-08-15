@@ -4,9 +4,11 @@ import {
   EDIT_TYPES,
   UNDO_EDIT_BY_TYPE,
   getTransactionBuffer,
+  newChangeId,
   newEditId,
   txBuffers,
   unpackProtoJson,
+  type ChangeIn,
   type TransactionBuffer,
 } from "@/language/transaction";
 import { unpackBuiltinObject } from "@/language/value";
@@ -32,6 +34,7 @@ import {
 } from "@/proto/wiring";
 import { origin, userPtr } from "@/system/client";
 import { assertNever } from "@/utils/functools";
+import { log } from "@/utils/log";
 import { watch } from "vue";
 
 /**
@@ -63,16 +66,33 @@ class EditStack {
    * If there are multiple successive edits belonging to the same change, all of them are undone.
    */
   undo() {
-    const editToUndo = this._editStack[this._undoIndex - 1];
-    if (editToUndo == null) return;
-    const undoEdit = { ...editToUndo, id: newEditId() };
-    invertEdit(undoEdit, "undo");
-    this._undoIndex--;
-    this._derivedEditsById[undoEdit.id] = undoEdit;
-    const buffer = getTransactionBuffer(editToUndo.scope ?? EMPTY_SCOPE);
-    const connectionId = this._connectionIdByEdit[editToUndo.id!];
-    if (connectionId == null) throw new Error(`missing connection for ${describeEdit(editToUndo)}`);
-    buffer.tx.with({ connectionId }).addEdit(undoEdit);
+    if (this._undoIndex <= 0) return;
+    // accumulate edits from same change (edits are in reverse order)
+    const edits: EditData[] = [this._editStack[this._undoIndex - 1]];
+    if (edits[0].changeKey != null) {
+      for (let i = this._undoIndex - 2; i >= 0; i--) {
+        const edit = this._editStack[i];
+        if (edit.changeKey != edits[0].changeKey) break;
+        edits.push(edit);
+      }
+    }
+
+    // make inverse edits to undo change
+    const change: ChangeIn = { key: newChangeId(), title: `Undo` };
+    const undoEdits: EditData[] = [];
+    for (const edit of edits) {
+      const undoEdit: EditData = { ...edit, id: newEditId(), changeKey: change.key };
+      invertEdit(undoEdit, "undo");
+      undoEdits.push(undoEdit);
+      this._undoIndex--;
+      this._derivedEditsById[undoEdit.id] = undoEdit;
+
+      // apply in same connection as original edits
+      const buffer = getTransactionBuffer(edit.scope ?? EMPTY_SCOPE);
+      const connectionId = this._connectionIdByEdit[edit.id!];
+      if (connectionId == null) throw new Error(`missing connection for ${describeEdit(edit)}`);
+      buffer.tx.with({ connectionId, change }).addEdit(undoEdit);
+    }
   }
 
   /**
@@ -80,20 +100,37 @@ class EditStack {
    * If there are multiple successive edits belonging to the same change, all of them are redone.
    */
   redo() {
-    const editToRedo = this._editStack[this._undoIndex];
-    if (editToRedo == null) return;
-    const redoEdit = { ...editToRedo, id: newEditId() };
-    invertEdit(redoEdit, "redo");
-    this._undoIndex++;
-    this._derivedEditsById[redoEdit.id] = redoEdit;
-    const buffer = getTransactionBuffer(editToRedo.scope ?? EMPTY_SCOPE);
-    const connectionId = this._connectionIdByEdit[editToRedo.id!];
-    if (connectionId == null) throw new Error(`missing connection for ${describeEdit(editToRedo)}`);
-    buffer.tx.with({ connectionId }).addEdit(redoEdit);
+    if (this._undoIndex >= this._editStack.length) return;
+    // accumulate edits from same change (edits are in right order)
+    const edits: EditData[] = [this._editStack[this._undoIndex]];
+    if (edits[0].changeKey != null) {
+      for (let i = this._undoIndex + 1; i < this._editStack.length; i++) {
+        const edit = this._editStack[i];
+        if (edit.changeKey != edits[0].changeKey) break;
+        edits.push(edit);
+      }
+    }
+
+    // make inverse edits to redo change
+    const change: ChangeIn = { key: newChangeId(), title: `Redo` };
+    const redoEdits: EditData[] = [];
+    for (const edit of edits) {
+      const redoEdit: EditData = { ...edit, id: newEditId(), changeKey: change.key };
+      invertEdit(redoEdit, "redo");
+      redoEdits.push(redoEdit);
+      this._undoIndex++;
+      this._derivedEditsById[redoEdit.id] = redoEdit;
+
+      // apply in same connection as original edits
+      const buffer = getTransactionBuffer(edit.scope ?? EMPTY_SCOPE);
+      const connectionId = this._connectionIdByEdit[edit.id!];
+      if (connectionId == null) throw new Error(`missing connection for ${describeEdit(edit)}`);
+      buffer.tx.with({ connectionId, change }).addEdit(redoEdit);
+    }
   }
 
   subscribeToBuffer(buffer: TransactionBuffer): () => void {
-    // NOTE :UX: EditStack should handle pending edits as well (not just committed)
+    // nocheckin EditStack should handle pending edits as well (not just committed)
     const sub = buffer.subscribeCommit((event) => {
       let hasNewEdits = false;
       for (const edit of event.edits) {

@@ -13,7 +13,7 @@ import {
 import { makeTypeInfo } from "@/language/field";
 import { isDescendantOf, resolveNode, type ReadNodeGraph } from "@/language/graph";
 import { getOrderKey, updateOrder } from "@/language/order";
-import type { Transaction } from "@/language/transaction";
+import { newChangeId, type Transaction } from "@/language/transaction";
 import {
   BenchType,
   BlockType,
@@ -288,6 +288,10 @@ export function cloneNode<T extends AnyNodeData>(
     includeChildren: true,
   },
 ): T {
+  // ensure clone is bundled into a change
+  if (tx.change?.key == null) tx = tx.with({ change: { key: newChangeId(), title: "Clone" } });
+
+  // clone this node
   const now = options?.now ?? Timestamp.now();
   const clone = _cloneNode(node, now);
   if (options?.set) Object.assign(clone, options.set);
