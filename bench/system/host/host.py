@@ -599,13 +599,13 @@ class Host(GraphIoServiceBase, HostApi, HostBase):
             # pack old/new node
             node_cls = NODE_CLASS_BY_TYPE[node_type]
             properties = tuple(node_cls.__properties_by_id__[p] for p in edit.properties)
-            if edit.old_node_partial:
-                old_node = unwrap_some_node(edit.old_node_partial)
+            if edit.old_node:
+                old_node = unwrap_some_node(edit.old_node)
                 old_node_packed = pack_builtin_object_data(old_node, only=properties or None)
             else:
                 old_node_packed = None
-            if edit.new_node_partial:
-                new_node = unwrap_some_node(edit.new_node_partial)
+            if edit.new_node:
+                new_node = unwrap_some_node(edit.new_node)
                 new_node_packed = pack_builtin_object_data(new_node, only=properties or None)
             else:
                 new_node_packed = None
@@ -665,7 +665,7 @@ class Host(GraphIoServiceBase, HostApi, HostBase):
                 origin=None,
                 epoch=edit.epoch,
                 revision=log_data.revision,
-                new_node_partial=wrap_some_node(log_data),
+                new_node=wrap_some_node(log_data),
                 edited_at=log_data.created_at,
                 subject_ptr=edit.subject_ptr,
             )

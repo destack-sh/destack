@@ -397,13 +397,13 @@ export interface EditData {
      */
     properties: number[];
     /**
-     * @generated from protobuf field: optional symbolx.bench.SomeNodeData old_node_partial = 41;
+     * @generated from protobuf field: optional symbolx.bench.SomeNodeData old_node = 41;
      */
-    oldNodePartial?: SomeNodeData;
+    oldNode?: SomeNodeData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.SomeNodeData new_node_partial = 42;
+     * @generated from protobuf field: optional symbolx.bench.SomeNodeData new_node = 42;
      */
-    newNodePartial?: SomeNodeData;
+    newNode?: SomeNodeData;
     /**
      * @generated from protobuf field: symbolx.bench.GraphScopeData scope = 60;
      */
@@ -12160,8 +12160,8 @@ class EditData$Type extends MessageType<EditData> {
             { no: 31, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 32, name: "vignette", kind: "message", T: () => ChangeVignetteData },
             { no: 40, name: "properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
-            { no: 41, name: "old_node_partial", kind: "message", T: () => SomeNodeData },
-            { no: 42, name: "new_node_partial", kind: "message", T: () => SomeNodeData },
+            { no: 41, name: "old_node", kind: "message", T: () => SomeNodeData },
+            { no: 42, name: "new_node", kind: "message", T: () => SomeNodeData },
             { no: 60, name: "scope", kind: "message", T: () => GraphScopeData },
             { no: 61, name: "change_key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 62, name: "category", kind: "enum", opt: true, T: () => ["symbolx.bench.ChangeCategory", ChangeCategory, "CHANGE_CATEGORY_"] },
@@ -12211,11 +12211,11 @@ class EditData$Type extends MessageType<EditData> {
                     else
                         message.properties.push(reader.int32());
                     break;
-                case /* optional symbolx.bench.SomeNodeData old_node_partial */ 41:
-                    message.oldNodePartial = SomeNodeData.internalBinaryRead(reader, reader.uint32(), options, message.oldNodePartial);
+                case /* optional symbolx.bench.SomeNodeData old_node */ 41:
+                    message.oldNode = SomeNodeData.internalBinaryRead(reader, reader.uint32(), options, message.oldNode);
                     break;
-                case /* optional symbolx.bench.SomeNodeData new_node_partial */ 42:
-                    message.newNodePartial = SomeNodeData.internalBinaryRead(reader, reader.uint32(), options, message.newNodePartial);
+                case /* optional symbolx.bench.SomeNodeData new_node */ 42:
+                    message.newNode = SomeNodeData.internalBinaryRead(reader, reader.uint32(), options, message.newNode);
                     break;
                 case /* symbolx.bench.GraphScopeData scope */ 60:
                     message.scope = GraphScopeData.internalBinaryRead(reader, reader.uint32(), options, message.scope);
@@ -12281,12 +12281,12 @@ class EditData$Type extends MessageType<EditData> {
                 writer.int32(message.properties[i]);
             writer.join();
         }
-        /* optional symbolx.bench.SomeNodeData old_node_partial = 41; */
-        if (message.oldNodePartial)
-            SomeNodeData.internalBinaryWrite(message.oldNodePartial, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.SomeNodeData new_node_partial = 42; */
-        if (message.newNodePartial)
-            SomeNodeData.internalBinaryWrite(message.newNodePartial, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.SomeNodeData old_node = 41; */
+        if (message.oldNode)
+            SomeNodeData.internalBinaryWrite(message.oldNode, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.SomeNodeData new_node = 42; */
+        if (message.newNode)
+            SomeNodeData.internalBinaryWrite(message.newNode, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.GraphScopeData scope = 60; */
         if (message.scope)
             GraphScopeData.internalBinaryWrite(message.scope, writer.tag(60, WireType.LengthDelimited).fork(), options).join();
@@ -26333,8 +26333,8 @@ export enum EditProperty {
   nodePtr = 31,
   vignette = 32,
   properties = 40,
-  oldNodePartial = 41,
-  newNodePartial = 42,
+  oldNode = 41,
+  newNode = 42,
   scope = 60,
   changeKey = 61,
   category = 62,
@@ -27155,8 +27155,8 @@ export const EditDataInfo: Record<EditProperty, PropertyInfo> = {
   [EditProperty.nodePtr]: { id: 31, name: 'node_ptr', component: ObjectType.EDIT, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.FILE, NodeType.SECRET, NodeType.MESSAGE, NodeType.RECORD, NodeType.NOTIFICATION, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE },
   [EditProperty.vignette]: { id: 32, name: 'vignette', component: ObjectType.EDIT, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CHANGE_VIGNETTE },
   [EditProperty.properties]: { id: 40, name: 'properties', component: ObjectType.EDIT, kind: 'primitive', primitiveType: PrimitiveType.INT16, isList: true, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [EditProperty.oldNodePartial]: { id: 41, name: 'old_node_partial', component: ObjectType.EDIT, kind: 'primitive', isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceIsNodeData: true },
-  [EditProperty.newNodePartial]: { id: 42, name: 'new_node_partial', component: ObjectType.EDIT, kind: 'primitive', isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceIsNodeData: true },
+  [EditProperty.oldNode]: { id: 41, name: 'old_node', component: ObjectType.EDIT, kind: 'primitive', isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceIsNodeData: true },
+  [EditProperty.newNode]: { id: 42, name: 'new_node', component: ObjectType.EDIT, kind: 'primitive', isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceIsNodeData: true },
   [EditProperty.scope]: { id: 60, name: 'scope', component: ObjectType.EDIT, kind: 'reference', primitiveType: PrimitiveType.JSON, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.GRAPH_SCOPE },
   [EditProperty.changeKey]: { id: 61, name: 'change_key', component: ObjectType.EDIT, kind: 'primitive', primitiveType: PrimitiveType.UUID, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [EditProperty.category]: { id: 62, name: 'category', component: ObjectType.EDIT, enumType: EnumType.CHANGE_CATEGORY, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -27783,7 +27783,7 @@ export const ServerDataInfo: Record<ServerProperty, PropertyInfo> = {
   [ServerProperty.region]: { id: 35, name: 'region', component: ObjectType.SERVER, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.status]: { id: 36, name: 'status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.08.14.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.08.15.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.minCpu]: { id: 50, name: 'min_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 4.0 }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.maxCpu]: { id: 51, name: 'max_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 4.0 }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -27812,7 +27812,7 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.region]: { id: 35, name: 'region', component: ObjectType.STORE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.status]: { id: 36, name: 'status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.08.14.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.08.15.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 50, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 51, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -27838,7 +27838,7 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.region]: { id: 35, name: 'region', component: ObjectType.MACHINE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.status]: { id: 36, name: 'status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.08.14.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.08.15.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 42, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 43, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },

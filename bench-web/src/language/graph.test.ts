@@ -54,8 +54,8 @@ const MESSAGE_TYPE_GENERATORS: Record<string, () => any> = {
 
 const PROP_NAME_GENERATORS: Record<string, () => any> = {
   valuePacked: () => {},
-  oldNodePartial: () => {},
-  newNodePartial: () => {},
+  oldNode: () => {},
+  newNode: () => {},
 };
 
 const MEMBERS_BY_ENUM: Record<string, number[]> = {};

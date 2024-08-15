@@ -99,17 +99,17 @@ class Edit(Struct):
     Similarly, for create/upsert/unarchive/restore, the new node is the full node.
     """
 
-    # NOTE: Edit.old_node_partial/new_node_partial :EditData are populated as follows:
-    #  (default is old_node_partial=None, new_node_partial=None)
-    # EditType.CREATE: new_node_partial = full new node
-    # EditType.UPSERT: new_node_partial = full new node
-    # EditType.UPDATE: new_node_partial = partial new node, old_node_partial = partial old node
-    # EditType.MOVE: new_node_partial = partial new node, old_node_partial = partial old node
-    # EditType.ARCHIVE: old_node_partial = full old node (archived_at=None)
-    # EditType.UNARCHIVE: old_node_partial = full old node (archived_at=...)
-    # EditType.DELETE: old_node_partial = full old node (deleted_at=None)
-    # EditType.RESTORE: old_node_partial = full old node (deleted_at=...)
-    # EditType.ERASE: old_node_partial = full old node
+    # NOTE: Edit.old_node/new_node :EditData are populated as follows:
+    #  (default is old_node=None, new_node=None)
+    # EditType.CREATE: new_node = full new node
+    # EditType.UPSERT: new_node = full new node
+    # EditType.UPDATE: new_node = partial new node, old_node = partial old node
+    # EditType.MOVE: new_node = partial new node, old_node = partial old node
+    # EditType.ARCHIVE: old_node = full old node (archived_at=None)
+    # EditType.UNARCHIVE: old_node = full old node (archived_at=...)
+    # EditType.DELETE: old_node = full old node (deleted_at=None)
+    # EditType.RESTORE: old_node = full old node (deleted_at=...)
+    # EditType.ERASE: old_node = full old node
 
     # core
     id: UUID = p_system(
@@ -134,17 +134,17 @@ class Edit(Struct):
         description="Which non-tracking properties are edited.",
         primitive_type=PrimitiveType.INT16,
     )
-    old_node_partial: AnyNodeData | None = p_system(
+    old_node: AnyNodeData | None = p_system(
         41,
         primitive_type=None,
         is_node_data=True,
-        description="The previous values for the edited properties (if any.)",
+        description="The previous values for the edited properties (may be partial.)",
     )
-    new_node_partial: AnyNodeData | None = p_system(
+    new_node: AnyNodeData | None = p_system(
         42,
         primitive_type=None,
         is_node_data=True,
-        description="The new values for the edited properties (if any.)",
+        description="The new values for the edited properties (may be partial.)",
     )
 
     # meta
@@ -496,8 +496,8 @@ class Transaction:
                 continue  # coalesce
 
             # make edit
-            old_node_partial: AnyNodeData | None = None
-            new_node_partial: AnyNodeData | None = None
+            old_node: AnyNodeData | None = None
+            new_node: AnyNodeData | None = None
             properties: list[int] = []
             if edit_type in (EditType.UPDATE, EditType.MOVE):
                 # coalesce any move/update sequence into move
@@ -514,33 +514,33 @@ class Transaction:
                 properties.sort()  # ascending
                 # pack old/new
                 proto_cls = cast(type[AnyNodeData], wiring.PROTO_CLASS_BY_TYPE[node.metatype])
-                old_node_partial = proto_cls(metatype=wire.ObjectType(node.metatype))
-                new_node_partial = proto_cls(metatype=wire.ObjectType(node.metatype))
+                old_node = proto_cls(metatype=wire.ObjectType(node.metatype))
+                new_node = proto_cls(metatype=wire.ObjectType(node.metatype))
                 for prop_id, old_value in old_values.items():
                     prop = node.__properties_by_id__.get(prop_id)
                     assert prop is not None, f"no property {prop_id} for {node!r} in {batch!r}"
                     if prop.reference_wired_ptr is not None:
                         prop = prop.reference_wired_ptr
-                    setattr(old_node_partial, prop.name, wiring.pack_object_prop(prop, old_value))
+                    setattr(old_node, prop.name, wiring.pack_object_prop(prop, old_value))
                     new_value = getattr(node, prop.name)
-                    setattr(new_node_partial, prop.name, wiring.pack_object_prop(prop, new_value))
+                    setattr(new_node, prop.name, wiring.pack_object_prop(prop, new_value))
             else:
-                # see :EditData for Edit.old_node_partial/new_node_partial
+                # see :EditData for Edit.old_node/new_node
                 assert edit_event.node_data is not None, f"missing node data for {edit_event!r}"
                 if edit_type in (EditType.CREATE, EditType.UPSERT):
-                    new_node_partial = edit_event.node_data
+                    new_node = edit_event.node_data
                 elif edit_type in (EditType.ARCHIVE, EditType.DELETE, EditType.ERASE):
-                    old_node_partial = wiring.copy_struct(edit_event.node_data)
+                    old_node = wiring.copy_struct(edit_event.node_data)
                     if edit_type == EditType.ARCHIVE:
-                        old_node_partial.archived_at = None
+                        old_node.archived_at = None
                     elif edit_type == EditType.DELETE:
-                        old_node_partial.deleted_at = None
+                        old_node.deleted_at = None
                 elif edit_type == EditType.UNARCHIVE:
                     assert edit_event.node_data.archived_at, f"cannot unarchive {node!r}"
-                    old_node_partial = edit_event.node_data
+                    old_node = edit_event.node_data
                 elif edit_type == EditType.RESTORE:
                     assert edit_event.node_data.deleted_at, f"cannot restore {node!r}"
-                    old_node_partial = edit_event.node_data
+                    old_node = edit_event.node_data
                 else:
                     assert_never(edit_type)
 
@@ -550,8 +550,8 @@ class Transaction:
                 type=wiring.pack_enum(EditType, edit_type),
                 node_ptr=node._to_plain_ref_data(),
                 properties=properties,
-                new_node_partial=wiring.wrap_some_node_maybe(new_node_partial),
-                old_node_partial=wiring.wrap_some_node_maybe(old_node_partial),
+                new_node=wiring.wrap_some_node_maybe(new_node),
+                old_node=wiring.wrap_some_node_maybe(old_node),
                 scope=edit_event.scope,
                 origin=edit_event.origin,
                 subject_ptr=edit_event.subject,
@@ -683,11 +683,11 @@ def edit_graph(
             not options.include_hidden and edit_type in (EditType.UNARCHIVE, EditType.RESTORE)
         ):
             if edit_type in (EditType.CREATE, EditType.UPSERT):
-                assert edit.new_node_partial, f"missing new node for {edit!r}"
-                new_node_data = wiring.unwrap_some_node(edit.new_node_partial)
+                assert edit.new_node, f"missing new node for {edit!r}"
+                new_node_data = wiring.unwrap_some_node(edit.new_node)
             else:
-                assert edit.old_node_partial, f"missing old node for {edit!r}"
-                new_node_data = wiring.unwrap_some_node(edit.old_node_partial)
+                assert edit.old_node, f"missing old node for {edit!r}"
+                new_node_data = wiring.unwrap_some_node(edit.old_node)
                 if edit_type == EditType.UNARCHIVE:
                     new_node_data.archived_at = None
                 elif edit_type == EditType.RESTORE:
@@ -716,8 +716,8 @@ def edit_graph(
             graph.remove(node)
         else:
             # some update
-            assert edit.new_node_partial, f"missing new node for {edit!r}"
-            new_node_data = wiring.unwrap_some_node(edit.new_node_partial)
+            assert edit.new_node, f"missing new node for {edit!r}"
+            new_node_data = wiring.unwrap_some_node(edit.new_node)
             node = graph.get(node_id)
             assert node is not None, f"missing node {node_id!r} for update: {edit!r}"
             # directly edited properties
@@ -807,11 +807,11 @@ def edit_data_graph(
         ):
             # add
             if edit_type in (EditType.CREATE, EditType.UPSERT):
-                assert edit.new_node_partial, f"missing new node for {edit!r}"
-                new_node_data = wiring.unwrap_some_node(edit.new_node_partial)
+                assert edit.new_node, f"missing new node for {edit!r}"
+                new_node_data = wiring.unwrap_some_node(edit.new_node)
             else:
-                assert edit.old_node_partial, f"missing old node for {edit!r}"
-                new_node_data = wiring.unwrap_some_node(edit.old_node_partial)
+                assert edit.old_node, f"missing old node for {edit!r}"
+                new_node_data = wiring.unwrap_some_node(edit.old_node)
                 if edit_type == EditType.UNARCHIVE:
                     new_node_data.archived_at = None
                 elif edit_type == EditType.RESTORE:
@@ -829,10 +829,10 @@ def edit_data_graph(
             else:
                 graph.update(new_node_data)
 
-            # prepass: update new_node_partial and make vignette with new data
+            # prepass: update new_node and make vignette with new data
             if is_prepass:
-                edit.old_node_partial = None
-                edit.new_node_partial = wiring.wrap_some_node(new_node_data)  # :EditData
+                edit.old_node = None
+                edit.new_node = wiring.wrap_some_node(new_node_data)  # :EditData
                 edit.vignette = _make_vignette(new_node_data)
         elif (
             edit_type == EditType.ERASE
@@ -845,8 +845,8 @@ def edit_data_graph(
         else:
             # update
             # (or any other edit if prepass, where we assume all nodes are loaded in the graph)
-            if edit.new_node_partial is not None:
-                new_node_data = wiring.unwrap_some_node(edit.new_node_partial)
+            if edit.new_node is not None:
+                new_node_data = wiring.unwrap_some_node(edit.new_node)
             else:
                 new_node_data = None
             updated_node_data = graph.get(node_id)
@@ -859,7 +859,7 @@ def edit_data_graph(
 
             # directly edited properties
             proto_cls = wiring.PROTO_CLASS_BY_TYPE[node_cls.metatype]
-            old_node_partial = proto_cls(metatype=wire.ObjectType(node_cls.metatype))
+            old_node = proto_cls(metatype=wire.ObjectType(node_cls.metatype))
             if edit_type in (EditType.UPDATE, EditType.MOVE):
                 for prop_id in edit.properties:
                     prop = node_cls.__properties_by_id__.get(prop_id)
@@ -868,26 +868,22 @@ def edit_data_graph(
                         prop = prop.reference_wired_ptr
                     if is_prepass:
                         old_value = getattr(updated_node_data, prop.name)
-                        setattr(old_node_partial, prop.name, old_value)
+                        setattr(old_node, prop.name, old_value)
                     new_value_data = getattr(new_node_data, prop.name)
                     setattr(updated_node_data, prop.name, new_value_data)
 
             # prepass: 'reset' externally provided data to known ground truth (from graph)
             if is_prepass:  # :EditData
                 if edit_type in (EditType.UPDATE, EditType.MOVE):
-                    edit.old_node_partial = wiring.wrap_some_node(
-                        cast(AnyNodeData, old_node_partial)
-                    )
+                    edit.old_node = wiring.wrap_some_node(cast(AnyNodeData, old_node))
                 elif edit_type in (EditType.ARCHIVE, EditType.DELETE, EditType.ERASE):
-                    edit.old_node_partial = wiring.wrap_some_node(
-                        wiring.copy_struct(updated_node_data)
-                    )
+                    edit.old_node = wiring.wrap_some_node(wiring.copy_struct(updated_node_data))
                     if edit_type == EditType.ARCHIVE:
-                        edit.old_node_partial.archived_at = None
+                        edit.old_node.archived_at = None
                     elif edit_type == EditType.DELETE:
-                        edit.old_node_partial.deleted_at = None
+                        edit.old_node.deleted_at = None
                 elif edit_type in (EditType.UNARCHIVE, EditType.RESTORE):
-                    edit.old_node_partial = wiring.wrap_some_node(
+                    edit.old_node = wiring.wrap_some_node(
                         wiring.copy_struct(updated_node_data)  # keep archived_at/deleted_at
                     )
 

@@ -1598,8 +1598,8 @@ message EditData {
   NodeReferenceData node_ptr = 31;
   optional ChangeVignetteData vignette = 32;
   repeated int32 properties = 40;
-  optional SomeNodeData old_node_partial = 41;
-  optional SomeNodeData new_node_partial = 42;
+  optional SomeNodeData old_node = 41;
+  optional SomeNodeData new_node = 42;
   GraphScopeData scope = 60;
   optional string change_key = 61;
   optional ChangeCategory category = 62;
