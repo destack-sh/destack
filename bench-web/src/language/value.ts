@@ -185,13 +185,12 @@ export function unpackBuiltinObject<T extends ObjectType>(valuePacked: any, obje
       }
     } else {
       if (propValuePacked == null) {
-        if (!prop.isRequired) {
+        if (prop.referenceIsRich) {
+          propValue = { oneofKind: undefined };
+        } else if (!prop.isRequired) {
           continue;
         } else {
           propValue = null;
-          if (prop.referenceIsRich) {
-            propValue = { oneofKind: undefined };
-          }
         }
       } else {
         propValue = unpackValueScalarData(propValuePacked, propType);

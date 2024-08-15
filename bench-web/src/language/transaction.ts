@@ -622,7 +622,11 @@ type PendingCallback = (
     | { type: "add"; meta: TransactionMeta; edits: EditData[]; debounce: DebounceLevel | null }
     | { type: "reset"; meta: TransactionMeta; edits: EditData[] },
 ) => void;
-type CommitCallback = (event: { connectionIdByEditId: Record<string, number>; edits: EditData[] }) => void;
+type CommitCallback = (event: {
+  connectionIdByEditId: Record<string, number>;
+  edits: EditData[];
+  cascadedEdits: EditData[];
+}) => void;
 
 /**
  * A transaction buffer provides Transactions and applies them to the graph.
@@ -697,7 +701,7 @@ export class ImmediateTransactionBuffer implements TransactionBuffer {
       // apply edit directly
       editGraph(this.graph, [edit]);
       // notify
-      this._committedSubs.forEach((sub) => sub({ connectionIdByEditId: {}, edits: [edit] }));
+      this._committedSubs.forEach((sub) => sub({ connectionIdByEditId: {}, edits: [edit], cascadedEdits: [] }));
       // 'reset'
       newTx.state.edits.length = 0;
     });
@@ -802,8 +806,7 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
 
       // notify on success
       // (we do not directly edit state on success, when/how/which edits to 'accept' is up to the caller)
-      const allEdits = [...edits, ...cascadedEdits];
-      this.committedSubs.forEach((sub) => sub({ connectionIdByEditId: null, edits: allEdits }));
+      this.committedSubs.forEach((sub) => sub({ connectionIdByEditId: null, edits, cascadedEdits }));
     } catch (error) {
       // failed
       const fail: CommitFailure = { id: this.pendingTx!.id, edits: this.pendingTx!.edits, error: error as RpcError };
