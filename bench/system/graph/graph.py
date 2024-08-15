@@ -707,8 +707,8 @@ def parse_commit_scope(edits: list[EditData], base_graph: NodeDataGraph | None) 
         node_id = edit.node_ptr.id
         edited_node_ids.add(node_id)
         if edit.type == EditType.CREATE or edit.type == EditType.UPSERT:
-            assert edit.new_node_partial is not None, f"missing new node for {edit!r}"
-            new_node = wiring.unwrap_some_node(edit.new_node_partial)
+            assert edit.new_node is not None, f"missing new node for {edit!r}"
+            new_node = wiring.unwrap_some_node(edit.new_node)
             # node scope is parent since we don't have this node yet
             if new_node.parent_ptr is None:
                 raise ValidationError(new_node, "can't create orphan")
@@ -724,8 +724,8 @@ def parse_commit_scope(edits: list[EditData], base_graph: NodeDataGraph | None) 
             node_scope = edit.node_ptr
             if edit.type == EditType.MOVE:
                 # also add new parent to scope
-                assert edit.new_node_partial is not None, f"missing new node for {edit!r}"
-                new_node = wiring.unwrap_some_node(edit.new_node_partial)
+                assert edit.new_node is not None, f"missing new node for {edit!r}"
+                new_node = wiring.unwrap_some_node(edit.new_node)
                 assert (
                     new_node.parent_ptr is not None
                 ), f"missing parent for {new_node!r} in {edit!r}"
@@ -817,21 +817,21 @@ def validate_edit(edit: EditData, subject: Subject, now: datetime) -> None:
         EditType.RESTORE,
         EditType.ERASE,
     )
-    if should_set_new != (edit.new_node_partial is not None):
+    if should_set_new != (edit.new_node is not None):
         raise GRPCError(
             GRPCStatus.INVALID_ARGUMENT,
-            f"bad new_node_partial in {edit!r}: {edit.new_node_partial}",
+            f"bad new_node in {edit!r}: {edit.new_node}",
         )
-    if should_set_old != (edit.old_node_partial is not None):
+    if should_set_old != (edit.old_node is not None):
         raise GRPCError(
             GRPCStatus.INVALID_ARGUMENT,
-            f"bad old_node_partial in {edit!r}: {edit.old_node_partial}",
+            f"bad old_node in {edit!r}: {edit.old_node}",
         )
 
     # properties
     if edit.type in (EditType.UPDATE, EditType.MOVE):
         # check that properties are in both old and new
-        assert edit.old_node_partial and edit.new_node_partial
+        assert edit.old_node and edit.new_node
         # no forbidden properties
         if any(is_implicit_node_property(p) for p in edit.properties):
             bad_properties = [

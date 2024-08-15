@@ -209,8 +209,8 @@ class NodeConnection[
         updated_node = updated_graph.get(node_id)
         if updated_node is None:
             if edit.type in (EditType.CREATE, EditType.UPSERT):
-                assert edit.new_node_partial, f"missing new node data for {edit!r}"
-                updated_node = unwrap_some_node(edit.new_node_partial)
+                assert edit.new_node, f"missing new node data for {edit!r}"
+                updated_node = unwrap_some_node(edit.new_node)
             elif edit.type in (
                 EditType.ARCHIVE,
                 EditType.DELETE,
@@ -218,8 +218,8 @@ class NodeConnection[
                 EditType.UNARCHIVE,
                 EditType.RESTORE,
             ):
-                assert edit.old_node_partial, f"missing old node data for {edit!r}"
-                updated_node = unwrap_some_node(edit.old_node_partial)
+                assert edit.old_node, f"missing old node data for {edit!r}"
+                updated_node = unwrap_some_node(edit.old_node)
             else:
                 raise RuntimeError(f"unexpected empty edit type {edit.type} in {edit!r}")
         assert updated_node is not None, f"missing node data for {edit.node_ptr!r}"

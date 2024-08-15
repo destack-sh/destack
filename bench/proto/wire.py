@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.08.14.2"
+VERSION = "2024.08.15.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -1718,8 +1718,8 @@ class EditData(betterproto.Message):
     node_ptr: "NodeReferenceData" = betterproto.message_field(31)
     vignette: Optional["ChangeVignetteData"] = betterproto.message_field(32, optional=True)
     properties: List[int] = betterproto.int32_field(40)
-    old_node_partial: Optional["SomeNodeData"] = betterproto.message_field(41, optional=True)
-    new_node_partial: Optional["SomeNodeData"] = betterproto.message_field(42, optional=True)
+    old_node: Optional["SomeNodeData"] = betterproto.message_field(41, optional=True)
+    new_node: Optional["SomeNodeData"] = betterproto.message_field(42, optional=True)
     scope: "GraphScopeData" = betterproto.message_field(60)
     change_key: Optional[str] = betterproto.string_field(61, optional=True)
     category: Optional["ChangeCategory"] = betterproto.enum_field(62, optional=True)

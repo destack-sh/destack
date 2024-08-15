@@ -1721,8 +1721,8 @@ async def _pg_edit_cascade(
         # only cascade to nodes that were removed at the exact same time
         removed_dts = []
         for root_edit in batch:
-            assert root_edit.old_node_partial is not None, f"no old node for {root_edit!r}"
-            old_node = wiring.unwrap_some_node(root_edit.old_node_partial)
+            assert root_edit.old_node is not None, f"no old node for {root_edit!r}"
+            old_node = wiring.unwrap_some_node(root_edit.old_node)
             if edit_type == EditType.UNARCHIVE:
                 removed_at = old_node.archived_at
             elif edit_type == EditType.RESTORE:
@@ -1791,18 +1791,18 @@ async def _pg_edit_cascade(
         for node, cascaded_edit in zip(nodes, cascaded_edits):
             cascaded_edit.revision = node.revision
             if edit_type in (EditType.UNARCHIVE, EditType.RESTORE):
-                cascaded_edit.old_node_partial = wiring.wrap_some_node(node)
-                # set root edit removed_at in cascaded_edit.old_node_partial
+                cascaded_edit.old_node = wiring.wrap_some_node(node)
+                # set root edit removed_at in cascaded_edit.old_node
                 root_edit = root_edit_by_cascaded_node_id[cast(str, node.id)]
                 removed_at = removed_at_by_root_node_id[cast(str, root_edit.node_ptr.id)]
                 if edit_type == EditType.UNARCHIVE:
-                    cascaded_edit.old_node_partial.archived_at = removed_at
+                    cascaded_edit.old_node.archived_at = removed_at
                 elif edit_type == EditType.RESTORE:
-                    cascaded_edit.old_node_partial.deleted_at = removed_at
+                    cascaded_edit.old_node.deleted_at = removed_at
                 else:
                     assert_never(edit_type)
             elif edit_type in (EditType.ARCHIVE, EditType.DELETE, EditType.ERASE):
-                cascaded_edit.old_node_partial = wiring.wrap_some_node(node)
+                cascaded_edit.old_node = wiring.wrap_some_node(node)
             else:
                 raise RuntimeError(
                     f"unexpected cascaded edit type{edit_type!r} for {cascaded_edit!r}"
@@ -1844,8 +1844,8 @@ async def _pg_edit_batch(
         rows = []
         for edit in batch:
             assert edit.epoch is not None, f"no epoch for {edit!r}"
-            assert edit.new_node_partial, f"no new node for {edit!r}"
-            node = wiring.unwrap_some_node(edit.new_node_partial)
+            assert edit.new_node, f"no new node for {edit!r}"
+            node = wiring.unwrap_some_node(edit.new_node)
             nodes.append(node)
             # inline implicit metadata
             row: dict[str, SqlPrimitive] = pg_pack_node_data_row(node)
@@ -1915,8 +1915,8 @@ async def _pg_edit_batch(
         for edit in batch:
             assert edit.epoch is not None, f"no epoch for {edit!r}"
             if edit_type == EditType.UPDATE or edit_type == EditType.MOVE:
-                assert edit.new_node_partial, f"no new node for {edit!r}"
-                new_node_data = wiring.unwrap_some_node(edit.new_node_partial)
+                assert edit.new_node, f"no new node for {edit!r}"
+                new_node_data = wiring.unwrap_some_node(edit.new_node)
             else:
                 new_node_data = None
             row = {"id": edit.node_ptr.id}

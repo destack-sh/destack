@@ -144,7 +144,6 @@ class EditStack {
       if (hasNewEdits) {
         // reset undo/redo stack
         this._undoIndex = this._editStack.length;
-        this._derivedEditsById = {};
       }
     });
     return sub;
@@ -179,7 +178,7 @@ function invertEdit(edit: EditData, mode: "undo" | "redo"): void {
   if (undoType == null) throw new Error(`cannot undo edit ${toCamelName(EditType, edit.type!)}}`);
   if (mode == "undo") {
     edit.type = undoType;
-    [edit.oldNodePartial, edit.newNodePartial] = [edit.newNodePartial, edit.oldNodePartial];
+    [edit.oldNode, edit.newNode] = [edit.newNode, edit.oldNode];
   } else if (mode == "redo") {
     const redoType = UNDO_EDIT_BY_TYPE[undoType!];
     if (redoType == null) throw new Error(`cannot redo edit ${toCamelName(EditType, undoType!)}}`);
@@ -195,9 +194,9 @@ function invertEdit(edit: EditData, mode: "undo" | "redo"): void {
     edit.type == EditType.DELETE ||
     edit.type == EditType.RESTORE
   ) {
-    edit.oldNodePartial = edit.oldNodePartial ?? edit.newNodePartial; // oldNode is set, newNode is unset
-    if (edit.oldNodePartial == null) throw new Error(`missing old node for ${edit.type}}`);
-    edit.newNodePartial = undefined;
+    edit.oldNode = edit.oldNode ?? edit.newNode; // oldNode is set, newNode is unset
+    if (edit.oldNode == null) throw new Error(`missing old node for ${edit.type}}`);
+    edit.newNode = undefined;
   }
 }
 
@@ -239,8 +238,8 @@ export function makeEditFromLog(
     nodePtr: log.nodePtr,
     scope: scope,
     properties: log.properties,
-    oldNodePartial: oldNode != null ? wrapSomeNode(oldNode) : undefined,
-    newNodePartial: newNode != null ? wrapSomeNode(newNode) : undefined,
+    oldNode: oldNode != null ? wrapSomeNode(oldNode) : undefined,
+    newNode: newNode != null ? wrapSomeNode(newNode) : undefined,
     origin: origin.value,
     category: options?.category ?? log.category,
     subjectPtr: subjectPtr,

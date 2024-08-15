@@ -307,8 +307,8 @@ export class TransactionBuilder implements Transaction {
       type: editType,
       nodePtr: toPlainNodeRef(node),
       scope: this.getScope(node),
-      oldNodePartial: oldNode != null ? wrapSomeNode(oldNode) : undefined,
-      newNodePartial: newNode != null ? wrapSomeNode(newNode) : undefined,
+      oldNode: oldNode != null ? wrapSomeNode(oldNode) : undefined,
+      newNode: newNode != null ? wrapSomeNode(newNode) : undefined,
       properties: [],
       origin: origin.value,
       subjectPtr: subjectPtr,
@@ -406,8 +406,8 @@ export class TransactionBuilder implements Transaction {
         nodePtr: toPlainNodeRef(node),
         scope: this.getScope(node),
         properties: properties.map((p) => p.id),
-        oldNodePartial: wrapSomeNode(oldNode),
-        newNodePartial: wrapSomeNode(newNode),
+        oldNode: wrapSomeNode(oldNode),
+        newNode: wrapSomeNode(newNode),
         origin: origin.value,
         subjectPtr: subjectPtr,
         changeKey: this.change?.key,
@@ -422,21 +422,21 @@ export class TransactionBuilder implements Transaction {
     } else {
       // merge into existing edit & notify directly :DebouncedUpdate
       const edit = this.state._debouncedUpdatesByNodeId[node.id];
-      if (edit.oldNodePartial == null || edit.newNodePartial == null) {
+      if (edit.oldNode == null || edit.newNode == null) {
         throw new Error(`missing old/new node in debounced edit: ${describeEdit(edit)}`);
       }
-      const oldNodePartial = unwrapSomeNode(edit.oldNodePartial);
-      const newNodePartial = unwrapSomeNode(edit.newNodePartial);
+      const oldNode = unwrapSomeNode(edit.oldNode);
+      const newNode = unwrapSomeNode(edit.newNode);
       for (const prop of properties) {
         const propName = propertiesEnum[prop.id];
         // add to Edit.properties if not there @yet
         if (!edit.properties.includes(prop.id)) {
           // and old value since it doesn't already exist
           edit.properties.push(prop.id);
-          (oldNodePartial as any)[propName] = (node as any)[propName];
+          (oldNode as any)[propName] = (node as any)[propName];
         }
         // and update new value
-        (newNodePartial as any)[propName] = (update as any)[propName];
+        (newNode as any)[propName] = (update as any)[propName];
       }
       // coalesce successive move/update into move edit
       if (editType == EditType.MOVE && edit.type != EditType.MOVE) {
@@ -506,11 +506,11 @@ export function editGraph(
       // add
       let newNode: AnyNodeData;
       if (edit.type == EditType.CREATE || edit.type == EditType.UPSERT) {
-        if (edit.newNodePartial == null) throw new Error(`missing newNodePacked in edit: ${describeEdit(edit)}`);
-        newNode = unwrapSomeNode(edit.newNodePartial);
+        if (edit.newNode == null) throw new Error(`missing newNodePacked in edit: ${describeEdit(edit)}`);
+        newNode = unwrapSomeNode(edit.newNode);
       } else {
-        if (edit.oldNodePartial == null) throw new Error(`missing oldNodePacked in edit: ${describeEdit(edit)}`);
-        newNode = unwrapSomeNode(edit.oldNodePartial);
+        if (edit.oldNode == null) throw new Error(`missing oldNodePacked in edit: ${describeEdit(edit)}`);
+        newNode = unwrapSomeNode(edit.oldNode);
         if (edit.type == EditType.UNARCHIVE) {
           newNode = { ...newNode, archivedAt: undefined };
         } else if (edit.type == EditType.RESTORE) {
@@ -539,9 +539,9 @@ export function editGraph(
       // update
       let updatedNode: AnyNodeData | null;
       if (edit.type == EditType.UNARCHIVE || edit.type == EditType.RESTORE) {
-        if (edit.oldNodePartial == null)
+        if (edit.oldNode == null)
           throw new Error(`missing old node in edit: ${describeEdit(edit)} in ${graph.describeSelf()}`);
-        updatedNode = unwrapSomeNode(edit.oldNodePartial);
+        updatedNode = unwrapSomeNode(edit.oldNode);
         updatedNode = { ...updatedNode, archivedAt: undefined };
       } else {
         updatedNode = graph.get(edit.nodePtr!);
@@ -556,9 +556,9 @@ export function editGraph(
 
       // directly edited properties
       if (edit.type == EditType.UPDATE || edit.type == EditType.MOVE) {
-        if (edit.newNodePartial == null)
+        if (edit.newNode == null)
           throw new Error(`missing new node in edit: ${describeEdit(edit)} in ${graph.describeSelf()}`);
-        const newNode = unwrapSomeNode(edit.newNodePartial);
+        const newNode = unwrapSomeNode(edit.newNode);
         const propertyEnum = NODE_PROPERTY_ENUM_BY_TYPE[nodeType]!;
         const allProperties = PROPERTY_INFOS_BY_TYPE[nodeType]!;
         for (const propId of edit.properties) {
