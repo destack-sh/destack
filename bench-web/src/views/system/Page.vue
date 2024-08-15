@@ -11,6 +11,7 @@ import {
   BlockData,
   BlockType,
   BoxData,
+  ChangeCategory,
   NodeReferenceData,
   NodeType,
   Orientation,
@@ -262,7 +263,7 @@ const actions: Partial<ActionMapImplementation<"common" | "session">> = {
     action: (action, context) => {
       const { block } = getBlockFromContext(context);
       if (block == null) return false;
-      pkgConnection.tx.create(makeRun(block, pkgGraph));
+      pkgConnection.tx.with({ category: ChangeCategory.SESSION }).create(makeRun(block, pkgGraph));
     },
   },
 };
@@ -370,7 +371,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
                 class="text-gray-400 hover:text-primary-900"
                 :class="inspectionPtr?.id == block?.id ? '' : 'opacity-0 group-hover/block-line:opacity-100'"
                 data-keep-inspection-in-base="true"
-                @click="() => pkgConnection.tx.create(makeRun(block, pkgGraph))"
+                @click="pkgConnection.tx.with({ category: ChangeCategory.SESSION }).create(makeRun(block, pkgGraph))"
               >
                 <i class="fas fa-play" />
               </button>

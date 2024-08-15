@@ -17,7 +17,7 @@ import { isDeveloperMode, packagePtr } from "@/system/client";
 import { makeIcon } from "@/ui/icon";
 import { canvas, hasLocalBench, inspectionPtr, pkg, pkgConnection, pkgGraph, space } from "@/system/space";
 import { toaster } from "@/ui/toast";
-import { getAllTransactionBuffers, getEditStack } from "@/language/transaction";
+import { getAllTransactionBuffers } from "@/language/transaction";
 import { packBuiltinObjectJson } from "@/language/value";
 import { generateOrderKey } from "@/utils/fractional";
 import { type FilterPrefix } from "@/utils/functools";
@@ -48,6 +48,7 @@ import {
   type Ref,
 } from "vue";
 import { EXPOSED_ANCHORS, getRandomEnumOption } from "@/ui/inspect";
+import { getEditStack } from "@/language/edit";
 
 export const IS_IN_ALT_MODE = useKeyModifier("Alt");
 
