@@ -148,7 +148,9 @@ function isSelected(value: PickerItem) {
 function isActive(item: PickerItem) {
   return item.id === activeResultId.value;
 }
-function fire(option: PickerItem) {
+function fire(option: string | PickerItem | undefined) {
+  if (typeof option == "string") option = results.value.find((r) => r.id === option);
+  if (option == null) return;
   const value = index.value.toValue(option);
   apply(value);
 }
@@ -267,7 +269,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
           type="text"
           class="w-full border-0 bg-transparent p-0 placeholder-gray-500 outline-none ring-0 focus:ring-0"
           :placeholder="placeholder ?? modelValueTitle ?? `Select ${facetName ?? '???'}`"
-          @keydown.enter.stop.prevent="activeResultId != null && fire(results.find((r) => r.id === activeResultId)!)"
+          @keydown.enter.stop.prevent="activeResultId && fire(activeResultId)"
           @keydown.up.stop.prevent="focus('previous')"
           @keydown.down.stop.prevent="focus('next')"
         />

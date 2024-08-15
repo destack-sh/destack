@@ -105,7 +105,7 @@ watch([canvas.focusedViewPtr, bench], () => {
     ref="spaceRef"
     class="bg-gray-100 text-sm"
     :class="[
-      isDraggingGlobal || hasActivePopover ? 'pointer-events-none' : '',
+      isDraggingGlobal || hasActivePopover ? 'pointer-events-none select-none' : '',
       IS_IN_ALT_MODE ? 'altmode' : '',
     ]"
     :style="{ width: spaceWidth + 'px', height: spaceHeight + 'px' }"

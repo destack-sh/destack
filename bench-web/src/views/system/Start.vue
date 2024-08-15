@@ -45,7 +45,7 @@ import Scroll from "@/views/containers/Scroll.vue";
 import Text from "@/views/content/Text.vue";
 import Feed from "@/views/system/Feed.vue";
 import ValueObject from "@/views/system/ValueObject.vue";
-import { computed, toRef, type Ref } from "vue";
+import { computed, ref, toRef, watch, type Ref } from "vue";
 
 const HEADER_HEIGHT = DEFAULT_HEADER_HEIGHT;
 const MIN_WIDTH = 320;
@@ -72,7 +72,13 @@ const { state, updateState, useStateProp } = useViewState({
   emit,
 });
 const lastRunPtr = useStateProp("lastRunPtr", undefined) as Ref<TypedNodeReferenceData<NodeType.RUN> | undefined>;
-const { node: lastRun } = useNode({ name: "start.lastRun", type: "search", live: true, nodePtr: lastRunPtr });
+const { node: lastRun } = useNode({
+  name: "start.lastRun",
+  type: "search",
+  live: true,
+  nodePtr: lastRunPtr,
+  isEnabled: computed(() => lastRunPtr.value != null),
+});
 const lastRunOfBase = computed(() => {
   if (lastRunPtr.value == null || lastRunPtr.value.baseCk != runnablePtr.value?.ck) return null;
   else return lastRun.value;
@@ -93,7 +99,8 @@ const feedState = computed(
 const ancestors = pkgGraph.getAncestorsRef(focusPtr, { includeSelf: true });
 
 // current runnable / inputs
-const runnableNode: Ref<BlockData | StepData | null> = computed(() => {
+// NOTE: we 'sticky' the last runnable node (so even if we currently don't have one, we keep the last one)
+const currentRunnableNode: Ref<BlockData | StepData | null> = computed(() => {
   // for some reason this type checks but ancestors.find doesn't
   for (const ancestor of ancestors.value) {
     if (isRunnable(ancestor, pkgGraph)) {
@@ -101,6 +108,10 @@ const runnableNode: Ref<BlockData | StepData | null> = computed(() => {
     }
   }
   return null;
+});
+const runnableNode: Ref<BlockData | StepData | null> = ref(null);
+watch(currentRunnableNode, (newNode) => {
+  if (newNode != null) runnableNode.value = newNode;
 });
 const runnablePtr = computed(() => (runnableNode.value != null ? toPlainNodeRef(runnableNode.value) : null));
 const inputsPacked: Ref<Record<string, any>> = mapRef(

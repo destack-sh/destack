@@ -1169,7 +1169,7 @@ export function useNode<T extends NodeType>(paramsIn: {
   nodePtr: MaybeRef<NodeReferenceData | TypedNodeReferenceData<T> | null | undefined>;
   ancestorTypes?: MaybeRef<NodeType[]>;
   descendantTypes?: MaybeRef<NodeType[]>;
-  isEnabled?: MaybeRef<boolean | undefined>;
+  isEnabled?: Ref<boolean | undefined>;
 }): {
   connection: Connection<"get" | "search", T>;
   node: Ref<NodeTypeMapping[T] | null>;
@@ -1209,10 +1209,10 @@ export function useNode<T extends NodeType>(paramsIn: {
             : null;
         return {
           scope: toValue(paramsIn.scope) ?? PACKAGE_SCOPE.value,
-          nodeType: toValue(paramsIn.nodePtr)!.type,
+          nodeType: toValue(paramsIn.nodePtr)?.type,
           filter,
           first: 1,
-          isEnabled: toValue(paramsIn.nodePtr) != null,
+          isEnabled: paramsIn.isEnabled != null ? toValue(paramsIn.isEnabled) : undefined,
           ancestorTypes: toValue(paramsIn.ancestorTypes),
           descendantTypes: toValue(paramsIn.descendantTypes),
         } as SearchConnectionParams<T>;
