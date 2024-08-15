@@ -65,7 +65,7 @@ import Log from "@/views/system/Log.vue";
 import Run from "@/views/system/Run.vue";
 import { computed, ref, toRef, type Ref } from "vue";
 import { EDIT_TYPE_PAST_VERB, getPropertyTitle } from "@/ui/inspect";
-import { makeEditFromLog } from "@/language/transaction";
+import { makeEditFromLog } from "@/language/edit";
 
 const HEADER_HEIGHT = DEFAULT_HEADER_HEIGHT;
 const MIN_WIDTH = 320;

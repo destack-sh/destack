@@ -9,6 +9,7 @@ import { packBuiltinObject, packValueJson, unpackBuiltinObject } from "@/languag
 import {
   BlockData,
   BoxData,
+  ChangeCategory,
   ExpressionOp,
   FeedViewStateData,
   FieldZone,
@@ -163,7 +164,7 @@ defineExpose<ViewExposed>({ self });
               () => {
                 if (runnableNode == null) return;
                 const run = makeRun(runnableNode, pkgGraph, { inputsPacked });
-                pkgConnection.tx.create(run);
+                pkgConnection.tx.with({ category: ChangeCategory.SESSION }).create(run);
                 lastRunPtr = toNodeRef(run);
               }
             "

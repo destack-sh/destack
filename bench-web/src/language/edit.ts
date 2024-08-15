@@ -1,0 +1,218 @@
+import { toCamelName } from "@/language/const";
+import type { ReadNodeGraph } from "@/language/graph";
+import {
+  EDIT_TYPES,
+  UNDO_EDIT_BY_TYPE,
+  getTransactionBuffer,
+  newEditId,
+  txBuffers,
+  unpackProtoJson,
+  type TransactionBuffer,
+} from "@/language/transaction";
+import { unpackBuiltinObject } from "@/language/value";
+import {
+  ChangeCategory,
+  EditData,
+  EditType,
+  LogData,
+  NodeReferenceData,
+  ObjectType,
+  Timestamp,
+  ViewData,
+  type AnyNodeData,
+} from "@/proto/wire";
+import {
+  EMPTY_SCOPE,
+  describeEdit,
+  describeNode,
+  makeDefaultObject,
+  makeScope,
+  toPlainNodeRef,
+  wrapSomeNode,
+} from "@/proto/wiring";
+import { origin, userPtr } from "@/system/client";
+import { assertNever } from "@/utils/functools";
+import { watch } from "vue";
+
+/**
+ * A stack of edits for undo/redo.
+ * NOTE :UX: it would be cool to use the edit logs to provide cross-device undo/redo
+ * */
+class EditStack {
+  private _editStack: EditData[] = [];
+  private _editsById: Record<string, EditData> = {};
+  private _connectionIdByEdit: Record<string, number> = {};
+  private _derivedEditsById: Record<string, EditData> = {};
+  private _undoIndex: number = 0;
+  private _filter: (edit: EditData) => boolean;
+
+  constructor(filter: (edit: EditData) => boolean) {
+    this._filter = filter;
+  }
+
+  get canUndo() {
+    return this._undoIndex > 0;
+  }
+
+  get canRedo() {
+    return this._undoIndex < this._editStack.length;
+  }
+
+  /**
+   * Apply the inverse of the last edit to the stack. Noop if impossible.
+   * If there are multiple successive edits belonging to the same change, all of them are undone.
+   */
+  undo() {
+    const editToUndo = this._editStack[this._undoIndex - 1];
+    if (editToUndo == null) return;
+    const undoEdit = { ...editToUndo, id: newEditId() };
+    invertEdit(undoEdit, "undo");
+    this._undoIndex--;
+    this._derivedEditsById[undoEdit.id] = undoEdit;
+    const buffer = getTransactionBuffer(editToUndo.scope ?? EMPTY_SCOPE);
+    const connectionId = this._connectionIdByEdit[editToUndo.id!];
+    if (connectionId == null) throw new Error(`missing connection for ${describeEdit(editToUndo)}`);
+    buffer.tx.with({ connectionId }).addEdit(undoEdit);
+  }
+
+  /**
+   * Reapply the next undone edit (technically, the inverse of the inverse). Noop if impossible.
+   * If there are multiple successive edits belonging to the same change, all of them are redone.
+   */
+  redo() {
+    const editToRedo = this._editStack[this._undoIndex];
+    if (editToRedo == null) return;
+    const redoEdit = { ...editToRedo, id: newEditId() };
+    invertEdit(redoEdit, "redo");
+    this._undoIndex++;
+    this._derivedEditsById[redoEdit.id] = redoEdit;
+    const buffer = getTransactionBuffer(editToRedo.scope ?? EMPTY_SCOPE);
+    const connectionId = this._connectionIdByEdit[editToRedo.id!];
+    if (connectionId == null) throw new Error(`missing connection for ${describeEdit(editToRedo)}`);
+    buffer.tx.with({ connectionId }).addEdit(redoEdit);
+  }
+
+  subscribeToBuffer(buffer: TransactionBuffer): () => void {
+    // NOTE :UX: EditStack should handle pending edits as well (not just committed)
+    const sub = buffer.subscribeCommit((event) => {
+      let hasNewEdits = false;
+      for (const edit of event.edits) {
+        if (this._filter(edit) && !this._editsById[edit.id] && !this._derivedEditsById[edit.id]) {
+          this._editStack.push(edit);
+          this._editsById[edit.id] = edit;
+          this._connectionIdByEdit[edit.id] = event.connectionIdByEditId[edit.id];
+          hasNewEdits = true;
+        }
+      }
+      if (hasNewEdits) {
+        // reset undo/redo stack
+        this._undoIndex = this._editStack.length;
+        this._derivedEditsById = {};
+      }
+    });
+    return sub;
+  }
+}
+
+// one edit stack for all bench tx buffers
+// NOTE :UX: we currently only have one shared edit stack, should probably be per view root?
+const editStack = new EditStack((e) => e.category != ChangeCategory.SPACE && e.category != ChangeCategory.SESSION);
+const editStackSubs: Array<() => void> = [];
+watch(
+  txBuffers,
+  () => {
+    editStackSubs.forEach((sub) => sub());
+    Object.values(txBuffers.value).forEach((buffer) => {
+      const sub = editStack.subscribeToBuffer(buffer);
+      editStackSubs.push(sub);
+    });
+  },
+  { immediate: true },
+);
+
+/** Gets the relevant edit stack in the given view. */
+export function getEditStack(graph: ReadNodeGraph, focusedView: ViewData | null): EditStack {
+  // only one for now (see above)
+  return editStack;
+}
+
+/** Inverts an edit as an undo/redo of the given edit (in place). */
+function invertEdit(edit: EditData, mode: "undo" | "redo"): void {
+  const undoType = UNDO_EDIT_BY_TYPE[edit.type!];
+  if (undoType == null) throw new Error(`cannot undo edit ${toCamelName(EditType, edit.type!)}}`);
+  if (mode == "undo") {
+    edit.type = undoType;
+    [edit.oldNodePartial, edit.newNodePartial] = [edit.newNodePartial, edit.oldNodePartial];
+  } else if (mode == "redo") {
+    const redoType = UNDO_EDIT_BY_TYPE[undoType!];
+    if (redoType == null) throw new Error(`cannot redo edit ${toCamelName(EditType, undoType!)}}`);
+    edit.type = redoType;
+  } else {
+    assertNever(mode);
+  }
+
+  // shuffle oldNode/newNode :EditData
+  if (
+    edit.type == EditType.ARCHIVE ||
+    edit.type == EditType.UNARCHIVE ||
+    edit.type == EditType.DELETE ||
+    edit.type == EditType.RESTORE
+  ) {
+    edit.oldNodePartial = edit.oldNodePartial ?? edit.newNodePartial; // oldNode is set, newNode is unset
+    if (edit.oldNodePartial == null) throw new Error(`missing old node for ${edit.type}}`);
+    edit.newNodePartial = undefined;
+  }
+}
+
+/** Turns a logged edit back into an edit (to redo/undo) */
+export function makeEditFromLog(
+  log: LogData,
+  mode: "redo" | "undo",
+  options?: {
+    category?: ChangeCategory;
+    subjectPtr?: NodeReferenceData;
+  },
+): EditData {
+  // unpack
+  if (log.nodePtr == null) throw new Error(`missing node for ${log.type}: ${describeNode(log)}`);
+  const nodeType = log.nodePtr.type;
+  const editType = log.type as unknown as EditType | undefined;
+  if (!EDIT_TYPES.includes(editType!)) throw new Error(`unexpected edit ${editType}: ${describeNode(log)}`);
+  const oldNode =
+    log.oldNodePacked != null
+      ? (makeDefaultObject(
+          unpackBuiltinObject(unpackProtoJson(log.oldNodePacked), nodeType as unknown as ObjectType),
+        ) as AnyNodeData)
+      : null;
+  const newNode =
+    log.newNodePacked != null
+      ? (makeDefaultObject(
+          unpackBuiltinObject(unpackProtoJson(log.newNodePacked), nodeType as unknown as ObjectType),
+        ) as AnyNodeData)
+      : null;
+
+  // make edit
+  const subjectPtr = options?.subjectPtr ?? userPtr.value;
+  if (subjectPtr == null) throw new Error(`missing subject for ${log.type}: ${describeNode(log)}`);
+  const scope = makeScope({ benchId: log.benchPtr?.id, packageId: log.packagePtr?.id });
+  const edit: EditData = {
+    metatype: ObjectType.EDIT,
+    id: newEditId(),
+    type: editType!,
+    nodePtr: log.nodePtr,
+    scope: scope,
+    properties: log.properties,
+    oldNodePartial: oldNode != null ? wrapSomeNode(oldNode) : undefined,
+    newNodePartial: newNode != null ? wrapSomeNode(newNode) : undefined,
+    origin: origin.value,
+    category: options?.category ?? log.category,
+    subjectPtr: subjectPtr,
+    editedAt: Timestamp.now(),
+    undoOfPtr: mode == "undo" ? toPlainNodeRef(log) : undefined,
+  };
+
+  // invert edit
+  invertEdit(edit, mode);
+
+  return edit;
+}

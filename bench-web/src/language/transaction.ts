@@ -1,7 +1,6 @@
-import { toCamelName } from "@/language/const";
 import { type ReadNodeGraph, type WriteNodeGraph } from "@/language/graph";
 import { makeNode } from "@/language/node";
-import { unpackBuiltinObject, type JsonValue } from "@/language/value";
+import { type JsonValue } from "@/language/value";
 import { getCachedGraphClient, HUMANIZED_OPERATION_STATUS } from "@/proto/services";
 import {
   BlockProperty,
@@ -9,7 +8,6 @@ import {
   CommitTransactionRequest,
   EditType,
   GraphScopeData,
-  LogData,
   NODE_PROPERTY_ENUM_BY_TYPE,
   NodeReferenceData,
   NodeType,
@@ -19,7 +17,6 @@ import {
   Struct as ProtoStruct,
   TextData,
   Timestamp,
-  ViewData,
   type AnyNodeData,
   type EditData,
   type NodeTypeMapping,
@@ -40,13 +37,12 @@ import {
 import { nonce, origin, userOrNullPtr, userPtr } from "@/system/client";
 import { makeIcon } from "@/ui/icon";
 import { toaster } from "@/ui/toast";
-import { assertNever } from "@/utils/functools";
 import { IS_DEV } from "@/utils/globals";
 import { log } from "@/utils/log";
 import { toValueRef } from "@/utils/ref";
 import { uuidt } from "@/utils/uuidt";
 import type { RpcError } from "grpc-web";
-import { nextTick, ref, shallowRef, toRef, triggerRef, watch, type MaybeRef, type Ref } from "vue";
+import { computed, nextTick, ref, shallowRef, toRef, triggerRef, watch, type MaybeRef, type Ref } from "vue";
 
 export type DebounceLevel = "tick" | "short" | "long";
 const DEBOUNCE_LEVELS: Record<"short" | "long", number> = {
@@ -71,11 +67,11 @@ const IMPLICIT_UPDATE_PROPERTIES_IDS = ["updatedAt", "updatedEpoch", "updatedByP
 );
 const NONCE_POSTFIX = nonce.replace("-", "").slice(0, 16);
 
-function newEditId(): string {
+export function newEditId(): string {
   return uuidt({ nonce: NONCE_POSTFIX });
 }
 
-function newTransactionId(): string {
+export function newTransactionId(): string {
   return uuidt({ nonce: NONCE_POSTFIX });
 }
 
@@ -806,7 +802,9 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
 
       // notify on success
       // (we do not directly edit state on success, when/how/which edits to 'accept' is up to the caller)
-      this.committedSubs.forEach((sub) => sub({ connectionIdByEditId: null, edits, cascadedEdits }));
+      this.committedSubs.forEach((sub) =>
+        sub({ connectionIdByEditId: this.pendingConnectionByEditId, edits, cascadedEdits }),
+      );
     } catch (error) {
       // failed
       const fail: CommitFailure = { id: this.pendingTx!.id, edits: this.pendingTx!.edits, error: error as RpcError };
@@ -940,6 +938,7 @@ export function newBufferId() {
 }
 const globalTxBuffer: TransactionBuffer = new RemoteTransactionBuffer(newBufferId(), EMPTY_SCOPE);
 const txBuffersByBenchId: Ref<Record<string, RemoteTransactionBuffer>> = shallowRef({});
+export const txBuffers = computed(() => getAllTransactionBuffers());
 
 export function getAllTransactionBuffers(): TransactionBuffer[] {
   return [globalTxBuffer, ...Object.values(txBuffersByBenchId.value)];
@@ -1061,172 +1060,3 @@ export const UNDO_EDIT_BY_TYPE: Partial<Record<EditType, EditType>> = {
   [EditType.DELETE]: EditType.RESTORE,
   [EditType.RESTORE]: EditType.DELETE,
 };
-
-/**
- * A stack of edits for undo/redo.
- * NOTE :UX: it would be cool to use the edit logs to provide cross-device undo/redo
- * */
-class EditStack {
-  private _editStack: EditData[] = [];
-  private _editsById: Record<string, EditData> = {};
-  private _connectionIdByEdit: Record<string, number> = {};
-  private _undoStackEditsByEdit: Record<string, EditData> = {};
-  private _undoIndex: number = 0;
-  private _filter: (edit: EditData) => boolean;
-
-  constructor(filter: (edit: EditData) => boolean) {
-    this._filter = filter;
-  }
-
-  get canUndo() {
-    return this._undoIndex > 0;
-  }
-
-  get canRedo() {
-    return this._undoIndex < this._editStack.length;
-  }
-
-  /**
-   * Apply the inverse of the last edit to the stack. Noop if impossible.
-   * If there are multiple successive edits belonging to the same change, all of them are undone.
-   */
-  undo() {
-    // nocheckin
-    const edit = this._editStack[this._undoIndex - 1];
-    if (edit == null) return;
-    const undoEdit = { ...edit, id: newEditId() };
-    invertEdit(undoEdit, "undo");
-    this._undoIndex--;
-    this._undoStackEditsByEdit[undoEdit.id] = undoEdit;
-    const buffer = getTransactionBuffer(edit.scope ?? EMPTY_SCOPE);
-    console.log("undo", { edit, buffer, editStack: this._editStack, undoIndex: this._undoIndex, undoEdit });
-    buffer.tx.addEdit(undoEdit);
-  }
-
-  /**
-   * Reapply the next undone edit (technically, the inverse of the inverse). Noop if impossible.
-   * If there are multiple successive edits belonging to the same change, all of them are redone.
-   */
-  redo() {
-    // nocheckin
-    console.log("redo", { editStack: this._editStack, undoIndex: this._undoIndex });
-  }
-
-  subscribeToBuffer(buffer: TransactionBuffer): () => void {
-    // NOTE :UX: EditStack should handle pending edits as well (not just committed)
-    const sub = buffer.subscribeCommit((event) => {
-      let hasNewEdits = false;
-      for (const edit of event.edits) {
-        if (this._filter(edit) && !this._editsById[edit.id] && !this._undoStackEditsByEdit[edit.id]) {
-          this._editStack.push(edit);
-          this._editsById[edit.id] = edit;
-          hasNewEdits = true;
-        }
-      }
-      if (hasNewEdits) {
-        this._undoIndex = this._editStack.length;
-        this._undoStackEditsByEdit = {};
-      }
-    });
-    return sub;
-  }
-}
-
-// one edit stack for all bench tx buffers
-// NOTE :UX: we currently only have one shared edit stack, should probably be per view root?
-const editStack = new EditStack((e) => e.category != ChangeCategory.SPACE);
-const editStackSubs: Array<() => void> = [];
-watch(txBuffersByBenchId, () => {
-  editStackSubs.forEach((sub) => sub());
-  Object.values(txBuffersByBenchId.value).forEach((buffer) => {
-    const sub = editStack.subscribeToBuffer(buffer);
-    editStackSubs.push(sub);
-  });
-});
-
-/** Gets the relevant edit stack in the given view. */
-export function getEditStack(graph: ReadNodeGraph, focusedView: ViewData | null): EditStack {
-  // only one for now (see above)
-  return editStack;
-}
-
-/** Inverts an edit as an undo/redo of the given edit (in place). */
-function invertEdit(edit: EditData, mode: "undo" | "redo"): void {
-  const undoType = UNDO_EDIT_BY_TYPE[edit.type!];
-  if (undoType == null) throw new Error(`cannot undo edit ${toCamelName(EditType, edit.type!)}}`);
-  if (mode == "undo") {
-    edit.type = undoType;
-    [edit.oldNodePartial, edit.newNodePartial] = [edit.newNodePartial, edit.oldNodePartial];
-  } else if (mode == "redo") {
-    const redoType = UNDO_EDIT_BY_TYPE[undoType!];
-    if (redoType == null) throw new Error(`cannot redo edit ${toCamelName(EditType, undoType!)}}`);
-    edit.type = redoType;
-  } else {
-    assertNever(mode);
-  }
-
-  // shuffle oldNode/newNode :EditData
-  if (
-    edit.type == EditType.ARCHIVE ||
-    edit.type == EditType.UNARCHIVE ||
-    edit.type == EditType.DELETE ||
-    edit.type == EditType.RESTORE
-  ) {
-    edit.oldNodePartial = edit.oldNodePartial ?? edit.newNodePartial; // oldNode is set, newNode is unset
-    if (edit.oldNodePartial == null) throw new Error(`missing old node for ${edit.type}}`);
-    edit.newNodePartial = undefined;
-  }
-}
-
-/** Turns a logged edit back into an edit (to redo/undo) */
-export function makeEditFromLog(
-  log: LogData,
-  mode: "redo" | "undo",
-  options?: {
-    category?: ChangeCategory;
-    subjectPtr?: NodeReferenceData;
-  },
-): EditData {
-  // unpack
-  if (log.nodePtr == null) throw new Error(`missing node for ${log.type}: ${describeNode(log)}`);
-  const nodeType = log.nodePtr.type;
-  const editType = log.type as unknown as EditType | undefined;
-  if (!EDIT_TYPES.includes(editType!)) throw new Error(`unexpected edit ${editType}: ${describeNode(log)}`);
-  const oldNode =
-    log.oldNodePacked != null
-      ? (makeDefaultObject(
-          unpackBuiltinObject(unpackProtoJson(log.oldNodePacked), nodeType as unknown as ObjectType),
-        ) as AnyNodeData)
-      : null;
-  const newNode =
-    log.newNodePacked != null
-      ? (makeDefaultObject(
-          unpackBuiltinObject(unpackProtoJson(log.newNodePacked), nodeType as unknown as ObjectType),
-        ) as AnyNodeData)
-      : null;
-
-  // make edit
-  const subjectPtr = options?.subjectPtr ?? userPtr.value;
-  if (subjectPtr == null) throw new Error(`missing subject for ${log.type}: ${describeNode(log)}`);
-  const scope = makeScope({ benchId: log.benchPtr?.id, packageId: log.packagePtr?.id });
-  const edit: EditData = {
-    metatype: ObjectType.EDIT,
-    id: newEditId(),
-    type: editType!,
-    nodePtr: log.nodePtr,
-    scope: scope,
-    properties: log.properties,
-    oldNodePartial: oldNode != null ? wrapSomeNode(oldNode) : undefined,
-    newNodePartial: newNode != null ? wrapSomeNode(newNode) : undefined,
-    origin: origin.value,
-    category: options?.category ?? log.category,
-    subjectPtr: subjectPtr,
-    editedAt: Timestamp.now(),
-    undoOfPtr: mode == "undo" ? toPlainNodeRef(log) : undefined,
-  };
-
-  // invert edit
-  invertEdit(edit, mode);
-
-  return edit;
-}
