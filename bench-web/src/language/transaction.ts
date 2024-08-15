@@ -42,7 +42,7 @@ import { log } from "@/utils/log";
 import { toValueRef } from "@/utils/ref";
 import { uuidt } from "@/utils/uuidt";
 import type { RpcError } from "grpc-web";
-import { computed, nextTick, ref, shallowRef, toRef, triggerRef, watch, type MaybeRef, type Ref } from "vue";
+import { computed, nextTick, ref, shallowRef, toRef, toValue, triggerRef, watch, type MaybeRef, type Ref } from "vue";
 
 export type DebounceLevel = "tick" | "short" | "long";
 const DEBOUNCE_LEVELS: Record<"short" | "long", number> = {
@@ -67,6 +67,10 @@ const IMPLICIT_UPDATE_PROPERTIES_IDS = ["updatedAt", "updatedEpoch", "updatedByP
 );
 const NONCE_POSTFIX = nonce.replace("-", "").slice(0, 16);
 
+export function newChangeId(): string {
+  return uuidt({ nonce: NONCE_POSTFIX });
+}
+
 export function newEditId(): string {
   return uuidt({ nonce: NONCE_POSTFIX });
 }
@@ -79,8 +83,23 @@ export function newTransactionId(): string {
 // Transaction
 //
 
+/** Metadata for a transaction (mostly local only). */
+export type TransactionMeta = {
+  connectionId?: number;
+  subject?: MaybeRef<NodeReferenceData | null>;
+  change?: ChangeIn;
+  category?: ChangeCategory;
+};
+
+/** A change for grouping edits together. */
+export type ChangeIn = {
+  key: string;
+  title?: string;
+  text?: TextData;
+};
+
 /** A transaction on the Bench state graph. */
-export type Transaction = {
+export type Transaction = TransactionMeta & {
   readonly scope: GraphScopeData;
   readonly id: string;
   readonly edits: EditData[];
@@ -142,25 +161,13 @@ export class TransactionState {
   }
 }
 
-export type TransactionMeta = {
-  connectionId?: number;
-  subjectRef?: Ref<NodeReferenceData | null>;
-  change?: ChangeIn;
-  category?: ChangeCategory;
-};
-export type ChangeIn = {
-  key: string;
-  title?: string;
-  text?: TextData;
-};
-
 /**
  * Build a transaction (maybe for a specific connection/change).
  * We often want to share transaction state across multiple builders with curried info (connectionId, change, category, ...).
  */
-export class TransactionBuilder implements TransactionMeta, Transaction {
+export class TransactionBuilder implements Transaction {
   public readonly connectionId: number | undefined;
-  public readonly subjectRef: Ref<NodeReferenceData | null>;
+  public readonly subject: MaybeRef<NodeReferenceData | null>;
   public readonly change: ChangeIn | undefined;
   public readonly category: ChangeCategory | undefined;
 
@@ -175,7 +182,7 @@ export class TransactionBuilder implements TransactionMeta, Transaction {
   }) {
     this.state = tx.state;
     this.connectionId = tx.connectionId;
-    this.subjectRef = toRef(tx.subject);
+    this.subject = tx.subject;
     this.change = tx.change;
     this.category = tx.category;
   }
@@ -192,13 +199,12 @@ export class TransactionBuilder implements TransactionMeta, Transaction {
     return this.state.edits;
   }
 
-  get subject(): NodeReferenceData {
-    if (!this.subjectRef.value) throw new Error("subject not set");
-    return this.subjectRef.value;
-  }
-
-  with(meta: { connectionId?: number; change?: ChangeIn; category?: ChangeCategory }): Transaction {
-    if (meta.connectionId == this.connectionId && meta.change == this.change && meta.category == this.category) {
+  with(meta: TransactionMeta): Transaction {
+    if (
+      meta.connectionId == this.connectionId &&
+      meta.change?.key == this.change?.key &&
+      meta.category == this.category
+    ) {
       return this; // no change
     }
 
@@ -209,7 +215,7 @@ export class TransactionBuilder implements TransactionMeta, Transaction {
       if (this.state._txByConnectionId[meta.connectionId] == null) {
         this.state._txByConnectionId[meta.connectionId] = new TransactionBuilder({
           state: this.state,
-          subject: this.subjectRef,
+          subject: this.subject,
           ...meta,
         });
       }
@@ -221,7 +227,7 @@ export class TransactionBuilder implements TransactionMeta, Transaction {
       return new TransactionBuilder({
         state: this.state,
         connectionId: base.connectionId,
-        subject: base.subjectRef,
+        subject: base.subject,
         change: meta.change ?? base.change,
         category: meta.category ?? base.category,
       });
@@ -281,21 +287,20 @@ export class TransactionBuilder implements TransactionMeta, Transaction {
     if (editType == EditType.CREATE || editType == EditType.UPSERT) {
       newNode = node;
     } else if (editType == EditType.ERASE || editType == EditType.ARCHIVE || editType == EditType.DELETE) {
-      // clear deletedAt/archivedAt
       if (node.deletedAt != null || node.archivedAt != null) {
         oldNode = { ...node, deletedAt: undefined, archivedAt: undefined };
       } else {
         oldNode = node;
       }
     } else if (editType == EditType.UNARCHIVE) {
-      // remember old 'archived_at' in old node, put full restored node in new node
       oldNode = makeDefaultObject({ metatype: node.metatype as any, archivedAt: node.archivedAt }) as AnyNodeData;
     } else if (editType == EditType.RESTORE) {
-      // remember old 'deleted_at' in old node, put full restored node in new node
       oldNode = makeDefaultObject({ metatype: node.metatype as any, deletedAt: node.deletedAt }) as AnyNodeData;
     }
 
     // make edit & notify
+    const subjectPtr = toValue(this.subject);
+    if (subjectPtr == null) throw new Error("no subject for edit");
     const edit: EditData = {
       metatype: ObjectType.EDIT,
       id: newEditId(),
@@ -306,7 +311,8 @@ export class TransactionBuilder implements TransactionMeta, Transaction {
       newNodePartial: newNode != null ? wrapSomeNode(newNode) : undefined,
       properties: [],
       origin: origin.value,
-      subjectPtr: this.subject,
+      subjectPtr: subjectPtr,
+      changeKey: this.change?.key,
       category: this.category,
       editedAt: Timestamp.now(),
     };
@@ -391,6 +397,8 @@ export class TransactionBuilder implements TransactionMeta, Transaction {
         (oldNode as any)[propName] = (node as any)[propName];
         (newNode as any)[propName] = (update as any)[propName];
       }
+      const subjectPtr = toValue(this.subject);
+      if (subjectPtr == null) throw new Error("no subject for edit");
       const edit: EditData = {
         metatype: ObjectType.EDIT,
         id: newEditId(),
@@ -401,7 +409,8 @@ export class TransactionBuilder implements TransactionMeta, Transaction {
         oldNodePartial: wrapSomeNode(oldNode),
         newNodePartial: wrapSomeNode(newNode),
         origin: origin.value,
-        subjectPtr: this.subject,
+        subjectPtr: subjectPtr,
+        changeKey: this.change?.key,
         category: this.category,
         editedAt: Timestamp.now(),
       };
