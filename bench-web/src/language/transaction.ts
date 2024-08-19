@@ -622,16 +622,29 @@ type CommitFailure = {
   edits: EditData[];
   error: RpcError;
 };
-type PendingCallback = (
+type BufferedCallback = (
   event:
-    | { type: "add"; meta: TransactionMeta; edits: EditData[]; debounce: DebounceLevel | null }
-    | { type: "reset"; meta: TransactionMeta; edits: EditData[] },
+    | {
+        type: "add";
+        meta: TransactionMeta;
+        newEdits: EditData[];
+        connectionIdByEditId: Record<string, number>;
+        debounce: DebounceLevel | null;
+      }
+    | {
+        type: "reset";
+        meta: TransactionMeta;
+        newEdits: EditData[];
+        connectionIdByEditId: Record<string, number>;
+        oldEdits: EditData[];
+      },
 ) => void;
-type CommitCallback = (event: {
+type CommittedCallback = (event: {
   connectionIdByEditId: Record<string, number>;
   edits: EditData[];
   cascadedEdits: EditData[];
 }) => void;
+type AcceptedCallback = (event: { edits: EditData[]; cascadedEdits: EditData[] }) => void;
 
 /**
  * A transaction buffer provides Transactions and applies them to the graph.
@@ -647,12 +660,14 @@ export interface TransactionBuffer {
   commit(): void | Promise<void>;
   /** Resets the current transaction and overlay. */
   reset(): void | Promise<void>;
-  /** Accepts the given edits from an external source (does not trigger commit, just to mark them as successfully committed) */
-  acceptCommitted(edits: EditData[]): void;
   /** Subscribes to *pending* edits from this buffer */
-  subscribePending(sub: PendingCallback): () => void;
+  subscribeBuffered(sub: BufferedCallback): () => void;
   /** Subscribes to *committed* edits from this buffer */
-  subscribeCommit(sub: CommitCallback): () => void;
+  subscribeCommitted(sub: CommittedCallback): () => void;
+  /** Subscribes to *accepted* edits from this buffer */
+  subscribeAccepted(sub: AcceptedCallback): () => void;
+  /** Accepts the given edits from an external source (does not trigger commit, just to mark them as successfully committed) */
+  acceptCommitted(edits: EditData[], cascadedEdits: EditData[]): void;
   /** Force retries the given commit (for debugging) */
   retry?(id: string): Promise<void>;
 
@@ -675,7 +690,8 @@ export class ImmediateTransactionBuffer implements TransactionBuffer {
   public readonly scope: GraphScopeData;
   public readonly graph: ReadNodeGraph & WriteNodeGraph;
   public readonly isPaused: Ref<boolean> = ref(false);
-  private _committedSubs: Array<CommitCallback> = [];
+  private _committedSubs: Array<CommittedCallback> = [];
+  private _acceptedSubs: Array<AcceptedCallback> = [];
   private _currentTx: TransactionBuilder | null = null; // always keep a single transaction
 
   constructor(id: number, scope: GraphScopeData, graph: ReadNodeGraph & WriteNodeGraph) {
@@ -713,21 +729,29 @@ export class ImmediateTransactionBuffer implements TransactionBuffer {
     this._currentTx = newTx;
   }
 
-  acceptCommitted(edits: EditData[]) {
-    // nothing to do
-  }
-
-  subscribePending(sub: PendingCallback): () => void {
+  subscribeBuffered(sub: BufferedCallback): () => void {
     // nothing to do
     return () => {};
   }
 
-  subscribeCommit(sub: CommitCallback): () => void {
+  subscribeCommitted(sub: CommittedCallback): () => void {
     this._committedSubs.push(sub);
     return () => {
       const idx = this._committedSubs.indexOf(sub);
       if (idx >= 0) this._committedSubs.splice(idx, 1);
     };
+  }
+
+  subscribeAccepted(sub: AcceptedCallback): () => void {
+    this._acceptedSubs.push(sub);
+    return () => {
+      const idx = this._acceptedSubs.indexOf(sub);
+      if (idx >= 0) this._acceptedSubs.splice(idx, 1);
+    };
+  }
+
+  acceptCommitted(edits: EditData[], cascadedEdits: EditData[]): void {
+    this._acceptedSubs.forEach((sub) => sub({ edits, cascadedEdits }));
   }
 
   togglePaused() {
@@ -750,19 +774,20 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
   public readonly id: number;
   public readonly scope: GraphScopeData;
   public readonly isPaused: Ref<boolean> = ref(false);
-  private pendingSubs: Array<PendingCallback> = [];
-  private committedSubs: Array<CommitCallback> = [];
+  private bufferedSubs: Array<BufferedCallback> = [];
+  private committedSubs: Array<CommittedCallback> = [];
+  private acceptedSubs: Array<AcceptedCallback> = [];
   private currentTx: Transaction | null;
-  private pendingTx: Transaction | null;
-  private pendingEditsById: Record<string, EditData> = {};
-  private pendingConnectionByEditId: Record<string, number> = {};
+  private bufferedTx: Transaction | null;
+  private bufferedEditsById: Record<string, EditData> = {};
+  private bufferedConnectionByEditId: Record<string, number> = {};
   failedCommits: Ref<Record<string, CommitFailure>> = shallowRef({});
 
   constructor(id: number, scope: GraphScopeData) {
     this.id = id;
     this.scope = scope;
     this.currentTx = null;
-    this.pendingTx = null;
+    this.bufferedTx = null;
     this.reset();
   }
 
@@ -773,7 +798,7 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
 
   async commit() {
     if (this.currentTx == null) throw new Error("no active transaction");
-    if (this.pendingTx != null) throw new Error(`transaction ${this.pendingTx.id} is already committing`);
+    if (this.bufferedTx != null) throw new Error(`transaction ${this.bufferedTx.id} is already committing`);
     try {
       log.trace("transaction.commit", { scope: this.scope, id: this.currentTx.id, edits: this.currentTx.edits });
 
@@ -782,14 +807,14 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
 
       // swap
       const edits = this.currentTx.edits;
-      this.pendingTx = this.currentTx;
+      this.bufferedTx = this.currentTx;
       this.currentTx = this._makeCurrentTx();
 
       // commit
       const {
         response: { epoch, revisions, cascadedEdits },
       } = await client.commitTransaction(
-        { edits, id: this.pendingTx.id, scope: this.scope },
+        { edits, id: this.bufferedTx.id, scope: this.scope },
         {
           suppressErrors: true,
           retry: {
@@ -812,11 +837,11 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
       // notify on success
       // (we do not directly edit state on success, when/how/which edits to 'accept' is up to the caller)
       this.committedSubs.forEach((sub) =>
-        sub({ connectionIdByEditId: this.pendingConnectionByEditId, edits, cascadedEdits }),
+        sub({ connectionIdByEditId: this.bufferedConnectionByEditId, edits, cascadedEdits }),
       );
     } catch (error) {
       // failed
-      const fail: CommitFailure = { id: this.pendingTx!.id, edits: this.pendingTx!.edits, error: error as RpcError };
+      const fail: CommitFailure = { id: this.bufferedTx!.id, edits: this.bufferedTx!.edits, error: error as RpcError };
       this.failedCommits.value[fail.id] = fail;
       triggerRef(this.failedCommits);
 
@@ -824,21 +849,24 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
       log.error("transaction.commit.error", { scope: this.scope, error });
       toaster.error({
         title: HUMANIZED_OPERATION_STATUS[(error as RpcError).code] ?? "Synchronization error",
-        text: `Saving ${this.pendingTx?.edits.length ?? 0} edits failed: ${IS_DEV ? (error as Error).message : (error as RpcError).code}`,
+        text: `Synchronizing ${this.bufferedTx?.edits.length ?? 0} edits failed: ${IS_DEV ? (error as Error).message : (error as RpcError).code}`,
         actions: [{ title: "Retry", icon: makeIcon("fas fa-redo"), action: () => this.retry(fail.id) }],
       });
       this.reset();
     } finally {
-      this.pendingTx = null;
+      this.bufferedTx = null;
     }
   }
 
   async reset() {
     this.currentTx = this._makeCurrentTx();
-    this.pendingEditsById = {};
-    this.pendingConnectionByEditId = {};
-    this.pendingTx = null;
-    this.pendingSubs.forEach((sub) => sub({ type: "reset", meta: {}, edits: [] }));
+    const oldEdits = Object.values(this.bufferedEditsById);
+    this.bufferedEditsById = {};
+    this.bufferedConnectionByEditId = {};
+    this.bufferedTx = null;
+    this.bufferedSubs.forEach((sub) =>
+      sub({ type: "reset", meta: {}, connectionIdByEditId: {}, newEdits: [], oldEdits }),
+    );
   }
 
   async retry(id: string) {
@@ -858,64 +886,91 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
     });
     tx.onEdit((edit, meta, debounce) => {
       if (this.currentTx?.id !== tx.id) throw new Error(`transaction ${tx.describeSelf()} is closed`);
-      const pendingConnectionId = this.pendingConnectionByEditId[edit.id];
+      const pendingConnectionId = this.bufferedConnectionByEditId[edit.id];
       if (pendingConnectionId != null && (!meta.connectionId || meta.connectionId != pendingConnectionId))
-        // ensure connections don't trample on each others edits since we currently only optimistically overlay
+        // ensure connections don't trample on each others' edits since we currently only optimistically overlay
         //  edits from the same connection (see connection)
         throw new Error(`edit ${edit.id} already pending in ${pendingConnectionId}`);
-      this.pendingEditsById[edit.id] = edit;
-      if (meta.connectionId != null) this.pendingConnectionByEditId[edit.id] = meta.connectionId;
-      this.pendingSubs.forEach((sub) => sub({ type: "add", meta, edits: [edit], debounce }));
+      this.bufferedEditsById[edit.id] = edit;
+      if (meta.connectionId != null) this.bufferedConnectionByEditId[edit.id] = meta.connectionId;
+      this.bufferedSubs.forEach((sub) =>
+        sub({
+          type: "add",
+          meta,
+          newEdits: [edit],
+          connectionIdByEditId: { [edit.id]: this.bufferedConnectionByEditId[edit.id] },
+          debounce,
+        }),
+      );
     });
     return tx;
   }
 
-  acceptCommitted(edits: EditData[]): void {
-    let pendingEditsChanged = false;
-    for (const edit of edits) {
-      if (this.pendingEditsById[edit.id]) {
-        delete this.pendingEditsById[edit.id];
-        if (this.pendingConnectionByEditId[edit.id] != null) delete this.pendingConnectionByEditId[edit.id];
-        pendingEditsChanged = true;
-      }
-    }
-    if (pendingEditsChanged) {
-      // update all pending subscribers (in multiple steps so they get the correct connectionId if we have one)
-      const newPendingEdits = Object.values(this.pendingEditsById);
-      const newPendingEditsByConnection: Record<number, EditData[]> = {};
-      for (const edit of newPendingEdits) {
-        const connectionId = this.pendingConnectionByEditId[edit.id] ?? -1;
-        if (!newPendingEditsByConnection[connectionId]) newPendingEditsByConnection[connectionId] = [];
-        newPendingEditsByConnection[connectionId].push(edit);
-      }
-      this.pendingSubs.forEach((sub) => {
-        sub({ type: "reset", meta: {}, edits: newPendingEditsByConnection[-1] ?? [] });
-        for (const connectionId of Object.keys(newPendingEditsByConnection)) {
-          sub({
-            type: "add",
-            meta: { connectionId: parseInt(connectionId) },
-            edits: newPendingEditsByConnection[parseInt(connectionId)]!,
-            debounce: null,
-          });
-        }
-      });
-    }
-  }
-
-  subscribePending(sub: PendingCallback): () => void {
-    this.pendingSubs.push(sub);
+  subscribeBuffered(sub: BufferedCallback): () => void {
+    this.bufferedSubs.push(sub);
     return () => {
-      const idx = this.pendingSubs.indexOf(sub);
-      if (idx >= 0) this.pendingSubs.splice(idx, 1);
+      const idx = this.bufferedSubs.indexOf(sub);
+      if (idx >= 0) this.bufferedSubs.splice(idx, 1);
     };
   }
 
-  subscribeCommit(sub: CommitCallback): () => void {
+  subscribeCommitted(sub: CommittedCallback): () => void {
     this.committedSubs.push(sub);
     return () => {
       const idx = this.committedSubs.indexOf(sub);
       if (idx >= 0) this.committedSubs.splice(idx, 1);
     };
+  }
+
+  subscribeAccepted(sub: AcceptedCallback): () => void {
+    this.acceptedSubs.push(sub);
+    return () => {
+      const idx = this.acceptedSubs.indexOf(sub);
+      if (idx >= 0) this.acceptedSubs.splice(idx, 1);
+    };
+  }
+
+  acceptCommitted(edits: EditData[], cascadedEdits: EditData[]): void {
+    // fire accepted subscribers
+    this.acceptedSubs.forEach((sub) => sub({ edits, cascadedEdits }));
+
+    // update buffer subscribers
+    const oldEdits = Object.values(this.bufferedEditsById);
+    let bufferChanged = false;
+    for (const edit of edits) {
+      if (this.bufferedEditsById[edit.id]) {
+        delete this.bufferedEditsById[edit.id];
+        if (this.bufferedConnectionByEditId[edit.id] != null) delete this.bufferedConnectionByEditId[edit.id];
+        bufferChanged = true;
+      }
+    }
+    if (bufferChanged) {
+      const newBufferedEdits = Object.values(this.bufferedEditsById);
+      const newBufferedEditsByConnection: Record<number, EditData[]> = {};
+      for (const edit of newBufferedEdits) {
+        const connectionId = this.bufferedConnectionByEditId[edit.id] ?? -1;
+        if (!newBufferedEditsByConnection[connectionId]) newBufferedEditsByConnection[connectionId] = [];
+        newBufferedEditsByConnection[connectionId].push(edit);
+      }
+      this.bufferedSubs.forEach((sub) => {
+        sub({
+          type: "reset",
+          meta: {},
+          newEdits: newBufferedEditsByConnection[-1] ?? [],
+          connectionIdByEditId: this.bufferedConnectionByEditId,
+          oldEdits,
+        });
+        for (const connectionId of Object.keys(newBufferedEditsByConnection)) {
+          sub({
+            type: "add",
+            meta: { connectionId: parseInt(connectionId) },
+            newEdits: newBufferedEditsByConnection[parseInt(connectionId)]!,
+            connectionIdByEditId: this.bufferedConnectionByEditId,
+            debounce: null,
+          });
+        }
+      });
+    }
   }
 
   togglePaused() {
@@ -933,7 +988,7 @@ export class RemoteTransactionBuffer implements TransactionBuffer {
   }
 
   get isCommitting() {
-    return this.pendingTx != null;
+    return this.bufferedTx != null;
   }
 }
 
@@ -978,7 +1033,7 @@ function watchTransactionBuffer(buffer: TransactionBuffer) {
   let scheduledDebouncedCommitLevel: DebounceLevel | null = null;
 
   // watch pending edit
-  buffer.subscribePending((event) => {
+  buffer.subscribeBuffered((event) => {
     if (event.type != "add") return; // only react to added edits
     if (scheduledCommit) return; // already scheduled/committing
     if (event.debounce != null && event.debounce != "tick") {
