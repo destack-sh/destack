@@ -68,7 +68,7 @@ def test_roundtrip_scalar_value(session: Session, package: Package) -> None:
 
     # first set in constructor
     type_info = to_type_scalar(PrimitiveType.INT32)
-    block = Block(type=BlockType.VARIABLE, name="Variable1", value_type=type_info, value=7)
+    block = Block(type=BlockType.VALUE, name="Variable1", value_type=type_info, value=7)
     assert block.value == 7
     assert unpack_value(block.value_packed, type_info) == 7
 

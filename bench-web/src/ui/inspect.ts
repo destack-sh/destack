@@ -82,7 +82,7 @@ export const EXPOSED_BLOCK_TYPES = [
   BlockType.CHOICE,
   BlockType.TEXT,
   BlockType.CODE,
-  BlockType.VARIABLE,
+  BlockType.VALUE,
   BlockType.IDENTITY,
 ];
 export const EXPOSED_STRUCT_TYPES = [
@@ -270,7 +270,7 @@ function getInspectionInfo(metatype: ObjectType, type: any): Record<string, Insp
       properties.Run.push(BlockProperty.identityPtr);
       properties.Run.push(BlockProperty.isPaused);
     }
-    if (type == BlockType.VARIABLE) {
+    if (type == BlockType.VALUE) {
       // value type
       properties.Common.push({
         from: BlockProperty.valueType,

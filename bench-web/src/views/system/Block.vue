@@ -64,7 +64,7 @@ const isQuasiAnonymous = computed(
   () =>
     (block.value?.type == BlockType.TEXT && !hasFunctionFields.value) ||
     (isGeneratedName.value &&
-      ((block.value?.type == BlockType.CODE && !hasFunctionFields.value) || block.value?.type == BlockType.VARIABLE)),
+      ((block.value?.type == BlockType.CODE && !hasFunctionFields.value) || block.value?.type == BlockType.VALUE)),
 );
 const hasText = computed(() => block.value?.text != null);
 const hasFunctionFields = computed(
@@ -253,7 +253,7 @@ defineExpose<ViewExposed & { isRunnable: Ref<boolean> }>({
     <div class="flex flex-col gap-y-1.5 py-1">
       <!-- Variable(s) ... -->
       <Value
-        v-if="block.type == BlockType.VARIABLE"
+        v-if="block.type == BlockType.VALUE"
         :value-type="
           block.valueType != null
             ? (resolveType(block.valueType, pkgGraph) as TypeInfoData) /* close enough */

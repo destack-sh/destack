@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.08.15.0"  # auto change via version script
+VERSION = "2024.08.19.0"  # auto change via version script
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -584,7 +584,7 @@ class BlockType(IdEnum):
     FLOW = 32  # define a flow with steps and fields (optionally incl. input/output)
 
     # state
-    VARIABLE = 50  # define a single-value variable
+    VALUE = 50  # define a single-value variable
     DATABASE = 51  # define a database with records & queries
     QUERY = 52  # define a set of queries
 
@@ -620,7 +620,7 @@ class BlockTypes:
     TYPES = bittuple(*tuple(t for t in BLOCK_TYPES if 10 <= t.id < 20))
     RUNNABLE = bittuple(*tuple(t for t in BLOCK_TYPES if 30 <= t.id < 40))
     CLASSES = bittuple(
-        BlockType.CLASS, BlockType.SIGNAL, *RUNNABLE, BlockType.VARIABLE, BlockType.DATABASE
+        BlockType.CLASS, BlockType.SIGNAL, *RUNNABLE, BlockType.VALUE, BlockType.DATABASE
     )
 
 

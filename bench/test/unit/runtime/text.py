@@ -226,13 +226,13 @@ async def test_run_text_with_multiple_documents(hosted_runtime: RuntimeHandle):
         generate_docx_file("The secret phrase is: 'beluga'"), "example_doc_1.docx"
     )
     variable_1 = Block.new(
-        BlockType.VARIABLE, "example_doc_1", value_type=to_type(File), value=example_doc_1
+        BlockType.VALUE, "example_doc_1", value_type=to_type(File), value=example_doc_1
     )
     example_doc_2 = await upload(
         generate_docx_file("The secret phrase is: 'blobfish'"), "example_doc_2.docx"
     )
     variable_2 = Block.new(
-        BlockType.VARIABLE, "example_doc_2", value_type=to_type(File), value=example_doc_2
+        BlockType.VALUE, "example_doc_2", value_type=to_type(File), value=example_doc_2
     )
     GetSecretPhrase = Block.new(
         BlockType.TEXT,

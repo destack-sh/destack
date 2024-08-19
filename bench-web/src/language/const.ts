@@ -77,7 +77,7 @@ export const CLASSY_BLOCK_TYPES = [
   BlockType.CLASS,
   BlockType.SIGNAL,
   ...RUNNABLE_BLOCK_TYPES,
-  BlockType.VARIABLE,
+  BlockType.VALUE,
   BlockType.DATABASE,
 ];
 

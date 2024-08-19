@@ -249,7 +249,7 @@ export const ICON_BY_BLOCK_TYPE: Partial<Record<BlockType, IconData>> = _makeIco
   [BlockType.CODE]: "fas fa-code",
   [BlockType.FLOW]: "fas fa-diagram-project",
 
-  [BlockType.VARIABLE]: "fas fa-sliders",
+  [BlockType.VALUE]: "fas fa-hexagon",
   [BlockType.QUERY]: "fas fa-magnifying-glass",
   [BlockType.DATABASE]: "fas fa-database",
 
