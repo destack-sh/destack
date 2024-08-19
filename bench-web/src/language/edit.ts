@@ -40,6 +40,8 @@ import { watch } from "vue";
 /**
  * A stack of edits for undo/redo.
  * NOTE :UX: it would be cool to use the edit logs to provide cross-device undo/redo
+ * NOTE :UX: don't 'freeze' original debounced edits so that quick undo/redo is merged into one edit?
+ *  (not sure how that would work.. maybe keep a separate stack for debounced not-yet-committed edits?)
  * */
 class EditStack {
   private _editStack: EditData[] = [];

@@ -1,5 +1,28 @@
 import { nextTick } from "vue";
 
+/** Turns an object into a stable string (JSON-serializable, keys sorted) */
+export function stringify<T>(obj: T): string {
+  if (obj === null || typeof obj !== "object") {
+    // primitives: use standard JSON stringification
+    return JSON.stringify(obj);
+  }
+
+  if (Array.isArray(obj)) {
+    // array: map each element recursively
+    const arrayResult = obj.map((item) => stringify(item));
+    return `[${arrayResult.join(",")}]`;
+  }
+
+  // object: sort the keys and build the string
+  const sortedKeys = Object.keys(obj).sort();
+  const result = sortedKeys.map((key) => {
+    const value = obj[key as keyof T];
+    return `"${key}":${stringify(value)}`;
+  });
+
+  return `{${result.join(",")}}`;
+}
+
 /** Deep copy an object (must be JSON-serializable) */
 export function copy<T>(obj: T): T {
   if (typeof obj != "object") return obj;
@@ -17,13 +40,15 @@ export function reverseRecord<T extends PropertyKey, U extends PropertyKey>(inpu
   return Object.fromEntries(Object.entries(input).map(([key, value]) => [value, key])) as Record<U, T>;
 }
 
-export function cyrb53a(str: string, seed = 0): number {
-  // 53-bit cyrb53a hash
-  // see https://github.com/bryc/code/blob/master/jshash/experimental/cyrb53.js
+// 53-bit cyrb53a hash
+// see https://github.com/bryc/code/blob/master/jshash/experimental/cyrb53.js
+export function cyrb53a(obj: string | any, seed = 0): number {
+  if (typeof obj != "string") obj = stringify(obj);
+  if (!obj) return 0;
   let h1 = 0xdeadbeef ^ seed,
     h2 = 0x41c6ce57 ^ seed;
-  for (let i = 0, ch; i < str.length; i++) {
-    ch = str.charCodeAt(i);
+  for (let i = 0, ch; i < obj.length; i++) {
+    ch = obj.charCodeAt(i);
     h1 = Math.imul(h1 ^ ch, 0x85ebca77);
     h2 = Math.imul(h2 ^ ch, 0xc2b2ae3d);
   }
