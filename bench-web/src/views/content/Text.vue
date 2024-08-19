@@ -1,7 +1,7 @@
 <script lang="ts" setup>
+import { makeTypeInfo } from "@/language/field";
 import { downloadFile, prefetchFile, uploadFile } from "@/language/file";
 import { isTextEmpty, mapPmNodeToText, mapTextToPmNode } from "@/language/text";
-import { makeTypeInfo } from "@/language/field";
 import {
   BenchType,
   ColorShade,
@@ -35,7 +35,7 @@ import {
   menuActionsLike,
   popPopover,
   pushPopover,
-  trackHoverElement,
+  trackHoverElementOnce,
   type PopoverContext,
   type PopoverInfo,
   type PopoverInstance,
@@ -43,6 +43,7 @@ import {
 import { getColorHex } from "@/ui/style";
 import { toaster } from "@/ui/toast";
 import { getElement } from "@/utils/element";
+import { copy, cyrb53a } from "@/utils/functools";
 import { log } from "@/utils/log";
 import { PM_INPUT_RULES, PM_KEYMAP_EXTRA, PM_SCHEMA, type TextMarkType } from "@/utils/prosemirror";
 import { deepValueEquals } from "@/utils/ref";
@@ -53,10 +54,13 @@ import { dropCursor } from "prosemirror-dropcursor";
 import { inputRules } from "prosemirror-inputrules";
 import { keymap } from "prosemirror-keymap";
 import { Node as PmNode } from "prosemirror-model";
-import { EditorState } from "prosemirror-state";
+import {
+  Selection as EditorSelection,
+  EditorState,
+  type SelectionBookmark as EditorSelectionBookmark,
+} from "prosemirror-state";
 import { EditorView, type NodeView as PmNodeView } from "prosemirror-view";
 import { computed, nextTick, onBeforeUnmount, ref, toRef, watch, type Ref } from "vue";
-import { copy } from "@/utils/functools";
 
 const MENTION_TRIGGER_CHAR = "@";
 
@@ -75,6 +79,8 @@ const id = makeViewId(props);
 const textRef = ref<HTMLDivElement | null>(null);
 let view: EditorView | null = null;
 let lastAppliedModelValue: TextData | null = null;
+const previousSelectionByState: Record<number, EditorSelectionBookmark> = {};
+
 const mentionPtrs: Ref<SomeNodeReferenceData[]> = computed(() => {
   const mentionPtrs: SomeNodeReferenceData[] = [];
   for (const line of props.modelValue?.lines ?? []) {
@@ -85,6 +91,7 @@ const mentionPtrs: Ref<SomeNodeReferenceData[]> = computed(() => {
   return mentionPtrs;
 });
 // TODO :Incomplete: some mentioned nodes may not be in package graph for Text
+//  (use supergraph? but when to load missing nodes?)
 const mentions = pkgGraph.getManyRef(mentionPtrs);
 function resolveMention(mention: {
   id: string;
@@ -99,10 +106,16 @@ function resolveMention(mention: {
   return ref as FileReferenceData | SecretReferenceData | null;
 }
 
-function makeEditorState(text?: TextData): EditorState {
+function makeEditorState(text?: TextData, options?: { restoreSelection?: boolean }): EditorState {
+  const doc = text != null ? mapTextToPmNode(text, undefined) : undefined;
+  let selection: EditorSelection | undefined = undefined;
+  if (options?.restoreSelection && doc != null) {
+    selection = previousSelectionByState[cyrb53a(text)]?.resolve(doc);
+  }
   return EditorState.create({
-    doc: text != null ? mapTextToPmNode(text, undefined) : undefined,
+    doc: doc,
     schema: PM_SCHEMA,
+    selection,
     plugins: [
       keymap({ ...commands.baseKeymap, ...PM_KEYMAP_EXTRA, ...(props.suppressEnter ? { Enter: () => true } : {}) }),
       inputRules({ rules: PM_INPUT_RULES }),
@@ -116,7 +129,7 @@ function makeEditorView(): EditorView {
     // TODO :UX: non-editable Text should be selectable
     editable: () => props.isInput,
     nodeViews: {
-      mention: (node, view, getPos) => new MentionView(node, view, getPos),
+      mention: (node, view, getPos) => new MentionView(node, view),
     },
     plugins: [dropCursor({ width: 2, color: "#fbbf24" })],
     dispatchTransaction(tx) {
@@ -125,10 +138,14 @@ function makeEditorView(): EditorView {
       // update the state directly for responsiveness & performance
       const newState = view.state.apply(tx);
       view.updateState(newState);
+      const updatedText = mapPmNodeToText(newState.doc, props.modelValue);
+      if (view?.state.selection != null) {
+        // remember selection for this state
+        previousSelectionByState[cyrb53a(updatedText)] = newState.selection.getBookmark();
+      }
       // also update the modelValue if underlying doc changed
       if (tx.docChanged) {
-        const updatedText = mapPmNodeToText(newState.doc, props.modelValue);
-        lastAppliedModelValue = copy(updatedText);
+        lastAppliedModelValue = updatedText;
         emit("update:modelValue", updatedText);
       }
 
@@ -173,7 +190,7 @@ class MentionView implements PmNodeView {
   iconDom: HTMLElement;
   nameDom: HTMLElement;
 
-  constructor(pmNode: PmNode, view: EditorView, getPos: () => number | undefined) {
+  constructor(pmNode: PmNode, view: EditorView) {
     this.dom = document.createElement("span");
     (this.dom as any).__pmView = this;
     this.dom.classList.add("mention");
@@ -222,7 +239,7 @@ class MentionView implements PmNodeView {
         // prefetch (to speed up load on hover)
         prefetchFile(pmNode.attrs.nodePtr);
         // keep preview open on hover
-        trackHoverElement(this.dom, {
+        trackHoverElementOnce(this.dom, {
           getOtherElements: () => (popoverInstance?.element != null ? [popoverInstance.element] : []),
           onHover: () => {
             if (popoverInstance != null) {
@@ -306,9 +323,9 @@ onBeforeUnmount(() => {
 watch(toRef(props, "modelValue"), () => {
   if (view == null) return;
   if (deepValueEquals(props.modelValue, lastAppliedModelValue)) return;
-  const updatedState = makeEditorState(props.modelValue);
+  const updatedState = makeEditorState(props.modelValue, { restoreSelection: true });
   view.updateState(updatedState);
-  lastAppliedModelValue = copy(props.modelValue) ?? null;
+  lastAppliedModelValue = props.modelValue ?? null;
 });
 
 function insertMention(nodePtr: NodeReferenceData, pos: { pos: number }) {

@@ -5,7 +5,7 @@ import { ViewContentWrapper, makeViewId, viewEmits, type ViewExposed } from "@/v
 import { canvas } from "@/system/space";
 import { computed, onBeforeUnmount, ref, toRef, watch } from "vue";
 import { EditorView, keymap, lineNumbers } from "@codemirror/view";
-import { EditorState, StateEffect } from "@codemirror/state";
+import { EditorSelection, EditorState, StateEffect } from "@codemirror/state";
 import { useDropZone } from "@/ui/drag";
 import type { ActionMapImplementation } from "@/ui/action";
 import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/popover";
@@ -17,7 +17,7 @@ import { defaultHighlightStyle, syntaxHighlighting, indentUnit } from "@codemirr
 import { mapCodeToCmDoc, mapPmDocToCode } from "@/language/code";
 import { autocompletion } from "@codemirror/autocomplete";
 import { Casing, toCasing } from "@/utils/string";
-import { copy } from "@/utils/functools";
+import { copy, cyrb53a } from "@/utils/functools";
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; modelValue?: CodeData } & Partial<
@@ -31,8 +31,13 @@ const id = makeViewId(props);
 const codeRef = ref<HTMLElement | null>(null);
 let view: EditorView | null = null;
 let lastAppliedModelValue: CodeData | null = null;
+const previousSelectionByState: Record<number, EditorSelection> = {};
 
-function makeEditorState(code?: CodeData): EditorState {
+function makeEditorState(code?: CodeData, options?: { restoreSelection?: boolean }): EditorState {
+  let selection: EditorSelection | undefined = undefined;
+  if (options?.restoreSelection) {
+    selection = previousSelectionByState[cyrb53a(code)];
+  }
   const baseExtensions = [
     EditorView.lineWrapping,
     syntaxHighlighting(defaultHighlightStyle),
@@ -52,6 +57,7 @@ function makeEditorState(code?: CodeData): EditorState {
 
   const state = EditorState.create({
     doc: code != null ? mapCodeToCmDoc(code) : undefined,
+    selection,
     extensions: baseExtensions.concat(dynamicExtensions.value),
   });
   watch(dynamicExtensions, () => {
@@ -72,9 +78,13 @@ function makeEditorView(): EditorView {
     dispatchTransactions(txs, view) {
       // update the state directly for responsiveness
       view.update(txs);
+      const updatedCode = mapPmDocToCode(view.state.doc, props.modelValue);
+      if (view?.state.selection != null) {
+        // remember selection for this state
+        previousSelectionByState[cyrb53a(updatedCode)] = view?.state.selection;
+      }
       if (txs.some((tx) => tx.docChanged)) {
-        const updatedCode = mapPmDocToCode(view.state.doc, props.modelValue);
-        lastAppliedModelValue = copy(updatedCode);
+        lastAppliedModelValue = updatedCode ?? null;
         emit("update:modelValue", updatedCode);
       }
     },
@@ -99,7 +109,7 @@ onBeforeUnmount(() => {
 watch(toRef(props, "modelValue"), () => {
   if (view == null) return;
   if (deepValueEquals(props.modelValue, lastAppliedModelValue)) return;
-  const updatedState = makeEditorState(props.modelValue);
+  const updatedState = makeEditorState(props.modelValue, { restoreSelection: true });
   view.setState(updatedState);
   lastAppliedModelValue = copy(props.modelValue) ?? null;
 });

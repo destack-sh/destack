@@ -398,9 +398,10 @@ export const HOVER_MENU_DIRECTIVE: Directive<MaybeElement, HoverMenuOptions> = {
 
 /**
  * Starts checking whether the mouse is in the given elements.
+ * Stops tracking as soon as the 'hide' state is reached.
  *  Much like hover menu, but tied to an element on demand (instead of always).
  */
-export function trackHoverElement(
+export function trackHoverElementOnce(
   triggerEl: HTMLElement,
   options: {
     hoverDelay?: number;
