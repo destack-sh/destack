@@ -1,5 +1,11 @@
 import { nextTick } from "vue";
 
+/** Deep copy an object (must be JSON-serializable) */
+export function copy<T>(obj: T): T {
+  if (typeof obj != "object") return obj;
+  else return JSON.parse(JSON.stringify(obj));
+}
+
 export type FilterPrefix<T, Prefix extends string> = T extends `${Prefix}${string}` ? T : never;
 
 export function nowOrNextTick(delay: boolean | undefined, fn: () => void) {
@@ -9,10 +15,6 @@ export function nowOrNextTick(delay: boolean | undefined, fn: () => void) {
 
 export function reverseRecord<T extends PropertyKey, U extends PropertyKey>(input: Partial<Record<T, U>>) {
   return Object.fromEntries(Object.entries(input).map(([key, value]) => [value, key])) as Record<U, T>;
-}
-
-export function reverseRecordToMap<T extends PropertyKey, U>(input: Partial<Record<T, U>>) {
-  return new Map(Object.entries(input).map(([key, value]) => [value, key]));
 }
 
 export function cyrb53a(str: string, seed = 0): number {

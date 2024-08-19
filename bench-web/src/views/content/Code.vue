@@ -17,6 +17,7 @@ import { defaultHighlightStyle, syntaxHighlighting, indentUnit } from "@codemirr
 import { mapCodeToCmDoc, mapPmDocToCode } from "@/language/code";
 import { autocompletion } from "@codemirror/autocomplete";
 import { Casing, toCasing } from "@/utils/string";
+import { copy } from "@/utils/functools";
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; modelValue?: CodeData } & Partial<
@@ -68,12 +69,12 @@ function makeEditorView(): EditorView {
   const view = new EditorView({
     state: makeEditorState(props.modelValue),
     parent: codeRef.value,
-    dispatchTransactions(trs, view) {
+    dispatchTransactions(txs, view) {
       // update the state directly for responsiveness
-      view.update(trs);
-      if (trs.some((tr) => tr.docChanged)) {
+      view.update(txs);
+      if (txs.some((tx) => tx.docChanged)) {
         const updatedCode = mapPmDocToCode(view.state.doc, props.modelValue);
-        lastAppliedModelValue = updatedCode;
+        lastAppliedModelValue = copy(updatedCode);
         emit("update:modelValue", updatedCode);
       }
     },
@@ -86,7 +87,7 @@ function makeEditorView(): EditorView {
 // mount the editor view
 whenever(codeRef, () => {
   if (view) throw new Error("view already exists");
-  lastAppliedModelValue = props.modelValue ?? null;
+  lastAppliedModelValue = copy(props.modelValue ?? null);
   view = makeEditorView();
 });
 onBeforeUnmount(() => {
@@ -100,6 +101,7 @@ watch(toRef(props, "modelValue"), () => {
   if (deepValueEquals(props.modelValue, lastAppliedModelValue)) return;
   const updatedState = makeEditorState(props.modelValue);
   view.setState(updatedState);
+  lastAppliedModelValue = copy(props.modelValue) ?? null;
 });
 
 // drag/drop

@@ -81,7 +81,7 @@ class EditStack {
     const change: ChangeIn = { key: newChangeId(), title: `Undo` };
     const undoEdits: EditData[] = [];
     for (const edit of edits) {
-      const undoEdit: EditData = { ...edit, id: newEditId(), changeKey: change.key };
+      const undoEdit: EditData = { ...edit, id: newEditId(), editedAt: Timestamp.now(), changeKey: change.key };
       invertEdit(undoEdit, "undo");
       undoEdits.push(undoEdit);
       this._undoIndex--;
@@ -92,7 +92,9 @@ class EditStack {
       const connectionId = this._connectionIdByEdit[edit.id!];
       if (connectionId == null) throw new Error(`missing connection for ${describeEdit(edit)}`);
       buffer.tx.with({ connectionId, change }).addEdit(undoEdit);
+      buffer.tx.clearDebounce(edit.id!); // 'freeze' the original edit
     }
+    log.debug("edit.undo", { edits, undoEdits, undoIndex: this._undoIndex });
   }
 
   /**
@@ -115,7 +117,7 @@ class EditStack {
     const change: ChangeIn = { key: newChangeId(), title: `Redo` };
     const redoEdits: EditData[] = [];
     for (const edit of edits) {
-      const redoEdit: EditData = { ...edit, id: newEditId(), changeKey: change.key };
+      const redoEdit: EditData = { ...edit, id: newEditId(), editedAt: Timestamp.now(), changeKey: change.key };
       invertEdit(redoEdit, "redo");
       redoEdits.push(redoEdit);
       this._undoIndex++;
@@ -126,11 +128,12 @@ class EditStack {
       const connectionId = this._connectionIdByEdit[edit.id!];
       if (connectionId == null) throw new Error(`missing connection for ${describeEdit(edit)}`);
       buffer.tx.with({ connectionId, change }).addEdit(redoEdit);
+      buffer.tx.clearDebounce(edit.id!); // 'freeze' the original edit
     }
+    log.debug("edit.undo", { edits, redoEdits, undoIndex: this._undoIndex });
   }
 
   subscribeToBuffer(buffer: TransactionBuffer): () => void {
-    // nocheckin EditStack should handle buffered edits as well (not just accepted)
     const bufferedSub = buffer.subscribeBuffered((event) => {
       let hasNewEdits = false;
       for (const edit of event.newEdits) {
@@ -148,8 +151,7 @@ class EditStack {
         this._undoIndex = this._editStack.length;
       }
     });
-    const acceptedSub = buffer.subscribeAccepted((event) => {});
-    return () => (bufferedSub(), acceptedSub());
+    return bufferedSub;
   }
 }
 

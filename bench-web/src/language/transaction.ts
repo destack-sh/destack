@@ -109,6 +109,8 @@ export type Transaction = TransactionMeta & {
   addEdit(edit: EditData): void;
   /** Gets the sub tx for a specific connection */
   with(meta: { connectionId?: number; change?: ChangeIn; category?: ChangeCategory }): Transaction;
+  /** Stops debouncing the given edit (force start a new edit on that node) */
+  clearDebounce(nodeId: string): void;
 
   /** Create a new node */
   create<T extends NodeType>(
@@ -116,7 +118,6 @@ export type Transaction = TransactionMeta & {
   ): NodeTypeMapping[T];
   /** Create or update all properties in the node */
   upsert(node: AnyNodeData): void;
-
   /** Update regular properties in this node. v*/
   update<T extends AnyNodeData>(node: T, update: Partial<T>, options?: { debounce?: DebounceLevel }): void;
   /** Move node between parents (and update it) */
@@ -129,7 +130,6 @@ export type Transaction = TransactionMeta & {
   archive(node: AnyNodeData): void;
   /** Restore node from archive (incl. descendants) */
   unarchive(node: AnyNodeData): void;
-
   /** Soft delete node (incl. descendants), marked for later deletion after retention period */
   delete(node: AnyNodeData): void;
   /** Restore node from soft delete */
@@ -197,6 +197,10 @@ export class TransactionBuilder implements Transaction {
 
   get edits(): EditData[] {
     return this.state.edits;
+  }
+
+  clearDebounce(nodeId: string) {
+    this.state.clearDebounce(nodeId);
   }
 
   with(meta: TransactionMeta): Transaction {
