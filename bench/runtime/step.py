@@ -25,11 +25,38 @@ class StepRunnerBase(Runner[Step], abc.ABC):
 # Boundary steps
 #
 
-...
+
+@runner(RunKind.STEP, StepType.START)
+class StartStepRunner(StepRunnerBase):
+    @override
+    async def run(self) -> None:
+        raise NotImplementedError
+
+
+@runner(RunKind.STEP, StepType.COMPLETE)
+class CompleteStepRunner(StepRunnerBase):
+    @override
+    async def run(self) -> None:
+        raise NotImplementedError
+
+
+@runner(RunKind.STEP, StepType.FAIL)
+class FailStepRunner(StepRunnerBase):
+    @override
+    async def run(self) -> None:
+        raise NotImplementedError
+
 
 #
 # Run steps
 #
+
+
+@runner(RunKind.STEP, StepType.PASS)
+class PassStepRunner(StepRunnerBase):
+    @override
+    async def run(self) -> None:
+        raise NotImplementedError
 
 
 @runner(RunKind.STEP, StepType.BLOCK)

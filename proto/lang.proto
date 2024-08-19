@@ -153,6 +153,7 @@ enum BenchType {
   BENCH_TYPE_CODE_LINE = 10401;
   BENCH_TYPE_PIPE = 10450;
   BENCH_TYPE_PORT = 10451;
+  BENCH_TYPE_PORT_KEY = 10452;
   BENCH_TYPE_RUN_ERROR = 10500;
   BENCH_TYPE_RUN_OPTIONS = 10501;
   BENCH_TYPE_RUN_ATTEMPT = 10502;
@@ -926,6 +927,7 @@ enum ObjectType {
   OBJECT_TYPE_CODE_LINE = 10401;
   OBJECT_TYPE_PIPE = 10450;
   OBJECT_TYPE_PORT = 10451;
+  OBJECT_TYPE_PORT_KEY = 10452;
   OBJECT_TYPE_RUN_ERROR = 10500;
   OBJECT_TYPE_RUN_OPTIONS = 10501;
   OBJECT_TYPE_RUN_ATTEMPT = 10502;
@@ -986,7 +988,9 @@ enum PolicyEffect {
 
 enum PortType {
   PORT_TYPE_UNSPECIFIED = 0;
-  PORT_TYPE_FIELD = 1;
+  PORT_TYPE_CONTROL = 1;
+  PORT_TYPE_VALUE = 2;
+  PORT_TYPE_FIELD = 3;
 }
 
 // Fundamental column / storage types we support (subset of SQL types, used directly in sql/core).
@@ -1285,6 +1289,7 @@ enum StructType {
   STRUCT_TYPE_CODE_LINE = 10401;
   STRUCT_TYPE_PIPE = 10450;
   STRUCT_TYPE_PORT = 10451;
+  STRUCT_TYPE_PORT_KEY = 10452;
   STRUCT_TYPE_RUN_ERROR = 10500;
   STRUCT_TYPE_RUN_OPTIONS = 10501;
   STRUCT_TYPE_RUN_ATTEMPT = 10502;
@@ -1802,8 +1807,8 @@ message PipeData {
   ObjectType metatype = 1;
   PipeType type = 30;
   NodeReferenceData source_ptr = 31;
-  PortData source_port = 32;
-  PortData target_port = 34;
+  PortKeyData source_port = 32;
+  PortKeyData target_port = 34;
 }
 
 // A policy regulating access to nodes within its scope.
@@ -1851,11 +1856,22 @@ message PolicyRuleData {
   optional bool object_properties_is_kernel = 84;
 }
 
-// A port on a Step. Two ports are connected by a Pipe.
+// A full port on a Step with some value.
 message PortData {
   ObjectType metatype = 1;
   PortType type = 30;
-  optional NodeReferenceData field_ptr = 31;
+  FieldZone zone = 31;
+  optional NodeReferenceData field_ptr = 32;
+  optional TypeInfoData value_type = 40;
+  optional google.protobuf.Struct value_packed = 41;
+}
+
+// An identifier for a port on a Step.
+message PortKeyData {
+  ObjectType metatype = 1;
+  PortType type = 30;
+  FieldZone zone = 31;
+  optional NodeReferenceData field_ptr = 32;
 }
 
 // A reference to a builtin object's Property.
@@ -2135,6 +2151,7 @@ message TypeInfoData {
   optional BenchType bench_type = 42;
   optional NodeReferenceData base_type_ptr = 43;
   optional FieldZone base_field_zone = 44;
+  optional NodeReferenceData oneof_ptr = 45;
   optional google.protobuf.Struct default_packed = 50;
   optional ExpressionData condition = 54;
   optional TypeConstraintData constraint = 55;
@@ -2397,6 +2414,7 @@ message FieldData {
   optional BenchType bench_type = 42;
   optional NodeReferenceData base_type_ptr = 43;
   optional FieldZone base_field_zone = 44;
+  optional NodeReferenceData oneof_ptr = 45;
   optional google.protobuf.Struct default_packed = 50;
   optional ExpressionData condition = 54;
   optional TypeConstraintData constraint = 55;
@@ -2978,7 +2996,8 @@ message SpaceData {
   optional NodeReferenceData base_ptr = 76;
 }
 
-// An data or control flow node in a FlowBlock.
+// An data or control flow node in a FlowBlock. Ports on Steps are connected by Pipes.
+// Pipes are stored in the target Step. Ports are implicit via Pipes unless tied to some value.
 message StepData {
   ObjectType metatype = 1;
   string id = 2;
@@ -3004,12 +3023,12 @@ message StepData {
   optional TextData text = 34;
   optional IconData icon = 35;
   optional RunOptionsData run_options = 36;
-  repeated PipeData incoming_pipes = 37;
+  repeated PipeData pipes = 37;
+  repeated PortData ports = 38;
   optional TypeInfoData value_type = 40;
   optional google.protobuf.Struct value_packed = 41;
   optional NodeReferenceData node_ptr = 43;
   optional CodeData code = 44;
-  optional ExpressionData condition = 45;
   repeated NodeReferenceData roles_ptr = 46;
   optional NodeReferenceData identity_ptr = 47;
   repeated PolicyData policies = 48;
