@@ -82,6 +82,7 @@ export const EXPOSED_BLOCK_TYPES = [
   BlockType.CHOICE,
   BlockType.TEXT,
   BlockType.CODE,
+  BlockType.FLOW,
   BlockType.VALUE,
   BlockType.IDENTITY,
 ];

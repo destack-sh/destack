@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.08.19.0"
+VERSION = "2024.08.19.1"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -187,6 +187,7 @@ class BenchType(betterproto.Enum):
     CODE = 10400
     CODE_LINE = 10401
     PIPE = 10450
+    PORT = 10451
     RUN_ERROR = 10500
     RUN_OPTIONS = 10501
     RUN_ATTEMPT = 10502
@@ -204,11 +205,7 @@ class BenchType(betterproto.Enum):
     TRANSFORM = 11004
     START_VIEW_STATE = 11200
     FEED_VIEW_STATE = 11201
-    CHART_VIEW_STATE = 11202
-    HISTORY_VIEW_STATE = 11203
-    TIMELINE_VIEW_STATE = 11204
     USER_WIZARD_VIEW_STATE = 11205
-    PAGE_VIEW_STATE = 11206
     TREE_VIEW_STATE = 11207
     ENUM_TYPE = 20001
     NODE_TYPE = 20002
@@ -271,6 +268,7 @@ class BenchType(betterproto.Enum):
     CODE_TYPE = 20513
     RUN_SPAN_TYPE = 20514
     RUN_EVENT_TYPE = 20515
+    PORT_TYPE = 20516
     MODEL_PROVIDER = 20530
     MODEL_TYPE = 20531
     SPACE_TYPE = 21000
@@ -537,6 +535,7 @@ class EnumType(betterproto.Enum):
     CODE_TYPE = 20513
     RUN_SPAN_TYPE = 20514
     RUN_EVENT_TYPE = 20515
+    PORT_TYPE = 20516
     MODEL_PROVIDER = 20530
     MODEL_TYPE = 20531
     SPACE_TYPE = 21000
@@ -973,6 +972,7 @@ class ObjectType(betterproto.Enum):
     CODE = 10400
     CODE_LINE = 10401
     PIPE = 10450
+    PORT = 10451
     RUN_ERROR = 10500
     RUN_OPTIONS = 10501
     RUN_ATTEMPT = 10502
@@ -990,11 +990,7 @@ class ObjectType(betterproto.Enum):
     TRANSFORM = 11004
     START_VIEW_STATE = 11200
     FEED_VIEW_STATE = 11201
-    CHART_VIEW_STATE = 11202
-    HISTORY_VIEW_STATE = 11203
-    TIMELINE_VIEW_STATE = 11204
     USER_WIZARD_VIEW_STATE = 11205
-    PAGE_VIEW_STATE = 11206
     TREE_VIEW_STATE = 11207
 
 
@@ -1026,14 +1022,19 @@ class PathTokenType(betterproto.Enum):
 
 class PipeType(betterproto.Enum):
     UNSPECIFIED = 0
-    THEN = 1
-    WITH = 2
+    CONTROL = 1
+    DATA = 2
 
 
 class PolicyEffect(betterproto.Enum):
     UNSPECIFIED = 0
     ALLOW = 1
     DENY = 2
+
+
+class PortType(betterproto.Enum):
+    UNSPECIFIED = 0
+    FIELD = 1
 
 
 class PrimitiveType(betterproto.Enum):
@@ -1292,9 +1293,9 @@ class StepType(betterproto.Enum):
     TRIGGER = 11
     PASS = 50
     BLOCK = 51
-    CODE = 52
-    TEXT = 53
-    SEND = 54
+    CODE = 54
+    TEXT = 55
+    SEND = 56
     MATCH = 100
     FILTER = 101
     LOOP = 102
@@ -1346,6 +1347,7 @@ class StructType(betterproto.Enum):
     CODE = 10400
     CODE_LINE = 10401
     PIPE = 10450
+    PORT = 10451
     RUN_ERROR = 10500
     RUN_OPTIONS = 10501
     RUN_ATTEMPT = 10502
@@ -1363,11 +1365,7 @@ class StructType(betterproto.Enum):
     TRANSFORM = 11004
     START_VIEW_STATE = 11200
     FEED_VIEW_STATE = 11201
-    CHART_VIEW_STATE = 11202
-    HISTORY_VIEW_STATE = 11203
-    TIMELINE_VIEW_STATE = 11204
     USER_WIZARD_VIEW_STATE = 11205
-    PAGE_VIEW_STATE = 11206
     TREE_VIEW_STATE = 11207
 
 
@@ -1422,6 +1420,7 @@ class TypeKind(betterproto.Enum):
     BASED_NODE = 5
     OBJECT = 6
     LITERAL = 7
+    UNION = 9
     ALIAS = 10
 
 
@@ -1650,13 +1649,6 @@ class ChangeVignetteData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class ChartViewStateData(betterproto.Message):
-    """The state of a Chart view."""
-
-    metatype: "ObjectType" = betterproto.enum_field(1)
-
-
-@dataclass(eq=False, repr=False)
 class ClientOriginData(betterproto.Message):
     """Information to identify a client."""
 
@@ -1850,13 +1842,6 @@ class GraphScopeData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class HistoryViewStateData(betterproto.Message):
-    """The state of a History view."""
-
-    metatype: "ObjectType" = betterproto.enum_field(1)
-
-
-@dataclass(eq=False, repr=False)
 class IconData(betterproto.Message):
     """An icon to be displayed in some view."""
 
@@ -1934,13 +1919,6 @@ class OffsetData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class PageViewStateData(betterproto.Message):
-    """The state of a Page view."""
-
-    metatype: "ObjectType" = betterproto.enum_field(1)
-
-
-@dataclass(eq=False, repr=False)
 class PathData(betterproto.Message):
     """
     A human-readable Bench path to reference nodes.
@@ -1982,11 +1960,16 @@ class PathTokenData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class PipeData(betterproto.Message):
-    """A connection between two Steps in a FlowBlock."""
+    """
+    A connection between two Steps in a FlowBlock.
+     The pipe is stored in the incoming Step, so the target Step is implicit.
+    """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     type: "PipeType" = betterproto.enum_field(30)
     source_ptr: "NodeReferenceData" = betterproto.message_field(31)
+    source_port: "PortData" = betterproto.message_field(32)
+    target_port: "PortData" = betterproto.message_field(34)
 
 
 @dataclass(eq=False, repr=False)
@@ -2040,6 +2023,15 @@ class PolicyRuleData(betterproto.Message):
     object_properties_is_system: Optional[bool] = betterproto.bool_field(82, optional=True)
     object_properties_is_sensitive: Optional[bool] = betterproto.bool_field(83, optional=True)
     object_properties_is_kernel: Optional[bool] = betterproto.bool_field(84, optional=True)
+
+
+@dataclass(eq=False, repr=False)
+class PortData(betterproto.Message):
+    """A port on a Step. Two ports are connected by a Pipe."""
+
+    metatype: "ObjectType" = betterproto.enum_field(1)
+    type: "PortType" = betterproto.enum_field(30)
+    field_ptr: Optional["NodeReferenceData"] = betterproto.message_field(31, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2316,13 +2308,6 @@ class TextSpanData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class TimelineViewStateData(betterproto.Message):
-    """The state of a Timeline view."""
-
-    metatype: "ObjectType" = betterproto.enum_field(1)
-
-
-@dataclass(eq=False, repr=False)
 class TransformData(betterproto.Message):
     """A transform in 2D space."""
 
@@ -2493,7 +2478,7 @@ class BenchData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class BlockData(betterproto.Message):
-    """A building block with logic, types, UI, data, auth, AI, ..."""
+    """A building block with logic, types, UI, state, auth, AI, ..."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
@@ -5368,6 +5353,7 @@ AnyStructData = Union[
     CodeData,
     CodeLineData,
     PipeData,
+    PortData,
     RunErrorData,
     RunOptionsData,
     RunAttemptData,
@@ -5385,10 +5371,6 @@ AnyStructData = Union[
     TransformData,
     StartViewStateData,
     FeedViewStateData,
-    ChartViewStateData,
-    HistoryViewStateData,
-    TimelineViewStateData,
     UserWizardViewStateData,
-    PageViewStateData,
     TreeViewStateData,
 ]

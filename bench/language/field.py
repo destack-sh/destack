@@ -1,5 +1,16 @@
 import typing
-from typing import TYPE_CHECKING, Any, Collection, Optional, Sequence, Type, Union, cast, override
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Collection,
+    Optional,
+    Sequence,
+    Type,
+    Union,
+    cast,
+    final,
+    override,
+)
 from uuid import UUID
 
 import structlog
@@ -206,7 +217,7 @@ class TypeConstraint(Struct):
     regex: Optional[str] = p_regular(60, require=False, default=None)
     starts_with: Optional[str] = p_regular(61, require=False, default=None)
     ends_with: Optional[str] = p_regular(62, require=False, default=None)
-    # node-ish
+    # node-ish (these should probably be lists?)
     block_type: Optional[BlockType] = p_regular(70, require=False, default=None)
     step_type: Optional["StepType"] = p_regular(71, require=False, default=None)
     file_type: Optional["FileType"] = p_regular(72, require=False, default=None)
@@ -261,6 +272,7 @@ class TypeInfoBase(BuiltinObject):
         base_type_id: Optional[UUID] = None
         base_type_ptr: Optional["NodeReference"] = None
     base_field_zone: Optional["FieldZone"] = p_internal(44, require=False, default=None)
+    # oneof: Field | (Choice)Block?
 
     # + bonus info/constraints
     default_packed: Optional[Any] = p_value_packed(50)
@@ -560,10 +572,14 @@ class Field(SourceNode[FieldData], HasNodeBase, TypeInfoBase, _TypeQueryBuilder)
     # ...TypeInfo[40-69]
 
     # field-only flags
-    # is_indexed: bool = ... # for database fields
-    # is_unique: bool = ... # for database fields
+    # is_indexed? # for database fields
+    # is_unique? # for database fields
 
     _introspected_from: Optional[Property] = p_runtime(default=None)
+
+    @final
+    def __repr__(self):  # type: ignore we want to override the default repr
+        return f"<{self.zone.bench_name}Field {self}>"
 
     def __content_str__(self) -> str:
         if self.zone == FieldZone.OPTION:

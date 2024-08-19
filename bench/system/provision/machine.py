@@ -270,7 +270,7 @@ class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
         }
         if isinstance(machine.parent, Server):
             labels["server_id"] = str(machine.parent.id)
-        # nocheckin :Security: kubernetes-deployed machines should not be trusted
+        # TODO :Security!: kubernetes-deployed machines should not be trusted
         env_vars = _get_machine_env_vars(machine, is_trusted=True, is_in_minikube=IS_DEV or IS_TEST)
 
         # pod

@@ -55,7 +55,7 @@ if TYPE_CHECKING:
 
 @local_node_(NodeType.BLOCK, passthrough=("value", "fields"))
 class Block(SourceNode[BlockData]):
-    """A building block with logic, types, UI, data, auth, AI, ..."""
+    """A building block with logic, types, UI, state, auth, AI, ..."""
 
     parent: Union["Block", "Package", None] = p_node_parent(4, NodeType.BLOCK, NodeType.PACKAGE)
 
