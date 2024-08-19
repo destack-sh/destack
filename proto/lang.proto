@@ -152,6 +152,7 @@ enum BenchType {
   BENCH_TYPE_CODE = 10400;
   BENCH_TYPE_CODE_LINE = 10401;
   BENCH_TYPE_PIPE = 10450;
+  BENCH_TYPE_PORT = 10451;
   BENCH_TYPE_RUN_ERROR = 10500;
   BENCH_TYPE_RUN_OPTIONS = 10501;
   BENCH_TYPE_RUN_ATTEMPT = 10502;
@@ -169,11 +170,7 @@ enum BenchType {
   BENCH_TYPE_TRANSFORM = 11004;
   BENCH_TYPE_START_VIEW_STATE = 11200;
   BENCH_TYPE_FEED_VIEW_STATE = 11201;
-  BENCH_TYPE_CHART_VIEW_STATE = 11202;
-  BENCH_TYPE_HISTORY_VIEW_STATE = 11203;
-  BENCH_TYPE_TIMELINE_VIEW_STATE = 11204;
   BENCH_TYPE_USER_WIZARD_VIEW_STATE = 11205;
-  BENCH_TYPE_PAGE_VIEW_STATE = 11206;
   BENCH_TYPE_TREE_VIEW_STATE = 11207;
   BENCH_TYPE_ENUM_TYPE = 20001;
   BENCH_TYPE_NODE_TYPE = 20002;
@@ -236,6 +233,7 @@ enum BenchType {
   BENCH_TYPE_CODE_TYPE = 20513;
   BENCH_TYPE_RUN_SPAN_TYPE = 20514;
   BENCH_TYPE_RUN_EVENT_TYPE = 20515;
+  BENCH_TYPE_PORT_TYPE = 20516;
   BENCH_TYPE_MODEL_PROVIDER = 20530;
   BENCH_TYPE_MODEL_TYPE = 20531;
   BENCH_TYPE_SPACE_TYPE = 21000;
@@ -493,6 +491,7 @@ enum EnumType {
   ENUM_TYPE_CODE_TYPE = 20513;
   ENUM_TYPE_RUN_SPAN_TYPE = 20514;
   ENUM_TYPE_RUN_EVENT_TYPE = 20515;
+  ENUM_TYPE_PORT_TYPE = 20516;
   ENUM_TYPE_MODEL_PROVIDER = 20530;
   ENUM_TYPE_MODEL_TYPE = 20531;
   ENUM_TYPE_SPACE_TYPE = 21000;
@@ -926,6 +925,7 @@ enum ObjectType {
   OBJECT_TYPE_CODE = 10400;
   OBJECT_TYPE_CODE_LINE = 10401;
   OBJECT_TYPE_PIPE = 10450;
+  OBJECT_TYPE_PORT = 10451;
   OBJECT_TYPE_RUN_ERROR = 10500;
   OBJECT_TYPE_RUN_OPTIONS = 10501;
   OBJECT_TYPE_RUN_ATTEMPT = 10502;
@@ -943,11 +943,7 @@ enum ObjectType {
   OBJECT_TYPE_TRANSFORM = 11004;
   OBJECT_TYPE_START_VIEW_STATE = 11200;
   OBJECT_TYPE_FEED_VIEW_STATE = 11201;
-  OBJECT_TYPE_CHART_VIEW_STATE = 11202;
-  OBJECT_TYPE_HISTORY_VIEW_STATE = 11203;
-  OBJECT_TYPE_TIMELINE_VIEW_STATE = 11204;
   OBJECT_TYPE_USER_WIZARD_VIEW_STATE = 11205;
-  OBJECT_TYPE_PAGE_VIEW_STATE = 11206;
   OBJECT_TYPE_TREE_VIEW_STATE = 11207;
 }
 
@@ -978,14 +974,19 @@ enum PathTokenType {
 
 enum PipeType {
   PIPE_TYPE_UNSPECIFIED = 0;
-  PIPE_TYPE_THEN = 1;
-  PIPE_TYPE_WITH = 2;
+  PIPE_TYPE_CONTROL = 1;
+  PIPE_TYPE_DATA = 2;
 }
 
 enum PolicyEffect {
   POLICY_EFFECT_UNSPECIFIED = 0;
   POLICY_EFFECT_ALLOW = 1;
   POLICY_EFFECT_DENY = 2;
+}
+
+enum PortType {
+  PORT_TYPE_UNSPECIFIED = 0;
+  PORT_TYPE_FIELD = 1;
 }
 
 // Fundamental column / storage types we support (subset of SQL types, used directly in sql/core).
@@ -1229,9 +1230,9 @@ enum StepType {
   STEP_TYPE_TRIGGER = 11;
   STEP_TYPE_PASS = 50;
   STEP_TYPE_BLOCK = 51;
-  STEP_TYPE_CODE = 52;
-  STEP_TYPE_TEXT = 53;
-  STEP_TYPE_SEND = 54;
+  STEP_TYPE_CODE = 54;
+  STEP_TYPE_TEXT = 55;
+  STEP_TYPE_SEND = 56;
   STEP_TYPE_MATCH = 100;
   STEP_TYPE_FILTER = 101;
   STEP_TYPE_LOOP = 102;
@@ -1283,6 +1284,7 @@ enum StructType {
   STRUCT_TYPE_CODE = 10400;
   STRUCT_TYPE_CODE_LINE = 10401;
   STRUCT_TYPE_PIPE = 10450;
+  STRUCT_TYPE_PORT = 10451;
   STRUCT_TYPE_RUN_ERROR = 10500;
   STRUCT_TYPE_RUN_OPTIONS = 10501;
   STRUCT_TYPE_RUN_ATTEMPT = 10502;
@@ -1300,11 +1302,7 @@ enum StructType {
   STRUCT_TYPE_TRANSFORM = 11004;
   STRUCT_TYPE_START_VIEW_STATE = 11200;
   STRUCT_TYPE_FEED_VIEW_STATE = 11201;
-  STRUCT_TYPE_CHART_VIEW_STATE = 11202;
-  STRUCT_TYPE_HISTORY_VIEW_STATE = 11203;
-  STRUCT_TYPE_TIMELINE_VIEW_STATE = 11204;
   STRUCT_TYPE_USER_WIZARD_VIEW_STATE = 11205;
-  STRUCT_TYPE_PAGE_VIEW_STATE = 11206;
   STRUCT_TYPE_TREE_VIEW_STATE = 11207;
 }
 
@@ -1357,6 +1355,7 @@ enum TypeKind {
   TYPE_KIND_BASED_NODE = 5;
   TYPE_KIND_OBJECT = 6;
   TYPE_KIND_LITERAL = 7;
+  TYPE_KIND_UNION = 9;
   TYPE_KIND_ALIAS = 10;
 }
 
@@ -1545,11 +1544,6 @@ message ChangeVignetteData {
   optional IconData icon = 35;
 }
 
-// The state of a Chart view.
-message ChartViewStateData {
-  ObjectType metatype = 1;
-}
-
 // Information to identify a client.
 message ClientOriginData {
   ObjectType metatype = 1;
@@ -1709,11 +1703,6 @@ message GraphScopeData {
   optional string package_id = 31;
 }
 
-// The state of a History view.
-message HistoryViewStateData {
-  ObjectType metatype = 1;
-}
-
 // An icon to be displayed in some view.
 message IconData {
   ObjectType metatype = 1;
@@ -1773,11 +1762,6 @@ message OffsetData {
   optional float left_relative = 47;
 }
 
-// The state of a Page view.
-message PageViewStateData {
-  ObjectType metatype = 1;
-}
-
 // A human-readable Bench path to reference nodes.
 // Paths names and special operators combined with slashes.
 // Fields may also be accessed with '.' separators.
@@ -1813,10 +1797,13 @@ message PathTokenData {
 }
 
 // A connection between two Steps in a FlowBlock.
+// The pipe is stored in the incoming Step, so the target Step is implicit.
 message PipeData {
   ObjectType metatype = 1;
   PipeType type = 30;
   NodeReferenceData source_ptr = 31;
+  PortData source_port = 32;
+  PortData target_port = 34;
 }
 
 // A policy regulating access to nodes within its scope.
@@ -1862,6 +1849,13 @@ message PolicyRuleData {
   optional bool object_properties_is_system = 82;
   optional bool object_properties_is_sensitive = 83;
   optional bool object_properties_is_kernel = 84;
+}
+
+// A port on a Step. Two ports are connected by a Pipe.
+message PortData {
+  ObjectType metatype = 1;
+  PortType type = 30;
+  optional NodeReferenceData field_ptr = 31;
 }
 
 // A reference to a builtin object's Property.
@@ -2085,11 +2079,6 @@ message TextSpanData {
   optional bool is_code = 64;
 }
 
-// The state of a Timeline view.
-message TimelineViewStateData {
-  ObjectType metatype = 1;
-}
-
 // A transform in 2D space.
 message TransformData {
   ObjectType metatype = 1;
@@ -2231,7 +2220,7 @@ message BenchData {
   optional NodeReferenceData main_branch_ptr = 50;
 }
 
-// A building block with logic, types, UI, data, auth, AI, ...
+// A building block with logic, types, UI, state, auth, AI, ...
 message BlockData {
   ObjectType metatype = 1;
   string id = 2;

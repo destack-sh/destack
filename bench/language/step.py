@@ -3,13 +3,7 @@ from typing import TYPE_CHECKING, Any, Optional, Union, cast, final
 from bench.language.const import BlockType, EnumType, FieldZone, NodeType, StructType, enum_
 from bench.language.field import TypeInfoBase
 from bench.language.graph import NodeList
-from bench.language.node import (
-    SourceNode,
-    Struct,
-    local_node_,
-    object_component,
-    struct_,
-)
+from bench.language.node import SourceNode, Struct, local_node_, struct_
 from bench.language.property import (
     p_internal,
     p_node_children,
@@ -49,15 +43,16 @@ class StepType(IdEnum):
     START = 1  # source with inputs (at most one per Flow)
     COMPLETE = 2  # terminate with outputs (at most one per Flow)
     FAIL = 3  # terminate with error
+    # ABORT?
     VALUE = 10  # source with just(value)
     TRIGGER = 11  # source with just(trigger)
 
     # run
     PASS = 50  # noop, output = input
     BLOCK = 51  # run a runnable block
-    CODE = 52  # run code
-    TEXT = 53  # run text
-    SEND = 54  # (signal/notification)
+    CODE = 54  # run code
+    TEXT = 55  # run text
+    SEND = 56  # emit signal/notification
     # YIELD # to other program/human
     # APPLY
     # CREATE
@@ -84,18 +79,35 @@ class StepType(IdEnum):
 
 @enum_(EnumType.PIPE_TYPE)
 class PipeType(IdEnum):
-    THEN = 1  # trigger + data
-    WITH = 2  # just data binding
+    CONTROL = 1  # trigger + data
+    DATA = 2  # just data binding
     ...
 
 
 @struct_(StructType.PIPE)
 class Pipe(Struct):
-    """A connection between two Steps in a FlowBlock."""
+    """
+    A connection between two Steps in a FlowBlock.
+    The pipe is stored in the incoming Step, so the target Step is implicit.
+    """
 
     type: PipeType = p_internal(30)
     source: "Step" = p_regular(31, require=True, references=(NodeType.STEP,))
-    # ports/mapping/...?
+    source_port: "Port" = p_regular(32, require=True, struct=StructType.PORT)
+    target_port: "Port" = p_regular(34, require=True, struct=StructType.PORT)
+
+
+@enum_(EnumType.PORT_TYPE)
+class PortType(IdEnum):
+    FIELD = 1
+
+
+@struct_(StructType.PORT)
+class Port(Struct):
+    """A port on a Step. Two ports are connected by a Pipe."""
+
+    type: PortType = p_internal(30)
+    field: Optional["Field"] = p_regular(31, require=False, references=NodeType.FIELD)
 
 
 @local_node_(NodeType.STEP, passthrough=("value", "fields"))
@@ -200,15 +212,3 @@ class Step(SourceNode[StepData]):
     def new(typ: StepType, name: str, **kwargs):
         """Creates a new Step of the given type."""
         return Step(type=typ, name=name, **kwargs)
-
-
-#
-# Custom step state :NodeInheritance
-#
-
-
-@object_component()
-class StepState(Struct):  # :NodeInheritance
-    """Builtin special Value as the state of some specific step type (in Step.value)."""
-
-    pass

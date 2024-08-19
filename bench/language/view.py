@@ -582,13 +582,6 @@ class ViewState(Struct):  # :NodeInheritance
     pass
 
 
-@struct_(StructType.PAGE_VIEW_STATE)
-class PageViewState(ViewState):
-    """The state of a Page view."""
-
-    pass
-
-
 @enum_(EnumType.TREE_VIEW_PRESET)
 class TreeViewPreset(IdEnum):
     EXPLORE = 1
@@ -626,27 +619,6 @@ class FeedViewState(ViewState):
         31, default=None, require=False, struct=StructType.EXPRESSION
     )
     filter_pills: list[str] = p_regular(99, array=True)
-
-
-@struct_(StructType.CHART_VIEW_STATE)
-class ChartViewState(ViewState):
-    """The state of a Chart view."""
-
-    pass  # ... vega stuff or something
-
-
-@struct_(StructType.HISTORY_VIEW_STATE)
-class HistoryViewState(ViewState):
-    """The state of a History view."""
-
-    pass
-
-
-@struct_(StructType.TIMELINE_VIEW_STATE)
-class TimelineViewState(ViewState):
-    """The state of a Timeline view."""
-
-    pass
 
 
 @enum_(EnumType.USER_WIZARD_STAGE)

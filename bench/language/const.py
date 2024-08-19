@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.08.19.0"  # auto change via version script
+VERSION = "2024.08.19.1"  # auto change via version script
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -140,6 +140,7 @@ class EnumType(IdEnum):
     CODE_TYPE = 20513
     RUN_SPAN_TYPE = 20514
     RUN_EVENT_TYPE = 20515
+    PORT_TYPE = 20516
     MODEL_PROVIDER = 20530
     MODEL_TYPE = 20531
 
@@ -351,6 +352,7 @@ class StructType(IdEnum):
     CODE = 10400
     CODE_LINE = 10401
     PIPE = 10450
+    PORT = 10451
     RUN_ERROR = 10500
     RUN_OPTIONS = 10501
     RUN_ATTEMPT = 10502
@@ -371,11 +373,7 @@ class StructType(IdEnum):
     ...
     START_VIEW_STATE = 11200
     FEED_VIEW_STATE = 11201
-    CHART_VIEW_STATE = 11202
-    HISTORY_VIEW_STATE = 11203
-    TIMELINE_VIEW_STATE = 11204
     USER_WIZARD_VIEW_STATE = 11205
-    PAGE_VIEW_STATE = 11206
     TREE_VIEW_STATE = 11207
 
 
@@ -573,7 +571,7 @@ class BlockType(IdEnum):
 
     # types
     CLASS = 10  # define a class type with fields
-    CHOICE = 11  # define a choice type with fields (as literal options)
+    CHOICE = 11  # define a choice type with fields (union of literal options or oneof fields)
     SIGNAL = 12  # define a signal type with fields
     NOTIFICATION = 13  # define a new notification type
     # PROTOCOL, TAG, ISSUE, METRIC, BLOCK, ...?
@@ -583,7 +581,7 @@ class BlockType(IdEnum):
     CODE = 31  # define a code function/script with fields (optionally incl. input/output)
     FLOW = 32  # define a flow with steps and fields (optionally incl. input/output)
 
-    # state
+    # data
     VALUE = 50  # define a single-value variable
     DATABASE = 51  # define a database with records & queries
     QUERY = 52  # define a set of queries
@@ -871,6 +869,7 @@ class TypeKind(IdEnum):
     BASED_NODE = 5
     OBJECT = 6
     LITERAL = 7
+    UNION = 9
     ALIAS = 10
 
 
