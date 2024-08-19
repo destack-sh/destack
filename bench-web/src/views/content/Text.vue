@@ -56,6 +56,7 @@ import { Node as PmNode } from "prosemirror-model";
 import { EditorState } from "prosemirror-state";
 import { EditorView, type NodeView as PmNodeView } from "prosemirror-view";
 import { computed, nextTick, onBeforeUnmount, ref, toRef, watch, type Ref } from "vue";
+import { copy } from "@/utils/functools";
 
 const MENTION_TRIGGER_CHAR = "@";
 
@@ -118,26 +119,22 @@ function makeEditorView(): EditorView {
       mention: (node, view, getPos) => new MentionView(node, view, getPos),
     },
     plugins: [dropCursor({ width: 2, color: "#fbbf24" })],
-    dispatchTransaction(transaction) {
+    dispatchTransaction(tx) {
       if (view == null) throw new Error("view not mounted");
 
       // update the state directly for responsiveness & performance
-      const newState = view.state.apply(transaction);
+      const newState = view.state.apply(tx);
       view.updateState(newState);
       // also update the modelValue if underlying doc changed
-      if (transaction.docChanged) {
+      if (tx.docChanged) {
         const updatedText = mapPmNodeToText(newState.doc, props.modelValue);
-        lastAppliedModelValue = updatedText;
+        lastAppliedModelValue = copy(updatedText);
         emit("update:modelValue", updatedText);
       }
 
       // trigger mention if we just typed the trigger char
       const { selection } = newState;
-      if (
-        transaction.docChanged &&
-        selection.empty &&
-        selection.$head.nodeBefore?.text?.endsWith(MENTION_TRIGGER_CHAR)
-      ) {
+      if (tx.docChanged && selection.empty && selection.$head.nodeBefore?.text?.endsWith(MENTION_TRIGGER_CHAR)) {
         const referencePos = view.coordsAtPos(selection.$head.pos);
         pushPopover({
           trigger: getElement(textRef.value)!,
@@ -297,7 +294,7 @@ watch(
 // mount the editor view
 whenever(textRef, () => {
   if (view) throw new Error("view already exists");
-  lastAppliedModelValue = props.modelValue ?? null;
+  lastAppliedModelValue = copy(props.modelValue ?? null);
   view = makeEditorView();
 });
 onBeforeUnmount(() => {
@@ -311,6 +308,7 @@ watch(toRef(props, "modelValue"), () => {
   if (deepValueEquals(props.modelValue, lastAppliedModelValue)) return;
   const updatedState = makeEditorState(props.modelValue);
   view.updateState(updatedState);
+  lastAppliedModelValue = copy(props.modelValue) ?? null;
 });
 
 function insertMention(nodePtr: NodeReferenceData, pos: { pos: number }) {
