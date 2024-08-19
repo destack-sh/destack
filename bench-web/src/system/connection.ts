@@ -210,7 +210,7 @@ function makeConnectionOverlayGraph(
   subs: (() => void)[],
 ): NodeGraph {
   const overlay = new NodeGraph({ scope: base.scope, nodeTypes: base.nodeTypes, isOverlayOf: base });
-  const sub = connection.txBuffer.subscribePending((event) => {
+  const sub = connection.txBuffer.subscribeBuffered((event) => {
     // NOTE :UX :Architecture: instead of ignoring transactions from other connections outright we could optimistically
     //  apply edits to the same node identities to other connections as well. Ultimately,
     //  we probably want to emulate even more of the backend live connesction logic (e.g., optimistic search results).
@@ -218,7 +218,7 @@ function makeConnectionOverlayGraph(
     //  here we distribute optimistic edits across the per-bench tx buffer, so any given edit might not be relevant)
     if (event.meta.connectionId != null && event.meta.connectionId != connection.meta.id) return;
     if (event.type == "reset") overlay.clear();
-    editGraph(overlay, event.edits, { base: base });
+    editGraph(overlay, event.newEdits, { base: base });
   });
   subs.push(sub);
   return overlay;
@@ -599,15 +599,16 @@ export class RemoteGetConnection<T extends NodeType> extends ConnectionBase<"get
         if (rep == null) return;
         if (rep.epoch < epoch.value) throw new Error(`epoch regression: ${epoch.value} -> ${rep.epoch}`); // sanity check
         epoch.value = rep.epoch;
-        const allEdits = [...rep.edits, ...rep.cascadedEdits];
-        editGraph(graph, allEdits);
-        this.txBuffer.acceptCommitted(allEdits);
+        editGraph(graph, [...rep.edits, ...rep.cascadedEdits]);
+        this.txBuffer.acceptCommitted(rep.edits, rep.cascadedEdits);
       });
       editStream.responses.onError(onError);
       editStream.responses.onComplete(() => onError(new Error("edit stream closed")));
     } else {
-      // otherwise directly apply confirmed edits
-      subs.push(this.txBuffer.subscribeCommit((event) => this.txBuffer.acceptCommitted(event.edits)));
+      // otherwise directly apply committed edits
+      subs.push(
+        this.txBuffer.subscribeCommitted((event) => this.txBuffer.acceptCommitted(event.edits, event.cascadedEdits)),
+      );
     }
 
     const overlay = makeConnectionOverlayGraph(graph, this, subs);
@@ -661,9 +662,8 @@ export class RemoteSearchConnection<T extends NodeType> extends ConnectionBase<"
         if (rep == null) return;
         if (rep.epoch < epoch.value) throw new Error(`epoch regression: ${epoch.value} -> ${rep.epoch}`); // sanity check
         epoch.value = rep.epoch;
-        const allEdits = [...rep.edits, ...rep.cascadedEdits];
-        this.txBuffer.acceptCommitted(allEdits);
-        editGraph(graph, allEdits);
+        this.txBuffer.acceptCommitted(rep.edits, rep.cascadedEdits);
+        editGraph(graph, [...rep.edits, ...rep.cascadedEdits]);
         // apply other added/removed nodes
         for (const node of rep.addedNodes) {
           graph.add(unwrapSomeNode(node));

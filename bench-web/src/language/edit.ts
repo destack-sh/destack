@@ -130,13 +130,15 @@ class EditStack {
   }
 
   subscribeToBuffer(buffer: TransactionBuffer): () => void {
-    // nocheckin EditStack should handle pending edits as well (not just committed)
-    const sub = buffer.subscribeCommit((event) => {
+    // nocheckin EditStack should handle buffered edits as well (not just accepted)
+    const bufferedSub = buffer.subscribeBuffered((event) => {
       let hasNewEdits = false;
-      for (const edit of event.edits) {
+      for (const edit of event.newEdits) {
         if (this._filter(edit) && !this._editsById[edit.id] && !this._derivedEditsById[edit.id]) {
           this._editStack.push(edit);
           this._editsById[edit.id] = edit;
+          if (event.connectionIdByEditId[edit.id] == null)
+            throw new Error(`missing connection id for ${describeEdit(edit)}`);
           this._connectionIdByEdit[edit.id] = event.connectionIdByEditId[edit.id];
           hasNewEdits = true;
         }
@@ -146,7 +148,8 @@ class EditStack {
         this._undoIndex = this._editStack.length;
       }
     });
-    return sub;
+    const acceptedSub = buffer.subscribeAccepted((event) => {});
+    return () => (bufferedSub(), acceptedSub());
   }
 }
 
