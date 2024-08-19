@@ -212,7 +212,7 @@ export function createBlock(
   }
 
   // add value type if not given
-  if (options.block.type == BlockType.VARIABLE && options.block.valueType == null) {
+  if (options.block.type == BlockType.VALUE && options.block.valueType == null) {
     options.block.valueType = makeTypeInfo({ kind: TypeKind.STRUCT, benchType: BenchType.TEXT });
   }
 

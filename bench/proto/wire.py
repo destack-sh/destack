@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.08.15.0"
+VERSION = "2024.08.19.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -301,7 +301,7 @@ class BlockType(betterproto.Enum):
     TEXT = 30
     CODE = 31
     FLOW = 32
-    VARIABLE = 50
+    VALUE = 50
     DATABASE = 51
     QUERY = 52
     VIEW = 70

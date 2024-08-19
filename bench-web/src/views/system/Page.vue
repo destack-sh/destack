@@ -157,7 +157,7 @@ const { activeDropZone } = useMultiDropZone({
         const variableType = makeTypeInfo({ kind: TypeKind.NODE, benchType: BenchType.FILE });
         const block = createBlock(pkgConnection.tx, pkgGraph, {
           block: {
-            type: BlockType.VARIABLE,
+            type: BlockType.VALUE,
             valueType: variableType,
             valuePacked: packValueJson(toNodeRef(upload.file.value!), variableType),
           },

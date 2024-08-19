@@ -70,7 +70,7 @@ def test_project_value_objects(shared_session: Session, shared_package: Package)
     # nested node ref in value object in builtin object
     Text1 = Block.new_text("Text1", "Hello, world!")
     Variable1 = Block.new(
-        BlockType.VARIABLE,
+        BlockType.VALUE,
         "Variable1",
         value_type=to_type(Block),
         value=Text1,
@@ -106,14 +106,14 @@ def test_project_unloaded_nodes(shared_session: Session, shared_package: Package
         size=1024,
     )
     Variable1 = Block.new(
-        BlockType.VARIABLE,
+        BlockType.VALUE,
         "Variable1",
         value_type=to_type(File),
         value=File1,
         text=Text(lines=[TextLine(spans=[TextSpan(node=File2)])]),
     )
     Variable2 = Block.new(
-        BlockType.VARIABLE,
+        BlockType.VALUE,
         "Variable2",
         value_type=to_type(Class1),
         value=Class1(File=File3),

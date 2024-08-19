@@ -196,7 +196,7 @@ class Block(SourceNode[BlockData]):
                 typ = TypeInfo(
                     kind=TypeKind.OBJECT, base_type=self, base_field_zone=zone or FieldZone.MEMBER
                 )
-        elif self.type == BlockType.VARIABLE:
+        elif self.type == BlockType.VALUE:
             assert self.value_type is not None, f"{self!r} has no builtin base"
             return self.value_type._to_resolved()
         elif self.type == BlockType.DATABASE:
