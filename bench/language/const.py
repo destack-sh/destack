@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.08.19.1"  # auto change via version script
+VERSION = "2024.08.19.2"  # auto change via version script
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -353,6 +353,7 @@ class StructType(IdEnum):
     CODE_LINE = 10401
     PIPE = 10450
     PORT = 10451
+    PORT_KEY = 10452
     RUN_ERROR = 10500
     RUN_OPTIONS = 10501
     RUN_ATTEMPT = 10502

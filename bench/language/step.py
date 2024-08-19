@@ -22,7 +22,6 @@ if TYPE_CHECKING:
         Block,
         Box,
         Code,
-        Expression,
         Field,
         Icon,
         NodeReference,
@@ -80,7 +79,7 @@ class StepType(IdEnum):
 @enum_(EnumType.PIPE_TYPE)
 class PipeType(IdEnum):
     CONTROL = 1  # trigger + data
-    DATA = 2  # just data binding
+    DATA = 2  # data (only)
     ...
 
 
@@ -91,29 +90,48 @@ class Pipe(Struct):
     The pipe is stored in the incoming Step, so the target Step is implicit.
     """
 
+    # connection
     type: PipeType = p_internal(30)
-    source: "Step" = p_regular(31, require=True, references=(NodeType.STEP,))
-    source_port: "Port" = p_regular(32, require=True, struct=StructType.PORT)
-    target_port: "Port" = p_regular(34, require=True, struct=StructType.PORT)
+    source: "Step" = p_regular(31, require=True, references=NodeType.STEP)
+    source_port: "PortKey" = p_regular(32, require=True, struct=StructType.PORT_KEY)
+    target_port: "PortKey" = p_regular(34, require=True, struct=StructType.PORT_KEY)
+
+    # mapping/casting
+    ...
 
 
 @enum_(EnumType.PORT_TYPE)
 class PortType(IdEnum):
-    FIELD = 1
+    CONTROL = 1  # trigger
+    VALUE = 2  # entire input/output value (depending on side)
+    FIELD = 3  # specific input/output field (depending on side & type)
+
+
+@struct_(StructType.PORT_KEY)
+class PortKey(Struct):
+    """An identifier for a port on a Step."""
+
+    # key
+    type: PortType = p_internal(30)
+    zone: FieldZone = p_regular(31)
+    field: Optional["Field"] = p_regular(32, require=False, references=NodeType.FIELD)
 
 
 @struct_(StructType.PORT)
-class Port(Struct):
-    """A port on a Step. Two ports are connected by a Pipe."""
+class Port(PortKey):
+    """A full port on a Step with some value."""
 
-    type: PortType = p_internal(30)
-    field: Optional["Field"] = p_regular(31, require=False, references=NodeType.FIELD)
+    # value
+    value_type: Optional["TypeInfo"] = p_regular(40, default=None, struct=StructType.TYPE_INFO)
+    value_packed: Any = p_value_packed(41)
+    value: Any = p_value_runtime(41, typ=None)
 
 
 @local_node_(NodeType.STEP, passthrough=("value", "fields"))
 class Step(SourceNode[StepData]):
     """
-    An data or control flow node in a FlowBlock.
+    An data or control flow node in a FlowBlock. Ports on Steps are connected by Pipes.
+    Pipes are stored in the target Step. Ports are implicit via Pipes unless tied to some value.
     """
 
     parent: Union["Block", "Step", None] = p_node_parent(4, NodeType.BLOCK, NodeType.STEP)
@@ -131,7 +149,8 @@ class Step(SourceNode[StepData]):
     run_options: Optional["RunOptions"] = p_regular(
         36, default=None, require=False, array=False, struct=StructType.RUN_OPTIONS
     )
-    incoming_pipes: list[Pipe] = p_regular(37, array=True, struct=StructType.PIPE)
+    pipes: list[Pipe] = p_regular(37, array=True, struct=StructType.PIPE)
+    ports: list[Port] = p_regular(38, array=True, struct=StructType.PORT)
 
     # content
     value_type: Optional["TypeInfo"] = p_regular(40, default=None, struct=StructType.TYPE_INFO)
@@ -142,9 +161,6 @@ class Step(SourceNode[StepData]):
     )
     code: Optional["Code"] = p_regular(
         44, default=None, require=False, array=False, struct=StructType.CODE
-    )
-    condition: Optional["Expression"] = p_regular(
-        45, require=False, array=False, default=None, struct=StructType.EXPRESSION
     )
     roles: list["Block"] = p_regular(
         46,

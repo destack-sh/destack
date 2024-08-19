@@ -252,7 +252,8 @@ class TypeInfoBase(BuiltinObject):
        6. Object (value is Object value of classy type, like Code inputs, Step outputs, Record value, ...)
           [base_type~Block[is_classy]|Step]
        7. Alias (value is whatever base_type resolves to, must be resolved to pack/unpack)
-       8. Literal (only allowable value is the actual constant value)
+       8. Literal (only allowable value is the type itself / or some constant value)
+       9. Union (type is union of Field children with oneof=self)
 
     Types may also specify:
        - field zone, narrowing the fields included from the base type (if any)
@@ -272,7 +273,14 @@ class TypeInfoBase(BuiltinObject):
         base_type_id: Optional[UUID] = None
         base_type_ptr: Optional["NodeReference"] = None
     base_field_zone: Optional["FieldZone"] = p_internal(44, require=False, default=None)
-    # oneof: Field | (Choice)Block?
+    oneof: Union["Field", "Block", None] = p_regular(
+        45,
+        require=False,
+        array=False,
+        default=None,
+        references=(NodeType.FIELD, NodeType.BLOCK),
+        same_bench=True,
+    )
 
     # + bonus info/constraints
     default_packed: Optional[Any] = p_value_packed(50)

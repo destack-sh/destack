@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.08.19.1"
+VERSION = "2024.08.19.2"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -188,6 +188,7 @@ class BenchType(betterproto.Enum):
     CODE_LINE = 10401
     PIPE = 10450
     PORT = 10451
+    PORT_KEY = 10452
     RUN_ERROR = 10500
     RUN_OPTIONS = 10501
     RUN_ATTEMPT = 10502
@@ -973,6 +974,7 @@ class ObjectType(betterproto.Enum):
     CODE_LINE = 10401
     PIPE = 10450
     PORT = 10451
+    PORT_KEY = 10452
     RUN_ERROR = 10500
     RUN_OPTIONS = 10501
     RUN_ATTEMPT = 10502
@@ -1034,7 +1036,9 @@ class PolicyEffect(betterproto.Enum):
 
 class PortType(betterproto.Enum):
     UNSPECIFIED = 0
-    FIELD = 1
+    CONTROL = 1
+    VALUE = 2
+    FIELD = 3
 
 
 class PrimitiveType(betterproto.Enum):
@@ -1348,6 +1352,7 @@ class StructType(betterproto.Enum):
     CODE_LINE = 10401
     PIPE = 10450
     PORT = 10451
+    PORT_KEY = 10452
     RUN_ERROR = 10500
     RUN_OPTIONS = 10501
     RUN_ATTEMPT = 10502
@@ -1968,8 +1973,8 @@ class PipeData(betterproto.Message):
     metatype: "ObjectType" = betterproto.enum_field(1)
     type: "PipeType" = betterproto.enum_field(30)
     source_ptr: "NodeReferenceData" = betterproto.message_field(31)
-    source_port: "PortData" = betterproto.message_field(32)
-    target_port: "PortData" = betterproto.message_field(34)
+    source_port: "PortKeyData" = betterproto.message_field(32)
+    target_port: "PortKeyData" = betterproto.message_field(34)
 
 
 @dataclass(eq=False, repr=False)
@@ -2027,11 +2032,26 @@ class PolicyRuleData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class PortData(betterproto.Message):
-    """A port on a Step. Two ports are connected by a Pipe."""
+    """A full port on a Step with some value."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     type: "PortType" = betterproto.enum_field(30)
-    field_ptr: Optional["NodeReferenceData"] = betterproto.message_field(31, optional=True)
+    zone: "FieldZone" = betterproto.enum_field(31)
+    field_ptr: Optional["NodeReferenceData"] = betterproto.message_field(32, optional=True)
+    value_type: Optional["TypeInfoData"] = betterproto.message_field(40, optional=True)
+    value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
+        41, optional=True
+    )
+
+
+@dataclass(eq=False, repr=False)
+class PortKeyData(betterproto.Message):
+    """An identifier for a port on a Step."""
+
+    metatype: "ObjectType" = betterproto.enum_field(1)
+    type: "PortType" = betterproto.enum_field(30)
+    zone: "FieldZone" = betterproto.enum_field(31)
+    field_ptr: Optional["NodeReferenceData"] = betterproto.message_field(32, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2375,6 +2395,7 @@ class TypeInfoData(betterproto.Message):
     bench_type: Optional["BenchType"] = betterproto.enum_field(42, optional=True)
     base_type_ptr: Optional["NodeReferenceData"] = betterproto.message_field(43, optional=True)
     base_field_zone: Optional["FieldZone"] = betterproto.enum_field(44, optional=True)
+    oneof_ptr: Optional["NodeReferenceData"] = betterproto.message_field(45, optional=True)
     default_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         50, optional=True
     )
@@ -2673,6 +2694,7 @@ class FieldData(betterproto.Message):
     bench_type: Optional["BenchType"] = betterproto.enum_field(42, optional=True)
     base_type_ptr: Optional["NodeReferenceData"] = betterproto.message_field(43, optional=True)
     base_field_zone: Optional["FieldZone"] = betterproto.enum_field(44, optional=True)
+    oneof_ptr: Optional["NodeReferenceData"] = betterproto.message_field(45, optional=True)
     default_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         50, optional=True
     )
@@ -3342,7 +3364,10 @@ class SpaceData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class StepData(betterproto.Message):
-    """An data or control flow node in a FlowBlock."""
+    """
+    An data or control flow node in a FlowBlock. Ports on Steps are connected by Pipes.
+     Pipes are stored in the target Step. Ports are implicit via Pipes unless tied to some value.
+    """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
@@ -3368,14 +3393,14 @@ class StepData(betterproto.Message):
     text: Optional["TextData"] = betterproto.message_field(34, optional=True)
     icon: Optional["IconData"] = betterproto.message_field(35, optional=True)
     run_options: Optional["RunOptionsData"] = betterproto.message_field(36, optional=True)
-    incoming_pipes: List["PipeData"] = betterproto.message_field(37)
+    pipes: List["PipeData"] = betterproto.message_field(37)
+    ports: List["PortData"] = betterproto.message_field(38)
     value_type: Optional["TypeInfoData"] = betterproto.message_field(40, optional=True)
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         41, optional=True
     )
     node_ptr: Optional["NodeReferenceData"] = betterproto.message_field(43, optional=True)
     code: Optional["CodeData"] = betterproto.message_field(44, optional=True)
-    condition: Optional["ExpressionData"] = betterproto.message_field(45, optional=True)
     roles_ptr: List["NodeReferenceData"] = betterproto.message_field(46)
     identity_ptr: Optional["NodeReferenceData"] = betterproto.message_field(47, optional=True)
     policies: List["PolicyData"] = betterproto.message_field(48)
@@ -5354,6 +5379,7 @@ AnyStructData = Union[
     CodeLineData,
     PipeData,
     PortData,
+    PortKeyData,
     RunErrorData,
     RunOptionsData,
     RunAttemptData,
