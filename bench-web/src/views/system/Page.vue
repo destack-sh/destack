@@ -365,16 +365,6 @@ defineExpose<ViewExposed>({ self, actions, focus });
               :style="{ width: widths.gutter + 'px', marginTop: SEPARATOR_WIDTH + 'px' }"
             >
               <!-- Activity / Run / ... -->
-              <!-- Run -->
-              <button
-                v-if="expandedBlockRefs[block.id!]?.isRunnable"
-                class="text-gray-400 hover:text-primary-900"
-                :class="inspectionPtr?.id == block?.id ? '' : 'opacity-0 group-hover/block-line:opacity-100'"
-                data-keep-inspection-in-base="true"
-                @click="pkgConnection.tx.with({ category: ChangeCategory.SESSION }).create(makeRun(block, pkgGraph))"
-              >
-                <i class="fas fa-play" />
-              </button>
               <!-- Handle -->
               <div
                 class="h-full rounded transition-colors duration-75"
@@ -512,7 +502,18 @@ defineExpose<ViewExposed>({ self, actions, focus });
           class="group/footer mx-auto mb-8 mt-6 flex flex-row gap-x-1 rounded border border-gray-200 bg-white px-2 py-1"
           data-keep-inspection-in-base="true"
         >
-          <template v-for="blockType in EXPOSED_BLOCK_TYPES" :key="blockType">
+          <template
+            v-for="blockType in [
+              BlockType.PAGE,
+              BlockType.CLASS,
+              BlockType.CHOICE,
+              BlockType.TEXT,
+              BlockType.CODE,
+              BlockType.FLOW,
+              BlockType.VIEW,
+            ]"
+            :key="blockType"
+          >
             <button
               v-tooltip="{
                 title: `${toCamelName(BlockType, blockType)}`,

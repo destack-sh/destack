@@ -31,7 +31,7 @@ tracer = trace.get_tracer(__name__)
 
 
 @runner(RunKind.TEXT, None)
-class ModelRouter(Runner):
+class TextRunner(Runner):
     """The router for text functions without explicitly assigned models/providers."""
 
     @override
@@ -87,11 +87,11 @@ class ChatModelRunnerBase(Runner, abc.ABC):
     SYSTEM_MESSAGE = """\
 # You are a computational assistant on a new development platform called Bench.
 # Users define their programs in a language of Blocks, Fields, Steps, Views, etc.,
-#  some will be 'rendered' into Python code for you to consider as context, inputs & instructions.
-
+#  some of which will be 'rendered' into Python code for you to consider as context, inputs & instructions.
 # Your one and only job is to generate valid Python answers as outputs to a SPECIFIC invocation of a SPECIFIC task.
-# You MUST use your best judgement to fill in incomplete or conflicting information,
+# You MUST use your best judgement to fill in incomplete or conflicting instructions,
 #  but you MUST NOT impute missing information unless explicitly asked.
+
 # Consider an unrelated example task like the following:
 
 TellJoke = Block.new(
@@ -108,16 +108,16 @@ TellJoke("I'm very happy!")
 
 return {"Joke": "Why did the scarecrow win an award? Because he was outstanding in his field!"}
 
-# There are more complex tasks and types; examples will be provided.
+# There are more complex tasks and types; you MUST adhere to the type schemas (examples are provided).
 """
     USER_POSTFIX_MESSAGE = """\
 #
 # Return the answer to the specific invocation of task '{task_alias}' with the given inputs.
-#  - You MUST NOT attempt to generalize over inputs; you MUST return the answer for the given inputs only.
-#  - You MAY add reasoning comments *before* the output (especially if it's required for the output).
-#  - You MAY import and use the Python standard library for math and similar, but nothing else.
-#  - You MUST use your native capabilities, not Python, to do AI stuff (like image processing, or summarization).
-#  - You MAY raise ModelIncapableError("<reason>") if an output for the given inputs is impossible.
+#  - You MUST NOT attempt to generalize over inputs; you MUST return the answer for these specific inputs only.
+#  - You MAY add reasoning comments *before* the output to outline your thinking (especially if some form of rationale is part of the output).
+#  - You MAY import and use the Python standard library for math and similar basic operations, but nothing else.
+#  - You MUST use your native capabilities (NOT Python) to do AI stuff (like image processing or summarization).
+#  - You MAY `raise ModelIncapableError("<reason>")` if an output for the given inputs is impossible.
 # 
 """
     ASSISTANT_PREFIX_MESSAGE = """\

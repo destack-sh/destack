@@ -83,8 +83,8 @@ export const EXPOSED_BLOCK_TYPES = [
   BlockType.TEXT,
   BlockType.CODE,
   BlockType.FLOW,
+  BlockType.VIEW,
   BlockType.VALUE,
-  BlockType.IDENTITY,
 ];
 export const EXPOSED_STRUCT_TYPES = [
   // core

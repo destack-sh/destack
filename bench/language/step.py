@@ -57,7 +57,7 @@ class StepType(IdEnum):
     # CREATE
 
     # control
-    MATCH = 100  # X -> | n expressions | -> X' filtered output port (per expression)
+    MATCH = 100  # X -> | n ports | -> X' filtered output port (per expression)
     FILTER = 101  # X -> | X -> bool | -> X if true
     LOOP = 102  # X[] -> | X -> ... -> Y | -> Y[]
     MERGE = 103  # X1, X2, ... -> X
@@ -96,7 +96,7 @@ class Pipe(Struct):
     source_port: "PortKey" = p_regular(32, require=True, struct=StructType.PORT_KEY)
     target_port: "PortKey" = p_regular(34, require=True, struct=StructType.PORT_KEY)
 
-    # mapping/casting
+    # filter/mapping/casting
     ...
 
 
@@ -211,6 +211,31 @@ class Step(SourceNode[StepData]):
                 return parent
             parent = parent.parent
         return None
+
+    def connect(
+        self,
+        source: "Step",
+        type: PipeType = PipeType.CONTROL,
+        source_field: "Field | None" = None,
+        target_field: "Field | None" = None,
+    ) -> "Pipe":
+        """Connects a source Step to this Step."""
+        pipe = Pipe(
+            type=type,
+            source=source,
+            source_port=PortKey(
+                type=PortType.VALUE if not source_field else PortType.FIELD,
+                zone=FieldZone.INPUT,
+                field=source_field,
+            ),
+            target_port=PortKey(
+                type=PortType.VALUE if not target_field else PortType.FIELD,
+                zone=FieldZone.OUTPUT,
+                field=target_field,
+            ),
+        )
+        self.pipes.append(pipe)
+        return pipe
 
     def to_type(self, as_object: bool = True, zone: FieldZone | None = None):
         """Gets a type represented by this Step (if any)"""
