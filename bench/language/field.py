@@ -497,7 +497,7 @@ def to_type_scalar(
         )
     elif isinstance(typ, FileFormat):
         return TypeInfo(
-            kind=TypeKind.PRIMITIVE,
+            kind=TypeKind.NODE,
             bench_type=NodeType.FILE,
             constraint=TypeConstraint(file_format=typ),
         )

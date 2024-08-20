@@ -520,9 +520,9 @@ class Space(SourceNode[SpaceData]):
 @enum_(EnumType.ICON_KIND)
 class IconKind(IdEnum):
     EMOJI = 1
-    FILE = 2
     FONT_AWESOME = 3
     VS_CODE = 4
+    # FILE?
 
 
 @struct_(StructType.ICON)

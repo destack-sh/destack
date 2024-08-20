@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.08.19.2"  # auto change via version script
+VERSION = "2024.08.20.0"  # auto change via version script
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -124,26 +124,26 @@ class EnumType(IdEnum):
     PATH_TOKEN_TYPE = 20210
 
     # run
-    STEP_TYPE = 20500
-    PIPE_TYPE = 20501
-    PIPE_FILTER_MODE = 20502
-    LOG_KIND = 20502
-    LOG_LEVEL = 20503
-    RUN_STATUS = 20504
-    RUN_KIND = 20505
-    RUN_ERROR_KIND = 20506
-    RUN_ERROR_TYPE = 20507
-    SESSION_STATUS = 20508
-    TRIGGER_TYPE = 20509
-    NOTIFICATION_KIND = 20510
-    BREAKPOINT_KIND = 20511
-    BREAKPOINT_ACTION = 20512
-    CODE_TYPE = 20513
+    LOG_KIND = 20500
+    LOG_LEVEL = 20501
+    RUN_STATUS = 20510
+    RUN_KIND = 20511
+    RUN_ERROR_KIND = 20512
+    RUN_ERROR_TYPE = 20513
     RUN_SPAN_TYPE = 20514
     RUN_EVENT_TYPE = 20515
-    PORT_TYPE = 20516
-    MODEL_PROVIDER = 20530
-    MODEL_TYPE = 20531
+    SESSION_STATUS = 20516
+    TRIGGER_TYPE = 20520
+    BREAKPOINT_KIND = 20530
+    BREAKPOINT_ACTION = 20531
+    CODE_TYPE = 20540
+    MODEL_PROVIDER = 20550
+    MODEL_TYPE = 20551
+    STEP_TYPE = 20560
+    PIPE_TYPE = 20561
+    PIPE_FILTER_MODE = 20562
+    PORT_TYPE = 20563
+    NOTIFICATION_LEVEL = 20570
 
     # view
     SPACE_TYPE = 21000
@@ -1146,8 +1146,8 @@ class OrganizationStatus(IdEnum):
     ACTIVATED = 10  # has main bench
 
 
-@enum_(EnumType.NOTIFICATION_KIND)
-class NotificationKind(IdEnum):
+@enum_(EnumType.NOTIFICATION_LEVEL)
+class NotificationLevel(IdEnum):
     """
     The level of interaction required for a notification.
     """
