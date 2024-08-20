@@ -1,3 +1,4 @@
+import asyncio
 from contextvars import ContextVar
 from typing import Any, Mapping
 from uuid import UUID
@@ -167,10 +168,10 @@ class Runtime:
         """
         Runs a runner in a Runner, retrying automatically and updating the Runner along the way.
         """
-        runner.status = RunStatus.RUNNING
-        retry = runner.options.to_retry().new(self.oracle, attempt=len(runner.attempts))
         # set active run
         active_run_runner_token = self._active_runner.set(runner)
+        runner.status = RunStatus.RUNNING
+        retry = runner.options.to_retry().new(self.oracle, attempt=len(runner.attempts))
         # run in attempt loop
         log = logger.bind(runner=runner, retry=retry)
         try:
@@ -186,7 +187,8 @@ class Runtime:
                     )
                     runner.attempts.append(attempt)
                     try:
-                        await runner.run_once()
+                        runner.task = asyncio.create_task(runner.run_once())
+                        await runner.task
                         attempt.status = RunStatus.COMPLETED
                         log.debug("runner.attempt", attempt=attempt, span="current")
                         break  # success
@@ -201,8 +203,9 @@ class Runtime:
                             not retry.on_error(e)
                             and not (error.type and error.type in runner.options.retry_on)
                         ):
-                            raise
+                            raise  # give up
                     finally:
+                        runner.task = None
                         attempt.terminated_at = self.oracle.utc()
                         attempt.terminated_epoch = self.session.epoch
                         assert attempt.started_at, f"missing started_at for attempt {attempt!r}"
@@ -210,7 +213,7 @@ class Runtime:
                             attempt.terminated_at - attempt.started_at
                         ).total_seconds()
             else:
-                raise retry.to_error()
+                raise retry.to_error()  # give up
         finally:
             # run outcome = last attempt
             last_attempt = runner.current_attempt

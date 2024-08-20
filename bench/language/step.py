@@ -59,19 +59,20 @@ class StepType(IdEnum):
     # control
     MATCH = 100  # X -> | n ports | -> X' filtered output port (per expression)
     FILTER = 101  # X -> | X -> bool | -> X if true
-    LOOP = 102  # X[] -> | X -> ... -> Y | -> Y[]
-    MERGE = 103  # X1, X2, ... -> X
-    FLATTEN = 105  # X[] -> X
-    ACCUMULATE = 106  # X -> X[]
-    REDUCE = 107  # X[] -> | X[] -> Y | -> Y
-    ZIP = 108  # X1[], X2[], ... -> (X1, X2, ...)[]
+    MERGE = 102  # X1, X2, ... -> X
+    FLATTEN = 103  # X[] -> X
+    ACCUMULATE = 104  # X -> X[]
+    REDUCE = 105  # X[] -> Y
+    ZIP = 106  # X1[], X2[], ... -> (X1, X2, ...)[]
     # WAIT/DELAY?
     # DEBOUNCE?
     # THROTTLE?
     # TELEPORT?
 
-    # organize
-    GROUP = 150
+    # nesting
+    GROUP = 150  # no semantic meaning
+    LOOP = 151  # loop inside: X[] -> | X -> ... -> Y | -> Y[]
+    SHIELD = 152  # capture errors inside
 
     ...
 
@@ -117,9 +118,16 @@ class Pipe(Struct):
 @enum_(EnumType.PORT_TYPE)
 class PortType(IdEnum):
     EMPTY = 1  # trigger only (no data)
-    DATA = 2  # full input/output value (depending on side)
-    ERROR = 3  # error in case of failure (output only)
-    FIELD = 5  # specific input/output field (depending on side & type)
+    DATA = 2  # trigger with full input/output value (depending on side)
+    ERROR = 3  # trigger with error in case of failure (output only)
+    FIELD = 5  # trigger with specific field (depending on side & type)
+
+
+PORT_TYPES_BY_ZONE: dict[FieldZone, tuple[PortType, ...]] = {
+    FieldZone.VARIABLE: (PortType.DATA, PortType.FIELD),
+    FieldZone.INPUT: (PortType.EMPTY, PortType.DATA, PortType.FIELD),
+    FieldZone.OUTPUT: (PortType.EMPTY, PortType.DATA, PortType.ERROR, PortType.FIELD),
+}
 
 
 @struct_(StructType.PORT_KEY)
@@ -158,7 +166,19 @@ class Port(PortKey):
 class Step(SourceNode[StepData]):
     """
     An data or control flow node in a FlowBlock. Ports on Steps are connected by Pipes.
-    Pipes are stored in the target Step. Ports are implicit via Pipes unless tied to some value.
+    Pipes are stored in the source Step. Ports are implicit via Pipes unless tied to some value.
+    A Step is run when it is triggered, specifically:
+     - When its control port fires OR
+     - When all its input ports (for all fields or full value) fire
+    A Step may run multiple times if it is triggered multiple times (even concurrently).
+    A Step may directly trigger any Step (including itself) at most once per run.
+    Steps are run in order of definition per firing (regardless of pipe & port order).
+
+    When a Step completes, then:
+     1. Fire output values to all output ports
+     2. Fire output control port
+    When a Step fails, then:
+     1. FIre error on error port
     """
 
     parent: Union["Block", "Step", None] = p_node_parent(4, NodeType.BLOCK, NodeType.STEP)
@@ -266,7 +286,7 @@ class Step(SourceNode[StepData]):
             ),
             filter_mode=filter_mode,
         )
-        self.pipes.append(pipe)
+        source.pipes.append(pipe)
         return pipe
 
     def then(
