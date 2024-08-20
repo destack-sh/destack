@@ -1,9 +1,8 @@
 import abc
-from typing import cast, final, override
+from typing import final, override
 
 from bench.language.block import Block
 from bench.language.code import Code
-from bench.language.const import NodeType
 from bench.language.run import RunKind
 from bench.language.step import Step, StepType
 from bench.language.text import Text
@@ -15,16 +14,12 @@ from bench.runtime.runner import Runner, RunnerState, runner
 class FlowRunner(Runner[RunnerState, Block]):
     @override
     async def run_once(self) -> None:
-        steps = cast(list[Step], self.node._graph.get_descendants(self.node, NodeType.STEP))
-
-        # trigger initial steps
-        ...  # nocheckin
+        steps = self.node.steps.tolist()
 
 
 class StepRunnerBase(Runner[RunnerState, Step], abc.ABC):
     @final
-    async def run_once(self) -> None:
-        raise NotImplementedError("nocheckin")
+    async def run_once(self) -> None: ...
 
     @abc.abstractmethod
     async def _do_run_once(self) -> None:

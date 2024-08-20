@@ -126,6 +126,7 @@ class EnumType(IdEnum):
     # run
     STEP_TYPE = 20500
     PIPE_TYPE = 20501
+    PIPE_FILTER_MODE = 20502
     LOG_KIND = 20502
     LOG_LEVEL = 20503
     RUN_STATUS = 20504
