@@ -1,3 +1,4 @@
+from asyncio import CancelledError
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Collection, Optional, Union, assert_never, cast
 
@@ -254,11 +255,12 @@ class RunEvent(Struct):
 @enum_(EnumType.RUN_ERROR_TYPE)
 class RunErrorType(IdEnum):
     # unretryable
-    RUNTIME_UNAVAILABLE = 1
-    RUN_IMPOSSIBLE = 2
-    CODE_INVALID = 3
-    TEXT_INVALID = 4
-    REPLAY = 10
+    REPLAY = 1
+    ABORTED = 2
+    RUNTIME_UNAVAILABLE = 3
+    RUN_IMPOSSIBLE = 4
+    CODE_INVALID = 20
+    TEXT_INVALID = 21
     MODEL_INCAPABLE = 100
     UNKNOWN_NONRETRYABLE = 499
     # retryable
@@ -304,7 +306,10 @@ class RunError(Struct, BenchError):
             typ = getattr(e, "run_error_type")
             assert isinstance(typ, RunErrorType), f"unexpected {typ!r} from {e!r}"
         elif kind == RunErrorKind.RUNTIME:
-            typ = RunErrorType.UNKNOWN_RETRYABLE
+            if isinstance(e, CancelledError):
+                typ = RunErrorType.ABORTED
+            else:
+                typ = RunErrorType.RUNTIME_UNAVAILABLE
         else:
             typ = RunErrorType.UNKNOWN_NONRETRYABLE
         if isinstance(e, SyntaxError):

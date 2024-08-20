@@ -1,4 +1,5 @@
 import base64
+from asyncio import CancelledError
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
@@ -56,6 +57,10 @@ class SyntaxError(RunImpossibleError, SyntaxError):
 
 class ReplayError(RunImpossibleError):
     run_error_type = RunErrorType.REPLAY
+
+
+class AbortedError(CancelledError, NonRetryableError):
+    run_error_type = RunErrorType.ABORTED
 
 
 class ModelIncapableError(NonRetryableError):
