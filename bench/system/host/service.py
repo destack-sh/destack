@@ -38,10 +38,7 @@ from bench.language.node import GraphScope
 from bench.language.property import Property
 from bench.language.session import Session, SessionContext
 from bench.language.setup import NODE_CLASS_BY_TYPE
-from bench.language.transaction import (
-    edit_data_graph,
-    edit_graph,
-)
+from bench.language.transaction import edit_data_graph, edit_graph
 from bench.language.user import User
 from bench.language.value import pack_builtin_object_data, pack_value_scalar
 from bench.proto import wire
@@ -73,16 +70,9 @@ from bench.system.graph.graph import (
     validate_edit,
 )
 from bench.system.graph.postgres import PostgresEngine
-from bench.system.host.core import (
-    HostApi,
-    HostPlugin,
-    unpack_commit,
-)
+from bench.system.host.core import HostApi, HostPlugin, unpack_commit
 from bench.system.host.scheduler import QueueRunPlugin
-from bench.system.provision.provisioner import (
-    Provisioner,
-    get_provisioners_for,
-)
+from bench.system.provision.provisioner import Provisioner, get_provisioners_for
 from bench.system.utils.access import CLIENT_CACHE_ENABLED, ClientCache, get_client
 from bench.system.utils.aws import get_s3_client_for_presigning
 from bench.system.utils.session import (
@@ -121,7 +111,7 @@ PACKAGE_QUERY = (
 )
 
 
-class HostRouter(ServiceBase, HostBase):
+class HostRouterService(ServiceBase, HostBase):
     """
     Multiplexes requests per Bench to a Host using gRPC metadata ('bench-id').
     Also provides some process-level shared functionality.
@@ -132,7 +122,7 @@ class HostRouter(ServiceBase, HostBase):
 
     def __init__(self, global_store: Store, oracle: Oracle):
         super().__init__(logger=logger, tracer=tracer, oracle=oracle)
-        self.hosts: dict[UUID, Host] = {}
+        self.hosts: dict[UUID, HostService] = {}
         self.hosts_lock = asyncio.Lock()
         self._global_store = global_store
         self._global_pg_engine = pg_engine_from_store(global_store)
@@ -156,16 +146,16 @@ class HostRouter(ServiceBase, HostBase):
     async def wait_closed(self) -> None:
         await asyncio.gather(*[host.wait_closed() for host in self.hosts.values()])
 
-    async def _start_host(self, bench_id: UUID) -> "Host":
+    async def _start_host(self, bench_id: UUID) -> "HostService":
         """Starts a Host for the given Bench."""
         existing_host = self.hosts.get(bench_id)
         assert existing_host is None, f"already have Host for {bench_id}: {existing_host!r}"
-        host = Host(bench_id, self._global_store, self.oracle)
+        host = HostService(bench_id, self._global_store, self.oracle)
         await host.start()
         self.hosts[bench_id] = host
         return host
 
-    async def _get_host(self, request: betterproto.Message) -> "Host":
+    async def _get_host(self, request: betterproto.Message) -> "HostService":
         """Gets or starts a running Host for the given Bench"""
 
         # get request's bench id
@@ -221,7 +211,7 @@ class HostRouter(ServiceBase, HostBase):
             raise NotImplementedError(f"unexpected cardinality in {method_name}: {cardinality}")
 
 
-class Host(GraphIoServiceBase, HostApi, HostBase):
+class HostService(GraphIoServiceBase, HostApi, HostBase):
     """
     Host for a Bench, providing the OS-level functionality (lifecycle, resources, scheduling, etc.).
     There is only one Host per Bench. Clients interact with the Bench exclusively via its Host.

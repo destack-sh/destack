@@ -8,6 +8,7 @@ import uvloop
 
 from bench.language.validation import clean_name
 from bench.runtime.remote import RemoteEngine
+from bench.runtime.runtime import Runtime
 from bench.test.conftest import _setup_test_env
 
 # NOTE: must run setup before importing from bench
@@ -38,9 +39,9 @@ from bench.language.run import Run
 from bench.language.step import Step
 from bench.language.user import User
 from bench.proto.wire import HostClient, RpcMetadata
-from bench.runtime.runner import RunHandle, RuntimeRunner
-from bench.system.host.host import Host
-from bench.system.supervisor.supervisor import create_default_bench
+from bench.runtime.runner import Runner
+from bench.system.host.service import HostService
+from bench.system.supervisor.service import create_default_bench
 from bench.system.utils.session import pg_engine_from_store
 from bench.test.simulation.transport import SimulatedChannel
 from bench.test.strategies import draw_direct, from_object_type
@@ -202,7 +203,7 @@ class RuntimeHandle:
     client: Client
     bench: Bench
     session: Session
-    runner: RuntimeRunner
+    runner: Runtime
 
     def page(self, name: str = "Page1") -> Block:
         """Gets or creates a page in the current package."""
@@ -218,7 +219,7 @@ class RuntimeHandle:
 
     async def run(
         self, run: Run | Block | Step, *, inputs: Any | None = None, return_error: bool = False
-    ) -> RunHandle:
+    ) -> Runner:
         return await self.runner.run(run, inputs=inputs, return_error=return_error)
 
 
@@ -275,7 +276,7 @@ async def local_runtime_async(global_store: Store):
         _oracle=REAL_ORACLE,
         _supergraph=bench._supergraph,
     )
-    runner = RuntimeRunner(session=session, oracle=REAL_ORACLE)
+    runner = Runtime(session=session, oracle=REAL_ORACLE)
     handle = RuntimeHandle(
         supergraph=bench._supergraph,
         user=user,
@@ -344,7 +345,7 @@ async def hosted_bench(global_store: Store):
 
 @pytest.fixture()
 async def host_service(global_store: Store, hosted_bench: Bench):
-    host = Host(bench_id=hosted_bench.id, global_store=global_store, oracle=REAL_ORACLE)
+    host = HostService(bench_id=hosted_bench.id, global_store=global_store, oracle=REAL_ORACLE)
     await host.start()
     try:
         yield host
@@ -354,7 +355,7 @@ async def host_service(global_store: Store, hosted_bench: Bench):
 
 
 @pytest.fixture()
-async def host(host_service: Host):
+async def host(host_service: HostService):
     async with SimulatedChannel(services=(host_service,), oracle=REAL_ORACLE) as channel:
         yield HostClient(channel)
 
@@ -396,7 +397,7 @@ async def hosted_runtime_async(hosted_bench: Bench, host: HostClient):
         _origin=client.to_origin(nonce=None)._to_data(),
     )
     session.track(hosted_bench)
-    runner = RuntimeRunner(session=session, oracle=REAL_ORACLE)
+    runner = Runtime(session=session, oracle=REAL_ORACLE)
     handle = RuntimeHandle(
         supergraph=hosted_bench._supergraph,
         user=user,

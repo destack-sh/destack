@@ -18,7 +18,7 @@ from bench.language.user import User
 from bench.proto import wiring
 from bench.proto.wire import HostClient, RunData, SupervisorClient
 from bench.runtime.core import DYNAMIC_CODE_GLOBALS, STATIC_CODE_GLOBALS
-from bench.runtime.runner import RuntimeRunner
+from bench.runtime.runtime import Runtime
 from bench.utils.func import CriticalLock
 from bench.utils.oracle import Oracle
 from bench.utils.task import TaskManager
@@ -84,7 +84,7 @@ class RuntimeThread:
 
         # processing
         self._session: Session | None = None
-        self._runner: RuntimeRunner | None = None
+        self._runner: Runtime | None = None
         self._tx_lock: asyncio.Lock = CriticalLock(
             name=f"{self.__class__.__name__}_{self._bench_id or ''}_{self.id}"
         )
@@ -168,7 +168,7 @@ class RuntimeThread:
         )
 
         # finally, start processing runs
-        self._runner = RuntimeRunner(
+        self._runner = Runtime(
             session=self._session,
             oracle=self._oracle,
             static_glbls=STATIC_CODE_GLOBALS,
@@ -202,7 +202,7 @@ class RuntimeThread:
                 session=self._session,
                 expect=Run,
             )
-        await self._runner.process_run(run, suppress_error=True)
+        await self._runner.run_run(run, suppress_error=True)
         logger.info("thread.process_run", process=self, run=run, span="current")
 
     def close(self):

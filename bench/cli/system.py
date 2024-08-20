@@ -34,7 +34,7 @@ async def check(check_db: bool = False):
 @app.command(help="create 'bench' and 'system' Benches (owned by 'system' User)")
 @async_to_sync_blocking
 async def bootstrap(region: Region):
-    from bench.system.supervisor.supervisor import create_default_bench
+    from bench.system.supervisor.service import create_default_bench
     from bench.system.utils.session import (
         global_session,
         pg_engine_from_store,

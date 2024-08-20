@@ -23,7 +23,7 @@ from bench.proto.wire import (
     UserData,
 )
 from bench.proto.wiring import pack_rpc_headers
-from bench.system.supervisor.supervisor import Supervisor
+from bench.system.supervisor.service import SupervisorService
 from bench.system.utils.sharding import HostMap
 from bench.test.fixtures import raises_grpc_error
 from bench.test.simulation.transport import SimulatedChannel
@@ -36,7 +36,7 @@ from bench.utils.oracle import REAL_ORACLE
 
 @pytest.fixture()
 async def supervisor_service(global_store):
-    supervisor_service = Supervisor(global_store, REAL_ORACLE, HostMap({}))
+    supervisor_service = SupervisorService(global_store, REAL_ORACLE, HostMap({}))
     await supervisor_service.start()
     yield supervisor_service
     supervisor_service.close()

@@ -1,213 +1,323 @@
-import asyncio
-from typing import cast, override
-from urllib.parse import urlparse
-from uuid import UUID, uuid4
+from contextvars import ContextVar
+from typing import Any, Mapping
+from uuid import UUID
 
-import cachetools
-import grpclib
-import grpclib.metadata
 import structlog
-from grpclib.client import Channel
 from opentelemetry import trace
 
-from bench.language import NodeReference
-from bench.language.bench import Machine
-from bench.language.const import (
-    BENCH_NODE_TYPES,
-    IN_PACKAGE_NODE_TYPES,
-    PUBLIC_NODE_TYPES,
-    ClientType,
-    NodeType,
+from bench.language.block import Block
+from bench.language.code import Code, CodeType
+from bench.language.const import BenchError, RunErrorKind, RunStatus
+from bench.language.run import Run, RunAttempt, RunError, RunKind, RunOptions
+from bench.language.session import Session
+from bench.language.step import Step
+from bench.language.text import Text
+from bench.language.value import ValueObject
+from bench.runtime.core import (
+    BASE_RUN_OPTIONS_BY_KIND,
+    DYNAMIC_CODE_GLOBALS,
+    STATIC_CODE_GLOBALS,
+    RunImpossibleError,
 )
-from bench.language.node import EMPTY_SCOPE
-from bench.proto import wire
-from bench.proto.networking import localize_url
-from bench.proto.services import ServiceBase
-from bench.proto.wire import (
-    GraphScopeData,
-    HostClient,
-    QueueRunRequest,
-    QueueRunResponse,
-    ResolveHostsRequest,
-    ResolveHostsRequestBenchKey,
-    RpcMetadata,
-    RunData,
-    RuntimeBase,
-    ServiceKind,
-    SupervisorClient,
-)
-from bench.proto.wiring import pack_rpc_headers
-from bench.runtime.remote import RemoteEngine
-from bench.runtime.thread import RuntimeThread
+from bench.runtime.runner import Runner, RunSubtype, _runners
 from bench.utils.oracle import Oracle
-from bench.utils.tenacity import RETRY_GRPC_FOREVER
+from bench.utils.uuidt import UUIDT
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
-class Runtime(ServiceBase, RuntimeBase):
+class Runtime:
     """
-    A Runtime processes selected Runs in a Bench/Package in Sessions on a Client.
-    """
+    The runtime for executing Runs.
+    One top-level Run/Runner is processed at a time.
+    Inner runs may run in parallel in some cases.
+    A Runtime is exclusively associated with one Session.
 
-    kind = ServiceKind.INTERNAL  # :ServiceKind
+    NOTE :Robustness :Architecture: separate transactions for session and other edits?
+    NOTE :Incomplete: respect RunOptions.max_concurrency
+    NOTE :Architecture: Run started/terminated/... epochs are relative to session
+        (meaning if we make local edits during a Run, the terminated_epoch is still the same)
+    """
 
     def __init__(
         self,
         *,
-        supervisor_url: str,
-        bench_id: UUID,
-        client_type: ClientType,
-        client_id: UUID,
-        client_access_token: str,
-        server_id: UUID | None,
-        machine_id: UUID | None,
-        max_threads: int,
+        session: Session,
         oracle: Oracle,
+        static_glbls: Mapping[str, Any] = STATIC_CODE_GLOBALS,
+        dynamic_glbls: Mapping[str, Any] = DYNAMIC_CODE_GLOBALS,
     ):
-        super().__init__(logger=logger, tracer=tracer, oracle=oracle)
-        self._nonce = uuid4()
+        assert session.package is not None, f"{session!r} is not attached"
+        self.session = session
+        self.package = session.package
+        self.oracle = oracle
+        self.static_glbls = static_glbls
+        self.dynamic_glbls = dynamic_glbls
+        self.combined_glbls = {**static_glbls, **dynamic_glbls}
 
-        # parse out supervisor host and port
-        _supervisor_url = urlparse(supervisor_url)
-        self._supervisor_host = _supervisor_url.hostname
-        self._supervisor_port = _supervisor_url.port
-        if self._supervisor_host is None or self._supervisor_port is None:
-            raise ValueError(f"invalid supervisor URL: {supervisor_url}")
-        _supervisor_channel = Channel(
-            host=self._supervisor_host,
-            port=self._supervisor_port,
-            ssl=_supervisor_url.scheme == "https",
-        )
-        self._supervisor = SupervisorClient(_supervisor_channel)
+        # session (maybe this should happen in some init?)
+        assert session._runtime is None, f"{session!r} already in runtime {session._runtime!r}"
+        self.session._runtime = self
+        self._active_runner: ContextVar[Runner | None] = ContextVar("active_runner")
+        self._active_runners_by_id: dict[UUID, Runner] = {}
 
-        # context
-        if client_type == ClientType.BENCH_MACHINE and machine_id is None:
-            raise ValueError(f"missing machine_id for {client_type} {client_id}")
-        self._client_type = client_type
-        self._client_id = client_id
-        self._client_access_token = client_access_token
-        self._rpc_metadata = RpcMetadata(
-            client_type=cast(wire.ClientType, client_type),
-            client_id=str(self._client_id),
-            client_access_token=self._client_access_token,
-        )
-        self._rpc_headers = pack_rpc_headers(self._rpc_metadata)
-        self._server_id = server_id
-        self._machine_id = machine_id
-        self._machine: Machine | None = None
-        self._engines: tuple[RemoteEngine, ...] = ()
-        self._host: HostClient | None = None
-        self._bench_id = bench_id
-        self._bench_ptr = NodeReference(
-            type=NodeType.BENCH, id=bench_id, ck=bench_id, bench_id=bench_id
-        )
-
-        # processing
-        self._start_queue: asyncio.Queue[RunData] = asyncio.Queue()
-        self._max_threads = max_threads
-        self._threads: list[RuntimeThread] = []
+        # ensure runners are imported
+        if not _runners:
+            import bench.runtime.code  # noqa: F401, RUF100
+            import bench.runtime.step  # noqa: F401, RUF100
+            import bench.runtime.text  # noqa: F401, RUF100
 
     def __str__(self):
-        return f"{self._client_id} on {self._bench_id}"
+        return f"{len(self._active_runners_by_id)} active, {self.session!r}"
 
     def __repr__(self):
         return f"<{self.__class__.__name__} {self}>"
 
     @property
-    def host(self) -> HostClient:
-        assert self._host is not None, f"no host for {self!r}"
-        return self._host
+    def active_runner(self) -> Runner | None:
+        return self._active_runner.get(None)
 
-    async def start(self):
-        # setup host
-        self._host = await self._get_host_client(self._bench_id)
-        bench_scope = GraphScopeData(
-            metatype=wire.ObjectType.GRAPH_SCOPE, bench_id=str(self._bench_id)
+    @property
+    def active_run(self) -> Run | None:
+        runner = self._active_runner.get(None)
+        return runner.run if runner else None
+
+    @tracer.start_as_current_span("runner.make")
+    async def make_runner(
+        self,
+        # state
+        kind: RunKind,
+        *,
+        node: Block | Step,
+        track: bool,
+        subtype: RunSubtype | None = None,
+        code: Code | None = None,
+        text: Text | None = None,
+        variables: ValueObject | None = None,
+        # runner
+        inputs: ValueObject | None = None,
+        options: RunOptions | None = None,
+        run: Run | None = None,
+    ) -> Runner:
+        """Get/create/recover the state for some runnable."""
+
+        # figure out which runner we need
+        if kind == RunKind.CODE:
+            code = code or node.code or Code.empty()
+            if (isinstance(node, Block) and node.has_function_fields) or isinstance(node, Step):
+                subtype = CodeType.FUNCTION
+            else:
+                subtype = CodeType.SCRIPT
+        elif kind == RunKind.TEXT:
+            text = text or node.text
+            if options and options.model_options:
+                subtype = options.model_options.provider
+
+        # make runner with state
+        runner_cls = _runners.get((kind, subtype))
+        if runner_cls is None:
+            raise RunImpossibleError(f"no runner for {kind}:{subtype}")
+        # NOTE :Incomplete: re-use existing state sometimes (e.g., code script exports)
+        state = runner_cls.state_cls(
+            id=node.id,
+            kind=kind,
+            subtype=subtype,
+            node=node,
+            code=code,
+            text=text,
+            variables=variables,
         )
-        self._engines = (
-            # global engine
-            RemoteEngine(
-                scope=EMPTY_SCOPE._to_data(),
-                node_types=PUBLIC_NODE_TYPES,
-                remote=self._supervisor,
-                write_retry=RETRY_GRPC_FOREVER,
-                rpc_metadata=self._rpc_metadata,
-            ),
-            # bench engine
-            RemoteEngine(
-                scope=bench_scope,
-                node_types=BENCH_NODE_TYPES | IN_PACKAGE_NODE_TYPES,
-                remote=self._host,
-                write_retry=RETRY_GRPC_FOREVER,
-                rpc_metadata=self._rpc_metadata,
-            ),
+        runner = runner_cls(
+            id=run.id if run else UUIDT(),
+            runtime=self,
+            state=state,
+            options=BASE_RUN_OPTIONS_BY_KIND[kind].override(options),
+            parent=self.active_runner,
+            status=run.status if run else RunStatus.SCHEDULED,
+            input_type=node.input_type,
+            output_type=node.output_type,
+            inputs=inputs,
+            attempts=run.attempts if run else [],
+            run=run,
         )
 
-        # start threads
-        # NOTE :Incomplete: start threads as actual threads/processes (if available i.e. not WASM)
-        assert self._max_threads > 0, f"no threads for {self!r}"
-        for i in range(self._max_threads):
-            thread = RuntimeThread(
-                id=i,
-                bench_id=self._bench_id,
-                supervisor=self._supervisor,
-                host=self._host,
-                client_id=self._client_id,
-                server_id=self._server_id,
-                machine_id=self._machine_id,
-                engines=self._engines,
-                process_queue=self._start_queue,
-                oracle=self.oracle,
-            )
-            self._threads.append(thread)
-            await thread.start()
+        # create nested Run
+        if track and run is None:
+            pass  # NOTE :Incomplete: nested (tracked) run"
 
-        logger.info("runtime.start", runtime=self)
+        return runner
 
-    def close(self):
-        super().close()
+    async def make_runner_from_run(self, run: Run):
+        node = run.step or run.block
+        if node is None:
+            raise RunImpossibleError(f"no node for {run!r}")  # default to package?
+        options = node.run_options.override(run.options) if node.run_options else run.options
+        return await self.make_runner(
+            run.kind,
+            node=node,
+            code=run.code,
+            run=run,
+            inputs=run.inputs,
+            options=options,
+            track=True,
+        )
 
-    @override
-    async def queue_run(self, request: QueueRunRequest) -> QueueRunResponse:
-        # just add to start queue
-        self._start_queue.put_nowait(request.run)
-        logger.trace("runtime.queue_run", run=request.run, span="current")
-        return QueueRunResponse()
+    async def _do_run_once_retrying(self, runner: Runner):
+        """
+        Runs a runner in a Runner, retrying automatically and updating the Runner along the way.
+        """
+        runner.status = RunStatus.RUNNING
+        retry = runner.options.to_retry().new(self.oracle, attempt=len(runner.attempts))
+        # set active run
+        active_run_runner_token = self._active_runner.set(runner)
+        # run in attempt loop
+        log = logger.bind(runner=runner, retry=retry)
+        try:
+            while retry.should_retry:
+                with tracer.start_as_current_span(
+                    "runner.attempt", attributes={"attempt": retry.attempt, "runner": repr(runner)}
+                ):
+                    retry.on_attempt()
+                    attempt = RunAttempt(
+                        status=RunStatus.RUNNING,
+                        started_at=self.oracle.utc(),
+                        started_epoch=self.session.epoch,
+                    )
+                    runner.attempts.append(attempt)
+                    try:
+                        await runner.run_once()
+                        attempt.status = RunStatus.COMPLETED
+                        log.debug("runner.attempt", attempt=attempt, span="current")
+                        break  # success
+                    except Exception as e:
+                        error = RunError.from_exception(RunErrorKind.RUNTIME, e)
+                        attempt.error = error
+                        attempt.status = RunStatus.FAILED
+                        log.debug(
+                            "runner.attempt.failed", attempt=attempt, exc_info=e, span="current"
+                        )
+                        if not error.is_retryable or (
+                            not retry.on_error(e)
+                            and not (error.type and error.type in runner.options.retry_on)
+                        ):
+                            raise
+                    finally:
+                        attempt.terminated_at = self.oracle.utc()
+                        attempt.terminated_epoch = self.session.epoch
+                        assert attempt.started_at, f"missing started_at for attempt {attempt!r}"
+                        attempt.duration = (
+                            attempt.terminated_at - attempt.started_at
+                        ).total_seconds()
+            else:
+                raise retry.to_error()
+        finally:
+            # run outcome = last attempt
+            last_attempt = runner.current_attempt
+            assert last_attempt is not None, f"missing last attempt for run {runner!r}"
+            runner.status = last_attempt.status
+            runner.error = last_attempt.error
+            # reset active run
+            self._active_runner.reset(active_run_runner_token)
 
-    @cachetools.cached({})
-    async def _get_host_client(self, bench_id: UUID) -> HostClient:
-        request = ResolveHostsRequest(benches=[ResolveHostsRequestBenchKey(id=str(bench_id))])
-        retry = RETRY_GRPC_FOREVER.new(self.oracle)
-        while retry.should_retry:
-            retry.on_attempt()
+    async def _do_run_once_retrying_tracked(self, runner: Runner):
+        """
+        Runs a runner in a Runner, retrying automatically and updating the Run along the way.
+        """
+        run = runner.run
+        assert run is not None, f"missing run in {runner!r}"
+
+        # update context
+        run.client_ptr = self.session.client_ptr
+        run.machine_ptr = self.session.machine_ptr
+        run.server_ptr = self.session.server_ptr
+        run.user_ptr = self.session.user_ptr
+
+        # start if not yet started
+        if not run.started_at:
+            run.started_epoch = self.session.epoch
+            run.started_at = self.oracle.utc()
+        run.status = RunStatus.RUNNING
+
+        # actually attempt Run
+        try:
+            await self._do_run_once_retrying(runner)
+        finally:
+            last_attempt = runner.current_attempt
+            assert last_attempt is not None, f"no last attempt for run {runner!r}"
+            run.attempts = runner.attempts
+            run.logs = runner.logs
+            run.outputs = runner.outputs
+            run.error = runner.error
+            run.status = runner.status
+            run.duration = last_attempt.duration
+            run.terminated_at = last_attempt.terminated_at
+            run.terminated_epoch = last_attempt.terminated_epoch
+
+    @tracer.start_as_current_span("runner.run_runner")
+    async def run_runner(self, runner: Runner):
+        """Runs something runnable, considering its dependencies and run options."""
+
+        # TODO :Incomplete: prepare run runner context (Runner.prepare?)
+        #  (like for code we need its referenced imports/exports ready)
+
+        # run it
+        async with self.session.active():
+            trace.get_current_span().set_attribute("runner", repr(runner))
+            if runner.run is not None:
+                await self._do_run_once_retrying_tracked(runner)
+            else:
+                await self._do_run_once_retrying(runner)
+            # TODO :Performance!: support optimistic commit (commit in background, fail if failed)
+            await self.session.commit()
+
+    @tracer.start_as_current_span("runner.process_run")
+    async def run_run(self, run: Run, *, suppress_error: bool) -> Runner | None:
+        """Start or resume a top-level Run in this Runner. Returns on halt or termination."""
+        runner = None
+        async with self.session.active():
             try:
-                response = await self._supervisor.resolve_hosts(
-                    request,
-                    metadata=self._rpc_headers,
-                    deadline=grpclib.metadata.Deadline.from_timeout(5),
-                )
-                host_info = response.hosts[0]
-                host_info.domain = localize_url(host_info.domain)
-                self.logger.info(
-                    "runtime.resolve_host",
-                    supervisor=self._supervisor,
-                    bench_id=bench_id,
-                    host_domain=host_info.domain,
-                    host_port=host_info.grpc_port,
-                )
-                host_channel = Channel(
-                    host=host_info.domain, port=host_info.grpc_port, ssl=host_info.ssl
-                )
-                return HostClient(host_channel)
-            except Exception as e:
-                interval = retry.get_wait_interval()
-                self.logger.error(
-                    "runtime.resolve_host.error", bench_id=bench_id, exc_info=e, interval=interval
-                )
-                if not retry.on_error(e):
+                runner = await self.make_runner_from_run(run=run)
+                await self.run_runner(runner)
+                logger.info("runner.process_run", run=run, runner=runner, span="current")
+            except (BenchError, ValueError, TypeError) as e:
+                # NOTE: Robustness: should we really commit the entire session on failure?
+                #  (maybe have some sort of atomic flag or context manager to prevent it as needed?)
+                # re-raised inner user error
+                if run.status != RunStatus.FAILED:
+                    run.status = RunStatus.FAILED
+                    run.error = RunError.from_exception(RunErrorKind.RUNTIME, e)
+                await self.session.commit()
+                logger.info("runner.process_run.error", run=run, exc_info=e, span="current")
+                if not suppress_error:
                     raise
-                await self.oracle.sleep(interval)
-        else:
-            raise retry.to_error(operation=request)
+            except Exception as e:
+                # some unexpected internal error
+                if run.status != RunStatus.FAILED:
+                    run.status = RunStatus.FAILED
+                    run.error = RunError.from_exception(RunErrorKind.INTERNAL, e)
+                await self.session.commit()
+                logger.error(
+                    "runner.process_run.internal_error", run=run, exc_info=e, span="current"
+                )
+                if not suppress_error:
+                    raise
+            return runner
+
+    async def pause_run(self, run: Run):
+        """Pause a Run currently executing in this Runner."""
+        raise NotImplementedError
+
+    async def abort_run(self, run: Run):
+        """Abort a Run currently executing in this Runner."""
+        raise NotImplementedError
+
+    async def run(
+        self, run: Run | Block | Step, *, inputs: Any | None = None, return_error: bool = False
+    ) -> Runner:
+        """Auto-run wrapper for some runnable node (may already be in another run)."""
+        if not isinstance(run, Run):
+            run = Run.from_runnable(run, inputs=inputs, parent=self.active_run)
+        runner = await self.run_run(run, suppress_error=return_error)
+        assert runner is not None, f"no runner for {run!r}"
+        return runner

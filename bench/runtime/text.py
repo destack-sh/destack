@@ -35,17 +35,17 @@ class TextRunner(Runner):
     """The router for text functions without explicitly assigned models/providers."""
 
     @override
-    async def run(self) -> None:
-        model_handle = await self.runtime.make_run_handle(
+    async def run_once(self) -> None:
+        runner = await self.runtime.make_runner(
             RunKind.TEXT,
-            key=ModelProvider.ANTHROPIC,
+            subtype=ModelProvider.ANTHROPIC,
             node=self.node,
             options=RUN_ONCE,
             inputs=self.inputs,
             track=False,
         )
-        await self.runtime.run_handle(model_handle)
-        self.handle.outputs = model_handle.outputs
+        await self.runtime.run_runner(runner)
+        self.outputs = runner.outputs
 
 
 #
@@ -128,8 +128,8 @@ return {"Joke": "Why did the scarecrow win an award? Because he was outstanding 
 
     @property
     def model(self) -> ModelType | None:
-        if self.handle.options.model_options is not None:
-            return self.handle.options.model_options.model
+        if self.options.model_options is not None:
+            return self.options.model_options.model
         else:
             return None
 
@@ -138,8 +138,8 @@ return {"Joke": "Why did the scarecrow win an award? Because he was outstanding 
         return self.node.absolute_path
 
     @override
-    async def run(self) -> None:
-        projection = project(self.state.node, self.handle.inputs, options=ProjectOptions())
+    async def run_once(self) -> None:
+        projection = project(self.state.node, self.inputs, options=ProjectOptions())
         render_options = RenderOptions(scope=self.node, aliasing=Aliasing())
         log = logger.bind(runner=self, projection=projection)
 
@@ -161,11 +161,11 @@ return {"Joke": "Why did the scarecrow win an award? Because he was outstanding 
 
         code = Code.from_string(code)
         with tracer.start_as_current_span("text.run_code"):
-            code_handle = await self.runtime.make_run_handle(
+            code_runner = await self.runtime.make_runner(
                 RunKind.CODE, node=self.node, code=code, options=RUN_ONCE, track=True
             )
-            await self.runtime.run_handle(code_handle)
-        self.handle.outputs = code_handle.outputs
+            await self.runtime.run_runner(code_runner)
+        self.outputs = code_runner.outputs
 
     async def render_system_message(
         self, projection: Projection, render_options: RenderOptions
@@ -253,7 +253,7 @@ return {"Joke": "Why did the scarecrow win an award? Because he was outstanding 
 
         # turn into chat message contents
         aliasing = render_options.aliasing
-        assert aliasing is not None, f"no aliasing for {self.handle!r}"
+        assert aliasing is not None, f"no aliasing for {self!r}"
         contents: list[ChatMessageContent] = []
         for file in preprocessed_files:
             preamble = ChatMessageTextContent(f"""\
@@ -271,7 +271,7 @@ return {"Joke": "Why did the scarecrow win an award? Because he was outstanding 
     ) -> tuple[ChatMessageContent, ...]:
         """Renders the task from the projection"""
         if self.inputs is None or len(self.inputs) == 0:
-            raise RunImpossibleError(f"no inputs for {self.handle!r}")
+            raise RunImpossibleError(f"no inputs for {self!r}")
         rendered_task = render(self.node, options=render_options)
         rendered_inputs = render(self.inputs, options=render_options)
 
@@ -296,7 +296,7 @@ return {"Joke": "Why did the scarecrow win an award? Because he was outstanding 
     ) -> tuple[ChatMessageContent, ...]:
         """Renders relevant examples for the task / context"""
         if self.output_type is None or len(self.output_type._fields) == 0:
-            raise RunImpossibleError(f"no outputs for {self.handle!r}")
+            raise RunImpossibleError(f"no outputs for {self!r}")
 
         rendered_examples = []
         for field in self.output_type._fields:
