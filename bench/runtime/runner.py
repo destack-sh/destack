@@ -18,7 +18,6 @@ from bench.language.session import Session
 from bench.language.step import Step, StepType
 from bench.language.text import Text
 from bench.language.value import ValueObject
-from bench.runtime.compiler import CompiledCode
 from bench.runtime.core import (
     BASE_RUN_OPTIONS_BY_KIND,
     DYNAMIC_CODE_GLOBALS,
@@ -31,13 +30,16 @@ from bench.utils.uuidt import UUIDT
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
-RunnableNode = Block | Step
+RunnableNode = Block | Step | None
 RunKey = CodeType | StepType | ModelProvider | None
 
 
 @dataclass(slots=True)
 class RunnableState[T: RunnableNode]:
-    """The state of some runnable unit (Node or something within)."""
+    """
+    The state of some runnable unit (Node or something within).
+    May persist across runs (i.e. across RunHandles).
+    """
 
     id: UUID
     kind: RunKind
@@ -45,12 +47,7 @@ class RunnableState[T: RunnableNode]:
     node: T
     code: Code | None = None
     text: Text | None = None
-    compiled: "CompiledCode | None" = None
     variables: ValueObject | None = None
-
-    # outputs
-    exports: Mapping[str, Any] | None = None  # for scripts
-    last_expr_value: Any | None = None  # for snippets
 
     def __str__(self):
         type_str = (
@@ -63,11 +60,11 @@ class RunnableState[T: RunnableNode]:
 
 
 @dataclass(slots=True)
-class RunHandle[T: RunnableNode]:
+class RunHandle[S: RunnableState, T: RunnableNode]:
     """A specific run (tracked or untracked)."""
 
     id: UUID  # Run.id if tracked, new otherwise
-    state: RunnableState[T]
+    state: S
     options: RunOptions
     parent: "RunHandle | None"  # if nested
     status: RunStatus
@@ -104,12 +101,12 @@ class RunHandle[T: RunnableNode]:
         return self.attempts[-1] if self.attempts else None
 
 
-class Runner[T: RunnableNode](abc.ABC):
+class Runner[S: RunnableState, T: RunnableNode](abc.ABC):
     """A runner to process a single runnable unit once."""
 
     __slots__ = ("handle", "runtime", "session", "state")
 
-    def __init__(self, runner: "RuntimeRunner", session: Session, handle: RunHandle[T]):
+    def __init__(self, runner: "RuntimeRunner", session: Session, handle: RunHandle[S, T]):
         self.runtime = runner
         self.session = session
         self.handle = handle
@@ -372,7 +369,7 @@ class RuntimeRunner:
 
     async def _do_run_retrying_tracked(self, runner: Runner):
         """
-        Runs a handle in A Runner, retrying automatically and updating the Run along the way.
+        Runs a handle in a Runner, retrying automatically and updating the Run along the way.
         """
         handle = runner.handle
         run = handle.run

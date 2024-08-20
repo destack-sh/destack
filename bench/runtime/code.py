@@ -1,6 +1,6 @@
 import functools
 from contextlib import contextmanager
-from typing import Any, cast, override
+from typing import Any, Mapping, cast, override
 
 import structlog
 from opentelemetry import trace
@@ -21,7 +21,14 @@ from bench.runtime.capture import (
 )
 from bench.runtime.compiler import CompiledCode, compile_code
 from bench.runtime.core import SyntaxError
-from bench.runtime.runner import RunHandle, Runner, RuntimeRunner, runner
+from bench.runtime.runner import (
+    RunHandle,
+    RunnableNode,
+    RunnableState,
+    Runner,
+    RuntimeRunner,
+    runner,
+)
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -29,7 +36,13 @@ tracer = trace.get_tracer(__name__)
 # NOTE :Performance :Robustness: run (some?) sync code in a separate thread?
 
 
-class CodeRunnerBase(Runner):
+class CodeRunnableState[T: RunnableNode](RunnableState[T]):
+    compiled: "CompiledCode | None" = None
+    exports: Mapping[str, Any] | None = None  # for scripts
+    last_expr_value: Any | None = None  # for snippets
+
+
+class CodeRunnerBase[T: RunnableNode](Runner[CodeRunnableState[T], T]):
     """Common base for compiling and running code."""
 
     def __init__(self, runner: RuntimeRunner, session: Session, handle: RunHandle):
@@ -80,6 +93,7 @@ class CodeRunnerBase(Runner):
         assert self.state.compiled, f"no compiled code for {self!r}"
 
         # assemble globals
+        assert self.node is not None, f"no node scope for {self!r}"
         _get_node = functools.partial(get_node, self.node)
         _render = functools.partial(render, options=RenderOptions(scope=self.node))
         _upload = functools.partial(upload, parent=self.node)

@@ -241,7 +241,7 @@ export const ICON_BY_BENCH_TYPE: Partial<Record<BenchType, IconData>> = {
 export const ICON_BY_BLOCK_TYPE: Partial<Record<BlockType, IconData>> = _makeIcons<BlockType>({
   [BlockType.PAGE]: "fas fa-memo",
 
-  [BlockType.CLASS]: "fas fa-objects-column",
+  [BlockType.CLASS]: "fas fa-shapes",
   [BlockType.CHOICE]: "fas fa-circle-chevron-down",
   [BlockType.SIGNAL]: "fas fa-signal-stream",
 
@@ -253,7 +253,7 @@ export const ICON_BY_BLOCK_TYPE: Partial<Record<BlockType, IconData>> = _makeIco
   [BlockType.QUERY]: "fas fa-magnifying-glass",
   [BlockType.DATABASE]: "fas fa-database",
 
-  [BlockType.VIEW]: "fas fa-window",
+  [BlockType.VIEW]: "fas fa-window-frame",
 
   [BlockType.ROLE]: "fas fa-user-tag",
   [BlockType.IDENTITY]: "fas fa-image-user",
@@ -271,7 +271,7 @@ export const ICON_BY_VIEW_TYPE: Partial<Record<ViewType, IconData>> = _makeIcons
 
   // system
   // nodes
-  [ViewType.PAGE]: "fas fa-memo-pad",
+  [ViewType.PAGE]: "fas fa-memo",
   [ViewType.BLOCK]: "fas fa-cube",
   [ViewType.FIELD]: "fas fa-font",
   [ViewType.DATABASE]: "fas fa-database",

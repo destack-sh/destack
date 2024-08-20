@@ -65,7 +65,7 @@ from bench.utils.utils import get_from_env
 if TYPE_CHECKING:
     from magika import Magika
 
-    from bench.language import Block, Package, Session
+    from bench.language import Block, Package, Session, Step
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -1060,7 +1060,7 @@ async def upload(
     mime_type: str | None = None,
     coarse_type: FileType | None = None,
     format: FileFormat | str | None = None,
-    parent: "Block | Package | None" = None,
+    parent: "Step |Block | Package | None" = None,
     drive: "Drive | None" = None,
     session: "Session | None" = None,
 ) -> "File":
@@ -1080,6 +1080,8 @@ async def upload(
         drive = session.bench.main_drive
         if drive is None:
             raise ValueError(f"no drive to upload file {title!r} to in {session!r}")
+    if isinstance(parent, Step):
+        parent = parent.block
     file.parent = parent
     file.drive = drive
 
