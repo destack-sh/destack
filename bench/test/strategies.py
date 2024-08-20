@@ -1,5 +1,5 @@
 from string import ascii_lowercase
-from typing import Any, cast
+from typing import Any, assert_never, cast
 
 import hypothesis
 import more_itertools
@@ -27,10 +27,18 @@ from bench.language.node import BuiltinObject
 from bench.language.setup import ENUM_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE, OBJECT_CLASS_BY_TYPE
 from bench.language.validation import ValidationError
 from bench.language.value import MAX_VALUE_BY_PRIMITIVE_TYPE, MIN_VALUE_BY_PRIMITIVE_TYPE
+from bench.language.view import Icon, IconKind
 from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.oracle import MAX_SCHEDULE_DURATION
 
 logger = structlog.get_logger(__name__)
+
+ALL_DECLARED_PROPERTIES = tuple(
+    more_itertools.flatten(
+        (p for p in object_cls.__declared_properties__.values() if p.id is not None)
+        for object_cls in OBJECT_CLASS_BY_TYPE.values()
+    )
+)
 
 
 def examples(examples: list[dict]):
@@ -71,12 +79,6 @@ DURATION_STRATEGY = st.floats(
 JSON_STRATEGY = st.none()  # not needed yet
 ORDER_KEY_STRATEGY = st.just(INTEGER_ZERO)  # NOTE :Test: generate order keys properly
 BYTES_STRATEGY = st.binary(min_size=1, max_size=32)
-ALL_DECLARED_PROPERTIES = tuple(
-    more_itertools.flatten(
-        (p for p in object_cls.__declared_properties__.values() if p.id is not None)
-        for object_cls in OBJECT_CLASS_BY_TYPE.values()
-    )
-)
 PROPERTY_STRATEGY = st.sampled_from(ALL_DECLARED_PROPERTIES)
 SLUG_STRATEGY = st.text(alphabet=ascii_lowercase, min_size=1, max_size=64)
 
@@ -248,6 +250,8 @@ def from_object_type(
         )
     elif object_type == NodeType.FIELD:
         return cast(st.SearchStrategy[BuiltinObject], fields(SIMPLE_TYPE_KINDS))
+    elif object_type == StructType.ICON:
+        return cast(st.SearchStrategy[BuiltinObject], icons())
 
     object_cls = OBJECT_CLASS_BY_TYPE[object_type]
     object_dict = get_naive_object_strategy(object_type)
@@ -352,14 +356,15 @@ def draw_type_info_base_dict(draw: st.DrawFn, kinds: st.SearchStrategy[TypeKind]
         "primitive_type": primitive_type,
         "bench_type": bench_type,
         "base_type": base_type,
+        "base_field_zone": None,  # NOTE :Incomplete: base_field_zone is not rendered properly
     }
 
 
 @cacheable
 @st.composite
 def type_infos(draw: st.DrawFn, kinds: st.SearchStrategy[TypeKind]):
-    type_info_base_dict = draw_type_info_base_dict(draw, kinds)
-    return TypeInfo(**type_info_base_dict)
+    base_dict = draw_type_info_base_dict(draw, kinds)
+    return TypeInfo(**base_dict)
 
 
 @st.composite
@@ -378,6 +383,19 @@ def fields(draw: st.DrawFn, kinds: st.SearchStrategy[TypeKind]):
         else:
             combined_dict[key] = draw(naive_base_dict[key])
     return Field(**combined_dict)
+
+
+@st.composite
+def icons(draw: st.DrawFn):
+    kind = draw(st.sampled_from(list(IconKind)))
+    if kind == IconKind.EMOJI:
+        return Icon.new("😀")
+    elif kind == IconKind.FONT_AWESOME:
+        return Icon.new("fas fa-circle-dot")
+    elif kind == IconKind.VS_CODE:
+        return Icon.new("file_type_ada")
+    else:
+        assert_never(kind)
 
 
 @cacheable

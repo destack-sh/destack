@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.08.19.2"
+VERSION = "2024.08.20.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -253,25 +253,26 @@ class BenchType(betterproto.Enum):
     SELECTION_KIND = 20208
     SELECTION_TARGET = 20209
     PATH_TOKEN_TYPE = 20210
-    STEP_TYPE = 20500
-    PIPE_TYPE = 20501
-    LOG_KIND = 20502
-    LOG_LEVEL = 20503
-    RUN_STATUS = 20504
-    RUN_KIND = 20505
-    RUN_ERROR_KIND = 20506
-    RUN_ERROR_TYPE = 20507
-    SESSION_STATUS = 20508
-    TRIGGER_TYPE = 20509
-    NOTIFICATION_KIND = 20510
-    BREAKPOINT_KIND = 20511
-    BREAKPOINT_ACTION = 20512
-    CODE_TYPE = 20513
+    LOG_KIND = 20500
+    LOG_LEVEL = 20501
+    RUN_STATUS = 20510
+    RUN_KIND = 20511
+    RUN_ERROR_KIND = 20512
+    RUN_ERROR_TYPE = 20513
     RUN_SPAN_TYPE = 20514
     RUN_EVENT_TYPE = 20515
-    PORT_TYPE = 20516
-    MODEL_PROVIDER = 20530
-    MODEL_TYPE = 20531
+    SESSION_STATUS = 20516
+    TRIGGER_TYPE = 20520
+    BREAKPOINT_KIND = 20530
+    BREAKPOINT_ACTION = 20531
+    CODE_TYPE = 20540
+    MODEL_PROVIDER = 20550
+    MODEL_TYPE = 20551
+    STEP_TYPE = 20560
+    PIPE_TYPE = 20561
+    PIPE_FILTER_MODE = 20562
+    PORT_TYPE = 20563
+    NOTIFICATION_LEVEL = 20570
     SPACE_TYPE = 21000
     VIEW_TYPE = 21001
     VARIANT = 21002
@@ -520,25 +521,26 @@ class EnumType(betterproto.Enum):
     SELECTION_KIND = 20208
     SELECTION_TARGET = 20209
     PATH_TOKEN_TYPE = 20210
-    STEP_TYPE = 20500
-    PIPE_TYPE = 20501
-    LOG_KIND = 20502
-    LOG_LEVEL = 20503
-    RUN_STATUS = 20504
-    RUN_KIND = 20505
-    RUN_ERROR_KIND = 20506
-    RUN_ERROR_TYPE = 20507
-    SESSION_STATUS = 20508
-    TRIGGER_TYPE = 20509
-    NOTIFICATION_KIND = 20510
-    BREAKPOINT_KIND = 20511
-    BREAKPOINT_ACTION = 20512
-    CODE_TYPE = 20513
+    LOG_KIND = 20500
+    LOG_LEVEL = 20501
+    RUN_STATUS = 20510
+    RUN_KIND = 20511
+    RUN_ERROR_KIND = 20512
+    RUN_ERROR_TYPE = 20513
     RUN_SPAN_TYPE = 20514
     RUN_EVENT_TYPE = 20515
-    PORT_TYPE = 20516
-    MODEL_PROVIDER = 20530
-    MODEL_TYPE = 20531
+    SESSION_STATUS = 20516
+    TRIGGER_TYPE = 20520
+    BREAKPOINT_KIND = 20530
+    BREAKPOINT_ACTION = 20531
+    CODE_TYPE = 20540
+    MODEL_PROVIDER = 20550
+    MODEL_TYPE = 20551
+    STEP_TYPE = 20560
+    PIPE_TYPE = 20561
+    PIPE_FILTER_MODE = 20562
+    PORT_TYPE = 20563
+    NOTIFICATION_LEVEL = 20570
     SPACE_TYPE = 21000
     VIEW_TYPE = 21001
     VARIANT = 21002
@@ -892,7 +894,7 @@ class NodeType(betterproto.Enum):
     SKIP = 9000
 
 
-class NotificationKind(betterproto.Enum):
+class NotificationLevel(betterproto.Enum):
     """The level of interaction required for a notification."""
 
     UNSPECIFIED = 0
@@ -1022,10 +1024,16 @@ class PathTokenType(betterproto.Enum):
     FIELD = 10
 
 
+class PipeFilterMode(betterproto.Enum):
+    UNSPECIFIED = 0
+    DISCARD_EMPTY = 1
+    DISCARD_INVALID = 2
+
+
 class PipeType(betterproto.Enum):
     UNSPECIFIED = 0
-    CONTROL = 1
-    DATA = 2
+    THEN = 1
+    WITH = 2
 
 
 class PolicyEffect(betterproto.Enum):
@@ -1036,9 +1044,10 @@ class PolicyEffect(betterproto.Enum):
 
 class PortType(betterproto.Enum):
     UNSPECIFIED = 0
-    CONTROL = 1
-    VALUE = 2
-    FIELD = 3
+    EMPTY = 1
+    DATA = 2
+    ERROR = 3
+    FIELD = 5
 
 
 class PrimitiveType(betterproto.Enum):
@@ -1974,7 +1983,9 @@ class PipeData(betterproto.Message):
     type: "PipeType" = betterproto.enum_field(30)
     source_ptr: "NodeReferenceData" = betterproto.message_field(31)
     source_port: "PortKeyData" = betterproto.message_field(32)
+    target_ptr: "NodeReferenceData" = betterproto.message_field(33)
     target_port: "PortKeyData" = betterproto.message_field(34)
+    filter_mode: Optional["PipeFilterMode"] = betterproto.enum_field(40, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2984,7 +2995,7 @@ class NotificationData(betterproto.Message):
     created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(21, optional=True)
     updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(22, optional=True)
     set_properties: List[int] = betterproto.int32_field(29)
-    kind: "NotificationKind" = betterproto.enum_field(30)
+    kind: "NotificationLevel" = betterproto.enum_field(30)
     type_ptr: "NodeReferenceData" = betterproto.message_field(32)
     expires_at: Optional[datetime] = betterproto.message_field(33, optional=True)
     read_at: Optional[datetime] = betterproto.message_field(34, optional=True)

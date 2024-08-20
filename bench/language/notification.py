@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Any, Optional, cast
 from bench.language.const import (
     BlockType,
     NodeType,
-    NotificationKind,
+    NotificationLevel,
     StructType,
 )
 from bench.language.field import TypeInfoBase
@@ -44,7 +44,7 @@ class Notification(RemoteNode[NotificationData], HasTimeIdentity, HasNodeBase):
     """
 
     parent: "Package | None" = p_node_parent(4, NodeType.PACKAGE)
-    kind: NotificationKind = p_regular(30)
+    kind: NotificationLevel = p_regular(30)
     type: "Block" = p_system(
         32,
         require=True,

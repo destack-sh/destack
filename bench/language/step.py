@@ -109,7 +109,9 @@ class Pipe(Struct):
 
     def __content_str__(self) -> str:
         arrow_str = ">" if self.type == PipeType.THEN else "->"
-        return f"{self.source.absolute_path}:{self.source_port} {arrow_str} {self.target.absolute_path}:{self.target_port}"
+        source = self.source
+        target = self.target
+        return f"{source.absolute_path if source else '???'}:{self.source_port} {arrow_str} {target.absolute_path if target else '???'}:{self.target_port}"
 
 
 @enum_(EnumType.PORT_TYPE)

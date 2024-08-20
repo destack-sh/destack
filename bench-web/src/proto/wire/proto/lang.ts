@@ -1005,9 +1005,17 @@ export interface PipeData {
      */
     sourcePort?: PortKeyData;
     /**
+     * @generated from protobuf field: symbolx.bench.NodeReferenceData target_ptr = 33;
+     */
+    targetPtr?: NodeReferenceData;
+    /**
      * @generated from protobuf field: symbolx.bench.PortKeyData target_port = 34;
      */
     targetPort?: PortKeyData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.PipeFilterMode filter_mode = 40;
+     */
+    filterMode?: PipeFilterMode;
 }
 /**
  * A policy regulating access to nodes within its scope.
@@ -3916,9 +3924,9 @@ export interface NotificationData {
      */
     setProperties: number[];
     /**
-     * @generated from protobuf field: symbolx.bench.NotificationKind kind = 30;
+     * @generated from protobuf field: symbolx.bench.NotificationLevel kind = 30;
      */
-    kind: NotificationKind;
+    kind: NotificationLevel;
     /**
      * @generated from protobuf field: symbolx.bench.NodeReferenceData type_ptr = 32;
      */
@@ -6768,61 +6776,29 @@ export enum BenchType {
      */
     PATH_TOKEN_TYPE = 20210,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_STEP_TYPE = 20500;
+     * @generated from protobuf enum value: BENCH_TYPE_LOG_KIND = 20500;
      */
-    STEP_TYPE = 20500,
+    LOG_KIND = 20500,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_PIPE_TYPE = 20501;
+     * @generated from protobuf enum value: BENCH_TYPE_LOG_LEVEL = 20501;
      */
-    PIPE_TYPE = 20501,
+    LOG_LEVEL = 20501,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_LOG_KIND = 20502;
+     * @generated from protobuf enum value: BENCH_TYPE_RUN_STATUS = 20510;
      */
-    LOG_KIND = 20502,
+    RUN_STATUS = 20510,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_LOG_LEVEL = 20503;
+     * @generated from protobuf enum value: BENCH_TYPE_RUN_KIND = 20511;
      */
-    LOG_LEVEL = 20503,
+    RUN_KIND = 20511,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_RUN_STATUS = 20504;
+     * @generated from protobuf enum value: BENCH_TYPE_RUN_ERROR_KIND = 20512;
      */
-    RUN_STATUS = 20504,
+    RUN_ERROR_KIND = 20512,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_RUN_KIND = 20505;
+     * @generated from protobuf enum value: BENCH_TYPE_RUN_ERROR_TYPE = 20513;
      */
-    RUN_KIND = 20505,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_RUN_ERROR_KIND = 20506;
-     */
-    RUN_ERROR_KIND = 20506,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_RUN_ERROR_TYPE = 20507;
-     */
-    RUN_ERROR_TYPE = 20507,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_SESSION_STATUS = 20508;
-     */
-    SESSION_STATUS = 20508,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_TRIGGER_TYPE = 20509;
-     */
-    TRIGGER_TYPE = 20509,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_NOTIFICATION_KIND = 20510;
-     */
-    NOTIFICATION_KIND = 20510,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_BREAKPOINT_KIND = 20511;
-     */
-    BREAKPOINT_KIND = 20511,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_BREAKPOINT_ACTION = 20512;
-     */
-    BREAKPOINT_ACTION = 20512,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_CODE_TYPE = 20513;
-     */
-    CODE_TYPE = 20513,
+    RUN_ERROR_TYPE = 20513,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_RUN_SPAN_TYPE = 20514;
      */
@@ -6832,17 +6808,53 @@ export enum BenchType {
      */
     RUN_EVENT_TYPE = 20515,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_PORT_TYPE = 20516;
+     * @generated from protobuf enum value: BENCH_TYPE_SESSION_STATUS = 20516;
      */
-    PORT_TYPE = 20516,
+    SESSION_STATUS = 20516,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_MODEL_PROVIDER = 20530;
+     * @generated from protobuf enum value: BENCH_TYPE_TRIGGER_TYPE = 20520;
      */
-    MODEL_PROVIDER = 20530,
+    TRIGGER_TYPE = 20520,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_MODEL_TYPE = 20531;
+     * @generated from protobuf enum value: BENCH_TYPE_BREAKPOINT_KIND = 20530;
      */
-    MODEL_TYPE = 20531,
+    BREAKPOINT_KIND = 20530,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_BREAKPOINT_ACTION = 20531;
+     */
+    BREAKPOINT_ACTION = 20531,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_CODE_TYPE = 20540;
+     */
+    CODE_TYPE = 20540,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_MODEL_PROVIDER = 20550;
+     */
+    MODEL_PROVIDER = 20550,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_MODEL_TYPE = 20551;
+     */
+    MODEL_TYPE = 20551,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_STEP_TYPE = 20560;
+     */
+    STEP_TYPE = 20560,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_PIPE_TYPE = 20561;
+     */
+    PIPE_TYPE = 20561,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_PIPE_FILTER_MODE = 20562;
+     */
+    PIPE_FILTER_MODE = 20562,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_PORT_TYPE = 20563;
+     */
+    PORT_TYPE = 20563,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_NOTIFICATION_LEVEL = 20570;
+     */
+    NOTIFICATION_LEVEL = 20570,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_SPACE_TYPE = 21000;
      */
@@ -7685,61 +7697,29 @@ export enum EnumType {
      */
     PATH_TOKEN_TYPE = 20210,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_STEP_TYPE = 20500;
+     * @generated from protobuf enum value: ENUM_TYPE_LOG_KIND = 20500;
      */
-    STEP_TYPE = 20500,
+    LOG_KIND = 20500,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_PIPE_TYPE = 20501;
+     * @generated from protobuf enum value: ENUM_TYPE_LOG_LEVEL = 20501;
      */
-    PIPE_TYPE = 20501,
+    LOG_LEVEL = 20501,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_LOG_KIND = 20502;
+     * @generated from protobuf enum value: ENUM_TYPE_RUN_STATUS = 20510;
      */
-    LOG_KIND = 20502,
+    RUN_STATUS = 20510,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_LOG_LEVEL = 20503;
+     * @generated from protobuf enum value: ENUM_TYPE_RUN_KIND = 20511;
      */
-    LOG_LEVEL = 20503,
+    RUN_KIND = 20511,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_RUN_STATUS = 20504;
+     * @generated from protobuf enum value: ENUM_TYPE_RUN_ERROR_KIND = 20512;
      */
-    RUN_STATUS = 20504,
+    RUN_ERROR_KIND = 20512,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_RUN_KIND = 20505;
+     * @generated from protobuf enum value: ENUM_TYPE_RUN_ERROR_TYPE = 20513;
      */
-    RUN_KIND = 20505,
-    /**
-     * @generated from protobuf enum value: ENUM_TYPE_RUN_ERROR_KIND = 20506;
-     */
-    RUN_ERROR_KIND = 20506,
-    /**
-     * @generated from protobuf enum value: ENUM_TYPE_RUN_ERROR_TYPE = 20507;
-     */
-    RUN_ERROR_TYPE = 20507,
-    /**
-     * @generated from protobuf enum value: ENUM_TYPE_SESSION_STATUS = 20508;
-     */
-    SESSION_STATUS = 20508,
-    /**
-     * @generated from protobuf enum value: ENUM_TYPE_TRIGGER_TYPE = 20509;
-     */
-    TRIGGER_TYPE = 20509,
-    /**
-     * @generated from protobuf enum value: ENUM_TYPE_NOTIFICATION_KIND = 20510;
-     */
-    NOTIFICATION_KIND = 20510,
-    /**
-     * @generated from protobuf enum value: ENUM_TYPE_BREAKPOINT_KIND = 20511;
-     */
-    BREAKPOINT_KIND = 20511,
-    /**
-     * @generated from protobuf enum value: ENUM_TYPE_BREAKPOINT_ACTION = 20512;
-     */
-    BREAKPOINT_ACTION = 20512,
-    /**
-     * @generated from protobuf enum value: ENUM_TYPE_CODE_TYPE = 20513;
-     */
-    CODE_TYPE = 20513,
+    RUN_ERROR_TYPE = 20513,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_RUN_SPAN_TYPE = 20514;
      */
@@ -7749,17 +7729,53 @@ export enum EnumType {
      */
     RUN_EVENT_TYPE = 20515,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_PORT_TYPE = 20516;
+     * @generated from protobuf enum value: ENUM_TYPE_SESSION_STATUS = 20516;
      */
-    PORT_TYPE = 20516,
+    SESSION_STATUS = 20516,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_MODEL_PROVIDER = 20530;
+     * @generated from protobuf enum value: ENUM_TYPE_TRIGGER_TYPE = 20520;
      */
-    MODEL_PROVIDER = 20530,
+    TRIGGER_TYPE = 20520,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_MODEL_TYPE = 20531;
+     * @generated from protobuf enum value: ENUM_TYPE_BREAKPOINT_KIND = 20530;
      */
-    MODEL_TYPE = 20531,
+    BREAKPOINT_KIND = 20530,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_BREAKPOINT_ACTION = 20531;
+     */
+    BREAKPOINT_ACTION = 20531,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_CODE_TYPE = 20540;
+     */
+    CODE_TYPE = 20540,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_MODEL_PROVIDER = 20550;
+     */
+    MODEL_PROVIDER = 20550,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_MODEL_TYPE = 20551;
+     */
+    MODEL_TYPE = 20551,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_STEP_TYPE = 20560;
+     */
+    STEP_TYPE = 20560,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_PIPE_TYPE = 20561;
+     */
+    PIPE_TYPE = 20561,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_PIPE_FILTER_MODE = 20562;
+     */
+    PIPE_FILTER_MODE = 20562,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_PORT_TYPE = 20563;
+     */
+    PORT_TYPE = 20563,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_NOTIFICATION_LEVEL = 20570;
+     */
+    NOTIFICATION_LEVEL = 20570,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_SPACE_TYPE = 21000;
      */
@@ -9016,23 +9032,23 @@ export enum NodeType {
 /**
  * The level of interaction required for a notification.
  *
- * @generated from protobuf enum symbolx.bench.NotificationKind
+ * @generated from protobuf enum symbolx.bench.NotificationLevel
  */
-export enum NotificationKind {
+export enum NotificationLevel {
     /**
-     * @generated from protobuf enum value: NOTIFICATION_KIND_UNSPECIFIED = 0;
+     * @generated from protobuf enum value: NOTIFICATION_LEVEL_UNSPECIFIED = 0;
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: NOTIFICATION_KIND_PASSIVE = 1;
+     * @generated from protobuf enum value: NOTIFICATION_LEVEL_PASSIVE = 1;
      */
     PASSIVE = 1,
     /**
-     * @generated from protobuf enum value: NOTIFICATION_KIND_ACTIVE = 2;
+     * @generated from protobuf enum value: NOTIFICATION_LEVEL_ACTIVE = 2;
      */
     ACTIVE = 2,
     /**
-     * @generated from protobuf enum value: NOTIFICATION_KIND_URGENT = 3;
+     * @generated from protobuf enum value: NOTIFICATION_LEVEL_URGENT = 3;
      */
     URGENT = 3
 }
@@ -9487,6 +9503,23 @@ export enum PathTokenType {
     FIELD = 10
 }
 /**
+ * @generated from protobuf enum symbolx.bench.PipeFilterMode
+ */
+export enum PipeFilterMode {
+    /**
+     * @generated from protobuf enum value: PIPE_FILTER_MODE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: PIPE_FILTER_MODE_DISCARD_EMPTY = 1;
+     */
+    DISCARD_EMPTY = 1,
+    /**
+     * @generated from protobuf enum value: PIPE_FILTER_MODE_DISCARD_INVALID = 2;
+     */
+    DISCARD_INVALID = 2
+}
+/**
  * @generated from protobuf enum symbolx.bench.PipeType
  */
 export enum PipeType {
@@ -9495,13 +9528,13 @@ export enum PipeType {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: PIPE_TYPE_CONTROL = 1;
+     * @generated from protobuf enum value: PIPE_TYPE_THEN = 1;
      */
-    CONTROL = 1,
+    THEN = 1,
     /**
-     * @generated from protobuf enum value: PIPE_TYPE_DATA = 2;
+     * @generated from protobuf enum value: PIPE_TYPE_WITH = 2;
      */
-    DATA = 2
+    WITH = 2
 }
 /**
  * @generated from protobuf enum symbolx.bench.PolicyEffect
@@ -9529,17 +9562,21 @@ export enum PortType {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: PORT_TYPE_CONTROL = 1;
+     * @generated from protobuf enum value: PORT_TYPE_EMPTY = 1;
      */
-    CONTROL = 1,
+    EMPTY = 1,
     /**
-     * @generated from protobuf enum value: PORT_TYPE_VALUE = 2;
+     * @generated from protobuf enum value: PORT_TYPE_DATA = 2;
      */
-    VALUE = 2,
+    DATA = 2,
     /**
-     * @generated from protobuf enum value: PORT_TYPE_FIELD = 3;
+     * @generated from protobuf enum value: PORT_TYPE_ERROR = 3;
      */
-    FIELD = 3
+    ERROR = 3,
+    /**
+     * @generated from protobuf enum value: PORT_TYPE_FIELD = 5;
+     */
+    FIELD = 5
 }
 /**
  * Fundamental column / storage types we support (subset of SQL types, used directly in sql/core).
@@ -13637,7 +13674,9 @@ class PipeData$Type extends MessageType<PipeData> {
             { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.PipeType", PipeType, "PIPE_TYPE_"] },
             { no: 31, name: "source_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 32, name: "source_port", kind: "message", T: () => PortKeyData },
-            { no: 34, name: "target_port", kind: "message", T: () => PortKeyData }
+            { no: 33, name: "target_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 34, name: "target_port", kind: "message", T: () => PortKeyData },
+            { no: 40, name: "filter_mode", kind: "enum", opt: true, T: () => ["symbolx.bench.PipeFilterMode", PipeFilterMode, "PIPE_FILTER_MODE_"] }
         ]);
     }
     create(value?: PartialMessage<PipeData>): PipeData {
@@ -13665,8 +13704,14 @@ class PipeData$Type extends MessageType<PipeData> {
                 case /* symbolx.bench.PortKeyData source_port */ 32:
                     message.sourcePort = PortKeyData.internalBinaryRead(reader, reader.uint32(), options, message.sourcePort);
                     break;
+                case /* symbolx.bench.NodeReferenceData target_ptr */ 33:
+                    message.targetPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.targetPtr);
+                    break;
                 case /* symbolx.bench.PortKeyData target_port */ 34:
                     message.targetPort = PortKeyData.internalBinaryRead(reader, reader.uint32(), options, message.targetPort);
+                    break;
+                case /* optional symbolx.bench.PipeFilterMode filter_mode */ 40:
+                    message.filterMode = reader.int32();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -13692,9 +13737,15 @@ class PipeData$Type extends MessageType<PipeData> {
         /* symbolx.bench.PortKeyData source_port = 32; */
         if (message.sourcePort)
             PortKeyData.internalBinaryWrite(message.sourcePort, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.NodeReferenceData target_ptr = 33; */
+        if (message.targetPtr)
+            NodeReferenceData.internalBinaryWrite(message.targetPtr, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.PortKeyData target_port = 34; */
         if (message.targetPort)
             PortKeyData.internalBinaryWrite(message.targetPort, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.PipeFilterMode filter_mode = 40; */
+        if (message.filterMode !== undefined)
+            writer.tag(40, WireType.Varint).int32(message.filterMode);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -20282,7 +20333,7 @@ class NotificationData$Type extends MessageType<NotificationData> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 22, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 29, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
-            { no: 30, name: "kind", kind: "enum", T: () => ["symbolx.bench.NotificationKind", NotificationKind, "NOTIFICATION_KIND_"] },
+            { no: 30, name: "kind", kind: "enum", T: () => ["symbolx.bench.NotificationLevel", NotificationLevel, "NOTIFICATION_LEVEL_"] },
             { no: 32, name: "type_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 33, name: "expires_at", kind: "message", T: () => Timestamp },
             { no: 34, name: "read_at", kind: "message", T: () => Timestamp },
@@ -20358,7 +20409,7 @@ class NotificationData$Type extends MessageType<NotificationData> {
                     else
                         message.setProperties.push(reader.int32());
                     break;
-                case /* symbolx.bench.NotificationKind kind */ 30:
+                case /* symbolx.bench.NotificationLevel kind */ 30:
                     message.kind = reader.int32();
                     break;
                 case /* symbolx.bench.NodeReferenceData type_ptr */ 32:
@@ -20440,7 +20491,7 @@ class NotificationData$Type extends MessageType<NotificationData> {
                 writer.int32(message.setProperties[i]);
             writer.join();
         }
-        /* symbolx.bench.NotificationKind kind = 30; */
+        /* symbolx.bench.NotificationLevel kind = 30; */
         if (message.kind !== 0)
             writer.tag(30, WireType.Varint).int32(message.kind);
         /* symbolx.bench.NodeReferenceData type_ptr = 32; */
@@ -25087,25 +25138,26 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.SELECTION_KIND]: SelectionKind,
   [EnumType.SELECTION_TARGET]: SelectionTarget,
   [EnumType.PATH_TOKEN_TYPE]: PathTokenType,
-  [EnumType.STEP_TYPE]: StepType,
-  [EnumType.PIPE_TYPE]: PipeType,
   [EnumType.LOG_KIND]: LogKind,
   [EnumType.LOG_LEVEL]: LogLevel,
   [EnumType.RUN_STATUS]: RunStatus,
   [EnumType.RUN_KIND]: RunKind,
   [EnumType.RUN_ERROR_KIND]: RunErrorKind,
   [EnumType.RUN_ERROR_TYPE]: RunErrorType,
+  [EnumType.RUN_SPAN_TYPE]: RunSpanType,
+  [EnumType.RUN_EVENT_TYPE]: RunEventType,
   [EnumType.SESSION_STATUS]: SessionStatus,
   [EnumType.TRIGGER_TYPE]: TriggerType,
-  [EnumType.NOTIFICATION_KIND]: NotificationKind,
   [EnumType.BREAKPOINT_KIND]: BreakpointKind,
   [EnumType.BREAKPOINT_ACTION]: BreakpointAction,
   [EnumType.CODE_TYPE]: CodeType,
-  [EnumType.RUN_SPAN_TYPE]: RunSpanType,
-  [EnumType.RUN_EVENT_TYPE]: RunEventType,
-  [EnumType.PORT_TYPE]: PortType,
   [EnumType.MODEL_PROVIDER]: ModelProvider,
   [EnumType.MODEL_TYPE]: ModelType,
+  [EnumType.STEP_TYPE]: StepType,
+  [EnumType.PIPE_TYPE]: PipeType,
+  [EnumType.PIPE_FILTER_MODE]: PipeFilterMode,
+  [EnumType.PORT_TYPE]: PortType,
+  [EnumType.NOTIFICATION_LEVEL]: NotificationLevel,
   [EnumType.SPACE_TYPE]: SpaceType,
   [EnumType.VIEW_TYPE]: ViewType,
   [EnumType.VARIANT]: Variant,
@@ -25364,25 +25416,26 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.SELECTION_KIND]: SelectionKind,
   [EnumType.SELECTION_TARGET]: SelectionTarget,
   [EnumType.PATH_TOKEN_TYPE]: PathTokenType,
-  [EnumType.STEP_TYPE]: StepType,
-  [EnumType.PIPE_TYPE]: PipeType,
   [EnumType.LOG_KIND]: LogKind,
   [EnumType.LOG_LEVEL]: LogLevel,
   [EnumType.RUN_STATUS]: RunStatus,
   [EnumType.RUN_KIND]: RunKind,
   [EnumType.RUN_ERROR_KIND]: RunErrorKind,
   [EnumType.RUN_ERROR_TYPE]: RunErrorType,
+  [EnumType.RUN_SPAN_TYPE]: RunSpanType,
+  [EnumType.RUN_EVENT_TYPE]: RunEventType,
   [EnumType.SESSION_STATUS]: SessionStatus,
   [EnumType.TRIGGER_TYPE]: TriggerType,
-  [EnumType.NOTIFICATION_KIND]: NotificationKind,
   [EnumType.BREAKPOINT_KIND]: BreakpointKind,
   [EnumType.BREAKPOINT_ACTION]: BreakpointAction,
   [EnumType.CODE_TYPE]: CodeType,
-  [EnumType.RUN_SPAN_TYPE]: RunSpanType,
-  [EnumType.RUN_EVENT_TYPE]: RunEventType,
-  [EnumType.PORT_TYPE]: PortType,
   [EnumType.MODEL_PROVIDER]: ModelProvider,
   [EnumType.MODEL_TYPE]: ModelType,
+  [EnumType.STEP_TYPE]: StepType,
+  [EnumType.PIPE_TYPE]: PipeType,
+  [EnumType.PIPE_FILTER_MODE]: PipeFilterMode,
+  [EnumType.PORT_TYPE]: PortType,
+  [EnumType.NOTIFICATION_LEVEL]: NotificationLevel,
   [EnumType.SPACE_TYPE]: SpaceType,
   [EnumType.VIEW_TYPE]: ViewType,
   [EnumType.VARIANT]: Variant,
@@ -26729,7 +26782,9 @@ export enum PipeProperty {
   type = 30,
   sourcePtr = 31,
   sourcePort = 32,
+  targetPtr = 33,
   targetPort = 34,
+  filterMode = 40,
 }
 
 export enum PortProperty {
@@ -27515,7 +27570,9 @@ export const PipeDataInfo: Record<PipeProperty, PropertyInfo> = {
   [PipeProperty.type]: { id: 30, name: 'type', component: ObjectType.PIPE, enumType: EnumType.PIPE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [PipeProperty.sourcePtr]: { id: 31, name: 'source_ptr', component: ObjectType.PIPE, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.STEP], referenceStruct: StructType.NODE_REFERENCE },
   [PipeProperty.sourcePort]: { id: 32, name: 'source_port', component: ObjectType.PIPE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.PORT_KEY },
+  [PipeProperty.targetPtr]: { id: 33, name: 'target_ptr', component: ObjectType.PIPE, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.STEP], referenceStruct: StructType.NODE_REFERENCE },
   [PipeProperty.targetPort]: { id: 34, name: 'target_port', component: ObjectType.PIPE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.PORT_KEY },
+  [PipeProperty.filterMode]: { id: 40, name: 'filter_mode', component: ObjectType.PIPE, enumType: EnumType.PIPE_FILTER_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
 }
 export const PortDataInfo: Record<PortProperty, PropertyInfo> = {
   [PortProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.PORT, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -27814,7 +27871,7 @@ export const ServerDataInfo: Record<ServerProperty, PropertyInfo> = {
   [ServerProperty.region]: { id: 35, name: 'region', component: ObjectType.SERVER, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.status]: { id: 36, name: 'status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.08.19.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.08.20.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.minCpu]: { id: 50, name: 'min_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 4.0 }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.maxCpu]: { id: 51, name: 'max_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 4.0 }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -27843,7 +27900,7 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.region]: { id: 35, name: 'region', component: ObjectType.STORE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.status]: { id: 36, name: 'status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.08.19.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.08.20.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 50, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 51, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -27869,7 +27926,7 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.region]: { id: 35, name: 'region', component: ObjectType.MACHINE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.status]: { id: 36, name: 'status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.08.19.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.08.20.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 42, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 43, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -28399,7 +28456,7 @@ export const NotificationDataInfo: Record<NotificationProperty, PropertyInfo> = 
   [NotificationProperty.createdByPtr]: { id: 21, name: 'created_by_ptr', component: ObjectType.NOTIFICATION, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [NotificationProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.NOTIFICATION, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [NotificationProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.NOTIFICATION, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
-  [NotificationProperty.kind]: { id: 30, name: 'kind', component: ObjectType.NOTIFICATION, enumType: EnumType.NOTIFICATION_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [NotificationProperty.kind]: { id: 30, name: 'kind', component: ObjectType.NOTIFICATION, enumType: EnumType.NOTIFICATION_LEVEL, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [NotificationProperty.typePtr]: { id: 32, name: 'type_ptr', component: ObjectType.NOTIFICATION, kind: 'reference', constraint: { blockType: 13 }, isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [NotificationProperty.expiresAt]: { id: 33, name: 'expires_at', component: ObjectType.NOTIFICATION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [NotificationProperty.readAt]: { id: 34, name: 'read_at', component: ObjectType.NOTIFICATION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
