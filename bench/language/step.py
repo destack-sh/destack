@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Optional, Union, cast, final
+from typing import TYPE_CHECKING, Any, Optional, Union, assert_never, cast, final
 
 from bench.language.const import BlockType, EnumType, FieldZone, NodeType, StructType, enum_
 from bench.language.field import TypeInfoBase
@@ -78,9 +78,15 @@ class StepType(IdEnum):
 
 @enum_(EnumType.PIPE_TYPE)
 class PipeType(IdEnum):
-    CONTROL = 1  # trigger + data
-    DATA = 2  # data (only)
+    THEN = 1  # data + trigger
+    WITH = 2  # data (only)
     ...
+
+
+@enum_(EnumType.PIPE_FILTER_MODE)
+class PipeFilterMode(IdEnum):
+    DISCARD_EMPTY = 1  # discard empty (None or empty list)
+    DISCARD_INVALID = 2  # discard invalid (instead of error)
 
 
 @struct_(StructType.PIPE)
@@ -94,17 +100,24 @@ class Pipe(Struct):
     type: PipeType = p_internal(30)
     source: "Step" = p_regular(31, require=True, references=NodeType.STEP)
     source_port: "PortKey" = p_regular(32, require=True, struct=StructType.PORT_KEY)
+    target: "Step" = p_regular(33, require=True, references=NodeType.STEP)
     target_port: "PortKey" = p_regular(34, require=True, struct=StructType.PORT_KEY)
 
     # filter/mapping/casting
+    filter_mode: PipeFilterMode | None = p_regular(40, default=None)
     ...
+
+    def __content_str__(self) -> str:
+        arrow_str = ">" if self.type == PipeType.THEN else "->"
+        return f"{self.source.absolute_path}:{self.source_port} {arrow_str} {self.target.absolute_path}:{self.target_port}"
 
 
 @enum_(EnumType.PORT_TYPE)
 class PortType(IdEnum):
-    CONTROL = 1  # trigger
-    VALUE = 2  # entire input/output value (depending on side)
-    FIELD = 3  # specific input/output field (depending on side & type)
+    EMPTY = 1  # trigger only (no data)
+    DATA = 2  # full input/output value (depending on side)
+    ERROR = 3  # error in case of failure (output only)
+    FIELD = 5  # specific input/output field (depending on side & type)
 
 
 @struct_(StructType.PORT_KEY)
@@ -115,6 +128,18 @@ class PortKey(Struct):
     type: PortType = p_internal(30)
     zone: FieldZone = p_regular(31)
     field: Optional["Field"] = p_regular(32, require=False, references=NodeType.FIELD)
+
+    def __content_str__(self) -> str:
+        if self.type == PortType.EMPTY:
+            return "?"
+        elif self.type == PortType.DATA:
+            return f"{self.zone.bench_name}"
+        elif self.type == PortType.ERROR:
+            return "!"
+        elif self.type == PortType.FIELD:
+            return f"{self.field.py_name if self.field else '???'}"
+        else:
+            assert_never(self.type)
 
 
 @struct_(StructType.PORT)
@@ -214,28 +239,53 @@ class Step(SourceNode[StepData]):
 
     def connect(
         self,
+        type: PipeType,
         source: "Step",
-        type: PipeType = PipeType.CONTROL,
+        *,
+        field: "Field | None" = None,
         source_field: "Field | None" = None,
         target_field: "Field | None" = None,
+        filter_mode: PipeFilterMode | None = None,
     ) -> "Pipe":
         """Connects a source Step to this Step."""
         pipe = Pipe(
             type=type,
             source=source,
             source_port=PortKey(
-                type=PortType.VALUE if not source_field else PortType.FIELD,
-                zone=FieldZone.INPUT,
+                type=PortType.DATA if not source_field else PortType.FIELD,
+                zone=FieldZone.OUTPUT,
                 field=source_field,
             ),
+            target=self,
             target_port=PortKey(
-                type=PortType.VALUE if not target_field else PortType.FIELD,
-                zone=FieldZone.OUTPUT,
+                type=PortType.DATA if not target_field else PortType.FIELD,
+                zone=FieldZone.INPUT,
                 field=target_field,
             ),
+            filter_mode=filter_mode,
         )
         self.pipes.append(pipe)
         return pipe
+
+    def then(
+        self,
+        target: "Step",
+        *,
+        field: "Field | None" = None,
+        source_field: "Field | None" = None,
+        target_field: "Field | None" = None,
+        filter_mode: PipeFilterMode | None = None,
+    ) -> "Step":
+        """Connects a source Step to this Step as a Then. Returns the target Step (for chaining)."""
+        _ = target.connect(
+            type=PipeType.THEN,
+            source=self,
+            field=field,
+            source_field=source_field,
+            target_field=target_field,
+            filter_mode=filter_mode,
+        )
+        return target
 
     def to_type(self, as_object: bool = True, zone: FieldZone | None = None):
         """Gets a type represented by this Step (if any)"""
