@@ -9,8 +9,8 @@ from bench.language import NodeReference
 from bench.proto import wire
 from bench.proto.services import ServiceBase
 from bench.proto.wire import CreateBenchRequest, HostClient, SupervisorClient
-from bench.system.host.host import Host
-from bench.system.supervisor.supervisor import Supervisor
+from bench.system.host.service import HostService
+from bench.system.supervisor.service import SupervisorService
 from bench.system.utils.sharding import HostMap
 from bench.test.simulation.spec import HostSpec, ServiceSpec, SupervisorSpec
 from bench.test.simulation.transport import SimulatedChannel
@@ -71,10 +71,10 @@ class ServiceHandle[SpecT: ServiceSpec, S: ServiceBase, C: ServiceStub](abc.ABC)
 
 
 @final
-class SupervisorHandle(ServiceHandle[SupervisorSpec, Supervisor, SupervisorClient]):
+class SupervisorHandle(ServiceHandle[SupervisorSpec, SupervisorService, SupervisorClient]):
     """A global Supervisor"""
 
-    service_cls = Supervisor
+    service_cls = SupervisorService
     client_cls = SupervisorClient
 
     def __repr__(self) -> str:
@@ -82,7 +82,7 @@ class SupervisorHandle(ServiceHandle[SupervisorSpec, Supervisor, SupervisorClien
 
     @override
     async def _do_start(self):
-        service = Supervisor(
+        service = SupervisorService(
             global_store=self.simulation.global_store, oracle=self.oracle, host_map=HostMap({})
         )
         await service.start()
@@ -94,7 +94,7 @@ class SupervisorHandle(ServiceHandle[SupervisorSpec, Supervisor, SupervisorClien
 
 
 @final
-class HostHandle(ServiceHandle[HostSpec, Host, HostClient]):
+class HostHandle(ServiceHandle[HostSpec, HostService, HostClient]):
     """A Host for a Bench"""
 
     def __init__(self, id: str, spec: HostSpec, oracle: Oracle, simulation: "Simulation"):
@@ -126,8 +126,8 @@ class HostHandle(ServiceHandle[HostSpec, Host, HostClient]):
         self._bench_id = UUID(create_bench_rep.bench.id)
 
     @override
-    async def _do_start(self) -> Host:
-        service = Host(
+    async def _do_start(self) -> HostService:
+        service = HostService(
             bench_id=self.bench_id, global_store=self.simulation.global_store, oracle=self.oracle
         )
         await service.start()

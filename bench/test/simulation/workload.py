@@ -130,7 +130,7 @@ class WorkloadBase[SpecT: WorkloadSpec](abc.ABC):
             repeat_interval = to_value(self.random, self.spec.repeat_interval)
             while n_runs <= repeat:
                 with tracer.start_as_current_span(f"workload.{self.name}"):
-                    await self._do_run()
+                    await self._do_run_once()
                     self.log.info("workload.run", run=n_runs, span="current")
                     await self.oracle.sleep(repeat_interval)
                 n_runs += 1
@@ -138,7 +138,7 @@ class WorkloadBase[SpecT: WorkloadSpec](abc.ABC):
             self._terminated_at_ns = self.oracle.time_ns()
 
     @abc.abstractmethod
-    async def _do_run(self):
+    async def _do_run_once(self):
         """Runs one repetition of the workload."""
         raise NotImplementedError
 
@@ -284,13 +284,13 @@ class SingleClientWorkloadBase[SpecT: SingleClientWorkloadSpec](WorkloadBase[Spe
 
     @override
     @final
-    async def _do_run(self):
+    async def _do_run_once(self):
         async with self.session.active(readonly=False):
-            await self._do_run_in_session(self.session)
+            await self._do_run_once_in_session(self.session)
             await self.session.commit()
 
     @abc.abstractmethod
-    async def _do_run_in_session(self, session: Session):
+    async def _do_run_once_in_session(self, session: Session):
         """Runs one repetition of the workload in the given session."""
         raise NotImplementedError
 
@@ -324,7 +324,7 @@ class WriteBlockTreeWorkload(SingleClientWorkloadBase[WriteBlockTreeSpec]):
         self.pkg = await get_package(self.bench_id, session, live=self.spec.live)
 
     @override
-    async def _do_run_in_session(self, session: Session):
+    async def _do_run_once_in_session(self, session: Session):
         assert self.pkg is not None, f"{self!r} not ready"
         max_transactions = to_value(self.random, self.spec.transactions)
         n_transactions = 0
@@ -386,7 +386,7 @@ class ReadPackageWorkload(SingleClientWorkloadBase[ReadPackageSpec]):
         self.pkg = await get_package(self.bench_id, session, live=self.spec.live)
 
     @override
-    async def _do_run_in_session(self, session: Session):
+    async def _do_run_once_in_session(self, session: Session):
         pass  # nothing to do?
 
     @override
@@ -426,7 +426,7 @@ class WatchLogsWorkload(SingleClientWorkloadBase[WatchLogsSpec]):
         return self.connection.result.roots
 
     @override
-    async def _do_run_in_session(self, session: Session):
+    async def _do_run_once_in_session(self, session: Session):
         pass  # nothing to do?
 
     @override

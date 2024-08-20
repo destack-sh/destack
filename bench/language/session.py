@@ -83,7 +83,7 @@ if TYPE_CHECKING:
         Step,
         User,
     )
-    from bench.runtime.runner import RuntimeRunner
+    from bench.runtime.runtime import Runtime
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -154,7 +154,7 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
     _active_session_token: contextvars.Token | None = p_runtime(default=None)
     _rpc_metadata: RpcMetadata | None = p_runtime(default=None)
     _rpc_headers: dict[str, str] | None = p_runtime(default=None)
-    _runner: Optional["RuntimeRunner"] = p_runtime(default=None)
+    _runtime: Optional["Runtime"] = p_runtime(default=None)
     _supervisor: Optional["SupervisorClient"] = p_runtime(default=None)
     _host: Optional["HostClient"] = p_runtime(default=None)
 
@@ -219,9 +219,9 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
         return self._is_suspended
 
     @property
-    def runtime(self) -> "RuntimeRunner":
-        assert self._runner is not None, f"no runner in {self!r}"
-        return self._runner
+    def runtime(self) -> "Runtime":
+        assert self._runtime is not None, f"no runner in {self!r}"
+        return self._runtime
 
     @property
     def host(self) -> HostClient:
@@ -528,7 +528,7 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
         # but it could change..
 
         # if we have an active run, that's the subject
-        run = self._runner.active_run if self._runner is not None else None
+        run = self._runtime.active_run if self._runtime is not None else None
         if run is not None:
             # if run has a step/block, use that
             if run.step_ptr:

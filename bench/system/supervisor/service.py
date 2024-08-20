@@ -67,7 +67,7 @@ USE_WAITLIST = get_from_env(
 )
 
 
-class Supervisor(GraphIoServiceBase, SupervisorBase):
+class SupervisorService(GraphIoServiceBase, SupervisorBase):
     kind = ServiceKind.PUBLIC  # :ServiceKind
 
     def __init__(self, global_store: Store, oracle: Oracle, host_map: HostMap):

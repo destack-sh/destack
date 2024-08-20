@@ -42,17 +42,19 @@ async def _do_serve(
 async def system(
     host: str, port: int, watch: bool = False, no_supervisor: bool = False, no_check: bool = False
 ):
-    from bench.system.host.host import HostRouter
-    from bench.system.supervisor.supervisor import Supervisor
+    from bench.system.host.service import HostRouterService
+    from bench.system.supervisor.service import SupervisorService
     from bench.system.utils.session import system_store_from_env
     from bench.system.utils.sharding import host_map_from_env
 
     global_store = system_store_from_env()
-    host_router = HostRouter(global_store=global_store, oracle=REAL_ORACLE)
+    host_router = HostRouterService(global_store=global_store, oracle=REAL_ORACLE)
     host_map = host_map_from_env()
     services: list[ServiceBase] = [host_router]
     if not no_supervisor:
-        supervisor = Supervisor(global_store=global_store, oracle=REAL_ORACLE, host_map=host_map)
+        supervisor = SupervisorService(
+            global_store=global_store, oracle=REAL_ORACLE, host_map=host_map
+        )
         services.append(supervisor)
     await _do_serve(handlers=services, host=host, port=port, watch=watch, no_check=no_check)
 
@@ -60,34 +62,34 @@ async def system(
 @app.command()
 @async_to_sync_blocking
 async def supervisor(host: str, port: int, watch: bool = False, no_check: bool = False):
-    from bench.system.supervisor.supervisor import Supervisor
+    from bench.system.supervisor.service import SupervisorService
     from bench.system.utils.session import system_store_from_env
     from bench.system.utils.sharding import host_map_from_env
 
     global_store = system_store_from_env()
     host_map = host_map_from_env()
-    supervisor = Supervisor(global_store=global_store, oracle=REAL_ORACLE, host_map=host_map)
+    supervisor = SupervisorService(global_store=global_store, oracle=REAL_ORACLE, host_map=host_map)
     await _do_serve(handlers=[supervisor], host=host, port=port, watch=watch, no_check=no_check)
 
 
 @app.command()
 @async_to_sync_blocking
 async def host(host: str, port: int, watch: bool = False, no_check: bool = False):
-    from bench.system.host.host import HostRouter
+    from bench.system.host.service import HostRouterService
     from bench.system.utils.session import system_store_from_env
 
     global_store = system_store_from_env()
-    host_router = HostRouter(global_store=global_store, oracle=REAL_ORACLE)
+    host_router = HostRouterService(global_store=global_store, oracle=REAL_ORACLE)
     await _do_serve(handlers=[host_router], host=host, port=port, watch=watch, no_check=no_check)
 
 
 @app.command()
 @async_to_sync_blocking
 async def runtime(host: str, port: int, watch: bool = False):
-    from bench.runtime.runtime import Runtime
+    from bench.runtime.service import RuntimeService
 
     logger.info("serve.runtime", host=host, port=port, env=ENV)
-    runtime = Runtime(
+    runtime = RuntimeService(
         supervisor_url=get_from_env("SUPERVISOR_URL", description="Supervisor URL"),
         bench_id=get_from_env("BENCH_ID", typ=UUID, description="Node of current Bench"),
         client_type=get_from_env("CLIENT_TYPE", typ=ClientType, description="Type of client"),
