@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.08.20.0"
+VERSION = "2024.08.21.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -897,7 +897,6 @@ STEP_TABLE = Table(
         Column("icon", PrimitiveType.JSON, is_nullable=True),
         Column("run_options", PrimitiveType.JSON, is_nullable=True),
         Column("pipes", PrimitiveType.JSON, is_array=True),
-        Column("ports", PrimitiveType.JSON, is_array=True),
         Column("value_type", PrimitiveType.JSON, is_nullable=True),
         Column("value_packed", PrimitiveType.JSON, is_nullable=True),
         Column("node_id", PrimitiveType.UUID, is_nullable=True),

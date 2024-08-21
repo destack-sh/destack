@@ -2,7 +2,7 @@ import abc
 import asyncio
 import dataclasses
 from dataclasses import dataclass
-from typing import ClassVar
+from typing import ClassVar, dataclass_transform
 from uuid import UUID
 
 import structlog
@@ -26,14 +26,14 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
-RunnableNode = Block | Step | None
-RunSubtype = CodeType | StepType | ModelProvider | None
+RunnableNode = Block | Step
+RunSubtype = CodeType | StepType | ModelProvider
 
 
 @dataclass(slots=True)
-class RunnerState[T: RunnableNode]:
+class RunnerCache[T: RunnableNode]:
     """
-    The state of some runnable unit (Node or something within).
+    The cached state of some runnable unit (Node or something within).
     May persist across runs (i.e. across Runners).
     """
 
@@ -58,14 +58,14 @@ class RunnerState[T: RunnableNode]:
 
 
 @dataclass(slots=True)
-class Runner[S: RunnerState, T: RunnableNode](abc.ABC):
+class Runner[S: RunnerCache, T: RunnableNode](abc.ABC):
     """A runner for a single run (tracked or untracked)."""
 
-    state_cls: ClassVar[type[RunnerState]] = RunnerState
+    cache_cls: ClassVar[type[RunnerCache]] = RunnerCache
 
     id: UUID  # Run.id if tracked, new otherwise
     runtime: "Runtime"
-    state: S
+    cache: S
     options: RunOptions
     parent: "Runner | None"  # if nested
     status: RunStatus
@@ -80,7 +80,7 @@ class Runner[S: RunnerState, T: RunnableNode](abc.ABC):
     run: Run | None = None  # if tracked
 
     def __str__(self):
-        str_parts: list[str] = [f"runnable={self.state!r}", f"options={self.options!r}"]
+        str_parts: list[str] = [f"runnable={self.cache!r}", f"options={self.options!r}"]
         if self.attempts:
             str_parts.append(f"attempts={self.attempts}")
         if self.run:
@@ -97,27 +97,27 @@ class Runner[S: RunnerState, T: RunnableNode](abc.ABC):
 
     @property
     def kind(self) -> RunKind:
-        return self.state.kind
+        return self.cache.kind
 
     @property
     def node(self) -> T:
-        return self.state.node
+        return self.cache.node
 
     @property
     def code(self) -> Code | None:
-        return self.state.code
+        return self.cache.code
 
     @property
     def text(self) -> Text | None:
-        return self.state.text
+        return self.cache.text
 
     @property
     def variables(self) -> ValueObject | None:
-        return self.state.variables
+        return self.cache.variables
 
     @property
     def key(self) -> RunSubtype | None:
-        return self.state.subtype
+        return self.cache.subtype
 
     @property
     def current_attempt(self) -> RunAttempt | None:
@@ -132,12 +132,14 @@ class Runner[S: RunnerState, T: RunnableNode](abc.ABC):
 _runners: dict[tuple[RunKind, RunSubtype | None], type[Runner]] = {}
 
 
+@dataclass_transform()
 def runner(kind: RunKind, typ: RunSubtype | None = None):
     """Registers a Runner for a specific RunnableType."""
 
-    def decorator(cls: type[Runner]):
+    def decorator(cls):
         if (kind, typ) in _runners:
             raise ValueError(f"runner already registered for {typ}: {_runners[(kind, typ)]!r}")
+        cls = dataclass(cls, repr=False, slots=True)  # type: ignore
         _runners[(kind, typ)] = cls
         return cls
 

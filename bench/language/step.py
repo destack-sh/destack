@@ -1,6 +1,14 @@
 from typing import TYPE_CHECKING, Any, Optional, Union, assert_never, cast, final
 
-from bench.language.const import BlockType, EnumType, FieldZone, NodeType, StructType, enum_
+from bench.language.const import (
+    BlockType,
+    EnumType,
+    FieldZone,
+    NodeType,
+    StructType,
+    TypeKind,
+    enum_,
+)
 from bench.language.field import TypeInfoBase
 from bench.language.graph import NodeList
 from bench.language.node import SourceNode, Struct, local_node_, struct_
@@ -197,7 +205,6 @@ class Step(SourceNode[StepData]):
         36, default=None, require=False, array=False, struct=StructType.RUN_OPTIONS
     )
     pipes: list[Pipe] = p_regular(37, array=True, struct=StructType.PIPE)
-    ports: list[Port] = p_regular(38, array=True, struct=StructType.PORT)
 
     # content
     value_type: Optional["TypeInfo"] = p_regular(40, default=None, struct=StructType.TYPE_INFO)
@@ -311,7 +318,18 @@ class Step(SourceNode[StepData]):
 
     def to_type(self, as_object: bool = True, zone: FieldZone | None = None):
         """Gets a type represented by this Step (if any)"""
-        raise NotImplementedError
+        if self.type == StepType.START:
+            assert self.parent is not None, f"{self!r} has no parent"
+            return self.parent.input_type
+        elif self.type == StepType.COMPLETE:
+            assert self.parent is not None, f"{self!r} has no parent"
+            return self.parent.output_type
+        else:
+            if not as_object:
+                typ = TypeInfo(kind=TypeKind.BASED_NODE, base_type=self, bench_type=NodeType.RUN)
+            else:
+                typ = TypeInfo(kind=TypeKind.OBJECT, base_type=self, base_field_zone=zone)
+            return typ
 
     @property
     def input_type(self) -> "TypeInfoBase":
@@ -320,6 +338,22 @@ class Step(SourceNode[StepData]):
     @property
     def output_type(self) -> "TypeInfoBase":
         return self.to_type(as_object=True, zone=FieldZone.OUTPUT)
+
+    @property
+    def incoming_ports(self) -> list[PortKey]:
+        ports: list[PortKey] = []  # no dynamic ports yet :StaticSteps
+        for field in self.input_type._fields:
+            port = PortKey(type=PortType.FIELD, zone=FieldZone.INPUT, field=field)
+            ports.append(port)
+        return ports
+
+    @property
+    def outgoing_ports(self) -> list[PortKey]:
+        ports: list[PortKey] = []  # no dynamic ports yet :StaticSteps
+        for field in self.output_type._fields:
+            port = PortKey(type=PortType.FIELD, zone=FieldZone.OUTPUT, field=field)
+            ports.append(port)
+        return ports
 
     @staticmethod
     def new(typ: StepType, name: str, **kwargs):

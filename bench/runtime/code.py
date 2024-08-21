@@ -24,7 +24,7 @@ from bench.runtime.core import SyntaxError
 from bench.runtime.runner import (
     RunnableNode,
     Runner,
-    RunnerState,
+    RunnerCache,
     runner,
 )
 
@@ -35,17 +35,17 @@ tracer = trace.get_tracer(__name__)
 
 
 @dataclass(slots=True)
-class CodeRunnerState[T: RunnableNode](RunnerState[T]):
+class CodeRunnerCache[T: RunnableNode](RunnerCache[T]):
     compiled: "CompiledCode | None" = None
     exports: Mapping[str, Any] | None = None  # for scripts
     last_expr_value: Any | None = None  # for snippets
 
 
 @dataclass(slots=True)
-class CodeRunnerBase[T: RunnableNode](Runner[CodeRunnerState[T], T]):
+class CodeRunnerBase[T: RunnableNode](Runner[CodeRunnerCache[T], T]):
     """Common base for compiling and running code."""
 
-    state_cls = CodeRunnerState
+    cache_cls = CodeRunnerCache
 
     def __post_init__(self):
         self.log_sink = LogSink(
@@ -55,18 +55,18 @@ class CodeRunnerBase[T: RunnableNode](Runner[CodeRunnerState[T], T]):
     @tracer.start_as_current_span("code.compile")
     async def _compile_code(self, kind: CodeType) -> CompiledCode:
         """Prepares valid compiled code (raises SyntaxError if invalid)."""
-        assert self.state.code, f"no code for {self!r}"
-        compiled = self.state.compiled
+        assert self.cache.code, f"no code for {self!r}"
+        compiled = self.cache.compiled
         if compiled is None:
-            self.state.compiled = compiled = compile_code(
-                self.state.code.to_string(),
+            self.cache.compiled = compiled = compile_code(
+                self.cache.code.to_string(),
                 kind,
                 self.runtime.combined_glbls,
             )
         if compiled.syntax_error:
             syntax_e = compiled.syntax_error
             # wrap in our own SyntaxError
-            wrapped = SyntaxError(self.state.code.to_string())
+            wrapped = SyntaxError(self.cache.code.to_string())
             if syntax_e.lineno is not None and syntax_e.offset is not None:
                 wrapped.lineno, wrapped.offset = compiled.transformation.reverse(
                     syntax_e.lineno, syntax_e.offset
@@ -91,7 +91,7 @@ class CodeRunnerBase[T: RunnableNode](Runner[CodeRunnerState[T], T]):
     @tracer.start_as_current_span("code.prepare_context")
     def _prepare_glbls(self) -> dict[str, Any]:
         """Prepares the context for running the code."""
-        assert self.state.compiled, f"no compiled code for {self!r}"
+        assert self.cache.compiled, f"no compiled code for {self!r}"
 
         # assemble globals
         assert self.node is not None, f"no node scope for {self!r}"
@@ -119,7 +119,7 @@ class CodeRunnerBase[T: RunnableNode](Runner[CodeRunnerState[T], T]):
         # references
         # NOTE :Incomplete: handle references to exported definitions (not just node references)
         resolved_references = {}
-        for reference_name in self.state.compiled.references:
+        for reference_name in self.cache.compiled.references:
             reference = get_node_or_error(self.node, f"^{reference_name}")
             resolved_references[reference_name] = reference
         glbls.update(resolved_references)  # may shadow existing glbls
@@ -166,7 +166,7 @@ class CodeScriptRunner(CodeRunnerBase):
             else:
                 exec(compiled.body_co, glbls)
         exports = {defn: glbls[defn] for defn in compiled.definitions}
-        self.state.exports = exports
+        self.cache.exports = exports
 
 
 @runner(RunKind.CODE, CodeType.FUNCTION)
