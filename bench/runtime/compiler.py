@@ -719,10 +719,13 @@ def compile_code(
             flags=ast.PyCF_ALLOW_TOP_LEVEL_AWAIT,
         )
         is_coroutine = _is_coroutine(module)
+        del module
         if is_coroutine:
-            transformed_code = f"async def {function_name}():\n{textwrap.indent(code, 4 * " ")}"
+            transformed_code = (
+                f"async def {function_name}():\n{textwrap.indent(code or 'pass', 4 * " ")}"
+            )
         else:
-            transformed_code = f"def {function_name}():\n{textwrap.indent(code, 4 * " ")}"
+            transformed_code = f"def {function_name}():\n{textwrap.indent(code or 'pass', 4 * " ")}"
         transformation = transformation + CodeTransformation(line_offset=1, column_offset=4)
     else:
         is_coroutine = None

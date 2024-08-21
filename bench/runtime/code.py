@@ -1,3 +1,4 @@
+import dataclasses
 import functools
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -46,6 +47,7 @@ class CodeRunnerBase[T: RunnableNode](Runner[CodeRunnerCache[T], T]):
     """Common base for compiling and running code."""
 
     cache_cls = CodeRunnerCache
+    log_sink: LogSink = dataclasses.field(init=False)
 
     def __post_init__(self):
         self.log_sink = LogSink(

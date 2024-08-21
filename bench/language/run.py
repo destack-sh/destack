@@ -261,9 +261,11 @@ class RunErrorType(IdEnum):
     CODE_INVALID = 20
     TEXT_INVALID = 21
     MODEL_INCAPABLE = 100
+    MANUAL_NONRETRYABLE = 498
     UNKNOWN_NONRETRYABLE = 499
     # retryable
     MODEL_FAILED = 500
+    MANUAL_RETRYABLE = 998
     UNKNOWN_RETRYABLE = 999
 
     @property
@@ -299,6 +301,8 @@ class RunError(Struct, BenchError):
     @staticmethod
     def from_exception(kind: RunErrorKind, e: Exception) -> "RunError":
         # NOTE :Incomplete: get run error trace/frames/node/...
+        if isinstance(getattr(e, "error", None), RunError):
+            return getattr(e, "error")  # manual error
         title = to_casing(e.__class__.__name__, Casing.CAMEL, allow_whitespace=True)
         text = Text.plain(str(e))
         if hasattr(e, "run_error_type"):

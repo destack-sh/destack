@@ -87,8 +87,6 @@ class ValueObject(Mapping[str, Any]):
         "_type",
         "_value",
         "ancestor_prop",
-        "id",
-        "order_key",
         "parent",
         "parent_id",
         "parent_prop",

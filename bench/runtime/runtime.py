@@ -163,6 +163,7 @@ class Runtime:
                 inputs=runner.inputs,
                 attempts=runner.attempts,
             )
+            self.session._create(run)
             runner.run = run
 
         return runner

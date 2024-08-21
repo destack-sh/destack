@@ -12,7 +12,7 @@ from bench.language.const import BenchError
 from bench.language.file import upload
 from bench.language.node import Node
 from bench.language.path import get_node
-from bench.language.run import RunErrorType, RunKind, RunOptions
+from bench.language.run import RunError, RunErrorType, RunKind, RunOptions
 from bench.language.setup import BENCH_CLASS_BY_NAME
 from bench.runtime.capture import LogSink
 
@@ -45,6 +45,22 @@ class RetryableError(RuntimeError):
 
 class NonRetryableError(RuntimeError):
     run_error_type = RunErrorType.UNKNOWN_NONRETRYABLE
+
+
+class ManualRetryableError(RetryableError):
+    def __init__(self, error: RunError):
+        super().__init__(error.title)
+        self.error = error
+
+    run_error_type = RunErrorType.MANUAL_RETRYABLE
+
+
+class ManualNonRetryableError(NonRetryableError):
+    def __init__(self, error: RunError):
+        super().__init__(error.title)
+        self.error = error
+
+    run_error_type = RunErrorType.MANUAL_NONRETRYABLE
 
 
 class RunImpossibleError(NonRetryableError):

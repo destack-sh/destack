@@ -3,25 +3,31 @@ import dataclasses
 from asyncio import Queue
 from enum import IntEnum
 from typing import Any, override
+from uuid import UUID
 
+import structlog
 from attr import dataclass
+from opentelemetry import trace
 
 from bench.language.block import Block
-from bench.language.code import Code
+from bench.language.code import Code, CodeType
 from bench.language.const import FieldZone, RunStatus
-from bench.language.field import Field, TypeInfoBase
+from bench.language.field import TypeInfoBase
 from bench.language.run import Run, RunError, RunKind
 from bench.language.step import Pipe, PipeType, PortKey, PortType, Step, StepType
 from bench.language.text import Text
 from bench.language.value import ValueObject
-from bench.runtime.core import RUN_ONCE, RunImpossibleError
+from bench.runtime.core import RUN_ONCE, ManualRetryableError, RunImpossibleError
 from bench.runtime.runner import Runner, RunnerCache, runner
 
-PortId = tuple[PortType, FieldZone, Field | None]
+logger = structlog.get_logger(__name__)
+tracer = trace.get_tracer(__name__)
+
+PortId = tuple[FieldZone, PortType, UUID | None]
 
 
 def to_port_id(port: PortKey) -> PortId:
-    return (port.type, port.zone, port.field)
+    return (port.zone, port.type, port.field.id if port.field is not None else None)
 
 
 class TriggerType(IntEnum):
@@ -29,7 +35,7 @@ class TriggerType(IntEnum):
     FULL = 2
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, repr=False)
 class StepState:
     """The full state of a Step (waiting or active) in a Flow."""
 
@@ -39,7 +45,7 @@ class StepState:
     unset_ports: dict[PortId, PortKey]
 
     def __str__(self) -> str:
-        return f"{self.step!r}, inputs={self.inputs!r}, unset={len(self.unset_ports)}"
+        return f"{self.step!r}, inputs={self.inputs!r}, unset_ports={len(self.unset_ports)}"
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} {self}>"
@@ -50,17 +56,24 @@ class StepState:
 
     def set_port(self, port: PortKey, value: ValueObject | RunError | Any) -> None:
         """Sets the value of an incoming port."""
-        port_id = to_port_id(port)
         if port.type == PortType.DATA:
             if not isinstance(value, ValueObject):
                 raise ValueError(f"expected value for {self.step!r}, got {value!r}")
+            # set all field ports
             for output_field in value.fields:
-                self.inputs[output_field] = value[output_field]
-                port_id = (PortType.FIELD, FieldZone.OUTPUT, output_field)
-                self.unset_ports.pop(port_id, None)
+                input_field = self.input_type._get_field(output_field.name)
+                if input_field is None:
+                    continue  # ignore unknown field
+                # set port
+                field_value = value.get(output_field.name)
+                if field_value is not None:
+                    self.inputs[input_field] = field_value
+                field_port_id = (FieldZone.INPUT, PortType.FIELD, input_field.id)
+                self.unset_ports.pop(field_port_id, None)
         elif port.type == PortType.FIELD:
+            # set specific field port
             assert port.field is not None, f"{port!r} has no field"
-            self.unset_ports.pop(port_id, None)
+            self.unset_ports.pop(to_port_id(port), None)
             self.inputs[port.field] = value
         else:
             raise NotImplementedError(f"cannot set {port!r}")
@@ -86,6 +99,8 @@ class FlowRunner(Runner[RunnerCache, Block]):
         runner = await self.runtime.make_runner(
             kind=RunKind.STEP,
             node=step_state.step,
+            code=step_state.step.code,
+            text=step_state.step.text,
             inputs=step_state.inputs.clone(),
             options=RUN_ONCE,
             track=True,
@@ -104,10 +119,12 @@ class FlowRunner(Runner[RunnerCache, Block]):
 
     async def _start_run(self, state: StepState) -> None:
         """Run a Step in the Flow."""
+        # nocheckin: start it async
         runner = await self._make_runner(state)
         assert runner.run is not None, f"{runner!r} has no Run (is not tracked)"
         try:
             self._active_runners[runner.run] = runner
+            logger.debug("flow.start", step=state.step, run=runner.run)
             await self.runtime.run_runner(runner)
             if runner.status != RunStatus.ABORTED:
                 self._terminated_runs.put_nowait((runner.node, runner.run))
@@ -132,7 +149,7 @@ class FlowRunner(Runner[RunnerCache, Block]):
             target_state = self._step_states[pipe.target]
             if run.status == RunStatus.COMPLETED:
                 if pipe.source_port.type == PortType.EMPTY:
-                    # just trigger
+                    # force trigger
                     _fire_pipe(pipe, target_state, TriggerType.FULL)
                 elif pipe.source_port.type == PortType.DATA:
                     # full value
@@ -152,10 +169,15 @@ class FlowRunner(Runner[RunnerCache, Block]):
             else:
                 raise RuntimeError(f"unexpected run status: {run!r}")
 
-        # start triggered steps
-        for step_state in self._step_states.values():
-            if step_state.step in triggered_steps and step_state.is_ready:
-                await self._start_run(step_state)
+        # start triggered steps (in order of definition)
+        steps_to_start = [
+            step_state
+            for step_state in self._step_states.values()
+            if step_state.step in triggered_steps and step_state.is_ready
+        ]
+        logger.trace("flow.fire", step=step, run=run, to_start=steps_to_start)
+        for step_state in steps_to_start:
+            await self._start_run(step_state)
 
     @override
     async def run_once(self) -> None:
@@ -183,6 +205,12 @@ class FlowRunner(Runner[RunnerCache, Block]):
                 step, run = await self._terminated_runs.get()
                 assert run.status.is_terminal, f"{run!r} is not terminated"
                 await self._fire_run(step, run)
+
+            # set forced output/error
+            if isinstance(self._force_complete, ValueObject):
+                self.outputs = self._force_complete
+            if self._force_fail:
+                raise ManualRetryableError(self._force_fail)
         except Exception:
             # cancel all active steps
             for runner in self._active_runners.values():
@@ -242,6 +270,7 @@ class CodeStepRunner(StepRunnerBase):
         code = self.code or Code.empty()
         code_runner = await self.runtime.make_runner(
             kind=RunKind.CODE,
+            subtype=CodeType.FUNCTION,
             node=self.node,
             code=code,
             options=RUN_ONCE,
