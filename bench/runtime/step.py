@@ -120,11 +120,11 @@ class FlowRunner(Runner[RunnerCache, Block]):
         for runner in self._active_runners.values():
             if runner.node.type.is_boundary:
                 continue  # don't abort boundary steps
+            logger.trace("step.abort", step=runner.node, runner=runner)
             if runner.inner_task is not None:
                 runner.inner_task.cancel()
             if runner.outer_task is not None:
                 runner.outer_task.cancel()
-            logger.trace("step.abort", step=runner.node, runner=runner)
 
     def _complete(self, outputs: ValueObject | None) -> None:
         """Complete the Flow immediately. Aborts current other steps. Noop if already done."""
@@ -156,10 +156,9 @@ class FlowRunner(Runner[RunnerCache, Block]):
         assert runner.run is not None, f"{runner!r} has no Run"
         try:
             await self.runtime.run_runner(runner)
-            if runner.status != RunStatus.ABORTED:
-                self._terminated_runs.put_nowait((runner.node, runner.run))
         finally:
-            logger.trace("step.terminate", step=runner.node, runner=runner)
+            self._terminated_runs.put_nowait((runner.node, runner.run))
+            logger.trace("step.terminated", step=runner.node, runner=runner)
             if runner.run in self._active_runners:
                 del self._active_runners[runner.run]
 
@@ -176,11 +175,11 @@ class FlowRunner(Runner[RunnerCache, Block]):
                 triggered_steps[target_state.step] = trigger
 
         # fire pipes
-        # NOTE :Incomplete: pipe filters/mapping/casting/...
+        # nocheckin :Incomplete: pipe filters/mapping/casting/...
         for pipe in step.pipes:
             target_state = self._step_states[pipe.target]
             if run.status == RunStatus.COMPLETED:
-                if pipe.source_port.type == PortType.EMPTY:
+                if pipe.source_port.type == PortType.TRIGGER:
                     # force trigger
                     _fire_pipe(pipe, target_state, TriggerType.FULL)
                 elif pipe.source_port.type == PortType.DATA:
@@ -240,7 +239,9 @@ class FlowRunner(Runner[RunnerCache, Block]):
                 # tick next
                 step, run = await self._terminated_runs.get()
                 assert run.status.is_terminal, f"{run!r} is not terminated"
-                await self._fire_step(step, run)
+                if run.status != RunStatus.ABORTED:  # ignore aborted runs
+                    await self._fire_step(step, run)
+                logger.trace("flow.wait", flow=self, active_runners=self._active_runners.values())
 
             # set forced output/error
             if isinstance(self._force_complete, ValueObject):

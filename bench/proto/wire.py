@@ -270,7 +270,7 @@ class BenchType(betterproto.Enum):
     MODEL_TYPE = 20551
     STEP_TYPE = 20560
     PIPE_TYPE = 20561
-    PIPE_FILTER_MODE = 20562
+    PIPE_FILTER_TYPE = 20562
     PORT_TYPE = 20563
     NOTIFICATION_LEVEL = 20570
     SPACE_TYPE = 21000
@@ -538,7 +538,7 @@ class EnumType(betterproto.Enum):
     MODEL_TYPE = 20551
     STEP_TYPE = 20560
     PIPE_TYPE = 20561
-    PIPE_FILTER_MODE = 20562
+    PIPE_FILTER_TYPE = 20562
     PORT_TYPE = 20563
     NOTIFICATION_LEVEL = 20570
     SPACE_TYPE = 21000
@@ -1986,7 +1986,7 @@ class PipeData(betterproto.Message):
     source_port: "PortKeyData" = betterproto.message_field(32)
     target_ptr: "NodeReferenceData" = betterproto.message_field(33)
     target_port: "PortKeyData" = betterproto.message_field(34)
-    filter_mode: Optional["PipeFilterMode"] = betterproto.enum_field(40, optional=True)
+    filter_type: Optional["PipeFilterMode"] = betterproto.enum_field(40, optional=True)
 
 
 @dataclass(eq=False, repr=False)

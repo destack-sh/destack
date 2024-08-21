@@ -103,15 +103,21 @@ class StepType(IdEnum):
 
 @enum_(EnumType.PIPE_TYPE)
 class PipeType(IdEnum):
-    THEN = 1  # data + trigger
-    WITH = 2  # data (only)
+    THEN = 1  # content + trigger
+    WITH = 2  # content (only)
     ...
 
 
-@enum_(EnumType.PIPE_FILTER_MODE)
-class PipeFilterMode(IdEnum):
-    DISCARD_EMPTY = 1  # discard empty (None or empty list)
-    DISCARD_INVALID = 2  # discard invalid (instead of error)
+@enum_(EnumType.PIPE_FILTER_TYPE)
+class PipeFilterType(IdEnum):
+    # truthy
+    IS_NON_EMPTY = 1  # drop empty (None, empty, False, 0, ...)
+    IS_TRUTHY = 2  # drop falsy (None, empty, False, 0, ...)
+    # IS_VALID = 3  # keep valid (drop invalid)
+    # falsy
+    IS_EMPTY = 50  # keep empty only (None, empty, "", ...)
+    IS_FALSY = 51  # keep falsy only (None, empty, False, 0, ...)
+    # IS_INVALID doesn't make sense? (would need to know: valid for what target port?)
 
 
 @struct_(StructType.PIPE)
@@ -129,7 +135,8 @@ class Pipe(Struct):
     target_port: "PortKey" = p_regular(34, require=True, struct=StructType.PORT_KEY)
 
     # filter/mapping/casting
-    filter_mode: PipeFilterMode | None = p_regular(40, default=None)
+    filter_type: PipeFilterType | None = p_regular(40, default=None)
+    # filter_constraint, filter_condition, ...
     ...
 
     def __content_str__(self) -> str:
@@ -141,7 +148,7 @@ class Pipe(Struct):
 
 @enum_(EnumType.PORT_TYPE)
 class PortType(IdEnum):
-    EMPTY = 1  # trigger only (no data)
+    TRIGGER = 1  # trigger only (no data)
     DATA = 2  # trigger with full input/output value (depending on side)
     ERROR = 3  # trigger with error in case of failure (output only)
     FIELD = 5  # trigger with specific field (depending on side & type)
@@ -149,8 +156,8 @@ class PortType(IdEnum):
 
 PORT_TYPES_BY_ZONE: dict[FieldZone, tuple[PortType, ...]] = {
     FieldZone.VARIABLE: (PortType.DATA, PortType.FIELD),
-    FieldZone.INPUT: (PortType.EMPTY, PortType.DATA, PortType.FIELD),
-    FieldZone.OUTPUT: (PortType.EMPTY, PortType.DATA, PortType.ERROR, PortType.FIELD),
+    FieldZone.INPUT: (PortType.TRIGGER, PortType.DATA, PortType.FIELD),
+    FieldZone.OUTPUT: (PortType.TRIGGER, PortType.DATA, PortType.ERROR, PortType.FIELD),
 }
 
 
@@ -164,7 +171,7 @@ class PortKey(Struct):
     field: Optional["Field"] = p_regular(32, require=False, references=NodeType.FIELD)
 
     def __content_str__(self) -> str:
-        if self.type == PortType.EMPTY:
+        if self.type == PortType.TRIGGER:
             return "?"
         elif self.type == PortType.DATA:
             return f"{self.zone.bench_name}"
@@ -174,6 +181,25 @@ class PortKey(Struct):
             return f"{self.field.py_name if self.field else '???'}"
         else:
             assert_never(self.type)
+
+
+PortIn = Union["Field", PortType, PortKey]
+
+
+def to_port_key(port: PortIn, zone: FieldZone) -> PortKey:
+    from bench.language.field import Field
+
+    if isinstance(port, PortKey):
+        if port.zone != zone:
+            port = port.clone()
+            port.zone = zone
+        return port
+    elif isinstance(port, Field):
+        return PortKey(type=PortType.FIELD, zone=zone, field=port)
+    elif isinstance(port, PortType):
+        return PortKey(type=port, zone=zone)
+    else:
+        assert_never(port)
 
 
 @struct_(StructType.PORT)
@@ -287,27 +313,18 @@ class Step(SourceNode[StepData]):
         type: PipeType,
         source: "Step",
         *,
-        field: "Field | None" = None,
-        source_field: "Field | None" = None,
-        target_field: "Field | None" = None,
-        filter_mode: PipeFilterMode | None = None,
+        source_port: "PortIn" = PortType.DATA,
+        target_port: "PortIn" = PortType.DATA,
+        filter_type: PipeFilterType | None = None,
     ) -> "Pipe":
         """Connects a source Step to this Step."""
         pipe = Pipe(
             type=type,
             source=source,
-            source_port=PortKey(
-                type=PortType.DATA if not source_field else PortType.FIELD,
-                zone=FieldZone.OUTPUT,
-                field=source_field,
-            ),
+            source_port=to_port_key(source_port, FieldZone.OUTPUT),
             target=self,
-            target_port=PortKey(
-                type=PortType.DATA if not target_field else PortType.FIELD,
-                zone=FieldZone.INPUT,
-                field=target_field,
-            ),
-            filter_mode=filter_mode,
+            target_port=to_port_key(target_port, FieldZone.INPUT),
+            filter_type=filter_type,
         )
         source.pipes.append(pipe)
         return pipe
@@ -316,19 +333,35 @@ class Step(SourceNode[StepData]):
         self,
         target: "Step",
         *,
-        field: "Field | None" = None,
-        source_field: "Field | None" = None,
-        target_field: "Field | None" = None,
-        filter_mode: PipeFilterMode | None = None,
+        source_port: "PortIn" = PortType.DATA,
+        target_port: "PortIn" = PortType.DATA,
+        filter_type: PipeFilterType | None = None,
     ) -> "Step":
         """Connects a source Step to this Step as a Then. Returns the target Step (for chaining)."""
         _ = target.connect(
             type=PipeType.THEN,
             source=self,
-            field=field,
-            source_field=source_field,
-            target_field=target_field,
-            filter_mode=filter_mode,
+            source_port=source_port,
+            target_port=target_port,
+            filter_type=filter_type,
+        )
+        return target
+
+    def with_(
+        self,
+        target: "Step",
+        *,
+        source_port: "PortIn" = PortType.DATA,
+        target_port: "PortIn" = PortType.DATA,
+        filter_type: PipeFilterType | None = None,
+    ) -> "Step":
+        """Connects a source Step to this Step as a With. Returns the target Step (for chaining)."""
+        _ = target.connect(
+            type=PipeType.WITH,
+            source=self,
+            source_port=source_port,
+            target_port=target_port,
+            filter_type=filter_type,
         )
         return target
 

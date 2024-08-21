@@ -235,7 +235,7 @@ enum BenchType {
   BENCH_TYPE_MODEL_TYPE = 20551;
   BENCH_TYPE_STEP_TYPE = 20560;
   BENCH_TYPE_PIPE_TYPE = 20561;
-  BENCH_TYPE_PIPE_FILTER_MODE = 20562;
+  BENCH_TYPE_PIPE_FILTER_TYPE = 20562;
   BENCH_TYPE_PORT_TYPE = 20563;
   BENCH_TYPE_NOTIFICATION_LEVEL = 20570;
   BENCH_TYPE_SPACE_TYPE = 21000;
@@ -494,7 +494,7 @@ enum EnumType {
   ENUM_TYPE_MODEL_TYPE = 20551;
   ENUM_TYPE_STEP_TYPE = 20560;
   ENUM_TYPE_PIPE_TYPE = 20561;
-  ENUM_TYPE_PIPE_FILTER_MODE = 20562;
+  ENUM_TYPE_PIPE_FILTER_TYPE = 20562;
   ENUM_TYPE_PORT_TYPE = 20563;
   ENUM_TYPE_NOTIFICATION_LEVEL = 20570;
   ENUM_TYPE_SPACE_TYPE = 21000;
@@ -976,9 +976,9 @@ enum PathTokenType {
 }
 
 enum PipeFilterMode {
-  PIPE_FILTER_MODE_UNSPECIFIED = 0;
-  PIPE_FILTER_MODE_DISCARD_EMPTY = 1;
-  PIPE_FILTER_MODE_DISCARD_INVALID = 2;
+  PIPE_FILTER_TYPE_UNSPECIFIED = 0;
+  PIPE_FILTER_TYPE_DISCARD_EMPTY = 1;
+  PIPE_FILTER_TYPE_DISCARD_INVALID = 2;
 }
 
 enum PipeType {
@@ -1820,7 +1820,7 @@ message PipeData {
   PortKeyData source_port = 32;
   NodeReferenceData target_ptr = 33;
   PortKeyData target_port = 34;
-  optional PipeFilterMode filter_mode = 40;
+  optional PipeFilterMode filter_type = 40;
 }
 
 // A policy regulating access to nodes within its scope.
