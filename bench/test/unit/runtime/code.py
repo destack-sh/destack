@@ -6,9 +6,20 @@ from bench.runtime.capture import MAX_LOG_LINE_LENGTH, MAX_LOGS_PER_CAPTURE
 from bench.test.unit.conftest import RuntimeHandle
 
 
-async def test_run_code_empty(local_runtime: RuntimeHandle):
+async def test_run_code_script_empty(local_runtime: RuntimeHandle):
     """Empty Code without any fields should fail."""
     Code1 = Block.new(BlockType.CODE, "Code1")
+    local_runtime.page().blocks.append(Code1)
+    await local_runtime.commit()
+
+    _ = await local_runtime.run(Code1)
+
+
+async def test_run_code_function_empty(local_runtime: RuntimeHandle):
+    """Empty Code without any fields should fail."""
+    Code1 = Block.new(
+        BlockType.CODE, "Code1", fields=(Field.input("Input1", int), Field.output("Output1", int))
+    )
     local_runtime.page().blocks.append(Code1)
     await local_runtime.commit()
 
@@ -20,10 +31,10 @@ async def test_run_code_with_syntax_error(local_runtime: RuntimeHandle):
     local_runtime.page().blocks.append(InvalidCode)
     await local_runtime.commit()
 
-    run = await local_runtime.run(InvalidCode, return_error=True)
-    assert run.status == RunStatus.FAILED
-    assert run.error is not None and run.error.type == RunErrorType.CODE_INVALID
-    assert run.error.text and "!!invalid!!" in run.error.text
+    runner = await local_runtime.run(InvalidCode, return_error=True)
+    assert runner.status == RunStatus.FAILED
+    assert runner.error is not None and runner.error.type == RunErrorType.CODE_INVALID
+    assert runner.error.text and "!!invalid!!" in runner.error.text
 
 
 async def test_run_code_capture_logs(local_runtime: RuntimeHandle):
@@ -47,9 +58,9 @@ critical('critical1')
     local_runtime.page().blocks.append(Logs101)
     await local_runtime.commit()
 
-    run = await local_runtime.run(Logs101)
-    assert run.status == RunStatus.COMPLETED
-    assert run.logs and len(run.logs) == 11
+    runner = await local_runtime.run(Logs101)
+    assert runner.status == RunStatus.COMPLETED
+    assert runner.logs and len(runner.logs) == 11
     for s, log in zip(
         (
             "print1 print2",
@@ -64,7 +75,7 @@ critical('critical1')
             "error1",
             "critical1",
         ),
-        run.logs,
+        runner.logs,
     ):
         assert log.text_plain == s
 
@@ -82,10 +93,10 @@ print('print3')
     local_runtime.page().blocks.append(Logs102)
     await local_runtime.commit()
 
-    run = await local_runtime.run(Logs102, return_error=True)
-    assert run.status == RunStatus.FAILED
-    assert run.logs and len(run.logs) == 2
-    for s, log in zip(("print1", "print2"), run.logs):
+    runner = await local_runtime.run(Logs102, return_error=True)
+    assert runner.status == RunStatus.FAILED
+    assert runner.logs and len(runner.logs) == 2
+    for s, log in zip(("print1", "print2"), runner.logs):
         assert log.text_plain == s
 
 
@@ -100,9 +111,9 @@ for i in range(0, {MAX_LOGS_PER_CAPTURE + 5}):
     local_runtime.page().blocks.append(Logs103)
     await local_runtime.commit()
 
-    run = await local_runtime.run(Logs103)
-    assert len(run.logs) == MAX_LOGS_PER_CAPTURE
-    assert run.logs[-1].text_plain and "overflow" in run.logs[-1].text_plain
+    runner = await local_runtime.run(Logs103)
+    assert len(runner.logs) == MAX_LOGS_PER_CAPTURE
+    assert runner.logs[-1].text_plain and "overflow" in runner.logs[-1].text_plain
 
 
 async def test_run_code_capture_log_line_overflow(local_runtime: RuntimeHandle):
@@ -110,9 +121,9 @@ async def test_run_code_capture_log_line_overflow(local_runtime: RuntimeHandle):
     local_runtime.page().blocks.append(Logs103)
     await local_runtime.commit()
 
-    run = await local_runtime.run(Logs103)
-    assert run.logs and len(run.logs) == 1
-    assert run.logs[0].text_plain and "truncate" in run.logs[0].text_plain
+    runner = await local_runtime.run(Logs103)
+    assert runner.logs and len(runner.logs) == 1
+    assert runner.logs[0].text_plain and "truncate" in runner.logs[0].text_plain
 
 
 async def test_run_code_function_output_none(local_runtime: RuntimeHandle):
@@ -132,14 +143,14 @@ async def test_run_code_function_output_scalar(local_runtime: RuntimeHandle):
     local_runtime.page().blocks.append(Function)
     await local_runtime.commit()
 
-    run = await local_runtime.run(Function, inputs={"Input1": 3})
-    assert run.outputs and run.outputs.Result1 == 12
+    runner = await local_runtime.run(Function, inputs={"Input1": 3})
+    assert runner.outputs and runner.outputs.Result1 == 12
 
     # now with bad return value
     Function.code = code("return 'stringy'")
     await local_runtime.commit()
-    run = await local_runtime.run(Function, inputs={"Input1": 3}, return_error=True)
-    assert run.status == RunStatus.FAILED
+    runner = await local_runtime.run(Function, inputs={"Input1": 3}, return_error=True)
+    assert runner.status == RunStatus.FAILED
 
 
 async def test_run_code_function_output_tuple(local_runtime: RuntimeHandle):
@@ -156,12 +167,12 @@ async def test_run_code_function_output_tuple(local_runtime: RuntimeHandle):
     local_runtime.page().blocks.append(Function)
     await local_runtime.commit()
 
-    run = await local_runtime.run(Function, inputs={"Input1": 3})
+    runner = await local_runtime.run(Function, inputs={"Input1": 3})
     assert (
-        run.outputs
-        and run.outputs.Result1 is False
-        and run.outputs.Result2 == 12
-        and run.outputs.Result3 is None
+        runner.outputs
+        and runner.outputs.Result1 is False
+        and runner.outputs.Result2 == 12
+        and runner.outputs.Result3 is None
     )
 
 
@@ -178,8 +189,8 @@ async def test_run_code_function_output_dict(local_runtime: RuntimeHandle):
     local_runtime.page().blocks.append(Function)
     await local_runtime.commit()
 
-    run = await local_runtime.run(Function, inputs={"Input1": 3})
-    assert run.outputs and run.outputs.Result1 is False and run.outputs.Result2 == 12
+    runner = await local_runtime.run(Function, inputs={"Input1": 3})
+    assert runner.outputs and runner.outputs.Result1 is False and runner.outputs.Result2 == 12
 
 
 async def test_run_code_function_output_choice(local_runtime: RuntimeHandle):
@@ -199,8 +210,8 @@ return {"Color": Color.Red}
     local_runtime.page().blocks.extend(Color, Function)
     await local_runtime.commit()
 
-    run = await local_runtime.run(Function)
-    assert run.outputs and run.outputs.Color == Color.fields.Red
+    runner = await local_runtime.run(Function)
+    assert runner.outputs and runner.outputs.Color == Color.fields.Red
 
 
 async def test_run_code_function_output_nested(local_runtime: RuntimeHandle):
@@ -236,9 +247,9 @@ return Shape(kind=ShapeKind.Square)
     subpage.blocks.append(Function)
     await local_runtime.commit()
 
-    run = await local_runtime.run(Function)
-    assert run.outputs and isinstance(run.outputs.Result, ValueObject)
-    assert run.outputs.Result.kind == ShapeKind.fields.Square
+    runner = await local_runtime.run(Function)
+    assert runner.outputs and isinstance(runner.outputs.Result, ValueObject)
+    assert runner.outputs.Result.kind == ShapeKind.fields.Square
 
 
 async def test_run_code_raise_retryable_error(local_runtime: RuntimeHandle):
@@ -248,10 +259,10 @@ async def test_run_code_raise_retryable_error(local_runtime: RuntimeHandle):
     local_runtime.page().blocks.append(CodeBlock)
     await local_runtime.commit()
 
-    run = await local_runtime.run(CodeBlock, return_error=True)
-    assert run.status == RunStatus.FAILED
-    assert run.error and run.error.type == RunErrorType.UNKNOWN_RETRYABLE
-    assert len(run.attempts) == 3
+    runner = await local_runtime.run(CodeBlock, return_error=True)
+    assert runner.status == RunStatus.FAILED
+    assert runner.error and runner.error.type == RunErrorType.UNKNOWN_RETRYABLE
+    assert len(runner.attempts) == 3
 
 
 async def test_run_code_raise_unretryable_error(local_runtime: RuntimeHandle):
@@ -261,7 +272,7 @@ async def test_run_code_raise_unretryable_error(local_runtime: RuntimeHandle):
     local_runtime.page().blocks.append(CodeBlock)
     await local_runtime.commit()
 
-    run = await local_runtime.run(CodeBlock, return_error=True)
-    assert run.status == RunStatus.FAILED
-    assert run.error and run.error.type == RunErrorType.UNKNOWN_NONRETRYABLE
-    assert len(run.attempts) == 1
+    runner = await local_runtime.run(CodeBlock, return_error=True)
+    assert runner.status == RunStatus.FAILED
+    assert runner.error and runner.error.type == RunErrorType.UNKNOWN_NONRETRYABLE
+    assert len(runner.attempts) == 1
