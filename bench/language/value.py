@@ -144,14 +144,17 @@ class ValueObject(Mapping[str, Any]):
 
     __eq__ = _equals_content
 
-    def __getitem__(self, item: str) -> SomeValue:
+    def __getitem__(self, item: "str | Field") -> SomeValue:
         # NOTE: __getattr__ is called only when ident is not in the slots, so this is a value lookup
-        # get field value
-        field = self._type._get_field(item)
-        if field is None:
-            raise AttributeError(f"{self._type!r} has no field named '{item}'")
-        if self._type.base_field_zone is not None and field.zone != self._type.base_field_zone:
-            raise AttributeError(f"{field!r} is not in the same zone as {self._type!r}")
+        # get field
+        if isinstance(item, str):
+            field = self._type._get_field(item)
+            if field is None:
+                raise AttributeError(f"{self._type!r} has no field named '{item}'")
+            if self._type.base_field_zone is not None and field.zone != self._type.base_field_zone:
+                raise AttributeError(f"{field!r} is not in the same zone as {self._type!r}")
+        else:
+            field = item
         return self._do_get(field)
 
     __getattr__ = __getitem__
@@ -174,11 +177,14 @@ class ValueObject(Mapping[str, Any]):
         else:
             return value
 
-    def __setitem__(self, item: str, value: SomeValue) -> None:
+    def __setitem__(self, item: "str | Field", value: SomeValue) -> None:
         # set field value
-        field: Field | None = self._type._get_field(item)
-        if field is None:
-            raise AttributeError(f"{self._type!r} has no field with identifier {item}")
+        if isinstance(item, str):
+            field: Field | None = self._type._get_field(item)
+            if field is None:
+                raise AttributeError(f"{self._type!r} has no field with identifier {item}")
+        else:
+            field = item
         if self._type.base_field_zone is not None and field.zone != self._type.base_field_zone:
             raise AttributeError(f"{field!r} is not in the same zone as {self._type!r}")
         field_type = field._to_resolved()
@@ -266,6 +272,10 @@ class ValueObject(Mapping[str, Any]):
             prop = self.ancestor_prop if self.ancestor_prop is not None else self.parent_prop
             assert type(prop) is Property, f"{prop!r} is not a Property"
             self.parent._updated_self((prop,))
+
+    def clone(self) -> "ValueObject":
+        """Clones this object."""
+        return ValueObject.new({**self._value} if self._value is not None else None, self._type)
 
     @staticmethod
     def new(

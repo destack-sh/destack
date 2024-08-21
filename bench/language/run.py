@@ -7,7 +7,6 @@ from bench.language.const import (
     TERMINAL_RUN_STATUSES,
     BenchError,
     EnumType,
-    FieldZone,
     NodeType,
     RunErrorKind,
     RunStatus,
@@ -402,18 +401,18 @@ class Run(PackageNode[RunData], HasTimeIdentity, HasNodeBase, HasSessionContext)
     @property
     def input_type(self) -> "TypeInfoBase | None":
         if self.step is not None:
-            return self.step.to_type(as_object=True, zone=FieldZone.INPUT)
+            return self.step.input_type
         elif self.block is not None:
-            return self.block.to_type(as_object=True, zone=FieldZone.INPUT)
+            return self.block.input_type
         else:
             return None  # freely typed
 
     @property
     def output_type(self) -> "TypeInfoBase | None":
         if self.step is not None:
-            return self.step.to_type(as_object=True, zone=FieldZone.OUTPUT)
+            return self.step.output_type
         elif self.block is not None:
-            return self.block.to_type(as_object=True, zone=FieldZone.OUTPUT)
+            return self.block.output_type
         else:
             return None  # freely typed
 

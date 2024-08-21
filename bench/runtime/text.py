@@ -23,7 +23,7 @@ from bench.language.render import Aliasing, RenderOptions, render, render_value_
 from bench.language.run import ModelProvider, ModelType, RunKind
 from bench.language.value import sample_value
 from bench.runtime.core import RUN_ONCE, ModelFailedError, ModelIncapableError, RunImpossibleError
-from bench.runtime.runner import Runner, runner
+from bench.runtime.runner import RunnableNode, Runner, RunnerCache, runner
 from bench.utils.utils import get_from_env
 
 logger = structlog.get_logger(__name__)
@@ -78,7 +78,7 @@ class ChatMessageFileContent:
 ChatMessageContent = Union[ChatMessageTextContent, ChatMessageFileContent]
 
 
-class ChatModelRunnerBase(Runner, abc.ABC):
+class ChatModelRunnerBase(Runner[RunnerCache, RunnableNode], abc.ABC):
     """
     The base for chat-like text function runners.
     Basically, the model generates code that produces the answer, we run it and return that.
@@ -139,7 +139,7 @@ return {"Joke": "Why did the scarecrow win an award? Because he was outstanding 
 
     @override
     async def run_once(self) -> None:
-        projection = project(self.state.node, self.inputs, options=ProjectOptions())
+        projection = project(self.node, self.inputs, options=ProjectOptions())
         render_options = RenderOptions(scope=self.node, aliasing=Aliasing())
         log = logger.bind(runner=self, projection=projection)
 
@@ -428,7 +428,7 @@ class OpenaiModelRunner(ChatModelRunnerBase):
         model = self.model or self.DEFAULT_MODEL
         model_key = self.MODEL_BY_TYPE.get(model)
         if model_key is None:
-            raise RunImpossibleError(f"unsupported model type {self.state.key}")
+            raise RunImpossibleError(f"unsupported model type {model}")
         converted_messages = [await self._convert_message(message) for message in messages]
         completion = await openai_client.chat.completions.create(
             messages=converted_messages,
@@ -521,7 +521,7 @@ class AnthropicModelRunner(ChatModelRunnerBase):
         model = self.model or self.DEFAULT_MODEL
         model_key = self.MODEL_BY_TYPE.get(model)
         if model_key is None:
-            raise RunImpossibleError(f"unsupported model type {self.state.key}")
+            raise RunImpossibleError(f"unsupported model type {model}")
         converted_messages = [await self._convert_message(message) for message in messages]
         completion = await anthropic_client.messages.create(
             system=self.SYSTEM_MESSAGE,

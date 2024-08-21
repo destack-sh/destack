@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.08.20.0"
+VERSION = "2024.08.21.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -791,7 +791,6 @@ class FunctionalOp(betterproto.Enum):
 class IconKind(betterproto.Enum):
     UNSPECIFIED = 0
     EMOJI = 1
-    FILE = 2
     FONT_AWESOME = 3
     VS_CODE = 4
 
@@ -1168,11 +1167,12 @@ class RunErrorKind(betterproto.Enum):
 
 class RunErrorType(betterproto.Enum):
     UNSPECIFIED = 0
-    RUNTIME_UNAVAILABLE = 1
-    RUN_IMPOSSIBLE = 2
-    CODE_INVALID = 3
-    TEXT_INVALID = 4
-    REPLAY = 10
+    REPLAY = 1
+    ABORTED = 2
+    RUNTIME_UNAVAILABLE = 3
+    RUN_IMPOSSIBLE = 4
+    CODE_INVALID = 20
+    TEXT_INVALID = 21
     MODEL_INCAPABLE = 100
     UNKNOWN_NONRETRYABLE = 499
     MODEL_FAILED = 500
@@ -1311,13 +1311,14 @@ class StepType(betterproto.Enum):
     SEND = 56
     MATCH = 100
     FILTER = 101
-    LOOP = 102
-    MERGE = 103
-    FLATTEN = 105
-    ACCUMULATE = 106
-    REDUCE = 107
-    ZIP = 108
+    MERGE = 102
+    FLATTEN = 103
+    ACCUMULATE = 104
+    REDUCE = 105
+    ZIP = 106
     GROUP = 150
+    LOOP = 151
+    SHIELD = 152
 
 
 class StructType(betterproto.Enum):
@@ -3377,7 +3378,19 @@ class SpaceData(betterproto.Message):
 class StepData(betterproto.Message):
     """
     An data or control flow node in a FlowBlock. Ports on Steps are connected by Pipes.
-     Pipes are stored in the target Step. Ports are implicit via Pipes unless tied to some value.
+     Pipes are stored in the source Step. Ports are implicit via Pipes unless tied to some value.
+     A Step is run when it is triggered, specifically:
+     - When its control port fires OR
+     - When all its input ports (for all fields or full value) fire
+     A Step may run multiple times if it is triggered multiple times (even concurrently).
+     A Step may directly trigger any Step (including itself) at most once per run.
+     Steps are run in order of definition per firing (regardless of pipe & port order).
+
+     When a Step completes, then:
+     1. Fire output values to all output ports
+     2. Fire output control port
+     When a Step fails, then:
+     1. FIre error on error port
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
@@ -3405,7 +3418,6 @@ class StepData(betterproto.Message):
     icon: Optional["IconData"] = betterproto.message_field(35, optional=True)
     run_options: Optional["RunOptionsData"] = betterproto.message_field(36, optional=True)
     pipes: List["PipeData"] = betterproto.message_field(37)
-    ports: List["PortData"] = betterproto.message_field(38)
     value_type: Optional["TypeInfoData"] = betterproto.message_field(40, optional=True)
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         41, optional=True

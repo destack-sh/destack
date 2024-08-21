@@ -32,6 +32,23 @@ async def test_run_flow_trivial_no_value(local_runtime: RuntimeHandle):
     assert run.run and len(run.run.runs) == 2  # two steps
 
 
+async def test_run_flow_trivial_simple_value(local_runtime: RuntimeHandle):
+    """Trivial flow with Start->Pass->Complete, single value."""
+    Flow1 = Block.new(
+        BlockType.FLOW, "Flow1", fields=(Field.input("Input1", int), Field.output("Output1", int))
+    )
+    Start = Step.new(StepType.START, "Start")
+    Complete = Step.new(StepType.COMPLETE, "Complete")
+    Start.then(Complete)
+    Flow1.steps.extend(Start, Complete)
+    local_runtime.page().blocks.append(Flow1)
+    await local_runtime.commit()
+
+    run = await local_runtime.run(Flow1, inputs={"Input1": 2})
+    assert run.run and len(run.run.runs) == 2  # two steps
+    assert run.outputs and run.outputs.Output1 == 2
+
+
 async def test_run_flow_race(local_runtime: RuntimeHandle):
     """Run multiple steps in parallel, losers should be aborted on completion of winner."""
     Flow1 = Block.new(BlockType.FLOW, "Flow1")

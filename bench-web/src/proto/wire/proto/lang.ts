@@ -5112,7 +5112,19 @@ export interface SpaceData {
 }
 /**
  * An data or control flow node in a FlowBlock. Ports on Steps are connected by Pipes.
- * Pipes are stored in the target Step. Ports are implicit via Pipes unless tied to some value.
+ * Pipes are stored in the source Step. Ports are implicit via Pipes unless tied to some value.
+ * A Step is run when it is triggered, specifically:
+ * - When its control port fires OR
+ * - When all its input ports (for all fields or full value) fire
+ * A Step may run multiple times if it is triggered multiple times (even concurrently).
+ * A Step may directly trigger any Step (including itself) at most once per run.
+ * Steps are run in order of definition per firing (regardless of pipe & port order).
+ *
+ * When a Step completes, then:
+ * 1. Fire output values to all output ports
+ * 2. Fire output control port
+ * When a Step fails, then:
+ * 1. FIre error on error port
  *
  * @generated from protobuf message symbolx.bench.StepData
  */
@@ -5217,10 +5229,6 @@ export interface StepData {
      * @generated from protobuf field: repeated symbolx.bench.PipeData pipes = 37;
      */
     pipes: PipeData[];
-    /**
-     * @generated from protobuf field: repeated symbolx.bench.PortData ports = 38;
-     */
-    ports: PortData[];
     /**
      * @generated from protobuf field: optional symbolx.bench.TypeInfoData value_type = 40;
      */
@@ -8681,10 +8689,6 @@ export enum IconKind {
      */
     EMOJI = 1,
     /**
-     * @generated from protobuf enum value: ICON_KIND_FILE = 2;
-     */
-    FILE = 2,
-    /**
      * @generated from protobuf enum value: ICON_KIND_FONT_AWESOME = 3;
      */
     FONT_AWESOME = 3,
@@ -9934,25 +9938,29 @@ export enum RunErrorType {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: RUN_ERROR_TYPE_RUNTIME_UNAVAILABLE = 1;
+     * @generated from protobuf enum value: RUN_ERROR_TYPE_REPLAY = 1;
      */
-    RUNTIME_UNAVAILABLE = 1,
+    REPLAY = 1,
     /**
-     * @generated from protobuf enum value: RUN_ERROR_TYPE_RUN_IMPOSSIBLE = 2;
+     * @generated from protobuf enum value: RUN_ERROR_TYPE_ABORTED = 2;
      */
-    RUN_IMPOSSIBLE = 2,
+    ABORTED = 2,
     /**
-     * @generated from protobuf enum value: RUN_ERROR_TYPE_CODE_INVALID = 3;
+     * @generated from protobuf enum value: RUN_ERROR_TYPE_RUNTIME_UNAVAILABLE = 3;
      */
-    CODE_INVALID = 3,
+    RUNTIME_UNAVAILABLE = 3,
     /**
-     * @generated from protobuf enum value: RUN_ERROR_TYPE_TEXT_INVALID = 4;
+     * @generated from protobuf enum value: RUN_ERROR_TYPE_RUN_IMPOSSIBLE = 4;
      */
-    TEXT_INVALID = 4,
+    RUN_IMPOSSIBLE = 4,
     /**
-     * @generated from protobuf enum value: RUN_ERROR_TYPE_REPLAY = 10;
+     * @generated from protobuf enum value: RUN_ERROR_TYPE_CODE_INVALID = 20;
      */
-    REPLAY = 10,
+    CODE_INVALID = 20,
+    /**
+     * @generated from protobuf enum value: RUN_ERROR_TYPE_TEXT_INVALID = 21;
+     */
+    TEXT_INVALID = 21,
     /**
      * @generated from protobuf enum value: RUN_ERROR_TYPE_MODEL_INCAPABLE = 100;
      */
@@ -10395,33 +10403,37 @@ export enum StepType {
      */
     FILTER = 101,
     /**
-     * @generated from protobuf enum value: STEP_TYPE_LOOP = 102;
+     * @generated from protobuf enum value: STEP_TYPE_MERGE = 102;
      */
-    LOOP = 102,
+    MERGE = 102,
     /**
-     * @generated from protobuf enum value: STEP_TYPE_MERGE = 103;
+     * @generated from protobuf enum value: STEP_TYPE_FLATTEN = 103;
      */
-    MERGE = 103,
+    FLATTEN = 103,
     /**
-     * @generated from protobuf enum value: STEP_TYPE_FLATTEN = 105;
+     * @generated from protobuf enum value: STEP_TYPE_ACCUMULATE = 104;
      */
-    FLATTEN = 105,
+    ACCUMULATE = 104,
     /**
-     * @generated from protobuf enum value: STEP_TYPE_ACCUMULATE = 106;
+     * @generated from protobuf enum value: STEP_TYPE_REDUCE = 105;
      */
-    ACCUMULATE = 106,
+    REDUCE = 105,
     /**
-     * @generated from protobuf enum value: STEP_TYPE_REDUCE = 107;
+     * @generated from protobuf enum value: STEP_TYPE_ZIP = 106;
      */
-    REDUCE = 107,
-    /**
-     * @generated from protobuf enum value: STEP_TYPE_ZIP = 108;
-     */
-    ZIP = 108,
+    ZIP = 106,
     /**
      * @generated from protobuf enum value: STEP_TYPE_GROUP = 150;
      */
-    GROUP = 150
+    GROUP = 150,
+    /**
+     * @generated from protobuf enum value: STEP_TYPE_LOOP = 151;
+     */
+    LOOP = 151,
+    /**
+     * @generated from protobuf enum value: STEP_TYPE_SHIELD = 152;
+     */
+    SHIELD = 152
 }
 /**
  * @generated from protobuf enum symbolx.bench.StructType
@@ -23038,7 +23050,6 @@ class StepData$Type extends MessageType<StepData> {
             { no: 35, name: "icon", kind: "message", T: () => IconData },
             { no: 36, name: "run_options", kind: "message", T: () => RunOptionsData },
             { no: 37, name: "pipes", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PipeData },
-            { no: 38, name: "ports", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PortData },
             { no: 40, name: "value_type", kind: "message", T: () => TypeInfoData },
             { no: 41, name: "value_packed", kind: "message", T: () => Struct },
             { no: 43, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
@@ -23063,7 +23074,6 @@ class StepData$Type extends MessageType<StepData> {
         message.name = "";
         message.orderKey = "";
         message.pipes = [];
-        message.ports = [];
         message.rolesPtr = [];
         message.policies = [];
         if (value !== undefined)
@@ -23153,9 +23163,6 @@ class StepData$Type extends MessageType<StepData> {
                     break;
                 case /* repeated symbolx.bench.PipeData pipes */ 37:
                     message.pipes.push(PipeData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                case /* repeated symbolx.bench.PortData ports */ 38:
-                    message.ports.push(PortData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 case /* optional symbolx.bench.TypeInfoData value_type */ 40:
                     message.valueType = TypeInfoData.internalBinaryRead(reader, reader.uint32(), options, message.valueType);
@@ -23275,9 +23282,6 @@ class StepData$Type extends MessageType<StepData> {
         /* repeated symbolx.bench.PipeData pipes = 37; */
         for (let i = 0; i < message.pipes.length; i++)
             PipeData.internalBinaryWrite(message.pipes[i], writer.tag(37, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.PortData ports = 38; */
-        for (let i = 0; i < message.ports.length; i++)
-            PortData.internalBinaryWrite(message.ports[i], writer.tag(38, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.TypeInfoData value_type = 40; */
         if (message.valueType)
             TypeInfoData.internalBinaryWrite(message.valueType, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
@@ -26044,7 +26048,6 @@ export enum StepProperty {
   icon = 35,
   runOptions = 36,
   pipes = 37,
-  ports = 38,
   valueType = 40,
   valuePacked = 41,
   nodePtr = 43,
@@ -28299,7 +28302,6 @@ export const StepDataInfo: Record<StepProperty, PropertyInfo> = {
   [StepProperty.icon]: { id: 35, name: 'icon', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [StepProperty.runOptions]: { id: 36, name: 'run_options', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_OPTIONS },
   [StepProperty.pipes]: { id: 37, name: 'pipes', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.PIPE },
-  [StepProperty.ports]: { id: 38, name: 'ports', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.PORT },
   [StepProperty.valueType]: { id: 40, name: 'value_type', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_INFO },
   [StepProperty.valuePacked]: { id: 41, name: 'value_packed', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [StepProperty.nodePtr]: { id: 43, name: 'node_ptr', component: ObjectType.STEP, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK, NodeType.STEP, NodeType.TRIGGER], referenceStruct: StructType.NODE_REFERENCE },

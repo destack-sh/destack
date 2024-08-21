@@ -114,13 +114,16 @@ class Runtime:
             text = text or node.text
             if options and options.model_options:
                 subtype = options.model_options.provider
+        elif kind == RunKind.STEP:
+            assert isinstance(node, Step), f"unexpected node type: {node!r}"
+            subtype = node.type
 
         # make runner with state
         runner_cls = _runners.get((kind, subtype))
         if runner_cls is None:
-            raise RunImpossibleError(f"no runner for {kind}:{subtype}")
+            raise RunImpossibleError(f"no runner for {kind.bench_name}:{subtype}")
         # NOTE :Incomplete: re-use existing state sometimes (e.g., code script exports)
-        state = runner_cls.state_cls(
+        cache = runner_cls.cache_cls(
             id=node.id,
             kind=kind,
             subtype=subtype,
@@ -132,7 +135,7 @@ class Runtime:
         runner = runner_cls(
             id=run.id if run else UUIDT(),
             runtime=self,
-            state=state,
+            cache=cache,
             options=BASE_RUN_OPTIONS_BY_KIND[kind].override(options),
             parent=self.active_runner,
             status=run.status if run else RunStatus.SCHEDULED,
@@ -145,7 +148,22 @@ class Runtime:
 
         # create nested Run
         if track and run is None:
-            pass  # NOTE :Incomplete: nested (tracked) run"
+            if self.active_runner is not None:
+                assert self.active_runner.run is not None, f"{self.active_runner!r} has no Run"
+                parent_run = self.active_runner.run
+            else:
+                parent_run = None
+            run = Run(
+                parent=parent_run or self.session.package,
+                kind=kind,
+                block=node if isinstance(node, Block) else None,
+                step=node if isinstance(node, Step) else None,
+                options=runner.options,
+                status=runner.status,
+                inputs=runner.inputs,
+                attempts=runner.attempts,
+            )
+            runner.run = run
 
         return runner
 
@@ -250,6 +268,7 @@ class Runtime:
             assert last_attempt is not None, f"no last attempt for run {runner!r}"
             run.attempts = runner.attempts
             run.logs = runner.logs
+            run.inputs = runner.inputs
             run.outputs = runner.outputs
             run.error = runner.error
             run.status = runner.status

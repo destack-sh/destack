@@ -745,7 +745,6 @@ enum FunctionalOp {
 enum IconKind {
   ICON_KIND_UNSPECIFIED = 0;
   ICON_KIND_EMOJI = 1;
-  ICON_KIND_FILE = 2;
   ICON_KIND_FONT_AWESOME = 3;
   ICON_KIND_VS_CODE = 4;
 }
@@ -1109,11 +1108,12 @@ enum RunErrorKind {
 
 enum RunErrorType {
   RUN_ERROR_TYPE_UNSPECIFIED = 0;
-  RUN_ERROR_TYPE_RUNTIME_UNAVAILABLE = 1;
-  RUN_ERROR_TYPE_RUN_IMPOSSIBLE = 2;
-  RUN_ERROR_TYPE_CODE_INVALID = 3;
-  RUN_ERROR_TYPE_TEXT_INVALID = 4;
-  RUN_ERROR_TYPE_REPLAY = 10;
+  RUN_ERROR_TYPE_REPLAY = 1;
+  RUN_ERROR_TYPE_ABORTED = 2;
+  RUN_ERROR_TYPE_RUNTIME_UNAVAILABLE = 3;
+  RUN_ERROR_TYPE_RUN_IMPOSSIBLE = 4;
+  RUN_ERROR_TYPE_CODE_INVALID = 20;
+  RUN_ERROR_TYPE_TEXT_INVALID = 21;
   RUN_ERROR_TYPE_MODEL_INCAPABLE = 100;
   RUN_ERROR_TYPE_UNKNOWN_NONRETRYABLE = 499;
   RUN_ERROR_TYPE_MODEL_FAILED = 500;
@@ -1248,13 +1248,14 @@ enum StepType {
   STEP_TYPE_SEND = 56;
   STEP_TYPE_MATCH = 100;
   STEP_TYPE_FILTER = 101;
-  STEP_TYPE_LOOP = 102;
-  STEP_TYPE_MERGE = 103;
-  STEP_TYPE_FLATTEN = 105;
-  STEP_TYPE_ACCUMULATE = 106;
-  STEP_TYPE_REDUCE = 107;
-  STEP_TYPE_ZIP = 108;
+  STEP_TYPE_MERGE = 102;
+  STEP_TYPE_FLATTEN = 103;
+  STEP_TYPE_ACCUMULATE = 104;
+  STEP_TYPE_REDUCE = 105;
+  STEP_TYPE_ZIP = 106;
   STEP_TYPE_GROUP = 150;
+  STEP_TYPE_LOOP = 151;
+  STEP_TYPE_SHIELD = 152;
 }
 
 enum StructType {
@@ -3008,7 +3009,19 @@ message SpaceData {
 }
 
 // An data or control flow node in a FlowBlock. Ports on Steps are connected by Pipes.
-// Pipes are stored in the target Step. Ports are implicit via Pipes unless tied to some value.
+// Pipes are stored in the source Step. Ports are implicit via Pipes unless tied to some value.
+// A Step is run when it is triggered, specifically:
+// - When its control port fires OR
+// - When all its input ports (for all fields or full value) fire
+// A Step may run multiple times if it is triggered multiple times (even concurrently).
+// A Step may directly trigger any Step (including itself) at most once per run.
+// Steps are run in order of definition per firing (regardless of pipe & port order).
+// 
+// When a Step completes, then:
+// 1. Fire output values to all output ports
+// 2. Fire output control port
+// When a Step fails, then:
+// 1. FIre error on error port
 message StepData {
   ObjectType metatype = 1;
   string id = 2;
@@ -3035,7 +3048,6 @@ message StepData {
   optional IconData icon = 35;
   optional RunOptionsData run_options = 36;
   repeated PipeData pipes = 37;
-  repeated PortData ports = 38;
   optional TypeInfoData value_type = 40;
   optional google.protobuf.Struct value_packed = 41;
   optional NodeReferenceData node_ptr = 43;
