@@ -77,12 +77,28 @@ class StepType(IdEnum):
     # THROTTLE?
     # TELEPORT?
 
-    # nesting
+    # group
     GROUP = 150  # no semantic meaning
     LOOP = 151  # loop inside: X[] -> | X -> ... -> Y | -> Y[]
     SHIELD = 152  # capture errors inside
 
     ...
+
+    @property
+    def is_boundary(self) -> bool:
+        return self < 50
+
+    @property
+    def is_run(self) -> bool:
+        return self >= 50 and self < 100
+
+    @property
+    def is_control(self) -> bool:
+        return self >= 100 and self < 150
+
+    @property
+    def is_groupa(self) -> bool:
+        return self >= 150 and self < 200
 
 
 @enum_(EnumType.PIPE_TYPE)

@@ -59,7 +59,7 @@ class RetryState:
     options: RetryOptions
     start_ns: float
     oracle: Oracle
-    errors: list[Exception] | None = None
+    errors: list[BaseException] | None = None
     attempt: int = 0
 
     def __str__(self) -> str:
@@ -78,7 +78,7 @@ class RetryState:
         self.attempt = 0
         self.errors = None
 
-    def on_error(self, error: Exception) -> bool:
+    def on_error(self, error: BaseException) -> bool:
         if self.errors is None:
             self.errors = []
         self.errors.append(error)
@@ -88,7 +88,7 @@ class RetryState:
         return should_retry_on_error
 
     @property
-    def last_error(self) -> Exception | None:
+    def last_error(self) -> BaseException | None:
         return self.errors[-1] if self.errors else None
 
     @property
@@ -108,7 +108,7 @@ class RetryState:
     def get_wait_interval(self) -> float:
         return self.options.get_wait_interval(self.attempt, self.oracle)
 
-    def to_error(self, operation: Any = None) -> RetryError | Exception:
+    def to_error(self, operation: Any = None) -> RetryError | BaseException:
         if self.errors:
             return self.errors[-1]
         else:

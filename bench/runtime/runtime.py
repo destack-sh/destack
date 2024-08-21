@@ -211,7 +211,15 @@ class Runtime:
                         attempt.status = RunStatus.COMPLETED
                         log.debug("runner.attempt", attempt=attempt, span="current")
                         break  # success
-                    except Exception as e:
+                    except asyncio.CancelledError as e:
+                        error = RunError.from_exception(RunErrorKind.RUNTIME, e)
+                        attempt.status = RunStatus.ABORTED
+                        attempt.error = error
+                        log.debug(
+                            "runner.attempt.aborted", attempt=attempt, exc_info=e, span="current"
+                        )
+                        raise  # give up
+                    except BaseException as e:
                         error = RunError.from_exception(RunErrorKind.RUNTIME, e)
                         attempt.error = error
                         attempt.status = RunStatus.FAILED
