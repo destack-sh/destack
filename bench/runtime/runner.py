@@ -133,7 +133,7 @@ _runners: dict[tuple[RunKind, RunSubtype | None], type[Runner]] = {}
 
 
 @dataclass_transform()
-def runner(kind: RunKind, typ: RunSubtype | None = None):
+def runner_(kind: RunKind, typ: RunSubtype | None = None):
     """Registers a Runner for a specific RunnableType."""
 
     def decorator(cls):

@@ -23,14 +23,14 @@ from bench.language.render import Aliasing, RenderOptions, render, render_value_
 from bench.language.run import ModelProvider, ModelType, RunKind
 from bench.language.value import sample_value
 from bench.runtime.core import RUN_ONCE, ModelFailedError, ModelIncapableError, RunImpossibleError
-from bench.runtime.runner import RunnableNode, Runner, RunnerCache, runner
+from bench.runtime.runner import RunnableNode, Runner, RunnerCache, runner_
 from bench.utils.utils import get_from_env
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
-@runner(RunKind.TEXT, None)
+@runner_(RunKind.TEXT, None)
 class TextRunner(Runner):
     """The router for text functions without explicitly assigned models/providers."""
 
@@ -335,7 +335,7 @@ anthropic_client = anthropic.AsyncClient(
 )
 
 
-@runner(RunKind.TEXT, ModelProvider.OPENAI)
+@runner_(RunKind.TEXT, ModelProvider.OPENAI)
 class OpenaiModelRunner(ChatModelRunnerBase):
     DEFAULT_MODEL = ModelType.GPT4_0
     MODEL_BY_TYPE: ClassVar[Mapping[ModelType, str]] = {
@@ -449,7 +449,7 @@ class OpenaiModelRunner(ChatModelRunnerBase):
         return completion_text
 
 
-@runner(RunKind.TEXT, ModelProvider.ANTHROPIC)
+@runner_(RunKind.TEXT, ModelProvider.ANTHROPIC)
 class AnthropicModelRunner(ChatModelRunnerBase):
     DEFAULT_MODEL = ModelType.CLAUDE_3_5_SONNET
     MODEL_BY_TYPE: ClassVar[Mapping[ModelType, str]] = {
@@ -536,6 +536,6 @@ class AnthropicModelRunner(ChatModelRunnerBase):
         return completion_text
 
 
-@runner(RunKind.TEXT, ModelProvider.GOOGLE)
+@runner_(RunKind.TEXT, ModelProvider.GOOGLE)
 class GoogleModelRunner(ChatModelRunnerBase):
     pass

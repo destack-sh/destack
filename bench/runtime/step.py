@@ -3,7 +3,7 @@ import asyncio
 import dataclasses
 from asyncio import Queue
 from enum import IntEnum
-from typing import Any, override
+from typing import Any, Literal, override
 from uuid import UUID
 
 import structlog
@@ -19,7 +19,7 @@ from bench.language.step import Pipe, PipeType, PortKey, PortType, Step, StepTyp
 from bench.language.text import Text
 from bench.language.value import ValueObject
 from bench.runtime.core import RUN_ONCE, ManualRetryableError, RunImpossibleError
-from bench.runtime.runner import Runner, RunnerCache, runner
+from bench.runtime.runner import Runner, RunnerCache, runner_
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -91,11 +91,11 @@ class StepState:
         )
 
 
-@runner(RunKind.FLOW, None)
+@runner_(RunKind.FLOW, None)
 class FlowRunner(Runner[RunnerCache, Block]):
     _step_states: dict[Step, "StepState"] = dataclasses.field(default_factory=dict)
     _active_runners: dict[Run, "StepRunnerBase"] = dataclasses.field(default_factory=dict)
-    _force_complete: ValueObject | bool = False
+    _force_complete: ValueObject | Literal[True] | None = None
     _force_fail: RunError | None = None
     _terminated_runs: Queue[tuple[Step, Run]] = dataclasses.field(default_factory=Queue)
 
@@ -115,22 +115,43 @@ class FlowRunner(Runner[RunnerCache, Block]):
         step_state.runners.append(runner)
         return runner
 
+    def _abort(self):
+        """Abort any (non-boundary) running steps."""
+        for runner in self._active_runners.values():
+            if runner.node.type.is_boundary:
+                continue  # don't abort boundary steps
+            if runner.inner_task is not None:
+                runner.inner_task.cancel()
+            if runner.outer_task is not None:
+                runner.outer_task.cancel()
+            logger.trace("step.abort", step=runner.node, runner=runner)
+
     def _complete(self, outputs: ValueObject | None) -> None:
-        """Complete the Flow immediately."""
+        """Complete the Flow immediately. Aborts current other steps. Noop if already done."""
+        if self._force_complete is not None or self._force_fail is not None:
+            logger.debug("flow.complete.skip", flow=self.node, runner=self)
+            return  # already done
         self._force_complete = True if outputs is None else outputs
+        self._abort()
+        logger.debug("flow.complete", flow=self.node, runner=self)
 
     def _fail(self, error: RunError) -> None:
-        """Fail the Flow immediately."""
+        """Fail the Flow immediately. Aborts current other steps. Noop if already done."""
+        if self._force_fail is not None and self._force_fail is not None:
+            logger.debug("flow.fail.skip", flow=self.node, runner=self)
+            return  # already done
         self._force_fail = error
+        self._abort()
+        logger.debug("flow.fail", flow=self.node, runner=self)
 
     async def _start_step(self, state: StepState, runner: "StepRunnerBase") -> None:
         """Run a Step in the Flow (actual run is started as a task and not directly awaited)."""
         assert runner.run is not None, f"{runner!r} has no Run"
         self._active_runners[runner.run] = runner
-        logger.debug("flow.start", step=state.step, run=runner.run)
-        runner.outer_task = asyncio.create_task(self._do_wrap_step(runner))
+        logger.debug("step.start", step=state.step, run=runner.run)
+        runner.outer_task = asyncio.create_task(self._do_run_step(runner))
 
-    async def _do_wrap_step(self, runner: "StepRunnerBase") -> None:
+    async def _do_run_step(self, runner: "StepRunnerBase") -> None:
         """Wraps a StepRunner in a task and awaits it."""
         assert runner.run is not None, f"{runner!r} has no Run"
         try:
@@ -138,6 +159,7 @@ class FlowRunner(Runner[RunnerCache, Block]):
             if runner.status != RunStatus.ABORTED:
                 self._terminated_runs.put_nowait((runner.node, runner.run))
         finally:
+            logger.trace("step.terminate", step=runner.node, runner=runner)
             if runner.run in self._active_runners:
                 del self._active_runners[runner.run]
 
@@ -186,7 +208,7 @@ class FlowRunner(Runner[RunnerCache, Block]):
             if step_state.step in triggered_steps and step_state.is_ready
         ]
         logger.trace(
-            "flow.fire", step=step, run=run, triggered=triggered_steps, to_start=steps_to_start
+            "step.fire", step=step, run=run, triggered=triggered_steps, to_start=steps_to_start
         )
         for step_state in steps_to_start:
             runner = await self._make_runner(step_state)
@@ -243,14 +265,14 @@ class StepRunnerBase(Runner[RunnerCache, Step], abc.ABC):
 #
 
 
-@runner(RunKind.STEP, StepType.START)
+@runner_(RunKind.STEP, StepType.START)
 class StartStepRunner(StepRunnerBase):
     @override
     async def run_once(self) -> None:
         self.outputs = self.inputs
 
 
-@runner(RunKind.STEP, StepType.COMPLETE)
+@runner_(RunKind.STEP, StepType.COMPLETE)
 class CompleteStepRunner(StepRunnerBase):
     @override
     async def run_once(self) -> None:
@@ -264,7 +286,7 @@ class CompleteStepRunner(StepRunnerBase):
 #
 
 
-@runner(RunKind.STEP, StepType.BLOCK)
+@runner_(RunKind.STEP, StepType.BLOCK)
 class BlockStepRunner(StepRunnerBase):
     @override
     async def run_once(self) -> None:
@@ -278,7 +300,7 @@ class BlockStepRunner(StepRunnerBase):
         self.outputs = block_runner.outputs
 
 
-@runner(RunKind.STEP, StepType.CODE)
+@runner_(RunKind.STEP, StepType.CODE)
 class CodeStepRunner(StepRunnerBase):
     @override
     async def run_once(self) -> None:
@@ -296,7 +318,7 @@ class CodeStepRunner(StepRunnerBase):
         self.outputs = code_runner.outputs
 
 
-@runner(RunKind.STEP, StepType.TEXT)
+@runner_(RunKind.STEP, StepType.TEXT)
 class TextStepRunner(StepRunnerBase):
     @override
     async def run_once(self) -> None:

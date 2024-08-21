@@ -1,3 +1,4 @@
+import asyncio
 import base64
 from asyncio import CancelledError
 from datetime import datetime, timedelta
@@ -101,6 +102,8 @@ STATIC_CODE_GLOBALS: dict[str, Any] = {
     "RetryableError": RetryableError,
     "RunImpossibleError": RunImpossibleError,
     "ModelIncapableError": ModelIncapableError,
+    # external
+    "asyncio": asyncio,
 }
 # and some general stuff
 for t in (datetime, timedelta, UUID, base64):

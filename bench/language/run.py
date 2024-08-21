@@ -299,7 +299,7 @@ class RunError(Struct, BenchError):
         return self.type is None or self.type.is_retryable
 
     @staticmethod
-    def from_exception(kind: RunErrorKind, e: Exception) -> "RunError":
+    def from_exception(kind: RunErrorKind, e: BaseException) -> "RunError":
         # NOTE :Incomplete: get run error trace/frames/node/...
         if isinstance(getattr(e, "error", None), RunError):
             return getattr(e, "error")  # manual error

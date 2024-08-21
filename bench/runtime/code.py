@@ -26,7 +26,7 @@ from bench.runtime.runner import (
     RunnableNode,
     Runner,
     RunnerCache,
-    runner,
+    runner_,
 )
 
 logger = structlog.get_logger(__name__)
@@ -136,7 +136,7 @@ class CodeRunnerBase[T: RunnableNode](Runner[CodeRunnerCache[T], T]):
         return outputs
 
 
-@runner(RunKind.CODE, CodeType.SNIPPET)
+@runner_(RunKind.CODE, CodeType.SNIPPET)
 class CodeSnippetRunner(CodeRunnerBase):
     """Run a code snippet and update the value of the state's last expression."""
 
@@ -145,7 +145,7 @@ class CodeSnippetRunner(CodeRunnerBase):
         raise NotImplementedError
 
 
-@runner(RunKind.CODE, CodeType.SCRIPT)
+@runner_(RunKind.CODE, CodeType.SCRIPT)
 class CodeScriptRunner(CodeRunnerBase):
     """Run a code script and update the state's exported definitions."""
 
@@ -171,7 +171,7 @@ class CodeScriptRunner(CodeRunnerBase):
         self.cache.exports = exports
 
 
-@runner(RunKind.CODE, CodeType.FUNCTION)
+@runner_(RunKind.CODE, CodeType.FUNCTION)
 class CodeFunctionRunner(CodeRunnerBase):
     """Run a code function and update the run's outputs."""
 
