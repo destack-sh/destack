@@ -421,7 +421,9 @@ class TypeInfoBase(BuiltinObject):
     def _get_field(self, ident: str) -> Optional["Field"]:
         """Resolves a field in this type by an identifier (name or py_name)"""
         for field in self._base_fields:
-            if field.py_name == ident or field.name == ident:
+            if (field.py_name == ident or field.name == ident) and (
+                self.base_field_zone is None or field.zone == self.base_field_zone
+            ):
                 return field
         return None
 

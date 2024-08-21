@@ -206,8 +206,8 @@ class Runtime:
                     )
                     runner.attempts.append(attempt)
                     try:
-                        runner.task = asyncio.create_task(runner.run_once())
-                        await runner.task
+                        runner.inner_task = asyncio.create_task(runner.run_once())
+                        await runner.inner_task
                         attempt.status = RunStatus.COMPLETED
                         log.debug("runner.attempt", attempt=attempt, span="current")
                         break  # success
@@ -224,7 +224,7 @@ class Runtime:
                         ):
                             raise  # give up
                     finally:
-                        runner.task = None
+                        runner.inner_task = None
                         attempt.terminated_at = self.oracle.utc()
                         attempt.terminated_epoch = self.session.epoch
                         assert attempt.started_at, f"missing started_at for attempt {attempt!r}"
