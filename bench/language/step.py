@@ -318,6 +318,7 @@ class Step(SourceNode[StepData]):
 
     def to_type(self, as_object: bool = True, zone: FieldZone | None = None):
         """Gets a type represented by this Step (if any)"""
+        from bench.language.block import Block
         from bench.language.field import TypeInfo
 
         if self.type == StepType.START:
@@ -327,7 +328,7 @@ class Step(SourceNode[StepData]):
             assert self.parent is not None, f"{self!r} has no parent"
             return self.parent.output_type
         elif self.type == StepType.BLOCK:
-            assert isinstance(self.node, Block), f"{self!r} has no block"
+            assert isinstance(self.node, Block), f"{self!r} has no block: {self.node!r}"
             return self.node.to_type(as_object=as_object, zone=zone)
         else:
             if not as_object:

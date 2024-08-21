@@ -76,7 +76,7 @@ class Runner[S: RunnerCache, T: RunnableNode](abc.ABC):
     error: RunError | None = None
     attempts: list[RunAttempt] = dataclasses.field(default_factory=list)
     logs: list[LogInfo] = dataclasses.field(default_factory=list)
-    task: asyncio.Task | None = None  # the active callable being run
+    inner_task: asyncio.Task | None = None  # the active callable being run
     run: Run | None = None  # if tracked
 
     def __str__(self):

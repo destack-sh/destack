@@ -18,6 +18,21 @@ async def test_run_flow_empty(local_runtime: RuntimeHandle):
     assert runner.run and not runner.run.runs  # no nested runs
 
 
+async def test_run_flow_spurious(local_runtime: RuntimeHandle):
+    """Flow with Steps that go nowhere."""
+    Flow1 = Block.new(BlockType.FLOW, "Flow1")
+    Start = Step.new(StepType.START, "Start")
+    Complete = Step.new(StepType.COMPLETE, "Complete")
+    Code1 = Step.new(StepType.CODE, "Code1", code=code("pass"))
+    # don't actually connect the steps
+    Flow1.steps.extend(Start, Complete, Code1)
+    local_runtime.page().blocks.append(Flow1)
+    await local_runtime.commit()
+
+    runner = await local_runtime.run(Flow1)
+    assert runner.run and len(runner.run.runs) == 1  # just Start
+
+
 async def test_run_flow_trivial_no_value(local_runtime: RuntimeHandle):
     """Trivial flow with Start->Complete, no value."""
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
@@ -76,9 +91,11 @@ async def test_run_flow_code_block(local_runtime: RuntimeHandle):
     Code2 = Step.new(StepType.BLOCK, "Code2", node=CodeBlock2)
     Start = Step.new(StepType.START, "Start")
     Complete = Step.new(StepType.COMPLETE, "Complete")
-    Start.then(Code1).then(Code2).then(Complete)
+    Start.then(Code1).then(
+        Code2, source_field=CodeBlock1.fields.Output1, target_field=CodeBlock2.fields.Input1
+    ).then(Complete)
     Flow1.steps.extend(Start, Code1, Code2, Complete)
-    local_runtime.page().blocks.append(Flow1)
+    local_runtime.page().blocks.extend(CodeBlock1, CodeBlock2, Flow1)
     await local_runtime.commit()
 
     runner = await local_runtime.run(Flow1, inputs={"Input1": 2})
@@ -95,7 +112,7 @@ async def test_run_flow_race(local_runtime: RuntimeHandle):
     Race2 = Step.new(StepType.CODE, "Race2", code=code("await asyncio.sleep(0.2)"))
     Start.then(Race2).then(Complete)
     Race3 = Step.new(StepType.CODE, "Race3", code=code("await asyncio.sleep(0.3)"))
-    Race3.then(Complete).then(Complete)
+    Start.then(Race3).then(Complete)
     Flow1.steps.extend(Start, Race1, Race2, Race3, Complete)
     local_runtime.page().blocks.append(Flow1)
     await local_runtime.commit()

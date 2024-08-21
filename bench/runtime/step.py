@@ -1,4 +1,5 @@
 import abc
+import asyncio
 import dataclasses
 from asyncio import Queue
 from enum import IntEnum
@@ -43,6 +44,7 @@ class StepState:
     input_type: TypeInfoBase
     inputs: ValueObject
     unset_ports: dict[PortId, PortKey]
+    runners: list["StepRunnerBase"]
 
     def __str__(self) -> str:
         return f"{self.step!r}, inputs={self.inputs!r}, unset_ports={len(self.unset_ports)}"
@@ -55,7 +57,7 @@ class StepState:
         return len(self.unset_ports) == 0
 
     def set_port(self, port: PortKey, value: ValueObject | RunError | Any) -> None:
-        """Sets the value of an incoming port."""
+        """Sets the value of an incoming port (marking it as ready)."""
         if port.type == PortType.DATA:
             if not isinstance(value, ValueObject):
                 raise ValueError(f"expected value for {self.step!r}, got {value!r}")
@@ -80,10 +82,13 @@ class StepState:
 
     @staticmethod
     def from_step(step: Step) -> "StepState":
+        """Wrap a Step in a StepState."""
         input_type = step.input_type
         inputs = ValueObject.new({}, input_type)
         unset_ports = {to_port_id(p): p for p in step.incoming_ports}
-        return StepState(step=step, input_type=input_type, inputs=inputs, unset_ports=unset_ports)
+        return StepState(
+            step=step, input_type=input_type, inputs=inputs, unset_ports=unset_ports, runners=[]
+        )
 
 
 @runner(RunKind.FLOW, None)
@@ -107,31 +112,36 @@ class FlowRunner(Runner[RunnerCache, Block]):
         )
         assert isinstance(runner, StepRunnerBase), f"unexpected runner: {runner!r}"
         runner.flow = self
+        step_state.runners.append(runner)
         return runner
 
     def _complete(self, outputs: ValueObject | None) -> None:
-        """Complete the Flow."""
+        """Complete the Flow immediately."""
         self._force_complete = True if outputs is None else outputs
 
     def _fail(self, error: RunError) -> None:
-        """Fail the Flow."""
+        """Fail the Flow immediately."""
         self._force_fail = error
 
-    async def _start_run(self, state: StepState) -> None:
-        """Run a Step in the Flow."""
-        # nocheckin: start it async
-        runner = await self._make_runner(state)
-        assert runner.run is not None, f"{runner!r} has no Run (is not tracked)"
+    async def _start_step(self, state: StepState, runner: "StepRunnerBase") -> None:
+        """Run a Step in the Flow (actual run is started as a task and not directly awaited)."""
+        assert runner.run is not None, f"{runner!r} has no Run"
+        self._active_runners[runner.run] = runner
+        logger.debug("flow.start", step=state.step, run=runner.run)
+        runner.outer_task = asyncio.create_task(self._do_wrap_step(runner))
+
+    async def _do_wrap_step(self, runner: "StepRunnerBase") -> None:
+        """Wraps a StepRunner in a task and awaits it."""
+        assert runner.run is not None, f"{runner!r} has no Run"
         try:
-            self._active_runners[runner.run] = runner
-            logger.debug("flow.start", step=state.step, run=runner.run)
             await self.runtime.run_runner(runner)
             if runner.status != RunStatus.ABORTED:
                 self._terminated_runs.put_nowait((runner.node, runner.run))
         finally:
-            del self._active_runners[runner.run]
+            if runner.run in self._active_runners:
+                del self._active_runners[runner.run]
 
-    async def _fire_run(self, step: Step, run: Run) -> None:
+    async def _fire_step(self, step: Step, run: Run) -> None:
         """Fires all the pipes for the terminated Step/Run."""
 
         triggered_steps: dict[Step, TriggerType] = {}
@@ -175,9 +185,12 @@ class FlowRunner(Runner[RunnerCache, Block]):
             for step_state in self._step_states.values()
             if step_state.step in triggered_steps and step_state.is_ready
         ]
-        logger.trace("flow.fire", step=step, run=run, to_start=steps_to_start)
+        logger.trace(
+            "flow.fire", step=step, run=run, triggered=triggered_steps, to_start=steps_to_start
+        )
         for step_state in steps_to_start:
-            await self._start_run(step_state)
+            runner = await self._make_runner(step_state)
+            await self._start_step(step_state, runner)
 
     @override
     async def run_once(self) -> None:
@@ -192,7 +205,8 @@ class FlowRunner(Runner[RunnerCache, Block]):
             if step_state.step.type == StepType.START:
                 step_state.inputs = self.inputs
                 step_state.unset_ports.clear()
-                await self._start_run(step_state)
+                runner = await self._make_runner(step_state)
+                await self._start_step(step_state, runner)
 
         try:
             # run until complete or nothing left to run
@@ -204,7 +218,7 @@ class FlowRunner(Runner[RunnerCache, Block]):
                 # tick next
                 step, run = await self._terminated_runs.get()
                 assert run.status.is_terminal, f"{run!r} is not terminated"
-                await self._fire_run(step, run)
+                await self._fire_step(step, run)
 
             # set forced output/error
             if isinstance(self._force_complete, ValueObject):
@@ -214,12 +228,13 @@ class FlowRunner(Runner[RunnerCache, Block]):
         except Exception:
             # cancel all active steps
             for runner in self._active_runners.values():
-                if runner.task is not None:
-                    runner.task.cancel()
+                if runner.inner_task is not None:
+                    runner.inner_task.cancel()
             raise
 
 
 class StepRunnerBase(Runner[RunnerCache, Step], abc.ABC):
+    outer_task: asyncio.Task | None = None
     flow: FlowRunner | None = None
 
 
@@ -253,8 +268,8 @@ class CompleteStepRunner(StepRunnerBase):
 class BlockStepRunner(StepRunnerBase):
     @override
     async def run_once(self) -> None:
-        block = self.node.block
-        if block is None or block.run_kind is None:
+        block = self.node.node
+        if not isinstance(block, Block) or block.run_kind is None:
             raise RunImpossibleError(f"no runnable block for {self.node!r}: {block!r}")
         block_runner = await self.runtime.make_runner(
             kind=block.run_kind, node=block, options=RUN_ONCE, inputs=self.inputs, track=True
