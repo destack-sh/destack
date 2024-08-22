@@ -1,4 +1,5 @@
 from typing import TYPE_CHECKING, Any, Optional, Union, assert_never, cast, final
+from uuid import UUID
 
 from bench.language.const import (
     BlockType,
@@ -13,6 +14,7 @@ from bench.language.field import TypeInfoBase
 from bench.language.graph import NodeList
 from bench.language.node import SourceNode, Struct, local_node_, struct_
 from bench.language.property import (
+    Property,
     p_internal,
     p_node_children,
     p_node_parent,
@@ -20,7 +22,7 @@ from bench.language.property import (
     p_value_packed,
     p_value_runtime,
 )
-from bench.language.validation import NAME_CONSTRAINT, constraint
+from bench.language.validation import NAME_CONSTRAINT, ValidationHandler, constraint
 from bench.proto.wire import StepData
 from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import IdEnum
@@ -47,8 +49,8 @@ if TYPE_CHECKING:
 @enum_(EnumType.STEP_TYPE)
 class StepType(IdEnum):
     # boundary (only incoming OR outgoing)
-    START = 1  # source with inputs (at most one per Flow)
-    COMPLETE = 2  # terminate with outputs (at most one per Flow)
+    START = 1  # source with inputs
+    COMPLETE = 2  # terminate with outputs
     FAIL = 3  # terminate with error
     # ABORT?
     VALUE = 10  # source with just(value)
@@ -98,18 +100,18 @@ class StepType(IdEnum):
 
 @enum_(EnumType.PIPE_TYPE)
 class PipeType(IdEnum):
-    THEN = 1  # content + trigger
-    WITH = 2  # content (only)
+    THEN = 1  # value + fire
+    WITH = 2  # value
     ...
 
 
 @enum_(EnumType.PIPE_FILTER_TYPE)
 class PipeFilterType(IdEnum):
-    # truthy
+    # positive
     IS_NON_EMPTY = 1  # drop empty (None, empty, False, 0, ...)
     IS_TRUTHY = 2  # drop falsy (None, empty, False, 0, ...)
     # IS_VALID = 3  # keep valid (drop invalid)
-    # falsy
+    # negative
     IS_EMPTY = 50  # keep empty only (None, empty, "", ...)
     IS_FALSY = 51  # keep falsy only (None, empty, False, 0, ...)
     # IS_INVALID doesn't make sense? (would need to know: valid for what target port?)
@@ -118,7 +120,7 @@ class PipeFilterType(IdEnum):
 @struct_(StructType.PIPE)
 class Pipe(Struct):
     """
-    A connection between two Steps in a FlowBlock.
+    A connection between two Steps in a FlowBlock (source = outgoing, target = incoming).
     The pipe is stored in the incoming Step, so the target Step is implicit.
     """
 
@@ -147,19 +149,45 @@ class Pipe(Struct):
         target = self.target
         return f"{source.absolute_path if source else '???'}:{self.source_port} {arrow_str} {target.absolute_path if target else '???'}:{self.target_port}"
 
+    def _validate_component(self, properties: tuple[Property, ...], invalid: "ValidationHandler"):
+        # source and target must be distinct
+        if (
+            self.source == self.target
+            and self.source_port.field_ptr is not None
+            and self.source_port.field_ck == self.target_port.field_ck
+        ):
+            invalid(self, "source and target must be distinct", (Pipe.source, Pipe.target))
+
+
+@enum_(EnumType.PORT_SIDE)
+class PortSide(IdEnum):
+    INCOMING = 1
+    OUTGOING = 2
+
 
 @enum_(EnumType.PORT_TYPE)
 class PortType(IdEnum):
-    RUN = 1  # trigger only (no content, just the Run)
-    ERROR = 2  # trigger with error in case of failure (output only)
-    OBJECT = 10  # trigger with full input/output/... value (depending on side)
-    FIELD = 11  # trigger with specific field (depending on side & type)
+    RUN = 1  # fire only (no content, just the Run)
+    ERROR = 2  # fire with error in case of failure (output only)
+    OBJECT = 10  # fire with full input/output/... value (depending on side)
+    FIELD = 11  # fire with specific field (depending on side & type)
+
+    @property
+    def is_incoming(self) -> bool:
+        return self in PORT_TYPES_BY_SIDE[PortSide.INCOMING]
+
+    @property
+    def is_outgoing(self) -> bool:
+        return self in PORT_TYPES_BY_SIDE[PortSide.OUTGOING]
 
 
-PORT_TYPES_BY_ZONE: dict[FieldZone, tuple[PortType, ...]] = {
-    FieldZone.VARIABLE: (PortType.OBJECT, PortType.FIELD),
-    FieldZone.INPUT: (PortType.RUN, PortType.OBJECT, PortType.FIELD),
-    FieldZone.OUTPUT: (PortType.RUN, PortType.OBJECT, PortType.ERROR, PortType.FIELD),
+PORT_TYPES_BY_SIDE: dict[PortSide, tuple[PortType, ...]] = {
+    PortSide.INCOMING: (PortType.RUN, PortType.OBJECT, PortType.FIELD),
+    PortSide.OUTGOING: (PortType.RUN, PortType.ERROR, PortType.OBJECT, PortType.FIELD),
+}
+FIELD_ZONES_BY_SIDE: dict[PortSide, tuple[FieldZone, ...]] = {
+    PortSide.INCOMING: (FieldZone.VARIABLE, FieldZone.INPUT),
+    PortSide.OUTGOING: (FieldZone.OUTPUT,),
 }
 
 
@@ -169,14 +197,18 @@ class PortKey(Struct):
 
     # key
     type: PortType = p_internal(30)
-    zone: FieldZone = p_regular(31)
+    side: PortSide = p_regular(31)
     field: Optional["Field"] = p_regular(32, require=False, references=NodeType.FIELD)
+    if TYPE_CHECKING:
+        field_id: Optional[UUID] = None
+        field_ck: Optional[UUID] = None
+        field_ptr: Optional["Property"] = None
 
     def __content_str__(self) -> str:
         if self.type == PortType.RUN or self.type == PortType.ERROR:
             return f"[{self.type.bench_name}]"
         elif self.type == PortType.OBJECT:
-            return f".*[{self.zone.bench_name}]"
+            return f".*[{self.side.bench_name}]"
         elif self.type == PortType.FIELD:
             field = self.field
             return f".{field.py_name if field else '???'}"
@@ -187,18 +219,24 @@ class PortKey(Struct):
 PortIn = Union["Field", PortType, PortKey]
 
 
-def to_port_key(port: PortIn, zone: FieldZone) -> PortKey:
+def to_port_key(port: PortIn, *, side: PortSide) -> PortKey:
     from bench.language.field import Field
 
     if isinstance(port, PortKey):
-        if port.zone != zone:
+        if port.side != side:
             port = port.clone()
-            port.zone = zone
+            port.side = side
         return port
     elif isinstance(port, Field):
-        return PortKey(type=PortType.FIELD, zone=zone, field=port)
+        # NOTE :Cleanup :Architecture: we would like to check field zone / port sides here
+        #  but we sometimes use input fields as outputs (e.g. Flow inputs as Start step outputs)
+        # if port.zone not in FIELD_ZONES_BY_SIDE[side]:
+        #     raise ValueError(f"field {port!r} not allowed on side {side.bench_name}")
+        return PortKey(type=PortType.FIELD, side=side, field=port)
     elif isinstance(port, PortType):
-        return PortKey(type=port, zone=zone)
+        if port not in PORT_TYPES_BY_SIDE[side]:
+            raise ValueError(f"port {port.bench_name} not allowed on side {side.bench_name}")
+        return PortKey(type=port, side=side)
     else:
         assert_never(port)
 
@@ -218,11 +256,11 @@ class Step(SourceNode[StepData]):
     """
     An data or control flow node in a FlowBlock. Ports on Steps are connected by Pipes.
     Pipes are stored in the source Step. Ports are implicit via Pipes unless tied to some value.
-    A Step is run when it is triggered, specifically:
+    A Step is run when it is fired, specifically:
      - When its control port fires OR
      - When all its input ports (for all fields or full value) fire
-    A Step may run multiple times if it is triggered multiple times (even concurrently).
-    A Step may directly trigger any Step (including itself) at most once per run.
+    A Step may run multiple times if it is fired multiple times (even concurrently).
+    A Step may directly fire any Step (including itself) at most once per run.
     Steps are run in order of definition per firing (regardless of pipe & port order).
 
     When a Step completes, then:
@@ -323,9 +361,9 @@ class Step(SourceNode[StepData]):
         pipe = Pipe(
             type=type,
             source=source,
-            source_port=to_port_key(source_port, FieldZone.OUTPUT),
+            source_port=to_port_key(source_port, side=PortSide.OUTGOING),
             target=self,
-            target_port=to_port_key(target_port, FieldZone.INPUT),
+            target_port=to_port_key(target_port, side=PortSide.INCOMING),
             filter_type=filter_type,
         )
         source.pipes.append(pipe)
@@ -401,7 +439,7 @@ class Step(SourceNode[StepData]):
     def incoming_ports(self) -> list[PortKey]:
         ports: list[PortKey] = []  # no dynamic ports yet :StaticSteps
         for field in self.input_type._fields:
-            port = PortKey(type=PortType.FIELD, zone=FieldZone.INPUT, field=field)
+            port = PortKey(type=PortType.FIELD, side=PortSide.INCOMING, field=field)
             ports.append(port)
         return ports
 
@@ -409,7 +447,7 @@ class Step(SourceNode[StepData]):
     def outgoing_ports(self) -> list[PortKey]:
         ports: list[PortKey] = []  # no dynamic ports yet :StaticSteps
         for field in self.output_type._fields:
-            port = PortKey(type=PortType.FIELD, zone=FieldZone.OUTPUT, field=field)
+            port = PortKey(type=PortType.FIELD, side=PortSide.OUTGOING, field=field)
             ports.append(port)
         return ports
 

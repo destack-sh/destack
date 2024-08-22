@@ -47,15 +47,33 @@ async def test_run_flow_trivial_no_value(local_runtime: RuntimeHandle):
     assert runner.run and len(runner.run.runs) == 2  # two steps
 
 
-async def test_run_flow_force_trigger_invalid_value(local_runtime: RuntimeHandle):
-    """Run a step with a trigger port that forces a Run of a Step with invalid inputs (should fail)."""
+async def test_run_flow_force_invalid_output(local_runtime: RuntimeHandle):
+    """Complete the flow with invalid output (should fail)."""
     Flow1 = Block.new(
         BlockType.FLOW, "Flow1", fields=(Field.output("Output1", str, is_required=True),)
     )
     Start = Step.new(StepType.START, "Start")
     Complete = Step.new(StepType.COMPLETE, "Complete")
-    Start.then(Complete)
+    Start.then(Complete, source_port=PortType.RUN, target_port=PortType.RUN)
     Flow1.steps.extend(Start, Complete)
+    local_runtime.page().blocks.append(Flow1)
+    await local_runtime.commit()
+
+    runner = await local_runtime.run(Flow1, return_error=True)
+    assert runner.status == RunStatus.FAILED
+    assert runner.error and runner.error.type == RunErrorType.INVALID_VALUE
+
+
+async def test_run_flow_force_invalid_input(local_runtime: RuntimeHandle):
+    """Run a step with a trigger port that forces a Run of a Step with invalid inputs (should fail)."""
+    Flow1 = Block.new(
+        BlockType.FLOW, "Flow1", fields=(Field.output("Output1", str, is_required=True),)
+    )
+    Start = Step.new(StepType.START, "Start")
+    Code1 = Step.new(StepType.CODE, "Code1", fields=(Field.input("Input1", str, is_required=True),))
+    Complete = Step.new(StepType.COMPLETE, "Complete")
+    Start.then(Code1, source_port=PortType.RUN, target_port=PortType.RUN).then(Code1).then(Complete)
+    Flow1.steps.extend(Start, Code1, Complete)
     local_runtime.page().blocks.append(Flow1)
     await local_runtime.commit()
 
@@ -217,8 +235,8 @@ async def test_run_flow_get_run_as_field(local_runtime: RuntimeHandle):
     )
 
 
-async def test_run_flow_pipe_filter(local_runtime: RuntimeHandle):
-    """Run a flow with a simple pipe filters."""
+async def test_run_flow_pipe_filter_positive(local_runtime: RuntimeHandle):
+    """Run a flow with a simple positive filters on a single field."""
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
     Start = Step.new(StepType.START, "Start")
     Code1 = Step.new(
@@ -228,7 +246,32 @@ async def test_run_flow_pipe_filter(local_runtime: RuntimeHandle):
         code=code("return 0"),
     )
     Complete = Step.new(StepType.COMPLETE, "Complete")
-    Start.then(Code1, filter_type=PipeFilterType.IS_TRUTHY).then(Complete)
+    Start.then(Code1).then(
+        Complete,
+        source_port=Code1.fields.Output1,
+        target_port=PortType.RUN,
+        filter_type=PipeFilterType.IS_TRUTHY,
+    )
+    Flow1.steps.extend(Start, Code1, Complete)
+    local_runtime.page().blocks.extend(Flow1)
+    await local_runtime.commit()
+
+    runner = await local_runtime.run(Flow1)
+    assert runner.run and len(runner.run.runs) == 2  # Start + Code1 (not Complete)
+
+
+async def test_run_flow_pipe_filter_negative(local_runtime: RuntimeHandle):
+    """Run a flow with a simple negative filters on an entire object."""
+    Flow1 = Block.new(BlockType.FLOW, "Flow1")
+    Start = Step.new(StepType.START, "Start")
+    Code1 = Step.new(
+        StepType.CODE,
+        "Code1",
+        fields=(Field.output("Output1", int, is_list=True), Field.output("Output2", int)),
+        code=code("return [1, 2, 3], 2"),
+    )
+    Complete = Step.new(StepType.COMPLETE, "Complete")
+    Start.then(Code1).then(Complete, filter_type=PipeFilterType.IS_FALSY)
     Flow1.steps.extend(Start, Code1, Complete)
     local_runtime.page().blocks.extend(Flow1)
     await local_runtime.commit()
@@ -268,7 +311,7 @@ return Input1, Input1 < 10, Input1 > 10
         StepType.CODE,
         "DivideSmall",
         fields=(Field.input("Input1", int), Field.output("Output1", int)),
-        code=code("return Input1 / 2"),
+        code=code("return Input1 // 2"),
     )
     Complete = Step.new(StepType.COMPLETE, "Complete")
     # Start -> Switch
@@ -330,18 +373,25 @@ async def test_run_flow_ping_pong(local_runtime: RuntimeHandle):
     Complete = Step.new(StepType.COMPLETE, "Complete")
     # Start.Num -> Generator.Seed
     Start.then(Generator, source_port=Flow1.fields.NumIn, target_port=Generator.fields.Seed)
-    # Generator.Seed > Generator.Num
-    Generator.with_(Generator, source_port=Generator.fields.Num, target_port=Generator.fields.Num)
+    # Generator.Num - Generator.Seed
+    Generator.with_(Generator, source_port=Generator.fields.Num, target_port=Generator.fields.Seed)
     # Generator.Num -> Verifier.Num
     Generator.then(Verifier, source_port=Generator.fields.Num, target_port=Verifier.fields.Num)
     # Generator.Num - Complete.NumOut
     Generator.with_(Complete, source_port=Generator.fields.Num, target_port=Flow1.fields.NumOut)
-    # Generator.IsGood > Complete
+    # Verifier.IsGood?[IsTruthy] > Complete
     Verifier.then(
         Complete,
         source_port=Verifier.fields.IsGood,
         target_port=PortType.RUN,
         filter_type=PipeFilterType.IS_TRUTHY,
+    )
+    # Verifier.IsGood?[IsFalsy] > Generator
+    Verifier.then(
+        Generator,
+        source_port=Verifier.fields.IsGood,
+        target_port=PortType.RUN,
+        filter_type=PipeFilterType.IS_FALSY,
     )
     Flow1.steps.extend(Start, Generator, Verifier, Complete)
     local_runtime.page().blocks.extend(Flow1)
