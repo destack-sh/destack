@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.08.22.1"  # auto change via version script
+VERSION = "2024.08.22.2"  # auto change via version script
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -231,7 +231,7 @@ class NodeType(IdEnum):
     RECORD = 1103  # (based)
     NOTIFICATION = 1104  # (based, timed)
 
-    # runtime (eternal)
+    # runtime (eternal, so we don't log edits except removes)
     SESSION = 1200  # (timed)
     RUN = 1201  # (based, timed)
     SIGNAL = 1202  # (based, timed)

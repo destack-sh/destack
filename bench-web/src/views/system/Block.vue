@@ -34,6 +34,7 @@ import { computed, nextTick, ref, toRef, type Ref } from "vue";
 import { NAME_CONSTRAINT, RUNNABLE_BLOCK_TYPES, TYPE_BLOCK_TYPES } from "@/language/const";
 import { createField, makeTypeInfo, resolveType, type TypeIdentity } from "@/language/field";
 import { packValue, unpackValue } from "@/language/value";
+import Flow from "@/views/system/Flow.vue";
 
 const props = defineProps<
   {
@@ -312,6 +313,7 @@ defineExpose<ViewExposed & { isRunnable: Ref<boolean> }>({
         :model-value="block.code"
         @update:model-value="(newCode) => pkgConnection.tx.update(block!, { code: newCode }, { debounce: 'long' })"
       />
+      <Flow v-if="block.type == BlockType.FLOW" :self="props.self" :prepared-connection="pkgGetConnection" />
     </div>
   </div>
   <Inaccessible v-else class="h-full w-full" :node="nodePtr" :connection="pkgConnection" />

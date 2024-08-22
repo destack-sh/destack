@@ -102,7 +102,8 @@ class StepState:
         elif port.type == PortType.FIELD:
             # set specific field port
             assert port.field is not None, f"{port!r} has no field"
-            self.unset_ports.pop(to_port_id(port), None)
+            field_port_id = to_port_id(port)
+            self.unset_ports.pop(field_port_id, None)
             self.inputs[port.field] = value
         elif port.type in (PortType.ERROR, PortType.RUN):
             raise RuntimeError(f"cannot set {port!r}")
@@ -193,7 +194,7 @@ class FlowRunner(Runner[RunnerCache, Block]):
             if runner.run in self._active_runners:
                 del self._active_runners[runner.run]
 
-    async def _fire_step(self, step: Step, run: Run) -> None:
+    async def _fire_step(self, step: Step, run: Run) -> list[StepState]:
         """Fires all the pipes for the terminated Step/Run."""
 
         fired_steps: dict[Step, FireType] = {}
@@ -255,16 +256,13 @@ class FlowRunner(Runner[RunnerCache, Block]):
             # fire
             _fire_pipe(pipe, target_state)
 
-        # start fired steps (in order of definition)
+        # collect steps to start (in order of definition)
         steps_to_start = []
         for step_state in self._step_states.values():
             fire = fired_steps.get(step_state.step)
             if fire == FireType.FULL or (fire == FireType.PARTIAL and step_state.is_ready):
                 steps_to_start.append(step_state)
-        logger.trace("step.fire", step=step, run=run, fired=fired_steps, to_start=steps_to_start)
-        for step_state in steps_to_start:
-            runner = await self._make_runner(step_state)
-            await self._start_step(step_state, runner)
+        return steps_to_start
 
     @override
     async def run_once(self) -> None:
@@ -289,20 +287,27 @@ class FlowRunner(Runner[RunnerCache, Block]):
                 and not self._force_fail
                 and (self._active_runners or not self._terminated_runs.empty())
             ):
-                # 'tick' on next terminated step
+                # wait on next terminated step
                 logger.trace("flow.wait", flow=self, active_runners=self._active_runners.values())
                 step, run = await self._terminated_runs.get()
                 assert run.status.is_terminal, f"{run!r} is not terminated"
 
                 # fail if step failed and no error port
-                if run.status == RunStatus.FAILED and not any(
+                if run.status == RunStatus.ABORTED:
+                    continue  # ignore aborted runs
+                elif run.status == RunStatus.FAILED and not any(
                     pipe.source_port.type == PortType.ERROR for pipe in step.pipes
                 ):
                     assert run.error is not None, f"{run!r} has no error"
                     self._fail(run.error)
+                    continue
+
                 # update/fire outgoing pipes
-                elif run.status != RunStatus.ABORTED:  # ignore aborted runs
-                    await self._fire_step(step, run)
+                steps_to_start = await self._fire_step(step, run)
+                logger.trace("step.fire", step=step, run=run, fired=steps_to_start)
+                for step_state in steps_to_start:
+                    runner = await self._make_runner(step_state)
+                    await self._start_step(step_state, runner)
 
             # set forced output/error
             if isinstance(self._force_complete, ValueObject):

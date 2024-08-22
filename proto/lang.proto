@@ -237,6 +237,7 @@ enum BenchType {
   BENCH_TYPE_PIPE_TYPE = 20561;
   BENCH_TYPE_PIPE_FILTER_TYPE = 20562;
   BENCH_TYPE_PORT_TYPE = 20563;
+  BENCH_TYPE_PORT_SIDE = 20564;
   BENCH_TYPE_NOTIFICATION_LEVEL = 20570;
   BENCH_TYPE_SPACE_TYPE = 21000;
   BENCH_TYPE_VIEW_TYPE = 21001;
@@ -284,7 +285,6 @@ enum BreakpointKind {
   BREAKPOINT_KIND_START_RUN = 1;
   BREAKPOINT_KIND_FAIL_RUN = 2;
   BREAKPOINT_KIND_COMPLETE_RUN = 3;
-  BREAKPOINT_KIND_FAIL_ATTEMPT = 4;
   BREAKPOINT_KIND_CODE_LINE = 20;
 }
 
@@ -496,6 +496,7 @@ enum EnumType {
   ENUM_TYPE_PIPE_TYPE = 20561;
   ENUM_TYPE_PIPE_FILTER_TYPE = 20562;
   ENUM_TYPE_PORT_TYPE = 20563;
+  ENUM_TYPE_PORT_SIDE = 20564;
   ENUM_TYPE_NOTIFICATION_LEVEL = 20570;
   ENUM_TYPE_SPACE_TYPE = 21000;
   ENUM_TYPE_VIEW_TYPE = 21001;
@@ -995,6 +996,12 @@ enum PolicyEffect {
   POLICY_EFFECT_DENY = 2;
 }
 
+enum PortSide {
+  PORT_SIDE_UNSPECIFIED = 0;
+  PORT_SIDE_INCOMING = 1;
+  PORT_SIDE_OUTGOING = 2;
+}
+
 enum PortType {
   PORT_TYPE_UNSPECIFIED = 0;
   PORT_TYPE_RUN = 1;
@@ -1127,6 +1134,9 @@ enum RunErrorType {
 
 enum RunEventType {
   RUN_EVENT_TYPE_UNSPECIFIED = 0;
+  RUN_EVENT_TYPE_PAUSED = 1;
+  RUN_EVENT_TYPE_RESUMED = 2;
+  RUN_EVENT_TYPE_HALTED = 3;
   RUN_EVENT_TYPE_CUSTOM = 1000;
 }
 
@@ -1250,17 +1260,8 @@ enum StepType {
   STEP_TYPE_CODE = 54;
   STEP_TYPE_TEXT = 55;
   STEP_TYPE_SEND = 56;
-  STEP_TYPE_MATCH = 100;
-  STEP_TYPE_FILTER = 101;
-  STEP_TYPE_MERGE = 102;
-  STEP_TYPE_FLATTEN = 103;
-  STEP_TYPE_ACCUMULATE = 104;
-  STEP_TYPE_REDUCE = 105;
-  STEP_TYPE_ZIP = 106;
-  STEP_TYPE_JOIN = 107;
-  STEP_TYPE_GROUP = 150;
-  STEP_TYPE_LOOP = 151;
-  STEP_TYPE_SHIELD = 152;
+  STEP_TYPE_GROUP = 500;
+  STEP_TYPE_LOOP = 501;
 }
 
 enum StructType {
@@ -1816,7 +1817,7 @@ message PathTokenData {
   optional string name = 32;
 }
 
-// A connection between two Steps in a FlowBlock.
+// A connection between two Steps in a FlowBlock (source = outgoing, target = incoming).
 // The pipe is stored in the incoming Step, so the target Step is implicit.
 message PipeData {
   ObjectType metatype = 1;
@@ -1873,21 +1874,22 @@ message PolicyRuleData {
   optional bool object_properties_is_kernel = 84;
 }
 
-// A full port on a Step with some value.
+// Extra configuration for a port (key) on a Step with some value.
+// Not all ports need a Port, just if there is extra behavior to define.
 message PortData {
   ObjectType metatype = 1;
   PortType type = 30;
-  FieldZone zone = 31;
+  PortSide side = 31;
   optional NodeReferenceData field_ptr = 32;
-  optional TypeInfoData value_type = 40;
-  optional google.protobuf.Struct value_packed = 41;
+  optional TypeInfoData value_type = 50;
+  optional google.protobuf.Struct value_packed = 51;
 }
 
 // An identifier for a port on a Step.
 message PortKeyData {
   ObjectType metatype = 1;
   PortType type = 30;
-  FieldZone zone = 31;
+  PortSide side = 31;
   optional NodeReferenceData field_ptr = 32;
 }
 

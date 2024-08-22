@@ -982,7 +982,7 @@ export interface PathTokenData {
     name?: string;
 }
 /**
- * A connection between two Steps in a FlowBlock.
+ * A connection between two Steps in a FlowBlock (source = outgoing, target = incoming).
  * The pipe is stored in the incoming Step, so the target Step is implicit.
  *
  * @generated from protobuf message symbolx.bench.PipeData
@@ -1132,7 +1132,8 @@ export interface PolicyRuleData {
     objectPropertiesIsKernel?: boolean;
 }
 /**
- * A full port on a Step with some value.
+ * Extra configuration for a port (key) on a Step with some value.
+ * Not all ports need a Port, just if there is extra behavior to define.
  *
  * @generated from protobuf message symbolx.bench.PortData
  */
@@ -1146,19 +1147,19 @@ export interface PortData {
      */
     type: PortType;
     /**
-     * @generated from protobuf field: symbolx.bench.FieldZone zone = 31;
+     * @generated from protobuf field: symbolx.bench.PortSide side = 31;
      */
-    zone: FieldZone;
+    side: PortSide;
     /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData field_ptr = 32;
      */
     fieldPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.TypeInfoData value_type = 40;
+     * @generated from protobuf field: optional symbolx.bench.TypeInfoData value_type = 50;
      */
     valueType?: TypeInfoData;
     /**
-     * @generated from protobuf field: optional google.protobuf.Struct value_packed = 41;
+     * @generated from protobuf field: optional google.protobuf.Struct value_packed = 51;
      */
     valuePacked?: Struct;
 }
@@ -1177,9 +1178,9 @@ export interface PortKeyData {
      */
     type: PortType;
     /**
-     * @generated from protobuf field: symbolx.bench.FieldZone zone = 31;
+     * @generated from protobuf field: symbolx.bench.PortSide side = 31;
      */
-    zone: FieldZone;
+    side: PortSide;
     /**
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData field_ptr = 32;
      */
@@ -6861,6 +6862,10 @@ export enum BenchType {
      */
     PORT_TYPE = 20563,
     /**
+     * @generated from protobuf enum value: BENCH_TYPE_PORT_SIDE = 20564;
+     */
+    PORT_SIDE = 20564,
+    /**
      * @generated from protobuf enum value: BENCH_TYPE_NOTIFICATION_LEVEL = 20570;
      */
     NOTIFICATION_LEVEL = 20570,
@@ -7027,10 +7032,6 @@ export enum BreakpointKind {
      * @generated from protobuf enum value: BREAKPOINT_KIND_COMPLETE_RUN = 3;
      */
     COMPLETE_RUN = 3,
-    /**
-     * @generated from protobuf enum value: BREAKPOINT_KIND_FAIL_ATTEMPT = 4;
-     */
-    FAIL_ATTEMPT = 4,
     /**
      * @generated from protobuf enum value: BREAKPOINT_KIND_CODE_LINE = 20;
      */
@@ -7781,6 +7782,10 @@ export enum EnumType {
      * @generated from protobuf enum value: ENUM_TYPE_PORT_TYPE = 20563;
      */
     PORT_TYPE = 20563,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_PORT_SIDE = 20564;
+     */
+    PORT_SIDE = 20564,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_NOTIFICATION_LEVEL = 20570;
      */
@@ -9567,6 +9572,23 @@ export enum PolicyEffect {
     DENY = 2
 }
 /**
+ * @generated from protobuf enum symbolx.bench.PortSide
+ */
+export enum PortSide {
+    /**
+     * @generated from protobuf enum value: PORT_SIDE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: PORT_SIDE_INCOMING = 1;
+     */
+    INCOMING = 1,
+    /**
+     * @generated from protobuf enum value: PORT_SIDE_OUTGOING = 2;
+     */
+    OUTGOING = 2
+}
+/**
  * @generated from protobuf enum symbolx.bench.PortType
  */
 export enum PortType {
@@ -10008,6 +10030,18 @@ export enum RunEventType {
      */
     UNSPECIFIED = 0,
     /**
+     * @generated from protobuf enum value: RUN_EVENT_TYPE_PAUSED = 1;
+     */
+    PAUSED = 1,
+    /**
+     * @generated from protobuf enum value: RUN_EVENT_TYPE_RESUMED = 2;
+     */
+    RESUMED = 2,
+    /**
+     * @generated from protobuf enum value: RUN_EVENT_TYPE_HALTED = 3;
+     */
+    HALTED = 3,
+    /**
      * @generated from protobuf enum value: RUN_EVENT_TYPE_CUSTOM = 1000;
      */
     CUSTOM = 1000
@@ -10412,49 +10446,13 @@ export enum StepType {
      */
     SEND = 56,
     /**
-     * @generated from protobuf enum value: STEP_TYPE_MATCH = 100;
+     * @generated from protobuf enum value: STEP_TYPE_GROUP = 500;
      */
-    MATCH = 100,
+    GROUP = 500,
     /**
-     * @generated from protobuf enum value: STEP_TYPE_FILTER = 101;
+     * @generated from protobuf enum value: STEP_TYPE_LOOP = 501;
      */
-    FILTER = 101,
-    /**
-     * @generated from protobuf enum value: STEP_TYPE_MERGE = 102;
-     */
-    MERGE = 102,
-    /**
-     * @generated from protobuf enum value: STEP_TYPE_FLATTEN = 103;
-     */
-    FLATTEN = 103,
-    /**
-     * @generated from protobuf enum value: STEP_TYPE_ACCUMULATE = 104;
-     */
-    ACCUMULATE = 104,
-    /**
-     * @generated from protobuf enum value: STEP_TYPE_REDUCE = 105;
-     */
-    REDUCE = 105,
-    /**
-     * @generated from protobuf enum value: STEP_TYPE_ZIP = 106;
-     */
-    ZIP = 106,
-    /**
-     * @generated from protobuf enum value: STEP_TYPE_JOIN = 107;
-     */
-    JOIN = 107,
-    /**
-     * @generated from protobuf enum value: STEP_TYPE_GROUP = 150;
-     */
-    GROUP = 150,
-    /**
-     * @generated from protobuf enum value: STEP_TYPE_LOOP = 151;
-     */
-    LOOP = 151,
-    /**
-     * @generated from protobuf enum value: STEP_TYPE_SHIELD = 152;
-     */
-    SHIELD = 152
+    LOOP = 501
 }
 /**
  * @generated from protobuf enum symbolx.bench.StructType
@@ -14055,17 +14053,17 @@ class PortData$Type extends MessageType<PortData> {
         super("symbolx.bench.PortData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.PortType", PortType, "PORT_TYPE_"] },
-            { no: 31, name: "zone", kind: "enum", T: () => ["symbolx.bench.FieldZone", FieldZone, "FIELD_ZONE_"] },
+            { no: 31, name: "side", kind: "enum", T: () => ["symbolx.bench.PortSide", PortSide, "PORT_SIDE_"] },
             { no: 32, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 40, name: "value_type", kind: "message", T: () => TypeInfoData },
-            { no: 41, name: "value_packed", kind: "message", T: () => Struct }
+            { no: 50, name: "value_type", kind: "message", T: () => TypeInfoData },
+            { no: 51, name: "value_packed", kind: "message", T: () => Struct }
         ]);
     }
     create(value?: PartialMessage<PortData>): PortData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.type = 0;
-        message.zone = 0;
+        message.side = 0;
         if (value !== undefined)
             reflectionMergePartial<PortData>(this, message, value);
         return message;
@@ -14081,16 +14079,16 @@ class PortData$Type extends MessageType<PortData> {
                 case /* symbolx.bench.PortType type */ 30:
                     message.type = reader.int32();
                     break;
-                case /* symbolx.bench.FieldZone zone */ 31:
-                    message.zone = reader.int32();
+                case /* symbolx.bench.PortSide side */ 31:
+                    message.side = reader.int32();
                     break;
                 case /* optional symbolx.bench.NodeReferenceData field_ptr */ 32:
                     message.fieldPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.fieldPtr);
                     break;
-                case /* optional symbolx.bench.TypeInfoData value_type */ 40:
+                case /* optional symbolx.bench.TypeInfoData value_type */ 50:
                     message.valueType = TypeInfoData.internalBinaryRead(reader, reader.uint32(), options, message.valueType);
                     break;
-                case /* optional google.protobuf.Struct value_packed */ 41:
+                case /* optional google.protobuf.Struct value_packed */ 51:
                     message.valuePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.valuePacked);
                     break;
                 default:
@@ -14111,18 +14109,18 @@ class PortData$Type extends MessageType<PortData> {
         /* symbolx.bench.PortType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
-        /* symbolx.bench.FieldZone zone = 31; */
-        if (message.zone !== 0)
-            writer.tag(31, WireType.Varint).int32(message.zone);
+        /* symbolx.bench.PortSide side = 31; */
+        if (message.side !== 0)
+            writer.tag(31, WireType.Varint).int32(message.side);
         /* optional symbolx.bench.NodeReferenceData field_ptr = 32; */
         if (message.fieldPtr)
             NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.TypeInfoData value_type = 40; */
+        /* optional symbolx.bench.TypeInfoData value_type = 50; */
         if (message.valueType)
-            TypeInfoData.internalBinaryWrite(message.valueType, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Struct value_packed = 41; */
+            TypeInfoData.internalBinaryWrite(message.valueType, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Struct value_packed = 51; */
         if (message.valuePacked)
-            Struct.internalBinaryWrite(message.valuePacked, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+            Struct.internalBinaryWrite(message.valuePacked, writer.tag(51, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -14139,7 +14137,7 @@ class PortKeyData$Type extends MessageType<PortKeyData> {
         super("symbolx.bench.PortKeyData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.PortType", PortType, "PORT_TYPE_"] },
-            { no: 31, name: "zone", kind: "enum", T: () => ["symbolx.bench.FieldZone", FieldZone, "FIELD_ZONE_"] },
+            { no: 31, name: "side", kind: "enum", T: () => ["symbolx.bench.PortSide", PortSide, "PORT_SIDE_"] },
             { no: 32, name: "field_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
@@ -14147,7 +14145,7 @@ class PortKeyData$Type extends MessageType<PortKeyData> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.type = 0;
-        message.zone = 0;
+        message.side = 0;
         if (value !== undefined)
             reflectionMergePartial<PortKeyData>(this, message, value);
         return message;
@@ -14163,8 +14161,8 @@ class PortKeyData$Type extends MessageType<PortKeyData> {
                 case /* symbolx.bench.PortType type */ 30:
                     message.type = reader.int32();
                     break;
-                case /* symbolx.bench.FieldZone zone */ 31:
-                    message.zone = reader.int32();
+                case /* symbolx.bench.PortSide side */ 31:
+                    message.side = reader.int32();
                     break;
                 case /* optional symbolx.bench.NodeReferenceData field_ptr */ 32:
                     message.fieldPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.fieldPtr);
@@ -14187,9 +14185,9 @@ class PortKeyData$Type extends MessageType<PortKeyData> {
         /* symbolx.bench.PortType type = 30; */
         if (message.type !== 0)
             writer.tag(30, WireType.Varint).int32(message.type);
-        /* symbolx.bench.FieldZone zone = 31; */
-        if (message.zone !== 0)
-            writer.tag(31, WireType.Varint).int32(message.zone);
+        /* symbolx.bench.PortSide side = 31; */
+        if (message.side !== 0)
+            writer.tag(31, WireType.Varint).int32(message.side);
         /* optional symbolx.bench.NodeReferenceData field_ptr = 32; */
         if (message.fieldPtr)
             NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
@@ -25182,6 +25180,7 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.PIPE_TYPE]: PipeType,
   [EnumType.PIPE_FILTER_TYPE]: PipeFilterType,
   [EnumType.PORT_TYPE]: PortType,
+  [EnumType.PORT_SIDE]: PortSide,
   [EnumType.NOTIFICATION_LEVEL]: NotificationLevel,
   [EnumType.SPACE_TYPE]: SpaceType,
   [EnumType.VIEW_TYPE]: ViewType,
@@ -25460,6 +25459,7 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.PIPE_TYPE]: PipeType,
   [EnumType.PIPE_FILTER_TYPE]: PipeFilterType,
   [EnumType.PORT_TYPE]: PortType,
+  [EnumType.PORT_SIDE]: PortSide,
   [EnumType.NOTIFICATION_LEVEL]: NotificationLevel,
   [EnumType.SPACE_TYPE]: SpaceType,
   [EnumType.VIEW_TYPE]: ViewType,
@@ -26814,16 +26814,16 @@ export enum PipeProperty {
 export enum PortProperty {
   metatype = 1,
   type = 30,
-  zone = 31,
+  side = 31,
   fieldPtr = 32,
-  valueType = 40,
-  valuePacked = 41,
+  valueType = 50,
+  valuePacked = 51,
 }
 
 export enum PortKeyProperty {
   metatype = 1,
   type = 30,
-  zone = 31,
+  side = 31,
   fieldPtr = 32,
 }
 
@@ -27601,15 +27601,15 @@ export const PipeDataInfo: Record<PipeProperty, PropertyInfo> = {
 export const PortDataInfo: Record<PortProperty, PropertyInfo> = {
   [PortProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.PORT, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [PortProperty.type]: { id: 30, name: 'type', component: ObjectType.PORT, enumType: EnumType.PORT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [PortProperty.zone]: { id: 31, name: 'zone', component: ObjectType.PORT, enumType: EnumType.FIELD_ZONE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [PortProperty.side]: { id: 31, name: 'side', component: ObjectType.PORT, enumType: EnumType.PORT_SIDE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [PortProperty.fieldPtr]: { id: 32, name: 'field_ptr', component: ObjectType.PORT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
-  [PortProperty.valueType]: { id: 40, name: 'value_type', component: ObjectType.PORT, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_INFO },
-  [PortProperty.valuePacked]: { id: 41, name: 'value_packed', component: ObjectType.PORT, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
+  [PortProperty.valueType]: { id: 50, name: 'value_type', component: ObjectType.PORT, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_INFO },
+  [PortProperty.valuePacked]: { id: 51, name: 'value_packed', component: ObjectType.PORT, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
 }
 export const PortKeyDataInfo: Record<PortKeyProperty, PropertyInfo> = {
   [PortKeyProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.PORT_KEY, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [PortKeyProperty.type]: { id: 30, name: 'type', component: ObjectType.PORT_KEY, enumType: EnumType.PORT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [PortKeyProperty.zone]: { id: 31, name: 'zone', component: ObjectType.PORT_KEY, enumType: EnumType.FIELD_ZONE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [PortKeyProperty.side]: { id: 31, name: 'side', component: ObjectType.PORT_KEY, enumType: EnumType.PORT_SIDE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [PortKeyProperty.fieldPtr]: { id: 32, name: 'field_ptr', component: ObjectType.PORT_KEY, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const RunErrorDataInfo: Record<RunErrorProperty, PropertyInfo> = {
@@ -27895,7 +27895,7 @@ export const ServerDataInfo: Record<ServerProperty, PropertyInfo> = {
   [ServerProperty.region]: { id: 35, name: 'region', component: ObjectType.SERVER, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.status]: { id: 36, name: 'status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.08.22.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.08.22.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.minCpu]: { id: 50, name: 'min_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 4.0 }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.maxCpu]: { id: 51, name: 'max_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 4.0 }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -27924,7 +27924,7 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.region]: { id: 35, name: 'region', component: ObjectType.STORE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.status]: { id: 36, name: 'status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.08.22.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.08.22.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 50, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 51, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -27950,7 +27950,7 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.region]: { id: 35, name: 'region', component: ObjectType.MACHINE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.status]: { id: 36, name: 'status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.08.22.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.08.22.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 42, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 43, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
