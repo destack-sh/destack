@@ -60,9 +60,7 @@ class StepType(IdEnum):
     TEXT = 55  # run text
     SEND = 56  # emit signal/notification
     # YIELD # to other program/human
-    # APPLY
-    # CREATE
-    # PASS?
+    # APPLY, CREATE, PASS?
 
     # control
     MATCH = 100  # X -> | n ports | -> X' filtered output port (per expression)
@@ -72,16 +70,13 @@ class StepType(IdEnum):
     ACCUMULATE = 104  # X -> X[]
     REDUCE = 105  # X[] -> Y
     ZIP = 106  # X1[], X2[], ... -> (X1, X2, ...)[]
-    # WAIT/DELAY?
-    # DEBOUNCE?
-    # THROTTLE?
-    # TELEPORT?
+    JOIN = 107  # X1, X2, ... -> (X1, X2, ...)
+    # WAIT/DELAY?, DEBOUNCE?, TELEPORT?, THROTTLE?
 
     # group
-    GROUP = 150  # no semantic meaning
+    GROUP = 150  # sub-flow
     LOOP = 151  # loop inside: X[] -> | X -> ... -> Y | -> Y[]
     SHIELD = 152  # capture errors inside
-
     ...
 
     @property
@@ -156,9 +151,9 @@ class Pipe(Struct):
 @enum_(EnumType.PORT_TYPE)
 class PortType(IdEnum):
     RUN = 1  # trigger only (no content, just the Run)
-    OBJECT = 2  # trigger with full input/output/... value (depending on side)
-    ERROR = 3  # trigger with error in case of failure (output only)
-    FIELD = 5  # trigger with specific field (depending on side & type)
+    ERROR = 2  # trigger with error in case of failure (output only)
+    OBJECT = 10  # trigger with full input/output/... value (depending on side)
+    FIELD = 11  # trigger with specific field (depending on side & type)
 
 
 PORT_TYPES_BY_ZONE: dict[FieldZone, tuple[PortType, ...]] = {
@@ -178,14 +173,13 @@ class PortKey(Struct):
     field: Optional["Field"] = p_regular(32, require=False, references=NodeType.FIELD)
 
     def __content_str__(self) -> str:
-        if self.type == PortType.RUN:
-            return "R"
+        if self.type == PortType.RUN or self.type == PortType.ERROR:
+            return f"[{self.type.bench_name}]"
         elif self.type == PortType.OBJECT:
-            return f"*{self.zone.bench_name}"
-        elif self.type == PortType.ERROR:
-            return "E"
+            return f".*[{self.zone.bench_name}]"
         elif self.type == PortType.FIELD:
-            return f"{self.field.py_name if self.field else '???'}"
+            field = self.field
+            return f".{field.py_name if field else '???'}"
         else:
             assert_never(self.type)
 
@@ -235,7 +229,8 @@ class Step(SourceNode[StepData]):
      1. Fire output values to all output ports
      2. Fire output control port
     When a Step fails, then:
-     1. FIre error on error port
+     - If error port exists: fire error on error port
+     - Else: fail entire Flow
     """
 
     parent: Union["Block", "Step", None] = p_node_parent(4, NodeType.BLOCK, NodeType.STEP)

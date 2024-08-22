@@ -494,7 +494,7 @@ class NodeSuperGraph:
         return self.get(ptr) is not None
 
 
-NULL_SUPERGRAPH = NodeSuperGraph(None)
+NULL_SUPERGRAPH = NodeSuperGraph(root_ptr=None)
 
 
 class _NodeDictBase[K, V]:

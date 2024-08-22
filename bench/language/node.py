@@ -1082,7 +1082,10 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
         __setattr__ = _do_set
 
     def clone(self) -> Self:
-        """Create a clone of this object and its descendants (structs/nodes) with the same content."""
+        """
+        Create a clone of this object and its descendants (structs/nodes) with the same content.
+        NOTE :Broken: node clone should keep inner references consistent :CloneNodeReferences
+        """
         copy_kwargs = {}
         for prop in self.__wired_properties__.values():
             prop_value = getattr(self, prop.name)

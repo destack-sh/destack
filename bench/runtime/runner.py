@@ -77,12 +77,15 @@ class Runner[S: RunnerCache, T: RunnableNode](abc.ABC):
     attempts: list[RunAttempt] = dataclasses.field(default_factory=list)
     logs: list[LogInfo] = dataclasses.field(default_factory=list)
     inner_task: asyncio.Task | None = None  # the active callable being run
+    runs: list["Runner"] = dataclasses.field(default_factory=list)  # nested Runners
     run: Run | None = None  # if tracked
 
     def __str__(self):
         str_parts: list[str] = [f"runnable={self.cache!r}", f"options={self.options!r}"]
         if self.attempts:
             str_parts.append(f"attempts={self.attempts}")
+        if self.runs:
+            str_parts.append(f"runs={len(self.runs)}")
         if self.run:
             str_parts.append(f"run={self.run}")
         return ", ".join(str_parts)

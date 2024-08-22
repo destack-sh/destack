@@ -233,7 +233,7 @@ async def local_runtime_async(global_store: Store):
     async with create_global_session(global_store, REAL_ORACLE) as session:
         # setup user/client
         user = User(
-            slug="user",
+            slug="test",
             name="test",
             email="test@test.com",
             status=UserStatus.REGISTERED,

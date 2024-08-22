@@ -15,7 +15,9 @@ from bench.language.node import (
     struct_,
 )
 from bench.language.property import p_regular
+from bench.language.step import Step
 from bench.language.validation import NAME_REGEX_CHAR, SLUG_REGEX_CHAR
+from bench.language.view import View
 from bench.utils.func import IdEnum
 
 if TYPE_CHECKING:
@@ -272,16 +274,19 @@ def _get_descendant(scope: Node, name: str, node_type: NodeType | None = None) -
 
 
 def _get_contained_descendant(scope: Node, name: str) -> Node | None:
-    """Finds a descendant that is directly contained by a scope (in block/page/pkg, if any)."""
+    """Finds a descendant that is directly contained by a scope (in block/page/step/pkg, if any)."""
     from bench.language.block import Block
 
-    if not isinstance(scope, Block):
-        # just get children
-        for node_type in (NodeType.SPACE, NodeType.BLOCK):
+    if isinstance(scope, Block):
+        # recurse child triggers/fields/queries
+        for node_type in (NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY):
             if node := _get_child(scope, name, node_type):
                 return node
-    else:
-        # recurse blocks until we hit pages
+        # recurse descendant views/steps
+        for node_type in (NodeType.VIEW, NodeType.STEP):
+            if node := _get_descendant(scope, name, node_type):
+                return node
+        # recurse down into blocks until we hit pages
         blocks = [scope]
         while blocks:
             block = blocks.pop()
@@ -290,13 +295,28 @@ def _get_contained_descendant(scope: Node, name: str) -> Node | None:
                     return child
                 if not child.is_page:
                     blocks.append(child)
-
-        # and recurse own views/fields/triggers/steps
-        for node_type in (NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY):
+    elif isinstance(scope, Step):
+        # recurse own fields
+        for node_type in (NodeType.FIELD,):
             if node := _get_child(scope, name, node_type):
                 return node
-        for node_type in (NodeType.VIEW, NodeType.STEP):
+        # recurse down into steps
+        steps = [scope]
+        while steps:
+            step = steps.pop()
+            for child in step.steps:
+                if child.name == name:
+                    return child
+                steps.append(child)
+    elif isinstance(scope, View):
+        # recurse descendant views
+        for node_type in (NodeType.VIEW,):
             if node := _get_descendant(scope, name, node_type):
+                return node
+    else:
+        # just get children
+        for node_type in (NodeType.SPACE, NodeType.BLOCK):
+            if node := _get_child(scope, name, node_type):
                 return node
 
     return None

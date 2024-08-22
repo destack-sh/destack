@@ -656,7 +656,7 @@ def check_value_object_scalar(
 ) -> None:
     """Checks whether the given object value has the expected type (recursively)."""
     if _check_is_object(value, typ, invalid):
-        for field in typ._base_fields:
+        for field in typ._fields:
             field_type = field._to_resolved()
             field_value = cast(SomeValue, getattr(value, field.name, None))
             check_value(field_value, field_type, invalid)

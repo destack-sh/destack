@@ -3,7 +3,7 @@ import asyncio
 import dataclasses
 from asyncio import Queue
 from enum import IntEnum
-from typing import Any, Literal, override
+from typing import Any, Literal, assert_never, override
 from uuid import UUID
 
 import structlog
@@ -77,8 +77,10 @@ class StepState:
             assert port.field is not None, f"{port!r} has no field"
             self.unset_ports.pop(to_port_id(port), None)
             self.inputs[port.field] = value
+        elif port.type in (PortType.ERROR, PortType.RUN):
+            raise RuntimeError(f"cannot set {port!r}")
         else:
-            raise NotImplementedError(f"cannot set {port!r}")
+            assert_never(port.type)
 
     @staticmethod
     def from_step(step: Step) -> "StepState":
@@ -200,7 +202,8 @@ class FlowRunner(Runner[RunnerCache, Block]):
             elif run.status == RunStatus.FAILED:
                 if pipe.source_port.type == PortType.ERROR:
                     assert run.error is not None, f"{run!r} has no error"
-                    target_state.set_port(pipe.target_port, run.error)
+                    if pipe.target_port.type == PortType.FIELD:
+                        target_state.set_port(pipe.target_port, run.error)
                     _fire_pipe(pipe, target_state, TriggerType.PARTIAL)
             else:
                 raise RuntimeError(f"unexpected run status: {run!r}")
@@ -241,17 +244,25 @@ class FlowRunner(Runner[RunnerCache, Block]):
                 and not self._force_fail
                 and (self._active_runners or not self._terminated_runs.empty())
             ):
-                # tick next
+                # 'tick' on next terminated step
+                logger.trace("flow.wait", flow=self, active_runners=self._active_runners.values())
                 step, run = await self._terminated_runs.get()
                 assert run.status.is_terminal, f"{run!r} is not terminated"
-                if run.status != RunStatus.ABORTED:  # ignore aborted runs
+
+                # fail if step failed and no error port
+                if run.status == RunStatus.FAILED and not any(
+                    pipe.source_port.type == PortType.ERROR for pipe in step.pipes
+                ):
+                    assert run.error is not None, f"{run!r} has no error"
+                    self._fail(run.error)
+                # update/fire outgoing pipes
+                elif run.status != RunStatus.ABORTED:  # ignore aborted runs
                     await self._fire_step(step, run)
-                logger.trace("flow.wait", flow=self, active_runners=self._active_runners.values())
 
             # set forced output/error
             if isinstance(self._force_complete, ValueObject):
                 self.outputs = self._force_complete
-            if self._force_fail:
+            elif self._force_fail:
                 raise ManualRetryableError(self._force_fail)
         except Exception:
             # cancel all active steps
