@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.08.22.1"
+VERSION = "2024.08.22.2"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -272,6 +272,7 @@ class BenchType(betterproto.Enum):
     PIPE_TYPE = 20561
     PIPE_FILTER_TYPE = 20562
     PORT_TYPE = 20563
+    PORT_SIDE = 20564
     NOTIFICATION_LEVEL = 20570
     SPACE_TYPE = 21000
     VIEW_TYPE = 21001
@@ -319,7 +320,6 @@ class BreakpointKind(betterproto.Enum):
     START_RUN = 1
     FAIL_RUN = 2
     COMPLETE_RUN = 3
-    FAIL_ATTEMPT = 4
     CODE_LINE = 20
 
 
@@ -540,6 +540,7 @@ class EnumType(betterproto.Enum):
     PIPE_TYPE = 20561
     PIPE_FILTER_TYPE = 20562
     PORT_TYPE = 20563
+    PORT_SIDE = 20564
     NOTIFICATION_LEVEL = 20570
     SPACE_TYPE = 21000
     VIEW_TYPE = 21001
@@ -1043,6 +1044,12 @@ class PolicyEffect(betterproto.Enum):
     DENY = 2
 
 
+class PortSide(betterproto.Enum):
+    UNSPECIFIED = 0
+    INCOMING = 1
+    OUTGOING = 2
+
+
 class PortType(betterproto.Enum):
     UNSPECIFIED = 0
     RUN = 1
@@ -1186,6 +1193,9 @@ class RunErrorType(betterproto.Enum):
 
 class RunEventType(betterproto.Enum):
     UNSPECIFIED = 0
+    PAUSED = 1
+    RESUMED = 2
+    HALTED = 3
     CUSTOM = 1000
 
 
@@ -1313,17 +1323,8 @@ class StepType(betterproto.Enum):
     CODE = 54
     TEXT = 55
     SEND = 56
-    MATCH = 100
-    FILTER = 101
-    MERGE = 102
-    FLATTEN = 103
-    ACCUMULATE = 104
-    REDUCE = 105
-    ZIP = 106
-    JOIN = 107
-    GROUP = 150
-    LOOP = 151
-    SHIELD = 152
+    GROUP = 500
+    LOOP = 501
 
 
 class StructType(betterproto.Enum):
@@ -1981,7 +1982,7 @@ class PathTokenData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class PipeData(betterproto.Message):
     """
-    A connection between two Steps in a FlowBlock.
+    A connection between two Steps in a FlowBlock (source = outgoing, target = incoming).
      The pipe is stored in the incoming Step, so the target Step is implicit.
     """
 
@@ -2049,15 +2050,18 @@ class PolicyRuleData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class PortData(betterproto.Message):
-    """A full port on a Step with some value."""
+    """
+    Extra configuration for a port (key) on a Step with some value.
+     Not all ports need a Port, just if there is extra behavior to define.
+    """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     type: "PortType" = betterproto.enum_field(30)
-    zone: "FieldZone" = betterproto.enum_field(31)
+    side: "PortSide" = betterproto.enum_field(31)
     field_ptr: Optional["NodeReferenceData"] = betterproto.message_field(32, optional=True)
-    value_type: Optional["TypeInfoData"] = betterproto.message_field(40, optional=True)
+    value_type: Optional["TypeInfoData"] = betterproto.message_field(50, optional=True)
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
-        41, optional=True
+        51, optional=True
     )
 
 
@@ -2067,7 +2071,7 @@ class PortKeyData(betterproto.Message):
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     type: "PortType" = betterproto.enum_field(30)
-    zone: "FieldZone" = betterproto.enum_field(31)
+    side: "PortSide" = betterproto.enum_field(31)
     field_ptr: Optional["NodeReferenceData"] = betterproto.message_field(32, optional=True)
 
 

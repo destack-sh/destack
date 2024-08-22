@@ -157,7 +157,7 @@ class BreakpointKind(IdEnum):
     START_RUN = 1
     FAIL_RUN = 2
     COMPLETE_RUN = 3
-    FAIL_ATTEMPT = 4
+    # FAIL_ATTEMPT?
     ...
     # text
     ...
@@ -240,6 +240,9 @@ class RunSpan(Struct):
 
 @enum_(EnumType.RUN_EVENT_TYPE)
 class RunEventType(IdEnum):
+    PAUSED = 1
+    RESUMED = 2
+    HALTED = 3
     CUSTOM = 1000
 
 

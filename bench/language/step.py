@@ -65,21 +65,23 @@ class StepType(IdEnum):
     # APPLY, CREATE, PASS?
 
     # control
-    MATCH = 100  # X -> | n ports | -> X' filtered output port (per expression)
-    FILTER = 101  # X -> | X -> bool | -> X if true
-    MERGE = 102  # X1, X2, ... -> X
-    FLATTEN = 103  # X[] -> X
-    ACCUMULATE = 104  # X -> X[]
-    REDUCE = 105  # X[] -> Y
-    ZIP = 106  # X1[], X2[], ... -> (X1, X2, ...)[]
-    JOIN = 107  # X1, X2, ... -> (X1, X2, ...)
+    # NOTE :Architecture: could the special control Steps be factored into general Port behaviors?
+    #  (for instance, flatten/accumulate could be special incoming and outgoing port-side mappings;
+    #   as opposed to pipe mappings which should probably be stateless)
+    # MATCH = 100  # X -> | n ports | -> X' filtered output port (per expression)
+    # FILTER = 101  # X -> | X -> bool | -> X if true
+    # MERGE = 102  # X1, X2, ... -> X
+    # FLATTEN = 103  # X[] -> X
+    # ACCUMULATE = 104  # X -> X[]
+    # REDUCE = 105  # X[] -> Y
+    # ZIP = 106  # X1[], X2[], ... -> (X1, X2, ...)[]
+    # JOIN = 107  # X1, X2, ... -> (X1, X2, ...)
     # WAIT/DELAY?, DEBOUNCE?, TELEPORT?, THROTTLE?
 
-    # group
-    GROUP = 150  # sub-flow
-    LOOP = 151  # loop inside: X[] -> | X -> ... -> Y | -> Y[]
-    SHIELD = 152  # capture errors inside
-    ...
+    # containers
+    GROUP = 500  # sub-flow
+    LOOP = 501  # loop inside: X[] -> | X -> ... -> Y | -> Y[]
+    # SHIELD?
 
     @property
     def is_boundary(self) -> bool:
@@ -243,12 +245,15 @@ def to_port_key(port: PortIn, *, side: PortSide) -> PortKey:
 
 @struct_(StructType.PORT)
 class Port(PortKey):
-    """A full port on a Step with some value."""
+    """
+    Extra configuration for a port (key) on a Step with some value.
+    Not all ports need a Port, just if there is extra behavior to define.
+    """
 
-    # value
-    value_type: Optional["TypeInfo"] = p_regular(40, default=None, struct=StructType.TYPE_INFO)
-    value_packed: Any = p_value_packed(41)
-    value: Any = p_value_runtime(41, typ=None)
+    # static/initial value
+    value_type: Optional["TypeInfo"] = p_regular(50, default=None, struct=StructType.TYPE_INFO)
+    value_packed: Any = p_value_packed(51)
+    value: Any = p_value_runtime(51, typ=None)
 
 
 @local_node_(NodeType.STEP, passthrough=("value", "fields"))

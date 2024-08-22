@@ -6,6 +6,7 @@ import { packProtoJson, unpackProtoJson, type DebounceLevel, type Transaction } 
 import { isProtoJson, packBuiltinObject, packBuiltinObjectJson, unpackBuiltinObject } from "@/language/value";
 import {
   Anchor,
+  BlockType,
   DESCENDANT_NODE_TYPES,
   IconData,
   NodeReferenceData,
@@ -25,6 +26,7 @@ import {
 } from "@/proto/wire";
 import {
   describeNode,
+  isNode,
   isNodeRef,
   makeStruct,
   toNodeRef,
@@ -751,29 +753,33 @@ export class ViewCanvas {
     node: AnyNodeData | NodeReferenceData,
     options?: { graph?: ReadNodeGraph; skipSelf?: boolean } & OpenViewOptions,
   ) {
-    const nodeRef = isNodeRef(node) ? node : toNodeRef(node as AnyNodeData);
+    const nodePtr = isNodeRef(node) ? node : toNodeRef(node as AnyNodeData);
     log.debug("canvas.goToNode", node);
-    const tx = this.tx();
-    if (nodeRef.type == NodeType.VIEW && this.isInSpace(node)) {
+    if (nodePtr.type == NodeType.VIEW && this.isInSpace(node)) {
       // just focus directly
-      this.focus({ node: nodeRef as ViewData | TypedNodeReferenceData<NodeType.VIEW> });
+      this.focus({ node: nodePtr as ViewData | TypedNodeReferenceData<NodeType.VIEW> });
     } else {
-      // find or create appropriate view
+      // find or create appropriate view for block
       const graph = options?.graph ?? this.graph;
-      if (nodeRef.type == NodeType.BLOCK || DESCENDANT_NODE_TYPES[NodeType.BLOCK].includes(nodeRef.type)) {
+      const node = graph.getOrError(nodePtr);
+      if (isNode(node, NodeType.BLOCK) && node.type == BlockType.FLOW) {
+        // open as flow
+        this.addView({ type: ViewType.FLOW, nodePtr: toNodeRefOneOf(nodePtr) });
+      } else if (isNode(node, NodeType.BLOCK) || DESCENDANT_NODE_TYPES[NodeType.BLOCK].includes(nodePtr.type)) {
+        // open generic block in containing page
         const containingPage = graph
-          .getAncestors(nodeRef, { metatypes: [NodeType.BLOCK], includeSelf: !options?.skipSelf })
+          .getAncestors(nodePtr, { metatypes: [NodeType.BLOCK], includeSelf: !options?.skipSelf })
           .find((n) => PAGE_BLOCK_TYPES.includes(n.type));
         if (!containingPage) throw new Error(`in-block has no containing page block: ${describeNode(node)}`);
         const view = this.addView(
           {
             type: ViewType.PAGE,
             nodePtr: toNodeRefOneOf(containingPage),
-            focus: makeSelection(nodeRef),
+            focus: makeSelection(nodePtr),
           },
           { ifPresent: "upsertAndFocus", ...options },
         );
-        this.inspect({ node: nodeRef, view });
+        this.inspect({ node: nodePtr, view });
       } else {
         throw new Error(`cannot go to node: ${describeNode(node)}`);
       }

@@ -351,8 +351,8 @@ return Input1, Input1 < 10, Input1 > 10
     assert runner.outputs and runner.outputs.Output1 == 24
 
 
-async def test_run_flow_ping_pong(local_runtime: RuntimeHandle):
-    """Run steps that pass a number back and forth until it reaches 0."""
+async def test_run_flow_generator_verifier(local_runtime: RuntimeHandle):
+    """Run steps that pass a number back and forth between generator/verifier until it passes."""
     Flow1 = Block.new(
         BlockType.FLOW, "Flow1", fields=(Field.input("NumIn", int), Field.output("NumOut", int))
     )
@@ -401,4 +401,4 @@ async def test_run_flow_ping_pong(local_runtime: RuntimeHandle):
     assert runner.outputs and runner.outputs.NumOut == 1
 
 
-# nocheckin: flow yield/halt & replay
+# TODO :Incomplete!: flow yield/halt (breakpoints?) & replay
