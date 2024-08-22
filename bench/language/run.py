@@ -35,7 +35,12 @@ from bench.language.property import (
 )
 from bench.language.session import HasSessionContext
 from bench.language.text import Text, TextLine
-from bench.language.validation import TITLE_CONSTRAINT, TypeConstraintIn, ValidationHandler
+from bench.language.validation import (
+    TITLE_CONSTRAINT,
+    TypeConstraintIn,
+    ValidationError,
+    ValidationHandler,
+)
 from bench.proto.wire import AnyNodeData, NodeReferenceData, RunData
 from bench.utils.func import IdEnum
 from bench.utils.string import Casing, to_casing
@@ -258,6 +263,7 @@ class RunErrorType(IdEnum):
     ABORTED = 2
     RUNTIME_UNAVAILABLE = 3
     RUN_IMPOSSIBLE = 4
+    INVALID_VALUE = 5
     CODE_INVALID = 20
     TEXT_INVALID = 21
     MODEL_INCAPABLE = 100
@@ -301,24 +307,29 @@ class RunError(Struct, BenchError):
     @staticmethod
     def from_exception(kind: RunErrorKind, e: BaseException) -> "RunError":
         # NOTE :Incomplete: get run error trace/frames/node/...
+        # pass on inner error if there is one
         if isinstance(getattr(e, "error", None), RunError):
             return getattr(e, "error")  # manual error
+        # figure out error data
         title = to_casing(e.__class__.__name__, Casing.CAMEL, allow_whitespace=True)
-        text = Text.plain(str(e))
+        if isinstance(e, SyntaxError):
+            header_line = TextLine.plain(f"Syntax error at line {e.lineno}, column {e.offset}:")
+            code_lines = Text.code(e.args[0])
+            text = Text(lines=[header_line, *code_lines.lines])
+        else:
+            text = Text.plain(str(e))
         if hasattr(e, "run_error_type"):
             typ = getattr(e, "run_error_type")
             assert isinstance(typ, RunErrorType), f"unexpected {typ!r} from {e!r}"
         elif kind == RunErrorKind.RUNTIME:
             if isinstance(e, CancelledError):
                 typ = RunErrorType.ABORTED
+            elif isinstance(e, ValidationError):
+                typ = RunErrorType.INVALID_VALUE
             else:
                 typ = RunErrorType.RUNTIME_UNAVAILABLE
         else:
             typ = RunErrorType.UNKNOWN_NONRETRYABLE
-        if isinstance(e, SyntaxError):
-            header_line = TextLine.plain(f"Syntax error at line {e.lineno}, column {e.offset}:")
-            code_lines = Text.code(e.args[0])
-            text = Text(lines=[header_line, *code_lines.lines])
         return RunError(kind=kind, type=typ, title=title, text=text)
 
 

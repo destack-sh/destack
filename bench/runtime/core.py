@@ -68,6 +68,10 @@ class RunImpossibleError(NonRetryableError):
     run_error_type = RunErrorType.RUN_IMPOSSIBLE
 
 
+class InvalidValueError(RunImpossibleError):
+    run_error_type = RunErrorType.INVALID_VALUE
+
+
 class SyntaxError(RunImpossibleError, SyntaxError):
     run_error_type = RunErrorType.CODE_INVALID
 

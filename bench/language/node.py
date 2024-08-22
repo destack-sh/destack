@@ -1013,7 +1013,7 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
             # validate/set
             old_value = getattr(self, key)
             if is_tracked and validate:
-                # coerce & check type
+                # coerce & check type (if it's not a contributed property, which only we edit)
                 if prop._type_info is not None and prop.reference_source is None:
                     value = coerce_value(
                         value,
@@ -1137,6 +1137,11 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
         self, properties: tuple[Property, ...], invalid: "ValidationHandler"
     ) -> None:
         """Check the integrity of this object."""
+        # NOTE :Architecture: BuiltinObject.validate does not validate value objects, but .do_set does
+        #  (this is somewhat inconsistent, but also useful because e.g. for Runs we don't want to error
+        #   during validation when unpacking, only later when manually checking the inputs;
+        #   however Run.inputs = ... directly errors if invalid, which is inconsistent but convenient.
+        #   Maybe add a flag to .validate whether to validate values?)
         # check properties types
         for prop in properties or self.__tracked_properties__.values():
             # NOTE: references may be unloaded and there's not much to validate, so we don't
