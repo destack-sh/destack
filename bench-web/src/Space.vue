@@ -1,6 +1,6 @@
 <script lang="ts" setup>
-import { Anchor, NodeType, Orientation, UserStatus, ViewType } from "@/proto/wire";
-import { toPlainNodeRef } from "@/proto/wiring";
+import { Anchor, NodeReferenceData, NodeType, Orientation, UserStatus, ViewType } from "@/proto/wire";
+import { toPlainNodeRef, unwrapProtoOneOf } from "@/proto/wiring";
 import { IS_IN_ALT_MODE, fireActionById } from "@/ui/action";
 import { spacePtr } from "@/system/client";
 import { makeIcon } from "@/ui/icon";
@@ -22,7 +22,8 @@ import { DEFAULT_BAR_POSITION, DEFAULT_HEADER_HEIGHT, createDesktopDefaultSpace 
 import Split from "@/views/containers/Split.vue";
 import Button from "@/views/controls/Button.vue";
 import { useTitle, useWindowSize } from "@vueuse/core";
-import { computed, onBeforeUnmount, ref, watch } from "vue";
+import { computed, onBeforeUnmount, ref, watch, type Ref } from "vue";
+import { HELPER_VIEW_TYPES, NODE_VIEW_TYPES, ROOT_VIEW_TYPES } from "@/language/const";
 
 const BAR_WIDTH = DEFAULT_HEADER_HEIGHT;
 const BAR_HEIGHT = DEFAULT_HEADER_HEIGHT;
@@ -84,20 +85,25 @@ const unbind = keytrap.bind(["ctrl+s", "mod+s"], () => {
 onBeforeUnmount(() => unbind()); // for hot reload
 
 // sync browser title
-const browserTitle = useTitle();
-watch([canvas.focusedViewPtr, bench], () => {
-  const benchPostfix = bench.value == null ? "Bench" : bench.value?.slug;
-  let viewTitle = null;
-  if (canvas.focusedViewPtr.value != null) {
-    const viewAncestors = canvas.graph.getAncestors(canvas.focusedViewPtr.value, {
-      metatypes: [NodeType.VIEW],
-      includeSelf: true,
-    });
-    viewTitle = viewAncestors.find((ancestor) => ancestor.name != null || ancestor.title != null)?.title;
-  }
-
-  browserTitle.value = viewTitle ? `${viewTitle} | @${benchPostfix}` : `@${benchPostfix}`;
+const viewAncestors = canvas.graph.getAncestorsRef(canvas.focusedViewPtr, {
+  metatypes: [NodeType.VIEW],
+  includeSelf: true,
 });
+const viewBase = computed(() =>
+  viewAncestors.value.find((v) => NODE_VIEW_TYPES.has(v.type) || HELPER_VIEW_TYPES.has(v.type)),
+);
+const viewBaseNodePtr: Ref<NodeReferenceData | undefined> = computed(() => unwrapProtoOneOf(viewBase.value?.nodePtr));
+const viewBaseNode = canvas.graph.getRef(viewBaseNodePtr);
+const browserTitle = useTitle();
+watch(
+  [bench, viewBase, viewBaseNode],
+  () => {
+    const benchPostfix = bench.value == null ? "Bench" : bench.value?.slug;
+    const viewTitle = (viewBaseNode.value as any)?.name ?? (viewBaseNode.value as any)?.title ?? viewBase.value?.title;
+    browserTitle.value = viewTitle ? `${viewTitle} | @${benchPostfix}` : `@${benchPostfix}`;
+  },
+  { immediate: true },
+);
 </script>
 <template>
   <!-- Space -->
