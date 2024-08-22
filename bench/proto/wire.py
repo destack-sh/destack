@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.08.21.1"
+VERSION = "2024.08.22.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -1023,10 +1023,12 @@ class PathTokenType(betterproto.Enum):
     FIELD = 10
 
 
-class PipeFilterMode(betterproto.Enum):
+class PipeFilterType(betterproto.Enum):
     UNSPECIFIED = 0
-    DISCARD_EMPTY = 1
-    DISCARD_INVALID = 2
+    IS_NON_EMPTY = 1
+    IS_TRUTHY = 2
+    IS_EMPTY = 50
+    IS_FALSY = 51
 
 
 class PipeType(betterproto.Enum):
@@ -1043,7 +1045,7 @@ class PolicyEffect(betterproto.Enum):
 
 class PortType(betterproto.Enum):
     UNSPECIFIED = 0
-    EMPTY = 1
+    TRIGGER = 1
     DATA = 2
     ERROR = 3
     FIELD = 5
@@ -1171,11 +1173,14 @@ class RunErrorType(betterproto.Enum):
     ABORTED = 2
     RUNTIME_UNAVAILABLE = 3
     RUN_IMPOSSIBLE = 4
+    INVALID_VALUE = 5
     CODE_INVALID = 20
     TEXT_INVALID = 21
     MODEL_INCAPABLE = 100
+    MANUAL_NONRETRYABLE = 498
     UNKNOWN_NONRETRYABLE = 499
     MODEL_FAILED = 500
+    MANUAL_RETRYABLE = 998
     UNKNOWN_RETRYABLE = 999
 
 
@@ -1986,7 +1991,7 @@ class PipeData(betterproto.Message):
     source_port: "PortKeyData" = betterproto.message_field(32)
     target_ptr: "NodeReferenceData" = betterproto.message_field(33)
     target_port: "PortKeyData" = betterproto.message_field(34)
-    filter_type: Optional["PipeFilterMode"] = betterproto.enum_field(40, optional=True)
+    filter_type: Optional["PipeFilterType"] = betterproto.enum_field(40, optional=True)
 
 
 @dataclass(eq=False, repr=False)

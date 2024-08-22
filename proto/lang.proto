@@ -975,10 +975,12 @@ enum PathTokenType {
   PATH_TOKEN_TYPE_FIELD = 10;
 }
 
-enum PipeFilterMode {
+enum PipeFilterType {
   PIPE_FILTER_TYPE_UNSPECIFIED = 0;
-  PIPE_FILTER_TYPE_DISCARD_EMPTY = 1;
-  PIPE_FILTER_TYPE_DISCARD_INVALID = 2;
+  PIPE_FILTER_TYPE_IS_NON_EMPTY = 1;
+  PIPE_FILTER_TYPE_IS_TRUTHY = 2;
+  PIPE_FILTER_TYPE_IS_EMPTY = 50;
+  PIPE_FILTER_TYPE_IS_FALSY = 51;
 }
 
 enum PipeType {
@@ -995,7 +997,7 @@ enum PolicyEffect {
 
 enum PortType {
   PORT_TYPE_UNSPECIFIED = 0;
-  PORT_TYPE_EMPTY = 1;
+  PORT_TYPE_TRIGGER = 1;
   PORT_TYPE_DATA = 2;
   PORT_TYPE_ERROR = 3;
   PORT_TYPE_FIELD = 5;
@@ -1112,11 +1114,14 @@ enum RunErrorType {
   RUN_ERROR_TYPE_ABORTED = 2;
   RUN_ERROR_TYPE_RUNTIME_UNAVAILABLE = 3;
   RUN_ERROR_TYPE_RUN_IMPOSSIBLE = 4;
+  RUN_ERROR_TYPE_INVALID_VALUE = 5;
   RUN_ERROR_TYPE_CODE_INVALID = 20;
   RUN_ERROR_TYPE_TEXT_INVALID = 21;
   RUN_ERROR_TYPE_MODEL_INCAPABLE = 100;
+  RUN_ERROR_TYPE_MANUAL_NONRETRYABLE = 498;
   RUN_ERROR_TYPE_UNKNOWN_NONRETRYABLE = 499;
   RUN_ERROR_TYPE_MODEL_FAILED = 500;
+  RUN_ERROR_TYPE_MANUAL_RETRYABLE = 998;
   RUN_ERROR_TYPE_UNKNOWN_RETRYABLE = 999;
 }
 
@@ -1820,7 +1825,7 @@ message PipeData {
   PortKeyData source_port = 32;
   NodeReferenceData target_ptr = 33;
   PortKeyData target_port = 34;
-  optional PipeFilterMode filter_type = 40;
+  optional PipeFilterType filter_type = 40;
 }
 
 // A policy regulating access to nodes within its scope.
