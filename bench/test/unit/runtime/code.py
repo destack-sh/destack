@@ -1,6 +1,6 @@
 from bench.language import Block, BlockType, Field, code
 from bench.language.const import RunStatus
-from bench.language.run import RunErrorType, RunOptions
+from bench.language.run import Run, RunErrorType, RunKind, RunOptions
 from bench.language.value import ValueObject
 from bench.runtime.capture import MAX_LOG_LINE_LENGTH, MAX_LOGS_PER_CAPTURE
 from bench.test.unit.conftest import RuntimeHandle
@@ -35,6 +35,32 @@ async def test_run_code_with_syntax_error(local_runtime: RuntimeHandle):
     assert runner.status == RunStatus.FAILED
     assert runner.error is not None and runner.error.type == RunErrorType.CODE_INVALID
     assert runner.error.text and "!!invalid!!" in runner.error.text
+
+
+async def test_run_code_with_invalid_inputs(local_runtime: RuntimeHandle):
+    Code1 = Block.new_code(
+        "InvalidCode", "pass", fields=(Field.input("Input1", int, is_required=True),)
+    )
+    local_runtime.page().blocks.append(Code1)
+    await local_runtime.commit()
+
+    run = Run(parent=local_runtime.package, kind=RunKind.CODE, block=Code1)
+    runner = await local_runtime.run(run, return_error=True)
+    assert runner.status == RunStatus.FAILED
+    assert runner.error and runner.error.type == RunErrorType.INVALID_VALUE
+
+
+async def test_run_code_with_invalid_outputs(local_runtime: RuntimeHandle):
+    Code1 = Block.new_code(
+        "InvalidCode", "return 'invalid'", fields=(Field.output("Output1", int),)
+    )
+    local_runtime.page().blocks.append(Code1)
+    await local_runtime.commit()
+
+    run = Run(parent=local_runtime.package, kind=RunKind.CODE, block=Code1)
+    runner = await local_runtime.run(run, return_error=True)
+    assert runner.status == RunStatus.FAILED
+    assert runner.error and runner.error.type == RunErrorType.INVALID_VALUE
 
 
 async def test_run_code_capture_logs(local_runtime: RuntimeHandle):

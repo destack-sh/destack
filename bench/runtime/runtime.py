@@ -13,7 +13,8 @@ from bench.language.run import Run, RunAttempt, RunError, RunKind, RunOptions
 from bench.language.session import Session
 from bench.language.step import Step
 from bench.language.text import Text
-from bench.language.value import ValueObject
+from bench.language.validation import ValidationError, on_invalid_raise
+from bench.language.value import ValueObject, check_value
 from bench.runtime.core import (
     BASE_RUN_OPTIONS_BY_KIND,
     DYNAMIC_CODE_GLOBALS,
@@ -173,12 +174,16 @@ class Runtime:
         if node is None:
             raise RunImpossibleError(f"no node for {run!r}")  # default to package?
         options = node.run_options.override(run.options) if node.run_options else run.options
+        if run.inputs is None and run.input_type is not None:
+            inputs = ValueObject.new({}, run.input_type)
+        else:
+            inputs = run.inputs
         return await self.make_runner(
             run.kind,
             node=node,
             code=run.code,
             run=run,
-            inputs=run.inputs,
+            inputs=inputs,
             options=options,
             track=True,
         )
@@ -187,11 +192,22 @@ class Runtime:
         """
         Runs a runner in a Runner, retrying automatically and updating the Runner along the way.
         """
+        # check inputs
+        if runner.input_type is not None:
+            assert runner.inputs is not None, f"no inputs for {runner!r}"
+            try:
+                check_value(runner.inputs, runner.input_type, on_invalid_raise)
+            except ValidationError as e:
+                runner.status = RunStatus.FAILED
+                runner.error = RunError.from_exception(RunErrorKind.RUNTIME, e)
+                return
+
         # set active run
         active_run_runner_token = self._active_runner.set(runner)
         runner.status = RunStatus.RUNNING
         retry = runner.options.to_retry().new(self.oracle, attempt=len(runner.attempts))
-        # run in attempt loop
+
+        # run attempts
         log = logger.bind(runner=runner, retry=retry)
         try:
             while retry.should_retry:
@@ -208,6 +224,8 @@ class Runtime:
                     try:
                         runner.inner_task = asyncio.create_task(runner.run_once())
                         await runner.inner_task
+                        if runner.output_type is not None:
+                            check_value(runner.outputs, runner.output_type, on_invalid_raise)
                         attempt.status = RunStatus.COMPLETED
                         log.debug("runner.attempt", attempt=attempt, span="current")
                         break  # success
@@ -218,7 +236,7 @@ class Runtime:
                         log.debug(
                             "runner.attempt.aborted", attempt=attempt, exc_info=e, span="current"
                         )
-                        raise  # give up
+                        raise  # give up (always)
                     except BaseException as e:
                         error = RunError.from_exception(RunErrorKind.RUNTIME, e)
                         attempt.error = error
@@ -230,7 +248,7 @@ class Runtime:
                             not retry.on_error(e)
                             and not (error.type and error.type in runner.options.retry_on)
                         ):
-                            raise  # give up
+                            raise  # give up if not retryable (anymore)
                     finally:
                         runner.inner_task = None
                         attempt.terminated_at = self.oracle.utc()
@@ -273,17 +291,19 @@ class Runtime:
         try:
             await self._do_run_once_retrying(runner)
         finally:
-            last_attempt = runner.current_attempt
-            assert last_attempt is not None, f"no last attempt for run {runner!r}"
             run.attempts = runner.attempts
             run.logs = runner.logs
             run.inputs = runner.inputs
             run.outputs = runner.outputs
             run.error = runner.error
             run.status = runner.status
-            run.duration = last_attempt.duration
-            run.terminated_at = last_attempt.terminated_at
-            run.terminated_epoch = last_attempt.terminated_epoch
+            if run.terminated_at is not None:
+                run.duration = (run.terminated_at - run.started_at).total_seconds()
+            last_attempt = runner.current_attempt
+            if last_attempt is not None:
+                # may not have a last attempt if we didn't even try
+                run.terminated_at = last_attempt.terminated_at
+                run.terminated_epoch = last_attempt.terminated_epoch
 
     @tracer.start_as_current_span("runner.run_runner")
     async def run_runner(self, runner: Runner):

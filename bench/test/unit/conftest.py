@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from bench.language import Session, Store
-from bench.language.bench import Bench, Client
+from bench.language.bench import Bench, Client, Package
 from bench.language.block import Block
 from bench.language.connection import NullEngine
 from bench.language.const import (
@@ -202,6 +202,7 @@ class RuntimeHandle:
     user: User
     client: Client
     bench: Bench
+    package: Package
     session: Session
     runner: Runtime
 
@@ -282,6 +283,7 @@ async def local_runtime_async(global_store: Store):
         user=user,
         client=client,
         bench=bench,
+        package=bench.main_package,
         session=session,
         runner=runner,
     )
@@ -403,6 +405,7 @@ async def hosted_runtime_async(hosted_bench: Bench, host: HostClient):
         user=user,
         client=client,
         bench=hosted_bench,
+        package=hosted_bench.main_package,
         session=session,
         runner=runner,
     )

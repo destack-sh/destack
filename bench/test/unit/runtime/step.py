@@ -2,6 +2,7 @@ from bench.language.block import Block
 from bench.language.code import code
 from bench.language.const import BlockType, RunStatus
 from bench.language.field import Field
+from bench.language.run import RunErrorType
 from bench.language.step import PipeFilterType, PortType, Step, StepType
 from bench.test.unit.conftest import RuntimeHandle
 
@@ -47,7 +48,19 @@ async def test_run_flow_trivial_no_value(local_runtime: RuntimeHandle):
 
 async def test_run_flow_force_trigger_invalid_value(local_runtime: RuntimeHandle):
     """Run a step with a trigger port that is forced to be invalid."""
-    # nocheckin ...
+    Flow1 = Block.new(
+        BlockType.FLOW, "Flow1", fields=(Field.output("Output1", str, is_required=True),)
+    )
+    Start = Step.new(StepType.START, "Start")
+    Complete = Step.new(StepType.COMPLETE, "Complete")
+    Start.then(Complete)
+    Flow1.steps.extend(Start, Complete)
+    local_runtime.page().blocks.append(Flow1)
+    await local_runtime.commit()
+
+    runner = await local_runtime.run(Flow1)
+    assert runner.status == RunStatus.FAILED
+    assert runner.error and runner.error.type == RunErrorType.INVALID_VALUE
 
 
 async def test_run_flow_code(local_runtime: RuntimeHandle):
