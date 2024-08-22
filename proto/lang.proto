@@ -997,10 +997,10 @@ enum PolicyEffect {
 
 enum PortType {
   PORT_TYPE_UNSPECIFIED = 0;
-  PORT_TYPE_TRIGGER = 1;
-  PORT_TYPE_DATA = 2;
-  PORT_TYPE_ERROR = 3;
-  PORT_TYPE_FIELD = 5;
+  PORT_TYPE_RUN = 1;
+  PORT_TYPE_ERROR = 2;
+  PORT_TYPE_OBJECT = 10;
+  PORT_TYPE_FIELD = 11;
 }
 
 // Fundamental column / storage types we support (subset of SQL types, used directly in sql/core).
@@ -1246,7 +1246,6 @@ enum StepType {
   STEP_TYPE_FAIL = 3;
   STEP_TYPE_VALUE = 10;
   STEP_TYPE_TRIGGER = 11;
-  STEP_TYPE_PASS = 50;
   STEP_TYPE_BLOCK = 51;
   STEP_TYPE_CODE = 54;
   STEP_TYPE_TEXT = 55;
@@ -1258,6 +1257,7 @@ enum StepType {
   STEP_TYPE_ACCUMULATE = 104;
   STEP_TYPE_REDUCE = 105;
   STEP_TYPE_ZIP = 106;
+  STEP_TYPE_JOIN = 107;
   STEP_TYPE_GROUP = 150;
   STEP_TYPE_LOOP = 151;
   STEP_TYPE_SHIELD = 152;
@@ -3015,18 +3015,19 @@ message SpaceData {
 
 // An data or control flow node in a FlowBlock. Ports on Steps are connected by Pipes.
 // Pipes are stored in the source Step. Ports are implicit via Pipes unless tied to some value.
-// A Step is run when it is triggered, specifically:
+// A Step is run when it is fired, specifically:
 // - When its control port fires OR
 // - When all its input ports (for all fields or full value) fire
-// A Step may run multiple times if it is triggered multiple times (even concurrently).
-// A Step may directly trigger any Step (including itself) at most once per run.
+// A Step may run multiple times if it is fired multiple times (even concurrently).
+// A Step may directly fire any Step (including itself) at most once per run.
 // Steps are run in order of definition per firing (regardless of pipe & port order).
 // 
 // When a Step completes, then:
 // 1. Fire output values to all output ports
 // 2. Fire output control port
 // When a Step fails, then:
-// 1. FIre error on error port
+// - If error port exists: fire error on error port
+// - Else: fail entire Flow
 message StepData {
   ObjectType metatype = 1;
   string id = 2;

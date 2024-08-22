@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.08.22.0"
+VERSION = "2024.08.22.1"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -1045,10 +1045,10 @@ class PolicyEffect(betterproto.Enum):
 
 class PortType(betterproto.Enum):
     UNSPECIFIED = 0
-    TRIGGER = 1
-    DATA = 2
-    ERROR = 3
-    FIELD = 5
+    RUN = 1
+    ERROR = 2
+    OBJECT = 10
+    FIELD = 11
 
 
 class PrimitiveType(betterproto.Enum):
@@ -1309,7 +1309,6 @@ class StepType(betterproto.Enum):
     FAIL = 3
     VALUE = 10
     TRIGGER = 11
-    PASS = 50
     BLOCK = 51
     CODE = 54
     TEXT = 55
@@ -1321,6 +1320,7 @@ class StepType(betterproto.Enum):
     ACCUMULATE = 104
     REDUCE = 105
     ZIP = 106
+    JOIN = 107
     GROUP = 150
     LOOP = 151
     SHIELD = 152
@@ -3384,18 +3384,19 @@ class StepData(betterproto.Message):
     """
     An data or control flow node in a FlowBlock. Ports on Steps are connected by Pipes.
      Pipes are stored in the source Step. Ports are implicit via Pipes unless tied to some value.
-     A Step is run when it is triggered, specifically:
+     A Step is run when it is fired, specifically:
      - When its control port fires OR
      - When all its input ports (for all fields or full value) fire
-     A Step may run multiple times if it is triggered multiple times (even concurrently).
-     A Step may directly trigger any Step (including itself) at most once per run.
+     A Step may run multiple times if it is fired multiple times (even concurrently).
+     A Step may directly fire any Step (including itself) at most once per run.
      Steps are run in order of definition per firing (regardless of pipe & port order).
 
      When a Step completes, then:
      1. Fire output values to all output ports
      2. Fire output control port
      When a Step fails, then:
-     1. FIre error on error port
+     - If error port exists: fire error on error port
+     - Else: fail entire Flow
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)

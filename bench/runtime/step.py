@@ -3,7 +3,7 @@ import asyncio
 import dataclasses
 from asyncio import Queue
 from enum import IntEnum
-from typing import Any, Literal, assert_never, override
+from typing import Any, Collection, Literal, assert_never, override
 from uuid import UUID
 
 import structlog
@@ -12,10 +12,19 @@ from opentelemetry import trace
 
 from bench.language.block import Block
 from bench.language.code import Code, CodeType
-from bench.language.const import FieldZone, RunStatus
+from bench.language.const import RunStatus
 from bench.language.field import TypeInfoBase
 from bench.language.run import Run, RunError, RunKind
-from bench.language.step import Pipe, PipeType, PortKey, PortType, Step, StepType
+from bench.language.step import (
+    Pipe,
+    PipeFilterType,
+    PipeType,
+    PortKey,
+    PortSide,
+    PortType,
+    Step,
+    StepType,
+)
 from bench.language.text import Text
 from bench.language.value import ValueObject
 from bench.runtime.core import RUN_ONCE, ManualRetryableError, RunImpossibleError
@@ -24,14 +33,32 @@ from bench.runtime.runner import Runner, RunnerCache, runner_
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
-PortId = tuple[FieldZone, PortType, UUID | None]
+PortId = tuple[PortSide, PortType, UUID | None]
 
 
 def to_port_id(port: PortKey) -> PortId:
-    return (port.zone, port.type, port.field.id if port.field is not None else None)
+    return (port.side, port.type, port.field.id if port.field is not None else None)
 
 
-class TriggerType(IntEnum):
+def evaluate_pipe_filter(pipe: "Pipe", value: Any) -> bool:
+    """Evaluate whether the filter is True for the given value."""
+    if pipe.filter_type is None:
+        return True
+    # positive
+    elif pipe.filter_type == PipeFilterType.IS_NON_EMPTY:
+        return value is not None and (not isinstance(value, Collection) or len(value) > 0)
+    elif pipe.filter_type == PipeFilterType.IS_TRUTHY:
+        return bool(value)
+    # negative
+    elif pipe.filter_type == PipeFilterType.IS_EMPTY:
+        return value is None or (isinstance(value, Collection) and len(value) == 0)
+    elif pipe.filter_type == PipeFilterType.IS_FALSY:
+        return not bool(value)
+    else:
+        assert_never(pipe.filter_type)
+
+
+class FireType(IntEnum):
     PARTIAL = 1
     FULL = 2
 
@@ -47,7 +74,7 @@ class StepState:
     runners: list["StepRunnerBase"]
 
     def __str__(self) -> str:
-        return f"{self.step!r}, inputs={self.inputs!r}, unset_ports={len(self.unset_ports)}"
+        return f"{self.step!r}, inputs={self.inputs!r}, runners={len(self.runners)}, unset_ports={len(self.unset_ports)}"
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} {self}>"
@@ -70,7 +97,7 @@ class StepState:
                 field_value = value.get(output_field.name)
                 if field_value is not None:
                     self.inputs[input_field] = field_value
-                field_port_id = (FieldZone.INPUT, PortType.FIELD, input_field.id)
+                field_port_id = (PortSide.INCOMING, PortType.FIELD, input_field.id)
                 self.unset_ports.pop(field_port_id, None)
         elif port.type == PortType.FIELD:
             # set specific field port
@@ -95,6 +122,8 @@ class StepState:
 
 @runner_(RunKind.FLOW, None)
 class FlowRunner(Runner[RunnerCache, Block]):
+    """Runs an entire Flow."""
+
     _step_states: dict[Step, "StepState"] = dataclasses.field(default_factory=dict)
     _active_runners: dict[Run, "StepRunnerBase"] = dataclasses.field(default_factory=dict)
     _force_complete: ValueObject | Literal[True] | None = None
@@ -134,7 +163,7 @@ class FlowRunner(Runner[RunnerCache, Block]):
             logger.debug("flow.complete.skip", flow=self.node, runner=self)
             return  # already done
         self._force_complete = True if outputs is None else outputs
-        self._abort()
+        self._abort()  # cancel all active steps
         logger.debug("flow.complete", flow=self.node, runner=self)
 
     def _fail(self, error: RunError) -> None:
@@ -143,7 +172,7 @@ class FlowRunner(Runner[RunnerCache, Block]):
             logger.debug("flow.fail.skip", flow=self.node, runner=self)
             return  # already done
         self._force_fail = error
-        self._abort()
+        self._abort()  # cancel all active steps
         logger.debug("flow.fail", flow=self.node, runner=self)
 
     async def _start_step(self, state: StepState, runner: "StepRunnerBase") -> None:
@@ -167,56 +196,72 @@ class FlowRunner(Runner[RunnerCache, Block]):
     async def _fire_step(self, step: Step, run: Run) -> None:
         """Fires all the pipes for the terminated Step/Run."""
 
-        triggered_steps: dict[Step, TriggerType] = {}
+        fired_steps: dict[Step, FireType] = {}
 
-        def _fire_pipe(pipe: Pipe, target_state: StepState, trigger: TriggerType):
+        def _map_pipe(pipe: Pipe, value: Any) -> Any:
+            """Map the value through the pipe."""
+            # NOTE :Incomplete: pipe mapping/casting/...
+            return value
+
+        def _fire_pipe(pipe: Pipe, target_state: StepState):
+            """'Fire' the target step of the pipe."""
+            fire = FireType.FULL if pipe.target_port.type == PortType.RUN else FireType.PARTIAL
             if pipe.type == PipeType.THEN and (
-                target_state.step not in triggered_steps
-                or triggered_steps[target_state.step] < trigger
+                target_state.step not in fired_steps or fired_steps[target_state.step] < fire
             ):
-                triggered_steps[target_state.step] = trigger
+                fired_steps[target_state.step] = fire
 
-        # fire pipes
-        # nocheckin :Incomplete: pipe filters/mapping/casting/...
+        # pump the pipes
         for pipe in step.pipes:
             target_state = self._step_states[pipe.target]
+
+            # select/filter value
             if run.status == RunStatus.COMPLETED:
-                if pipe.target_port.type == PortType.RUN:
-                    # into run
-                    _fire_pipe(pipe, target_state, TriggerType.FULL)
-                elif pipe.source_port.type == PortType.RUN:
-                    # run into field
-                    if pipe.target_port.type == PortType.FIELD:
-                        target_state.set_port(pipe.target_port, run)
-                        _fire_pipe(pipe, target_state, TriggerType.PARTIAL)
+                assert run.outputs is not None, f"{run!r} has no outputs"
+                if pipe.source_port.type == PortType.RUN:
+                    value = run
                 elif pipe.source_port.type == PortType.OBJECT:
-                    # full object value
-                    target_state.set_port(pipe.target_port, run.outputs)
-                    _fire_pipe(pipe, target_state, TriggerType.PARTIAL)
+                    value = run.outputs
+                    if any(run.outputs.fields):
+                        for field in run.outputs.fields:
+                            output_value = run.outputs[field]
+                            if evaluate_pipe_filter(pipe, output_value):
+                                break  # some field is good, keep the whole object
+                        else:
+                            continue  # discarded by filter
+                    value = run.outputs
                 elif pipe.source_port.type == PortType.FIELD:
-                    # specific field value
                     assert pipe.source_port.field, f"{pipe!r} has no source field"
-                    assert run.outputs is not None, f"{run!r} has no outputs"
-                    target_state.set_port(pipe.target_port, run.outputs[pipe.source_port.field])
-                    _fire_pipe(pipe, target_state, TriggerType.PARTIAL)
+                    output_value = run.outputs[pipe.source_port.field]
+                    if not evaluate_pipe_filter(pipe, output_value):
+                        continue  # discarded by filter (maybe add RunEvent here?)
+                    value = output_value
+                else:
+                    continue  # ignore pipe
             elif run.status == RunStatus.FAILED:
                 if pipe.source_port.type == PortType.ERROR:
                     assert run.error is not None, f"{run!r} has no error"
-                    if pipe.target_port.type == PortType.FIELD:
-                        target_state.set_port(pipe.target_port, run.error)
-                    _fire_pipe(pipe, target_state, TriggerType.PARTIAL)
+                    value = run.error
+                else:
+                    continue  # ignore pipe
             else:
                 raise RuntimeError(f"unexpected run status: {run!r}")
 
-        # start triggered steps (in order of definition)
-        steps_to_start = [
-            step_state
-            for step_state in self._step_states.values()
-            if step_state.step in triggered_steps and step_state.is_ready
-        ]
-        logger.trace(
-            "step.fire", step=step, run=run, triggered=triggered_steps, to_start=steps_to_start
-        )
+            # map value (if target port accepts value)
+            if pipe.target_port.type in (PortType.OBJECT, PortType.FIELD):
+                value = _map_pipe(pipe, value)
+                target_state.set_port(pipe.target_port, value)
+
+            # fire
+            _fire_pipe(pipe, target_state)
+
+        # start fired steps (in order of definition)
+        steps_to_start = []
+        for step_state in self._step_states.values():
+            fire = fired_steps.get(step_state.step)
+            if fire == FireType.FULL or (fire == FireType.PARTIAL and step_state.is_ready):
+                steps_to_start.append(step_state)
+        logger.trace("step.fire", step=step, run=run, fired=fired_steps, to_start=steps_to_start)
         for step_state in steps_to_start:
             runner = await self._make_runner(step_state)
             await self._start_step(step_state, runner)
@@ -266,9 +311,7 @@ class FlowRunner(Runner[RunnerCache, Block]):
                 raise ManualRetryableError(self._force_fail)
         except Exception:
             # cancel all active steps
-            for runner in self._active_runners.values():
-                if runner.inner_task is not None:
-                    runner.inner_task.cancel()
+            self._abort()
             raise
 
 

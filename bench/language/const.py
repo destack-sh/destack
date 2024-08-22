@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.08.22.0"  # auto change via version script
+VERSION = "2024.08.22.1"  # auto change via version script
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -143,6 +143,7 @@ class EnumType(IdEnum):
     PIPE_TYPE = 20561
     PIPE_FILTER_TYPE = 20562
     PORT_TYPE = 20563
+    PORT_SIDE = 20564
     NOTIFICATION_LEVEL = 20570
 
     # view
