@@ -27,6 +27,7 @@ async def test_run_code_function_empty(local_runtime: RuntimeHandle):
 
 
 async def test_run_code_with_syntax_error(local_runtime: RuntimeHandle):
+    """Code block with a syntax error should re-raise that error."""
     InvalidCode = Block.new_code("InvalidCode", "!!invalid!!")
     local_runtime.page().blocks.append(InvalidCode)
     await local_runtime.commit()
@@ -38,6 +39,7 @@ async def test_run_code_with_syntax_error(local_runtime: RuntimeHandle):
 
 
 async def test_run_code_with_invalid_inputs(local_runtime: RuntimeHandle):
+    """Code block with invalid inputs should fail immediately (no attempts)."""
     Code1 = Block.new_code(
         "InvalidCode", "pass", fields=(Field.input("Input1", int, is_required=True),)
     )
@@ -47,10 +49,12 @@ async def test_run_code_with_invalid_inputs(local_runtime: RuntimeHandle):
     run = Run(parent=local_runtime.package, kind=RunKind.CODE, block=Code1)
     runner = await local_runtime.run(run, return_error=True)
     assert runner.status == RunStatus.FAILED
+    assert len(runner.attempts) == 0
     assert runner.error and runner.error.type == RunErrorType.INVALID_VALUE
 
 
 async def test_run_code_with_invalid_outputs(local_runtime: RuntimeHandle):
+    """Code block with invalid outputs should fail."""
     Code1 = Block.new_code(
         "InvalidCode", "return 'invalid'", fields=(Field.output("Output1", int),)
     )
@@ -64,6 +68,7 @@ async def test_run_code_with_invalid_outputs(local_runtime: RuntimeHandle):
 
 
 async def test_run_code_capture_logs(local_runtime: RuntimeHandle):
+    """All logging functions should be captured."""
     Logs101 = Block.new_code(
         "Logs101",
         """\
@@ -107,6 +112,7 @@ critical('critical1')
 
 
 async def test_run_code_capture_logs_on_error(local_runtime: RuntimeHandle):
+    """Logs should also be captured if the code raises an error."""
     Logs102 = Block.new_code(
         "Logs102",
         """\
@@ -127,6 +133,7 @@ print('print3')
 
 
 async def test_run_code_capture_log_size_overflow(local_runtime: RuntimeHandle):
+    """Logs should only be captured up to a certain size."""
     Logs103 = Block.new_code(
         "Logs103",
         f"""\
@@ -143,6 +150,7 @@ for i in range(0, {MAX_LOGS_PER_CAPTURE + 5}):
 
 
 async def test_run_code_capture_log_line_overflow(local_runtime: RuntimeHandle):
+    """Logs should only be captured up to a certain size."""
     Logs103 = Block.new_code("Logs103", f"""print('x' * {MAX_LOG_LINE_LENGTH + 5})""")
     local_runtime.page().blocks.append(Logs103)
     await local_runtime.commit()
@@ -152,7 +160,24 @@ async def test_run_code_capture_log_line_overflow(local_runtime: RuntimeHandle):
     assert runner.logs[0].text_plain and "truncate" in runner.logs[0].text_plain
 
 
+async def test_run_code_function_inputs_in_context(local_runtime: RuntimeHandle):
+    """All the input fields values should be in context (even if not used and unset)."""
+    Function = Block.new_code(
+        "Function",
+        """\
+assert globals().get('Input1') == 3
+assert globals().get('Input2') is None
+""",
+        fields=(Field.input("Input1", int), Field.input("Input2", int)),
+    )
+    local_runtime.page().blocks.append(Function)
+    await local_runtime.commit()
+
+    _ = await local_runtime.run(Function, inputs={"Input1": 3})
+
+
 async def test_run_code_function_output_none(local_runtime: RuntimeHandle):
+    """A noop code function should work and return None."""
     Function = Block.new_code("Function", """pass""", fields=(Field.input("Input1", int),))
     local_runtime.page().blocks.append(Function)
     await local_runtime.commit()
@@ -161,6 +186,7 @@ async def test_run_code_function_output_none(local_runtime: RuntimeHandle):
 
 
 async def test_run_code_function_output_scalar(local_runtime: RuntimeHandle):
+    """Run a code function with a scalar, should coerce into object."""
     Function = Block.new_code(
         "Function",
         """return Input1 * 4""",
@@ -169,10 +195,11 @@ async def test_run_code_function_output_scalar(local_runtime: RuntimeHandle):
     local_runtime.page().blocks.append(Function)
     await local_runtime.commit()
 
+    # run with good return value
     runner = await local_runtime.run(Function, inputs={"Input1": 3})
     assert runner.outputs and runner.outputs.Result1 == 12
 
-    # now with bad return value
+    # run with bad return value
     Function.code = code("return 'stringy'")
     await local_runtime.commit()
     runner = await local_runtime.run(Function, inputs={"Input1": 3}, return_error=True)
@@ -180,6 +207,7 @@ async def test_run_code_function_output_scalar(local_runtime: RuntimeHandle):
 
 
 async def test_run_code_function_output_tuple(local_runtime: RuntimeHandle):
+    """Run a code function with a tuple, should coerce into object."""
     Function = Block.new_code(
         "Function",
         """return Input1 > 10, Input1 * 4, None""",
@@ -203,6 +231,7 @@ async def test_run_code_function_output_tuple(local_runtime: RuntimeHandle):
 
 
 async def test_run_code_function_output_dict(local_runtime: RuntimeHandle):
+    """Run a code function with a dict, should coerce into object."""
     Function = Block.new_code(
         "Function",
         """return dict(Result1=Input1 > 10, Result2=Input1 * 4)""",
@@ -220,6 +249,7 @@ async def test_run_code_function_output_dict(local_runtime: RuntimeHandle):
 
 
 async def test_run_code_function_output_choice(local_runtime: RuntimeHandle):
+    """Run a code function with a dict and a Choice type, should coerce into object."""
     Color = Block.new(
         BlockType.CHOICE,
         "Color",
@@ -241,6 +271,7 @@ return {"Color": Color.Red}
 
 
 async def test_run_code_function_output_nested(local_runtime: RuntimeHandle):
+    """ "Run a code function with a nested object."""
     subpage = local_runtime.page().blocks.append(Block.new(BlockType.PAGE, "Subpage"))
     ShapeKind = Block.new(
         BlockType.CHOICE,
@@ -279,6 +310,7 @@ return Shape(kind=ShapeKind.Square)
 
 
 async def test_run_code_raise_retryable_error(local_runtime: RuntimeHandle):
+    """Raise a retryable error. Should be detected and retried."""
     CodeBlock = Block.new_code(
         "Code1", """raise RetryableError('error1')""", run_options=RunOptions(max_attempts=3)
     )
@@ -292,6 +324,7 @@ async def test_run_code_raise_retryable_error(local_runtime: RuntimeHandle):
 
 
 async def test_run_code_raise_unretryable_error(local_runtime: RuntimeHandle):
+    """Raise an unretryable error. Should be detected and not retried."""
     CodeBlock = Block.new_code(
         "Code1", """raise NonRetryableError('error1')""", run_options=RunOptions(max_attempts=3)
     )

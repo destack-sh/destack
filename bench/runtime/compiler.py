@@ -76,12 +76,9 @@ class CodeDefinition:
 class CodeBlock:
     """A scope in which names are declared."""
 
-    # Names defined with the global keyword
-    global_names: set[str] = field(default_factory=set)
-    # Map from defined names to metadata about their variables
+    global_names: set[str] = field(default_factory=set)  # `global <name>`
     definitions: dict[str, CodeDefinition] = field(default_factory=dict)
-    # Comprehensions have special scoping rules
-    is_comprehension: bool = False
+    is_comprehension: bool = False  # have special scoping rules
 
     def is_defined(self, name: str) -> bool:
         return any(name == defn for defn in self.definitions)

@@ -7,19 +7,6 @@ from bench.language.text import Text
 from bench.utils.oracle import Oracle
 from bench.utils.utils import get_from_env
 
-
-@contextlib.contextmanager
-def capture_stdout():
-    with contextlib.redirect_stdout(io.StringIO()) as buffer:
-        yield buffer
-
-
-@contextlib.contextmanager
-def capture_stderr():
-    with contextlib.redirect_stderr(io.StringIO()) as buffer:
-        yield buffer
-
-
 TextIn = str | Text | Any
 
 MAX_LOGS_PER_CAPTURE = get_from_env(

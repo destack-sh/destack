@@ -48,7 +48,7 @@ async def test_run_flow_trivial_no_value(local_runtime: RuntimeHandle):
 
 
 async def test_run_flow_force_trigger_invalid_value(local_runtime: RuntimeHandle):
-    """Run a step with a trigger port that is forced to be invalid."""
+    """Run a step with a trigger port that forces a Run of a Step with invalid inputs (should fail)."""
     Flow1 = Block.new(
         BlockType.FLOW, "Flow1", fields=(Field.output("Output1", str, is_required=True),)
     )
@@ -59,7 +59,7 @@ async def test_run_flow_force_trigger_invalid_value(local_runtime: RuntimeHandle
     local_runtime.page().blocks.append(Flow1)
     await local_runtime.commit()
 
-    runner = await local_runtime.run(Flow1)
+    runner = await local_runtime.run(Flow1, return_error=True)
     assert runner.status == RunStatus.FAILED
     assert runner.error and runner.error.type == RunErrorType.INVALID_VALUE
 
@@ -87,8 +87,8 @@ async def test_run_flow_code(local_runtime: RuntimeHandle):
     assert runner.outputs and runner.outputs.Output1 == 4
 
 
-async def test_run_flow_code_with_error(local_runtime: RuntimeHandle):
-    """Run a code step with an error. Entire flow should abort and fail."""
+async def test_run_flow_error(local_runtime: RuntimeHandle):
+    """Run a code step with an error (without error port). Entire flow should abort and fail."""
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
     Start = Step.new(StepType.START, "Start")
     Code1 = Step.new(StepType.CODE, "Code1", code=code("raise ValueError"))
@@ -100,7 +100,23 @@ async def test_run_flow_code_with_error(local_runtime: RuntimeHandle):
 
     runner = await local_runtime.run(Flow1, return_error=True)
     assert runner.status == RunStatus.FAILED
-    assert runner.run and len(runner.run.runs) == 2  # two steps
+    assert runner.run and len(runner.run.runs) == 2
+
+
+async def test_run_flow_error_with_error_port(local_runtime: RuntimeHandle):
+    """Run a code step with an error connected to the error port. Flow should complete."""
+    Flow1 = Block.new(BlockType.FLOW, "Flow1")
+    Start = Step.new(StepType.START, "Start")
+    Code1 = Step.new(StepType.CODE, "Code1", code=code("raise ValueError('error')"))
+    Complete = Step.new(StepType.COMPLETE, "Complete")
+    Start.then(Code1).then(Complete, source_port=PortType.ERROR, target_port=PortType.RUN)
+    Flow1.steps.extend(Start, Code1, Complete)
+    local_runtime.page().blocks.extend(Flow1)
+    await local_runtime.commit()
+
+    runner = await local_runtime.run(Flow1)
+    assert runner.status == RunStatus.COMPLETED
+    assert runner.run and len(runner.run.runs) == 3
 
 
 async def test_run_flow_code_block(local_runtime: RuntimeHandle):
@@ -197,7 +213,7 @@ async def test_run_flow_get_run_as_field(local_runtime: RuntimeHandle):
     assert (
         runner.outputs
         and isinstance(runner.outputs.Duration, float)
-        and runner.outputs.Duration >= 0.1
+        and runner.outputs.Duration >= 0.1  # >= sleep in that code step (above)
     )
 
 

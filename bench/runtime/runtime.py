@@ -102,7 +102,7 @@ class Runtime:
         options: RunOptions | None = None,
         run: Run | None = None,
     ) -> Runner:
-        """Get/create/recover the state for some runnable."""
+        """Make the Runner to run some runnable in a Run."""
 
         # figure out which runner we need
         if kind == RunKind.CODE:
@@ -147,11 +147,14 @@ class Runtime:
             run=run,
         )
 
-        # create nested Run
+        # nest active Runners/Runs
+        active_runner = self.active_runner
+        if active_runner is not None:
+            active_runner.runs.append(runner)
         if track and run is None:
-            if self.active_runner is not None:
-                assert self.active_runner.run is not None, f"{self.active_runner!r} has no Run"
-                parent_run = self.active_runner.run
+            if active_runner is not None:
+                assert active_runner.run is not None, f"{active_runner!r} has no Run"
+                parent_run = active_runner.run
             else:
                 parent_run = None
             run = Run(
@@ -170,6 +173,7 @@ class Runtime:
         return runner
 
     async def make_runner_from_run(self, run: Run):
+        """Make a Runner. From a Run."""
         node = run.step or run.block
         if node is None:
             raise RunImpossibleError(f"no node for {run!r}")  # default to package?
@@ -297,13 +301,13 @@ class Runtime:
             run.outputs = runner.outputs
             run.error = runner.error
             run.status = runner.status
-            if run.terminated_at is not None:
-                run.duration = (run.terminated_at - run.started_at).total_seconds()
             last_attempt = runner.current_attempt
             if last_attempt is not None:
                 # may not have a last attempt if we didn't even try
                 run.terminated_at = last_attempt.terminated_at
                 run.terminated_epoch = last_attempt.terminated_epoch
+            if run.terminated_at is not None:
+                run.duration = (run.terminated_at - run.started_at).total_seconds()
 
     @tracer.start_as_current_span("runner.run_runner")
     async def run_runner(self, runner: Runner):
