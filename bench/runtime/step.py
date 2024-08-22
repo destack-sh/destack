@@ -56,9 +56,9 @@ class StepState:
     def is_ready(self) -> bool:
         return len(self.unset_ports) == 0
 
-    def set_port(self, port: PortKey, value: ValueObject | RunError | Any) -> None:
+    def set_port(self, port: PortKey, value: ValueObject | Run | RunError | Any) -> None:
         """Sets the value of an incoming port (marking it as ready)."""
-        if port.type == PortType.DATA:
+        if port.type == PortType.OBJECT:
             if not isinstance(value, ValueObject):
                 raise ValueError(f"expected value for {self.step!r}, got {value!r}")
             # set all field ports
@@ -179,11 +179,16 @@ class FlowRunner(Runner[RunnerCache, Block]):
         for pipe in step.pipes:
             target_state = self._step_states[pipe.target]
             if run.status == RunStatus.COMPLETED:
-                if pipe.source_port.type == PortType.TRIGGER:
-                    # force trigger
+                if pipe.target_port.type == PortType.RUN:
+                    # into run
                     _fire_pipe(pipe, target_state, TriggerType.FULL)
-                elif pipe.source_port.type == PortType.DATA:
-                    # full value
+                elif pipe.source_port.type == PortType.RUN:
+                    # run into field
+                    if pipe.target_port.type == PortType.FIELD:
+                        target_state.set_port(pipe.target_port, run)
+                        _fire_pipe(pipe, target_state, TriggerType.PARTIAL)
+                elif pipe.source_port.type == PortType.OBJECT:
+                    # full object value
                     target_state.set_port(pipe.target_port, run.outputs)
                     _fire_pipe(pipe, target_state, TriggerType.PARTIAL)
                 elif pipe.source_port.type == PortType.FIELD:

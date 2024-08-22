@@ -46,7 +46,7 @@ if TYPE_CHECKING:
 
 @enum_(EnumType.STEP_TYPE)
 class StepType(IdEnum):
-    # boundary
+    # boundary (only incoming OR outgoing)
     START = 1  # source with inputs (at most one per Flow)
     COMPLETE = 2  # terminate with outputs (at most one per Flow)
     FAIL = 3  # terminate with error
@@ -55,7 +55,6 @@ class StepType(IdEnum):
     TRIGGER = 11  # source with just(trigger)
 
     # run
-    PASS = 50  # noop, output = input
     BLOCK = 51  # run a runnable block
     CODE = 54  # run code
     TEXT = 55  # run text
@@ -63,6 +62,7 @@ class StepType(IdEnum):
     # YIELD # to other program/human
     # APPLY
     # CREATE
+    # PASS?
 
     # control
     MATCH = 100  # X -> | n ports | -> X' filtered output port (per expression)
@@ -140,7 +140,14 @@ class Pipe(Struct):
     ...
 
     def __content_str__(self) -> str:
-        arrow_str = ">" if self.type == PipeType.THEN else "->"
+        if self.type == PipeType.THEN:
+            arrow_str = "->"
+        elif self.type == PipeType.WITH:
+            arrow_str = "-"
+        else:
+            assert_never(self.type)
+        if self.filter_type:
+            arrow_str += f"?[{self.filter_type.bench_name}]"
         source = self.source
         target = self.target
         return f"{source.absolute_path if source else '???'}:{self.source_port} {arrow_str} {target.absolute_path if target else '???'}:{self.target_port}"
@@ -148,16 +155,16 @@ class Pipe(Struct):
 
 @enum_(EnumType.PORT_TYPE)
 class PortType(IdEnum):
-    TRIGGER = 1  # trigger only (no data)
-    DATA = 2  # trigger with full input/output value (depending on side)
+    RUN = 1  # trigger only (no content, just the Run)
+    OBJECT = 2  # trigger with full input/output/... value (depending on side)
     ERROR = 3  # trigger with error in case of failure (output only)
     FIELD = 5  # trigger with specific field (depending on side & type)
 
 
 PORT_TYPES_BY_ZONE: dict[FieldZone, tuple[PortType, ...]] = {
-    FieldZone.VARIABLE: (PortType.DATA, PortType.FIELD),
-    FieldZone.INPUT: (PortType.TRIGGER, PortType.DATA, PortType.FIELD),
-    FieldZone.OUTPUT: (PortType.TRIGGER, PortType.DATA, PortType.ERROR, PortType.FIELD),
+    FieldZone.VARIABLE: (PortType.OBJECT, PortType.FIELD),
+    FieldZone.INPUT: (PortType.RUN, PortType.OBJECT, PortType.FIELD),
+    FieldZone.OUTPUT: (PortType.RUN, PortType.OBJECT, PortType.ERROR, PortType.FIELD),
 }
 
 
@@ -171,12 +178,12 @@ class PortKey(Struct):
     field: Optional["Field"] = p_regular(32, require=False, references=NodeType.FIELD)
 
     def __content_str__(self) -> str:
-        if self.type == PortType.TRIGGER:
-            return "?"
-        elif self.type == PortType.DATA:
-            return f"{self.zone.bench_name}"
+        if self.type == PortType.RUN:
+            return "R"
+        elif self.type == PortType.OBJECT:
+            return f"*{self.zone.bench_name}"
         elif self.type == PortType.ERROR:
-            return "!"
+            return "E"
         elif self.type == PortType.FIELD:
             return f"{self.field.py_name if self.field else '???'}"
         else:
@@ -313,8 +320,8 @@ class Step(SourceNode[StepData]):
         type: PipeType,
         source: "Step",
         *,
-        source_port: "PortIn" = PortType.DATA,
-        target_port: "PortIn" = PortType.DATA,
+        source_port: "PortIn" = PortType.OBJECT,
+        target_port: "PortIn" = PortType.OBJECT,
         filter_type: PipeFilterType | None = None,
     ) -> "Pipe":
         """Connects a source Step to this Step."""
@@ -333,8 +340,8 @@ class Step(SourceNode[StepData]):
         self,
         target: "Step",
         *,
-        source_port: "PortIn" = PortType.DATA,
-        target_port: "PortIn" = PortType.DATA,
+        source_port: "PortIn" = PortType.OBJECT,
+        target_port: "PortIn" = PortType.OBJECT,
         filter_type: PipeFilterType | None = None,
     ) -> "Step":
         """Connects a source Step to this Step as a Then. Returns the target Step (for chaining)."""
@@ -351,8 +358,8 @@ class Step(SourceNode[StepData]):
         self,
         target: "Step",
         *,
-        source_port: "PortIn" = PortType.DATA,
-        target_port: "PortIn" = PortType.DATA,
+        source_port: "PortIn" = PortType.OBJECT,
+        target_port: "PortIn" = PortType.OBJECT,
         filter_type: PipeFilterType | None = None,
     ) -> "Step":
         """Connects a source Step to this Step as a With. Returns the target Step (for chaining)."""

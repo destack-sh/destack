@@ -1013,9 +1013,9 @@ export interface PipeData {
      */
     targetPort?: PortKeyData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.PipeFilterMode filter_mode = 40;
+     * @generated from protobuf field: optional symbolx.bench.PipeFilterType filter_type = 40;
      */
-    filterMode?: PipeFilterMode;
+    filterType?: PipeFilterType;
 }
 /**
  * A policy regulating access to nodes within its scope.
@@ -6852,9 +6852,9 @@ export enum BenchType {
      */
     PIPE_TYPE = 20561,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_PIPE_FILTER_MODE = 20562;
+     * @generated from protobuf enum value: BENCH_TYPE_PIPE_FILTER_TYPE = 20562;
      */
-    PIPE_FILTER_MODE = 20562,
+    PIPE_FILTER_TYPE = 20562,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_PORT_TYPE = 20563;
      */
@@ -7773,9 +7773,9 @@ export enum EnumType {
      */
     PIPE_TYPE = 20561,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_PIPE_FILTER_MODE = 20562;
+     * @generated from protobuf enum value: ENUM_TYPE_PIPE_FILTER_TYPE = 20562;
      */
-    PIPE_FILTER_MODE = 20562,
+    PIPE_FILTER_TYPE = 20562,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_PORT_TYPE = 20563;
      */
@@ -9507,21 +9507,29 @@ export enum PathTokenType {
     FIELD = 10
 }
 /**
- * @generated from protobuf enum symbolx.bench.PipeFilterMode
+ * @generated from protobuf enum symbolx.bench.PipeFilterType
  */
-export enum PipeFilterMode {
+export enum PipeFilterType {
     /**
-     * @generated from protobuf enum value: PIPE_FILTER_MODE_UNSPECIFIED = 0;
+     * @generated from protobuf enum value: PIPE_FILTER_TYPE_UNSPECIFIED = 0;
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: PIPE_FILTER_MODE_DISCARD_EMPTY = 1;
+     * @generated from protobuf enum value: PIPE_FILTER_TYPE_IS_NON_EMPTY = 1;
      */
-    DISCARD_EMPTY = 1,
+    IS_NON_EMPTY = 1,
     /**
-     * @generated from protobuf enum value: PIPE_FILTER_MODE_DISCARD_INVALID = 2;
+     * @generated from protobuf enum value: PIPE_FILTER_TYPE_IS_TRUTHY = 2;
      */
-    DISCARD_INVALID = 2
+    IS_TRUTHY = 2,
+    /**
+     * @generated from protobuf enum value: PIPE_FILTER_TYPE_IS_EMPTY = 50;
+     */
+    IS_EMPTY = 50,
+    /**
+     * @generated from protobuf enum value: PIPE_FILTER_TYPE_IS_FALSY = 51;
+     */
+    IS_FALSY = 51
 }
 /**
  * @generated from protobuf enum symbolx.bench.PipeType
@@ -9566,9 +9574,9 @@ export enum PortType {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: PORT_TYPE_EMPTY = 1;
+     * @generated from protobuf enum value: PORT_TYPE_TRIGGER = 1;
      */
-    EMPTY = 1,
+    TRIGGER = 1,
     /**
      * @generated from protobuf enum value: PORT_TYPE_DATA = 2;
      */
@@ -9954,6 +9962,10 @@ export enum RunErrorType {
      */
     RUN_IMPOSSIBLE = 4,
     /**
+     * @generated from protobuf enum value: RUN_ERROR_TYPE_INVALID_VALUE = 5;
+     */
+    INVALID_VALUE = 5,
+    /**
      * @generated from protobuf enum value: RUN_ERROR_TYPE_CODE_INVALID = 20;
      */
     CODE_INVALID = 20,
@@ -9966,6 +9978,10 @@ export enum RunErrorType {
      */
     MODEL_INCAPABLE = 100,
     /**
+     * @generated from protobuf enum value: RUN_ERROR_TYPE_MANUAL_NONRETRYABLE = 498;
+     */
+    MANUAL_NONRETRYABLE = 498,
+    /**
      * @generated from protobuf enum value: RUN_ERROR_TYPE_UNKNOWN_NONRETRYABLE = 499;
      */
     UNKNOWN_NONRETRYABLE = 499,
@@ -9973,6 +9989,10 @@ export enum RunErrorType {
      * @generated from protobuf enum value: RUN_ERROR_TYPE_MODEL_FAILED = 500;
      */
     MODEL_FAILED = 500,
+    /**
+     * @generated from protobuf enum value: RUN_ERROR_TYPE_MANUAL_RETRYABLE = 998;
+     */
+    MANUAL_RETRYABLE = 998,
     /**
      * @generated from protobuf enum value: RUN_ERROR_TYPE_UNKNOWN_RETRYABLE = 999;
      */
@@ -13688,7 +13708,7 @@ class PipeData$Type extends MessageType<PipeData> {
             { no: 32, name: "source_port", kind: "message", T: () => PortKeyData },
             { no: 33, name: "target_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 34, name: "target_port", kind: "message", T: () => PortKeyData },
-            { no: 40, name: "filter_mode", kind: "enum", opt: true, T: () => ["symbolx.bench.PipeFilterMode", PipeFilterMode, "PIPE_FILTER_MODE_"] }
+            { no: 40, name: "filter_type", kind: "enum", opt: true, T: () => ["symbolx.bench.PipeFilterType", PipeFilterType, "PIPE_FILTER_TYPE_"] }
         ]);
     }
     create(value?: PartialMessage<PipeData>): PipeData {
@@ -13722,8 +13742,8 @@ class PipeData$Type extends MessageType<PipeData> {
                 case /* symbolx.bench.PortKeyData target_port */ 34:
                     message.targetPort = PortKeyData.internalBinaryRead(reader, reader.uint32(), options, message.targetPort);
                     break;
-                case /* optional symbolx.bench.PipeFilterMode filter_mode */ 40:
-                    message.filterMode = reader.int32();
+                case /* optional symbolx.bench.PipeFilterType filter_type */ 40:
+                    message.filterType = reader.int32();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -13755,9 +13775,9 @@ class PipeData$Type extends MessageType<PipeData> {
         /* symbolx.bench.PortKeyData target_port = 34; */
         if (message.targetPort)
             PortKeyData.internalBinaryWrite(message.targetPort, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.PipeFilterMode filter_mode = 40; */
-        if (message.filterMode !== undefined)
-            writer.tag(40, WireType.Varint).int32(message.filterMode);
+        /* optional symbolx.bench.PipeFilterType filter_type = 40; */
+        if (message.filterType !== undefined)
+            writer.tag(40, WireType.Varint).int32(message.filterType);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -25159,7 +25179,7 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.MODEL_TYPE]: ModelType,
   [EnumType.STEP_TYPE]: StepType,
   [EnumType.PIPE_TYPE]: PipeType,
-  [EnumType.PIPE_FILTER_MODE]: PipeFilterMode,
+  [EnumType.PIPE_FILTER_TYPE]: PipeFilterType,
   [EnumType.PORT_TYPE]: PortType,
   [EnumType.NOTIFICATION_LEVEL]: NotificationLevel,
   [EnumType.SPACE_TYPE]: SpaceType,
@@ -25437,7 +25457,7 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.MODEL_TYPE]: ModelType,
   [EnumType.STEP_TYPE]: StepType,
   [EnumType.PIPE_TYPE]: PipeType,
-  [EnumType.PIPE_FILTER_MODE]: PipeFilterMode,
+  [EnumType.PIPE_FILTER_TYPE]: PipeFilterType,
   [EnumType.PORT_TYPE]: PortType,
   [EnumType.NOTIFICATION_LEVEL]: NotificationLevel,
   [EnumType.SPACE_TYPE]: SpaceType,
@@ -26787,7 +26807,7 @@ export enum PipeProperty {
   sourcePort = 32,
   targetPtr = 33,
   targetPort = 34,
-  filterMode = 40,
+  filterType = 40,
 }
 
 export enum PortProperty {
@@ -27575,7 +27595,7 @@ export const PipeDataInfo: Record<PipeProperty, PropertyInfo> = {
   [PipeProperty.sourcePort]: { id: 32, name: 'source_port', component: ObjectType.PIPE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.PORT_KEY },
   [PipeProperty.targetPtr]: { id: 33, name: 'target_ptr', component: ObjectType.PIPE, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.STEP], referenceStruct: StructType.NODE_REFERENCE },
   [PipeProperty.targetPort]: { id: 34, name: 'target_port', component: ObjectType.PIPE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.PORT_KEY },
-  [PipeProperty.filterMode]: { id: 40, name: 'filter_mode', component: ObjectType.PIPE, enumType: EnumType.PIPE_FILTER_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [PipeProperty.filterType]: { id: 40, name: 'filter_type', component: ObjectType.PIPE, enumType: EnumType.PIPE_FILTER_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
 }
 export const PortDataInfo: Record<PortProperty, PropertyInfo> = {
   [PortProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.PORT, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -27874,7 +27894,7 @@ export const ServerDataInfo: Record<ServerProperty, PropertyInfo> = {
   [ServerProperty.region]: { id: 35, name: 'region', component: ObjectType.SERVER, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.status]: { id: 36, name: 'status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.08.20.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.08.22.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.minCpu]: { id: 50, name: 'min_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 4.0 }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.maxCpu]: { id: 51, name: 'max_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 4.0 }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -27903,7 +27923,7 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.region]: { id: 35, name: 'region', component: ObjectType.STORE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.status]: { id: 36, name: 'status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.08.20.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.08.22.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 50, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 51, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -27929,7 +27949,7 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.region]: { id: 35, name: 'region', component: ObjectType.MACHINE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.status]: { id: 36, name: 'status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.08.20.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.08.22.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 42, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 43, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },

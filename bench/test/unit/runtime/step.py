@@ -2,8 +2,9 @@ from bench.language.block import Block
 from bench.language.code import code
 from bench.language.const import BlockType, RunStatus
 from bench.language.field import Field
-from bench.language.run import RunErrorType
+from bench.language.run import Run, RunErrorType
 from bench.language.step import PipeFilterType, PortType, Step, StepType
+from bench.language.text import md
 from bench.test.unit.conftest import RuntimeHandle
 
 
@@ -87,7 +88,7 @@ async def test_run_flow_code(local_runtime: RuntimeHandle):
 
 
 async def test_run_flow_code_with_error(local_runtime: RuntimeHandle):
-    """Run a code step with an error."""
+    """Run a code step with an error. Entire flow should abort and fail."""
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
     Start = Step.new(StepType.START, "Start")
     Code1 = Step.new(StepType.CODE, "Code1", code=code("raise ValueError"))
@@ -97,7 +98,8 @@ async def test_run_flow_code_with_error(local_runtime: RuntimeHandle):
     local_runtime.page().blocks.extend(Flow1)
     await local_runtime.commit()
 
-    runner = await local_runtime.run(Flow1)
+    runner = await local_runtime.run(Flow1, return_error=True)
+    assert runner.status == RunStatus.FAILED
     assert runner.run and len(runner.run.runs) == 2  # two steps
 
 
@@ -171,6 +173,125 @@ async def test_run_flow_not_so_infinite_loop(local_runtime: RuntimeHandle):
     assert runner.run and len(runner.run.runs) == 4  # two steps
 
 
+async def test_run_flow_get_run_as_field(local_runtime: RuntimeHandle):
+    """Run a flow with a step that gets the Run port as a field."""
+    Flow1 = Block.new(BlockType.FLOW, "Flow1", fields=(Field.output("Duration", float),))
+    Start = Step.new(StepType.START, "Start")
+    Code1 = Step.new(StepType.CODE, "Code1", code=code("await asyncio.sleep(0.1)"))
+    Code2 = Step.new(
+        StepType.CODE,
+        "Code2",
+        code=code("return Run1.duration"),
+        fields=(Field.input("Run1", Run), Field.output("Duration", float)),
+    )
+    Complete = Step.new(StepType.COMPLETE, "Complete")
+    Start.then(Code1).then(Code2, source_port=PortType.RUN, target_port=Code2.fields.Run1).then(
+        Complete
+    )
+    Flow1.steps.extend(Start, Code1, Code2, Complete)
+    local_runtime.page().blocks.extend(Flow1)
+    await local_runtime.commit()
+
+    runner = await local_runtime.run(Flow1)
+    assert runner.run and len(runner.run.runs) == 4  # two steps
+    assert (
+        runner.outputs
+        and isinstance(runner.outputs.Duration, float)
+        and runner.outputs.Duration >= 0.1
+    )
+
+
+async def test_run_flow_pipe_filter(local_runtime: RuntimeHandle):
+    """Run a flow with a simple pipe filters."""
+    Flow1 = Block.new(BlockType.FLOW, "Flow1")
+    Start = Step.new(StepType.START, "Start")
+    Code1 = Step.new(
+        StepType.CODE,
+        "Code1",
+        fields=(Field.output("Output1", int),),
+        code=code("return 0"),
+    )
+    Complete = Step.new(StepType.COMPLETE, "Complete")
+    Start.then(Code1, filter_type=PipeFilterType.IS_TRUTHY).then(Complete)
+    Flow1.steps.extend(Start, Code1, Complete)
+    local_runtime.page().blocks.extend(Flow1)
+    await local_runtime.commit()
+
+    runner = await local_runtime.run(Flow1)
+    assert runner.run and len(runner.run.runs) == 2  # Start + Code1 (not Complete)
+
+
+async def test_run_flow_pipe_filter_switch(local_runtime: RuntimeHandle):
+    """Run a flow with pipe filters arranged as a switch."""
+    Flow1 = Block.new(
+        BlockType.FLOW,
+        "Flow1",
+        fields=(Field.input("Input1", int), Field.output("Output1", int)),
+    )
+    Start = Step.new(StepType.START, "Start")
+    Switch = Step.new(
+        StepType.CODE,
+        "Swich",
+        fields=(
+            Field.input("Input1", int),
+            Field.output("Output1", int),
+            Field.output("IsSmall", bool),
+            Field.output("IsLarge", bool),
+        ),
+        code=code("""\
+return Input1, Input1 < 10, Input1 > 10
+"""),
+    )
+    MultiplyLarge = Step.new(
+        StepType.CODE,
+        "MultiplyLarge",
+        fields=(Field.input("Input1", int), Field.output("Output1", int)),
+        code=code("return Input1 * 2"),
+    )
+    DivideSmall = Step.new(
+        StepType.CODE,
+        "DivideSmall",
+        fields=(Field.input("Input1", int), Field.output("Output1", int)),
+        code=code("return Input1 / 2"),
+    )
+    Complete = Step.new(StepType.COMPLETE, "Complete")
+    # Start -> Switch
+    Start.then(Switch, source_port=Flow1.fields.Input1, target_port=Switch.fields.Input1)
+    # Switch > MultiplyLarge
+    Switch.then(
+        MultiplyLarge,
+        source_port=Switch.fields.IsLarge,
+        target_port=PortType.RUN,
+        filter_type=PipeFilterType.IS_TRUTHY,
+    )
+    # Switch > DivideSmall
+    Switch.then(
+        DivideSmall,
+        source_port=Switch.fields.IsSmall,
+        target_port=PortType.RUN,
+        filter_type=PipeFilterType.IS_TRUTHY,
+    )
+    # Start - MultiplyLarge
+    Start.with_(MultiplyLarge)
+    # Start - DivideSmall
+    Start.with_(DivideSmall)
+    # MultiplyLarge -> Complete
+    MultiplyLarge.then(Complete)
+    # DivideSmall -> Complete
+    DivideSmall.then(Complete)
+    Flow1.steps.extend(Start, Switch, MultiplyLarge, DivideSmall, Complete)
+    local_runtime.page().blocks.extend(Flow1)
+    await local_runtime.commit()
+
+    # run with 'small' input (should go via DivideSmall)
+    runner = await local_runtime.run(Flow1, inputs={"Input1": 6})
+    assert runner.outputs and runner.outputs.Output1 == 3
+
+    # run with 'large' input (should go via MultiplyLarge)
+    runner = await local_runtime.run(Flow1, inputs={"Input1": 12})
+    assert runner.outputs and runner.outputs.Output1 == 24
+
+
 async def test_run_flow_ping_pong(local_runtime: RuntimeHandle):
     """Run steps that pass a number back and forth until it reaches 0."""
     Flow1 = Block.new(
@@ -186,8 +307,9 @@ async def test_run_flow_ping_pong(local_runtime: RuntimeHandle):
     Verifier = Step.new(
         StepType.CODE,
         "Verifier",
+        text=md("Check if Num is <= 1"),
         fields=(Field.input("Num", int), Field.output("IsGood", bool)),
-        code=code("return Num == 1"),
+        code=code("return Num <= 1"),
     )
     Complete = Step.new(StepType.COMPLETE, "Complete")
     # Start.Num -> Generator.Seed
@@ -196,13 +318,13 @@ async def test_run_flow_ping_pong(local_runtime: RuntimeHandle):
     Generator.with_(Generator, source_port=Generator.fields.Num, target_port=Generator.fields.Num)
     # Generator.Num -> Verifier.Num
     Generator.then(Verifier, source_port=Generator.fields.Num, target_port=Verifier.fields.Num)
-    # Generator.Num > Complete
+    # Generator.Num - Complete.NumOut
     Generator.with_(Complete, source_port=Generator.fields.Num, target_port=Flow1.fields.NumOut)
-    # Generator.IsGood -> Complete.#
+    # Generator.IsGood > Complete
     Verifier.then(
         Complete,
         source_port=Verifier.fields.IsGood,
-        target_port=PortType.TRIGGER,
+        target_port=PortType.RUN,
         filter_type=PipeFilterType.IS_TRUTHY,
     )
     Flow1.steps.extend(Start, Generator, Verifier, Complete)
