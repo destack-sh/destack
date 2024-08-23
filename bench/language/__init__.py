@@ -63,6 +63,7 @@ from .const import (
 from .expression import A, Aggregation, C, ComputedValue, Expression, S, coerce_conditional
 from .field import Field, FieldZone, TypeConstraint, TypeInfo, TypeInfoBase, to_type, to_type_scalar
 from .file import File, FileFormat, FileKind, FileReference, FileRetentionMode, FileType
+from .flow import Pipe, PipeType, Port, PortKey, PortKeyBase, Step, StepType
 from .graph import (
     NodeDataDict,
     NodeDataGraph,
@@ -117,7 +118,6 @@ from .secret import Secret, SecretReference
 from .session import EditContext, Session, SessionContext
 from .setup import _complete_bench_setup
 from .signal import Signal
-from .step import Step, StepType
 from .text import Text, TextSpan, md, text
 from .transaction import Change, ChangeCategory, ChangeVignette, Edit, Transaction
 from .trigger import Trigger, TriggerBase, TriggerInfo
@@ -137,11 +137,15 @@ from .view import (
     FontWeight,
     Icon,
     IconKind,
+    Line,
     Offset,
     Orientation,
     Space,
     Spacing,
     Variant,
+    Vector2,
+    Vector3,
+    Vector4,
     View,
     ViewType,
     icon,
@@ -217,6 +221,7 @@ __all__ = [
     "HasNodeBase",
     "Icon",
     "IconKind",
+    "Line",
     "Log",
     "LogInfo",
     "LogKind",
@@ -245,9 +250,14 @@ __all__ = [
     "PackageNode",
     "PackageNode",
     "Path",
+    "Pipe",
+    "PipeType",
     "Policy",
     "PolicyEffect",
     "PolicyRule",
+    "Port",
+    "PortKey",
+    "PortKeyBase",
     "PrimitiveType",
     "Projection",
     "Property",
@@ -312,6 +322,9 @@ __all__ = [
     "ValueList",
     "ValueObject",
     "Variant",
+    "Vector2",
+    "Vector3",
+    "Vector4",
     "View",
     "ViewType",
     "WatchAggregateUpdate",

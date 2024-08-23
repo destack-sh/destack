@@ -44,7 +44,7 @@ from bench.language.node import (
     get_tk_b64_from_ck,
     get_tk_b64_from_ptr,
     local_node_,
-    object_component,
+    object_,
     pad_ck_from_tk_b64,
     struct_,
 )
@@ -228,7 +228,7 @@ class TypeConstraint(Struct):
 DEFAULT_CONSTRAINT = TypeConstraint()
 
 
-@object_component()
+@object_()
 class TypeInfoBase(BuiltinObject):
     """
     A type is a kind of Value that can go somewhere, often in a place described by a Field.

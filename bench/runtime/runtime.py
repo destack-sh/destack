@@ -9,9 +9,9 @@ from opentelemetry import trace
 from bench.language.block import Block
 from bench.language.code import Code, CodeType
 from bench.language.const import BenchError, RunErrorKind, RunStatus
+from bench.language.flow import Step
 from bench.language.run import Run, RunAttempt, RunError, RunKind, RunOptions
 from bench.language.session import Session
-from bench.language.step import Step
 from bench.language.text import Text
 from bench.language.validation import ValidationError, on_invalid_raise
 from bench.language.value import ValueObject, check_value
@@ -67,7 +67,7 @@ class Runtime:
         # ensure runners are imported
         if not _runners:
             import bench.runtime.code  # noqa: F401, RUF100
-            import bench.runtime.step  # noqa: F401, RUF100
+            import bench.runtime.flow  # noqa: F401, RUF100
             import bench.runtime.text  # noqa: F401, RUF100
 
     def __str__(self):

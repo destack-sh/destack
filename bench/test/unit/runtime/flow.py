@@ -2,8 +2,8 @@ from bench.language.block import Block
 from bench.language.code import code
 from bench.language.const import BlockType, RunStatus
 from bench.language.field import Field
+from bench.language.flow import PipeFilterType, PortType, Step, StepType
 from bench.language.run import Run, RunErrorType
-from bench.language.step import PipeFilterType, PortType, Step, StepType
 from bench.language.text import md
 from bench.test.unit.conftest import RuntimeHandle
 
@@ -21,7 +21,7 @@ async def test_run_flow_empty(local_runtime: RuntimeHandle):
 async def test_run_flow_spurious(local_runtime: RuntimeHandle):
     """Flow with Steps that go nowhere."""
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
-    Start = Step.new(StepType.START, "Start")
+    Start = Flow1.steps.append(Step.new(StepType.START, "Start"))
     Complete = Step.new(StepType.COMPLETE, "Complete")
     Code1 = Step.new(StepType.CODE, "Code1", code=code("pass"))
     # don't actually connect the steps
@@ -38,8 +38,8 @@ async def test_run_flow_trivial_no_value(local_runtime: RuntimeHandle):
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
     Start = Step.new(StepType.START, "Start")
     Complete = Step.new(StepType.COMPLETE, "Complete")
-    Start.then(Complete)
     Flow1.steps.extend(Start, Complete)
+    Start.then(Complete)
     local_runtime.page().blocks.append(Flow1)
     await local_runtime.commit()
 
@@ -54,8 +54,8 @@ async def test_run_flow_force_invalid_output(local_runtime: RuntimeHandle):
     )
     Start = Step.new(StepType.START, "Start")
     Complete = Step.new(StepType.COMPLETE, "Complete")
-    Start.then(Complete, source_port=PortType.RUN, target_port=PortType.RUN)
     Flow1.steps.extend(Start, Complete)
+    Start.then(Complete, source_port=PortType.RUN, target_port=PortType.RUN)
     local_runtime.page().blocks.append(Flow1)
     await local_runtime.commit()
 
@@ -72,8 +72,8 @@ async def test_run_flow_force_invalid_input(local_runtime: RuntimeHandle):
     Start = Step.new(StepType.START, "Start")
     Code1 = Step.new(StepType.CODE, "Code1", fields=(Field.input("Input1", str, is_required=True),))
     Complete = Step.new(StepType.COMPLETE, "Complete")
-    Start.then(Code1, source_port=PortType.RUN, target_port=PortType.RUN).then(Code1).then(Complete)
     Flow1.steps.extend(Start, Code1, Complete)
+    Start.then(Code1, source_port=PortType.RUN, target_port=PortType.RUN).then(Code1).then(Complete)
     local_runtime.page().blocks.append(Flow1)
     await local_runtime.commit()
 
@@ -95,8 +95,8 @@ async def test_run_flow_code(local_runtime: RuntimeHandle):
         fields=(Field.input("Input1", int), Field.output("Output1", int)),
     )
     Complete = Step.new(StepType.COMPLETE, "Complete")
-    Start.then(Code1).then(Complete)
     Flow1.steps.extend(Start, Code1, Complete)
+    Start.then(Code1).then(Complete)
     local_runtime.page().blocks.append(Flow1)
     await local_runtime.commit()
 
@@ -111,8 +111,8 @@ async def test_run_flow_error(local_runtime: RuntimeHandle):
     Start = Step.new(StepType.START, "Start")
     Code1 = Step.new(StepType.CODE, "Code1", code=code("raise ValueError"))
     Complete = Step.new(StepType.COMPLETE, "Complete")
-    Start.then(Code1).then(Complete)
     Flow1.steps.extend(Start, Code1, Complete)
+    Start.then(Code1).then(Complete)
     local_runtime.page().blocks.extend(Flow1)
     await local_runtime.commit()
 
@@ -127,8 +127,8 @@ async def test_run_flow_error_with_error_port(local_runtime: RuntimeHandle):
     Start = Step.new(StepType.START, "Start")
     Code1 = Step.new(StepType.CODE, "Code1", code=code("raise ValueError('error')"))
     Complete = Step.new(StepType.COMPLETE, "Complete")
-    Start.then(Code1).then(Complete, source_port=PortType.ERROR, target_port=PortType.RUN)
     Flow1.steps.extend(Start, Code1, Complete)
+    Start.then(Code1).then(Complete, source_port=PortType.ERROR, target_port=PortType.RUN)
     local_runtime.page().blocks.extend(Flow1)
     await local_runtime.commit()
 
@@ -158,10 +158,10 @@ async def test_run_flow_code_block(local_runtime: RuntimeHandle):
     Code2 = Step.new(StepType.BLOCK, "Code2", node=CodeBlock2)
     Start = Step.new(StepType.START, "Start")
     Complete = Step.new(StepType.COMPLETE, "Complete")
+    Flow1.steps.extend(Start, Code1, Code2, Complete)
     Start.then(Code1).then(
         Code2, source_port=CodeBlock1.fields.Output1, target_port=CodeBlock2.fields.Input1
     ).then(Complete)
-    Flow1.steps.extend(Start, Code1, Code2, Complete)
     local_runtime.page().blocks.extend(CodeBlock1, CodeBlock2, Flow1)
     await local_runtime.commit()
 
@@ -175,12 +175,12 @@ async def test_run_flow_race(local_runtime: RuntimeHandle):
     Start = Step.new(StepType.START, "Start")
     Complete = Step.new(StepType.COMPLETE, "Complete")
     Race1 = Step.new(StepType.CODE, "Race1", code=code("await asyncio.sleep(1)"))
-    Start.then(Race1).then(Complete)
     Race2 = Step.new(StepType.CODE, "Race2", code=code("await asyncio.sleep(2)"))
-    Start.then(Race2).then(Complete)
     Race3 = Step.new(StepType.CODE, "Race3", code=code("await asyncio.sleep(3)"))
-    Start.then(Race3).then(Complete)
     Flow1.steps.extend(Start, Race1, Race2, Race3, Complete)
+    Start.then(Race1).then(Complete)
+    Start.then(Race2).then(Complete)
+    Start.then(Race3).then(Complete)
     local_runtime.page().blocks.append(Flow1)
     await local_runtime.commit()
 
@@ -197,9 +197,9 @@ async def test_run_flow_not_so_infinite_loop(local_runtime: RuntimeHandle):
     Start = Step.new(StepType.START, "Start")
     Loop = Step.new(StepType.CODE, "Loop")
     Complete = Step.new(StepType.COMPLETE, "Complete")
+    Flow1.steps.extend(Start, Loop, Complete)
     Loop.then(Loop)  # infinite!
     Start.then(Loop).then(Complete)
-    Flow1.steps.extend(Start, Loop, Complete)
     local_runtime.page().blocks.append(Flow1)
     await local_runtime.commit()
 
@@ -219,10 +219,10 @@ async def test_run_flow_get_run_as_field(local_runtime: RuntimeHandle):
         fields=(Field.input("Run1", Run), Field.output("Duration", float)),
     )
     Complete = Step.new(StepType.COMPLETE, "Complete")
+    Flow1.steps.extend(Start, Code1, Code2, Complete)
     Start.then(Code1).then(Code2, source_port=PortType.RUN, target_port=Code2.fields.Run1).then(
         Complete
     )
-    Flow1.steps.extend(Start, Code1, Code2, Complete)
     local_runtime.page().blocks.extend(Flow1)
     await local_runtime.commit()
 
@@ -246,13 +246,13 @@ async def test_run_flow_pipe_filter_positive(local_runtime: RuntimeHandle):
         code=code("return 0"),
     )
     Complete = Step.new(StepType.COMPLETE, "Complete")
+    Flow1.steps.extend(Start, Code1, Complete)
     Start.then(Code1).then(
         Complete,
         source_port=Code1.fields.Output1,
         target_port=PortType.RUN,
         filter_type=PipeFilterType.IS_TRUTHY,
     )
-    Flow1.steps.extend(Start, Code1, Complete)
     local_runtime.page().blocks.extend(Flow1)
     await local_runtime.commit()
 
@@ -271,8 +271,8 @@ async def test_run_flow_pipe_filter_negative(local_runtime: RuntimeHandle):
         code=code("return [1, 2, 3], 2"),
     )
     Complete = Step.new(StepType.COMPLETE, "Complete")
-    Start.then(Code1).then(Complete, filter_type=PipeFilterType.IS_FALSY)
     Flow1.steps.extend(Start, Code1, Complete)
+    Start.then(Code1).then(Complete, filter_type=PipeFilterType.IS_FALSY)
     local_runtime.page().blocks.extend(Flow1)
     await local_runtime.commit()
 
@@ -314,6 +314,7 @@ return Input1, Input1 < 10, Input1 > 10
         code=code("return Input1 // 2"),
     )
     Complete = Step.new(StepType.COMPLETE, "Complete")
+    Flow1.steps.extend(Start, Switch, MultiplyLarge, DivideSmall, Complete)
     # Start -> Switch
     Start.then(Switch, source_port=Flow1.fields.Input1, target_port=Switch.fields.Input1)
     # Switch > MultiplyLarge
@@ -338,7 +339,6 @@ return Input1, Input1 < 10, Input1 > 10
     MultiplyLarge.then(Complete)
     # DivideSmall -> Complete
     DivideSmall.then(Complete)
-    Flow1.steps.extend(Start, Switch, MultiplyLarge, DivideSmall, Complete)
     local_runtime.page().blocks.extend(Flow1)
     await local_runtime.commit()
 
@@ -371,6 +371,7 @@ async def test_run_flow_generator_verifier(local_runtime: RuntimeHandle):
         code=code("return Num <= 1"),
     )
     Complete = Step.new(StepType.COMPLETE, "Complete")
+    Flow1.steps.extend(Start, Generator, Verifier, Complete)
     # Start.Num -> Generator.Seed
     Start.then(Generator, source_port=Flow1.fields.NumIn, target_port=Generator.fields.Seed)
     # Generator.Num - Generator.Seed
@@ -393,7 +394,6 @@ async def test_run_flow_generator_verifier(local_runtime: RuntimeHandle):
         target_port=PortType.RUN,
         filter_type=PipeFilterType.IS_FALSY,
     )
-    Flow1.steps.extend(Start, Generator, Verifier, Complete)
     local_runtime.page().blocks.extend(Flow1)
     await local_runtime.commit()
 

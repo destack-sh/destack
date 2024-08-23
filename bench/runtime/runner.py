@@ -13,9 +13,9 @@ from bench.language.block import Block
 from bench.language.code import Code, CodeType
 from bench.language.const import RunStatus
 from bench.language.field import TypeInfoBase
+from bench.language.flow import Step, StepType
 from bench.language.log import LogInfo
 from bench.language.run import ModelProvider, Run, RunAttempt, RunError, RunKind, RunOptions
-from bench.language.step import Step, StepType
 from bench.language.text import Text
 from bench.language.value import ValueObject
 

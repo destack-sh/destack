@@ -17,7 +17,7 @@ from bench.language.node import (
     SourceNode,
     Struct,
     local_node_,
-    object_component,
+    object_,
     struct_,
 )
 from bench.language.property import Property, p_node_parent, p_regular
@@ -74,7 +74,7 @@ class Schedule(Struct):
                 invalid(self, "offset too large ('{self.offset}')", (Schedule.offset,))
 
 
-@object_component()
+@object_()
 class TriggerBase(BuiltinObject):
     """A trigger to something."""
 

@@ -11,7 +11,7 @@ from bench.language.node import (
     NodeReference,
     SomeNodeReference,
     Struct,
-    object_component,
+    object_,
     struct_,
 )
 from bench.language.property import p_regular
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from bench.language import ColorType
 
 
-@object_component()
+@object_()
 class TextOptions(BuiltinObject):
     # color?
     color: Optional["ColorType"] = p_regular(50, default=None)

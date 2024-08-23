@@ -38,7 +38,7 @@ from bench.language.node import (
     SourceNode,
     Struct,
     local_node_,
-    object_component,
+    object_,
     struct_,
 )
 from bench.language.property import Property, p_node_parent, p_regular
@@ -631,7 +631,7 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         return [cast(type[Node], t).metatype if isinstance(t, type) else t for t in node_types]
 
 
-@object_component()
+@object_()
 class QueryInfoBase(BuiltinObject):
     """An object we can build query from."""
 

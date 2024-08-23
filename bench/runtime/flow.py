@@ -14,8 +14,7 @@ from bench.language.block import Block
 from bench.language.code import Code, CodeType
 from bench.language.const import RunStatus
 from bench.language.field import TypeInfoBase
-from bench.language.run import Run, RunError, RunKind
-from bench.language.step import (
+from bench.language.flow import (
     Pipe,
     PipeFilterType,
     PipeType,
@@ -25,6 +24,7 @@ from bench.language.step import (
     Step,
     StepType,
 )
+from bench.language.run import Run, RunError, RunKind
 from bench.language.text import Text
 from bench.language.value import ValueObject
 from bench.runtime.core import RUN_ONCE, ManualRetryableError, RunImpossibleError
@@ -194,6 +194,12 @@ class FlowRunner(Runner[RunnerCache, Block]):
             if runner.run in self._active_runners:
                 del self._active_runners[runner.run]
 
+    def _get_outgoing_pipes_for(self, step: Step):
+        # NOTE :Incomplete: outgoing pipes for step don't consider nesting yet
+        for pipe in self.node.pipes:
+            if pipe.source_ptr and pipe.source_ptr.id == step.id:
+                yield pipe
+
     async def _fire_step(self, step: Step, run: Run) -> list[StepState]:
         """Fires all the pipes for the terminated Step/Run."""
 
@@ -213,7 +219,7 @@ class FlowRunner(Runner[RunnerCache, Block]):
                 fired_steps[target_state.step] = fire
 
         # pump the pipes
-        for pipe in step.pipes:
+        for pipe in self._get_outgoing_pipes_for(step):
             target_state = self._step_states[pipe.target]
 
             # select/filter value
@@ -296,7 +302,8 @@ class FlowRunner(Runner[RunnerCache, Block]):
                 if run.status == RunStatus.ABORTED:
                     continue  # ignore aborted runs
                 elif run.status == RunStatus.FAILED and not any(
-                    pipe.source_port.type == PortType.ERROR for pipe in step.pipes
+                    pipe.source_port.type == PortType.ERROR
+                    for pipe in self._get_outgoing_pipes_for(step)
                 ):
                     assert run.error is not None, f"{run!r} has no error"
                     self._fail(run.error)
@@ -398,18 +405,3 @@ class TextStepRunner(StepRunnerBase):
         )
         await self.runtime.run_runner(text_runner)
         self.outputs = text_runner.outputs
-
-
-#
-# Control steps :StaticSteps
-#
-
-...
-
-
-#
-# Nested steps :StaticSteps
-#
-
-
-...

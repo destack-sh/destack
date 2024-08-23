@@ -9,7 +9,7 @@ from bench.language.node import (
     HasTimeIdentity,
     PackageNode,
     Struct,
-    object_component,
+    object_,
     timed_node_,
 )
 from bench.language.property import (
@@ -75,7 +75,7 @@ class Signal(PackageNode[SignalData], HasTimeIdentity, HasNodeBase, HasSessionCo
 #
 
 
-@object_component()
+@object_()
 class SignalState(Struct):  # :NodeInheritance
     """Builtin special Value as the state of some specific signal type (in Signal.value)."""
 

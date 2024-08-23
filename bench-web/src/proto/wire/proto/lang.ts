@@ -791,6 +791,21 @@ export interface IconData {
     color?: ColorData;
 }
 /**
+ * A line segment.
+ *
+ * @generated from protobuf message symbolx.bench.LineData
+ */
+export interface LineData {
+    /**
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.Vector2Data points = 30;
+     */
+    points: Vector2Data[];
+}
+/**
  * A simple log for user-generated logs at runtime.
  * This is like a mini-Log that we can attach to Runs and also copy into the combined Log.
  *
@@ -982,42 +997,6 @@ export interface PathTokenData {
     name?: string;
 }
 /**
- * A connection between two Steps in a FlowBlock (source = outgoing, target = incoming).
- * The pipe is stored in the incoming Step, so the target Step is implicit.
- *
- * @generated from protobuf message symbolx.bench.PipeData
- */
-export interface PipeData {
-    /**
-     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
-     */
-    metatype: ObjectType;
-    /**
-     * @generated from protobuf field: symbolx.bench.PipeType type = 30;
-     */
-    type: PipeType;
-    /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData source_ptr = 31;
-     */
-    sourcePtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: symbolx.bench.PortKeyData source_port = 32;
-     */
-    sourcePort?: PortKeyData;
-    /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData target_ptr = 33;
-     */
-    targetPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: symbolx.bench.PortKeyData target_port = 34;
-     */
-    targetPort?: PortKeyData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.PipeFilterType filter_type = 40;
-     */
-    filterType?: PipeFilterType;
-}
-/**
  * A policy regulating access to nodes within its scope.
  * The scope is determined by where its attached, but may be further restricted using 'scopes'.
  *
@@ -1132,38 +1111,6 @@ export interface PolicyRuleData {
     objectPropertiesIsKernel?: boolean;
 }
 /**
- * Extra configuration for a port (key) on a Step with some value.
- * Not all ports need a Port, just if there is extra behavior to define.
- *
- * @generated from protobuf message symbolx.bench.PortData
- */
-export interface PortData {
-    /**
-     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
-     */
-    metatype: ObjectType;
-    /**
-     * @generated from protobuf field: symbolx.bench.PortType type = 30;
-     */
-    type: PortType;
-    /**
-     * @generated from protobuf field: symbolx.bench.PortSide side = 31;
-     */
-    side: PortSide;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData field_ptr = 32;
-     */
-    fieldPtr?: NodeReferenceData;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.TypeInfoData value_type = 50;
-     */
-    valueType?: TypeInfoData;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Struct value_packed = 51;
-     */
-    valuePacked?: Struct;
-}
-/**
  * An identifier for a port on a Step.
  *
  * @generated from protobuf message symbolx.bench.PortKeyData
@@ -1174,15 +1121,15 @@ export interface PortKeyData {
      */
     metatype: ObjectType;
     /**
-     * @generated from protobuf field: symbolx.bench.PortType type = 30;
+     * @generated from protobuf field: symbolx.bench.PortType type = 40;
      */
     type: PortType;
     /**
-     * @generated from protobuf field: symbolx.bench.PortSide side = 31;
+     * @generated from protobuf field: symbolx.bench.PortSide side = 41;
      */
     side: PortSide;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData field_ptr = 32;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData field_ptr = 42;
      */
     fieldPtr?: NodeReferenceData;
 }
@@ -2135,6 +2082,75 @@ export interface ValueData {
      * @generated from protobuf field: optional google.protobuf.Struct value_packed = 35;
      */
     valuePacked?: Struct;
+}
+/**
+ * A 2D vector.
+ *
+ * @generated from protobuf message symbolx.bench.Vector2Data
+ */
+export interface Vector2Data {
+    /**
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: float x = 30;
+     */
+    x: number;
+    /**
+     * @generated from protobuf field: float y = 31;
+     */
+    y: number;
+}
+/**
+ * A 3D vector.
+ *
+ * @generated from protobuf message symbolx.bench.Vector3Data
+ */
+export interface Vector3Data {
+    /**
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: float x = 30;
+     */
+    x: number;
+    /**
+     * @generated from protobuf field: float y = 31;
+     */
+    y: number;
+    /**
+     * @generated from protobuf field: float z = 32;
+     */
+    z: number;
+}
+/**
+ * A 4D vector.
+ *
+ * @generated from protobuf message symbolx.bench.Vector4Data
+ */
+export interface Vector4Data {
+    /**
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: float x = 30;
+     */
+    x: number;
+    /**
+     * @generated from protobuf field: float y = 31;
+     */
+    y: number;
+    /**
+     * @generated from protobuf field: float z = 32;
+     */
+    z: number;
+    /**
+     * @generated from protobuf field: float w = 33;
+     */
+    w: number;
 }
 /**
  * Attach a badge to a node with an inline definition.
@@ -4125,6 +4141,234 @@ export interface PackageData {
     isPaused: boolean;
 }
 /**
+ * A connection between two Steps in a Flow (source = outgoing, target = incoming).
+ * Pipes are stored in the containing Flow or containing Step.
+ *
+ * @generated from protobuf message symbolx.bench.PipeData
+ */
+export interface PipeData {
+    /**
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: string id = 2;
+     */
+    id: string;
+    /**
+     * @generated from protobuf field: string ck = 3;
+     */
+    ck: string;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
+     */
+    parentPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: symbolx.bench.NodeReferenceData package_ptr = 5;
+     */
+    packagePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench_ptr = 6;
+     */
+    benchPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData template_ptr = 7;
+     */
+    templatePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional int64 templated_epoch = 8;
+     */
+    templatedEpoch?: bigint;
+    /**
+     * @generated from protobuf field: int64 revision = 10;
+     */
+    revision: bigint;
+    /**
+     * @generated from protobuf field: google.protobuf.Timestamp created_at = 11;
+     */
+    createdAt?: Timestamp;
+    /**
+     * @generated from protobuf field: int64 created_epoch = 12;
+     */
+    createdEpoch: bigint;
+    /**
+     * @generated from protobuf field: google.protobuf.Timestamp updated_at = 13;
+     */
+    updatedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: int64 updated_epoch = 14;
+     */
+    updatedEpoch: bigint;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 15;
+     */
+    deletedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp archived_at = 16;
+     */
+    archivedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData created_by_ptr = 21;
+     */
+    createdByPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData updated_by_ptr = 22;
+     */
+    updatedByPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: repeated int32 set_properties = 29;
+     */
+    setProperties: number[];
+    /**
+     * @generated from protobuf field: symbolx.bench.PipeType type = 30;
+     */
+    type: PipeType;
+    /**
+     * @generated from protobuf field: string name = 32;
+     */
+    name: string;
+    /**
+     * @generated from protobuf field: string order_key = 33;
+     */
+    orderKey: string;
+    /**
+     * @generated from protobuf field: symbolx.bench.NodeReferenceData source_ptr = 35;
+     */
+    sourcePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: symbolx.bench.PortKeyData source_port = 36;
+     */
+    sourcePort?: PortKeyData;
+    /**
+     * @generated from protobuf field: symbolx.bench.NodeReferenceData target_ptr = 37;
+     */
+    targetPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: symbolx.bench.PortKeyData target_port = 38;
+     */
+    targetPort?: PortKeyData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.PipeFilterType filter_type = 50;
+     */
+    filterType?: PipeFilterType;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.LineData line = 80;
+     */
+    line?: LineData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.ColorData color = 81;
+     */
+    color?: ColorData;
+}
+/**
+ * Extra configuration for a port (key) on a Step with some value.
+ * Not all ports need a Port, just if there is extra behavior to define.
+ *
+ * @generated from protobuf message symbolx.bench.PortData
+ */
+export interface PortData {
+    /**
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: string id = 2;
+     */
+    id: string;
+    /**
+     * @generated from protobuf field: string ck = 3;
+     */
+    ck: string;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData parent_ptr = 4;
+     */
+    parentPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: symbolx.bench.NodeReferenceData package_ptr = 5;
+     */
+    packagePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench_ptr = 6;
+     */
+    benchPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData template_ptr = 7;
+     */
+    templatePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional int64 templated_epoch = 8;
+     */
+    templatedEpoch?: bigint;
+    /**
+     * @generated from protobuf field: int64 revision = 10;
+     */
+    revision: bigint;
+    /**
+     * @generated from protobuf field: google.protobuf.Timestamp created_at = 11;
+     */
+    createdAt?: Timestamp;
+    /**
+     * @generated from protobuf field: int64 created_epoch = 12;
+     */
+    createdEpoch: bigint;
+    /**
+     * @generated from protobuf field: google.protobuf.Timestamp updated_at = 13;
+     */
+    updatedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: int64 updated_epoch = 14;
+     */
+    updatedEpoch: bigint;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 15;
+     */
+    deletedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp archived_at = 16;
+     */
+    archivedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData created_by_ptr = 21;
+     */
+    createdByPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData updated_by_ptr = 22;
+     */
+    updatedByPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: repeated int32 set_properties = 29;
+     */
+    setProperties: number[];
+    /**
+     * @generated from protobuf field: string name = 30;
+     */
+    name: string;
+    /**
+     * @generated from protobuf field: string order_key = 31;
+     */
+    orderKey: string;
+    /**
+     * @generated from protobuf field: symbolx.bench.PortType type = 40;
+     */
+    type: PortType;
+    /**
+     * @generated from protobuf field: symbolx.bench.PortSide side = 41;
+     */
+    side: PortSide;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData field_ptr = 42;
+     */
+    fieldPtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.TypeInfoData value_type = 50;
+     */
+    valueType?: TypeInfoData;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Struct value_packed = 51;
+     */
+    valuePacked?: Struct;
+}
+/**
  * A stored query with identity.
  *
  * @generated from protobuf message symbolx.bench.QueryData
@@ -5112,15 +5356,11 @@ export interface SpaceData {
     basePtr?: NodeReferenceData;
 }
 /**
- * An data or control flow node in a FlowBlock. Ports on Steps are connected by Pipes.
- * Pipes are stored in the source Step. Ports are implicit via Pipes unless tied to some value.
- * A Step is run when it is fired, specifically:
- * - When its control port fires OR
- * - When all its input ports (for all fields or full value) fire
- * A Step may run multiple times if it is fired multiple times (even concurrently).
- * A Step may directly fire any Step (including itself) at most once per run.
- * Steps are run in order of definition per firing (regardless of pipe & port order).
+ * A data or control flow node in a Flow. Ports on Steps are connected by Pipes.
+ * Pipes are stored in the containing Flow or containing Step.
+ * Ports are implicit via Pipes unless extra configuration is provided.
  *
+ * A Step may run multiple times if it is fired multiple times (even concurrently).
  * When a Step completes, then:
  * 1. Fire output values to all output ports
  * 2. Fire output control port
@@ -5228,10 +5468,6 @@ export interface StepData {
      */
     runOptions?: RunOptionsData;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.PipeData pipes = 37;
-     */
-    pipes: PipeData[];
-    /**
      * @generated from protobuf field: optional symbolx.bench.TypeInfoData value_type = 40;
      */
     valueType?: TypeInfoData;
@@ -5256,15 +5492,11 @@ export interface StepData {
      */
     identityPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.PolicyData policies = 48;
-     */
-    policies: PolicyData[];
-    /**
-     * @generated from protobuf field: optional symbolx.bench.OffsetData position = 60;
+     * @generated from protobuf field: optional symbolx.bench.OffsetData position = 80;
      */
     position?: OffsetData;
     /**
-     * @generated from protobuf field: optional symbolx.bench.BoxData size = 61;
+     * @generated from protobuf field: optional symbolx.bench.BoxData size = 81;
      */
     size?: BoxData;
 }
@@ -5914,69 +6146,81 @@ export interface SomeNodeData {
          */
         step: StepData;
     } | {
+        oneofKind: "pipe";
+        /**
+         * @generated from protobuf field: symbolx.bench.PipeData pipe = 22;
+         */
+        pipe: PipeData;
+    } | {
+        oneofKind: "port";
+        /**
+         * @generated from protobuf field: symbolx.bench.PortData port = 23;
+         */
+        port: PortData;
+    } | {
         oneofKind: "badge";
         /**
-         * @generated from protobuf field: symbolx.bench.BadgeData badge = 22;
+         * @generated from protobuf field: symbolx.bench.BadgeData badge = 24;
          */
         badge: BadgeData;
     } | {
         oneofKind: "file";
         /**
-         * @generated from protobuf field: symbolx.bench.FileData file = 23;
+         * @generated from protobuf field: symbolx.bench.FileData file = 25;
          */
         file: FileData;
     } | {
         oneofKind: "secret";
         /**
-         * @generated from protobuf field: symbolx.bench.SecretData secret = 24;
+         * @generated from protobuf field: symbolx.bench.SecretData secret = 26;
          */
         secret: SecretData;
     } | {
         oneofKind: "message";
         /**
-         * @generated from protobuf field: symbolx.bench.MessageData message = 25;
+         * @generated from protobuf field: symbolx.bench.MessageData message = 27;
          */
         message: MessageData;
     } | {
         oneofKind: "record";
         /**
-         * @generated from protobuf field: symbolx.bench.RecordData record = 26;
+         * @generated from protobuf field: symbolx.bench.RecordData record = 28;
          */
         record: RecordData;
     } | {
         oneofKind: "notification";
         /**
-         * @generated from protobuf field: symbolx.bench.NotificationData notification = 27;
+         * @generated from protobuf field: symbolx.bench.NotificationData notification = 29;
          */
         notification: NotificationData;
     } | {
         oneofKind: "session";
         /**
-         * @generated from protobuf field: symbolx.bench.SessionData session = 28;
+         * @generated from protobuf field: symbolx.bench.SessionData session = 30;
          */
         session: SessionData;
     } | {
         oneofKind: "run";
         /**
-         * @generated from protobuf field: symbolx.bench.RunData run = 29;
+         * @generated from protobuf field: symbolx.bench.RunData run = 31;
          */
         run: RunData;
     } | {
         oneofKind: "signal";
         /**
-         * @generated from protobuf field: symbolx.bench.SignalData signal = 30;
+         * @generated from protobuf field: symbolx.bench.SignalData signal = 32;
          */
         signal: SignalData;
     } | {
         oneofKind: "log";
         /**
-         * @generated from protobuf field: symbolx.bench.LogData log = 31;
+         * @generated from protobuf field: symbolx.bench.LogData log = 33;
          */
         log: LogData;
     } | {
         oneofKind: "skip";
         /**
-         * @generated from protobuf field: symbolx.bench.SkipData skip = 32;
+         * @generated from protobuf field: symbolx.bench.SkipData skip = 34;
          */
         skip: SkipData;
     } | {
@@ -6318,17 +6562,25 @@ export enum BenchType {
      */
     QUERY = 1013,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_VIEW = 1014;
+     * @generated from protobuf enum value: BENCH_TYPE_VIEW = 1020;
      */
-    VIEW = 1014,
+    VIEW = 1020,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_STEP = 1015;
+     * @generated from protobuf enum value: BENCH_TYPE_STEP = 1030;
      */
-    STEP = 1015,
+    STEP = 1030,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_BADGE = 1016;
+     * @generated from protobuf enum value: BENCH_TYPE_PIPE = 1031;
      */
-    BADGE = 1016,
+    PIPE = 1031,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_PORT = 1032;
+     */
+    PORT = 1032,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_BADGE = 1040;
+     */
+    BADGE = 1040,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_FILE = 1100;
      */
@@ -6518,17 +6770,9 @@ export enum BenchType {
      */
     CODE_LINE = 10401,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_PIPE = 10450;
+     * @generated from protobuf enum value: BENCH_TYPE_PORT_KEY = 10450;
      */
-    PIPE = 10450,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_PORT = 10451;
-     */
-    PORT = 10451,
-    /**
-     * @generated from protobuf enum value: BENCH_TYPE_PORT_KEY = 10452;
-     */
-    PORT_KEY = 10452,
+    PORT_KEY = 10450,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_RUN_ERROR = 10500;
      */
@@ -6589,6 +6833,22 @@ export enum BenchType {
      * @generated from protobuf enum value: BENCH_TYPE_TRANSFORM = 11004;
      */
     TRANSFORM = 11004,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_VECTOR2 = 11020;
+     */
+    VECTOR2 = 11020,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_VECTOR3 = 11021;
+     */
+    VECTOR3 = 11021,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_VECTOR4 = 11022;
+     */
+    VECTOR4 = 11022,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_LINE = 11035;
+     */
+    LINE = 11035,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_START_VIEW_STATE = 11200;
      */
@@ -8987,17 +9247,25 @@ export enum NodeType {
      */
     QUERY = 1013,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_VIEW = 1014;
+     * @generated from protobuf enum value: NODE_TYPE_VIEW = 1020;
      */
-    VIEW = 1014,
+    VIEW = 1020,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_STEP = 1015;
+     * @generated from protobuf enum value: NODE_TYPE_STEP = 1030;
      */
-    STEP = 1015,
+    STEP = 1030,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_BADGE = 1016;
+     * @generated from protobuf enum value: NODE_TYPE_PIPE = 1031;
      */
-    BADGE = 1016,
+    PIPE = 1031,
+    /**
+     * @generated from protobuf enum value: NODE_TYPE_PORT = 1032;
+     */
+    PORT = 1032,
+    /**
+     * @generated from protobuf enum value: NODE_TYPE_BADGE = 1040;
+     */
+    BADGE = 1040,
     /**
      * @generated from protobuf enum value: NODE_TYPE_FILE = 1100;
      */
@@ -9147,17 +9415,25 @@ export enum ObjectType {
      */
     QUERY = 1013,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_VIEW = 1014;
+     * @generated from protobuf enum value: OBJECT_TYPE_VIEW = 1020;
      */
-    VIEW = 1014,
+    VIEW = 1020,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_STEP = 1015;
+     * @generated from protobuf enum value: OBJECT_TYPE_STEP = 1030;
      */
-    STEP = 1015,
+    STEP = 1030,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_BADGE = 1016;
+     * @generated from protobuf enum value: OBJECT_TYPE_PIPE = 1031;
      */
-    BADGE = 1016,
+    PIPE = 1031,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_PORT = 1032;
+     */
+    PORT = 1032,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_BADGE = 1040;
+     */
+    BADGE = 1040,
     /**
      * @generated from protobuf enum value: OBJECT_TYPE_FILE = 1100;
      */
@@ -9347,17 +9623,9 @@ export enum ObjectType {
      */
     CODE_LINE = 10401,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_PIPE = 10450;
+     * @generated from protobuf enum value: OBJECT_TYPE_PORT_KEY = 10450;
      */
-    PIPE = 10450,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_PORT = 10451;
-     */
-    PORT = 10451,
-    /**
-     * @generated from protobuf enum value: OBJECT_TYPE_PORT_KEY = 10452;
-     */
-    PORT_KEY = 10452,
+    PORT_KEY = 10450,
     /**
      * @generated from protobuf enum value: OBJECT_TYPE_RUN_ERROR = 10500;
      */
@@ -9418,6 +9686,22 @@ export enum ObjectType {
      * @generated from protobuf enum value: OBJECT_TYPE_TRANSFORM = 11004;
      */
     TRANSFORM = 11004,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_VECTOR2 = 11020;
+     */
+    VECTOR2 = 11020,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_VECTOR3 = 11021;
+     */
+    VECTOR3 = 11021,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_VECTOR4 = 11022;
+     */
+    VECTOR4 = 11022,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_LINE = 11035;
+     */
+    LINE = 11035,
     /**
      * @generated from protobuf enum value: OBJECT_TYPE_START_VIEW_STATE = 11200;
      */
@@ -10615,17 +10899,9 @@ export enum StructType {
      */
     CODE_LINE = 10401,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_PIPE = 10450;
+     * @generated from protobuf enum value: STRUCT_TYPE_PORT_KEY = 10450;
      */
-    PIPE = 10450,
-    /**
-     * @generated from protobuf enum value: STRUCT_TYPE_PORT = 10451;
-     */
-    PORT = 10451,
-    /**
-     * @generated from protobuf enum value: STRUCT_TYPE_PORT_KEY = 10452;
-     */
-    PORT_KEY = 10452,
+    PORT_KEY = 10450,
     /**
      * @generated from protobuf enum value: STRUCT_TYPE_RUN_ERROR = 10500;
      */
@@ -10686,6 +10962,22 @@ export enum StructType {
      * @generated from protobuf enum value: STRUCT_TYPE_TRANSFORM = 11004;
      */
     TRANSFORM = 11004,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR2 = 11020;
+     */
+    VECTOR2 = 11020,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR3 = 11021;
+     */
+    VECTOR3 = 11021,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR4 = 11022;
+     */
+    VECTOR4 = 11022,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_LINE = 11035;
+     */
+    LINE = 11035,
     /**
      * @generated from protobuf enum value: STRUCT_TYPE_START_VIEW_STATE = 11200;
      */
@@ -13248,6 +13540,61 @@ class IconData$Type extends MessageType<IconData> {
  */
 export const IconData = new IconData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class LineData$Type extends MessageType<LineData> {
+    constructor() {
+        super("symbolx.bench.LineData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 30, name: "points", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => Vector2Data }
+        ]);
+    }
+    create(value?: PartialMessage<LineData>): LineData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.points = [];
+        if (value !== undefined)
+            reflectionMergePartial<LineData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: LineData): LineData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* repeated symbolx.bench.Vector2Data points */ 30:
+                    message.points.push(Vector2Data.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: LineData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* repeated symbolx.bench.Vector2Data points = 30; */
+        for (let i = 0; i < message.points.length; i++)
+            Vector2Data.internalBinaryWrite(message.points[i], writer.tag(30, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.LineData
+ */
+export const LineData = new LineData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class LogInfoData$Type extends MessageType<LogInfoData> {
     constructor() {
         super("symbolx.bench.LogInfoData", [
@@ -13702,96 +14049,6 @@ class PathTokenData$Type extends MessageType<PathTokenData> {
  */
 export const PathTokenData = new PathTokenData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class PipeData$Type extends MessageType<PipeData> {
-    constructor() {
-        super("symbolx.bench.PipeData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.PipeType", PipeType, "PIPE_TYPE_"] },
-            { no: 31, name: "source_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 32, name: "source_port", kind: "message", T: () => PortKeyData },
-            { no: 33, name: "target_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 34, name: "target_port", kind: "message", T: () => PortKeyData },
-            { no: 40, name: "filter_type", kind: "enum", opt: true, T: () => ["symbolx.bench.PipeFilterType", PipeFilterType, "PIPE_FILTER_TYPE_"] }
-        ]);
-    }
-    create(value?: PartialMessage<PipeData>): PipeData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.type = 0;
-        if (value !== undefined)
-            reflectionMergePartial<PipeData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PipeData): PipeData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.ObjectType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* symbolx.bench.PipeType type */ 30:
-                    message.type = reader.int32();
-                    break;
-                case /* symbolx.bench.NodeReferenceData source_ptr */ 31:
-                    message.sourcePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.sourcePtr);
-                    break;
-                case /* symbolx.bench.PortKeyData source_port */ 32:
-                    message.sourcePort = PortKeyData.internalBinaryRead(reader, reader.uint32(), options, message.sourcePort);
-                    break;
-                case /* symbolx.bench.NodeReferenceData target_ptr */ 33:
-                    message.targetPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.targetPtr);
-                    break;
-                case /* symbolx.bench.PortKeyData target_port */ 34:
-                    message.targetPort = PortKeyData.internalBinaryRead(reader, reader.uint32(), options, message.targetPort);
-                    break;
-                case /* optional symbolx.bench.PipeFilterType filter_type */ 40:
-                    message.filterType = reader.int32();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: PipeData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.ObjectType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* symbolx.bench.PipeType type = 30; */
-        if (message.type !== 0)
-            writer.tag(30, WireType.Varint).int32(message.type);
-        /* symbolx.bench.NodeReferenceData source_ptr = 31; */
-        if (message.sourcePtr)
-            NodeReferenceData.internalBinaryWrite(message.sourcePtr, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.PortKeyData source_port = 32; */
-        if (message.sourcePort)
-            PortKeyData.internalBinaryWrite(message.sourcePort, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData target_ptr = 33; */
-        if (message.targetPtr)
-            NodeReferenceData.internalBinaryWrite(message.targetPtr, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.PortKeyData target_port = 34; */
-        if (message.targetPort)
-            PortKeyData.internalBinaryWrite(message.targetPort, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.PipeFilterType filter_type = 40; */
-        if (message.filterType !== undefined)
-            writer.tag(40, WireType.Varint).int32(message.filterType);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.PipeData
- */
-export const PipeData = new PipeData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
 class PolicyData$Type extends MessageType<PolicyData> {
     constructor() {
         super("symbolx.bench.PolicyData", [
@@ -14052,97 +14309,13 @@ class PolicyRuleData$Type extends MessageType<PolicyRuleData> {
  */
 export const PolicyRuleData = new PolicyRuleData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class PortData$Type extends MessageType<PortData> {
-    constructor() {
-        super("symbolx.bench.PortData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.PortType", PortType, "PORT_TYPE_"] },
-            { no: 31, name: "side", kind: "enum", T: () => ["symbolx.bench.PortSide", PortSide, "PORT_SIDE_"] },
-            { no: 32, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 50, name: "value_type", kind: "message", T: () => TypeInfoData },
-            { no: 51, name: "value_packed", kind: "message", T: () => Struct }
-        ]);
-    }
-    create(value?: PartialMessage<PortData>): PortData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.type = 0;
-        message.side = 0;
-        if (value !== undefined)
-            reflectionMergePartial<PortData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PortData): PortData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.ObjectType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* symbolx.bench.PortType type */ 30:
-                    message.type = reader.int32();
-                    break;
-                case /* symbolx.bench.PortSide side */ 31:
-                    message.side = reader.int32();
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData field_ptr */ 32:
-                    message.fieldPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.fieldPtr);
-                    break;
-                case /* optional symbolx.bench.TypeInfoData value_type */ 50:
-                    message.valueType = TypeInfoData.internalBinaryRead(reader, reader.uint32(), options, message.valueType);
-                    break;
-                case /* optional google.protobuf.Struct value_packed */ 51:
-                    message.valuePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.valuePacked);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: PortData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.ObjectType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* symbolx.bench.PortType type = 30; */
-        if (message.type !== 0)
-            writer.tag(30, WireType.Varint).int32(message.type);
-        /* symbolx.bench.PortSide side = 31; */
-        if (message.side !== 0)
-            writer.tag(31, WireType.Varint).int32(message.side);
-        /* optional symbolx.bench.NodeReferenceData field_ptr = 32; */
-        if (message.fieldPtr)
-            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.TypeInfoData value_type = 50; */
-        if (message.valueType)
-            TypeInfoData.internalBinaryWrite(message.valueType, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Struct value_packed = 51; */
-        if (message.valuePacked)
-            Struct.internalBinaryWrite(message.valuePacked, writer.tag(51, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.PortData
- */
-export const PortData = new PortData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
 class PortKeyData$Type extends MessageType<PortKeyData> {
     constructor() {
         super("symbolx.bench.PortKeyData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.PortType", PortType, "PORT_TYPE_"] },
-            { no: 31, name: "side", kind: "enum", T: () => ["symbolx.bench.PortSide", PortSide, "PORT_SIDE_"] },
-            { no: 32, name: "field_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 40, name: "type", kind: "enum", T: () => ["symbolx.bench.PortType", PortType, "PORT_TYPE_"] },
+            { no: 41, name: "side", kind: "enum", T: () => ["symbolx.bench.PortSide", PortSide, "PORT_SIDE_"] },
+            { no: 42, name: "field_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<PortKeyData>): PortKeyData {
@@ -14162,13 +14335,13 @@ class PortKeyData$Type extends MessageType<PortKeyData> {
                 case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* symbolx.bench.PortType type */ 30:
+                case /* symbolx.bench.PortType type */ 40:
                     message.type = reader.int32();
                     break;
-                case /* symbolx.bench.PortSide side */ 31:
+                case /* symbolx.bench.PortSide side */ 41:
                     message.side = reader.int32();
                     break;
-                case /* optional symbolx.bench.NodeReferenceData field_ptr */ 32:
+                case /* optional symbolx.bench.NodeReferenceData field_ptr */ 42:
                     message.fieldPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.fieldPtr);
                     break;
                 default:
@@ -14186,15 +14359,15 @@ class PortKeyData$Type extends MessageType<PortKeyData> {
         /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* symbolx.bench.PortType type = 30; */
+        /* symbolx.bench.PortType type = 40; */
         if (message.type !== 0)
-            writer.tag(30, WireType.Varint).int32(message.type);
-        /* symbolx.bench.PortSide side = 31; */
+            writer.tag(40, WireType.Varint).int32(message.type);
+        /* symbolx.bench.PortSide side = 41; */
         if (message.side !== 0)
-            writer.tag(31, WireType.Varint).int32(message.side);
-        /* optional symbolx.bench.NodeReferenceData field_ptr = 32; */
+            writer.tag(41, WireType.Varint).int32(message.side);
+        /* optional symbolx.bench.NodeReferenceData field_ptr = 42; */
         if (message.fieldPtr)
-            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -16638,6 +16811,219 @@ class ValueData$Type extends MessageType<ValueData> {
  * @generated MessageType for protobuf message symbolx.bench.ValueData
  */
 export const ValueData = new ValueData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class Vector2Data$Type extends MessageType<Vector2Data> {
+    constructor() {
+        super("symbolx.bench.Vector2Data", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 30, name: "x", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
+            { no: 31, name: "y", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ }
+        ]);
+    }
+    create(value?: PartialMessage<Vector2Data>): Vector2Data {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.x = 0;
+        message.y = 0;
+        if (value !== undefined)
+            reflectionMergePartial<Vector2Data>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: Vector2Data): Vector2Data {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* float x */ 30:
+                    message.x = reader.float();
+                    break;
+                case /* float y */ 31:
+                    message.y = reader.float();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: Vector2Data, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* float x = 30; */
+        if (message.x !== 0)
+            writer.tag(30, WireType.Bit32).float(message.x);
+        /* float y = 31; */
+        if (message.y !== 0)
+            writer.tag(31, WireType.Bit32).float(message.y);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.Vector2Data
+ */
+export const Vector2Data = new Vector2Data$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class Vector3Data$Type extends MessageType<Vector3Data> {
+    constructor() {
+        super("symbolx.bench.Vector3Data", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 30, name: "x", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
+            { no: 31, name: "y", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
+            { no: 32, name: "z", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ }
+        ]);
+    }
+    create(value?: PartialMessage<Vector3Data>): Vector3Data {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.x = 0;
+        message.y = 0;
+        message.z = 0;
+        if (value !== undefined)
+            reflectionMergePartial<Vector3Data>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: Vector3Data): Vector3Data {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* float x */ 30:
+                    message.x = reader.float();
+                    break;
+                case /* float y */ 31:
+                    message.y = reader.float();
+                    break;
+                case /* float z */ 32:
+                    message.z = reader.float();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: Vector3Data, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* float x = 30; */
+        if (message.x !== 0)
+            writer.tag(30, WireType.Bit32).float(message.x);
+        /* float y = 31; */
+        if (message.y !== 0)
+            writer.tag(31, WireType.Bit32).float(message.y);
+        /* float z = 32; */
+        if (message.z !== 0)
+            writer.tag(32, WireType.Bit32).float(message.z);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.Vector3Data
+ */
+export const Vector3Data = new Vector3Data$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class Vector4Data$Type extends MessageType<Vector4Data> {
+    constructor() {
+        super("symbolx.bench.Vector4Data", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 30, name: "x", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
+            { no: 31, name: "y", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
+            { no: 32, name: "z", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
+            { no: 33, name: "w", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ }
+        ]);
+    }
+    create(value?: PartialMessage<Vector4Data>): Vector4Data {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.x = 0;
+        message.y = 0;
+        message.z = 0;
+        message.w = 0;
+        if (value !== undefined)
+            reflectionMergePartial<Vector4Data>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: Vector4Data): Vector4Data {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* float x */ 30:
+                    message.x = reader.float();
+                    break;
+                case /* float y */ 31:
+                    message.y = reader.float();
+                    break;
+                case /* float z */ 32:
+                    message.z = reader.float();
+                    break;
+                case /* float w */ 33:
+                    message.w = reader.float();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: Vector4Data, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* float x = 30; */
+        if (message.x !== 0)
+            writer.tag(30, WireType.Bit32).float(message.x);
+        /* float y = 31; */
+        if (message.y !== 0)
+            writer.tag(31, WireType.Bit32).float(message.y);
+        /* float z = 32; */
+        if (message.z !== 0)
+            writer.tag(32, WireType.Bit32).float(message.z);
+        /* float w = 33; */
+        if (message.w !== 0)
+            writer.tag(33, WireType.Bit32).float(message.w);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.Vector4Data
+ */
+export const Vector4Data = new Vector4Data$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class BadgeData$Type extends MessageType<BadgeData> {
     constructor() {
@@ -20941,6 +21327,492 @@ class PackageData$Type extends MessageType<PackageData> {
  */
 export const PackageData = new PackageData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class PipeData$Type extends MessageType<PipeData> {
+    constructor() {
+        super("symbolx.bench.PipeData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 5, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 6, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 7, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 8, name: "templated_epoch", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 10, name: "revision", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 11, name: "created_at", kind: "message", T: () => Timestamp },
+            { no: 12, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 13, name: "updated_at", kind: "message", T: () => Timestamp },
+            { no: 14, name: "updated_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 16, name: "archived_at", kind: "message", T: () => Timestamp },
+            { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 22, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 29, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
+            { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.PipeType", PipeType, "PIPE_TYPE_"] },
+            { no: 32, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 33, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 35, name: "source_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 36, name: "source_port", kind: "message", T: () => PortKeyData },
+            { no: 37, name: "target_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 38, name: "target_port", kind: "message", T: () => PortKeyData },
+            { no: 50, name: "filter_type", kind: "enum", opt: true, T: () => ["symbolx.bench.PipeFilterType", PipeFilterType, "PIPE_FILTER_TYPE_"] },
+            { no: 80, name: "line", kind: "message", T: () => LineData },
+            { no: 81, name: "color", kind: "message", T: () => ColorData }
+        ]);
+    }
+    create(value?: PartialMessage<PipeData>): PipeData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = "";
+        message.ck = "";
+        message.revision = 0n;
+        message.createdEpoch = 0n;
+        message.updatedEpoch = 0n;
+        message.setProperties = [];
+        message.type = 0;
+        message.name = "";
+        message.orderKey = "";
+        if (value !== undefined)
+            reflectionMergePartial<PipeData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PipeData): PipeData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* string id */ 2:
+                    message.id = reader.string();
+                    break;
+                case /* string ck */ 3:
+                    message.ck = reader.string();
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
+                    message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
+                    break;
+                case /* symbolx.bench.NodeReferenceData package_ptr */ 5:
+                    message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
+                    break;
+                case /* symbolx.bench.NodeReferenceData bench_ptr */ 6:
+                    message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData template_ptr */ 7:
+                    message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional int64 templated_epoch */ 8:
+                    message.templatedEpoch = reader.int64().toBigInt();
+                    break;
+                case /* int64 revision */ 10:
+                    message.revision = reader.int64().toBigInt();
+                    break;
+                case /* google.protobuf.Timestamp created_at */ 11:
+                    message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
+                    break;
+                case /* int64 created_epoch */ 12:
+                    message.createdEpoch = reader.int64().toBigInt();
+                    break;
+                case /* google.protobuf.Timestamp updated_at */ 13:
+                    message.updatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.updatedAt);
+                    break;
+                case /* int64 updated_epoch */ 14:
+                    message.updatedEpoch = reader.int64().toBigInt();
+                    break;
+                case /* optional google.protobuf.Timestamp deleted_at */ 15:
+                    message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* optional google.protobuf.Timestamp archived_at */ 16:
+                    message.archivedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.archivedAt);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData created_by_ptr */ 21:
+                    message.createdByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData updated_by_ptr */ 22:
+                    message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* repeated int32 set_properties */ 29:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
+                    break;
+                case /* symbolx.bench.PipeType type */ 30:
+                    message.type = reader.int32();
+                    break;
+                case /* string name */ 32:
+                    message.name = reader.string();
+                    break;
+                case /* string order_key */ 33:
+                    message.orderKey = reader.string();
+                    break;
+                case /* symbolx.bench.NodeReferenceData source_ptr */ 35:
+                    message.sourcePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.sourcePtr);
+                    break;
+                case /* symbolx.bench.PortKeyData source_port */ 36:
+                    message.sourcePort = PortKeyData.internalBinaryRead(reader, reader.uint32(), options, message.sourcePort);
+                    break;
+                case /* symbolx.bench.NodeReferenceData target_ptr */ 37:
+                    message.targetPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.targetPtr);
+                    break;
+                case /* symbolx.bench.PortKeyData target_port */ 38:
+                    message.targetPort = PortKeyData.internalBinaryRead(reader, reader.uint32(), options, message.targetPort);
+                    break;
+                case /* optional symbolx.bench.PipeFilterType filter_type */ 50:
+                    message.filterType = reader.int32();
+                    break;
+                case /* optional symbolx.bench.LineData line */ 80:
+                    message.line = LineData.internalBinaryRead(reader, reader.uint32(), options, message.line);
+                    break;
+                case /* optional symbolx.bench.ColorData color */ 81:
+                    message.color = ColorData.internalBinaryRead(reader, reader.uint32(), options, message.color);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: PipeData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* string id = 2; */
+        if (message.id !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.id);
+        /* string ck = 3; */
+        if (message.ck !== "")
+            writer.tag(3, WireType.LengthDelimited).string(message.ck);
+        /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
+        if (message.parentPtr)
+            NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.NodeReferenceData package_ptr = 5; */
+        if (message.packagePtr)
+            NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.NodeReferenceData bench_ptr = 6; */
+        if (message.benchPtr)
+            NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData template_ptr = 7; */
+        if (message.templatePtr)
+            NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
+        /* optional int64 templated_epoch = 8; */
+        if (message.templatedEpoch !== undefined)
+            writer.tag(8, WireType.Varint).int64(message.templatedEpoch);
+        /* int64 revision = 10; */
+        if (message.revision !== 0n)
+            writer.tag(10, WireType.Varint).int64(message.revision);
+        /* google.protobuf.Timestamp created_at = 11; */
+        if (message.createdAt)
+            Timestamp.internalBinaryWrite(message.createdAt, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* int64 created_epoch = 12; */
+        if (message.createdEpoch !== 0n)
+            writer.tag(12, WireType.Varint).int64(message.createdEpoch);
+        /* google.protobuf.Timestamp updated_at = 13; */
+        if (message.updatedAt)
+            Timestamp.internalBinaryWrite(message.updatedAt, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* int64 updated_epoch = 14; */
+        if (message.updatedEpoch !== 0n)
+            writer.tag(14, WireType.Varint).int64(message.updatedEpoch);
+        /* optional google.protobuf.Timestamp deleted_at = 15; */
+        if (message.deletedAt)
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp archived_at = 16; */
+        if (message.archivedAt)
+            Timestamp.internalBinaryWrite(message.archivedAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData created_by_ptr = 21; */
+        if (message.createdByPtr)
+            NodeReferenceData.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData updated_by_ptr = 22; */
+        if (message.updatedByPtr)
+            NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* repeated int32 set_properties = 29; */
+        if (message.setProperties.length) {
+            writer.tag(29, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
+        /* symbolx.bench.PipeType type = 30; */
+        if (message.type !== 0)
+            writer.tag(30, WireType.Varint).int32(message.type);
+        /* string name = 32; */
+        if (message.name !== "")
+            writer.tag(32, WireType.LengthDelimited).string(message.name);
+        /* string order_key = 33; */
+        if (message.orderKey !== "")
+            writer.tag(33, WireType.LengthDelimited).string(message.orderKey);
+        /* symbolx.bench.NodeReferenceData source_ptr = 35; */
+        if (message.sourcePtr)
+            NodeReferenceData.internalBinaryWrite(message.sourcePtr, writer.tag(35, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.PortKeyData source_port = 36; */
+        if (message.sourcePort)
+            PortKeyData.internalBinaryWrite(message.sourcePort, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.NodeReferenceData target_ptr = 37; */
+        if (message.targetPtr)
+            NodeReferenceData.internalBinaryWrite(message.targetPtr, writer.tag(37, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.PortKeyData target_port = 38; */
+        if (message.targetPort)
+            PortKeyData.internalBinaryWrite(message.targetPort, writer.tag(38, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.PipeFilterType filter_type = 50; */
+        if (message.filterType !== undefined)
+            writer.tag(50, WireType.Varint).int32(message.filterType);
+        /* optional symbolx.bench.LineData line = 80; */
+        if (message.line)
+            LineData.internalBinaryWrite(message.line, writer.tag(80, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.ColorData color = 81; */
+        if (message.color)
+            ColorData.internalBinaryWrite(message.color, writer.tag(81, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.PipeData
+ */
+export const PipeData = new PipeData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class PortData$Type extends MessageType<PortData> {
+    constructor() {
+        super("symbolx.bench.PortData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 3, name: "ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 4, name: "parent_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 5, name: "package_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 6, name: "bench_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 7, name: "template_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 8, name: "templated_epoch", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 10, name: "revision", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 11, name: "created_at", kind: "message", T: () => Timestamp },
+            { no: 12, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 13, name: "updated_at", kind: "message", T: () => Timestamp },
+            { no: 14, name: "updated_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 15, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 16, name: "archived_at", kind: "message", T: () => Timestamp },
+            { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 22, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 29, name: "set_properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
+            { no: 30, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 31, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 40, name: "type", kind: "enum", T: () => ["symbolx.bench.PortType", PortType, "PORT_TYPE_"] },
+            { no: 41, name: "side", kind: "enum", T: () => ["symbolx.bench.PortSide", PortSide, "PORT_SIDE_"] },
+            { no: 42, name: "field_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 50, name: "value_type", kind: "message", T: () => TypeInfoData },
+            { no: 51, name: "value_packed", kind: "message", T: () => Struct }
+        ]);
+    }
+    create(value?: PartialMessage<PortData>): PortData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = "";
+        message.ck = "";
+        message.revision = 0n;
+        message.createdEpoch = 0n;
+        message.updatedEpoch = 0n;
+        message.setProperties = [];
+        message.name = "";
+        message.orderKey = "";
+        message.type = 0;
+        message.side = 0;
+        if (value !== undefined)
+            reflectionMergePartial<PortData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PortData): PortData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* string id */ 2:
+                    message.id = reader.string();
+                    break;
+                case /* string ck */ 3:
+                    message.ck = reader.string();
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
+                    message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
+                    break;
+                case /* symbolx.bench.NodeReferenceData package_ptr */ 5:
+                    message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
+                    break;
+                case /* symbolx.bench.NodeReferenceData bench_ptr */ 6:
+                    message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData template_ptr */ 7:
+                    message.templatePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
+                    break;
+                case /* optional int64 templated_epoch */ 8:
+                    message.templatedEpoch = reader.int64().toBigInt();
+                    break;
+                case /* int64 revision */ 10:
+                    message.revision = reader.int64().toBigInt();
+                    break;
+                case /* google.protobuf.Timestamp created_at */ 11:
+                    message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
+                    break;
+                case /* int64 created_epoch */ 12:
+                    message.createdEpoch = reader.int64().toBigInt();
+                    break;
+                case /* google.protobuf.Timestamp updated_at */ 13:
+                    message.updatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.updatedAt);
+                    break;
+                case /* int64 updated_epoch */ 14:
+                    message.updatedEpoch = reader.int64().toBigInt();
+                    break;
+                case /* optional google.protobuf.Timestamp deleted_at */ 15:
+                    message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* optional google.protobuf.Timestamp archived_at */ 16:
+                    message.archivedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.archivedAt);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData created_by_ptr */ 21:
+                    message.createdByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData updated_by_ptr */ 22:
+                    message.updatedByPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* repeated int32 set_properties */ 29:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.setProperties.push(reader.int32());
+                    else
+                        message.setProperties.push(reader.int32());
+                    break;
+                case /* string name */ 30:
+                    message.name = reader.string();
+                    break;
+                case /* string order_key */ 31:
+                    message.orderKey = reader.string();
+                    break;
+                case /* symbolx.bench.PortType type */ 40:
+                    message.type = reader.int32();
+                    break;
+                case /* symbolx.bench.PortSide side */ 41:
+                    message.side = reader.int32();
+                    break;
+                case /* optional symbolx.bench.NodeReferenceData field_ptr */ 42:
+                    message.fieldPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.fieldPtr);
+                    break;
+                case /* optional symbolx.bench.TypeInfoData value_type */ 50:
+                    message.valueType = TypeInfoData.internalBinaryRead(reader, reader.uint32(), options, message.valueType);
+                    break;
+                case /* optional google.protobuf.Struct value_packed */ 51:
+                    message.valuePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.valuePacked);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: PortData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* string id = 2; */
+        if (message.id !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.id);
+        /* string ck = 3; */
+        if (message.ck !== "")
+            writer.tag(3, WireType.LengthDelimited).string(message.ck);
+        /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
+        if (message.parentPtr)
+            NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.NodeReferenceData package_ptr = 5; */
+        if (message.packagePtr)
+            NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.NodeReferenceData bench_ptr = 6; */
+        if (message.benchPtr)
+            NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData template_ptr = 7; */
+        if (message.templatePtr)
+            NodeReferenceData.internalBinaryWrite(message.templatePtr, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
+        /* optional int64 templated_epoch = 8; */
+        if (message.templatedEpoch !== undefined)
+            writer.tag(8, WireType.Varint).int64(message.templatedEpoch);
+        /* int64 revision = 10; */
+        if (message.revision !== 0n)
+            writer.tag(10, WireType.Varint).int64(message.revision);
+        /* google.protobuf.Timestamp created_at = 11; */
+        if (message.createdAt)
+            Timestamp.internalBinaryWrite(message.createdAt, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* int64 created_epoch = 12; */
+        if (message.createdEpoch !== 0n)
+            writer.tag(12, WireType.Varint).int64(message.createdEpoch);
+        /* google.protobuf.Timestamp updated_at = 13; */
+        if (message.updatedAt)
+            Timestamp.internalBinaryWrite(message.updatedAt, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
+        /* int64 updated_epoch = 14; */
+        if (message.updatedEpoch !== 0n)
+            writer.tag(14, WireType.Varint).int64(message.updatedEpoch);
+        /* optional google.protobuf.Timestamp deleted_at = 15; */
+        if (message.deletedAt)
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp archived_at = 16; */
+        if (message.archivedAt)
+            Timestamp.internalBinaryWrite(message.archivedAt, writer.tag(16, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData created_by_ptr = 21; */
+        if (message.createdByPtr)
+            NodeReferenceData.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData updated_by_ptr = 22; */
+        if (message.updatedByPtr)
+            NodeReferenceData.internalBinaryWrite(message.updatedByPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* repeated int32 set_properties = 29; */
+        if (message.setProperties.length) {
+            writer.tag(29, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.setProperties.length; i++)
+                writer.int32(message.setProperties[i]);
+            writer.join();
+        }
+        /* string name = 30; */
+        if (message.name !== "")
+            writer.tag(30, WireType.LengthDelimited).string(message.name);
+        /* string order_key = 31; */
+        if (message.orderKey !== "")
+            writer.tag(31, WireType.LengthDelimited).string(message.orderKey);
+        /* symbolx.bench.PortType type = 40; */
+        if (message.type !== 0)
+            writer.tag(40, WireType.Varint).int32(message.type);
+        /* symbolx.bench.PortSide side = 41; */
+        if (message.side !== 0)
+            writer.tag(41, WireType.Varint).int32(message.side);
+        /* optional symbolx.bench.NodeReferenceData field_ptr = 42; */
+        if (message.fieldPtr)
+            NodeReferenceData.internalBinaryWrite(message.fieldPtr, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.TypeInfoData value_type = 50; */
+        if (message.valueType)
+            TypeInfoData.internalBinaryWrite(message.valueType, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Struct value_packed = 51; */
+        if (message.valuePacked)
+            Struct.internalBinaryWrite(message.valuePacked, writer.tag(51, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.PortData
+ */
+export const PortData = new PortData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class QueryData$Type extends MessageType<QueryData> {
     constructor() {
         super("symbolx.bench.QueryData", [
@@ -23072,16 +23944,14 @@ class StepData$Type extends MessageType<StepData> {
             { no: 34, name: "text", kind: "message", T: () => TextData },
             { no: 35, name: "icon", kind: "message", T: () => IconData },
             { no: 36, name: "run_options", kind: "message", T: () => RunOptionsData },
-            { no: 37, name: "pipes", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PipeData },
             { no: 40, name: "value_type", kind: "message", T: () => TypeInfoData },
             { no: 41, name: "value_packed", kind: "message", T: () => Struct },
             { no: 43, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 44, name: "code", kind: "message", T: () => CodeData },
             { no: 46, name: "roles_ptr", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 47, name: "identity_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 48, name: "policies", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PolicyData },
-            { no: 60, name: "position", kind: "message", T: () => OffsetData },
-            { no: 61, name: "size", kind: "message", T: () => BoxData }
+            { no: 80, name: "position", kind: "message", T: () => OffsetData },
+            { no: 81, name: "size", kind: "message", T: () => BoxData }
         ]);
     }
     create(value?: PartialMessage<StepData>): StepData {
@@ -23096,9 +23966,7 @@ class StepData$Type extends MessageType<StepData> {
         message.type = 0;
         message.name = "";
         message.orderKey = "";
-        message.pipes = [];
         message.rolesPtr = [];
-        message.policies = [];
         if (value !== undefined)
             reflectionMergePartial<StepData>(this, message, value);
         return message;
@@ -23184,9 +24052,6 @@ class StepData$Type extends MessageType<StepData> {
                 case /* optional symbolx.bench.RunOptionsData run_options */ 36:
                     message.runOptions = RunOptionsData.internalBinaryRead(reader, reader.uint32(), options, message.runOptions);
                     break;
-                case /* repeated symbolx.bench.PipeData pipes */ 37:
-                    message.pipes.push(PipeData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
                 case /* optional symbolx.bench.TypeInfoData value_type */ 40:
                     message.valueType = TypeInfoData.internalBinaryRead(reader, reader.uint32(), options, message.valueType);
                     break;
@@ -23205,13 +24070,10 @@ class StepData$Type extends MessageType<StepData> {
                 case /* optional symbolx.bench.NodeReferenceData identity_ptr */ 47:
                     message.identityPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.identityPtr);
                     break;
-                case /* repeated symbolx.bench.PolicyData policies */ 48:
-                    message.policies.push(PolicyData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                case /* optional symbolx.bench.OffsetData position */ 60:
+                case /* optional symbolx.bench.OffsetData position */ 80:
                     message.position = OffsetData.internalBinaryRead(reader, reader.uint32(), options, message.position);
                     break;
-                case /* optional symbolx.bench.BoxData size */ 61:
+                case /* optional symbolx.bench.BoxData size */ 81:
                     message.size = BoxData.internalBinaryRead(reader, reader.uint32(), options, message.size);
                     break;
                 default:
@@ -23302,9 +24164,6 @@ class StepData$Type extends MessageType<StepData> {
         /* optional symbolx.bench.RunOptionsData run_options = 36; */
         if (message.runOptions)
             RunOptionsData.internalBinaryWrite(message.runOptions, writer.tag(36, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.PipeData pipes = 37; */
-        for (let i = 0; i < message.pipes.length; i++)
-            PipeData.internalBinaryWrite(message.pipes[i], writer.tag(37, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.TypeInfoData value_type = 40; */
         if (message.valueType)
             TypeInfoData.internalBinaryWrite(message.valueType, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
@@ -23323,15 +24182,12 @@ class StepData$Type extends MessageType<StepData> {
         /* optional symbolx.bench.NodeReferenceData identity_ptr = 47; */
         if (message.identityPtr)
             NodeReferenceData.internalBinaryWrite(message.identityPtr, writer.tag(47, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.PolicyData policies = 48; */
-        for (let i = 0; i < message.policies.length; i++)
-            PolicyData.internalBinaryWrite(message.policies[i], writer.tag(48, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.OffsetData position = 60; */
+        /* optional symbolx.bench.OffsetData position = 80; */
         if (message.position)
-            OffsetData.internalBinaryWrite(message.position, writer.tag(60, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.BoxData size = 61; */
+            OffsetData.internalBinaryWrite(message.position, writer.tag(80, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.BoxData size = 81; */
         if (message.size)
-            BoxData.internalBinaryWrite(message.size, writer.tag(61, WireType.LengthDelimited).fork(), options).join();
+            BoxData.internalBinaryWrite(message.size, writer.tag(81, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -24434,17 +25290,19 @@ class SomeNodeData$Type extends MessageType<SomeNodeData> {
             { no: 19, name: "query", kind: "message", oneof: "node", T: () => QueryData },
             { no: 20, name: "view", kind: "message", oneof: "node", T: () => ViewData },
             { no: 21, name: "step", kind: "message", oneof: "node", T: () => StepData },
-            { no: 22, name: "badge", kind: "message", oneof: "node", T: () => BadgeData },
-            { no: 23, name: "file", kind: "message", oneof: "node", T: () => FileData },
-            { no: 24, name: "secret", kind: "message", oneof: "node", T: () => SecretData },
-            { no: 25, name: "message", kind: "message", oneof: "node", T: () => MessageData },
-            { no: 26, name: "record", kind: "message", oneof: "node", T: () => RecordData },
-            { no: 27, name: "notification", kind: "message", oneof: "node", T: () => NotificationData },
-            { no: 28, name: "session", kind: "message", oneof: "node", T: () => SessionData },
-            { no: 29, name: "run", kind: "message", oneof: "node", T: () => RunData },
-            { no: 30, name: "signal", kind: "message", oneof: "node", T: () => SignalData },
-            { no: 31, name: "log", kind: "message", oneof: "node", T: () => LogData },
-            { no: 32, name: "skip", kind: "message", oneof: "node", T: () => SkipData }
+            { no: 22, name: "pipe", kind: "message", oneof: "node", T: () => PipeData },
+            { no: 23, name: "port", kind: "message", oneof: "node", T: () => PortData },
+            { no: 24, name: "badge", kind: "message", oneof: "node", T: () => BadgeData },
+            { no: 25, name: "file", kind: "message", oneof: "node", T: () => FileData },
+            { no: 26, name: "secret", kind: "message", oneof: "node", T: () => SecretData },
+            { no: 27, name: "message", kind: "message", oneof: "node", T: () => MessageData },
+            { no: 28, name: "record", kind: "message", oneof: "node", T: () => RecordData },
+            { no: 29, name: "notification", kind: "message", oneof: "node", T: () => NotificationData },
+            { no: 30, name: "session", kind: "message", oneof: "node", T: () => SessionData },
+            { no: 31, name: "run", kind: "message", oneof: "node", T: () => RunData },
+            { no: 32, name: "signal", kind: "message", oneof: "node", T: () => SignalData },
+            { no: 33, name: "log", kind: "message", oneof: "node", T: () => LogData },
+            { no: 34, name: "skip", kind: "message", oneof: "node", T: () => SkipData }
         ]);
     }
     create(value?: PartialMessage<SomeNodeData>): SomeNodeData {
@@ -24585,67 +25443,79 @@ class SomeNodeData$Type extends MessageType<SomeNodeData> {
                         step: StepData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).step)
                     };
                     break;
-                case /* symbolx.bench.BadgeData badge */ 22:
+                case /* symbolx.bench.PipeData pipe */ 22:
+                    message.node = {
+                        oneofKind: "pipe",
+                        pipe: PipeData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).pipe)
+                    };
+                    break;
+                case /* symbolx.bench.PortData port */ 23:
+                    message.node = {
+                        oneofKind: "port",
+                        port: PortData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).port)
+                    };
+                    break;
+                case /* symbolx.bench.BadgeData badge */ 24:
                     message.node = {
                         oneofKind: "badge",
                         badge: BadgeData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).badge)
                     };
                     break;
-                case /* symbolx.bench.FileData file */ 23:
+                case /* symbolx.bench.FileData file */ 25:
                     message.node = {
                         oneofKind: "file",
                         file: FileData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).file)
                     };
                     break;
-                case /* symbolx.bench.SecretData secret */ 24:
+                case /* symbolx.bench.SecretData secret */ 26:
                     message.node = {
                         oneofKind: "secret",
                         secret: SecretData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).secret)
                     };
                     break;
-                case /* symbolx.bench.MessageData message */ 25:
+                case /* symbolx.bench.MessageData message */ 27:
                     message.node = {
                         oneofKind: "message",
                         message: MessageData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).message)
                     };
                     break;
-                case /* symbolx.bench.RecordData record */ 26:
+                case /* symbolx.bench.RecordData record */ 28:
                     message.node = {
                         oneofKind: "record",
                         record: RecordData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).record)
                     };
                     break;
-                case /* symbolx.bench.NotificationData notification */ 27:
+                case /* symbolx.bench.NotificationData notification */ 29:
                     message.node = {
                         oneofKind: "notification",
                         notification: NotificationData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).notification)
                     };
                     break;
-                case /* symbolx.bench.SessionData session */ 28:
+                case /* symbolx.bench.SessionData session */ 30:
                     message.node = {
                         oneofKind: "session",
                         session: SessionData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).session)
                     };
                     break;
-                case /* symbolx.bench.RunData run */ 29:
+                case /* symbolx.bench.RunData run */ 31:
                     message.node = {
                         oneofKind: "run",
                         run: RunData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).run)
                     };
                     break;
-                case /* symbolx.bench.SignalData signal */ 30:
+                case /* symbolx.bench.SignalData signal */ 32:
                     message.node = {
                         oneofKind: "signal",
                         signal: SignalData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).signal)
                     };
                     break;
-                case /* symbolx.bench.LogData log */ 31:
+                case /* symbolx.bench.LogData log */ 33:
                     message.node = {
                         oneofKind: "log",
                         log: LogData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).log)
                     };
                     break;
-                case /* symbolx.bench.SkipData skip */ 32:
+                case /* symbolx.bench.SkipData skip */ 34:
                     message.node = {
                         oneofKind: "skip",
                         skip: SkipData.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).skip)
@@ -24726,39 +25596,45 @@ class SomeNodeData$Type extends MessageType<SomeNodeData> {
         /* symbolx.bench.StepData step = 21; */
         if (message.node.oneofKind === "step")
             StepData.internalBinaryWrite(message.node.step, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.BadgeData badge = 22; */
+        /* symbolx.bench.PipeData pipe = 22; */
+        if (message.node.oneofKind === "pipe")
+            PipeData.internalBinaryWrite(message.node.pipe, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.PortData port = 23; */
+        if (message.node.oneofKind === "port")
+            PortData.internalBinaryWrite(message.node.port, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.BadgeData badge = 24; */
         if (message.node.oneofKind === "badge")
-            BadgeData.internalBinaryWrite(message.node.badge, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.FileData file = 23; */
+            BadgeData.internalBinaryWrite(message.node.badge, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.FileData file = 25; */
         if (message.node.oneofKind === "file")
-            FileData.internalBinaryWrite(message.node.file, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.SecretData secret = 24; */
+            FileData.internalBinaryWrite(message.node.file, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.SecretData secret = 26; */
         if (message.node.oneofKind === "secret")
-            SecretData.internalBinaryWrite(message.node.secret, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.MessageData message = 25; */
+            SecretData.internalBinaryWrite(message.node.secret, writer.tag(26, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.MessageData message = 27; */
         if (message.node.oneofKind === "message")
-            MessageData.internalBinaryWrite(message.node.message, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.RecordData record = 26; */
+            MessageData.internalBinaryWrite(message.node.message, writer.tag(27, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.RecordData record = 28; */
         if (message.node.oneofKind === "record")
-            RecordData.internalBinaryWrite(message.node.record, writer.tag(26, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NotificationData notification = 27; */
+            RecordData.internalBinaryWrite(message.node.record, writer.tag(28, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.NotificationData notification = 29; */
         if (message.node.oneofKind === "notification")
-            NotificationData.internalBinaryWrite(message.node.notification, writer.tag(27, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.SessionData session = 28; */
+            NotificationData.internalBinaryWrite(message.node.notification, writer.tag(29, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.SessionData session = 30; */
         if (message.node.oneofKind === "session")
-            SessionData.internalBinaryWrite(message.node.session, writer.tag(28, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.RunData run = 29; */
+            SessionData.internalBinaryWrite(message.node.session, writer.tag(30, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.RunData run = 31; */
         if (message.node.oneofKind === "run")
-            RunData.internalBinaryWrite(message.node.run, writer.tag(29, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.SignalData signal = 30; */
+            RunData.internalBinaryWrite(message.node.run, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.SignalData signal = 32; */
         if (message.node.oneofKind === "signal")
-            SignalData.internalBinaryWrite(message.node.signal, writer.tag(30, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.LogData log = 31; */
+            SignalData.internalBinaryWrite(message.node.signal, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.LogData log = 33; */
         if (message.node.oneofKind === "log")
-            LogData.internalBinaryWrite(message.node.log, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.SkipData skip = 32; */
+            LogData.internalBinaryWrite(message.node.log, writer.tag(33, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.SkipData skip = 34; */
         if (message.node.oneofKind === "skip")
-            SkipData.internalBinaryWrite(message.node.skip, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
+            SkipData.internalBinaryWrite(message.node.skip, writer.tag(34, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -24777,11 +25653,11 @@ export const SomeNodeData = new SomeNodeData$Type();
 //
 
 // Any...
-export type AnyNodeData = BenchData | UserData | OrganizationData | HandleData | ClientData | ServerData | StoreData | MachineData | DriveData | MembershipData | InviteData | BranchData | PackageData | DependencyData | SpaceData | BlockData | TriggerData | FieldData | QueryData | ViewData | StepData | BadgeData | FileData | SecretData | MessageData | RecordData | NotificationData | SessionData | RunData | SignalData | LogData | SkipData
-export type AnyStructData = SessionContextData | EditContextData | EditData | ChangeData | ChangeVignetteData | GraphScopeData | ClientOriginData | NodeReferenceData | PropertyReferenceData | PathData | PathTokenData | PolicyData | PolicyRuleData | SubjectData | AccessZoneData | AccessMatrixData | AccessData | TextData | TextLineData | TextSpanData | TypeInfoData | TypeConstraintData | ScheduleData | FileReferenceData | IconData | SecretReferenceData | FileInfoData | TriggerInfoData | ExpressionData | AggregationData | SelectionData | QueryInfoData | ReadOptionsData | ValueData | ComputedValueData | CodeData | CodeLineData | PipeData | PortData | PortKeyData | RunErrorData | RunOptionsData | RunAttemptData | RunTraceData | RunFrameData | RunSpanData | RunEventData | BreakpointData | ModelOptionsData | LogInfoData | ColorData | FontData | BoxData | OffsetData | TransformData | StartViewStateData | FeedViewStateData | UserWizardViewStateData | TreeViewStateData
+export type AnyNodeData = BenchData | UserData | OrganizationData | HandleData | ClientData | ServerData | StoreData | MachineData | DriveData | MembershipData | InviteData | BranchData | PackageData | DependencyData | SpaceData | BlockData | TriggerData | FieldData | QueryData | ViewData | StepData | PipeData | PortData | BadgeData | FileData | SecretData | MessageData | RecordData | NotificationData | SessionData | RunData | SignalData | LogData | SkipData
+export type AnyStructData = SessionContextData | EditContextData | EditData | ChangeData | ChangeVignetteData | GraphScopeData | ClientOriginData | NodeReferenceData | PropertyReferenceData | PathData | PathTokenData | PolicyData | PolicyRuleData | SubjectData | AccessZoneData | AccessMatrixData | AccessData | TextData | TextLineData | TextSpanData | TypeInfoData | TypeConstraintData | ScheduleData | FileReferenceData | IconData | SecretReferenceData | FileInfoData | TriggerInfoData | ExpressionData | AggregationData | SelectionData | QueryInfoData | ReadOptionsData | ValueData | ComputedValueData | CodeData | CodeLineData | PortKeyData | RunErrorData | RunOptionsData | RunAttemptData | RunTraceData | RunFrameData | RunSpanData | RunEventData | BreakpointData | ModelOptionsData | LogInfoData | ColorData | FontData | BoxData | OffsetData | TransformData | Vector2Data | Vector3Data | Vector4Data | LineData | StartViewStateData | FeedViewStateData | UserWizardViewStateData | TreeViewStateData
 export type AnyNodeReferenceData = NodeReferenceData | FileReferenceData | SecretReferenceData
-export type AnyNodeDataType = typeof BenchData | typeof UserData | typeof OrganizationData | typeof HandleData | typeof ClientData | typeof ServerData | typeof StoreData | typeof MachineData | typeof DriveData | typeof MembershipData | typeof InviteData | typeof BranchData | typeof PackageData | typeof DependencyData | typeof SpaceData | typeof BlockData | typeof TriggerData | typeof FieldData | typeof QueryData | typeof ViewData | typeof StepData | typeof BadgeData | typeof FileData | typeof SecretData | typeof MessageData | typeof RecordData | typeof NotificationData | typeof SessionData | typeof RunData | typeof SignalData | typeof LogData | typeof SkipData
-export type AnyStructDataType = typeof SessionContextData | typeof EditContextData | typeof EditData | typeof ChangeData | typeof ChangeVignetteData | typeof GraphScopeData | typeof ClientOriginData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof PathData | typeof PathTokenData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof TypeInfoData | typeof TypeConstraintData | typeof ScheduleData | typeof FileReferenceData | typeof IconData | typeof SecretReferenceData | typeof FileInfoData | typeof TriggerInfoData | typeof ExpressionData | typeof AggregationData | typeof SelectionData | typeof QueryInfoData | typeof ReadOptionsData | typeof ValueData | typeof ComputedValueData | typeof CodeData | typeof CodeLineData | typeof PipeData | typeof PortData | typeof PortKeyData | typeof RunErrorData | typeof RunOptionsData | typeof RunAttemptData | typeof RunTraceData | typeof RunFrameData | typeof RunSpanData | typeof RunEventData | typeof BreakpointData | typeof ModelOptionsData | typeof LogInfoData | typeof ColorData | typeof FontData | typeof BoxData | typeof OffsetData | typeof TransformData | typeof StartViewStateData | typeof FeedViewStateData | typeof UserWizardViewStateData | typeof TreeViewStateData
+export type AnyNodeDataType = typeof BenchData | typeof UserData | typeof OrganizationData | typeof HandleData | typeof ClientData | typeof ServerData | typeof StoreData | typeof MachineData | typeof DriveData | typeof MembershipData | typeof InviteData | typeof BranchData | typeof PackageData | typeof DependencyData | typeof SpaceData | typeof BlockData | typeof TriggerData | typeof FieldData | typeof QueryData | typeof ViewData | typeof StepData | typeof PipeData | typeof PortData | typeof BadgeData | typeof FileData | typeof SecretData | typeof MessageData | typeof RecordData | typeof NotificationData | typeof SessionData | typeof RunData | typeof SignalData | typeof LogData | typeof SkipData
+export type AnyStructDataType = typeof SessionContextData | typeof EditContextData | typeof EditData | typeof ChangeData | typeof ChangeVignetteData | typeof GraphScopeData | typeof ClientOriginData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof PathData | typeof PathTokenData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof TypeInfoData | typeof TypeConstraintData | typeof ScheduleData | typeof FileReferenceData | typeof IconData | typeof SecretReferenceData | typeof FileInfoData | typeof TriggerInfoData | typeof ExpressionData | typeof AggregationData | typeof SelectionData | typeof QueryInfoData | typeof ReadOptionsData | typeof ValueData | typeof ComputedValueData | typeof CodeData | typeof CodeLineData | typeof PortKeyData | typeof RunErrorData | typeof RunOptionsData | typeof RunAttemptData | typeof RunTraceData | typeof RunFrameData | typeof RunSpanData | typeof RunEventData | typeof BreakpointData | typeof ModelOptionsData | typeof LogInfoData | typeof ColorData | typeof FontData | typeof BoxData | typeof OffsetData | typeof TransformData | typeof Vector2Data | typeof Vector3Data | typeof Vector4Data | typeof LineData | typeof StartViewStateData | typeof FeedViewStateData | typeof UserWizardViewStateData | typeof TreeViewStateData
 
 // Ancestry maps
 export const PARENT_NODE_TYPES: Record<NodeType, NodeType[]> = {
@@ -24807,17 +25683,19 @@ export const PARENT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.QUERY]: [NodeType.BLOCK],
   [NodeType.VIEW]: [NodeType.BLOCK, NodeType.SPACE, NodeType.VIEW],
   [NodeType.STEP]: [NodeType.BLOCK, NodeType.STEP],
+  [NodeType.PIPE]: [NodeType.BLOCK, NodeType.STEP],
+  [NodeType.PORT]: [NodeType.STEP],
   [NodeType.BADGE]: [NodeType.PACKAGE, NodeType.BLOCK],
   [NodeType.FILE]: [NodeType.PACKAGE, NodeType.BLOCK],
   [NodeType.SECRET]: [NodeType.PACKAGE, NodeType.BLOCK],
-  [NodeType.MESSAGE]: [NodeType.PACKAGE, NodeType.MESSAGE, NodeType.BLOCK, NodeType.VIEW, NodeType.STEP],
+  [NodeType.MESSAGE]: [NodeType.STEP, NodeType.PACKAGE, NodeType.MESSAGE, NodeType.BLOCK, NodeType.VIEW],
   [NodeType.RECORD]: [NodeType.BLOCK],
   [NodeType.NOTIFICATION]: [NodeType.PACKAGE],
   [NodeType.SESSION]: [NodeType.PACKAGE],
   [NodeType.RUN]: [NodeType.PACKAGE, NodeType.RUN],
   [NodeType.SIGNAL]: [NodeType.PACKAGE],
   [NodeType.LOG]: [NodeType.PACKAGE],
-  [NodeType.SKIP]: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SKIP, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.FILE, NodeType.SECRET, NodeType.MESSAGE, NodeType.RECORD, NodeType.NOTIFICATION, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BADGE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP],
+  [NodeType.SKIP]: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.STEP, NodeType.PIPE, NodeType.PORT, NodeType.BADGE, NodeType.SKIP, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.FILE, NodeType.SECRET, NodeType.MESSAGE, NodeType.RECORD, NodeType.NOTIFICATION, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW],
 }
 
 export const CHILD_NODE_TYPES: Record<NodeType, NodeType[]> = {
@@ -24834,15 +25712,17 @@ export const CHILD_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.MEMBERSHIP]: [NodeType.SKIP],
   [NodeType.INVITE]: [NodeType.SKIP],
   [NodeType.BRANCH]: [NodeType.SKIP, NodeType.PACKAGE],
-  [NodeType.PACKAGE]: [NodeType.SKIP, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.FILE, NodeType.SECRET, NodeType.MESSAGE, NodeType.SESSION, NodeType.NOTIFICATION, NodeType.BLOCK, NodeType.LOG, NodeType.RUN, NodeType.SIGNAL, NodeType.BADGE],
+  [NodeType.PACKAGE]: [NodeType.SKIP, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.FILE, NodeType.SECRET, NodeType.MESSAGE, NodeType.BADGE, NodeType.SESSION, NodeType.BLOCK, NodeType.LOG, NodeType.NOTIFICATION, NodeType.RUN, NodeType.SIGNAL],
   [NodeType.DEPENDENCY]: [NodeType.SKIP],
   [NodeType.SPACE]: [NodeType.SKIP, NodeType.VIEW],
-  [NodeType.BLOCK]: [NodeType.SKIP, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.FILE, NodeType.SECRET, NodeType.MESSAGE, NodeType.RECORD, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE],
+  [NodeType.BLOCK]: [NodeType.STEP, NodeType.PIPE, NodeType.SKIP, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.FILE, NodeType.SECRET, NodeType.MESSAGE, NodeType.RECORD, NodeType.BADGE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW],
   [NodeType.TRIGGER]: [NodeType.SKIP],
   [NodeType.FIELD]: [NodeType.SKIP],
   [NodeType.QUERY]: [NodeType.SKIP],
-  [NodeType.VIEW]: [NodeType.SKIP, NodeType.MESSAGE, NodeType.VIEW],
-  [NodeType.STEP]: [NodeType.SKIP, NodeType.FIELD, NodeType.MESSAGE, NodeType.STEP],
+  [NodeType.VIEW]: [NodeType.SKIP, NodeType.VIEW, NodeType.MESSAGE],
+  [NodeType.STEP]: [NodeType.STEP, NodeType.PIPE, NodeType.SKIP, NodeType.PORT, NodeType.MESSAGE, NodeType.FIELD],
+  [NodeType.PIPE]: [NodeType.SKIP],
+  [NodeType.PORT]: [NodeType.SKIP],
   [NodeType.BADGE]: [NodeType.SKIP],
   [NodeType.FILE]: [NodeType.SKIP],
   [NodeType.SECRET]: [NodeType.SKIP],
@@ -24875,26 +25755,28 @@ export const ANCESTOR_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.SPACE]: [NodeType.BENCH, NodeType.BLOCK, NodeType.BRANCH, NodeType.PACKAGE],
   [NodeType.BLOCK]: [NodeType.BENCH, NodeType.BLOCK, NodeType.BRANCH, NodeType.PACKAGE],
   [NodeType.TRIGGER]: [NodeType.BENCH, NodeType.BLOCK, NodeType.BRANCH, NodeType.PACKAGE],
-  [NodeType.FIELD]: [NodeType.BENCH, NodeType.BRANCH, NodeType.PACKAGE, NodeType.BLOCK, NodeType.STEP],
+  [NodeType.FIELD]: [NodeType.BENCH, NodeType.STEP, NodeType.BRANCH, NodeType.PACKAGE, NodeType.BLOCK],
   [NodeType.QUERY]: [NodeType.BENCH, NodeType.BLOCK, NodeType.BRANCH, NodeType.PACKAGE],
   [NodeType.VIEW]: [NodeType.BENCH, NodeType.BRANCH, NodeType.PACKAGE, NodeType.SPACE, NodeType.BLOCK, NodeType.VIEW],
-  [NodeType.STEP]: [NodeType.BENCH, NodeType.BRANCH, NodeType.PACKAGE, NodeType.BLOCK, NodeType.STEP],
+  [NodeType.STEP]: [NodeType.BENCH, NodeType.STEP, NodeType.BRANCH, NodeType.PACKAGE, NodeType.BLOCK],
+  [NodeType.PIPE]: [NodeType.BENCH, NodeType.STEP, NodeType.BRANCH, NodeType.PACKAGE, NodeType.BLOCK],
+  [NodeType.PORT]: [NodeType.BENCH, NodeType.BLOCK, NodeType.STEP, NodeType.BRANCH, NodeType.PACKAGE],
   [NodeType.BADGE]: [NodeType.BENCH, NodeType.BLOCK, NodeType.BRANCH, NodeType.PACKAGE],
   [NodeType.FILE]: [NodeType.BENCH, NodeType.BLOCK, NodeType.BRANCH, NodeType.PACKAGE],
   [NodeType.SECRET]: [NodeType.BENCH, NodeType.BLOCK, NodeType.BRANCH, NodeType.PACKAGE],
-  [NodeType.MESSAGE]: [NodeType.BENCH, NodeType.BRANCH, NodeType.PACKAGE, NodeType.SPACE, NodeType.MESSAGE, NodeType.BLOCK, NodeType.VIEW, NodeType.STEP],
+  [NodeType.MESSAGE]: [NodeType.BENCH, NodeType.STEP, NodeType.BRANCH, NodeType.PACKAGE, NodeType.SPACE, NodeType.MESSAGE, NodeType.BLOCK, NodeType.VIEW],
   [NodeType.RECORD]: [NodeType.BENCH, NodeType.BLOCK, NodeType.BRANCH, NodeType.PACKAGE],
   [NodeType.NOTIFICATION]: [NodeType.BRANCH, NodeType.PACKAGE, NodeType.BENCH],
   [NodeType.SESSION]: [NodeType.BRANCH, NodeType.PACKAGE, NodeType.BENCH],
   [NodeType.RUN]: [NodeType.RUN, NodeType.BENCH, NodeType.BRANCH, NodeType.PACKAGE],
   [NodeType.SIGNAL]: [NodeType.BRANCH, NodeType.PACKAGE, NodeType.BENCH],
   [NodeType.LOG]: [NodeType.BRANCH, NodeType.PACKAGE, NodeType.BENCH],
-  [NodeType.SKIP]: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.FILE, NodeType.SECRET, NodeType.MESSAGE, NodeType.RECORD, NodeType.NOTIFICATION, NodeType.MEMBERSHIP, NodeType.BADGE, NodeType.INVITE, NodeType.SIGNAL, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.SKIP, NodeType.SESSION, NodeType.RUN, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.DRIVE, NodeType.STEP, NodeType.MACHINE, NodeType.SERVER, NodeType.STORE, NodeType.LOG],
+  [NodeType.SKIP]: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.STEP, NodeType.PIPE, NodeType.PORT, NodeType.BADGE, NodeType.SKIP, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.FILE, NodeType.SECRET, NodeType.MESSAGE, NodeType.RECORD, NodeType.NOTIFICATION, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.MACHINE, NodeType.DRIVE, NodeType.SERVER, NodeType.STORE, NodeType.VIEW],
 }
 
 export const DESCENDANT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.UNSPECIFIED]: [],
-  [NodeType.BENCH]: [NodeType.HANDLE, NodeType.CLIENT, NodeType.SKIP, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.FILE, NodeType.SECRET, NodeType.MESSAGE, NodeType.RECORD, NodeType.NOTIFICATION, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BADGE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.STEP, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.FIELD, NodeType.VIEW, NodeType.QUERY, NodeType.TRIGGER],
+  [NodeType.BENCH]: [NodeType.HANDLE, NodeType.CLIENT, NodeType.STEP, NodeType.PIPE, NodeType.PORT, NodeType.BADGE, NodeType.SKIP, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.FILE, NodeType.SECRET, NodeType.MESSAGE, NodeType.RECORD, NodeType.NOTIFICATION, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.QUERY, NodeType.FIELD, NodeType.VIEW],
   [NodeType.USER]: [NodeType.SKIP, NodeType.HANDLE, NodeType.CLIENT],
   [NodeType.ORGANIZATION]: [NodeType.SKIP, NodeType.HANDLE],
   [NodeType.HANDLE]: [NodeType.SKIP],
@@ -24905,16 +25787,18 @@ export const DESCENDANT_NODE_TYPES: Record<NodeType, NodeType[]> = {
   [NodeType.DRIVE]: [NodeType.SKIP],
   [NodeType.MEMBERSHIP]: [NodeType.SKIP],
   [NodeType.INVITE]: [NodeType.SKIP],
-  [NodeType.BRANCH]: [NodeType.SKIP, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.FILE, NodeType.SECRET, NodeType.MESSAGE, NodeType.RECORD, NodeType.NOTIFICATION, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE],
-  [NodeType.PACKAGE]: [NodeType.SKIP, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.FILE, NodeType.SECRET, NodeType.MESSAGE, NodeType.RECORD, NodeType.NOTIFICATION, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE],
+  [NodeType.BRANCH]: [NodeType.STEP, NodeType.PIPE, NodeType.PORT, NodeType.BADGE, NodeType.SKIP, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.FILE, NodeType.SECRET, NodeType.MESSAGE, NodeType.RECORD, NodeType.NOTIFICATION, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW],
+  [NodeType.PACKAGE]: [NodeType.STEP, NodeType.PIPE, NodeType.PORT, NodeType.BADGE, NodeType.SKIP, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.FILE, NodeType.SECRET, NodeType.MESSAGE, NodeType.RECORD, NodeType.NOTIFICATION, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW],
   [NodeType.DEPENDENCY]: [NodeType.SKIP],
-  [NodeType.SPACE]: [NodeType.SKIP, NodeType.MESSAGE, NodeType.VIEW],
-  [NodeType.BLOCK]: [NodeType.SKIP, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.FILE, NodeType.SECRET, NodeType.MESSAGE, NodeType.RECORD, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE],
+  [NodeType.SPACE]: [NodeType.SKIP, NodeType.VIEW, NodeType.MESSAGE],
+  [NodeType.BLOCK]: [NodeType.STEP, NodeType.PIPE, NodeType.PORT, NodeType.FILE, NodeType.SECRET, NodeType.MESSAGE, NodeType.RECORD, NodeType.BADGE, NodeType.SKIP, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW],
   [NodeType.TRIGGER]: [NodeType.SKIP],
   [NodeType.FIELD]: [NodeType.SKIP],
   [NodeType.QUERY]: [NodeType.SKIP],
-  [NodeType.VIEW]: [NodeType.SKIP, NodeType.MESSAGE, NodeType.VIEW],
-  [NodeType.STEP]: [NodeType.FIELD, NodeType.STEP, NodeType.SKIP, NodeType.MESSAGE],
+  [NodeType.VIEW]: [NodeType.SKIP, NodeType.VIEW, NodeType.MESSAGE],
+  [NodeType.STEP]: [NodeType.STEP, NodeType.PIPE, NodeType.SKIP, NodeType.PORT, NodeType.MESSAGE, NodeType.FIELD],
+  [NodeType.PIPE]: [NodeType.SKIP],
+  [NodeType.PORT]: [NodeType.SKIP],
   [NodeType.BADGE]: [NodeType.SKIP],
   [NodeType.FILE]: [NodeType.SKIP],
   [NodeType.SECRET]: [NodeType.SKIP],
@@ -24952,6 +25836,8 @@ export const MESSAGE_TYPE_BY_OBJECT_TYPE: Partial<Record<ObjectType, MessageType
   [ObjectType.QUERY]: QueryData,
   [ObjectType.VIEW]: ViewData,
   [ObjectType.STEP]: StepData,
+  [ObjectType.PIPE]: PipeData,
+  [ObjectType.PORT]: PortData,
   [ObjectType.BADGE]: BadgeData,
   [ObjectType.FILE]: FileData,
   [ObjectType.SECRET]: SecretData,
@@ -25000,8 +25886,6 @@ export const MESSAGE_TYPE_BY_OBJECT_TYPE: Partial<Record<ObjectType, MessageType
   [ObjectType.COMPUTED_VALUE]: ComputedValueData,
   [ObjectType.CODE]: CodeData,
   [ObjectType.CODE_LINE]: CodeLineData,
-  [ObjectType.PIPE]: PipeData,
-  [ObjectType.PORT]: PortData,
   [ObjectType.PORT_KEY]: PortKeyData,
   [ObjectType.RUN_ERROR]: RunErrorData,
   [ObjectType.RUN_OPTIONS]: RunOptionsData,
@@ -25018,6 +25902,10 @@ export const MESSAGE_TYPE_BY_OBJECT_TYPE: Partial<Record<ObjectType, MessageType
   [ObjectType.BOX]: BoxData,
   [ObjectType.OFFSET]: OffsetData,
   [ObjectType.TRANSFORM]: TransformData,
+  [ObjectType.VECTOR2]: Vector2Data,
+  [ObjectType.VECTOR3]: Vector3Data,
+  [ObjectType.VECTOR4]: Vector4Data,
+  [ObjectType.LINE]: LineData,
   [ObjectType.START_VIEW_STATE]: StartViewStateData,
   [ObjectType.FEED_VIEW_STATE]: FeedViewStateData,
   [ObjectType.USER_WIZARD_VIEW_STATE]: UserWizardViewStateData,
@@ -25046,6 +25934,8 @@ export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
   ["symbolx.bench.QueryData"]: ObjectType.QUERY,
   ["symbolx.bench.ViewData"]: ObjectType.VIEW,
   ["symbolx.bench.StepData"]: ObjectType.STEP,
+  ["symbolx.bench.PipeData"]: ObjectType.PIPE,
+  ["symbolx.bench.PortData"]: ObjectType.PORT,
   ["symbolx.bench.BadgeData"]: ObjectType.BADGE,
   ["symbolx.bench.FileData"]: ObjectType.FILE,
   ["symbolx.bench.SecretData"]: ObjectType.SECRET,
@@ -25094,8 +25984,6 @@ export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
   ["symbolx.bench.ComputedValueData"]: ObjectType.COMPUTED_VALUE,
   ["symbolx.bench.CodeData"]: ObjectType.CODE,
   ["symbolx.bench.CodeLineData"]: ObjectType.CODE_LINE,
-  ["symbolx.bench.PipeData"]: ObjectType.PIPE,
-  ["symbolx.bench.PortData"]: ObjectType.PORT,
   ["symbolx.bench.PortKeyData"]: ObjectType.PORT_KEY,
   ["symbolx.bench.RunErrorData"]: ObjectType.RUN_ERROR,
   ["symbolx.bench.RunOptionsData"]: ObjectType.RUN_OPTIONS,
@@ -25112,6 +26000,10 @@ export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
   ["symbolx.bench.BoxData"]: ObjectType.BOX,
   ["symbolx.bench.OffsetData"]: ObjectType.OFFSET,
   ["symbolx.bench.TransformData"]: ObjectType.TRANSFORM,
+  ["symbolx.bench.Vector2Data"]: ObjectType.VECTOR2,
+  ["symbolx.bench.Vector3Data"]: ObjectType.VECTOR3,
+  ["symbolx.bench.Vector4Data"]: ObjectType.VECTOR4,
+  ["symbolx.bench.LineData"]: ObjectType.LINE,
   ["symbolx.bench.StartViewStateData"]: ObjectType.START_VIEW_STATE,
   ["symbolx.bench.FeedViewStateData"]: ObjectType.FEED_VIEW_STATE,
   ["symbolx.bench.UserWizardViewStateData"]: ObjectType.USER_WIZARD_VIEW_STATE,
@@ -25244,8 +26136,6 @@ export interface StructTypeMapping extends Record<StructType, AnyStructData> {
   [StructType.COMPUTED_VALUE]: ComputedValueData,
   [StructType.CODE]: CodeData,
   [StructType.CODE_LINE]: CodeLineData,
-  [StructType.PIPE]: PipeData,
-  [StructType.PORT]: PortData,
   [StructType.PORT_KEY]: PortKeyData,
   [StructType.RUN_ERROR]: RunErrorData,
   [StructType.RUN_OPTIONS]: RunOptionsData,
@@ -25262,6 +26152,10 @@ export interface StructTypeMapping extends Record<StructType, AnyStructData> {
   [StructType.BOX]: BoxData,
   [StructType.OFFSET]: OffsetData,
   [StructType.TRANSFORM]: TransformData,
+  [StructType.VECTOR2]: Vector2Data,
+  [StructType.VECTOR3]: Vector3Data,
+  [StructType.VECTOR4]: Vector4Data,
+  [StructType.LINE]: LineData,
   [StructType.START_VIEW_STATE]: StartViewStateData,
   [StructType.FEED_VIEW_STATE]: FeedViewStateData,
   [StructType.USER_WIZARD_VIEW_STATE]: UserWizardViewStateData,
@@ -25290,6 +26184,8 @@ export interface NodeTypeMapping extends Record<NodeType, AnyNodeData> {
   [NodeType.QUERY]: QueryData,
   [NodeType.VIEW]: ViewData,
   [NodeType.STEP]: StepData,
+  [NodeType.PIPE]: PipeData,
+  [NodeType.PORT]: PortData,
   [NodeType.BADGE]: BadgeData,
   [NodeType.FILE]: FileData,
   [NodeType.SECRET]: SecretData,
@@ -25325,6 +26221,8 @@ export interface AnyTypeMapping extends Record<ObjectType, AnyStructData | AnyNo
   [ObjectType.QUERY]: QueryData,
   [ObjectType.VIEW]: ViewData,
   [ObjectType.STEP]: StepData,
+  [ObjectType.PIPE]: PipeData,
+  [ObjectType.PORT]: PortData,
   [ObjectType.BADGE]: BadgeData,
   [ObjectType.FILE]: FileData,
   [ObjectType.SECRET]: SecretData,
@@ -25373,8 +26271,6 @@ export interface AnyTypeMapping extends Record<ObjectType, AnyStructData | AnyNo
   [ObjectType.COMPUTED_VALUE]: ComputedValueData,
   [ObjectType.CODE]: CodeData,
   [ObjectType.CODE_LINE]: CodeLineData,
-  [ObjectType.PIPE]: PipeData,
-  [ObjectType.PORT]: PortData,
   [ObjectType.PORT_KEY]: PortKeyData,
   [ObjectType.RUN_ERROR]: RunErrorData,
   [ObjectType.RUN_OPTIONS]: RunOptionsData,
@@ -25391,6 +26287,10 @@ export interface AnyTypeMapping extends Record<ObjectType, AnyStructData | AnyNo
   [ObjectType.BOX]: BoxData,
   [ObjectType.OFFSET]: OffsetData,
   [ObjectType.TRANSFORM]: TransformData,
+  [ObjectType.VECTOR2]: Vector2Data,
+  [ObjectType.VECTOR3]: Vector3Data,
+  [ObjectType.VECTOR4]: Vector4Data,
+  [ObjectType.LINE]: LineData,
   [ObjectType.START_VIEW_STATE]: StartViewStateData,
   [ObjectType.FEED_VIEW_STATE]: FeedViewStateData,
   [ObjectType.USER_WIZARD_VIEW_STATE]: UserWizardViewStateData,
@@ -26072,16 +26972,73 @@ export enum StepProperty {
   text = 34,
   icon = 35,
   runOptions = 36,
-  pipes = 37,
   valueType = 40,
   valuePacked = 41,
   nodePtr = 43,
   code = 44,
   rolesPtr = 46,
   identityPtr = 47,
-  policies = 48,
-  position = 60,
-  size = 61,
+  position = 80,
+  size = 81,
+}
+
+export enum PipeProperty {
+  metatype = 1,
+  id = 2,
+  ck = 3,
+  parentPtr = 4,
+  packagePtr = 5,
+  benchPtr = 6,
+  templatePtr = 7,
+  templatedEpoch = 8,
+  revision = 10,
+  createdAt = 11,
+  createdEpoch = 12,
+  updatedAt = 13,
+  updatedEpoch = 14,
+  deletedAt = 15,
+  archivedAt = 16,
+  createdByPtr = 21,
+  updatedByPtr = 22,
+  setProperties = 29,
+  type = 30,
+  name = 32,
+  orderKey = 33,
+  sourcePtr = 35,
+  sourcePort = 36,
+  targetPtr = 37,
+  targetPort = 38,
+  filterType = 50,
+  line = 80,
+  color = 81,
+}
+
+export enum PortProperty {
+  metatype = 1,
+  id = 2,
+  ck = 3,
+  parentPtr = 4,
+  packagePtr = 5,
+  benchPtr = 6,
+  templatePtr = 7,
+  templatedEpoch = 8,
+  revision = 10,
+  createdAt = 11,
+  createdEpoch = 12,
+  updatedAt = 13,
+  updatedEpoch = 14,
+  deletedAt = 15,
+  archivedAt = 16,
+  createdByPtr = 21,
+  updatedByPtr = 22,
+  setProperties = 29,
+  name = 30,
+  orderKey = 31,
+  type = 40,
+  side = 41,
+  fieldPtr = 42,
+  valueType = 50,
+  valuePacked = 51,
 }
 
 export enum BadgeProperty {
@@ -26805,30 +27762,11 @@ export enum CodeLineProperty {
   content = 32,
 }
 
-export enum PipeProperty {
-  metatype = 1,
-  type = 30,
-  sourcePtr = 31,
-  sourcePort = 32,
-  targetPtr = 33,
-  targetPort = 34,
-  filterType = 40,
-}
-
-export enum PortProperty {
-  metatype = 1,
-  type = 30,
-  side = 31,
-  fieldPtr = 32,
-  valueType = 50,
-  valuePacked = 51,
-}
-
 export enum PortKeyProperty {
   metatype = 1,
-  type = 30,
-  side = 31,
-  fieldPtr = 32,
+  type = 40,
+  side = 41,
+  fieldPtr = 42,
 }
 
 export enum RunErrorProperty {
@@ -26966,6 +27904,32 @@ export enum TransformProperty {
   rotateX = 40,
 }
 
+export enum Vector2Property {
+  metatype = 1,
+  x = 30,
+  y = 31,
+}
+
+export enum Vector3Property {
+  metatype = 1,
+  x = 30,
+  y = 31,
+  z = 32,
+}
+
+export enum Vector4Property {
+  metatype = 1,
+  x = 30,
+  y = 31,
+  z = 32,
+  w = 33,
+}
+
+export enum LineProperty {
+  metatype = 1,
+  points = 30,
+}
+
 export enum StartViewStateProperty {
   metatype = 1,
   inputsPacked = 30,
@@ -26993,12 +27957,12 @@ export enum TreeViewStateProperty {
   preset = 99,
 }
 
-export type AnyNodeProperty = typeof BenchProperty | typeof UserProperty | typeof OrganizationProperty | typeof HandleProperty | typeof ClientProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof MembershipProperty | typeof InviteProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof BadgeProperty | typeof FileProperty | typeof SecretProperty | typeof MessageProperty | typeof RecordProperty | typeof NotificationProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof SkipProperty
-export type AnyStructProperty = typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof FileReferenceProperty | typeof IconProperty | typeof SecretReferenceProperty | typeof FileInfoProperty | typeof TriggerInfoProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof ReadOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PipeProperty | typeof PortProperty | typeof PortKeyProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof BreakpointProperty | typeof ModelOptionsProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof UserWizardViewStateProperty | typeof TreeViewStateProperty
+export type AnyNodeProperty = typeof BenchProperty | typeof UserProperty | typeof OrganizationProperty | typeof HandleProperty | typeof ClientProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof MembershipProperty | typeof InviteProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof PipeProperty | typeof PortProperty | typeof BadgeProperty | typeof FileProperty | typeof SecretProperty | typeof MessageProperty | typeof RecordProperty | typeof NotificationProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof SkipProperty
+export type AnyStructProperty = typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof FileReferenceProperty | typeof IconProperty | typeof SecretReferenceProperty | typeof FileInfoProperty | typeof TriggerInfoProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof ReadOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PortKeyProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof BreakpointProperty | typeof ModelOptionsProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof UserWizardViewStateProperty | typeof TreeViewStateProperty
 export type AnyProperty = AnyNodeProperty | AnyStructProperty
-export type AnyNodePropertyType = typeof BenchProperty | typeof UserProperty | typeof OrganizationProperty | typeof HandleProperty | typeof ClientProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof MembershipProperty | typeof InviteProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof BadgeProperty | typeof FileProperty | typeof SecretProperty | typeof MessageProperty | typeof RecordProperty | typeof NotificationProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof SkipProperty
-export type AnyStructPropertyType = typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof FileReferenceProperty | typeof IconProperty | typeof SecretReferenceProperty | typeof FileInfoProperty | typeof TriggerInfoProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof ReadOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PipeProperty | typeof PortProperty | typeof PortKeyProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof BreakpointProperty | typeof ModelOptionsProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof UserWizardViewStateProperty | typeof TreeViewStateProperty
-export type AnyPropertyType = typeof BenchProperty | typeof UserProperty | typeof OrganizationProperty | typeof HandleProperty | typeof ClientProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof MembershipProperty | typeof InviteProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof BadgeProperty | typeof FileProperty | typeof SecretProperty | typeof MessageProperty | typeof RecordProperty | typeof NotificationProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof SkipProperty | typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof FileReferenceProperty | typeof IconProperty | typeof SecretReferenceProperty | typeof FileInfoProperty | typeof TriggerInfoProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof ReadOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PipeProperty | typeof PortProperty | typeof PortKeyProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof BreakpointProperty | typeof ModelOptionsProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof UserWizardViewStateProperty | typeof TreeViewStateProperty
+export type AnyNodePropertyType = typeof BenchProperty | typeof UserProperty | typeof OrganizationProperty | typeof HandleProperty | typeof ClientProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof MembershipProperty | typeof InviteProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof PipeProperty | typeof PortProperty | typeof BadgeProperty | typeof FileProperty | typeof SecretProperty | typeof MessageProperty | typeof RecordProperty | typeof NotificationProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof SkipProperty
+export type AnyStructPropertyType = typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof FileReferenceProperty | typeof IconProperty | typeof SecretReferenceProperty | typeof FileInfoProperty | typeof TriggerInfoProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof ReadOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PortKeyProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof BreakpointProperty | typeof ModelOptionsProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof UserWizardViewStateProperty | typeof TreeViewStateProperty
+export type AnyPropertyType = typeof BenchProperty | typeof UserProperty | typeof OrganizationProperty | typeof HandleProperty | typeof ClientProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof MembershipProperty | typeof InviteProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof PipeProperty | typeof PortProperty | typeof BadgeProperty | typeof FileProperty | typeof SecretProperty | typeof MessageProperty | typeof RecordProperty | typeof NotificationProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof SkipProperty | typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof FileReferenceProperty | typeof IconProperty | typeof SecretReferenceProperty | typeof FileInfoProperty | typeof TriggerInfoProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof ReadOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PortKeyProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof BreakpointProperty | typeof ModelOptionsProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof UserWizardViewStateProperty | typeof TreeViewStateProperty
 export const NODE_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyNodePropertyType>> = {
   [ObjectType.BENCH]: BenchProperty,
   [ObjectType.USER]: UserProperty,
@@ -27021,6 +27985,8 @@ export const NODE_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyNodePrope
   [ObjectType.QUERY]: QueryProperty,
   [ObjectType.VIEW]: ViewProperty,
   [ObjectType.STEP]: StepProperty,
+  [ObjectType.PIPE]: PipeProperty,
+  [ObjectType.PORT]: PortProperty,
   [ObjectType.BADGE]: BadgeProperty,
   [ObjectType.FILE]: FileProperty,
   [ObjectType.SECRET]: SecretProperty,
@@ -27072,8 +28038,6 @@ export const STRUCT_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyStructP
   [ObjectType.COMPUTED_VALUE]: ComputedValueProperty,
   [ObjectType.CODE]: CodeProperty,
   [ObjectType.CODE_LINE]: CodeLineProperty,
-  [ObjectType.PIPE]: PipeProperty,
-  [ObjectType.PORT]: PortProperty,
   [ObjectType.PORT_KEY]: PortKeyProperty,
   [ObjectType.RUN_ERROR]: RunErrorProperty,
   [ObjectType.RUN_OPTIONS]: RunOptionsProperty,
@@ -27090,6 +28054,10 @@ export const STRUCT_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyStructP
   [ObjectType.BOX]: BoxProperty,
   [ObjectType.OFFSET]: OffsetProperty,
   [ObjectType.TRANSFORM]: TransformProperty,
+  [ObjectType.VECTOR2]: Vector2Property,
+  [ObjectType.VECTOR3]: Vector3Property,
+  [ObjectType.VECTOR4]: Vector4Property,
+  [ObjectType.LINE]: LineProperty,
   [ObjectType.START_VIEW_STATE]: StartViewStateProperty,
   [ObjectType.FEED_VIEW_STATE]: FeedViewStateProperty,
   [ObjectType.USER_WIZARD_VIEW_STATE]: UserWizardViewStateProperty,
@@ -27118,6 +28086,8 @@ export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>>
   [ObjectType.QUERY]: QueryProperty,
   [ObjectType.VIEW]: ViewProperty,
   [ObjectType.STEP]: StepProperty,
+  [ObjectType.PIPE]: PipeProperty,
+  [ObjectType.PORT]: PortProperty,
   [ObjectType.BADGE]: BadgeProperty,
   [ObjectType.FILE]: FileProperty,
   [ObjectType.SECRET]: SecretProperty,
@@ -27166,8 +28136,6 @@ export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>>
   [ObjectType.COMPUTED_VALUE]: ComputedValueProperty,
   [ObjectType.CODE]: CodeProperty,
   [ObjectType.CODE_LINE]: CodeLineProperty,
-  [ObjectType.PIPE]: PipeProperty,
-  [ObjectType.PORT]: PortProperty,
   [ObjectType.PORT_KEY]: PortKeyProperty,
   [ObjectType.RUN_ERROR]: RunErrorProperty,
   [ObjectType.RUN_OPTIONS]: RunOptionsProperty,
@@ -27184,6 +28152,10 @@ export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>>
   [ObjectType.BOX]: BoxProperty,
   [ObjectType.OFFSET]: OffsetProperty,
   [ObjectType.TRANSFORM]: TransformProperty,
+  [ObjectType.VECTOR2]: Vector2Property,
+  [ObjectType.VECTOR3]: Vector3Property,
+  [ObjectType.VECTOR4]: Vector4Property,
+  [ObjectType.LINE]: LineProperty,
   [ObjectType.START_VIEW_STATE]: StartViewStateProperty,
   [ObjectType.FEED_VIEW_STATE]: FeedViewStateProperty,
   [ObjectType.USER_WIZARD_VIEW_STATE]: UserWizardViewStateProperty,
@@ -27261,7 +28233,7 @@ export const EditDataInfo: Record<EditProperty, PropertyInfo> = {
   [EditProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.EDIT, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [EditProperty.id]: { id: 2, name: 'id', component: ObjectType.EDIT, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [EditProperty.type]: { id: 30, name: 'type', component: ObjectType.EDIT, enumType: EnumType.EDIT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [EditProperty.nodePtr]: { id: 31, name: 'node_ptr', component: ObjectType.EDIT, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.FILE, NodeType.SECRET, NodeType.MESSAGE, NodeType.RECORD, NodeType.NOTIFICATION, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE },
+  [EditProperty.nodePtr]: { id: 31, name: 'node_ptr', component: ObjectType.EDIT, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.PIPE, NodeType.PORT, NodeType.BADGE, NodeType.FILE, NodeType.SECRET, NodeType.MESSAGE, NodeType.RECORD, NodeType.NOTIFICATION, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE },
   [EditProperty.vignette]: { id: 32, name: 'vignette', component: ObjectType.EDIT, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CHANGE_VIGNETTE },
   [EditProperty.properties]: { id: 40, name: 'properties', component: ObjectType.EDIT, kind: 'primitive', primitiveType: PrimitiveType.INT16, isList: true, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [EditProperty.oldNode]: { id: 41, name: 'old_node', component: ObjectType.EDIT, kind: 'primitive', isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceIsNodeData: true },
@@ -27281,7 +28253,7 @@ export const ChangeDataInfo: Record<ChangeProperty, PropertyInfo> = {
   [ChangeProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.CHANGE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [ChangeProperty.key]: { id: 30, name: 'key', component: ObjectType.CHANGE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ChangeProperty.kind]: { id: 31, name: 'kind', component: ObjectType.CHANGE, enumType: EnumType.CHANGE_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [ChangeProperty.scopePtr]: { id: 32, name: 'scope_ptr', component: ObjectType.CHANGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.FILE, NodeType.SECRET, NodeType.MESSAGE, NodeType.RECORD, NodeType.NOTIFICATION, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE },
+  [ChangeProperty.scopePtr]: { id: 32, name: 'scope_ptr', component: ObjectType.CHANGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.PIPE, NodeType.PORT, NodeType.BADGE, NodeType.FILE, NodeType.SECRET, NodeType.MESSAGE, NodeType.RECORD, NodeType.NOTIFICATION, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE },
   [ChangeProperty.code]: { id: 33, name: 'code', component: ObjectType.CHANGE, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
   [ChangeProperty.edits]: { id: 34, name: 'edits', component: ObjectType.CHANGE, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EDIT },
   [ChangeProperty.logsPtr]: { id: 35, name: 'logs_ptr', component: ObjectType.CHANGE, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.LOG], referenceStruct: StructType.NODE_REFERENCE },
@@ -27411,7 +28383,7 @@ export const TextLineDataInfo: Record<TextLineProperty, PropertyInfo> = {
 export const TextSpanDataInfo: Record<TextSpanProperty, PropertyInfo> = {
   [TextSpanProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.TEXT_SPAN, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [TextSpanProperty.content]: { id: 33, name: 'content', component: ObjectType.TEXT_SPAN, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
-  [TextSpanProperty.nodePtr]: { id: 34, name: 'node_ptr', component: ObjectType.TEXT_SPAN, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.FILE, NodeType.SECRET, NodeType.MESSAGE, NodeType.RECORD, NodeType.NOTIFICATION, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE, referenceIsRich: true },
+  [TextSpanProperty.nodePtr]: { id: 34, name: 'node_ptr', component: ObjectType.TEXT_SPAN, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.PIPE, NodeType.PORT, NodeType.BADGE, NodeType.FILE, NodeType.SECRET, NodeType.MESSAGE, NodeType.RECORD, NodeType.NOTIFICATION, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE, referenceIsRich: true },
   [TextSpanProperty.color]: { id: 50, name: 'color', component: ObjectType.TEXT_SPAN, enumType: EnumType.COLOR_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [TextSpanProperty.isBold]: { id: 60, name: 'is_bold', component: ObjectType.TEXT_SPAN, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
   [TextSpanProperty.isItalic]: { id: 61, name: 'is_italic', component: ObjectType.TEXT_SPAN, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
@@ -27551,9 +28523,9 @@ export const SelectionDataInfo: Record<SelectionProperty, PropertyInfo> = {
   [SelectionProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SELECTION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [SelectionProperty.kind]: { id: 30, name: 'kind', component: ObjectType.SELECTION, enumType: EnumType.SELECTION_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [SelectionProperty.target]: { id: 31, name: 'target', component: ObjectType.SELECTION, enumType: EnumType.SELECTION_TARGET, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [SelectionProperty.nodesPtr]: { id: 40, name: 'nodes_ptr', component: ObjectType.SELECTION, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.FILE, NodeType.SECRET, NodeType.MESSAGE, NodeType.RECORD, NodeType.NOTIFICATION, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.SKIP, NodeType.BENCH, NodeType.CLIENT, NodeType.HANDLE], referenceStruct: StructType.NODE_REFERENCE },
-  [SelectionProperty.fromNodePtr]: { id: 41, name: 'from_node_ptr', component: ObjectType.SELECTION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.FILE, NodeType.SECRET, NodeType.MESSAGE, NodeType.RECORD, NodeType.NOTIFICATION, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.SKIP, NodeType.BENCH, NodeType.CLIENT, NodeType.HANDLE], referenceStruct: StructType.NODE_REFERENCE },
-  [SelectionProperty.toNodePtr]: { id: 42, name: 'to_node_ptr', component: ObjectType.SELECTION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.FILE, NodeType.SECRET, NodeType.MESSAGE, NodeType.RECORD, NodeType.NOTIFICATION, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.SKIP, NodeType.BENCH, NodeType.CLIENT, NodeType.HANDLE], referenceStruct: StructType.NODE_REFERENCE },
+  [SelectionProperty.nodesPtr]: { id: 40, name: 'nodes_ptr', component: ObjectType.SELECTION, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.PIPE, NodeType.PORT, NodeType.BADGE, NodeType.FILE, NodeType.SECRET, NodeType.MESSAGE, NodeType.RECORD, NodeType.NOTIFICATION, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.SKIP, NodeType.BENCH, NodeType.CLIENT, NodeType.HANDLE], referenceStruct: StructType.NODE_REFERENCE },
+  [SelectionProperty.fromNodePtr]: { id: 41, name: 'from_node_ptr', component: ObjectType.SELECTION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.PIPE, NodeType.PORT, NodeType.BADGE, NodeType.FILE, NodeType.SECRET, NodeType.MESSAGE, NodeType.RECORD, NodeType.NOTIFICATION, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.SKIP, NodeType.BENCH, NodeType.CLIENT, NodeType.HANDLE], referenceStruct: StructType.NODE_REFERENCE },
+  [SelectionProperty.toNodePtr]: { id: 42, name: 'to_node_ptr', component: ObjectType.SELECTION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.PIPE, NodeType.PORT, NodeType.BADGE, NodeType.FILE, NodeType.SECRET, NodeType.MESSAGE, NodeType.RECORD, NodeType.NOTIFICATION, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.SKIP, NodeType.BENCH, NodeType.CLIENT, NodeType.HANDLE], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const QueryInfoDataInfo: Record<QueryInfoProperty, PropertyInfo> = {
   [QueryInfoProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.QUERY_INFO, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -27593,28 +28565,11 @@ export const CodeLineDataInfo: Record<CodeLineProperty, PropertyInfo> = {
   [CodeLineProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.CODE_LINE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [CodeLineProperty.content]: { id: 32, name: 'content', component: ObjectType.CODE_LINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
 }
-export const PipeDataInfo: Record<PipeProperty, PropertyInfo> = {
-  [PipeProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.PIPE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [PipeProperty.type]: { id: 30, name: 'type', component: ObjectType.PIPE, enumType: EnumType.PIPE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [PipeProperty.sourcePtr]: { id: 31, name: 'source_ptr', component: ObjectType.PIPE, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.STEP], referenceStruct: StructType.NODE_REFERENCE },
-  [PipeProperty.sourcePort]: { id: 32, name: 'source_port', component: ObjectType.PIPE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.PORT_KEY },
-  [PipeProperty.targetPtr]: { id: 33, name: 'target_ptr', component: ObjectType.PIPE, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.STEP], referenceStruct: StructType.NODE_REFERENCE },
-  [PipeProperty.targetPort]: { id: 34, name: 'target_port', component: ObjectType.PIPE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.PORT_KEY },
-  [PipeProperty.filterType]: { id: 40, name: 'filter_type', component: ObjectType.PIPE, enumType: EnumType.PIPE_FILTER_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-}
-export const PortDataInfo: Record<PortProperty, PropertyInfo> = {
-  [PortProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.PORT, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [PortProperty.type]: { id: 30, name: 'type', component: ObjectType.PORT, enumType: EnumType.PORT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [PortProperty.side]: { id: 31, name: 'side', component: ObjectType.PORT, enumType: EnumType.PORT_SIDE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [PortProperty.fieldPtr]: { id: 32, name: 'field_ptr', component: ObjectType.PORT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
-  [PortProperty.valueType]: { id: 50, name: 'value_type', component: ObjectType.PORT, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_INFO },
-  [PortProperty.valuePacked]: { id: 51, name: 'value_packed', component: ObjectType.PORT, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-}
 export const PortKeyDataInfo: Record<PortKeyProperty, PropertyInfo> = {
   [PortKeyProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.PORT_KEY, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [PortKeyProperty.type]: { id: 30, name: 'type', component: ObjectType.PORT_KEY, enumType: EnumType.PORT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [PortKeyProperty.side]: { id: 31, name: 'side', component: ObjectType.PORT_KEY, enumType: EnumType.PORT_SIDE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [PortKeyProperty.fieldPtr]: { id: 32, name: 'field_ptr', component: ObjectType.PORT_KEY, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
+  [PortKeyProperty.type]: { id: 40, name: 'type', component: ObjectType.PORT_KEY, enumType: EnumType.PORT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [PortKeyProperty.side]: { id: 41, name: 'side', component: ObjectType.PORT_KEY, enumType: EnumType.PORT_SIDE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [PortKeyProperty.fieldPtr]: { id: 42, name: 'field_ptr', component: ObjectType.PORT_KEY, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const RunErrorDataInfo: Record<RunErrorProperty, PropertyInfo> = {
   [RunErrorProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.RUN_ERROR, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -27735,6 +28690,28 @@ export const TransformDataInfo: Record<TransformProperty, PropertyInfo> = {
   [TransformProperty.skewX]: { id: 36, name: 'skew_x', component: ObjectType.TRANSFORM, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
   [TransformProperty.skewY]: { id: 37, name: 'skew_y', component: ObjectType.TRANSFORM, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
   [TransformProperty.rotateX]: { id: 40, name: 'rotate_x', component: ObjectType.TRANSFORM, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+}
+export const Vector2DataInfo: Record<Vector2Property, PropertyInfo> = {
+  [Vector2Property.metatype]: { id: 1, name: 'metatype', component: ObjectType.VECTOR2, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [Vector2Property.x]: { id: 30, name: 'x', component: ObjectType.VECTOR2, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [Vector2Property.y]: { id: 31, name: 'y', component: ObjectType.VECTOR2, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+}
+export const Vector3DataInfo: Record<Vector3Property, PropertyInfo> = {
+  [Vector3Property.metatype]: { id: 1, name: 'metatype', component: ObjectType.VECTOR3, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [Vector3Property.x]: { id: 30, name: 'x', component: ObjectType.VECTOR3, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [Vector3Property.y]: { id: 31, name: 'y', component: ObjectType.VECTOR3, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [Vector3Property.z]: { id: 32, name: 'z', component: ObjectType.VECTOR3, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+}
+export const Vector4DataInfo: Record<Vector4Property, PropertyInfo> = {
+  [Vector4Property.metatype]: { id: 1, name: 'metatype', component: ObjectType.VECTOR4, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [Vector4Property.x]: { id: 30, name: 'x', component: ObjectType.VECTOR4, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [Vector4Property.y]: { id: 31, name: 'y', component: ObjectType.VECTOR4, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [Vector4Property.z]: { id: 32, name: 'z', component: ObjectType.VECTOR4, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [Vector4Property.w]: { id: 33, name: 'w', component: ObjectType.VECTOR4, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+}
+export const LineDataInfo: Record<LineProperty, PropertyInfo> = {
+  [LineProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.LINE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [LineProperty.points]: { id: 30, name: 'points', component: ObjectType.LINE, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
 }
 export const StartViewStateDataInfo: Record<StartViewStateProperty, PropertyInfo> = {
   [StartViewStateProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.START_VIEW_STATE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -27899,7 +28876,7 @@ export const ServerDataInfo: Record<ServerProperty, PropertyInfo> = {
   [ServerProperty.region]: { id: 35, name: 'region', component: ObjectType.SERVER, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.status]: { id: 36, name: 'status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.08.23.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.08.23.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.minCpu]: { id: 50, name: 'min_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 4.0 }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.maxCpu]: { id: 51, name: 'max_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 4.0 }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -27928,7 +28905,7 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.region]: { id: 35, name: 'region', component: ObjectType.STORE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.status]: { id: 36, name: 'status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.08.23.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.08.23.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 50, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 51, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -27954,7 +28931,7 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.region]: { id: 35, name: 'region', component: ObjectType.MACHINE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.status]: { id: 36, name: 'status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.08.23.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.08.23.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 42, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 43, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -28123,8 +29100,8 @@ export const SpaceDataInfo: Record<SpaceProperty, PropertyInfo> = {
   [SpaceProperty.policies]: { id: 34, name: 'policies', component: ObjectType.SPACE, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY },
   [SpaceProperty.barPosition]: { id: 40, name: 'bar_position', component: ObjectType.SPACE, enumType: EnumType.ANCHOR, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRuntime: true, isWired: true, isStored: true },
   [SpaceProperty.focus]: { id: 70, name: 'focus', component: ObjectType.SPACE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SELECTION },
-  [SpaceProperty.inspectionPtr]: { id: 75, name: 'inspection_ptr', component: ObjectType.SPACE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.FILE, NodeType.SECRET, NodeType.MESSAGE, NodeType.RECORD, NodeType.NOTIFICATION, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE },
-  [SpaceProperty.basePtr]: { id: 76, name: 'base_ptr', component: ObjectType.SPACE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.FILE, NodeType.SECRET, NodeType.MESSAGE, NodeType.RECORD, NodeType.NOTIFICATION, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE },
+  [SpaceProperty.inspectionPtr]: { id: 75, name: 'inspection_ptr', component: ObjectType.SPACE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.PIPE, NodeType.PORT, NodeType.BADGE, NodeType.FILE, NodeType.SECRET, NodeType.MESSAGE, NodeType.RECORD, NodeType.NOTIFICATION, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE },
+  [SpaceProperty.basePtr]: { id: 76, name: 'base_ptr', component: ObjectType.SPACE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.PIPE, NodeType.PORT, NodeType.BADGE, NodeType.FILE, NodeType.SECRET, NodeType.MESSAGE, NodeType.RECORD, NodeType.NOTIFICATION, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const BlockDataInfo: Record<BlockProperty, PropertyInfo> = {
   [BlockProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.BLOCK, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -28282,7 +29259,7 @@ export const ViewDataInfo: Record<ViewProperty, PropertyInfo> = {
   [ViewProperty.icon]: { id: 35, name: 'icon', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [ViewProperty.valueType]: { id: 40, name: 'value_type', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_INFO },
   [ViewProperty.valuePacked]: { id: 41, name: 'value_packed', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [ViewProperty.nodePtr]: { id: 42, name: 'node_ptr', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.FILE, NodeType.SECRET, NodeType.MESSAGE, NodeType.RECORD, NodeType.NOTIFICATION, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE, referenceIsRich: true },
+  [ViewProperty.nodePtr]: { id: 42, name: 'node_ptr', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.PIPE, NodeType.PORT, NodeType.BADGE, NodeType.FILE, NodeType.SECRET, NodeType.MESSAGE, NodeType.RECORD, NodeType.NOTIFICATION, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE, referenceIsRich: true },
   [ViewProperty.variant]: { id: 50, name: 'variant', component: ObjectType.VIEW, enumType: EnumType.VARIANT, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
   [ViewProperty.font]: { id: 51, name: 'font', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.FONT },
   [ViewProperty.position]: { id: 60, name: 'position', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.OFFSET },
@@ -28326,16 +29303,71 @@ export const StepDataInfo: Record<StepProperty, PropertyInfo> = {
   [StepProperty.text]: { id: 34, name: 'text', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [StepProperty.icon]: { id: 35, name: 'icon', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [StepProperty.runOptions]: { id: 36, name: 'run_options', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_OPTIONS },
-  [StepProperty.pipes]: { id: 37, name: 'pipes', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.PIPE },
   [StepProperty.valueType]: { id: 40, name: 'value_type', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_INFO },
   [StepProperty.valuePacked]: { id: 41, name: 'value_packed', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [StepProperty.nodePtr]: { id: 43, name: 'node_ptr', component: ObjectType.STEP, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK, NodeType.STEP, NodeType.TRIGGER], referenceStruct: StructType.NODE_REFERENCE },
   [StepProperty.code]: { id: 44, name: 'code', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
   [StepProperty.rolesPtr]: { id: 46, name: 'roles_ptr', component: ObjectType.STEP, kind: 'reference', constraint: { blockType: 90 }, isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [StepProperty.identityPtr]: { id: 47, name: 'identity_ptr', component: ObjectType.STEP, kind: 'reference', constraint: { blockType: 91 }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [StepProperty.policies]: { id: 48, name: 'policies', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY },
-  [StepProperty.position]: { id: 60, name: 'position', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.OFFSET },
-  [StepProperty.size]: { id: 61, name: 'size', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.BOX },
+  [StepProperty.position]: { id: 80, name: 'position', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.OFFSET },
+  [StepProperty.size]: { id: 81, name: 'size', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.BOX },
+}
+export const PipeDataInfo: Record<PipeProperty, PropertyInfo> = {
+  [PipeProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.PIPE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [PipeProperty.id]: { id: 2, name: 'id', component: ObjectType.PIPE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [PipeProperty.ck]: { id: 3, name: 'ck', component: ObjectType.PIPE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [PipeProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.PIPE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BLOCK, NodeType.STEP], referenceStruct: StructType.NODE_REFERENCE },
+  [PipeProperty.packagePtr]: { id: 5, name: 'package_ptr', component: ObjectType.PIPE, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [PipeProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.PIPE, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [PipeProperty.templatePtr]: { id: 7, name: 'template_ptr', component: ObjectType.PIPE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.PIPE], referenceStruct: StructType.NODE_REFERENCE },
+  [PipeProperty.templatedEpoch]: { id: 8, name: 'templated_epoch', component: ObjectType.PIPE, kind: 'primitive', primitiveType: PrimitiveType.INT64, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [PipeProperty.revision]: { id: 10, name: 'revision', component: ObjectType.PIPE, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: 0, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [PipeProperty.createdAt]: { id: 11, name: 'created_at', component: ObjectType.PIPE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [PipeProperty.createdEpoch]: { id: 12, name: 'created_epoch', component: ObjectType.PIPE, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [PipeProperty.updatedAt]: { id: 13, name: 'updated_at', component: ObjectType.PIPE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [PipeProperty.updatedEpoch]: { id: 14, name: 'updated_epoch', component: ObjectType.PIPE, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [PipeProperty.deletedAt]: { id: 15, name: 'deleted_at', component: ObjectType.PIPE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [PipeProperty.archivedAt]: { id: 16, name: 'archived_at', component: ObjectType.PIPE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [PipeProperty.createdByPtr]: { id: 21, name: 'created_by_ptr', component: ObjectType.PIPE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [PipeProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.PIPE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [PipeProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.PIPE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
+  [PipeProperty.type]: { id: 30, name: 'type', component: ObjectType.PIPE, enumType: EnumType.PIPE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [PipeProperty.name]: { id: 32, name: 'name', component: ObjectType.PIPE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[a-zA-Z0-9_'`˚ \\-]+$" }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [PipeProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.PIPE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [PipeProperty.sourcePtr]: { id: 35, name: 'source_ptr', component: ObjectType.PIPE, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.STEP], referenceStruct: StructType.NODE_REFERENCE },
+  [PipeProperty.sourcePort]: { id: 36, name: 'source_port', component: ObjectType.PIPE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.PORT_KEY },
+  [PipeProperty.targetPtr]: { id: 37, name: 'target_ptr', component: ObjectType.PIPE, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.STEP], referenceStruct: StructType.NODE_REFERENCE },
+  [PipeProperty.targetPort]: { id: 38, name: 'target_port', component: ObjectType.PIPE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.PORT_KEY },
+  [PipeProperty.filterType]: { id: 50, name: 'filter_type', component: ObjectType.PIPE, enumType: EnumType.PIPE_FILTER_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [PipeProperty.line]: { id: 80, name: 'line', component: ObjectType.PIPE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.LINE },
+  [PipeProperty.color]: { id: 81, name: 'color', component: ObjectType.PIPE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.COLOR },
+}
+export const PortDataInfo: Record<PortProperty, PropertyInfo> = {
+  [PortProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.PORT, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [PortProperty.id]: { id: 2, name: 'id', component: ObjectType.PORT, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [PortProperty.ck]: { id: 3, name: 'ck', component: ObjectType.PORT, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [PortProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.PORT, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.STEP], referenceStruct: StructType.NODE_REFERENCE },
+  [PortProperty.packagePtr]: { id: 5, name: 'package_ptr', component: ObjectType.PORT, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [PortProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.PORT, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [PortProperty.templatePtr]: { id: 7, name: 'template_ptr', component: ObjectType.PORT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.PORT], referenceStruct: StructType.NODE_REFERENCE },
+  [PortProperty.templatedEpoch]: { id: 8, name: 'templated_epoch', component: ObjectType.PORT, kind: 'primitive', primitiveType: PrimitiveType.INT64, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [PortProperty.revision]: { id: 10, name: 'revision', component: ObjectType.PORT, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: 0, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [PortProperty.createdAt]: { id: 11, name: 'created_at', component: ObjectType.PORT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [PortProperty.createdEpoch]: { id: 12, name: 'created_epoch', component: ObjectType.PORT, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [PortProperty.updatedAt]: { id: 13, name: 'updated_at', component: ObjectType.PORT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [PortProperty.updatedEpoch]: { id: 14, name: 'updated_epoch', component: ObjectType.PORT, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [PortProperty.deletedAt]: { id: 15, name: 'deleted_at', component: ObjectType.PORT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [PortProperty.archivedAt]: { id: 16, name: 'archived_at', component: ObjectType.PORT, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
+  [PortProperty.createdByPtr]: { id: 21, name: 'created_by_ptr', component: ObjectType.PORT, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [PortProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.PORT, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [PortProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.PORT, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
+  [PortProperty.name]: { id: 30, name: 'name', component: ObjectType.PORT, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[a-zA-Z0-9_'`˚ \\-]+$" }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [PortProperty.orderKey]: { id: 31, name: 'order_key', component: ObjectType.PORT, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [PortProperty.type]: { id: 40, name: 'type', component: ObjectType.PORT, enumType: EnumType.PORT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [PortProperty.side]: { id: 41, name: 'side', component: ObjectType.PORT, enumType: EnumType.PORT_SIDE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [PortProperty.fieldPtr]: { id: 42, name: 'field_ptr', component: ObjectType.PORT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
+  [PortProperty.valueType]: { id: 50, name: 'value_type', component: ObjectType.PORT, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_INFO },
+  [PortProperty.valuePacked]: { id: 51, name: 'value_packed', component: ObjectType.PORT, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
 }
 export const BadgeDataInfo: Record<BadgeProperty, PropertyInfo> = {
   [BadgeProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.BADGE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -28440,7 +29472,7 @@ export const MessageDataInfo: Record<MessageProperty, PropertyInfo> = {
   [MessageProperty.createdByPtr]: { id: 21, name: 'created_by_ptr', component: ObjectType.MESSAGE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [MessageProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.MESSAGE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [MessageProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.MESSAGE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
-  [MessageProperty.originPtr]: { id: 32, name: 'origin_ptr', component: ObjectType.MESSAGE, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.FILE, NodeType.SECRET, NodeType.MESSAGE, NodeType.RECORD, NodeType.NOTIFICATION, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE },
+  [MessageProperty.originPtr]: { id: 32, name: 'origin_ptr', component: ObjectType.MESSAGE, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.PIPE, NodeType.PORT, NodeType.BADGE, NodeType.FILE, NodeType.SECRET, NodeType.MESSAGE, NodeType.RECORD, NodeType.NOTIFICATION, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE },
   [MessageProperty.path]: { id: 33, name: 'path', component: ObjectType.MESSAGE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.PATH },
   [MessageProperty.replyToPtr]: { id: 34, name: 'reply_to_ptr', component: ObjectType.MESSAGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MESSAGE], referenceStruct: StructType.NODE_REFERENCE },
   [MessageProperty.title]: { id: 40, name: 'title', component: ObjectType.MESSAGE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 256 }, isRuntime: true, isWired: true, isStored: true },
@@ -28617,7 +29649,7 @@ export const LogDataInfo: Record<LogProperty, PropertyInfo> = {
   [LogProperty.changePtr]: { id: 32, name: 'change_ptr', component: ObjectType.LOG, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.LOG], referenceStruct: StructType.NODE_REFERENCE },
   [LogProperty.undoOfPtr]: { id: 33, name: 'undo_of_ptr', component: ObjectType.LOG, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.LOG], referenceStruct: StructType.NODE_REFERENCE },
   [LogProperty.type]: { id: 40, name: 'type', component: ObjectType.LOG, enumType: EnumType.ACCESS_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [LogProperty.nodePtr]: { id: 41, name: 'node_ptr', component: ObjectType.LOG, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.FILE, NodeType.SECRET, NodeType.MESSAGE, NodeType.RECORD, NodeType.NOTIFICATION, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE },
+  [LogProperty.nodePtr]: { id: 41, name: 'node_ptr', component: ObjectType.LOG, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.PIPE, NodeType.PORT, NodeType.BADGE, NodeType.FILE, NodeType.SECRET, NodeType.MESSAGE, NodeType.RECORD, NodeType.NOTIFICATION, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE },
   [LogProperty.properties]: { id: 42, name: 'properties', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.INT16, isList: true, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [LogProperty.oldNodePacked]: { id: 43, name: 'old_node_packed', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [LogProperty.oldNodeSecretPacked]: { id: 44, name: 'old_node_secret_packed', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -28640,7 +29672,7 @@ export const LogDataInfo: Record<LogProperty, PropertyInfo> = {
 export const SkipDataInfo: Record<SkipProperty, PropertyInfo> = {
   [SkipProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SKIP, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [SkipProperty.id]: { id: 2, name: 'id', component: ObjectType.SKIP, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
-  [SkipProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.SKIP, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.FILE, NodeType.SECRET, NodeType.MESSAGE, NodeType.RECORD, NodeType.NOTIFICATION, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE },
+  [SkipProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.SKIP, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.PIPE, NodeType.PORT, NodeType.BADGE, NodeType.FILE, NodeType.SECRET, NodeType.MESSAGE, NodeType.RECORD, NodeType.NOTIFICATION, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE },
   [SkipProperty.revision]: { id: 10, name: 'revision', component: ObjectType.SKIP, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: 0, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [SkipProperty.createdAt]: { id: 11, name: 'created_at', component: ObjectType.SKIP, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [SkipProperty.updatedAt]: { id: 13, name: 'updated_at', component: ObjectType.SKIP, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
@@ -28649,7 +29681,7 @@ export const SkipDataInfo: Record<SkipProperty, PropertyInfo> = {
   [SkipProperty.createdByPtr]: { id: 21, name: 'created_by_ptr', component: ObjectType.SKIP, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [SkipProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.SKIP, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [SkipProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.SKIP, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
-  [SkipProperty.referencePtr]: { id: 30, name: 'reference_ptr', component: ObjectType.SKIP, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.BADGE, NodeType.FILE, NodeType.SECRET, NodeType.MESSAGE, NodeType.RECORD, NodeType.NOTIFICATION, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE },
+  [SkipProperty.referencePtr]: { id: 30, name: 'reference_ptr', component: ObjectType.SKIP, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.PIPE, NodeType.PORT, NodeType.BADGE, NodeType.FILE, NodeType.SECRET, NodeType.MESSAGE, NodeType.RECORD, NodeType.NOTIFICATION, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE },
   [SkipProperty.orderKey]: { id: 31, name: 'order_key', component: ObjectType.SKIP, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo>> = {
@@ -28691,8 +29723,6 @@ export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo
   [ObjectType.COMPUTED_VALUE]: ComputedValueDataInfo,
   [ObjectType.CODE]: CodeDataInfo,
   [ObjectType.CODE_LINE]: CodeLineDataInfo,
-  [ObjectType.PIPE]: PipeDataInfo,
-  [ObjectType.PORT]: PortDataInfo,
   [ObjectType.PORT_KEY]: PortKeyDataInfo,
   [ObjectType.RUN_ERROR]: RunErrorDataInfo,
   [ObjectType.RUN_OPTIONS]: RunOptionsDataInfo,
@@ -28709,6 +29739,10 @@ export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo
   [ObjectType.BOX]: BoxDataInfo,
   [ObjectType.OFFSET]: OffsetDataInfo,
   [ObjectType.TRANSFORM]: TransformDataInfo,
+  [ObjectType.VECTOR2]: Vector2DataInfo,
+  [ObjectType.VECTOR3]: Vector3DataInfo,
+  [ObjectType.VECTOR4]: Vector4DataInfo,
+  [ObjectType.LINE]: LineDataInfo,
   [ObjectType.START_VIEW_STATE]: StartViewStateDataInfo,
   [ObjectType.FEED_VIEW_STATE]: FeedViewStateDataInfo,
   [ObjectType.USER_WIZARD_VIEW_STATE]: UserWizardViewStateDataInfo,
@@ -28734,6 +29768,8 @@ export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo
   [ObjectType.QUERY]: QueryDataInfo,
   [ObjectType.VIEW]: ViewDataInfo,
   [ObjectType.STEP]: StepDataInfo,
+  [ObjectType.PIPE]: PipeDataInfo,
+  [ObjectType.PORT]: PortDataInfo,
   [ObjectType.BADGE]: BadgeDataInfo,
   [ObjectType.FILE]: FileDataInfo,
   [ObjectType.SECRET]: SecretDataInfo,

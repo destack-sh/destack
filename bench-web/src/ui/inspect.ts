@@ -107,8 +107,6 @@ export const EXPOSED_STRUCT_TYPES = [
   // access
   StructType.POLICY,
   StructType.POLICY_RULE,
-  // flow
-  StructType.PIPE,
   // text
   StructType.TEXT,
   // run

@@ -7,6 +7,7 @@ from bench.language.bench import Bench, Package
 from bench.language.const import BlockType, NodeType
 from bench.language.field import Field
 from bench.language.file import File, FileKind, FileType
+from bench.language.flow import Step, StepType
 from bench.language.path import (
     PathError,
     PathTokenType,
@@ -17,7 +18,6 @@ from bench.language.path import (
     render_path,
 )
 from bench.language.session import Session
-from bench.language.step import Step, StepType
 
 # Assuming the necessary imports and definitions are in place
 # from your_module import tokenize_path, PathToken, PathTokenType, PathSyntaxError

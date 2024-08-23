@@ -32,6 +32,7 @@ if TYPE_CHECKING:
         Icon,
         NodeReference,
         Package,
+        Pipe,
         Policy,
         Property,
         RunKind,
@@ -116,6 +117,7 @@ class Block(SourceNode[BlockData]):
     badges: NodeList["Badge"] = p_node_children(NodeType.BADGE)
     fields: NodeList["Field"] = p_node_children(NodeType.FIELD)
     steps: NodeList["Step"] = p_node_children(NodeType.STEP)
+    pipes: NodeList["Pipe"] = p_node_children(NodeType.PIPE)
     triggers: NodeList["Trigger"] = p_node_children(NodeType.TRIGGER)
     views: NodeList["View"] = p_node_children(NodeType.VIEW)
 

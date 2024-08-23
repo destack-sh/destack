@@ -162,8 +162,6 @@ UNGENERATABLE_STRUCT_TYPES = [
     StructType.FILE_REFERENCE,
     StructType.SECRET_REFERENCE,
     StructType.PROPERTY_REFERENCE,
-    # Pipe has a required reference to a node, which we can't handle yet
-    StructType.PIPE,  # :SampleNodeValues
 ]
 
 

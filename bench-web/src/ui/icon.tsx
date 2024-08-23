@@ -158,7 +158,11 @@ export const ICON_BY_NODE_TYPE: Partial<Record<NodeType, IconData>> = _makeIcons
   [NodeType.ORGANIZATION]: "fas fa-building",
   [NodeType.CLIENT]: "fas fa-desktop",
 
-  // resources
+  // auth
+  [NodeType.MEMBERSHIP]: "fas fa-book-user",
+  [NodeType.INVITE]: "fas fa-circle-nodes",
+
+  // resource
   [NodeType.SERVER]: "fas fa-server",
   [NodeType.MACHINE]: "fas fa-desktop",
   [NodeType.STORE]: "fas fa-database",
@@ -176,9 +180,9 @@ export const ICON_BY_NODE_TYPE: Partial<Record<NodeType, IconData>> = _makeIcons
   [NodeType.QUERY]: "fas fa-magnifying-glass",
   [NodeType.VIEW]: "fas fa-browser",
   [NodeType.STEP]: "fas fa-step-forward",
+  [NodeType.PIPE]: "fas fa-pipe-section",
+  [NodeType.PORT]: "fas fa-circle-dot",
   [NodeType.BADGE]: "fas fa-id-badge",
-  [NodeType.MEMBERSHIP]: "fas fa-book-user",
-  [NodeType.INVITE]: "fas fa-circle-nodes",
 
   // state
   [NodeType.FILE]: "fas fa-file",
@@ -201,7 +205,7 @@ export const ICON_BY_STRUCT_TYPE: Partial<Record<StructType, IconData>> = _makeI
   [StructType.TRIGGER_INFO]: "fas fa-bolt",
   // files
   [StructType.ICON]: "fas fa-icons",
-  // code
+  // code 
   [StructType.CODE]: "fas fa-code",
   // expression
   [StructType.EXPRESSION]: "fas fa-sigma",
@@ -214,8 +218,6 @@ export const ICON_BY_STRUCT_TYPE: Partial<Record<StructType, IconData>> = _makeI
   // access
   [StructType.POLICY]: "fas fa-shield-check",
   [StructType.POLICY_RULE]: "fas fa-shield-check",
-  // flow
-  [StructType.PIPE]: "fas fa-arrow-right",
   // text
   [StructType.TEXT]: "fas fa-text",
   [StructType.TEXT_LINE]: "fas fa-grip-lines",
