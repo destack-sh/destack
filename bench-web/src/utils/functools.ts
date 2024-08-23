@@ -1,5 +1,9 @@
 import { nextTick } from "vue";
 
+export function roundToStep(value: number, step: number): number {
+  return Math.round(value / step) * step;
+}
+
 /** Turns an object into a stable string (JSON-serializable, keys sorted) */
 export function stringify<T>(obj: T): string {
   if (obj === null || typeof obj !== "object") {

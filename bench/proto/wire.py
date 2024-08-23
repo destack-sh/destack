@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.08.22.2"
+VERSION = "2024.08.23.1"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -1320,11 +1320,12 @@ class StepType(betterproto.Enum):
     VALUE = 10
     TRIGGER = 11
     BLOCK = 51
-    CODE = 54
-    TEXT = 55
+    TEXT = 54
+    CODE = 55
     SEND = 56
     GROUP = 500
     LOOP = 501
+    REPEAT = 502
 
 
 class StructType(betterproto.Enum):
@@ -1617,7 +1618,9 @@ class AggregationData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class BoxData(betterproto.Message):
-    """A box value. Absolute units are in pixels, ideally in Spacing scale."""
+    """
+    A box value. Absolute units are contextual (and perhaps in our Spacing scale).
+    """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     width: Optional[int] = betterproto.int32_field(50, optional=True)
@@ -1925,7 +1928,7 @@ class NodeReferenceData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class OffsetData(betterproto.Message):
     """
-    A position value. Absolute units are in pixels, ideally in Spacing scale.
+    A position value. Absolute units are contextual (and perhaps in our Spacing scale).
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)
@@ -2353,13 +2356,13 @@ class TransformData(betterproto.Message):
     """A transform in 2D space."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
-    translate_x: Optional[int] = betterproto.int32_field(30, optional=True)
-    translate_y: Optional[int] = betterproto.int32_field(31, optional=True)
+    translate_x: Optional[float] = betterproto.float_field(30, optional=True)
+    translate_y: Optional[float] = betterproto.float_field(31, optional=True)
     scale_x: Optional[float] = betterproto.float_field(33, optional=True)
     scale_y: Optional[float] = betterproto.float_field(34, optional=True)
     skew_x: Optional[float] = betterproto.float_field(36, optional=True)
     skew_y: Optional[float] = betterproto.float_field(37, optional=True)
-    rotate_x: Optional[int] = betterproto.int32_field(40, optional=True)
+    rotate_x: Optional[float] = betterproto.float_field(40, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -3400,7 +3403,7 @@ class StepData(betterproto.Message):
      2. Fire output control port
      When a Step fails, then:
      - If error port exists: fire error on error port
-     - Else: fail entire Flow
+     - Else: fail containing Flow
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)

@@ -22,7 +22,7 @@ defineExpose<ViewExposed>({ self });
 </script>
 <template>
   <div v-if="basePtr" class="h-full w-full bg-white">
-    <!-- TODO :Incomplete: Create -->
+    <!-- nocheckin :Incomplete: Create -->
     <div class="flex h-full w-full flex-col justify-center text-center">
       <span class=""><i class="fas fa-traffic-cone mr-1 text-warning-800" /> Create </span>
       <span class="mt-2 font-mono text-xs text-gray-600">{{ describeNode(basePtr) }}</span>

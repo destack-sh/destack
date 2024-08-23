@@ -1257,11 +1257,12 @@ enum StepType {
   STEP_TYPE_VALUE = 10;
   STEP_TYPE_TRIGGER = 11;
   STEP_TYPE_BLOCK = 51;
-  STEP_TYPE_CODE = 54;
-  STEP_TYPE_TEXT = 55;
+  STEP_TYPE_TEXT = 54;
+  STEP_TYPE_CODE = 55;
   STEP_TYPE_SEND = 56;
   STEP_TYPE_GROUP = 500;
   STEP_TYPE_LOOP = 501;
+  STEP_TYPE_REPEAT = 502;
 }
 
 enum StructType {
@@ -1523,7 +1524,7 @@ message AggregationData {
   optional float scalar = 33;
 }
 
-// A box value. Absolute units are in pixels, ideally in Spacing scale.
+// A box value. Absolute units are contextual (and perhaps in our Spacing scale).
 message BoxData {
   ObjectType metatype = 1;
   optional int32 width = 50;
@@ -1770,7 +1771,7 @@ message NodeReferenceData {
   optional string base_bench_id = 35;
 }
 
-// A position value. Absolute units are in pixels, ideally in Spacing scale.
+// A position value. Absolute units are contextual (and perhaps in our Spacing scale).
 message OffsetData {
   ObjectType metatype = 1;
   optional int32 top = 40;
@@ -2117,13 +2118,13 @@ message TextSpanData {
 // A transform in 2D space.
 message TransformData {
   ObjectType metatype = 1;
-  optional int32 translate_x = 30;
-  optional int32 translate_y = 31;
+  optional float translate_x = 30;
+  optional float translate_y = 31;
   optional float scale_x = 33;
   optional float scale_y = 34;
   optional float skew_x = 36;
   optional float skew_y = 37;
-  optional int32 rotate_x = 40;
+  optional float rotate_x = 40;
 }
 
 // The state of a Tree view.
@@ -3029,7 +3030,7 @@ message SpaceData {
 // 2. Fire output control port
 // When a Step fails, then:
 // - If error port exists: fire error on error port
-// - Else: fail entire Flow
+// - Else: fail containing Flow
 message StepData {
   ObjectType metatype = 1;
   string id = 2;

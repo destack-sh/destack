@@ -21,20 +21,13 @@ import { packagePtr } from "@/system/client";
 import { useExistingConnection, type Connection } from "@/system/connection";
 import { bench, canvas, inspectionBasePtr, inspectionPtr, pkg } from "@/system/space";
 import type { ActionContext, ActionMapImplementation } from "@/ui/action";
-import {
-  DEFAULT_HEADER_HEIGHT,
-  DEFAULT_MAX_WIDTH,
-  DEFAULT_MIN_WIDTH,
-  makeSelection,
-  useExpansion,
-  useViewState,
-} from "@/ui/canvas";
+import { DEFAULT_HEADER_HEIGHT, DEFAULT_MAX_WIDTH, DEFAULT_MIN_WIDTH } from "@/ui/canvas";
 import { startDragging, useMultiDropZone } from "@/ui/drag";
 import { DEFAULT_BENCH_ICON, IconInline, getNodeIcon } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
 import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/popover";
 import { highlightMatches } from "@/ui/search";
-import { getNativeConstraintProps, guardNativeInput } from "@/ui/view";
+import { getNativeConstraintProps, guardNativeInput, makeSelection, useViewExpansion, useViewState } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
 import NodePath from "@/views/builtins/NodePath.vue";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
@@ -68,7 +61,7 @@ const { state, useStateProp } = useViewState({
   props,
   emit,
 });
-const preset = useStateProp("preset");
+const preset = useStateProp(canvas.tx, "preset");
 const filterIsPage = computed(() => {
   if (preset.value == TreeViewPreset.EXPLORE) return true;
   else if (preset.value == TreeViewPreset.OUTLINE) return false;
@@ -106,7 +99,7 @@ const { graph: pkgGraph, connection: pkgConnection } = useExistingConnection(roo
 // Visible subtree
 //
 
-const { toggleExpanded, isExpanded } = useExpansion({
+const { toggleExpanded, isExpanded } = useViewExpansion({
   graph: spaceGraph,
   tx: canvas.tx,
   self,

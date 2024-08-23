@@ -4,7 +4,6 @@ import { makeExpression } from "@/language/expression";
 import { makeTypeInfo, propertyType } from "@/language/field";
 import { isRunnable } from "@/language/node";
 import { makeRun } from "@/language/session";
-import { packProtoJson, unpackProtoJson } from "@/language/transaction";
 import { packBuiltinObject, packValueJson, unpackBuiltinObject } from "@/language/value";
 import {
   BlockData,
@@ -24,19 +23,21 @@ import {
   ViewData,
 } from "@/proto/wire";
 import {
+  packProtoJson,
   propertyReference,
   toNodeRef,
   toPlainNodeRef,
+  unpackProtoJson,
   unwrapProtoOneOf,
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
 import { useExistingConnection, useNode } from "@/system/connection";
 import { canvas, inspectionPtr } from "@/system/space";
-import { DEFAULT_HEADER_HEIGHT, useViewState } from "@/ui/canvas";
+import { DEFAULT_HEADER_HEIGHT } from "@/ui/canvas";
 import { ICON_BY_RUN_STATUS, IconInline } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
 import { ACCENT_COLOR_BY_RUN_STATUS } from "@/ui/style";
-import { toggleHelperViewPin } from "@/ui/view";
+import { toggleHelperViewPin, useViewState } from "@/ui/view";
 import { computedValue, mapRef } from "@/utils/ref";
 import { tsToDt } from "@/utils/time";
 import NodeReference from "@/views/builtins/NodeReference.vue";
@@ -65,14 +66,14 @@ const nodePtr = computedValue(() => unwrapProtoOneOf(props.nodePtr));
 const focusPtr = computedValue(() => nodePtr.value ?? inspectionPtr.value);
 const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self);
 const { graph: pkgGraph, connection: pkgConnection } = useExistingConnection(focusPtr);
-const { state, updateState, useStateProp } = useViewState({
+const { state, updateState, useStateProp: useViewStateProp } = useViewState({
   selfPtr: self,
   graph: spaceGraph,
   stateType: ObjectType.START_VIEW_STATE,
   props,
   emit,
 });
-const lastRunPtr = useStateProp("lastRunPtr", undefined) as Ref<TypedNodeReferenceData<NodeType.RUN> | undefined>;
+const lastRunPtr = useViewStateProp(canvas.tx, "lastRunPtr", undefined) as Ref<TypedNodeReferenceData<NodeType.RUN> | undefined>;
 const { node: lastRun } = useNode({
   name: "start.lastRun",
   type: "search",
@@ -116,7 +117,7 @@ watch(currentRunnableNode, (newNode) => {
 });
 const runnablePtr = computed(() => (runnableNode.value != null ? toPlainNodeRef(runnableNode.value) : null));
 const inputsPacked: Ref<Record<string, any>> = mapRef(
-  useStateProp("inputsPacked", undefined, { debounce: "short" }), // have to :DebounceNestedValue
+  useViewStateProp(canvas.tx, "inputsPacked", undefined, { debounce: "short" }), // have to :DebounceNestedValue
   (packed) => (packed != null ? unpackProtoJson(packed) : {}) as Record<string, any>,
   (unpacked) => packProtoJson(unpacked),
 );
@@ -263,7 +264,7 @@ defineExpose<ViewExposed>({ self });
                   canvas.tx().update(selfNode, { expansion: update.expansion });
                 }
                 if ('valuePacked' in update) {
-                  updateState({
+                  updateState(canvas.tx(), {
                     feed: {
                       ...unpackBuiltinObject(unpackProtoJson(update.valuePacked), ObjectType.FEED_VIEW_STATE),
                       filter: undefined,

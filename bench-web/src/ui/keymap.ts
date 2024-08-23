@@ -64,6 +64,7 @@ export function renderChord(chord: KeyChord): string {
 
 export type KeymapCallback = (e: KeyboardEvent, combination: KeySignature) => boolean | void;
 
+// key codes for characters
 export const CHAR_KEYS: Record<string, number> = {
   backspace: 8,
   tab: 9,
@@ -84,6 +85,8 @@ export const CHAR_KEYS: Record<string, number> = {
   down: 40,
   ins: 45,
   del: 46,
+  plus: 187,
+  minus: 189,
 };
 // a-z (lowercase only)
 for (let i = 0; i < 26; ++i) {

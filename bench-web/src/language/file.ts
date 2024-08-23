@@ -1,5 +1,5 @@
 import { toCamelName } from "@/language/const";
-import { unpackProtoJson, type Transaction } from "@/language/transaction";
+import { type Transaction } from "@/language/transaction";
 import { makeNode } from "@/language/node";
 import { getCachedHostClient } from "@/proto/services";
 import {
@@ -22,7 +22,7 @@ import {
   TypeConstraintData,
   UploadFilesResponse_UploadHandle,
 } from "@/proto/wire";
-import { isNode, isNodeOrRef, isStruct, makeScope, newNodeId, nodeReference, toPlainNodeRef } from "@/proto/wiring";
+import { isNode, isNodeOrRef, isStruct, makeScope, newNodeId, nodeReference, toPlainNodeRef, unpackProtoJson } from "@/proto/wiring";
 import { ICON_BY_FILE_FORMAT, ICON_BY_FILE_TYPE } from "@/ui/icon";
 import { AsyncEvent, groupByScalar } from "@/utils/functools";
 import { log } from "@/utils/log";

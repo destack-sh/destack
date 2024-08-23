@@ -338,8 +338,8 @@ class Transform(Struct):
     """A transform in 2D space."""
 
     # translation
-    translate_x: Optional[int] = p_regular(30, default=None)
-    translate_y: Optional[int] = p_regular(31, default=None)
+    translate_x: Optional[float] = p_regular(30, default=None)
+    translate_y: Optional[float] = p_regular(31, default=None)
     # scale
     scale_x: Optional[float] = p_regular(33, default=None)
     scale_y: Optional[float] = p_regular(34, default=None)
@@ -347,12 +347,12 @@ class Transform(Struct):
     skew_x: Optional[float] = p_regular(36, default=None)
     skew_y: Optional[float] = p_regular(37, default=None)
     # rotation
-    rotate_x: Optional[int] = p_regular(40, default=None)
+    rotate_x: Optional[float] = p_regular(40, default=None)
 
 
 @struct_(StructType.BOX)
 class Box(Struct):
-    """A box value. Absolute units are in pixels, ideally in Spacing scale."""
+    """A box value. Absolute units are contextual (and perhaps in our Spacing scale)."""
 
     width: Optional[int] = p_regular(50, default=None)
     height: Optional[int] = p_regular(51, default=None)
@@ -362,7 +362,7 @@ class Box(Struct):
 
 @struct_(StructType.OFFSET)
 class Offset(Struct):
-    """A position value. Absolute units are in pixels, ideally in Spacing scale."""
+    """A position value. Absolute units are contextual (and perhaps in our Spacing scale)."""
 
     top: Optional[int] = p_regular(40, default=None)
     right: Optional[int] = p_regular(41, default=None)
