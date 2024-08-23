@@ -147,8 +147,6 @@ export function useFlatNodeMoveActions<T extends NodeType>(options: {
   getNodeFromContext(context: ActionContext | undefined): { node: NodeTypeMapping[T] | null; idx: number };
   enabled?: Ref<boolean>;
 }): ActionMapImplementation<"common.move.up" | "common.move.down"> {
-  type ItemT = NodeTreeItem<T>;
-
   const { graph, txFactory, getNodeFromContext, enabled } = options;
 
   return {
@@ -196,7 +194,7 @@ export function createBlock(
   const target = isNode(options.target) ? options.target : graph.getOrError(options.target);
   const packagePtr = isNode(target, NodeType.PACKAGE) ? toPlainNodeRef(target) : target.packagePtr;
 
-  // position
+  // position in graph
   let parentPtr: NodeReferenceData;
   let orderKey: string;
   let siblings: BlockData[];
@@ -216,6 +214,7 @@ export function createBlock(
     options.block.valueType = makeTypeInfo({ kind: TypeKind.STRUCT, benchType: BenchType.TEXT });
   }
 
+  // create
   const block = tx.create({
     metatype: NodeType.BLOCK,
     parentPtr,
