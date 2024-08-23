@@ -44,6 +44,7 @@ const SCALE_MAX = 1.5;
 const SCALE_STEP = 0.1;
 
 const transform = computed(() => selfView.value?.transform ?? makeStruct({ metatype: StructType.TRANSFORM }));
+const scale = computed(() => transform.value.scaleX ?? transform.value.scaleY ?? 1);
 
 function panCanvas(move: { x: number; y: number }) {
   if (props.self == null) return; // not a real view
@@ -121,6 +122,7 @@ const actions: Partial<ActionMapImplementation<"common">> = {
   },
 };
 
+const isFocusAbsolute = canvas.isFocusedAbsoluteRef(self);
 canvas.registerView(self, id);
 defineExpose<ViewExposed>({ self, id, actions });
 </script>
@@ -137,17 +139,16 @@ defineExpose<ViewExposed>({ self, id, actions });
   >
     <!-- nocheckin: flow UI -->
     <!-- Background grid -->
-    <div class="absolute z-0 h-full w-full overflow-hidden" :style="{}">
+    <div class="absolute h-full w-full overflow-hidden" :style="{}">
       <svg
         xmlns="http://www.w3.org/2000/svg"
-        class="text-gray-200"
+        class="h-full w-full text-red-500"
         :style="{
-          // extra spacing to enable smooth infinite scrolling
-          marginLeft: `-${50 / SCALE_MIN}%`,
-          marginTop: `-${50 / SCALE_MIN}%`,
-          width: `${150 / SCALE_MIN}%`,
-          height: `${150 / SCALE_MIN}%`,
-          transform: `scale(${transform?.scaleX ?? 1}, ${transform?.scaleY ?? 1}) translate(${(transform?.translateX ?? 0) % GRID_SCALE_X}px, ${(transform?.translateY ?? 0) % GRID_SCALE_Y}px)`,
+          // extra spacing for smooth infinite scrolling
+          width: `${100 / scale}%`,
+          height: `${100 / scale}%`,
+					transformOrigin: '0 0',
+          transform: `scale(${scale}, ${scale})  translate(${(transform?.translateX ?? 0) % GRID_SCALE_X}px, ${(transform?.translateY ?? 0) % GRID_SCALE_Y}px)`,
         }"
       >
         <defs>
@@ -171,7 +172,7 @@ defineExpose<ViewExposed>({ self, id, actions });
       <div
         class="h-full w-full"
         :style="{
-          transform: `scale(${transform?.scaleX ?? 1}, ${transform?.scaleY ?? 1}) translate(${transform?.translateX ?? 0}px, ${transform?.translateY ?? 0}px) `,
+          transform: `scale(${scale}, ${scale}) translate(${transform?.translateX ?? 0}px, ${transform?.translateY ?? 0}px) `,
         }"
       >
         nocheckin: steps and pipes and stuff
@@ -187,16 +188,14 @@ defineExpose<ViewExposed>({ self, id, actions });
             ['common.navigate.zoomIn', 'common.navigate.zoomOut', 'common.navigate.reset'] as ActionBuiltinId[]
           ).map(getAction)"
           :key="action.id"
-          class="rounded px-0.5 text-gray-400 hover:bg-gray-100 hover:text-primary-900"
+          class="rounded px-0.5 hover:bg-gray-100 hover:text-primary-900"
+          :class="isFocusAbsolute ? 'text-gray-700' : 'text-gray-400'"
           @click="fireAction(action)"
         >
           <IconInline v-bind="action.icon" class="w-5 text-center" />
         </button>
       </div>
-      <span
-        >tx: {{ transform?.translateX ?? 0 }}, ty: {{ transform?.translateY ?? 0 }} sx: {{ transform?.scaleX ?? 0 }},
-        sy: {{ transform?.scaleY ?? 0 }}</span
-      >
+      <span>tx: {{ transform?.translateX ?? 0 }}, ty: {{ transform?.translateY ?? 0 }} s: {{ scale }}</span>
     </div>
   </div>
 </template>
