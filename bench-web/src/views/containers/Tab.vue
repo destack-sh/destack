@@ -15,6 +15,7 @@ import Scroll from "@/views/containers/Scroll.vue";
 import { getViewBinding, getViewComponent } from "@/views/registry";
 import { computed, nextTick, ref, toRef, type Ref } from "vue";
 import { cloneNode } from "@/language/node";
+import { DEFAULT_HEADER_HEIGHT } from "@/ui/canvas";
 
 const props = defineProps<
   { self: TypedNodeReferenceData<NodeType.VIEW>; size: Required<Pick<BoxData, "width" | "height">> } & Pick<
@@ -24,6 +25,8 @@ const props = defineProps<
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
+
+const TAB_HEADER_HEIGHT = DEFAULT_HEADER_HEIGHT; // NOTE :UX: tab header might be too big (but it would be consistent)
 
 // focus
 const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self);
@@ -209,7 +212,7 @@ defineExpose<ViewExposed>({ self, actions });
       :orientation="Orientation.HORIZONTAL"
       :track-width="ScrollbarWidth.sm"
       track-is-overlay
-      :size="{ width: innerSize.width, height: 30 }"
+      :size="{ width: innerSize.width, height: TAB_HEADER_HEIGHT }"
     >
       <!-- Tab button -->
       <button
@@ -273,7 +276,12 @@ defineExpose<ViewExposed>({ self, actions });
     <div
       ref="bodyRef"
       class="absolute bg-white"
-      :style="{ left: '0px', top: '30px', width: innerSize.width + 'px', height: innerSize.height + 'px' }"
+      :style="{
+        left: '0px',
+        top: `${TAB_HEADER_HEIGHT}px`,
+        width: innerSize.width + 'px',
+        height: innerSize.height + 'px',
+      }"
       data-root-element="true"
     >
       <!-- Content -->

@@ -512,6 +512,7 @@ export const ICONS_BY_ENUM_TYPE: Partial<Record<EnumType, Record<any, IconData>>
   [EnumType.OBJECT_TYPE]: ICON_BY_OBJECT_TYPE,
   [EnumType.BENCH_TYPE]: ICON_BY_BENCH_TYPE,
   [EnumType.BLOCK_TYPE]: ICON_BY_BLOCK_TYPE,
+  [EnumType.STEP_TYPE]: ICON_BY_STEP_TYPE,
   [EnumType.VIEW_TYPE]: ICON_BY_VIEW_TYPE,
   [EnumType.ALIGNMENT]: ICON_BY_ALIGNMENT,
   [EnumType.ANCHOR]: ICON_BY_ANCHOR,

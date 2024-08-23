@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.08.23.3"
+VERSION = "2024.08.23.4"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -3524,7 +3524,7 @@ class StepData(betterproto.Message):
     code: Optional["CodeData"] = betterproto.message_field(44, optional=True)
     roles_ptr: List["NodeReferenceData"] = betterproto.message_field(46)
     identity_ptr: Optional["NodeReferenceData"] = betterproto.message_field(47, optional=True)
-    position: Optional["OffsetData"] = betterproto.message_field(80, optional=True)
+    position: Optional["Vector2Data"] = betterproto.message_field(80, optional=True)
     size: Optional["BoxData"] = betterproto.message_field(81, optional=True)
 
 

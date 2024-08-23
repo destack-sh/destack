@@ -88,7 +88,7 @@ const blocksWithSelf: Ref<BlockData[]> = computed(() => {
     return [page.value, ...blocks.value];
   }
 });
-const expandedBlockRefs: Ref<Record<string, InstanceType<typeof Block>>> = ref({});
+const blockRefs: Ref<Record<string, InstanceType<typeof Block>>> = ref({});
 const contentRef = ref<HTMLElement | null>(null);
 const focusedNodePtr = computedValue(() => props.focus?.nodesPtr[0]);
 
@@ -128,7 +128,7 @@ function getAnchorPositionStyle(anchor: "start" | "end", blockIdx: number, ancho
 const { activeDropZone } = useMultiDropZone({
   name: "page",
   container: contentRef,
-  targets: expandedBlockRefs,
+  targets: blockRefs,
   orientation: Orientation.VERTICAL,
   kinds: ["node", "file"],
   metatypes: [NodeType.BLOCK],
@@ -281,21 +281,21 @@ function focus(anchor?: FocusAnchor | NodeReferenceData | AnyNodeData) {
   let blockEl: InstanceType<typeof Block> | undefined;
   if (typeof anchor != "object") {
     if (anchor != "bottom") {
-      blockEl = expandedBlockRefs.value[blocks.value[0].id!];
+      blockEl = blockRefs.value[blocks.value[0].id!];
       blockEl?.$el?.scrollIntoView({ block: "start", behavior: "instant" });
     } else {
-      blockEl = expandedBlockRefs.value[blocks.value[blocks.value.length - 1].id!];
+      blockEl = blockRefs.value[blocks.value[blocks.value.length - 1].id!];
       blockEl?.$el?.scrollIntoView({ block: "end", behavior: "instant" });
     }
   } else {
     if (anchor.id == nodePtr.value?.id) {
       // just focus first
       if (blocks.value.length > 0) {
-        blockEl = expandedBlockRefs.value[blocks.value[0].id!];
+        blockEl = blockRefs.value[blocks.value[0].id!];
         blockEl.$el?.scrollIntoView({ block: "nearest", behavior: "instant" });
       }
     } else {
-      blockEl = expandedBlockRefs.value[anchor.id!];
+      blockEl = blockRefs.value[anchor.id!];
       blockEl?.$el?.scrollIntoView({ block: "nearest", behavior: "instant" });
     }
   }
@@ -426,7 +426,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
 
               <!-- Block -->
               <Block
-                :ref="(ref: any) => (ref ? (expandedBlockRefs[block.id!] = ref) : delete expandedBlockRefs[block.id!])"
+                :ref="(ref: any) => (ref ? (blockRefs[block.id!] = ref) : delete blockRefs[block.id!])"
                 v-contextmenu="
                   (context: PopoverContext): PopoverInfo => ({
                     kind: 'menu',
