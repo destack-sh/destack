@@ -3140,7 +3140,7 @@ message StepData {
   optional CodeData code = 44;
   repeated NodeReferenceData roles_ptr = 46;
   optional NodeReferenceData identity_ptr = 47;
-  optional OffsetData position = 80;
+  optional Vector2Data position = 80;
   optional BoxData size = 81;
 }
 

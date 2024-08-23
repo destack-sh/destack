@@ -1,15 +1,18 @@
 <script lang="ts" setup>
 import { toCamelName } from "@/language/const";
-import { createStep, FLOW_GRID_STEP_X, FLOW_GRID_STEP_Y } from "@/language/flow";
-import { NodeType, StepData, StepType, StructType, Variant, ViewData } from "@/proto/wire";
-import { makeStruct, unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
+import { createStep, FLOW_GRID_STEP_X, FLOW_GRID_STEP_Y, STEP_WIDTH } from "@/language/flow";
+import { NodeType, StepData, StepType, StructType, Variant, Vector2Data, ViewData } from "@/proto/wire";
+import { isNode, makeStruct, toNodeRefOneOf, unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import { fireAction, getAction, type ActionBuiltinId, type ActionMapImplementation } from "@/ui/action";
 import { ICON_BY_STEP_TYPE, IconInline } from "@/ui/icon";
 import { addTransform } from "@/ui/view";
-import { roundToStep } from "@/utils/functools";
+import { assertNever, roundToStep } from "@/utils/functools";
+import { log } from "@/utils/log";
 import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
+import Step from "@/views/system/Step.vue";
+import { useElementSize } from "@vueuse/core";
 import { computed, ref, toRef, type Ref } from "vue";
 
 const props = defineProps<
@@ -30,6 +33,27 @@ const block = pkgGraph.getRef(nodePtr, { ignoreAncestors: props.self == null });
 const steps = pkgGraph.getChildrenRef(block, NodeType.STEP);
 const pipes = pkgGraph.getChildrenRef(block, NodeType.PIPE);
 
+const containerRef: Ref<HTMLElement | null> = ref(null);
+const stepRefs: Ref<Record<string, InstanceType<typeof Step>>> = ref({});
+const dragging: Ref<{ thing: StepData | "canvas"; viewOffsetToThing: { x: number; y: number } } | null> = ref(null);
+const transform = computed(
+  () =>
+    selfView.value?.transform ??
+    makeStruct({ metatype: StructType.TRANSFORM, translateX: FLOW_GRID_STEP_X / 2, translateY: FLOW_GRID_STEP_Y / 2 }),
+);
+const scale = computed(() => transform.value.scaleX ?? transform.value.scaleY ?? 1);
+
+function getStepComponent(step: StepData): InstanceType<typeof Step> | null {
+  const stepRef = stepRefs.value[step.id!];
+  return stepRef != null ? stepRef : null;
+}
+
+function getStepBounding(step: StepData): DOMRect | null {
+  const stepComponent = getStepComponent(step);
+  if (stepComponent == null) return null;
+  return stepComponent.$el.getBoundingClientRect();
+}
+
 //
 // Interaction
 //
@@ -39,13 +63,7 @@ const SCALE_MIN = 0.5;
 const SCALE_MAX = 2.0;
 const SCALE_STEP = 0.1;
 
-const transform = computed(
-  () =>
-    selfView.value?.transform ??
-    makeStruct({ metatype: StructType.TRANSFORM, translateX: FLOW_GRID_STEP_X / 2, translateY: FLOW_GRID_STEP_Y / 2 }),
-);
-const scale = computed(() => transform.value.scaleX ?? transform.value.scaleY ?? 1);
-
+/** Pan around the canvas */
 function panCanvas(move: { x: number; y: number }) {
   if (props.self == null) return; // not a real view
   const self = spaceGraph.getOrError(props.self);
@@ -56,12 +74,57 @@ function panCanvas(move: { x: number; y: number }) {
   );
 }
 
-function zoomCanvas(direction: "in" | "out") {
+function snapVec(vec: { x: number; y: number }): { x: number; y: number } {
+  return {
+    x: Math.round(vec.x / FLOW_GRID_STEP_X) * FLOW_GRID_STEP_X,
+    y: Math.round(vec.y / FLOW_GRID_STEP_Y) * FLOW_GRID_STEP_Y,
+  };
+}
+
+/** Convert viewport coordinates to view coordinates */
+function viewportToViewVec(viewportVec: { x: number; y: number }): { x: number; y: number } {
+  const canvasBounding = containerRef.value?.getBoundingClientRect()!;
+  return {
+    x: viewportVec.x - canvasBounding.left,
+    y: viewportVec.y - canvasBounding.top,
+  };
+}
+
+/** Convert world coordinates to view coordinates */
+function worldToViewVec(worldVec: { x: number; y: number }): { x: number; y: number } {
+  let viewVec = {
+    x: worldVec.x + (transform.value.translateX ?? 0),
+    y: worldVec.y + (transform.value.translateY ?? 0),
+  };
+  viewVec = { x: viewVec.x * scale.value, y: viewVec.y * scale.value };
+  return viewVec;
+}
+
+/** Convert screen coordinates to world coordinates */
+function viewToWorldVec(viewVec: { x: number; y: number }): { x: number; y: number } {
+  let worldVec = { x: viewVec.x / scale.value, y: viewVec.y / scale.value };
+  worldVec = { x: worldVec.x - (transform.value.translateX ?? 0), y: worldVec.y - (transform.value.translateY ?? 0) };
+  return worldVec;
+}
+
+/** Zoom the convas around the given origin (pan to keep the same point in view in screen space) */
+function zoomCanvas(direction: "in" | "out", viewCenterVec: { x: number; y: number } | "center") {
   if (props.self == null) return; // not a real view
+  const containerBounding = containerRef.value?.getBoundingClientRect()!;
+  if (viewCenterVec == "center") {
+    viewCenterVec = { x: containerBounding.width / 2, y: containerBounding.height / 2 };
+  }
+  const self = spaceGraph.getOrError(props.self);
+
+  // figure out new zoom
   const currentZoom = roundToStep(transform.value?.scaleX ?? 1, SCALE_STEP);
   const newZoom =
     direction == "in" ? Math.min(SCALE_MAX, currentZoom + SCALE_STEP) : Math.max(SCALE_MIN, currentZoom - SCALE_STEP);
-  const self = spaceGraph.getOrError(props.self);
+
+  // pan to move towards the origin
+	const currentViewCenter = { x: containerBounding.width / 2, y: containerBounding.height / 2 };
+	// nocheckin
+
   spaceConnection.tx.update(
     self,
     { transform: { ...transform.value, scaleX: newZoom, scaleY: newZoom } },
@@ -75,11 +138,11 @@ function resetCanvas() {
   spaceConnection.tx.update(self, { transform: makeStruct({ metatype: StructType.TRANSFORM }) }, { debounce: "short" });
 }
 
-const dragging: Ref<StepData | "canvas" | null> = ref(null);
 function onDragging(e: MouseEvent) {
   if (dragging.value == null) return;
   if (props.self == null) return; // not a real view
-  if (dragging.value == "canvas") {
+  if (dragging.value.thing == "canvas") {
+    // pan canvas
     const self = spaceGraph.getOrError(props.self);
     const translateX = e.movementX / (transform.value?.scaleX ?? 1);
     const translateY = e.movementY / (transform.value?.scaleY ?? 1);
@@ -88,13 +151,45 @@ function onDragging(e: MouseEvent) {
       { transform: addTransform(transform.value, { translateX, translateY }) },
       { debounce: "long" },
     );
+  } else if (isNode(dragging.value.thing, NodeType.STEP)) {
+    // move step (snap to grid)
+    const screenVec = viewportToViewVec({
+      x: e.clientX - dragging.value.viewOffsetToThing.x,
+      y: e.clientY - dragging.value.viewOffsetToThing.y,
+    });
+    const worldVec = snapVec(viewToWorldVec(screenVec));
+    pkgConnection.tx.update(
+      dragging.value.thing,
+      { position: makeStruct({ metatype: StructType.VECTOR2, x: worldVec.x, y: worldVec.y }) },
+      { debounce: "long" },
+    );
   } else {
-    throw new Error("nocheckin: move step");
+    assertNever(dragging.value.thing);
   }
 }
 
+function startDragging(e: MouseEvent, thing: StepData | "canvas") {
+  if (dragging.value != null) return; // already dragging
+  if (thing == "canvas") {
+    // start panning canvas
+    dragging.value = { thing: "canvas", viewOffsetToThing: viewportToViewVec({ x: e.clientX, y: e.clientY }) };
+  } else if (isNode(thing, NodeType.STEP)) {
+    // start dragging step
+    const stepBounding = getStepBounding(thing);
+    if (stepBounding == null) return; // not mounted yet
+    dragging.value = {
+      thing,
+      viewOffsetToThing: { x: e.clientX - stepBounding.left, y: e.clientY - stepBounding.top },
+    };
+  } else {
+    assertNever(thing);
+  }
+  log.trace("flow.drag.start", dragging.value);
+}
+
 function onWheel(e: WheelEvent) {
-  zoomCanvas(e.deltaY < 0 ? "in" : "out");
+	const viewCenterVec = viewportToViewVec({ x: e.clientX, y: e.clientY });
+  zoomCanvas(e.deltaY < 0 ? "in" : "out", viewCenterVec);
 }
 
 // actions
@@ -112,10 +207,10 @@ const actions: Partial<ActionMapImplementation<"common">> = {
     action: () => panCanvas({ x: 0, y: FLOW_GRID_STEP_Y }),
   },
   "common.navigate.zoomIn": {
-    action: () => zoomCanvas("in"),
+    action: () => zoomCanvas("in", "center"),
   },
   "common.navigate.zoomOut": {
-    action: () => zoomCanvas("out"),
+    action: () => zoomCanvas("out", "center"),
   },
   "common.navigate.reset": {
     action: () => resetCanvas(),
@@ -128,16 +223,17 @@ defineExpose<ViewExposed>({ self, id, actions });
 </script>
 <template>
   <div
+    ref="containerRef"
     class="group/flow relative h-full w-full"
     :class="[variant == Variant.COMPACT ? 'rounded border border-gray-200' : '', dragging ? 'cursor-grabbing' : '']"
-    @mousedown="dragging = 'canvas'"
+    @mousedown="(e) => startDragging(e, 'canvas')"
     @mousemove="(e: MouseEvent) => onDragging(e)"
     @mouseup.stop="dragging = null"
     @mouseleave.stop="dragging = null"
     @dragstart.stop.prevent="false"
     @wheel.prevent="onWheel"
   >
-    <!-- nocheckin: flow UI -->
+    <!-- nocheckin: flow UI: actions, contextmenus, pipes, everything.. -->
     <!-- Background grid (infinitely repeated) -->
     <div class="absolute h-full w-full overflow-hidden" :style="{}">
       <svg
@@ -181,15 +277,30 @@ defineExpose<ViewExposed>({ self, id, actions });
     <!-- Contents -->
     <div class="z-0 h-full w-full overflow-hidden">
       <div
-        class="relative"
+        class="relative h-full w-full"
         :style="{
           transformOrigin: '0 0',
           transform: `scale(${scale}, ${scale}) translate(${transform?.translateX ?? 0}px, ${transform?.translateY ?? 0}px) `,
         }"
       >
-        <!-- nocheckin: steps and pipes and stuff -->
-        steps:{{ steps.length }} pipes:{{ pipes.length }}
+        <!-- Steps -->
+        <Step
+          v-for="step in steps"
+          :ref="(ref: any) => (ref ? (stepRefs[step.id] = ref) : delete stepRefs[step.id])"
+          :key="step.id"
+          class="absolute"
+          :style="{
+            width: STEP_WIDTH + 'px',
+            left: (step.position?.x ?? 0) + 'px',
+            top: (step.position?.y ?? 0) + 'px',
+          }"
+          :node-ptr="toNodeRefOneOf(step)"
+          @mousedown="(e) => startDragging(e, step)"
+        />
 
+        <!-- nocheckin: pipes and stuff -->
+
+        <!-- Placeholder for spacing check -->
         <!-- <div
           class="absolute bg-red-500 font-bold text-white opacity-50"
           :style="{
@@ -203,7 +314,7 @@ defineExpose<ViewExposed>({ self, id, actions });
     </div>
 
     <!-- Overlay -->
-    <div class="absolute left-0 top-0 h-full w-full transform">
+    <div class="absolute left-0 top-0 w-full">
       <!-- Menu -->
       <div
         class="absolute right-2 top-2 z-20 flex w-fit flex-row items-center divide-x divide-gray-200 border border-gray-200 bg-white px-2 py-1"

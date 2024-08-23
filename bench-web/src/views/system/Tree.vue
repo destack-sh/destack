@@ -532,9 +532,9 @@ defineExpose<ViewExposed>({ self, actions, focus });
         <!-- Missing state -->
         <span>
           <i class="fas fa-empty-set text-gray-500" />
-          <span class="ml-1.5 text-gray-600">{{
-            rootPtr != null ? "Nothing Here Yet" : "Select Node to Inspect"
-          }}</span>
+          <span class="ml-1.5 text-gray-600">
+            {{ rootPtr != null ? "Nothing Here Yet" : "Select Node to Inspect" }}
+          </span>
         </span>
       </div>
     </Scroll>
