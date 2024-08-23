@@ -46,7 +46,7 @@ from bench.language.node import (
     NodeReferenceBase,
     PackageNode,
     Struct,
-    object_component,
+    object_,
     struct_,
     timed_node_,
 )
@@ -723,7 +723,7 @@ class EditContext(Struct):
         identity_ptr: Optional[NodeReference] = None
 
 
-@object_component()
+@object_()
 class HasSessionContext(BuiltinObject):
     """Context for the creation of a node in some Session."""
 

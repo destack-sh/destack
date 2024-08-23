@@ -398,7 +398,7 @@ _ObjectT = TypeVar("_ObjectT", bound="BuiltinObject")
 
 
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
-def object_component(
+def object_(
     struct_type: StructType | None = None,
     is_final: bool = False,
     is_inlined: bool = False,
@@ -430,7 +430,7 @@ def struct_(struct_type: StructType, inline: bool = False):
     """Register a class as a concrete struct for the given struct type."""
 
     def decorate(cls: Type[_ObjectT]) -> Type[_ObjectT]:
-        cls = object_component(struct_type=struct_type, is_final=True, is_inlined=inline)(cls)
+        cls = object_(struct_type=struct_type, is_final=True, is_inlined=inline)(cls)
         if IS_DEV and cls.__name__ != "Struct" and cls.__name__ != "Struct":
             if not issubclass(cls, (Struct, Struct)):
                 raise ValueError(f"{cls} is not a struct")
@@ -757,7 +757,7 @@ def _node_ancestor_ptr_ref(prop: Property) -> property:
     return property(get_ancestor_ptr, set)
 
 
-@object_component()
+@object_()
 class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
     """The base for all intrinsic objects like Structs and Nodes and all their derivatives."""
 
@@ -1230,7 +1230,7 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
         return mask
 
 
-@object_component()
+@object_()
 class Struct[StructDataT: AnyStructData](BuiltinObject[StructDataT], abc.ABC):
     """A base for structs with properties."""
 
@@ -1958,7 +1958,7 @@ class ClientOrigin(Struct[ClientOriginData]):
     nonce: Optional[UUID] = p_internal(32, default=None)
 
 
-@object_component()
+@object_()
 class NodeReferenceBase[NT: Node, ND: AnyNodeData, RT: NodeReferenceBase, RD: AnyStructData](
     BuiltinObject
 ):

@@ -38,7 +38,7 @@ from bench.language.node import (
     RemoteNode,
     Struct,
     local_node_,
-    object_component,
+    object_,
     struct_,
 )
 from bench.language.property import (
@@ -480,7 +480,7 @@ MIME_TYPES_BY_FILE_FORMAT = group_by(
 MIME_TYPE_BY_FORMAT: dict[FileFormat, str] = {v: k for k, v in FILE_FORMAT_BY_MIME_TYPE.items()}
 
 
-@object_component()
+@object_()
 class FileInfoBase(BuiltinObject):
     """
     Base class for file info.

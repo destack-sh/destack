@@ -13,7 +13,7 @@ from bench.language.node import (
     HasTimeIdentity,
     RemoteNode,
     Struct,
-    object_component,
+    object_,
     timed_node_,
 )
 from bench.language.property import (
@@ -86,7 +86,7 @@ class Notification(RemoteNode[NotificationData], HasTimeIdentity, HasNodeBase):
 #
 
 
-@object_component()
+@object_()
 class NotificationState(Struct):
     """Builtin special Value as the state of some specific notification type (in Notification.value)."""
 

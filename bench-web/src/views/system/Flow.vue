@@ -142,12 +142,12 @@ defineExpose<ViewExposed>({ self, id, actions });
     <div class="absolute h-full w-full overflow-hidden" :style="{}">
       <svg
         xmlns="http://www.w3.org/2000/svg"
-        class="h-full w-full text-red-500"
+        class="h-full w-full text-gray-200"
         :style="{
           // extra spacing for smooth infinite scrolling
           width: `${100 / scale}%`,
           height: `${100 / scale}%`,
-					transformOrigin: '0 0',
+          transformOrigin: '0 0',
           transform: `scale(${scale}, ${scale})  translate(${(transform?.translateX ?? 0) % GRID_SCALE_X}px, ${(transform?.translateY ?? 0) % GRID_SCALE_Y}px)`,
         }"
       >
@@ -175,14 +175,16 @@ defineExpose<ViewExposed>({ self, id, actions });
           transform: `scale(${scale}, ${scale}) translate(${transform?.translateX ?? 0}px, ${transform?.translateY ?? 0}px) `,
         }"
       >
-        nocheckin: steps and pipes and stuff
+        <!-- nocheckin: steps and pipes and stuff -->
       </div>
     </div>
 
     <!-- Overlay -->
-    <div class="absolute left-0 top-0 h-full w-full transform px-2 py-2">
+    <div class="absolute left-0 top-0 h-full w-full transform">
       <!-- Controls -->
-      <div class="z-20 flex w-fit flex-row items-center gap-x-1 border border-gray-200 bg-white px-2 py-1">
+      <div
+        class="absolute right-2 top-2 z-20 flex w-fit flex-row items-center gap-x-1 border border-gray-200 bg-white px-2 py-1"
+      >
         <button
           v-for="action of (
             ['common.navigate.zoomIn', 'common.navigate.zoomOut', 'common.navigate.reset'] as ActionBuiltinId[]
@@ -195,7 +197,6 @@ defineExpose<ViewExposed>({ self, id, actions });
           <IconInline v-bind="action.icon" class="w-5 text-center" />
         </button>
       </div>
-      <span>tx: {{ transform?.translateX ?? 0 }}, ty: {{ transform?.translateY ?? 0 }} s: {{ scale }}</span>
     </div>
   </div>
 </template>

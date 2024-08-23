@@ -9,7 +9,7 @@ from bench.language.node import (
     SourceNode,
     Struct,
     local_node_,
-    object_component,
+    object_,
     struct_,
 )
 from bench.language.property import (
@@ -375,6 +375,40 @@ class Offset(Struct):
     left_relative: Optional[float] = p_regular(47, default=None)
 
 
+@struct_(StructType.VECTOR2)
+class Vector2(Struct):
+    """A 2D vector."""
+
+    x: float = p_regular(30)
+    y: float = p_regular(31)
+
+
+@struct_(StructType.VECTOR3)
+class Vector3(Struct):
+    """A 3D vector."""
+
+    x: float = p_regular(30)
+    y: float = p_regular(31)
+    z: float = p_regular(32)
+
+
+@struct_(StructType.VECTOR4)
+class Vector4(Struct):
+    """A 4D vector."""
+
+    x: float = p_regular(30)
+    y: float = p_regular(31)
+    z: float = p_regular(32)
+    w: float = p_regular(33)
+
+
+@struct_(StructType.LINE)
+class Line(Struct):
+    """A line segment."""
+
+    points: list[Vector2] = p_regular(30, array=True, struct=StructType.VECTOR2)
+
+
 @enum_(EnumType.ORIENTATION)
 class Orientation(IdEnum):
     """Which way to orient the contents/subviews of a view."""
@@ -575,7 +609,7 @@ icon = to_icon
 #
 
 
-@object_component()
+@object_()
 class ViewState(Struct):  # :NodeInheritance
     """Builtin special Value as the state of some specific view type (in View.value)."""
 

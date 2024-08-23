@@ -77,12 +77,7 @@ tracer = trace.get_tracer(__name__)
 # the node types that can have 'policies' applied to them
 #  (not delegated node types, which delegate via subject)
 LEGISLATIVE_NODE_TYPES: bittuple[NodeType] = bittuple(
-    NodeType.BENCH,
-    NodeType.BRANCH,
-    NodeType.PACKAGE,
-    NodeType.SPACE,
-    NodeType.BLOCK,
-    NodeType.STEP,
+    NodeType.BENCH, NodeType.BRANCH, NodeType.PACKAGE, NodeType.SPACE, NodeType.BLOCK
 )
 
 

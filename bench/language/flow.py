@@ -12,7 +12,7 @@ from bench.language.const import (
 )
 from bench.language.field import TypeInfoBase
 from bench.language.graph import NodeList
-from bench.language.node import SourceNode, Struct, local_node_, struct_
+from bench.language.node import BuiltinObject, SourceNode, Struct, local_node_, object_, struct_
 from bench.language.property import (
     Property,
     p_internal,
@@ -23,7 +23,7 @@ from bench.language.property import (
     p_value_runtime,
 )
 from bench.language.validation import NAME_CONSTRAINT, ValidationHandler, constraint
-from bench.proto.wire import StepData
+from bench.proto.wire import PipeData, PortData, StepData
 from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import IdEnum
 
@@ -32,11 +32,12 @@ if TYPE_CHECKING:
         Block,
         Box,
         Code,
+        Color,
         Field,
         Icon,
+        Line,
         NodeReference,
         Offset,
-        Policy,
         RunOptions,
         Text,
         Trigger,
@@ -44,61 +45,6 @@ if TYPE_CHECKING:
     )
 
 # pyright: reportIncompatibleVariableOverride=false
-
-
-@enum_(EnumType.STEP_TYPE)
-class StepType(IdEnum):
-    # boundary (only incoming OR outgoing)
-    START = 1  # source with inputs
-    COMPLETE = 2  # terminate with outputs
-    FAIL = 3  # terminate with error
-    # ABORT?
-    VALUE = 10  # source with just(value)
-    TRIGGER = 11  # source with just(trigger)
-
-    # run
-    BLOCK = 51  # run a runnable block
-    TEXT = 54  # run text
-    CODE = 55  # run code
-    SEND = 56  # emit signal/notification
-    # YIELD # to other program/human
-    # APPLY, CREATE, PASS?
-
-    # control
-    # NOTE :Architecture: could the special control Steps be factored into general Port behaviors?
-    #  (for instance, flatten/accumulate could be special incoming and outgoing port-side mappings;
-    #   as opposed to pipe mappings which should probably be stateless)
-    # MATCH = 100  # X -> | n ports | -> X' filtered output port (per expression)
-    # FILTER = 101  # X -> | X -> bool | -> X if true
-    # MERGE = 102  # X1, X2, ... -> X
-    # FLATTEN = 103  # X[] -> X
-    # ACCUMULATE = 104  # X -> X[]
-    # REDUCE = 105  # X[] -> Y
-    # ZIP = 106  # X1[], X2[], ... -> (X1, X2, ...)[]
-    # JOIN = 107  # X1, X2, ... -> (X1, X2, ...)
-    # WAIT/DELAY?, DEBOUNCE?, TELEPORT?, THROTTLE?
-
-    # containers
-    GROUP = 500  # sub-flow
-    LOOP = 501  # loop inside: X[] -> | X -> ... -> Y | -> Y[]
-    REPEAT = 502  # repeat X N times / until some condition
-    # SHIELD?
-
-    @property
-    def is_boundary(self) -> bool:
-        return self < 50
-
-    @property
-    def is_run(self) -> bool:
-        return self >= 50 and self < 100
-
-    @property
-    def is_control(self) -> bool:
-        return self >= 100 and self < 150
-
-    @property
-    def is_groupa(self) -> bool:
-        return self >= 150 and self < 200
 
 
 @enum_(EnumType.PIPE_TYPE)
@@ -120,24 +66,47 @@ class PipeFilterType(IdEnum):
     # IS_INVALID doesn't make sense? (would need to know: valid for what target port?)
 
 
-@struct_(StructType.PIPE)
-class Pipe(Struct):
+@local_node_(NodeType.PIPE)
+class Pipe(SourceNode[PipeData]):
     """
-    A connection between two Steps in a FlowBlock (source = outgoing, target = incoming).
-    The pipe is stored in the incoming Step, so the target Step is implicit.
+    A connection between two Steps in a Flow (source = outgoing, target = incoming).
+    Pipes are stored in the containing Flow or containing Step.
     """
+
+    parent: Union["Block", "Step", None] = p_node_parent(4, NodeType.BLOCK, NodeType.STEP)
 
     # connection
     type: PipeType = p_internal(30)
-    source: "Step" = p_regular(31, require=True, references=NodeType.STEP)
-    source_port: "PortKey" = p_regular(32, require=True, struct=StructType.PORT_KEY)
-    target: "Step" = p_regular(33, require=True, references=NodeType.STEP)
-    target_port: "PortKey" = p_regular(34, require=True, struct=StructType.PORT_KEY)
+    name: str = p_regular(32, constraint=NAME_CONSTRAINT)
+    order_key: str = p_internal(33, default=INTEGER_ZERO)
+    source: "Step" = p_regular(35, require=True, references=NodeType.STEP)
+    source_port: "PortKey" = p_regular(36, require=True, struct=StructType.PORT_KEY)
+    target: "Step" = p_regular(37, require=True, references=NodeType.STEP)
+    target_port: "PortKey" = p_regular(38, require=True, struct=StructType.PORT_KEY)
+    if TYPE_CHECKING:
+        source_ptr: Optional[NodeReference] = None
+        target_ptr: Optional[NodeReference] = None
 
-    # filter/mapping/casting
-    filter_type: PipeFilterType | None = p_regular(40, default=None)
+    # filter
+    filter_type: PipeFilterType | None = p_regular(50, default=None)
     # filter_constraint, filter_condition, ...
     ...
+
+    # mapping/casting
+    ...
+
+    # view
+    line: Optional["Line"] = p_regular(
+        80,
+        default=None,
+        require=False,
+        array=False,
+        struct=StructType.LINE,
+        description="Line points to cover.",
+    )
+    color: Optional["Color"] = p_regular(
+        81, default=None, require=False, array=False, struct=StructType.COLOR
+    )
 
     def __content_str__(self) -> str:
         if self.type == PipeType.THEN:
@@ -194,14 +163,14 @@ FIELD_ZONES_BY_SIDE: dict[PortSide, tuple[FieldZone, ...]] = {
 }
 
 
-@struct_(StructType.PORT_KEY)
-class PortKey(Struct):
+@object_()
+class PortKeyBase(BuiltinObject):
     """An identifier for a port on a Step."""
 
     # key
-    type: PortType = p_internal(30)
-    side: PortSide = p_regular(31)
-    field: Optional["Field"] = p_regular(32, require=False, references=NodeType.FIELD)
+    type: PortType = p_internal(40)
+    side: PortSide = p_regular(41)
+    field: Optional["Field"] = p_regular(42, require=False, references=NodeType.FIELD)
     if TYPE_CHECKING:
         field_id: Optional[UUID] = None
         field_ck: Optional[UUID] = None
@@ -217,6 +186,14 @@ class PortKey(Struct):
             return f".{field.py_name if field else '???'}"
         else:
             assert_never(self.type)
+
+
+@struct_(StructType.PORT_KEY)
+class PortKey(Struct, PortKeyBase):
+    """An identifier for a port on a Step."""
+
+    # redirect so we get PortKeyBase.__content_str__ (not Struct.__content_str__)
+    __content_str__ = PortKeyBase.__content_str__  # type: ignore
 
 
 PortIn = Union["Field", PortType, PortKey]
@@ -244,12 +221,21 @@ def to_port_key(port: PortIn, *, side: PortSide) -> PortKey:
         assert_never(port)
 
 
-@struct_(StructType.PORT)
-class Port(PortKey):
+@local_node_(NodeType.PORT)
+class Port(SourceNode[PortData], PortKeyBase):
     """
     Extra configuration for a port (key) on a Step with some value.
     Not all ports need a Port, just if there is extra behavior to define.
     """
+
+    parent: Union["Step", None] = p_node_parent(4, NodeType.STEP)
+
+    # content
+    name: str = p_regular(30, default=None, constraint=NAME_CONSTRAINT)
+    order_key: str = p_internal(31, default=INTEGER_ZERO)
+
+    # type identity
+    # ...TypeInfo[40-69]
 
     # static/initial value
     value_type: Optional["TypeInfo"] = p_regular(50, default=None, struct=StructType.TYPE_INFO)
@@ -257,18 +243,71 @@ class Port(PortKey):
     value: Any = p_value_runtime(51, typ=None)
 
 
+@enum_(EnumType.STEP_TYPE)
+class StepType(IdEnum):
+    # boundary (only incoming OR outgoing)
+    START = 1  # source with inputs
+    COMPLETE = 2  # terminate with outputs
+    FAIL = 3  # terminate with error
+    # ABORT?
+    VALUE = 10  # source with just(value)
+    TRIGGER = 11  # source with just(trigger)
+
+    # run
+    BLOCK = 51  # run a runnable block
+    TEXT = 54  # run text
+    CODE = 55  # run code
+    SEND = 56  # emit signal/notification
+    # YIELD # to other program/human
+    # APPLY, CREATE, PASS?
+
+    # data
+    # NOTE :Architecture: could the special control Steps be factored into general Port behaviors?
+    #  (for instance, flatten/accumulate could be special incoming and outgoing port-side mappings;
+    #   as opposed to pipe mappings which should probably be stateless)
+    # MATCH = 100  # X -> | n ports | -> X' filtered output port (per expression)
+    # FILTER = 101  # X -> | X -> bool | -> X if true
+    # MERGE = 102  # X1, X2, ... -> X
+    # FLATTEN = 103  # X[] -> X
+    # ACCUMULATE = 104  # X -> X[]
+    # REDUCE = 105  # X[] -> Y
+    # ZIP = 106  # X1[], X2[], ... -> (X1, X2, ...)[]
+    # JOIN = 107  # X1, X2, ... -> (X1, X2, ...)
+
+    # control
+    # WAIT/DELAY?, DEBOUNCE?, TELEPORT?, THROTTLE?
+
+    # containers
+    GROUP = 500  # sub-flow
+    LOOP = 501  # loop inside: X[] -> | X -> ... -> Y | -> Y[]
+    REPEAT = 502  # repeat X N times / until some condition
+    # SHIELD?
+
+    @property
+    def is_boundary(self) -> bool:
+        return self < 50
+
+    @property
+    def is_run(self) -> bool:
+        return self >= 50 and self < 100
+
+    @property
+    def is_control(self) -> bool:
+        return self >= 100 and self < 150
+
+    @property
+    def is_groupa(self) -> bool:
+        return self >= 150 and self < 200
+
+
 @local_node_(NodeType.STEP, passthrough=("value", "fields"))
 class Step(SourceNode[StepData]):
     """
-    An data or control flow node in a FlowBlock. Ports on Steps are connected by Pipes.
-    Pipes are stored in the source Step. Ports are implicit via Pipes unless tied to some value.
-    A Step is run when it is fired, specifically:
-     - When its control port fires OR
-     - When all its input ports (for all fields or full value) fire
-    A Step may run multiple times if it is fired multiple times (even concurrently).
-    A Step may directly fire any Step (including itself) at most once per run.
-    Steps are run in order of definition per firing (regardless of pipe & port order).
+    A data or control flow node in a Flow. Ports on Steps are connected by Pipes.
+    Pipes are stored in the containing Flow or containing Step.
+    Ports are implicit via Pipes unless extra configuration is provided.
 
+    A Step may run multiple times if it is fired multiple times (even concurrently).
     When a Step completes, then:
      1. Fire output values to all output ports
      2. Fire output control port
@@ -292,7 +331,6 @@ class Step(SourceNode[StepData]):
     run_options: Optional["RunOptions"] = p_regular(
         36, default=None, require=False, array=False, struct=StructType.RUN_OPTIONS
     )
-    pipes: list[Pipe] = p_regular(37, array=True, struct=StructType.PIPE)
 
     # content
     value_type: Optional["TypeInfo"] = p_regular(40, default=None, struct=StructType.TYPE_INFO)
@@ -317,25 +355,21 @@ class Step(SourceNode[StepData]):
         references=NodeType.BLOCK,
         constraint=constraint(block_type=BlockType.IDENTITY),
     )
-    policies: list["Policy"] = p_regular(48, require=False, array=True, struct=StructType.POLICY)
     if TYPE_CHECKING:
         node_ptr: Optional["NodeReference"] = None
         roles_ptr: tuple["NodeReference", ...] = ()
         identity_ptr: Optional["NodeReference"] = None
 
-    # layout/style ('mini-view')
+    # view
     position: Optional["Offset"] = p_regular(
-        60, default=None, require=False, array=False, struct=StructType.OFFSET
+        80, default=None, require=False, array=False, struct=StructType.OFFSET
     )
     size: Optional["Box"] = p_regular(
-        61, default=None, require=False, array=False, struct=StructType.BOX
+        81, default=None, require=False, array=False, struct=StructType.BOX
     )
 
-    # flags
-    # is_test? (for testing)
-    ...
-
     steps: NodeList["Step"] = p_node_children(NodeType.STEP)
+    pipes: NodeList["Pipe"] = p_node_children(NodeType.PIPE)
     fields: NodeList["Field"] = p_node_children(NodeType.FIELD)
 
     @final
@@ -359,26 +393,41 @@ class Step(SourceNode[StepData]):
         type: PipeType,
         source: "Step",
         *,
+        name: str | None = None,
         source_port: "PortIn" = PortType.OBJECT,
         target_port: "PortIn" = PortType.OBJECT,
         filter_type: PipeFilterType | None = None,
     ) -> "Pipe":
         """Connects a source Step to this Step."""
+        parent = self.parent
+        assert parent is not None, f"{self!r} is not attached to a parent"
+
+        # assign next name like Pipe1, .. in parent :AutoNaming
+        if name is None:
+            siblings = parent.pipes.tolist()
+            count = len(siblings) + 1
+            name = f"{self.type.bench_name}{count}"
+            while any(p.name == name for p in siblings):
+                count += 1
+                name = f"{self.type.bench_name}{count}"
+
         pipe = Pipe(
             type=type,
+            name=name,
             source=source,
             source_port=to_port_key(source_port, side=PortSide.OUTGOING),
             target=self,
             target_port=to_port_key(target_port, side=PortSide.INCOMING),
             filter_type=filter_type,
         )
-        source.pipes.append(pipe)
+        parent.pipes.append(pipe)
         return pipe
 
     def then(
         self,
         target: "Step",
         *,
+        name: str | None = None,
         source_port: "PortIn" = PortType.OBJECT,
         target_port: "PortIn" = PortType.OBJECT,
         filter_type: PipeFilterType | None = None,
@@ -386,6 +435,7 @@ class Step(SourceNode[StepData]):
         """Connects a source Step to this Step as a Then. Returns the target Step (for chaining)."""
         _ = target.connect(
             type=PipeType.THEN,
+            name=name,
             source=self,
             source_port=source_port,
             target_port=target_port,
@@ -397,6 +447,7 @@ class Step(SourceNode[StepData]):
         self,
         target: "Step",
         *,
+        name: str | None = None,
         source_port: "PortIn" = PortType.OBJECT,
         target_port: "PortIn" = PortType.OBJECT,
         filter_type: PipeFilterType | None = None,
@@ -404,6 +455,7 @@ class Step(SourceNode[StepData]):
         """Connects a source Step to this Step as a With. Returns the target Step (for chaining)."""
         _ = target.connect(
             type=PipeType.WITH,
+            name=name,
             source=self,
             source_port=source_port,
             target_port=target_port,

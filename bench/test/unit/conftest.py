@@ -33,10 +33,10 @@ from bench.language.const import (
     UserStatus,
     _active_session,
 )
+from bench.language.flow import Step
 from bench.language.graph import NodeGraph, NodeSuperGraph
 from bench.language.node import EMPTY_SCOPE, BuiltinObject, GraphScope
 from bench.language.run import Run
-from bench.language.step import Step
 from bench.language.user import User
 from bench.proto.wire import HostClient, RpcMetadata
 from bench.runtime.runner import Runner

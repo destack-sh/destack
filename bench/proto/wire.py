@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.08.23.1"
+VERSION = "2024.08.23.3"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -136,9 +136,11 @@ class BenchType(betterproto.Enum):
     TRIGGER = 1011
     FIELD = 1012
     QUERY = 1013
-    VIEW = 1014
-    STEP = 1015
-    BADGE = 1016
+    VIEW = 1020
+    STEP = 1030
+    PIPE = 1031
+    PORT = 1032
+    BADGE = 1040
     FILE = 1100
     SECRET = 1101
     MESSAGE = 1102
@@ -186,9 +188,7 @@ class BenchType(betterproto.Enum):
     COMPUTED_VALUE = 10306
     CODE = 10400
     CODE_LINE = 10401
-    PIPE = 10450
-    PORT = 10451
-    PORT_KEY = 10452
+    PORT_KEY = 10450
     RUN_ERROR = 10500
     RUN_OPTIONS = 10501
     RUN_ATTEMPT = 10502
@@ -204,6 +204,10 @@ class BenchType(betterproto.Enum):
     BOX = 11002
     OFFSET = 11003
     TRANSFORM = 11004
+    VECTOR2 = 11020
+    VECTOR3 = 11021
+    VECTOR4 = 11022
+    LINE = 11035
     START_VIEW_STATE = 11200
     FEED_VIEW_STATE = 11201
     USER_WIZARD_VIEW_STATE = 11205
@@ -879,9 +883,11 @@ class NodeType(betterproto.Enum):
     TRIGGER = 1011
     FIELD = 1012
     QUERY = 1013
-    VIEW = 1014
-    STEP = 1015
-    BADGE = 1016
+    VIEW = 1020
+    STEP = 1030
+    PIPE = 1031
+    PORT = 1032
+    BADGE = 1040
     FILE = 1100
     SECRET = 1101
     MESSAGE = 1102
@@ -924,9 +930,11 @@ class ObjectType(betterproto.Enum):
     TRIGGER = 1011
     FIELD = 1012
     QUERY = 1013
-    VIEW = 1014
-    STEP = 1015
-    BADGE = 1016
+    VIEW = 1020
+    STEP = 1030
+    PIPE = 1031
+    PORT = 1032
+    BADGE = 1040
     FILE = 1100
     SECRET = 1101
     MESSAGE = 1102
@@ -974,9 +982,7 @@ class ObjectType(betterproto.Enum):
     COMPUTED_VALUE = 10306
     CODE = 10400
     CODE_LINE = 10401
-    PIPE = 10450
-    PORT = 10451
-    PORT_KEY = 10452
+    PORT_KEY = 10450
     RUN_ERROR = 10500
     RUN_OPTIONS = 10501
     RUN_ATTEMPT = 10502
@@ -992,6 +998,10 @@ class ObjectType(betterproto.Enum):
     BOX = 11002
     OFFSET = 11003
     TRANSFORM = 11004
+    VECTOR2 = 11020
+    VECTOR3 = 11021
+    VECTOR4 = 11022
+    LINE = 11035
     START_VIEW_STATE = 11200
     FEED_VIEW_STATE = 11201
     USER_WIZARD_VIEW_STATE = 11205
@@ -1367,9 +1377,7 @@ class StructType(betterproto.Enum):
     COMPUTED_VALUE = 10306
     CODE = 10400
     CODE_LINE = 10401
-    PIPE = 10450
-    PORT = 10451
-    PORT_KEY = 10452
+    PORT_KEY = 10450
     RUN_ERROR = 10500
     RUN_OPTIONS = 10501
     RUN_ATTEMPT = 10502
@@ -1385,6 +1393,10 @@ class StructType(betterproto.Enum):
     BOX = 11002
     OFFSET = 11003
     TRANSFORM = 11004
+    VECTOR2 = 11020
+    VECTOR3 = 11021
+    VECTOR4 = 11022
+    LINE = 11035
     START_VIEW_STATE = 11200
     FEED_VIEW_STATE = 11201
     USER_WIZARD_VIEW_STATE = 11205
@@ -1878,6 +1890,14 @@ class IconData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class LineData(betterproto.Message):
+    """A line segment."""
+
+    metatype: "ObjectType" = betterproto.enum_field(1)
+    points: List["Vector2Data"] = betterproto.message_field(30)
+
+
+@dataclass(eq=False, repr=False)
 class LogInfoData(betterproto.Message):
     """
     A simple log for user-generated logs at runtime.
@@ -1983,22 +2003,6 @@ class PathTokenData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class PipeData(betterproto.Message):
-    """
-    A connection between two Steps in a FlowBlock (source = outgoing, target = incoming).
-     The pipe is stored in the incoming Step, so the target Step is implicit.
-    """
-
-    metatype: "ObjectType" = betterproto.enum_field(1)
-    type: "PipeType" = betterproto.enum_field(30)
-    source_ptr: "NodeReferenceData" = betterproto.message_field(31)
-    source_port: "PortKeyData" = betterproto.message_field(32)
-    target_ptr: "NodeReferenceData" = betterproto.message_field(33)
-    target_port: "PortKeyData" = betterproto.message_field(34)
-    filter_type: Optional["PipeFilterType"] = betterproto.enum_field(40, optional=True)
-
-
-@dataclass(eq=False, repr=False)
 class PolicyData(betterproto.Message):
     """
     A policy regulating access to nodes within its scope.
@@ -2052,30 +2056,13 @@ class PolicyRuleData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class PortData(betterproto.Message):
-    """
-    Extra configuration for a port (key) on a Step with some value.
-     Not all ports need a Port, just if there is extra behavior to define.
-    """
-
-    metatype: "ObjectType" = betterproto.enum_field(1)
-    type: "PortType" = betterproto.enum_field(30)
-    side: "PortSide" = betterproto.enum_field(31)
-    field_ptr: Optional["NodeReferenceData"] = betterproto.message_field(32, optional=True)
-    value_type: Optional["TypeInfoData"] = betterproto.message_field(50, optional=True)
-    value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
-        51, optional=True
-    )
-
-
-@dataclass(eq=False, repr=False)
 class PortKeyData(betterproto.Message):
     """An identifier for a port on a Step."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
-    type: "PortType" = betterproto.enum_field(30)
-    side: "PortSide" = betterproto.enum_field(31)
-    field_ptr: Optional["NodeReferenceData"] = betterproto.message_field(32, optional=True)
+    type: "PortType" = betterproto.enum_field(40)
+    side: "PortSide" = betterproto.enum_field(41)
+    field_ptr: Optional["NodeReferenceData"] = betterproto.message_field(42, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2449,6 +2436,36 @@ class ValueData(betterproto.Message):
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         35, optional=True
     )
+
+
+@dataclass(eq=False, repr=False)
+class Vector2Data(betterproto.Message):
+    """A 2D vector."""
+
+    metatype: "ObjectType" = betterproto.enum_field(1)
+    x: float = betterproto.float_field(30)
+    y: float = betterproto.float_field(31)
+
+
+@dataclass(eq=False, repr=False)
+class Vector3Data(betterproto.Message):
+    """A 3D vector."""
+
+    metatype: "ObjectType" = betterproto.enum_field(1)
+    x: float = betterproto.float_field(30)
+    y: float = betterproto.float_field(31)
+    z: float = betterproto.float_field(32)
+
+
+@dataclass(eq=False, repr=False)
+class Vector4Data(betterproto.Message):
+    """A 4D vector."""
+
+    metatype: "ObjectType" = betterproto.enum_field(1)
+    x: float = betterproto.float_field(30)
+    y: float = betterproto.float_field(31)
+    z: float = betterproto.float_field(32)
+    w: float = betterproto.float_field(33)
 
 
 @dataclass(eq=False, repr=False)
@@ -3074,6 +3091,79 @@ class PackageData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class PipeData(betterproto.Message):
+    """
+    A connection between two Steps in a Flow (source = outgoing, target = incoming).
+     Pipes are stored in the containing Flow or containing Step.
+    """
+
+    metatype: "ObjectType" = betterproto.enum_field(1)
+    id: str = betterproto.string_field(2)
+    ck: str = betterproto.string_field(3)
+    parent_ptr: Optional["NodeReferenceData"] = betterproto.message_field(4, optional=True)
+    package_ptr: "NodeReferenceData" = betterproto.message_field(5)
+    bench_ptr: "NodeReferenceData" = betterproto.message_field(6)
+    template_ptr: Optional["NodeReferenceData"] = betterproto.message_field(7, optional=True)
+    templated_epoch: Optional[int] = betterproto.int64_field(8, optional=True)
+    revision: int = betterproto.int64_field(10)
+    created_at: datetime = betterproto.message_field(11)
+    created_epoch: int = betterproto.int64_field(12)
+    updated_at: datetime = betterproto.message_field(13)
+    updated_epoch: int = betterproto.int64_field(14)
+    deleted_at: Optional[datetime] = betterproto.message_field(15, optional=True)
+    archived_at: Optional[datetime] = betterproto.message_field(16, optional=True)
+    created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(21, optional=True)
+    updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(22, optional=True)
+    set_properties: List[int] = betterproto.int32_field(29)
+    type: "PipeType" = betterproto.enum_field(30)
+    name: str = betterproto.string_field(32)
+    order_key: str = betterproto.string_field(33)
+    source_ptr: "NodeReferenceData" = betterproto.message_field(35)
+    source_port: "PortKeyData" = betterproto.message_field(36)
+    target_ptr: "NodeReferenceData" = betterproto.message_field(37)
+    target_port: "PortKeyData" = betterproto.message_field(38)
+    filter_type: Optional["PipeFilterType"] = betterproto.enum_field(50, optional=True)
+    line: Optional["LineData"] = betterproto.message_field(80, optional=True)
+    color: Optional["ColorData"] = betterproto.message_field(81, optional=True)
+
+
+@dataclass(eq=False, repr=False)
+class PortData(betterproto.Message):
+    """
+    Extra configuration for a port (key) on a Step with some value.
+     Not all ports need a Port, just if there is extra behavior to define.
+    """
+
+    metatype: "ObjectType" = betterproto.enum_field(1)
+    id: str = betterproto.string_field(2)
+    ck: str = betterproto.string_field(3)
+    parent_ptr: Optional["NodeReferenceData"] = betterproto.message_field(4, optional=True)
+    package_ptr: "NodeReferenceData" = betterproto.message_field(5)
+    bench_ptr: "NodeReferenceData" = betterproto.message_field(6)
+    template_ptr: Optional["NodeReferenceData"] = betterproto.message_field(7, optional=True)
+    templated_epoch: Optional[int] = betterproto.int64_field(8, optional=True)
+    revision: int = betterproto.int64_field(10)
+    created_at: datetime = betterproto.message_field(11)
+    created_epoch: int = betterproto.int64_field(12)
+    updated_at: datetime = betterproto.message_field(13)
+    updated_epoch: int = betterproto.int64_field(14)
+    deleted_at: Optional[datetime] = betterproto.message_field(15, optional=True)
+    archived_at: Optional[datetime] = betterproto.message_field(16, optional=True)
+    created_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(21, optional=True)
+    updated_by_ptr: Optional["NodeReferenceData"] = betterproto.message_field(22, optional=True)
+    set_properties: List[int] = betterproto.int32_field(29)
+    name: str = betterproto.string_field(30)
+    order_key: str = betterproto.string_field(31)
+    type: "PortType" = betterproto.enum_field(40)
+    side: "PortSide" = betterproto.enum_field(41)
+    field_ptr: Optional["NodeReferenceData"] = betterproto.message_field(42, optional=True)
+    value_type: Optional["TypeInfoData"] = betterproto.message_field(50, optional=True)
+    value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
+        51, optional=True
+    )
+
+
+@dataclass(eq=False, repr=False)
 class QueryData(betterproto.Message):
     """A stored query with identity."""
 
@@ -3389,15 +3479,11 @@ class SpaceData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class StepData(betterproto.Message):
     """
-    An data or control flow node in a FlowBlock. Ports on Steps are connected by Pipes.
-     Pipes are stored in the source Step. Ports are implicit via Pipes unless tied to some value.
-     A Step is run when it is fired, specifically:
-     - When its control port fires OR
-     - When all its input ports (for all fields or full value) fire
-     A Step may run multiple times if it is fired multiple times (even concurrently).
-     A Step may directly fire any Step (including itself) at most once per run.
-     Steps are run in order of definition per firing (regardless of pipe & port order).
+    A data or control flow node in a Flow. Ports on Steps are connected by Pipes.
+     Pipes are stored in the containing Flow or containing Step.
+     Ports are implicit via Pipes unless extra configuration is provided.
 
+     A Step may run multiple times if it is fired multiple times (even concurrently).
      When a Step completes, then:
      1. Fire output values to all output ports
      2. Fire output control port
@@ -3430,7 +3516,6 @@ class StepData(betterproto.Message):
     text: Optional["TextData"] = betterproto.message_field(34, optional=True)
     icon: Optional["IconData"] = betterproto.message_field(35, optional=True)
     run_options: Optional["RunOptionsData"] = betterproto.message_field(36, optional=True)
-    pipes: List["PipeData"] = betterproto.message_field(37)
     value_type: Optional["TypeInfoData"] = betterproto.message_field(40, optional=True)
     value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         41, optional=True
@@ -3439,9 +3524,8 @@ class StepData(betterproto.Message):
     code: Optional["CodeData"] = betterproto.message_field(44, optional=True)
     roles_ptr: List["NodeReferenceData"] = betterproto.message_field(46)
     identity_ptr: Optional["NodeReferenceData"] = betterproto.message_field(47, optional=True)
-    policies: List["PolicyData"] = betterproto.message_field(48)
-    position: Optional["OffsetData"] = betterproto.message_field(60, optional=True)
-    size: Optional["BoxData"] = betterproto.message_field(61, optional=True)
+    position: Optional["OffsetData"] = betterproto.message_field(80, optional=True)
+    size: Optional["BoxData"] = betterproto.message_field(81, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -3611,17 +3695,19 @@ class SomeNodeData(betterproto.Message):
     query: "QueryData" = betterproto.message_field(19, group="node")
     view: "ViewData" = betterproto.message_field(20, group="node")
     step: "StepData" = betterproto.message_field(21, group="node")
-    badge: "BadgeData" = betterproto.message_field(22, group="node")
-    file: "FileData" = betterproto.message_field(23, group="node")
-    secret: "SecretData" = betterproto.message_field(24, group="node")
-    message: "MessageData" = betterproto.message_field(25, group="node")
-    record: "RecordData" = betterproto.message_field(26, group="node")
-    notification: "NotificationData" = betterproto.message_field(27, group="node")
-    session: "SessionData" = betterproto.message_field(28, group="node")
-    run: "RunData" = betterproto.message_field(29, group="node")
-    signal: "SignalData" = betterproto.message_field(30, group="node")
-    log: "LogData" = betterproto.message_field(31, group="node")
-    skip: "SkipData" = betterproto.message_field(32, group="node")
+    pipe: "PipeData" = betterproto.message_field(22, group="node")
+    port: "PortData" = betterproto.message_field(23, group="node")
+    badge: "BadgeData" = betterproto.message_field(24, group="node")
+    file: "FileData" = betterproto.message_field(25, group="node")
+    secret: "SecretData" = betterproto.message_field(26, group="node")
+    message: "MessageData" = betterproto.message_field(27, group="node")
+    record: "RecordData" = betterproto.message_field(28, group="node")
+    notification: "NotificationData" = betterproto.message_field(29, group="node")
+    session: "SessionData" = betterproto.message_field(30, group="node")
+    run: "RunData" = betterproto.message_field(31, group="node")
+    signal: "SignalData" = betterproto.message_field(32, group="node")
+    log: "LogData" = betterproto.message_field(33, group="node")
+    skip: "SkipData" = betterproto.message_field(34, group="node")
 
 
 @dataclass(eq=False, repr=False)
@@ -5363,6 +5449,8 @@ AnyNodeData = Union[
     QueryData,
     ViewData,
     StepData,
+    PipeData,
+    PortData,
     BadgeData,
     FileData,
     SecretData,
@@ -5413,8 +5501,6 @@ AnyStructData = Union[
     ComputedValueData,
     CodeData,
     CodeLineData,
-    PipeData,
-    PortData,
     PortKeyData,
     RunErrorData,
     RunOptionsData,
@@ -5431,6 +5517,10 @@ AnyStructData = Union[
     BoxData,
     OffsetData,
     TransformData,
+    Vector2Data,
+    Vector3Data,
+    Vector4Data,
+    LineData,
     StartViewStateData,
     FeedViewStateData,
     UserWizardViewStateData,

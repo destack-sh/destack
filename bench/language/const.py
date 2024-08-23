@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.08.23.1"  # auto change via version script
+VERSION = "2024.08.23.3"  # auto change via version script
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -219,10 +219,13 @@ class NodeType(IdEnum):
     TRIGGER = 1011
     FIELD = 1012  # (based)
     QUERY = 1013
-    VIEW = 1014
-    STEP = 1015
-    BADGE = 1016
+    VIEW = 1020
+    STEP = 1030
+    PIPE = 1031
+    PORT = 1032
+    BADGE = 1040
     # TAG?
+    # POLICY?
 
     # state (must be resolved against Package)
     FILE = 1100
@@ -353,9 +356,7 @@ class StructType(IdEnum):
     # run
     CODE = 10400
     CODE_LINE = 10401
-    PIPE = 10450
-    PORT = 10451
-    PORT_KEY = 10452
+    PORT_KEY = 10450
     RUN_ERROR = 10500
     RUN_OPTIONS = 10501
     RUN_ATTEMPT = 10502
@@ -373,6 +374,10 @@ class StructType(IdEnum):
     BOX = 11002
     OFFSET = 11003
     TRANSFORM = 11004
+    VECTOR2 = 11020
+    VECTOR3 = 11021
+    VECTOR4 = 11022
+    LINE = 11035
     ...
     START_VIEW_STATE = 11200
     FEED_VIEW_STATE = 11201

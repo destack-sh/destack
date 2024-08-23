@@ -5,6 +5,7 @@ from cachetools import LRUCache, cached
 
 from bench.language.bench import Bench, Branch, Package
 from bench.language.const import BenchError, EnumType, NodeType, StructType, enum_
+from bench.language.flow import Step
 from bench.language.graph import NodeList
 from bench.language.node import (
     BenchNode,
@@ -15,7 +16,6 @@ from bench.language.node import (
     struct_,
 )
 from bench.language.property import p_regular
-from bench.language.step import Step
 from bench.language.validation import NAME_REGEX_CHAR, SLUG_REGEX_CHAR
 from bench.language.view import View
 from bench.utils.func import IdEnum
