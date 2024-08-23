@@ -133,7 +133,7 @@ export interface AggregationData {
     scalar?: number;
 }
 /**
- * A box value. Absolute units are in pixels, ideally in Spacing scale.
+ * A box value. Absolute units are contextual (and perhaps in our Spacing scale).
  *
  * @generated from protobuf message symbolx.bench.BoxData
  */
@@ -884,7 +884,7 @@ export interface NodeReferenceData {
     baseBenchId?: string;
 }
 /**
- * A position value. Absolute units are in pixels, ideally in Spacing scale.
+ * A position value. Absolute units are contextual (and perhaps in our Spacing scale).
  *
  * @generated from protobuf message symbolx.bench.OffsetData
  */
@@ -1893,11 +1893,11 @@ export interface TransformData {
      */
     metatype: ObjectType;
     /**
-     * @generated from protobuf field: optional int32 translate_x = 30;
+     * @generated from protobuf field: optional float translate_x = 30;
      */
     translateX?: number;
     /**
-     * @generated from protobuf field: optional int32 translate_y = 31;
+     * @generated from protobuf field: optional float translate_y = 31;
      */
     translateY?: number;
     /**
@@ -1917,7 +1917,7 @@ export interface TransformData {
      */
     skewY?: number;
     /**
-     * @generated from protobuf field: optional int32 rotate_x = 40;
+     * @generated from protobuf field: optional float rotate_x = 40;
      */
     rotateX?: number;
 }
@@ -5126,7 +5126,7 @@ export interface SpaceData {
  * 2. Fire output control port
  * When a Step fails, then:
  * - If error port exists: fire error on error port
- * - Else: fail entire Flow
+ * - Else: fail containing Flow
  *
  * @generated from protobuf message symbolx.bench.StepData
  */
@@ -10434,13 +10434,13 @@ export enum StepType {
      */
     BLOCK = 51,
     /**
-     * @generated from protobuf enum value: STEP_TYPE_CODE = 54;
+     * @generated from protobuf enum value: STEP_TYPE_TEXT = 54;
      */
-    CODE = 54,
+    TEXT = 54,
     /**
-     * @generated from protobuf enum value: STEP_TYPE_TEXT = 55;
+     * @generated from protobuf enum value: STEP_TYPE_CODE = 55;
      */
-    TEXT = 55,
+    CODE = 55,
     /**
      * @generated from protobuf enum value: STEP_TYPE_SEND = 56;
      */
@@ -10452,7 +10452,11 @@ export enum StepType {
     /**
      * @generated from protobuf enum value: STEP_TYPE_LOOP = 501;
      */
-    LOOP = 501
+    LOOP = 501,
+    /**
+     * @generated from protobuf enum value: STEP_TYPE_REPEAT = 502;
+     */
+    REPEAT = 502
 }
 /**
  * @generated from protobuf enum symbolx.bench.StructType
@@ -15989,13 +15993,13 @@ class TransformData$Type extends MessageType<TransformData> {
     constructor() {
         super("symbolx.bench.TransformData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 30, name: "translate_x", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 31, name: "translate_y", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 30, name: "translate_x", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 31, name: "translate_y", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
             { no: 33, name: "scale_x", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
             { no: 34, name: "scale_y", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
             { no: 36, name: "skew_x", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
             { no: 37, name: "skew_y", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 40, name: "rotate_x", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ }
+            { no: 40, name: "rotate_x", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ }
         ]);
     }
     create(value?: PartialMessage<TransformData>): TransformData {
@@ -16013,11 +16017,11 @@ class TransformData$Type extends MessageType<TransformData> {
                 case /* symbolx.bench.ObjectType metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* optional int32 translate_x */ 30:
-                    message.translateX = reader.int32();
+                case /* optional float translate_x */ 30:
+                    message.translateX = reader.float();
                     break;
-                case /* optional int32 translate_y */ 31:
-                    message.translateY = reader.int32();
+                case /* optional float translate_y */ 31:
+                    message.translateY = reader.float();
                     break;
                 case /* optional float scale_x */ 33:
                     message.scaleX = reader.float();
@@ -16031,8 +16035,8 @@ class TransformData$Type extends MessageType<TransformData> {
                 case /* optional float skew_y */ 37:
                     message.skewY = reader.float();
                     break;
-                case /* optional int32 rotate_x */ 40:
-                    message.rotateX = reader.int32();
+                case /* optional float rotate_x */ 40:
+                    message.rotateX = reader.float();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -16049,12 +16053,12 @@ class TransformData$Type extends MessageType<TransformData> {
         /* symbolx.bench.ObjectType metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional int32 translate_x = 30; */
+        /* optional float translate_x = 30; */
         if (message.translateX !== undefined)
-            writer.tag(30, WireType.Varint).int32(message.translateX);
-        /* optional int32 translate_y = 31; */
+            writer.tag(30, WireType.Bit32).float(message.translateX);
+        /* optional float translate_y = 31; */
         if (message.translateY !== undefined)
-            writer.tag(31, WireType.Varint).int32(message.translateY);
+            writer.tag(31, WireType.Bit32).float(message.translateY);
         /* optional float scale_x = 33; */
         if (message.scaleX !== undefined)
             writer.tag(33, WireType.Bit32).float(message.scaleX);
@@ -16067,9 +16071,9 @@ class TransformData$Type extends MessageType<TransformData> {
         /* optional float skew_y = 37; */
         if (message.skewY !== undefined)
             writer.tag(37, WireType.Bit32).float(message.skewY);
-        /* optional int32 rotate_x = 40; */
+        /* optional float rotate_x = 40; */
         if (message.rotateX !== undefined)
-            writer.tag(40, WireType.Varint).int32(message.rotateX);
+            writer.tag(40, WireType.Bit32).float(message.rotateX);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -24775,9 +24779,9 @@ export const SomeNodeData = new SomeNodeData$Type();
 // Any...
 export type AnyNodeData = BenchData | UserData | OrganizationData | HandleData | ClientData | ServerData | StoreData | MachineData | DriveData | MembershipData | InviteData | BranchData | PackageData | DependencyData | SpaceData | BlockData | TriggerData | FieldData | QueryData | ViewData | StepData | BadgeData | FileData | SecretData | MessageData | RecordData | NotificationData | SessionData | RunData | SignalData | LogData | SkipData
 export type AnyStructData = SessionContextData | EditContextData | EditData | ChangeData | ChangeVignetteData | GraphScopeData | ClientOriginData | NodeReferenceData | PropertyReferenceData | PathData | PathTokenData | PolicyData | PolicyRuleData | SubjectData | AccessZoneData | AccessMatrixData | AccessData | TextData | TextLineData | TextSpanData | TypeInfoData | TypeConstraintData | ScheduleData | FileReferenceData | IconData | SecretReferenceData | FileInfoData | TriggerInfoData | ExpressionData | AggregationData | SelectionData | QueryInfoData | ReadOptionsData | ValueData | ComputedValueData | CodeData | CodeLineData | PipeData | PortData | PortKeyData | RunErrorData | RunOptionsData | RunAttemptData | RunTraceData | RunFrameData | RunSpanData | RunEventData | BreakpointData | ModelOptionsData | LogInfoData | ColorData | FontData | BoxData | OffsetData | TransformData | StartViewStateData | FeedViewStateData | UserWizardViewStateData | TreeViewStateData
+export type AnyNodeReferenceData = NodeReferenceData | FileReferenceData | SecretReferenceData
 export type AnyNodeDataType = typeof BenchData | typeof UserData | typeof OrganizationData | typeof HandleData | typeof ClientData | typeof ServerData | typeof StoreData | typeof MachineData | typeof DriveData | typeof MembershipData | typeof InviteData | typeof BranchData | typeof PackageData | typeof DependencyData | typeof SpaceData | typeof BlockData | typeof TriggerData | typeof FieldData | typeof QueryData | typeof ViewData | typeof StepData | typeof BadgeData | typeof FileData | typeof SecretData | typeof MessageData | typeof RecordData | typeof NotificationData | typeof SessionData | typeof RunData | typeof SignalData | typeof LogData | typeof SkipData
 export type AnyStructDataType = typeof SessionContextData | typeof EditContextData | typeof EditData | typeof ChangeData | typeof ChangeVignetteData | typeof GraphScopeData | typeof ClientOriginData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof PathData | typeof PathTokenData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof TypeInfoData | typeof TypeConstraintData | typeof ScheduleData | typeof FileReferenceData | typeof IconData | typeof SecretReferenceData | typeof FileInfoData | typeof TriggerInfoData | typeof ExpressionData | typeof AggregationData | typeof SelectionData | typeof QueryInfoData | typeof ReadOptionsData | typeof ValueData | typeof ComputedValueData | typeof CodeData | typeof CodeLineData | typeof PipeData | typeof PortData | typeof PortKeyData | typeof RunErrorData | typeof RunOptionsData | typeof RunAttemptData | typeof RunTraceData | typeof RunFrameData | typeof RunSpanData | typeof RunEventData | typeof BreakpointData | typeof ModelOptionsData | typeof LogInfoData | typeof ColorData | typeof FontData | typeof BoxData | typeof OffsetData | typeof TransformData | typeof StartViewStateData | typeof FeedViewStateData | typeof UserWizardViewStateData | typeof TreeViewStateData
-export type AnyNodeReferenceData = typeof NodeReferenceData | typeof FileReferenceData | typeof SecretReferenceData
 
 // Ancestry maps
 export const PARENT_NODE_TYPES: Record<NodeType, NodeType[]> = {
@@ -27724,13 +27728,13 @@ export const OffsetDataInfo: Record<OffsetProperty, PropertyInfo> = {
 }
 export const TransformDataInfo: Record<TransformProperty, PropertyInfo> = {
   [TransformProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.TRANSFORM, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [TransformProperty.translateX]: { id: 30, name: 'translate_x', component: ObjectType.TRANSFORM, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
-  [TransformProperty.translateY]: { id: 31, name: 'translate_y', component: ObjectType.TRANSFORM, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [TransformProperty.translateX]: { id: 30, name: 'translate_x', component: ObjectType.TRANSFORM, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
+  [TransformProperty.translateY]: { id: 31, name: 'translate_y', component: ObjectType.TRANSFORM, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
   [TransformProperty.scaleX]: { id: 33, name: 'scale_x', component: ObjectType.TRANSFORM, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
   [TransformProperty.scaleY]: { id: 34, name: 'scale_y', component: ObjectType.TRANSFORM, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
   [TransformProperty.skewX]: { id: 36, name: 'skew_x', component: ObjectType.TRANSFORM, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
   [TransformProperty.skewY]: { id: 37, name: 'skew_y', component: ObjectType.TRANSFORM, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [TransformProperty.rotateX]: { id: 40, name: 'rotate_x', component: ObjectType.TRANSFORM, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
+  [TransformProperty.rotateX]: { id: 40, name: 'rotate_x', component: ObjectType.TRANSFORM, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
 }
 export const StartViewStateDataInfo: Record<StartViewStateProperty, PropertyInfo> = {
   [StartViewStateProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.START_VIEW_STATE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -27895,7 +27899,7 @@ export const ServerDataInfo: Record<ServerProperty, PropertyInfo> = {
   [ServerProperty.region]: { id: 35, name: 'region', component: ObjectType.SERVER, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.status]: { id: 36, name: 'status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.08.22.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.08.23.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.minCpu]: { id: 50, name: 'min_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 4.0 }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.maxCpu]: { id: 51, name: 'max_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 4.0 }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -27924,7 +27928,7 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.region]: { id: 35, name: 'region', component: ObjectType.STORE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.status]: { id: 36, name: 'status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.08.22.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.08.23.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 50, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 51, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -27950,7 +27954,7 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.region]: { id: 35, name: 'region', component: ObjectType.MACHINE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.status]: { id: 36, name: 'status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.08.22.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.08.23.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 42, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 43, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },

@@ -1,26 +1,46 @@
+import { isEnumType, isNodeType } from "@/language/const";
+import { getStorageKey, makeTypeInfo, resolveType, type TypeIdentity } from "@/language/field";
+import type { ReadNodeGraph } from "@/language/graph";
+import { type DebounceLevel, type Transaction } from "@/language/transaction";
+import { packBuiltinObject, packValue, unpackBuiltinObject, unpackValue } from "@/language/value";
 import {
   BenchType,
   FieldData,
   FieldZone,
   FileType,
+  NodeReferenceData,
   NodeType,
+  ObjectType,
   PrimitiveType,
+  SelectionData,
+  SelectionKind,
+  SelectionTarget,
+  TransformData,
   TypeConstraintData,
   TypeInfoData,
   TypeKind,
   Variant,
+  ViewData,
   ViewType,
   type AnyNodeData,
+  type AnyNodeReferenceData,
+  type AnyTypeMapping,
 } from "@/proto/wire";
-import type { ReadNodeGraph } from "@/language/graph";
+import {
+  isNodeRef,
+  isProtoJson,
+  packProtoJson,
+  toNodeRef,
+  toNodeRefOneOf,
+  unpackProtoJson,
+  type SomeNodeReferenceData,
+  type TypedNodeReferenceData,
+} from "@/proto/wiring";
 import { ICONS_BY_ENUM_TYPE } from "@/ui/icon";
-import { isEnumType, isNodeType } from "@/language/const";
-import type { ViewProps } from "@/views/common";
 import { FULL_WIDTH_VIEW_TYPES, getEnumOptions } from "@/ui/inspect";
-import { type TypeIdentity, makeTypeInfo, resolveType, getStorageKey } from "@/language/field";
-import { unpackValue, packValue } from "@/language/value";
-import type { Transaction } from "@/language/transaction";
-import { toNodeRefOneOf, type SomeNodeReferenceData, type TypedNodeReferenceData } from "@/proto/wiring";
+import { computedValue } from "@/utils/ref";
+import type { ViewProps } from "@/views/common";
+import { computed, toRef, type MaybeRef, type Ref } from "vue";
 
 export const VIEW_TYPE_BY_BENCH_TYPE: Partial<Record<BenchType, ViewType>> = {
   [BenchType.ICON]: ViewType.ICON,
@@ -232,4 +252,163 @@ export function toggleHelperViewPin(
     const title = self.name?.replace(/\d+$/, ""); // title = name without postfix numbers
     tx.update(self, { nodePtr: { oneofKind: undefined }, title }, { debounce: "tick" });
   }
+}
+
+export function makeSelection(
+  nodes: AnyNodeData | AnyNodeReferenceData | (AnyNodeData | AnyNodeReferenceData)[],
+): SelectionData {
+  nodes = Array.isArray(nodes) ? nodes : [nodes];
+  return {
+    metatype: ObjectType.SELECTION,
+    target: SelectionTarget.NODE,
+    kind: SelectionKind.LIST,
+    nodesPtr: nodes.map((n) => (isNodeRef(n) ? n : toNodeRef(n as AnyNodeData))),
+  };
+}
+
+export function makeSelectionMaybe(
+  nodes: AnyNodeData | AnyNodeReferenceData | (AnyNodeData | AnyNodeReferenceData)[] | null | undefined,
+): SelectionData | undefined {
+  if (nodes == null) return undefined;
+  return makeSelection(Array.isArray(nodes) ? nodes : [nodes]);
+}
+
+export function expandSelection(
+  selection: SelectionData | undefined | null,
+  nodes: (AnyNodeData | NodeReferenceData)[],
+): SelectionData {
+  return {
+    ...(selection ?? { metatype: ObjectType.SELECTION, target: SelectionTarget.NODE, kind: SelectionKind.LIST }),
+    nodesPtr: [...(selection?.nodesPtr ?? []), ...nodes.map((n) => (isNodeRef(n) ? n : toNodeRef(n as AnyNodeData)))],
+  };
+}
+
+export function collapseSelection(selection: SelectionData, nodes: (AnyNodeData | NodeReferenceData)[]): SelectionData {
+  return {
+    ...selection,
+    nodesPtr: selection.nodesPtr.filter((n) => !nodes.some((m) => m.id == n.id)),
+  };
+}
+
+export function useViewExpansion(options: {
+  graph: ReadNodeGraph;
+  tx: () => Transaction;
+  self?: Ref<AnyNodeReferenceData | null | undefined>;
+  props: Pick<ViewData, "expansion">;
+  emit: (event: string, ...args: any[]) => void;
+  isDefaultExpanded?: MaybeRef<boolean | undefined>;
+  isExclusive?: boolean;
+}) {
+  const isDefaultExpandedRef = toRef(options.isDefaultExpanded) as Ref<boolean>;
+  const expandedNodesById = computedValue(() => {
+    const expanded: Record<string, NodeReferenceData> = {};
+    for (const node of options.props.expansion?.nodesPtr ?? []) {
+      expanded[node.id!] = node;
+    }
+    return expanded;
+  });
+
+  function isExpanded(node: { id?: string; ck?: string }): boolean {
+    return isDefaultExpandedRef.value || expandedNodesById.value[node.id!] != null;
+  }
+
+  function toggleExpanded(node: AnyNodeData | AnyNodeReferenceData) {
+    if (isDefaultExpandedRef.value) return; // nothing to do
+
+    let newExpansion: SelectionData | null;
+    if (isExpanded(node)) {
+      newExpansion = collapseSelection(options.props.expansion!, [node]);
+    } else {
+      if (options.isExclusive) {
+        newExpansion = makeSelection([node]);
+      } else {
+        newExpansion = expandSelection(options.props.expansion, [node]);
+      }
+    }
+    if (options.self?.value != null) {
+      const self = options.graph.getOrError(options.self.value!);
+      options.tx().update(self, { expansion: newExpansion }, { debounce: "tick" });
+    } else {
+      options.emit("update:self", { expansion: newExpansion });
+    }
+  }
+
+  return { toggleExpanded, isExpanded };
+}
+
+export function addTransform(transform: TransformData | null | undefined, add: Partial<TransformData>) {
+  if (transform == null) {
+    return { metatype: ObjectType.TRANSFORM, ...add };
+  }
+  const updated: TransformData = transform != null ? { ...transform } : { metatype: ObjectType.TRANSFORM };
+  for (const key in add) {
+    if (key == "metatype") continue;
+    (updated as any)[key] = ((transform as any)[key] ?? 0) + (add as any)[key];
+  }
+  return updated;
+}
+
+/**
+ * Use the typed state in the View.value of a builtin view type.
+ **/
+export function useViewState<T extends ObjectType>(use: {
+  selfPtr: Ref<TypedNodeReferenceData<NodeType.VIEW> | undefined | null>;
+  graph: ReadNodeGraph;
+  stateType: T;
+  props: Pick<ViewData, "valuePacked">;
+  emit: (event: string, ...args: any[]) => void;
+}) {
+  const state = computedValue(() => {
+    if (use.props.valuePacked == null) {
+      return { metatype: use.stateType } as AnyTypeMapping[T];
+    } else {
+      // we don't pack proto json structs inside proto json structs,
+      //  so while valuePacked should be a proto struct (as per the type) it may not be (see :ProtoStructMapping)
+      const valuePacked = isProtoJson(use.props.valuePacked)
+        ? unpackProtoJson(use.props.valuePacked)
+        : use.props.valuePacked;
+      const unpacked = unpackBuiltinObject(valuePacked, use.stateType);
+      return unpacked;
+    }
+  });
+
+  function updateState(tx: Transaction, value: Partial<AnyTypeMapping[T]>, options?: { debounce?: DebounceLevel }) {
+    const valuePacked = packStateUpdate(value);
+    if (use.selfPtr.value != null) {
+      const self = use.graph.getOrError(use.selfPtr.value);
+      tx.update(self, { valuePacked: packProtoJson(valuePacked) }, options);
+    } else {
+      use.emit("update:self", { valuePacked: packProtoJson(valuePacked) });
+    }
+  }
+
+  function packStateUpdate(value: Partial<AnyTypeMapping[T]>) {
+    const newState = { ...state.value, ...value } as AnyTypeMapping[T];
+    const valuePacked = packBuiltinObject(newState);
+    return valuePacked;
+  }
+
+  function useStateProp<P extends keyof AnyTypeMapping[T]>(
+    txFactory: () => Transaction,
+    prop: P,
+    defaultValue: AnyTypeMapping[T][P],
+    options?: { debounce?: DebounceLevel },
+  ): Ref<Required<AnyTypeMapping[T]>[P]>;
+  function useStateProp<P extends keyof AnyTypeMapping[T]>(
+    txFactory: () => Transaction,
+    prop: P,
+  ): Ref<AnyTypeMapping[T][P] | undefined>;
+  function useStateProp<P extends keyof AnyTypeMapping[T]>(
+    txFactory: () => Transaction,
+    prop: P,
+    defaultValue?: AnyTypeMapping[T][P],
+    options?: { debounce?: DebounceLevel },
+  ): Ref<AnyTypeMapping[T][P]> {
+    return computed({
+      get: () => (state.value?.[prop] ?? defaultValue) as any,
+      set: (value: AnyTypeMapping[T][P]) => updateState(txFactory(), { [prop]: value } as any, options),
+    });
+  }
+
+  return { state, updateState, packStateUpdate, useStateProp };
 }

@@ -1,17 +1,14 @@
 <script lang="ts" setup>
-import { toCamelName } from "@/language/const";
 import { makeTypeInfo } from "@/language/field";
-import { unpackProtoJson } from "@/language/transaction";
-import { FieldZone, NodeType, RunData, RunErrorKind, RunErrorType, TypeKind, Variant, ViewData } from "@/proto/wire";
+import { unpackProtoJson } from "@/proto/wiring";
+import { FieldZone, NodeType, RunData, TypeKind, Variant, ViewData } from "@/proto/wire";
 import { unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import { PACKAGE_SCOPE } from "@/system/client";
 import { useExistingConnection, useGetConnection, type PreparedNodeConnection } from "@/system/connection";
 import { canvas, pkgConnection } from "@/system/space";
-import { tsToDt } from "@/utils/time";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import RunError from "@/views/builtins/RunError.vue";
 import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
-import Text from "@/views/content/Text.vue";
 import ValueObject from "@/views/system/ValueObject.vue";
 import { computed, toRef, type Ref } from "vue";
 

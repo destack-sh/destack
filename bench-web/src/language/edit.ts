@@ -7,7 +7,6 @@ import {
   newChangeId,
   newEditId,
   txBuffers,
-  unpackProtoJson,
   type ChangeIn,
   type TransactionBuffer,
 } from "@/language/transaction";
@@ -30,6 +29,7 @@ import {
   makeDefaultObject,
   makeScope,
   toPlainNodeRef,
+  unpackProtoJson,
   wrapSomeNode,
 } from "@/proto/wiring";
 import { origin, userPtr } from "@/system/client";

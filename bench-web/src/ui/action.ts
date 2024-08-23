@@ -115,8 +115,11 @@ export const ACTION_BUILTIN_IDS = [
   "common.navigate.down",
   "common.navigate.left",
   "common.navigate.right",
-  "common.navigate.in",
-  "common.navigate.out",
+  "common.navigate.zoomIn",
+  "common.navigate.zoomOut",
+  "common.navigate.enter",
+  "common.navigate.exit",
+  "common.navigate.reset",
   "common.navigate.pageUp",
   "common.navigate.pageDown",
   "common.navigate.goBack",
@@ -577,13 +580,31 @@ declareActionMap<"common">({
     text: "Navigate right",
     shortcuts: ["right"],
   },
-  "common.navigate.in": {
+  "common.navigate.zoomIn": {
+    icon: "fas fa-search-plus",
+    title: "Zoom In",
+    text: "Zoom in",
+    shortcuts: ["plus", "mod+plus"],
+  },
+  "common.navigate.zoomOut": {
+    icon: "fas fa-search-minus",
+    title: "Zoom Out",
+    text: "Zoom out",
+    shortcuts: ["minus", "mod+minus"],
+  },
+  "common.navigate.reset": {
+    icon: "fas fa-undo",
+    title: "Reset",
+    text: "Reset",
+    shortcuts: ["0"],
+  },
+  "common.navigate.enter": {
     icon: "fas fa-arrow-in",
     title: "Navigate In",
     text: "Navigate in",
     shortcuts: ["enter"],
   },
-  "common.navigate.out": {
+  "common.navigate.exit": {
     icon: "fas fa-arrow-out",
     title: "Navigate Out",
     text: "Navigate out",
@@ -1230,7 +1251,9 @@ contributeActionMap<"space">({
     title: "Open Creator",
     text: "Get relevant blocks and templates",
     icon: "fas fa-plus",
-    action: ACTION_COMING_SOON,
+    action: () => {
+      canvas.addView({ type: ViewType.CREATE, title: "Create" }, { ifPresent: "upsertAndFocus" });
+    },
   },
   "space.launch.explorer": {
     title: "Open Explorer",

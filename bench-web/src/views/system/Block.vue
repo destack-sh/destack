@@ -31,7 +31,7 @@ import Text from "@/views/content/Text.vue";
 import Value from "@/views/content/Value.vue";
 import Type from "@/views/system/Type.vue";
 import { computed, nextTick, ref, toRef, type Ref } from "vue";
-import { NAME_CONSTRAINT, RUNNABLE_BLOCK_TYPES, TYPE_BLOCK_TYPES } from "@/language/const";
+import { NAME_CONSTRAINT, PAGE_BLOCK_TYPES, RUNNABLE_BLOCK_TYPES, TYPE_BLOCK_TYPES } from "@/language/const";
 import { createField, makeTypeInfo, resolveType, type TypeIdentity } from "@/language/field";
 import { packValue, unpackValue } from "@/language/value";
 import Flow from "@/views/system/Flow.vue";
@@ -175,6 +175,14 @@ defineExpose<ViewExposed & { isRunnable: Ref<boolean> }>({
                 ],
           ]"
         >
+          <!-- Open as page -->
+          <button
+            v-if="PAGE_BLOCK_TYPES.includes(block.type)"
+            class="stext-gray-400 flex-shrink-0 rounded px-0.5 hover:bg-gray-100 hover:text-primary-900"
+            @click="canvas.goToNode(block, { ifPresent: 'upsertAndFocus' })"
+          >
+            <i class="fas fa-magnifying-glass-plus" />
+          </button>
           <!-- Add/edit text -->
           <button
             v-if="!hasText && block.type != BlockType.TEXT"
@@ -313,7 +321,13 @@ defineExpose<ViewExposed & { isRunnable: Ref<boolean> }>({
         :model-value="block.code"
         @update:model-value="(newCode) => pkgConnection.tx.update(block!, { code: newCode }, { debounce: 'long' })"
       />
-      <Flow v-if="block.type == BlockType.FLOW" :self="props.self" :prepared-connection="pkgGetConnection" />
+      <Flow
+        v-if="block.type == BlockType.FLOW"
+        class="h-[360px]"
+        :self="props.self"
+        :variant="Variant.COMPACT"
+        :prepared-connection="pkgGetConnection"
+      />
     </div>
   </div>
   <Inaccessible v-else class="h-full w-full" :node="nodePtr" :connection="pkgConnection" />

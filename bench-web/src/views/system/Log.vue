@@ -13,7 +13,7 @@ import { unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import { PACKAGE_SCOPE } from "@/system/client";
 import { useGetConnection, type PreparedNodeConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
-import { unpackProtoJson } from "@/language/transaction";
+import { unpackProtoJson } from "@/proto/wiring";
 import { getViewForValueType } from "@/ui/view";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";

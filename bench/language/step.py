@@ -58,8 +58,8 @@ class StepType(IdEnum):
 
     # run
     BLOCK = 51  # run a runnable block
-    CODE = 54  # run code
-    TEXT = 55  # run text
+    TEXT = 54  # run text
+    CODE = 55  # run code
     SEND = 56  # emit signal/notification
     # YIELD # to other program/human
     # APPLY, CREATE, PASS?
@@ -81,6 +81,7 @@ class StepType(IdEnum):
     # containers
     GROUP = 500  # sub-flow
     LOOP = 501  # loop inside: X[] -> | X -> ... -> Y | -> Y[]
+    REPEAT = 502  # repeat X N times / until some condition
     # SHIELD?
 
     @property
@@ -273,7 +274,7 @@ class Step(SourceNode[StepData]):
      2. Fire output control port
     When a Step fails, then:
      - If error port exists: fire error on error port
-     - Else: fail entire Flow
+     - Else: fail containing Flow
     """
 
     parent: Union["Block", "Step", None] = p_node_parent(4, NodeType.BLOCK, NodeType.STEP)

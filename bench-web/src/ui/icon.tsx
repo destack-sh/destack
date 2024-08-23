@@ -26,6 +26,7 @@ import {
   RegionArea,
   ResourceStatus,
   RunStatus,
+  StepType,
   StructType,
   TypeKind,
   ViewType,
@@ -240,23 +241,43 @@ export const ICON_BY_BENCH_TYPE: Partial<Record<BenchType, IconData>> = {
 
 export const ICON_BY_BLOCK_TYPE: Partial<Record<BlockType, IconData>> = _makeIcons<BlockType>({
   [BlockType.PAGE]: "fas fa-memo",
-
+  // class
   [BlockType.CLASS]: "fas fa-shapes",
   [BlockType.CHOICE]: "fas fa-circle-chevron-down",
   [BlockType.SIGNAL]: "fas fa-signal-stream",
-
+  // runnable
   [BlockType.TEXT]: "fas fa-text",
   [BlockType.CODE]: "fas fa-code",
   [BlockType.FLOW]: "fas fa-diagram-project",
-
+  // data
   [BlockType.VALUE]: "fas fa-hexagon",
   [BlockType.QUERY]: "fas fa-magnifying-glass",
   [BlockType.DATABASE]: "fas fa-database",
-
+  // view
   [BlockType.VIEW]: "fas fa-window-frame",
-
+  // auth
   [BlockType.ROLE]: "fas fa-user-tag",
   [BlockType.IDENTITY]: "fas fa-image-user",
+});
+
+export const ICON_BY_STEP_TYPE: Partial<Record<StepType, IconData>> = _makeIcons<StepType>({
+  // boundary
+  [StepType.START]: "fas fa-play",
+  [StepType.COMPLETE]: "fas fa-circle-check",
+  [StepType.FAIL]: "fas fa-circle-exclamation",
+  [StepType.VALUE]: "fas fa-hexagon",
+  [StepType.TRIGGER]: "fas fa-bolt",
+  // run
+  [StepType.BLOCK]: "fas fa-cube",
+  [StepType.CODE]: "fas fa-code",
+  [StepType.TEXT]: "fas fa-text",
+  [StepType.SEND]: "fas fa-paper-plane-top",
+  // control
+  // ...
+  // containers
+  [StepType.GROUP]: "fas fa-object-group",
+  [StepType.LOOP]: "fas fa-repeat",
+  [StepType.REPEAT]: "fas fa-repeat",
 });
 
 export const ICON_BY_VIEW_TYPE: Partial<Record<ViewType, IconData>> = _makeIcons<ViewType>({
@@ -266,7 +287,7 @@ export const ICON_BY_VIEW_TYPE: Partial<Record<ViewType, IconData>> = _makeIcons
 
   // kernel
   [ViewType.USER_WIZARD]: "fas fa-user",
-  [ViewType.BENCH_WIZARD]: "fas fa-circle-dot",
+  [ViewType.BENCH_WIZARD]: "fas fa-circle-dot", 
   [ViewType.EMPTY]: "fas fa-bug",
 
   // system

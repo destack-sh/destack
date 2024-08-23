@@ -469,9 +469,9 @@ export const MIME_TYPE_BY_FILE_FORMAT: Partial<Record<FileFormat, string>> = Obj
 // Any...
 export type AnyNodeData = {' | '.join(cls.__name__ + 'Data' for cls in NODE_CLASSES)}
 export type AnyStructData = {' | '.join(cls.__name__ + 'Data' for cls in STRUCT_CLASSES)}
+export type AnyNodeReferenceData = {' | '.join(STRUCT_CLASS_BY_TYPE[t].__name__ + 'Data' for t in NODE_REFERENCE_TYPES)}
 export type AnyNodeDataType = {' | '.join('typeof ' + cls.__name__ + 'Data' for cls in NODE_CLASSES)}
 export type AnyStructDataType = {' | '.join('typeof ' + cls.__name__ + 'Data' for cls in STRUCT_CLASSES)}
-export type AnyNodeReferenceData = {' | '.join('typeof ' + STRUCT_CLASS_BY_TYPE[t].__name__ + 'Data' for t in NODE_REFERENCE_TYPES)}
 
 // Ancestry maps
 {ancestry_maps_str}

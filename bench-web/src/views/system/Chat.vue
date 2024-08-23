@@ -30,12 +30,11 @@ import { findExistingConnectionOrError, useExistingConnection } from "@/system/c
 import { canvas, inspectionPtr, pkgGraph as localPkgGraph, pkg } from "@/system/space";
 import { user } from "@/system/user";
 import type { ActionContext, ActionMapImplementation } from "@/ui/action";
-import { makeSelection } from "@/ui/canvas";
 import { DEFAULT_USER_ICON, IconInline, makeIcon } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
 import { menuActionsLike, type PopoverContext, type PopoverInfo, type PopoverInfoIn } from "@/ui/popover";
 import { graphIndex } from "@/ui/search";
-import { getNativeConstraintProps, guardNativeInput } from "@/ui/view";
+import { getNativeConstraintProps, guardNativeInput, makeSelection } from "@/ui/view";
 import { getElement } from "@/utils/element";
 import { generateRandomName } from "@/utils/naming";
 import { computedValue } from "@/utils/ref";

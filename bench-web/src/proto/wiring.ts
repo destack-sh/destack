@@ -1,4 +1,5 @@
 import { BASED_NODE_TYPES, getBaseFromNode, toCamelName } from "@/language/const";
+import type { JsonValue } from "@/language/value";
 import {
   EditData,
   EditType,
@@ -24,6 +25,7 @@ import {
   type NodeTypeMapping,
   type PropertyInfo,
   type StructTypeMapping,
+  Struct as ProtoStruct,
 } from "@/proto/wire";
 import { reverseRecord } from "@/utils/functools";
 import { Casing, toCasing } from "@/utils/string";
@@ -390,4 +392,20 @@ export function deepContentEquals(object: any, other: any): boolean {
     }
     return true;
   }
+}
+
+//
+// Proto JSON ("Struct")
+// 
+
+export function isProtoJson(value: any): value is ProtoStruct {
+  return typeof value == "object" && "fields" in value && !("metatype" in value);
+}
+
+export function packProtoJson(value: JsonValue | null | undefined): ProtoStruct {
+  return ProtoStruct.fromJson(value ?? null);
+}
+
+export function unpackProtoJson(value: ProtoStruct): JsonValue {
+  return ProtoStruct.toJson(value);
 }

@@ -21,7 +21,14 @@ import {
   type AnyStructData,
   type AnyTypeMapping,
 } from "@/proto/wire";
-import { isNodeRef, isStruct, toNodeRefOneOf, unwrapProtoOneOf, type SomeNodeReferenceData } from "@/proto/wiring";
+import {
+  isNodeRef,
+  isProtoJson,
+  isStruct,
+  toNodeRefOneOf,
+  unwrapProtoOneOf,
+  type SomeNodeReferenceData,
+} from "@/proto/wiring";
 
 export type JsonPrimitive = string | number | boolean | null;
 export type JsonValue = JsonPrimitive | { [key: string]: JsonValue } | JsonValue[];
@@ -31,10 +38,6 @@ export type SomeValue = ScalarValue | SomeValue[] | { [key: string]: SomeValue }
 
 // TODO :Architecture :Performance: encode/decode protoStruct/Json in connections (at the fetch/commit boundary) :ProtoStructMapping
 //  Could either fork protobuf-ts or just switch to ts-proto?
-
-export function isProtoJson(value: any): value is ProtoStruct {
-  return typeof value == "object" && "fields" in value && !("metatype" in value);
-}
 
 /** Packs a single data value in its robust JSON-able representation. */
 function packValueScalar(value: ScalarValue, type: TypeIdentity): JsonValue {

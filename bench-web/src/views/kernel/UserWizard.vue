@@ -1,5 +1,4 @@
 <script lang="ts" setup>
-import { packProtoJson } from "@/language/transaction";
 import { makeTypeInfo } from "@/language/field";
 import {
   NodeType,
@@ -10,17 +9,18 @@ import {
   ViewData,
   type NodeReferenceData,
 } from "@/proto/wire";
-import type { TypedNodeReferenceData } from "@/proto/wiring";
+import { packProtoJson, type TypedNodeReferenceData } from "@/proto/wiring";
 import { benchPtr } from "@/system/client";
 import { useExistingConnection } from "@/system/connection";
 import { canvas, goToBench } from "@/system/space";
 import { logIn, signUp, user } from "@/system/user";
-import { getViewComponentChildren, isVueInstanceOf, useViewState } from "@/ui/canvas";
+import { getViewComponentChildren, isVueInstanceOf } from "@/ui/canvas";
 import { makeIcon } from "@/ui/icon";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import NativeInput from "@/views/content/NativeInput.vue";
 import Button from "@/views/controls/Button.vue";
 import { ref, toRef, type Ref } from "vue";
+import { useViewState } from "@/ui/view";
 
 const props = defineProps<{ self: TypedNodeReferenceData<NodeType.VIEW> } & Pick<ViewData, "title" | "valuePacked">>();
 const emit = defineEmits(viewEmits());
@@ -35,7 +35,7 @@ const { state, updateState, useStateProp, packStateUpdate } = useViewState({
   props,
   emit,
 });
-const stage = useStateProp("stage", UserWizardViewStage.LOG_IN);
+const stage = useStateProp(canvas.tx, "stage", UserWizardViewStage.LOG_IN);
 const name: Ref<string> = ref("");
 const slug: Ref<string> = ref("");
 const email: Ref<string> = ref("");

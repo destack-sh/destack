@@ -483,13 +483,6 @@ export class TransactionBuilder implements Transaction {
   }
 }
 
-export function packProtoJson(value: JsonValue | null | undefined): ProtoStruct {
-  return ProtoStruct.fromJson(value ?? null);
-}
-
-export function unpackProtoJson(value: ProtoStruct): JsonValue {
-  return ProtoStruct.toJson(value);
-}
 
 /**
  * Applies the edits to the graph (in place!).

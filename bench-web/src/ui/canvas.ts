@@ -2,8 +2,8 @@ import { HELPER_VIEW_TYPES, PAGE_BLOCK_TYPES, ROOT_VIEW_TYPES, toCamelName } fro
 import { isDescendantOf, type NodeKey, type ReadNodeGraph } from "@/language/graph";
 import { cloneNode, generateNodeName, makeNode } from "@/language/node";
 import { getOrderKey, updateOrder } from "@/language/order";
-import { packProtoJson, unpackProtoJson, type DebounceLevel, type Transaction } from "@/language/transaction";
-import { isProtoJson, packBuiltinObject, packBuiltinObjectJson, unpackBuiltinObject } from "@/language/value";
+import { type Transaction } from "@/language/transaction";
+import { packBuiltinObjectJson } from "@/language/value";
 import {
   Anchor,
   BlockType,
@@ -14,15 +14,12 @@ import {
   ObjectType,
   Orientation,
   SelectionData,
-  SelectionKind,
-  SelectionTarget,
   SpaceData,
   StructType,
   TreeViewPreset,
   ViewData,
   ViewType,
-  type AnyNodeData,
-  type AnyTypeMapping,
+  type AnyNodeData
 } from "@/proto/wire";
 import {
   describeNode,
@@ -38,16 +35,17 @@ import {
   type SomeNodeReferenceData,
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
-import { canvas, inspectionBasePtr, inspectionPtr } from "@/system/space";
+import { inspectionBasePtr, inspectionPtr } from "@/system/space";
 import type { SplitAnchor } from "@/ui/drag";
 import { toIconMaybe } from "@/ui/icon";
 import { DEFAULT_ORIENTATION, splitBox } from "@/ui/layout";
+import { makeSelection, makeSelectionMaybe } from "@/ui/view";
 import { getElement, isFocusableElement } from "@/utils/element";
 import { generateOrderKey, generateOrderKeys } from "@/utils/fractional";
 import { assertNever } from "@/utils/functools";
 import { IS_DEV, isDeveloperMode } from "@/utils/globals";
 import { log } from "@/utils/log";
-import { computedValue, deepValueEquals } from "@/utils/ref";
+import { deepValueEquals } from "@/utils/ref";
 import { Casing, toCasing } from "@/utils/string";
 import { getViewTypeByComponentName, type FocusAnchor, type ViewComponent, type ViewProps } from "@/views/common";
 import { useActiveElement, useEventListener, type MaybeElement } from "@vueuse/core";
@@ -59,12 +57,10 @@ import {
   onMounted,
   onUpdated,
   shallowRef,
-  toRef,
   triggerRef,
   watch,
   type ComponentInstance,
-  type MaybeRef,
-  type Ref,
+  type Ref
 } from "vue";
 
 export const DEFAULT_BAR_POSITION = Anchor.TOP;
@@ -197,6 +193,7 @@ type OpenViewOptions = {
   predicate?: (view: ViewData) => boolean;
   where?: "currentFrame" | "bestFrame";
   ifPresent?: "duplicate" | "focus" | "upsertAndFocus";
+  props?: Partial<ViewData>;
 };
 
 /**
@@ -764,7 +761,16 @@ export class ViewCanvas {
       const node = graph.getOrError(nodePtr);
       if (isNode(node, NodeType.BLOCK) && node.type == BlockType.FLOW) {
         // open as flow
-        this.addView({ type: ViewType.FLOW, nodePtr: toNodeRefOneOf(nodePtr) });
+        this.addView(
+          { type: ViewType.FLOW, nodePtr: toNodeRefOneOf(nodePtr), ...options?.props },
+          { ifPresent: "upsertAndFocus", ...options },
+        );
+      } else if (isNode(node, NodeType.BLOCK) && node.type == BlockType.VIEW) {
+        // open as view
+        this.addView(
+          { type: ViewType.VIEW, nodePtr: toNodeRefOneOf(nodePtr), ...options?.props },
+          { ifPresent: "upsertAndFocus", ...options },
+        );
       } else if (isNode(node, NodeType.BLOCK) || DESCENDANT_NODE_TYPES[NodeType.BLOCK].includes(nodePtr.type)) {
         // open generic block in containing page
         const containingPage = graph
@@ -776,6 +782,7 @@ export class ViewCanvas {
             type: ViewType.PAGE,
             nodePtr: toNodeRefOneOf(containingPage),
             focus: makeSelection(nodePtr),
+            ...options?.props,
           },
           { ifPresent: "upsertAndFocus", ...options },
         );
@@ -1069,147 +1076,4 @@ export function createDesktopDefaultSpace(tx: Transaction, space: SpaceData): { 
 /** Creates the advanced three-side double vertical split canvas */
 export function createDesktopAdvancedSpace(tx: Transaction, space: SpaceData): { primary: ViewData } {
   return createDesktopDefaultSpace(tx, space); // no special space yet
-}
-
-export function makeSelection(
-  nodes: AnyNodeData | AnyNodeReferenceData | (AnyNodeData | AnyNodeReferenceData)[],
-): SelectionData {
-  nodes = Array.isArray(nodes) ? nodes : [nodes];
-  return {
-    metatype: ObjectType.SELECTION,
-    target: SelectionTarget.NODE,
-    kind: SelectionKind.LIST,
-    nodesPtr: nodes.map((n) => (isNodeRef(n) ? n : toNodeRef(n as AnyNodeData))),
-  };
-}
-
-export function makeSelectionMaybe(
-  nodes: AnyNodeData | AnyNodeReferenceData | (AnyNodeData | AnyNodeReferenceData)[] | null | undefined,
-): SelectionData | undefined {
-  if (nodes == null) return undefined;
-  return makeSelection(Array.isArray(nodes) ? nodes : [nodes]);
-}
-
-export function expandSelection(
-  selection: SelectionData | undefined | null,
-  nodes: (AnyNodeData | NodeReferenceData)[],
-): SelectionData {
-  return {
-    ...(selection ?? { metatype: ObjectType.SELECTION, target: SelectionTarget.NODE, kind: SelectionKind.LIST }),
-    nodesPtr: [...(selection?.nodesPtr ?? []), ...nodes.map((n) => (isNodeRef(n) ? n : toNodeRef(n as AnyNodeData)))],
-  };
-}
-
-export function collapseSelection(selection: SelectionData, nodes: (AnyNodeData | NodeReferenceData)[]): SelectionData {
-  return {
-    ...selection,
-    nodesPtr: selection.nodesPtr.filter((n) => !nodes.some((m) => m.id == n.id)),
-  };
-}
-
-export function useExpansion(options: {
-  graph: ReadNodeGraph;
-  tx: () => Transaction;
-  self?: Ref<AnyNodeReferenceData | null | undefined>;
-  props: Pick<ViewData, "expansion">;
-  emit: (event: string, ...args: any[]) => void;
-  isDefaultExpanded?: MaybeRef<boolean | undefined>;
-  isExclusive?: boolean;
-}) {
-  const isDefaultExpandedRef = toRef(options.isDefaultExpanded) as Ref<boolean>;
-  const expandedNodesById = computedValue(() => {
-    const expanded: Record<string, NodeReferenceData> = {};
-    for (const node of options.props.expansion?.nodesPtr ?? []) {
-      expanded[node.id!] = node;
-    }
-    return expanded;
-  });
-
-  function toggleExpanded(node: AnyNodeData | AnyNodeReferenceData) {
-    if (isDefaultExpandedRef.value) return; // nothing to do
-
-    let newExpansion: SelectionData | null;
-    if (isExpanded(node)) {
-      newExpansion = collapseSelection(options.props.expansion!, [node]);
-    } else {
-      if (options.isExclusive) {
-        newExpansion = makeSelection([node]);
-      } else {
-        newExpansion = expandSelection(options.props.expansion, [node]);
-      }
-    }
-    if (options.self?.value != null) {
-      const self = options.graph.getOrError(options.self.value!);
-      canvas.tx().update(self, { expansion: newExpansion }, { debounce: "tick" });
-    } else {
-      options.emit("update:self", { expansion: newExpansion });
-    }
-  }
-
-  function isExpanded(node: { id?: string; ck?: string }): boolean {
-    return isDefaultExpandedRef.value || expandedNodesById.value[node.id!] != null;
-  }
-
-  return { toggleExpanded, isExpanded };
-}
-
-/**
- * Use the typed state in the View.value of a builtin view type.
- **/
-export function useViewState<T extends ObjectType>(use: {
-  selfPtr: Ref<TypedNodeReferenceData<NodeType.VIEW> | undefined | null>;
-  graph: ReadNodeGraph;
-  stateType: T;
-  props: Pick<ViewData, "valuePacked">;
-  emit: (event: string, ...args: any[]) => void;
-}) {
-  const state = computedValue(() => {
-    if (use.props.valuePacked == null) {
-      return { metatype: use.stateType } as AnyTypeMapping[T];
-    } else {
-      // we don't pack proto json structs inside proto json structs,
-      //  so while valuePacked should be a proto struct (as per the type) it may not be (see :ProtoStructMapping)
-      const valuePacked = isProtoJson(use.props.valuePacked)
-        ? unpackProtoJson(use.props.valuePacked)
-        : use.props.valuePacked;
-      const unpacked = unpackBuiltinObject(valuePacked, use.stateType);
-      return unpacked;
-    }
-  });
-
-  function updateState(value: Partial<AnyTypeMapping[T]>, options?: { debounce?: DebounceLevel }) {
-    const valuePacked = packStateUpdate(value);
-    if (use.selfPtr.value != null) {
-      const tx = canvas.tx();
-      const self = use.graph.getOrError(use.selfPtr.value);
-      tx.update(self, { valuePacked: packProtoJson(valuePacked) }, options);
-    } else {
-      use.emit("update:self", { valuePacked: packProtoJson(valuePacked) });
-    }
-  }
-
-  function packStateUpdate(value: Partial<AnyTypeMapping[T]>) {
-    const newState = { ...state.value, ...value } as AnyTypeMapping[T];
-    const valuePacked = packBuiltinObject(newState);
-    return valuePacked;
-  }
-
-  function useStateProp<P extends keyof AnyTypeMapping[T]>(
-    prop: P,
-    defaultValue: AnyTypeMapping[T][P],
-    options?: { debounce?: DebounceLevel },
-  ): Ref<Required<AnyTypeMapping[T]>[P]>;
-  function useStateProp<P extends keyof AnyTypeMapping[T]>(prop: P): Ref<AnyTypeMapping[T][P] | undefined>;
-  function useStateProp<P extends keyof AnyTypeMapping[T]>(
-    prop: P,
-    defaultValue?: AnyTypeMapping[T][P],
-    options?: { debounce?: DebounceLevel },
-  ): Ref<AnyTypeMapping[T][P]> {
-    return computed({
-      get: () => (state.value?.[prop] ?? defaultValue) as any,
-      set: (value: AnyTypeMapping[T][P]) => updateState({ [prop]: value } as any, options),
-    });
-  }
-
-  return { state, updateState, packStateUpdate, useStateProp };
 }
