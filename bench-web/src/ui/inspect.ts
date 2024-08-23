@@ -262,7 +262,7 @@ function getInspectionInfo(metatype: ObjectType, type: any): Record<string, Insp
     return properties;
   } else if (metatype == ObjectType.BLOCK) {
     const properties: Record<string, InspectionCategory> = {
-      Common: [],
+      Common: [BlockProperty.type],
       Run: [],
     };
     if (RUNNABLE_BLOCK_TYPES.includes(type) || PAGE_BLOCK_TYPES.includes(type)) {

@@ -190,9 +190,9 @@ watch(
         <Button
           v-if="user"
           class="mt-2"
-          name="Create"
+          name="MakeSpace"
           :icon="makeIcon('fas fa-plus')"
-          title="Create Space"
+          title="Make Space"
           @click="() => assignSpaceInPackage()"
         />
         <Button

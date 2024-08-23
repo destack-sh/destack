@@ -341,7 +341,7 @@ export function createField(
   let { anchor, field: fieldIn } = options;
   const target = isNode(options.target) ? options.target : graph.getOrError(options.target);
 
-  // position
+  // position in graph
   let parentPtr: NodeReferenceData;
   let orderKey: string;
   let zone: FieldZone;
