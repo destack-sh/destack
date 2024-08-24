@@ -4,6 +4,7 @@ import type { ReadNodeGraph } from "@/language/graph";
 import { type DebounceLevel, type Transaction } from "@/language/transaction";
 import { packBuiltinObject, packValue, unpackBuiltinObject, unpackValue } from "@/language/value";
 import {
+  Anchor,
   BenchType,
   FieldData,
   FieldZone,
@@ -32,15 +33,157 @@ import {
   packProtoJson,
   toNodeRef,
   toNodeRefOneOf,
+  typeNodeReferenceMaybe,
   unpackProtoJson,
   type SomeNodeReferenceData,
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
 import { ICONS_BY_ENUM_TYPE } from "@/ui/icon";
 import { FULL_WIDTH_VIEW_TYPES, getEnumOptions } from "@/ui/inspect";
+import { isFocusableElement } from "@/utils/element";
 import { computedValue } from "@/utils/ref";
-import type { ViewProps } from "@/views/common";
-import { computed, toRef, type MaybeRef, type Ref } from "vue";
+import { getViewTypeByComponentName, type ViewComponent, type ViewProps } from "@/views/common";
+import type { MaybeElement } from "@vueuse/core";
+import { computed, toRef, type ComponentInstance, type MaybeRef, type Ref } from "vue";
+
+export const SPACE_DEFAULT_BAR_POSITION = Anchor.TOP;
+export const VIEW_DEFAULT_HEADER_HEIGHT = 36;
+export const VIEW_DEFAULT_MIN_WIDTH = 320;
+export const VIEW_DEFAULT_MAX_WIDTH = 800;
+
+export function getVueComponentType(component: ComponentInstance<any>): string {
+  return component.__name ?? (component as any).type.__name;
+}
+
+export function describeVueComponent(component: ComponentInstance<any>): string {
+  const id = (component as any).exposed?.self?.value?.id ?? (component as any).exposed?.id?.value;
+  return `${getVueComponentType(component)}:${id}`;
+}
+
+/** Gets a top down 'path' of a vue component (like Space:id->Split:id->Tabbed:id->Button:id) */
+export function describeVueComponentPath(component: ComponentInstance<any>): string {
+  const components = collectViewComponentsUp(component).reverse();
+  return components.map((c) => getVueComponentType(c) + ":" + getViewComponentId(c)).join("->");
+}
+
+export function isVueComponent(component: ComponentInstance<any>): boolean {
+  return (component as any).uid != null;
+}
+
+export function isVueInstanceOf(component: ComponentInstance<any>, type: string | { __name?: string }): boolean {
+  const componentType = (component as any).type;
+  return typeof type === "string" ? componentType.__name === type : componentType === type;
+}
+
+export function isViewComponent(component: ComponentInstance<any>): component is ViewComponent {
+  return (component as any).exposed?.self != null || (component as any).exposed?.id != null;
+}
+
+export function isIdentifiedViewComponent(
+  component: ComponentInstance<any>,
+): component is ViewComponent & { exposed: { self: Ref<NodeReferenceData> } } {
+  return (component as any).exposed?.self?.value != null;
+}
+
+export function isViewComponentIn(component: ViewComponent, viewTypes: Set<ViewType>): boolean {
+  const componentType = getVueComponentType(component);
+  const viewType = getViewTypeByComponentName(componentType);
+  if (viewType == null) throw new Error(`no view type for component: ${componentType}`);
+  return viewTypes.has(viewType);
+}
+
+export function getViewComponentId(component: ViewComponent): string {
+  if (component.exposed?.self?.value != null) return component.exposed.self.value.id!;
+  else if (component.exposed?.id?.value != null) return component.exposed.id.value;
+  else throw new Error(`no id on component ${getVueComponentType(component)}: ${component}`);
+}
+
+/** Finds the closest ViewComponent ancestor. */
+export function findViewComponentUp(
+  el: HTMLElement | ComponentInstance<any>,
+  where?: (component: ViewComponent) => boolean,
+): ViewComponent | null {
+  while (el != null) {
+    if (el instanceof HTMLElement) {
+      // first find vue component
+      if ((el as any).__viewComponent != null) el = (el as any).__viewComponent;
+      else el = el.parentElement!;
+    } else {
+      if (where == null || where(el)) return el;
+      else el = el.parent;
+    }
+  }
+  return null;
+}
+
+/** Collect all view components from the given component upwards (inclusive) */
+export function collectViewComponentsUp(componentOrEl: ComponentInstance<any> | HTMLElement): ViewComponent[] {
+  let component = componentOrEl instanceof HTMLElement ? findViewComponentUp(componentOrEl) : componentOrEl;
+  const components = [];
+  while (component != null) {
+    if (isViewComponent(component)) components.push(component);
+    component = component.parent;
+  }
+  return components;
+}
+
+/**
+ * Gets all child View components of a given component in DOM order.
+ * Walks the DOM descendants until the first layer of child components.
+ * */
+export function getViewComponentChildren(instance: ComponentInstance<any>): ViewComponent[] {
+  const elements = [instance.subTree.el];
+  const components = [];
+
+  // traverse the DOM
+  while (elements.length > 0) {
+    const el = elements.pop()!;
+    for (const child of el.children) {
+      if (child instanceof HTMLElement) {
+        const component = (child as any).__viewComponent as ComponentInstance<any> | null;
+        if (component != null && component !== instance && isViewComponent(component)) components.push(component);
+        else elements.push(child);
+      }
+    }
+  }
+
+  return components;
+}
+
+export function getViewComponentPtrMaybe(
+  component: ViewComponent | null | undefined,
+): TypedNodeReferenceData<NodeType.VIEW> | null {
+  return typeNodeReferenceMaybe(NodeType.VIEW, component?.exposed.self?.value ?? null);
+}
+
+/** Traverses the DOM up to check if any element is marked as outside any view */
+export function isOutsideView(el: HTMLElement): boolean {
+  while (el != null) {
+    if (el.hasAttribute("data-outside-view")) return true;
+    el = el.parentElement!;
+  }
+  return false;
+}
+
+export function focusInElement(element: MaybeElement): boolean {
+  while (element != null) {
+    if (element instanceof HTMLElement || element instanceof SVGElement) {
+      if (!isFocusableElement(element)) {
+        return false; // don't try to magically find a focusable element, this shouldbe explicit
+      } else {
+        element.focus();
+      }
+      return true;
+    } else if ("focus" in element) {
+      const focusResult = (element as any).focus();
+      if (focusResult === true || focusResult === undefined) return true;
+      else element = focusResult;
+    } else {
+      return false;
+    }
+  }
+  return false;
+}
 
 export const VIEW_TYPE_BY_BENCH_TYPE: Partial<Record<BenchType, ViewType>> = {
   [BenchType.ICON]: ViewType.ICON,

@@ -1,6 +1,6 @@
 import { BoxData, ViewData, ViewType } from "@/proto/wire";
 import { toPlainNodeRef } from "@/proto/wiring";
-import { getVueComponentType } from "@/ui/canvas";
+import { getVueComponentType } from "@/ui/view";
 import type { ViewComponent } from "@/views/common";
 
 // NOTE!: Only put ABSOLUTELY NECESSARY definitions for the view registry here.

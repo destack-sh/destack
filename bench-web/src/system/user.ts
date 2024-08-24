@@ -26,7 +26,7 @@ import { makeNode } from "@/language/node";
 import { bench, canvas, goToBench } from "@/system/space";
 import { toaster } from "@/ui/toast";
 import { log } from "@/utils/log";
-import type { ViewDataIn } from "@/ui/canvas";
+import type { ViewDataIn } from "@/ui/space";
 import type { RpcError } from "@protobuf-ts/runtime-rpc";
 import { computed, ref } from "vue";
 

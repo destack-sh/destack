@@ -26,14 +26,7 @@ import { keytrap, type KeySignature } from "@/ui/keymap";
 import { log } from "@/utils/log";
 import { generateRandomName } from "@/utils/naming";
 import { Casing, toCasing } from "@/utils/string";
-import {
-  DEFAULT_BAR_POSITION,
-  clearSpace,
-  collectViewComponentsUp,
-  createDesktopAdvancedSpace,
-  createDesktopDefaultSpace,
-  createEmptySpace,
-} from "@/ui/canvas";
+import { clearSpace, createDesktopAdvancedSpace, createDesktopDefaultSpace, createEmptySpace } from "@/ui/space";
 import type { ViewComponent } from "@/views/common";
 import { useKeyModifier } from "@vueuse/core";
 import {
@@ -49,6 +42,7 @@ import {
 } from "vue";
 import { EXPOSED_ANCHORS, getRandomEnumOption } from "@/ui/inspect";
 import { getEditStack } from "@/language/edit";
+import { collectViewComponentsUp, SPACE_DEFAULT_BAR_POSITION } from "@/ui/view";
 
 export const IS_IN_ALT_MODE = useKeyModifier("Alt");
 
@@ -1079,7 +1073,7 @@ contributeActionMap<"view">({
     action: () => {
       if (space.value == null) throw new Error("no space");
       const tx = canvas.tx();
-      const barPosition = space.value.barPosition ?? DEFAULT_BAR_POSITION;
+      const barPosition = space.value.barPosition ?? SPACE_DEFAULT_BAR_POSITION;
       const nextBarPosition = EXPOSED_ANCHORS[(EXPOSED_ANCHORS.indexOf(barPosition) + 1) % EXPOSED_ANCHORS.length];
       tx.update(space.value, { barPosition: nextBarPosition });
     },

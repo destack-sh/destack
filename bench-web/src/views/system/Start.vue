@@ -33,7 +33,7 @@ import {
 } from "@/proto/wiring";
 import { useExistingConnection, useNode } from "@/system/connection";
 import { canvas, inspectionPtr } from "@/system/space";
-import { DEFAULT_HEADER_HEIGHT } from "@/ui/canvas";
+import { VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import { ICON_BY_RUN_STATUS, IconInline } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
 import { ACCENT_COLOR_BY_RUN_STATUS } from "@/ui/style";
@@ -49,7 +49,7 @@ import Feed from "@/views/system/Feed.vue";
 import ValueObject from "@/views/system/ValueObject.vue";
 import { computed, ref, toRef, watch, type Ref } from "vue";
 
-const HEADER_HEIGHT = DEFAULT_HEADER_HEIGHT;
+const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
 const MIN_WIDTH = 320;
 const MAX_WIDTH = 800;
 

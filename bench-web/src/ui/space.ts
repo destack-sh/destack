@@ -5,7 +5,6 @@ import { getOrderKey, updateOrder } from "@/language/order";
 import { type Transaction } from "@/language/transaction";
 import { packBuiltinObjectJson } from "@/language/value";
 import {
-  Anchor,
   BlockType,
   DESCENDANT_NODE_TYPES,
   IconData,
@@ -19,7 +18,7 @@ import {
   TreeViewPreset,
   ViewData,
   ViewType,
-  type AnyNodeData
+  type AnyNodeData,
 } from "@/proto/wire";
 import {
   describeNode,
@@ -29,7 +28,6 @@ import {
   toNodeRef,
   toNodeRefOneOf,
   toPlainNodeRef,
-  typeNodeReferenceMaybe,
   unwrapProtoOneOf,
   type AnyNodeReferenceData,
   type SomeNodeReferenceData,
@@ -39,7 +37,20 @@ import { inspectionBasePtr, inspectionPtr } from "@/system/space";
 import type { SplitAnchor } from "@/ui/drag";
 import { toIconMaybe } from "@/ui/icon";
 import { DEFAULT_ORIENTATION, splitBox } from "@/ui/layout";
-import { makeSelection, makeSelectionMaybe } from "@/ui/view";
+import {
+  collectViewComponentsUp,
+  describeVueComponentPath,
+  findViewComponentUp,
+  getViewComponentId,
+  getViewComponentPtrMaybe,
+  getVueComponentType,
+  isIdentifiedViewComponent,
+  isOutsideView,
+  isViewComponent,
+  isViewComponentIn,
+  makeSelection,
+  makeSelectionMaybe,
+} from "@/ui/view";
 import { getElement, isFocusableElement } from "@/utils/element";
 import { generateOrderKey, generateOrderKeys } from "@/utils/fractional";
 import { assertNever } from "@/utils/functools";
@@ -47,7 +58,7 @@ import { IS_DEV, isDeveloperMode } from "@/utils/globals";
 import { log } from "@/utils/log";
 import { deepValueEquals } from "@/utils/ref";
 import { Casing, toCasing } from "@/utils/string";
-import { getViewTypeByComponentName, type FocusAnchor, type ViewComponent, type ViewProps } from "@/views/common";
+import { type FocusAnchor, type ViewComponent, type ViewProps } from "@/views/common";
 import { useActiveElement, useEventListener, type MaybeElement } from "@vueuse/core";
 import {
   computed,
@@ -60,130 +71,8 @@ import {
   triggerRef,
   watch,
   type ComponentInstance,
-  type Ref
+  type Ref,
 } from "vue";
-
-export const DEFAULT_BAR_POSITION = Anchor.TOP;
-export const DEFAULT_HEADER_HEIGHT = 36;
-export const DEFAULT_MIN_WIDTH = 320;
-export const DEFAULT_MAX_WIDTH = 800;
-export const DEFAULT_PADDING_X = 20;
-
-export function getVueComponentType(component: ComponentInstance<any>): string {
-  return component.__name ?? (component as any).type.__name;
-}
-
-export function describeVueComponent(component: ComponentInstance<any>): string {
-  const id = (component as any).exposed?.self?.value?.id ?? (component as any).exposed?.id?.value;
-  return `${getVueComponentType(component)}:${id}`;
-}
-
-/** Gets a top down 'path' of a vue component (like Space:id->Split:id->Tabbed:id->Button:id) */
-export function describeVueComponentPath(component: ComponentInstance<any>): string {
-  const components = collectViewComponentsUp(component).reverse();
-  return components.map((c) => getVueComponentType(c) + ":" + getViewComponentId(c)).join("->");
-}
-
-export function isVueComponent(component: ComponentInstance<any>): boolean {
-  return (component as any).uid != null;
-}
-
-export function isVueInstanceOf(component: ComponentInstance<any>, type: string | { __name?: string }): boolean {
-  const componentType = (component as any).type;
-  return typeof type === "string" ? componentType.__name === type : componentType === type;
-}
-
-export function isViewComponent(component: ComponentInstance<any>): component is ViewComponent {
-  return (component as any).exposed?.self != null || (component as any).exposed?.id != null;
-}
-
-export function isIdentifiedViewComponent(
-  component: ComponentInstance<any>,
-): component is ViewComponent & { exposed: { self: Ref<NodeReferenceData> } } {
-  return (component as any).exposed?.self?.value != null;
-}
-
-export function isViewComponentIn(component: ViewComponent, viewTypes: Set<ViewType>): boolean {
-  const componentType = getVueComponentType(component);
-  const viewType = getViewTypeByComponentName(componentType);
-  if (viewType == null) throw new Error(`no view type for component: ${componentType}`);
-  return viewTypes.has(viewType);
-}
-
-export function getViewComponentId(component: ViewComponent): string {
-  if (component.exposed?.self?.value != null) return component.exposed.self.value.id!;
-  else if (component.exposed?.id?.value != null) return component.exposed.id.value;
-  else throw new Error(`no id on component ${getVueComponentType(component)}: ${component}`);
-}
-
-/** Finds the closest ViewComponent ancestor. */
-export function findViewComponentUp(
-  el: HTMLElement | ComponentInstance<any>,
-  where?: (component: ViewComponent) => boolean,
-): ViewComponent | null {
-  while (el != null) {
-    if (el instanceof HTMLElement) {
-      // first find vue component
-      if ((el as any).__viewComponent != null) el = (el as any).__viewComponent;
-      else el = el.parentElement!;
-    } else {
-      if (where == null || where(el)) return el;
-      else el = el.parent;
-    }
-  }
-  return null;
-}
-
-/** Collect all view components from the given component upwards (inclusive) */
-export function collectViewComponentsUp(componentOrEl: ComponentInstance<any> | HTMLElement): ViewComponent[] {
-  let component = componentOrEl instanceof HTMLElement ? findViewComponentUp(componentOrEl) : componentOrEl;
-  const components = [];
-  while (component != null) {
-    if (isViewComponent(component)) components.push(component);
-    component = component.parent;
-  }
-  return components;
-}
-
-/**
- * Gets all child View components of a given component in DOM order.
- * Walks the DOM descendants until the first layer of child components.
- * */
-export function getViewComponentChildren(instance: ComponentInstance<any>): ViewComponent[] {
-  const elements = [instance.subTree.el];
-  const components = [];
-
-  // traverse the DOM
-  while (elements.length > 0) {
-    const el = elements.pop()!;
-    for (const child of el.children) {
-      if (child instanceof HTMLElement) {
-        const component = (child as any).__viewComponent as ComponentInstance<any> | null;
-        if (component != null && component !== instance && isViewComponent(component)) components.push(component);
-        else elements.push(child);
-      }
-    }
-  }
-
-  return components;
-}
-
-function getViewComponentPtrMaybe(
-  component: ViewComponent | null | undefined,
-): TypedNodeReferenceData<NodeType.VIEW> | null {
-  return typeNodeReferenceMaybe(NodeType.VIEW, component?.exposed.self?.value ?? null);
-}
-
-const activeElement = useActiveElement();
-
-/** Traverses the DOM up to check if any element is marked as outside any view */
-function isOutsideView(el: HTMLElement): boolean {
-  while (el != null) {
-    if (el.hasAttribute("data-outside-view")) return true;
-    el = el.parentElement!;
-  }
-  return false;
-}
 
 export type SomeView = NodeReferenceData | ViewData;
 export type ViewDataIn = Partial<Omit<ViewData, "metatype" | "icon">> &
@@ -196,12 +85,14 @@ type OpenViewOptions = {
   props?: Partial<ViewData>;
 };
 
+const activeElement = useActiveElement();
+
 /**
  * Canvas, manager and helper for linking Views, their Vue components, and their HTML elements in a Space.
  * Some of our View components may not have an associated View, so we track them with a derived id.
  * NOTE: ViewCanvas is effectively a global singleton (currently).
  */
-export class ViewCanvas {
+export class SpaceCanvas {
   spacePtr: Ref<TypedNodeReferenceData<NodeType.SPACE> | null>;
   graph: ReadNodeGraph;
   tx: () => Transaction; // for when we're not given a transaction to work with (e.g. browser events)
@@ -227,9 +118,9 @@ export class ViewCanvas {
       if (
         activeElement.value != null &&
         activeElement.value !== document.body &&
-        // NOTE: Chrome thinks that scrollable containers are a focusable element, so ignore those.
+        // NOTE: Chromium consider scrollable containers to be focusable elements, so ignore those.
         //  (Otherwise we would get confused because activeElement change comes after mousedown event,
-        //   and if the mousedown'ed target was the next higher container will trigger later, changing focus)
+        //   and if the mousedown'ed target was the next higher container it will trigger later and change focus)
         isFocusableElement(activeElement.value) &&
         !isOutsideView(activeElement.value)
       ) {
@@ -936,26 +827,6 @@ export class ViewCanvas {
   }
 }
 
-export function focusInElement(element: MaybeElement): boolean {
-  while (element != null) {
-    if (element instanceof HTMLElement || element instanceof SVGElement) {
-      if (!isFocusableElement(element)) {
-        return false; // don't try to magically find a focusable element, this shouldbe explicit
-      } else {
-        element.focus();
-      }
-      return true;
-    } else if ("focus" in element) {
-      const focusResult = (element as any).focus();
-      if (focusResult === true || focusResult === undefined) return true;
-      else element = focusResult;
-    } else {
-      return false;
-    }
-  }
-  return false;
-}
-
 function makeMainWindow(space: SpaceData, tx: Transaction): ViewData {
   const main = makeNode({
     metatype: NodeType.VIEW,
@@ -977,8 +848,6 @@ export function clearSpace(tx: Transaction, graph: ReadNodeGraph, space: SpaceDa
   }
   tx.update(space, { focus: undefined, inspectionPtr: undefined }, { debounce: "short" });
 }
-
-// NOTE :Cleanup: defining space/canvas layouts is a bit cumbersome
 
 type ViewLayoutIn = {
   type: ViewType;

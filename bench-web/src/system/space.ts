@@ -15,7 +15,7 @@ import { DEFAULT_NODE_FILTER, NodeGraph, ProxyNodeGraph } from "@/language/graph
 import { SOURCE_NODE_TYPES } from "@/language/const";
 import { toaster } from "@/ui/toast";
 import { log } from "@/utils/log";
-import { ViewCanvas, createDesktopDefaultSpace, createEmptySpace } from "@/ui/canvas";
+import { SpaceCanvas, createDesktopDefaultSpace, createEmptySpace } from "@/ui/space";
 import { computed, nextTick, watch } from "vue";
 
 // bench/packages
@@ -59,7 +59,7 @@ export const inspectionBasePtr = computed(() => space.value?.basePtr);
 export const { connection: spaceConnection } = useExistingConnection(local.spacePtr, {
   isRequired: false,
 });
-export const canvas = new ViewCanvas(local.spacePtr, spaceGraph, () =>
+export const canvas = new SpaceCanvas(local.spacePtr, spaceGraph, () =>
   spaceConnection.tx.with({ category: ChangeCategory.SPACE }),
 );
 export const allSpaces = pkgGraph.getChildrenRef(pkg, NodeType.SPACE);

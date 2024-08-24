@@ -1,16 +1,19 @@
 <script lang="ts" setup>
+import { HELPER_VIEW_TYPES, NODE_VIEW_TYPES } from "@/language/const";
 import { Anchor, NodeReferenceData, NodeType, Orientation, UserStatus, ViewType } from "@/proto/wire";
 import { toPlainNodeRef, unwrapProtoOneOf } from "@/proto/wiring";
-import { IS_IN_ALT_MODE, fireActionById } from "@/ui/action";
 import { spacePtr } from "@/system/client";
-import { makeIcon } from "@/ui/icon";
 import { assignSpaceInPackage, bench, canvas, space, spaceConnection, spaceGraph } from "@/system/space";
-import { toaster } from "@/ui/toast";
 import { user } from "@/system/user";
-import { DISCORD_URL } from "@/utils/globals";
+import { IS_IN_ALT_MODE, fireActionById } from "@/ui/action";
+import { createDesktopDefaultSpace } from "@/ui/space";
+import { makeIcon } from "@/ui/icon";
 import { keytrap } from "@/ui/keymap";
 import { isDraggingGlobal } from "@/ui/layout";
 import { hasActivePopover } from "@/ui/popover";
+import { toaster } from "@/ui/toast";
+import { SPACE_DEFAULT_BAR_POSITION, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
+import { DISCORD_URL } from "@/utils/globals";
 import Bar from "@/views/builtins/Bar.vue";
 import DragOverlay from "@/views/builtins/DragOverlay.vue";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
@@ -18,15 +21,13 @@ import Omnibar from "@/views/builtins/Omnibar.vue";
 import PopoverOverlay from "@/views/builtins/PopoverOverlay.vue";
 import ToastOverlay from "@/views/builtins/ToastOverlay.vue";
 import TooltipOverlay from "@/views/builtins/TooltipOverlay.vue";
-import { DEFAULT_BAR_POSITION, DEFAULT_HEADER_HEIGHT, createDesktopDefaultSpace } from "@/ui/canvas";
 import Split from "@/views/containers/Split.vue";
 import Button from "@/views/controls/Button.vue";
 import { useTitle, useWindowSize } from "@vueuse/core";
 import { computed, onBeforeUnmount, ref, watch, type Ref } from "vue";
-import { HELPER_VIEW_TYPES, NODE_VIEW_TYPES, ROOT_VIEW_TYPES } from "@/language/const";
 
-const BAR_WIDTH = DEFAULT_HEADER_HEIGHT;
-const BAR_HEIGHT = DEFAULT_HEADER_HEIGHT;
+const BAR_WIDTH = VIEW_DEFAULT_HEADER_HEIGHT;
+const BAR_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
 const TOP_INSET_WITHOUT_BAR = 1;
 
 const spaceRef = ref<HTMLElement | null>(null);
@@ -36,7 +37,7 @@ const windows = spaceGraph.getChildrenRef(spacePtr, NodeType.VIEW);
 const window = computed(() => windows.value[0]); // assumes :OneRootWindow for now
 
 // figure out main box / bar layout
-const barPosition = computed(() => space.value?.barPosition ?? DEFAULT_BAR_POSITION);
+const barPosition = computed(() => space.value?.barPosition ?? SPACE_DEFAULT_BAR_POSITION);
 const barOrientation = computed(() =>
   barPosition.value == Anchor.TOP || barPosition.value == Anchor.BOTTOM ? Orientation.HORIZONTAL : Orientation.VERTICAL,
 );

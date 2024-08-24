@@ -16,7 +16,7 @@ import { canvas, goToBench } from "@/system/space";
 import { createBench, user } from "@/system/user";
 import { makeTypeInfo } from "@/language/field";
 import { DEFAULT_REGION_BY_AREA, GEOLOCATION } from "@/utils/geolocation";
-import { getViewComponentChildren, isVueInstanceOf } from "@/ui/canvas";
+import { getViewComponentChildren, isVueInstanceOf } from "@/ui/view";
 import { viewEmits, type FocusAnchor } from "@/views/common";
 import NativeInput from "@/views/content/NativeInput.vue";
 import Picker from "@/views/content/Picker.vue";

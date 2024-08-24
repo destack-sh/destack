@@ -5,7 +5,7 @@ import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import { canvas, inspectionPtr } from "@/system/space";
 import { computed, ref, toRef, type Ref } from "vue";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
-import { DEFAULT_HEADER_HEIGHT } from "@/ui/canvas";
+import { VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import { useElementSize } from "@vueuse/core";
 import { FLOW_GRID_STEP_Y } from "@/language/flow";
 import type { PopoverInfoIn } from "@/ui/popover";
@@ -16,7 +16,7 @@ import { getNativeConstraintProps, guardNativeInput } from "@/ui/view";
 import { NAME_CONSTRAINT } from "@/language/const";
 import type { TooltipInfo } from "@/ui/tooltip";
 
-const HEADER_HEIGHT = DEFAULT_HEADER_HEIGHT;
+const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; preparedConnection?: PreparedGetConnection } & Partial<

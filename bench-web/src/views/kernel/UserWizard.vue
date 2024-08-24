@@ -14,7 +14,7 @@ import { benchPtr } from "@/system/client";
 import { useExistingConnection } from "@/system/connection";
 import { canvas, goToBench } from "@/system/space";
 import { logIn, signUp, user } from "@/system/user";
-import { getViewComponentChildren, isVueInstanceOf } from "@/ui/canvas";
+import { getViewComponentChildren, isVueInstanceOf } from "@/ui/view";
 import { makeIcon } from "@/ui/icon";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import NativeInput from "@/views/content/NativeInput.vue";

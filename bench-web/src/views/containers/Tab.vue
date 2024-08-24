@@ -15,7 +15,7 @@ import Scroll from "@/views/containers/Scroll.vue";
 import { getViewBinding, getViewComponent } from "@/views/registry";
 import { computed, nextTick, ref, toRef, type Ref } from "vue";
 import { cloneNode } from "@/language/node";
-import { DEFAULT_HEADER_HEIGHT } from "@/ui/canvas";
+import { VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 
 const props = defineProps<
   { self: TypedNodeReferenceData<NodeType.VIEW>; size: Required<Pick<BoxData, "width" | "height">> } & Pick<
