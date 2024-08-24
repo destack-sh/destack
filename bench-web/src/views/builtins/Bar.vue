@@ -22,9 +22,9 @@ const props = defineProps<{
 }>();
 
 const barRef = ref<HTMLElement | null>(null);
-const barSize = useElementSize(barRef);
+const barSize = useElementSize(barRef, undefined, { box: "border-box" });
 const dockRef = ref<HTMLElement | null>(null);
-const dockSize = useElementSize(dockRef);
+const dockSize = useElementSize(dockRef, undefined, { box: "border-box" });
 const floatingPlacement: Ref<FloatingPlacement> = computed(() => {
   if (props.anchor == Anchor.LEFT) return "right";
   else if (props.anchor == Anchor.TOP) return "bottom";

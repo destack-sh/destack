@@ -593,7 +593,7 @@ declareActionMap<"common">({
     shortcuts: ["minus", "mod+minus"],
   },
   "common.navigate.reset": {
-    icon: "fas fa-undo",
+    icon: "fas fa-arrows-to-dot",
     title: "Reset",
     text: "Reset",
     shortcuts: ["0"],

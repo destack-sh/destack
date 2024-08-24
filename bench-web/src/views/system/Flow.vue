@@ -61,7 +61,7 @@ function getStepBounding(step: StepData): DOMRect | null {
 const DOT_SIZE = 4;
 const SCALE_MIN = 0.5;
 const SCALE_MAX = 2.0;
-const SCALE_STEP = 0.1;
+const SCALE_SPEED = 0.01;
 
 /** Pan around the canvas */
 function panCanvas(move: { x: number; y: number }) {
@@ -107,32 +107,59 @@ function viewToWorldVec(viewVec: { x: number; y: number }): { x: number; y: numb
   return worldVec;
 }
 
-/** Zoom the convas around the given origin (pan to keep the same point in view in screen space) */
-function zoomCanvas(direction: "in" | "out", viewCenterVec: { x: number; y: number } | "center") {
+/** Zoom the convas around the given origin (panning as needed) */
+function zoomCanvas(direction: "in" | "out", originViewVec: { x: number; y: number } | "center", steps: number) {
   if (props.self == null) return; // not a real view
   const containerBounding = containerRef.value?.getBoundingClientRect()!;
-  if (viewCenterVec == "center") {
-    viewCenterVec = { x: containerBounding.width / 2, y: containerBounding.height / 2 };
+  if (originViewVec == "center") {
+    originViewVec = { x: containerBounding.width / 2, y: containerBounding.height / 2 };
   }
   const self = spaceGraph.getOrError(props.self);
 
   // figure out new zoom
-  const currentZoom = roundToStep(transform.value?.scaleX ?? 1, SCALE_STEP);
+  const currentZoom = scale.value;
   const newZoom =
-    direction == "in" ? Math.min(SCALE_MAX, currentZoom + SCALE_STEP) : Math.max(SCALE_MIN, currentZoom - SCALE_STEP);
+    direction == "in"
+      ? Math.min(SCALE_MAX, currentZoom + SCALE_SPEED * steps)
+      : Math.max(SCALE_MIN, currentZoom - SCALE_SPEED * steps);
+  if (newZoom == currentZoom) return; // no change
+  const translateX = transform.value?.translateX ?? 0;
+  const translateY = transform.value?.translateY ?? 0;
 
-  // pan to move towards the origin
-	const currentViewCenter = { x: containerBounding.width / 2, y: containerBounding.height / 2 };
-	// nocheckin
+  // pan to keep the origin
+  // (the viewport scales with (0, 0) at the origin, but we want the center of the viewport to stay in the same place)
+  const currentCenterWorldVec = viewToWorldVec({ x: containerBounding.width / 2, y: containerBounding.height / 2 });
+  const newCenterWorldVec = {
+    x: containerBounding.width / 2 / newZoom - translateX,
+    y: containerBounding.height / 2 / newZoom - translateY,
+  };
+  const panVec = { x: newCenterWorldVec.x - currentCenterWorldVec.x, y: newCenterWorldVec.y - currentCenterWorldVec.y };
+
+  // pan to move towards the origin a bit
+  const newOriginWorldVec = {
+    x: originViewVec.x / newZoom - translateX,
+    y: originViewVec.y / newZoom - translateY,
+  };
+  panVec.x += (newCenterWorldVec.x - newOriginWorldVec.x) * (newZoom - currentZoom);
+  panVec.y += (newCenterWorldVec.y - newOriginWorldVec.y) * (newZoom - currentZoom);
 
   spaceConnection.tx.update(
     self,
-    { transform: { ...transform.value, scaleX: newZoom, scaleY: newZoom } },
+    {
+      transform: {
+        ...transform.value,
+        scaleX: newZoom,
+        scaleY: newZoom,
+        translateX: translateX + panVec.x,
+        translateY: translateY + panVec.y,
+      },
+    },
     { debounce: "long" },
   );
 }
 
-function resetCanvas() {
+/** Resets the viewport to the 'center' of the canvas */
+function resetViewport() {
   if (props.self == null) return; // not a real view
   const self = spaceGraph.getOrError(props.self);
   spaceConnection.tx.update(self, { transform: makeStruct({ metatype: StructType.TRANSFORM }) }, { debounce: "short" });
@@ -188,8 +215,8 @@ function startDragging(e: MouseEvent, thing: StepData | "canvas") {
 }
 
 function onWheel(e: WheelEvent) {
-	const viewCenterVec = viewportToViewVec({ x: e.clientX, y: e.clientY });
-  zoomCanvas(e.deltaY < 0 ? "in" : "out", viewCenterVec);
+  const viewCenterVec = viewportToViewVec({ x: e.clientX, y: e.clientY });
+  zoomCanvas(e.deltaY < 0 ? "in" : "out", viewCenterVec, Math.abs(e.deltaY * 0.5));
 }
 
 // actions
@@ -207,13 +234,13 @@ const actions: Partial<ActionMapImplementation<"common">> = {
     action: () => panCanvas({ x: 0, y: FLOW_GRID_STEP_Y }),
   },
   "common.navigate.zoomIn": {
-    action: () => zoomCanvas("in", "center"),
+    action: () => zoomCanvas("in", "center", 15),
   },
   "common.navigate.zoomOut": {
-    action: () => zoomCanvas("out", "center"),
+    action: () => zoomCanvas("out", "center", 15),
   },
   "common.navigate.reset": {
-    action: () => resetCanvas(),
+    action: () => resetViewport(),
   },
 };
 
@@ -225,14 +252,18 @@ defineExpose<ViewExposed>({ self, id, actions });
   <div
     ref="containerRef"
     class="group/flow relative h-full w-full"
-    :class="[variant == Variant.COMPACT ? 'rounded border border-gray-200' : '', dragging ? 'cursor-grabbing' : '']"
+    :class="[
+      variant == Variant.COMPACT ? 'rounded border border-gray-200' : '',
+      dragging ? 'cursor-grabbing' : 'cursor-grab',
+    ]"
     @mousedown="(e) => startDragging(e, 'canvas')"
     @mousemove="(e: MouseEvent) => onDragging(e)"
     @mouseup.stop="dragging = null"
     @mouseleave.stop="dragging = null"
     @dragstart.stop.prevent="false"
-    @wheel.prevent="onWheel"
+    @wheel.prevent="(e) => onWheel(e)"
   >
+    <!-- NOTE :UX: handle multitouch gestures -->
     <!-- nocheckin: flow UI: actions, contextmenus, pipes, everything.. -->
     <!-- Background grid (infinitely repeated) -->
     <div class="absolute h-full w-full overflow-hidden" :style="{}">
@@ -241,8 +272,8 @@ defineExpose<ViewExposed>({ self, id, actions });
         class="h-full w-full transition-colors duration-75"
         :class="[
           isFocusAbsolute || variant != Variant.COMPACT
-            ? 'text-gray-200'
-            : 'text-gray-100 group-hover/flow:text-gray-200',
+            ? 'text-gray-200 '
+            : 'text-gray-100  group-hover/flow:text-gray-200',
         ]"
         :style="{
           // extra spacing for smooth infinite scrolling
@@ -261,13 +292,7 @@ defineExpose<ViewExposed>({ self, id, actions });
             :height="FLOW_GRID_STEP_Y"
             patternUnits="userSpaceOnUse"
           >
-            <circle
-              :cx="DOT_SIZE / 2"
-              :cy="DOT_SIZE / 2"
-              :r="DOT_SIZE / 2"
-              fill="currentColor"
-              class="hover:text-primary-900"
-            />
+            <circle :cx="DOT_SIZE / 2" :cy="DOT_SIZE / 2" :r="DOT_SIZE / 2" fill="currentColor" />
           </pattern>
         </defs>
         <rect width="100%" height="100%" fill="url(#dot-pattern)" />
@@ -299,17 +324,6 @@ defineExpose<ViewExposed>({ self, id, actions });
         />
 
         <!-- nocheckin: pipes and stuff -->
-
-        <!-- Placeholder for spacing check -->
-        <!-- <div
-          class="absolute bg-red-500 font-bold text-white opacity-50"
-          :style="{
-            left: `${GRID_SCALE_X * 0}px`,
-            top: `${GRID_SCALE_Y * 0}px`,
-            width: `${GRID_SCALE_X * 4}px`,
-            height: `${GRID_SCALE_Y * 4}px`,
-          }"
-        /> -->
       </div>
     </div>
 

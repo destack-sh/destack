@@ -17,9 +17,12 @@ import {
   IconData,
   NodeType,
   ObjectType,
+  PipeProperty,
   PrimitiveType,
   PROPERTY_ENUM_BY_TYPE,
   PROPERTY_INFOS_BY_TYPE,
+  StepProperty,
+  StepType,
   StructType,
   ViewProperty,
   ViewType,
@@ -36,6 +39,7 @@ import { log } from "@/utils/log";
 import { toCasing, Casing } from "@/utils/string";
 import type { ViewProps } from "@/views/common";
 import {
+  BOUNDARY_STEP_TYPES,
   ENUM_TYPES,
   NODE_SUBTYPE_BY_TYPE,
   NODE_TYPES,
@@ -286,6 +290,25 @@ function getInspectionInfo(metatype: ObjectType, type: any): Record<string, Insp
         }),
       });
     }
+    return properties;
+  } else if (metatype == ObjectType.STEP) {
+    const properties: Record<string, InspectionCategory> = {
+      Common: [StepProperty.type],
+      Run: [],
+    };
+    if ([StepType.BLOCK, StepType.TRIGGER].includes(type)) {
+      properties.Common.push(StepProperty.nodePtr);
+    }
+    if (!BOUNDARY_STEP_TYPES.includes(type)) {
+      properties.Run.push(StepProperty.identityPtr);
+    }
+    return properties;
+  } else if (metatype == ObjectType.PIPE) {
+    const properties: Record<string, InspectionCategory> = {
+      Common: [PipeProperty.type, PipeProperty.color],
+      Filter: [PipeProperty.filterType],
+      Mapping: [],
+    };
     return properties;
   } else if (metatype == ObjectType.VIEW) {
     const properties = {
