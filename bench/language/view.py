@@ -414,9 +414,9 @@ class Orientation(IdEnum):
     """Which way to orient the contents/subviews of a view."""
 
     HORIZONTAL = 1
-    # HORIZONTAL_REVERSED = 2
+    HORIZONTAL_REVERSED = 2
     VERTICAL = 11
-    # VERTICAL_REVERSED = 12
+    VERTICAL_REVERSED = 12
 
 
 @enum_(EnumType.ALIGNMENT)

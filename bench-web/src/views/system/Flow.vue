@@ -8,7 +8,6 @@ import {
   FLOW_GRID_STEP_Y,
   FlowContext,
   STEP_CONTEXT_ACTIONS,
-  STEP_WIDTH,
 } from "@/language/flow";
 import { cloneNode } from "@/language/node";
 import { NodeType, PipeData, StepData, StepType, Variant, ViewData } from "@/proto/wire";
@@ -56,7 +55,7 @@ const ctx = new FlowContext({
   stepRefs: stepRefs,
   flowPtr: nodePtr,
 });
-provide(FLOW_CONTEXT_KEY, ctx)
+provide(FLOW_CONTEXT_KEY, ctx);
 const flow = ctx.flow;
 const scale = ctx.scale;
 const steps = ctx.steps;
@@ -76,35 +75,35 @@ const getThingFromContext = (ctx: ActionContext | undefined): { thing: StepData 
   return { thing, idx: thingIdx };
 };
 const actions: Partial<ActionMapImplementation<"common">> = {
-	// move
-	"common.move.up": {
-		action: (action, context) => {
-			const { thing } = getThingFromContext(context);
-			if (thing == null) return false;
-			ctx.moveThing(thing, { x: 0, y: -FLOW_GRID_STEP_Y });
-		},
-	},
-	"common.move.down": {
-		action: (action, context) => {
-			const { thing } = getThingFromContext(context);
-			if (thing == null) return false;
-			ctx.moveThing(thing, { x: 0, y: FLOW_GRID_STEP_Y });
-		},
-	},
-	"common.move.left": {
-		action: (action, context) => {
-			const { thing } = getThingFromContext(context);
-			if (thing == null) return false;
-			ctx.moveThing(thing, { x: -FLOW_GRID_STEP_X, y: 0 });
-		},
-	},
-	"common.move.right": {
-		action: (action, context) => {
-			const { thing } = getThingFromContext(context);
-			if (thing == null) return false;
-			ctx.moveThing(thing, { x: FLOW_GRID_STEP_X, y: 0 });
-		},
-	},
+  // move
+  "common.move.up": {
+    action: (action, context) => {
+      const { thing } = getThingFromContext(context);
+      if (thing == null) return false;
+      ctx.moveThing(thing, { x: 0, y: -FLOW_GRID_STEP_Y });
+    },
+  },
+  "common.move.down": {
+    action: (action, context) => {
+      const { thing } = getThingFromContext(context);
+      if (thing == null) return false;
+      ctx.moveThing(thing, { x: 0, y: FLOW_GRID_STEP_Y });
+    },
+  },
+  "common.move.left": {
+    action: (action, context) => {
+      const { thing } = getThingFromContext(context);
+      if (thing == null) return false;
+      ctx.moveThing(thing, { x: -FLOW_GRID_STEP_X, y: 0 });
+    },
+  },
+  "common.move.right": {
+    action: (action, context) => {
+      const { thing } = getThingFromContext(context);
+      if (thing == null) return false;
+      ctx.moveThing(thing, { x: FLOW_GRID_STEP_X, y: 0 });
+    },
+  },
   // edit
   "common.edit.duplicate": {
     action: (action, context) => {
@@ -180,7 +179,6 @@ defineExpose<ViewExposed>({ self, id, actions });
     @wheel.prevent="(e) => ctx.onWheel(e)"
   >
     <!-- NOTE :UX: handle multitouch gestures -->
-    <!-- nocheckin: flow UI: actions, contextmenus, pipes, everything.. -->
     <!-- Background grid (infinitely repeated) -->
     <div class="absolute h-full w-full overflow-hidden" :style="{}">
       <svg
@@ -243,7 +241,7 @@ defineExpose<ViewExposed>({ self, id, actions });
           "
           class="absolute"
           :style="{
-            width: STEP_WIDTH + 'px',
+            width: ctx.getStepWidth(step) + 'px',
             left: (step.position?.x ?? 0) + 'px',
             top: (step.position?.y ?? 0) + 'px',
           }"
@@ -259,6 +257,7 @@ defineExpose<ViewExposed>({ self, id, actions });
     <div class="absolute left-0 top-0 w-full">
       <!-- Menu -->
       <div
+        v-if="self != null"
         class="absolute right-2 top-2 z-20 flex w-fit flex-row items-center divide-x divide-gray-200 border border-gray-200 bg-white px-2 py-1"
       >
         <!-- Create -->

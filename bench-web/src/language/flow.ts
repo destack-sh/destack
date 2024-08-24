@@ -1,4 +1,4 @@
-import { INCOMING_STEP_TYPES, OUTGOING_STEP_TYPES } from "@/language/const";
+import { BOUNDARY_STEP_TYPES, INCOMING_STEP_TYPES, OUTGOING_STEP_TYPES } from "@/language/const";
 import type { ReadNodeGraph } from "@/language/graph";
 import { makeNodeName } from "@/language/node";
 import type { Transaction } from "@/language/transaction";
@@ -46,8 +46,6 @@ export const FLOW_CANVAS_DOT_SIZE = 4;
 export const FLOW_SCALE_MIN = 0.5;
 export const FLOW_SCALE_MAX = 2.0;
 export const FLOW_SCALE_SPEED = 0.01;
-
-export const STEP_WIDTH = FLOW_GRID_STEP_X * 10;
 
 export type PortId = Pick<PortKeyData, "type" | "side"> & Partial<Pick<PortKeyData, "fieldPtr">>;
 export type Port = PortId & {
@@ -109,6 +107,12 @@ export class FlowContext {
 
   get spaceTx() {
     return this.spaceTxFactory();
+  }
+
+  getStepWidth(step: StepData): number {
+    if (BOUNDARY_STEP_TYPES.includes(step.type)) return FLOW_GRID_STEP_X * 6;
+		else if (step.type == StepType.TEXT || step.type == StepType.CODE) return FLOW_GRID_STEP_X * 10;
+		else return FLOW_GRID_STEP_X * 10;
   }
 
   getStepComponent(step: StepData): InstanceType<typeof Step> | null {
@@ -317,15 +321,14 @@ export class FlowContext {
       };
     }
 
+    // NOTE :UX: we hide :ObjectPorts by default for now (not sure how/when to enable, always enabled is cluttery)
     if (!INCOMING_STEP_TYPES.includes(step.type)) {
       // incoming ports
       incoming.push({ idx: 0, type: PortType.RUN, side: PortSide.INCOMING });
-      incoming.push({ idx: 1, type: PortType.OBJECT, side: PortSide.INCOMING });
     }
     if (!OUTGOING_STEP_TYPES.includes(step.type)) {
       // outgoing ports
       outgoing.push({ idx: 0, type: PortType.RUN, side: PortSide.OUTGOING });
-      outgoing.push({ idx: 1, type: PortType.OBJECT, side: PortSide.OUTGOING });
     }
 
     if (step.type == StepType.START) {

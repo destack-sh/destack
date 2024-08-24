@@ -1,27 +1,23 @@
 <script lang="ts" setup>
-import { ViewData, NodeType, StepType, Variant, PortSide, BenchType, PortType } from "@/proto/wire";
-import { unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
-import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
-import { canvas, inspectionPtr } from "@/system/space";
-import { computed, ref, toRef, type Ref } from "vue";
-import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
-import { VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
-import { useElementSize } from "@vueuse/core";
+import { NAME_CONSTRAINT, toCamelName } from "@/language/const";
 import { FLOW_GRID_STEP_Y, FLOW_PORT_SIZE, STEP_CONTEXT_ACTIONS, useFlowContext } from "@/language/flow";
-import { menuActionsLike, type PopoverInfo, type PopoverInfoIn } from "@/ui/popover";
-import Icon from "@/views/content/Icon.vue";
-import { getNodeIcon, IconInline } from "@/ui/icon";
-import Inaccessible from "@/views/builtins/Inaccessible.vue";
-import { getNativeConstraintProps, guardNativeInput } from "@/ui/view";
-import { NAME_CONSTRAINT } from "@/language/const";
-import type { TooltipInfo } from "@/ui/tooltip";
+import { Alignment, NodeType, Orientation, PortSide, PortType, StepType, Variant, ViewData } from "@/proto/wire";
+import { toNodeRefOneOf, unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
+import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
+import { canvas, inspectionPtr } from "@/system/space";
 import type { ActionMapImplementation } from "@/ui/action";
-import { nextTick } from "vue";
+import { getNodeIcon, IconInline } from "@/ui/icon";
+import { menuActionsLike, type PopoverInfo, type PopoverInfoIn } from "@/ui/popover";
+import type { TooltipInfo } from "@/ui/tooltip";
+import { getNativeConstraintProps, guardNativeInput, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
+import Inaccessible from "@/views/builtins/Inaccessible.vue";
+import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import Code from "@/views/content/Code.vue";
+import Icon from "@/views/content/Icon.vue";
 import Text from "@/views/content/Text.vue";
-import Picker from "@/views/content/Picker.vue";
-import { makeTypeInfo } from "@/language/field";
 import Field from "@/views/system/Field.vue";
+import { useElementSize } from "@vueuse/core";
+import { computed, nextTick, ref, toRef, type Ref } from "vue";
 
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
 
@@ -84,7 +80,6 @@ defineExpose<ViewExposed>({ self, id, actions });
     class="rounded border bg-white"
     :class="[stepPtr?.id == inspectionPtr?.id ? 'border-primary-900' : 'border-gray-200']"
   >
-    <!-- nocheckin: Step view -->
     <!-- Header -->
     <div
       ref="headerRef"
@@ -92,7 +87,7 @@ defineExpose<ViewExposed>({ self, id, actions });
       :style="{ height: HEADER_HEIGHT + 'px' }"
     >
       <!-- Icon/Name -->
-      <div>
+      <div class="flex-shrink-0">
         <IconInline
           v-tooltip="{ small: true, text: `Change icon` } as TooltipInfo"
           v-menu="
@@ -147,7 +142,8 @@ defineExpose<ViewExposed>({ self, id, actions });
       <div
         class="relative w-full"
         :style="{
-          marginTop: '6px',
+          // ensure ports are aligned with grid (offset by half a step so that the lines connect in the middle)
+          marginTop: FLOW_GRID_STEP_Y - (HEADER_HEIGHT % FLOW_GRID_STEP_Y) - FLOW_GRID_STEP_Y / 2 + 'px',
           height: FLOW_GRID_STEP_Y * Math.max(ports.incoming.length, ports.outgoing.length) + 'px',
         }"
       >
@@ -177,8 +173,18 @@ defineExpose<ViewExposed>({ self, id, actions });
             }"
           />
           <!-- Port content -->
-          <div v-if="port.type == PortType.RUN">
-            <i class="fas fa-bolt text-gray-400" />
+          <div v-if="port.type == PortType.RUN" class="px-2.5">
+            <i class="fas fa-play w-5 text-center text-gray-700" />
+          </div>
+          <div v-else-if="port.type == PortType.FIELD" class="px-1">
+            <Field
+              :node-ptr="toNodeRefOneOf(port.field!)"
+              :variant="Variant.STEALTH"
+              :orientation="port.side == PortSide.INCOMING ? Orientation.HORIZONTAL : Orientation.HORIZONTAL_REVERSED"
+            />
+          </div>
+          <div v-else>
+            <span class="text-danger-600">{{ toCamelName(PortType, port.type) }}</span>
           </div>
         </div>
       </div>
@@ -205,7 +211,7 @@ defineExpose<ViewExposed>({ self, id, actions });
     </div>
 
     <!-- Padding (to ensure height is a multiple of the grid) -->
-    <div class="w-full border-t-gray-200" :style="{ height: paddingHeight + 'px' }" />
+    <div class="w-full" :style="{ height: paddingHeight + 'px' }" />
   </div>
   <div v-else ref="containerRef" class="rounded border border-gray-200 bg-white">
     <Inaccessible :node="stepPtr" :connection="pkgConnection" />

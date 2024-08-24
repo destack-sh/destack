@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { NodeType, Variant, ViewData } from "@/proto/wire";
+import { NodeType, Orientation, Variant, ViewData } from "@/proto/wire";
 import { unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import type { ActionMapImplementation } from "@/ui/action";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
@@ -17,7 +17,7 @@ import { computed, ref, toRef, type Ref } from "vue";
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; preparedConnection?: PreparedGetConnection } & Pick<
     ViewData,
-    "variant" | "nodePtr"
+    "variant" | "nodePtr" | "orientation"
   >
 >();
 const emit = defineEmits(viewEmits());
@@ -64,11 +64,12 @@ defineExpose<ViewExposed>({ self, id, actions });
   <div
     v-if="field"
     ref="fieldRef"
-    class="flex w-fit flex-row items-center rounded border bg-gray-100 px-1.5 py-[3px]"
+    class="flex w-fit items-center gap-x-1.5 rounded px-1.5 py-[3px]"
     :class="[
+      orientation != Orientation.HORIZONTAL_REVERSED ? 'flex-row' : 'flex-row-reverse',
       inspectionPtr?.id == field.id
         ? 'border-primary-900'
-        : [variant != Variant.STEALTH ? 'border-gray-200' : 'border-gray-200', 'hover:border-gray-300'],
+        : [variant != Variant.STEALTH ? 'border border-gray-200 bg-gray-100' : '', 'hover:border-gray-300'],
     ]"
   >
     <!-- TODO :UX: Field is annoying (should be double-click to edit, change type in contextmenu, indicate metadata, ...) -->
@@ -84,12 +85,13 @@ defineExpose<ViewExposed>({ self, id, actions });
         })
       "
       v-bind="getNodeIcon(field)"
-      class="mr-1.5 w-5 rounded p-0.5 text-gray-700 hover:cursor-pointer hover:bg-gray-100 data-[popover=true]:bg-gray-100"
+      class="w-5 rounded p-0.5 text-gray-700 hover:cursor-pointer hover:bg-gray-100 data-[popover=true]:bg-gray-100"
     />
     <input
       ref="nameRef"
       type="text"
       class="w-fit min-w-fit max-w-fit truncate rounded border-0 bg-transparent font-medium outline-none ring-0 hover:bg-gray-100 focus:ring-0"
+      :class="orientation == Orientation.HORIZONTAL_REVERSED ? 'text-right' : ''"
       spellcheck="false"
       :value="field.name"
       :size="(field.name?.length ?? 0) + 3"

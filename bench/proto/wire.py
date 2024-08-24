@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.08.23.4"
+VERSION = "2024.08.24.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -1019,7 +1019,9 @@ class Orientation(betterproto.Enum):
 
     UNSPECIFIED = 0
     HORIZONTAL = 1
+    HORIZONTAL_REVERSED = 2
     VERTICAL = 11
+    VERTICAL_REVERSED = 12
 
 
 class PathTokenType(betterproto.Enum):
