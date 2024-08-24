@@ -81,6 +81,7 @@ export const ACTION_BUILTIN_IDS = [
   "space.edit.create",
   "space.display.fullscreen",
   // common
+  "common.create.here",
   "common.create.above",
   "common.create.below",
   "common.create.link",
@@ -486,6 +487,11 @@ watch(
 
 // declare common actions
 declareActionMap<"common">({
+  "common.create.here": {
+    icon: "fas fa-plus",
+    title: "Create Here",
+    text: "Create a new item here",
+  },
   "common.create.above": {
     icon: "fas fa-angles-up",
     title: "Create Above",

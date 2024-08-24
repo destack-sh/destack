@@ -12,7 +12,7 @@ import {
   type NodeTypeMapping,
 } from "@/proto/wire";
 import { describeNode, isNode, toNodeRef, toPlainNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
-import type { ActionContext, ActionMapImplementation } from "@/ui/action";
+import type { ActionBuiltinId, ActionContext, ActionMapImplementation } from "@/ui/action";
 import { type NodeTreeItem, type ReadNodeGraph } from "@/language/graph";
 import { makeNodeName, moveNode } from "@/language/node";
 import { pkgGraph } from "@/system/space";
@@ -21,6 +21,16 @@ import type { Ref } from "vue";
 import { getOrderKey, updateOrder } from "@/language/order";
 import { makeTypeInfo } from "@/language/field";
 import { generateOrderKey } from "@/utils/fractional";
+
+export const BLOCK_CONTEXT_ACTIONS: ActionBuiltinId[] = [
+  "common.edit.rename",
+  "common.edit.morph",
+  "common.edit.duplicate",
+  "common.edit.archive",
+  "common.edit.delete",
+  "session.run.start",
+  "message.chat.message",
+];
 
 /** Actions to smoothly move up/down/left/right inside a node tree */
 export function useHierarchicalNodeMoveActions<T extends NodeType>(options: {

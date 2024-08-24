@@ -16,11 +16,13 @@ import {
   SelectionData,
   SelectionKind,
   SelectionTarget,
+  StructType,
   TransformData,
   TypeConstraintData,
   TypeInfoData,
   TypeKind,
   Variant,
+  Vector2Data,
   ViewData,
   ViewType,
   type AnyNodeData,
@@ -30,6 +32,7 @@ import {
 import {
   isNodeRef,
   isProtoJson,
+  makeStruct,
   packProtoJson,
   toNodeRef,
   toNodeRefOneOf,
@@ -481,7 +484,7 @@ export function useViewExpansion(options: {
 
 export function addTransform(transform: TransformData | null | undefined, add: Partial<TransformData>) {
   if (transform == null) {
-    return { metatype: ObjectType.TRANSFORM, ...add };
+    return makeStruct({ ...add, metatype: StructType.TRANSFORM });
   }
   const updated: TransformData = transform != null ? { ...transform } : { metatype: ObjectType.TRANSFORM };
   for (const key in add) {
@@ -489,6 +492,14 @@ export function addTransform(transform: TransformData | null | undefined, add: P
     (updated as any)[key] = ((transform as any)[key] ?? 0) + (add as any)[key];
   }
   return updated;
+}
+
+export function addVector2(vec: Vector2Data | null | undefined, add: Partial<Vector2Data>): Vector2Data {
+  return {
+    metatype: ObjectType.VECTOR2,
+    x: (vec?.x ?? 0) + (add.x ?? 0),
+    y: (vec?.y ?? 0) + (add.y ?? 0),
+  };
 }
 
 /**

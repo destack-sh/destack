@@ -141,6 +141,7 @@ class PortSide(IdEnum):
 class PortType(IdEnum):
     RUN = 1  # fire only (no content, just the Run)
     ERROR = 2  # fire with error in case of failure (output only)
+    # nocheckin: refactor error port into run port with filter
     OBJECT = 10  # fire with full input/output/... value (depending on side)
     FIELD = 11  # fire with specific field (depending on side & type)
 
@@ -251,7 +252,7 @@ class StepType(IdEnum):
     FAIL = 3  # terminate with error
     # ABORT?
     VALUE = 10  # source with just(value)
-    TRIGGER = 11  # source with just(trigger)
+    TRIGGER = 11  # source with just(trigger.value)
 
     # run
     BLOCK = 51  # run a runnable block
@@ -296,7 +297,7 @@ class StepType(IdEnum):
         return self >= 100 and self < 150
 
     @property
-    def is_groupa(self) -> bool:
+    def is_container(self) -> bool:
         return self >= 150 and self < 200
 
 

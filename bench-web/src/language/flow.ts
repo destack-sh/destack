@@ -1,29 +1,46 @@
+import { INCOMING_STEP_TYPES, OUTGOING_STEP_TYPES } from "@/language/const";
 import type { ReadNodeGraph } from "@/language/graph";
 import { makeNodeName } from "@/language/node";
 import type { Transaction } from "@/language/transaction";
 import {
   BlockData,
+  FieldData,
+  FieldZone,
   NodeType,
   ObjectType,
   PipeData,
   PortKeyData,
+  PortSide,
+  PortType,
+  StepType,
   StructType,
   TransformData,
   ViewData,
   type PipeType,
   type StepData,
-  type StepType,
 } from "@/proto/wire";
 import { isNode, makeStruct, toPlainNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
-import { addTransform } from "@/ui/view";
+import type { ActionBuiltinId } from "@/ui/action";
+import { addTransform, addVector2 } from "@/ui/view";
 import { generateOrderKey } from "@/utils/fractional";
 import { assertNever } from "@/utils/functools";
 import { log } from "@/utils/log";
 import type Step from "@/views/system/Step.vue";
-import { computed, ref, type Ref } from "vue";
+import { computed, inject, ref, type Ref } from "vue";
 
-export const FLOW_GRID_STEP_X = 36;
+export const STEP_CONTEXT_ACTIONS: ActionBuiltinId[] = [
+  "common.edit.rename",
+  "common.edit.morph",
+  "common.edit.duplicate",
+  "common.edit.archive",
+  "common.edit.delete",
+  "session.run.start",
+  "message.chat.message",
+];
+
+export const FLOW_GRID_STEP_X = 28;
 export const FLOW_GRID_STEP_Y = 28;
+export const FLOW_PORT_SIZE = 12;
 
 export const FLOW_CANVAS_DOT_SIZE = 4;
 export const FLOW_SCALE_MIN = 0.5;
@@ -32,7 +49,12 @@ export const FLOW_SCALE_SPEED = 0.01;
 
 export const STEP_WIDTH = FLOW_GRID_STEP_X * 10;
 
-export type PortId = Pick<PortKeyData, "type" | "side" | "fieldPtr">;
+export type PortId = Pick<PortKeyData, "type" | "side"> & Partial<Pick<PortKeyData, "fieldPtr">>;
+export type Port = PortId & {
+  idx: number;
+  field?: FieldData;
+  fieldParent?: BlockData | StepData; // if different from step
+};
 
 export class FlowContext {
   spaceGraph: ReadNodeGraph;
@@ -45,7 +67,9 @@ export class FlowContext {
   containerRef: Ref<HTMLElement | null>;
   dragging: Ref<{ thing: StepData | "canvas"; viewOffsetToThing: { x: number; y: number } } | null> = ref(null);
 
+  flowPtr: Ref<TypedNodeReferenceData<NodeType.BLOCK> | null>;
   flow: Ref<BlockData | null>;
+  fields: Ref<FieldData[]>;
   transform: Ref<TransformData>;
   scale: Ref<number>;
   steps: Ref<StepData[]>;
@@ -70,7 +94,9 @@ export class FlowContext {
     this.containerRef = context.containerRef;
     this.stepRefs = context.stepRefs;
 
+    this.flowPtr = context.flowPtr;
     this.flow = this.graph.getRef(context.flowPtr);
+    this.fields = this.graph.getChildrenRef(this.flow, NodeType.FIELD);
     this.transform = computed(() => this.view.value?.transform ?? makeStruct({ metatype: StructType.TRANSFORM }));
     this.scale = computed(() => this.transform.value.scaleX ?? this.transform.value.scaleY ?? 1);
     this.steps = this.graph.getChildrenRef(this.flow, NodeType.STEP);
@@ -95,6 +121,10 @@ export class FlowContext {
     if (stepComponent == null) return null;
     return stepComponent.$el.getBoundingClientRect();
   }
+
+  //
+  // Canvas
+  //
 
   /** Pan around the canvas */
   panCanvas(move: { x: number; y: number }) {
@@ -207,6 +237,13 @@ export class FlowContext {
     );
   }
 
+  /** Zooms the canvas in/out in response to a "wheel" event. */
+  onWheel(e: WheelEvent) {
+    const viewCenterVec = this.viewportToViewVec({ x: e.clientX, y: e.clientY });
+    this.zoomCanvas(e.deltaY < 0 ? "in" : "out", viewCenterVec, Math.abs(e.deltaY * 0.5));
+  }
+
+  /** Updates the position of a dragged thing in response to a "drag" event. */
   onDragging(e: MouseEvent) {
     if (this.dragging.value == null) return;
     if (this.view.value == null) return; // not a real view
@@ -236,6 +273,7 @@ export class FlowContext {
     }
   }
 
+  /** Starts dragging a thing. */
   startDragging(e: MouseEvent, thing: StepData | "canvas") {
     if (this.dragging.value != null) return; // already dragging
     if (thing == "canvas") {
@@ -258,10 +296,116 @@ export class FlowContext {
     log.trace("flow.drag.start", this.dragging.value);
   }
 
-  onWheel(e: WheelEvent) {
-    const viewCenterVec = this.viewportToViewVec({ x: e.clientX, y: e.clientY });
-    this.zoomCanvas(e.deltaY < 0 ? "in" : "out", viewCenterVec, Math.abs(e.deltaY * 0.5));
+  //
+  // Interaction
+  //
+
+  /** Gets the (reactive) ports for a given step. Pass in related to avoid re-fetching if already known. */
+  getPorts(
+    step: StepData,
+    related: { fields: FieldData[]; node: BlockData | StepData | undefined; nodeFields: FieldData[] } | undefined,
+  ): { incoming: Port[]; outgoing: Port[] } {
+    const incoming: Port[] = [];
+    const outgoing: Port[] = [];
+
+    if (related == null) {
+      // get related nodes (not reactive)
+      related = {
+        fields: this.graph.getChildren(step, NodeType.FIELD),
+        node: this.graph.getMaybe(step.nodePtr) as BlockData | StepData | undefined,
+        nodeFields: step.nodePtr != null ? this.graph.getChildren(step.nodePtr, NodeType.FIELD) : [],
+      };
+    }
+
+    if (!INCOMING_STEP_TYPES.includes(step.type)) {
+      // incoming ports
+      incoming.push({ idx: 0, type: PortType.RUN, side: PortSide.INCOMING });
+      incoming.push({ idx: 1, type: PortType.OBJECT, side: PortSide.INCOMING });
+    }
+    if (!OUTGOING_STEP_TYPES.includes(step.type)) {
+      // outgoing ports
+      outgoing.push({ idx: 0, type: PortType.RUN, side: PortSide.OUTGOING });
+      outgoing.push({ idx: 1, type: PortType.OBJECT, side: PortSide.OUTGOING });
+    }
+
+    if (step.type == StepType.START) {
+      // flow input fields as outgoing ports
+      for (const field of this.fields.value) {
+        if (field.zone == FieldZone.INPUT) {
+          outgoing.push({
+            idx: outgoing.length,
+            type: PortType.FIELD,
+            side: PortSide.OUTGOING,
+            field,
+            fieldParent: this.flow.value!,
+          });
+        }
+      }
+    } else if (step.type == StepType.COMPLETE) {
+      // flow output fields as incoming ports
+      for (const field of this.fields.value) {
+        if (field.zone == FieldZone.OUTPUT) {
+          incoming.push({
+            idx: incoming.length,
+            type: PortType.FIELD,
+            side: PortSide.INCOMING,
+            field,
+            fieldParent: this.flow.value!,
+          });
+        }
+      }
+    } else if (step.type == StepType.CODE || step.type == StepType.TEXT) {
+      // our own fields as incoming/outgoing ports
+      for (const field of related.fields) {
+        if (field.zone == FieldZone.INPUT) {
+          incoming.push({ idx: incoming.length, type: PortType.FIELD, side: PortSide.INCOMING, field });
+        } else if (field.zone == FieldZone.OUTPUT) {
+          outgoing.push({ idx: outgoing.length, type: PortType.FIELD, side: PortSide.OUTGOING, field });
+        }
+      }
+    } else if (step.type == StepType.BLOCK) {
+      // borrow fields as incoming/outgoing ports
+      for (const field of related.nodeFields) {
+        if (field.zone == FieldZone.INPUT) {
+          incoming.push({
+            idx: incoming.length,
+            type: PortType.FIELD,
+            side: PortSide.INCOMING,
+            field,
+            fieldParent: related.node,
+          });
+        } else if (field.zone == FieldZone.OUTPUT) {
+          outgoing.push({
+            idx: outgoing.length,
+            type: PortType.FIELD,
+            side: PortSide.OUTGOING,
+            field,
+            fieldParent: related.node,
+          });
+        }
+      }
+    }
+
+    return { incoming: incoming, outgoing: outgoing };
   }
+
+  /** Moves the thing */
+  moveThing(thing: StepData | PipeData, move: { x: number; y: number }) {
+    if (isNode(thing, NodeType.STEP)) {
+      this.tx.update(thing, { position: addVector2(thing.position, move) }, { debounce: "long" });
+    } else if (isNode(thing, NodeType.PIPE)) {
+      throw new Error(":Incomplete: move pipe");
+    } else {
+      assertNever(thing);
+    }
+  }
+}
+export const FLOW_CONTEXT_KEY = Symbol("flow");
+
+export function useFlowContext(): FlowContext {
+  const flowContext = inject<FlowContext | null>(FLOW_CONTEXT_KEY, null);
+  if (flowContext == null) throw new Error("no flow context");
+  return flowContext;
 }
 
 export function createStep(

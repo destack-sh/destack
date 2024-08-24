@@ -87,6 +87,8 @@ export const CLASSY_BLOCK_TYPES = [
 // step
 export const STEP_TYPES = Object.values(StepType).filter((v) => typeof v == "number" && v > 0) as StepType[];
 export const BOUNDARY_STEP_TYPES = STEP_TYPES.filter((st) => st < 50);
+export const INCOMING_STEP_TYPES = [StepType.START, StepType.VALUE, StepType.TRIGGER];
+export const OUTGOING_STEP_TYPES = [StepType.COMPLETE, StepType.FAIL];
 export const RUN_STEP_TYPES = STEP_TYPES.filter((st) => st >= 50 && st < 100);
 export const CONTROL_STEP_TYPES = STEP_TYPES.filter((st) => st >= 100 && st < 150);
 export const CONTAINER_STEP_TYPES = STEP_TYPES.filter((st) => st >= 500 && st < 550);
