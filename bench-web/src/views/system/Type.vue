@@ -281,7 +281,6 @@ defineExpose<ViewExposed>({ self, id, actions });
             :prepared-connection="preparedConnection"
             :node-ptr="toNodeRefOneOf(field)"
             :draggable="true"
-            :variant="Variant.STEALTH"
             @dragstart.stop="(e: DragEvent) => startDragging(e, pkgGraph, field)"
           />
         </li>

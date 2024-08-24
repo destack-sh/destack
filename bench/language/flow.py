@@ -141,7 +141,7 @@ class PortSide(IdEnum):
 class PortType(IdEnum):
     RUN = 1  # fire only (no content, just the Run)
     ERROR = 2  # fire with error in case of failure (output only)
-    # nocheckin: refactor error port into run port with filter
+    # nocheckin: refactor error & object port into run port with filter/mapping
     OBJECT = 10  # fire with full input/output/... value (depending on side)
     FIELD = 11  # fire with specific field (depending on side & type)
 
