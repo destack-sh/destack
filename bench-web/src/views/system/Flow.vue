@@ -1,26 +1,37 @@
 <script lang="ts" setup>
 import { toCamelName } from "@/language/const";
 import {
-	createStep,
-	FLOW_CANVAS_DOT_SIZE,
-	FLOW_GRID_STEP_X,
-	FLOW_GRID_STEP_Y,
-	FlowContext,
-	STEP_WIDTH
+  createStep,
+  FLOW_CANVAS_DOT_SIZE,
+  FLOW_CONTEXT_KEY,
+  FLOW_GRID_STEP_X,
+  FLOW_GRID_STEP_Y,
+  FlowContext,
+  STEP_CONTEXT_ACTIONS,
+  STEP_WIDTH,
 } from "@/language/flow";
-import { NodeType, StepType, Variant, ViewData } from "@/proto/wire";
+import { cloneNode } from "@/language/node";
+import { NodeType, PipeData, StepData, StepType, Variant, ViewData } from "@/proto/wire";
 import { toNodeRefOneOf, unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
-import { fireAction, getAction, type ActionBuiltinId, type ActionMapImplementation } from "@/ui/action";
+import {
+  fireAction,
+  getAction,
+  type ActionBuiltinId,
+  type ActionContext,
+  type ActionMapImplementation,
+} from "@/ui/action";
 import { ICON_BY_STEP_TYPE, IconInline } from "@/ui/icon";
+import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/popover";
+import { computedValue } from "@/utils/ref";
 import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import Step from "@/views/system/Step.vue";
-import { computed, ref, toRef, type Ref } from "vue";
+import { computed, nextTick, provide, ref, toRef, type Ref } from "vue";
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; preparedConnection?: PreparedGetConnection } & Partial<
-    Pick<ViewData, "name" | "title" | "text" | "icon" | "nodePtr" | "transform" | "variant">
+    Pick<ViewData, "name" | "title" | "text" | "icon" | "nodePtr" | "focus" | "transform" | "variant">
   >
 >();
 const emit = defineEmits(viewEmits());
@@ -41,17 +52,82 @@ const ctx = new FlowContext({
   graph: pkgGraph,
   tx: () => pkgConnection.tx,
   view: selfView,
-	containerRef,
+  containerRef,
   stepRefs: stepRefs,
   flowPtr: nodePtr,
 });
+provide(FLOW_CONTEXT_KEY, ctx)
 const flow = ctx.flow;
 const scale = ctx.scale;
 const steps = ctx.steps;
 const pipes = ctx.pipes;
+const things: Ref<(StepData | PipeData)[]> = computed(() => [...steps.value, ...pipes.value]);
+const focusedNodePtr = computedValue(() => props.focus?.nodesPtr[0]);
 
 // actions
+const getThingFromContext = (ctx: ActionContext | undefined): { thing: StepData | PipeData | null; idx: number } => {
+  let thingIdx: number | undefined = undefined;
+  if (thingIdx === undefined && ctx?.triggerNode?.id != null)
+    thingIdx = things.value.findIndex((thing) => thing.id == ctx!.triggerNode!.id);
+  if (thingIdx === undefined && focusedNodePtr.value?.id != null)
+    thingIdx = things.value.findIndex((thing) => thing.id == focusedNodePtr.value!.id);
+  if (thingIdx === undefined) return { thing: null, idx: -1 };
+  const thing = things.value[thingIdx];
+  return { thing, idx: thingIdx };
+};
 const actions: Partial<ActionMapImplementation<"common">> = {
+	// move
+	"common.move.up": {
+		action: (action, context) => {
+			const { thing } = getThingFromContext(context);
+			if (thing == null) return false;
+			ctx.moveThing(thing, { x: 0, y: -FLOW_GRID_STEP_Y });
+		},
+	},
+	"common.move.down": {
+		action: (action, context) => {
+			const { thing } = getThingFromContext(context);
+			if (thing == null) return false;
+			ctx.moveThing(thing, { x: 0, y: FLOW_GRID_STEP_Y });
+		},
+	},
+	"common.move.left": {
+		action: (action, context) => {
+			const { thing } = getThingFromContext(context);
+			if (thing == null) return false;
+			ctx.moveThing(thing, { x: -FLOW_GRID_STEP_X, y: 0 });
+		},
+	},
+	"common.move.right": {
+		action: (action, context) => {
+			const { thing } = getThingFromContext(context);
+			if (thing == null) return false;
+			ctx.moveThing(thing, { x: FLOW_GRID_STEP_X, y: 0 });
+		},
+	},
+  // edit
+  "common.edit.duplicate": {
+    action: (action, context) => {
+      const { thing } = getThingFromContext(context);
+      if (thing == null) return false;
+      const duplicate = cloneNode(pkgConnection.tx, pkgGraph, thing, { includeChildren: true });
+    },
+  },
+  "common.edit.archive": {
+    action: (action, context) => {
+      const { thing } = getThingFromContext(context);
+      if (thing == null) return false;
+      pkgConnection.tx.archive(thing);
+    },
+  },
+  "common.edit.delete": {
+    action: (action, context) => {
+      const { thing } = getThingFromContext(context);
+      if (thing == null) return false;
+      pkgConnection.tx.delete(thing);
+    },
+  },
+  // navigate
   "common.navigate.left": {
     action: () => ctx.panCanvas({ x: -FLOW_GRID_STEP_X, y: 0 }),
   },
@@ -82,6 +158,15 @@ defineExpose<ViewExposed>({ self, id, actions });
 <template>
   <div
     ref="containerRef"
+    v-contextmenu="
+      (context: PopoverContext): PopoverInfo => ({
+        kind: 'menu',
+        placement: 'bottom-right',
+        items: menuActionsLike(['common.create.here', 'common.edit.paste', 'message.chat.message'], {
+          context: { ...context, triggerNode: flow! },
+        }),
+      })
+    "
     class="group/flow relative h-full w-full"
     :class="[
       variant == Variant.COMPACT ? 'rounded border border-gray-200' : '',
@@ -149,6 +234,13 @@ defineExpose<ViewExposed>({ self, id, actions });
           v-for="step in steps"
           :ref="(ref: any) => (ref ? (stepRefs[step.id] = ref) : delete stepRefs[step.id])"
           :key="step.id"
+          v-contextmenu="
+            (context: PopoverContext): PopoverInfo => ({
+              kind: 'menu',
+              placement: 'bottom-right',
+              items: menuActionsLike(STEP_CONTEXT_ACTIONS, { context: { ...context, triggerNode: step } }),
+            })
+          "
           class="absolute"
           :style="{
             width: STEP_WIDTH + 'px',

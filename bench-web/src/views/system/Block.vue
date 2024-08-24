@@ -35,6 +35,7 @@ import { NAME_CONSTRAINT, PAGE_BLOCK_TYPES, RUNNABLE_BLOCK_TYPES, TYPE_BLOCK_TYP
 import { createField, makeTypeInfo, resolveType, type TypeIdentity } from "@/language/field";
 import { packValue, unpackValue } from "@/language/value";
 import Flow from "@/views/system/Flow.vue";
+import { BLOCK_CONTEXT_ACTIONS } from "@/language/block";
 
 const props = defineProps<
   {
@@ -236,18 +237,7 @@ defineExpose<ViewExposed & { isRunnable: Ref<boolean> }>({
                 kind: 'menu',
                 placement: 'bottom-left',
                 offset: 'referenceWidth',
-                items: menuActionsLike(
-                  [
-                    'common.edit.rename',
-                    'common.edit.morph',
-                    'common.edit.duplicate',
-                    'common.edit.archive',
-                    'common.edit.delete',
-                    'session.run.start',
-                    'message.chat.message',
-                  ],
-                  { context: { triggerNode: nodePtr } },
-                ),
+                items: menuActionsLike(BLOCK_CONTEXT_ACTIONS, { context: { triggerNode: nodePtr } }),
               })
             "
             class="rounded hover:bg-gray-100 hover:text-primary-900 data-[popover=true]:bg-gray-100 data-[popover=true]:text-primary-900"

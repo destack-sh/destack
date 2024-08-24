@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { createBlock, useFlatNodeMoveActions } from "@/language/block";
+import { BLOCK_CONTEXT_ACTIONS, createBlock, useFlatNodeMoveActions } from "@/language/block";
 import { toCamelName } from "@/language/const";
 import { makeTypeInfo } from "@/language/field";
 import { uploadFile } from "@/language/file";
@@ -338,9 +338,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
           placement: 'bottom-right',
           items: menuActionsLike(
             ['common.create.above', 'common.create.below', 'common.edit.paste', 'message.chat.message'],
-            {
-              context: { ...context, triggerNode: page },
-            },
+            { context: { ...context, triggerNode: page } },
           ),
         })
       "
@@ -430,18 +428,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
                   (context: PopoverContext): PopoverInfo => ({
                     kind: 'menu',
                     placement: 'bottom-right',
-                    items: menuActionsLike(
-                      [
-                        'common.edit.rename',
-                        'common.edit.morph',
-                        'common.edit.duplicate',
-                        'common.edit.archive',
-                        'common.edit.delete',
-                        'session.run.start',
-                        'message.chat.message',
-                      ],
-                      { context: { ...context, triggerNode: block } },
-                    ),
+                    items: menuActionsLike(BLOCK_CONTEXT_ACTIONS, { context: { ...context, triggerNode: block } }),
                   })
                 "
                 class="w-full px-2 py-1.5 data-[dragging=true]:opacity-50"
