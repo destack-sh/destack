@@ -23,7 +23,7 @@ from bench.language.property import (
     p_value_runtime,
 )
 from bench.language.validation import NAME_CONSTRAINT, ValidationHandler, constraint
-from bench.proto.wire import PipeData, PortData, StepData
+from bench.proto.wire import PipeData, StepData
 from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import IdEnum
 
@@ -222,21 +222,12 @@ def to_port_key(port: PortIn, *, side: PortSide) -> PortKey:
         assert_never(port)
 
 
-@local_node_(NodeType.PORT)
-class Port(SourceNode[PortData], PortKeyBase):
+@struct_(StructType.PORT)
+class Port(Struct, PortKeyBase):
     """
     Extra configuration for a port (key) on a Step with some value.
     Not all ports need a Port, just if there is extra behavior to define.
     """
-
-    parent: Union["Step", None] = p_node_parent(4, NodeType.STEP)
-
-    # content
-    name: str = p_regular(30, default=None, constraint=NAME_CONSTRAINT)
-    order_key: str = p_internal(31, default=INTEGER_ZERO)
-
-    # type identity
-    # ...TypeInfo[40-69]
 
     # static/initial value
     value_type: Optional["TypeInfo"] = p_regular(50, default=None, struct=StructType.TYPE_INFO)
