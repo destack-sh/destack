@@ -104,7 +104,6 @@ enum BenchType {
   BENCH_TYPE_VIEW = 1020;
   BENCH_TYPE_STEP = 1030;
   BENCH_TYPE_PIPE = 1031;
-  BENCH_TYPE_PORT = 1032;
   BENCH_TYPE_BADGE = 1040;
   BENCH_TYPE_FILE = 1100;
   BENCH_TYPE_SECRET = 1101;
@@ -154,6 +153,7 @@ enum BenchType {
   BENCH_TYPE_CODE = 10400;
   BENCH_TYPE_CODE_LINE = 10401;
   BENCH_TYPE_PORT_KEY = 10450;
+  BENCH_TYPE_PORT = 10451;
   BENCH_TYPE_RUN_ERROR = 10500;
   BENCH_TYPE_RUN_OPTIONS = 10501;
   BENCH_TYPE_RUN_ATTEMPT = 10502;
@@ -840,7 +840,6 @@ enum NodeType {
   NODE_TYPE_VIEW = 1020;
   NODE_TYPE_STEP = 1030;
   NODE_TYPE_PIPE = 1031;
-  NODE_TYPE_PORT = 1032;
   NODE_TYPE_BADGE = 1040;
   NODE_TYPE_FILE = 1100;
   NODE_TYPE_SECRET = 1101;
@@ -886,7 +885,6 @@ enum ObjectType {
   OBJECT_TYPE_VIEW = 1020;
   OBJECT_TYPE_STEP = 1030;
   OBJECT_TYPE_PIPE = 1031;
-  OBJECT_TYPE_PORT = 1032;
   OBJECT_TYPE_BADGE = 1040;
   OBJECT_TYPE_FILE = 1100;
   OBJECT_TYPE_SECRET = 1101;
@@ -936,6 +934,7 @@ enum ObjectType {
   OBJECT_TYPE_CODE = 10400;
   OBJECT_TYPE_CODE_LINE = 10401;
   OBJECT_TYPE_PORT_KEY = 10450;
+  OBJECT_TYPE_PORT = 10451;
   OBJECT_TYPE_RUN_ERROR = 10500;
   OBJECT_TYPE_RUN_OPTIONS = 10501;
   OBJECT_TYPE_RUN_ATTEMPT = 10502;
@@ -1317,6 +1316,7 @@ enum StructType {
   STRUCT_TYPE_CODE = 10400;
   STRUCT_TYPE_CODE_LINE = 10401;
   STRUCT_TYPE_PORT_KEY = 10450;
+  STRUCT_TYPE_PORT = 10451;
   STRUCT_TYPE_RUN_ERROR = 10500;
   STRUCT_TYPE_RUN_OPTIONS = 10501;
   STRUCT_TYPE_RUN_ATTEMPT = 10502;
@@ -1881,6 +1881,17 @@ message PolicyRuleData {
   optional bool object_properties_is_system = 82;
   optional bool object_properties_is_sensitive = 83;
   optional bool object_properties_is_kernel = 84;
+}
+
+// Extra configuration for a port (key) on a Step with some value.
+// Not all ports need a Port, just if there is extra behavior to define.
+message PortData {
+  ObjectType metatype = 1;
+  PortType type = 40;
+  PortSide side = 41;
+  optional NodeReferenceData field_ptr = 42;
+  optional TypeInfoData value_type = 50;
+  optional google.protobuf.Struct value_packed = 51;
 }
 
 // An identifier for a port on a Step.
@@ -2797,36 +2808,6 @@ message PipeData {
   optional ColorData color = 81;
 }
 
-// Extra configuration for a port (key) on a Step with some value.
-// Not all ports need a Port, just if there is extra behavior to define.
-message PortData {
-  ObjectType metatype = 1;
-  string id = 2;
-  string ck = 3;
-  optional NodeReferenceData parent_ptr = 4;
-  NodeReferenceData package_ptr = 5;
-  NodeReferenceData bench_ptr = 6;
-  optional NodeReferenceData template_ptr = 7;
-  optional int64 templated_epoch = 8;
-  int64 revision = 10;
-  google.protobuf.Timestamp created_at = 11;
-  int64 created_epoch = 12;
-  google.protobuf.Timestamp updated_at = 13;
-  int64 updated_epoch = 14;
-  optional google.protobuf.Timestamp deleted_at = 15;
-  optional google.protobuf.Timestamp archived_at = 16;
-  optional NodeReferenceData created_by_ptr = 21;
-  optional NodeReferenceData updated_by_ptr = 22;
-  repeated int32 set_properties = 29;
-  string name = 30;
-  string order_key = 31;
-  PortType type = 40;
-  PortSide side = 41;
-  optional NodeReferenceData field_ptr = 42;
-  optional TypeInfoData value_type = 50;
-  optional google.protobuf.Struct value_packed = 51;
-}
-
 // A stored query with identity.
 message QueryData {
   ObjectType metatype = 1;
@@ -3306,18 +3287,17 @@ message SomeNodeData {
     ViewData view = 20;
     StepData step = 21;
     PipeData pipe = 22;
-    PortData port = 23;
-    BadgeData badge = 24;
-    FileData file = 25;
-    SecretData secret = 26;
-    MessageData message = 27;
-    RecordData record = 28;
-    NotificationData notification = 29;
-    SessionData session = 30;
-    RunData run = 31;
-    SignalData signal = 32;
-    LogData log = 33;
-    SkipData skip = 34;
+    BadgeData badge = 23;
+    FileData file = 24;
+    SecretData secret = 25;
+    MessageData message = 26;
+    RecordData record = 27;
+    NotificationData notification = 28;
+    SessionData session = 29;
+    RunData run = 30;
+    SignalData signal = 31;
+    LogData log = 32;
+    SkipData skip = 33;
   };
 }
 

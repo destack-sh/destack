@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.08.24.0"  # auto change via version script
+VERSION = "2024.08.24.1"  # auto change via version script
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -222,7 +222,6 @@ class NodeType(IdEnum):
     VIEW = 1020
     STEP = 1030
     PIPE = 1031
-    PORT = 1032
     BADGE = 1040
     # TAG?
     # POLICY?
@@ -357,6 +356,7 @@ class StructType(IdEnum):
     CODE = 10400
     CODE_LINE = 10401
     PORT_KEY = 10450
+    PORT = 10451
     RUN_ERROR = 10500
     RUN_OPTIONS = 10501
     RUN_ATTEMPT = 10502

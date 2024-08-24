@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.08.24.0"
+VERSION = "2024.08.24.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -955,46 +955,6 @@ PIPE_TABLE = Table(
         Column("filter_type", PrimitiveType.INT16, is_nullable=True),
         Column("line", PrimitiveType.JSON, is_nullable=True),
         Column("color", PrimitiveType.JSON, is_nullable=True),
-    ),
-)
-
-PORT_TABLE = Table(
-    "bench_port",
-    (
-        Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("ck", PrimitiveType.UUID),
-        Column("parent_id", PrimitiveType.UUID, is_nullable=True),
-        Column("parent_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("package_id", PrimitiveType.UUID),
-        Column("bench_id", PrimitiveType.UUID),
-        Column("template_id", PrimitiveType.UUID, is_nullable=True),
-        Column("template_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("template_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("templated_epoch", PrimitiveType.INT64, is_nullable=True),
-        Column("revision", PrimitiveType.INT64),
-        Column("created_at", PrimitiveType.DATETIME),
-        Column("created_epoch", PrimitiveType.INT64),
-        Column("updated_at", PrimitiveType.DATETIME),
-        Column("updated_epoch", PrimitiveType.INT64),
-        Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("archived_at", PrimitiveType.DATETIME, is_nullable=True),
-        Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
-        Column("created_by_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("created_by_type", PrimitiveType.INT16, is_nullable=True),
-        Column("updated_by_id", PrimitiveType.UUID, is_nullable=True),
-        Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
-        Column("name", PrimitiveType.STRING),
-        Column("order_key", PrimitiveType.STRING, default="'a0'::character varying"),
-        Column("type", PrimitiveType.INT16),
-        Column("side", PrimitiveType.INT16),
-        Column("field_id", PrimitiveType.UUID, is_nullable=True),
-        Column("field_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("field_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("field_base_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("field_base_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("value_type", PrimitiveType.JSON, is_nullable=True),
-        Column("value_packed", PrimitiveType.JSON, is_nullable=True),
     ),
 )
 

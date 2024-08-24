@@ -77,8 +77,8 @@ defineExpose<ViewExposed>({ self, id, actions });
   <div
     v-if="step"
     ref="containerRef"
-    class="rounded border bg-white"
-    :class="[stepPtr?.id == inspectionPtr?.id ? 'border-primary-900' : 'border-gray-200']"
+    class="group/step rounded border bg-white transition-colors duration-75"
+    :class="[stepPtr?.id == inspectionPtr?.id ? 'border-primary-900' : 'border-gray-200 hover:border-gray-300']"
   >
     <!-- Header -->
     <div
@@ -162,8 +162,12 @@ defineExpose<ViewExposed>({ self, id, actions });
         >
           <!-- Actual 'port' -->
           <button
-            class="absolute rounded-sm border bg-white"
-            :class="[stepPtr?.id == inspectionPtr?.id ? 'border-primary-900' : 'border-gray-200']"
+            class="absolute rounded-sm border bg-white transition-colors duration-75"
+            :class="[
+              stepPtr?.id == inspectionPtr?.id
+                ? 'border-primary-900'
+                : 'border-gray-200 group-hover/step:border-gray-300',
+            ]"
             :style="{
               height: FLOW_PORT_SIZE + 'px',
               width: FLOW_PORT_SIZE + 'px',

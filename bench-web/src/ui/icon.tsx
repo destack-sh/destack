@@ -181,7 +181,6 @@ export const ICON_BY_NODE_TYPE: Partial<Record<NodeType, IconData>> = _makeIcons
   [NodeType.VIEW]: "fas fa-browser",
   [NodeType.STEP]: "fas fa-step-forward",
   [NodeType.PIPE]: "fas fa-pipe-section",
-  [NodeType.PORT]: "fas fa-circle-dot",
   [NodeType.BADGE]: "fas fa-id-badge",
 
   // state
@@ -215,7 +214,11 @@ export const ICON_BY_STRUCT_TYPE: Partial<Record<StructType, IconData>> = _makeI
   [StructType.FONT]: "fas fa-font",
   [StructType.OFFSET]: "fas fa-arrows-alt",
   [StructType.BOX]: "fas fa-box",
-  // access
+  [StructType.VECTOR2]: "fas fa-vector-square",
+  [StructType.VECTOR3]: "fas fa-vector-square",
+  [StructType.VECTOR4]: "fas fa-vector-square",
+  [StructType.LINE]: "fas fa-bezier-curve",
+  // auth
   [StructType.POLICY]: "fas fa-shield-check",
   [StructType.POLICY_RULE]: "fas fa-shield-check",
   // text
