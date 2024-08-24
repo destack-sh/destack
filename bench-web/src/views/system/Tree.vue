@@ -21,7 +21,7 @@ import { packagePtr } from "@/system/client";
 import { useExistingConnection, type Connection } from "@/system/connection";
 import { bench, canvas, inspectionBasePtr, inspectionPtr, pkg } from "@/system/space";
 import type { ActionContext, ActionMapImplementation } from "@/ui/action";
-import { DEFAULT_HEADER_HEIGHT, DEFAULT_MAX_WIDTH, DEFAULT_MIN_WIDTH } from "@/ui/canvas";
+import { VIEW_DEFAULT_HEADER_HEIGHT, VIEW_DEFAULT_MAX_WIDTH, VIEW_DEFAULT_MIN_WIDTH } from "@/ui/view";
 import { startDragging, useMultiDropZone } from "@/ui/drag";
 import { DEFAULT_BENCH_ICON, IconInline, getNodeIcon } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
@@ -36,9 +36,9 @@ import uFuzzy from "@leeoniya/ufuzzy";
 import { computed, nextTick, ref, toRef, watch, type Ref } from "vue";
 
 const DEPTH_OFFSET = 12;
-const HEADER_HEIGHT = DEFAULT_HEADER_HEIGHT;
-const MIN_WIDTH = DEFAULT_MIN_WIDTH;
-const MAX_WIDTH = DEFAULT_MAX_WIDTH;
+const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
+const MIN_WIDTH = VIEW_DEFAULT_MIN_WIDTH;
+const MAX_WIDTH = VIEW_DEFAULT_MAX_WIDTH;
 
 const props = defineProps<
   { self: TypedNodeReferenceData<NodeType.VIEW>; size: Required<Pick<BoxData, "width" | "height">> } & Pick<
@@ -330,10 +330,10 @@ defineExpose<ViewExposed>({ self, actions, focus });
 <template>
   <div class="h-full w-full">
     <!-- Header -->
-    <div class="group w-full" :style="{ height: DEFAULT_HEADER_HEIGHT + 'px' }">
+    <div class="group w-full" :style="{ height: VIEW_DEFAULT_HEADER_HEIGHT + 'px' }">
       <div
         class="mx-auto flex h-full max-w-full flex-row items-center pl-1.5 pr-3"
-        :style="{ minWidth: DEFAULT_MIN_WIDTH + 'px', maxWidth: DEFAULT_MAX_WIDTH + 'px' }"
+        :style="{ minWidth: VIEW_DEFAULT_MIN_WIDTH + 'px', maxWidth: VIEW_DEFAULT_MAX_WIDTH + 'px' }"
       >
         <!-- Location -->
         <!-- NOTE :UX: should probably be only node crumb in explorer header? -->

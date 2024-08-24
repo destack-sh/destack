@@ -1,10 +1,11 @@
 <script lang="ts" setup>
 import { createBlock, useFlatNodeMoveActions } from "@/language/block";
 import { toCamelName } from "@/language/const";
+import { makeTypeInfo } from "@/language/field";
 import { uploadFile } from "@/language/file";
 import { getGroupedChildrenRef, isDescendantOf } from "@/language/graph";
-import { makeRun } from "@/language/session";
 import { cloneNode, moveNode } from "@/language/node";
+import { makeRun } from "@/language/session";
 import { packValueJson } from "@/language/value";
 import {
   BenchType,
@@ -33,12 +34,11 @@ import { PACKAGE_SCOPE } from "@/system/client";
 import { useExistingConnection, useGetConnection } from "@/system/connection";
 import { canvas, inspectionPtr } from "@/system/space";
 import { fireActionById, type ActionContext, type ActionMapImplementation } from "@/ui/action";
-import { DEFAULT_HEADER_HEIGHT } from "@/ui/canvas";
 import { startDragging, useMultiDropZone } from "@/ui/drag";
 import { ICON_BY_BLOCK_TYPE, IconInline } from "@/ui/icon";
-import { EXPOSED_BLOCK_TYPES } from "@/ui/inspect";
 import { ScrollbarWidth } from "@/ui/layout";
 import { menuActionsLike, type PopoverContext, type PopoverInfo, type PopoverInfoIn } from "@/ui/popover";
+import { VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import { blurDocument } from "@/utils/element";
 import { computedValue } from "@/utils/ref";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
@@ -47,9 +47,8 @@ import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Block from "@/views/system/Block.vue";
 import { computed, nextTick, ref, toRef, type Ref } from "vue";
-import { makeTypeInfo } from "@/language/field";
 
-const HEADER_HEIGHT = DEFAULT_HEADER_HEIGHT;
+const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
 const MIN_BLOCK_WIDTH = 500;
 const MAX_BLOCK_WIDTH = 800;
 const MIN_GUTTER_WIDTH = 44;

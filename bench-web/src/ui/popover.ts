@@ -14,7 +14,7 @@ import { canvas } from "@/system/space";
 import { getElement } from "@/utils/element";
 import { type FloatingOptions } from "@/utils/floating";
 import { pretendReadonly } from "@/utils/ref";
-import { collectViewComponentsUp, findViewComponentUp, isViewComponentIn } from "@/ui/canvas";
+import { collectViewComponentsUp, findViewComponentUp, isViewComponentIn } from "@/ui/view";
 import type { ViewComponent } from "@/views/common";
 import type { MaybeElement } from "@vueuse/core";
 import { computed, shallowRef, toValue, triggerRef, type Directive, type Ref } from "vue";

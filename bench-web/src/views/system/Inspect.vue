@@ -2,14 +2,13 @@
 import { toCamelName } from "@/language/const";
 import { getNodeSubtype } from "@/language/node";
 import { BoxData, ColorShade, NodeType, ObjectType, Orientation, ViewData, ViewType } from "@/proto/wire";
-import { toNodeRefOneOf, unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
+import { unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection } from "@/system/connection";
 import { canvas, inspectionPtr } from "@/system/space";
-import { DEFAULT_HEADER_HEIGHT, DEFAULT_MAX_WIDTH, DEFAULT_MIN_WIDTH } from "@/ui/canvas";
 import { ICON_BY_NODE_TYPE, IconInline } from "@/ui/icon";
 import { getInspectionLayout } from "@/ui/inspect";
 import { ScrollbarWidth } from "@/ui/layout";
-import { toggleHelperViewPin } from "@/ui/view";
+import { toggleHelperViewPin, VIEW_DEFAULT_HEADER_HEIGHT, VIEW_DEFAULT_MAX_WIDTH, VIEW_DEFAULT_MIN_WIDTH } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
 import NodeReference from "@/views/builtins/NodeReference.vue";
 import { viewEmits, type ViewExposed } from "@/views/common";
@@ -17,9 +16,9 @@ import Scroll from "@/views/containers/Scroll.vue";
 import { getViewComponent, hasViewComponent } from "@/views/registry";
 import { computed, toRef } from "vue";
 
-const HEADER_HEIGHT = DEFAULT_HEADER_HEIGHT;
-const MIN_WIDTH = DEFAULT_MIN_WIDTH;
-const MAX_WIDTH = DEFAULT_MAX_WIDTH;
+const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
+const MIN_WIDTH = VIEW_DEFAULT_MIN_WIDTH;
+const MAX_WIDTH = VIEW_DEFAULT_MAX_WIDTH;
 
 const props = defineProps<
   { self: TypedNodeReferenceData<NodeType.VIEW>; size: Required<Pick<BoxData, "width" | "height">> } & Pick<
@@ -83,7 +82,7 @@ defineExpose<ViewExposed>({ self });
     </div>
     <!-- Inspection content -->
     <Scroll
-      :size="{ width: props.size.width, height: props.size.height - DEFAULT_HEADER_HEIGHT }"
+      :size="{ width: props.size.width, height: props.size.height - HEADER_HEIGHT }"
       :orientation="Orientation.VERTICAL"
       :track-width="ScrollbarWidth.sm"
       track-is-overlay

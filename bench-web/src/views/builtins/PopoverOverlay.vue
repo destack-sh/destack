@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { canvas } from "@/system/space";
-import { focusInElement } from "@/ui/canvas";
+import { focusInElement } from "@/ui/view";
 import {
   activePopovers,
   popPopover,

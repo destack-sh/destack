@@ -58,7 +58,7 @@ import { ScrollbarWidth } from "@/ui/layout";
 import { computedValue } from "@/utils/ref";
 import { ACCENT_COLOR_BY_RUN_STATUS } from "@/ui/style";
 import { formatDuration, formatRelativeDate, getDurationFromNow } from "@/utils/time";
-import { DEFAULT_HEADER_HEIGHT } from "@/ui/canvas";
+import { VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import { makeViewId, viewEmits, type ViewComponent, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import Log from "@/views/system/Log.vue";
@@ -68,7 +68,7 @@ import { EDIT_TYPE_PAST_VERB, getPropertyTitle } from "@/ui/inspect";
 import { makeEditFromLog } from "@/language/edit";
 import { useViewExpansion, useViewState } from "@/ui/view";
 
-const HEADER_HEIGHT = DEFAULT_HEADER_HEIGHT;
+const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
 const MIN_WIDTH = 320;
 const MAX_WIDTH = 800;
 const HANDLE_WIDTH = 6;
