@@ -12,6 +12,7 @@ import {
   RunData,
   RunStatus,
   SignalData,
+  StepType,
   StructType,
   ViewDataInfo,
   ViewProperty,
@@ -46,7 +47,7 @@ export function isEnumType(object: any): object is EnumType {
   return typeof object == "number" && ENUM_TYPES_SET.has(object);
 }
 
-// :NodeTypes
+// node types :NodeTypes
 export const ROOT_NODE_TYPES = [NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH];
 export const BASED_NODE_TYPES = [
   // :HasBase
@@ -70,6 +71,8 @@ export const TIMED_NODE_TYPES = [
 ];
 export const RESOURCE_NODE_TYPES = NODE_TYPES.filter((nt) => nt >= 500 && nt < 600);
 
+// block types
+export const BLOCK_TYPES = Object.values(BlockType).filter((v) => typeof v == "number" && v > 0) as BlockType[];
 export const PAGE_BLOCK_TYPES = [BlockType.PAGE, BlockType.FLOW, BlockType.DATABASE, BlockType.VIEW];
 export const TYPE_BLOCK_TYPES = [BlockType.CLASS, BlockType.CHOICE, BlockType.SIGNAL, BlockType.DATABASE];
 export const RUNNABLE_BLOCK_TYPES = [BlockType.TEXT, BlockType.CODE, BlockType.FLOW];
@@ -81,10 +84,19 @@ export const CLASSY_BLOCK_TYPES = [
   BlockType.DATABASE,
 ];
 
+// step
+export const STEP_TYPES = Object.values(StepType).filter((v) => typeof v == "number" && v > 0) as StepType[];
+export const BOUNDARY_STEP_TYPES = STEP_TYPES.filter((st) => st < 50);
+export const RUN_STEP_TYPES = STEP_TYPES.filter((st) => st >= 50 && st < 100);
+export const CONTROL_STEP_TYPES = STEP_TYPES.filter((st) => st >= 100 && st < 150);
+export const CONTAINER_STEP_TYPES = STEP_TYPES.filter((st) => st >= 500 && st < 550);
+
+// run
 export const TERMINAL_RUN_STATUSES = [RunStatus.CANCELLED, RunStatus.ABORTED, RunStatus.FAILED, RunStatus.COMPLETED];
 export const ACTIVE_RUN_STATUSES = [RunStatus.RUNNING, RunStatus.PAUSED, RunStatus.SUSPENDED];
 export const HALTED_RUN_STATUSES = [RunStatus.PAUSED, RunStatus.SUSPENDED];
 
+// view
 export const VIEW_TYPES = Object.values(ViewType).filter((v) => typeof v == "number" && v > 0) as ViewType[];
 export const ROOT_VIEW_TYPES = new Set([ViewType.WINDOW, ViewType.TAB, ViewType.SPLIT]);
 export const NODE_VIEW_TYPES = new Set(VIEW_TYPES.filter((vt) => vt >= 200 && vt < 400));

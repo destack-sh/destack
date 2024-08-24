@@ -264,7 +264,7 @@ export const ICON_BY_BLOCK_TYPE: Partial<Record<BlockType, IconData>> = _makeIco
 
 export const ICON_BY_STEP_TYPE: Partial<Record<StepType, IconData>> = _makeIcons<StepType>({
   // boundary
-  [StepType.START]: "fas fa-play",
+  [StepType.START]: "fas fa-circle-play",
   [StepType.COMPLETE]: "fas fa-circle-check",
   [StepType.FAIL]: "fas fa-circle-exclamation",
   [StepType.VALUE]: "fas fa-hexagon",
@@ -451,8 +451,8 @@ export const ICON_BY_RUN_STATUS: Record<RunStatus, IconData> = {
   [RunStatus.UNSPECIFIED]: makeIcon({ faName: "fas fa-bug" }),
   [RunStatus.SCHEDULED]: makeIcon({ faName: "fas fa-clock" }),
   [RunStatus.QUEUED]: makeIcon({ faName: "fas fa-hourglass" }),
-  [RunStatus.RUNNING]: makeIcon({ faName: "fas fa-play" }),
-  [RunStatus.PAUSED]: makeIcon({ faName: "fas fa-pause" }),
+  [RunStatus.RUNNING]: makeIcon({ faName: "fas fa-circle-play" }),
+  [RunStatus.PAUSED]: makeIcon({ faName: "fas fa-circle-pause" }),
   [RunStatus.SUSPENDED]: makeIcon({ faName: "fas fa-circle-pause" }),
   [RunStatus.COMPLETED]: makeIcon({ faName: "fas fa-circle-check" }),
   [RunStatus.CANCELLED]: makeIcon({ faName: "fas fa-circle-xmark" }),

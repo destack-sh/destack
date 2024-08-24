@@ -26,7 +26,7 @@ const props = defineProps<
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 
-const TAB_HEADER_HEIGHT = DEFAULT_HEADER_HEIGHT; // NOTE :UX: tab header might be too big (but it would be consistent)
+const TAB_HEADER_HEIGHT = 32; // NOTE :UX: should tab header height == default header height? (weirdly big but consistent)
 
 // focus
 const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self);

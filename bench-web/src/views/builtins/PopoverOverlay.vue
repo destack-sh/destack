@@ -21,7 +21,7 @@ const popoverContainerRefs: Ref<Record<number, MaybeElement>> = shallowRef({});
 const popoverInnerRefs: Ref<Record<number, MaybeElement>> = shallowRef({});
 const popoverValues: Ref<Record<number, any>> = shallowRef({});
 const topPopoverContainer = computed(() => popoverContainerRefs.value[topPopover.value?.id]);
-const topPopoverSize = useElementSize(topPopoverContainer);
+const topPopoverSize = useElementSize(topPopoverContainer, undefined, { box: "border-box" });
 
 function registerContainerRef(popover: PopoverInstance, ref: any | undefined) {
   popover.element = ref;

@@ -77,7 +77,7 @@ const maxInputHeight = computed(() =>
   props.size != null ? (props.size.height - headerHeight.value) / 2 : DEFAULT_MAX_INPUT_HEIGHT,
 );
 const draftRef: Ref<HTMLDivElement | null> = ref(null);
-const inputSize = useElementSize(draftRef);
+const inputSize = useElementSize(draftRef, undefined, { box: "border-box" });
 const textRef: Ref<InstanceType<typeof Text> | null> = ref(null);
 const scrollRef: Ref<InstanceType<typeof Scroll> | null> = ref(null);
 const messageRefs: Ref<Record<string, HTMLElement | null>> = ref({});

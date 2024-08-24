@@ -258,8 +258,8 @@ export function useScrollArea(area: {
   const orientationRef = toRef(area.orientation) as Ref<Orientation>;
   const trackWidthRef = toRef(area.trackWidth) as Ref<ScrollbarWidth>;
   const scroll = useScroll(area.container);
-  const containerSize = useElementSize(area.container);
-  const innerSize = useElementSize(area.inner);
+  const containerSize = useElementSize(area.container, undefined, { box: "border-box" });
+  const innerSize = useElementSize(area.inner, undefined, { box: "border-box" });
 
   //
   // track scrolling state
