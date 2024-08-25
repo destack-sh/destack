@@ -34,7 +34,7 @@ import { PACKAGE_SCOPE } from "@/system/client";
 import { useExistingConnection, useGetConnection } from "@/system/connection";
 import { canvas, inspectionPtr } from "@/system/space";
 import { fireActionById, type ActionContext, type ActionMapImplementation } from "@/ui/action";
-import { startDragging, useMultiDropZone } from "@/ui/drag";
+import { startDragging, startDraggingIfAllowed, useMultiDropZone } from "@/ui/drag";
 import { ICON_BY_BLOCK_TYPE, IconInline } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
 import { menuActionsLike, type PopoverContext, type PopoverInfo, type PopoverInfoIn } from "@/ui/popover";
@@ -437,7 +437,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
                 :node-ptr="toNodeRefOneOf(block)"
                 :prepared-connection="preparedPkgConnection"
                 :draggable="true"
-                @dragstart.stop="(e: DragEvent) => startDragging(e, pkgGraph, block)"
+                @dragstart.stop="(e: DragEvent) => startDraggingIfAllowed(e, pkgGraph, block)"
               />
             </div>
 

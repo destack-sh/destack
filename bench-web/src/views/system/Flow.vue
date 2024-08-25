@@ -171,11 +171,10 @@ defineExpose<ViewExposed>({ self, id, actions });
       variant == Variant.COMPACT ? 'rounded border border-gray-200' : '',
       ctx.dragging.value ? 'cursor-grabbing' : 'cursor-grab',
     ]"
-    @mousedown="(e) => ctx.startDragging(e, 'canvas')"
+    @mousedown="(e) => ctx.startDraggingIfAllowed(e, 'canvas')"
     @mousemove="(e: MouseEvent) => ctx.onDragging(e)"
     @mouseup.stop="ctx.dragging.value = null"
     @mouseleave.stop="ctx.dragging.value = null"
-    @dragstart.stop.prevent="false"
     @wheel.prevent="(e) => ctx.onWheel(e)"
   >
     <!-- NOTE :UX: handle multitouch gestures -->
@@ -246,7 +245,7 @@ defineExpose<ViewExposed>({ self, id, actions });
             top: (step.position?.y ?? 0) + 'px',
           }"
           :node-ptr="toNodeRefOneOf(step)"
-          @mousedown="(e) => ctx.startDragging(e, step)"
+          @mousedown="(e) => ctx.startDraggingIfAllowed(e, step)"
         />
 
         <!-- nocheckin: pipes and stuff -->

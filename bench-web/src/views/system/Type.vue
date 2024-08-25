@@ -8,7 +8,7 @@ import { describeNode, isNode, toNodeRefOneOf, unwrapProtoOneOf, type TypedNodeR
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import type { ActionContext, ActionMapImplementation } from "@/ui/action";
-import { startDragging, useMultiDropZone, type DraggedContent, type MultiAnchor } from "@/ui/drag";
+import { startDragging, startDraggingIfAllowed, useMultiDropZone, type DraggedContent, type MultiAnchor } from "@/ui/drag";
 import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/popover";
 import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import Field from "@/views/system/Field.vue";
@@ -281,7 +281,7 @@ defineExpose<ViewExposed>({ self, id, actions });
             :prepared-connection="preparedConnection"
             :node-ptr="toNodeRefOneOf(field)"
             :draggable="true"
-            @dragstart.stop="(e: DragEvent) => startDragging(e, pkgGraph, field)"
+            @dragstart.stop="(e: DragEvent) => startDraggingIfAllowed(e, pkgGraph, field)"
           />
         </li>
       </ul>
