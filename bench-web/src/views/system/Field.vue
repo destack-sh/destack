@@ -64,11 +64,11 @@ defineExpose<ViewExposed>({ self, id, actions });
   <div
     v-if="field"
     ref="fieldRef"
-    class="flex w-fit items-center gap-x-1.5 rounded px-1.5 py-[3px]"
+    class="flex w-fit items-center gap-x-1.5 rounded px-1.5 py-[3px] transition-colors duration-75"
     :class="[
       orientation != Orientation.HORIZONTAL_REVERSED ? 'flex-row' : 'flex-row-reverse',
-      variant != Variant.STEALTH ? 'border border-gray-200 bg-gray-100' : '',
-      inspectionPtr?.id == field.id ? 'border-primary-900' : '',
+      variant != Variant.STEALTH ? 'border border-gray-200 bg-gray-100' : 'hover:bg-gray-100',
+      inspectionPtr?.id == field.id ? (variant != Variant.STEALTH ? 'border-primary-900' : 'text-primary-900') : '',
     ]"
   >
     <!-- TODO :UX: Field is annoying (should be double-click to edit, change type in contextmenu, indicate metadata, ...) -->
@@ -84,7 +84,8 @@ defineExpose<ViewExposed>({ self, id, actions });
         })
       "
       v-bind="getNodeIcon(field)"
-      class="w-5 rounded p-0.5 text-gray-700 hover:cursor-pointer hover:bg-gray-100 data-[popover=true]:bg-gray-100"
+      class="w-5 rounded p-0.5 hover:cursor-pointer hover:bg-gray-100 data-[popover=true]:bg-gray-100"
+      :class="inspectionPtr?.id == field.id && variant == Variant.STEALTH ? 'text-primary-900' : 'text-gray-700'"
     />
     <input
       ref="nameRef"

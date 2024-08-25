@@ -1,7 +1,13 @@
 <script lang="ts" setup>
 import { NAME_CONSTRAINT, toCamelName } from "@/language/const";
-import { FLOW_GRID_STEP_Y, FLOW_PORT_SIZE, STEP_CONTEXT_ACTIONS, useFlowContext } from "@/language/flow";
-import { Alignment, NodeType, Orientation, PortSide, PortType, StepType, Variant, ViewData } from "@/proto/wire";
+import {
+  FLOW_GRID_STEP_Y,
+  FLOW_PORT_SIZE,
+  STEP_CONTEXT_ACTIONS,
+  STEP_HEADER_HEIGHT,
+  useFlowContext,
+} from "@/language/flow";
+import { NodeType, Orientation, PortSide, PortType, StepType, Variant, ViewData } from "@/proto/wire";
 import { toNodeRefOneOf, unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
 import { canvas, inspectionPtr } from "@/system/space";
@@ -9,7 +15,7 @@ import type { ActionMapImplementation } from "@/ui/action";
 import { getNodeIcon, IconInline } from "@/ui/icon";
 import { menuActionsLike, type PopoverInfo, type PopoverInfoIn } from "@/ui/popover";
 import type { TooltipInfo } from "@/ui/tooltip";
-import { getNativeConstraintProps, guardNativeInput, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
+import { getNativeConstraintProps, guardNativeInput } from "@/ui/view";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import Code from "@/views/content/Code.vue";
@@ -18,8 +24,6 @@ import Text from "@/views/content/Text.vue";
 import Field from "@/views/system/Field.vue";
 import { useElementSize } from "@vueuse/core";
 import { computed, nextTick, ref, toRef, type Ref } from "vue";
-
-const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; preparedConnection?: PreparedGetConnection } & Partial<
@@ -30,8 +34,6 @@ const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 const id = makeViewId(props);
 
-const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self, { isRequired: false });
-const selfView = spaceGraph.getRef(self);
 const stepPtr = computed(() => unwrapProtoOneOf(props.nodePtr) as TypedNodeReferenceData<NodeType.STEP>);
 const pkgGetConnection = props.preparedConnection ?? useExistingConnection(stepPtr);
 const { graph: pkgGraph, connection: pkgConnection } = pkgGetConnection;
@@ -54,7 +56,7 @@ const bodyRef: Ref<HTMLElement | null> = ref(null);
 const headerRef: Ref<HTMLElement | null> = ref(null);
 const contentSize = useElementSize(bodyRef, undefined, { box: "border-box" });
 const paddingHeight = computed(
-  () => FLOW_GRID_STEP_Y - ((contentSize.height.value + HEADER_HEIGHT) % FLOW_GRID_STEP_Y),
+  () => FLOW_GRID_STEP_Y - ((contentSize.height.value + STEP_HEADER_HEIGHT) % FLOW_GRID_STEP_Y),
 );
 
 //
@@ -79,15 +81,13 @@ defineExpose<ViewExposed>({ self, id, actions });
     ref="containerRef"
     class="group/step rounded border bg-white transition-colors duration-75"
     :class="[stepPtr?.id == inspectionPtr?.id ? 'border-primary-900' : 'border-gray-200 hover:border-gray-300']"
+    @mouseup="(e) => ctx.endDragging(e, { kind: 'step', step: step! })"
   >
     <!-- Header -->
     <div
       ref="headerRef"
-      class="flex w-full flex-row items-center border-b px-2 transition-colors duration-75"
-      :class="
-        stepPtr?.id == inspectionPtr?.id ? 'border-primary-900' : 'border-gray-200 group-hover/step:border-gray-300'
-      "
-      :style="{ height: HEADER_HEIGHT + 'px' }"
+      class="flex w-full flex-row items-center border-b border-gray-200 px-2 transition-colors duration-75 group-hover/step:border-gray-300"
+      :style="{ height: STEP_HEADER_HEIGHT + 'px' }"
     >
       <!-- Icon/Name -->
       <div class="flex-shrink-0">
@@ -146,8 +146,8 @@ defineExpose<ViewExposed>({ self, id, actions });
       <div
         class="relative w-full"
         :style="{
-          // ensure ports are aligned with grid (offset by half a step so that the lines connect in the middle)
-          marginTop: FLOW_GRID_STEP_Y - (HEADER_HEIGHT % FLOW_GRID_STEP_Y) - FLOW_GRID_STEP_Y / 2 + 'px',
+          // ensure ports are aligned with grid (offset by half a step to connect lines :FlowGrid)
+          marginTop: FLOW_GRID_STEP_Y - (STEP_HEADER_HEIGHT % FLOW_GRID_STEP_Y) - FLOW_GRID_STEP_Y / 2 + 'px',
           height: FLOW_GRID_STEP_Y * Math.max(ports.incoming.length, ports.outgoing.length) + 'px',
         }"
       >
@@ -168,9 +168,8 @@ defineExpose<ViewExposed>({ self, id, actions });
           <button
             class="absolute cursor-crosshair rounded-sm border bg-white transition-colors duration-75"
             :class="[
-              stepPtr?.id == inspectionPtr?.id
-                ? 'border-primary-900'
-                : 'border-gray-200 group-hover/step:border-gray-300 hover:bg-gray-100',
+              stepPtr?.id == inspectionPtr?.id ? 'border-primary-900' : 'border-gray-200 hover:bg-gray-100 ',
+              ctx.isDraggingPort ? 'hover:border-primary-900 hover:bg-gray-100' : 'group-hover/step:border-gray-300',
             ]"
             :style="{
               height: FLOW_PORT_SIZE + 'px',
@@ -180,6 +179,8 @@ defineExpose<ViewExposed>({ self, id, actions });
               top: FLOW_GRID_STEP_Y / 2 - FLOW_PORT_SIZE / 2 + 'px',
             }"
             data-suppress-drag="true"
+            @mousedown="(e) => ctx.startDragging(e, { kind: 'step-port', step: step!, port })"
+            @mouseup="(e) => ctx.endDragging(e, { kind: 'step-port', step: step!, port })"
           />
           <!-- Port content -->
           <div v-if="port.type == PortType.RUN" class="px-2.5">
@@ -201,10 +202,7 @@ defineExpose<ViewExposed>({ self, id, actions });
       <!-- Content -->
       <div
         v-if="[StepType.TEXT, StepType.CODE].includes(step.type)"
-        class="mt-1 border-t pt-1 transition-colors duration-75"
-        :class="
-          stepPtr?.id == inspectionPtr?.id ? 'border-primary-900' : 'border-gray-200 group-hover/step:border-gray-300'
-        "
+        class="mt-1 border-t border-gray-200 pt-1 transition-colors duration-75 group-hover/step:border-gray-300"
       >
         <Text
           v-if="step.type == StepType.TEXT"

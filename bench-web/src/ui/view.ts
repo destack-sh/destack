@@ -23,6 +23,8 @@ import {
   TypeKind,
   Variant,
   Vector2Data,
+  Vector3Data,
+  Vector4Data,
   ViewData,
   ViewType,
   type AnyNodeData,
@@ -53,6 +55,10 @@ export const SPACE_DEFAULT_BAR_POSITION = Anchor.TOP;
 export const VIEW_DEFAULT_HEADER_HEIGHT = 36;
 export const VIEW_DEFAULT_MIN_WIDTH = 320;
 export const VIEW_DEFAULT_MAX_WIDTH = 800;
+
+export type Vector2 = Omit<Vector2Data, "metatype">;
+export type Vector3 = Omit<Vector3Data, "metatype">;
+export type Vector4 = Omit<Vector4Data, "metatype">;
 
 export function getVueComponentType(component: ComponentInstance<any>): string {
   return component.__name ?? (component as any).type.__name;
