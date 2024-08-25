@@ -417,7 +417,7 @@ def render_expr(
         else:
             rendered = renderer.render_builtin_object_expr(value)
     else:
-        assert_never(value)
+        raise TypeError(f"cannot render {value!r}")
     if options.format:
         rendered = format_code(rendered, line_length=options.format_line_length)
     return rendered.strip()

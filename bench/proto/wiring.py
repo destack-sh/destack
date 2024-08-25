@@ -211,6 +211,7 @@ def unpack_object[T: BuiltinObject](
 ) -> T:
     """Unpack a builtin object and any contained structs without validating."""
     supergraph = supergraph or NULL_SUPERGRAPH
+    assert obj_data.metatype is not None, f"missing metatype for {obj_data!r}"
     object_cls = OBJECT_CLASS_BY_TYPE[ObjectType(obj_data.metatype)]  # type: ignore
     if expect and not issubclass(object_cls, expect):
         raise RuntimeError(f"expected {expect} but got {object_cls}")

@@ -26,7 +26,7 @@ import { useElementSize } from "@vueuse/core";
 import { computed, nextTick, ref, toRef, type Ref } from "vue";
 
 const props = defineProps<
-  { self?: TypedNodeReferenceData<NodeType.VIEW>; preparedConnection?: PreparedGetConnection } & Partial<
+  { self?: TypedNodeReferenceData<NodeType.VIEW> } & Partial<
     Pick<ViewData, "name" | "title" | "text" | "icon" | "nodePtr" | "transform" | "variant">
   >
 >();
@@ -35,20 +35,9 @@ const self = toRef(props, "self");
 const id = makeViewId(props);
 
 const stepPtr = computed(() => unwrapProtoOneOf(props.nodePtr) as TypedNodeReferenceData<NodeType.STEP>);
-const pkgGetConnection = props.preparedConnection ?? useExistingConnection(stepPtr);
-const { graph: pkgGraph, connection: pkgConnection } = pkgGetConnection;
-const ctx = useFlowContext();
-
-const step = pkgGraph.getRef(stepPtr, { ignoreAncestors: props.self == null });
-const nodePtr = computed(() => step.value?.nodePtr as TypedNodeReferenceData<NodeType.BLOCK | NodeType.STEP> | null);
-const node = pkgGraph.getRef(nodePtr);
-const nodeFields = pkgGraph.getChildrenRef(node, NodeType.FIELD);
-const fields = pkgGraph.getChildrenRef(step, NodeType.FIELD);
-const ports = computed(() =>
-  step.value != null
-    ? ctx.getPorts(step.value, { fields: fields.value, node: node.value!, nodeFields: nodeFields.value })
-    : { incoming: [], outgoing: [] },
-);
+const flowCtx = useFlowContext();
+const stepState = flowCtx.stepsStates.value[stepPtr.value.id!]; // must exist
+const { step, fields, nodePtr, node, nodeFields, ports } = stepState;
 
 const nameRef: Ref<HTMLInputElement | null> = ref(null);
 const containerRef: Ref<HTMLElement | null> = ref(null);
@@ -81,7 +70,7 @@ defineExpose<ViewExposed>({ self, id, actions });
     ref="containerRef"
     class="group/step rounded border bg-white transition-colors duration-75"
     :class="[stepPtr?.id == inspectionPtr?.id ? 'border-primary-900' : 'border-gray-200 hover:border-gray-300']"
-    @mouseup="(e) => ctx.endDragging(e, { kind: 'step', step: step! })"
+    @mouseup="(e) => flowCtx.endDragging(e, { kind: 'step', step: step! })"
   >
     <!-- Header -->
     <div
@@ -99,7 +88,7 @@ defineExpose<ViewExposed>({ self, id, actions });
               placement: 'bottom-right',
               offset: '-referenceWidth',
               props: { modelValue: step!.icon, isInput: true },
-              onApply: (newIcon) => pkgConnection.tx.update(step!, { icon: newIcon }),
+              onApply: (newIcon) => flowCtx.tx.update(step!, { icon: newIcon }),
             })
           "
           v-bind="getNodeIcon(step)"
@@ -108,7 +97,7 @@ defineExpose<ViewExposed>({ self, id, actions });
         <input
           ref="nameRef"
           type="text"
-          class="ml-0.5 w-fit min-w-fit max-w-fit rounded border-0 px-1 font-medium text-gray-700 outline-none ring-0 hover:bg-gray-100 focus:ring-0"
+          class="ml-0.5 w-fit min-w-fit max-w-fit rounded border-0 px-1 font-medium text-gray-700 outline-none ring-0 transition-colors duration-75 hover:bg-gray-100 focus:ring-0"
           spellcheck="false"
           data-suppress-drag="true"
           :value="step.name"
@@ -116,7 +105,7 @@ defineExpose<ViewExposed>({ self, id, actions });
           v-bind="getNativeConstraintProps(NAME_CONSTRAINT)"
           @input="
             guardNativeInput(NAME_CONSTRAINT, $event, step!.name, (newValue) =>
-              pkgConnection.tx.update(step!, { name: newValue }, { debounce: 'long' }),
+              flowCtx.tx.update(step!, { name: newValue }, { debounce: 'long' }),
             )
           "
         />
@@ -169,7 +158,7 @@ defineExpose<ViewExposed>({ self, id, actions });
             class="absolute cursor-crosshair rounded-sm border bg-white transition-colors duration-75"
             :class="[
               stepPtr?.id == inspectionPtr?.id ? 'border-primary-900' : 'border-gray-200 hover:bg-gray-100 ',
-              ctx.isDraggingPort ? 'hover:border-primary-900 hover:bg-gray-100' : 'group-hover/step:border-gray-300',
+              'hover:border-primary-900 hover:bg-gray-100',
             ]"
             :style="{
               height: FLOW_PORT_SIZE + 'px',
@@ -179,8 +168,8 @@ defineExpose<ViewExposed>({ self, id, actions });
               top: FLOW_GRID_STEP_Y / 2 - FLOW_PORT_SIZE / 2 + 'px',
             }"
             data-suppress-drag="true"
-            @mousedown="(e) => ctx.startDragging(e, { kind: 'step-port', step: step!, port })"
-            @mouseup="(e) => ctx.endDragging(e, { kind: 'step-port', step: step!, port })"
+            @mousedown="(e) => flowCtx.startDragging(e, { kind: 'step-port', step: step!, port })"
+            @mouseup="(e) => flowCtx.endDragging(e, { kind: 'step-port', step: step!, port })"
           />
           <!-- Port content -->
           <div v-if="port.type == PortType.RUN" class="px-2.5">
@@ -210,7 +199,7 @@ defineExpose<ViewExposed>({ self, id, actions });
           is-input
           :variant="Variant.STEALTH"
           :model-value="step.text"
-          @update:model-value="(newText) => pkgConnection.tx.update(step!, { text: newText }, { debounce: 'long' })"
+          @update:model-value="(newText) => flowCtx.tx.update(step!, { text: newText }, { debounce: 'long' })"
         />
         <Code
           v-else-if="step.type == StepType.CODE"
@@ -218,7 +207,7 @@ defineExpose<ViewExposed>({ self, id, actions });
           is-input
           :variant="Variant.STEALTH"
           :model-value="step.code"
-          @update:model-value="(newCode) => pkgConnection.tx.update(step!, { code: newCode }, { debounce: 'long' })"
+          @update:model-value="(newCode) => flowCtx.tx.update(step!, { code: newCode }, { debounce: 'long' })"
         />
       </div>
     </div>
@@ -227,6 +216,7 @@ defineExpose<ViewExposed>({ self, id, actions });
     <div class="w-full" :style="{ height: paddingHeight + 'px' }" />
   </div>
   <div v-else ref="containerRef" class="rounded border border-gray-200 bg-white">
-    <Inaccessible :node="stepPtr" :connection="pkgConnection" />
+    <!-- should never be rendered by containing flow -->
+    <span>???</span>
   </div>
 </template>

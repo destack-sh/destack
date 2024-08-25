@@ -48,7 +48,7 @@ const { graph: pkgGraph, connection: pkgConnection } = pkgGetConnection;
 
 const containerRef: Ref<HTMLElement | null> = ref(null);
 const stepRefs: Ref<Record<string, InstanceType<typeof Step>>> = ref({});
-const ctx = new FlowContext({
+const flowCtx = new FlowContext({
   spaceGraph: spaceGraph,
   spaceTx: () => spaceConnection.tx,
   graph: pkgGraph,
@@ -58,11 +58,11 @@ const ctx = new FlowContext({
   stepRefs: stepRefs,
   flowPtr: nodePtr,
 });
-provide(FLOW_CONTEXT_KEY, ctx);
-const flow = ctx.flow;
-const scale = ctx.scale;
-const steps = ctx.steps;
-const pipes = ctx.pipes;
+provide(FLOW_CONTEXT_KEY, flowCtx);
+const flow = flowCtx.flow;
+const scale = flowCtx.scale;
+const steps = flowCtx.steps;
+const pipes = flowCtx.pipes;
 const things: Ref<(StepData | PipeData)[]> = computed(() => [...steps.value, ...pipes.value]);
 const focusedNodePtr = computedValue(() => props.focus?.nodesPtr[0]);
 
@@ -83,28 +83,28 @@ const actions: Partial<ActionMapImplementation<"common">> = {
     action: (action, context) => {
       const { thing } = getThingFromContext(context);
       if (thing == null) return false;
-      ctx.moveThing(thing, { x: 0, y: -FLOW_GRID_STEP_Y });
+      flowCtx.moveThing(thing, { x: 0, y: -FLOW_GRID_STEP_Y });
     },
   },
   "common.move.down": {
     action: (action, context) => {
       const { thing } = getThingFromContext(context);
       if (thing == null) return false;
-      ctx.moveThing(thing, { x: 0, y: FLOW_GRID_STEP_Y });
+      flowCtx.moveThing(thing, { x: 0, y: FLOW_GRID_STEP_Y });
     },
   },
   "common.move.left": {
     action: (action, context) => {
       const { thing } = getThingFromContext(context);
       if (thing == null) return false;
-      ctx.moveThing(thing, { x: -FLOW_GRID_STEP_X, y: 0 });
+      flowCtx.moveThing(thing, { x: -FLOW_GRID_STEP_X, y: 0 });
     },
   },
   "common.move.right": {
     action: (action, context) => {
       const { thing } = getThingFromContext(context);
       if (thing == null) return false;
-      ctx.moveThing(thing, { x: FLOW_GRID_STEP_X, y: 0 });
+      flowCtx.moveThing(thing, { x: FLOW_GRID_STEP_X, y: 0 });
     },
   },
   // edit
@@ -131,25 +131,25 @@ const actions: Partial<ActionMapImplementation<"common">> = {
   },
   // navigate
   "common.navigate.left": {
-    action: () => ctx.panCanvas({ x: -FLOW_GRID_STEP_X, y: 0 }),
+    action: () => flowCtx.panCanvas({ x: -FLOW_GRID_STEP_X, y: 0 }),
   },
   "common.navigate.right": {
-    action: () => ctx.panCanvas({ x: FLOW_GRID_STEP_X, y: 0 }),
+    action: () => flowCtx.panCanvas({ x: FLOW_GRID_STEP_X, y: 0 }),
   },
   "common.navigate.up": {
-    action: () => ctx.panCanvas({ x: 0, y: -FLOW_GRID_STEP_Y }),
+    action: () => flowCtx.panCanvas({ x: 0, y: -FLOW_GRID_STEP_Y }),
   },
   "common.navigate.down": {
-    action: () => ctx.panCanvas({ x: 0, y: FLOW_GRID_STEP_Y }),
+    action: () => flowCtx.panCanvas({ x: 0, y: FLOW_GRID_STEP_Y }),
   },
   "common.navigate.zoomIn": {
-    action: () => ctx.zoomCanvas("in", "center", 15),
+    action: () => flowCtx.zoomCanvas("in", "center", 15),
   },
   "common.navigate.zoomOut": {
-    action: () => ctx.zoomCanvas("out", "center", 15),
+    action: () => flowCtx.zoomCanvas("out", "center", 15),
   },
   "common.navigate.reset": {
-    action: () => ctx.resetViewport(),
+    action: () => flowCtx.resetViewport(),
   },
 };
 
@@ -172,13 +172,13 @@ defineExpose<ViewExposed>({ self, id, actions });
     class="group/flow relative h-full w-full"
     :class="[
       variant == Variant.COMPACT ? 'rounded border border-gray-200' : '',
-      ctx.dragging.value ? (ctx.isDraggingPort ? 'cursor-crosshair' : 'cursor-grabbing') : 'cursor-grab',
+      flowCtx.dragging.value ? (flowCtx.isDraggingPort ? 'cursor-crosshair' : 'cursor-grabbing') : 'cursor-grab',
     ]"
-    @mousedown="(e) => ctx.startDraggingIfAllowed(e, { kind: 'canvas' })"
-    @mousemove="(e: MouseEvent) => ctx.onDragging(e)"
-    @mouseup="(e) => ctx.endDragging(e, { kind: 'canvas' })"
-    @mouseleave="(e) => ctx.cancelDragging()"
-    @wheel.prevent="(e) => ctx.onWheel(e)"
+    @mousedown="(e) => flowCtx.startDraggingIfAllowed(e, { kind: 'canvas' })"
+    @mousemove="(e: MouseEvent) => flowCtx.onDragging(e)"
+    @mouseup="(e) => flowCtx.endDragging(e, { kind: 'canvas' })"
+    @mouseleave="(e) => flowCtx.cancelDragging()"
+    @wheel.prevent="(e) => flowCtx.onWheel(e)"
   >
     <!-- NOTE :UX: handle multitouch gestures -->
     <!-- Background grid (infinitely repeated) -->
@@ -258,25 +258,30 @@ defineExpose<ViewExposed>({ self, id, actions });
           "
           class="absolute"
           :style="{
-            width: ctx.getStepWidth(step) + 'px',
+            width: flowCtx.getStepWidth(step) + 'px',
             left: (step.position?.x ?? 0) + 'px',
             top: (step.position?.y ?? 0) + 'px',
           }"
           :node-ptr="toNodeRefOneOf(step)"
-          @mousedown="(e) => ctx.startDraggingIfAllowed(e, { kind: 'step', step })"
+          @mousedown="(e) => flowCtx.startDraggingIfAllowed(e, { kind: 'step', step })"
         />
         <!-- Pending Pipe (above Steps for clarity)-->
-        <div v-if="ctx.draggable?.kind == 'step-port'" class="pointer-events-none absolute text-gray-700 opacity-50">
-          <svg v-if="ctx.draggable.cursorWorldPos" class="overflow-visible">
+        <div
+          v-if="flowCtx.draggable?.kind == 'step-port'"
+          class="pointer-events-none absolute text-gray-700 opacity-50"
+        >
+          <svg v-if="flowCtx.draggable.cursorWorldPos" class="overflow-visible">
             <path
               :stroke-width="PIPE_WIDTH"
               stroke-linecap="round"
               stroke-linejoin="bevel"
               stroke="currentColor"
               :d="
-                ctx.computePathSvg(
-                  ctx.getPortPosition(ctx.draggable.step, ctx.draggable.port)!,
-                  ctx.draggable.cursorWorldPos!,
+                flowCtx.pathToSvg(
+                  flowCtx.computePath(
+                    flowCtx.getPortPosition(flowCtx.draggable.step, flowCtx.draggable.port)!,
+                    flowCtx.draggable.cursorWorldPos!,
+                  ),
                 )
               "
             />

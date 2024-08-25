@@ -1412,6 +1412,10 @@ export interface RunOptionsData {
      */
     timeout?: number;
     /**
+     * @generated from protobuf field: optional bool suppress_failure = 34;
+     */
+    suppressFailure?: boolean;
+    /**
      * @generated from protobuf field: optional float retry_interval = 40;
      */
     retryInterval?: number;
@@ -15003,6 +15007,7 @@ class RunOptionsData$Type extends MessageType<RunOptionsData> {
             { no: 31, name: "max_concurrency", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 32, name: "max_attempts", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 33, name: "timeout", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 34, name: "suppress_failure", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 40, name: "retry_interval", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
             { no: 41, name: "backoff", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
             { no: 42, name: "max_retry_interval", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
@@ -15040,6 +15045,9 @@ class RunOptionsData$Type extends MessageType<RunOptionsData> {
                     break;
                 case /* optional float timeout */ 33:
                     message.timeout = reader.float();
+                    break;
+                case /* optional bool suppress_failure */ 34:
+                    message.suppressFailure = reader.bool();
                     break;
                 case /* optional float retry_interval */ 40:
                     message.retryInterval = reader.float();
@@ -15093,6 +15101,9 @@ class RunOptionsData$Type extends MessageType<RunOptionsData> {
         /* optional float timeout = 33; */
         if (message.timeout !== undefined)
             writer.tag(33, WireType.Bit32).float(message.timeout);
+        /* optional bool suppress_failure = 34; */
+        if (message.suppressFailure !== undefined)
+            writer.tag(34, WireType.Varint).bool(message.suppressFailure);
         /* optional float retry_interval = 40; */
         if (message.retryInterval !== undefined)
             writer.tag(40, WireType.Bit32).float(message.retryInterval);
@@ -27529,6 +27540,7 @@ export enum RunOptionsProperty {
   maxConcurrency = 31,
   maxAttempts = 32,
   timeout = 33,
+  suppressFailure = 34,
   retryInterval = 40,
   backoff = 41,
   maxRetryInterval = 42,
@@ -28338,6 +28350,7 @@ export const RunOptionsDataInfo: Record<RunOptionsProperty, PropertyInfo> = {
   [RunOptionsProperty.maxConcurrency]: { id: 31, name: 'max_concurrency', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.INT32, constraint: { minValue: 0 }, isRuntime: true, isWired: true, isStored: true },
   [RunOptionsProperty.maxAttempts]: { id: 32, name: 'max_attempts', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.INT32, constraint: { minValue: -1 }, isRuntime: true, isWired: true, isStored: true },
   [RunOptionsProperty.timeout]: { id: 33, name: 'timeout', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0 }, isRuntime: true, isWired: true, isStored: true },
+  [RunOptionsProperty.suppressFailure]: { id: 34, name: 'suppress_failure', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
   [RunOptionsProperty.retryInterval]: { id: 40, name: 'retry_interval', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0 }, isRuntime: true, isWired: true, isStored: true },
   [RunOptionsProperty.backoff]: { id: 41, name: 'backoff', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 1 }, isRuntime: true, isWired: true, isStored: true },
   [RunOptionsProperty.maxRetryInterval]: { id: 42, name: 'max_retry_interval', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0 }, isRuntime: true, isWired: true, isStored: true },
@@ -28628,7 +28641,7 @@ export const ServerDataInfo: Record<ServerProperty, PropertyInfo> = {
   [ServerProperty.region]: { id: 35, name: 'region', component: ObjectType.SERVER, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.status]: { id: 36, name: 'status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.08.24.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.08.25.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.minCpu]: { id: 50, name: 'min_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 4.0 }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.maxCpu]: { id: 51, name: 'max_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 4.0 }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -28657,7 +28670,7 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.region]: { id: 35, name: 'region', component: ObjectType.STORE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.status]: { id: 36, name: 'status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.08.24.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.08.25.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 50, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 51, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -28683,7 +28696,7 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.region]: { id: 35, name: 'region', component: ObjectType.MACHINE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.status]: { id: 36, name: 'status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.08.24.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.08.25.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 42, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 43, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
