@@ -441,8 +441,8 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
           : '',
         isInDropZone ? 'outline-dotted outline-2 outline-primary-900' : '',
       ]"
-      :draggable="true"
-      @dragstart.stop.prevent="false /* prevent accidentally dragging ancestors from text selection here */"
+      data-suppress-actions="common.move.left,common.move.right"
+      data-suppress-drag="true"
     >
       <!-- Placeholder -->
       <div v-if="placeholder && isTextEmpty(modelValue)" class="pointer-events-none absolute left-0 top-[1px]">

@@ -56,12 +56,41 @@ const dropZones: Ref<Record<number, DropZone>> = shallowRef({});
 const dropZonesByElement: Map<HTMLElement | SVGElement, DropZone> = new Map();
 const activeDropZone: Ref<DropZone | null> = ref(null);
 
+export const DRAG_DISALLOWED_ELEMENTS = new Set(["input", "textarea", "contenteditable"]);
+
+/** Checks whether the given element may be dragged. */
+export function isDraggingAllowed(element: HTMLElement | SVGElement | null): boolean {
+  if (element == null || DRAG_DISALLOWED_ELEMENTS.has(element.tagName.toLowerCase())) return false;
+  // check for 'data-suppress-drag' attribute in containing elements
+  let el: HTMLElement | SVGElement | null = element;
+  while (el != null) {
+    if (el.hasAttribute("data-suppress-drag")) return false;
+    el = el.parentElement as HTMLElement | null;
+  }
+  return true;
+}
+
+/** Start dragging the given thing if it's not a disallowed element (like an input). */
+export function startDraggingIfAllowed(
+  event: DragEvent,
+  graph: ReadNodeGraph,
+  data: AnyNodeData | AnyNodeReferenceData,
+): boolean {
+  const trigger = event.target as HTMLElement;
+  if (!isDraggingAllowed(trigger)) {
+    log.trace("drag.start.disallowed", trigger);
+    return false;
+  } else {
+    return startDragging(event, graph, data);
+  }
+}
+
 /** Start dragging the given thing. Sets 'activeDragged' (can only drag one thing at a time). */
 export function startDragging(
   event: DragEvent,
   graph: ReadNodeGraph,
   data: AnyNodeData | AnyNodeReferenceData | SelectionData | DraggedContent,
-) {
+): boolean {
   const trigger = event.target as HTMLElement;
   let dragged: Dragged;
   if ("metatype" in data) {
@@ -101,6 +130,7 @@ export function startDragging(
   activeDragged.value = dragged;
   lastDraggedAt.value = DateTime.now();
   log.trace("drag.start", dragged);
+  return true;
 }
 
 /** Stops dragging the current thing. */

@@ -83,7 +83,10 @@ defineExpose<ViewExposed>({ self, id, actions });
     <!-- Header -->
     <div
       ref="headerRef"
-      class="flex w-full flex-row items-center border-b border-gray-200 px-2"
+      class="flex w-full flex-row items-center border-b px-2 transition-colors duration-75"
+      :class="
+        stepPtr?.id == inspectionPtr?.id ? 'border-primary-900' : 'border-gray-200 group-hover/step:border-gray-300'
+      "
       :style="{ height: HEADER_HEIGHT + 'px' }"
     >
       <!-- Icon/Name -->
@@ -107,6 +110,7 @@ defineExpose<ViewExposed>({ self, id, actions });
           type="text"
           class="ml-0.5 w-fit min-w-fit max-w-fit rounded border-0 px-1 font-medium text-gray-700 outline-none ring-0 hover:bg-gray-100 focus:ring-0"
           spellcheck="false"
+          data-suppress-drag="true"
           :value="step.name"
           :size="step.name.length + 3"
           v-bind="getNativeConstraintProps(NAME_CONSTRAINT)"
@@ -162,11 +166,11 @@ defineExpose<ViewExposed>({ self, id, actions });
         >
           <!-- Actual 'port' -->
           <button
-            class="absolute rounded-sm border bg-white transition-colors duration-75"
+            class="absolute cursor-crosshair rounded-sm border bg-white transition-colors duration-75"
             :class="[
               stepPtr?.id == inspectionPtr?.id
                 ? 'border-primary-900'
-                : 'border-gray-200 group-hover/step:border-gray-300',
+                : 'border-gray-200 group-hover/step:border-gray-300 hover:bg-gray-100',
             ]"
             :style="{
               height: FLOW_PORT_SIZE + 'px',
@@ -175,6 +179,7 @@ defineExpose<ViewExposed>({ self, id, actions });
               right: port.side == PortSide.OUTGOING ? -FLOW_PORT_SIZE / 2 + 'px' : undefined,
               top: FLOW_GRID_STEP_Y / 2 - FLOW_PORT_SIZE / 2 + 'px',
             }"
+            data-suppress-drag="true"
           />
           <!-- Port content -->
           <div v-if="port.type == PortType.RUN" class="px-2.5">
@@ -194,7 +199,13 @@ defineExpose<ViewExposed>({ self, id, actions });
       </div>
 
       <!-- Content -->
-      <div v-if="[StepType.TEXT, StepType.CODE].includes(step.type)" class="mt-1 border-t border-gray-200 pt-1">
+      <div
+        v-if="[StepType.TEXT, StepType.CODE].includes(step.type)"
+        class="mt-1 border-t pt-1 transition-colors duration-75"
+        :class="
+          stepPtr?.id == inspectionPtr?.id ? 'border-primary-900' : 'border-gray-200 group-hover/step:border-gray-300'
+        "
+      >
         <Text
           v-if="step.type == StepType.TEXT"
           class="px-3"

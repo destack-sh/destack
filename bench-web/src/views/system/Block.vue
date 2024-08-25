@@ -151,6 +151,7 @@ defineExpose<ViewExposed & { isRunnable: Ref<boolean> }>({
           type="text"
           class="w-fit min-w-fit max-w-fit rounded border-0 px-1 outline-none ring-0 hover:bg-gray-100 focus:ring-0"
           :class="[isQuasiAnonymous ? 'px-0.5 text-gray-400' : 'ml-0.5 px-1 font-medium']"
+          data-suppress-drag="true"
           spellcheck="false"
           :value="block.name"
           :size="block.name.length + 3"

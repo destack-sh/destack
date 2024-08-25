@@ -198,6 +198,7 @@ defineExpose<ViewExposed>({ self, id, actions });
         })
       "
       data-suppress-actions="common.move.left,common.move.right"
+      data-suppress-drag="true"
       class="code rounded px-1 py-1.5 hover:cursor-text"
       :class="[
         variant != Variant.STEALTH
@@ -205,8 +206,6 @@ defineExpose<ViewExposed>({ self, id, actions });
           : '',
         isInDropZone ? 'outline-dotted outline-2 outline-primary-900' : '',
       ]"
-      :draggable="true"
-      @dragstart.stop.prevent="false /* prevent accidentally dragging ancestors from text selection here */"
     />
   </ViewContentWrapper>
 </template>

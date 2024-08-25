@@ -67,9 +67,8 @@ defineExpose<ViewExposed>({ self, id, actions });
     class="flex w-fit items-center gap-x-1.5 rounded px-1.5 py-[3px]"
     :class="[
       orientation != Orientation.HORIZONTAL_REVERSED ? 'flex-row' : 'flex-row-reverse',
-      inspectionPtr?.id == field.id
-        ? 'border-primary-900'
-        : [variant != Variant.STEALTH ? 'border border-gray-200 bg-gray-100' : '', 'hover:border-gray-300'],
+      variant != Variant.STEALTH ? 'border border-gray-200 bg-gray-100' : '',
+      inspectionPtr?.id == field.id ? 'border-primary-900' : '',
     ]"
   >
     <!-- TODO :UX: Field is annoying (should be double-click to edit, change type in contextmenu, indicate metadata, ...) -->

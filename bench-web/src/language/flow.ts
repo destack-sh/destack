@@ -21,6 +21,7 @@ import {
 } from "@/proto/wire";
 import { isNode, makeStruct, toPlainNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import type { ActionBuiltinId } from "@/ui/action";
+import { isDraggingAllowed } from "@/ui/drag";
 import { addTransform, addVector2 } from "@/ui/view";
 import { generateOrderKey } from "@/utils/fractional";
 import { assertNever } from "@/utils/functools";
@@ -44,7 +45,7 @@ export const FLOW_PORT_SIZE = 12;
 
 export const FLOW_CANVAS_DOT_SIZE = 4;
 export const FLOW_SCALE_MIN = 0.5;
-export const FLOW_SCALE_MAX = 2.0;
+export const FLOW_SCALE_MAX = 4.0;
 export const FLOW_SCALE_SPEED = 0.01;
 
 export type PortId = Pick<PortKeyData, "type" | "side"> & Partial<Pick<PortKeyData, "fieldPtr">>;
@@ -111,8 +112,8 @@ export class FlowContext {
 
   getStepWidth(step: StepData): number {
     if (BOUNDARY_STEP_TYPES.includes(step.type)) return FLOW_GRID_STEP_X * 6;
-		else if (step.type == StepType.TEXT || step.type == StepType.CODE) return FLOW_GRID_STEP_X * 10;
-		else return FLOW_GRID_STEP_X * 10;
+    else if (step.type == StepType.TEXT || step.type == StepType.CODE) return FLOW_GRID_STEP_X * 10;
+    else return FLOW_GRID_STEP_X * 10;
   }
 
   getStepComponent(step: StepData): InstanceType<typeof Step> | null {
@@ -277,9 +278,16 @@ export class FlowContext {
     }
   }
 
+  /** Starts dragging a thing if it's not a disallowed element (like an input). */
+  startDraggingIfAllowed(e: MouseEvent, thing: StepData | "canvas"): boolean {
+    const target = e.target as HTMLElement;
+    if (!isDraggingAllowed(target)) return false;
+    return this.startDragging(e, thing);
+  }
+
   /** Starts dragging a thing. */
-  startDragging(e: MouseEvent, thing: StepData | "canvas") {
-    if (this.dragging.value != null) return; // already dragging
+  startDragging(e: MouseEvent, thing: StepData | "canvas"): boolean {
+    if (this.dragging.value != null) return false; // already dragging
     if (thing == "canvas") {
       // start panning canvas
       this.dragging.value = {
@@ -289,7 +297,7 @@ export class FlowContext {
     } else if (isNode(thing, NodeType.STEP)) {
       // start dragging step
       const stepBounding = this.getStepBounding(thing);
-      if (stepBounding == null) return; // not mounted yet
+      if (stepBounding == null) return false; // not mounted yet
       this.dragging.value = {
         thing,
         viewOffsetToThing: { x: e.clientX - stepBounding.left, y: e.clientY - stepBounding.top },
@@ -298,6 +306,7 @@ export class FlowContext {
       assertNever(thing);
     }
     log.trace("flow.drag.start", this.dragging.value);
+    return true;
   }
 
   //

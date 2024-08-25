@@ -21,13 +21,12 @@ import { packagePtr } from "@/system/client";
 import { useExistingConnection, type Connection } from "@/system/connection";
 import { bench, canvas, inspectionBasePtr, inspectionPtr, pkg } from "@/system/space";
 import type { ActionContext, ActionMapImplementation } from "@/ui/action";
-import { VIEW_DEFAULT_HEADER_HEIGHT, VIEW_DEFAULT_MAX_WIDTH, VIEW_DEFAULT_MIN_WIDTH } from "@/ui/view";
-import { startDragging, useMultiDropZone } from "@/ui/drag";
+import { startDraggingIfAllowed, useMultiDropZone } from "@/ui/drag";
 import { DEFAULT_BENCH_ICON, IconInline, getNodeIcon } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
 import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/popover";
 import { highlightMatches } from "@/ui/search";
-import { getNativeConstraintProps, guardNativeInput, makeSelection, useViewExpansion, useViewState } from "@/ui/view";
+import { VIEW_DEFAULT_HEADER_HEIGHT, VIEW_DEFAULT_MAX_WIDTH, VIEW_DEFAULT_MIN_WIDTH, getNativeConstraintProps, guardNativeInput, makeSelection, useViewExpansion, useViewState } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
 import NodePath from "@/views/builtins/NodePath.vue";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
@@ -444,7 +443,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
           role="treeitem"
           :draggable="true"
           @click.stop="fire(node)"
-          @dragstart.stop="(e: DragEvent) => startDragging(e, pkgGraph, node)"
+          @dragstart.stop="(e: DragEvent) => startDraggingIfAllowed(e, pkgGraph, node)"
         >
           <!-- Drop indicator -->
           <div
