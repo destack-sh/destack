@@ -9,20 +9,22 @@ import {
   NodeType,
   ObjectType,
   PipeData,
+  PipeType,
   PortKeyData,
   PortSide,
   PortType,
   StepType,
   StructType,
   TransformData,
+  Vector2Data,
   ViewData,
-  type PipeType,
   type StepData,
 } from "@/proto/wire";
 import { isNode, makeStruct, toPlainNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import type { ActionBuiltinId } from "@/ui/action";
 import { isDraggingAllowed } from "@/ui/drag";
-import { addTransform, addVector2 } from "@/ui/view";
+import { toaster } from "@/ui/toast";
+import { addTransform, addVector2, VIEW_DEFAULT_HEADER_HEIGHT, type Vector2 } from "@/ui/view";
 import { generateOrderKey } from "@/utils/fractional";
 import { assertNever } from "@/utils/functools";
 import { log } from "@/utils/log";
@@ -38,6 +40,13 @@ export const STEP_CONTEXT_ACTIONS: ActionBuiltinId[] = [
   "session.run.start",
   "message.chat.message",
 ];
+export const PIPE_CONTEXT_ACTIONS: ActionBuiltinId[] = [
+  "common.edit.rename",
+  "common.edit.morph",
+  "common.edit.duplicate",
+  "common.edit.archive",
+  "common.edit.delete",
+];
 
 export const FLOW_GRID_STEP_X = 28;
 export const FLOW_GRID_STEP_Y = 28;
@@ -48,12 +57,45 @@ export const FLOW_SCALE_MIN = 0.5;
 export const FLOW_SCALE_MAX = 4.0;
 export const FLOW_SCALE_SPEED = 0.01;
 
+export const PIPE_WIDTH = 4;
+export const STEP_HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
+
 export type PortId = Pick<PortKeyData, "type" | "side"> & Partial<Pick<PortKeyData, "fieldPtr">>;
 export type Port = PortId & {
+  parent: StepData | PipeData;
   idx: number;
   field?: FieldData;
   fieldParent?: BlockData | StepData; // if different from step
 };
+
+export function getPortKey(port: PortId): PortKeyData {
+  return {
+    metatype: ObjectType.PORT_KEY,
+    type: port.type,
+    side: port.side,
+    fieldPtr: port.fieldPtr,
+  };
+}
+
+export type FlowThing =
+  | {
+      kind: "canvas";
+    }
+  | {
+      kind: "step";
+      step: StepData;
+    }
+  | {
+      kind: "step-port";
+      step: StepData;
+      port: Port;
+      cursorWorldPos?: { x: number; y: number };
+    };
+// | { // nocheckin: pipe-port
+//     kind: "pipe-port";
+//     pipe: PipeData;
+//     port: Port;
+//   };
 
 export class FlowContext {
   spaceGraph: ReadNodeGraph;
@@ -64,7 +106,7 @@ export class FlowContext {
   view: Ref<ViewData | null>;
   stepRefs: Ref<Record<string, InstanceType<typeof Step>>>;
   containerRef: Ref<HTMLElement | null>;
-  dragging: Ref<{ thing: StepData | "canvas"; viewOffsetToThing: { x: number; y: number } } | null> = ref(null);
+  dragging: Ref<{ thing: FlowThing; viewOffsetToThing: { x: number; y: number } } | null> = ref(null);
 
   flowPtr: Ref<TypedNodeReferenceData<NodeType.BLOCK> | null>;
   flow: Ref<BlockData | null>;
@@ -110,6 +152,14 @@ export class FlowContext {
     return this.spaceTxFactory();
   }
 
+  get draggable(): FlowThing | null {
+    return this.dragging.value?.thing ?? null;
+  }
+
+  get isDraggingPort(): boolean {
+    return this.dragging.value?.thing.kind == "step-port";
+  }
+
   getStepWidth(step: StepData): number {
     if (BOUNDARY_STEP_TYPES.includes(step.type)) return FLOW_GRID_STEP_X * 6;
     else if (step.type == StepType.TEXT || step.type == StepType.CODE) return FLOW_GRID_STEP_X * 10;
@@ -121,7 +171,7 @@ export class FlowContext {
     return stepRef != null ? stepRef : null;
   }
 
-  getStepBounding(step: StepData): DOMRect | null {
+  getStepComponentBounding(step: StepData): DOMRect | null {
     const stepComponent = this.getStepComponent(step);
     if (stepComponent == null) return null;
     return stepComponent.$el.getBoundingClientRect();
@@ -131,7 +181,7 @@ export class FlowContext {
   // Canvas
   //
 
-  /** Pan around the canvas */
+  /** Pan around the canvas (in world coordinates). */
   panCanvas(move: { x: number; y: number }) {
     if (this.view.value == null) return; // not a real view
     this.spaceTx.update(
@@ -141,6 +191,7 @@ export class FlowContext {
     );
   }
 
+  /** Rounds the given vector to the nearest grid position (in world coordinates). */
   snapVec(vec: { x: number; y: number }): { x: number; y: number } {
     return {
       x: Math.round(vec.x / FLOW_GRID_STEP_X) * FLOW_GRID_STEP_X,
@@ -155,6 +206,12 @@ export class FlowContext {
       x: viewportVec.x - canvasBounding.left,
       y: viewportVec.y - canvasBounding.top,
     };
+  }
+
+  /** Convert viewport coordinates to view coordinates */
+  viewportToWorldVec(viewportVec: { x: number; y: number }): { x: number; y: number } {
+    const viewVec = this.viewportToViewVec(viewportVec);
+    return this.viewToWorldVec(viewVec);
   }
 
   /** Convert world coordinates to view coordinates */
@@ -248,59 +305,35 @@ export class FlowContext {
     this.zoomCanvas(e.deltaY < 0 ? "in" : "out", viewCenterVec, Math.abs(e.deltaY * 0.5));
   }
 
-  /** Updates the position of a dragged thing in response to a "drag" event. */
-  onDragging(e: MouseEvent) {
-    if (this.dragging.value == null) return;
-    if (this.view.value == null) return; // not a real view
-    if (this.dragging.value.thing == "canvas") {
-      // pan canvas
-      const translateX = e.movementX / (this.transform.value?.scaleX ?? 1);
-      const translateY = e.movementY / (this.transform.value?.scaleY ?? 1);
-      this.spaceTx.update(
-        this.view.value,
-        { transform: addTransform(this.transform.value, { translateX, translateY }) },
-        { debounce: "long" },
-      );
-    } else if (isNode(this.dragging.value.thing, NodeType.STEP)) {
-      // move step (snap to grid)
-      const screenVec = this.viewportToViewVec({
-        x: e.clientX - this.dragging.value.viewOffsetToThing.x,
-        y: e.clientY - this.dragging.value.viewOffsetToThing.y,
-      });
-      const worldVec = this.snapVec(this.viewToWorldVec(screenVec));
-      this.tx.update(
-        this.dragging.value.thing,
-        { position: makeStruct({ metatype: StructType.VECTOR2, x: worldVec.x, y: worldVec.y }) },
-        { debounce: "long" },
-      );
-    } else {
-      assertNever(this.dragging.value.thing);
-    }
-  }
-
   /** Starts dragging a thing if it's not a disallowed element (like an input). */
-  startDraggingIfAllowed(e: MouseEvent, thing: StepData | "canvas"): boolean {
+  startDraggingIfAllowed(e: MouseEvent, thing: FlowThing): boolean {
     const target = e.target as HTMLElement;
     if (!isDraggingAllowed(target)) return false;
     return this.startDragging(e, thing);
   }
 
   /** Starts dragging a thing. */
-  startDragging(e: MouseEvent, thing: StepData | "canvas"): boolean {
+  startDragging(e: MouseEvent, thing: FlowThing): boolean {
     if (this.dragging.value != null) return false; // already dragging
-    if (thing == "canvas") {
+    if (thing.kind == "canvas") {
       // start panning canvas
       this.dragging.value = {
-        thing: "canvas",
+        thing,
         viewOffsetToThing: this.viewportToViewVec({ x: e.clientX, y: e.clientY }),
       };
-    } else if (isNode(thing, NodeType.STEP)) {
-      // start dragging step
-      const stepBounding = this.getStepBounding(thing);
+    } else if (thing.kind == "step") {
+      // start moving step
+      const stepBounding = this.getStepComponentBounding(thing.step);
       if (stepBounding == null) return false; // not mounted yet
       this.dragging.value = {
         thing,
         viewOffsetToThing: { x: e.clientX - stepBounding.left, y: e.clientY - stepBounding.top },
+      };
+    } else if (thing.kind == "step-port") {
+      // create pending pipe
+      this.dragging.value = {
+        thing: { ...thing, cursorWorldPos: this.viewportToWorldVec({ x: e.clientX, y: e.clientY }) },
+        viewOffsetToThing: { x: 0, y: 0 },
       };
     } else {
       assertNever(thing);
@@ -309,9 +342,103 @@ export class FlowContext {
     return true;
   }
 
-  //
-  // Interaction
-  //
+  /** Updates the position of a dragged thing in response to a "drag" event. */
+  onDragging(e: MouseEvent) {
+    if (this.dragging.value == null) return;
+    if (this.view.value == null) return; // not a real view
+    const thing = this.dragging.value.thing;
+    if (thing.kind == "canvas") {
+      // pan canvas
+      const translateX = e.movementX / (this.transform.value?.scaleX ?? 1);
+      const translateY = e.movementY / (this.transform.value?.scaleY ?? 1);
+      this.spaceTx.update(
+        this.view.value,
+        { transform: addTransform(this.transform.value, { translateX, translateY }) },
+        { debounce: "long" },
+      );
+    } else if (thing.kind == "step") {
+      // move step (snap to grid)
+      const screenVec = this.viewportToViewVec({
+        x: e.clientX - this.dragging.value.viewOffsetToThing.x,
+        y: e.clientY - this.dragging.value.viewOffsetToThing.y,
+      });
+      const worldVec = this.snapVec(this.viewToWorldVec(screenVec));
+      this.tx.update(
+        thing.step,
+        { position: makeStruct({ metatype: StructType.VECTOR2, x: worldVec.x, y: worldVec.y }) },
+        { debounce: "long" },
+      );
+    } else if (thing.kind == "step-port") {
+      // update cursor position
+      thing.cursorWorldPos = this.viewportToWorldVec({ x: e.clientX, y: e.clientY });
+    } else {
+      assertNever(thing);
+    }
+  }
+
+  /** Cancel dragging (and don't trigger any release events). */
+  cancelDragging() {
+    this.dragging.value = null;
+    log.trace("flow.drag.cancel", this.dragging.value);
+  }
+
+  /** Stop dragging a thing (if any). Triggers a 'release' event to connect things. */
+  endDragging(e: MouseEvent, at: FlowThing) {
+    if (this.flow.value == null) throw new Error("no flow to connect");
+    if (this.dragging.value == null) return;
+
+    // (re-)connect ports
+    try {
+      if (this.draggable?.kind == "step-port" && at.kind == "step-port") {
+        log.debug("flow.drag.connect", { from: this.draggable.port, to: at.port });
+        createPipe(this.tx, this.graph, {
+          parent: this.flow.value,
+          pipe: { type: PipeType.THEN },
+          source: this.draggable.port,
+          target: at.port,
+        });
+      }
+    } catch (e) {
+      toaster.error({ title: "Invalid Pipe", text: (e as any)?.message ?? "Cannot pipe like that." });
+      log.error("flow.drag.connect.error", this.draggable, at, e);
+    }
+
+    log.trace("flow.drag.end", { from: this.dragging.value, to: at });
+    this.dragging.value = null;
+  }
+
+  /** Get the snapped position of a port (in world coordinates). */
+  getPortPosition(step: StepData, port: Port): Vector2 | null {
+    // step position
+    const basePosition = step.position != null ? { ...step.position } : { x: 0, y: 0 };
+    // move to side
+    if (port.side == PortSide.OUTGOING) {
+      basePosition.x += this.getStepWidth(step);
+    }
+    // move down below header :FlowGrid
+    basePosition.y += STEP_HEADER_HEIGHT + FLOW_GRID_STEP_Y - (STEP_HEADER_HEIGHT % FLOW_GRID_STEP_Y);
+    // move down to port
+    basePosition.y += port.idx * FLOW_GRID_STEP_Y;
+    return basePosition;
+  }
+
+  /** Computes the snapped path for a pipe (in world coordinates). */
+  computePath(source: Vector2, target: Vector2): Vector2[] {
+    // NOTE :UX: it would be nice to coordinate pipe paths amongst each other
+    // nocheckin: nicer pipe paths (pathfinding, snap to grid)
+    return [source, target];
+  }
+
+  /** Computes the pipe path SVG path string. */
+  computePathSvg(source: Vector2, target: Vector2): string {
+    const path = this.computePath(source, target);
+    const pathParts: string[] = [];
+    for (let i = 0; i < path.length; i++) {
+      const p = path[i];
+      pathParts.push(`L${p.x},${p.y}`);
+    }
+    return `M${source.x},${source.y} ${pathParts.join(" ")}`;
+  }
 
   /** Gets the (reactive) ports for a given step. Pass in related to avoid re-fetching if already known. */
   getPorts(
@@ -333,11 +460,11 @@ export class FlowContext {
     // NOTE :UX: we hide :ObjectPorts by default for now (not sure how/when to enable, always enabled is cluttery)
     if (!INCOMING_STEP_TYPES.includes(step.type)) {
       // incoming ports
-      incoming.push({ idx: 0, type: PortType.RUN, side: PortSide.INCOMING });
+      incoming.push({ parent: step, idx: 0, type: PortType.RUN, side: PortSide.INCOMING });
     }
     if (!OUTGOING_STEP_TYPES.includes(step.type)) {
       // outgoing ports
-      outgoing.push({ idx: 0, type: PortType.RUN, side: PortSide.OUTGOING });
+      outgoing.push({ parent: step, idx: 0, type: PortType.RUN, side: PortSide.OUTGOING });
     }
 
     if (step.type == StepType.START) {
@@ -345,6 +472,7 @@ export class FlowContext {
       for (const field of this.fields.value) {
         if (field.zone == FieldZone.INPUT) {
           outgoing.push({
+            parent: step,
             idx: outgoing.length,
             type: PortType.FIELD,
             side: PortSide.OUTGOING,
@@ -358,6 +486,7 @@ export class FlowContext {
       for (const field of this.fields.value) {
         if (field.zone == FieldZone.OUTPUT) {
           incoming.push({
+            parent: step,
             idx: incoming.length,
             type: PortType.FIELD,
             side: PortSide.INCOMING,
@@ -370,9 +499,9 @@ export class FlowContext {
       // our own fields as incoming/outgoing ports
       for (const field of related.fields) {
         if (field.zone == FieldZone.INPUT) {
-          incoming.push({ idx: incoming.length, type: PortType.FIELD, side: PortSide.INCOMING, field });
+          incoming.push({ parent: step, idx: incoming.length, type: PortType.FIELD, side: PortSide.INCOMING, field });
         } else if (field.zone == FieldZone.OUTPUT) {
-          outgoing.push({ idx: outgoing.length, type: PortType.FIELD, side: PortSide.OUTGOING, field });
+          outgoing.push({ parent: step, idx: outgoing.length, type: PortType.FIELD, side: PortSide.OUTGOING, field });
         }
       }
     } else if (step.type == StepType.BLOCK) {
@@ -380,6 +509,7 @@ export class FlowContext {
       for (const field of related.nodeFields) {
         if (field.zone == FieldZone.INPUT) {
           incoming.push({
+            parent: step,
             idx: incoming.length,
             type: PortType.FIELD,
             side: PortSide.INCOMING,
@@ -388,6 +518,7 @@ export class FlowContext {
           });
         } else if (field.zone == FieldZone.OUTPUT) {
           outgoing.push({
+            parent: step,
             idx: outgoing.length,
             type: PortType.FIELD,
             side: PortSide.OUTGOING,
@@ -437,16 +568,17 @@ export function createStep(
   const orderKey = generateOrderKey(siblings[siblings.length - 1]?.orderKey ?? null, null);
 
   // nocheckin: position in flow/view
+  //  (also on duplicate?)
 
   // create
   const step = tx.create({
     metatype: NodeType.STEP,
+    name: makeNodeName(graph, { metatype: ObjectType.STEP, type: options.step.type, parentPtr }),
+    orderKey,
     ...options.step,
     type: options.step.type,
     parentPtr,
     packagePtr,
-    orderKey,
-    name: makeNodeName(graph, { metatype: ObjectType.STEP, type: options.step.type, parentPtr }),
   });
   return step;
 }
@@ -455,8 +587,36 @@ export function createPipe(
   tx: Transaction,
   graph: ReadNodeGraph,
   options: {
-    pipe: { type: PipeType; source: StepData; target: StepData } & Partial<StepData>;
+    parent: StepData | TypedNodeReferenceData<NodeType.STEP> | BlockData | TypedNodeReferenceData<NodeType.BLOCK>;
+    pipe: { type: PipeType } & Partial<PipeData>;
+    source: Port;
+    target: Port;
   },
 ) {
-  throw new Error("nocheckin: createPipe");
+  const parent = isNode(options.parent) ? options.parent : graph.getOrError(options.parent);
+  const parentPtr = toPlainNodeRef(parent);
+  const packagePtr = parent.packagePtr;
+  const { source, target } = options;
+  if (source.side != PortSide.OUTGOING) throw new Error(`cannot pipe from incoming port`);
+  if (target.side != PortSide.INCOMING) throw new Error(`cannot pipe to outgoing port`);
+
+  // position in graph
+  const siblings = graph.getChildren(parent, NodeType.PIPE);
+  const orderKey = generateOrderKey(siblings[siblings.length - 1]?.orderKey ?? null, null);
+    
+
+  // create
+  const pipe = tx.create({
+    metatype: NodeType.PIPE,
+    name: makeNodeName(graph, { metatype: ObjectType.PIPE, parentPtr }),
+    orderKey,
+    ...options.pipe,
+    parentPtr,
+    packagePtr,
+    sourcePtr: toPlainNodeRef(source.parent),
+    sourcePort: getPortKey(source),
+    targetPtr: toPlainNodeRef(target.parent),
+    targetPort: getPortKey(target),
+  });
+  return pipe;
 }

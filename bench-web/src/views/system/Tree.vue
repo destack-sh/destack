@@ -70,7 +70,7 @@ const isDefaultExpanded = computed(() => preset.value == TreeViewPreset.OUTLINE 
 const inspectedNodeTypes = computed(() => {
   if (preset.value == TreeViewPreset.EXPLORE) return [NodeType.BLOCK];
   else if (preset.value == TreeViewPreset.OUTLINE)
-    return [NodeType.BLOCK, NodeType.FIELD, NodeType.VIEW, NodeType.STEP];
+    return [NodeType.BLOCK, NodeType.FIELD, NodeType.VIEW, NodeType.STEP, NodeType.PIPE];
   else return state.value.nodeTypes;
 });
 const rootPtr = computedValue(() => {

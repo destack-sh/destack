@@ -7,6 +7,8 @@ import {
   FLOW_GRID_STEP_X,
   FLOW_GRID_STEP_Y,
   FlowContext,
+  PIPE_CONTEXT_ACTIONS,
+  PIPE_WIDTH,
   STEP_CONTEXT_ACTIONS,
 } from "@/language/flow";
 import { cloneNode } from "@/language/node";
@@ -25,6 +27,7 @@ import { ICON_BY_STEP_TYPE, IconInline } from "@/ui/icon";
 import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/popover";
 import { computedValue } from "@/utils/ref";
 import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
+import Pipe from "@/views/system/Pipe.vue";
 import Step from "@/views/system/Step.vue";
 import { computed, nextTick, provide, ref, toRef, type Ref } from "vue";
 
@@ -169,12 +172,12 @@ defineExpose<ViewExposed>({ self, id, actions });
     class="group/flow relative h-full w-full"
     :class="[
       variant == Variant.COMPACT ? 'rounded border border-gray-200' : '',
-      ctx.dragging.value ? 'cursor-grabbing' : 'cursor-grab',
+      ctx.dragging.value ? (ctx.isDraggingPort ? 'cursor-crosshair' : 'cursor-grabbing') : 'cursor-grab',
     ]"
-    @mousedown="(e) => ctx.startDraggingIfAllowed(e, 'canvas')"
+    @mousedown="(e) => ctx.startDraggingIfAllowed(e, { kind: 'canvas' })"
     @mousemove="(e: MouseEvent) => ctx.onDragging(e)"
-    @mouseup.stop="ctx.dragging.value = null"
-    @mouseleave.stop="ctx.dragging.value = null"
+    @mouseup="(e) => ctx.endDragging(e, { kind: 'canvas' })"
+    @mouseleave="(e) => ctx.cancelDragging()"
     @wheel.prevent="(e) => ctx.onWheel(e)"
   >
     <!-- NOTE :UX: handle multitouch gestures -->
@@ -226,6 +229,21 @@ defineExpose<ViewExposed>({ self, id, actions });
           transform: `scale(${scale}, ${scale}) translate(${transform?.translateX ?? 0}px, ${transform?.translateY ?? 0}px) `,
         }"
       >
+        <!-- Pipes -->
+        <!-- NOTE: we draw Pipes behind Steps -->
+        <Pipe
+          v-for="pipe in pipes"
+          :key="pipe.id"
+          v-contextmenu="
+            (context: PopoverContext): PopoverInfo => ({
+              kind: 'menu',
+              placement: 'bottom-right',
+              items: menuActionsLike(PIPE_CONTEXT_ACTIONS, { context: { ...context, triggerNode: pipe } }),
+            })
+          "
+          :node-ptr="toNodeRefOneOf(pipe)"
+          class="absolute"
+        />
         <!-- Steps -->
         <Step
           v-for="step in steps"
@@ -245,10 +263,25 @@ defineExpose<ViewExposed>({ self, id, actions });
             top: (step.position?.y ?? 0) + 'px',
           }"
           :node-ptr="toNodeRefOneOf(step)"
-          @mousedown="(e) => ctx.startDraggingIfAllowed(e, step)"
+          @mousedown="(e) => ctx.startDraggingIfAllowed(e, { kind: 'step', step })"
         />
-
-        <!-- nocheckin: pipes and stuff -->
+        <!-- Pending Pipe (above Steps for clarity)-->
+        <div v-if="ctx.draggable?.kind == 'step-port'" class="pointer-events-none absolute text-gray-700 opacity-50">
+          <svg v-if="ctx.draggable.cursorWorldPos" class="overflow-visible">
+            <path
+              :stroke-width="PIPE_WIDTH"
+              stroke-linecap="round"
+              stroke-linejoin="bevel"
+              stroke="currentColor"
+              :d="
+                ctx.computePathSvg(
+                  ctx.getPortPosition(ctx.draggable.step, ctx.draggable.port)!,
+                  ctx.draggable.cursorWorldPos!,
+                )
+              "
+            />
+          </svg>
+        </div>
       </div>
     </div>
 
