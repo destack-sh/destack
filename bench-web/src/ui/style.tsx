@@ -41,8 +41,8 @@ export const COLOR_SHADE_INDEX: Record<ColorShade, number> = {
 
 // prettier-ignore
 export const COLOR_HEX_BY_TYPE: Partial<Record<ColorType, string[]>> = {
-  // NOTE: This is exactly the Tailwind color palette. We inline it for direct access (and to avoid Tailwind JIT performance issues)
-  [ColorType.GRAY]: ["#f8fafc", "#f1f5f9", "#e2e8f0", "#cbd5e1", "#94a3b8", "#64748b", "#475569", "#334155", "#1e293b", "#0f172a", "#020617"],
+  // NOTE: This is exactly the Tailwind color palette. We inline it for direct access (and to avoid Tailwind JIT performance issues).
+  [ColorType.GRAY]: ["#fafaf9", "#f5f5f4", "#e7e5e4", "#d6d3d1", "#a8a29e", "#78716c", "#57534e", "#44403c", "#292524", "#1c1917", "#0c0a09"],
   [ColorType.RED]: ["#fef2f2", "#fee2e2", "#fecaca", "#fca5a5", "#f87171", "#ef4444", "#dc2626", "#b91c1c", "#991b1b", "#7f1d1d", "#450a0a"],
   [ColorType.ORANGE]: ["#fff7ed", "#ffedd5", "#fed7aa", "#fdba74", "#fb923c", "#f97316", "#ea580c", "#c2410c", "#9a3412", "#7c2d12", "#431407"],
   [ColorType.AMBER]: ["#fffbeb", "#fef3c7", "#fde68a", "#fcd34d", "#fbbf24", "#f59e0b", "#d97706", "#b45309", "#92400e", "#78350f", "#451a03"],

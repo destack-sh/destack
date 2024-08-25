@@ -45,9 +45,9 @@ const nameRef: Ref<HTMLInputElement | null> = ref(null);
 const containerRef: Ref<HTMLElement | null> = ref(null);
 const bodyRef: Ref<HTMLElement | null> = ref(null);
 const headerRef: Ref<HTMLElement | null> = ref(null);
-const contentSize = useElementSize(bodyRef, undefined, { box: "border-box" });
+const bodySize = useElementSize(bodyRef, undefined, { box: "border-box" });
 const paddingHeight = computed(
-  () => FLOW_GRID_STEP_Y - ((contentSize.height.value + STEP_HEADER_HEIGHT) % FLOW_GRID_STEP_Y),
+  () => FLOW_GRID_STEP_Y - ((bodySize.height.value + STEP_HEADER_HEIGHT) % FLOW_GRID_STEP_Y),
 );
 
 //
@@ -132,13 +132,18 @@ defineExpose<ViewExposed>({ self, id, actions });
     </div>
 
     <!-- Body -->
-    <div ref="bodyRef" class="">
+    <div
+      ref="bodyRef"
+      class="relative"
+      :style="{
+        // ensure ports are aligned with grid (offset by half a step to connect lines :FlowGrid)
+        paddingTop: FLOW_GRID_STEP_Y - (STEP_HEADER_HEIGHT % FLOW_GRID_STEP_Y) - FLOW_GRID_STEP_Y / 2 + 'px',
+      }"
+    >
       <!-- Ports -->
       <div
         class="relative w-full"
         :style="{
-          // ensure ports are aligned with grid (offset by half a step to connect lines :FlowGrid)
-          marginTop: FLOW_GRID_STEP_Y - (STEP_HEADER_HEIGHT % FLOW_GRID_STEP_Y) - FLOW_GRID_STEP_Y / 2 + 'px',
           height: FLOW_GRID_STEP_Y * Math.max(ports.incoming.length, ports.outgoing.length) + 'px',
         }"
       >
@@ -152,7 +157,7 @@ defineExpose<ViewExposed>({ self, id, actions });
             height: FLOW_GRID_STEP_Y + 'px',
             left: port.side == PortSide.INCOMING ? '0px' : undefined,
             right: port.side == PortSide.OUTGOING ? '0px' : undefined,
-            top: port.idx * FLOW_GRID_STEP_Y + 'px',
+            top: port.idx * FLOW_GRID_STEP_Y - 1 + 'px', // NOTE :Cleanup: why do the ports need -1px offset?
           }"
         >
           <!-- Actual 'port' -->
@@ -180,10 +185,10 @@ defineExpose<ViewExposed>({ self, id, actions });
               class="absolute rounded-sm bg-gray-600"
               :style="{
                 backgroundColor: flowCtx.getPipeColorHex(flowCtx.getPipesAtPort(port)[0]),
-                width: FLOW_PORT_SIZE / 2 + 'px',
-                height: FLOW_PORT_SIZE / 2 + 'px',
-                top: FLOW_PORT_SIZE / 8 + 'px',
-                left: FLOW_PORT_SIZE / 8 + 'px',
+                width: FLOW_PORT_SIZE - 4 + 'px',
+                height: FLOW_PORT_SIZE - 4 + 'px',
+                top: 1 + 'px',
+                left: 1 + 'px',
               }"
             />
           </button>
