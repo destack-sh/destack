@@ -510,6 +510,7 @@ export class FlowContext {
     // (re-)connect ports
     try {
       if (this.draggable?.kind == "step-port" && at.kind == "step-port") {
+        if (portIdEquals(this.draggable.port, at.port)) return; // no-op
         log.debug("flow.drag.connect", { from: this.draggable.port, to: at.port });
         createPipe(this.tx, this.graph, {
           parent: this.flow.value,
@@ -562,7 +563,10 @@ export class FlowContext {
   /** Gets the pipes connected to the given port. */
   getPipesAtPort(port: Port): PipeData[] {
     return this.pipes.value.filter((pipe) => {
-      return portIdEquals(port, pipe.sourcePort!) || portIdEquals(port, pipe.targetPort!);
+      return (
+        (port.parent?.ck == pipe.sourcePtr?.ck && portIdEquals(port, pipe.sourcePort!)) ||
+        (port.parent?.ck == pipe.targetPtr?.ck && portIdEquals(port, pipe.targetPort!))
+      );
     });
   }
 

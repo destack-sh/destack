@@ -155,8 +155,8 @@ function fire(option: string | PickerItem | undefined) {
   apply(value);
 }
 function apply(value: any) {
-  emit("update:modelValue", value);
-  emit("apply", value);
+  emit("update:modelValue", value ?? undefined);
+  emit("apply", value ?? undefined);
 }
 
 function focus(anchor?: "previous" | "next" | FocusAnchor | NodeReferenceData) {
@@ -239,7 +239,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
         :data-selected="isSelected(item)"
         :disabled="props.isDisabled"
         class="group flex-1 flex-shrink-0 truncate rounded px-0.5 text-center font-medium shadow-gray-200 hover:text-primary-900 enabled:text-gray-600 disabled:text-gray-400 data-[selected=true]:bg-white data-[selected=true]:text-gray-700 data-[selected=true]:shadow-sm"
-        @click.prevent="!isSelected(item) || valueType?.isRequired ? fire(item) : apply(null)"
+        @click.prevent="!isSelected(item) || valueType?.isRequired ? fire(item) : apply(undefined)"
       >
         <IconInline
           v-if="variant == Variant.STEALTH && item.icon"
