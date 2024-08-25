@@ -109,11 +109,11 @@ export function getViewComponentId(component: ViewComponent): string {
 
 /** Finds the closest ViewComponent ancestor. */
 export function findViewComponentUp(
-  el: HTMLElement | ComponentInstance<any>,
+  el: HTMLElement | SVGElement | ComponentInstance<any>,
   where?: (component: ViewComponent) => boolean,
 ): ViewComponent | null {
   while (el != null) {
-    if (el instanceof HTMLElement) {
+    if (el instanceof HTMLElement || el instanceof SVGElement) {
       // first find vue component
       if ((el as any).__viewComponent != null) el = (el as any).__viewComponent;
       else el = el.parentElement!;
@@ -126,8 +126,13 @@ export function findViewComponentUp(
 }
 
 /** Collect all view components from the given component upwards (inclusive) */
-export function collectViewComponentsUp(componentOrEl: ComponentInstance<any> | HTMLElement): ViewComponent[] {
-  let component = componentOrEl instanceof HTMLElement ? findViewComponentUp(componentOrEl) : componentOrEl;
+export function collectViewComponentsUp(
+  componentOrEl: ComponentInstance<any> | HTMLElement | SVGElement,
+): ViewComponent[] {
+  let component =
+    componentOrEl instanceof HTMLElement || componentOrEl instanceof SVGElement
+      ? findViewComponentUp(componentOrEl)
+      : componentOrEl;
   const components = [];
   while (component != null) {
     if (isViewComponent(component)) components.push(component);
@@ -166,7 +171,7 @@ export function getViewComponentPtrMaybe(
 }
 
 /** Traverses the DOM up to check if any element is marked as outside any view */
-export function isOutsideView(el: HTMLElement): boolean {
+export function isOutsideView(el: HTMLElement | SVGElement): boolean {
   while (el != null) {
     if (el.hasAttribute("data-outside-view")) return true;
     el = el.parentElement!;
@@ -199,6 +204,7 @@ export const VIEW_TYPE_BY_BENCH_TYPE: Partial<Record<BenchType, ViewType>> = {
   [BenchType.CODE]: ViewType.CODE,
   [BenchType.TEXT]: ViewType.TEXT,
   [BenchType.FILE]: ViewType.FILE,
+  [BenchType.COLOR]: ViewType.COLOR,
 };
 export const VIEW_TYPE_BY_FILE_TYPE: Partial<Record<FileType, ViewType>> = {
   [FileType.IMAGE]: ViewType.IMAGE,

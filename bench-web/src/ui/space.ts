@@ -151,7 +151,10 @@ export class SpaceCanvas {
   }
 
   /** Gets the node ptr of the given view */
-  getViewNodePtr(view: ViewComponent, element?: HTMLElement | ViewComponent | null): SomeNodeReferenceData | null {
+  getViewNodePtr(
+    view: ViewComponent,
+    element?: HTMLElement | SVGElement | ViewComponent | null,
+  ): SomeNodeReferenceData | null {
     if (element != null) {
       const nodePtr = view?.exposed?.mapToNode?.(element);
       if (nodePtr != null) return nodePtr;
@@ -177,8 +180,9 @@ export class SpaceCanvas {
   }
 
   /** Updates our internal focus state in response to a browser event */
-  private onComponentFocused(element: ViewComponent | HTMLElement | null) {
-    const component = element instanceof HTMLElement ? findViewComponentUp(element) : element;
+  private onComponentFocused(element: ViewComponent | HTMLElement | SVGElement | null) {
+    const component =
+      element instanceof HTMLElement || element instanceof SVGElement ? findViewComponentUp(element) : element;
 
     // update component focus state
     if (component == null) {

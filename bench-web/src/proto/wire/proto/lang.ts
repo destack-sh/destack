@@ -11281,6 +11281,10 @@ export enum ViewType {
      */
     LOG = 212,
     /**
+     * @generated from protobuf enum value: VIEW_TYPE_PIPE = 213;
+     */
+    PIPE = 213,
+    /**
      * @generated from protobuf enum value: VIEW_TYPE_TREE = 400;
      */
     TREE = 400,

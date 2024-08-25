@@ -4,6 +4,7 @@ import { makeNodeName } from "@/language/node";
 import type { Transaction } from "@/language/transaction";
 import {
   BlockData,
+  ColorShade,
   FieldData,
   FieldZone,
   NodeType,
@@ -23,6 +24,7 @@ import {
 import { isNode, makeStruct, toPlainNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import type { ActionBuiltinId } from "@/ui/action";
 import { isDraggingAllowed } from "@/ui/drag";
+import { getColorHex } from "@/ui/style";
 import { toaster } from "@/ui/toast";
 import { addTransform, addVector2, VIEW_DEFAULT_HEADER_HEIGHT, type Vector2 } from "@/ui/view";
 import { generateOrderKey } from "@/utils/fractional";
@@ -96,7 +98,7 @@ export type FlowThing =
       port: Port;
       cursorWorldPos?: { x: number; y: number };
     };
-// | { // nocheckin: pipe-port
+// | { // TODO :UX: reconnect pipes (support pipe-port)
 //     kind: "pipe-port";
 //     pipe: PipeData;
 //     port: Port;
@@ -279,7 +281,7 @@ export class FlowContext {
   }
 
   getStepWidth(step: StepData): number {
-    if (BOUNDARY_STEP_TYPES.includes(step.type)) return FLOW_GRID_STEP_X * 6;
+    if (BOUNDARY_STEP_TYPES.includes(step.type)) return FLOW_GRID_STEP_X * 8;
     else if (step.type == StepType.TEXT || step.type == StepType.CODE) return FLOW_GRID_STEP_X * 10;
     else return FLOW_GRID_STEP_X * 10;
   }
@@ -555,6 +557,22 @@ export class FlowContext {
       pathParts.push(`L${p.x},${p.y}`);
     }
     return `M${path[0].x},${path[0].y} ${pathParts.join(" ")}`;
+  }
+
+  /** Gets the pipes connected to the given port. */
+  getPipesAtPort(port: Port): PipeData[] {
+    return this.pipes.value.filter((pipe) => {
+      return portIdEquals(port, pipe.sourcePort!) || portIdEquals(port, pipe.targetPort!);
+    });
+  }
+
+  /** Gets the hex color of the given pipe. */
+  getPipeColorHex(pipe: PipeData): string | undefined {
+    if (pipe.color != null) {
+      return getColorHex(pipe.color, pipe.color?.shade ?? ColorShade.S600);
+    } else {
+      return undefined;
+    }
   }
 
   /** Gets the (reactive) ports for a given step. Pass in related to avoid re-fetching if already known. */

@@ -51,7 +51,6 @@ if TYPE_CHECKING:
 class PipeType(IdEnum):
     THEN = 1  # value + fire
     WITH = 2  # value
-    ...
 
 
 @enum_(EnumType.PIPE_FILTER_TYPE)

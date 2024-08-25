@@ -67,6 +67,7 @@ class ViewType(IdEnum):
     OBJECT = 210
     RUN = 211
     LOG = 212
+    PIPE = 213
     # helpers
     TREE = 400
     INSPECT = 403

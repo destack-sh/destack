@@ -3,6 +3,7 @@ import { NAME_CONSTRAINT, toCamelName } from "@/language/const";
 import {
   FLOW_GRID_STEP_Y,
   FLOW_PORT_SIZE,
+  portIdEquals,
   STEP_CONTEXT_ACTIONS,
   STEP_HEADER_HEIGHT,
   useFlowContext,
@@ -14,6 +15,7 @@ import { canvas, inspectionPtr } from "@/system/space";
 import type { ActionMapImplementation } from "@/ui/action";
 import { getNodeIcon, IconInline } from "@/ui/icon";
 import { menuActionsLike, type PopoverInfo, type PopoverInfoIn } from "@/ui/popover";
+import { getColorHex } from "@/ui/style";
 import type { TooltipInfo } from "@/ui/tooltip";
 import { getNativeConstraintProps, guardNativeInput } from "@/ui/view";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
@@ -170,7 +172,21 @@ defineExpose<ViewExposed>({ self, id, actions });
             data-suppress-drag="true"
             @mousedown="(e) => flowCtx.startDragging(e, { kind: 'step-port', step: step!, port })"
             @mouseup="(e) => flowCtx.endDragging(e, { kind: 'step-port', step: step!, port })"
-          />
+          >
+            <!-- Fill with port colors if connected -->
+            <!-- NOTE :Performance: steps/ports/pipes querying should be centralized/cached better -->
+            <div
+              v-if="flowCtx.getPipesAtPort(port).length > 0"
+              class="absolute rounded-sm bg-gray-600"
+              :style="{
+                backgroundColor: flowCtx.getPipeColorHex(flowCtx.getPipesAtPort(port)[0]),
+                width: FLOW_PORT_SIZE / 2 + 'px',
+                height: FLOW_PORT_SIZE / 2 + 'px',
+                top: FLOW_PORT_SIZE / 8 + 'px',
+                left: FLOW_PORT_SIZE / 8 + 'px',
+              }"
+            />
+          </button>
           <!-- Port content -->
           <div v-if="port.type == PortType.RUN" class="px-2.5">
             <i class="fas fa-play w-5 text-center text-gray-700" />
