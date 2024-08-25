@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.08.25.0"
+VERSION = "2024.08.25.1"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -1517,6 +1517,7 @@ class ViewType(betterproto.Enum):
     OBJECT = 210
     RUN = 211
     LOG = 212
+    PIPE = 213
     TREE = 400
     INSPECT = 403
     CREATE = 404

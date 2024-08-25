@@ -1,14 +1,14 @@
 <script lang="ts" setup>
 import { PIPE_WIDTH, useFlowContext } from "@/language/flow";
-import { NodeType, PipeType, ViewData } from "@/proto/wire";
+import { ColorShade, NodeType, PipeType, ViewData } from "@/proto/wire";
 import { unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
-import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
+import { getColorHex } from "@/ui/style";
 import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import { computed, toRef } from "vue";
 
 const props = defineProps<
-  { self?: TypedNodeReferenceData<NodeType.VIEW>; preparedConnection?: PreparedGetConnection } & Partial<
+  { self?: TypedNodeReferenceData<NodeType.VIEW> } & Partial<
     Pick<ViewData, "name" | "title" | "text" | "icon" | "nodePtr" | "transform" | "variant">
   >
 >();
@@ -17,8 +17,6 @@ const self = toRef(props, "self");
 const id = makeViewId(props);
 
 const pipePtr = computed(() => unwrapProtoOneOf(props.nodePtr) as TypedNodeReferenceData<NodeType.PIPE>);
-const pkgGetConnection = props.preparedConnection ?? useExistingConnection(pipePtr);
-const { graph: pkgGraph, connection: pkgConnection } = pkgGetConnection;
 const flowCtx = useFlowContext();
 const state = flowCtx.pipesStates.value[pipePtr.value.id!]; // must exist
 const { pipe, source, target, path } = state;
@@ -32,7 +30,12 @@ defineExpose<ViewExposed>({ self, id });
 </script>
 <template>
   <div v-if="pipe && path">
-    <svg class="cursor-pointer overflow-visible text-gray-600">
+    <svg
+      class="cursor-pointer overflow-visible text-gray-600"
+      :style="{
+        color: pipe.color != null ? getColorHex(pipe.color, pipe.color?.shade ?? ColorShade.S600) : undefined,
+      }"
+    >
       <path
         :stroke-width="PIPE_WIDTH"
         stroke-linecap="round"

@@ -4,7 +4,14 @@ import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas } from "@/system/space";
 import type { PopoverInfoIn } from "@/ui/popover";
 import { REAL_COLORS, getColorHex, getColorTitle, makeColor } from "@/ui/style";
-import { ViewContentWrapper, makeViewId, viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
+import {
+  ViewContentWrapper,
+  makeViewId,
+  viewEmits,
+  type FocusAnchor,
+  type ViewExposed,
+  type ViewProps,
+} from "@/views/common";
 import { ref, toRef, type Ref } from "vue";
 
 const COLORS_PER_ROW = 9;
@@ -64,7 +71,7 @@ defineExpose<ViewExposed>({ self, id, focus });
           component: ViewType.COLOR,
           placement: 'bottom-left',
           offset: 'referenceWidth',
-          props,
+          props: { ...(props as ViewProps), title: undefined, isInline: true },
           onApply: (value) => apply(value),
         })
       "

@@ -8,7 +8,6 @@ import {
   ColorShade,
   ColorType,
   EditType,
-  ENUM_BY_TYPE,
   EnumType,
   FieldData,
   FieldZone,
@@ -19,6 +18,8 @@ import {
   NodeReferenceData,
   NodeType,
   ObjectType,
+  PipeFilterType,
+  PipeType,
   PrimitiveType,
   PROPERTY_ENUM_BY_TYPE,
   PROPERTY_INFOS_BY_TYPE,
@@ -31,7 +32,7 @@ import {
   TypeKind,
   ViewType,
   type AnyNodeData,
-  type IconData,
+  type IconData
 } from "@/proto/wire";
 import type { FunctionalComponent } from "vue";
 // fa-icons is generated with:
@@ -39,11 +40,11 @@ import type { FunctionalComponent } from "vue";
 //  | jq 'to_entries | map(select(.value.free | index("s@olid") or index("brands")) | {"id": .key, label: .value.label, unicode: .value.unicode, alias: .value.search.terms, family: (if .value.free | index("solid") then "fas" else "fab" end)})'
 //  > fa-icons.json
 import _AVAILABLE_FA_ICONS from "@/assets/fa-icons.json";
-import { isNode, isNodeRef, isStruct, type SomeNodeReferenceData } from "@/proto/wiring";
-import { getColorHex, makeColor } from "@/ui/style";
-import { IS_DEV, isDeveloperMode } from "@/utils/globals";
 import { NODE_SUBSUBTYPE_BY_TYPE, NODE_SUBTYPE_BY_TYPE } from "@/language/const";
 import type { TypeIdentity } from "@/language/field";
+import { isNode, type SomeNodeReferenceData } from "@/proto/wiring";
+import { getColorHex, makeColor } from "@/ui/style";
+import { IS_DEV, isDeveloperMode } from "@/utils/globals";
 
 export type IconMetadata = {
   id: string;
@@ -285,6 +286,18 @@ export const ICON_BY_STEP_TYPE: Partial<Record<StepType, IconData>> = _makeIcons
   [StepType.REPEAT]: "fas fa-repeat",
 });
 
+export const ICON_BY_PIPE_TYPE: Partial<Record<PipeType, IconData>> = _makeIcons<PipeType>({
+  [PipeType.THEN]: "fas fa-arrow-right",
+  [PipeType.WITH]: "fas fa-horizontal-rule",
+});
+
+export const ICON_BY_PIPE_FILTER_TYPE: Partial<Record<PipeFilterType, IconData>> = _makeIcons<PipeFilterType>({
+  [PipeFilterType.IS_NON_EMPTY]: "fas fa-list-ul",
+  [PipeFilterType.IS_TRUTHY]: "fas fa-circle-1",
+  [PipeFilterType.IS_EMPTY]: "fas fa-empty-set",
+  [PipeFilterType.IS_FALSY]: "fas fa-circle-0",
+});
+
 export const ICON_BY_VIEW_TYPE: Partial<Record<ViewType, IconData>> = _makeIcons<ViewType>({
   //
   // Intrinsics
@@ -516,6 +529,8 @@ export const ICONS_BY_ENUM_TYPE: Partial<Record<EnumType, Record<any, IconData>>
   [EnumType.BENCH_TYPE]: ICON_BY_BENCH_TYPE,
   [EnumType.BLOCK_TYPE]: ICON_BY_BLOCK_TYPE,
   [EnumType.STEP_TYPE]: ICON_BY_STEP_TYPE,
+  [EnumType.PIPE_TYPE]: ICON_BY_PIPE_TYPE,
+  [EnumType.PIPE_FILTER_TYPE]: ICON_BY_PIPE_FILTER_TYPE,
   [EnumType.VIEW_TYPE]: ICON_BY_VIEW_TYPE,
   [EnumType.ALIGNMENT]: ICON_BY_ALIGNMENT,
   [EnumType.ANCHOR]: ICON_BY_ANCHOR,
