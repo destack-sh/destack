@@ -139,7 +139,11 @@ class ReadOptions(Struct):
             properties = SELECT_ALL_PROPERTIES[node_type]
             if self.exclude_properties:
                 properties = tuple(
-                    p for p in properties if not any(e.id == p.id for e in self.exclude_properties)
+                    p
+                    for p in properties
+                    if not any(
+                        e.component == p.component and e.id == p.id for e in self.exclude_properties
+                    )
                 )
             return properties
         elif self.select_properties:

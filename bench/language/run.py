@@ -123,6 +123,7 @@ class RunOptions(Struct):
     max_concurrency: Optional[int] = p_regular(31, constraint=TypeConstraintIn(min_value=0))
     max_attempts: Optional[int] = p_regular(32, constraint=TypeConstraintIn(min_value=-1))
     timeout: Optional[float] = p_regular(33, constraint=TypeConstraintIn(min_value=0))
+    suppress_failure: Optional[bool] = p_regular(34, default=None)
 
     # retry
     retry_interval: Optional[float] = p_regular(40, constraint=TypeConstraintIn(min_value=0))

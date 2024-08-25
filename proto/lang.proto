@@ -1982,6 +1982,7 @@ message RunOptionsData {
   optional int32 max_concurrency = 31;
   optional int32 max_attempts = 32;
   optional float timeout = 33;
+  optional bool suppress_failure = 34;
   optional float retry_interval = 40;
   optional float backoff = 41;
   optional float max_retry_interval = 42;

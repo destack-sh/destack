@@ -291,7 +291,7 @@ class Column(TableObject):
         table_name = self._table.name if self._table else None
         if args_str:
             args_str = ", " + args_str
-        return f"{table_name or '<detached>'}.{self.name} ({self.underlying_type}{args_str}))"
+        return f"{table_name or '<detached>'}.{self.name} ({self.underlying_type.bench_name}{args_str}))"
 
     def __repr__(self):
         return f"<Column {self}>"

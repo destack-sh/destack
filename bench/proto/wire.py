@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.08.24.1"
+VERSION = "2024.08.25.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -2186,6 +2186,7 @@ class RunOptionsData(betterproto.Message):
     max_concurrency: Optional[int] = betterproto.int32_field(31, optional=True)
     max_attempts: Optional[int] = betterproto.int32_field(32, optional=True)
     timeout: Optional[float] = betterproto.float_field(33, optional=True)
+    suppress_failure: Optional[bool] = betterproto.bool_field(34, optional=True)
     retry_interval: Optional[float] = betterproto.float_field(40, optional=True)
     backoff: Optional[float] = betterproto.float_field(41, optional=True)
     max_retry_interval: Optional[float] = betterproto.float_field(42, optional=True)

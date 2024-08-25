@@ -28,8 +28,9 @@ import { addTransform, addVector2, VIEW_DEFAULT_HEADER_HEIGHT, type Vector2 } fr
 import { generateOrderKey } from "@/utils/fractional";
 import { assertNever } from "@/utils/functools";
 import { log } from "@/utils/log";
+import { computedValue } from "@/utils/ref";
 import type Step from "@/views/system/Step.vue";
-import { computed, inject, ref, type Ref } from "vue";
+import { computed, inject, ref, shallowRef, triggerRef, watch, type Ref } from "vue";
 
 export const STEP_CONTEXT_ACTIONS: ActionBuiltinId[] = [
   "common.edit.rename",
@@ -68,6 +69,10 @@ export type Port = PortId & {
   fieldParent?: BlockData | StepData; // if different from step
 };
 
+export function portIdEquals(a: PortId, b: PortId): boolean {
+  return a.type == b.type && a.side == b.side && a.fieldPtr?.id == b.fieldPtr?.id;
+}
+
 export function getPortKey(port: PortId): PortKeyData {
   return {
     metatype: ObjectType.PORT_KEY,
@@ -97,6 +102,93 @@ export type FlowThing =
 //     port: Port;
 //   };
 
+/** Step state in a Flow. */
+export class StepState {
+  // self
+  flow: FlowContext;
+  stepPtr: TypedNodeReferenceData<NodeType.STEP>;
+  step: Ref<StepData | null>;
+  fields: Ref<FieldData[]>;
+  nodePtr: Ref<TypedNodeReferenceData<NodeType.BLOCK | NodeType.STEP> | null>;
+  node: Ref<BlockData | StepData | null>;
+  nodeFields: Ref<FieldData[]>;
+  // derived
+  ports: Ref<{ incoming: Port[]; outgoing: Port[] }>;
+
+  constructor(flow: FlowContext, step: StepData) {
+    this.flow = flow;
+    this.stepPtr = toPlainNodeRef(step);
+    this.step = flow.graph.getRef(this.stepPtr, { ignoreAncestors: true });
+    this.nodePtr = computedValue(
+      () => this.step.value?.nodePtr as TypedNodeReferenceData<NodeType.BLOCK | NodeType.STEP> | null,
+    );
+    this.node = flow.graph.getRef(this.nodePtr);
+    this.nodeFields = flow.graph.getChildrenRef(this.nodePtr, NodeType.FIELD);
+    this.fields = flow.graph.getChildrenRef(step, NodeType.FIELD);
+    // derived
+    this.ports = computed(() =>
+      this.step.value != null
+        ? this.flow.getPorts(this.step.value, {
+            fields: this.fields.value,
+            node: this.node.value!,
+            nodeFields: this.nodeFields.value,
+          })
+        : { incoming: [], outgoing: [] },
+    );
+  }
+}
+
+/** Pipe state in a Flow. */
+export class PipeState {
+  // self
+  flow: FlowContext;
+  pipePtr: TypedNodeReferenceData<NodeType.PIPE>;
+  pipe: Ref<PipeData | null>;
+  source: Ref<StepData | null>;
+  target: Ref<StepData | null>;
+  // derived
+  sourcePort: Ref<Port | null>;
+  targetPort: Ref<Port | null>;
+  // layout
+  path: Ref<Vector2[] | null>;
+
+  constructor(flow: FlowContext, pipe: PipeData) {
+    this.flow = flow;
+    this.pipePtr = toPlainNodeRef(pipe);
+    this.pipe = flow.graph.getRef(this.pipePtr);
+    this.source = flow.graph.getRef(
+      computed(() => this.pipe.value?.sourcePtr as TypedNodeReferenceData<NodeType.STEP> | null),
+    );
+    this.target = flow.graph.getRef(
+      computed(() => this.pipe.value?.targetPtr as TypedNodeReferenceData<NodeType.STEP> | null),
+    );
+
+    // derived
+    this.sourcePort = computed(() => {
+      if (this.pipe.value?.sourcePort == null || this.source.value == null) return null;
+      const sourceStepState = this.flow.stepsStates.value[this.source.value.id!];
+      const port = sourceStepState?.ports.value.outgoing.find((p) => portIdEquals(p, this.pipe.value!.sourcePort!));
+      return port ?? null;
+    });
+    this.targetPort = computed(() => {
+      if (this.pipe.value?.targetPort == null || this.target.value == null) return null;
+      const targetStepState = this.flow.stepsStates.value[this.target.value.id!];
+      const port = targetStepState?.ports.value.incoming.find((p) => portIdEquals(p, this.pipe.value!.targetPort!));
+      return port ?? null;
+    });
+
+    // layout
+    this.path = computed(() => {
+      if (this.sourcePort.value == null || this.targetPort.value == null) return null;
+      const sourcePortPosition = this.flow.getPortPosition(this.source.value!, this.sourcePort.value);
+      const targetPortPosition = this.flow.getPortPosition(this.target.value!, this.targetPort.value);
+      if (sourcePortPosition == null || targetPortPosition == null) return null;
+      return this.flow.computePath(sourcePortPosition, targetPortPosition);
+    });
+  }
+}
+
+/** An entire flow canvas (including steps, sub-steps, pipes, etc.) */
 export class FlowContext {
   spaceGraph: ReadNodeGraph;
   graph: ReadNodeGraph;
@@ -115,6 +207,8 @@ export class FlowContext {
   scale: Ref<number>;
   steps: Ref<StepData[]>;
   pipes: Ref<PipeData[]>;
+  stepsStates: Ref<Record<string, StepState>> = shallowRef({});
+  pipesStates: Ref<Record<string, PipeState>> = shallowRef({});
 
   constructor(context: {
     spaceGraph: ReadNodeGraph;
@@ -131,10 +225,12 @@ export class FlowContext {
     this.graph = context.graph;
     this.txFactory = context.tx;
 
+    // view
     this.view = context.view;
     this.containerRef = context.containerRef;
     this.stepRefs = context.stepRefs;
 
+    // flow
     this.flowPtr = context.flowPtr;
     this.flow = this.graph.getRef(context.flowPtr);
     this.fields = this.graph.getChildrenRef(this.flow, NodeType.FIELD);
@@ -142,6 +238,28 @@ export class FlowContext {
     this.scale = computed(() => this.transform.value.scaleX ?? this.transform.value.scaleY ?? 1);
     this.steps = this.graph.getChildrenRef(this.flow, NodeType.STEP);
     this.pipes = this.graph.getChildrenRef(this.flow, NodeType.PIPE);
+
+    // maintain step/pipe contexts
+    watch(this.steps, () => {
+      this.steps.value
+        .filter((step) => this.stepsStates.value[step.id] == null)
+        .forEach(
+          (step) => ((this.stepsStates.value[step.id] = new StepState(this, step)), triggerRef(this.stepsStates)),
+        );
+      Object.keys(this.stepsStates.value)
+        .filter((stepId) => !this.graph.has({ id: stepId }))
+        .forEach((stepId) => (delete this.stepsStates.value[stepId], triggerRef(this.stepsStates)));
+    });
+    watch(this.pipes, () => {
+      this.pipes.value
+        .filter((pipe) => this.pipesStates.value[pipe.id] == null)
+        .forEach(
+          (pipe) => ((this.pipesStates.value[pipe.id] = new PipeState(this, pipe)), triggerRef(this.pipesStates)),
+        );
+      Object.keys(this.pipesStates.value)
+        .filter((pipeId) => !this.graph.has({ id: pipeId }))
+        .forEach((pipeId) => (delete this.pipesStates.value[pipeId], triggerRef(this.pipesStates)));
+    });
   }
 
   get tx() {
@@ -430,14 +548,13 @@ export class FlowContext {
   }
 
   /** Computes the pipe path SVG path string. */
-  computePathSvg(source: Vector2, target: Vector2): string {
-    const path = this.computePath(source, target);
+  pathToSvg(path: Vector2[]): string {
     const pathParts: string[] = [];
     for (let i = 0; i < path.length; i++) {
       const p = path[i];
       pathParts.push(`L${p.x},${p.y}`);
     }
-    return `M${source.x},${source.y} ${pathParts.join(" ")}`;
+    return `M${path[0].x},${path[0].y} ${pathParts.join(" ")}`;
   }
 
   /** Gets the (reactive) ports for a given step. Pass in related to avoid re-fetching if already known. */
@@ -477,6 +594,7 @@ export class FlowContext {
             type: PortType.FIELD,
             side: PortSide.OUTGOING,
             field,
+            fieldPtr: toPlainNodeRef(field),
             fieldParent: this.flow.value!,
           });
         }
@@ -491,6 +609,7 @@ export class FlowContext {
             type: PortType.FIELD,
             side: PortSide.INCOMING,
             field,
+            fieldPtr: toPlainNodeRef(field),
             fieldParent: this.flow.value!,
           });
         }
@@ -514,6 +633,7 @@ export class FlowContext {
             type: PortType.FIELD,
             side: PortSide.INCOMING,
             field,
+            fieldPtr: toPlainNodeRef(field),
             fieldParent: related.node,
           });
         } else if (field.zone == FieldZone.OUTPUT) {
@@ -523,6 +643,7 @@ export class FlowContext {
             type: PortType.FIELD,
             side: PortSide.OUTGOING,
             field,
+            fieldPtr: toPlainNodeRef(field),
             fieldParent: related.node,
           });
         }
@@ -596,6 +717,11 @@ export function createPipe(
   const parent = isNode(options.parent) ? options.parent : graph.getOrError(options.parent);
   const parentPtr = toPlainNodeRef(parent);
   const packagePtr = parent.packagePtr;
+
+  // swap source/target if needed
+  if (options.source.side == PortSide.INCOMING && options.target.side == PortSide.OUTGOING) {
+    [options.source, options.target] = [options.target, options.source];
+  }
   const { source, target } = options;
   if (source.side != PortSide.OUTGOING) throw new Error(`cannot pipe from incoming port`);
   if (target.side != PortSide.INCOMING) throw new Error(`cannot pipe to outgoing port`);
@@ -603,7 +729,6 @@ export function createPipe(
   // position in graph
   const siblings = graph.getChildren(parent, NodeType.PIPE);
   const orderKey = generateOrderKey(siblings[siblings.length - 1]?.orderKey ?? null, null);
-    
 
   // create
   const pipe = tx.create({
