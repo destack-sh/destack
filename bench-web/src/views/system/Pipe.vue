@@ -20,7 +20,7 @@ const pipePtr = computed(() => unwrapProtoOneOf(props.nodePtr) as TypedNodeRefer
 const flowCtx = useFlowContext();
 const state = flowCtx.pipesStates.value[pipePtr.value.id!]; // must exist
 const { pipe, source, target, path } = state;
-const pathSvg = computed(() => (path.value != null ? pathToSvg(path.value) : undefined));
+const pathSvg = computed(() => (path.value != null ? pathToSvg(path.value.points) : undefined));
 const pathColorHex = computed(() => getColorHex(pipe.value?.color ?? ColorType.GRAY, ColorShade.S600));
 
 //
@@ -43,6 +43,7 @@ defineExpose<ViewExposed>({ self, id });
         stroke-linecap="round"
         stroke-linejoin="bevel"
         stroke="currentColor"
+        fill="none"
         :stroke-dasharray="pipe.type == PipeType.THEN ? undefined : '8,8'"
         :d="pathSvg"
       />
@@ -54,6 +55,7 @@ defineExpose<ViewExposed>({ self, id });
         stroke-linecap="round"
         stroke-linejoin="bevel"
         stroke="currentColor"
+        fill="none"
         :stroke-dasharray="pipe.type == PipeType.THEN ? undefined : '8,8'"
         :d="pathSvg"
       />
