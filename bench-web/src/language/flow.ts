@@ -242,26 +242,34 @@ export class FlowContext {
     this.pipes = this.graph.getChildrenRef(this.flow, NodeType.PIPE);
 
     // maintain step/pipe contexts
-    watch(this.steps, () => {
-      this.steps.value
-        .filter((step) => this.stepsStates.value[step.id] == null)
-        .forEach(
-          (step) => ((this.stepsStates.value[step.id] = new StepState(this, step)), triggerRef(this.stepsStates)),
-        );
-      Object.keys(this.stepsStates.value)
-        .filter((stepId) => !this.graph.has({ id: stepId }))
-        .forEach((stepId) => (delete this.stepsStates.value[stepId], triggerRef(this.stepsStates)));
-    });
-    watch(this.pipes, () => {
-      this.pipes.value
-        .filter((pipe) => this.pipesStates.value[pipe.id] == null)
-        .forEach(
-          (pipe) => ((this.pipesStates.value[pipe.id] = new PipeState(this, pipe)), triggerRef(this.pipesStates)),
-        );
-      Object.keys(this.pipesStates.value)
-        .filter((pipeId) => !this.graph.has({ id: pipeId }))
-        .forEach((pipeId) => (delete this.pipesStates.value[pipeId], triggerRef(this.pipesStates)));
-    });
+    watch(
+      this.steps,
+      () => {
+        this.steps.value
+          .filter((step) => this.stepsStates.value[step.id] == null)
+          .forEach(
+            (step) => ((this.stepsStates.value[step.id] = new StepState(this, step)), triggerRef(this.stepsStates)),
+          );
+        Object.keys(this.stepsStates.value)
+          .filter((stepId) => !this.graph.has({ id: stepId }))
+          .forEach((stepId) => (delete this.stepsStates.value[stepId], triggerRef(this.stepsStates)));
+      },
+      { immediate: true },
+    );
+    watch(
+      this.pipes,
+      () => {
+        this.pipes.value
+          .filter((pipe) => this.pipesStates.value[pipe.id] == null)
+          .forEach(
+            (pipe) => ((this.pipesStates.value[pipe.id] = new PipeState(this, pipe)), triggerRef(this.pipesStates)),
+          );
+        Object.keys(this.pipesStates.value)
+          .filter((pipeId) => !this.graph.has({ id: pipeId }))
+          .forEach((pipeId) => (delete this.pipesStates.value[pipeId], triggerRef(this.pipesStates)));
+      },
+      { immediate: true },
+    );
   }
 
   get tx() {
@@ -498,6 +506,7 @@ export class FlowContext {
 
   /** Cancel dragging (and don't trigger any release events). */
   cancelDragging() {
+    if (this.dragging.value == null) return;
     this.dragging.value = null;
     log.trace("flow.drag.cancel", this.dragging.value);
   }

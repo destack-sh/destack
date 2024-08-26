@@ -18,7 +18,7 @@ const COLORS_PER_ROW = 9;
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; modelValue?: ColorData } & Partial<
-    Pick<ViewData, "name" | "title" | "text" | "icon" | "variant" | "isInput" | "isInline" | "isDisabled">
+    Pick<ViewData, "name" | "title" | "text" | "icon" | "variant" | "valueType" | "isInput" | "isInline" | "isDisabled">
   >
 >();
 const emit = defineEmits(viewEmits());
@@ -78,15 +78,27 @@ defineExpose<ViewExposed>({ self, id, focus });
       :disabled="isDisabled || !isInput"
       class="group flex w-full flex-row items-center rounded border border-gray-200 px-2 py-1 hover:border-gray-300 data-[popover=true]:border-gray-300"
     >
+      <!-- Current Value -->
       <template v-if="modelValue != null">
         <i class="fas fa-circle-small" :style="{ color: getColorHex(modelValue, ColorShade.S600) }" />
         <div class="ml-1.5">{{ getColorTitle(modelValue) ?? "???" }}</div>
       </template>
       <template v-else>
-        <i class="fas fa-palette text-gray-400 group-hover:text-gray-700" />
+        <i class="fas fa-palette w-5 text-center text-gray-400 group-hover:text-gray-700" />
         <span class="ml-1.5 text-gray-400 group-hover:text-gray-700">Select Color</span>
       </template>
-      <i class="fas fa-caret-down ml-auto pl-1.5 text-gray-400" />
+      <!-- Controls -->
+      <div v-if="!props.isDisabled && props.isInput" class="ml-auto flex-shrink-0 pl-1.5">
+        <!-- Clear -->
+        <button
+          v-if="modelValue != null && !valueType?.isRequired"
+          class="mr-2 text-gray-400 opacity-0 hover:text-primary-900 group-hover:opacity-100"
+          @click.stop="emit('update:modelValue', undefined)"
+        >
+          <i class="fas fa-xmark" />
+        </button>
+        <i class="fas fa-caret-down ml-auto text-gray-400 hover:text-primary-900" />
+      </div>
     </button>
 
     <!-- Inline Multi-Toggle -->

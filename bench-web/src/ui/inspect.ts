@@ -239,7 +239,7 @@ type InspectionLayout = {
 
 // NOTE: we (try to) only use metatype/type to avoid recomputing inspection layouts on every change (might have to revisit)
 // NOTE :Architecture: the inspection layout generation is pretty clumsy
-function getInspectionInfo(metatype: ObjectType, type: any): Record<string, InspectionCategory> | null {
+function getInspectionInfo(metatype: ObjectType, type: number): Record<string, InspectionCategory> | null {
   if (metatype == ObjectType.FIELD) {
     if (type == FieldZone.OPTION) {
       return { Common: [FieldProperty.zone, FieldProperty.text] };

@@ -1,14 +1,20 @@
 <script lang="ts" setup>
 import { blockToType } from "@/language/block";
 import { RUNNABLE_BLOCK_TYPES, toCamelName, TYPE_BLOCK_TYPES } from "@/language/const";
-import { createField } from "@/language/field";
+import { createField, FIELD_CONTEXT_ACTIONS } from "@/language/field";
 import { cloneNode, moveNode, onNodeMorphed } from "@/language/node";
 import { BlockType, FieldZone, NodeType, Orientation, Variant, ViewData, type FieldData } from "@/proto/wire";
 import { describeNode, isNode, toNodeRefOneOf, unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
 import type { ActionContext, ActionMapImplementation } from "@/ui/action";
-import { startDragging, startDraggingIfAllowed, useMultiDropZone, type DraggedContent, type MultiAnchor } from "@/ui/drag";
+import {
+  startDragging,
+  startDraggingIfAllowed,
+  useMultiDropZone,
+  type DraggedContent,
+  type MultiAnchor,
+} from "@/ui/drag";
 import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/popover";
 import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import Field from "@/views/system/Field.vue";
@@ -91,16 +97,12 @@ function onDrop(dragged: DraggedContent, anchor: MultiAnchor, targetId: string |
       if (target != null) {
         if (!isNode(target, NodeType.FIELD)) throw new Error(`unexpected target node: ${describeNode(target)}`);
         moveNode(pkgConnection.tx, pkgGraph, dragged.node, { anchor, target });
-        if (node.zone != target.zone) {
-          pkgConnection.tx.update(node, { zone: target.zone });
-          onNodeMorphed(pkgConnection.tx, pkgGraph, node);
-        }
       } else {
         moveNode(pkgConnection.tx, pkgGraph, dragged.node, { anchor: "center", target: block.value! });
-        if (node.zone != sideZone) {
-          pkgConnection.tx.update(node, { zone: sideZone ?? undefined }, { debounce: "tick" });
-          onNodeMorphed(pkgConnection.tx, pkgGraph, node);
-        }
+      }
+      if (node.zone != sideZone) {
+        pkgConnection.tx.update(node, { zone: sideZone ?? undefined }, { debounce: "tick" });
+        onNodeMorphed(pkgConnection.tx, pkgGraph, node);
       }
     } else if (isNode(node, NodeType.BLOCK)) {
       // add field here
@@ -120,7 +122,7 @@ function onDrop(dragged: DraggedContent, anchor: MultiAnchor, targetId: string |
   }
 }
 const { activeDropZone: activeLeftDropZone } = useMultiDropZone({
-  name: "class",
+  name: "type.left",
   container: leftRef,
   targets: leftFieldRefs,
   orientation: Orientation.VERTICAL,
@@ -131,7 +133,7 @@ const { activeDropZone: activeLeftDropZone } = useMultiDropZone({
   onDrop,
 });
 const { activeDropZone: activeRightDropZone } = useMultiDropZone({
-  name: "class",
+  name: "type.right",
   container: rightRef,
   targets: rightFieldRefs,
   orientation: Orientation.VERTICAL,
@@ -157,40 +159,30 @@ const getFieldFromContext = (ctx: ActionContext | undefined): { field: FieldData
 // NOTE :Incomplete: Type.actions (move, navigate, ...)
 const actions: Partial<ActionMapImplementation<"common">> = {
   // common
-  "common.create.above": {
-    action: (action, ctx) => {
-      const { field } = getFieldFromContext(ctx);
-      if (field == null) return false;
-      createField(pkgConnection.tx, pkgGraph, { anchor: "before", target: field });
-    },
+  "common.create.above": (action, ctx) => {
+    const { field } = getFieldFromContext(ctx);
+    if (field == null) return false;
+    createField(pkgConnection.tx, pkgGraph, { anchor: "before", target: field });
   },
-  "common.create.below": {
-    action: (action, ctx) => {
-      const { field } = getFieldFromContext(ctx);
-      if (field == null) return false;
-      createField(pkgConnection.tx, pkgGraph, { anchor: "after", target: field });
-    },
+  "common.create.below": (action, ctx) => {
+    const { field } = getFieldFromContext(ctx);
+    if (field == null) return false;
+    createField(pkgConnection.tx, pkgGraph, { anchor: "after", target: field });
   },
-  "common.edit.duplicate": {
-    action: (action, ctx) => {
-      const { field } = getFieldFromContext(ctx);
-      if (field == null) return false;
-      const duplicate = cloneNode(pkgConnection.tx, pkgGraph, field, { includeChildren: true });
-    },
+  "common.edit.duplicate": (action, ctx) => {
+    const { field } = getFieldFromContext(ctx);
+    if (field == null) return false;
+    const duplicate = cloneNode(pkgConnection.tx, pkgGraph, field, { includeChildren: true });
   },
-  "common.edit.delete": {
-    action: (action, ctx) => {
-      const { field } = getFieldFromContext(ctx);
-      if (field == null) return false;
-      pkgConnection.tx.delete(field);
-    },
+  "common.edit.delete": (action, ctx) => {
+    const { field } = getFieldFromContext(ctx);
+    if (field == null) return false;
+    pkgConnection.tx.delete(field);
   },
-  "common.edit.archive": {
-    action: (action, ctx) => {
-      const { field } = getFieldFromContext(ctx);
-      if (field == null) return false;
-      pkgConnection.tx.archive(field);
-    },
+  "common.edit.archive": (action, ctx) => {
+    const { field } = getFieldFromContext(ctx);
+    if (field == null) return false;
+    pkgConnection.tx.archive(field);
   },
 };
 
@@ -259,24 +251,9 @@ defineExpose<ViewExposed>({ self, id, actions });
               (context: PopoverContext): PopoverInfo => ({
                 kind: 'menu',
                 placement: 'bottom-right',
-                items: menuActionsLike(
-                  [
-                    'common.edit.rename',
-                    'common.edit.morph',
-                    'common.edit.duplicate',
-                    'common.edit.archive',
-                    'common.edit.delete',
-                    'common.create.above',
-                    'common.create.below',
-                    'type*',
-                  ],
-                  {
-                    context: { ...context, triggerNode: field },
-                  },
-                ),
+                items: menuActionsLike(FIELD_CONTEXT_ACTIONS, { context: { ...context, triggerNode: field } }),
               })
             "
-            role="listitem"
             class="max-w-[200px] truncate data-[dragging=true]:opacity-50"
             :prepared-connection="preparedConnection"
             :node-ptr="toNodeRefOneOf(field)"

@@ -33,6 +33,7 @@ import {
   ColorType,
   EnumType,
   NodeReferenceData,
+  StepData,
 } from "@/proto/wire";
 import {
   contentEquals,
@@ -44,10 +45,23 @@ import {
   toPlainNodeRef,
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
+import type { ActionBuiltinId } from "@/ui/action";
 import { getNodeIcon, getTypeIcon, makeIcon } from "@/ui/icon";
 import { getEnumTitle } from "@/ui/inspect";
 import { getRandomColorType } from "@/ui/style";
 import { encodeB64VLQ, decodeB64VLQ, assertNever } from "@/utils/functools";
+
+export const FIELD_CONTEXT_ACTIONS: ActionBuiltinId[] = [
+  "common.edit.rename",
+  "common.edit.morph",
+  "common.edit.duplicate",
+  "common.edit.archive",
+  "common.edit.delete",
+  "common.create.above",
+  "common.create.below",
+  "type.edit.isRequired",
+  "type.edit.isList",
+];
 
 export type TypeIdentity = Pick<
   TypeInfoData,
@@ -334,7 +348,13 @@ export function createField(
   options: {
     field?: Partial<FieldData>;
     anchor: "before" | "above" | "after" | "below" | "inside" | "center";
-    target: FieldData | TypedNodeReferenceData<NodeType.FIELD> | BlockData | TypedNodeReferenceData<NodeType.BLOCK>;
+    target:
+      | FieldData
+      | TypedNodeReferenceData<NodeType.FIELD>
+      | BlockData
+      | TypedNodeReferenceData<NodeType.BLOCK>
+      | StepData
+      | TypedNodeReferenceData<NodeType.STEP>;
   },
 ): FieldData {
   // eslint-disable-next-line prefer-const

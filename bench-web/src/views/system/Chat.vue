@@ -266,33 +266,25 @@ const getMessageFromContext = (ctx: ActionContext | undefined): { message: Messa
 };
 const actions: Partial<ActionMapImplementation<"common">> & ActionMapImplementation<"message"> = {
   // common
-  "common.edit.archive": {
-    action: (action, context) => {
-      const { message } = getMessageFromContext(context);
-      if (message == null) return false;
-      pkgConnection.tx.archive(message);
-    },
+  "common.edit.archive": (action, context) => {
+    const { message } = getMessageFromContext(context);
+    if (message == null) return false;
+    pkgConnection.tx.archive(message);
   },
-  "common.edit.delete": {
-    action: (action, context) => {
-      const { message } = getMessageFromContext(context);
-      if (message == null) return false;
-      pkgConnection.tx.delete(message);
-    },
+  "common.edit.delete": (action, context) => {
+    const { message } = getMessageFromContext(context);
+    if (message == null) return false;
+    pkgConnection.tx.delete(message);
   },
-  "common.navigate.up": {
-    action: (action, context) => {
-      const { message, idx } = getMessageFromContext(context);
-      if (message == null) return false;
-      if (idx > 0) focus(toPlainNodeRef(messages.value[idx - 1]));
-    },
+  "common.navigate.up": (action, context) => {
+    const { message, idx } = getMessageFromContext(context);
+    if (message == null) return false;
+    if (idx > 0) focus(toPlainNodeRef(messages.value[idx - 1]));
   },
-  "common.navigate.down": {
-    action: (action, context) => {
-      const { message, idx } = getMessageFromContext(context);
-      if (message == null) return false;
-      if (idx < messages.value.length - 1) focus(toPlainNodeRef(messages.value[idx + 1]));
-    },
+  "common.navigate.down": (action, context) => {
+    const { message, idx } = getMessageFromContext(context);
+    if (message == null) return false;
+    if (idx < messages.value.length - 1) focus(toPlainNodeRef(messages.value[idx + 1]));
   },
   // message
   "message.chat.reply": {
