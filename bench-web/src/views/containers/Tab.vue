@@ -26,7 +26,7 @@ const props = defineProps<
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 
-const TAB_HEADER_HEIGHT = 32; // NOTE :UX: should tab header height == default header height? (weirdly big but consistent)
+const HEADER_HEIGHT = 32; // NOTE :UX: should tab header height == default header height? (weirdly big but consistent)
 
 // focus
 const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self);
@@ -61,7 +61,7 @@ const focusedTabIdx: Ref<number | null> = computed(() => {
     return 0;
   }
 });
-const innerSize = computed(() => ({ width: props.size.width, height: props.size.height - 30 }));
+const innerSize = computed(() => ({ width: props.size.width, height: props.size.height - HEADER_HEIGHT }));
 
 function focus(tab: ViewData) {
   canvas.focus({ node: tab });
@@ -212,7 +212,7 @@ defineExpose<ViewExposed>({ self, actions });
       :orientation="Orientation.HORIZONTAL"
       :track-width="ScrollbarWidth.sm"
       track-is-overlay
-      :size="{ width: innerSize.width, height: TAB_HEADER_HEIGHT }"
+      :size="{ width: innerSize.width, height: HEADER_HEIGHT }"
     >
       <!-- Tab button -->
       <button
@@ -278,7 +278,7 @@ defineExpose<ViewExposed>({ self, actions });
       class="absolute bg-white"
       :style="{
         left: '0px',
-        top: `${TAB_HEADER_HEIGHT}px`,
+        top: `${HEADER_HEIGHT}px`,
         width: innerSize.width + 'px',
         height: innerSize.height + 'px',
       }"
