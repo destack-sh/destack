@@ -26,7 +26,16 @@ import { DEFAULT_BENCH_ICON, IconInline, getNodeIcon } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
 import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/popover";
 import { highlightMatches } from "@/ui/search";
-import { VIEW_DEFAULT_HEADER_HEIGHT, VIEW_DEFAULT_MAX_WIDTH, VIEW_DEFAULT_MIN_WIDTH, getNativeConstraintProps, guardNativeInput, makeSelection, useViewExpansion, useViewState } from "@/ui/view";
+import {
+  VIEW_DEFAULT_HEADER_HEIGHT,
+  VIEW_DEFAULT_MAX_WIDTH,
+  VIEW_DEFAULT_MIN_WIDTH,
+  getNativeConstraintProps,
+  guardNativeInput,
+  makeSelection,
+  useViewExpansion,
+  useViewState,
+} from "@/ui/view";
 import { computedValue } from "@/utils/ref";
 import NodePath from "@/views/builtins/NodePath.vue";
 import { viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
@@ -274,45 +283,35 @@ const getItemFromContext = (ctx: ActionContext | undefined): { item: NodeTreeIte
   return { item, idx };
 };
 const actions: Partial<ActionMapImplementation<"common">> = {
-  "common.sense.focus": {
-    action: (action, ctx) => {
-      const node = getItemFromContext(ctx).item?.node;
-      if (node == null) return false;
-      canvas.goToNode(node, { where: "bestFrame", skipSelf: preset.value == TreeViewPreset.OUTLINE });
-    },
+  "common.sense.focus": (action, ctx) => {
+    const node = getItemFromContext(ctx).item?.node;
+    if (node == null) return false;
+    canvas.goToNode(node, { where: "bestFrame", skipSelf: preset.value == TreeViewPreset.OUTLINE });
   },
-  "common.edit.rename": {
-    action: (action, ctx) => {
-      const node = getItemFromContext(ctx).item?.node;
-      if (node == null) return false;
-      editingNodePtr.value = toNodeRef(node);
-      nextTick(() => {
-        editingNameRef.value?.[0]?.focus?.();
-        editingNameRef.value?.[0]?.select?.();
-      });
-    },
+  "common.edit.rename": (action, ctx) => {
+    const node = getItemFromContext(ctx).item?.node;
+    if (node == null) return false;
+    editingNodePtr.value = toNodeRef(node);
+    nextTick(() => {
+      editingNameRef.value?.[0]?.focus?.();
+      editingNameRef.value?.[0]?.select?.();
+    });
   },
-  "common.edit.duplicate": {
-    action: (action, ctx) => {
-      const node = getItemFromContext(ctx).item?.node;
-      if (node == null) return false;
-      const duplicate = cloneNode(pkgConnection.tx, pkgGraph, node, { includeChildren: true });
-      nextTick(() => focus(duplicate));
-    },
+  "common.edit.duplicate": (action, ctx) => {
+    const node = getItemFromContext(ctx).item?.node;
+    if (node == null) return false;
+    const duplicate = cloneNode(pkgConnection.tx, pkgGraph, node, { includeChildren: true });
+    nextTick(() => focus(duplicate));
   },
-  "common.edit.archive": {
-    action: (action, ctx) => {
-      const node = getItemFromContext(ctx).item?.node;
-      if (node == null) return false;
-      pkgConnection.tx.archive(node);
-    },
+  "common.edit.archive": (action, ctx) => {
+    const node = getItemFromContext(ctx).item?.node;
+    if (node == null) return false;
+    pkgConnection.tx.archive(node);
   },
-  "common.edit.delete": {
-    action: (action, ctx) => {
-      const node = getItemFromContext(ctx).item?.node;
-      if (node == null) return false;
-      pkgConnection.tx.delete(node);
-    },
+  "common.edit.delete": (action, ctx) => {
+    const node = getItemFromContext(ctx).item?.node;
+    if (node == null) return false;
+    pkgConnection.tx.delete(node);
   },
   ...useHierarchicalNodeMoveActions({
     graph: pkgGraph,

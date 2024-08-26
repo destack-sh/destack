@@ -186,67 +186,53 @@ const getBlockFromContext = (ctx: ActionContext | undefined): { block: BlockData
 };
 const actions: Partial<ActionMapImplementation<"common" | "session">> = {
   // create
-  "common.create.above": {
-    action: (action, context) => {
-      let { block } = getBlockFromContext(context);
-      if (block == null) block = blocks.value[0];
-      if (block == null) return false;
-      createAndFocusBlock({ type: BlockType.TEXT }, "before", block);
-    },
+  "common.create.above": (action, context) => {
+    let { block } = getBlockFromContext(context);
+    if (block == null) block = blocks.value[0];
+    if (block == null) return false;
+    createAndFocusBlock({ type: BlockType.TEXT }, "before", block);
   },
-  "common.create.below": {
-    action: (action, context) => {
-      let { block } = getBlockFromContext(context);
-      if (block == null) block = blocks.value[blocks.value.length - 1];
-      if (block == null) return false;
-      createAndFocusBlock({ type: BlockType.TEXT }, "after", block);
-    },
+  "common.create.below": (action, context) => {
+    let { block } = getBlockFromContext(context);
+    if (block == null) block = blocks.value[blocks.value.length - 1];
+    if (block == null) return false;
+    createAndFocusBlock({ type: BlockType.TEXT }, "after", block);
   },
   // edit
-  "common.edit.duplicate": {
-    action: (action, context) => {
-      const { block } = getBlockFromContext(context);
-      if (block == null) return false;
-      const duplicate = cloneNode(pkgConnection.tx, pkgGraph, block, { includeChildren: true });
-      nextTick(() => focus(duplicate));
-    },
+  "common.edit.duplicate": (action, context) => {
+    const { block } = getBlockFromContext(context);
+    if (block == null) return false;
+    const duplicate = cloneNode(pkgConnection.tx, pkgGraph, block, { includeChildren: true });
+    nextTick(() => focus(duplicate));
   },
-  "common.edit.archive": {
-    action: (action, context) => {
-      const { block } = getBlockFromContext(context);
-      if (block == null) return false;
-      pkgConnection.tx.archive(block);
-    },
+  "common.edit.archive": (action, context) => {
+    const { block } = getBlockFromContext(context);
+    if (block == null) return false;
+    pkgConnection.tx.archive(block);
   },
-  "common.edit.delete": {
-    action: (action, context) => {
-      const { block } = getBlockFromContext(context);
-      if (block == null) return false;
-      pkgConnection.tx.delete(block);
-    },
+  "common.edit.delete": (action, context) => {
+    const { block } = getBlockFromContext(context);
+    if (block == null) return false;
+    pkgConnection.tx.delete(block);
   },
   // navigation
-  "common.navigate.up": {
-    action: (action, context) => {
-      const { block, idx } = getBlockFromContext(context);
-      let toFocus = blocks.value[idx - 1];
-      if (block == null) {
-        if (nodePtr.value?.id == focusedNodePtr.value?.id) toFocus = blocks.value[blocks.value.length - 1];
-        else return false;
-      }
-      if (toFocus != null) canvas.focus({ node: toFocus, view: self.value });
-    },
+  "common.navigate.up": (action, context) => {
+    const { block, idx } = getBlockFromContext(context);
+    let toFocus = blocks.value[idx - 1];
+    if (block == null) {
+      if (nodePtr.value?.id == focusedNodePtr.value?.id) toFocus = blocks.value[blocks.value.length - 1];
+      else return false;
+    }
+    if (toFocus != null) canvas.focus({ node: toFocus, view: self.value });
   },
-  "common.navigate.down": {
-    action: (action, context) => {
-      const { block, idx } = getBlockFromContext(context);
-      let toFocus = blocks.value[idx + 1];
-      if (block == null) {
-        if (nodePtr.value?.id == focusedNodePtr.value?.id) toFocus = blocks.value[0];
-        else return false;
-      }
-      if (toFocus != null) canvas.focus({ node: toFocus, view: self.value });
-    },
+  "common.navigate.down": (action, context) => {
+    const { block, idx } = getBlockFromContext(context);
+    let toFocus = blocks.value[idx + 1];
+    if (block == null) {
+      if (nodePtr.value?.id == focusedNodePtr.value?.id) toFocus = blocks.value[0];
+      else return false;
+    }
+    if (toFocus != null) canvas.focus({ node: toFocus, view: self.value });
   },
   // move
   ...useFlatNodeMoveActions({
@@ -258,12 +244,10 @@ const actions: Partial<ActionMapImplementation<"common" | "session">> = {
     },
   }),
   // session
-  "session.run.start": {
-    action: (action, context) => {
-      const { block } = getBlockFromContext(context);
-      if (block == null) return false;
-      pkgConnection.tx.with({ category: ChangeCategory.SESSION }).create(makeRun(block, pkgGraph));
-    },
+  "session.run.start": (action, context) => {
+    const { block } = getBlockFromContext(context);
+    if (block == null) return false;
+    pkgConnection.tx.with({ category: ChangeCategory.SESSION }).create(makeRun(block, pkgGraph));
   },
 };
 function createAndFocusBlock(

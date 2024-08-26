@@ -26,10 +26,11 @@ import {
 import { ICON_BY_STEP_TYPE, IconInline } from "@/ui/icon";
 import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/popover";
 import { computedValue } from "@/utils/ref";
+import NodePath from "@/views/builtins/NodePath.vue";
 import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import Pipe from "@/views/system/Pipe.vue";
 import Step from "@/views/system/Step.vue";
-import { computed, nextTick, provide, ref, toRef, type Ref } from "vue";
+import { computed, provide, ref, toRef, type Ref } from "vue";
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; preparedConnection?: PreparedGetConnection } & Partial<
@@ -79,78 +80,50 @@ const getThingFromContext = (ctx: ActionContext | undefined): { thing: StepData 
 };
 const actions: Partial<ActionMapImplementation<"common">> = {
   // move
-  "common.move.up": {
-    action: (action, context) => {
-      const { thing } = getThingFromContext(context);
-      if (thing == null) return false;
-      flowCtx.moveThing(thing, { x: 0, y: -FLOW_GRID_STEP_Y });
-    },
+  "common.move.up": (action, context) => {
+    const { thing } = getThingFromContext(context);
+    if (thing == null) return false;
+    flowCtx.moveThing(thing, { x: 0, y: -FLOW_GRID_STEP_Y });
   },
-  "common.move.down": {
-    action: (action, context) => {
-      const { thing } = getThingFromContext(context);
-      if (thing == null) return false;
-      flowCtx.moveThing(thing, { x: 0, y: FLOW_GRID_STEP_Y });
-    },
+  "common.move.down": (action, context) => {
+    const { thing } = getThingFromContext(context);
+    if (thing == null) return false;
+    flowCtx.moveThing(thing, { x: 0, y: FLOW_GRID_STEP_Y });
   },
-  "common.move.left": {
-    action: (action, context) => {
-      const { thing } = getThingFromContext(context);
-      if (thing == null) return false;
-      flowCtx.moveThing(thing, { x: -FLOW_GRID_STEP_X, y: 0 });
-    },
+  "common.move.left": (action, context) => {
+    const { thing } = getThingFromContext(context);
+    if (thing == null) return false;
+    flowCtx.moveThing(thing, { x: -FLOW_GRID_STEP_X, y: 0 });
   },
-  "common.move.right": {
-    action: (action, context) => {
-      const { thing } = getThingFromContext(context);
-      if (thing == null) return false;
-      flowCtx.moveThing(thing, { x: FLOW_GRID_STEP_X, y: 0 });
-    },
+  "common.move.right": (action, context) => {
+    const { thing } = getThingFromContext(context);
+    if (thing == null) return false;
+    flowCtx.moveThing(thing, { x: FLOW_GRID_STEP_X, y: 0 });
   },
   // edit
-  "common.edit.duplicate": {
-    action: (action, context) => {
-      const { thing } = getThingFromContext(context);
-      if (thing == null) return false;
-      const duplicate = cloneNode(pkgConnection.tx, pkgGraph, thing, { includeChildren: true });
-    },
+  "common.edit.duplicate": (action, context) => {
+    const { thing } = getThingFromContext(context);
+    if (thing == null) return false;
+    const duplicate = cloneNode(pkgConnection.tx, pkgGraph, thing, { includeChildren: true });
   },
-  "common.edit.archive": {
-    action: (action, context) => {
-      const { thing } = getThingFromContext(context);
-      if (thing == null) return false;
-      pkgConnection.tx.archive(thing);
-    },
+  "common.edit.archive": (action, context) => {
+    const { thing } = getThingFromContext(context);
+    if (thing == null) return false;
+    pkgConnection.tx.archive(thing);
   },
-  "common.edit.delete": {
-    action: (action, context) => {
-      const { thing } = getThingFromContext(context);
-      if (thing == null) return false;
-      pkgConnection.tx.delete(thing);
-    },
+  "common.edit.delete": (action, context) => {
+    const { thing } = getThingFromContext(context);
+    if (thing == null) return false;
+    pkgConnection.tx.delete(thing);
   },
   // navigate
-  "common.navigate.left": {
-    action: () => flowCtx.panCanvas({ x: -FLOW_GRID_STEP_X, y: 0 }),
-  },
-  "common.navigate.right": {
-    action: () => flowCtx.panCanvas({ x: FLOW_GRID_STEP_X, y: 0 }),
-  },
-  "common.navigate.up": {
-    action: () => flowCtx.panCanvas({ x: 0, y: -FLOW_GRID_STEP_Y }),
-  },
-  "common.navigate.down": {
-    action: () => flowCtx.panCanvas({ x: 0, y: FLOW_GRID_STEP_Y }),
-  },
-  "common.navigate.zoomIn": {
-    action: () => flowCtx.zoomCanvas("in", "center", 15),
-  },
-  "common.navigate.zoomOut": {
-    action: () => flowCtx.zoomCanvas("out", "center", 15),
-  },
-  "common.navigate.reset": {
-    action: () => flowCtx.resetViewport(),
-  },
+  "common.navigate.left": () => flowCtx.panCanvas({ x: -FLOW_GRID_STEP_X, y: 0 }),
+  "common.navigate.right": () => flowCtx.panCanvas({ x: FLOW_GRID_STEP_X, y: 0 }),
+  "common.navigate.up": () => flowCtx.panCanvas({ x: 0, y: -FLOW_GRID_STEP_Y }),
+  "common.navigate.down": () => flowCtx.panCanvas({ x: 0, y: FLOW_GRID_STEP_Y }),
+  "common.navigate.zoomIn": () => flowCtx.zoomCanvas("in", "center", 15),
+  "common.navigate.zoomOut": () => flowCtx.zoomCanvas("out", "center", 15),
+  "common.navigate.reset": () => flowCtx.resetViewport(),
 };
 
 const isFocusAbsolute = canvas.isFocusedAbsoluteRef(self);
@@ -291,55 +264,65 @@ defineExpose<ViewExposed>({ self, id, actions });
     </div>
 
     <!-- Overlay -->
-    <div class="absolute left-0 top-0 w-full">
-      <!-- Menu -->
+    <div
+      class="pointer-events-none absolute left-0 top-0 flex w-full flex-row flex-wrap justify-between gap-y-3 overflow-hidden p-1"
+    >
+      <!-- Node path -->
+      <NodePath
+        v-if="variant != Variant.COMPACT"
+        class="pointer-events-auto flex-shrink-0 border border-gray-200 bg-white px-2"
+        :container="nodePtr"
+        :focus="focus?.nodesPtr[0]"
+        :graph="pkgGraph"
+      />
+      <!-- Menu (Create) -->
       <div
-        v-if="self != null"
-        class="absolute right-2 top-2 z-20 flex w-fit flex-row items-center divide-x divide-gray-200 border border-gray-200 bg-white px-2 py-1"
+        v-if="self != null && variant != Variant.COMPACT"
+        class="pointer-events-auto absolute left-1/2 z-20 flex w-fit -translate-x-1/2 flex-row items-center gap-x-1 border border-gray-200 bg-white px-2 py-1.5"
       >
         <!-- Create -->
-        <div v-if="variant != Variant.COMPACT" class="flex flex-row items-center gap-x-1 pr-1.5">
-          <button
-            v-for="stepType in [StepType.START, StepType.COMPLETE, StepType.CODE, StepType.TEXT, StepType.BLOCK]"
-            :key="stepType"
-            v-tooltip="{
-              title: `${toCamelName(StepType, stepType)}`,
-              showDelay: 200,
-              hideDelay: 100,
-              small: true,
-              referenceMargin: 8,
-              group: 'page.footer',
-            }"
-            class="rounded px-0.5 hover:bg-gray-100 hover:text-primary-900"
-            :class="isFocusAbsolute ? 'text-gray-700' : 'text-gray-400'"
-            @click="flow && createStep(pkgConnection.tx, pkgGraph, { step: { type: stepType }, parent: flow })"
-          >
-            <IconInline v-bind="ICON_BY_STEP_TYPE[stepType]" class="w-5 text-center" />
-          </button>
-        </div>
-
-        <!-- Actions -->
-        <div class="flex flex-row items-center gap-x-1 pl-1.5">
-          <button
-            v-for="action of (
-              ['common.navigate.zoomIn', 'common.navigate.zoomOut', 'common.navigate.reset'] as ActionBuiltinId[]
-            ).map(getAction)"
-            :key="action.id"
-            v-tooltip="{
-              title: action.title,
-              showDelay: 200,
-              hideDelay: 100,
-              small: true,
-              referenceMargin: 8,
-              group: 'page.footer',
-            }"
-            class="rounded px-0.5 hover:bg-gray-100 hover:text-primary-900"
-            :class="isFocusAbsolute ? 'text-gray-700' : 'text-gray-400'"
-            @click="fireAction(action)"
-          >
-            <IconInline v-bind="action.icon" class="w-5 text-center" />
-          </button>
-        </div>
+        <button
+          v-for="stepType in [StepType.START, StepType.COMPLETE, StepType.CODE, StepType.TEXT, StepType.BLOCK]"
+          :key="stepType"
+          v-tooltip="{
+            title: `${toCamelName(StepType, stepType)}`,
+            showDelay: 200,
+            hideDelay: 100,
+            small: true,
+            referenceMargin: 8,
+            group: 'flow.create',
+          }"
+          class="rounded px-0.5 hover:bg-gray-100 hover:text-primary-900"
+          :class="isFocusAbsolute ? 'text-gray-700' : 'text-gray-400'"
+          @click="flow && createStep(pkgConnection.tx, pkgGraph, { step: { type: stepType }, parent: flow })"
+        >
+          <IconInline v-bind="ICON_BY_STEP_TYPE[stepType]" class="w-5 text-center" />
+        </button>
+      </div>
+      <!-- Menu (Actions) -->
+      <div
+        v-if="self != null"
+        class="pointer-events-auto z-20 flex w-fit flex-row items-center gap-x-1 border border-gray-200 bg-white px-2 py-1.5"
+      >
+        <button
+          v-for="action of (
+            ['common.navigate.zoomIn', 'common.navigate.zoomOut', 'common.navigate.reset'] as ActionBuiltinId[]
+          ).map(getAction)"
+          :key="action.id"
+          v-tooltip="{
+            title: action.title,
+            showDelay: 200,
+            hideDelay: 100,
+            small: true,
+            referenceMargin: 8,
+            group: 'flow.actions',
+          }"
+          class="rounded px-0.5 hover:bg-gray-100 hover:text-primary-900"
+          :class="isFocusAbsolute ? 'text-gray-700' : 'text-gray-400'"
+          @click="fireAction(action)"
+        >
+          <IconInline v-bind="action.icon" class="w-5 text-center" />
+        </button>
       </div>
     </div>
   </div>

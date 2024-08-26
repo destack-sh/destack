@@ -263,7 +263,10 @@ type ActionIn = Pick<Action, "title" | "text" | "shortcuts" | "isEnabled" | "act
 export type ActionDeclaration = Omit<ActionIn, "id" | "enabled" | "action">;
 export type ActionMapDeclaration<T extends string> = Record<FilterPrefix<ActionBuiltinId, T>, ActionDeclaration>;
 export type ActionImplementation = Pick<Action, "isEnabled" | "action" | "isChecked">;
-export type ActionMapImplementation<T extends string> = Record<FilterPrefix<ActionBuiltinId, T>, ActionImplementation>;
+export type ActionMapImplementation<T extends string> = Record<
+  FilterPrefix<ActionBuiltinId, T>,
+  ActionImplementation | ActionCallable
+>;
 export type ActionContribution = ActionDeclaration & ActionImplementation;
 export type ActionMapContribution<T extends string> = Record<FilterPrefix<ActionBuiltinId, T>, ActionContribution>;
 
@@ -397,6 +400,7 @@ export function getImplementingAction(action: Action, context: ViewComponent[]):
   } else if (action.kind == "virtual") {
     for (const view of context) {
       const impl = view.exposed?.actions?.[action.id];
+      if (typeof impl == "function") return { action: impl };
       if (impl != null && (impl.isEnabled == null || toValue(impl.isEnabled) == true)) return impl;
     }
     return null;
@@ -420,7 +424,8 @@ export function fireAction(
   } else if (action.kind == "virtual") {
     // virtual: find first component implementing that action
     for (const view of viewsInOrder ?? []) {
-      const impl = view.exposed?.actions?.[action.id];
+      let impl = view.exposed?.actions?.[action.id];
+      if (typeof impl == "function") impl = { action: impl };
       if (impl != null && (impl.isEnabled == null || toValue(impl.isEnabled) == true)) {
         log.info("action.virtual", action.id);
         const ret = impl.action(action, context);

@@ -216,12 +216,13 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
       <!-- Controls -->
       <div v-if="!props.isDisabled && props.isInput" class="ml-auto flex-shrink-0 pl-1.5">
         <!-- Clear -->
-        <i
+        <button
           v-if="modelValue != null && !valueType?.isRequired"
-          role="button"
-          class="fas fa-xmark mr-2 text-gray-400 opacity-0 hover:text-primary-900 group-hover:opacity-100"
+          class="mr-2 text-gray-400 opacity-0 hover:text-primary-900 group-hover:opacity-100"
           @click.stop="emit('update:modelValue', undefined)"
-        />
+        >
+          <i class="fas fa-xmark" />
+        </button>
         <i class="fas fa-caret-down ml-auto text-gray-400 hover:text-primary-900" />
       </div>
     </button>

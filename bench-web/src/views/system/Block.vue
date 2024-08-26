@@ -12,7 +12,7 @@ import {
   ViewData,
   ViewType,
 } from "@/proto/wire";
-import { unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
+import { toNodeRefOneOf, unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import type { ActionMapImplementation } from "@/ui/action";
 import type { PreparedGetConnection } from "@/system/connection";
 import { useExistingConnection } from "@/system/connection";
@@ -315,6 +315,7 @@ defineExpose<ViewExposed & { isRunnable: Ref<boolean> }>({
       <Flow
         v-if="block.type == BlockType.FLOW"
         class="h-[360px]"
+        :node-ptr="props.nodePtr"
         :self="props.self"
         :variant="Variant.COMPACT"
         :prepared-connection="pkgGetConnection"
