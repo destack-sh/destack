@@ -80,7 +80,7 @@ defineExpose<ViewExposed>({ self, id, focus });
     >
       <!-- Current Value -->
       <template v-if="modelValue != null">
-        <i class="fas fa-circle-small" :style="{ color: getColorHex(modelValue, ColorShade.S600) }" />
+        <i class="fas fa-circle-small w-5 text-center" :style="{ color: getColorHex(modelValue, ColorShade.S600) }" />
         <div class="ml-1.5">{{ getColorTitle(modelValue) ?? "???" }}</div>
       </template>
       <template v-else>

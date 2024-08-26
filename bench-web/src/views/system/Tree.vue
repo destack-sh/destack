@@ -403,6 +403,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
       @click.stop="queryRef?.focus()"
     >
       <!-- Nodes -->
+      <!-- NOTE :UX: it would be neat to have hover/focused/selected nodes highlighted (everywhere) -->
       <ul v-if="expandedItems.length > 0" ref="containerRef" class="group/list mb-1 flex flex-col text-gray-900">
         <!-- Node -->
         <li
