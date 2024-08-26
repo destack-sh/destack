@@ -101,6 +101,8 @@ export const ACTION_BUILTIN_IDS = [
   "common.edit.duplicate",
   "common.edit.archive",
   "common.edit.delete",
+  "common.navigate.open",
+  "common.navigate.openInPage",
   "common.navigate.up",
   "common.navigate.down",
   "common.navigate.left",
@@ -128,7 +130,6 @@ export const ACTION_BUILTIN_IDS = [
   "common.search.replaceInView",
   "common.search.findInSpace",
   "common.search.replaceInSpace",
-  "common.sense.focus",
   "common.sense.goToDefinition",
   "common.sense.findReferences",
   "common.sense.findImplementations",
@@ -567,6 +568,18 @@ declareActionMap<"common">({
     shortcuts: ["del", "backspace"],
   },
   // navigate
+  "common.navigate.open": {
+    icon: "fas fa-magnifying-glass-plus",
+    title: "Open",
+    text: "Open this node in a new view",
+    shortcuts: ["mod+enter"],
+  },
+  "common.navigate.openInPage": {
+    icon: "fas fa-magnifying-glass-plus",
+    title: "Open in Page",
+    text: "Open this node in a new page",
+    shortcuts: ["mod+shift+enter"],
+  },
   "common.navigate.up": {
     icon: "fas fa-arrow-up",
     title: "Navigate Up",
@@ -732,12 +745,7 @@ declareActionMap<"common">({
     shortcuts: ["mod+shift+r"],
   },
   // sense
-  "common.sense.focus": {
-    icon: "fas fa-magnifying-glass-plus",
-    title: "Focus",
-    text: "Focus on this node in a new view",
-    shortcuts: ["mod+enter"],
-  },
+
   "common.sense.goToDefinition": {
     icon: "fas fa-turn-down-right",
     title: "Go to Definition",
