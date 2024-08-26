@@ -17,7 +17,7 @@ const props = defineProps<
 >();
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
-const modelValue = defineModel<string | number>();
+const modelValue = defineModel<string | number | BigInt>();
 const inputRef = ref<HTMLInputElement | null>(null);
 const inputType = computed(() => {
   if (props.valueType?.isSecret) return "password";
