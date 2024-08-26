@@ -1,4 +1,5 @@
 import { HELPER_VIEW_TYPES, PAGE_BLOCK_TYPES, ROOT_VIEW_TYPES, toCamelName } from "@/language/const";
+import { getContainingFlow } from "@/language/flow";
 import { isDescendantOf, type NodeKey, type ReadNodeGraph } from "@/language/graph";
 import { cloneNode, generateNodeName, makeNode } from "@/language/node";
 import { getOrderKey, updateOrder } from "@/language/order";
@@ -642,49 +643,62 @@ export class SpaceCanvas {
    * If it's a regular node, we find or open an appropriate view for it and focus that somehow.
    */
   goToNode(
-    node: AnyNodeData | NodeReferenceData,
+    node: AnyNodeData | NodeReferenceData | null,
     options?: { graph?: ReadNodeGraph; skipSelf?: boolean } & OpenViewOptions,
   ) {
     const nodePtr = isNodeRef(node) ? node : toNodeRef(node as AnyNodeData);
+    const graph = options?.graph ?? this.graph;
     log.debug("canvas.goToNode", node);
-    if (nodePtr.type == NodeType.VIEW && this.isInSpace(node)) {
+    node = graph.get(nodePtr);
+    if (node == null) {
+      // not found
+      return;
+    } else if (nodePtr.type == NodeType.VIEW && this.isInSpace(node)) {
       // just focus directly
       this.focus({ node: nodePtr as ViewData | TypedNodeReferenceData<NodeType.VIEW> });
+    } else if (
+      (isNode(node, NodeType.BLOCK) && node.type == BlockType.FLOW) ||
+      isNode(node, NodeType.STEP) ||
+      isNode(node, NodeType.PIPE) ||
+      (isNode(node, NodeType.FIELD) && getContainingFlow(graph, node) != null)
+    ) {
+      // open as flow
+      const containingFlow = getContainingFlow(graph, node);
+      if (!containingFlow) throw new Error(`no containing flow for: ${describeNode(node)}`);
+      const view = this.addView(
+        {
+          type: ViewType.FLOW,
+          nodePtr: toNodeRefOneOf(containingFlow),
+          focus: makeSelection([node]),
+          ...options?.props,
+        },
+        { ifPresent: "upsertAndFocus", ...options },
+      );
+      this.inspect({ node: nodePtr, view });
+    } else if (isNode(node, NodeType.BLOCK) && node.type == BlockType.VIEW) {
+      // open as view
+      this.addView(
+        { type: ViewType.VIEW, nodePtr: toNodeRefOneOf(nodePtr), ...options?.props },
+        { ifPresent: "upsertAndFocus", ...options },
+      );
+    } else if (isNode(node, NodeType.BLOCK) || DESCENDANT_NODE_TYPES[NodeType.BLOCK].includes(nodePtr.type)) {
+      // open generic block in containing page
+      const containingPage = graph
+        .getAncestors(nodePtr, { metatypes: [NodeType.BLOCK], includeSelf: !options?.skipSelf })
+        .find((n) => PAGE_BLOCK_TYPES.includes(n.type));
+      if (!containingPage) throw new Error(`in-block has no containing page block: ${describeNode(node)}`);
+      const view = this.addView(
+        {
+          type: ViewType.PAGE,
+          nodePtr: toNodeRefOneOf(containingPage),
+          focus: makeSelection(nodePtr),
+          ...options?.props,
+        },
+        { ifPresent: "upsertAndFocus", ...options },
+      );
+      this.inspect({ node: nodePtr, view });
     } else {
-      // find or create appropriate view for block
-      const graph = options?.graph ?? this.graph;
-      const node = graph.getOrError(nodePtr);
-      if (isNode(node, NodeType.BLOCK) && node.type == BlockType.FLOW) {
-        // open as flow
-        this.addView(
-          { type: ViewType.FLOW, nodePtr: toNodeRefOneOf(nodePtr), ...options?.props },
-          { ifPresent: "upsertAndFocus", ...options },
-        );
-      } else if (isNode(node, NodeType.BLOCK) && node.type == BlockType.VIEW) {
-        // open as view
-        this.addView(
-          { type: ViewType.VIEW, nodePtr: toNodeRefOneOf(nodePtr), ...options?.props },
-          { ifPresent: "upsertAndFocus", ...options },
-        );
-      } else if (isNode(node, NodeType.BLOCK) || DESCENDANT_NODE_TYPES[NodeType.BLOCK].includes(nodePtr.type)) {
-        // open generic block in containing page
-        const containingPage = graph
-          .getAncestors(nodePtr, { metatypes: [NodeType.BLOCK], includeSelf: !options?.skipSelf })
-          .find((n) => PAGE_BLOCK_TYPES.includes(n.type));
-        if (!containingPage) throw new Error(`in-block has no containing page block: ${describeNode(node)}`);
-        const view = this.addView(
-          {
-            type: ViewType.PAGE,
-            nodePtr: toNodeRefOneOf(containingPage),
-            focus: makeSelection(nodePtr),
-            ...options?.props,
-          },
-          { ifPresent: "upsertAndFocus", ...options },
-        );
-        this.inspect({ node: nodePtr, view });
-      } else {
-        throw new Error(`cannot go to node: ${describeNode(node)}`);
-      }
+      throw new Error(`cannot go to node: ${describeNode(node)}`);
     }
   }
 

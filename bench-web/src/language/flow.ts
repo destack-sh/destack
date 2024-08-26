@@ -22,6 +22,7 @@ import {
   TransformData,
   Vector2Data,
   ViewData,
+  type AnyNodeData,
   type StepData,
 } from "@/proto/wire";
 import { describeNode, isNode, makeStruct, toPlainNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
@@ -558,16 +559,6 @@ export class FlowContext {
     return [source, target];
   }
 
-  /** Computes the pipe path SVG path string. */
-  pathToSvg(path: Vector2[]): string {
-    const pathParts: string[] = [];
-    for (let i = 0; i < path.length; i++) {
-      const p = path[i];
-      pathParts.push(`L${p.x},${p.y}`);
-    }
-    return `M${path[0].x},${path[0].y} ${pathParts.join(" ")}`;
-  }
-
   /** Gets the pipes connected to the given port. */
   getPipesAtPort(port: Port): PipeData[] {
     return this.pipes.value.filter((pipe) => {
@@ -633,7 +624,7 @@ export function useFlowContext(): FlowContext {
 }
 
 /** Gets the containing flow block. */
-export function getContainingFlow(graph: ReadNodeGraph, node: StepData | BlockData): BlockData | null {
+export function getContainingFlow(graph: ReadNodeGraph, node: AnyNodeData): BlockData | null {
   const ancestors = graph.getAncestors(node, { includeSelf: true });
   return ancestors.find((n) => isNode(n, NodeType.BLOCK) && n.type == BlockType.FLOW) as BlockData | null;
 }
@@ -746,6 +737,16 @@ export function getPorts(
   }
 
   return { incoming: incoming, outgoing: outgoing };
+}
+
+/** Computes the pipe path SVG path string. */
+export function pathToSvg(path: Vector2[]): string {
+  const pathParts: string[] = [];
+  for (let i = 0; i < path.length; i++) {
+    const p = path[i];
+    pathParts.push(`L${p.x},${p.y}`);
+  }
+  return `M${path[0].x},${path[0].y} ${pathParts.join(" ")}`;
 }
 
 /** Gets the view width for a Step. */

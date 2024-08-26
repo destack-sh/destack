@@ -9,12 +9,13 @@ import {
   FLOW_GRID_STEP_Y,
   FlowContext,
   getStepWidth,
+  pathToSvg,
   PIPE_CONTEXT_ACTIONS,
   PIPE_WIDTH,
   STEP_CONTEXT_ACTIONS,
 } from "@/language/flow";
 import { cloneNode } from "@/language/node";
-import { NodeType, PipeData, StepData, StepType, Variant, ViewData } from "@/proto/wire";
+import { NodeReferenceData, NodeType, PipeData, StepData, StepType, Variant, ViewData } from "@/proto/wire";
 import { toNodeRefOneOf, unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
@@ -29,7 +30,7 @@ import { ICON_BY_STEP_TYPE, IconInline } from "@/ui/icon";
 import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/popover";
 import { computedValue } from "@/utils/ref";
 import NodePath from "@/views/builtins/NodePath.vue";
-import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
+import { makeViewId, viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Pipe from "@/views/system/Pipe.vue";
 import Step from "@/views/system/Step.vue";
 import { computed, provide, ref, toRef, type Ref } from "vue";
@@ -51,6 +52,7 @@ const { graph: pkgGraph, connection: pkgConnection } = pkgGetConnection;
 
 const containerRef: Ref<HTMLElement | null> = ref(null);
 const stepRefs: Ref<Record<string, InstanceType<typeof Step>>> = ref({});
+const pipeRefs: Ref<Record<string, InstanceType<typeof Pipe>>> = ref({});
 const flowCtx = new FlowContext({
   spaceGraph: spaceGraph,
   spaceTx: () => spaceConnection.tx,
@@ -68,6 +70,10 @@ const steps = flowCtx.steps;
 const pipes = flowCtx.pipes;
 const things: Ref<(StepData | PipeData)[]> = computed(() => [...steps.value, ...pipes.value]);
 const focusedNodePtr = computedValue(() => props.focus?.nodesPtr[0]);
+
+//
+// Interaction
+//
 
 // actions
 const getThingFromContext = (ctx: ActionContext | undefined): { thing: StepData | PipeData | null; idx: number } => {
@@ -137,9 +143,18 @@ const actions: Partial<ActionMapImplementation<"common">> = {
   "common.navigate.reset": () => flowCtx.resetViewport(),
 };
 
+// focus
+function focus(anchor?: FocusAnchor | NodeReferenceData) {
+  if (typeof anchor == "object") {
+    if (stepRefs.value[anchor.id!] != null) return stepRefs.value[anchor.id!].$el;
+    else if (pipeRefs.value[anchor.id!] != null) return pipeRefs.value[anchor.id!].$el;
+  }
+  return false;
+}
+
 const isFocusAbsolute = canvas.isFocusedAbsoluteRef(self);
 canvas.registerView(self, id);
-defineExpose<ViewExposed>({ self, id, actions });
+defineExpose<ViewExposed>({ self, id, actions, focus });
 </script>
 <template>
   <div
@@ -218,6 +233,7 @@ defineExpose<ViewExposed>({ self, id, actions });
         <!-- NOTE: we draw Pipes behind Steps -->
         <Pipe
           v-for="pipe in pipes"
+          :ref="(ref: any) => (ref != null ? (pipeRefs[pipe.id] = ref) : delete pipeRefs[pipe.id])"
           :key="pipe.id"
           v-contextmenu="
             (context: PopoverContext): PopoverInfo => ({
@@ -263,7 +279,7 @@ defineExpose<ViewExposed>({ self, id, actions });
               stroke-linejoin="bevel"
               stroke="currentColor"
               :d="
-                flowCtx.pathToSvg(
+                pathToSvg(
                   flowCtx.computePath(
                     flowCtx.getPortPosition(flowCtx.draggable.step, flowCtx.draggable.port)!,
                     flowCtx.draggable.cursorWorldPos!,
@@ -285,7 +301,7 @@ defineExpose<ViewExposed>({ self, id, actions });
         v-if="variant != Variant.COMPACT"
         class="pointer-events-auto flex-shrink-0 border border-gray-200 bg-white px-2"
         :container="nodePtr"
-        :focus="focus?.nodesPtr[0]"
+        :focus="props.focus?.nodesPtr[0]"
         :graph="pkgGraph"
       />
       <!-- Menu (Create) -->

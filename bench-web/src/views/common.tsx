@@ -32,13 +32,13 @@ export type FocusAnchor = "left" | "right" | "top" | "bottom" | "center";
 
 export type ViewExposed = (
   | {
-      // always identity
+      // always has an identity
       /** The view node identity of a view component */
       self: Ref<TypedNodeReferenceData<NodeType.VIEW>>;
       id?: Ref<string>;
     }
   | {
-      // maybe anonymous identity
+      // maybe has an identity
       /** The view node identity of a view component, maybe null if anonymous */
       self: Ref<TypedNodeReferenceData<NodeType.VIEW> | null | undefined>;
       /** The anonymous identity of a view component if 'self' is unavailable.  */
@@ -50,7 +50,9 @@ export type ViewExposed = (
   /** The supported variants (if any) */
   variants?: Variant[];
   /** Focus the element at the given anchor inside the view OR return the element to focus. May be a view or any element. */
-  focus?: (anchor?: FocusAnchor | NodeReferenceData) => void | boolean | ViewComponent | HTMLElement | null;
+  focus?: (
+    anchor?: FocusAnchor | NodeReferenceData,
+  ) => void | boolean | ViewComponent | HTMLElement | SVGElement | null;
   /** Map the relevant node at the given element. */
   mapToNode?: (element: HTMLElement | SVGElement | ViewComponent) => NodeReferenceData | null;
 } & {};

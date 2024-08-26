@@ -1,8 +1,8 @@
 <script lang="ts" setup>
-import { PIPE_WIDTH, useFlowContext } from "@/language/flow";
-import { ColorShade, NodeType, PipeType, ViewData } from "@/proto/wire";
+import { pathToSvg, PIPE_WIDTH, useFlowContext } from "@/language/flow";
+import { ColorShade, ColorType, NodeType, PipeType, ViewData } from "@/proto/wire";
 import { unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
-import { canvas } from "@/system/space";
+import { canvas, inspectionPtr } from "@/system/space";
 import { getColorHex } from "@/ui/style";
 import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import { computed, toRef } from "vue";
@@ -20,6 +20,8 @@ const pipePtr = computed(() => unwrapProtoOneOf(props.nodePtr) as TypedNodeRefer
 const flowCtx = useFlowContext();
 const state = flowCtx.pipesStates.value[pipePtr.value.id!]; // must exist
 const { pipe, source, target, path } = state;
+const pathSvg = computed(() => (path.value != null ? pathToSvg(path.value) : undefined));
+const pathColorHex = computed(() => getColorHex(pipe.value?.color ?? ColorType.GRAY, ColorShade.S600));
 
 //
 // Interaction
@@ -30,19 +32,30 @@ defineExpose<ViewExposed>({ self, id });
 </script>
 <template>
   <div v-if="pipe && path">
+    <!-- Background/outline path for highlighting (and larger hit area) -->
+    <!-- NOTE :UX: improve pipe highlighting (maybe use glow?) -->
     <svg
-      class="cursor-pointer overflow-visible text-gray-600"
-      :style="{
-        color: pipe.color != null ? getColorHex(pipe.color, pipe.color?.shade ?? ColorShade.S600) : undefined,
-      }"
+      class="absolute cursor-pointer overflow-visible transition-colors duration-75"
+      :class="inspectionPtr?.id == pipePtr.id ? 'text-primary-900' : 'text-transparent hover:text-primary-900'"
     >
+      <path
+        :stroke-width="PIPE_WIDTH + 2"
+        stroke-linecap="round"
+        stroke-linejoin="bevel"
+        stroke="currentColor"
+        :stroke-dasharray="pipe.type == PipeType.THEN ? undefined : '8,8'"
+        :d="pathSvg"
+      />
+    </svg>
+    <!-- Primary path -->
+    <svg class="pointer-events-none absolute overflow-visible text-gray-600" :style="{ color: pathColorHex }">
       <path
         :stroke-width="PIPE_WIDTH"
         stroke-linecap="round"
         stroke-linejoin="bevel"
         stroke="currentColor"
         :stroke-dasharray="pipe.type == PipeType.THEN ? undefined : '8,8'"
-        :d="flowCtx.pathToSvg(path)"
+        :d="pathSvg"
       />
     </svg>
   </div>
