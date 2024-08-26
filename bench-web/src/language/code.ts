@@ -25,3 +25,10 @@ export function mapPmDocToCode(doc: PmText, prev: CodeData | undefined): CodeDat
   const code: CodeData = { metatype: ObjectType.CODE, lines };
   return code;
 }
+
+/** Rough estimate of the height of a Code */
+export function estimateCodeHeight(code: CodeData, width?: number): number {
+  if (width == null) width = 800;
+  const height = code.lines.length * 20 + 10;
+  return height;
+}

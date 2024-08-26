@@ -11,6 +11,7 @@ import {
   TYPE_BLOCK_TYPES,
 } from "@/language/const";
 import { makeTypeInfo } from "@/language/field";
+import { FLOW_GRID_STEP_X, FLOW_GRID_STEP_Y } from "@/language/flow";
 import { isDescendantOf, resolveNode, type ReadNodeGraph } from "@/language/graph";
 import { getOrderKey, updateOrder } from "@/language/order";
 import { newChangeId, type Transaction } from "@/language/transaction";
@@ -56,6 +57,7 @@ import {
 import { getNodeIcon, getTypeIcon, makeIcon } from "@/ui/icon";
 import { getEnumTitle } from "@/ui/inspect";
 import { getRandomColorType } from "@/ui/style";
+import { addVector2 } from "@/ui/view";
 import { generateOrderKey } from "@/utils/fractional";
 import { assertNever } from "@/utils/functools";
 import { Casing, toCasing } from "@/utils/string";
@@ -296,7 +298,10 @@ export function cloneNode<T extends AnyNodeData>(
   const now = options?.now ?? Timestamp.now();
   const clone = _cloneNode(node, now);
   if (options?.set) Object.assign(clone, options.set);
+
+  // update derived properties
   if ("name" in clone && !options?._isNested) {
+    // update name
     if (isGeneratedNodeName(node.metatype as unknown as NodeType, (clone as any).name)) {
       // bump generated node name
       const siblings = graph.getChildren(node.parentPtr!, node.metatype as unknown as NodeType);
@@ -311,6 +316,10 @@ export function cloneNode<T extends AnyNodeData>(
         clone.name += "2";
       }
     }
+  }
+  if (isNode(clone, NodeType.STEP)) {
+    // update position
+    clone.position = addVector2(clone.position, { x: FLOW_GRID_STEP_X, y: FLOW_GRID_STEP_Y });
   }
 
   // actually create node

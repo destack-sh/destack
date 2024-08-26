@@ -3,8 +3,10 @@ import { blockToType } from "@/language/block";
 import { NAME_CONSTRAINT, OUTGOING_STEP_TYPES, TYPE_BLOCK_TYPES } from "@/language/const";
 import { createField, FIELD_CONTEXT_ACTIONS, makeTypeInfo, type TypeIdentity } from "@/language/field";
 import {
+  estimateStepSize,
   FLOW_GRID_STEP_Y,
   FLOW_PORT_SIZE,
+  getStepWidth,
   STEP_CONTEXT_ACTIONS,
   STEP_HEADER_HEIGHT,
   useFlowContext,
@@ -197,7 +199,7 @@ defineExpose<ViewExposed>({ self, id, actions });
     :class="[stepPtr?.id == inspectionPtr?.id ? 'border-primary-900' : 'border-gray-200 hover:border-gray-300']"
     @mouseup="(e) => flowCtx.endDragging(e, { kind: 'step', step: step! })"
   >
-    <!-- Header -->
+    <!-- Header (:StepHeight) -->
     <div
       ref="headerRef"
       class="flex w-full flex-row items-center border-b border-gray-200 px-2 transition-colors duration-75 group-hover/step:border-gray-300"
@@ -289,7 +291,7 @@ defineExpose<ViewExposed>({ self, id, actions });
       ref="bodyRef"
       class="relative"
       :style="{
-        // ensure ports are aligned with grid (offset by half a step to connect lines :FlowGrid)
+        // ensure ports are aligned with grid (offset by half a step to connect lines :FlowGrid :StepHeight)
         paddingTop: FLOW_GRID_STEP_Y - (STEP_HEADER_HEIGHT % FLOW_GRID_STEP_Y) - FLOW_GRID_STEP_Y / 2 + 'px',
       }"
     >
@@ -365,9 +367,11 @@ defineExpose<ViewExposed>({ self, id, actions });
             <!-- Port content -->
             <div class="cursor-default" data-suppress-drag="true">
               <div v-if="port.type == PortType.RUN" class="px-2.5">
+                <!-- Run port -->
                 <i class="fas fa-play w-5 text-center text-gray-700" />
               </div>
               <div v-else-if="port.type == PortType.FIELD" class="px-1">
+                <!-- Field port -->
                 <Field
                   v-contextmenu="
                     (context: PopoverContext): PopoverInfo => ({
@@ -399,7 +403,7 @@ defineExpose<ViewExposed>({ self, id, actions });
         </div>
       </div>
 
-      <!-- Content -->
+      <!-- Content (:StepHeight) -->
       <div
         v-if="[StepType.TEXT, StepType.CODE].includes(step.type)"
         class="mt-1 border-t border-gray-200 pt-1 transition-colors duration-75 group-hover/step:border-gray-300"

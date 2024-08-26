@@ -2,11 +2,13 @@
 import { toCamelName } from "@/language/const";
 import {
   createStep,
+  estimateStepSize,
   FLOW_CANVAS_DOT_SIZE,
   FLOW_CONTEXT_KEY,
   FLOW_GRID_STEP_X,
   FLOW_GRID_STEP_Y,
   FlowContext,
+  getStepWidth,
   PIPE_CONTEXT_ACTIONS,
   PIPE_WIDTH,
   STEP_CONTEXT_ACTIONS,
@@ -79,6 +81,15 @@ const getThingFromContext = (ctx: ActionContext | undefined): { thing: StepData 
   return { thing, idx: thingIdx };
 };
 const actions: Partial<ActionMapImplementation<"common">> = {
+  // create
+  "common.create.step": (action, context) => {
+    if (flow.value == null) return false;
+    createStep(pkgConnection.tx, pkgGraph, {
+      parent: flow.value,
+      step: { type: StepType.CODE },
+      near: flowCtx.centerVec,
+    });
+  },
   // move
   "common.move.up": (action, context) => {
     const { thing } = getThingFromContext(context);
@@ -137,9 +148,10 @@ defineExpose<ViewExposed>({ self, id, actions });
       (context: PopoverContext): PopoverInfo => ({
         kind: 'menu',
         placement: 'bottom-right',
-        items: menuActionsLike(['common.create.here', 'common.edit.paste', 'message.chat.message'], {
-          context: { ...context, triggerNode: flow! },
-        }),
+        items: menuActionsLike(
+          ['common.create.step', 'common.create.pipe', 'common.edit.paste', 'message.chat.message'],
+          { context: { ...context, triggerNode: flow! } },
+        ),
       })
     "
     class="group/flow relative h-full w-full"
@@ -231,13 +243,14 @@ defineExpose<ViewExposed>({ self, id, actions });
           "
           class="absolute"
           :style="{
-            width: flowCtx.getStepWidth(step) + 'px',
+            width: getStepWidth(step) + 'px',
             left: (step.position?.x ?? 0) + 'px',
             top: (step.position?.y ?? 0) + 'px',
           }"
           :node-ptr="toNodeRefOneOf(step)"
           @mousedown="(e) => flowCtx.startDraggingIfAllowed(e, { kind: 'step', step })"
         />
+
         <!-- Pending Pipe (above Steps for clarity)-->
         <div
           v-if="flowCtx.draggable?.kind == 'step-port'"
@@ -294,7 +307,14 @@ defineExpose<ViewExposed>({ self, id, actions });
           }"
           class="rounded px-0.5 hover:bg-gray-100 hover:text-primary-900"
           :class="isFocusAbsolute ? 'text-gray-700' : 'text-gray-400'"
-          @click="flow && createStep(pkgConnection.tx, pkgGraph, { step: { type: stepType }, parent: flow })"
+          @click="
+            flow &&
+              createStep(pkgConnection.tx, pkgGraph, {
+                step: { type: stepType },
+                parent: flow,
+                near: flowCtx.centerVec,
+              })
+          "
         >
           <IconInline v-bind="ICON_BY_STEP_TYPE[stepType]" class="w-5 text-center" />
         </button>

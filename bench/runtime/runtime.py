@@ -196,9 +196,9 @@ class Runtime:
         """Runs a a Runner, retrying automatically and updating the Runner along the way."""
         # check inputs
         if runner.input_type is not None:
-            assert runner.inputs is not None, f"no inputs for {runner!r}"
+            inputs = runner.inputs or ValueObject.new({}, runner.input_type)
             try:
-                check_value(runner.inputs, runner.input_type, on_invalid_raise)
+                check_value(inputs, runner.input_type, on_invalid_raise)
             except ValidationError as e:
                 runner.status = RunStatus.FAILED
                 runner.error = RunError.from_exception(RunErrorKind.RUNTIME, e)
@@ -319,7 +319,7 @@ class Runtime:
                 await self._do_run_once_retrying_tracked(runner)
             else:
                 await self._do_run_once_retrying(runner)
-            # TODO :Performance!: support optimistic commit (commit in background, fail if failed)
+            # nocheckin :Performance!: support optimistic commit (commit in background, fail if failed)
             await self.session.commit()
 
     @tracer.start_as_current_span("runner.process_run")

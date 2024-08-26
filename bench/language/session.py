@@ -378,7 +378,7 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
                 _active_session.reset(self._active_session_token)
                 self._active_session_token = None
         # remove dangling graph if this was a solo session
-        # NOTE :Cleanup: not sure how to prune graphs from temporary objects like request sessions
+        # NOTE :Cleanup: not sure how to prune graphs from temporary objects like request sessions :TransientGraphs
         if self._is_new:
             if len(self._graph) == 1:
                 self._graph.supergraph.remove_graph(self._graph)
@@ -387,7 +387,8 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
 
         logger.trace("session.close", session=self)
 
-    # NOTE :Cleanup: Session suspend/unsuspend is pretty clumsy
+    # NOTE :Cleanup :Robustness: Session suspend/unsuspend is pretty clumsy
+    #  (also getting occassional 'ContextVar was created in a different context' errors...)
 
     def suspend(self):
         """Suspend the session, *erroring* on further edits."""
