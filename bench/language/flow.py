@@ -240,9 +240,8 @@ class StepType(IdEnum):
     START = 1  # source with inputs
     COMPLETE = 2  # terminate with outputs
     FAIL = 3  # terminate with error
+    TRIGGER = 4  # source with just(trigger.value)
     # ABORT?
-    VALUE = 10  # source with just(value)
-    TRIGGER = 11  # source with just(trigger.value)
 
     # run
     BLOCK = 51  # run a runnable block
@@ -252,10 +251,12 @@ class StepType(IdEnum):
     # YIELD # to other program/human
     # APPLY, CREATE, PASS?
 
-    # data
-    # NOTE :Architecture: could the special control Steps be factored into general Port behaviors?
-    #  (for instance, flatten/accumulate could be special incoming and outgoing port-side mappings;
-    #   as opposed to pipe mappings which should probably be stateless)
+    # state
+    VALUE = 100  # read/write value
+
+    # flow
+    # NOTE :Architecture: could the special flow Steps be factored into general Pipe behaviors?
+    #  (for instance, flatten/accumulate could be special incoming and outgoing pipe mappings)
     # MATCH = 100  # X -> | n ports | -> X' filtered output port (per expression)
     # FILTER = 101  # X -> | X -> bool | -> X if true
     # MERGE = 102  # X1, X2, ... -> X
@@ -264,8 +265,6 @@ class StepType(IdEnum):
     # REDUCE = 105  # X[] -> Y
     # ZIP = 106  # X1[], X2[], ... -> (X1, X2, ...)[]
     # JOIN = 107  # X1, X2, ... -> (X1, X2, ...)
-
-    # control
     # WAIT/DELAY?, DEBOUNCE?, TELEPORT?, THROTTLE?
 
     # containers

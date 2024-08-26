@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.08.25.1"
+VERSION = "2024.08.26.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -1328,12 +1328,12 @@ class StepType(betterproto.Enum):
     START = 1
     COMPLETE = 2
     FAIL = 3
-    VALUE = 10
-    TRIGGER = 11
+    TRIGGER = 4
     BLOCK = 51
     TEXT = 54
     CODE = 55
     SEND = 56
+    VALUE = 100
     GROUP = 500
     LOOP = 501
     REPEAT = 502

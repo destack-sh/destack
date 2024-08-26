@@ -18,11 +18,13 @@ import {
   RunProperty,
   RunStatus,
   StepData,
+  StepType,
   TypeKind,
   Variant,
   ViewData,
 } from "@/proto/wire";
 import {
+  isNode,
   packProtoJson,
   propertyReference,
   toNodeRef,
@@ -66,14 +68,20 @@ const nodePtr = computedValue(() => unwrapProtoOneOf(props.nodePtr));
 const focusPtr = computedValue(() => nodePtr.value ?? inspectionPtr.value);
 const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self);
 const { graph: pkgGraph, connection: pkgConnection } = useExistingConnection(focusPtr);
-const { state, updateState, useStateProp: useViewStateProp } = useViewState({
+const {
+  state,
+  updateState,
+  useStateProp: useViewStateProp,
+} = useViewState({
   selfPtr: self,
   graph: spaceGraph,
   stateType: ObjectType.START_VIEW_STATE,
   props,
   emit,
 });
-const lastRunPtr = useViewStateProp(canvas.tx, "lastRunPtr", undefined) as Ref<TypedNodeReferenceData<NodeType.RUN> | undefined>;
+const lastRunPtr = useViewStateProp(canvas.tx, "lastRunPtr", undefined) as Ref<
+  TypedNodeReferenceData<NodeType.RUN> | undefined
+>;
 const { node: lastRun } = useNode({
   name: "start.lastRun",
   type: "search",
@@ -116,6 +124,11 @@ watch(currentRunnableNode, (newNode) => {
   if (newNode != null) runnableNode.value = newNode;
 });
 const runnablePtr = computed(() => (runnableNode.value != null ? toPlainNodeRef(runnableNode.value) : null));
+const baseTypePtr = computed(() => {
+  if (isNode(runnableNode.value, NodeType.STEP) && runnableNode.value.type == StepType.BLOCK)
+    return runnableNode.value.nodePtr;
+  else return runnablePtr.value ?? undefined;
+});
 const inputsPacked: Ref<Record<string, any>> = mapRef(
   useViewStateProp(canvas.tx, "inputsPacked", undefined, { debounce: "short" }), // have to :DebounceNestedValue
   (packed) => (packed != null ? unpackProtoJson(packed) : {}) as Record<string, any>,
@@ -123,12 +136,12 @@ const inputsPacked: Ref<Record<string, any>> = mapRef(
 );
 const inputType = computed(() =>
   runnablePtr.value != null
-    ? makeTypeInfo({ kind: TypeKind.OBJECT, baseTypePtr: runnablePtr.value, baseFieldZone: FieldZone.INPUT })
+    ? makeTypeInfo({ kind: TypeKind.OBJECT, baseTypePtr: baseTypePtr.value, baseFieldZone: FieldZone.INPUT })
     : undefined,
 );
 const outputType = computed(() =>
   runnablePtr.value != null
-    ? makeTypeInfo({ kind: TypeKind.OBJECT, baseTypePtr: runnablePtr.value, baseFieldZone: FieldZone.OUTPUT })
+    ? makeTypeInfo({ kind: TypeKind.OBJECT, baseTypePtr: baseTypePtr.value, baseFieldZone: FieldZone.OUTPUT })
     : undefined,
 );
 

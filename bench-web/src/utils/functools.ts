@@ -162,7 +162,7 @@ export function getRandomEnum<T extends Record<string | number, any>>(anEnum: T)
 /** Asserts that a specific value must not exist (usually for discriminated union like handling) */
 export function assertNever(value?: never, msg?: string): never {
   if (msg != null) {
-    throw new Error(`${msg}: ${JSON.stringify(value)}`);
+    throw new Error(msg);
   } else {
     throw new Error(`unexpected value: ${JSON.stringify(value)}`);
   }
