@@ -81,20 +81,15 @@ export const ACTION_BUILTIN_IDS = [
   "space.edit.create",
   "space.display.fullscreen",
   // common
-  "common.create.here",
   "common.create.above",
   "common.create.below",
-  "common.create.link",
   "common.create.block",
+  "common.create.step",
+  "common.create.pipe",
   "common.create.trigger",
   "common.create.field",
-  "common.create.field.option",
   "common.create.field.input",
   "common.create.field.output",
-  "common.create.record",
-  "common.create.query",
-  "common.create.view",
-  "common.create.step",
   "common.history.undo",
   "common.history.redo",
   "common.edit.rename",
@@ -492,11 +487,7 @@ watch(
 
 // declare common actions
 declareActionMap<"common">({
-  "common.create.here": {
-    icon: "fas fa-plus",
-    title: "Create Here",
-    text: "Create a new item here",
-  },
+  // create
   "common.create.above": {
     icon: "fas fa-angles-up",
     title: "Create Above",
@@ -506,6 +497,21 @@ declareActionMap<"common">({
     icon: "fas fa-angles-down",
     title: "Create Below",
     text: "Create a new item below this item",
+  },
+  "common.create.block": {
+    icon: "fas fa-cube",
+    title: "Create Block",
+    text: "Create a new Block",
+  },
+  "common.create.step": {
+    icon: "fas fa-step-forward",
+    title: "Create Step",
+    text: "Create a new Step",
+  },
+  "common.create.pipe": {
+    icon: "fas fa-pipe-section",
+    title: "Create Pipe",
+    text: "Create a new Pipe",
   },
   // edit
   "common.edit.rename": {

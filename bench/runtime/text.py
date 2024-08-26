@@ -162,7 +162,7 @@ return {"Joke": "Why did the scarecrow win an award? Because he was outstanding 
         code = Code.from_string(code)
         with tracer.start_as_current_span("text.run_code"):
             code_runner = await self.runtime.make_runner(
-                RunKind.CODE, node=self.node, code=code, options=RUN_ONCE, track=True
+                RunKind.CODE, node=self.node, code=code, options=RUN_ONCE, track=self.is_tracked
             )
             await self.runtime.run_runner(code_runner)
         self.outputs = code_runner.outputs
@@ -270,10 +270,11 @@ return {"Joke": "Why did the scarecrow win an award? Because he was outstanding 
         self, projection: Projection, render_options: RenderOptions
     ) -> tuple[ChatMessageContent, ...]:
         """Renders the task from the projection"""
-        if self.inputs is None or len(self.inputs) == 0:
-            raise RunImpossibleError(f"no inputs for {self!r}")
         rendered_task = render(self.node, options=render_options)
-        rendered_inputs = render(self.inputs, options=render_options)
+        if self.inputs is not None:
+            rendered_inputs = render(self.inputs, options=render_options)
+        else:
+            rendered_inputs = "# <no inputs>"
 
         rendered = ChatMessageTextContent(f"""\
 #

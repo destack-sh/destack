@@ -209,7 +209,7 @@ export const ICON_BY_STRUCT_TYPE: Partial<Record<StructType, IconData>> = _makeI
   [StructType.CODE]: "fas fa-code",
   // expression
   [StructType.EXPRESSION]: "fas fa-sigma",
-  [StructType.SELECTION]: "fas fa-check",
+  [StructType.SELECTION]: "fas fa-list-check",
   // views
   [StructType.COLOR]: "fas fa-palette",
   [StructType.FONT]: "fas fa-font",

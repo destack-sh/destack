@@ -314,7 +314,7 @@ defineExpose<ViewExposed & { isRunnable: Ref<boolean> }>({
       />
       <Flow
         v-if="block.type == BlockType.FLOW"
-        class="h-[360px]"
+        class="h-[400px]"
         :node-ptr="props.nodePtr"
         :self="props.self"
         :variant="Variant.COMPACT"

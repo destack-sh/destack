@@ -1,6 +1,8 @@
+import { estimateCodeHeight } from "@/language/code";
 import { BOUNDARY_STEP_TYPES, INCOMING_STEP_TYPES, OUTGOING_STEP_TYPES } from "@/language/const";
 import type { ReadNodeGraph } from "@/language/graph";
 import { makeNodeName } from "@/language/node";
+import { estimateTextHeight } from "@/language/text";
 import type { Transaction } from "@/language/transaction";
 import {
   BlockData,
@@ -22,7 +24,7 @@ import {
   ViewData,
   type StepData,
 } from "@/proto/wire";
-import { isNode, makeStruct, toPlainNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
+import { describeNode, isNode, makeStruct, toPlainNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
 import type { ActionBuiltinId } from "@/ui/action";
 import { isDraggingAllowed } from "@/ui/drag";
 import { getColorHex } from "@/ui/style";
@@ -283,10 +285,12 @@ export class FlowContext {
     return this.dragging.value?.thing.kind == "step-port";
   }
 
-  getStepWidth(step: StepData): number {
-    if (BOUNDARY_STEP_TYPES.includes(step.type)) return FLOW_GRID_STEP_X * 8;
-    else if (step.type == StepType.TEXT || step.type == StepType.CODE) return FLOW_GRID_STEP_X * 10;
-    else return FLOW_GRID_STEP_X * 10;
+  /** Gets the current center of the canvas in world coordinates. */
+  get centerVec(): Vector2 | null {
+    if (this.containerRef.value == null) return null;
+    const containerBounding = this.containerRef.value.getBoundingClientRect();
+    const centerVec = this.viewToWorldVec({ x: containerBounding.width / 2, y: containerBounding.height / 2 });
+    return centerVec;
   }
 
   getStepComponent(step: StepData): InstanceType<typeof Step> | null {
@@ -538,7 +542,7 @@ export class FlowContext {
     const basePosition = step.position != null ? { ...step.position } : { x: 0, y: 0 };
     // move to side
     if (port.side == PortSide.OUTGOING) {
-      basePosition.x += this.getStepWidth(step);
+      basePosition.x += getStepWidth(step);
     }
     // move down below header :FlowGrid
     basePosition.y += STEP_HEADER_HEIGHT + FLOW_GRID_STEP_Y - (STEP_HEADER_HEIGHT % FLOW_GRID_STEP_Y);
@@ -549,7 +553,7 @@ export class FlowContext {
 
   /** Computes the snapped path for a pipe (in world coordinates). */
   computePath(source: Vector2, target: Vector2): Vector2[] {
-    // NOTE :UX: it would be nice to coordinate pipe paths amongst each other
+    // NOTE :UX: it would be nice to coordinate pipe paths amongst each other (like for stacking on the same path/port)
     // nocheckin: nicer pipe paths (pathfinding, snap to grid)
     return [source, target];
   }
@@ -744,24 +748,56 @@ export function getPorts(
   return { incoming: incoming, outgoing: outgoing };
 }
 
+/** Gets the view width for a Step. */
+export function getStepWidth(step: StepData): number {
+  if (BOUNDARY_STEP_TYPES.includes(step.type)) return FLOW_GRID_STEP_X * 8;
+  else if (step.type == StepType.TEXT || step.type == StepType.CODE) return FLOW_GRID_STEP_X * 10;
+  else return FLOW_GRID_STEP_X * 10;
+}
+
+/** Estimate the view size of a Step. Width should be exact, but height is likely overestimated a bit. */
+export function estimateStepSize(step: StepData, numPorts: number): { width: number; height: number } {
+  const width = getStepWidth(step);
+  // base height
+  let height =
+    STEP_HEADER_HEIGHT + // header
+    (FLOW_GRID_STEP_Y - (STEP_HEADER_HEIGHT % FLOW_GRID_STEP_Y) - FLOW_GRID_STEP_Y / 2) + // header padding to align with grid
+    FLOW_GRID_STEP_Y * numPorts; // ports
+  // content
+  if (step.type == StepType.TEXT) {
+    height += (step.text != null ? estimateTextHeight(step.text, width) : 20) + 10;
+  } else if (step.type == StepType.CODE) {
+    height += (step.code != null ? estimateCodeHeight(step.code, width) : 20) + 10;
+  }
+  // snap height to grid
+  height = Math.ceil(height / FLOW_GRID_STEP_Y) * FLOW_GRID_STEP_Y;
+  return { width, height };
+}
+
 export function createStep(
   tx: Transaction,
   graph: ReadNodeGraph,
   options: {
     step: { type: StepType } & Partial<StepData>;
     parent: StepData | TypedNodeReferenceData<NodeType.STEP> | BlockData | TypedNodeReferenceData<NodeType.BLOCK>;
+    near?: Vector2 | null; // in world coordinates
   },
 ): StepData {
   const parent = isNode(options.parent) ? options.parent : graph.getOrError(options.parent);
   const parentPtr = toPlainNodeRef(parent);
   const packagePtr = parent.packagePtr;
+  const flow = getContainingFlow(graph, parent);
+  if (flow == null) throw new Error(`no flow for ${describeNode(parent)}`);
 
   // position in graph
   const siblings = graph.getChildren(parent, NodeType.STEP);
   const orderKey = generateOrderKey(siblings[siblings.length - 1]?.orderKey ?? null, null);
 
-  // nocheckin: position in flow/view
-  //  (also on duplicate?)
+  // TODO :UX: create step in empty space
+  let position: Vector2Data | null = options.step.position ?? null;
+  if (options.near != null) {
+    position = makeStruct({ metatype: StructType.VECTOR2, x: options.near.x, y: options.near.y });
+  }
 
   // create
   const step = tx.create({
@@ -769,6 +805,7 @@ export function createStep(
     name: makeNodeName(graph, { metatype: ObjectType.STEP, type: options.step.type, parentPtr }),
     orderKey,
     ...options.step,
+    position: position ?? undefined,
     type: options.step.type,
     parentPtr,
     packagePtr,

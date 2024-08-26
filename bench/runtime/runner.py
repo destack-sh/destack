@@ -99,6 +99,10 @@ class Runner[S: RunnerCache, T: RunnableNode](abc.ABC):
         )
 
     @property
+    def is_tracked(self) -> bool:
+        return self.run is not None
+
+    @property
     def kind(self) -> RunKind:
         return self.cache.kind
 

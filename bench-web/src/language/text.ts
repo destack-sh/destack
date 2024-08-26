@@ -139,3 +139,10 @@ export function isTextEmpty(text: TextData | null | undefined): boolean {
     text.lines.every((line) => line.type == TextLineType.PLAIN && line.spans.length == 0)
   );
 }
+
+/** Rough estimate of the height of a Text */
+export function estimateTextHeight(text: TextData, width?: number): number {
+  if (width == null) width = 800;
+  const height = text.lines.length * 24;
+  return height;
+}

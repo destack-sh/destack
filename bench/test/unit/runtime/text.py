@@ -23,7 +23,7 @@ def _for_every_provider():
 
 
 async def test_run_text_empty(local_runtime: RuntimeHandle):
-    """Empty Text without any fields should fail."""
+    """Empty Text without any output fields should fail."""
     runtime = local_runtime
     Text1 = Block.new_text("Text1", "")
     runtime.page().blocks.append(Text1)

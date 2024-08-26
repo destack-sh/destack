@@ -1065,6 +1065,7 @@ async def upload(
     session: "Session | None" = None,
 ) -> "File":
     """Uploads the given file to the given (or current) session."""
+    from bench.language.flow import Step
 
     # extract file info
     file, content = await extract_file_info(

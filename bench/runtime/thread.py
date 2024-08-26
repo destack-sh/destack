@@ -201,7 +201,7 @@ class RuntimeThread:
         ), f"{run_data!r} not in {package!r}"
         async with self._session.active(readonly=True):
             # TODO :Incomplete: watch entire Run (tree) while running to handle pause/abort/...
-            #  (and maybe figure out better way to manage transient graphs in supergraph)
+            #  (and maybe figure out better way to manage :TransientGraphs in supergraph)
             graph = NodeGraph(
                 scope=self._session._get_scope_for_node(package),
                 node_types=RUNTIME_NODE_TYPES,
