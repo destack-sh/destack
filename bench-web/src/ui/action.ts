@@ -1041,7 +1041,7 @@ contributeActionMap<"view">({
   // canvas
   "view.space.resetBlank": {
     isEnabled: computed(() => isDeveloperMode.value && space.value != null),
-    icon: "fas fa-window",
+    icon: "fas fa-galaxy",
     title: "Clear Space",
     text: "Clear the space and start blank",
     action: () => {
@@ -1056,7 +1056,7 @@ contributeActionMap<"view">({
     isEnabled: hasLocalBench,
     title: "Restore Default Space",
     text: "Reset the space to the default layout",
-    icon: "fas fa-browser",
+    icon: "fas fa-galaxy",
     action: () => {
       if (pkg.value == null || space.value == null) return;
       const tx = canvas.tx();
@@ -1068,7 +1068,7 @@ contributeActionMap<"view">({
     isEnabled: hasLocalBench,
     title: "Restore Advanced Space",
     text: "Reset the space to the advanced layout",
-    icon: "fas fa-browser",
+    icon: "fas fa-galaxy",
     action: () => {
       if (pkg.value == null || space.value == null) return;
       const tx = canvas.tx();
@@ -1132,7 +1132,7 @@ contributeActionMap<"developer">({
   },
   "developer.view.addEmptyView": {
     isEnabled: isDeveloperMode,
-    icon: "fas fa-window",
+    icon: "fas fa-window-frame",
     title: "Add Empty View",
     text: "Adds an empty debug view to this root",
     action: () => {

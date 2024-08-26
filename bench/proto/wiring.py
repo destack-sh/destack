@@ -247,13 +247,14 @@ def unpack_object_validate[T: BuiltinObject](
     obj_data: AnyStructData | AnyNodeData,
     *,
     supergraph: NodeSuperGraph | None,
+    graph: NodeGraph | None = None,
     parent: Node | None = None,
     expect: type[T] | None = None,
     session: Session | None = None,
 ) -> T:
     """Unpack a builtin object and validate it."""
     obj = unpack_object(
-        obj_data, supergraph=supergraph, parent=parent, expect=expect, session=session
+        obj_data, supergraph=supergraph, graph=graph, parent=parent, expect=expect, session=session
     )
     obj._validate_rec(invalid=on_invalid_raise)
     return obj

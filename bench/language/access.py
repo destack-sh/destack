@@ -25,6 +25,7 @@ from bench.language.const import (
     NODE_TYPES,
     PUBLIC_NODE_TYPES,
     ROOT_NODE_TYPES,
+    RUNTIME_NODE_TYPES,
     SUB_PACKAGE_NODE_TYPES,
     AccessKind,
     AccessMode,
@@ -554,6 +555,9 @@ def _register_system_policies():
             )
             .deny(EditType.UPSERT)
             .object(node_types=LEGISLATIVE_NODE_TYPES.tuple),
+            PolicyRule(name="CannotRemoveRuntimeNodes")
+            .deny(EditType.ARCHIVE, EditType.DELETE, EditType.ERASE)
+            .object(node_types=RUNTIME_NODE_TYPES.tuple),
         ),
         Policy(name="OwnerAccess").append(
             PolicyRule(

@@ -179,7 +179,7 @@ export const ICON_BY_NODE_TYPE: Partial<Record<NodeType, IconData>> = _makeIcons
   [NodeType.TRIGGER]: "fas fa-bolt",
   [NodeType.FIELD]: "fas fa-triangle",
   [NodeType.QUERY]: "fas fa-magnifying-glass",
-  [NodeType.VIEW]: "fas fa-browser",
+  [NodeType.VIEW]: "fas fa-window-frame",
   [NodeType.STEP]: "fas fa-step-forward",
   [NodeType.PIPE]: "fas fa-pipe-section",
   [NodeType.BADGE]: "fas fa-id-badge",
