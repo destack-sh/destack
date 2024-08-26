@@ -34,7 +34,7 @@ import {
   guardNativeNameInput,
   makeSelection,
   useViewExpansion,
-  useViewState
+  useViewState,
 } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
 import NodePath from "@/views/builtins/NodePath.vue";
@@ -283,10 +283,15 @@ const getItemFromContext = (ctx: ActionContext | undefined): { item: NodeTreeIte
   return { item, idx };
 };
 const actions: Partial<ActionMapImplementation<"common">> = {
-  "common.sense.focus": (action, ctx) => {
+  "common.navigate.open": (action, ctx) => {
     const node = getItemFromContext(ctx).item?.node;
     if (node == null) return false;
     canvas.goToNode(node, { where: "bestFrame", skipSelf: preset.value == TreeViewPreset.OUTLINE });
+  },
+  "common.navigate.openInPage": (action, ctx) => {
+    const node = getItemFromContext(ctx).item?.node;
+    if (node == null) return false;
+    canvas.goToNode(node, { where: "bestFrame", skipSelf: preset.value == TreeViewPreset.OUTLINE, preferPage: true });
   },
   "common.edit.rename": (action, ctx) => {
     const node = getItemFromContext(ctx).item?.node;
@@ -419,7 +424,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
                 placement: 'bottom-right',
                 items: menuActionsLike(
                   [
-                    'common.sense.focus*',
+                    'common.navigate.open*',
                     'common.edit.rename',
                     'common.edit.duplicate',
                     'common.edit.archive',

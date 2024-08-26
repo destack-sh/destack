@@ -644,7 +644,7 @@ export class SpaceCanvas {
    */
   goToNode(
     node: AnyNodeData | NodeReferenceData | null,
-    options?: { graph?: ReadNodeGraph; skipSelf?: boolean } & OpenViewOptions,
+    options?: { graph?: ReadNodeGraph; skipSelf?: boolean, preferPage?: boolean } & OpenViewOptions,
   ) {
     const nodePtr = isNodeRef(node) ? node : toNodeRef(node as AnyNodeData);
     const graph = options?.graph ?? this.graph;
@@ -657,7 +657,7 @@ export class SpaceCanvas {
       // just focus directly
       this.focus({ node: nodePtr as ViewData | TypedNodeReferenceData<NodeType.VIEW> });
     } else if (
-      (isNode(node, NodeType.BLOCK) && node.type == BlockType.FLOW) ||
+      (isNode(node, NodeType.BLOCK) && node.type == BlockType.FLOW && !options?.preferPage) ||
       isNode(node, NodeType.STEP) ||
       isNode(node, NodeType.PIPE) ||
       (isNode(node, NodeType.FIELD) && getContainingFlow(graph, node) != null)
@@ -675,7 +675,7 @@ export class SpaceCanvas {
         { ifPresent: "upsertAndFocus", ...options },
       );
       this.inspect({ node: nodePtr, view });
-    } else if (isNode(node, NodeType.BLOCK) && node.type == BlockType.VIEW) {
+    } else if (isNode(node, NodeType.BLOCK) && node.type == BlockType.VIEW && !options?.preferPage) {
       // open as view
       this.addView(
         { type: ViewType.VIEW, nodePtr: toNodeRefOneOf(nodePtr), ...options?.props },
