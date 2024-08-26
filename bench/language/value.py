@@ -1222,11 +1222,11 @@ def coerce_value_object(typ: "TypeInfoBase", value_raw: Any) -> ValueObject:
                 f"got {len(value_raw)} values for {typ!r}, expected {len(fields)}: {', '.join(f.name for f in fields)}"
             )
         for i, field in enumerate(fields):
-            setattr(coerced, field.name, value_raw[i])
+            coerced[field] = value_raw[i]
     elif isinstance(value_raw, dict):
         coerced = ValueObject(typ, value={})
         for field in fields:
-            setattr(coerced, field.name, value_raw.get(field.name))
+            coerced[field] = value_raw.get(field.name)
     elif isinstance(value_raw, ValueObject) and value_raw._type == typ:
         coerced = value_raw
     else:
@@ -1239,7 +1239,6 @@ def coerce_value_object(typ: "TypeInfoBase", value_raw: Any) -> ValueObject:
                 raise ValueError(
                     f"got single value for {typ!r}, need {len(fields)}: {', '.join(f.name for f in fields)}"
                 )
-            check_value(value_raw, fields[0], invalid=on_invalid_raise)
-            setattr(coerced, fields[0].name, value_raw)
+            coerced[fields[0]] = value_raw
 
     return coerced

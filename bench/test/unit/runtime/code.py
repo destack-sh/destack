@@ -38,35 +38,6 @@ async def test_run_code_with_syntax_error(local_runtime: RuntimeHandle):
     assert runner.error.text and "!!invalid!!" in runner.error.text
 
 
-async def test_run_code_with_invalid_inputs(local_runtime: RuntimeHandle):
-    """Code block with invalid inputs should fail immediately (no attempts)."""
-    Code1 = Block.new_code(
-        "InvalidCode", "pass", fields=(Field.input("Input1", int, is_required=True),)
-    )
-    local_runtime.page().blocks.append(Code1)
-    await local_runtime.commit()
-
-    run = Run(parent=local_runtime.package, kind=RunKind.CODE, block=Code1)
-    runner = await local_runtime.run(run, return_error=True)
-    assert runner.status == RunStatus.FAILED
-    assert len(runner.attempts) == 0
-    assert runner.error and runner.error.type == RunErrorType.INVALID_VALUE
-
-
-async def test_run_code_with_invalid_outputs(local_runtime: RuntimeHandle):
-    """Code block with invalid outputs should fail."""
-    Code1 = Block.new_code(
-        "InvalidCode", "return 'invalid'", fields=(Field.output("Output1", int),)
-    )
-    local_runtime.page().blocks.append(Code1)
-    await local_runtime.commit()
-
-    run = Run(parent=local_runtime.package, kind=RunKind.CODE, block=Code1)
-    runner = await local_runtime.run(run, return_error=True)
-    assert runner.status == RunStatus.FAILED
-    assert runner.error and runner.error.type == RunErrorType.INVALID_VALUE
-
-
 async def test_run_code_capture_logs(local_runtime: RuntimeHandle):
     """All logging functions should be captured."""
     Logs101 = Block.new_code(
@@ -160,6 +131,35 @@ async def test_run_code_capture_log_line_overflow(local_runtime: RuntimeHandle):
     assert runner.logs[0].text_plain and "truncate" in runner.logs[0].text_plain
 
 
+async def test_run_code_function_invalid_inputs(local_runtime: RuntimeHandle):
+    """Code block with invalid inputs should fail immediately (no attempts)."""
+    Code1 = Block.new_code(
+        "InvalidCode", "pass", fields=(Field.input("Input1", int, is_required=True),)
+    )
+    local_runtime.page().blocks.append(Code1)
+    await local_runtime.commit()
+
+    run = Run(parent=local_runtime.package, kind=RunKind.CODE, block=Code1)
+    runner = await local_runtime.run(run, return_error=True)
+    assert runner.status == RunStatus.FAILED
+    assert len(runner.attempts) == 0
+    assert runner.error and runner.error.type == RunErrorType.INVALID_VALUE
+
+
+async def test_run_code_function_invalid_outputs(local_runtime: RuntimeHandle):
+    """Code block with invalid outputs should fail."""
+    Code1 = Block.new_code(
+        "InvalidCode", "return 'invalid'", fields=(Field.output("Output1", int),)
+    )
+    local_runtime.page().blocks.append(Code1)
+    await local_runtime.commit()
+
+    run = Run(parent=local_runtime.package, kind=RunKind.CODE, block=Code1)
+    runner = await local_runtime.run(run, return_error=True)
+    assert runner.status == RunStatus.FAILED
+    assert runner.error and runner.error.type == RunErrorType.INVALID_VALUE
+
+
 async def test_run_code_function_inputs_in_context(local_runtime: RuntimeHandle):
     """All the input fields values should be in context (even if not used and unset)."""
     Function = Block.new_code(
@@ -198,6 +198,12 @@ async def test_run_code_function_output_scalar(local_runtime: RuntimeHandle):
     # run with good return value
     runner = await local_runtime.run(Function, inputs={"Input1": 3})
     assert runner.outputs and runner.outputs.Result1 == 12
+
+    # run with cast return value
+    Function.code = code("return Input1 * 1.7")
+    await local_runtime.commit()
+    runner = await local_runtime.run(Function, inputs={"Input1": 3})
+    assert runner.outputs and runner.outputs.Result1 == 5
 
     # run with bad return value
     Function.code = code("return 'stringy'")
