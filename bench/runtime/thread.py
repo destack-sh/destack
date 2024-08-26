@@ -9,8 +9,13 @@ from opentelemetry import trace
 from bench.language import Bench, NodeReference, Package, Server
 from bench.language.bench import Branch, Client, Machine
 from bench.language.connection import GraphEngine
-from bench.language.const import LOADED_BENCH_NODE_TYPES, SOURCE_NODE_TYPES, NodeType
-from bench.language.graph import NodeSuperGraph
+from bench.language.const import (
+    LOADED_BENCH_NODE_TYPES,
+    RUNTIME_NODE_TYPES,
+    SOURCE_NODE_TYPES,
+    NodeType,
+)
+from bench.language.graph import NodeGraph, NodeSuperGraph
 from bench.language.node import GraphScope
 from bench.language.run import Run
 from bench.language.session import Session
@@ -195,14 +200,27 @@ class RuntimeThread:
             run_data.parent_ptr and UUID(run_data.package_ptr.id) == package.id
         ), f"{run_data!r} not in {package!r}"
         async with self._session.active(readonly=True):
+            # TODO :Incomplete: watch entire Run (tree) while running to handle pause/abort/...
+            #  (and maybe figure out better way to manage transient graphs in supergraph)
+            graph = NodeGraph(
+                scope=self._session._get_scope_for_node(package),
+                node_types=RUNTIME_NODE_TYPES,
+                supergraph=self._supergraph,
+            )
             run = wiring.unpack_object_validate(
                 run_data,
                 supergraph=self._supergraph,
+                graph=graph,
                 parent=package,
                 session=self._session,
                 expect=Run,
             )
-        await self._runner.run_run(run, suppress_error=True)
+            graph.add(run)
+            self._supergraph.add_graph(graph)
+        try:
+            await self._runner.run_run(run, suppress_error=True)
+        finally:
+            self._supergraph.remove_graph(graph)
         logger.info("thread.process_run", process=self, run=run, span="current")
 
     def close(self):

@@ -233,7 +233,7 @@ class NodeType(IdEnum):
     RECORD = 1103  # (based)
     NOTIFICATION = 1104  # (based, timed)
 
-    # runtime (eternal, so we don't log edits except removes)
+    # runtime (eternal, so can't be removed and we don't log individual edits)
     SESSION = 1200  # (timed)
     RUN = 1201  # (based, timed)
     SIGNAL = 1202  # (based, timed)

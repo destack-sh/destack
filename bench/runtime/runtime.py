@@ -173,7 +173,7 @@ class Runtime:
         return runner
 
     async def make_runner_from_run(self, run: Run):
-        """Make a Runner. From a Run."""
+        """Make a Runner from a Run."""
         node = run.step or run.block
         if node is None:
             raise RunImpossibleError(f"no node for {run!r}")  # default to package?
@@ -193,9 +193,7 @@ class Runtime:
         )
 
     async def _do_run_once_retrying(self, runner: Runner):
-        """
-        Runs a runner in a Runner, retrying automatically and updating the Runner along the way.
-        """
+        """Runs a a Runner, retrying automatically and updating the Runner along the way."""
         # check inputs
         if runner.input_type is not None:
             assert runner.inputs is not None, f"no inputs for {runner!r}"
@@ -273,9 +271,7 @@ class Runtime:
             self._active_runner.reset(active_run_runner_token)
 
     async def _do_run_once_retrying_tracked(self, runner: Runner):
-        """
-        Runs a runner in a Runner, retrying automatically and updating the Run along the way.
-        """
+        """Runs a Runner, retrying automatically and updating the Run along the way."""
         run = runner.run
         assert run is not None, f"missing run in {runner!r}"
 

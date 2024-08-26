@@ -331,7 +331,7 @@ class RunError(Struct, BenchError):
             elif isinstance(e, ValidationError):
                 typ = RunErrorType.INVALID_VALUE
             else:
-                typ = RunErrorType.RUNTIME_UNAVAILABLE
+                typ = RunErrorType.UNKNOWN_NONRETRYABLE
         else:
             typ = RunErrorType.UNKNOWN_NONRETRYABLE
         return RunError(kind=kind, type=typ, title=title, text=text)
