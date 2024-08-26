@@ -1,11 +1,12 @@
-import { isEnumType, isNodeType } from "@/language/const";
-import { getStorageKey, makeTypeInfo, resolveType, type TypeIdentity } from "@/language/field";
+import { isEnumType, isNodeType, NAME_CONSTRAINT } from "@/language/const";
+import { getPropertyType, getStorageKey, makeTypeInfo, resolveType, type TypeIdentity } from "@/language/field";
 import type { ReadNodeGraph } from "@/language/graph";
 import { type DebounceLevel, type Transaction } from "@/language/transaction";
 import { packBuiltinObject, packValue, unpackBuiltinObject, unpackValue } from "@/language/value";
 import {
   Anchor,
   BenchType,
+  BlockProperty,
   FieldData,
   FieldZone,
   FileType,
@@ -13,6 +14,7 @@ import {
   NodeType,
   ObjectType,
   PrimitiveType,
+  PROPERTY_INFOS_BY_TYPE,
   SelectionData,
   SelectionKind,
   SelectionTarget,
@@ -26,6 +28,7 @@ import {
   Vector3Data,
   Vector4Data,
   ViewData,
+  ViewProperty,
   ViewType,
   type AnyNodeData,
   type AnyNodeReferenceData,
@@ -361,38 +364,84 @@ export function getNativeConstraintProps(constraint?: Partial<TypeConstraintData
 }
 
 /**
- * Guards an event listener with a constraint
+ * Guards and coerces an event listener with a constraint.
  * Forward the value if it passes, otherwise revert the event target to the old value
  */
 export function guardNativeInput<T extends string | number | BigInt>(
+  type: TypeIdentity,
   constraint: Partial<TypeConstraintData> | undefined,
   event: Event,
   oldValue: T | undefined,
-  onAccept: (T: string) => void,
+  onAccept: (T: string | number) => void,
 ) {
+  // coerce
+  let newValue: string | number = (event.target as HTMLInputElement).value ?? "";
+  if (
+    type.kind == TypeKind.PRIMITIVE &&
+    [
+      PrimitiveType.INT16,
+      PrimitiveType.INT32,
+      PrimitiveType.INT64,
+      PrimitiveType.FLOAT32,
+      PrimitiveType.FLOAT64,
+    ].includes(type.primitiveType!)
+  ) {
+    newValue = parseFloat(newValue);
+    if (isNaN(newValue)) {
+      newValue = 0;
+    }
+  }
+
   if (constraint == null) {
-    onAccept((event.target as HTMLInputElement).value);
+    // nothing to check
+    onAccept(newValue);
     return;
   }
-  const input = event.target as HTMLInputElement;
-  const newValue = (input.value ?? "") as string;
+
+  // check
   let isValid = true;
-  if (constraint.minLength != null && newValue.length < constraint.minLength) {
-    isValid = false;
-  } else if (constraint.maxLength != null && newValue.length > constraint.maxLength) {
-    isValid = false;
-  } else if (constraint.regex != null && !new RegExp(constraint.regex).test(newValue)) {
-    isValid = false;
-  } else if (constraint.minValue != null && parseFloat(newValue) < constraint.minValue) {
-    isValid = false;
-  } else if (constraint.maxValue != null && parseFloat(newValue) > constraint.maxValue) {
-    isValid = false;
+
+  if (typeof newValue == "string") {
+    if (constraint.minLength != null && newValue.length < constraint.minLength) {
+      isValid = false;
+    } else if (constraint.maxLength != null && newValue.length > constraint.maxLength) {
+      isValid = false;
+    } else if (constraint.regex != null && !new RegExp(constraint.regex).test(newValue)) {
+      isValid = false;
+    }
   }
+  if (typeof newValue == "number") {
+    if (constraint.minValue != null && newValue < constraint.minValue) {
+      isValid = false;
+    } else if (constraint.maxValue != null && newValue > constraint.maxValue) {
+      isValid = false;
+    }
+  }
+
   if (!isValid) {
+    const input = event.target as HTMLInputElement;
     input.value = oldValue?.toString() ?? "";
   } else {
     onAccept(newValue);
   }
+}
+export function guardNativeNameInput(event: Event, oldValue: string | undefined, onAccept: (name: string) => void) {
+  return guardNativeInput(
+    getPropertyType(PROPERTY_INFOS_BY_TYPE[ObjectType.BLOCK][BlockProperty.name]),
+    NAME_CONSTRAINT,
+    event,
+    oldValue,
+    (newValue: any) => onAccept(newValue as string),
+  );
+}
+export function guardNativeTitleInput(event: Event, oldValue: string | undefined, onAccept: (title: string) => void) {
+  return guardNativeInput(
+    getPropertyType(PROPERTY_INFOS_BY_TYPE[ObjectType.VIEW][ViewProperty.title]),
+    NAME_CONSTRAINT,
+    event,
+    oldValue,
+    (newValue: any) => onAccept(newValue as string),
+  );
 }
 
 /** Set or unset the pinned 'nodePtr' for a Helper View (they normally default to some active node or some other empty state). */

@@ -6,6 +6,7 @@ import { canvas } from "@/system/space";
 import { getNativeConstraintProps, guardNativeInput } from "@/ui/view";
 import { ViewContentWrapper, makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import { computed, ref, toRef } from "vue";
+import { STRING_TYPE_IDENTITY } from "@/language/field";
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW> } & Partial<
@@ -54,7 +55,9 @@ defineExpose<ViewExposed>({
         v-bind="getNativeConstraintProps(valueType?.constraint)"
         :disabled="isDisabled"
         @input="
-          guardNativeInput(valueType?.constraint, $event, modelValue, (newValue) => emit('update:modelValue', newValue))
+          guardNativeInput(valueType ?? STRING_TYPE_IDENTITY, valueType?.constraint, $event, modelValue, (newValue) => {
+            emit('update:modelValue', newValue, typeof newValue);
+          })
         "
       />
     </div>

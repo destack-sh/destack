@@ -113,6 +113,8 @@ export function makeTypeInfo(partial: Partial<Omit<TypeInfoData, "metatype">>): 
   return makeDefaultObject({ ...partial, metatype: ObjectType.TYPE_INFO });
 }
 
+export const STRING_TYPE_IDENTITY = makeTypeInfo({ kind: TypeKind.PRIMITIVE, primitiveType: PrimitiveType.STRING });
+
 const _propertyTypeInfos: Record<string, TypeIdentity> = {};
 
 export function getPropertyType(property: PropertyInfo | PropertyReferenceData): TypeIdentity {

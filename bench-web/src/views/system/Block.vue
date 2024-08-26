@@ -19,7 +19,11 @@ import { useExistingConnection } from "@/system/connection";
 import { IconInline, getNodeIcon } from "@/ui/icon";
 import { canvas, inspectionPtr } from "@/system/space";
 import { isGeneratedNodeName, isRunnableRef } from "@/language/node";
-import { getNativeConstraintProps as getNativeConstraintProps, guardNativeInput } from "@/ui/view";
+import {
+  getNativeConstraintProps as getNativeConstraintProps,
+  guardNativeInput,
+  guardNativeNameInput,
+} from "@/ui/view";
 import { onMouseReleasedOnce } from "@/ui/layout";
 import { menuActionsLike, pushPopover, type PopoverInfo, type PopoverInfoIn } from "@/ui/popover";
 import type { TooltipInfo } from "@/ui/tooltip";
@@ -157,7 +161,7 @@ defineExpose<ViewExposed & { isRunnable: Ref<boolean> }>({
           :size="block.name.length + 3"
           v-bind="getNativeConstraintProps(NAME_CONSTRAINT)"
           @input="
-            guardNativeInput(NAME_CONSTRAINT, $event, block!.name, (newValue) =>
+            guardNativeNameInput($event, block!.name, (newValue) =>
               pkgConnection.tx.update(block!, { name: newValue }, { debounce: 'long' }),
             )
           "

@@ -23,6 +23,7 @@ import {
   PROPERTY_INFOS_BY_TYPE,
   StepProperty,
   StepType,
+  Struct,
   StructType,
   ViewProperty,
   ViewType,
@@ -103,6 +104,7 @@ export const EXPOSED_STRUCT_TYPES = [
   // expressions
   StructType.EXPRESSION,
   StructType.SELECTION,
+  StructType.VALUE,
   // views
   StructType.COLOR,
   StructType.FONT,

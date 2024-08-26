@@ -31,10 +31,10 @@ import {
   VIEW_DEFAULT_MAX_WIDTH,
   VIEW_DEFAULT_MIN_WIDTH,
   getNativeConstraintProps,
-  guardNativeInput,
+  guardNativeNameInput,
   makeSelection,
   useViewExpansion,
-  useViewState,
+  useViewState
 } from "@/ui/view";
 import { computedValue } from "@/utils/ref";
 import NodePath from "@/views/builtins/NodePath.vue";
@@ -490,7 +490,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
             @keydown.enter.stop.prevent="cancelRename"
             @keydown.escape.stop.prevent="cancelRename"
             @input="
-              guardNativeInput(NAME_CONSTRAINT, $event, (node as any).name, (newValue) => {
+              guardNativeNameInput($event, (node as any).name, (newValue) => {
                 pkgConnection.tx.update(node!, { name: newValue }, { debounce: 'long' });
               })
             "
