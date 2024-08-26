@@ -88,6 +88,12 @@ export function getPortKey(port: PortId): PortKeyData {
   };
 }
 
+export type PipePath = {
+  points: Vector2[];
+};
+
+export type BoundingBox = { x1: number; y1: number; x2: number; y2: number; width: number; height: number };
+
 export type FlowThing =
   | {
       kind: "canvas";
@@ -150,7 +156,7 @@ export class PipeState {
   sourcePort: Ref<Port | null>;
   targetPort: Ref<Port | null>;
   // layout
-  path: Ref<Vector2[] | null>;
+  path: Ref<PipePath | null>;
 
   constructor(flow: FlowContext, pipe: PipeData) {
     this.flow = flow;
@@ -183,7 +189,13 @@ export class PipeState {
       const sourcePortPosition = this.flow.getPortPosition(this.source.value!, this.sourcePort.value);
       const targetPortPosition = this.flow.getPortPosition(this.target.value!, this.targetPort.value);
       if (sourcePortPosition == null || targetPortPosition == null) return null;
-      return this.flow.computePath(sourcePortPosition, targetPortPosition);
+      const path = this.flow.computePath(
+        sourcePortPosition,
+        this.sourcePort.value.side,
+        targetPortPosition,
+        this.targetPort.value.side,
+      );
+      return path;
     });
   }
 }
@@ -207,8 +219,10 @@ export class FlowContext {
   scale: Ref<number>;
   steps: Ref<StepData[]>;
   pipes: Ref<PipeData[]>;
+
   stepsStates: Ref<Record<string, StepState>> = shallowRef({});
   pipesStates: Ref<Record<string, PipeState>> = shallowRef({});
+  boundingBox: Ref<BoundingBox | null> = shallowRef(null);
 
   constructor(context: {
     spaceGraph: ReadNodeGraph;
@@ -268,6 +282,9 @@ export class FlowContext {
       },
       { immediate: true },
     );
+
+    // layout
+    this.boundingBox = computed(() => this.computeBoundingBox());
   }
 
   get tx() {
@@ -552,11 +569,59 @@ export class FlowContext {
     return basePosition;
   }
 
-  /** Computes the snapped path for a pipe (in world coordinates). */
-  computePath(source: Vector2, target: Vector2): Vector2[] {
-    // NOTE :UX: it would be nice to coordinate pipe paths amongst each other (like for stacking on the same path/port)
-    // nocheckin: nicer pipe paths (pathfinding, snap to grid)
-    return [source, target];
+  /** Computes the bounding box for all steps in this flow (in world coordinates). */
+  computeBoundingBox(): BoundingBox | null {
+    const steps = this.steps.value;
+    if (steps.length == 0) return null;
+    let x1 = steps[0].position?.x ?? 0;
+    let y1 = steps[0].position?.y ?? 0;
+    let x2 = steps[0].position?.x ?? 0;
+    let y2 = steps[0].position?.y ?? 0;
+    for (const step of steps) {
+      const state = this.stepsStates.value[step.id!];
+      if (state == null) continue;
+      const numPorts = Math.max(state.ports.value.incoming.length, state.ports.value.outgoing.length);
+      const size = estimateStepSize(step, numPorts);
+      x1 = Math.min(x1, step.position?.x ?? 0);
+      y1 = Math.min(y1, step.position?.y ?? 0);
+      x2 = Math.max(x2, (step.position?.x ?? 0) + size.width);
+      y2 = Math.max(y2, (step.position?.y ?? 0) + size.height);
+    }
+    return { x1, y1, x2, y2, width: x2 - x1, height: y2 - y1 };
+  }
+
+  /**
+   * Computes the manhattan path for a pipe (in world coordinates, without considering other pipes).
+   * NOTE :UX: improve pipe paths (better pathfinding, coordinate pipe paths, ...)
+   * */
+  computePath(source: Vector2, sourceSide: PortSide, target: Vector2, targetSide: PortSide): PipePath | null {
+    // We follow a pretty simple manhattan-ish algorithm with a few key objectives:
+    //  0. We start at the source port and want to reach the target port (if we can't, return null).
+    //  1. Pipes are always exactly on the grid; ports are always connected horizontally.
+    //  2. Unless directly at a port, we must stay at least one step away from any step.
+    //  3. Pipes must be straight and should look reasonably clean, so try to break at halfway points.
+    //  4. Path computation must be very fast (we're doing it on every mouse move and state change).
+
+    // swap it so that source is outgoing
+    if (sourceSide != PortSide.OUTGOING) {
+      [source, target] = [target, source];
+      [sourceSide, targetSide] = [targetSide, sourceSide];
+    }
+
+    const points: Vector2[] = [source];
+
+    const currentInGrid = this.snapVec(source);
+    const targetInGrid = this.snapVec(target);
+    let direction: "x" | "y" = "x";
+
+    while (currentInGrid.x != targetInGrid.x || currentInGrid.y != targetInGrid.y) {
+      const distance = targetInGrid[direction] - currentInGrid[direction];
+      currentInGrid[direction] += distance;
+      points.push({ x: currentInGrid.x, y: currentInGrid.y });
+      direction = direction == "x" ? "y" : "x";
+    }
+
+    return { points };
   }
 
   /** Gets the pipes connected to the given port. */

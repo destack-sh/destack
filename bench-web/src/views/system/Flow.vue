@@ -15,7 +15,7 @@ import {
   STEP_CONTEXT_ACTIONS,
 } from "@/language/flow";
 import { cloneNode } from "@/language/node";
-import { NodeReferenceData, NodeType, PipeData, StepData, StepType, Variant, ViewData } from "@/proto/wire";
+import { NodeReferenceData, NodeType, PipeData, PortSide, StepData, StepType, Variant, ViewData } from "@/proto/wire";
 import { toNodeRefOneOf, unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
@@ -70,6 +70,15 @@ const steps = flowCtx.steps;
 const pipes = flowCtx.pipes;
 const things: Ref<(StepData | PipeData)[]> = computed(() => [...steps.value, ...pipes.value]);
 const focusedNodePtr = computedValue(() => props.focus?.nodesPtr[0]);
+const pendingPath = computed(() => {
+  if (flowCtx.draggable?.kind != "step-port") return null;
+  return flowCtx.computePath(
+    flowCtx.getPortPosition(flowCtx.draggable.step, flowCtx.draggable.port)!,
+    flowCtx.draggable.port.side,
+    flowCtx.draggable.cursorWorldPos!,
+    flowCtx.draggable.port.side == PortSide.OUTGOING ? PortSide.INCOMING : PortSide.OUTGOING,
+  );
+});
 
 //
 // Interaction
@@ -272,20 +281,14 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           v-if="flowCtx.draggable?.kind == 'step-port'"
           class="pointer-events-none absolute text-gray-700 opacity-50"
         >
-          <svg v-if="flowCtx.draggable.cursorWorldPos" class="overflow-visible">
+          <svg v-if="pendingPath" class="overflow-visible">
             <path
               :stroke-width="PIPE_WIDTH"
               stroke-linecap="round"
               stroke-linejoin="bevel"
               stroke="currentColor"
-              :d="
-                pathToSvg(
-                  flowCtx.computePath(
-                    flowCtx.getPortPosition(flowCtx.draggable.step, flowCtx.draggable.port)!,
-                    flowCtx.draggable.cursorWorldPos!,
-                  ),
-                )
-              "
+              fill="none"
+              :d="pathToSvg(pendingPath.points)"
             />
           </svg>
         </div>
