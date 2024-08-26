@@ -34,7 +34,7 @@ import { DEFAULT_USER_ICON, IconInline, makeIcon } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
 import { menuActionsLike, type PopoverContext, type PopoverInfo, type PopoverInfoIn } from "@/ui/popover";
 import { graphIndex } from "@/ui/search";
-import { getNativeConstraintProps, guardNativeInput, makeSelection } from "@/ui/view";
+import { getNativeConstraintProps, guardNativeInput, guardNativeNameInput, makeSelection } from "@/ui/view";
 import { getElement } from "@/utils/element";
 import { generateRandomName } from "@/utils/naming";
 import { computedValue } from "@/utils/ref";
@@ -353,7 +353,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
             :placeholder="thread == null ? 'New Thread' : 'Untitled Thread'"
             v-bind="getNativeConstraintProps(TITLE_CONSTRAINT)"
             @input="
-              guardNativeInput(TITLE_CONSTRAINT, $event, thread?.title, (newValue) =>
+              guardNativeNameInput($event, thread?.title, (newValue) =>
                 pkgConnection.tx.update(node!, { title: newValue }, { debounce: 'long' }),
               )
             "

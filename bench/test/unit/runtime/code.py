@@ -160,6 +160,25 @@ async def test_run_code_function_invalid_outputs(local_runtime: RuntimeHandle):
     assert runner.error and runner.error.type == RunErrorType.INVALID_VALUE
 
 
+async def test_run_code_function_coerce_inputs(local_runtime: RuntimeHandle):
+    """All the input fields values should be coerced to the correct type."""
+    Function = Block.new_code(
+        "Function",
+        "return Input1, Input2",
+        fields=(
+            Field.input("Input1", int),
+            Field.input("Input2", int),
+            Field.output("Output1", float),
+            Field.output("Output2", float),
+        ),
+    )
+    local_runtime.page().blocks.append(Function)
+    await local_runtime.commit()
+
+    runner = await local_runtime.run(Function, inputs={"Input1": 3.0, "Input2": 4.4})
+    assert runner.outputs and runner.outputs.Output1 == 3 and runner.outputs.Output2 == 4
+
+
 async def test_run_code_function_inputs_in_context(local_runtime: RuntimeHandle):
     """All the input fields values should be in context (even if not used and unset)."""
     Function = Block.new_code(

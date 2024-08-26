@@ -3,14 +3,12 @@ import { blockToType } from "@/language/block";
 import { NAME_CONSTRAINT, OUTGOING_STEP_TYPES, TYPE_BLOCK_TYPES } from "@/language/const";
 import { createField, FIELD_CONTEXT_ACTIONS, makeTypeInfo, type TypeIdentity } from "@/language/field";
 import {
-  estimateStepSize,
   FLOW_GRID_STEP_Y,
   FLOW_PORT_SIZE,
-  getStepWidth,
   STEP_CONTEXT_ACTIONS,
   STEP_HEADER_HEIGHT,
   useFlowContext,
-  type Port,
+  type Port
 } from "@/language/flow";
 import { cloneNode, moveNode, onNodeMorphed } from "@/language/node";
 import {
@@ -32,7 +30,7 @@ import { startDragging, useMultiDropZone, type DraggedContent, type MultiAnchor 
 import { getNodeIcon, IconInline } from "@/ui/icon";
 import { menuActionsLike, pushPopover, type PopoverContext, type PopoverInfo, type PopoverInfoIn } from "@/ui/popover";
 import type { TooltipInfo } from "@/ui/tooltip";
-import { getNativeConstraintProps, guardNativeInput } from "@/ui/view";
+import { getNativeConstraintProps, guardNativeNameInput } from "@/ui/view";
 import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import Code from "@/views/content/Code.vue";
 import Icon from "@/views/content/Icon.vue";
@@ -231,7 +229,7 @@ defineExpose<ViewExposed>({ self, id, actions });
           :size="step.name.length + 3"
           v-bind="getNativeConstraintProps(NAME_CONSTRAINT)"
           @input="
-            guardNativeInput(NAME_CONSTRAINT, $event, step!.name, (newValue) =>
+            guardNativeNameInput($event, step!.name, (newValue) =>
               flowCtx.tx.update(step!, { name: newValue }, { debounce: 'long' }),
             )
           "

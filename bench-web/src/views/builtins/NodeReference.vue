@@ -1,13 +1,13 @@
 <script lang="ts" setup>
+import { NAME_CONSTRAINT, toCamelName } from "@/language/const";
+import { getNodeType } from "@/language/node";
 import { ObjectType, PROPERTY_ENUM_BY_TYPE, ViewType, type AnyNodeData } from "@/proto/wire";
+import { describeNode, isNode, type SomeNodeReferenceData } from "@/proto/wiring";
 import type { Connection } from "@/system/connection";
 import { IconInline, getNodeIcon } from "@/ui/icon";
-import { getNodeType } from "@/language/node";
-import { getNativeConstraintProps, guardNativeInput } from "@/ui/view";
 import type { PopoverInfoIn } from "@/ui/popover";
+import { getNativeConstraintProps, guardNativeNameInput } from "@/ui/view";
 import { computed } from "vue";
-import { describeNode, isNode, type SomeNodeReferenceData } from "@/proto/wiring";
-import { NAME_CONSTRAINT, toCamelName } from "@/language/const";
 
 const props = defineProps<{
   node: AnyNodeData | SomeNodeReferenceData;
@@ -49,7 +49,7 @@ const nodeProperties = computed(() => (nodeType.value != null ? PROPERTY_ENUM_BY
       :disabled="!('name' in node)"
       v-bind="getNativeConstraintProps(NAME_CONSTRAINT)"
       @input="
-        guardNativeInput(NAME_CONSTRAINT, $event, (node as any).name, (newValue) => {
+        guardNativeNameInput($event, (node as any).name, (newValue) => {
           if (!isNode(node)) throw new Error(`unexpected node: ${describeNode(node)}`);
           connection.tx.update(node!, { name: newValue }, { debounce: 'long' });
         })

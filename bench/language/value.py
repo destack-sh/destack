@@ -549,7 +549,7 @@ def check_value_scalar(value: SomeValue, typ: "TypeInfoBase", invalid: "Validati
         if expected_type is None:
             return  # nothing to check?
         elif type(value) is not expected_type and not isinstance(value, expected_type):
-            invalid(value, "not of type", typ)
+            invalid(value, f"not of type, is '{type(value).__name__}'", typ)
             return  # also nothing to do
         # check constraint
         if typ.constraint is not None:
@@ -597,7 +597,7 @@ def check_value_scalar(value: SomeValue, typ: "TypeInfoBase", invalid: "Validati
                 # special case :FakeNodePropertyUnion for reference properties
                 or value.metatype not in (typ._from_property.reference_nodes or ())
             ):
-                invalid(value, "not of type", typ)
+                invalid(value, f"not of type, is {value.metatype}", typ)
         elif isinstance(value, NodeReferenceBase):
             # also accept node references in case this is a wired value or a rich reference
             if value.type != typ.bench_type and (
@@ -605,7 +605,7 @@ def check_value_scalar(value: SomeValue, typ: "TypeInfoBase", invalid: "Validati
                 # special case :FakeNodePropertyUnion for reference properties
                 or value.type not in (typ._from_property.reference_nodes or ())
             ):
-                invalid(value, "not of type", typ)
+                invalid(value, f"not of type, is {value.type}", typ)
         else:
             invalid(value, "not a Node", typ)
     elif typ.kind == TypeKind.STRUCT:
@@ -616,7 +616,7 @@ def check_value_scalar(value: SomeValue, typ: "TypeInfoBase", invalid: "Validati
             if not getattr(cast("Struct", value), "__is_struct__", False):
                 invalid(value, "not a Struct", typ)
             elif cast("Struct", value).metatype != typ.bench_type:
-                invalid(value, "not of type", typ)
+                invalid(value, f"not of type, is {cast('Struct', value).metatype}", typ)
     elif typ.kind == TypeKind.ENUM:
         enum_cls = ENUM_CLASS_BY_TYPE[cast(EnumType, typ.bench_type)]
         try:

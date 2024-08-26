@@ -32,7 +32,7 @@ import {
   TypeKind,
   ViewType,
   type AnyNodeData,
-  type IconData
+  type IconData,
 } from "@/proto/wire";
 import type { FunctionalComponent } from "vue";
 // fa-icons is generated with:
@@ -205,11 +205,12 @@ export const ICON_BY_STRUCT_TYPE: Partial<Record<StructType, IconData>> = _makeI
   [StructType.TRIGGER_INFO]: "fas fa-bolt",
   // files
   [StructType.ICON]: "fas fa-icons",
-  // code 
+  // code
   [StructType.CODE]: "fas fa-code",
   // expression
   [StructType.EXPRESSION]: "fas fa-sigma",
   [StructType.SELECTION]: "fas fa-list-check",
+  [StructType.VALUE]: "fas fa-hexagon",
   // views
   [StructType.COLOR]: "fas fa-palette",
   [StructType.FONT]: "fas fa-font",
@@ -305,7 +306,7 @@ export const ICON_BY_VIEW_TYPE: Partial<Record<ViewType, IconData>> = _makeIcons
 
   // kernel
   [ViewType.USER_WIZARD]: "fas fa-user",
-  [ViewType.BENCH_WIZARD]: "fas fa-circle-dot", 
+  [ViewType.BENCH_WIZARD]: "fas fa-circle-dot",
   [ViewType.EMPTY]: "fas fa-bug",
 
   // system

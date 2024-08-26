@@ -6,7 +6,7 @@ import { useExistingConnection, type PreparedGetConnection } from "@/system/conn
 import { IconInline, getNodeIcon } from "@/ui/icon";
 import { NAME_CONSTRAINT } from "@/language/const";
 import { canvas, inspectionPtr } from "@/system/space";
-import { getNativeConstraintProps, guardNativeInput } from "@/ui/view";
+import { getNativeConstraintProps, guardNativeInput, guardNativeNameInput } from "@/ui/view";
 import { type PopoverInfoIn } from "@/ui/popover";
 import type { TooltipInfo } from "@/ui/tooltip";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
@@ -97,7 +97,7 @@ defineExpose<ViewExposed>({ self, id, actions });
       :size="(field.name?.length ?? 0) + 3"
       v-bind="getNativeConstraintProps(NAME_CONSTRAINT)"
       @input="
-        guardNativeInput(NAME_CONSTRAINT, $event, field.name, (newValue) =>
+        guardNativeNameInput($event, field.name, (newValue) =>
           pkgConnection.tx.update(field!, { name: newValue }, { debounce: 'long' }),
         )
       "
