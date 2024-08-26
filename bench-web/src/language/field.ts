@@ -341,13 +341,13 @@ function getFieldNameFromType(graph: ReadNodeGraph, field: Partial<FieldData>): 
   }
 }
 
-/** Create a Field relative to a Field or a Block. */
+/** Create a Field relative to some Field-containing node. */
 export function createField(
   tx: Transaction,
   graph: ReadNodeGraph,
   options: {
     field?: Partial<FieldData>;
-    anchor: "before" | "above" | "after" | "below" | "inside" | "center";
+    anchor: "before" | "above" | "after" | "below" | "inside" | "start" | "end" | "center";
     target:
       | FieldData
       | TypedNodeReferenceData<NodeType.FIELD>
@@ -383,11 +383,21 @@ export function createField(
     } else {
       zone = FieldZone.VARIABLE;
     }
+  } else if (isNode(target, NodeType.STEP)) {
+    if (fieldIn?.zone == null) throw new Error(`missing zone for step field: ${describeNode(target)}`);
+    siblings = graph.getChildren(target, NodeType.FIELD);
+    parentPtr = toPlainNodeRef(target);
+    if (anchor == "start") {
+      orderKey = getOrderKey({ position: "before", reference: siblings[0], nodes: siblings });
+    } else {
+      orderKey = getOrderKey({ position: "after", reference: siblings[siblings.length - 1], nodes: siblings });
+    }
+    zone = fieldIn.zone;
   } else if (isNode(target, NodeType.FIELD)) {
     if (anchor == "inside" || anchor == "center") throw new Error(`unexpected anchor for field: ${anchor}`);
     siblings = graph.getChildren(target.parentPtr!, NodeType.FIELD);
     parentPtr = target.parentPtr!;
-    orderKey = getOrderKey({ position: anchor, reference: target, nodes: siblings });
+    orderKey = getOrderKey({ position: anchor == "start" ? "before" : "after", reference: target, nodes: siblings });
     zone = target.zone;
     // copy kind if none given
     kind = fieldIn?.kind ?? (target as FieldData).kind;

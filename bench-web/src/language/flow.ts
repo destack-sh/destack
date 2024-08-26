@@ -4,6 +4,7 @@ import { makeNodeName } from "@/language/node";
 import type { Transaction } from "@/language/transaction";
 import {
   BlockData,
+  BlockType,
   ColorShade,
   FieldData,
   FieldZone,
@@ -129,13 +130,7 @@ export class StepState {
     this.fields = flow.graph.getChildrenRef(step, NodeType.FIELD);
     // derived
     this.ports = computed(() =>
-      this.step.value != null
-        ? this.flow.getPorts(this.step.value, {
-            fields: this.fields.value,
-            node: this.node.value!,
-            nodeFields: this.nodeFields.value,
-          })
-        : { incoming: [], outgoing: [] },
+      this.step.value != null ? this.flow.getPorts(this.step.value) : { incoming: [], outgoing: [] },
     );
   }
 }
@@ -588,100 +583,30 @@ export class FlowContext {
     }
   }
 
-  /** Gets the (reactive) ports for a given step. Pass in related to avoid re-fetching if already known. */
-  getPorts(
-    step: StepData,
-    related: { fields: FieldData[]; node: BlockData | StepData | undefined; nodeFields: FieldData[] } | undefined,
-  ): { incoming: Port[]; outgoing: Port[] } {
-    const incoming: Port[] = [];
-    const outgoing: Port[] = [];
+  /** Gets the computed (reactive) fields for a given step (may be from the flow or related nodes). */
+  getStepFields(step: StepData, side: PortSide) {
+    const state = this.stepsStates.value[step.id!];
+    if (state == null || this.flow.value == null) return null;
+    return getStepFields(this.spaceGraph, step, side, {
+      stepFields: state.fields.value,
+      flow: this.flow.value,
+      flowFields: this.fields.value,
+      node: state.node.value,
+      nodeFields: state.nodeFields.value,
+    });
+  }
 
-    if (related == null) {
-      // get related nodes (not reactive)
-      related = {
-        fields: this.graph.getChildren(step, NodeType.FIELD),
-        node: this.graph.getMaybe(step.nodePtr) as BlockData | StepData | undefined,
-        nodeFields: step.nodePtr != null ? this.graph.getChildren(step.nodePtr, NodeType.FIELD) : [],
-      };
-    }
-
-    // NOTE :UX: we hide :ObjectPorts by default for now (not sure how/when to enable, always enabled is cluttery)
-    if (!INCOMING_STEP_TYPES.includes(step.type)) {
-      // incoming ports
-      incoming.push({ parent: step, idx: 0, type: PortType.RUN, side: PortSide.INCOMING });
-    }
-    if (!OUTGOING_STEP_TYPES.includes(step.type)) {
-      // outgoing ports
-      outgoing.push({ parent: step, idx: 0, type: PortType.RUN, side: PortSide.OUTGOING });
-    }
-
-    if (step.type == StepType.START) {
-      // flow input fields as outgoing ports
-      for (const field of this.fields.value) {
-        if (field.zone == FieldZone.INPUT) {
-          outgoing.push({
-            parent: step,
-            idx: outgoing.length,
-            type: PortType.FIELD,
-            side: PortSide.OUTGOING,
-            field,
-            fieldPtr: toPlainNodeRef(field),
-            fieldParent: this.flow.value!,
-          });
-        }
-      }
-    } else if (step.type == StepType.COMPLETE) {
-      // flow output fields as incoming ports
-      for (const field of this.fields.value) {
-        if (field.zone == FieldZone.OUTPUT) {
-          incoming.push({
-            parent: step,
-            idx: incoming.length,
-            type: PortType.FIELD,
-            side: PortSide.INCOMING,
-            field,
-            fieldPtr: toPlainNodeRef(field),
-            fieldParent: this.flow.value!,
-          });
-        }
-      }
-    } else if (step.type == StepType.CODE || step.type == StepType.TEXT) {
-      // our own fields as incoming/outgoing ports
-      for (const field of related.fields) {
-        if (field.zone == FieldZone.INPUT) {
-          incoming.push({ parent: step, idx: incoming.length, type: PortType.FIELD, side: PortSide.INCOMING, field });
-        } else if (field.zone == FieldZone.OUTPUT) {
-          outgoing.push({ parent: step, idx: outgoing.length, type: PortType.FIELD, side: PortSide.OUTGOING, field });
-        }
-      }
-    } else if (step.type == StepType.BLOCK) {
-      // borrow fields as incoming/outgoing ports
-      for (const field of related.nodeFields) {
-        if (field.zone == FieldZone.INPUT) {
-          incoming.push({
-            parent: step,
-            idx: incoming.length,
-            type: PortType.FIELD,
-            side: PortSide.INCOMING,
-            field,
-            fieldPtr: toPlainNodeRef(field),
-            fieldParent: related.node,
-          });
-        } else if (field.zone == FieldZone.OUTPUT) {
-          outgoing.push({
-            parent: step,
-            idx: outgoing.length,
-            type: PortType.FIELD,
-            side: PortSide.OUTGOING,
-            field,
-            fieldPtr: toPlainNodeRef(field),
-            fieldParent: related.node,
-          });
-        }
-      }
-    }
-
-    return { incoming: incoming, outgoing: outgoing };
+  /** Gets the (reactive) ports for a given step. */
+  getPorts(step: StepData): { incoming: Port[]; outgoing: Port[] } {
+    const state = this.stepsStates.value[step.id!];
+    if (state == null || this.flow.value == null) return { incoming: [], outgoing: [] };
+    return getPorts(this.spaceGraph, step, {
+      stepFields: state.fields.value,
+      flow: this.flow.value,
+      flowFields: this.fields.value,
+      node: state.node.value,
+      nodeFields: state.nodeFields.value,
+    });
   }
 
   /** Moves the thing */
@@ -701,6 +626,122 @@ export function useFlowContext(): FlowContext {
   const flowContext = inject<FlowContext | null>(FLOW_CONTEXT_KEY, null);
   if (flowContext == null) throw new Error("no flow context");
   return flowContext;
+}
+
+/** Gets the containing flow block. */
+export function getContainingFlow(graph: ReadNodeGraph, node: StepData | BlockData): BlockData | null {
+  const ancestors = graph.getAncestors(node, { includeSelf: true });
+  return ancestors.find((n) => isNode(n, NodeType.BLOCK) && n.type == BlockType.FLOW) as BlockData | null;
+}
+
+/** Gets the computed (reactive) fields for a given step (may be from the flow or related nodes). */
+export function getStepFields(
+  graph: ReadNodeGraph,
+  step: StepData,
+  side: PortSide,
+  related?: {
+    stepFields: FieldData[];
+    flow: BlockData;
+    flowFields: FieldData[];
+    node: BlockData | StepData | undefined | null;
+    nodeFields: FieldData[];
+  },
+): {
+  zone: FieldZone;
+  fields: FieldData[];
+  fieldParent: BlockData | StepData;
+} | null {
+  if (related == null) {
+    // get related nodes (not reactive)
+    const flow = getContainingFlow(graph, step);
+    if (flow == null) return null;
+    const node = graph.getMaybe(step.nodePtr) as BlockData | StepData | undefined;
+    related = {
+      stepFields: graph.getChildren(step, NodeType.FIELD),
+      flow,
+      flowFields: graph.getChildren(flow, NodeType.FIELD),
+      node,
+      nodeFields: node != null ? graph.getChildren(node, NodeType.FIELD) : [],
+    };
+  }
+
+  if (step.type == StepType.START) {
+    // from flow's input fields
+    if (related.flow == null) return null;
+    return {
+      zone: FieldZone.INPUT,
+      fields: side == PortSide.OUTGOING ? related.flowFields.filter((f) => f.zone == FieldZone.INPUT) : [],
+      fieldParent: related.flow!,
+    };
+  } else if (step.type == StepType.COMPLETE) {
+    // from flow's output fields
+    if (related.flow == null) return null;
+    return {
+      zone: FieldZone.OUTPUT,
+      fields: side == PortSide.INCOMING ? related.flowFields.filter((f) => f.zone == FieldZone.OUTPUT) : [],
+      fieldParent: related.flow,
+    };
+  } else if (step.type == StepType.BLOCK) {
+    // from block
+    if (related.node == null) return null;
+    const zone = side == PortSide.INCOMING ? FieldZone.INPUT : FieldZone.OUTPUT;
+    return { zone, fields: related.nodeFields.filter((f) => f.zone == zone), fieldParent: related.node };
+  } else {
+    // step itself
+    const zone = side == PortSide.INCOMING ? FieldZone.INPUT : FieldZone.OUTPUT;
+    return { zone, fields: related.stepFields.filter((f) => f.zone == zone), fieldParent: step };
+  }
+}
+
+/** Gets the (reactive) ports for a given step. Pass in related to avoid re-fetching if already known. */
+export function getPorts(
+  graph: ReadNodeGraph,
+  step: StepData,
+  related?: {
+    stepFields: FieldData[];
+    flow: BlockData;
+    flowFields: FieldData[];
+    node: BlockData | StepData | undefined | null;
+    nodeFields: FieldData[];
+  },
+): { incoming: Port[]; outgoing: Port[] } {
+  const incoming: Port[] = [];
+  const outgoing: Port[] = [];
+
+  // NOTE :UX: we hide :ObjectPorts by default for now (not sure how/when to enable, always enabled is cluttery)
+  if (!INCOMING_STEP_TYPES.includes(step.type)) {
+    // incoming ports
+    incoming.push({ parent: step, idx: 0, type: PortType.RUN, side: PortSide.INCOMING });
+  }
+  if (!OUTGOING_STEP_TYPES.includes(step.type)) {
+    // outgoing ports
+    outgoing.push({ parent: step, idx: 0, type: PortType.RUN, side: PortSide.OUTGOING });
+  }
+
+  const incomingFields = getStepFields(graph, step, PortSide.INCOMING, related);
+  const outgoingFields = getStepFields(graph, step, PortSide.OUTGOING, related);
+  for (const field of incomingFields?.fields ?? []) {
+    incoming.push({
+      parent: step,
+      idx: incoming.length,
+      type: PortType.FIELD,
+      side: PortSide.INCOMING,
+      field,
+      fieldPtr: toPlainNodeRef(field),
+    });
+  }
+  for (const field of outgoingFields?.fields ?? []) {
+    outgoing.push({
+      parent: step,
+      idx: outgoing.length,
+      type: PortType.FIELD,
+      side: PortSide.OUTGOING,
+      field,
+      fieldPtr: toPlainNodeRef(field),
+    });
+  }
+
+  return { incoming: incoming, outgoing: outgoing };
 }
 
 export function createStep(

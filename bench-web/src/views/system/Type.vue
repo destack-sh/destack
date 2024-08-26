@@ -87,37 +87,32 @@ function allowDrop(dragged: DraggedContent, anchor: MultiAnchor, targetId: strin
   }
 }
 function onDrop(dragged: DraggedContent, anchor: MultiAnchor, targetId: string | null, event: DragEvent) {
-  if (dragged.kind == "node") {
-    const node = pkgGraph.getOrError(dragged.node);
-    const side = leftRef.value?.contains(event.target as Node) ? "left" : "right";
-    const sideZone = side == "left" ? leftZone.value : rightZone.value;
-    const target = targetId != null ? pkgGraph.get({ id: targetId }) : null;
-    if (isNode(node, NodeType.FIELD)) {
-      // move field here
-      if (target != null) {
-        if (!isNode(target, NodeType.FIELD)) throw new Error(`unexpected target node: ${describeNode(target)}`);
-        moveNode(pkgConnection.tx, pkgGraph, dragged.node, { anchor, target });
-      } else {
-        moveNode(pkgConnection.tx, pkgGraph, dragged.node, { anchor: "center", target: block.value! });
-      }
-      if (node.zone != sideZone) {
-        pkgConnection.tx.update(node, { zone: sideZone ?? undefined }, { debounce: "tick" });
-        onNodeMorphed(pkgConnection.tx, pkgGraph, node);
-      }
-    } else if (isNode(node, NodeType.BLOCK)) {
-      // add field here
-      const type = blockToType(node);
-      const fieldIn = { ...type, zone: sideZone! };
-      if (target != null) {
-        if (!isNode(target, NodeType.FIELD)) throw new Error(`unexpected target node: ${describeNode(target)}`);
-        createField(pkgConnection.tx, pkgGraph, {
-          field: fieldIn,
-          anchor: anchor == "start" ? "before" : "after",
-          target,
-        });
-      } else {
-        createField(pkgConnection.tx, pkgGraph, { field: fieldIn, anchor: "inside", target: block.value! });
-      }
+  if (dragged.kind != "node") return;
+  const node = pkgGraph.getOrError(dragged.node);
+  const side = leftRef.value?.contains(event.target as Node) ? "left" : "right";
+  const sideZone = side == "left" ? leftZone.value : rightZone.value;
+  const target = targetId != null ? pkgGraph.get({ id: targetId }) : null;
+  if (isNode(node, NodeType.FIELD)) {
+    // move field
+    if (target != null) {
+      if (!isNode(target, NodeType.FIELD)) throw new Error(`unexpected target node: ${describeNode(target)}`);
+      moveNode(pkgConnection.tx, pkgGraph, dragged.node, { anchor, target });
+    } else {
+      moveNode(pkgConnection.tx, pkgGraph, dragged.node, { anchor: "center", target: block.value! });
+    }
+    if (node.zone != sideZone) {
+      pkgConnection.tx.update(node, { zone: sideZone ?? undefined }, { debounce: "tick" });
+      onNodeMorphed(pkgConnection.tx, pkgGraph, node);
+    }
+  } else if (isNode(node, NodeType.BLOCK)) {
+    // add field with block type
+    const type = blockToType(node);
+    const fieldIn = { ...type, zone: sideZone! };
+    if (target != null) {
+      if (!isNode(target, NodeType.FIELD)) throw new Error(`unexpected target node: ${describeNode(target)}`);
+      createField(pkgConnection.tx, pkgGraph, { field: fieldIn, anchor, target });
+    } else {
+      createField(pkgConnection.tx, pkgGraph, { field: fieldIn, anchor: "inside", target: block.value! });
     }
   }
 }

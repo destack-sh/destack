@@ -1,16 +1,16 @@
 <script lang="ts" setup>
-import { NAME_CONSTRAINT, toCamelName, TYPE_BLOCK_TYPES } from "@/language/const";
+import { blockToType } from "@/language/block";
+import { NAME_CONSTRAINT, OUTGOING_STEP_TYPES, TYPE_BLOCK_TYPES } from "@/language/const";
 import { createField, FIELD_CONTEXT_ACTIONS, makeTypeInfo, type TypeIdentity } from "@/language/field";
 import {
   FLOW_GRID_STEP_Y,
   FLOW_PORT_SIZE,
-  portIdEquals,
   STEP_CONTEXT_ACTIONS,
   STEP_HEADER_HEIGHT,
   useFlowContext,
   type Port,
 } from "@/language/flow";
-import { cloneNode } from "@/language/node";
+import { cloneNode, moveNode, onNodeMorphed } from "@/language/node";
 import {
   BenchType,
   FieldData,
@@ -23,23 +23,14 @@ import {
   ViewData,
   ViewType,
 } from "@/proto/wire";
-import { isNode, toNodeRefOneOf, unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
-import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
+import { describeNode, isNode, toNodeRefOneOf, unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas, inspectionPtr } from "@/system/space";
 import type { ActionContext, ActionMapImplementation } from "@/ui/action";
-import {
-  startDragging,
-  startDraggingIfAllowed,
-  useMultiDropZone,
-  type DraggedContent,
-  type MultiAnchor,
-} from "@/ui/drag";
+import { startDragging, useMultiDropZone, type DraggedContent, type MultiAnchor } from "@/ui/drag";
 import { getNodeIcon, IconInline } from "@/ui/icon";
 import { menuActionsLike, pushPopover, type PopoverContext, type PopoverInfo, type PopoverInfoIn } from "@/ui/popover";
-import { getColorHex } from "@/ui/style";
 import type { TooltipInfo } from "@/ui/tooltip";
 import { getNativeConstraintProps, guardNativeInput } from "@/ui/view";
-import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import Code from "@/views/content/Code.vue";
 import Icon from "@/views/content/Icon.vue";
@@ -81,7 +72,8 @@ function toPortId(port: Port): string {
 
 const incomingZoneRef: Ref<HTMLElement | null> = ref(null);
 const outgoingZoneRef: Ref<HTMLElement | null> = ref(null);
-const portRefs: Ref<Record<string, HTMLElement>> = ref({});
+const incomingPortRefs: Ref<Record<string, HTMLElement>> = ref({});
+const outgoingPortRefs: Ref<Record<string, HTMLElement>> = ref({});
 
 // dragging
 // NOTE: port dragging only supports field ports for now
@@ -98,12 +90,36 @@ function onDrop(dragged: DraggedContent, anchor: MultiAnchor, targetId: string |
     ports.value.outgoing.find((p) => toPortId(p) == targetId) ??
     null;
   if (port == null) return; // there should always be a port since every active port zone has >=1 port
-  // nocheckin: create/move fields on drop (also for create button)
+  if (!isNode(port.parent, NodeType.STEP)) throw new Error(`unexpected parent for port: ${describeNode(port.parent)}`);
+  const stepFields = flowCtx.getStepFields(port.parent, port.side);
+  if (stepFields == null) throw new Error(`no step related for port: ${describeNode(port.parent)}`);
+
+  if (isNode(node, NodeType.FIELD)) {
+    // move field
+    if (port.field != null) {
+      moveNode(flowCtx.tx, flowCtx.graph, node, { anchor, target: port.field });
+    } else {
+      moveNode(flowCtx.tx, flowCtx.graph, node, { anchor: "center", target: stepFields.fieldParent });
+    }
+    if (node.zone != stepFields.zone) {
+      flowCtx.tx.update(node, { zone: stepFields.zone }, { debounce: "tick" });
+      onNodeMorphed(flowCtx.tx, flowCtx.graph, node);
+    }
+  } else if (isNode(node, NodeType.BLOCK)) {
+    // add field with block type
+    const type = blockToType(node);
+    const fieldIn = { ...type, zone: stepFields.zone };
+    if (port.field != null) {
+      createField(flowCtx.tx, flowCtx.graph, { field: fieldIn, anchor, target: port.field });
+    } else {
+      createField(flowCtx.tx, flowCtx.graph, { field: fieldIn, anchor: "inside", target: stepFields.fieldParent });
+    }
+  }
 }
 const { activeDropZone: activeIncomingDropZone } = useMultiDropZone({
   name: "step.incoming",
   container: incomingZoneRef,
-  targets: portRefs,
+  targets: incomingPortRefs,
   orientation: Orientation.VERTICAL,
   kinds: ["node"],
   metatypes: [NodeType.BLOCK, NodeType.FIELD],
@@ -114,7 +130,7 @@ const { activeDropZone: activeIncomingDropZone } = useMultiDropZone({
 const { activeDropZone: activeOutgoingDropZone } = useMultiDropZone({
   name: "step.outgoing",
   container: outgoingZoneRef,
-  targets: portRefs,
+  targets: outgoingPortRefs,
   orientation: Orientation.VERTICAL,
   kinds: ["node"],
   metatypes: [NodeType.BLOCK, NodeType.FIELD],
@@ -225,20 +241,28 @@ defineExpose<ViewExposed>({ self, id, actions });
         <button
           class="rounded text-gray-400 hover:bg-gray-100 hover:text-primary-900 data-[popover=true]:bg-gray-100 data-[popover=true]:text-primary-900"
           @click="
-            (e) =>
-              pushPopover({
-                trigger: (e.target as HTMLElement).closest('button')!,
-                reference: (e.target as HTMLElement).closest('button')!,
-                info: {
-                  component: ViewType.PICKER,
-                  placement: 'bottom-left',
-                  offset: 'referenceWidth',
-                  props: { valueType: makeTypeInfo({ benchType: BenchType.TYPE_INFO }) },
-                  onApply: (typeInfo: TypeIdentity) => {
-                    createField(flowCtx.tx, flowCtx.graph, { anchor: 'inside', target: step!, field: typeInfo });
-                  },
+            pushPopover({
+              trigger: ($event.target as HTMLElement).closest('button')!,
+              reference: ($event.target as HTMLElement).closest('button')!,
+              info: {
+                component: ViewType.PICKER,
+                placement: 'bottom-left',
+                offset: 'referenceWidth',
+                props: { valueType: makeTypeInfo({ benchType: BenchType.TYPE_INFO }) },
+                onApply: (typeInfo: TypeIdentity) => {
+                  const stepFields = flowCtx.getStepFields(
+                    step!,
+                    OUTGOING_STEP_TYPES.includes(step!.type) ? PortSide.OUTGOING : PortSide.INCOMING,
+                  );
+                  if (stepFields == null) return;
+                  createField(flowCtx.tx, flowCtx.graph, {
+                    anchor: 'inside',
+                    target: stepFields.fieldParent,
+                    field: { ...typeInfo, zone: stepFields.zone },
+                  });
                 },
-              })
+              },
+            })
           "
         >
           <i class="fas fa-plus w-5 text-center" />
@@ -290,9 +314,14 @@ defineExpose<ViewExposed>({ self, id, actions });
           <!-- Ports -->
           <div
             v-for="port in sidePorts"
-            :ref="(ref?: any) => (ref != null ? (portRefs[toPortId(port)] = ref) : delete portRefs[toPortId(port)])"
+            :ref="
+              (ref?: any) => {
+                const portRefs = side == PortSide.INCOMING ? incomingPortRefs : outgoingPortRefs;
+                ref != null ? (portRefs[toPortId(port)] = ref) : delete portRefs[toPortId(port)];
+              }
+            "
             :key="port.idx"
-            class="absolute flex w-20 items-center"
+            class="absolute flex items-center"
             :class="[port.side == PortSide.INCOMING ? 'justify-start' : 'justify-end']"
             :style="{
               height: FLOW_GRID_STEP_Y + 'px',
@@ -361,8 +390,9 @@ defineExpose<ViewExposed>({ self, id, actions });
               </div>
               <!-- Drop indicator -->
               <div
-                v-if="activeDropZone?.targetId == toPortId(port)"
+                v-if="activeDropZone?.targetId == toPortId(port) && sidePorts.length > 1"
                 class="absolute left-0 z-10 h-1 w-full rounded-sm bg-primary-900"
+                :class="[activeDropZone?.anchor == 'start' ? '-top-[2px]' : '-bottom-[2px]']"
               />
             </div>
           </div>
