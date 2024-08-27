@@ -105,19 +105,10 @@ export type PipePath = {
 export type BoundingBox = { x1: number; y1: number; x2: number; y2: number; width: number; height: number };
 
 export type FlowThing =
-  | {
-      kind: "canvas";
-    }
-  | {
-      kind: "step";
-      step: StepData;
-    }
-  | {
-      kind: "step-port";
-      step: StepData;
-      port: Port;
-      cursorWorldPos?: { x: number; y: number };
-    };
+  | { kind: "canvas" }
+  | { kind: "step"; step: StepData }
+  | { kind: "pipe"; pipe: PipeData }
+  | { kind: "step-port"; step: StepData; port: Port; cursorWorldPos?: { x: number; y: number } };
 // | { // TODO :UX: reconnect pipes (support pipe-port)
 //     kind: "pipe-port";
 //     pipe: PipeData;
@@ -173,6 +164,7 @@ export class PipeState {
   targetPort: Ref<Port | null>;
   // layout
   path: Ref<PipePath | null>;
+  boundingBox: Ref<BoundingBox | null>;
 
   constructor(flow: FlowContext, pipe: PipeData) {
     this.flow = flow;
@@ -213,6 +205,10 @@ export class PipeState {
       );
       return path;
     });
+    this.boundingBox = computedValue(() => {
+      if (this.path.value == null) return null;
+      return this.flow.computePathBoundingBox(this.path.value);
+    });
   }
 }
 
@@ -238,7 +234,7 @@ export class FlowContext {
 
   stepsStates: Ref<Record<string, StepState>> = shallowRef({});
   pipesStates: Ref<Record<string, PipeState>> = shallowRef({});
-  boundingBox: Ref<BoundingBox | null> = shallowRef(null);
+  contentBoundingBox: Ref<BoundingBox | null>;
 
   constructor(context: {
     spaceGraph: ReadNodeGraph;
@@ -302,7 +298,7 @@ export class FlowContext {
     );
 
     // layout
-    this.boundingBox = computedValue(() => this.computeBoundingBox());
+    this.contentBoundingBox = computedValue(() => this.computeContentBoundingBox());
   }
 
   get tx() {
@@ -319,14 +315,6 @@ export class FlowContext {
 
   get isDraggingPort(): boolean {
     return this.dragging.value?.thing.kind == "step-port";
-  }
-
-  /** Gets the current center of the canvas in world coordinates. */
-  get centerVec(): Vector2 | null {
-    if (this.containerRef.value == null) return null;
-    const containerBounding = this.containerRef.value.getBoundingClientRect();
-    const centerVec = this.viewToWorldVec({ x: containerBounding.width / 2, y: containerBounding.height / 2 });
-    return centerVec;
   }
 
   getStepComponent(step: StepData): InstanceType<typeof Step> | null {
@@ -351,8 +339,97 @@ export class FlowContext {
   // Canvas
   //
 
-  /** Pan around the canvas (in world coordinates). */
-  panCanvas(move: { x: number; y: number }) {
+  /** Gets the current center of the canvas in world coordinates. */
+  get centerVec(): Vector2 | null {
+    if (this.containerRef.value == null) return null;
+    const containerBounding = this.containerRef.value.getBoundingClientRect();
+    const centerVec = this.viewToWorldVec({ x: containerBounding.width / 2, y: containerBounding.height / 2 });
+    return centerVec;
+  }
+
+  /** Computes the bounding box for the viewport (in world coordinates). */
+  computeViewportBoundingBox(): BoundingBox | null {
+    if (this.containerRef.value == null) return null;
+    const containerBounding = this.containerRef.value.getBoundingClientRect();
+    const vec1 = this.viewToWorldVec({ x: 0, y: 0 });
+    const vec2 = this.viewToWorldVec({ x: containerBounding.width, y: containerBounding.height });
+    return {
+      x1: Math.min(vec1.x, vec2.x),
+      y1: Math.min(vec1.y, vec2.y),
+      x2: Math.max(vec1.x, vec2.x),
+      y2: Math.max(vec1.y, vec2.y),
+      width: vec2.x - vec1.x,
+      height: vec2.y - vec1.y,
+    };
+  }
+
+  /** Computes the bounding box for all things in this flow (in world coordinates). */
+  computeContentBoundingBox(): BoundingBox | null {
+    const steps = this.steps.value;
+    if (steps.length == 0) return null;
+    let x1 = steps[0].position?.x ?? 0;
+    let y1 = steps[0].position?.y ?? 0;
+    let x2 = steps[0].position?.x ?? 0;
+    let y2 = steps[0].position?.y ?? 0;
+    for (const step of steps) {
+      const state = this.stepsStates.value[step.id!];
+      if (state == null) continue;
+      const numPorts = Math.max(state.ports.value.incoming.length, state.ports.value.outgoing.length);
+      const size = estimateStepSize(step, numPorts);
+      x1 = Math.min(x1, step.position?.x ?? 0);
+      y1 = Math.min(y1, step.position?.y ?? 0);
+      x2 = Math.max(x2, (step.position?.x ?? 0) + size.width);
+      y2 = Math.max(y2, (step.position?.y ?? 0) + size.height);
+    }
+    return { x1, y1, x2, y2, width: x2 - x1, height: y2 - y1 };
+  }
+
+  /** Gets the bounding box for a thing (in world coordinates). */
+  getBoundingBox(thing: FlowThing): BoundingBox | null {
+    if (thing.kind == "canvas") {
+      return this.contentBoundingBox.value;
+    } else if (thing.kind == "step") {
+      return this.stepsStates.value[thing.step.id!]?.boundingBox.value;
+    } else if (thing.kind == "step-port") {
+      const position = this.getPortPosition(thing.step, thing.port);
+      if (position == null) return null;
+      return this.getPortBoundingBox(position);
+    } else if (thing.kind == "pipe") {
+      const pipeState = this.pipesStates.value[thing.pipe.id!];
+      if (pipeState == null) return null;
+      return pipeState.boundingBox.value;
+    } else {
+      assertNever(thing);
+    }
+  }
+
+  isInViewport(thing: FlowThing): boolean {
+    if (thing.kind == "canvas") return true;
+    const thingBounding = this.getBoundingBox(thing);
+    const canvasBounding = this.computeViewportBoundingBox();
+    if (thingBounding == null || canvasBounding == null) return false;
+    return (
+      thingBounding.x1 >= canvasBounding.x1 &&
+      thingBounding.x2 <= canvasBounding.x2 &&
+      thingBounding.y1 >= canvasBounding.y1 &&
+      thingBounding.y2 <= canvasBounding.y2
+    );
+  }
+
+  /** Pan the canvas to center something (in world coordinates). */
+  panToCenter(thing: FlowThing) {
+    const boundingBox = this.getBoundingBox(thing);
+    if (boundingBox == null) throw new Error(`no bounding box for ${thing.kind}`);
+    const currentCenter = this.centerVec;
+    if (currentCenter == null) throw new Error("no current center");
+    this.pan({
+      x: currentCenter.x - boundingBox.x1 - boundingBox.width / 2,
+      y: currentCenter.y - boundingBox.y1 - boundingBox.height / 2,
+    });
+  }
+
+  /** Pan the canvas (in world coordinates). */
+  pan(move: { x: number; y: number }) {
     if (this.view.value == null) return; // not a real view
     this.spaceTx.update(
       this.view.value,
@@ -412,7 +489,7 @@ export class FlowContext {
   }
 
   /** Zoom the convas around the given origin (panning as needed) */
-  zoomCanvas(direction: "in" | "out", originViewVec: { x: number; y: number } | "center", steps: number) {
+  zoom(direction: "in" | "out" | number, originViewVec: { x: number; y: number } | "center", steps: number) {
     if (this.view.value == null) return; // not a real view
     const containerBounding = this.containerRef.value?.getBoundingClientRect()!;
     if (originViewVec == "center") {
@@ -420,10 +497,14 @@ export class FlowContext {
     }
     // figure out new zoom
     const currentZoom = this.scale.value;
-    const newZoom =
-      direction == "in"
-        ? Math.min(FLOW_SCALE_MAX, currentZoom + FLOW_SCALE_SPEED * steps)
-        : Math.max(FLOW_SCALE_MIN, currentZoom - FLOW_SCALE_SPEED * steps);
+    let newZoom: number;
+    if (direction == "in") {
+      newZoom = Math.min(FLOW_SCALE_MAX, currentZoom + FLOW_SCALE_SPEED * steps);
+    } else if (direction == "out") {
+      newZoom = Math.max(FLOW_SCALE_MIN, currentZoom - FLOW_SCALE_SPEED * steps);
+    } else {
+      newZoom = direction;
+    }
     if (newZoom == currentZoom) return; // no change
     const translateX = this.transform.value?.translateX ?? 0;
     const translateY = this.transform.value?.translateY ?? 0;
@@ -469,17 +550,14 @@ export class FlowContext {
   /** Resets the viewport to the 'center' of the canvas */
   resetViewport() {
     if (this.view.value == null) return; // not a real view
-    this.spaceTx.update(
-      this.view.value,
-      { transform: makeStruct({ metatype: StructType.TRANSFORM }) },
-      { debounce: "short" },
-    );
+    this.zoom(1, "center", 0);
+    this.panToCenter({ kind: "canvas" });
   }
 
   /** Zooms the canvas in/out in response to a "wheel" event. */
   onWheel(e: WheelEvent) {
     const viewCenterVec = this.viewportToViewVec({ x: e.clientX, y: e.clientY });
-    this.zoomCanvas(e.deltaY < 0 ? "in" : "out", viewCenterVec, Math.abs(e.deltaY * 0.5));
+    this.zoom(e.deltaY < 0 ? "in" : "out", viewCenterVec, Math.abs(e.deltaY * 0.5));
   }
 
   /** Starts dragging a thing if it's not a disallowed element (like an input). */
@@ -514,6 +592,8 @@ export class FlowContext {
         thing: { ...thing, cursorWorldPos: this.viewportToWorldVec({ x: e.clientX, y: e.clientY }) },
         viewOffsetToThing: { x: 0, y: 0 },
       };
+    } else if (thing.kind == "pipe") {
+      throw new Error("cannot drag pipe");
     } else {
       assertNever(thing);
     }
@@ -550,6 +630,8 @@ export class FlowContext {
     } else if (thing.kind == "step-port") {
       // update cursor position
       thing.cursorWorldPos = this.viewportToWorldVec({ x: e.clientX, y: e.clientY });
+    } else if (thing.kind == "pipe") {
+      throw new Error("cannot drag pipe");
     } else {
       assertNever(thing);
     }
@@ -603,46 +685,36 @@ export class FlowContext {
     return basePosition;
   }
 
-  /** Computes the bounding box for all steps in this flow (in world coordinates). */
-  computeBoundingBox(): BoundingBox | null {
-    const steps = this.steps.value;
-    if (steps.length == 0) return null;
-    let x1 = steps[0].position?.x ?? 0;
-    let y1 = steps[0].position?.y ?? 0;
-    let x2 = steps[0].position?.x ?? 0;
-    let y2 = steps[0].position?.y ?? 0;
-    for (const step of steps) {
-      const state = this.stepsStates.value[step.id!];
-      if (state == null) continue;
-      const numPorts = Math.max(state.ports.value.incoming.length, state.ports.value.outgoing.length);
-      const size = estimateStepSize(step, numPorts);
-      x1 = Math.min(x1, step.position?.x ?? 0);
-      y1 = Math.min(y1, step.position?.y ?? 0);
-      x2 = Math.max(x2, (step.position?.x ?? 0) + size.width);
-      y2 = Math.max(y2, (step.position?.y ?? 0) + size.height);
-    }
-    return { x1, y1, x2, y2, width: x2 - x1, height: y2 - y1 };
+  /** Gets the bounding box for a port (in world coordinates). */
+  getPortBoundingBox(position: Vector2): BoundingBox | null {
+    return {
+      x1: position.x - FLOW_PORT_SIZE / 2,
+      y1: position.y - FLOW_PORT_SIZE / 2,
+      x2: position.x + FLOW_PORT_SIZE / 2,
+      y2: position.y + FLOW_PORT_SIZE / 2,
+      width: FLOW_PORT_SIZE,
+      height: FLOW_PORT_SIZE,
+    };
   }
 
   /**
    * Computes the manhattan path for a pipe (in world coordinates, without considering other pipes).
+   * Pathfinding has a few key objectives:
+   *  0. We start at the source port and want to reach the target port (if we can't, return null).
+   *  1. Pipes are always exactly on the grid; ports are always connected horizontally.
+   *  2. Unless directly at a port, we must stay at least one step away from any step.
+   *  3. Pipes must be straight and should look reasonably clean, so try to break at halfway points.
+   *  4. Path computation must be very fast (we're doing it on every mouse move and state change).
    * NOTE :UX: improve pipe paths (better pathfinding, coordinate pipe paths, ...)
    * */
   computePath(source: Vector2, sourceSide: PortSide, target: Vector2, targetSide: PortSide): PipePath | null {
-    // We follow a pretty simple A star algorithm with a few key objectives:
-    //  0. We start at the source port and want to reach the target port (if we can't, return null).
-    //  1. Pipes are always exactly on the grid; ports are always connected horizontally.
-    //  2. Unless directly at a port, we must stay at least one step away from any step.
-    //  3. Pipes must be straight and should look reasonably clean, so try to break at halfway points.
-    //  4. Path computation must be very fast (we're doing it on every mouse move and state change).
-
     // swap it so that source is always outgoing
     if (sourceSide != PortSide.OUTGOING) {
       [source, target] = [target, source];
       [sourceSide, targetSide] = [targetSide, sourceSide];
     }
 
-    // check box hits
+    // 'collision' detection
     const stepBoundingBoxes: BoundingBox[] = Object.values(this.stepsStates.value)
       .map((s) => s.boundingBox.value)
       .filter((s) => s != null) as BoundingBox[];
@@ -668,6 +740,23 @@ export class FlowContext {
 
     const path: PipePath = { points };
     return path;
+  }
+
+  /** Gets the bounding box for a pipe path (in world coordinates). */
+  computePathBoundingBox(path: PipePath): BoundingBox | null {
+    const points = path.points;
+    let x1 = points[0].x;
+    let y1 = points[0].y;
+    let x2 = points[0].x;
+    let y2 = points[0].y;
+    for (let i = 1; i < points.length; i++) {
+      const p = points[i];
+      if (p.x < x1) x1 = p.x;
+      else if (p.x > x2) x2 = p.x;
+      if (p.y < y1) y1 = p.y;
+      else if (p.y > y2) y2 = p.y;
+    }
+    return { x1, y1, x2, y2, width: x2 - x1, height: y2 - y1 };
   }
 
   /** Gets the pipes connected to the given port. */

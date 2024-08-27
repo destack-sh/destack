@@ -35,6 +35,7 @@ export type SplitLayout = {
   dividerSize: number; // should this even affect the layout?
 };
 
+
 /**
  * Calculates positions and sizes for views in a split view container.
  * Sizes are distributed alongside the given orientation (the relative views subdividing the space not taken up by absolute views).

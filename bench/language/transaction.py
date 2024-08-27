@@ -471,12 +471,12 @@ class Transaction:
         Turns a series of mini edits into real edits, attempting to coalesce them.
         Specifically, we coalesce sequential updates/moves to the same node (coalescing into moves),
          all other edit types are kept separate.
-        NOTE :Performance :Architecture: revisit how we coalesce edits in sessions (updates/moves)
+        NOTE :Architecture: revisit how we coalesce edits in sessions (updates/moves)
          Right now, something like:
           node1.a = 1
           node2.a = 2
           node1.a = 1
-         will result in 3 edits, but depending on interpretation, it could be 2. Maybe.
+         will result in 3 edits.
         """
         from bench.proto import wire, wiring
 

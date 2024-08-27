@@ -12,7 +12,7 @@ import type { TooltipInfo } from "@/ui/tooltip";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import Icon from "@/views/content/Icon.vue";
-import { computed, ref, toRef, type Ref } from "vue";
+import { computed, nextTick, ref, toRef, type Ref } from "vue";
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; preparedConnection?: PreparedGetConnection } & Pick<
@@ -33,6 +33,12 @@ const field = pkgGraph.getRef(nodePtr, { ignoreAncestors: props.self == null });
 
 // actions
 const actions: Partial<ActionMapImplementation<"common">> & ActionMapImplementation<"type"> = {
+  // common
+  "common.edit.rename": {
+    action: () => {
+      nextTick(() => nameRef.value!.focus());
+    },
+  },
   // type
   "type.edit.isList": {
     isChecked: () => field.value?.isList ?? false,

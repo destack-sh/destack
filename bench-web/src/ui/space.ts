@@ -89,7 +89,7 @@ type OpenViewOptions = {
 const activeElement = useActiveElement();
 
 /**
- * Canvas, manager and helper for linking Views, their Vue components, and their HTML elements in a Space.
+ * Canvas for Views and their components in a Space.
  * Some of our View components may not have an associated View, so we track them with a derived id.
  * NOTE: ViewCanvas is effectively a global singleton (currently).
  */
@@ -644,7 +644,7 @@ export class SpaceCanvas {
    */
   goToNode(
     node: AnyNodeData | NodeReferenceData | null,
-    options?: { graph?: ReadNodeGraph; skipSelf?: boolean, preferPage?: boolean } & OpenViewOptions,
+    options?: { graph?: ReadNodeGraph; skipSelf?: boolean; preferPage?: boolean } & OpenViewOptions,
   ) {
     const nodePtr = isNodeRef(node) ? node : toNodeRef(node as AnyNodeData);
     const graph = options?.graph ?? this.graph;

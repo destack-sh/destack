@@ -19,7 +19,7 @@ const id = makeViewId(props);
 const pipePtr = computed(() => unwrapProtoOneOf(props.nodePtr) as TypedNodeReferenceData<NodeType.PIPE>);
 const flowCtx = useFlowContext();
 const state = flowCtx.pipesStates.value[pipePtr.value.id!]; // must exist
-const { pipe, source, target, path } = state;
+const { pipe, source, target, path, sourcePort, targetPort } = state;
 const pathSvg = computed(() => (path.value != null ? pathToSvg(path.value.points) : undefined));
 const pathColorHex = computed(() => getColorHex(pipe.value?.color ?? ColorType.GRAY, ColorShade.S600));
 
@@ -27,16 +27,17 @@ const pathColorHex = computed(() => getColorHex(pipe.value?.color ?? ColorType.G
 // Interaction
 //
 
+const isInspected = computed(() => inspectionPtr.value?.id == pipePtr.value?.id);
+
 canvas.registerView(self, id);
 defineExpose<ViewExposed>({ self, id });
 </script>
 <template>
   <div v-if="pipe && path">
     <!-- Background/outline path for highlighting (and larger hit area) -->
-    <!-- NOTE :UX: improve pipe highlighting (maybe use glow?) -->
     <svg
-      class="absolute cursor-pointer overflow-visible transition-colors duration-75"
-      :class="inspectionPtr?.id == pipePtr.id ? 'text-gray-700' : 'text-transparent hover:text-gray-700'"
+      class="absolute cursor-pointer overflow-visible blur-sm text-primary-500 transition-all duration-75"
+      :class="isInspected ? 'opacity-80' : 'opacity-0 hover:opacity-60'"
     >
       <path
         :stroke-width="PIPE_WIDTH + 2"
@@ -44,21 +45,32 @@ defineExpose<ViewExposed>({ self, id });
         stroke-linejoin="bevel"
         stroke="currentColor"
         fill="none"
-        :stroke-dasharray="pipe.type == PipeType.THEN ? undefined : '8,8'"
         :d="pathSvg"
       />
     </svg>
     <!-- Primary path -->
-    <svg class="pointer-events-none absolute overflow-visible text-gray-600" :style="{ color: pathColorHex }">
+    <svg class="pointer-events-none absolute overflow-visible" :style="{ color: pathColorHex }">
       <path
         :stroke-width="PIPE_WIDTH"
         stroke-linecap="round"
         stroke-linejoin="bevel"
         stroke="currentColor"
+        :stroke-dashoffset="5 ?? 0"
         fill="none"
-        :stroke-dasharray="pipe.type == PipeType.THEN ? undefined : '8,12'"
+        :stroke-dasharray="
+          pipe.type == PipeType.THEN ? `${PIPE_WIDTH * 3},${PIPE_WIDTH * 2}` : `${PIPE_WIDTH * 0.5},${PIPE_WIDTH * 2}`
+        "
         :d="pathSvg"
-      />
+      >
+        <animate
+          attributeName="stroke-dashoffset"
+          from="0"
+          to="-60"
+          :dur="`${pipe.type == PipeType.THEN ? '4s' : '4s'}`"
+          repeatCount="indefinite"
+          fill="freeze"
+        />
+      </path>
     </svg>
   </div>
   <div v-else>

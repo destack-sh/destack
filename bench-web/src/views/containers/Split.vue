@@ -38,7 +38,6 @@ const focusedSplitIdx: Ref<number | null> = computed(() => {
 const orientation = computed(() => props.orientation ?? DEFAULT_ORIENTATION);
 const isWindow = computed(() => props.type == ViewType.WINDOW);
 const isHorizontal = computed(() => orientation.value == Orientation.HORIZONTAL);
-const hasFocusedSplit = computed(() => focusedSplitIdx.value != null);
 
 const BORDER_SIZE = 1;
 const DRAGGABLE_SIZE = 4;
@@ -51,15 +50,17 @@ const containerRef: Ref<HTMLElement | null> = ref(null);
 const { sizedViews, draggingIdx } = useSplitView(splits, toRef(props, "size"), containerRef, splitLayout, canvas.tx);
 
 // actions
-const getSplitFromContext = (ctx: ActionContext | undefined) => {
-  const matchingSplit = splits.value.find((split) => split.id == ctx?.triggerNode?.id);
-  return matchingSplit ?? splits.value[focusedSplitIdx.value!];
+const getSplitFromContext = (ctx: ActionContext | undefined): { split: ViewData | null; idx: number } => {
+  let idx = splits.value.findIndex((split) => split.id == ctx?.triggerNode?.id);
+  if (idx < 0) idx = focusedSplitIdx.value!;
+  const split = splits.value[idx];
+  return { split, idx: idx };
 };
 const actions: Partial<ActionMapImplementation<"view">> = {
   // navigate
   "view.navigate.closeFrame": {
     action: (action, ctx) => {
-      const split = getSplitFromContext(ctx);
+      const { split } = getSplitFromContext(ctx);
       if (split == null) return false;
       canvas.removeView(spaceGraph, split);
     },
@@ -68,7 +69,7 @@ const actions: Partial<ActionMapImplementation<"view">> = {
     isEnabled: isWindow,
     action: (action, ctx) => {
       const allFrames = canvas.frames;
-      const split = getSplitFromContext(ctx);
+      const { split } = getSplitFromContext(ctx);
       if (split == null) return false;
       const currentIdx = allFrames.findIndex((v) => v.id == split.id);
       const prevIdx = ((currentIdx ?? 0) - 1 + allFrames.length) % allFrames.length;
@@ -79,7 +80,7 @@ const actions: Partial<ActionMapImplementation<"view">> = {
     isEnabled: isWindow,
     action: (action, ctx) => {
       const allFrames = canvas.frames;
-      const split = getSplitFromContext(ctx);
+      const { split } = getSplitFromContext(ctx);
       if (split == null) return false;
       const currentIdx = allFrames.findIndex((v) => v.id == split.id);
       const nextIdx = ((currentIdx ?? 0) + 1) % canvas.frames.length;
@@ -88,14 +89,15 @@ const actions: Partial<ActionMapImplementation<"view">> = {
   },
   "view.navigate.closeSplit": {
     action: (action, ctx) => {
-      const split = getSplitFromContext(ctx);
+      const { split } = getSplitFromContext(ctx);
       if (split == null) return false;
       canvas.removeView(spaceGraph, split);
     },
   },
   "view.navigate.focusNextSplit": {
     action: (action, ctx) => {
-      const split = getSplitFromContext(ctx);
+      const { split } = getSplitFromContext(ctx);
+      if (split == null) return false;
       const splitIdx = splits.value.findIndex((v) => v.id == split.id);
       const nextIdx = (splitIdx + 1) % splits.value.length;
       canvas.focus({ node: splits.value[nextIdx] });
@@ -103,19 +105,22 @@ const actions: Partial<ActionMapImplementation<"view">> = {
   },
   "view.navigate.focusPreviousSplit": {
     action: (action, ctx) => {
-      const split = getSplitFromContext(ctx);
+      const { split } = getSplitFromContext(ctx);
+      if (split == null) return false;
       const splitIdx = splits.value.findIndex((v) => v.id == split.id);
       const prevIdx = (splitIdx - 1 + splits.value.length) % splits.value.length;
       canvas.focus({ node: splits.value[prevIdx] });
     },
   },
-  //
+  // layout
   "view.layout.pinSplit": {
     isChecked: (action, ctx) => {
-      const focusedSplit = getSplitFromContext(ctx);
-      return focusedSplit?.size?.width != null || focusedSplit?.size?.height != null;
+      const { split } = getSplitFromContext(ctx);
+      return split?.size?.width != null || split?.size?.height != null;
     },
     action: (action, ctx) => {
+      const { split } = getSplitFromContext(ctx);
+      if (split == null) return;
       // TODO :Incomplete: pin/unpin split
     },
   },
