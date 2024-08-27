@@ -1080,13 +1080,13 @@ def evaluate_edit(
 
     # when creating nested nodes in one transaction, the graph only knows about their 'root',
     #  so we remember the scopes for the new nodes to know which zone to use
-    new_node_scopes_by_child_id: dict[str, str] = {}
+    new_node_scopes_by_child_id: dict[str, NodeReferenceData] = {}
     for edit in edits:
         access_type: AccessType = wiring.unpack_enum(EditType, edit.type)
         node_type: NodeType = wiring.unpack_enum(NodeType, edit.node_ptr.type)
         node_cls = NODE_CLASS_BY_TYPE[node_type]
-        node_id = edit.node_ptr.id
-        assert node_id is not None, f"no node id for {edit!r}"
+        node_ptr = edit.node_ptr
+        assert node_ptr.id is not None, f"no node id for {edit!r}"
 
         # figure out the scope to evaluate what in
         if node_cls.__roots__:
@@ -1095,21 +1095,23 @@ def evaluate_edit(
                 assert edit.new_node, f"no new node for {edit!r}"
                 node_data = wiring.unwrap_some_node(edit.new_node)
                 assert node_data.parent_ptr, f"no parent for {edit!r}"
-                scope_id = cast(str, node_data.parent_ptr.id)
-                while scope_id in new_node_scopes_by_child_id:
-                    scope_id = new_node_scopes_by_child_id[scope_id]
-                new_node_scopes_by_child_id[node_id] = scope_id
+                scope_ptr = node_data.parent_ptr
+                while scope_ptr.id in new_node_scopes_by_child_id:
+                    scope_ptr = new_node_scopes_by_child_id[scope_ptr.id]
+                new_node_scopes_by_child_id[node_ptr.id] = scope_ptr
             else:
-                scope_id = new_node_scopes_by_child_id.get(node_id, node_id)
-            scope = graph.get(scope_id)
-            assert scope is not None, f"node {scope_id} for {edit!r} not in {graph!r}"
+                scope_ptr = new_node_scopes_by_child_id.get(node_ptr.id, node_ptr)
+            scope = graph.get(cast(str, scope_ptr.id))
+            if scope is None:
+                # missing scope means we're trying to edit a node dependent on a node that doesn't exist
+                raise ValidationError(edit, f"scope {scope_ptr!r} for {edit!r} not in {graph!r}")
             root = graph.get_root(scope)
         else:
             if edit.type in (EditType.CREATE, EditType.UPSERT):
                 # there's a system rule against creating roots, but would need special logic to enforce it
                 #  (because root would be a node itself, which isn't in the matrix as we expect)
                 return PolicyEffect.DENY, ()
-            scope = root = graph.get(node_id)
+            scope = root = graph.get(node_ptr.id)
         try:
             object_properties = node_cls._mask_properties_ids(edit.properties)
             if not object_properties.any():  # if nothing specified, default to all
@@ -1118,7 +1120,7 @@ def evaluate_edit(
             raise ValidationError(edit, "invalid properties") from e
 
         if scope is None or root is None:
-            raise ValidationError(edit, f"scope {node_id} not in {graph!r}")
+            raise ValidationError(edit, f"scope {node_ptr!r} not in {graph!r}")
         # and evaluate it
         decision, allowed_properties = evaluate_access(
             matrix=matrix,

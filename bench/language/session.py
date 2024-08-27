@@ -414,7 +414,10 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
             if was_suspended:
                 self.suspend()
             elif not was_active and self._active_session_token is not None:
-                _active_session.reset(self._active_session_token)
+                try:
+                    _active_session.reset(self._active_session_token)
+                except Exception as e:
+                    logger.warning("session.reset.error", session=self, exc_info=e)  # see above
                 self._active_session_token = None
             self._is_readonly = was_readonly
 
@@ -429,9 +432,9 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
         assert self.is_open, f"cannot flush {self!r} when closed"
         assert self._tx is not None, f"no active transaction in {self!r}"
 
+        if not _skip_lock:
+            await self._tx_lock.acquire()
         try:
-            if not _skip_lock:
-                await self._tx_lock.acquire()
             await self._tx.flush(_extra_edits=_extra_edits)
             return self._tx._edits, self._tx._cascaded_edits
         except ChannelUnavailableError as e:
@@ -454,9 +457,9 @@ class Session(PackageNode[SessionData], HasTimeIdentity):
             return [], []  # nothing to do
 
         # TODO :Robustness :Broken: rollback edits to in-memory Nodes on session commit error
+        if not _skip_lock:
+            await self._tx_lock.acquire()
         try:
-            if not _skip_lock:
-                await self._tx_lock.acquire()
             if self._custom_commit is None:
                 # simple commit
                 return await self._tx.commit(_extra_edits=_extra_edits)

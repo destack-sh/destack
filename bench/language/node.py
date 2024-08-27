@@ -1172,7 +1172,7 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
         for component in self.__components__:
             component._updated_component(self, properties)
 
-    def _flushed_self(self):
+    def _flush_self(self):
         """Called when this struct has been flushed to the store."""
         if self.__is_node__:
             (cast("Node", self))._is_new = False

@@ -567,8 +567,8 @@ class Transaction:
         """Flush any pending edit events."""
         assert self.session is not None, f"no session for {self!r}"
         log = logger.bind(
-            edit_events=len(self._pending_edits),
-            extra_edits=len(_extra_edits or ()),
+            edit_events=self._pending_edits,
+            extra_edits=_extra_edits or (),
             transaction=self,
         )
 
@@ -576,25 +576,30 @@ class Transaction:
         edits = self._accumulate_edits(self._pending_edits)
         if _extra_edits:
             edits.extend(_extra_edits)
-        log = log.bind(edits=len(edits))
+        log = log.bind(edits=edits)
         self._edits.extend(edits)
         self._pending_edits = []
 
         # assign system epoch if we have one
-        # NOTE :Cleanup: handling system epoch in transaction feels clumsy
+        # NOTE :Cleanup: handling system epoch in transaction feels clumsy :BetterCommit
         if self.session._system_epoch is not None:
             for edit in edits:
                 edit.epoch = self.session._system_epoch
                 self.session._system_epoch += 1
 
-        # NOTE :Robustness: use :2PC in Transaction.commit? (if there are more than 2 channels)
-        #  (in general, all bench source & logs is in the same DB, so inconsistent reads are ok)
+        # update nodes on flush
+        #  (this can cause race conditions sometimes? :BetterCommit)
+        for n in self._pending_changed_nodes_by_id.values():
+            n._flush_self()
+
+        # assign edits to engines
         edits_by_engine_id: dict[Any, list[EditData]] = defaultdict(list)
         for edit in edits:
             engine = self.session._get_engine_for(
                 edit.scope, NodeType(edit.node_ptr.type), include_hidden=False, is_readonly=False
             )
             edits_by_engine_id[engine.id].append(edit)
+        # flush to engines
         for engine in self.session._engines:
             # prepare edits & channel
             engine_edits = edits_by_engine_id.get(engine.id, [])
@@ -619,9 +624,6 @@ class Transaction:
             self._cascaded_edits.extend(flush.cascaded_edits)
             self._touched_engine_ids.add(engine.id)
 
-        # notify nodes on flushed
-        for n in self._pending_changed_nodes_by_id.values():
-            n._flushed_self()
         self._pending_changed_nodes_by_id.clear()
         log.trace("transaction.commit" if is_commit else "transaction.flush")
 

@@ -319,7 +319,7 @@ class Runtime:
                 await self._do_run_once_retrying_tracked(runner)
             else:
                 await self._do_run_once_retrying(runner)
-            # nocheckin :Performance!: support optimistic commit (commit in background, fail if failed)
+            # nocheckin :Performance!: support optimistic commit (in background) :BetterCommit
             await self.session.commit()
 
     @tracer.start_as_current_span("runner.process_run")
