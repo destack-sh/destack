@@ -448,11 +448,6 @@ class TypeInfo(Struct, TypeInfoBase):
         return typ
 
 
-KWARG_KEY = "*"
-KWARG_TYPE = TypeInfo(
-    kind=TypeKind.STRUCT, is_list=True, is_required=False, bench_type=StructType.VALUE
-)
-
 #
 # Convenience to type utilities
 #

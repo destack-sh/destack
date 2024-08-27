@@ -10,7 +10,7 @@ import {
   pathToSvg,
   PIPE_CONTEXT_ACTIONS,
   PIPE_WIDTH,
-  STEP_CONTEXT_ACTIONS
+  STEP_CONTEXT_ACTIONS,
 } from "@/language/flow";
 import { cloneNode } from "@/language/node";
 import { NodeReferenceData, NodeType, PipeData, PortSide, StepData, StepType, Variant, ViewData } from "@/proto/wire";
@@ -141,20 +141,31 @@ const actions: Partial<ActionMapImplementation<"common">> = {
     pkgConnection.tx.delete(thing);
   },
   // navigate
-  "common.navigate.left": () => flowCtx.panCanvas({ x: -FLOW_GRID_STEP, y: 0 }),
-  "common.navigate.right": () => flowCtx.panCanvas({ x: FLOW_GRID_STEP, y: 0 }),
-  "common.navigate.up": () => flowCtx.panCanvas({ x: 0, y: -FLOW_GRID_STEP }),
-  "common.navigate.down": () => flowCtx.panCanvas({ x: 0, y: FLOW_GRID_STEP }),
-  "common.navigate.zoomIn": () => flowCtx.zoomCanvas("in", "center", 15),
-  "common.navigate.zoomOut": () => flowCtx.zoomCanvas("out", "center", 15),
+  "common.navigate.left": () => flowCtx.pan({ x: -FLOW_GRID_STEP, y: 0 }),
+  "common.navigate.right": () => flowCtx.pan({ x: FLOW_GRID_STEP, y: 0 }),
+  "common.navigate.up": () => flowCtx.pan({ x: 0, y: -FLOW_GRID_STEP }),
+  "common.navigate.down": () => flowCtx.pan({ x: 0, y: FLOW_GRID_STEP }),
+  "common.navigate.zoomIn": () => flowCtx.zoom("in", "center", 15),
+  "common.navigate.zoomOut": () => flowCtx.zoom("out", "center", 15),
   "common.navigate.reset": () => flowCtx.resetViewport(),
 };
 
 // focus
 function focus(anchor?: FocusAnchor | NodeReferenceData) {
   if (typeof anchor == "object") {
-    if (stepRefs.value[anchor.id!] != null) return stepRefs.value[anchor.id!].$el;
-    else if (pipeRefs.value[anchor.id!] != null) return pipeRefs.value[anchor.id!].$el;
+    if (stepRefs.value[anchor.id!] != null) {
+      const stepState = flowCtx.stepsStates.value[anchor.id!];
+      if (!flowCtx.isInViewport({ kind: "step", step: stepState.step.value! })) {
+        flowCtx.panToCenter({ kind: "step", step: stepState.step.value! });
+      }
+      return stepRefs.value[anchor.id!].$el;
+    } else if (pipeRefs.value[anchor.id!] != null) {
+      const pipeState = flowCtx.pipesStates.value[anchor.id!];
+      if (!flowCtx.isInViewport({ kind: "pipe", pipe: pipeState.pipe.value! })) {
+        flowCtx.panToCenter({ kind: "pipe", pipe: pipeState.pipe.value! });
+      }
+      return pipeRefs.value[anchor.id!].$el;
+    }
   }
   return false;
 }
