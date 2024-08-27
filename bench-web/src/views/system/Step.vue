@@ -8,7 +8,7 @@ import {
   STEP_CONTEXT_ACTIONS,
   STEP_HEADER_HEIGHT,
   useFlowContext,
-  type Port
+  type Port,
 } from "@/language/flow";
 import { cloneNode, moveNode, onNodeMorphed } from "@/language/node";
 import {
@@ -58,9 +58,7 @@ const containerRef: Ref<HTMLElement | null> = ref(null);
 const bodyRef: Ref<HTMLElement | null> = ref(null);
 const headerRef: Ref<HTMLElement | null> = ref(null);
 const bodySize = useElementSize(bodyRef, undefined, { box: "border-box" });
-const paddingHeight = computed(
-  () => FLOW_GRID_STEP - ((bodySize.height.value + STEP_HEADER_HEIGHT) % FLOW_GRID_STEP),
-);
+const paddingHeight = computed(() => FLOW_GRID_STEP - ((bodySize.height.value + STEP_HEADER_HEIGHT) % FLOW_GRID_STEP));
 
 function toPortId(port: Port): string {
   return `${port.side}-${port.idx}`;
@@ -352,15 +350,21 @@ defineExpose<ViewExposed>({ self, id, actions });
               <!-- NOTE :Performance: steps/ports/pipes querying should be centralized/cached better -->
               <div
                 v-if="flowCtx.getPipesAtPort(port).length > 0"
-                class="absolute rounded-sm bg-gray-600"
+                class="flex-row-wrap absolute flex flex-col"
                 :style="{
-                  backgroundColor: flowCtx.getPipeColorHex(flowCtx.getPipesAtPort(port)[0]),
-                  width: FLOW_PORT_SIZE - 4 + 'px',
-                  height: FLOW_PORT_SIZE - 4 + 'px',
-                  top: 1 + 'px',
-                  left: 1 + 'px',
+                  width: FLOW_PORT_SIZE - 2 + 'px',
+                  height: FLOW_PORT_SIZE - 2 + 'px',
+                  top: 0 + 'px',
+                  left: 0 + 'px',
                 }"
-              />
+              >
+                <div
+                  v-for="pipe in flowCtx.getPipesAtPort(port)"
+                  :key="pipe.id"
+                  class="flex-1 rounded-sm bg-gray-600"
+                  :style="{ backgroundColor: flowCtx.getPipeColorHex(pipe) }"
+                />
+              </div>
             </button>
             <!-- Port content -->
             <div class="cursor-default" data-suppress-drag="true">

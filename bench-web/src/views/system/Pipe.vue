@@ -68,7 +68,6 @@ defineExpose<ViewExposed>({ self, id });
           to="-60"
           :dur="`${pipe.type == PipeType.THEN ? '4s' : '4s'}`"
           repeatCount="indefinite"
-          fill="freeze"
         />
       </path>
     </svg>

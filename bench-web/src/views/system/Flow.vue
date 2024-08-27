@@ -155,13 +155,13 @@ function focus(anchor?: FocusAnchor | NodeReferenceData) {
   if (typeof anchor == "object") {
     if (stepRefs.value[anchor.id!] != null) {
       const stepState = flowCtx.stepsStates.value[anchor.id!];
-      if (!flowCtx.isInViewport({ kind: "step", step: stepState.step.value! })) {
+      if (stepState.step.value != null && !flowCtx.isInViewport({ kind: "step", step: stepState.step.value })) {
         flowCtx.panToCenter({ kind: "step", step: stepState.step.value! });
       }
       return stepRefs.value[anchor.id!].$el;
     } else if (pipeRefs.value[anchor.id!] != null) {
       const pipeState = flowCtx.pipesStates.value[anchor.id!];
-      if (!flowCtx.isInViewport({ kind: "pipe", pipe: pipeState.pipe.value! })) {
+      if (pipeState.pipe.value != null && !flowCtx.isInViewport({ kind: "pipe", pipe: pipeState.pipe.value })) {
         flowCtx.panToCenter({ kind: "pipe", pipe: pipeState.pipe.value! });
       }
       return pipeRefs.value[anchor.id!].$el;
