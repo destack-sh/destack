@@ -5,29 +5,21 @@
 import {
   NODE_SUBSUBTYPE_BY_TYPE,
   NODE_SUBTYPE_BY_TYPE,
-  RUNNABLE_BLOCK_TYPES,
   TIMED_NODE_TYPES,
-  toCamelName,
-  TYPE_BLOCK_TYPES,
+  toCamelName
 } from "@/language/const";
-import { makeTypeInfo } from "@/language/field";
-import { FLOW_GRID_STEP_X, FLOW_GRID_STEP_Y } from "@/language/flow";
+import { FLOW_GRID_STEP } from "@/language/flow";
 import { isDescendantOf, resolveNode, type ReadNodeGraph } from "@/language/graph";
-import { getOrderKey, updateOrder } from "@/language/order";
+import { updateOrder } from "@/language/order";
 import { newChangeId, type Transaction } from "@/language/transaction";
 import {
-  BenchType,
   BlockType,
-  ColorType,
   ENUM_BY_TYPE,
-  EnumType,
   FieldZone,
   FileFormat,
   NODE_PROPERTY_ENUM_BY_TYPE,
-  NodeReferenceData,
   NodeType,
   ObjectType,
-  PackageData,
   PROPERTY_ENUM_BY_TYPE,
   PROPERTY_INFOS_BY_TYPE,
   StepType,
@@ -37,9 +29,8 @@ import {
   ViewType,
   type AnyNodeData,
   type AnyStructData,
-  type BlockData,
   type FieldData,
-  type NodeTypeMapping,
+  type NodeTypeMapping
 } from "@/proto/wire";
 import {
   describeNode,
@@ -51,15 +42,9 @@ import {
   nodeReference,
   toPlainNodeRef,
   type AnyNodeReferenceData,
-  type SomeNodeReferenceData,
-  type TypedNodeReferenceData,
+  type SomeNodeReferenceData
 } from "@/proto/wiring";
-import { getNodeIcon, getTypeIcon, makeIcon } from "@/ui/icon";
-import { getEnumTitle } from "@/ui/inspect";
-import { getRandomColorType } from "@/ui/style";
 import { addVector2 } from "@/ui/view";
-import { generateOrderKey } from "@/utils/fractional";
-import { assertNever } from "@/utils/functools";
 import { Casing, toCasing } from "@/utils/string";
 import { uuidt } from "@/utils/uuidt";
 import { computed, type Ref } from "vue";
@@ -319,7 +304,7 @@ export function cloneNode<T extends AnyNodeData>(
   }
   if (isNode(clone, NodeType.STEP)) {
     // update position
-    clone.position = addVector2(clone.position, { x: FLOW_GRID_STEP_X, y: FLOW_GRID_STEP_Y });
+    clone.position = addVector2(clone.position, { x: FLOW_GRID_STEP, y: FLOW_GRID_STEP });
   }
 
   // actually create node

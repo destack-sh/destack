@@ -2,17 +2,15 @@
 import { toCamelName } from "@/language/const";
 import {
   createStep,
-  estimateStepSize,
   FLOW_CANVAS_DOT_SIZE,
   FLOW_CONTEXT_KEY,
-  FLOW_GRID_STEP_X,
-  FLOW_GRID_STEP_Y,
+  FLOW_GRID_STEP,
   FlowContext,
   getStepWidth,
   pathToSvg,
   PIPE_CONTEXT_ACTIONS,
   PIPE_WIDTH,
-  STEP_CONTEXT_ACTIONS,
+  STEP_CONTEXT_ACTIONS
 } from "@/language/flow";
 import { cloneNode } from "@/language/node";
 import { NodeReferenceData, NodeType, PipeData, PortSide, StepData, StepType, Variant, ViewData } from "@/proto/wire";
@@ -109,22 +107,22 @@ const actions: Partial<ActionMapImplementation<"common">> = {
   "common.move.up": (action, context) => {
     const { thing } = getThingFromContext(context);
     if (thing == null) return false;
-    flowCtx.moveThing(thing, { x: 0, y: -FLOW_GRID_STEP_Y });
+    flowCtx.moveThing(thing, { x: 0, y: -FLOW_GRID_STEP });
   },
   "common.move.down": (action, context) => {
     const { thing } = getThingFromContext(context);
     if (thing == null) return false;
-    flowCtx.moveThing(thing, { x: 0, y: FLOW_GRID_STEP_Y });
+    flowCtx.moveThing(thing, { x: 0, y: FLOW_GRID_STEP });
   },
   "common.move.left": (action, context) => {
     const { thing } = getThingFromContext(context);
     if (thing == null) return false;
-    flowCtx.moveThing(thing, { x: -FLOW_GRID_STEP_X, y: 0 });
+    flowCtx.moveThing(thing, { x: -FLOW_GRID_STEP, y: 0 });
   },
   "common.move.right": (action, context) => {
     const { thing } = getThingFromContext(context);
     if (thing == null) return false;
-    flowCtx.moveThing(thing, { x: FLOW_GRID_STEP_X, y: 0 });
+    flowCtx.moveThing(thing, { x: FLOW_GRID_STEP, y: 0 });
   },
   // edit
   "common.edit.duplicate": (action, context) => {
@@ -143,10 +141,10 @@ const actions: Partial<ActionMapImplementation<"common">> = {
     pkgConnection.tx.delete(thing);
   },
   // navigate
-  "common.navigate.left": () => flowCtx.panCanvas({ x: -FLOW_GRID_STEP_X, y: 0 }),
-  "common.navigate.right": () => flowCtx.panCanvas({ x: FLOW_GRID_STEP_X, y: 0 }),
-  "common.navigate.up": () => flowCtx.panCanvas({ x: 0, y: -FLOW_GRID_STEP_Y }),
-  "common.navigate.down": () => flowCtx.panCanvas({ x: 0, y: FLOW_GRID_STEP_Y }),
+  "common.navigate.left": () => flowCtx.panCanvas({ x: -FLOW_GRID_STEP, y: 0 }),
+  "common.navigate.right": () => flowCtx.panCanvas({ x: FLOW_GRID_STEP, y: 0 }),
+  "common.navigate.up": () => flowCtx.panCanvas({ x: 0, y: -FLOW_GRID_STEP }),
+  "common.navigate.down": () => flowCtx.panCanvas({ x: 0, y: FLOW_GRID_STEP }),
   "common.navigate.zoomIn": () => flowCtx.zoomCanvas("in", "center", 15),
   "common.navigate.zoomOut": () => flowCtx.zoomCanvas("out", "center", 15),
   "common.navigate.reset": () => flowCtx.resetViewport(),
@@ -205,7 +203,7 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           width: `${100 / scale}%`,
           height: `${100 / scale}%`,
           transformOrigin: '0 0',
-          transform: `scale(${scale}, ${scale}) translate(${((transform?.translateX ?? 0) % FLOW_GRID_STEP_X) - FLOW_CANVAS_DOT_SIZE / 2}px, ${((transform?.translateY ?? 0) % FLOW_GRID_STEP_Y) - FLOW_CANVAS_DOT_SIZE / 2}px)`,
+          transform: `scale(${scale}, ${scale}) translate(${((transform?.translateX ?? 0) % FLOW_GRID_STEP) - FLOW_CANVAS_DOT_SIZE / 2}px, ${((transform?.translateY ?? 0) % FLOW_GRID_STEP) - FLOW_CANVAS_DOT_SIZE / 2}px)`,
         }"
       >
         <defs>
@@ -213,8 +211,8 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
             id="dot-pattern"
             :x="0"
             :y="0"
-            :width="FLOW_GRID_STEP_X"
-            :height="FLOW_GRID_STEP_Y"
+            :width="FLOW_GRID_STEP"
+            :height="FLOW_GRID_STEP"
             patternUnits="userSpaceOnUse"
           >
             <circle
