@@ -36,7 +36,7 @@ defineExpose<ViewExposed>({ self, id });
     <!-- NOTE :UX: improve pipe highlighting (maybe use glow?) -->
     <svg
       class="absolute cursor-pointer overflow-visible transition-colors duration-75"
-      :class="inspectionPtr?.id == pipePtr.id ? 'text-primary-900' : 'text-transparent hover:text-primary-900'"
+      :class="inspectionPtr?.id == pipePtr.id ? 'text-gray-700' : 'text-transparent hover:text-gray-700'"
     >
       <path
         :stroke-width="PIPE_WIDTH + 2"
@@ -56,7 +56,7 @@ defineExpose<ViewExposed>({ self, id });
         stroke-linejoin="bevel"
         stroke="currentColor"
         fill="none"
-        :stroke-dasharray="pipe.type == PipeType.THEN ? undefined : '8,8'"
+        :stroke-dasharray="pipe.type == PipeType.THEN ? undefined : '8,12'"
         :d="pathSvg"
       />
     </svg>

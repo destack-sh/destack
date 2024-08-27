@@ -3,7 +3,7 @@ import { blockToType } from "@/language/block";
 import { NAME_CONSTRAINT, OUTGOING_STEP_TYPES, TYPE_BLOCK_TYPES } from "@/language/const";
 import { createField, FIELD_CONTEXT_ACTIONS, makeTypeInfo, type TypeIdentity } from "@/language/field";
 import {
-  FLOW_GRID_STEP_Y,
+  FLOW_GRID_STEP,
   FLOW_PORT_SIZE,
   STEP_CONTEXT_ACTIONS,
   STEP_HEADER_HEIGHT,
@@ -59,7 +59,7 @@ const bodyRef: Ref<HTMLElement | null> = ref(null);
 const headerRef: Ref<HTMLElement | null> = ref(null);
 const bodySize = useElementSize(bodyRef, undefined, { box: "border-box" });
 const paddingHeight = computed(
-  () => FLOW_GRID_STEP_Y - ((bodySize.height.value + STEP_HEADER_HEIGHT) % FLOW_GRID_STEP_Y),
+  () => FLOW_GRID_STEP - ((bodySize.height.value + STEP_HEADER_HEIGHT) % FLOW_GRID_STEP),
 );
 
 function toPortId(port: Port): string {
@@ -290,14 +290,14 @@ defineExpose<ViewExposed>({ self, id, actions });
       class="relative"
       :style="{
         // ensure ports are aligned with grid (offset by half a step to connect lines :FlowGrid :StepHeight)
-        paddingTop: FLOW_GRID_STEP_Y - (STEP_HEADER_HEIGHT % FLOW_GRID_STEP_Y) - FLOW_GRID_STEP_Y / 2 + 'px',
+        paddingTop: FLOW_GRID_STEP - (STEP_HEADER_HEIGHT % FLOW_GRID_STEP) - FLOW_GRID_STEP / 2 + 'px',
       }"
     >
       <!-- Ports -->
       <div
         class="relative flex w-full flex-row"
         :style="{
-          height: FLOW_GRID_STEP_Y * Math.max(ports.incoming.length, ports.outgoing.length) + 'px',
+          height: FLOW_GRID_STEP * Math.max(ports.incoming.length, ports.outgoing.length) + 'px',
         }"
       >
         <!-- Incoming/outgoing port zones -->
@@ -324,10 +324,10 @@ defineExpose<ViewExposed>({ self, id, actions });
             class="absolute flex items-center"
             :class="[port.side == PortSide.INCOMING ? 'justify-start' : 'justify-end']"
             :style="{
-              height: FLOW_GRID_STEP_Y + 'px',
+              height: FLOW_GRID_STEP + 'px',
               left: port.side == PortSide.INCOMING ? '0px' : undefined,
               right: port.side == PortSide.OUTGOING ? '0px' : undefined,
-              top: port.idx * FLOW_GRID_STEP_Y - 1 + 'px', // NOTE :Cleanup: why do the ports need -1px offset?
+              top: port.idx * FLOW_GRID_STEP - 1 + 'px', // NOTE :Cleanup: why do the ports need -1px offset?
             }"
           >
             <!-- Actual 'port' -->
@@ -342,7 +342,7 @@ defineExpose<ViewExposed>({ self, id, actions });
                 width: FLOW_PORT_SIZE + 'px',
                 left: port.side == PortSide.INCOMING ? -FLOW_PORT_SIZE / 2 + 'px' : undefined,
                 right: port.side == PortSide.OUTGOING ? -FLOW_PORT_SIZE / 2 + 'px' : undefined,
-                top: FLOW_GRID_STEP_Y / 2 - FLOW_PORT_SIZE / 2 + 'px',
+                top: FLOW_GRID_STEP / 2 - FLOW_PORT_SIZE / 2 + 'px',
               }"
               data-suppress-drag="true"
               @mousedown="(e) => flowCtx.startDragging(e, { kind: 'step-port', step: step!, port })"

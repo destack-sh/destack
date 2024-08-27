@@ -55,8 +55,7 @@ export const PIPE_CONTEXT_ACTIONS: ActionBuiltinId[] = [
   "common.edit.delete",
 ];
 
-export const FLOW_GRID_STEP_X = 28;
-export const FLOW_GRID_STEP_Y = 28;
+export const FLOW_GRID_STEP = 28;
 export const FLOW_PORT_SIZE = 12;
 
 export const FLOW_CANVAS_DOT_SIZE = 4;
@@ -66,6 +65,17 @@ export const FLOW_SCALE_SPEED = 0.01;
 
 export const PIPE_WIDTH = 4;
 export const STEP_HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
+
+/** Rounds the given vector to the nearest grid position (in world coordinates). */
+export function snapVec(vec: { x: number; y: number }): { x: number; y: number } {
+  return {
+    x: Math.round(vec.x / FLOW_GRID_STEP) * FLOW_GRID_STEP,
+    y: Math.round(vec.y / FLOW_GRID_STEP) * FLOW_GRID_STEP,
+  };
+}
+export function snapScalar(x: number): number {
+  return Math.round(x / FLOW_GRID_STEP) * FLOW_GRID_STEP;
+}
 
 export type PortId = Pick<PortKeyData, "type" | "side"> & Partial<Pick<PortKeyData, "fieldPtr">>;
 export type Port = PortId & {
@@ -126,6 +136,8 @@ export class StepState {
   nodeFields: Ref<FieldData[]>;
   // derived
   ports: Ref<{ incoming: Port[]; outgoing: Port[] }>;
+  // layout
+  boundingBox: Ref<BoundingBox | null> = shallowRef(null);
 
   constructor(flow: FlowContext, step: StepData) {
     this.flow = flow;
@@ -140,6 +152,10 @@ export class StepState {
     // derived
     this.ports = computed(() =>
       this.step.value != null ? this.flow.getPorts(this.step.value) : { incoming: [], outgoing: [] },
+    );
+    // layout
+    this.boundingBox = computedValue(() =>
+      this.step.value != null ? this.flow.getStepBoundingBox(this.step.value) : null,
     );
   }
 }
@@ -257,13 +273,14 @@ export class FlowContext {
     watch(
       this.steps,
       () => {
+        const stepsIds = this.steps.value.map((s) => s.id);
         this.steps.value
           .filter((step) => this.stepsStates.value[step.id] == null)
           .forEach(
             (step) => ((this.stepsStates.value[step.id] = new StepState(this, step)), triggerRef(this.stepsStates)),
           );
         Object.keys(this.stepsStates.value)
-          .filter((stepId) => !this.graph.has({ id: stepId }))
+          .filter((stepId) => !stepsIds.includes(stepId))
           .forEach((stepId) => (delete this.stepsStates.value[stepId], triggerRef(this.stepsStates)));
       },
       { immediate: true },
@@ -271,20 +288,21 @@ export class FlowContext {
     watch(
       this.pipes,
       () => {
+        const pipesIds = this.pipes.value.map((p) => p.id);
         this.pipes.value
           .filter((pipe) => this.pipesStates.value[pipe.id] == null)
           .forEach(
             (pipe) => ((this.pipesStates.value[pipe.id] = new PipeState(this, pipe)), triggerRef(this.pipesStates)),
           );
         Object.keys(this.pipesStates.value)
-          .filter((pipeId) => !this.graph.has({ id: pipeId }))
+          .filter((pipeId) => !pipesIds.includes(pipeId))
           .forEach((pipeId) => (delete this.pipesStates.value[pipeId], triggerRef(this.pipesStates)));
       },
       { immediate: true },
     );
 
     // layout
-    this.boundingBox = computed(() => this.computeBoundingBox());
+    this.boundingBox = computedValue(() => this.computeBoundingBox());
   }
 
   get tx() {
@@ -316,10 +334,17 @@ export class FlowContext {
     return stepRef != null ? stepRef : null;
   }
 
-  getStepComponentBounding(step: StepData): DOMRect | null {
-    const stepComponent = this.getStepComponent(step);
-    if (stepComponent == null) return null;
-    return stepComponent.$el.getBoundingClientRect();
+  /** Gets the (reactive) estimated boundng box for a Step (in world coordinates). */
+  getStepBoundingBox(step: StepData): BoundingBox | null {
+    const stepState = this.stepsStates.value[step.id!];
+    if (stepState == null) return null;
+    const verticalPorts = Math.max(stepState.ports.value.incoming.length, stepState.ports.value.outgoing.length);
+    const size = estimateStepSize(step, verticalPorts);
+    const x1 = step.position?.x ?? 0;
+    const y1 = step.position?.y ?? 0;
+    const x2 = x1 + size.width;
+    const y2 = y1 + size.height;
+    return { x1, y1, x2, y2, width: x2 - x1, height: y2 - y1 };
   }
 
   //
@@ -336,20 +361,21 @@ export class FlowContext {
     );
   }
 
-  /** Rounds the given vector to the nearest grid position (in world coordinates). */
-  snapVec(vec: { x: number; y: number }): { x: number; y: number } {
-    return {
-      x: Math.round(vec.x / FLOW_GRID_STEP_X) * FLOW_GRID_STEP_X,
-      y: Math.round(vec.y / FLOW_GRID_STEP_Y) * FLOW_GRID_STEP_Y,
-    };
-  }
-
   /** Convert viewport coordinates to view coordinates */
   viewportToViewVec(viewportVec: { x: number; y: number }): { x: number; y: number } {
     const canvasBounding = this.containerRef.value?.getBoundingClientRect()!;
     return {
       x: viewportVec.x - canvasBounding.left,
       y: viewportVec.y - canvasBounding.top,
+    };
+  }
+
+  /** Convert view coordinates to viewport coordinates */
+  viewToViewportVec(viewVec: { x: number; y: number }): { x: number; y: number } {
+    const canvasBounding = this.containerRef.value?.getBoundingClientRect()!;
+    return {
+      x: viewVec.x + canvasBounding.left,
+      y: viewVec.y + canvasBounding.top,
     };
   }
 
@@ -367,6 +393,12 @@ export class FlowContext {
     };
     viewVec = { x: viewVec.x * this.scale.value, y: viewVec.y * this.scale.value };
     return viewVec;
+  }
+
+  /** Convert world coordinates to viewport coordinates */
+  worldToViewportVec(worldVec: { x: number; y: number }): { x: number; y: number } {
+    const viewVec = this.worldToViewVec(worldVec);
+    return this.viewToViewportVec(viewVec);
   }
 
   /** Convert screen coordinates to world coordinates */
@@ -468,11 +500,13 @@ export class FlowContext {
       };
     } else if (thing.kind == "step") {
       // start moving step
-      const stepBounding = this.getStepComponentBounding(thing.step);
-      if (stepBounding == null) return false; // not mounted yet
+      const positionViewportVec = this.worldToViewportVec({
+        x: thing.step.position?.x ?? 0,
+        y: thing.step.position?.y ?? 0,
+      });
       this.dragging.value = {
         thing,
-        viewOffsetToThing: { x: e.clientX - stepBounding.left, y: e.clientY - stepBounding.top },
+        viewOffsetToThing: { x: e.clientX - positionViewportVec.x, y: e.clientY - positionViewportVec.y },
       };
     } else if (thing.kind == "step-port") {
       // create pending pipe
@@ -507,7 +541,7 @@ export class FlowContext {
         x: e.clientX - this.dragging.value.viewOffsetToThing.x,
         y: e.clientY - this.dragging.value.viewOffsetToThing.y,
       });
-      const worldVec = this.snapVec(this.viewToWorldVec(screenVec));
+      const worldVec = snapVec(this.viewToWorldVec(screenVec));
       this.tx.update(
         thing.step,
         { position: makeStruct({ metatype: StructType.VECTOR2, x: worldVec.x, y: worldVec.y }) },
@@ -563,9 +597,9 @@ export class FlowContext {
       basePosition.x += getStepWidth(step);
     }
     // move down below header :FlowGrid
-    basePosition.y += STEP_HEADER_HEIGHT + FLOW_GRID_STEP_Y - (STEP_HEADER_HEIGHT % FLOW_GRID_STEP_Y);
+    basePosition.y += STEP_HEADER_HEIGHT + FLOW_GRID_STEP - (STEP_HEADER_HEIGHT % FLOW_GRID_STEP);
     // move down to port
-    basePosition.y += port.idx * FLOW_GRID_STEP_Y;
+    basePosition.y += port.idx * FLOW_GRID_STEP;
     return basePosition;
   }
 
@@ -595,33 +629,45 @@ export class FlowContext {
    * NOTE :UX: improve pipe paths (better pathfinding, coordinate pipe paths, ...)
    * */
   computePath(source: Vector2, sourceSide: PortSide, target: Vector2, targetSide: PortSide): PipePath | null {
-    // We follow a pretty simple manhattan-ish algorithm with a few key objectives:
+    // We follow a pretty simple A star algorithm with a few key objectives:
     //  0. We start at the source port and want to reach the target port (if we can't, return null).
     //  1. Pipes are always exactly on the grid; ports are always connected horizontally.
     //  2. Unless directly at a port, we must stay at least one step away from any step.
     //  3. Pipes must be straight and should look reasonably clean, so try to break at halfway points.
     //  4. Path computation must be very fast (we're doing it on every mouse move and state change).
 
-    // swap it so that source is outgoing
+    // swap it so that source is always outgoing
     if (sourceSide != PortSide.OUTGOING) {
       [source, target] = [target, source];
       [sourceSide, targetSide] = [targetSide, sourceSide];
     }
 
-    const points: Vector2[] = [source];
-
-    const currentInGrid = this.snapVec(source);
-    const targetInGrid = this.snapVec(target);
-    let direction: "x" | "y" = "x";
-
-    while (currentInGrid.x != targetInGrid.x || currentInGrid.y != targetInGrid.y) {
-      const distance = targetInGrid[direction] - currentInGrid[direction];
-      currentInGrid[direction] += distance;
-      points.push({ x: currentInGrid.x, y: currentInGrid.y });
-      direction = direction == "x" ? "y" : "x";
+    // check box hits
+    const stepBoundingBoxes: BoundingBox[] = Object.values(this.stepsStates.value)
+      .map((s) => s.boundingBox.value)
+      .filter((s) => s != null) as BoundingBox[];
+    function hitStep(vec: { x: number; y: number }): BoundingBox | undefined {
+      for (const box of stepBoundingBoxes) {
+        if (box.x1 <= vec.x && vec.x <= box.x2 && box.y1 <= vec.y && vec.y <= box.y2) {
+          return box;
+        }
+      }
+      return undefined;
     }
 
-    return { points };
+    // pathfind between point right next to port
+    source = snapVec(source);
+    target = snapVec(target);
+    const innerPoints = pathfind(
+      { x: source.x + FLOW_GRID_STEP, y: source.y },
+      { x: target.x - FLOW_GRID_STEP, y: target.y },
+      { step: FLOW_GRID_STEP, maxIterations: 1000, hit: hitStep },
+    );
+    if (innerPoints == null) return null; // no path found
+    const points = [source, ...innerPoints, target]; // add source/target port back in
+
+    const path: PipePath = { points };
+    return path;
   }
 
   /** Gets the pipes connected to the given port. */
@@ -816,19 +862,19 @@ export function pathToSvg(path: Vector2[]): string {
 
 /** Gets the view width for a Step. */
 export function getStepWidth(step: StepData): number {
-  if (BOUNDARY_STEP_TYPES.includes(step.type)) return FLOW_GRID_STEP_X * 8;
-  else if (step.type == StepType.TEXT || step.type == StepType.CODE) return FLOW_GRID_STEP_X * 10;
-  else return FLOW_GRID_STEP_X * 10;
+  if (BOUNDARY_STEP_TYPES.includes(step.type)) return FLOW_GRID_STEP * 8;
+  else if (step.type == StepType.TEXT || step.type == StepType.CODE) return FLOW_GRID_STEP * 10;
+  else return FLOW_GRID_STEP * 10;
 }
 
 /** Estimate the view size of a Step. Width should be exact, but height is likely overestimated a bit. */
-export function estimateStepSize(step: StepData, numPorts: number): { width: number; height: number } {
+export function estimateStepSize(step: StepData, verticalPorts: number): { width: number; height: number } {
   const width = getStepWidth(step);
   // base height
   let height =
     STEP_HEADER_HEIGHT + // header
-    (FLOW_GRID_STEP_Y - (STEP_HEADER_HEIGHT % FLOW_GRID_STEP_Y) - FLOW_GRID_STEP_Y / 2) + // header padding to align with grid
-    FLOW_GRID_STEP_Y * numPorts; // ports
+    (FLOW_GRID_STEP - (STEP_HEADER_HEIGHT % FLOW_GRID_STEP) - FLOW_GRID_STEP / 2) + // header padding to align with grid
+    FLOW_GRID_STEP * verticalPorts; // ports
   // content
   if (step.type == StepType.TEXT) {
     height += (step.text != null ? estimateTextHeight(step.text, width) : 20) + 10;
@@ -836,7 +882,7 @@ export function estimateStepSize(step: StepData, numPorts: number): { width: num
     height += (step.code != null ? estimateCodeHeight(step.code, width) : 20) + 10;
   }
   // snap height to grid
-  height = Math.ceil(height / FLOW_GRID_STEP_Y) * FLOW_GRID_STEP_Y;
+  height = Math.ceil(height / FLOW_GRID_STEP) * FLOW_GRID_STEP;
   return { width, height };
 }
 
@@ -919,4 +965,108 @@ export function createPipe(
     targetPort: getPortKey(target),
   });
   return pipe;
+}
+
+interface AStarNode {
+  x: number;
+  y: number;
+  g: number; // cost from start
+  h: number; // heuristic estimate of distance to target
+  f: number; // total cost
+  parent: AStarNode | null;
+}
+
+function manhattanDistance(a: Vector2, b: Vector2): number {
+  return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+}
+
+function euclideanDistance(a: Vector2, b: Vector2): number {
+  return Math.sqrt(Math.pow(a.x - b.x, 2) + Math.pow(a.y - b.y, 2));
+}
+
+/** Finds the shortest path between two points on a grid using the A* algorithm. */
+function pathfind(
+  source: Vector2,
+  target: Vector2,
+  options: { step: number; maxIterations: number; hit: (vec: Vector2) => BoundingBox | undefined },
+): Vector2[] | null {
+  const openSet: AStarNode[] = [];
+  const closedSet: Set<string> = new Set();
+  const MANHATTEN_WEIGHT = 1.0;
+  const EUCLIDEAN_WEIGHT = 0.5;
+  const DIRECTION_CHANGE_WEIGHT = 1.0;
+
+  const startNode: AStarNode = {
+    x: source.x,
+    y: source.y,
+    g: 0,
+    h: manhattanDistance(source, target),
+    f: 0,
+    parent: null,
+  };
+  startNode.f = startNode.g + startNode.h;
+
+  openSet.push(startNode);
+
+  const directions = [
+    { dx: options.step, dy: 0 },
+    { dx: 0, dy: options.step },
+    { dx: -options.step, dy: 0 },
+    { dx: 0, dy: -options.step },
+  ];
+
+  let iterations = 0;
+  while (openSet.length > 0 && iterations < options.maxIterations) {
+    iterations++;
+    openSet.sort((a, b) => a.f - b.f);
+    const current = openSet.shift()!;
+
+    if (Math.abs(target.x - current.x) <= options.step && target.y == current.y) {
+      // path found, reconstruct and return it
+      const path: Vector2[] = [];
+      let node: AStarNode | null = current;
+      while (node) {
+        path.unshift({ x: node.x, y: node.y });
+        node = node.parent;
+      }
+      return path;
+    }
+    closedSet.add(`${current.x},${current.y}`);
+
+    for (const { dx, dy } of directions) {
+      const nextPos = { x: current.x + dx, y: current.y + dy };
+      if (options.hit(nextPos) || closedSet.has(`${nextPos.x},${nextPos.y}`)) {
+        continue; // already hit or closed
+      }
+
+      const directionChanged = current.parent?.x !== nextPos.x && current.parent?.y !== nextPos.y;
+      const g = current.g + options.step + (directionChanged ? options.step * DIRECTION_CHANGE_WEIGHT : 0);
+      const h =
+        manhattanDistance(nextPos, target) * MANHATTEN_WEIGHT +
+        euclideanDistance(nextPos, target) * EUCLIDEAN_WEIGHT +
+        (directionChanged ? 1 : 0) * options.step * DIRECTION_CHANGE_WEIGHT;
+
+      const f = g + h;
+      const existingOpenNode = openSet.find((node) => node.x === nextPos.x && node.y === nextPos.y);
+      if (existingOpenNode) {
+        if (g < existingOpenNode.g) {
+          existingOpenNode.g = g;
+          existingOpenNode.f = f;
+          existingOpenNode.parent = current;
+        }
+      } else {
+        openSet.push({
+          x: nextPos.x,
+          y: nextPos.y,
+          g,
+          h,
+          f,
+          parent: current,
+        });
+      }
+    }
+  }
+
+  // no path found
+  return null;
 }
