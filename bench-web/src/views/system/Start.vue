@@ -93,19 +93,21 @@ const lastRunOfBase = computed(() => {
   if (lastRunPtr.value == null || lastRunPtr.value.baseCk != runnablePtr.value?.ck) return null;
   else return lastRun.value;
 });
-const feedState = computed(
-  (): FeedViewStateData => ({
+const feedState = computed((): FeedViewStateData => {
+  const runNodeProperty = runnablePtr.value?.type == NodeType.BLOCK ? RunProperty.blockPtr : RunProperty.stepPtr;
+  const feedState: FeedViewStateData = {
     // pre-filter to only runs of this node
     metatype: ObjectType.FEED_VIEW_STATE,
     nodeType: NodeType.RUN,
     filter: makeExpression({
       op: ExpressionOp.EQUALS,
-      propertyPtr: propertyReference(ObjectType.RUN, RunProperty.blockPtr),
-      valuePacked: packValueJson(runnablePtr.value, propertyType(ObjectType.RUN, RunProperty.blockPtr)),
+      propertyPtr: propertyReference(ObjectType.RUN, runNodeProperty),
+      value: runnablePtr.value,
     }),
     filterPills: state.value.feed?.filterPills ?? [],
-  }),
-);
+  };
+  return feedState;
+});
 const ancestors = pkgGraph.getAncestorsRef(focusPtr, { includeSelf: true });
 
 // current runnable / inputs
