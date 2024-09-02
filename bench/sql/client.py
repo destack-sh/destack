@@ -70,6 +70,7 @@ async def get_pg_connection_pool(connection_uri: str) -> AsyncConnectionPool:
         return _connection_pools[connection_uri]
 
     # parse out key parts for pool name
+    sanitized_connection_uri = sanitize_connection_uri(connection_uri)
     match = _CONNECTION_STR_REGEX.match(connection_uri)
     assert match, f"connection_uri {connection_uri!r} does not match expected format"
     pool = AsyncConnectionPool(
@@ -84,6 +85,7 @@ async def get_pg_connection_pool(connection_uri: str) -> AsyncConnectionPool:
         name=f"{match['username']}@{match['host']}/{match['database']}",
     )
     await pool.open()
+    logger.trace("pg.pool.open", connection_uri=sanitized_connection_uri, pool=pool)
     _connection_pools[connection_uri] = pool
     return pool
 
@@ -96,15 +98,6 @@ async def cycle_pg_connection_pool(connection_uri: str) -> None:
             if conn._pool is pool:
                 await conn.close()
                 await pool.putconn(conn)
-    del _connection_pools[connection_uri]
-
-
-async def close_pg_connection_pool(connection_uri: str) -> None:
-    """Closes a connection pool."""
-    pool = _connection_pools.get(connection_uri)
-    if pool is None:
-        raise ValueError(f"no pool for connection_uri {connection_uri!r}")
-    await pool.close()
     del _connection_pools[connection_uri]
 
 
@@ -135,7 +128,18 @@ async def pg_cursor(connection_uri: str, autocommit: bool = False):
 class AsyncPostgresConnection:
     """A Postgres connection to a Store. Wraps an underlying psycopg connection."""
 
-    __slots__ = ("_conn", "_pool", "_reset_token", "autocommit", "bench", "database", "id", "store")
+    __slots__ = (
+        "_conn",
+        "_connection_uri",
+        "_pool",
+        "_reset_token",
+        "_sanitized_connection_uri",
+        "autocommit",
+        "bench",
+        "database",
+        "id",
+        "store",
+    )
 
     _connection_id: ClassVar[int] = 0
 
@@ -150,12 +154,12 @@ class AsyncPostgresConnection:
         self.autocommit = autocommit
         self._pool: AsyncConnectionPool | None = None
         self._conn: psycopg.AsyncConnection | None = None
+        self._connection_uri: str = get_pg_connection_uri(self.store, database=self.database)
+        self._sanitized_connection_uri = sanitize_connection_uri(self._connection_uri)
 
     async def open(self) -> psycopg.AsyncCursor:
-        raw_connection_uri = get_pg_connection_uri(self.store, database=self.database)
-        self._pool = await get_pg_connection_pool(raw_connection_uri)
-        sanitized_connection_uri = sanitize_connection_uri(raw_connection_uri)
-        trace.get_current_span().set_attribute("pg_connection_uri", sanitized_connection_uri)
+        self._pool = await get_pg_connection_pool(self._connection_uri)
+        trace.get_current_span().set_attribute("pg_connection_uri", self._sanitized_connection_uri)
         log = logger.bind(id=self.id, store=self.store, pool=self._pool)
         try:
             self._conn = await self._pool.getconn()
@@ -172,6 +176,13 @@ class AsyncPostgresConnection:
             await self._pool.putconn(self._conn)
             logger.trace("pg.pool.release", id=self.id, store=self.store, pool=self._pool)
             self._conn = None
+            # close pool if no longer in use
+            if len(self._pool._pool) >= self._pool._nconns:  # ._pool are available conns
+                await self._pool.close()
+                del _connection_pools[self._connection_uri]
+                logger.trace(
+                    "pg.pool.close", connection_uri=self._sanitized_connection_uri, pool=self._pool
+                )
 
     async def __aenter__(self) -> psycopg.AsyncCursor:
         return await self.open()

@@ -358,15 +358,14 @@ class Session(RuntimeNode[SessionData]):
         assert self.opened_at, f"session not open {self!r}"
         assert not self.closed_at, f"session already closed {self!r}"
 
-        # close connections
-        for connection in self._connections:
-            connection.close()
-
         # close transaction
         async with self._tx_lock:
-            await asyncio.gather(
-                *(channel.close() for channel in self._channels), return_exceptions=_suppress_error
-            )
+            for connection in self._connections:
+                connection.close()
+                await connection.wait_closed()
+            self._connections.clear()
+            for channel in self._channels:
+                await channel.close()
             self._channels.clear()
             self._tx = None
 
@@ -377,6 +376,7 @@ class Session(RuntimeNode[SessionData]):
             with suppress(ValueError):  # ignore error if token is from other context
                 _active_session.reset(self._active_session_token)
                 self._active_session_token = None
+
         # remove dangling graph if this was a solo session
         # NOTE :Cleanup: not sure how to prune graphs from temporary objects like request sessions :TransientGraphs
         if self._is_new:
