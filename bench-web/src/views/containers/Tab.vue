@@ -1,26 +1,25 @@
 <script lang="ts" setup>
+import { cloneNode } from "@/language/node";
 import { BoxData, NodeType, Orientation, ViewData, ViewType } from "@/proto/wire";
 import { toPlainNodeRef, unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
-import { type Action, type ActionContext, type ActionMapImplementation } from "@/ui/action";
 import { useExistingConnection } from "@/system/connection";
-import { ICON_BY_NODE_TYPE, ICON_BY_VIEW_TYPE, IconInline } from "@/ui/icon";
 import { canvas } from "@/system/space";
+import { type Action, type ActionContext, type ActionMapImplementation } from "@/ui/action";
 import { startDragging, useMultiDropZone, useSplitDropZone, type SplitAnchor } from "@/ui/drag";
-import { IS_DEV, isDeveloperMode } from "@/utils/globals";
+import { ICON_BY_NODE_TYPE, ICON_BY_VIEW_TYPE, IconInline } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
 import { menuActionsLike, type PopoverContext, type PopoverInfo } from "@/ui/popover";
+import { IS_DEV, isDeveloperMode } from "@/utils/globals";
 import Empty from "@/views/builtins/Empty.vue";
 import { viewEmits, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
 import { getViewBinding, getViewComponent } from "@/views/registry";
 import { computed, nextTick, ref, toRef, type Ref } from "vue";
-import { cloneNode } from "@/language/node";
-import { VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 
 const props = defineProps<
   { self: TypedNodeReferenceData<NodeType.VIEW>; size: Required<Pick<BoxData, "width" | "height">> } & Pick<
     ViewData,
-    "focus"
+    "focus" | "variant"
   >
 >();
 const emit = defineEmits(viewEmits());
@@ -232,11 +231,13 @@ defineExpose<ViewExposed>({ self, actions });
             };
           }
         "
-        class="group relative flex h-full max-w-52 select-none flex-row items-center justify-center whitespace-nowrap border-r border-gray-200 px-2.5 hover:cursor-pointer"
+        class="group relative flex h-full select-none flex-row items-center whitespace-nowrap border-r border-gray-200 px-2.5 hover:cursor-pointer"
         :class="[
+          // we grow a single tab to the full width of the tabbed view
           i == focusedTabIdx ? 'bg-white text-primary-900  ' : 'border-b hover:text-primary-900',
-          i == focusedTabIdx && isFocusAbsolute ? 'shadow-inset-md shadow-primary-900' : '',
+          i == focusedTabIdx && isFocusAbsolute && tabs.length > 1 ? 'shadow-inset-md shadow-primary-900' : '',
           i != focusedTabIdx ? 'text-gray-600' : '',
+          tabs.length == 1 ? 'w-full max-w-full' : 'max-w-52',
         ]"
         :draggable="true"
         @click="focus(tab)"
@@ -251,11 +252,16 @@ defineExpose<ViewExposed>({ self, actions });
         <span class="truncate" :class="[tabsTitles[i] == tab.name ? 'italic' : '']">{{ tabsTitles[i] }}</span>
         <!-- Close tab -->
         <button
+          v-if="tabs.length > 1"
           class="ml-1.5 group-hover:text-gray-400"
           :class="i == focusedTabIdx && isFocusAbsolute ? 'text-gray-400' : 'text-transparent'"
           @click.stop="remove(tab)"
         >
           <i class="fas fa-xmark hover:text-primary-900" />
+        </button>
+        <!-- Focus indicator (for stretched single tab) -->
+        <button v-else-if="i == focusedTabIdx && isFocusAbsolute" class="ml-auto px-0.5">
+          <i class="fas fa-circle-small text-primary-900" />
         </button>
         <!-- Drop indicator -->
         <div
