@@ -798,10 +798,10 @@ def generate_access_matrix(
         root_type = wiring.unpack_enum(NodeType, root.metatype)
         root_cls = NODE_CLASS_BY_TYPE[root_type]
         root_id = UUID(root.id)
-        # nocheckin: fix unexpected non-root root when running things in flow
-        assert not root_cls.__roots__, f"unexpected non-root root: {root!r}"
+        # TODO :Broken: fix occassional unexpected non-root as root when running things in flow
+        assert not root_cls.__roots__, f"unexpected non-root root: {root!r} in {graph!r}"
 
-        # base zones are checked before all others (typically for system policies)
+        # base zones are checked before all others (for system policies)
         #  but are specific to each root (=owner)
         for identity in identities:
             base_rules = [
