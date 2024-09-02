@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.09.02.0"
+VERSION = "2024.09.02.1"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -1041,6 +1041,7 @@ class PipeFilterType(betterproto.Enum):
     IS_TRUTHY = 2
     IS_EMPTY = 50
     IS_FALSY = 51
+    HAS_ERROR = 100
 
 
 class PipeType(betterproto.Enum):
@@ -1064,7 +1065,6 @@ class PortSide(betterproto.Enum):
 class PortType(betterproto.Enum):
     UNSPECIFIED = 0
     RUN = 1
-    ERROR = 2
     OBJECT = 10
     FIELD = 11
 
@@ -3469,7 +3469,7 @@ class StepData(betterproto.Message):
      1. Fire output values to all output ports
      2. Fire output control port
      When a Step fails, then:
-     - If error port exists: fire error on error port
+     - If run_options.suppress_failure: fire error on run port
      - Else: fail containing Flow
     """
 

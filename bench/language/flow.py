@@ -387,9 +387,10 @@ class Step(SourceNode[StepData]):
         source_port: "PortIn" = PortType.OBJECT,
         target_port: "PortIn" = PortType.OBJECT,
         filter_type: PipeFilterType | None = None,
+        parent: Union["Block", "Step", None] = None,
     ) -> "Pipe":
         """Connects a source Step to this Step."""
-        parent = self.parent
+        parent = parent or self.parent
         assert parent is not None, f"{self!r} is not attached to a parent"
 
         # assign next name like Pipe1, .. in parent :AutoNaming
@@ -409,6 +410,7 @@ class Step(SourceNode[StepData]):
             target=self,
             target_port=to_port_key(target_port, side=PortSide.INCOMING),
             filter_type=filter_type,
+            parent=parent,
         )
         parent.pipes.append(pipe)
         return pipe
@@ -421,6 +423,7 @@ class Step(SourceNode[StepData]):
         source_port: "PortIn" = PortType.OBJECT,
         target_port: "PortIn" = PortType.OBJECT,
         filter_type: PipeFilterType | None = None,
+        parent: Union["Block", "Step", None] = None,
     ) -> "Step":
         """Connects a source Step to this Step as a Then. Returns the target Step (for chaining)."""
         _ = target.connect(
@@ -430,6 +433,7 @@ class Step(SourceNode[StepData]):
             source_port=source_port,
             target_port=target_port,
             filter_type=filter_type,
+            parent=parent,
         )
         return target
 
@@ -441,6 +445,7 @@ class Step(SourceNode[StepData]):
         source_port: "PortIn" = PortType.OBJECT,
         target_port: "PortIn" = PortType.OBJECT,
         filter_type: PipeFilterType | None = None,
+        parent: Union["Block", "Step", None] = None,
     ) -> "Step":
         """Connects a source Step to this Step as a With. Returns the target Step (for chaining)."""
         _ = target.connect(
@@ -450,6 +455,7 @@ class Step(SourceNode[StepData]):
             source_port=source_port,
             target_port=target_port,
             filter_type=filter_type,
+            parent=parent,
         )
         return target
 

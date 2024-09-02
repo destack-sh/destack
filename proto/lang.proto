@@ -993,6 +993,7 @@ enum PipeFilterType {
   PIPE_FILTER_TYPE_IS_TRUTHY = 2;
   PIPE_FILTER_TYPE_IS_EMPTY = 50;
   PIPE_FILTER_TYPE_IS_FALSY = 51;
+  PIPE_FILTER_TYPE_HAS_ERROR = 100;
 }
 
 enum PipeType {
@@ -1016,7 +1017,6 @@ enum PortSide {
 enum PortType {
   PORT_TYPE_UNSPECIFIED = 0;
   PORT_TYPE_RUN = 1;
-  PORT_TYPE_ERROR = 2;
   PORT_TYPE_OBJECT = 10;
   PORT_TYPE_FIELD = 11;
 }
@@ -3088,7 +3088,7 @@ message SpaceData {
 // 1. Fire output values to all output ports
 // 2. Fire output control port
 // When a Step fails, then:
-// - If error port exists: fire error on error port
+// - If run_options.suppress_failure: fire error on run port
 // - Else: fail containing Flow
 message StepData {
   ObjectType metatype = 1;

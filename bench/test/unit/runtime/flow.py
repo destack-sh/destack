@@ -47,6 +47,39 @@ async def test_run_flow_trivial_no_value(local_runtime: RuntimeHandle):
     assert runner.run and len(runner.run.runs) == 2  # two steps
 
 
+async def test_run_flow_pipe_from_nowhere(local_runtime: RuntimeHandle):
+    """Run a flow with a pipe from nowhere. Should not be run and just be ignored."""
+    Flow1 = Block.new(BlockType.FLOW, "Flow1")
+    Start = Step.new(StepType.START, "Start")
+    Complete = Step.new(StepType.COMPLETE, "Complete")
+    Flow1.steps.extend(Start, Complete)
+    Nowhere = Step.new(StepType.START, "Nowhere")  # not added to flow/graph
+    Nowhere.then(Complete, parent=Flow1)
+    Start.then(Complete)
+    local_runtime.page().blocks.append(Flow1)
+    await local_runtime.commit()
+
+    runner = await local_runtime.run(Flow1)
+    assert runner.run and len(runner.run.runs) == 2
+
+
+async def test_run_flow_pipe_to_nowhere(local_runtime: RuntimeHandle):
+    """Run a flow with a pipe to nowhere. Should not be run and just be ignored."""
+    Flow1 = Block.new(BlockType.FLOW, "Flow1")
+    Start = Step.new(StepType.START, "Start")
+    Complete = Step.new(StepType.COMPLETE, "Complete")
+    Flow1.steps.extend(Start, Complete)
+    Nowhere = Step.new(StepType.START, "Nowhere")  # not added to flow/graph
+    Start.then(Nowhere, parent=Flow1)
+    Start.then(Complete)
+    Nowhere.then(Complete)
+    local_runtime.page().blocks.append(Flow1)
+    await local_runtime.commit()
+
+    runner = await local_runtime.run(Flow1)
+    assert runner.run and len(runner.run.runs) == 2
+
+
 async def test_run_flow_force_invalid_output(local_runtime: RuntimeHandle):
     """Complete the flow with invalid output (should fail)."""
     Flow1 = Block.new(
