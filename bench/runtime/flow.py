@@ -54,6 +54,9 @@ def evaluate_pipe_filter(pipe: "Pipe", value: Any) -> bool:
         return value is None or (isinstance(value, Collection) and len(value) == 0)
     elif pipe.filter_type == PipeFilterType.IS_FALSY:
         return not bool(value)
+    # other
+    elif pipe.filter_type == PipeFilterType.HAS_ERROR:
+        return not isinstance(value, Run) or value.status != RunStatus.FAILED
     else:
         assert_never(pipe.filter_type)
 
@@ -105,7 +108,7 @@ class StepState:
             field_port_id = to_port_id(port)
             self.unset_ports.pop(field_port_id, None)
             self.inputs[port.field] = value
-        elif port.type in (PortType.ERROR, PortType.RUN):
+        elif port.type == PortType.RUN:
             raise RuntimeError(f"cannot set {port!r}")
         else:
             assert_never(port.type)
@@ -246,7 +249,7 @@ class FlowRunner(Runner[RunnerCache, Block]):
                 else:
                     continue  # ignore pipe
             elif run.status == RunStatus.FAILED:
-                if pipe.source_port.type == PortType.ERROR:
+                if pipe.source_port.type == PortType.RUN:
                     assert run.error is not None, f"{run!r} has no error"
                     value = run.error
                 else:
@@ -301,9 +304,8 @@ class FlowRunner(Runner[RunnerCache, Block]):
                 # fail if step failed and no error port
                 if run.status == RunStatus.ABORTED:
                     continue  # ignore aborted runs
-                elif run.status == RunStatus.FAILED and not any(
-                    pipe.source_port.type == PortType.ERROR
-                    for pipe in self._get_outgoing_pipes_for(step)
+                elif run.status == RunStatus.FAILED and not (
+                    step.run_options and step.run_options.suppress_failure
                 ):
                     assert run.error is not None, f"{run!r} has no error"
                     self._fail(run.error)

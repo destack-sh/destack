@@ -3,7 +3,7 @@ from bench.language.code import code
 from bench.language.const import BlockType, RunStatus
 from bench.language.field import Field
 from bench.language.flow import PipeFilterType, PortType, Step, StepType
-from bench.language.run import Run, RunErrorType
+from bench.language.run import Run, RunErrorType, RunOptions
 from bench.language.text import md
 from bench.test.unit.conftest import RuntimeHandle
 
@@ -125,10 +125,20 @@ async def test_run_flow_error_with_error_port(local_runtime: RuntimeHandle):
     """Run a code step with an error connected to the error port. Flow should complete."""
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
     Start = Step.new(StepType.START, "Start")
-    Code1 = Step.new(StepType.CODE, "Code1", code=code("raise ValueError('error')"))
+    Code1 = Step.new(
+        StepType.CODE,
+        "Code1",
+        code=code("raise ValueError('error')"),
+        run_options=RunOptions(suppress_failure=True),
+    )
     Complete = Step.new(StepType.COMPLETE, "Complete")
     Flow1.steps.extend(Start, Code1, Complete)
-    Start.then(Code1).then(Complete, source_port=PortType.ERROR, target_port=PortType.RUN)
+    Start.then(Code1).then(
+        Complete,
+        source_port=PortType.RUN,
+        target_port=PortType.RUN,
+        filter_type=PipeFilterType.HAS_ERROR,
+    )
     local_runtime.page().blocks.extend(Flow1)
     await local_runtime.commit()
 

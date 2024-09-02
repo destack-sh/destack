@@ -63,6 +63,8 @@ class PipeFilterType(IdEnum):
     IS_EMPTY = 50  # keep empty only (None, empty, "", ...)
     IS_FALSY = 51  # keep falsy only (None, empty, False, 0, ...)
     # IS_INVALID doesn't make sense? (would need to know: valid for what target port?)
+    # other
+    HAS_ERROR = 100  # keep if run failed
 
 
 @local_node_(NodeType.PIPE)
@@ -139,8 +141,6 @@ class PortSide(IdEnum):
 @enum_(EnumType.PORT_TYPE)
 class PortType(IdEnum):
     RUN = 1  # fire only (no content, just the Run)
-    ERROR = 2  # fire with error in case of failure (output only)
-    # nocheckin: refactor error (and object?) port into run port with filter/mapping
     OBJECT = 10  # fire with full input/output/... value (depending on side)
     FIELD = 11  # fire with specific field (depending on side & type)
 
@@ -155,7 +155,7 @@ class PortType(IdEnum):
 
 PORT_TYPES_BY_SIDE: dict[PortSide, tuple[PortType, ...]] = {
     PortSide.INCOMING: (PortType.RUN, PortType.OBJECT, PortType.FIELD),
-    PortSide.OUTGOING: (PortType.RUN, PortType.ERROR, PortType.OBJECT, PortType.FIELD),
+    PortSide.OUTGOING: (PortType.RUN, PortType.OBJECT, PortType.FIELD),
 }
 FIELD_ZONES_BY_SIDE: dict[PortSide, tuple[FieldZone, ...]] = {
     PortSide.INCOMING: (FieldZone.VARIABLE, FieldZone.INPUT),
@@ -177,7 +177,7 @@ class PortKeyBase(BuiltinObject):
         field_ptr: Optional["Property"] = None
 
     def __content_str__(self) -> str:
-        if self.type == PortType.RUN or self.type == PortType.ERROR:
+        if self.type == PortType.RUN:
             return f"[{self.type.bench_name}]"
         elif self.type == PortType.OBJECT:
             return f".*[{self.side.bench_name}]"
@@ -302,7 +302,7 @@ class Step(SourceNode[StepData]):
      1. Fire output values to all output ports
      2. Fire output control port
     When a Step fails, then:
-     - If error port exists: fire error on error port
+     - If run_options.suppress_failure: fire error on run port
      - Else: fail containing Flow
     """
 

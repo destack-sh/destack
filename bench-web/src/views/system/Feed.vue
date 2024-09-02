@@ -57,7 +57,7 @@ import { humanizeNumber } from "@/utils/string";
 import { ScrollbarWidth } from "@/ui/layout";
 import { computedValue } from "@/utils/ref";
 import { ACCENT_COLOR_BY_RUN_STATUS } from "@/ui/style";
-import { formatDuration, formatRelativeDate, getDurationFromNow } from "@/utils/time";
+import { formatDuration, formatRelativeDate, getDurationFromNow, TimeUpdateInterval } from "@/utils/time";
 import { VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import { makeViewId, viewEmits, type ViewComponent, type ViewExposed } from "@/views/common";
 import Scroll from "@/views/containers/Scroll.vue";
@@ -526,7 +526,12 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
                 <template v-if="item.it.startedAt != null">
                   in
                   <span>
-                    {{ formatDuration(item.it.duration ?? getDurationFromNow(item.it.startedAt)) }}
+                    {{
+                      formatDuration(
+                        item.it.duration ??
+                          getDurationFromNow(item.it.startedAt, { updateInterval: TimeUpdateInterval.MILLISECOND }),
+                      )
+                    }}
                   </span>
                 </template>
               </template>
