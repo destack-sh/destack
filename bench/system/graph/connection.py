@@ -18,7 +18,7 @@ from bench.language.connection import (
     WatchGetUpdate,
     WatchSearchUpdate,
 )
-from bench.language.const import EditType, NodeType, ReadType
+from bench.language.const import ROOT_NODE_TYPES, EditType, NodeType, ReadType
 from bench.language.expression import apply_sort, evaluate_conditional
 from bench.language.graph import NodeDataGraphLike
 from bench.language.query import DEFAULT_READ_OPTIONS, QueryBuilder
@@ -251,10 +251,13 @@ class NodeConnection[
                 not options.include_hidden and edit_type in (EditType.UNARCHIVE, EditType.RESTORE)
             ):
                 # parent must be in our result graph
-                # nocheckin: missing parent error when this is a root (user signup)
                 #  (cannot be a root type here, so must have a parent?)
                 parent_id = updated_node.parent_ptr.id if updated_node.parent_ptr else None
-                assert parent_id, f"missing parent for {updated_node!r}"
+                if parent_id is None:
+                    if updated_node.metatype in ROOT_NODE_TYPES:
+                        continue  # unrelated root node
+                    else:
+                        raise RuntimeError(f"missing parent ptr for {updated_node!r} in {edit!r}")
                 is_in_scope = parent_id in result_graph
             else:
                 # node must be in our result graph
