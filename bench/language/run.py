@@ -327,7 +327,7 @@ class RunError(Struct, BenchError):
         elif kind == RunErrorKind.RUNTIME:
             if isinstance(e, CancelledError):
                 typ = RunErrorType.ABORTED
-            elif isinstance(e, ValidationError):
+            elif isinstance(e, (TypeError, ValueError, ValidationError)):
                 typ = RunErrorType.INVALID_VALUE
             else:
                 typ = RunErrorType.UNKNOWN_NONRETRYABLE
