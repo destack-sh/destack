@@ -5,7 +5,7 @@ from bench.language.field import TypeInfo
 from bench.language.node import (
     NodeReference,
     NodeReferenceBase,
-    SourceNode,
+    StateNode,
     Struct,
     local_node_,
     struct_,
@@ -27,7 +27,7 @@ if TYPE_CHECKING:
 
 
 @local_node_(NodeType.SECRET)
-class Secret(SourceNode[SecretData]):
+class Secret(StateNode[SecretData]):
     """A secret value."""
 
     parent: Union["Package", "Block", None] = p_node_parent(

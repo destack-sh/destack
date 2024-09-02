@@ -1413,7 +1413,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         super().__init__(**kwargs, _skip_init_self=True, _skip_validate_self=True)
 
         # init ck/id
-        if isinstance(self, HasPersistentIdentity):
+        if isinstance(self, SourceNode):
             if self.ck is None:
                 self.ck = self.__class__.__ck_factory__()
                 self.id = self.__class__.__id_factory__()
@@ -1861,16 +1861,10 @@ class PackageNode[NodeDataT: AnyNodeData](BenchNode[NodeDataT], abc.ABC):
 
 
 @node_component()
-class HasPersistentIdentity(Node, abc.ABC):
-    """A node with a persistent identity across versions."""
-
-    ck: UUID = p_system(3, default=None, require=True, autoset=True)  # type: ignore
-
-
-@node_component()
-class SourceNode[NodeDataT: AnyNodeData](PackageNode[NodeDataT], HasPersistentIdentity, abc.ABC):
+class SourceNode[NodeDataT: AnyNodeData](PackageNode[NodeDataT], abc.ABC):
     """A package node with a persistent identity that can be instanced."""
 
+    ck: UUID = p_system(3, default=None, require=True, autoset=True)  # type: ignore
     template: Optional["Node"] = p_node_template(7)
     templated_epoch: int | None = p_system(
         8, require=False, default=None, autoset=True, primitive_type=PrimitiveType.INT64
@@ -1881,7 +1875,7 @@ class SourceNode[NodeDataT: AnyNodeData](PackageNode[NodeDataT], HasPersistentId
 
 
 @node_component()
-class RemoteNode[NodeDataT: AnyNodeData](PackageNode[NodeDataT], abc.ABC):
+class StateNode[NodeDataT: AnyNodeData](PackageNode[NodeDataT], abc.ABC):
     """A package node with a persistent identity that can be instanced."""
 
     pass
@@ -1893,6 +1887,11 @@ class HasTimeIdentity(BuiltinObject, abc.ABC):
 
     __id_factory__: ClassVar[Callable[[], UUID]] = UUIDT
     __ck_factory__: ClassVar[Callable[[], UUID]] = UUIDT
+
+
+@node_component()
+class RuntimeNode[NodeDataT: AnyNodeData](HasTimeIdentity, PackageNode[NodeDataT], abc.ABC):
+    """An eternal runtime node."""
 
 
 @node_component()

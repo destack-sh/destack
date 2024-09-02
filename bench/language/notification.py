@@ -11,7 +11,7 @@ from bench.language.field import TypeInfoBase
 from bench.language.node import (
     HasNodeBase,
     HasTimeIdentity,
-    RemoteNode,
+    StateNode,
     Struct,
     object_,
     timed_node_,
@@ -38,7 +38,7 @@ if TYPE_CHECKING:
 
 
 @timed_node_(NodeType.NOTIFICATION, passthrough="value")
-class Notification(RemoteNode[NotificationData], HasTimeIdentity, HasNodeBase):
+class Notification(HasTimeIdentity, StateNode[NotificationData], HasNodeBase):
     """
     A Notification for a Bench (author = created_by).
     """
