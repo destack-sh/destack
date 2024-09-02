@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.08.26.0"
+VERSION = "2024.09.02.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -3188,7 +3188,6 @@ class RecordData(betterproto.Message):
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
-    ck: str = betterproto.string_field(3)
     parent_ptr: Optional["NodeReferenceData"] = betterproto.message_field(4, optional=True)
     package_ptr: "NodeReferenceData" = betterproto.message_field(5)
     bench_ptr: "NodeReferenceData" = betterproto.message_field(6)
@@ -3279,12 +3278,9 @@ class SecretData(betterproto.Message):
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
-    ck: str = betterproto.string_field(3)
     parent_ptr: Optional["NodeReferenceData"] = betterproto.message_field(4, optional=True)
     package_ptr: "NodeReferenceData" = betterproto.message_field(5)
     bench_ptr: "NodeReferenceData" = betterproto.message_field(6)
-    template_ptr: Optional["NodeReferenceData"] = betterproto.message_field(7, optional=True)
-    templated_epoch: Optional[int] = betterproto.int64_field(8, optional=True)
     revision: int = betterproto.int64_field(10)
     created_at: datetime = betterproto.message_field(11)
     created_epoch: int = betterproto.int64_field(12)

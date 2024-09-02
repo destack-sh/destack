@@ -35,7 +35,7 @@ from bench.language.node import (
     BuiltinObject,
     NodeReference,
     NodeReferenceBase,
-    RemoteNode,
+    StateNode,
     Struct,
     local_node_,
     object_,
@@ -789,7 +789,7 @@ class FileInfo(Struct[FileInfoData], FileInfoBase):
 
 
 @local_node_(NodeType.FILE, indexes=(("drive_id", "sha256"),))
-class File(RemoteNode[FileData], FileInfoBase):
+class File(StateNode[FileData], FileInfoBase):
     """
     A file stored somewhere (like a Drive, orexternally).
     De-duplicated so that there's only one File per unique file content for our own files.

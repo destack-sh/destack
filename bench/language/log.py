@@ -14,9 +14,8 @@ from bench.language.const import (
     enum_,
 )
 from bench.language.node import (
-    HasTimeIdentity,
     Node,
-    PackageNode,
+    RuntimeNode,
     Struct,
     struct_,
     timed_node_,
@@ -81,7 +80,7 @@ class LogInfo(Struct):
 
 
 @timed_node_(NodeType.LOG)
-class Log(PackageNode[LogData], HasTimeIdentity, HasSessionContext):
+class Log(RuntimeNode[LogData], HasSessionContext):
     """
     A Log of something happening in a Bench.
     """

@@ -15,9 +15,8 @@ from bench.language.const import (
 )
 from bench.language.node import (
     HasNodeBase,
-    HasTimeIdentity,
     Node,
-    PackageNode,
+    RuntimeNode,
     Struct,
     struct_,
     timed_node_,
@@ -338,7 +337,7 @@ class RunError(Struct, BenchError):
 
 
 @timed_node_(NodeType.RUN)
-class Run(PackageNode[RunData], HasTimeIdentity, HasNodeBase, HasSessionContext):
+class Run(RuntimeNode[RunData], HasNodeBase, HasSessionContext):
     """
     A 'run' of Blocks (and Steps within them) or 'lambdas' (just Code/Text).
     When 'running' something that's not directly runnable (like a Text Block, Text Step or Text Lambda),

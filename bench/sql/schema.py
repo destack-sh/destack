@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.08.26.0"
+VERSION = "2024.09.02.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1060,16 +1060,11 @@ SECRET_TABLE = Table(
     "bench_secret",
     (
         Column("id", PrimitiveType.UUID, is_primary_key=True),
-        Column("ck", PrimitiveType.UUID),
         Column("parent_id", PrimitiveType.UUID, is_nullable=True),
         Column("parent_ck", PrimitiveType.UUID, is_nullable=True),
         Column("parent_type", PrimitiveType.INT16, is_nullable=True),
         Column("package_id", PrimitiveType.UUID),
         Column("bench_id", PrimitiveType.UUID),
-        Column("template_id", PrimitiveType.UUID, is_nullable=True),
-        Column("template_ck", PrimitiveType.UUID, is_nullable=True),
-        Column("template_bench_id", PrimitiveType.UUID, is_nullable=True),
-        Column("templated_epoch", PrimitiveType.INT64, is_nullable=True),
         Column("revision", PrimitiveType.INT64),
         Column("created_at", PrimitiveType.DATETIME),
         Column("created_epoch", PrimitiveType.INT64),

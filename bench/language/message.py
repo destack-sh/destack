@@ -7,7 +7,7 @@ from bench.language.node import (
     BenchNode,
     HasNodeBase,
     HasTimeIdentity,
-    RemoteNode,
+    StateNode,
     timed_node_,
 )
 from bench.language.property import p_node_parent, p_regular, p_value_packed, p_value_runtime
@@ -32,7 +32,7 @@ MESSAGE_PARENT_TYPES: tuple[NodeType, ...] = (
 
 
 @timed_node_(NodeType.MESSAGE, passthrough="value")
-class Message(RemoteNode[MessageData], HasTimeIdentity, HasNodeBase):
+class Message(HasTimeIdentity, StateNode[MessageData], HasNodeBase):
     """
     A Message by a User or program (author = created_by).
     If the parent is also a Message, then this is part of a thread. Threads may be nested.

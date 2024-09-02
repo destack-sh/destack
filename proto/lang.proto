@@ -2844,7 +2844,6 @@ message QueryData {
 message RecordData {
   ObjectType metatype = 1;
   string id = 2;
-  string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
@@ -2921,12 +2920,9 @@ message RunData {
 message SecretData {
   ObjectType metatype = 1;
   string id = 2;
-  string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   NodeReferenceData package_ptr = 5;
   NodeReferenceData bench_ptr = 6;
-  optional NodeReferenceData template_ptr = 7;
-  optional int64 templated_epoch = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   int64 created_epoch = 12;

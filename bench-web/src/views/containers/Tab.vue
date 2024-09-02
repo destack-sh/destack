@@ -60,6 +60,7 @@ const focusedTabIdx: Ref<number | null> = computed(() => {
     return 0;
   }
 });
+const hasOneTab = computed(() => tabs.value.length == 1);
 const innerSize = computed(() => ({ width: props.size.width, height: props.size.height - HEADER_HEIGHT }));
 
 function focus(tab: ViewData) {
@@ -231,13 +232,13 @@ defineExpose<ViewExposed>({ self, actions });
             };
           }
         "
-        class="group relative flex h-full select-none flex-row items-center whitespace-nowrap border-r border-gray-200 px-2.5 hover:cursor-pointer"
+        class="group relative flex h-full select-none flex-row items-center whitespace-nowrap border-gray-200 px-2.5 hover:cursor-pointer"
         :class="[
           // we grow a single tab to the full width of the tabbed view
           i == focusedTabIdx ? 'bg-white text-primary-900  ' : 'border-b hover:text-primary-900',
-          i == focusedTabIdx && isFocusAbsolute && tabs.length > 1 ? 'shadow-inset-md shadow-primary-900' : '',
+          i == focusedTabIdx && isFocusAbsolute && !hasOneTab ? 'shadow-inset-md shadow-primary-900' : '',
           i != focusedTabIdx ? 'text-gray-600' : '',
-          tabs.length == 1 ? 'w-full max-w-full' : 'max-w-52',
+          hasOneTab ? 'w-full max-w-full' : 'max-w-52 border-r',
         ]"
         :draggable="true"
         @click="focus(tab)"
@@ -252,7 +253,7 @@ defineExpose<ViewExposed>({ self, actions });
         <span class="truncate" :class="[tabsTitles[i] == tab.name ? 'italic' : '']">{{ tabsTitles[i] }}</span>
         <!-- Close tab -->
         <button
-          v-if="tabs.length > 1"
+          v-if="!hasOneTab"
           class="ml-1.5 group-hover:text-gray-400"
           :class="i == focusedTabIdx && isFocusAbsolute ? 'text-gray-400' : 'text-transparent'"
           @click.stop="remove(tab)"

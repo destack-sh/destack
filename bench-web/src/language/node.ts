@@ -266,7 +266,7 @@ function _cloneNode<T extends AnyNodeData>(node: T, now: Timestamp): T {
 /**
  * Creates a clone of this node and its node descendants with the same content (and different identity)
  * The new node will be appended after the current node in its parent.
- * nocheckin :Broken: cloneNode should (but doesn't) keep inner references consistent :CloneNodeReferences
+ * TODO :Broken: cloneNode should (but doesn't) keep inner references consistent :CloneNodeReferences
  **/
 export function cloneNode<T extends AnyNodeData>(
   tx: Transaction,

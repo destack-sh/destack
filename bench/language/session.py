@@ -41,10 +41,10 @@ from bench.language.node import (
     BenchNode,
     BuiltinObject,
     EditSubject,
-    HasTimeIdentity,
     Node,
     NodeReferenceBase,
     PackageNode,
+    RuntimeNode,
     Struct,
     object_,
     struct_,
@@ -94,7 +94,7 @@ CustomCommit = Callable[["Session"], Awaitable[tuple[list[EditData], list[EditDa
 
 
 @timed_node_(NodeType.SESSION)
-class Session(PackageNode[SessionData], HasTimeIdentity):
+class Session(RuntimeNode[SessionData]):
     """
     A managed Session for interacting with and running a Bench in a Client.
     If a Run spans multiple Clients, each Client will have its own Session.

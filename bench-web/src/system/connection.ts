@@ -1159,7 +1159,7 @@ export function useGetConnection<T extends NodeType>(
 
 /**
  * Gets the given node from the relevant subgraph, fetching/caching automatically.
- * Wrapper around useGetConnection that just gives you the node directly.
+ * Wrapper around connections that just gives you the node directly.
  */
 export function useNode<T extends NodeType>(paramsIn: {
   name: string;
@@ -1194,7 +1194,8 @@ export function useNode<T extends NodeType>(paramsIn: {
     const node = graph.getRef(paramsIn.nodePtr) as Ref<NodeTypeMapping[T] | null>;
     return { connection, node, isConnecting, isConnected, isStale };
   } else if (paramsIn.type == "search") {
-    // NOTE :Architecture: there should be a simpler way to watch a "maybe get" connection than to make it a search
+    // nocheckin :Architecture: there should be a simpler way to watch a "maybe get" connection than to make it a search
+    //  just make get not error optionally if not found?
     const { graph, connection, isConnecting, isConnected, isStale } = useSearchConnection<T>(
       { name: paramsIn.name, live: paramsIn.live === undefined ? true : paramsIn.live },
       computed(() => {
