@@ -1,3 +1,4 @@
+import asyncio
 import contextvars
 import re
 from contextlib import asynccontextmanager
@@ -33,6 +34,7 @@ PG_RECONNECT_TIMEOUT = get_from_env(
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 _connection_pools: dict[str, AsyncConnectionPool] = {}
+_pool_lock = asyncio.Lock()
 _force_pg_crypto_key: contextvars.ContextVar[str | None] = contextvars.ContextVar(
     "force_pg_crypto_key", default=None
 )
@@ -69,25 +71,43 @@ async def get_pg_connection_pool(connection_uri: str) -> AsyncConnectionPool:
     if connection_uri in _connection_pools:
         return _connection_pools[connection_uri]
 
-    # parse out key parts for pool name
-    sanitized_connection_uri = sanitize_connection_uri(connection_uri)
-    match = _CONNECTION_STR_REGEX.match(connection_uri)
-    assert match, f"connection_uri {connection_uri!r} does not match expected format"
-    pool = AsyncConnectionPool(
-        connection_uri,
-        min_size=2,
-        max_size=10,
-        max_idle=60 * 60,
-        timeout=PG_CONNECT_TIMEOUT,
-        reconnect_timeout=PG_RECONNECT_TIMEOUT,
-        connection_class=psycopg.AsyncConnection,
-        kwargs={"row_factory": dict_row},
-        name=f"{match['username']}@{match['host']}/{match['database']}",
-    )
-    await pool.open()
-    logger.trace("pg.pool.open", connection_uri=sanitized_connection_uri, pool=pool)
-    _connection_pools[connection_uri] = pool
-    return pool
+    async with _pool_lock:
+        # check if already open
+        if connection_uri in _connection_pools:
+            return _connection_pools[connection_uri]
+
+        # parse out key parts for pool name
+        sanitized_connection_uri = sanitize_connection_uri(connection_uri)
+        match = _CONNECTION_STR_REGEX.match(connection_uri)
+        assert match, f"connection_uri {connection_uri!r} does not match expected format"
+
+        # open new pool
+        pool = AsyncConnectionPool(
+            connection_uri,
+            min_size=2,
+            max_size=10,
+            max_idle=60 * 60,
+            timeout=PG_CONNECT_TIMEOUT,
+            reconnect_timeout=PG_RECONNECT_TIMEOUT,
+            connection_class=psycopg.AsyncConnection,
+            kwargs={"row_factory": dict_row},
+            name=f"{match['username']}@{match['host']}/{match['database']}",
+        )
+        await pool.open()
+        _connection_pools[connection_uri] = pool
+        logger.trace("pg.pool.open", connection_uri=sanitized_connection_uri, pool=pool)
+        return pool
+
+
+async def close_pg_connection_pool(connection_uri: str) -> None:
+    """Closes a connection pool."""
+    async with _pool_lock:
+        pool = _connection_pools.get(connection_uri)
+        if pool is not None:
+            sanitized_connection_uri = sanitize_connection_uri(connection_uri)
+            await pool.close()
+            del _connection_pools[connection_uri]
+            logger.trace("pg.pool.close", connection_uri=sanitized_connection_uri, pool=pool)
 
 
 async def cycle_pg_connection_pool(connection_uri: str) -> None:
@@ -178,11 +198,7 @@ class AsyncPostgresConnection:
             self._conn = None
             # close pool if no longer in use
             if len(self._pool._pool) >= self._pool._nconns:  # ._pool are available conns
-                await self._pool.close()
-                del _connection_pools[self._connection_uri]
-                logger.trace(
-                    "pg.pool.close", connection_uri=self._sanitized_connection_uri, pool=self._pool
-                )
+                await close_pg_connection_pool(self._connection_uri)
 
     async def __aenter__(self) -> psycopg.AsyncCursor:
         return await self.open()
