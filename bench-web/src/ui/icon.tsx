@@ -297,6 +297,7 @@ export const ICON_BY_PIPE_FILTER_TYPE: Partial<Record<PipeFilterType, IconData>>
   [PipeFilterType.IS_TRUTHY]: "fas fa-circle-1",
   [PipeFilterType.IS_EMPTY]: "fas fa-empty-set",
   [PipeFilterType.IS_FALSY]: "fas fa-circle-0",
+  [PipeFilterType.HAS_ERROR]: "fas fa-circle-xmark",
 });
 
 export const ICON_BY_VIEW_TYPE: Partial<Record<ViewType, IconData>> = _makeIcons<ViewType>({

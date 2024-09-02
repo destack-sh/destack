@@ -223,7 +223,9 @@ class FlowRunner(Runner[RunnerCache, Block]):
 
         # pump the pipes
         for pipe in self._get_outgoing_pipes_for(step):
-            target_state = self._step_states[pipe.target]
+            target_state = self._step_states.get(pipe.target)
+            if target_state is None:
+                continue  # target step does not exist
 
             # select/filter value
             if run.status == RunStatus.COMPLETED:

@@ -179,6 +179,8 @@ def test_render_variable_with_file(shared_session: Session, shared_package: Pack
     return {"File1": File1, "Variable1": Variable1}
 
 
+# nocheckin: render flows/pipes
+
 #
 # Other renderings
 #

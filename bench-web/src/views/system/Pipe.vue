@@ -36,8 +36,9 @@ defineExpose<ViewExposed>({ self, id });
   <div v-if="pipe && path">
     <!-- Background/outline path for highlighting (and larger hit area) -->
     <svg
-      class="absolute cursor-pointer overflow-visible blur-sm text-primary-500 transition-all duration-75"
+      class="absolute cursor-pointer overflow-visible blur-sm transition-all duration-75"
       :class="isInspected ? 'opacity-80' : 'opacity-0 hover:opacity-60'"
+      :style="{ color: pathColorHex }"
     >
       <path
         :stroke-width="PIPE_WIDTH + 2"
@@ -61,13 +62,7 @@ defineExpose<ViewExposed>({ self, id });
         "
         :d="pathSvg"
       >
-        <animate
-          attributeName="stroke-dashoffset"
-          from="0"
-          to="-100"
-          dur="4s"
-          repeatCount="indefinite"
-        />
+        <animate attributeName="stroke-dashoffset" from="0" to="-100" dur="4s" repeatCount="indefinite" />
       </path>
     </svg>
   </div>
