@@ -55,18 +55,17 @@ defineExpose<ViewExposed>({ self, id });
         stroke-linecap="round"
         stroke-linejoin="bevel"
         stroke="currentColor"
-        :stroke-dashoffset="5 ?? 0"
         fill="none"
         :stroke-dasharray="
-          pipe.type == PipeType.THEN ? `${PIPE_WIDTH * 3},${PIPE_WIDTH * 2}` : `${PIPE_WIDTH * 0.5},${PIPE_WIDTH * 2}`
+          pipe.type == PipeType.THEN ? `${PIPE_WIDTH * 3},${PIPE_WIDTH * 2}` : `${1},${PIPE_WIDTH * 2}`
         "
         :d="pathSvg"
       >
         <animate
           attributeName="stroke-dashoffset"
           from="0"
-          to="-60"
-          :dur="`${pipe.type == PipeType.THEN ? '4s' : '4s'}`"
+          to="-100"
+          dur="4s"
           repeatCount="indefinite"
         />
       </path>
