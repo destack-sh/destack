@@ -727,7 +727,7 @@ async def _pg_fetchall_from_many(cur: psycopg.AsyncCursor, expected: int) -> lis
     results: list[RowOut] = []
     while True:
         row = cast(RowOut | None, await cur.fetchone())
-        assert row, f"expected {expected} results, got {len(results)}"
+        assert row, f"expected {expected} results, got {len(results)}: {row!r}"
         results.append(row)
         if not cur.nextset():
             break

@@ -321,7 +321,7 @@ class Runtime:
                 await self._do_run_once_retrying(runner)
             # nocheckin :Performance! :Robustness: support optimistic & more robust commit
             #  (increment local epoch, handle concurrent commits/edits, ... :BetterCommit)
-            await self.session.commit()
+            await asyncio.shield(self.session.commit())
 
     @tracer.start_as_current_span("runner.process_run")
     async def run_run(self, run: Run, *, suppress_error: bool) -> Runner | None:
@@ -339,7 +339,7 @@ class Runtime:
                 if run.status != RunStatus.FAILED:
                     run.status = RunStatus.FAILED
                     run.error = RunError.from_exception(RunErrorKind.RUNTIME, e)
-                await self.session.commit()
+                await asyncio.shield(self.session.commit())
                 logger.info("runner.process_run.error", run=run, exc_info=e, span="current")
                 if not suppress_error:
                     raise
@@ -348,7 +348,7 @@ class Runtime:
                 if run.status != RunStatus.FAILED:
                     run.status = RunStatus.FAILED
                     run.error = RunError.from_exception(RunErrorKind.INTERNAL, e)
-                await self.session.commit()
+                await asyncio.shield(self.session.commit())
                 logger.error(
                     "runner.process_run.internal_error", run=run, exc_info=e, span="current"
                 )

@@ -234,7 +234,7 @@ async def test_run_flow_race(local_runtime: RuntimeHandle):
     assert len(runner.run.runs) == 5  # all steps should run exactly once
 
 
-async def test_run_flow_not_so_infinite_loop(local_runtime: RuntimeHandle):
+async def test_run_flow_infinite_loop(local_runtime: RuntimeHandle):
     """Runs an infinite loop that's not infinite because it also completes immediately."""
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
     Start = Step.new(StepType.START, "Start")
@@ -248,6 +248,24 @@ async def test_run_flow_not_so_infinite_loop(local_runtime: RuntimeHandle):
 
     runner = await local_runtime.run(Flow1)
     assert runner.run and len(runner.run.runs) == 4  # two steps
+
+
+async def test_run_flow_infinite_loop_with_extra_hop(local_runtime: RuntimeHandle):
+    """Runs an infinite loop that's not infinite because it also completes immediately."""
+    Flow1 = Block.new(BlockType.FLOW, "Flow1")
+    Start = Step.new(StepType.START, "Start")
+    Code1 = Step.new(StepType.CODE, "Code1")
+    Code2 = Step.new(StepType.CODE, "Code2")
+    Complete = Step.new(StepType.COMPLETE, "Complete")
+    Flow1.steps.extend(Start, Code1, Code2, Complete)
+    Start.then(Code1)
+    Code1.then(Code1)  # infinite!
+    Code1.then(Code2)
+    Code2.then(Complete)
+    local_runtime.page().blocks.append(Flow1)
+    await local_runtime.commit()
+
+    _ = await local_runtime.run(Flow1)
 
 
 async def test_run_flow_get_run_as_field(local_runtime: RuntimeHandle):
