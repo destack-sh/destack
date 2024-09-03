@@ -67,7 +67,7 @@ def create_omni_session(omni_store: Store, oracle: Oracle):
         parent=None,
         _default_scope=EMPTY_SCOPE._to_data(),
         _engines=(global_pg_engine,),
-        _system_epoch=0,
+        _local_epoch=0,
         _oracle=oracle,
         _supergraph=NodeSuperGraph(root_ptr=None),
     )
@@ -191,7 +191,7 @@ def create_global_session(global_store: Store, oracle: Oracle):
         parent=None,
         _default_scope=EMPTY_SCOPE._to_data(),
         _engines=(global_pg_engine,),
-        _system_epoch=0,
+        _local_epoch=0,
         _oracle=oracle,
         _supergraph=NodeSuperGraph(root_ptr=None),
     )
@@ -278,7 +278,7 @@ async def local_runtime_async(global_store: Store):
         _is_readonly=False,
         _default_scope=GraphScope(bench_id=bench.id)._to_data(),
         _engines=session._engines,
-        _system_epoch=0,
+        _local_epoch=0,
         _oracle=REAL_ORACLE,
         _supergraph=bench._supergraph,
     )
@@ -403,7 +403,7 @@ async def hosted_runtime_async(hosted_bench: Bench, host: HostClient):
         _is_readonly=False,
         _default_scope=GraphScope(bench_id=hosted_bench.id)._to_data(),
         _engines=engines,
-        _system_epoch=0,
+        _local_epoch=0,
         _supergraph=hosted_bench._supergraph,
         _split_read=True,
         _oracle=REAL_ORACLE,

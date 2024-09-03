@@ -14,7 +14,7 @@ from bench.language import Bench, Node, NodeType, Store
 from bench.language.const import (
     EditType,
 )
-from bench.language.graph import NodeGraphLike, NodeSuperGraph
+from bench.language.graph import NodeSuperGraph
 from bench.language.session import Session
 from bench.proto import wiring
 from bench.proto.wire import EditData
@@ -83,7 +83,6 @@ class Commit[T: Node]:
 
 def unpack_commit(
     session: Session,
-    graphs: Collection[NodeGraphLike],
     supergraph: NodeSuperGraph,
     edits: list[EditData],
     cascaded_edits: list[EditData],
@@ -116,22 +115,18 @@ def unpack_commit(
         else:
             raise RuntimeError(f"unexpected edit type {edit.type} in {edit!r}")
 
-    # the nodes edited in 'edits' are expected to be in 'graph'
+    # the nodes edited in 'edits' are expected to be in one of the graphs
     for edit in edits:
         node_type = NodeType(edit.node_ptr.type)
         edited_types[node_type.ord] = True
         # unpack
         node_id = UUID(edit.node_ptr.id)
-        node = None
-        for graph in graphs:
-            if node_id in graph:
-                node = graph.get(node_id)
-                break
+        node = supergraph.get(node_id)
         if node is None:
             if node_type == NodeType.LOG:
                 # access logs which are just created for each edit
                 continue
-            raise RuntimeError(f"missing node {node_id!r} in {graphs!r} for {edit!r}")
+            raise RuntimeError(f"missing node {node_id!r} in {supergraph!r} for {edit!r}")
         # map
         _add_edit(edit, node)
 
@@ -154,12 +149,9 @@ def unpack_commit(
             raise RuntimeError(f"unexpected cascaded edit type {edit.type} in {edit!r}")
         assert node.parent_ptr, f"missing parent ptr for {node!r} in {edit!r}"
         parent_id = UUID(node.parent_ptr.id)
-        for graph in graphs:
-            parent = graph.get(parent_id)
-            if parent is not None:
-                break
-        else:
-            # cascaded edits should bei in pre-order, so the parent must exist
+        parent = supergraph.get(parent_id)
+        if parent is None:
+            # cascaded edits should be in pre-order, so the parent must exist somewhere
             raise RuntimeError(f"missing parent {parent_id} for {node!r} in {edit!r}")
         # cascaded nodes may also be regularly edited nodes, so we add/update them
         node = wiring.unpack_object(

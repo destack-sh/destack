@@ -101,6 +101,9 @@ def _get_bench_dir() -> str:
     return bench_dir
 
 
+# nocheckin: upgrade provisioned machines to new versions
+
+
 class LocalhostMachineProvisioner(Provisioner[Machine, Machine]):
     """Provision Machines by short-circuiting to localhost."""
 
