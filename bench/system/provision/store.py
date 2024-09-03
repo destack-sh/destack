@@ -117,7 +117,7 @@ class LocalhostStoreProvisioner(StoreProvisioner):
     @override
     async def _do_decommission(self, resource: Store):
         # drop database through existing connection
-        async with pg_store_connection(self.host.global_store) as cur:
+        async with pg_store_connection(self.host.global_store, autocommit=True) as cur:
             await cur.execute(sqlstr(f'DROP DATABASE "{resource.external_name}"'))
 
 

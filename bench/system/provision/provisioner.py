@@ -234,3 +234,15 @@ async def provision(host: HostApi, bench: Bench, resources: Collection[ResourceN
                 break
         else:
             raise RuntimeError(f"no provisioner for {resource!r} in {provisioners!r}")
+
+
+async def decommission(host: HostApi, bench: Bench, resources: Collection[ResourceNode]) -> None:
+    """Decommissions the given resources in *this* environment"""
+    provisioners = get_provisioners_for(host, bench)
+    for resource in resources:
+        for provisioner in provisioners:
+            if resource.metatype in provisioner.provision_types:
+                await provisioner.decommission(resource)
+                break
+        else:
+            raise RuntimeError(f"no provisioner for {resource!r} in {provisioners!r}")
