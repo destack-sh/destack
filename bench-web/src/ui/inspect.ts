@@ -17,6 +17,7 @@ import {
   IconData,
   NodeType,
   ObjectType,
+  PipeFilterType,
   PipeProperty,
   PrimitiveType,
   PROPERTY_ENUM_BY_TYPE,
@@ -142,6 +143,7 @@ export const EXPOSED_ANCHORS = [
   Anchor.RIGHT,
   Anchor.BOTTOM,
 ];
+export const EXPOSED_PIPE_FILTER_TYPES = [PipeFilterType.IS_TRUTHY, PipeFilterType.IS_FALSY, PipeFilterType.HAS_ERROR];
 export const FILTERED_ENUMS: Partial<Record<EnumType, number[]>> = {
   [EnumType.BLOCK_TYPE]: EXPOSED_BLOCK_TYPES,
   [EnumType.STRUCT_TYPE]: EXPOSED_STRUCT_TYPES,
@@ -149,6 +151,7 @@ export const FILTERED_ENUMS: Partial<Record<EnumType, number[]>> = {
   [EnumType.BENCH_TYPE]: [...NODE_TYPES, ...EXPOSED_STRUCT_TYPES, ...ENUM_TYPES],
   [EnumType.PRIMITIVE_TYPE]: EXPOSED_PRIMITIVE_TYPES,
   [EnumType.ANCHOR]: EXPOSED_ANCHORS,
+  [EnumType.PIPE_FILTER_TYPE]: EXPOSED_PIPE_FILTER_TYPES,
 };
 export const ENUM_TITLE_BY_TYPE: Partial<Record<EnumType, Record<any, string>>> = {
   [EnumType.PRIMITIVE_TYPE]: {

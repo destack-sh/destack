@@ -309,8 +309,8 @@ class Runtime:
     async def run_runner(self, runner: Runner):
         """Runs something runnable, considering its dependencies and run options."""
 
-        # TODO :Incomplete: prepare run runner context (Runner.prepare?)
-        #  (like for code we need its referenced imports/exports ready)
+        # NOTE :Incomplete: prepare run runner context (Runner.prepare?)
+        #  (for code, we need the referenced imports/exports ready)
 
         # run it
         async with self.session.active():
@@ -324,7 +324,7 @@ class Runtime:
             await asyncio.shield(self.session.commit())
 
     @tracer.start_as_current_span("runner.process_run")
-    async def run_run(self, run: Run, *, suppress_error: bool) -> Runner | None:
+    async def run_run(self, run: Run, *, return_error: bool = False) -> Runner | None:
         """Start or resume a top-level Run in this Runner. Returns on halt or termination."""
         runner = None
         async with self.session.active():
@@ -333,15 +333,13 @@ class Runtime:
                 await self.run_runner(runner)
                 logger.info("runner.process_run", run=run, runner=runner, span="current")
             except (BenchError, ValueError, TypeError) as e:
-                # NOTE: Robustness: should we really commit the entire session on failure?
-                #  (maybe have some sort of atomic flag or context manager to prevent it as needed?)
                 # re-raised inner user error
                 if run.status != RunStatus.FAILED:
                     run.status = RunStatus.FAILED
                     run.error = RunError.from_exception(RunErrorKind.RUNTIME, e)
                 await asyncio.shield(self.session.commit())
                 logger.info("runner.process_run.error", run=run, exc_info=e, span="current")
-                if not suppress_error:
+                if not return_error:
                     raise
             except Exception as e:
                 # some unexpected internal error
@@ -352,9 +350,9 @@ class Runtime:
                 logger.error(
                     "runner.process_run.internal_error", run=run, exc_info=e, span="current"
                 )
-                if not suppress_error:
+                if not return_error:
                     raise
-            return runner
+        return runner
 
     async def pause_run(self, run: Run):
         """Pause a Run currently executing in this Runner."""
@@ -370,6 +368,6 @@ class Runtime:
         """Auto-run wrapper for some runnable node (may already be in another run)."""
         if not isinstance(run, Run):
             run = Run.from_runnable(run, inputs=inputs, parent=self.active_run)
-        runner = await self.run_run(run, suppress_error=return_error)
+        runner = await self.run_run(run, return_error=return_error)
         assert runner is not None, f"no runner for {run!r}"
         return runner

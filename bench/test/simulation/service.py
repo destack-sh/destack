@@ -9,6 +9,8 @@ from bench.language import NodeReference
 from bench.proto import wire
 from bench.proto.services import ServiceBase
 from bench.proto.wire import CreateBenchRequest, HostClient, SupervisorClient
+from bench.sql.client import pg_store_connection
+from bench.sql.engine import sqlstr
 from bench.system.host.service import HostService
 from bench.system.supervisor.service import SupervisorService
 from bench.system.utils.sharding import HostMap
@@ -67,7 +69,6 @@ class ServiceHandle[SpecT: ServiceSpec, S: ServiceBase, C: ServiceStub](abc.ABC)
     async def wait_closed(self):
         if self._service is not None:
             await self._service.wait_closed()
-            self._service = None
 
 
 @final
@@ -136,3 +137,11 @@ class HostHandle(ServiceHandle[HostSpec, HostService, HostClient]):
     @override
     async def _make_client(self, channel: SimulatedChannel) -> HostClient:
         return HostClient(channel=channel.channel)
+
+    @override
+    async def wait_closed(self):
+        await super().wait_closed()
+        # manually decommission stores (bootstrapping problem since the Host session uses the store)
+        async with pg_store_connection(self.simulation.global_store, autocommit=True) as cur:
+            for store in self.service.bench.stores:
+                await cur.execute(sqlstr(f'DROP DATABASE "{store.external_name}"'))

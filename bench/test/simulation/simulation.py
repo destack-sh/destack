@@ -16,7 +16,7 @@ from bench.proto.wire import (
 )
 from bench.sql.engine import GLOBAL_SCHEMA
 from bench.test.conftest import TestProfile
-from bench.test.fixtures import create_test_db, make_system_store
+from bench.test.fixtures import create_test_db, delete_test_db, make_system_store
 from bench.test.simulation.client import ClientHandle, UserHandle
 from bench.test.simulation.oracle import SimulatedEventLoop, SimulatedOracle
 from bench.test.simulation.service import HostHandle, ServiceHandle, SupervisorHandle
@@ -266,7 +266,7 @@ class Network:
 #
 
 # NOTE :Test: read simulation specs from disk (some JSON schema + toml thing?)
-#  probably also mark and categorize them?
+#  probably also mark and categorize them? (see for example FoundationDB test specs)
 AVAILABLE_SIMULATIONS: list[SimulationSpec] = [
     # empty tests to sanity test simulation setup
     SimulationSpec(
@@ -360,6 +360,7 @@ async def _do_test_simulation(spec: SimulationSpec):
     simulation = Simulation(simulation_id, spec, global_store)
     try:
         await simulation.run()
+        await delete_test_db(global_store)
     except Exception as e:
         logger.exception("simulation.error", simulation=simulation, error=e)
         raise

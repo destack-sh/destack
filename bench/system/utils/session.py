@@ -87,7 +87,7 @@ def global_session(
         parent=None,
         _default_scope=EMPTY_SCOPE._to_data(),
         _engines=engines,
-        _system_epoch=epoch,
+        _local_epoch=epoch,
         _supergraph=supergraph or store.parent._supergraph.instance(),
         _oracle=oracle,
         _is_readonly=readonly,

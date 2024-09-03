@@ -523,9 +523,9 @@ class _NodeDictBase[K, V]:
         assert isinstance(item, self.key_type), f"expected {self.key_type}, got {item!r}"
         return item in self._nodes_by_id
 
-    def get(self, item: K) -> V:
+    def get(self, item: K) -> V | None:
         assert isinstance(item, self.key_type), f"expected {self.key_type}, got {item!r}"
-        return self._nodes_by_id[item]
+        return self._nodes_by_id.get(item)
 
 
 class NodeDict(_NodeDictBase[UUID, "Node"]):

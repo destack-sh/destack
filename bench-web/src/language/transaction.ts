@@ -483,7 +483,6 @@ export class TransactionBuilder implements Transaction {
   }
 }
 
-
 /**
  * Applies the edits to the graph (in place!).
  * If a base graph is given, this graph is assumed to be an overlay.
@@ -1069,7 +1068,7 @@ function watchTransactionBuffer(buffer: TransactionBuffer) {
 }
 
 /** Commits any pending transactions in the current buffers. */
-async function flushTransactionBuffers() {
+async function commitTransactionBuffers() {
   const buffers = [globalTxBuffer, ...Object.values(txBuffersByBenchId.value)];
   const commitPromises = [];
   for (const tx of buffers) {
@@ -1090,9 +1089,9 @@ export function setupTransactionManagement() {
   watchTransactionBuffer(globalTxBuffer);
   // (the rest is watched on demand)
   // commit on user change
-  watch(toValueRef(userPtr), () => flushTransactionBuffers());
+  watch(toValueRef(userPtr), () => commitTransactionBuffers());
   // commit before exit
-  window.addEventListener("beforeunload", (e) => flushTransactionBuffers());
+  window.addEventListener("beforeunload", (e) => commitTransactionBuffers());
 }
 
 //

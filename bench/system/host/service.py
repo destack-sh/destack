@@ -64,7 +64,6 @@ from bench.proto.wiring import (
     wrap_some_node,
 )
 from bench.system.graph.graph import (
-    CommitArea,
     GraphIoServiceBase,
     parse_commit_scope,
     validate_edit,
@@ -308,8 +307,8 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
     async def session(self, *, readonly: bool = False, commit: bool = False):
         """Gets exclusive query and edit access to the main session. :ExclusiveHostSession"""
         assert self._session is not None, f"no session for {self!r}"
-        async with self.tx_lock, self._session.active(readonly=readonly):
-            self._session._system_epoch = self.epoch
+        async with self.commit_lock, self._session.active(readonly=readonly):
+            self._session._local_epoch = self.epoch
             yield self._session
             if commit:
                 await self._session.commit()
@@ -457,7 +456,8 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
             _is_readonly=False,
             _default_scope=self.scope,
             _engines=self._engines,
-            _custom_commit=self._commit_system_session,
+            _extend_commit=self._extend_commit,
+            _on_commit=self._on_commit,
             _supergraph=self._bench._supergraph,
             _split_read=True,
             _oracle=self.oracle,
@@ -514,36 +514,29 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
 
     @override
     @tracer.start_as_current_span("host.prepare_commit")
-    def _prepare_commit(
-        self, subject: Subject, context: SessionContext, edits: list[EditData]
-    ) -> tuple[CommitArea, int]:
+    def _prepare_commit(self, subject: Subject, context: SessionContext, edits: list[EditData]):
         assert subject.client and subject.client_ptr, f"no client for {subject!r}"
         assert self._main_package is not None, f"package not loaded in {self!r}"
 
         # prepare commit
         scope = parse_commit_scope(edits, base_graph=self._main_package._data_graph)
         now = self.oracle.utc()
-        epoch = self.epoch
         for edit in edits:
             validate_edit(edit, subject, now)
-            epoch += 1
-            edit.epoch = epoch
 
         # check context
         validate_context(subject, context, edits)
 
-        return scope, epoch
+        return scope
 
     @override
     @tracer.start_as_current_span("host.extend_commit")
     async def extend_commit(
         self,
-        supergraph: NodeSuperGraph,
         session: Session,
         context: SessionContext | None,
         graph: NodeGraphLike,
         edits: list[EditData],
-        cascaded_edits: list[EditData],
     ) -> list[EditData]:
         extended_edits: list[EditData] = []
         # NOTE :Incomplete: run plugins to extend commit (not needed yet)
@@ -670,14 +663,13 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
     @tracer.start_as_current_span("host.on_commit")
     async def on_commit(
         self,
-        supergraph: NodeSuperGraph,
+        session: Session,
         graph: NodeGraphLike,
         data_graph: NodeDataGraphLike,
         edits: list[EditData],
         cascaded_edits: list[EditData],
-        epoch: int,
     ):
-        await super().on_commit(supergraph, graph, data_graph, edits, cascaded_edits, epoch)
+        await super().on_commit(session, graph, data_graph, edits, cascaded_edits)
 
         assert self._session is not None, f"session not ready in {self!r}"
         assert self._bench is not None, f"bench not loaded in {self!r}"
@@ -720,16 +712,15 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
                 edited_node = root_node._graph.get(UUID(edit.node_ptr.id))
                 if edited_node is not None:
                     edited_node.revision = edit.revision
-            # and apply all edits to the data graph
+            # and apply all edits to our cached data graphs
             edit_data_graph(root_node._data_graph, subedits, options)
 
         # run plugins on commit (in main session)
         async with self._session.active():
-            self._session.track_many(*graph.nodes)
+            self._session.track_many(*graph.nodes, force=True)  # may come from other session
             commit = unpack_commit(
                 session=self._session,
-                supergraph=supergraph,
-                graphs=(*self.graphs, graph),
+                supergraph=session._supergraph,  # use original session's supergraph
                 edits=edits,
                 cascaded_edits=cascaded_edits,
                 epoch=self.epoch,
@@ -748,7 +739,7 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
                             commit=trimmed_commit,
                             span="current",
                         )
-            await self._session.commit(_skip_lock=True)  # already in a locked section
+            await self._session.commit()
         logger.debug(
             "host.on_commit",
             host=self,

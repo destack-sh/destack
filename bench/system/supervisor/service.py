@@ -174,7 +174,9 @@ class SupervisorService(GraphIoServiceBase, SupervisorBase):
         if subject.is_authenticated:
             raise GRPCError(GRPCStatus.ALREADY_EXISTS, "already logged in")
 
-        async with self.request_session(supergraph=subject._supergraph, readonly=False) as session:
+        async with self.new_request_session(
+            supergraph=subject._supergraph, readonly=False
+        ) as session:
             user = User(
                 id=to_uuid(request.id) or uuid4(),
                 slug=request.slug,
@@ -207,7 +209,9 @@ class SupervisorService(GraphIoServiceBase, SupervisorBase):
         if not subject.user:
             raise GRPCError(GRPCStatus.UNAUTHENTICATED, "not logged in")
 
-        async with self.request_session(supergraph=subject._supergraph, readonly=False) as session:
+        async with self.new_request_session(
+            supergraph=subject._supergraph, readonly=False
+        ) as session:
             user = subject.user
             if user.password_salt is None or user.password_hash is None:
                 raise GRPCError(GRPCStatus.FAILED_PRECONDITION, "password not set")
@@ -233,7 +237,9 @@ class SupervisorService(GraphIoServiceBase, SupervisorBase):
         if subject.is_authenticated:
             raise GRPCError(GRPCStatus.ALREADY_EXISTS, "already logged in")
 
-        async with self.request_session(supergraph=subject._supergraph, readonly=False) as session:
+        async with self.new_request_session(
+            supergraph=subject._supergraph, readonly=False
+        ) as session:
             key_name, key_value = betterproto.which_one_of(request, "user")
             if key_value is None:
                 raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "no user provided")
@@ -279,7 +285,9 @@ class SupervisorService(GraphIoServiceBase, SupervisorBase):
         if subject.user is None:
             raise GRPCError(GRPCStatus.FAILED_PRECONDITION, "not a user")
 
-        async with self.request_session(supergraph=subject._supergraph, readonly=False) as session:
+        async with self.new_request_session(
+            supergraph=subject._supergraph, readonly=False
+        ) as session:
             # log out the current or the specified clients
             if request.clients:
                 client_ids = {to_uuid(c.id) for c in request.clients}
@@ -322,7 +330,9 @@ class SupervisorService(GraphIoServiceBase, SupervisorBase):
         region = wiring.unpack_enum(Region, request.region)
 
         owner_ptr = wiring.unpack_object(request.owner, supergraph=None, expect=NodeReference)
-        async with self.request_session(supergraph=subject._supergraph, readonly=False) as session:
+        async with self.new_request_session(
+            supergraph=subject._supergraph, readonly=False
+        ) as session:
             # check (and reload owner to get Handles)
             if owner_ptr.type == NodeType.USER:
                 if owner_ptr.id != user.id:
@@ -377,7 +387,7 @@ class SupervisorService(GraphIoServiceBase, SupervisorBase):
     async def resolve_hosts(
         self, subject: "Subject", request: "ResolveHostsRequest"
     ) -> "ResolveHostsResponse":
-        async with self.request_session(supergraph=subject._supergraph):
+        async with self.new_request_session(supergraph=subject._supergraph):
             hosts: list[ResolveHostsResponseHostInfo] = []
             for bench_key in request.benches:
                 # NOTE :Performance: batch resolve_hosts lookups

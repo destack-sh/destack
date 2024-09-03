@@ -96,13 +96,6 @@ MAX_TIME_DRIFT_SECONDS = get_from_env(
 COMMIT_RETRY = RetryOptions(max_attempts=3, retry_on=(ChannelUnavailableError,))
 
 
-class DoCommitRet(NamedTuple):
-    epoch: int
-    edits: list[EditData]
-    new_edits: list[EditData]
-    cascaded_edits: list[EditData]
-
-
 class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
     """Common base for global & Bench-local graph I/O operations."""
 
@@ -120,7 +113,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
         self.bench_id: UUID | None = bench_id
         self.scope = GraphScope(bench_id=bench_id)._to_data()
         self.node_types: bittuple[NodeType] = node_types
-        self.tx_lock: asyncio.Lock = CriticalLock(
+        self.commit_lock: asyncio.Lock = CriticalLock(
             name=f"{self.__class__.__name__}_{bench_id or ''}"
         )
         self.connector = ConnectionIndex(owner=self, scope=self.scope, oracle=self.oracle)
@@ -152,13 +145,13 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
         return False
 
     @final
-    def request_session(
+    def new_request_session(
         self,
         supergraph: NodeSuperGraph,
         *,
         engines: tuple[GraphEngine, ...] | None = None,
         readonly: bool = True,
-        system_commit: bool = True,
+        raw_commit: bool = False,
     ):
         """Gets a new session for processing a single request."""
         return Session(
@@ -166,17 +159,200 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
             _is_readonly=readonly,
             _default_scope=self.scope,
             _engines=engines if engines is not None else self.get_engines(),
-            _system_epoch=self.epoch,
-            _custom_commit=self._commit_system_session if system_commit else None,
+            _local_epoch=self.epoch,
+            _extend_commit=self._extend_commit if not raw_commit else None,
+            _on_commit=self._on_commit if not raw_commit else None,
             _supergraph=supergraph,
             _split_read=self.split_reads,
             _oracle=self.oracle,
         )
 
+    def _prepare_commit(
+        self, subject: Subject, context: SessionContext, edits: list[EditData]
+    ) -> "CommitArea":
+        """Prepares and validates the edits for a commit."""
+        area = parse_commit_scope(edits, base_graph=None)
+        now = self.oracle.utc()
+        for edit in edits:
+            validate_edit(edit, subject, now)
+            if edit.properties:
+                # sort the properties for consistency
+                edit.properties.sort()
+        return area
+
+    @final
+    async def _extend_commit(self, session: Session, edits: list[EditData]) -> list[EditData]:
+        return await self.extend_commit(
+            session=session,
+            context=None,
+            graph=NodeDict(session._edited_nodes_by_id),
+            edits=edits,
+        )
+
+    @final
+    async def _on_commit(
+        self, session: Session, edits: list[EditData], cascaded_edits: list[EditData]
+    ):
+        assert session._local_epoch is not None, f"no system epoch in {session!r}"
+        self.epoch = session._local_epoch
+        return await self.on_commit(
+            session=session,
+            graph=NodeDict(session._edited_nodes_by_id),
+            # NOTE :Performance: we could be smarter to avoid packing edited nodes here
+            #  (but it doesn't really matter since the number of nodes here is usually small)
+            data_graph=NodeDataDict(
+                {str(node.id): node._to_data() for node in session._edited_nodes_by_id.values()}
+            ),
+            edits=edits,
+            cascaded_edits=cascaded_edits,
+        )
+
+    async def extend_commit(
+        self,
+        session: Session,
+        context: SessionContext | None,
+        graph: NodeGraphLike,
+        edits: list[EditData],
+    ) -> list[EditData]:
+        """Extend a commit. Returns any new edits."""
+        return []  # do nothing by default
+
+    async def on_commit(
+        self,
+        session: Session,
+        graph: NodeGraphLike,
+        data_graph: NodeDataGraphLike,
+        edits: list[EditData],
+        cascaded_edits: list[EditData],
+    ):
+        """Handle an accepted commit."""
+        self.connector.on_commit(data_graph, edits, cascaded_edits, self.epoch)  # update cache
+
+    async def _do_commit(
+        self,
+        *,
+        scope: GraphScopeData,
+        subject: Subject,
+        context: SessionContext,
+        edits: list[EditData],
+    ) -> tuple[list[EditData], list[EditData]]:
+        """Commits some edits."""
+
+        # pre-validate/prepare edits
+        area = self._prepare_commit(subject, context, edits)
+
+        async with self.new_request_session(
+            supergraph=subject._supergraph, readonly=False
+        ) as session:
+            session.add_edits(edits)  # add edits to session
+
+            # read the affected nodes into a single graph for evaluation
+            data_graph = NodeDataGraph(scope=self.scope, node_types=NODE_TYPES)
+            with self.tracer.start_as_current_span("graph.commit.read"):
+                for node_type, node_references in area.scopes_by_type.items():
+                    node_type = wiring.unpack_enum(NodeType, node_type)
+                    options = adapt_read_options(subject, node_type, ReadOptions.all())
+                    query = QueryBuilder(
+                        read_type=ReadType.GET,
+                        node_type=node_type,
+                        roots=node_references,
+                        options=options,
+                    )
+                    channel = await session._get_channel_for(
+                        scope, query.all_node_types, include_hidden=False, is_readonly=True
+                    )
+                    connection = await channel.get(query, GetOptions(live=False, unpack=False))
+                    # merge result into data_graph (there may be duplicates)
+                    for node_data in connection.result_data.graph.nodes:
+                        if node_data.id not in data_graph:
+                            data_graph.add(node_data)
+                self.logger.trace("graph.commit.read", graph=data_graph)
+
+            # check access
+            with self.tracer.start_as_current_span("graph.commit.check_access"):
+                matrix = generate_access_matrix(subject, data_graph, supergraph=session._supergraph)
+                decision, accesses = evaluate_edit(matrix, data_graph, edits)
+                if decision != PolicyEffect.ALLOW:
+                    raise AccessError(accesses)
+
+            # apply edits in copy (to validate and get current 'old' values)
+            edit_data_graph(
+                graph=data_graph, edits=edits, options=ReadOptions.all(), is_prepass=True
+            )
+            unpacked_graph = wiring.unpack_node_graph(
+                data_graph, supergraph=subject._supergraph, parent=None, session=session
+            )
+            for node_id in area.edited_node_ids:
+                node = unpacked_graph.get(UUID(node_id))
+                if node is None:
+                    raise GRPCError(GRPCStatus.NOT_FOUND, f"{node_id} not found")
+                node._validate_self(properties=(), invalid=on_invalid_raise)
+                session._edited_nodes_by_id[node.id] = node
+
+            # actually commit
+            _, cascaded_edits = await session.commit()
+            session.untrack_many(*unpacked_graph.nodes)  # prevent accidental edits
+
+        return edits, cascaded_edits
+
+    @override
+    async def commit_transaction(
+        self, subject: Subject, request: "CommitTransactionRequest"
+    ) -> "CommitTransactionResponse":
+        assert subject.client is not None, f"no client for {subject!r}"
+
+        # figure out context
+        context = wiring.unpack_object_validate_maybe(
+            request.context, supergraph=subject._supergraph, expect=SessionContext
+        )
+        if context is None:
+            context = SessionContext(
+                client=subject.client,
+                server=subject.server,
+                user=subject.user,
+                _supergraph=subject._supergraph,
+            )
+
+        # NOTE :Performance: obviously, putting a big lock around commit is not ideal,
+        #  but we have to guarantee absolute order + integrity of any loaded graphs (in Host).
+        # We can probably optimize this by only locking some tighter critical sections
+        #  if we rollback somehow on failure. Maybe we can even 'cache' apply some edits only in memory.
+        # We'll also eventually need to thread/shard the Host (maybe lock only on overlapping edits?).
+        async with self.commit_lock:
+            retry = COMMIT_RETRY.new(self.oracle)
+            while retry.should_retry:
+                retry.on_attempt()
+                try:
+                    _, cascaded_edits = await self._do_commit(
+                        scope=self.scope, subject=subject, context=context, edits=request.edits
+                    )
+                    break
+                except Exception as e:
+                    # this is most likely a temporary error (i.e. channel unavailable)
+                    self.logger.error("graph.commit.error", subject=subject, exc_info=e)
+                    if not retry.on_error(e):
+                        raise
+                    await self.oracle.sleep(retry.get_wait_interval())
+            else:
+                raise retry.to_error("commit")
+
+        self.logger.info(
+            "graph.commit",
+            subject=subject,
+            request=request,
+            request_edits=len(request.edits),
+            epoch=self.epoch,
+            span="current",
+        )
+        accepted_revisions = [cast(int, e.revision) for e in request.edits]
+        return CommitTransactionResponse(
+            revisions=accepted_revisions, cascaded_edits=cascaded_edits, epoch=self.epoch
+        )
+
     @override
     async def get_nodes(self, subject: Subject, request: "GetNodesRequest") -> "GetNodesResponse":
         # parse query & fetch
-        async with self.request_session(supergraph=subject._supergraph) as session:
+        async with self.new_request_session(supergraph=subject._supergraph) as session:
             with self.tracer.start_as_current_span("graph.get.parse"):
                 roots = [
                     wiring.unpack_object_validate(r, supergraph=None, expect=NodeReference)
@@ -287,7 +463,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
         self, subject: Subject, request: "SearchNodesRequest"
     ) -> "SearchNodesResponse":
         # parse query & fetch
-        async with self.request_session(supergraph=subject._supergraph) as session:
+        async with self.new_request_session(supergraph=subject._supergraph) as session:
             with self.tracer.start_as_current_span("graph.search.parse"):
                 node_type: NodeType = wiring.unpack_enum(NodeType, request.node_type)
                 filter = wiring.unpack_object_validate_maybe(
@@ -398,7 +574,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
         self, subject: Subject, request: "AggregateNodesRequest"
     ) -> "AggregateNodesResponse":
         # parse query & fetch
-        async with self.request_session(supergraph=subject._supergraph) as session:
+        async with self.new_request_session(supergraph=subject._supergraph) as session:
             with self.tracer.start_as_current_span("graph.aggregate.parse"):
                 node_type: NodeType = wiring.unpack_enum(NodeType, request.node_type)
                 filter = wiring.unpack_object_validate_maybe(
@@ -442,243 +618,6 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
     ) -> AsyncIterator[WatchAggregateResponse]:
         raise GRPCError(GRPCStatus.UNIMPLEMENTED, "watch_aggregate not yet supported")
         yield  # unreachable (for type)
-
-    def _prepare_commit(
-        self, subject: Subject, context: SessionContext, edits: list[EditData]
-    ) -> tuple["CommitArea", int]:
-        """Prepares and validates the edits for a commit."""
-        area = parse_commit_scope(edits, base_graph=None)
-        now = self.oracle.utc()
-        epoch = self.epoch
-        for edit in edits:
-            validate_edit(edit, subject, now)
-            epoch += 1
-            edit.epoch = epoch
-            if edit.properties:
-                # sort the properties for consistency
-                edit.properties.sort()
-        return area, epoch
-
-    async def _do_commit(
-        self,
-        *,
-        scope: GraphScopeData,
-        subject: Subject,
-        context: SessionContext,
-        edits: list[EditData],
-    ) -> DoCommitRet:
-        # pre-validate/prepare edits
-        area, epoch = self._prepare_commit(subject, context, edits)
-
-        async with self.request_session(
-            supergraph=subject._supergraph, readonly=False, system_commit=False
-        ) as session:
-            # read the affected nodes into a single graph for evaluation
-            data_graph = NodeDataGraph(scope=self.scope, node_types=NODE_TYPES)
-            with self.tracer.start_as_current_span("graph.commit.read"):
-                for node_type, node_references in area.scopes_by_type.items():
-                    node_type = wiring.unpack_enum(NodeType, node_type)
-                    options = adapt_read_options(subject, node_type, ReadOptions.all())
-                    query = QueryBuilder(
-                        read_type=ReadType.GET,
-                        node_type=node_type,
-                        roots=node_references,
-                        options=options,
-                    )
-                    channel = await session._get_channel_for(
-                        scope, query.all_node_types, include_hidden=False, is_readonly=True
-                    )
-                    connection = await channel.get(query, GetOptions(live=False, unpack=False))
-                    # merge result into data_graph (there may be duplicates)
-                    for node_data in connection.result_data.graph.nodes:
-                        if node_data.id not in data_graph:
-                            data_graph.add(node_data)
-                self.logger.trace("graph.commit.read", graph=data_graph)
-
-            # check access
-            with self.tracer.start_as_current_span("graph.commit.check_access"):
-                matrix = generate_access_matrix(subject, data_graph, supergraph=session._supergraph)
-                decision, accesses = evaluate_edit(matrix, data_graph, edits)
-                if decision != PolicyEffect.ALLOW:
-                    raise AccessError(accesses)
-
-            # apply edits in copy (to validate and get current 'old' values)
-            # TODO :Robustness!: prevent circular parent/child references
-            edit_data_graph(
-                graph=data_graph,
-                edits=edits,
-                options=ReadOptions.all(),
-                is_prepass=True,
-            )
-            unpacked_graph = wiring.unpack_node_graph(
-                data_graph, supergraph=subject._supergraph, parent=None, session=session
-            )
-
-            for node_id in area.edited_node_ids:
-                node = unpacked_graph.get(UUID(node_id))
-                if node is None:
-                    raise GRPCError(GRPCStatus.NOT_FOUND, f"{node_id} not found")
-                node._validate_self(properties=(), invalid=on_invalid_raise)
-
-            # flush edits to get cascaded edits for extend
-            assert len(session.edits) == 0, f"unexpected edits in {session.tx!r}"
-            _, cascaded_edits = await session.flush(_extra_edits=edits)
-
-            # extend commit
-            new_edits = await self.extend_commit(
-                supergraph=session._supergraph,
-                session=session,
-                context=context,
-                graph=unpacked_graph,
-                edits=edits,
-                cascaded_edits=cascaded_edits,
-            )
-
-            # actually commit (with new edits)
-            edits, cascaded_edits = await session.commit(_extra_edits=new_edits)
-        session.untrack_many(*unpacked_graph.nodes)
-
-        # handle on commit
-        self.epoch = epoch
-        await self.on_commit(
-            supergraph=session._supergraph,
-            graph=unpacked_graph,
-            data_graph=data_graph,
-            edits=edits,
-            cascaded_edits=cascaded_edits,
-            epoch=self.epoch,
-        )
-
-        return DoCommitRet(
-            epoch=epoch, edits=edits, new_edits=new_edits, cascaded_edits=cascaded_edits
-        )
-
-    @override
-    async def commit_transaction(
-        self, subject: Subject, request: "CommitTransactionRequest"
-    ) -> "CommitTransactionResponse":
-        assert subject.client is not None, f"no client for {subject!r}"
-
-        # figure out context
-        context = wiring.unpack_object_validate_maybe(
-            request.context, supergraph=subject._supergraph, expect=SessionContext
-        )
-        if context is None:
-            context = SessionContext(
-                client=subject.client,
-                server=subject.server,
-                user=subject.user,
-                _supergraph=subject._supergraph,
-            )
-
-        # NOTE :Performance: obviously, putting a big lock around commit is not ideal,
-        #  but we have to guarantee absolute order + integrity of any loaded graphs (in Host).
-        # We can probably optimize this by only locking some tighter critical sections
-        #  if we rollback somehow on failure. Maybe we can even 'cache' apply some edits only in memory.
-        # Later, we'll get to figure out how to thread and eventually shard the Host :)
-        async with self.tx_lock:
-            retry = COMMIT_RETRY.new(self.oracle)
-            while retry.should_retry:
-                retry.on_attempt()
-                try:
-                    commit = await self._do_commit(
-                        scope=self.scope, subject=subject, context=context, edits=request.edits
-                    )
-                    break
-                except Exception as e:
-                    # this is most likely a temporary error (i.e. channel unavailable)
-                    self.logger.error("graph.commit.error", subject=subject, exc_info=e)
-                    if not retry.on_error(e):
-                        raise
-                    await self.oracle.sleep(retry.get_wait_interval())
-            else:
-                raise retry.to_error("commit")
-
-        self.logger.info(
-            "graph.commit",
-            subject=subject,
-            request=request,
-            request_edits=len(request.edits),
-            epoch=self.epoch,
-            span="current",
-        )
-        accepted_revisions = [cast(int, e.revision) for e in request.edits]
-        return CommitTransactionResponse(
-            revisions=accepted_revisions, cascaded_edits=commit.cascaded_edits, epoch=self.epoch
-        )
-
-    async def _commit_system_session(
-        self, session: Session
-    ) -> tuple[list[EditData], list[EditData]]:
-        """
-        Commits a system session (outside a request context).
-        This is like GraphIo.commit_transaction but without validation.
-        """
-        assert session._tx is not None, f"no active tx in {session!r}"
-        edit_graph = NodeDict(session._edited_nodes_by_id)
-        # NOTE :Performance: we could be a smarter to avoid packing edited nodes here
-        #  (but it doesn't really matter since the number of nodes here is usually small)
-        edit_data_graph = NodeDataDict(
-            {str(node.id): node._to_data() for node in session._edited_nodes_by_id.values()}
-        )
-
-        try:
-            # flush edits to get cascaded edits
-            edits, cascaded_edits = await session._tx.flush()
-
-            # extend commit
-            extended_edits = await self.extend_commit(
-                supergraph=session._supergraph,
-                session=session,
-                context=None,
-                graph=edit_graph,
-                edits=edits,
-                cascaded_edits=cascaded_edits,
-            )
-
-            # commit
-            edits, cascaded_edits = await session._tx.commit(_extra_edits=extended_edits)
-        except ChannelUnavailableError as e:
-            self.logger.error("graph.commit.error", session=session, error=e)
-            await session._tx.reset()
-            raise
-
-        # handle on commit
-        assert session._system_epoch is not None, f"no system epoch in {session!r}"
-        self.epoch = session._system_epoch
-        await self.on_commit(
-            supergraph=session._supergraph,
-            graph=edit_graph,
-            data_graph=edit_data_graph,
-            edits=edits,
-            cascaded_edits=cascaded_edits,
-            epoch=self.epoch,
-        )
-        return edits, cascaded_edits
-
-    async def extend_commit(
-        self,
-        supergraph: NodeSuperGraph,
-        session: Session,
-        context: SessionContext | None,
-        graph: NodeGraphLike,
-        edits: list[EditData],
-        cascaded_edits: list[EditData],
-    ) -> list[EditData]:
-        """Extend a commit in a request session. Returns any new edits."""
-        return []  # do nothing by default
-
-    async def on_commit(
-        self,
-        supergraph: NodeSuperGraph,
-        graph: NodeGraphLike,
-        data_graph: NodeDataGraphLike,
-        edits: list[EditData],
-        cascaded_edits: list[EditData],
-        epoch: int,
-    ):
-        """Handle a commit in the request session."""
-        self.connector.on_commit(data_graph, edits, cascaded_edits, epoch)
 
 
 class CommitArea(NamedTuple):
