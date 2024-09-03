@@ -26,7 +26,7 @@ def test_roundtrip_builtin_object_bytes(obj: BuiltinObject, shared_session: Sess
         graph=shared_session._graph,
         session=shared_session,
     )
-    assert unpacked_obj._equals_content(obj), f"{unpacked_obj!r} != {obj!r}"
+    assert unpacked_obj.equals(obj), f"{unpacked_obj!r} != {obj!r}"
 
 
 @given(obj=builtin_objects())
@@ -41,7 +41,7 @@ def test_roundtrip_builtin_object_json(obj: BuiltinObject, shared_session: Sessi
         graph=shared_session._graph,
         session=shared_session,
     )
-    assert unpacked_obj._equals_content(obj), f"{unpacked_obj!r} != {obj!r}"
+    assert unpacked_obj.equals(obj), f"{unpacked_obj!r} != {obj!r}"
 
 
 @given(obj=builtin_objects())
@@ -55,7 +55,7 @@ def test_roundtrip_builtin_object_copy(obj: BuiltinObject, shared_session: Sessi
         graph=shared_session._graph,
         session=shared_session,
     )
-    assert unpacked_obj._equals_content(obj), f"{unpacked_obj!r} != {obj!r}"
+    assert unpacked_obj.equals(obj), f"{unpacked_obj!r} != {obj!r}"
     # (we want to check both assertions but the first is easier to debug)
     assert copied_obj_data == packed_obj_data, f"{copied_obj_data!r} != {packed_obj_data!r}"
 

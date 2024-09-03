@@ -307,20 +307,20 @@ async def test_crud_node_pointers(omni_session: Session):
         # read back
         server = await Server.include_ancestors().get(id=server.id)
         assert server.parent_ptr
-        assert server.parent_ptr._equals_content(bench.to_ref())
+        assert server.parent_ptr.equals(bench.to_ref())
         assert server.bench_id == bench.id
-        assert server.to_ref()._equals_content(
+        assert server.to_ref().equals(
             NodeReference(type=NodeType.SERVER, id=server.id, ck=server.ck, bench_id=bench.id)
         )
 
         client = await Client.include_ancestors().get(id=client.id)
         assert client.bench_id == bench.id
-        assert client.to_ref()._equals_content(
+        assert client.to_ref().equals(
             NodeReference(type=NodeType.CLIENT, id=client.id, ck=client.ck, bench_id=bench.id)
         )
 
         block1 = await Block.include_ancestors().get(id=block1.id)
         assert block1.bench_id == bench.id
-        assert block1.to_ref()._equals_content(
+        assert block1.to_ref().equals(
             NodeReference(type=NodeType.BLOCK, id=block1.id, ck=block1.ck, bench_id=bench.id)
         )

@@ -23,7 +23,7 @@ def test_evaluate_conditional_stringy(session: Session):
     def _get_matches(cond: Expression):
         return [f for f in fields if evaluate_conditional(cond, f)]
 
-    assert _get_matches(NAME.equals("apple")) == [field_0]
+    assert _get_matches(NAME.is_equal("apple")) == [field_0]
     assert _get_matches(NAME.ends_with("e")) == [field_0, field_2, field_3]
     assert _get_matches(NAME.matches_regex(".*e.*") & (ORDER_KEY > "a1")) == [
         field_2,
@@ -37,7 +37,7 @@ def test_evaluate_conditional_node(session: Session, package: Package):
     package.blocks.append(Code1)
     Run1 = Run.from_runnable(Code1)
 
-    cond = Run.get_property("block").equals(Code1)
+    cond = Run.get_property("block").is_equal(Code1)
     assert evaluate_conditional(cond, Run1) is True
 
 

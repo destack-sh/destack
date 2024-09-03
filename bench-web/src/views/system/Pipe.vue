@@ -62,7 +62,7 @@ defineExpose<ViewExposed>({ self, id });
         "
         :d="pathSvg"
       >
-        <animate attributeName="stroke-dashoffset" from="0" to="-100" dur="4s" repeatCount="indefinite" />
+        <animate attributeName="stroke-dashoffset" from="0" to="-100" dur="5s" repeatCount="indefinite" />
       </path>
     </svg>
   </div>

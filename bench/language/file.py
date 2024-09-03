@@ -932,7 +932,7 @@ async def download_batch(
         download_req = DownloadFilesRequest(
             scope=session._get_scope_for_node(session),
             files=[
-                (f._to_plain_ref() if isinstance(f, File) else f._to_plain_ref())._to_data()
+                (f.to_plain_ref() if isinstance(f, File) else f._to_plain_ref())._to_data()
                 for f in file_refs
             ],
             environment=MACHINE_ENVIRONMENT,

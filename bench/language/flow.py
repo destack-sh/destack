@@ -131,6 +131,10 @@ class Pipe(SourceNode[PipeData]):
         ):
             invalid(self, "source and target must be distinct", (Pipe.source, Pipe.target))
 
+    @staticmethod
+    def new(type: PipeType, name: str, **kwargs) -> "Pipe":
+        return Pipe(type=type, name=name, **kwargs)
+
 
 @enum_(EnumType.PORT_SIDE)
 class PortSide(IdEnum):

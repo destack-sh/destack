@@ -127,7 +127,7 @@ class ValueObject(Mapping[str, Any]):
     def __repr__(self) -> str:
         return f"<{self._type_name} ({self})>"
 
-    def _equals_content(self, other: Any) -> bool:
+    def equals(self, other: Any) -> bool:
         """Checks if all fields of the two Values are equal (recursively)."""
         if other is None or type(other) is not ValueObject:
             return False
@@ -140,7 +140,7 @@ class ValueObject(Mapping[str, Any]):
                 return False
         return True
 
-    __eq__ = _equals_content
+    __eq__ = equals
 
     def __getitem__(self, item: "str | Field") -> SomeValue:
         # NOTE: __getattr__ is called only when ident is not in the slots, so this is a value lookup

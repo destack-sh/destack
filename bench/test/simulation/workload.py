@@ -447,4 +447,4 @@ class WatchLogsWorkload(SingleClientWorkloadBase[WatchLogsSpec]):
             assert len(self.logs) == len(other.logs), f"{self!r} != {other!r}"
             for log_a, log_b in zip(self.logs, other.logs):
                 assert log_a == log_b, f"{log_a!r} != {log_b!r}"
-                assert log_a._equals_content(log_b), f"{log_a!r} != {log_b!r}"
+                assert log_a.equals(log_b), f"{log_a!r} != {log_b!r}"
