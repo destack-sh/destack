@@ -2,6 +2,7 @@ import functools
 import inspect
 import textwrap
 from typing import Any, Callable, Mapping, cast
+from uuid import UUID
 
 from hypothesis import assume, given
 
@@ -11,7 +12,8 @@ from bench.language.block import Block
 from bench.language.const import BlockType, ReferenceKind, StructType
 from bench.language.field import Field, to_type
 from bench.language.file import File, FileKind, FileType
-from bench.language.node import BuiltinObject, Node
+from bench.language.flow import Pipe, PipeType, Step, StepType
+from bench.language.node import BuiltinObject, Node, NodeReference
 from bench.language.render import Renderer, RenderOptions, render, render_expr
 from bench.language.session import Session
 from bench.language.validation import constraint
@@ -57,7 +59,7 @@ def test_render_builtin_object_expr(
     rendered = renderer.render_builtin_object_expr(obj)
     glbls = {**STATIC_CODE_GLOBALS, **BUILTIN_GLOBALS, **node_references}
     ret = eval(rendered, glbls)
-    assert cast(BuiltinObject, ret)._equals_content(obj)
+    assert cast(BuiltinObject, ret).equals(obj)
 
 
 #
@@ -94,9 +96,15 @@ def _render_as_stmt(func: Callable[[Any, Any], Mapping[str, BuiltinObject]]):
         }
 
         # check that all definitions are equal
-        for name, obj in original_defns.items():
+        identity_map: dict[UUID, NodeReference] = {}
+        for name, original_obj in original_defns.items():
             rendered_obj = rendered_defns[name]
-            assert cast(BuiltinObject, rendered_obj)._equals_content(obj)
+            if isinstance(original_obj, Node):
+                assert isinstance(rendered_obj, Node)
+                identity_map[original_obj.ck] = rendered_obj.to_plain_ref()
+        for name, original_obj in original_defns.items():
+            rendered_obj = rendered_defns[name]
+            assert cast(BuiltinObject, rendered_obj).equals(original_obj, identity_map=identity_map)
 
         # render again from evaluated
         rendered_again = render(*rendered_defns.values(), options=render_options)
@@ -179,7 +187,17 @@ def test_render_variable_with_file(shared_session: Session, shared_package: Pack
     return {"File1": File1, "Variable1": Variable1}
 
 
-# nocheckin: render flows/pipes
+@_render_as_stmt
+def test_render_flow(shared_session: Session, shared_package: Package):
+    Flow1 = Block.new(BlockType.FLOW, "Flow1")
+    Start = Step.new(StepType.START, "Start")
+    Flow1.steps.append(Start)
+    Complete = Step.new(StepType.COMPLETE, "Complete")
+    Flow1.steps.append(Complete)
+    Pipe1 = Pipe.new(PipeType.THEN, "Pipe1", source=Start, target=Complete)
+    Flow1.pipes.append(Pipe1)
+    return {"Flow1": Flow1, "Start": Start, "Complete": Complete, "Pipe1": Pipe1}
+
 
 #
 # Other renderings

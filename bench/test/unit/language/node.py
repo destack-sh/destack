@@ -58,7 +58,7 @@ def test_node_passthrough(session: "Session"):
 def test_node_pointers_consistency(session: "Session"):
     """Pointers should include the relevant bench/base/base_bench references."""
     bench_a = Bench(slug="testa", name="testb")
-    assert bench_a.to_ref()._equals_content(
+    assert bench_a.to_ref().equals(
         NodeReference(type=NodeType.BENCH, id=bench_a.id, ck=bench_a.ck, bench_id=bench_a.id)
     )
     bench_a.main_server = server_a = bench_a.servers.create(name="Server")
@@ -68,7 +68,7 @@ def test_node_pointers_consistency(session: "Session"):
     # sub bench, above package pointers
     branch_a = bench_a.branches.create(name="main a")
     assert branch_a.bench_id == bench_a.id
-    assert branch_a.to_ref()._equals_content(
+    assert branch_a.to_ref().equals(
         NodeReference(type=NodeType.BRANCH, id=branch_a.id, ck=branch_a.ck, bench_id=bench_a.id)
     )
     assert branch_a.parent_ptr
@@ -84,7 +84,7 @@ def test_node_pointers_consistency(session: "Session"):
         name="Testificate's iPhone",
     )
     assert client_a.bench_id == bench_a.id
-    assert client_a.to_ref()._equals_content(
+    assert client_a.to_ref().equals(
         NodeReference(type=NodeType.CLIENT, id=client_a.id, ck=client_a.ck, bench_id=bench_a.id)
     )
     assert client_a.parent_ptr
@@ -96,7 +96,7 @@ def test_node_pointers_consistency(session: "Session"):
     assert package_a.bench_id == bench_a.id
     block_a_1 = package_a.blocks.create(type=BlockType.CODE)
     assert block_a_1.bench_id == bench_a.id
-    assert block_a_1.to_ref()._equals_content(
+    assert block_a_1.to_ref().equals(
         NodeReference(type=NodeType.BLOCK, id=block_a_1.id, ck=block_a_1.ck, bench_id=bench_a.id)
     )
     block_a_2 = package_a.blocks.create(type=BlockType.CODE)
@@ -105,7 +105,7 @@ def test_node_pointers_consistency(session: "Session"):
     # based pointers
     signal_a = Signal(parent=package_a, type=block_a_1)
     assert signal_a.bench_id == bench_a.id
-    assert signal_a.to_ref()._equals_content(
+    assert signal_a.to_ref().equals(
         NodeReference(
             type=NodeType.SIGNAL,
             id=signal_a.id,
@@ -129,7 +129,7 @@ def test_node_pointers_consistency(session: "Session"):
     assert block_b.bases[0].bench_id == bench_a.id
     signal_b = Signal(parent=package_b, type=block_a_1)
     assert signal_b.bench_id == bench_b.id
-    assert signal_b.to_ref()._equals_content(
+    assert signal_b.to_ref().equals(
         NodeReference(
             type=NodeType.SIGNAL,
             id=signal_b.id,
@@ -161,7 +161,7 @@ def test_node_pointers_consistency(session: "Session"):
 @given(obj=structs)
 def test_builtin_object_clone(obj: BuiltinObject, shared_session: Session):
     obj_clone = obj.clone()
-    assert obj_clone._equals_content(obj)
+    assert obj_clone.equals(obj)
 
 
 async def test_add_detached_subtree(local_runtime: RuntimeHandle):
@@ -182,9 +182,9 @@ async def test_clone_subtree(local_runtime: RuntimeHandle):
     await local_runtime.commit()
 
     choice_clone = choice.clone()
-    assert choice_clone._equals_content(choice, ignore=(Block.order_key,))
+    assert choice_clone.equals(choice, ignore=(Block.order_key,))
     for field, field_clone in zip(choice.fields, choice_clone.fields):
-        assert field_clone._equals_content(field)
+        assert field_clone.equals(field)
     await local_runtime.commit()
 
 
@@ -196,7 +196,7 @@ def test_roundtrip_rich_reference(shared_session: Session, shared_package: Packa
     unpacked_view = unpack_object(
         view_data, supergraph=shared_session._supergraph, session=shared_session
     )
-    assert unpacked_view._equals_content(view)
+    assert unpacked_view.equals(view)
 
     # file reference (rich)
     file = File(
@@ -212,4 +212,4 @@ def test_roundtrip_rich_reference(shared_session: Session, shared_package: Packa
     unpacked_view = unpack_object(
         view_data, supergraph=shared_session._supergraph, session=shared_session
     )
-    assert unpacked_view._equals_content(view)
+    assert unpacked_view.equals(view)

@@ -24,6 +24,7 @@ from bench.language.const import (
     TypeKind,
 )
 from bench.language.field import Field, TypeConstraint, TypeInfoBase, reverse_type_scalar
+from bench.language.flow import Step
 from bench.language.node import BuiltinObject, Node, NodeReferenceBase, SomeNodeReference, Struct
 from bench.language.path import PathTokenType, get_path, render_path
 from bench.language.property import Property
@@ -139,7 +140,7 @@ def _get_renderer(object_type: ObjectType) -> BuiltinObjectRenderer:
 
 
 class Aliasing:
-    """A mapping of aliases for nodes / node references."""
+    """A mapping of aliases for node identities."""
 
     def __init__(self):
         self._alias_by_node_id: dict[UUID, str] = {}
@@ -342,20 +343,22 @@ class Renderer:
             assert_never(obj)
 
     @tracer.start_as_current_span("renderer.render_stmt")
-    def render_stmt(self, *objs: Node) -> str:
+    def render_stmt(self, *nodes: Node) -> str:
         """Renders the given objects to a Python block that defines those objects."""
         # render
         rendered_objs = []
-        for obj in objs:
-            rendered = self.render_obj_expr(obj)
-            obj_ref = self._aliasing.get(obj)
-            rendered_objs.append(f"{obj_ref} = {rendered}")
-            if obj.parent_ptr and obj.parent_ptr in self.aliasing:
+        for node in nodes:
+            rendered = self.render_obj_expr(node)
+            node_alias = self._aliasing.get(node)
+            rendered_objs.append(f"{node_alias} = {rendered}")
+            if node.parent_ptr and node.parent_ptr in self.aliasing:
                 # append to parent
-                parent_ref = self._aliasing.get(obj.parent_ptr)
-                parent_cls = NODE_CLASS_BY_TYPE[obj.parent_ptr.type]
-                parent_child_prop = parent_cls.get_node_child_property(obj.metatype)
-                rendered_objs.append(f"{parent_ref}.{parent_child_prop.name}.append({obj_ref})")
+                parent_alias = self._aliasing.get(node.parent_ptr)
+                parent_cls = NODE_CLASS_BY_TYPE[node.parent_ptr.type]
+                parent_child_prop = parent_cls.get_node_child_property(node.metatype)
+                rendered_objs.append(
+                    f"{parent_alias}.{parent_child_prop.name}.append({node_alias})"
+                )
         rendered = self._options.stmt_separator.join(rendered_objs)
         return rendered
 
@@ -503,6 +506,42 @@ class ViewRenderer(BuiltinObjectRenderer[View]):
             renderer._render_kwargs(**rendered_kwargs) or None,
         )
         return f"View.new({view_args})"
+
+
+@_renderer(NodeType.STEP)
+class StepRenderer(BuiltinObjectRenderer[Step]):
+    @override
+    def render_constructor(
+        self,
+        renderer: "Renderer",
+        obj: Step,
+        kwargs: dict[str, Any],
+        rendered_kwargs: dict[str, str],
+    ) -> str:
+        step_args = renderer._render_args(
+            rendered_kwargs.pop("type"),
+            rendered_kwargs.pop("name"),
+            renderer._render_kwargs(**rendered_kwargs) or None,
+        )
+        return f"Step.new({step_args})"
+
+
+@_renderer(NodeType.PIPE)
+class PipeRenderer(BuiltinObjectRenderer[Step]):
+    @override
+    def render_constructor(
+        self,
+        renderer: "Renderer",
+        obj: Step,
+        kwargs: dict[str, Any],
+        rendered_kwargs: dict[str, str],
+    ) -> str:
+        pipe_args = renderer._render_args(
+            rendered_kwargs.pop("type"),
+            rendered_kwargs.pop("name"),
+            renderer._render_kwargs(**rendered_kwargs) or None,
+        )
+        return f"Pipe.new({pipe_args})"
 
 
 def _map_type_info_kwargs(

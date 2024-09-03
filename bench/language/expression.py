@@ -648,7 +648,7 @@ class _TypeQueryBuilder:
     # comparison
 
     @_require_expression_op(ConditionalOp.EQUALS)
-    def equals(self: Any, value: Any) -> "Expression":
+    def is_equal(self: Any, value: Any) -> "Expression":
         if value is None:
             return self.not_exists()
         return _to_conditional(ConditionalOp.EQUALS, self, value=value)
@@ -677,7 +677,7 @@ class _TypeQueryBuilder:
         if isinstance(self, Node) and isinstance(other, Node):
             return Node.__eq__(self, other)  # imitate Field equality
         else:
-            return self.equals(other)
+            return self.is_equal(other)
 
     def __ne__(self, other):  # type: ignore
         if isinstance(self, Node) and isinstance(other, Node):
@@ -689,6 +689,12 @@ class _TypeQueryBuilder:
     __ge__ = greater_than_or_equals
     __lt__ = less_than
     __le__ = less_than_or_equals
+    eq = is_equal
+    neq = not_equal
+    lt = less_than
+    lte = less_than_or_equals
+    gt = greater_than
+    gte = greater_than_or_equals
 
     # string
 

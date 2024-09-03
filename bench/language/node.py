@@ -12,6 +12,7 @@ from typing import (
     ClassVar,
     Collection,
     Iterable,
+    Mapping,
     Optional,
     Self,
     Sequence,
@@ -32,6 +33,7 @@ from bitarray import bitarray
 
 from bench.language.const import (
     BASED_NODE_TYPES,
+    EMPTY_DICT,
     FLOAT_EPSILON,
     IN_BENCH_NODE_TYPES,
     IN_PACKAGE_NODE_TYPES,
@@ -935,10 +937,15 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
         elif other is None:
             return False
         else:
-            return self._equals_content(other)
+            return self.equals(other)
 
-    def _equals_content(self, other: Any, ignore: tuple[Property | Any, ...] = ()) -> bool:
-        """Checks if all wired properties of the two structs are equal (recursively)."""
+    def equals(
+        self,
+        other: Self | Any,
+        ignore: tuple[Property | Any, ...] = (),
+        identity_map: Mapping[UUID, "NodeReference"] = EMPTY_DICT,
+    ) -> bool:
+        """Checks if the content of the two objects is equal (recursively)."""
         if other is None or self.metatype != getattr(other, "metatype", None):
             return False
         for prop in self.__wired_properties__.values():
@@ -947,17 +954,55 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
                 or prop.is_encrypted
                 or prop.is_value_packed  # compared in runtime value
                 or prop.name == "order_key"
+                or prop in ignore
             ):
                 continue  # ignore identity/tracking
+
             self_value = getattr(self, prop.name)
             other_value = getattr(other, prop.name)
-            if (
-                self_value != other_value
-                and not is_close(self_value, other_value, FLOAT_EPSILON)
-                and prop not in ignore
-            ):
-                return False
-        return True
+            if prop.is_struct:
+                # apply identity map
+                if prop.is_node_reference:
+                    if prop.is_list:
+                        self_value = [identity_map.get(v.ck, v) for v in self_value]
+                        other_value = [identity_map.get(v.ck, v) for v in other_value]
+                    else:
+                        self_value = (
+                            identity_map.get(self_value.ck, self_value) if self_value else None
+                        )
+                        other_value = (
+                            identity_map.get(other_value.ck, other_value) if other_value else None
+                        )
+
+                # compare struct recursively
+                if prop.is_list:
+                    if (
+                        not isinstance(self_value, list)
+                        or not isinstance(other_value, list)
+                        or len(self_value) != len(other_value)
+                    ):
+                        return False  # unequal list
+                    for i in range(len(self_value)):
+                        if not self_value[i].equals(
+                            other_value[i], ignore=ignore, identity_map=identity_map
+                        ):
+                            return False  # unequal struct
+                else:
+                    if type(self_value) != type(other_value) or (
+                        self_value is not None
+                        and not cast(Struct, self_value).equals(
+                            other_value, ignore=ignore, identity_map=identity_map
+                        )
+                    ):
+                        return False  # unequal struct
+            else:
+                # compare primitives
+                if self_value != other_value and not is_close(
+                    self_value, other_value, FLOAT_EPSILON
+                ):
+                    return False  # unequal primitive
+
+        return True  # equal
 
     def _stable_hash(self) -> int:
         """Hash of content properties."""
@@ -977,7 +1022,6 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
                     content_props.append(prop_value._stable_hash())
                 else:
                     content_props.append(prop_value)
-
         return stable_hash(content_props)
 
     def _do_get(self, key):
@@ -1656,7 +1700,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
                 parent = parent.parent
             return "/".join(reversed(path_parts))
 
-    def _to_plain_ref(self) -> "NodeReference":
+    def to_plain_ref(self) -> "NodeReference":
         """Gets a plain reference to this node."""
         return NodeReference._ref_from_node(self)
 

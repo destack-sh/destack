@@ -135,7 +135,7 @@ def test_roundtrip_builtin_object_value(
         graph=shared_session._graph,
         session=shared_session,
     )
-    assert unpacked_obj._equals_content(obj), f"{unpacked_obj!r} != {obj!r}"
+    assert unpacked_obj.equals(obj), f"{unpacked_obj!r} != {obj!r}"
 
 
 # TODO :Test: auto generate :Test types & values
