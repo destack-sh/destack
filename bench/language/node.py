@@ -942,7 +942,6 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
     def equals(
         self,
         other: Self | Any,
-        ignore: tuple[Property | Any, ...] = (),
         identity_map: Mapping[UUID, "NodeReference"] = EMPTY_DICT,
     ) -> bool:
         """Checks if the content of the two objects is equal (recursively)."""
@@ -953,8 +952,7 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
                 prop.id < 30
                 or prop.is_encrypted
                 or prop.is_value_packed  # compared in runtime value
-                or prop.name == "order_key"
-                or prop in ignore
+                or prop.name == "order_key"  # implicitly checked in lists
             ):
                 continue  # ignore identity/tracking
 
@@ -983,15 +981,13 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
                     ):
                         return False  # unequal list
                     for i in range(len(self_value)):
-                        if not self_value[i].equals(
-                            other_value[i], ignore=ignore, identity_map=identity_map
-                        ):
+                        if not self_value[i].equals(other_value[i], identity_map=identity_map):
                             return False  # unequal struct
                 else:
                     if type(self_value) != type(other_value) or (
                         self_value is not None
                         and not cast(Struct, self_value).equals(
-                            other_value, ignore=ignore, identity_map=identity_map
+                            other_value, identity_map=identity_map
                         )
                     ):
                         return False  # unequal struct

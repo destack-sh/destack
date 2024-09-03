@@ -182,7 +182,7 @@ async def test_clone_subtree(local_runtime: RuntimeHandle):
     await local_runtime.commit()
 
     choice_clone = choice.clone()
-    assert choice_clone.equals(choice, ignore=(Block.order_key,))
+    assert choice_clone.equals(choice)
     for field, field_clone in zip(choice.fields, choice_clone.fields):
         assert field_clone.equals(field)
     await local_runtime.commit()
