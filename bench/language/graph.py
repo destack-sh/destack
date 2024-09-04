@@ -825,7 +825,6 @@ class ValueList(list, Generic[ValueParentT]):
         if not self.is_property_reference:
             item = item._move_to(self.parent, self.parent_prop)  # type: ignore
         super().append(item)
-        self.parent._updated_self((self.ancestor_prop,))
         return item
 
     def extend(self, items: Collection[ValueT]):  # type: ignore
@@ -837,11 +836,9 @@ class ValueList(list, Generic[ValueParentT]):
             else:
                 for item in values:
                     item.parent = self.parent
-        self.parent._updated_self((self.ancestor_prop,))
 
     def clear(self):
         super().clear()
-        self.parent._updated_self((self.ancestor_prop,))
 
     @staticmethod
     def _move_list(

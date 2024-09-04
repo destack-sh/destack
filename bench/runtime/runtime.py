@@ -167,6 +167,7 @@ class Runtime:
                     status=runner.status,
                     inputs=runner.inputs,
                     attempts=runner.attempts,
+                    _skip_validate_self=True,
                 )
                 self.session._create(run)
             runner.run = run
@@ -212,6 +213,8 @@ class Runtime:
         runner.status = RunStatus.RUNNING
         retry = runner.options.to_retry().new(self.oracle, attempt=len(runner.attempts))
 
+        # NOTE :Performance: track attempt as efficiently as possible :RuntimeHotPath
+
         # run attempts
         log = logger.bind(runner=runner, retry=retry)
         try:
@@ -224,28 +227,32 @@ class Runtime:
                         status=RunStatus.RUNNING,
                         started_at=self.oracle.utc(),
                         started_epoch=self.session.epoch,
+                        _skip_validate_self=True,
                     )
                     runner.attempts.append(attempt)
                     try:
-                        runner.inner_task = asyncio.create_task(runner.run_once())
-                        await runner.inner_task
+                        with tracer.start_as_current_span("runner.attempt.run"):
+                            runner.inner_task = asyncio.create_task(runner.run_once())
+                            await runner.inner_task
                         if runner.output_type is not None:
-                            check_value(runner.outputs, runner.output_type, on_invalid_raise)
-                        attempt.status = RunStatus.COMPLETED
+                            with tracer.start_as_current_span("runner.check_outputs"):
+                                check_value(runner.outputs, runner.output_type, on_invalid_raise)
+                        # attempt.status = RunStatus.COMPLETED
+                        attempt._do_set("status", RunStatus.COMPLETED, validate=False)
                         log.debug("runner.attempt", attempt=attempt, span="current")
                         break  # success
                     except asyncio.CancelledError as e:
                         error = RunError.from_exception(RunErrorKind.RUNTIME, e)
-                        attempt.status = RunStatus.ABORTED
-                        attempt.error = error
+                        attempt._do_set("status", RunStatus.ABORTED, validate=False)
+                        attempt._do_set("error", error, validate=False)
                         log.debug(
                             "runner.attempt.aborted", attempt=attempt, exc_info=e, span="current"
                         )
                         raise  # give up (always)
                     except BaseException as e:
                         error = RunError.from_exception(RunErrorKind.RUNTIME, e)
-                        attempt.error = error
-                        attempt.status = RunStatus.FAILED
+                        attempt._do_set("error", error, validate=False)
+                        attempt._do_set("status", RunStatus.FAILED, validate=False)
                         log.debug(
                             "runner.attempt.failed", attempt=attempt, exc_info=e, span="current"
                         )
@@ -256,12 +263,14 @@ class Runtime:
                             raise  # give up if not retryable (anymore)
                     finally:
                         runner.inner_task = None
-                        attempt.terminated_at = self.oracle.utc()
-                        attempt.terminated_epoch = self.session.epoch
+                        attempt._do_set("terminated_at", self.oracle.utc(), validate=False)
+                        attempt._do_set("terminated_epoch", self.session.epoch, validate=False)
                         assert attempt.started_at, f"missing started_at for attempt {attempt!r}"
-                        attempt.duration = (
-                            attempt.terminated_at - attempt.started_at
-                        ).total_seconds()
+                        attempt._do_set(
+                            "duration",
+                            (attempt.terminated_at - attempt.started_at).total_seconds(),  # type: ignore
+                            validate=False,
+                        )
             else:
                 raise retry.to_error()  # give up
         finally:
@@ -279,35 +288,37 @@ class Runtime:
         run = runner.run
         assert run is not None, f"missing run in {runner!r}"
 
+        # NOTE :Performance: update the run as efficiently as possible :RuntimeHotPath
+
         # update context
-        run.client_ptr = self.session.client_ptr
-        run.machine_ptr = self.session.machine_ptr
-        run.server_ptr = self.session.server_ptr
-        run.user_ptr = self.session.user_ptr
+        run._do_set("client_ptr", self.session.client_ptr, validate=False)
+        run._do_set("machine_ptr", self.session.machine_ptr, validate=False)
+        run._do_set("server_ptr", self.session.server_ptr, validate=False)
+        run._do_set("user_ptr", self.session.user_ptr, validate=False)
 
         # start if not yet started
         if not run.started_at:
-            run.started_epoch = self.session.epoch
-            run.started_at = self.oracle.utc()
-        run.status = RunStatus.RUNNING
+            run._do_set("started_epoch", self.session.epoch, validate=False)
+            run._do_set("started_at", self.oracle.utc(), validate=False)
+        run._do_set("status", RunStatus.RUNNING, validate=False)
 
         # actually attempt Run
         try:
             await self._do_run_once_retrying(runner)
         finally:
-            run.attempts = runner.attempts
-            run.logs = runner.logs
-            run.inputs = runner.inputs
-            run.outputs = runner.outputs
-            run.error = runner.error
-            run.status = runner.status
+            run._do_set("attempts", runner.attempts, validate=False)
+            run._do_set("logs", runner.logs, validate=False)
+            run._do_set("inputs", runner.inputs, validate=False)
+            run._do_set("outputs", runner.outputs, validate=False)
+            run._do_set("error", runner.error, validate=False)
+            run._do_set("status", runner.status, validate=False)
             last_attempt = runner.current_attempt
             if last_attempt is not None:
                 # may not have a last attempt if we didn't even try
-                run.terminated_at = last_attempt.terminated_at
-                run.terminated_epoch = last_attempt.terminated_epoch
+                run._do_set("terminated_at", last_attempt.terminated_at, validate=False)
+                run._do_set("terminated_epoch", last_attempt.terminated_epoch, validate=False)
             if run.terminated_at is not None:
-                run.duration = (run.terminated_at - run.started_at).total_seconds()
+                run._do_set("duration", (run.terminated_at - run.started_at).total_seconds())  # type: ignore
 
     @tracer.start_as_current_span("runner.run_runner")
     async def run_runner(self, runner: Runner):
@@ -323,8 +334,9 @@ class Runtime:
                 await self._do_run_once_retrying_tracked(runner)
             else:
                 await self._do_run_once_retrying(runner)
-            # always commit after run, but don't block if we're nested
-            await self.session.commit(optimistic=runner.is_nested)
+            # always commit after tracked runs, but don't block if we're nested
+            if runner.is_tracked:
+                await self.session.commit(optimistic=runner.is_nested)
 
     @tracer.start_as_current_span("runner.process_run")
     async def run_run(self, run: Run, *, return_error: bool = False) -> Runner | None:

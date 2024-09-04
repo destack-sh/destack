@@ -98,6 +98,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
     is_deferred: bool = False  # loaded only on demand (only for stored node properties)
     is_sensitive: bool = False  # sensitive data (generally requires special permissions)
     is_encrypted: bool = False  # encrypt at rest (only node properties)
+    is_untracked: bool = False  # whether writes are tracked
 
     # value
     is_value_runtime: bool = False  # for user 'value' properties
@@ -806,6 +807,7 @@ def p_property(
         is_kernel=kernel,
         is_required=require,
         is_autoset=autoset,
+        is_untracked=autoset,
         is_runtime=True,
         is_wired=wire,
         is_stored=store,
@@ -829,6 +831,7 @@ def p_runtime(
         is_runtime=True,
         is_wired=False,
         is_ephemeral=True,
+        is_untracked=True,
         is_computed=False,
         is_required=False,
         is_stored=False,
@@ -848,6 +851,7 @@ def p_node_parent(id: int, *node_type: NodeType, is_system: bool = False) -> Any
         is_stored=False,
         is_list=False,
         is_runtime=True,
+        is_untracked=True,
         is_required=False,
         is_system=is_system,
     )

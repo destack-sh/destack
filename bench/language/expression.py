@@ -160,7 +160,7 @@ class Expression(Struct):
             typ = self.property.type_info
         else:
             return None
-        # wrap as list if needed
+        # wrap as list if needed (NOTE :Performance)
         if not typ.is_list and (self.op == ConditionalOp.IN or self.op == ConditionalOp.NOT_IN):
             typ = typ.clone()
             typ.is_list = True

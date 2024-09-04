@@ -1,5 +1,7 @@
 from typing import TYPE_CHECKING, Any, Collection, Optional, Union, cast, final
 
+import cachetools
+
 from bench.language.const import (
     BenchError,
     BlockType,
@@ -176,6 +178,7 @@ class Block(SourceNode[BlockData]):
         else:
             raise BenchError(f"{self!r} is not callable")
 
+    @cachetools.cached({})  # :CachedTypeInfo
     def to_type(self, *, as_object: bool = False, zone: FieldZone | None = None) -> "TypeInfoBase":
         """Get a type represented by this Block (if any)"""
         from bench.language.field import TypeInfo

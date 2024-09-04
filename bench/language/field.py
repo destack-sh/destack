@@ -14,6 +14,7 @@ from typing import (
 from uuid import UUID
 
 import structlog
+from opentelemetry import trace
 
 from bench.language.const import (
     PRIMITIVE_TYPE_BY_PY_TYPE,
@@ -74,6 +75,7 @@ if typing.TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 logger = structlog.get_logger(__name__)
+tracer = trace.get_tracer(__name__)
 
 
 LETTER_BY_TYPE_KIND: dict[TypeKind, str] = {
