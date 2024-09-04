@@ -322,7 +322,6 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
                     )
                     break
                 except Exception as e:
-                    # this is most likely a temporary error (i.e. channel unavailable)
                     self.logger.error("graph.commit.error", subject=subject, exc_info=e)
                     if not retry.on_error(e):
                         raise
