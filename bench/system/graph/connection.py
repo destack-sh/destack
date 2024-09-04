@@ -295,7 +295,7 @@ class GetConnection(NodeConnection[GetResultData, WatchGetUpdate]):
         channel = await session._get_channel_for(
             self.scope,
             self.query.all_node_types,
-            include_hidden=self.query.include_hidden,
+            include_hidden=self.query.includes_hidden,
             is_readonly=True,
         )
         connection = await channel.get(self.query, GetOptions(live=False, unpack=False))
@@ -353,7 +353,7 @@ class SearchConnection(NodeConnection[SearchResultData, WatchSearchUpdate]):
         channel = await session._get_channel_for(
             self.scope,
             self.query.all_node_types,
-            include_hidden=self.query.include_hidden,
+            include_hidden=self.query.includes_hidden,
             is_readonly=True,
         )
         connection = await channel.search(
@@ -493,7 +493,7 @@ class AggregateConnection(Connection[AggregateResultData, WatchAggregateUpdate])
         channel = await session._get_channel_for(
             self.scope,
             self.query.all_node_types,
-            include_hidden=self.query.include_hidden,
+            include_hidden=self.query.includes_hidden,
             is_readonly=True,
         )
         connection = await channel.aggregate(self.query, AggregateOptions(live=False, unpack=False))

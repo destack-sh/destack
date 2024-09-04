@@ -234,6 +234,9 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
 
         # pre-validate/prepare edits
         area = self._prepare_commit(subject, context, edits)
+        include_hidden = any(
+            e.type == EditType.UNARCHIVE or e.type == EditType.RESTORE for e in edits
+        )
 
         async with self.new_request_session(
             supergraph=subject._supergraph, readonly=False
@@ -246,6 +249,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
                 for node_type, node_references in area.scopes_by_type.items():
                     node_type = wiring.unpack_enum(NodeType, node_type)
                     options = adapt_read_options(subject, node_type, ReadOptions.all())
+                    options.include_hidden = include_hidden
                     query = QueryBuilder(
                         read_type=ReadType.GET,
                         node_type=node_type,
