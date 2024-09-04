@@ -26,6 +26,7 @@ from bench.sql.client import pg_store_connection
 from bench.sql.core import GLOBAL_EXTENSIONS, Column, Schema, Table
 from bench.sql.engine import (
     RowIn,
+    StaticContext,
     _pg_adapt_row,
     _pg_adapt_rows,
     pg_delete,
@@ -115,10 +116,8 @@ async def test_cur(blank_store: Store):
 
 @pytest.mark.parametrize("table", TEST_TABLES, ids=lambda t: t.name)
 async def test_crud_rows(test_cur: psycopg.AsyncCursor, table: Table):
-    from bench.sql.client import _force_pg_crypto_key
-
     random.seed(42)
-    _force_pg_crypto_key.set(random.randbytes(32).hex())
+    ctx = StaticContext(crypto_key=random.randbytes(32).hex())
 
     def _generate_row(id: int) -> Mapping[str, Any]:
         row: dict[str, Any] = {"id": id}
@@ -139,17 +138,21 @@ async def test_crud_rows(test_cur: psycopg.AsyncCursor, table: Table):
     initial_rows: tuple[RowIn, ...] = tuple(_generate_row(id) for id in range(0, 3))
     target_rows = list(initial_rows)
     db_rows = await pg_insert(
-        cur=test_cur, table=table, rows=_pg_adapt_rows(table, initial_rows), returning=table.columns
+        cur=test_cur,
+        ctx=ctx,
+        table=table,
+        rows=_pg_adapt_rows(table, initial_rows),
+        returning=table.columns,
     )
     assert db_rows == target_rows
-    db_rows = await pg_select(cur=test_cur, table=table, order_by=sql.SQL("id"))
+    db_rows = await pg_select(cur=test_cur, ctx=ctx, table=table, order_by=sql.SQL("id"))
     assert db_rows == target_rows
 
     # upsert
     upsert_rows: tuple[RowIn, ...] = tuple(_generate_row(id) for id in range(2, 5))
-    await pg_upsert(cur=test_cur, table=table, rows=_pg_adapt_rows(table, upsert_rows))
+    await pg_upsert(cur=test_cur, ctx=ctx, table=table, rows=_pg_adapt_rows(table, upsert_rows))
     target_rows = target_rows[:2] + list(upsert_rows)
-    db_rows = await pg_select(cur=test_cur, table=table, order_by=sql.SQL("id"))
+    db_rows = await pg_select(cur=test_cur, ctx=ctx, table=table, order_by=sql.SQL("id"))
     assert db_rows == target_rows
 
     # update with dynamic values (only some columns are updated in some rows)
@@ -161,6 +164,7 @@ async def test_crud_rows(test_cur: psycopg.AsyncCursor, table: Table):
         target_rows[id] = {**target_rows[id], **row}
     db_rows = await pg_update_variable(
         cur=test_cur,
+        ctx=ctx,
         table=table,
         dynamic_columns=table.columns,
         dynamic_values=_pg_adapt_rows(table, update_rows),
@@ -169,7 +173,7 @@ async def test_crud_rows(test_cur: psycopg.AsyncCursor, table: Table):
     assert db_rows is not None
     db_rows.sort(key=lambda r: cast(int, r["id"]))
     assert db_rows == target_rows[1:4]
-    db_rows = await pg_select(cur=test_cur, table=table, order_by=sql.SQL("id"))
+    db_rows = await pg_select(cur=test_cur, ctx=ctx, table=table, order_by=sql.SQL("id"))
     assert db_rows == target_rows
 
     # update with fixed values
@@ -181,6 +185,7 @@ async def test_crud_rows(test_cur: psycopg.AsyncCursor, table: Table):
     target_rows = [{**row, **static_value} for row in target_rows]
     db_rows = await pg_update_static(
         cur=test_cur,
+        ctx=ctx,
         table=table,
         static_value=_pg_adapt_row(table, static_value),
         returning=table.columns,
@@ -189,13 +194,13 @@ async def test_crud_rows(test_cur: psycopg.AsyncCursor, table: Table):
     db_rows = list(db_rows)
     db_rows.sort(key=lambda r: cast(int, r["id"]))
     assert db_rows == target_rows
-    db_rows = await pg_select(cur=test_cur, table=table, order_by=sql.SQL("id"))
+    db_rows = await pg_select(cur=test_cur, ctx=ctx, table=table, order_by=sql.SQL("id"))
     assert db_rows == target_rows
 
     # delete
-    await pg_delete(cur=test_cur, table=table, where=sql.SQL("id > 3"))
+    await pg_delete(cur=test_cur, ctx=ctx, table=table, where=sql.SQL("id > 3"))
     target_rows = target_rows[:4]
-    db_rows = await pg_select(cur=test_cur, table=table, order_by=sql.SQL("id"))
+    db_rows = await pg_select(cur=test_cur, ctx=ctx, table=table, order_by=sql.SQL("id"))
     assert db_rows is not None
     db_rows = list(db_rows)
     db_rows.sort(key=lambda r: cast(int, r["id"]))

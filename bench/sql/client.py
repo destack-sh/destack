@@ -1,5 +1,4 @@
 import asyncio
-import contextvars
 import re
 from contextlib import asynccontextmanager
 from typing import ClassVar
@@ -12,8 +11,6 @@ from psycopg.rows import dict_row
 from psycopg_pool import AsyncConnectionPool
 
 from bench.language import Bench, Store
-from bench.language.const import SUB_PACKAGE_NODE_TYPES, NodeType, active_bench
-from bench.sql.core import Table, TableObject
 from bench.utils.func import sanitize_connection_uri
 from bench.utils.utils import get_from_env
 
@@ -35,35 +32,6 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 _connection_pools: dict[str, AsyncConnectionPool] = {}
 _pool_lock = asyncio.Lock()
-_force_pg_crypto_key: contextvars.ContextVar[str | None] = contextvars.ContextVar(
-    "force_pg_crypto_key", default=None
-)
-
-
-def get_pg_crypto_key(object: TableObject | Table) -> str:
-    """
-    Gets the appropriate crypto key.
-    NOTE :Architecture: reversing the crypto key from the table object feels backwards,
-                        but we'll likely refactor the SQL engine sometime anyway.
-    """
-    if key := _force_pg_crypto_key.get():  # for testing.. :c
-        return key
-
-    from bench.sql.engine import NODE_TYPE_BY_TABLE_NAME
-
-    table = object.table if isinstance(object, TableObject) else object
-    node_type = NODE_TYPE_BY_TABLE_NAME.get(table.name)
-    if node_type is None:  # :BlockTablePrefix
-        if table.name.startswith("bench_record_"):
-            node_type = NodeType.RECORD
-        else:
-            raise RuntimeError(f"unexpected table {table!r} (cannot determine node type)")
-
-    if node_type in SUB_PACKAGE_NODE_TYPES:
-        return active_bench().encryption_key
-    else:
-        assert GLOBAL_PG_CRYPTO_KEY, f"no global pg_crypto_key set for {object!r}"
-        return GLOBAL_PG_CRYPTO_KEY
 
 
 async def get_pg_connection_pool(connection_uri: str) -> AsyncConnectionPool:
@@ -95,7 +63,7 @@ async def get_pg_connection_pool(connection_uri: str) -> AsyncConnectionPool:
         )
         await pool.open()
         _connection_pools[connection_uri] = pool
-        logger.trace("pg.pool.open", connection_uri=sanitized_connection_uri, pool=pool)
+        logger.trace("postgres.pool.open", connection_uri=sanitized_connection_uri, pool=pool)
         return pool
 
 
@@ -107,7 +75,7 @@ async def close_pg_connection_pool(connection_uri: str) -> None:
             sanitized_connection_uri = sanitize_connection_uri(connection_uri)
             await pool.close()
             del _connection_pools[connection_uri]
-            logger.trace("pg.pool.close", connection_uri=sanitized_connection_uri, pool=pool)
+            logger.trace("postgres.pool.close", connection_uri=sanitized_connection_uri, pool=pool)
 
 
 async def cycle_pg_connection_pool(connection_uri: str) -> None:
@@ -183,9 +151,9 @@ class AsyncPostgresConnection:
         log = logger.bind(id=self.id, store=self.store, pool=self._pool)
         try:
             self._conn = await self._pool.getconn()
-            log.trace("pg.pool.acquire")
+            log.trace("postgres.pool.acquire")
         except psycopg_pool.PoolTimeout as e:
-            log.error("pg.pool.timeout", exc_info=e)
+            log.error("postgres.pool.timeout", exc_info=e)
             raise
         if self._conn.autocommit != self.autocommit:
             await self._conn.set_autocommit(self.autocommit)
@@ -194,7 +162,7 @@ class AsyncPostgresConnection:
     async def close(self) -> None:
         if self._pool is not None and self._conn is not None:
             await self._pool.putconn(self._conn)
-            logger.trace("pg.pool.release", id=self.id, store=self.store, pool=self._pool)
+            logger.trace("postgres.pool.release", id=self.id, store=self.store, pool=self._pool)
             self._conn = None
             # close pool if no longer in use
             if len(self._pool._pool) >= self._pool._nconns:  # ._pool are available conns

@@ -9,7 +9,7 @@ from bench.utils.func import IdEnum, bittuple, cyrb53a
 from bench.utils.utils import frozendict, get_from_env
 
 if typing.TYPE_CHECKING:
-    from bench.language import Bench, Session, Transaction
+    from bench.language import Session, Transaction
 
 
 class _Unset:
@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.09.02.1"  # auto change via version script
+VERSION = "2024.09.04.0"  # auto change via version script
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -1194,22 +1194,6 @@ def active_session() -> "Session":
 def get_active_session() -> Optional["Session"]:
     """Gets the currently active Session (if any)."""
     return _active_session.get()
-
-
-def active_bench() -> "Bench":
-    """Gets the Bench of the currently active Session"""
-    session = _active_session.get()
-    assert session is not None, "no active session"
-    assert session.parent is not None, f"no active bench in {session!r}"
-    return session.bench
-
-
-def get_active_bench() -> Optional["Bench"]:
-    """Gets the Bench of the currently active Session (if any)."""
-    session = _active_session.get()
-    if session is None:
-        return None
-    return session.bench
 
 
 def active_tx() -> "Transaction":

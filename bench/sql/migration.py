@@ -43,6 +43,7 @@ from bench.sql.core import (
     TableObject,
 )
 from bench.sql.engine import (
+    GLOBAL_CONTEXT,
     SqlUndefinedObjectError,
     pg_delete,
     pg_select,
@@ -130,7 +131,7 @@ async def read_migrations_from_pg(
         else:
             where = None
         migrations_rows = await pg_select(
-            cur=cur, table=MIGRATION_TABLE, where=where, order_by=sql.SQL("id")
+            cur=cur, ctx=GLOBAL_CONTEXT, table=MIGRATION_TABLE, where=where, order_by=sql.SQL("id")
         )
         migrations = [unpack_migration_row(row) for row in migrations_rows]
         return migrations
@@ -142,13 +143,14 @@ async def read_migrations_from_pg(
 async def _write_migrations_to_pg(cur: psycopg.AsyncCursor, migrations: list[Migration]):
     """Upserts the given migrations into the table. Errors if the table doesn't exist."""
     migrations_rows = [pack_migration_row(m) for m in migrations]
-    await pg_upsert(cur=cur, table=MIGRATION_TABLE, rows=migrations_rows)
+    await pg_upsert(cur=cur, ctx=GLOBAL_CONTEXT, table=MIGRATION_TABLE, rows=migrations_rows)
 
 
 async def delete_migrations_in_pg(cur: psycopg.AsyncCursor, from_id: int, to_id: int) -> None:
     """Deletes migrations from the database."""
     migrations_rows = await pg_delete(
         cur=cur,
+        ctx=GLOBAL_CONTEXT,
         table=MIGRATION_TABLE,
         where=sqlstr(f"id >= {from_id} AND id <= {to_id}"),
         returning=MIGRATION_TABLE.columns,
