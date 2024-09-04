@@ -200,9 +200,6 @@ class ValueObject(Mapping[str, Any]):
             self._value = {}
         self._value[field.storage_key] = value
 
-        # notify
-        self._updated_self((field,))
-
     def __setattr__(self, item: str, value: SomeValue) -> None:
         # NOTE: __setattr__ is also called for slots so we have to bypass those
         if item in ValueObject.__slots__:
@@ -218,8 +215,6 @@ class ValueObject(Mapping[str, Any]):
             raise AttributeError(f"{field!r} is required")
         if self._value is not None:
             self._value.pop(field.storage_key, None)
-        # notify
-        self._updated_self((field,))
 
     @property
     def fields(self):
@@ -264,12 +259,6 @@ class ValueObject(Mapping[str, Any]):
         value_packed = pack_value_object(self, self._type)
         copy = unpack_value_object(value_packed, self._type, parent, prop, ancestor_prop)
         return copy
-
-    def _updated_self(self, properties: tuple[Union["Property", "Field", Any], ...]) -> None:
-        if self.parent is not None:
-            prop = self.ancestor_prop if self.ancestor_prop is not None else self.parent_prop
-            assert type(prop) is Property, f"{prop!r} is not a Property"
-            self.parent._updated_self((prop,))
 
     def clone(self) -> "ValueObject":
         """Clones this object."""

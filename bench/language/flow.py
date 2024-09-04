@@ -1,6 +1,8 @@
 from typing import TYPE_CHECKING, Any, Optional, Union, assert_never, cast, final
 from uuid import UUID
 
+import cachetools
+
 from bench.language.const import (
     BlockType,
     EnumType,
@@ -463,6 +465,7 @@ class Step(SourceNode[StepData]):
         )
         return target
 
+    @cachetools.cached({})  # :CachedTypeInfo
     def to_type(self, as_object: bool = True, zone: FieldZone | None = None):
         """Gets a type represented by this Step (if any)"""
         from bench.language.block import Block

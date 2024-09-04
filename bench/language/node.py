@@ -3,6 +3,7 @@ import base64
 import functools
 import inspect
 from collections import defaultdict
+from dataclasses import InitVar
 from datetime import datetime
 from sys import intern
 from typing import (
@@ -797,14 +798,13 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
 
     if TYPE_CHECKING:
         parent: "BuiltinObject | ValueObject | None" = None
+        _skip_validate_self: InitVar[bool] = False
 
     _session: "Session | None" = p_runtime(default=None)
     _supergraph: "NodeSuperGraph" = p_runtime(default=None)
     _updated_properties: bitarray | None = p_runtime(default=None)
 
-    def __init__(
-        self, *, _skip_init_self: bool = False, _skip_validate_self: bool = False, **kwargs
-    ):
+    def __init__(self, *, _skip_validate_self: bool = False, **kwargs):
         self_dict = self.__dict__
 
         # init session / supergraph context (first)
@@ -921,10 +921,6 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
         # validate self
         if self._session is not None and not _skip_validate_self:
             self._validate_self((), invalid=on_invalid_raise)
-
-        # and init components
-        if not _skip_init_self:
-            self._init_self()
 
     def __content_str__(self) -> str:
         return ""  # empty by default
@@ -1044,16 +1040,17 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
         is_tracked = track and self._session is not None
         prop = self.__properties__.get(key)
         if prop is not None:
-            if (prop.is_ephemeral and not prop.is_value_runtime) or prop.is_autoset:  # untracked
+            if prop.is_untracked:
                 object.__setattr__(self, key, value)
                 return
-            elif prop.reference_kind == ReferenceKind.NODE_CHILDREN:
-                existing = getattr(self, key)
-                existing.set(value)
-                return
+
+            # remember old value
+            if is_tracked and (validate or self.__is_node__):
+                old_value = getattr(self, key)
+            else:
+                old_value = None
 
             # validate/set
-            old_value = getattr(self, key)
             if is_tracked and validate:
                 # coerce & check type (if it's not a contributed property, which only we edit)
                 if prop._type_info is not None and prop.reference_source is None:
@@ -1075,33 +1072,27 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
             else:
                 object.__setattr__(self, key, value)
 
-            if is_tracked:
-                # notify
-                self._updated_self((prop,))
-                if self.__is_node__:
-                    node = cast("Node", self)
-                    if not node._is_new:
-                        session = node._session
-                        assert session, f"no session for {node!r}"
-                        if self._updated_properties is None:
-                            self._updated_properties = bitarray(self.__max_property_ord__ + 1)
-                        if prop.is_value_runtime:
-                            # put value packed update into _packed property :ComputedValueProp
-                            value_packed_ptr = cast(Property, prop.value_packed_ptr)
-                            old_value = getattr(self, value_packed_ptr.name)
-                            self._updated_properties[value_packed_ptr.ord] = True
-                            session._update(
-                                node,
-                                properties=(value_packed_ptr,),
-                                old_values={value_packed_ptr.id: old_value},
-                            )
-                        else:
-                            self._updated_properties[prop.ord] = True
-                            session._update(
-                                node, properties=(prop,), old_values={prop.id: old_value}
-                            )
-                else:
-                    pass  # TODO :Broken: handle in struct updates
+            # track edit in session
+            if is_tracked and self.__is_node__:
+                node = cast("Node", self)
+                if not node._is_new:
+                    if self._updated_properties is None:
+                        self._updated_properties = bitarray(self.__max_property_ord__ + 1)
+                    if prop.is_value_runtime:
+                        # put value packed update into _packed property :ComputedValueProp
+                        value_packed_ptr = cast(Property, prop.value_packed_ptr)
+                        old_value = getattr(self, value_packed_ptr.name)
+                        self._updated_properties[value_packed_ptr.ord] = True
+                        cast("Session", self._session)._update(
+                            node,
+                            properties=(value_packed_ptr,),
+                            old_values={value_packed_ptr.id: old_value},
+                        )
+                    else:
+                        self._updated_properties[prop.ord] = True
+                        cast("Session", self._session)._update(
+                            node, properties=(prop,), old_values={prop.id: old_value}
+                        )
             return
         elif is_tracked and self.__passthrough__ is not None:
             # try passthrough target (if any)
@@ -1111,6 +1102,7 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
                     setattr(target, key, value)
                     return
 
+        # attribute error
         try:
             self_str = repr(self)
         except Exception:
@@ -1165,15 +1157,6 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
                 for item in cast(list, value):
                     yield from cast(Struct, item)._walk_struct()
 
-    def _init_component(self):  # noqa: B027
-        """Called after post init is done."""
-        pass  # do nothing by default
-
-    def _init_self(self):
-        """Called after post init is done."""
-        for component in self.__components__:
-            component._init_component(self)
-
     def _validate_component(self, properties: tuple[Property, ...], invalid: "ValidationHandler"):  # noqa: B027
         """Check the integrity of the component."""
         pass  # do nothing by default
@@ -1203,16 +1186,6 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
         # check inner structs
         for inner_struct in self._walk_struct():
             inner_struct._validate_self((), invalid)
-
-    def _updated_component(self, properties: tuple[Property, ...]):  # noqa: B027
-        """Called when properties have been updated."""
-        pass  # do nothing by default
-
-    @final
-    def _updated_self(self, properties: tuple[Property, ...]) -> None:
-        """Called when properties have been updated."""
-        for component in self.__components__:
-            component._updated_component(self, properties)
 
     def _flush_self(self):
         """Called when this struct has been flushed to the store."""
@@ -1452,7 +1425,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     def __init__(
         self, *, _skip_add_self: bool = False, _skip_validate_self: bool = False, **kwargs
     ):
-        super().__init__(**kwargs, _skip_init_self=True, _skip_validate_self=True)
+        super().__init__(**kwargs, _skip_validate_self=True)
 
         # init ck/id
         if isinstance(self, SourceNode):
@@ -1513,9 +1486,6 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
             if self._is_new and not _skip_validate_self:
                 self._validate_self((), invalid=on_invalid_raise)
             self._track_self(self._session)
-
-        # init components
-        self._init_self()
 
     @final
     def __str__(self):  # type: ignore
@@ -2096,11 +2066,11 @@ class NodeReference(Struct[NodeReferenceData], NodeReferenceBase):
     @staticmethod
     def _ref_from_node(node: Node) -> "NodeReference":
         assert isinstance(node, Node), f"expected Node, got {node!r}"
-        reference = NodeReference(type=node.metatype, id=node.id, ck=node.ck)
 
         # bench
+        bench_id: UUID | None = None
         if node.metatype == NodeType.BENCH:
-            reference.bench_id = node.id
+            bench_id = node.id
         elif isinstance(node, BenchNode):
             bench_id = node.bench_id
             if bench_id is None:
@@ -2108,20 +2078,31 @@ class NodeReference(Struct[NodeReferenceData], NodeReferenceBase):
                 session = _active_session.get()
                 if session is not None and session.bench_id is not None:
                     bench_id = session.bench_id
-            reference.bench_id = bench_id
+
         # base
+        base_ck: UUID | None = None
+        base_bench_id: UUID | None = None
         if node.metatype in BASED_NODE_TYPES:
             base = cast(HasNodeBase, node).base
             if base is not None:
-                reference.base_ck = base.ck
+                base_ck = base.ck
                 base_bench_id = base.bench_id
                 if base_bench_id is None:
                     # maybe also just creating, try from context
                     session = _active_session.get()
                     if session is not None and session.bench_id is not None:
                         base_bench_id = session.bench_id
-                reference.base_bench_id = base_bench_id
+                base_bench_id = base_bench_id
 
+        reference = NodeReference(
+            type=node.metatype,
+            id=node.id,
+            ck=node.ck,
+            bench_id=bench_id,
+            base_ck=base_ck,
+            base_bench_id=base_bench_id,
+            _skip_validate_self=True,
+        )
         return reference
 
     @override
