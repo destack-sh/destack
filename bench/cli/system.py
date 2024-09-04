@@ -48,7 +48,7 @@ async def bootstrap(region: Region):
             name="System", slug="system", email="system@bench.com", status=UserStatus.REGISTERED
         )
         session._create(system_user)
-        await session.flush()
+        await session.flush(optimistic=True)
         system_user.main_handle = system_user.handles.create(slug="system")
         system_bench = await create_default_bench(
             main_handle=system_user.main_handle,

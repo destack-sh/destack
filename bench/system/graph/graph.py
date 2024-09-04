@@ -29,10 +29,8 @@ from bench.language.const import (
     ReadType,
 )
 from bench.language.graph import (
-    NodeDataDict,
     NodeDataGraph,
     NodeDataGraphLike,
-    NodeDict,
     NodeGraphLike,
     NodeSuperGraph,
 )
@@ -113,10 +111,11 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
         self.bench_id: UUID | None = bench_id
         self.scope = GraphScope(bench_id=bench_id)._to_data()
         self.node_types: bittuple[NodeType] = node_types
-        self.commit_lock: asyncio.Lock = CriticalLock(
+        self.connector = ConnectionIndex(owner=self, scope=self.scope, oracle=self.oracle)
+
+        self._commit_lock: asyncio.Lock = CriticalLock(
             name=f"{self.__class__.__name__}_{bench_id or ''}"
         )
-        self.connector = ConnectionIndex(owner=self, scope=self.scope, oracle=self.oracle)
 
     @abc.abstractmethod
     def get_engines(self) -> tuple[GraphEngine, ...]:
@@ -160,8 +159,8 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
             _default_scope=self.scope,
             _engines=engines if engines is not None else self.get_engines(),
             _local_epoch=self.epoch,
-            _extend_commit=self._extend_commit if not raw_commit else None,
-            _on_commit=self._on_commit if not raw_commit else None,
+            _extend_commit=self._extend_commit_hook if not raw_commit else None,
+            _on_commit=self._on_commit_hook if not raw_commit else None,
             _supergraph=supergraph,
             _split_read=self.split_reads,
             _oracle=self.oracle,
@@ -181,28 +180,24 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
         return area
 
     @final
-    async def _extend_commit(self, session: Session, edits: list[EditData]) -> list[EditData]:
-        return await self.extend_commit(
-            session=session,
-            context=None,
-            graph=NodeDict(session._edited_nodes_by_id),
-            edits=edits,
-        )
+    async def _extend_commit_hook(self, session: Session, edits: list[EditData]) -> list[EditData]:
+        return await self.extend_commit(session=session, context=None, edits=edits)
 
     @final
-    async def _on_commit(
-        self, session: Session, edits: list[EditData], cascaded_edits: list[EditData]
+    async def _on_commit_hook(
+        self,
+        session: Session,
+        graph: NodeGraphLike,
+        data_graph: NodeDataGraphLike,
+        edits: list[EditData],
+        cascaded_edits: list[EditData],
     ):
         assert session._local_epoch is not None, f"no system epoch in {session!r}"
         self.epoch = session._local_epoch
         return await self.on_commit(
             session=session,
-            graph=NodeDict(session._edited_nodes_by_id),
-            # NOTE :Performance: we could be smarter to avoid packing edited nodes here
-            #  (but it doesn't really matter since the number of nodes here is usually small)
-            data_graph=NodeDataDict(
-                {str(node.id): node._to_data() for node in session._edited_nodes_by_id.values()}
-            ),
+            graph=graph,
+            data_graph=data_graph,
             edits=edits,
             cascaded_edits=cascaded_edits,
         )
@@ -211,7 +206,6 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
         self,
         session: Session,
         context: SessionContext | None,
-        graph: NodeGraphLike,
         edits: list[EditData],
     ) -> list[EditData]:
         """Extend a commit. Returns any new edits."""
@@ -287,10 +281,10 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
                 if node is None:
                     raise GRPCError(GRPCStatus.NOT_FOUND, f"{node_id} not found")
                 node._validate_self(properties=(), invalid=on_invalid_raise)
-                session._edited_nodes_by_id[node.id] = node
+                session._pending_nodes_by_id[node.id] = node
 
             # actually commit
-            _, cascaded_edits = await session.commit()
+            _, cascaded_edits = await session.commit(_data_graph=data_graph)
             session.untrack_many(*unpacked_graph.nodes)  # prevent accidental edits
 
         return edits, cascaded_edits
@@ -313,12 +307,12 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
                 _supergraph=subject._supergraph,
             )
 
-        # NOTE :Performance: obviously, putting a big lock around commit is not ideal,
+        # NOTE :Performance!: obviously, putting a big lock around commit is not ideal,
         #  but we have to guarantee absolute order + integrity of any loaded graphs (in Host).
         # We can probably optimize this by only locking some tighter critical sections
         #  if we rollback somehow on failure. Maybe we can even 'cache' apply some edits only in memory.
         # We'll also eventually need to thread/shard the Host (maybe lock only on overlapping edits?).
-        async with self.commit_lock:
+        async with self._commit_lock:
             retry = COMMIT_RETRY.new(self.oracle)
             while retry.should_retry:
                 retry.on_attempt()

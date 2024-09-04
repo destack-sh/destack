@@ -16,6 +16,7 @@ from sys import intern
 from time import time_ns
 from typing import (
     Any,
+    Awaitable,
     Callable,
     Collection,
     Iterable,
@@ -36,6 +37,16 @@ from bench.utils.env import IS_DEV, IS_TEST
 from bench.utils.utils import get_from_env
 
 logger = structlog.get_logger(__name__)
+
+
+def async_shield[T](coro: Callable[..., Awaitable[T]]) -> Callable[..., Awaitable[T]]:
+    """Wraps an async function in a shield."""
+
+    @functools.wraps(coro)
+    async def wrapper(*args, **kwargs):
+        return await asyncio.shield(coro(*args, **kwargs))
+
+    return wrapper
 
 
 def is_close(num_a: float | Any, num_b: float | Any, tol: float) -> bool:

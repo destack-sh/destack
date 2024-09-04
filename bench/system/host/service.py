@@ -307,7 +307,7 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
     async def session(self, *, readonly: bool = False, commit: bool = False):
         """Gets exclusive query and edit access to the main session. :ExclusiveHostSession"""
         assert self._session is not None, f"no session for {self!r}"
-        async with self.commit_lock, self._session.active(readonly=readonly):
+        async with self._commit_lock, self._session.active(readonly=readonly):
             self._session._local_epoch = self.epoch
             yield self._session
             if commit:
@@ -456,8 +456,8 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
             _is_readonly=False,
             _default_scope=self.scope,
             _engines=self._engines,
-            _extend_commit=self._extend_commit,
-            _on_commit=self._on_commit,
+            _extend_commit=self._extend_commit_hook,
+            _on_commit=self._on_commit_hook,
             _supergraph=self._bench._supergraph,
             _split_read=True,
             _oracle=self.oracle,
@@ -535,7 +535,6 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
         self,
         session: Session,
         context: SessionContext | None,
-        graph: NodeGraphLike,
         edits: list[EditData],
     ) -> list[EditData]:
         extended_edits: list[EditData] = []
