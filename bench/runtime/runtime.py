@@ -319,9 +319,8 @@ class Runtime:
                 await self._do_run_once_retrying_tracked(runner)
             else:
                 await self._do_run_once_retrying(runner)
-            # nocheckin :Performance! :Robustness: support optimistic & more robust commit
-            #  (increment local epoch, handle concurrent commits/edits, ... :BetterCommit)
-            await asyncio.shield(self.session.commit())
+            # always commit after run, but don't block if we're nested
+            await self.session.commit(optimistic=runner.is_nested)
 
     @tracer.start_as_current_span("runner.process_run")
     async def run_run(self, run: Run, *, return_error: bool = False) -> Runner | None:
@@ -337,16 +336,16 @@ class Runtime:
                 if run.status != RunStatus.FAILED:
                     run.status = RunStatus.FAILED
                     run.error = RunError.from_exception(RunErrorKind.RUNTIME, e)
-                await asyncio.shield(self.session.commit())
+                await self.session.commit()
                 logger.info("runner.process_run.error", run=run, exc_info=e, span="current")
                 if not return_error:
                     raise
-            except Exception as e:
+            except BaseException as e:
                 # some unexpected internal error
                 if run.status != RunStatus.FAILED:
                     run.status = RunStatus.FAILED
                     run.error = RunError.from_exception(RunErrorKind.INTERNAL, e)
-                await asyncio.shield(self.session.commit())
+                await self.session.commit()
                 logger.error(
                     "runner.process_run.internal_error", run=run, exc_info=e, span="current"
                 )

@@ -189,11 +189,11 @@ class SupervisorService(GraphIoServiceBase, SupervisorBase):
             user.password_salt = generate_salt(SALT_LENGTH)
             user.password_hash = hash_password(request.password, user.password_salt)
             session._create(user)
-            await session.flush()
+            await session.flush(optimistic=True)
             client = await self._make_client(user, request.client)
             client.access_token = generate_access_token(ACCESS_TOKEN_LENGTH)
             session._create(client)
-            await session.flush()
+            await session.flush(optimistic=True)
             user.main_handle = user.handles.create(slug=user.slug)
             await session.commit()
 
@@ -429,17 +429,17 @@ async def create_default_bench(
         region=region,
     )
     session._create(bench)
-    await session.flush()
+    await session.flush(optimistic=True)
 
     # create resources (in pending state, resources are managed by hosts)
     server = bench.servers.create(region=bench.region, name="Server")
     store = bench.stores.create(region=bench.region, name="Store")
     drive = bench.drives.create(region=bench.region, name="Drive")
-    await session.flush()
+    await session.flush(optimistic=True)
     bench.main_server = server
     bench.main_store = store
     bench.main_drive = drive
-    await session.flush()
+    await session.flush(optimistic=True)
 
     # immediately provision local store
     await provision(HostProxy(global_store, session), bench, (store, drive))
@@ -448,7 +448,7 @@ async def create_default_bench(
     session._engines += (local_pg_engine_from_store(store),)  # sneakily add engine
     main_branch = bench.branches.create(name="Main", slug="main")
     main_package = main_branch.packages.create()
-    await session.flush()
+    await session.flush(optimistic=True)
     main_branch.main_package = main_package
     bench.main_branch = main_branch
 

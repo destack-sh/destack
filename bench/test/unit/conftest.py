@@ -208,7 +208,7 @@ class RuntimeHandle:
     bench: Bench
     package: Package
     session: Session
-    runner: Runtime
+    runtime: Runtime
 
     def page(self, name: str = "Page1") -> Block:
         """Gets or creates a page in the current package."""
@@ -225,7 +225,7 @@ class RuntimeHandle:
     async def run(
         self, run: Run | Block | Step, *, inputs: Any | None = None, return_error: bool = False
     ) -> Runner:
-        return await self.runner.run(run, inputs=inputs, return_error=return_error)
+        return await self.runtime.run(run, inputs=inputs, return_error=return_error)
 
 
 #
@@ -247,7 +247,7 @@ async def local_runtime_async(global_store: Store):
             _is_new=True,  # force create
         )
         session._create(user)
-        await session.flush()
+        await session.flush(optimistic=True)
         client = Client(
             parent=user,
             name="test",
@@ -255,7 +255,7 @@ async def local_runtime_async(global_store: Store):
             seen_at=REAL_ORACLE.utc(),
         )
         session._create(client)
-        await session.flush()
+        await session.flush(optimistic=True)
         user.main_handle = user.handles.create(slug=user.slug)
         await session.commit()
 
@@ -282,7 +282,7 @@ async def local_runtime_async(global_store: Store):
         _oracle=REAL_ORACLE,
         _supergraph=bench._supergraph,
     )
-    runner = Runtime(session=session, oracle=REAL_ORACLE)
+    runtime = Runtime(session=session, oracle=REAL_ORACLE)
     handle = RuntimeHandle(
         supergraph=bench._supergraph,
         user=user,
@@ -290,7 +290,7 @@ async def local_runtime_async(global_store: Store):
         bench=bench,
         package=bench.main_package,
         session=session,
-        runner=runner,
+        runtime=runtime,
     )
     try:
         async with session:
@@ -324,7 +324,7 @@ async def hosted_bench(global_store: Store):
             _is_new=True,  # force create
         )
         session._create(user)
-        await session.flush()
+        await session.flush(optimistic=True)
         client = Client(
             parent=user,
             name="Test",
@@ -334,7 +334,7 @@ async def hosted_bench(global_store: Store):
             _is_new=True,  # force create
         )
         session._create(client)
-        await session.flush()
+        await session.flush(optimistic=True)
         user.main_handle = user.handles.create(slug=user.slug)
 
         bench = await create_default_bench(
@@ -420,7 +420,7 @@ async def hosted_runtime_async(hosted_bench: Bench, host: HostClient):
         bench=hosted_bench,
         package=hosted_bench.main_package,
         session=session,
-        runner=runner,
+        runtime=runner,
     )
     async with session:
         yield handle

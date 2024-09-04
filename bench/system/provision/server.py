@@ -40,7 +40,7 @@ class ElasticServerProvisioner(Provisioner[Server, Server | Machine]):
                     access_token=generate_access_token(ACCESS_TOKEN_LENGTH),
                 )
                 session._create(client)
-                await session.flush()
+                await session.flush(optimistic=True)
                 machine = Machine(name="Machine1", cpu=0.25, ram=0.5, client=client)
                 server.machines.append(machine)
                 client.machine = machine

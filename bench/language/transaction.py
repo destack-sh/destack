@@ -368,9 +368,8 @@ class Transaction:
     """Pending (unflushed) edits."""
     # individual edit events, merged into edits on flush
     _pending_edit_events: list[EditEvent] = dataclasses.field(default_factory=list)
-    # manual edits, appended to edits on flush
+    # manual edits (or pre-accumulated edits from edit events)
     _pending_edits: list[EditData] = dataclasses.field(default_factory=list)
-    _pending_changed_nodes_by_id: dict[UUID, Node] = dataclasses.field(default_factory=dict)
 
     def __str__(self):
         return f"[id={self.id}] ({len(self._edits)} edits, {len(self._cascaded_edits)} cascaded, {len(self._pending_edit_events) + len(self._pending_edits)} pending)"
@@ -432,7 +431,6 @@ class Transaction:
         if edit_type not in (EditType.UPDATE, EditType.MOVE):
             edit.node_data = node._to_data()
         self._pending_edit_events.append(edit)
-        self._pending_changed_nodes_by_id[node.id] = node
 
     def create(
         self,
@@ -583,22 +581,16 @@ class Transaction:
     async def _do_flush(self, *, is_commit: bool) -> tuple[list[EditData], list[EditData]]:
         """Flush any pending edits."""
         assert self.session is not None, f"no session for {self!r}"
-        log = logger.bind(edit_events=self._pending_edit_events, transaction=self)
 
         # turn pending mini edits into real edits
         accumulated_edits = _accumulate_edits(self._pending_edit_events)
         if self.session._local_epoch is not None:
             self._track_edits(accumulated_edits)  # track new edits
         edits = [*accumulated_edits, *self._pending_edits]
-        log = log.bind(edits=edits)
+        log = logger.bind(transaction=self, edits=len(edits))
         self._edits.extend(edits)
         self._pending_edit_events = []
         self._pending_edits = []
-
-        # update nodes on flush
-        #  (this can cause race conditions sometimes? :BetterCommit)
-        for n in self._pending_changed_nodes_by_id.values():
-            n._flush_self()
 
         # assign edits to engines
         edits_by_engine_id: dict[Any, list[EditData]] = defaultdict(list)
@@ -635,9 +627,17 @@ class Transaction:
             self._cascaded_edits.extend(flush.cascaded_edits)
             self._touched_engine_ids.add(engine.id)
 
-        self._pending_changed_nodes_by_id.clear()
         log.trace("transaction.commit" if is_commit else "transaction.flush")
         return edits, cascaded_edits
+
+    def preflush(self):
+        """Accumulates edit events into edits (without flushing)."""
+        accumulated_edits = _accumulate_edits(self._pending_edit_events)
+        if self.session._local_epoch is not None:
+            self._track_edits(accumulated_edits)
+        self._pending_edits.extend(accumulated_edits)
+        self._pending_edit_events = []
+        return accumulated_edits
 
     @tracer.start_as_current_span("transaction.flush")
     async def flush(self) -> tuple[list[EditData], list[EditData]]:
@@ -659,7 +659,6 @@ class Transaction:
         self._edits = []
         self._cascaded_edits = []
         self._pending_edit_events = []
-        self._pending_changed_nodes_by_id.clear()
         self._touched_engine_ids.clear()
 
 

@@ -103,6 +103,10 @@ class Runner[S: RunnerCache, T: RunnableNode](abc.ABC):
         return self.run is not None
 
     @property
+    def is_nested(self) -> bool:
+        return self.parent is not None
+
+    @property
     def kind(self) -> RunKind:
         return self.cache.kind
 
