@@ -31,11 +31,13 @@ from psycopg import OperationalError, sql
 from psycopg.types.json import Jsonb
 
 from bench.language import Block, ConditionalOp, NodeReference, Property
+from bench.language.bench import Bench
 from bench.language.connection import ChannelIncapableError
 from bench.language.const import (
     CASCADING_EDIT_TYPES,
     EMPTY_DICT,
     NODE_TYPES,
+    SUB_PACKAGE_NODE_TYPES,
     BenchError,
     BlockType,
     EditType,
@@ -69,7 +71,7 @@ from bench.proto.wire import (
 )
 from bench.proto.wiring import PROTO_CLASS_BY_TYPE
 from bench.sql import schema
-from bench.sql.client import get_pg_crypto_key
+from bench.sql.client import GLOBAL_PG_CRYPTO_KEY
 from bench.sql.core import (
     ALL_EXTENSIONS,
     DEFAULT_GLOBAL_TABLES,
@@ -100,6 +102,39 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
+@dataclass(slots=True)
+class StaticContext:
+    crypto_key: str | None = None
+
+    def get_crypto_key(self, obj: "Table | Column") -> str | None:
+        """Gets the crypto key for the given table."""
+        return self.crypto_key
+
+
+@dataclass(slots=True)
+class BenchContext:
+    """A context for a SQL statement."""
+
+    bench: Bench | None
+
+    def get_crypto_key(self, obj: "Table | Column") -> str | None:
+        """Gets the crypto key for the given table."""
+
+        table = obj if isinstance(obj, Table) else obj.table
+        node_type = NODE_TYPE_BY_TABLE_NAME[table.name]
+        if node_type in SUB_PACKAGE_NODE_TYPES:
+            assert self.bench is not None, f"no bench for crypto key for {table!r}"
+            return self.bench.encryption_key
+        else:
+            return GLOBAL_PG_CRYPTO_KEY
+
+
+Context = StaticContext | BenchContext
+
+
+GLOBAL_CONTEXT = BenchContext(bench=None)
+
+
 def _trace_pg_span[F: Callable](func: F) -> F:
     """Instruments a pg function with common parameters as span attributes"""
     func_name = func.__name__
@@ -108,7 +143,7 @@ def _trace_pg_span[F: Callable](func: F) -> F:
     assert func_name.startswith("pg_"), f"unexpected pg function: {func.__name__}"
 
     @wraps(func)
-    @tracer.start_as_current_span(f"pg.{func_name[3:]}")
+    @tracer.start_as_current_span(f"postgres.{func_name[3:]}")
     async def wrapped(**kwargs):
         # extract out all the interesting attributes for the span
         cur = kwargs.get("cur")
@@ -675,7 +710,7 @@ def _pg_wrap_write_column(column: Column, value: SqlNode) -> SqlNode:
     return value
 
 
-def _pg_wrap_read_column(column: Column, value: SqlNode) -> SqlNode:
+def _pg_wrap_read_column(ctx: Context, column: Column, value: SqlNode) -> SqlNode:
     if not column.is_encrypted:
         return value
 
@@ -684,7 +719,7 @@ def _pg_wrap_read_column(column: Column, value: SqlNode) -> SqlNode:
     original = value
     # first decrypt with
     value = sqlstr("pgp_sym_decrypt_bytea({}, %(PG_CRYPTO_KEY)s::text)").format(
-        sql_node_to_sql(value), sql.Literal(get_pg_crypto_key(column))
+        sql_node_to_sql(value), sql.Literal(ctx.get_crypto_key(column))
     )
     # then convert from bytea to the correct type
     if column._unencrypted_type == PrimitiveType.BYTES:
@@ -742,7 +777,7 @@ async def pg_select_raw(
     """Executes an arbitrary select without any wrapping."""
     query_str = sql_to_str(cur, query) if not isinstance(query, str) else query
     trace.get_current_span().set_attributes({"sql_query": query_str})
-    logger.trace("pg.select_raw", query=query_str, span="current")
+    logger.trace("postgres.select_raw", query=query_str, span="current")
     await _pg_execute(cur, cast(sql.Composed, query))
     return cast(list[dict[str, Any]], await cur.fetchall())
 
@@ -751,6 +786,7 @@ async def pg_select_raw(
 async def pg_select(
     *,
     cur: psycopg.AsyncCursor,
+    ctx: Context,
     table: Table,
     columns: Collection[Column] | None = None,
     joins: Collection[SqlJoin] | None = None,
@@ -763,7 +799,7 @@ async def pg_select(
     """Selects from the given table."""
     columns = columns or table.columns
     statement = sqlstr("SELECT {fields} FROM {table}").format(
-        fields=sqljoin(", ", (_pg_wrap_read_column(c, sqlident(c.name)) for c in columns)),
+        fields=sqljoin(", ", (_pg_wrap_read_column(ctx, c, sqlident(c.name)) for c in columns)),
         table=sqlident(table.name),
     )
     if joins:
@@ -778,9 +814,9 @@ async def pg_select(
         statement += sqlstr(" OFFSET {}").format(sql.Literal(skip))
     query_str = sql_to_str(cur, statement)
     trace.get_current_span().set_attribute("sql_query", query_str)
-    logger.trace("pg.select", table=table, cur=cur, query=query_str, span="current")
+    logger.trace("postgres.select", table=table, cur=cur, query=query_str, span="current")
     if any(c.is_encrypted for c in columns):
-        params = {**(params or EMPTY_DICT), "PG_CRYPTO_KEY": get_pg_crypto_key(table)}
+        params = {**(params or EMPTY_DICT), "PG_CRYPTO_KEY": ctx.get_crypto_key(table)}
     try:
         await _pg_execute(cur, statement, params)
     except psycopg.errors.Error as e:
@@ -792,6 +828,7 @@ async def pg_select(
 async def pg_count(
     *,
     cur: psycopg.AsyncCursor,
+    ctx: Context,
     table: Table,
     where: SqlNode | None = None,
 ) -> int:
@@ -803,7 +840,7 @@ async def pg_count(
         statement += sqlstr(" WHERE {}").format(sql_node_to_sql(where))
     query = sql_to_str(cur, statement)
     trace.get_current_span().set_attribute("sql_query", query)
-    logger.trace("pg.count", table=table, cur=cur, query=query)
+    logger.trace("postgres.count", table=table, cur=cur, query=query)
     try:
         await _pg_execute(cur, statement)
         result = cast(dict, await cur.fetchone())
@@ -818,6 +855,7 @@ async def pg_count(
 async def pg_exists(
     *,
     cur: psycopg.AsyncCursor,
+    ctx: Context,
     table: Table,
     where: SqlNode | None = None,
     joins: list[SqlJoin] | None = None,
@@ -833,7 +871,7 @@ async def pg_exists(
     statement += sqlstr(")")
     query_str = sql_to_str(cur, statement)
     trace.get_current_span().set_attribute("sql_query", query_str)
-    logger.trace("pg.exists_rows", table=table, cur=cur, query=query_str, span="current")
+    logger.trace("postgres.exists_rows", table=table, cur=cur, query=query_str, span="current")
     try:
         await _pg_execute(cur, statement)
         result = cast(dict, await cur.fetchone())
@@ -848,6 +886,7 @@ async def pg_exists(
 async def pg_insert(
     *,
     cur: psycopg.AsyncCursor,
+    ctx: Context,
     table: Table,
     rows: Collection[RowIn],
     returning: Collection[Column] | None = None,
@@ -862,14 +901,16 @@ async def pg_insert(
     )
     if returning:
         statement += sqlstr(" RETURNING {}").format(
-            sqljoin(", ", (_pg_wrap_read_column(c, sqlident(c.name)) for c in returning))
+            sqljoin(", ", (_pg_wrap_read_column(ctx, c, sqlident(c.name)) for c in returning))
         )
     query_str = sql_to_str(cur, statement)
     trace.get_current_span().set_attribute("sql_query", query_str)
-    logger.trace("pg.insert", table=table, cur=cur, query=query_str, span="current")
+    logger.trace("postgres.insert", table=table, cur=cur, query=query_str, span="current")
 
     if any(c.is_encrypted for c in table.columns):
-        templated_values = tuple({**row, "PG_CRYPTO_KEY": get_pg_crypto_key(table)} for row in rows)
+        templated_values = tuple(
+            {**row, "PG_CRYPTO_KEY": ctx.get_crypto_key(table)} for row in rows
+        )
     else:
         templated_values = rows
     try:
@@ -884,6 +925,7 @@ async def pg_insert(
 async def pg_upsert(
     *,
     cur: psycopg.AsyncCursor,
+    ctx: Context,
     table: Table,
     rows: Collection[RowIn],
     conflict_columns: list[Column] | tuple[Column, ...] | None = None,
@@ -927,14 +969,16 @@ async def pg_upsert(
     )
     if returning:
         statement += sqlstr(" RETURNING {}").format(
-            sqljoin(", ", (_pg_wrap_read_column(c, sqlident(c.name)) for c in returning))
+            sqljoin(", ", (_pg_wrap_read_column(ctx, c, sqlident(c.name)) for c in returning))
         )
     query_str = sql_to_str(cur, statement)
     trace.get_current_span().set_attribute("sql_query", query_str)
-    logger.trace("pg.upsert", table=table, cur=cur, query=query_str, span="current")
+    logger.trace("postgres.upsert", table=table, cur=cur, query=query_str, span="current")
 
     if any(c.is_encrypted for c in table.columns):
-        templated_values = tuple({**row, "PG_CRYPTO_KEY": get_pg_crypto_key(table)} for row in rows)
+        templated_values = tuple(
+            {**row, "PG_CRYPTO_KEY": ctx.get_crypto_key(table)} for row in rows
+        )
     else:
         templated_values = rows
     try:
@@ -949,6 +993,7 @@ async def pg_upsert(
 async def pg_update_static(
     *,
     cur: psycopg.AsyncCursor,
+    ctx: Context,
     table: Table,
     where: SqlNode | None = None,
     static_value: RowIn,
@@ -973,14 +1018,14 @@ async def pg_update_static(
         statement += sqlstr(" WHERE {}").format(sql_node_to_sql(where))
     if returning:
         statement += sqlstr(" RETURNING {}").format(
-            sqljoin(", ", (_pg_wrap_read_column(c, sqlident(c.name)) for c in returning))
+            sqljoin(", ", (_pg_wrap_read_column(ctx, c, sqlident(c.name)) for c in returning))
         )
     query = sql_to_str(cur, statement)
     trace.get_current_span().set_attribute("sql_query", query)
-    logger.trace("pg.update_constant", table=table, cur=cur, query=query)
+    logger.trace("postgres.update_constant", table=table, cur=cur, query=query)
 
     if any(c.is_encrypted for c in table.columns):
-        template_values = {**static_value, "PG_CRYPTO_KEY": get_pg_crypto_key(table)}
+        template_values = {**static_value, "PG_CRYPTO_KEY": ctx.get_crypto_key(table)}
     else:
         template_values = static_value
     try:
@@ -995,6 +1040,7 @@ async def pg_update_static(
 async def pg_update_variable(
     *,
     cur: psycopg.AsyncCursor,
+    ctx: Context,
     table: Table,
     dynamic_columns: Collection[Column],
     dynamic_values: Collection[RowIn],
@@ -1037,13 +1083,16 @@ async def pg_update_variable(
         statement += sqlstr(" RETURNING {}").format(
             sqljoin(
                 ", ",
-                (sqlstr("{}").format(_pg_wrap_read_column(c, sqlident(c.name))) for c in returning),
+                (
+                    sqlstr("{}").format(_pg_wrap_read_column(ctx, c, sqlident(c.name)))
+                    for c in returning
+                ),
             )
         )
     query_str = sql_to_str(cur, statement)
     trace.get_current_span().set_attribute("sql_query", query_str)
     logger.trace(
-        "pg.update_variable",
+        "postgres.update_variable",
         table=table,
         cur=cur,
         query=query_str,
@@ -1052,7 +1101,7 @@ async def pg_update_variable(
     )
 
     is_any_encrypted = any(c.is_encrypted for c in table.columns)
-    pg_crypto_key = get_pg_crypto_key(table)
+    pg_crypto_key = ctx.get_crypto_key(table)
     templated_values: list[RowIn] = []
     for row in dynamic_values:
         pk = row.get(table._primary_key.name)
@@ -1079,6 +1128,7 @@ async def pg_update_variable(
 async def pg_delete(
     *,
     cur: psycopg.AsyncCursor,
+    ctx: Context,
     table: Table,
     where: SqlNode | None = None,
     returning: Collection[Column] | None = None,
@@ -1091,11 +1141,11 @@ async def pg_delete(
         statement += sqlstr(" WHERE {}").format(sql_node_to_sql(where))
     if returning:
         statement += sqlstr(" RETURNING {}").format(
-            sqljoin(", ", (_pg_wrap_read_column(c, sqlident(c.name)) for c in returning))
+            sqljoin(", ", (_pg_wrap_read_column(ctx, c, sqlident(c.name)) for c in returning))
         )
     query_str = sql_to_str(cur, statement)
     trace.get_current_span().set_attribute("sql_query", query_str)
-    logger.trace("pg.delete", table=table, cur=cur, query=query_str, span="current")
+    logger.trace("postgres.delete", table=table, cur=cur, query=query_str, span="current")
     try:
         await _pg_execute(cur, statement)
     except psycopg.errors.Error as e:
@@ -1105,7 +1155,7 @@ async def pg_delete(
 
 
 @_trace_pg_span
-async def pg_truncate(cur: psycopg.AsyncCursor, table: Table) -> None:
+async def pg_truncate(cur: psycopg.AsyncCursor, table: Table, ctx: Context) -> None:
     """Truncates the given table."""
     await _pg_execute(cur, sqlstr("TRUNCATE TABLE {}").format(sqlident(table.name)))
 
@@ -1351,6 +1401,7 @@ def pg_unpack_node_data_row(node_cls: type[Node], row: Mapping[str, Any]) -> Any
 @_trace_pg_span
 async def pg_get_nodes(
     cur: psycopg.AsyncCursor,
+    ctx: Context,
     node_type: NodeType,
     *,
     properties: Collection[Property],
@@ -1368,6 +1419,7 @@ async def pg_get_nodes(
     order_by = pg_compile_sorts(node_cls, sort) if sort else None
     rows = await pg_select(
         cur=cur,
+        ctx=ctx,
         table=node_table,
         columns=columns,
         where=where,
@@ -1383,6 +1435,7 @@ async def pg_get_nodes(
 async def pg_walk_graph_down(
     *,
     cur: psycopg.AsyncCursor,
+    ctx: Context,
     roots: list[NodeReferenceData]
     | list[AnyNodeData]
     | tuple[NodeReferenceData, ...]
@@ -1446,6 +1499,7 @@ async def pg_walk_graph_down(
             parent_where = pg_compile_conditional(child_cls, parent_filter)
             children_rows = await pg_select(
                 cur=cur,
+                ctx=ctx,
                 table=child_table,
                 columns=(
                     child_table._columns_by_name["id"],
@@ -1476,6 +1530,7 @@ async def pg_walk_graph_down(
 async def pg_get_node_graph(
     *,
     cur: psycopg.AsyncCursor,
+    ctx: Context,
     root_type: NodeType,
     roots: Sequence[SomeNodeReferenceData] | Sequence[AnyNodeData],
     options: ReadOptions,
@@ -1499,6 +1554,7 @@ async def pg_get_node_graph(
         )
         root_nodes = await pg_get_nodes(
             cur=cur,
+            ctx=ctx,
             node_type=root_type,
             filter=root_filter,
             properties=options.select(root_type),
@@ -1532,6 +1588,7 @@ async def pg_get_node_graph(
             for node_type, node_ids in to_select_by_type.items():
                 new_parents = await pg_get_nodes(
                     cur=cur,
+                    ctx=ctx,
                     node_type=node_type,
                     filter=options.filter(
                         node_type,
@@ -1549,6 +1606,7 @@ async def pg_get_node_graph(
     if options.descendant_types:
         descendant_node_ptrs, _ = await pg_walk_graph_down(
             cur=cur,
+            ctx=ctx,
             roots=root_nodes,
             descendant_types=options.descendant_types,
             extra_filter=FILTER_VISIBLE if not options.include_hidden else None,
@@ -1558,6 +1616,7 @@ async def pg_get_node_graph(
             node_type = NodeType(wire_node_type)
             new_children = await pg_get_nodes(
                 cur=cur,
+                ctx=ctx,
                 node_type=node_type,
                 filter=options.filter(
                     node_type,
@@ -1573,6 +1632,7 @@ async def pg_get_node_graph(
 async def pg_search_node_graph(
     *,
     cur: psycopg.AsyncCursor,
+    ctx: Context,
     scope: GraphScopeData,
     node_type: NodeType,
     options: ReadOptions,
@@ -1587,6 +1647,7 @@ async def pg_search_node_graph(
         # split into two passes if we have other nodes to fetch
         roots = await pg_get_nodes(
             cur=cur,
+            ctx=ctx,
             node_type=node_type,
             filter=options.filter(node_type, filter),
             sort=sort,
@@ -1599,6 +1660,7 @@ async def pg_search_node_graph(
             return roots, visited_graph
         await pg_get_node_graph(
             cur=cur,
+            ctx=ctx,
             root_type=node_type,
             roots=roots,
             options=options,
@@ -1609,6 +1671,7 @@ async def pg_search_node_graph(
         # otherwise just select in one go
         roots = await pg_get_nodes(
             cur=cur,
+            ctx=ctx,
             node_type=node_type,
             filter=options.filter(node_type, filter),
             sort=sort,
@@ -1627,6 +1690,7 @@ async def pg_search_node_graph(
 async def pg_edit(
     *,
     cur: psycopg.AsyncCursor,
+    ctx: Context,
     edits: list[EditData] | tuple[EditData, ...],
     cascade: bittuple[EditType] = CASCADING_EDIT_TYPES,
 ) -> tuple[list["int"], list[EditData]]:
@@ -1671,7 +1735,7 @@ async def pg_edit(
         #  (for instance in Host we the edited graph may be loaded, so we could do this in memory)
         if edit_type in cascade and node_type in HAS_CHILD_NODE_TYPES:
             cascaded_edits = await _pg_edit_cascade(
-                cur=cur, edit_type=edit_type, node_type=node_type, batch=batch
+                cur=cur, ctx=ctx, edit_type=edit_type, node_type=node_type, batch=batch
             )
             all_cascaded_edits.extend(cascaded_edits)
 
@@ -1679,6 +1743,7 @@ async def pg_edit(
         updated_properties = batch_node_cls._unmask_properties(batch_updated_properties)
         changed_nodes = await _pg_edit_batch(
             cur=cur,
+            ctx=ctx,
             edit_type=edit_type,
             node_type=cast(NodeType, node_type),
             batch=batch,
@@ -1709,7 +1774,12 @@ async def pg_edit(
 
 @_trace_pg_span
 async def _pg_edit_cascade(
-    *, cur: psycopg.AsyncCursor, edit_type: EditType, node_type: NodeType, batch: list[EditData]
+    *,
+    cur: psycopg.AsyncCursor,
+    ctx: Context,
+    edit_type: EditType,
+    node_type: NodeType,
+    batch: list[EditData],
 ) -> list[EditData]:
     """Cascades a batch of edits to the relevant descendants of the node."""
 
@@ -1747,6 +1817,7 @@ async def _pg_edit_cascade(
     # select cascaded nodes from graph
     _, cascaded_nodes_by_root_id = await pg_walk_graph_down(
         cur=cur,
+        ctx=ctx,
         roots=root_nodes,
         # only descend to node types in the same store
         descendant_types=DESCENDANT_NODE_TYPES_IN_STORE[node_type],
@@ -1778,6 +1849,7 @@ async def _pg_edit_cascade(
     for descendant_node_type, cascaded_edits in cascaded_edits_by_type.items():
         nodes = await _pg_edit_batch(
             cur=cur,
+            ctx=ctx,
             edit_type=edit_type,
             node_type=NodeType(descendant_node_type),
             batch=cascaded_edits,
@@ -1815,6 +1887,7 @@ async def _pg_edit_cascade(
 async def _pg_edit_batch(
     *,
     cur: psycopg.AsyncCursor,
+    ctx: Context,
     edit_type: EditType,
     node_type: NodeType,
     batch: list[EditData],
@@ -1861,7 +1934,7 @@ async def _pg_edit_batch(
             rows.append(row)
 
         if edit_type == EditType.CREATE:
-            _ = await pg_insert(cur=cur, table=node_table, rows=rows)
+            _ = await pg_insert(cur=cur, ctx=ctx, table=node_table, rows=rows)
             if return_nodes:
                 return nodes  # ithe nodes are equivalent to the rows (no need to unpack again)
             else:
@@ -1869,6 +1942,7 @@ async def _pg_edit_batch(
         else:
             rows = await pg_upsert(
                 cur=cur,
+                ctx=ctx,
                 table=node_table,
                 rows=rows,
                 conflict_columns=(node_table._primary_key,),
@@ -1952,6 +2026,7 @@ async def _pg_edit_batch(
         static_values = {"revision": sqlstr("revision + 1")}
         rows = await pg_update_variable(
             cur=cur,
+            ctx=ctx,
             table=node_table,
             static_values=static_values,
             dynamic_columns=dynamic_columns,
@@ -1977,6 +2052,7 @@ async def _pg_edit_batch(
         )
         rows = await pg_delete(
             cur=cur,
+            ctx=ctx,
             table=node_table,
             where=where,
             returning=selected_columns if return_nodes else (node_table._primary_key,),

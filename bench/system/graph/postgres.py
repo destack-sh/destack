@@ -39,6 +39,7 @@ from bench.sql.client import (
 )
 from bench.sql.engine import (
     TABLE_BY_NODE_TYPE,
+    BenchContext,
     pg_compile_conditional_maybe,
     pg_count,
     pg_exists,
@@ -64,6 +65,7 @@ class PostgresEngine(GraphEngine):
         super().__init__(scope, node_types)
         self.store = store
         self.bench = bench
+        self.context = BenchContext(bench=self.bench)
 
     def __str__(self):
         return (
@@ -92,7 +94,7 @@ def _pg_method(func):
     method_name = func.__name__
 
     @wraps(func)
-    @tracer.start_as_current_span(f"pg.{method_name}")
+    @tracer.start_as_current_span(f"postgres.{method_name}")
     async def wrapper(self: "PostgresChannel", *args, **kwargs):
         from bench.sql.engine import SqlConnectionError
 
@@ -139,7 +141,9 @@ class PostgresChannel(WritableChannel[PostgresEngine]):
     async def flush(self, edits: list[EditData] | tuple[EditData, ...]) -> FlushResultData:
         from bench.sql.engine import pg_edit
 
-        new_revisions, cascaded_edits = await pg_edit(cur=self.cur, edits=edits)
+        new_revisions, cascaded_edits = await pg_edit(
+            cur=self.cur, ctx=self.engine.context, edits=edits
+        )
         return FlushResultData(revisions=new_revisions, cascaded_edits=cascaded_edits)
 
     @override
@@ -147,7 +151,9 @@ class PostgresChannel(WritableChannel[PostgresEngine]):
     async def commit(self, edits: list[EditData] | tuple[EditData, ...]) -> CommitResultData:
         from bench.sql.engine import pg_edit
 
-        new_revisions, cascaded_edits = await pg_edit(cur=self.cur, edits=edits)
+        new_revisions, cascaded_edits = await pg_edit(
+            cur=self.cur, ctx=self.engine.context, edits=edits
+        )
         await self.cur.connection.commit()
         return CommitResultData(revisions=new_revisions, cascaded_edits=cascaded_edits)
 
@@ -178,6 +184,7 @@ class PostgresGetConnection[T: Node](GetConnection[PostgresChannel, T]):
         roots_ptr = [r._to_data() for r in query._roots]
         _ = await pg_get_node_graph(
             cur=self.channel.cur,
+            ctx=self.channel.engine.context,
             root_type=query._node_type,
             roots=roots_ptr,
             options=query._options or ReadOptions(),
@@ -200,6 +207,7 @@ class PostgresSearchConnection[T: Node](SearchConnection[PostgresChannel, T]):
         node_table = TABLE_BY_NODE_TYPE[query._node_type]
         roots, graph = await pg_search_node_graph(
             cur=self.channel.cur,
+            ctx=self.channel.engine.context,
             scope=self.channel.engine.scope,
             node_type=query._node_type,
             options=query._options or ReadOptions(),
@@ -211,6 +219,7 @@ class PostgresSearchConnection[T: Node](SearchConnection[PostgresChannel, T]):
         if self.options.count:
             total = await pg_count(
                 cur=self.channel.cur,
+                ctx=self.channel.engine.context,
                 table=node_table,
                 where=pg_compile_conditional_maybe(query._node_cls, query._filter),
             )
@@ -236,12 +245,16 @@ class PostgresAggregateConnection(AggregateConnection):
         assert query._aggregation is not None
         where = pg_compile_conditional_maybe(query._node_cls, query._filter)
         if query._aggregation.op == AggregationOp.EXISTS:
-            exists = await pg_exists(cur=self.channel.cur, table=node_table, where=where)
+            exists = await pg_exists(
+                cur=self.channel.cur, ctx=self.channel.engine.context, table=node_table, where=where
+            )
             return AggregateResultData(
                 aggregation=AggregationData(exists=exists), epoch=None, connection_token=None
             )
         elif query._aggregation.op == AggregationOp.COUNT:
-            count = await pg_count(cur=self.channel.cur, table=node_table, where=where)
+            count = await pg_count(
+                cur=self.channel.cur, ctx=self.channel.engine.context, table=node_table, where=where
+            )
             return AggregateResultData(
                 aggregation=AggregationData(count=count), epoch=None, connection_token=None
             )

@@ -113,7 +113,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
         self.node_types: bittuple[NodeType] = node_types
         self.connector = ConnectionIndex(owner=self, scope=self.scope, oracle=self.oracle)
 
-        self._commit_lock: asyncio.Lock = CriticalLock(
+        self._session_lock: asyncio.Lock = CriticalLock(
             name=f"{self.__class__.__name__}_{bench_id or ''}"
         )
 
@@ -312,7 +312,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
         # We can probably optimize this by only locking some tighter critical sections
         #  if we rollback somehow on failure. Maybe we can even 'cache' apply some edits only in memory.
         # We'll also eventually need to thread/shard the Host (maybe lock only on overlapping edits?).
-        async with self._commit_lock:
+        async with self._session_lock:
             retry = COMMIT_RETRY.new(self.oracle)
             while retry.should_retry:
                 retry.on_attempt()
@@ -338,7 +338,10 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
             epoch=self.epoch,
             span="current",
         )
-        accepted_revisions = [cast(int, e.revision) for e in request.edits]
+        accepted_revisions = []
+        for edit in request.edits:
+            assert edit.revision is not None, f"{edit!r} has no revision"
+            accepted_revisions.append(edit.revision)
         return CommitTransactionResponse(
             revisions=accepted_revisions, cascaded_edits=cascaded_edits, epoch=self.epoch
         )
