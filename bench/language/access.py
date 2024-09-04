@@ -715,7 +715,7 @@ def generate_access_matrix(
 
     roots = graph.find_roots()
     identities = subject.split_into_acting_subjects(graph)
-    matrix = AccessMatrix(subject=subject, identities=list(identities))
+    matrix = AccessMatrix(subject=subject, identities=list(identities), _skip_validate_self=True)
     extra_policies_by_node_id: dict[str, list[Policy]] = defaultdict(list)
 
     def _assign_access_zones(
@@ -764,6 +764,7 @@ def generate_access_matrix(
                         identity_id=identity.id,
                         _identity=identity,
                         rules=applicable_rules,
+                        _skip_validate_self=True,
                     )
                     matrix.scoped_zones.append(zone)
                     matrix._scoped_zones_by_id[zone.id] = zone
@@ -798,7 +799,6 @@ def generate_access_matrix(
         root_type = wiring.unpack_enum(NodeType, root.metatype)
         root_cls = NODE_CLASS_BY_TYPE[root_type]
         root_id = UUID(root.id)
-        # nocheckin :Broken: fix occassional unexpected non-root as root when running things in flow
         assert not root_cls.__roots__, f"unexpected non-root root: {root!r} in {graph!r}"
 
         # base zones are checked before all others (for system policies)
@@ -817,6 +817,7 @@ def generate_access_matrix(
                 identity_id=identity.id,
                 _identity=identity,
                 rules=base_rules,
+                _skip_validate_self=True,
             )
             matrix.base_zones.append(base_zone)
             matrix._base_zone_by_root[(identity.id, root.id)] = base_zone

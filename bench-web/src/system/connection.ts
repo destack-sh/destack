@@ -663,7 +663,6 @@ export class RemoteSearchConnection<T extends NodeType> extends ConnectionBase<"
         if (rep.epoch < epoch.value) throw new Error(`epoch regression: ${epoch.value} -> ${rep.epoch}`); // sanity check
         epoch.value = rep.epoch;
         this.txBuffer.acceptCommitted(rep.edits, rep.cascadedEdits);
-        editGraph(graph, [...rep.edits, ...rep.cascadedEdits]);
         // apply other added/removed nodes
         for (const node of rep.addedNodes) {
           graph.add(unwrapSomeNode(node));
@@ -672,6 +671,8 @@ export class RemoteSearchConnection<T extends NodeType> extends ConnectionBase<"
           const node = graph.get(nodePtr);
           if (node != null) graph.remove(node);
         }
+        // apply edits
+        editGraph(graph, [...rep.edits, ...rep.cascadedEdits]);
         // update' roots' list
         rootsPtr.value = rep.rootsPtr as TypedNodeReferenceData<T>[];
         page.value = { size: rep.rootsPtr.length, total: rep.total };
