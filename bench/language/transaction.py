@@ -26,6 +26,7 @@ from bench.language.node import (
     EditSubject,
     GraphScope,
     Node,
+    NodeReference,
     Property,
     Struct,
     struct_,
@@ -39,7 +40,6 @@ from bench.proto.wire import (
     EditContextData,
     EditData,
     GraphScopeData,
-    NodeReferenceData,
 )
 from bench.utils.func import IdEnum
 from bench.utils.uuidt import UUIDT
@@ -53,6 +53,7 @@ if TYPE_CHECKING:
         NodeSuperGraph,
         QueryInfo,
         ReadOptions,
+        Run,
         Session,
     )
 
@@ -233,9 +234,9 @@ class EditEvent:
 
     node: Node
     type: EditType
-    subject: NodeReferenceData | None
+    subject_ptr: NodeReference | None
     origin: ClientOriginData | None
-    context: EditContextData | None
+    run: "Run | None"
     now: datetime
     scope: GraphScopeData
     node_data: AnyNodeData | None = None
@@ -279,7 +280,7 @@ def _accumulate_edits(edit_events: list[EditEvent]) -> list[EditData]:
         ):
             continue  # coalesce
 
-        # make edit
+        # edit data
         old_node: AnyNodeData | None = None
         new_node: AnyNodeData | None = None
         properties: list[int] = []
@@ -328,6 +329,27 @@ def _accumulate_edits(edit_events: list[EditEvent]) -> list[EditData]:
             else:
                 assert_never(edit_type)
 
+        # context
+        if edit_event.run is not None:
+            edit_context = EditContextData(metatype=wire.ObjectType.EDIT_CONTEXT)
+            run = edit_event.run
+            edit_context.run_ptr = run._to_plain_ref_data()
+            edit_context.run_root_ptr = (
+                run.root_ptr._to_data() if run.root_ptr is not None else None
+            )
+            edit_context.block_ptr = run.block_ptr._to_data() if run.block_ptr is not None else None
+            edit_context.step_ptr = run.step_ptr._to_data() if run.step_ptr is not None else None
+            edit_context.identity_ptr = (
+                run.identity_ptr._to_data() if run.identity_ptr is not None else None
+            )
+        else:
+            edit_context = None
+        if edit_event.subject_ptr is not None:
+            subject_ptr = edit_event.subject_ptr._to_data()
+        else:
+            subject_ptr = None
+
+        # make edit
         edit = EditData(
             metatype=wire.ObjectType.EDIT,
             id=new_edit_id(),
@@ -338,8 +360,8 @@ def _accumulate_edits(edit_events: list[EditEvent]) -> list[EditData]:
             old_node=wiring.wrap_some_node_maybe(old_node),
             scope=edit_event.scope,
             origin=edit_event.origin,
-            subject_ptr=edit_event.subject,
-            context=edit_event.context,
+            subject_ptr=subject_ptr,
+            context=edit_context,
             edited_at=edit_event.now,
         )
         edits.append(edit)
@@ -386,21 +408,23 @@ class Transaction:
         return len(self._pending_edit_events) > 0 or len(self._pending_edits) > 0
 
     #
-    # Edits
+    # Transaction management
     #
 
-    def _record_edit_event(
+    def record_edit_event(
         self,
         edit_type: EditType,
         node: Node,
         *,
-        subject: NodeReferenceData | None,
-        origin: ClientOriginData | None,
-        context: EditContextData | None,
-        now: datetime,
+        now: datetime | None = None,
         properties: Collection[Property] | None = None,
         old_values: dict[int, Any] | None = None,
     ):
+        """
+        Records an edit event (which are later summed into actual edits).
+        We try to be efficient and record minimal information quickly and only as needed.
+        """
+
         # peephole optimization for successive updates to same node:
         #  if the last edit was also an update to the same node, merge immediately
         if (
@@ -417,150 +441,33 @@ class Transaction:
                     prev_edit.old_values[prop_id] = old_value
             return
 
-        scope = self.session._get_scope_for_node(node)
+        # context
+        session = self.session
+        if now is None:
+            now = session._oracle.utc()
+        run = session._runtime.active_run if session._runtime is not None else None
+        if run is not None:
+            subject_ptr = run.identity_ptr or run.step_ptr or run.block_ptr
+        elif session._subject is not None:
+            subject_ptr = session._subject.to_plain_ref()
+        else:
+            subject_ptr = None
+
+        # make edit event
+        scope = session._get_scope_for_node(node)
         edit = EditEvent(
             node=node,
             type=edit_type,
-            subject=subject,
-            origin=origin,
-            context=context,
+            subject_ptr=subject_ptr,
+            origin=session._origin,
+            run=run,
             now=now,
             scope=scope,
             old_values=old_values,
         )
-        if edit_type not in (EditType.UPDATE, EditType.MOVE):
+        if edit_type != EditType.UPDATE and edit_type != EditType.MOVE:
             edit.node_data = node._to_data()
         self._pending_edit_events.append(edit)
-
-    def create(
-        self,
-        node: Node,
-        subject: NodeReferenceData | None,
-        origin: ClientOriginData | None,
-        context: EditContextData | None,
-        now: datetime,
-    ):
-        self._record_edit_event(
-            EditType.CREATE, node, subject=subject, origin=origin, context=context, now=now
-        )
-
-    def upsert(
-        self,
-        node: Node,
-        subject: NodeReferenceData | None,
-        origin: ClientOriginData | None,
-        context: EditContextData | None,
-        now: datetime,
-    ):
-        self._record_edit_event(
-            EditType.UPSERT, node, subject=subject, origin=origin, context=context, now=now
-        )
-
-    def update(
-        self,
-        node: Node,
-        subject: NodeReferenceData | None,
-        origin: ClientOriginData | None,
-        context: EditContextData | None,
-        properties: Collection[Property],
-        old_values: dict[int, Any],
-        now: datetime,
-    ):
-        self._record_edit_event(
-            EditType.UPDATE,
-            node,
-            subject=subject,
-            origin=origin,
-            context=context,
-            properties=properties,
-            old_values=old_values,
-            now=now,
-        )
-
-    def move(
-        self,
-        node: Node,
-        subject: NodeReferenceData | None,
-        origin: ClientOriginData | None,
-        context: EditContextData | None,
-        properties: Collection[Property],
-        old_values: dict[int, Any],
-        now: datetime,
-    ):
-        self._record_edit_event(
-            EditType.MOVE,
-            node,
-            subject=subject,
-            origin=origin,
-            context=context,
-            properties=properties,
-            old_values=old_values,
-            now=now,
-        )
-
-    def delete(
-        self,
-        node: Node,
-        subject: NodeReferenceData | None,
-        origin: ClientOriginData | None,
-        context: EditContextData | None,
-        now: datetime,
-    ):
-        self._record_edit_event(
-            EditType.DELETE, node, subject=subject, origin=origin, context=context, now=now
-        )
-
-    def restore(
-        self,
-        node: Node,
-        subject: NodeReferenceData | None,
-        origin: ClientOriginData | None,
-        context: EditContextData | None,
-        now: datetime,
-    ):
-        self._record_edit_event(
-            EditType.RESTORE, node, subject=subject, origin=origin, context=context, now=now
-        )
-
-    def archive(
-        self,
-        node: Node,
-        subject: NodeReferenceData | None,
-        origin: ClientOriginData | None,
-        context: EditContextData | None,
-        now: datetime,
-    ):
-        self._record_edit_event(
-            EditType.ARCHIVE, node, subject=subject, origin=origin, context=context, now=now
-        )
-
-    def unarchive(
-        self,
-        node: Node,
-        subject: NodeReferenceData | None,
-        origin: ClientOriginData | None,
-        context: EditContextData | None,
-        now: datetime,
-    ):
-        self._record_edit_event(
-            EditType.UNARCHIVE, node, subject=subject, origin=origin, context=context, now=now
-        )
-
-    def erase(
-        self,
-        node: Node,
-        subject: NodeReferenceData | None,
-        origin: ClientOriginData | None,
-        context: EditContextData | None,
-        now: datetime,
-    ):
-        self._record_edit_event(
-            EditType.ERASE, node, subject=subject, origin=origin, context=context, now=now
-        )
-
-    #
-    # Transaction management
-    #
 
     def add_edits(self, edits: list[EditData]):
         """Adds full edits to the transaction directly."""

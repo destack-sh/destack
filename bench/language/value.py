@@ -1061,7 +1061,6 @@ def unpack_value_object(
     )
 
 
-@tracer.start_as_current_span(name="value.pack")
 def pack_value(
     value: SomeValue | None, typ: "TypeInfoBase", wrap_primitive: bool = True
 ) -> JsonValue:
@@ -1119,7 +1118,6 @@ def pack_value_data(
     return value_packed
 
 
-@tracer.start_as_current_span(name="value.unpack")
 def unpack_value(
     value_packed: JsonValue,
     typ: "TypeInfoBase",

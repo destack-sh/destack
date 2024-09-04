@@ -32,6 +32,7 @@ from bench.language.const import (
     NODE_TYPES,
     BenchError,
     BlockType,
+    EditType,
     NodeType,
     SessionStatus,
     StructType,
@@ -58,11 +59,9 @@ from bench.language.validation import constraint
 from bench.proto import wire
 from bench.proto.wire import (
     ClientOriginData,
-    EditContextData,
     EditData,
     GraphScopeData,
     HostClient,
-    NodeReferenceData,
     RpcMetadata,
     SessionContextData,
     SessionData,
@@ -151,8 +150,11 @@ class Session(RuntimeNode[SessionData]):
     _engines: tuple["GraphEngine", ...] = p_runtime(default_factory=tuple)
     _channels: list[Channel] = p_runtime(default_factory=list)
     _connections: list[Connection] = p_runtime(default_factory=list)
+
+    # context
     _origin: ClientOriginData | None = p_runtime(default=None)
     _subject: EditSubject | None = p_runtime(default=None)
+    _context_data: SessionContextData | None = p_runtime(default=None)
 
     # transaction
     _tx: Transaction | None = p_runtime(default=None)
@@ -469,61 +471,18 @@ class Session(RuntimeNode[SessionData]):
 
     def _get_context(self) -> SessionContextData:
         """Gathers context valid for the entire session"""
-        context = SessionContextData(metatype=wire.ObjectType.SESSION_CONTEXT)
-        if self.client_ptr is not None:
-            context.client_ptr = self.client_ptr._to_data()
-        if self.machine_ptr is not None:
-            context.machine_ptr = self.machine_ptr._to_data()
-        if self.server_ptr is not None:
-            context.server_ptr = self.server_ptr._to_data()
-        if self.user_ptr is not None:
-            context.user_ptr = self.user_ptr._to_data()
-        return context
-
-    def _get_edit_context(self) -> tuple[NodeReferenceData | None, EditContextData | None]:
-        """Gathers current context for a specific edit"""
-        # NOTE :Performance: gathering the context for every edit seems a bit expensive?
-        # but it could change..
-
-        # if we have an active run, that's the subject
-        run = self._runtime.active_run if self._runtime is not None else None
-        if run is not None:
-            # if run has a step/block, use that
-            if run.step_ptr:
-                subject = run.step
-            elif run.block_ptr:
-                subject = run.block
-            else:
-                subject = run
-            # if subject has an identity, use that
-            if subject is not None and subject.identity_ptr:
-                subject = subject.identity
-        else:
-            subject = self._subject
-        if subject is None:
-            return None, None
-
-        # map into edit-specific context
-        subject_ptr = subject._to_plain_ref_data()
-        context = EditContextData(metatype=wire.ObjectType.EDIT_CONTEXT)
-        if self.client_ptr is not None:
-            context.client_ptr = self.client_ptr._to_data()
-        if self.machine_ptr is not None:
-            context.machine_ptr = self.machine_ptr._to_data()
-        if self.server_ptr is not None:
-            context.server_ptr = self.server_ptr._to_data()
-        if self.user_ptr is not None:
-            context.user_ptr = self.user_ptr._to_data()
-        if run is not None:
-            context.run_ptr = subject_ptr
-            context.run_root_ptr = run.root_ptr._to_data() if run.root_ptr is not None else None
-            context.block_ptr = run.block_ptr._to_data() if run.block_ptr is not None else None
-            context.step_ptr = run.step_ptr._to_data() if run.step_ptr is not None else None
-            context.identity_ptr = (
-                run.identity_ptr._to_data() if run.identity_ptr is not None else None
-            )
-
-        return subject_ptr, context
+        if self._context_data is None:
+            context = SessionContextData(metatype=wire.ObjectType.SESSION_CONTEXT)
+            if self.client_ptr is not None:
+                context.client_ptr = self.client_ptr._to_data()
+            if self.machine_ptr is not None:
+                context.machine_ptr = self.machine_ptr._to_data()
+            if self.server_ptr is not None:
+                context.server_ptr = self.server_ptr._to_data()
+            if self.user_ptr is not None:
+                context.user_ptr = self.user_ptr._to_data()
+            self._context_data = context
+        return self._context_data
 
     def _create(self, *nodes: Node):
         """Creates a new node. Errors if the node already exists."""
@@ -531,11 +490,10 @@ class Session(RuntimeNode[SessionData]):
         assert (
             not self._is_readonly and not self._is_suspended
         ), f"cannot edit {nodes!r} in {self!r}"
-        subject, context = self._get_edit_context()
         for node in nodes:
             if node._is_attached:  # ignore detached create (is created on attach)
                 self._pending_nodes_by_id[node.id] = node
-                self._tx.create(node, subject, self._origin, context, self._oracle.utc())
+                self._tx.record_edit_event(EditType.CREATE, node)
                 node._is_new = False
 
     def _upsert(self, *nodes: Node):
@@ -544,11 +502,12 @@ class Session(RuntimeNode[SessionData]):
         assert (
             not self._is_readonly and not self._is_suspended
         ), f"cannot edit {nodes!r} in {self!r}"
-        subject, context = self._get_edit_context()
+        now = self._oracle.utc()
         for node in nodes:
             assert node._is_attached, f"cannot upsert detached node {node!r}"
             self._pending_nodes_by_id[node.id] = node
-            self._tx.upsert(node, subject, self._origin, context, self._oracle.utc())
+            self._tx.record_edit_event(EditType.UPSERT, node, now=now)
+            node._is_new = False
 
     def _update(self, node: Node, properties: Collection[Property], old_values: dict[int, Any]):
         """Updates an existing node. Cannot move. The given properties are overwritten."""
@@ -556,9 +515,8 @@ class Session(RuntimeNode[SessionData]):
         assert not self._is_readonly and not self._is_suspended, f"cannot edit {node!r} in {self!r}"
         if node._is_attached:  # ignore detached updates
             self._pending_nodes_by_id[node.id] = node
-            subject, context = self._get_edit_context()
-            self._tx.update(
-                node, subject, self._origin, context, properties, old_values, self._oracle.utc()
+            self._tx.record_edit_event(
+                EditType.UPDATE, node, properties=properties, old_values=old_values
             )
 
     def _move(self, node: Node, properties: Collection[Property], old_values: dict[int, Any]):
@@ -567,9 +525,8 @@ class Session(RuntimeNode[SessionData]):
         assert not self._is_readonly and not self._is_suspended, f"cannot edit {node!r} in {self!r}"
         if node._is_attached:  # ignore detached moves
             self._pending_nodes_by_id[node.id] = node
-            subject, context = self._get_edit_context()
-            self._tx.move(
-                node, subject, self._origin, context, properties, old_values, self._oracle.utc()
+            self._tx.record_edit_event(
+                EditType.MOVE, node, properties=properties, old_values=old_values
             )
 
     def _archive(self, *nodes: Node):
@@ -578,15 +535,14 @@ class Session(RuntimeNode[SessionData]):
         assert (
             not self._is_readonly and not self._is_suspended
         ), f"cannot edit {nodes!r} in {self!r}"
-        subject, context = self._get_edit_context()
         for node in nodes:
             assert node._is_attached, f"cannot archive detached node {node!r}"
             now = self._oracle.utc()
             self._pending_nodes_by_id[node.id] = node
-            # descendants will be removed from graph, so track them manually
+            # descendants will be removed from graph, so remember them manually
             for descendant in node._graph.iter_descendants(node, recursive=True):
                 self._pending_nodes_by_id[descendant.id] = descendant
-            self._tx.archive(node, subject, self._origin, context, now)
+            self._tx.record_edit_event(EditType.ARCHIVE, node, now=now)
             node.archived_at = now
             node._graph.remove(node)
 
@@ -596,11 +552,10 @@ class Session(RuntimeNode[SessionData]):
         assert (
             not self._is_readonly and not self._is_suspended
         ), f"cannot edit {nodes!r} in {self!r}"
-        subject, context = self._get_edit_context()
         for node in nodes:
             assert node._is_attached, f"cannot unarchive detached node {node!r}"
             self._pending_nodes_by_id[node.id] = node
-            self._tx.unarchive(node, subject, self._origin, context, self._oracle.utc())
+            self._tx.record_edit_event(EditType.UNARCHIVE, node)
             node.archived_at = None
 
     def _delete(self, *nodes: Node):
@@ -609,15 +564,15 @@ class Session(RuntimeNode[SessionData]):
         assert (
             not self._is_readonly and not self._is_suspended
         ), f"cannot edit {nodes!r} in {self!r}"
-        subject, context = self._get_edit_context()
+
         for node in nodes:
             assert node._is_attached, f"cannot delete detached node {node!r}"
             now = self._oracle.utc()
             self._pending_nodes_by_id[node.id] = node
-            # descendants will be removed from graph, so track them manually
+            # descendants will be removed from graph, so remember them manually
             for descendant in node._graph.iter_descendants(node, recursive=True):
                 self._pending_nodes_by_id[descendant.id] = descendant
-            self._tx.delete(node, subject, self._origin, context, now)
+            self._tx.record_edit_event(EditType.DELETE, node, now=now)
             node.deleted_at = now
             node._graph.remove(node)
 
@@ -627,12 +582,12 @@ class Session(RuntimeNode[SessionData]):
         assert (
             not self._is_readonly and not self._is_suspended
         ), f"cannot edit {nodes!r} in {self!r}"
-        subject, context = self._get_edit_context()
+
         for node in nodes:
             assert node._is_attached, f"cannot restore detached node {node!r}"
             now = self._oracle.utc()
             self._pending_nodes_by_id[node.id] = node
-            self._tx.restore(node, subject, self._origin, context, now)
+            self._tx.record_edit_event(EditType.RESTORE, node, now=now)
             node.deleted_at = None
 
     def _erase(self, *nodes: Node):
@@ -641,15 +596,15 @@ class Session(RuntimeNode[SessionData]):
         assert (
             not self._is_readonly and not self._is_suspended
         ), f"cannot edit {nodes!r} in {self!r}"
-        subject, context = self._get_edit_context()
+
         for node in nodes:
             assert node._is_attached, f"cannot erase detached node {node!r}"
             now = self._oracle.utc()
             self._pending_nodes_by_id[node.id] = node
-            # descendants will be removed from graph, so track them manually
+            # descendants will be removed from graph, so remember them manually
             for descendant in node._graph.iter_descendants(node, recursive=True):
                 self._pending_nodes_by_id[descendant.id] = descendant
-            self._tx.erase(node, subject, self._origin, context, now)
+            self._tx.record_edit_event(EditType.ERASE, node, now=now)
             node.deleted_at = now
             node._graph.remove(node)
 
@@ -784,7 +739,7 @@ class Session(RuntimeNode[SessionData]):
             await self._tx.reset()
             raise
 
-    @tracer.start_as_current_span("session.flush.wrap")
+    @tracer.start_as_current_span("session.flush.schedule")
     @async_shield
     async def flush(self, *, optimistic: bool = False) -> tuple[list[EditData], list[EditData]]:
         """
@@ -805,7 +760,7 @@ class Session(RuntimeNode[SessionData]):
                 return [], []  # nothing to do
             return await self._do_flush()
 
-    @tracer.start_as_current_span("session.commit.wrap")
+    @tracer.start_as_current_span("session.commit.schedule")
     @async_shield
     async def commit(
         self, *, optimistic: bool = False, _data_graph: NodeDataGraphLike | None = None
@@ -830,7 +785,8 @@ class Session(RuntimeNode[SessionData]):
             return event.new_edits, []
         else:
             # wait for any pending commit, then commit directly
-            await self._commit_queue.join()
+            with tracer.start_as_current_span("session.commit.wait"):
+                await self._commit_queue.join()
             if not self._tx.has_edits:
                 return [], []  # nothing to do
             new_edits, cascaded_edits = await self._do_commit(data_graph=_data_graph)

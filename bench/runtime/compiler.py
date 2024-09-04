@@ -686,7 +686,6 @@ def desugar_code(code: str) -> tuple[str, CodeTransformation]:
     return code, CodeTransformation.identity()  # NOTE :Incomplete: desugar_code
 
 
-@tracer.start_as_current_span("compiler.compile_code")
 def compile_code(
     code: Code | str,
     kind: CodeType,
