@@ -681,27 +681,7 @@ class SearchConnection[ChannelT: Channel, T: Node](
         from bench.language.transaction import edit_data_graph, edit_graph
         from bench.proto import wiring
 
-        # apply edits
-        if self.session._origin:
-            new_edits = [
-                edit
-                for edit in update.edits
-                if not edit.origin or not origin_matches(edit.origin, self.session._origin)
-            ]
-        else:
-            new_edits = update.edits
-        edit_data_graph(result_data.graph, update.edits, self.query._options)
-        for node_data in update.added_nodes:
-            result_data.graph.add(node_data)
-        if result is not None:
-            edit_graph(
-                graph=result.graph,
-                supergraph=self.session._supergraph,
-                edits=new_edits,
-                options=self.query._options,
-                track=False,
-                validate=False,
-            )
+        # :ConnectionUpdateOrdering
 
         # apply other added/removed nodes
         for node_data in update.added_nodes:
@@ -724,6 +704,28 @@ class SearchConnection[ChannelT: Channel, T: Node](
                 node = result.graph.get(UUID(cast(str, node_ptr.id)))
                 assert node is not None, f"missing node for update: {node!r}"
                 result.graph.remove(node)
+
+        # apply edits
+        if self.session._origin:
+            new_edits = [
+                edit
+                for edit in update.edits
+                if not edit.origin or not origin_matches(edit.origin, self.session._origin)
+            ]
+        else:
+            new_edits = update.edits
+        edit_data_graph(result_data.graph, update.edits, self.query._options)
+        for node_data in update.added_nodes:
+            result_data.graph.add(node_data)
+        if result is not None:
+            edit_graph(
+                graph=result.graph,
+                supergraph=self.session._supergraph,
+                edits=new_edits,
+                options=self.query._options,
+                track=False,
+                validate=False,
+            )
 
         # update 'roots' list
         result_data.roots_ptr = update.roots_ptr

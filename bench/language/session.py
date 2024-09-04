@@ -719,7 +719,6 @@ class Session(RuntimeNode[SessionData]):
                 # do commit
                 edits, cascaded_edits = await self._tx.commit()
                 log = log.bind(edits=len(edits), cascaded_edits=len(cascaded_edits))
-                log.debug("session.commit.inner", span="current")
 
             # on commit hook
             if self._on_commit is not None:
@@ -773,6 +772,7 @@ class Session(RuntimeNode[SessionData]):
         """
         assert self.is_open, f"cannot commit {self!r} when closed"
         assert self._tx is not None, f"no active transaction in {self!r}"
+        trace.get_current_span().set_attribute("optimistic", optimistic)
 
         new_edits = self._preflush()
         if optimistic:
