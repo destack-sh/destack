@@ -94,26 +94,17 @@ tracer = trace.get_tracer(__name__)
 
 
 @dataclass(slots=True, repr=False)
-class _FlushEvent:
-    """A flush/commit event."""
+class _CommitEvent:
+    """A commit event."""
 
     id: int
-    is_commit: bool
-    edits: list[EditData]
-    cascaded_edits: list[EditData] | None
-    data_graph: NodeDataGraphLike | None
+    new_edits: list[EditData]
 
     def __str__(self):
-        parts = [f"id={self.id}", f"edits={len(self.edits)}"]
-        if self.data_graph is not None:
-            parts.append(f"data_graph={self.data_graph}")
-        return ", ".join(parts)
+        return f"id={self.id}, edits={len(self.new_edits)}"
 
     def __repr__(self):
-        if self.is_commit:
-            return f"<CommitEvent {self}>"
-        else:
-            return f"<FlushEvent {self}>"
+        return f"<CommitEvent {self}>"
 
 
 @timed_node_(NodeType.SESSION)
@@ -166,9 +157,9 @@ class Session(RuntimeNode[SessionData]):
     # transaction
     _tx: Transaction | None = p_runtime(default=None)
     _tx_lock: asyncio.Lock = p_runtime(default_factory=lambda: CriticalLock(name="session"))
-    _flush_loop_task: asyncio.Task | None = p_runtime(default=None)
+    _commit_loop_task: asyncio.Task | None = p_runtime(default=None)
     _flush_counter: int = p_runtime(default=0)
-    _flush_queue: asyncio.Queue[_FlushEvent] = p_runtime(default_factory=lambda: asyncio.Queue())
+    _commit_queue: asyncio.Queue[_CommitEvent] = p_runtime(default_factory=lambda: asyncio.Queue())
     _pending_nodes_by_id: dict[UUID, Node] = p_runtime(default_factory=dict)
     _default_scope: GraphScopeData = p_runtime(default_factory=lambda: EMPTY_SCOPE._to_data())
     _local_epoch: int | None = p_runtime(default=None)
@@ -397,7 +388,7 @@ class Session(RuntimeNode[SessionData]):
             self._active_session_token = _active_session.set(self)
 
         # start flush loop
-        self._flush_loop_task = asyncio.create_task(self._run_flush_loop())
+        self._commit_loop_task = asyncio.create_task(self._run_commit_loop())
 
         logger.trace("session.open", session=self)
 
@@ -407,11 +398,11 @@ class Session(RuntimeNode[SessionData]):
         assert not self.closed_at, f"session already closed {self!r}"
 
         # stop flush loop
-        if self._flush_loop_task is not None:
-            self._flush_loop_task.cancel()
+        if self._commit_loop_task is not None:
+            self._commit_loop_task.cancel()
             with suppress(asyncio.CancelledError):
-                await self._flush_loop_task
-            self._flush_loop_task = None
+                await self._commit_loop_task
+            self._commit_loop_task = None
 
         # close transaction
         async with self._tx_lock:
@@ -700,38 +691,42 @@ class Session(RuntimeNode[SessionData]):
                 self._active_session_token = None
             self._is_readonly = was_readonly
 
-    async def _run_flush_loop(self):
-        """Flushes/commits pending edits (on request) while the session is open."""
+    async def _run_commit_loop(self):
+        """Commits pending edits (on request) while the session is open."""
         while not self.is_closed:
             try:
-                event = await self._flush_queue.get()
+                event = await self._commit_queue.get()
                 assert self._tx is not None, f"no active transaction in {self!r}"
-                if (event.is_commit and not self._tx.has_edits) or (
-                    not event.is_commit and not self._tx.has_pending_edits
-                ):
-                    self._flush_queue.task_done()
+                if not self._tx.has_edits:
+                    self._commit_queue.task_done()
                     logger.trace("session.queue.skip", session=self, e=event)
                     continue  # nothing to do
-                if not event.is_commit:
-                    event.edits, event.cascaded_edits = await self._do_flush()
-                else:
-                    event.edits, event.cascaded_edits = await self._do_commit(
-                        data_graph=event.data_graph
-                    )
-                self._flush_queue.task_done()
+                _ = await self._do_commit()
+                self._commit_queue.task_done()
                 logger.trace("session.queue.tick", session=self, e=event)
             except asyncio.CancelledError:
-                if not self._flush_queue.empty():
+                if not self._commit_queue.empty():
                     logger.warning("session.queue.cancel", session=self)
                 break
             except BaseException as e:
                 logger.error("session.queue.error", session=self, exc_info=e)
                 raise
 
+    def _preflush(self) -> list[EditData]:
+        """
+        Creates an "edit boundary" by accumulating edit events & marking all nodes as 'flushed'.
+        This means any new edits won't be debounced after this point (e.g. to create before update).
+        """
+        assert self._tx is not None, f"no active transaction in {self!r}"
+        new_edits = self._tx.preflush()
+        for node in self._pending_nodes_by_id.values():
+            node._flush_self()
+        return new_edits
+
     @tracer.start_as_current_span("session.flush.do")
     @async_shield
     async def _do_flush(self) -> tuple[list[EditData], list[EditData]]:
-        assert self.is_open, f"cannot flush/commit {self!r} when closed"
+        assert self.is_open, f"cannot commit {self!r} when closed"
         assert self._tx is not None, f"no active transaction in {self!r}"
         try:
             async with self._tx_lock:
@@ -754,9 +749,10 @@ class Session(RuntimeNode[SessionData]):
     async def _do_commit(
         self, *, data_graph: NodeDataGraphLike | None = None
     ) -> tuple[list[EditData], list[EditData]]:
-        assert self.is_open, f"cannot flush/commit {self!r} when closed"
+        assert self.is_open, f"cannot commit {self!r} when closed"
         assert self._tx is not None, f"no active transaction in {self!r}"
         try:
+            log = logger.bind(session=self, span="current")
             async with self._tx_lock:
                 # extend commit hook
                 if self._extend_commit is not None:
@@ -767,6 +763,8 @@ class Session(RuntimeNode[SessionData]):
 
                 # do commit
                 edits, cascaded_edits = await self._tx.commit()
+                log = log.bind(edits=len(edits), cascaded_edits=len(cascaded_edits))
+                log.debug("session.commit.inner", span="current")
 
             # on commit hook
             if self._on_commit is not None:
@@ -779,43 +777,14 @@ class Session(RuntimeNode[SessionData]):
                 await self._on_commit(self, graph, data_graph, edits, cascaded_edits)
                 self._pending_nodes_by_id = {}
 
-            logger.trace(
-                "session.commit",
-                session=self,
-                edits=len(edits),
-                cascaded_edits=len(cascaded_edits),
-                span="current",
-            )
+            log.debug("session.commit")
             return edits, cascaded_edits
         except ChannelUnavailableError as e:
             logger.error("session.commit.error", session=self, error=e)
             await self._tx.reset()
             raise
 
-    def _preflush(self) -> list[EditData]:
-        """Creates an "edit boundary" by accumulated edits and marking all nodes as 'flushed'."""
-        assert self._tx is not None, f"no active transaction in {self!r}"
-        new_edits = self._tx.preflush()
-        for node in self._pending_nodes_by_id.values():
-            node._flush_self()
-        return new_edits
-
-    def _make_flush_event(
-        self, *, is_commit: bool, data_graph: NodeDataGraphLike | None = None
-    ) -> _FlushEvent:
-        """Makes a flush event."""
-        edits = self._preflush()
-        self._flush_counter += 1
-        event = _FlushEvent(
-            id=self._flush_counter,
-            is_commit=is_commit,
-            data_graph=data_graph,
-            edits=edits,
-            cascaded_edits=None,
-        )
-        return event
-
-    @tracer.start_as_current_span("session.flush.schedule")
+    @tracer.start_as_current_span("session.flush.wrap")
     @async_shield
     async def flush(self, *, optimistic: bool = False) -> tuple[list[EditData], list[EditData]]:
         """
@@ -831,16 +800,12 @@ class Session(RuntimeNode[SessionData]):
             logger.trace("session.flush.mark", session=self, edits=len(new_edits), span="current")
             return new_edits, []
         else:
-            await self._flush_queue.join()  # wait for any pending flush/commit
-            event = self._make_flush_event(is_commit=False)
-            if not event.edits:
+            await self._commit_queue.join()  # wait for any pending commit
+            if not self._tx.has_pending_edits:
                 return [], []  # nothing to do
-            self._flush_queue.put_nowait(event)
-            logger.trace("session.flush.schedule", session=self, e=event, span="current")
-            await self._flush_queue.join()
-            return event.edits, event.cascaded_edits or []
+            return await self._do_flush()
 
-    @tracer.start_as_current_span("session.commit.schedule")
+    @tracer.start_as_current_span("session.commit.wrap")
     @async_shield
     async def commit(
         self, *, optimistic: bool = False, _data_graph: NodeDataGraphLike | None = None
@@ -854,22 +819,22 @@ class Session(RuntimeNode[SessionData]):
         assert self.is_open, f"cannot commit {self!r} when closed"
         assert self._tx is not None, f"no active transaction in {self!r}"
 
+        new_edits = self._preflush()
         if optimistic:
-            event = self._make_flush_event(is_commit=True)
-            if not event.edits:
+            # schedule a new commit
+            event = _CommitEvent(id=self._flush_counter, new_edits=new_edits)
+            if not self._tx.has_edits:
                 return [], []  # nothing to do
-            self._flush_queue.put_nowait(event)
+            self._commit_queue.put_nowait(event)
             logger.trace("session.commit.schedule", session=self, e=event, span="current")
-            return event.edits, []
+            return event.new_edits, []
         else:
-            await self._flush_queue.join()  # wait for any pending flush/commit
-            event = self._make_flush_event(is_commit=True, data_graph=_data_graph)
-            if not event.edits:
+            # wait for any pending commit, then commit directly
+            await self._commit_queue.join()
+            if not self._tx.has_edits:
                 return [], []  # nothing to do
-            self._flush_queue.put_nowait(event)
-            logger.trace("session.commit.schedule", session=self, e=event, span="current")
-            await self._flush_queue.join()
-            return event.edits, event.cascaded_edits or []
+            new_edits, cascaded_edits = await self._do_commit(data_graph=_data_graph)
+            return new_edits, cascaded_edits
 
     async def __aenter__(self):
         await self.open()
