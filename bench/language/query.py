@@ -308,7 +308,7 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         return self._aggregation is not None
 
     @property
-    def include_hidden(self) -> bool:
+    def includes_hidden(self) -> bool:
         return (
             self._options.include_hidden if self._options else DEFAULT_READ_OPTIONS.include_hidden
         )
@@ -337,6 +337,18 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
             return ReadOptions()
         else:
             return self._options.clone()
+
+    def include_hidden(self) -> "QueryBuilder[NodeT, NodeDataT]":
+        clone = self.clone()
+        clone._options = self._clone_options()
+        clone._options.include_hidden = True
+        return clone
+
+    def exclude_hidden(self) -> "QueryBuilder[NodeT, NodeDataT]":
+        clone = self.clone()
+        clone._options = self._clone_options()
+        clone._options.include_hidden = False
+        return clone
 
     def trim_to(self, node_types: Collection[NodeType]) -> "QueryBuilder[NodeT, NodeDataT]":
         assert self._node_type in node_types
@@ -457,7 +469,7 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
         return await session._get_channel_for(
             scope,
             self.all_node_types,
-            include_hidden=self.include_hidden,
+            include_hidden=self.includes_hidden,
             is_readonly=True,
         )
 

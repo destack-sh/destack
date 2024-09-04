@@ -1040,7 +1040,7 @@ class SplitSearchConnection[T: Node](SearchConnection[SplitChannel, T], SplitCon
             self.scope,
             query._node_type,
             best_match=self.node_types,
-            include_hidden=query.include_hidden,
+            include_hidden=query.includes_hidden,
             is_readonly=True,
         )
         channel = await self.session._get_channel(engine)
@@ -1075,7 +1075,7 @@ class SplitGetConnection[T: Node](GetConnection[SplitChannel, T], SplitConnectio
             self.scope,
             query._node_type,
             best_match=self.node_types,
-            include_hidden=query.include_hidden,
+            include_hidden=query.includes_hidden,
             is_readonly=True,
         )
         channel = await self.session._get_channel(engine)
