@@ -30,6 +30,7 @@ from uuid import UUID, uuid4
 
 import structlog
 from bitarray import bitarray
+from opentelemetry import trace
 
 from bench.language.const import (
     BASED_NODE_TYPES,
@@ -113,6 +114,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 logger = structlog.get_logger(__name__)
+tracer = trace.get_tracer(__name__)
 
 
 def get_tk_from_ck(ck: UUID) -> str:

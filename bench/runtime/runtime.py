@@ -157,17 +157,18 @@ class Runtime:
                 parent_run = active_runner.run
             else:
                 parent_run = None
-            run = Run(
-                parent=parent_run or self.session.package,
-                kind=kind,
-                block=node if isinstance(node, Block) else None,
-                step=node if isinstance(node, Step) else None,
-                options=runner.options,
-                status=runner.status,
-                inputs=runner.inputs,
-                attempts=runner.attempts,
-            )
-            self.session._create(run)
+            with tracer.start_as_current_span("runner.create_run"):
+                run = Run(
+                    parent=parent_run or self.session.package,
+                    kind=kind,
+                    block=node if isinstance(node, Block) else None,
+                    step=node if isinstance(node, Step) else None,
+                    options=runner.options,
+                    status=runner.status,
+                    inputs=runner.inputs,
+                    attempts=runner.attempts,
+                )
+                self.session._create(run)
             runner.run = run
 
         return runner
@@ -192,17 +193,19 @@ class Runtime:
             track=True,
         )
 
+    @tracer.start_as_current_span("runner.run_runner.once_retrying")
     async def _do_run_once_retrying(self, runner: Runner):
         """Runs a a Runner, retrying automatically and updating the Runner along the way."""
         # check inputs
         if runner.input_type is not None:
-            inputs = runner.inputs or ValueObject.new({}, runner.input_type)
-            try:
-                check_value(inputs, runner.input_type, on_invalid_raise)
-            except ValidationError as e:
-                runner.status = RunStatus.FAILED
-                runner.error = RunError.from_exception(RunErrorKind.RUNTIME, e)
-                return
+            with tracer.start_as_current_span("runner.check_inputs"):
+                inputs = runner.inputs or ValueObject.new({}, runner.input_type)
+                try:
+                    check_value(inputs, runner.input_type, on_invalid_raise)
+                except ValidationError as e:
+                    runner.status = RunStatus.FAILED
+                    runner.error = RunError.from_exception(RunErrorKind.RUNTIME, e)
+                    return
 
         # set active run
         active_run_runner_token = self._active_runner.set(runner)
@@ -270,6 +273,7 @@ class Runtime:
             # reset active run
             self._active_runner.reset(active_run_runner_token)
 
+    @tracer.start_as_current_span("runner.run_runner.once_tracked")
     async def _do_run_once_retrying_tracked(self, runner: Runner):
         """Runs a Runner, retrying automatically and updating the Run along the way."""
         run = runner.run
