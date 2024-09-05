@@ -101,7 +101,6 @@ def _get_bench_dir() -> str:
     return bench_dir
 
 
-# nocheckin: upgrade provisioned machines to new versions
 # TODO :Test!: test machine provisioners
 
 
@@ -345,23 +344,25 @@ class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
                 machine.connection_uri = connection_uri
 
     async def _do_watch_pods(self, *, label_selector: str, resource_version: str) -> None:
+        """Watches for changes to these Pods, update corresponding Machines."""
         async for event_type, pod in self.kubernetes_api.watch_pods(
             label_selector=label_selector, resource_version=resource_version
         ):
-            assert pod.metadata is not None, f"missing metadata for pod {pod!r}"
-            machine = self._get_machine_by_external_name(pod.metadata.name)
-            if machine is None:
-                continue  # ignore
-            if event_type == "ADDED" or event_type == "MODIFIED":
-                self._kubernetes_pods_by_name[pod.metadata.name] = pod
-                async with self.host.session(commit=True):
-                    self._update_machine_from_pod(machine, pod)
-            elif event_type == "DELETED":
-                self._kubernetes_pods_by_name.pop(pod.metadata.name, None)
-                async with self.host.session(commit=True):
-                    machine.current_status = ResourceStatus.GONE
-            else:
-                assert_never(event_type)
+            async with self._lock:
+                assert pod.metadata is not None, f"missing metadata for pod {pod!r}"
+                machine = self._get_machine_by_external_name(pod.metadata.name)
+                if machine is None:
+                    continue  # ignore
+                if event_type == "ADDED" or event_type == "MODIFIED":
+                    self._kubernetes_pods_by_name[pod.metadata.name] = pod
+                    async with self.host.session(commit=True):
+                        self._update_machine_from_pod(machine, pod)
+                elif event_type == "DELETED":
+                    self._kubernetes_pods_by_name.pop(pod.metadata.name, None)
+                    async with self.host.session(commit=True):
+                        machine.current_status = ResourceStatus.GONE
+                else:
+                    assert_never(event_type)
 
     @override
     async def _do_start(self) -> None:
@@ -416,23 +417,28 @@ class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
         if target_diff:
             assert resource.external_name is not None, f"{resource!r} has no external name"
             pod = self._make_pod_from_machine(resource)
-            pod_patch = {
-                "spec": {
-                    "containers": [
-                        {
-                            "name": "main",
-                            "image": f"{MACHINE_RUNTIME_IMAGE}:{resource.version}",
-                            "resources": {
-                                "requests": self._get_pod_resources_requests(resource),
-                                "limits": self._get_pod_resources_limits(resource),
-                            },
-                        }
-                    ]
+            if "version" in target_diff:
+                # replace full pod (just delete it and it will be recreated)
+                # NOTE :Architecure: force deleting pod to re-create with new version feels clumsy
+                await self.kubernetes_api.delete_pod(resource.external_name)
+            else:
+                # patch pod in place
+                pod_patch = {
+                    "spec": {
+                        "containers": [
+                            {
+                                "name": "main",
+                                "resources": {
+                                    "requests": self._get_pod_resources_requests(resource),
+                                    "limits": self._get_pod_resources_limits(resource),
+                                },
+                            }
+                        ]
+                    }
                 }
-            }
-            await self.kubernetes_api.patch_pod(resource.external_name, pod_patch)
-            async with self.host.session(commit=True):
-                self._update_machine_from_pod(resource, pod)
+                await self.kubernetes_api.patch_pod(resource.external_name, pod_patch)
+                async with self.host.session(commit=True):
+                    self._update_machine_from_pod(resource, pod)
 
     @override
     async def _do_decommission(self, resource: Machine):
