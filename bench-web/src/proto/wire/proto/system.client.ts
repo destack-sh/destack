@@ -49,7 +49,7 @@ import type { RpcOptions } from "@protobuf-ts/runtime-rpc";
  */
 export interface IGraphIOClient {
     /**
-     * Get nodes (of the same root type) in this graph. Error if any node is not found/accessible.
+     * Get nodes (of the same root type) in this graph.
      *
      * @generated from protobuf rpc: GetNodes(symbolx.bench.GetNodesRequest) returns (symbolx.bench.GetNodesResponse);
      */
@@ -103,7 +103,7 @@ export class GraphIOClient implements IGraphIOClient, ServiceInfo {
     constructor(private readonly _transport: RpcTransport) {
     }
     /**
-     * Get nodes (of the same root type) in this graph. Error if any node is not found/accessible.
+     * Get nodes (of the same root type) in this graph.
      *
      * @generated from protobuf rpc: GetNodes(symbolx.bench.GetNodesRequest) returns (symbolx.bench.GetNodesResponse);
      */

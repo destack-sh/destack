@@ -49,15 +49,21 @@ export interface GetNodesRequest {
      */
     roots: NodeReferenceData[]; // must be of same type
     /**
+     * Whether the roots are considered optional (if not found, return empty result instead of error).
+     *
+     * @generated from protobuf field: optional bool is_optional = 3;
+     */
+    isOptional?: boolean;
+    /**
      * Options to configure read.
      *
-     * @generated from protobuf field: optional symbolx.bench.ReadOptionsData options = 3;
+     * @generated from protobuf field: optional symbolx.bench.ReadOptionsData options = 19;
      */
     options?: ReadOptionsData;
     /**
      * Whether to sideline the cache.
      *
-     * @generated from protobuf field: optional bool no_cache = 4;
+     * @generated from protobuf field: optional bool no_cache = 20;
      */
     noCache?: boolean;
 }
@@ -84,6 +90,9 @@ export interface GetNodesResponse {
      */
     connectionToken: string;
 }
+// NOTE :Architecture: the # :ConnectionUpdateOrdering here is suboptimal
+//  (currently we assume added/removed_nodes, then edits, then cascaded_edits for updates)
+
 /**
  * @generated from protobuf message symbolx.bench.WatchGetRequest
  */
@@ -193,13 +202,13 @@ export interface SearchNodesRequest {
     /**
      * Options to configure read.
      *
-     * @generated from protobuf field: optional symbolx.bench.ReadOptionsData options = 10;
+     * @generated from protobuf field: optional symbolx.bench.ReadOptionsData options = 19;
      */
     options?: ReadOptionsData;
     /**
      * Whether to sideline the cache.
      *
-     * @generated from protobuf field: optional bool no_cache = 11;
+     * @generated from protobuf field: optional bool no_cache = 20;
      */
     noCache?: boolean;
 }
@@ -348,7 +357,7 @@ export interface AggregateNodesRequest {
     /**
      * Whether to sideline the cache.
      *
-     * @generated from protobuf field: optional bool no_cache = 7;
+     * @generated from protobuf field: optional bool no_cache = 20;
      */
     noCache?: boolean;
 }
@@ -895,8 +904,9 @@ class GetNodesRequest$Type extends MessageType<GetNodesRequest> {
         super("symbolx.bench.GetNodesRequest", [
             { no: 1, name: "scope", kind: "message", T: () => GraphScopeData },
             { no: 2, name: "roots", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
-            { no: 3, name: "options", kind: "message", T: () => ReadOptionsData },
-            { no: 4, name: "no_cache", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
+            { no: 3, name: "is_optional", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
+            { no: 19, name: "options", kind: "message", T: () => ReadOptionsData },
+            { no: 20, name: "no_cache", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<GetNodesRequest>): GetNodesRequest {
@@ -917,10 +927,13 @@ class GetNodesRequest$Type extends MessageType<GetNodesRequest> {
                 case /* repeated symbolx.bench.NodeReferenceData roots */ 2:
                     message.roots.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* optional symbolx.bench.ReadOptionsData options */ 3:
+                case /* optional bool is_optional */ 3:
+                    message.isOptional = reader.bool();
+                    break;
+                case /* optional symbolx.bench.ReadOptionsData options */ 19:
                     message.options = ReadOptionsData.internalBinaryRead(reader, reader.uint32(), options, message.options);
                     break;
-                case /* optional bool no_cache */ 4:
+                case /* optional bool no_cache */ 20:
                     message.noCache = reader.bool();
                     break;
                 default:
@@ -941,12 +954,15 @@ class GetNodesRequest$Type extends MessageType<GetNodesRequest> {
         /* repeated symbolx.bench.NodeReferenceData roots = 2; */
         for (let i = 0; i < message.roots.length; i++)
             NodeReferenceData.internalBinaryWrite(message.roots[i], writer.tag(2, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.ReadOptionsData options = 3; */
+        /* optional bool is_optional = 3; */
+        if (message.isOptional !== undefined)
+            writer.tag(3, WireType.Varint).bool(message.isOptional);
+        /* optional symbolx.bench.ReadOptionsData options = 19; */
         if (message.options)
-            ReadOptionsData.internalBinaryWrite(message.options, writer.tag(3, WireType.LengthDelimited).fork(), options).join();
-        /* optional bool no_cache = 4; */
+            ReadOptionsData.internalBinaryWrite(message.options, writer.tag(19, WireType.LengthDelimited).fork(), options).join();
+        /* optional bool no_cache = 20; */
         if (message.noCache !== undefined)
-            writer.tag(4, WireType.Varint).bool(message.noCache);
+            writer.tag(20, WireType.Varint).bool(message.noCache);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -1173,8 +1189,8 @@ class SearchNodesRequest$Type extends MessageType<SearchNodesRequest> {
             { no: 6, name: "first", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 7, name: "skip", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 9, name: "count", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 10, name: "options", kind: "message", T: () => ReadOptionsData },
-            { no: 11, name: "no_cache", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
+            { no: 19, name: "options", kind: "message", T: () => ReadOptionsData },
+            { no: 20, name: "no_cache", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<SearchNodesRequest>): SearchNodesRequest {
@@ -1215,10 +1231,10 @@ class SearchNodesRequest$Type extends MessageType<SearchNodesRequest> {
                 case /* optional bool count */ 9:
                     message.count = reader.bool();
                     break;
-                case /* optional symbolx.bench.ReadOptionsData options */ 10:
+                case /* optional symbolx.bench.ReadOptionsData options */ 19:
                     message.options = ReadOptionsData.internalBinaryRead(reader, reader.uint32(), options, message.options);
                     break;
-                case /* optional bool no_cache */ 11:
+                case /* optional bool no_cache */ 20:
                     message.noCache = reader.bool();
                     break;
                 default:
@@ -1257,12 +1273,12 @@ class SearchNodesRequest$Type extends MessageType<SearchNodesRequest> {
         /* optional bool count = 9; */
         if (message.count !== undefined)
             writer.tag(9, WireType.Varint).bool(message.count);
-        /* optional symbolx.bench.ReadOptionsData options = 10; */
+        /* optional symbolx.bench.ReadOptionsData options = 19; */
         if (message.options)
-            ReadOptionsData.internalBinaryWrite(message.options, writer.tag(10, WireType.LengthDelimited).fork(), options).join();
-        /* optional bool no_cache = 11; */
+            ReadOptionsData.internalBinaryWrite(message.options, writer.tag(19, WireType.LengthDelimited).fork(), options).join();
+        /* optional bool no_cache = 20; */
         if (message.noCache !== undefined)
-            writer.tag(11, WireType.Varint).bool(message.noCache);
+            writer.tag(20, WireType.Varint).bool(message.noCache);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -1517,7 +1533,7 @@ class AggregateNodesRequest$Type extends MessageType<AggregateNodesRequest> {
             { no: 4, name: "filter", kind: "message", T: () => ExpressionData },
             { no: 5, name: "sort", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ExpressionData },
             { no: 6, name: "aggregation", kind: "message", T: () => ExpressionData },
-            { no: 7, name: "no_cache", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
+            { no: 20, name: "no_cache", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<AggregateNodesRequest>): AggregateNodesRequest {
@@ -1552,7 +1568,7 @@ class AggregateNodesRequest$Type extends MessageType<AggregateNodesRequest> {
                 case /* symbolx.bench.ExpressionData aggregation */ 6:
                     message.aggregation = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.aggregation);
                     break;
-                case /* optional bool no_cache */ 7:
+                case /* optional bool no_cache */ 20:
                     message.noCache = reader.bool();
                     break;
                 default:
@@ -1585,9 +1601,9 @@ class AggregateNodesRequest$Type extends MessageType<AggregateNodesRequest> {
         /* symbolx.bench.ExpressionData aggregation = 6; */
         if (message.aggregation)
             ExpressionData.internalBinaryWrite(message.aggregation, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
-        /* optional bool no_cache = 7; */
+        /* optional bool no_cache = 20; */
         if (message.noCache !== undefined)
-            writer.tag(7, WireType.Varint).bool(message.noCache);
+            writer.tag(20, WireType.Varint).bool(message.noCache);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

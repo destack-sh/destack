@@ -84,9 +84,9 @@ const lastRunPtr = useViewStateProp(canvas.tx, "lastRunPtr", undefined) as Ref<
 >;
 const { node: lastRun } = useNode({
   name: "start.lastRun",
-  type: "search",
   live: true,
   nodePtr: lastRunPtr,
+  isOptional: true,
   isEnabled: computed(() => lastRunPtr.value != null),
 });
 const lastRunOfBase = computed(() => {
@@ -147,6 +147,13 @@ const outputType = computed(() =>
     : undefined,
 );
 
+function createRun() {
+  if (runnableNode.value == null) return;
+  const run = makeRun(runnableNode.value, pkgGraph, { inputsPacked: inputsPacked.value });
+  pkgConnection.tx.with({ category: ChangeCategory.SESSION }).create(run);
+  lastRunPtr.value = toNodeRef(run);
+}
+
 canvas.registerView(self);
 defineExpose<ViewExposed>({ self });
 </script>
@@ -176,14 +183,7 @@ defineExpose<ViewExposed>({ self });
           <button
             :disabled="runnableNode == null"
             class="h-fit enabled:text-gray-900 enabled:hover:text-primary-900 disabled:text-gray-400"
-            @click="
-              () => {
-                if (runnableNode == null) return;
-                const run = makeRun(runnableNode, pkgGraph, { inputsPacked });
-                pkgConnection.tx.with({ category: ChangeCategory.SESSION }).create(run);
-                lastRunPtr = toNodeRef(run);
-              }
-            "
+            @click="() => createRun()"
           >
             <i class="fas fa-play w-5 text-center" />
             <span class="ml-1">Start</span>

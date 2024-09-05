@@ -122,6 +122,7 @@ type GetConnectionParams<T extends NodeType> = {
   isEnabled?: boolean;
   roots: (Omit<NodeReferenceData, "type"> & { type: T })[];
   scope: GraphScopeData;
+  isOptional?: boolean;
   options?: Partial<ReadOptionsData>;
 };
 type GetConnectionResult<T extends NodeType> = {
@@ -585,7 +586,10 @@ export class RemoteGetConnection<T extends NodeType> extends ConnectionBase<"get
     // fetch nodes
     const {
       response: { epoch: initialEpoch, nodes, connectionToken },
-    } = await client.getNodes({ scope: graph.scope, roots: params.roots, options }, { abort, ...this.operationMeta });
+    } = await client.getNodes(
+      { scope: graph.scope, roots: params.roots, options, isOptional: params.isOptional },
+      { abort, ...this.operationMeta },
+    );
     graph.extend(...nodes.map(unwrapSomeNode));
     const epoch = ref(initialEpoch);
 
@@ -1165,11 +1169,11 @@ export function useGetConnection<T extends NodeType>(
 export function useNode<T extends NodeType>(paramsIn: {
   name: string;
   live?: boolean;
-  type?: "get" | "search";
   scope?: MaybeRef<GraphScopeData>;
   nodePtr: MaybeRef<NodeReferenceData | TypedNodeReferenceData<T> | null | undefined>;
   ancestorTypes?: MaybeRef<NodeType[]>;
   descendantTypes?: MaybeRef<NodeType[]>;
+  isOptional?: boolean;
   isEnabled?: Ref<boolean | undefined>;
 }): {
   connection: Connection<"get" | "search", T>;
@@ -1178,53 +1182,22 @@ export function useNode<T extends NodeType>(paramsIn: {
   isConnected: Ref<boolean>;
   isStale: Ref<boolean>;
 } {
-  if (paramsIn.type == null || paramsIn.type == "get") {
-    const { graph, connection, isConnecting, isConnected, isStale } = useGetConnection<T>(
-      { name: paramsIn.name, live: paramsIn.live === undefined ? true : paramsIn.live },
-      computed(
-        () =>
-          ({
-            scope: toValue(paramsIn.scope) ?? PACKAGE_SCOPE.value,
-            roots: [toValue(paramsIn.nodePtr)!],
-            isEnabled: toValue(paramsIn.nodePtr) != null,
-            ancestorTypes: toValue(paramsIn.ancestorTypes),
-            descendantTypes: toValue(paramsIn.descendantTypes),
-          }) as GetConnectionParams<T>,
-      ),
-    );
-    const node = graph.getRef(paramsIn.nodePtr) as Ref<NodeTypeMapping[T] | null>;
-    return { connection, node, isConnecting, isConnected, isStale };
-  } else if (paramsIn.type == "search") {
-    // nocheckin :Architecture: there should be a simpler way to watch a "maybe get" connection than to make it a search
-    //  just make get not error optionally if not found?
-    const { graph, connection, isConnecting, isConnected, isStale } = useSearchConnection<T>(
-      { name: paramsIn.name, live: paramsIn.live === undefined ? true : paramsIn.live },
-      computed(() => {
-        const nodePtr = toValue(paramsIn.nodePtr);
-        const filter =
-          nodePtr != null
-            ? makeExpression({
-                op: ExpressionOp.EQUALS,
-                propertyPtr: propertyReference(nodePtr.type, 2),
-                value: nodePtr.id,
-              })
-            : null;
-        return {
+  const { graph, connection, isConnecting, isConnected, isStale } = useGetConnection<T>(
+    { name: paramsIn.name, live: paramsIn.live === undefined ? true : paramsIn.live },
+    computed(
+      () =>
+        ({
           scope: toValue(paramsIn.scope) ?? PACKAGE_SCOPE.value,
-          nodeType: toValue(paramsIn.nodePtr)?.type,
-          filter,
-          first: 1,
-          isEnabled: paramsIn.isEnabled != null ? toValue(paramsIn.isEnabled) : undefined,
+          roots: [toValue(paramsIn.nodePtr)!],
+          isOptional: paramsIn.isOptional,
+          isEnabled: toValue(paramsIn.nodePtr) != null,
           ancestorTypes: toValue(paramsIn.ancestorTypes),
           descendantTypes: toValue(paramsIn.descendantTypes),
-        } as SearchConnectionParams<T>;
-      }),
-    );
-    const node = graph.getRef(paramsIn.nodePtr) as Ref<NodeTypeMapping[T] | null>;
-    return { connection, node, isConnecting, isConnected, isStale };
-  } else {
-    assertNever(paramsIn.type);
-  }
+        }) as GetConnectionParams<T>,
+    ),
+  );
+  const node = graph.getRef(paramsIn.nodePtr) as Ref<NodeTypeMapping[T] | null>;
+  return { connection, node, isConnecting, isConnected, isStale };
 }
 
 /**

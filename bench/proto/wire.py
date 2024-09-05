@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.09.04.0"
+VERSION = "2024.09.05.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -3724,10 +3724,15 @@ class GetNodesRequest(betterproto.Message):
     roots: List["NodeReferenceData"] = betterproto.message_field(2)
     """The 'root' nodes to get around."""
 
-    options: Optional["ReadOptionsData"] = betterproto.message_field(3, optional=True)
+    is_optional: Optional[bool] = betterproto.bool_field(3, optional=True)
+    """
+    Whether the roots are considered optional (if not found, return empty result instead of error).
+    """
+
+    options: Optional["ReadOptionsData"] = betterproto.message_field(19, optional=True)
     """Options to configure read."""
 
-    no_cache: Optional[bool] = betterproto.bool_field(4, optional=True)
+    no_cache: Optional[bool] = betterproto.bool_field(20, optional=True)
     """Whether to sideline the cache."""
 
 
@@ -3795,10 +3800,10 @@ class SearchNodesRequest(betterproto.Message):
     count: Optional[bool] = betterproto.bool_field(9, optional=True)
     """Whether to get the total count."""
 
-    options: Optional["ReadOptionsData"] = betterproto.message_field(10, optional=True)
+    options: Optional["ReadOptionsData"] = betterproto.message_field(19, optional=True)
     """Options to configure read."""
 
-    no_cache: Optional[bool] = betterproto.bool_field(11, optional=True)
+    no_cache: Optional[bool] = betterproto.bool_field(20, optional=True)
     """Whether to sideline the cache."""
 
 
@@ -3875,7 +3880,7 @@ class AggregateNodesRequest(betterproto.Message):
     aggregation: "ExpressionData" = betterproto.message_field(6)
     """Aggregation expression."""
 
-    no_cache: Optional[bool] = betterproto.bool_field(7, optional=True)
+    no_cache: Optional[bool] = betterproto.bool_field(20, optional=True)
     """Whether to sideline the cache."""
 
 
