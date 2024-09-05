@@ -102,6 +102,7 @@ def _get_bench_dir() -> str:
 
 
 # nocheckin: upgrade provisioned machines to new versions
+# TODO :Test!: test machine provisioners
 
 
 class LocalhostMachineProvisioner(Provisioner[Machine, Machine]):
@@ -131,8 +132,7 @@ class LocalhostMachineProvisioner(Provisioner[Machine, Machine]):
 class DockerMachineProvisioner(Provisioner[Machine, Machine]):
     """Provision Machines as containers in a Docker installation."""
 
-    # NOTE :DevX: use async docker api (instead of blocking sync)
-    # TODO :Test: test docker machine provisioner
+    # NOTE :DevX: use async docker api (instead of blocking sync)?
 
     watch_types = bittuple(NodeType.MACHINE)
     provision_types = bittuple(NodeType.MACHINE)
@@ -199,8 +199,6 @@ class DockerMachineProvisioner(Provisioner[Machine, Machine]):
 
 class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
     """Provision Machines as Pods on Kubernetes."""
-
-    # TODO :Test!: test kubernetes machine provisioner
 
     watch_types = bittuple(NodeType.MACHINE)
     provision_types = bittuple(NodeType.MACHINE)

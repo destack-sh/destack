@@ -39,7 +39,7 @@ class Provisioner[PT: ResourceNode, WT: ResourceNode](DeferredHostPlugin[WT], ab
         )
         for resource in resources:
             # auto migrate resources to current version
-            # NOTE :Robustness: unsure when to migrate resources
+            # NOTE :Robustness: unsure when to migrate which resources
             if "version" in resource.__properties__ and getattr(resource, "version") != VERSION:
                 async with self.host.session(commit=True):
                     setattr(resource, "version", VERSION)

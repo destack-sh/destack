@@ -81,7 +81,7 @@ class KubernetesApi:
         await self.core_api.create_namespaced_pod(namespace=self._namespace, body=pod)  # type: ignore
 
     async def patch_pod(self, name: str, patch: dict) -> None:
-        """Patch a Pod. We only patch specific fields"""
+        """Patch a Pod."""
         await self.core_api.patch_namespaced_pod(namespace=self._namespace, name=name, body=patch)
 
     async def delete_pod(self, name: str) -> None:
