@@ -9,7 +9,7 @@ import uvloop
 from bench.language.validation import clean_name
 from bench.runtime.remote import RemoteEngine
 from bench.runtime.runtime import Runtime
-from bench.sql.client import pg_store_connection
+from bench.sql.client import pg_connection
 from bench.sql.engine import sqlstr
 from bench.system.host.core import HostProxy
 from bench.system.provision.provisioner import decommission
@@ -364,9 +364,9 @@ async def host_service(global_store: Store, hosted_bench: Bench):
         await host.wait_closed()
 
         # manually decommission stores (bootstrapping problem since the Host session uses the store)
-        async with pg_store_connection(host.global_store, autocommit=True) as cur:
+        async with pg_connection(host.global_store, autocommit=True) as conn:
             for store in hosted_bench.stores:
-                await cur.execute(sqlstr(f'DROP DATABASE "{store.external_name}"'))
+                await conn.execute(sqlstr(f'DROP DATABASE "{store.external_name}"'))
 
 
 @pytest.fixture()

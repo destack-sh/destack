@@ -63,11 +63,12 @@ async def check_is_consistent(*, check_db: bool) -> None:
     """Checks whether the language constructs are in sync with the derived stuff."""
     from bench.language import VERSION as LANG_VERSION
     from bench.proto.wire import VERSION as PROTO_VERSION
+    from bench.sql.client import pg_connection
     from bench.sql.core import Schema
     from bench.sql.engine import GLOBAL_SCHEMA, NODE_TABLES, map_node_class_to_pg_table
     from bench.sql.migration import generate_sql_migration_ops, introspect_sql_schema
     from bench.sql.schema import VERSION as SQL_VERSION
-    from bench.system.utils.session import global_pg_cursor, system_store_from_env
+    from bench.system.utils.session import system_store_from_env
 
     log = logger.bind(version=LANG_VERSION)
 
@@ -94,9 +95,9 @@ async def check_is_consistent(*, check_db: bool) -> None:
     if check_db:
         # check global
         global_store = system_store_from_env()
-        async with global_pg_cursor(global_store) as cur:
-            old_global_schema = await introspect_sql_schema(cur)
-            await cur.connection.rollback()
+        async with pg_connection(global_store) as conn:
+            old_global_schema = await introspect_sql_schema(conn.cursor)
+            await conn.rollback()
         migration_ops = generate_sql_migration_ops(old_global_schema, GLOBAL_SCHEMA)
         if migration_ops:
             raise InconsistencyError(f"global SQL schema is out of sync: {migration_ops!r}")

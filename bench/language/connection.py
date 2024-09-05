@@ -263,7 +263,7 @@ class GraphEngine[C: Channel](abc.ABC):
         return id(self)
 
     @abc.abstractmethod
-    async def connect(self, session: "Session") -> C:
+    async def channel(self, session: "Session") -> C:
         """Opens an IO channel on this subgraph in a session."""
         ...
 
@@ -271,7 +271,7 @@ class GraphEngine[C: Channel](abc.ABC):
 class NullEngine(GraphEngine):
     """A null engine that does nothing."""
 
-    async def connect(self, session: "Session"):
+    async def channel(self, session: "Session"):
         raise ChannelIncapableError(self, reason="null engine")
 
     @property
@@ -305,8 +305,8 @@ class Channel[E: GraphEngine](abc.ABC):
         return RetryOptions(retry_on=(ChannelUnavailableError,))
 
     @abc.abstractmethod
-    async def reconnect(self):
-        """Attempt to reconnect this channel."""
+    async def reset(self):
+        """Resets this channel to its initial state."""
         ...
 
     @abc.abstractmethod
@@ -502,7 +502,7 @@ class Connection[
                             await self.session._oracle.sleep(interval)
                             if isinstance(e, ChannelUnavailableError):
                                 # try reconnecting the channel
-                                await self.channel.reconnect()
+                                await self.channel.reset()
                                 self.log.debug("connect.reconnect")
                 else:
                     raise retry.to_error(operation=self.query)
@@ -804,7 +804,7 @@ class MemoryEngine(GraphEngine["MemoryChannel"]):
     def includes_hidden(self) -> bool:
         return self._includes_hidden
 
-    async def connect(self, session: "Session"):
+    async def channel(self, session: "Session"):
         return MemoryChannel(self, session)
 
 
@@ -818,7 +818,7 @@ class MemoryChannel(Channel[MemoryEngine]):
         return f"engine={self.engine!r}, session={self.session}"
 
     @override
-    async def reconnect(self):
+    async def reset(self):
         pass  # nothing to do
 
     @override
@@ -915,7 +915,7 @@ class SplitChannel(Channel[NullEngine]):
     """A read-only channel splits queries across channels."""
 
     @override
-    async def reconnect(self):
+    async def reset(self):
         pass  # nothing to do
 
     @override

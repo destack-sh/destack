@@ -332,7 +332,7 @@ class Session(RuntimeNode[SessionData]):
             if channel.engine.id == engine.id:
                 return channel
         else:
-            channel = await engine.connect(self)
+            channel = await engine.channel(self)
             self._channels.append(channel)
             return channel
 

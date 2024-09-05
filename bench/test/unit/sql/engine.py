@@ -22,7 +22,7 @@ from bench.language.query import NodeNotFoundError
 from bench.language.session import Session
 from bench.language.user import User
 from bench.language.view import ViewType
-from bench.sql.client import pg_store_connection
+from bench.sql.client import pg_connection
 from bench.sql.core import GLOBAL_EXTENSIONS, Column, Schema, Table
 from bench.sql.engine import (
     RowIn,
@@ -106,12 +106,12 @@ COLUMN_VALUE_GENERATORS: Mapping[PrimitiveType, Callable[[], Any]] = {
 @pytest.fixture()
 async def test_cur(blank_store: Store):
     # creates test schema
-    async with pg_store_connection(blank_store, autocommit=True) as cur:
-        await force_create_schema(cur, TEST_SCHEMA)
-        await cur.connection.commit()
+    async with pg_connection(blank_store, autocommit=True) as conn:
+        await force_create_schema(conn.cursor, TEST_SCHEMA)
+        await conn.commit()
 
-    async with pg_store_connection(blank_store) as cur:
-        yield cur
+    async with pg_connection(blank_store) as conn:
+        yield conn.cursor
 
 
 @pytest.mark.parametrize("table", TEST_TABLES, ids=lambda t: t.name)
