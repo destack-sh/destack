@@ -70,13 +70,6 @@
         "PYTHONUNBUFFERED": "1",
         "SERVICE_NAME": "runtime",
         "SUPERVISOR_URL": "http://localhost:60061",
-        // this is the 'test' bench (should probably set this in a local.env?)
-        "BENCH_ID": "d52bbc09-e583-44f3-bbd7-a4893d2f45be",
-        "SERVER_ID": "5555bf22-fca4-4c26-83a2-746c4b9ae386",
-        "MACHINE_ID": "c6cdd5ac-a6a5-478b-8525-be49cfada62d",
-        "CLIENT_TYPE": "10",
-        "CLIENT_ID": "3d0ec254-7e0c-41a1-bbe2-b68dccc9d975",
-        "CLIENT_ACCESS_TOKEN": "CbcRRDLLyyA5ptUWWfA6vkzivu6GsgwarV38RgP1AgL4"
       },
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",

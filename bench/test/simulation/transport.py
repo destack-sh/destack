@@ -61,7 +61,7 @@ class SimulatedTransport(asyncio.Transport):
         if not self._protocol.connection.is_closing():
             self._protocol.data_received(data)
 
-    def write(self, data: bytes) -> None:
+    def write(self, data: bytes | bytearray | memoryview) -> None:
         if data:
             if self._latency_mean == 0:
                 latency = self._latency_min

@@ -4,7 +4,7 @@ import json
 import structlog
 import typer
 from more_itertools import first
-from rich import print_json
+from rich import print
 
 from bench.cli.utils import async_to_sync_blocking, check_is_consistent
 from bench.language import Bench, User
@@ -114,7 +114,9 @@ async def make_machine_client(bench_slug: str, name: str = "Localhost"):
             "CLIENT_ID": str(client.id),
             "CLIENT_ACCESS_TOKEN": client.access_token,
         }
-        print_json(json.dumps(client_env, indent=4))
+        print("--- .env.dev.local ---")
+        for k, v in client_env.items():
+            print(f"{k}={v}")
 
         await session.commit()
 
