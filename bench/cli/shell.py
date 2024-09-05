@@ -19,7 +19,6 @@ logger = structlog.get_logger(__name__)
 @async_to_sync_blocking
 async def shell(bench: Optional[str] = None):  # type: ignore
     """Open a psql shell to either the global or a Bench-local database."""
-    from bench.sql.client import get_pg_connection_uri
     from bench.system.utils.session import (
         global_session,
         pg_engine_from_store,
@@ -36,8 +35,9 @@ async def shell(bench: Optional[str] = None):  # type: ignore
     else:
         bench_node = None
         store = global_store
-    connection_uri = get_pg_connection_uri(store)
 
+    connection_uri = store.connection_uri
+    assert connection_uri, f"store {store!r} has no connection_uri"
     logger.info(
         "shell.psql",
         bench_node=bench_node,

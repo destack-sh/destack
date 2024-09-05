@@ -32,16 +32,13 @@ from bench.proto.wire import (
     EditData,
     GraphScopeData,
 )
-from bench.sql.client import (
-    AsyncPostgresConnection,
-    cycle_pg_connection_pool,
-    get_pg_connection_uri,
-)
+from bench.sql.client import AsyncPostgresConnection, get_pg_pool
 from bench.sql.engine import (
     TABLE_BY_NODE_TYPE,
     BenchContext,
     pg_compile_conditional_maybe,
     pg_count,
+    pg_edit,
     pg_exists,
     pg_get_node_graph,
     pg_search_node_graph,
@@ -73,12 +70,10 @@ class PostgresEngine(GraphEngine):
         )
 
     @override
-    async def connect(self, session: "Session") -> "PostgresChannel":
-        from bench.sql.client import pg_store_connection
-
-        conn = pg_store_connection(self.store)
-        cur = await conn.open()
-        return PostgresChannel(self, session, conn, cur)
+    async def channel(self, session: "Session") -> "PostgresChannel":
+        pool = get_pg_pool(self.store)
+        conn = await pool.acquire()
+        return PostgresChannel(self, session, conn)
 
     @property
     def includes_hidden(self) -> bool:
@@ -113,15 +108,17 @@ class PostgresChannel(WritableChannel[PostgresEngine]):
         self,
         engine: "PostgresEngine",
         session: "Session",
-        conn: "AsyncPostgresConnection",
-        cur: psycopg.AsyncCursor,
+        connection: "AsyncPostgresConnection",
     ):
         super().__init__(engine, session)
-        self.conn = conn
-        self.cur = cur
+        self.connection = connection
 
     def __str__(self):
         return f"engine={self.engine!r}, session={self.session}"
+
+    @property
+    def cur(self) -> psycopg.AsyncCursor:
+        return self.connection.cursor
 
     @override
     def _get_connection_cls(
@@ -139,8 +136,6 @@ class PostgresChannel(WritableChannel[PostgresEngine]):
     @override
     @_pg_method
     async def flush(self, edits: list[EditData] | tuple[EditData, ...]) -> FlushResultData:
-        from bench.sql.engine import pg_edit
-
         new_revisions, cascaded_edits = await pg_edit(
             cur=self.cur, ctx=self.engine.context, edits=edits
         )
@@ -149,8 +144,6 @@ class PostgresChannel(WritableChannel[PostgresEngine]):
     @override
     @_pg_method
     async def commit(self, edits: list[EditData] | tuple[EditData, ...]) -> CommitResultData:
-        from bench.sql.engine import pg_edit
-
         new_revisions, cascaded_edits = await pg_edit(
             cur=self.cur, ctx=self.engine.context, edits=edits
         )
@@ -158,20 +151,16 @@ class PostgresChannel(WritableChannel[PostgresEngine]):
         return CommitResultData(revisions=new_revisions, cascaded_edits=cascaded_edits)
 
     @override
-    async def reconnect(self):
-        from bench.sql.client import pg_store_connection
-
-        await self.conn.close()
-        await cycle_pg_connection_pool(get_pg_connection_uri(self.engine.store))
-        self.conn = pg_store_connection(self.engine.store)
-        self.cur = await self.conn.open()
+    async def reset(self):
+        await self.connection.close()
+        self.connection = await self.connection.pool.acquire()
 
     @override
     @_pg_method
     async def close(self):
         if not self.cur.connection.broken:
             await self.cur.connection.rollback()
-        await self.conn.close()
+        await self.connection.close()
 
 
 class PostgresGetConnection[T: Node](GetConnection[PostgresChannel, T]):

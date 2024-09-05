@@ -9,7 +9,7 @@ from bench.language import NodeReference
 from bench.proto import wire
 from bench.proto.services import ServiceBase
 from bench.proto.wire import CreateBenchRequest, HostClient, SupervisorClient
-from bench.sql.client import pg_store_connection
+from bench.sql.client import pg_connection
 from bench.sql.engine import sqlstr
 from bench.system.host.service import HostService
 from bench.system.supervisor.service import SupervisorService
@@ -142,6 +142,6 @@ class HostHandle(ServiceHandle[HostSpec, HostService, HostClient]):
     async def wait_closed(self):
         await super().wait_closed()
         # manually decommission stores (bootstrapping problem since the Host session uses the store)
-        async with pg_store_connection(self.simulation.global_store, autocommit=True) as cur:
+        async with pg_connection(self.simulation.global_store, autocommit=True) as conn:
             for store in self.service.bench.stores:
-                await cur.execute(sqlstr(f'DROP DATABASE "{store.external_name}"'))
+                await conn.execute(sqlstr(f'DROP DATABASE "{store.external_name}"'))

@@ -8,7 +8,7 @@ from opentelemetry import trace
 from bench.language import Bench, Drive, ResourceStatus, Store
 from bench.language.bench import Region
 from bench.language.const import NodeType
-from bench.sql.client import pg_store_connection
+from bench.sql.client import pg_connection
 from bench.sql.engine import sqlstr
 from bench.sql.migration import sql_migrate
 from bench.system.host.core import HostApi
@@ -39,15 +39,15 @@ class StoreProvisioner(Provisioner[Store, Store]):
     async def _do_migrate(self, resource: Store):
         """Migrate the store to its indicated 'version'."""
         assert resource.version, f"{resource!r} has no version"
-        async with pg_store_connection(resource) as cur:
+        async with pg_connection(resource) as conn:
             await sql_migrate(
-                cur,
+                conn.cursor,
                 target=resource.version,
                 is_global=False,
                 store=resource,
                 oracle=self.host.oracle,
             )
-            await cur.connection.commit()
+            await conn.commit()
         async with self.host.session(commit=True):
             resource.current_version = resource.version
 
@@ -104,8 +104,8 @@ class LocalhostStoreProvisioner(StoreProvisioner):
                 resource.external_name = f"{ENV}-{resource.bench_id}"
         # create database through existing connection
         # (use same postgres instance as global store)
-        async with pg_store_connection(self.host.global_store, autocommit=True) as cur:
-            await cur.execute(sqlstr(f'CREATE DATABASE "{resource.external_name}"'))
+        async with pg_connection(self.host.global_store, autocommit=True) as conn:
+            await conn.execute(sqlstr(f'CREATE DATABASE "{resource.external_name}"'))
         async with self.host.session(commit=True):
             connection_uri = self.host.global_store.connection_uri
             assert connection_uri, f"{self.host.global_store!r} has no connection URI"
@@ -117,8 +117,8 @@ class LocalhostStoreProvisioner(StoreProvisioner):
     @override
     async def _do_decommission(self, resource: Store):
         # drop database through existing connection
-        async with pg_store_connection(self.host.global_store, autocommit=True) as cur:
-            await cur.execute(sqlstr(f'DROP DATABASE "{resource.external_name}"'))
+        async with pg_connection(self.host.global_store, autocommit=True) as conn:
+            await conn.execute(sqlstr(f'DROP DATABASE "{resource.external_name}"'))
 
 
 class S3DriveProvisioner(Provisioner[Drive, Drive]):

@@ -7,8 +7,6 @@ import grpclib
 import pytest
 import structlog
 
-from bench.language.validation import clean_name
-from bench.system.utils.session import BEGINNING_OF_TIME, global_pg_cursor
 from bench.test.conftest import _setup_test_env
 
 # NOTE: must run setup before importing from bench
@@ -20,12 +18,8 @@ from bench.language import VERSION, NodeReference, Store
 from bench.language.bench import Bench
 from bench.language.const import NodeType, Region
 from bench.language.graph import NodeSuperGraph
-from bench.sql.client import (
-    GLOBAL_PG_CRYPTO_KEY,
-    close_pg_connection_pool,
-    get_pg_connection_uri,
-    pg_store_connection,
-)
+from bench.language.validation import clean_name
+from bench.sql.client import GLOBAL_PG_CRYPTO_KEY, get_pg_pool, pg_connection
 from bench.sql.core import Schema
 from bench.sql.engine import GLOBAL_SCHEMA, OMNI_SCHEMA, sqlstr
 from bench.sql.migration import (
@@ -33,6 +27,7 @@ from bench.sql.migration import (
     generate_sql_migration_ops,
     introspect_sql_schema,
 )
+from bench.system.utils.session import BEGINNING_OF_TIME, system_store_from_env
 from bench.utils.utils import get_from_env
 
 logger = structlog.get_logger(__name__)
@@ -73,28 +68,26 @@ def make_system_store(name: str):
 
 async def create_blank_test_db(store: Store):
     """Creates a blank postgres database"""
-    # reset test database (connect to test since we can't drop active db)
-    async with pg_store_connection(store, database="bench", autocommit=True) as cur:
-        await cur.execute(sqlstr(f'DROP DATABASE IF EXISTS "{store.external_name}"'))
-        await cur.execute(sqlstr(f'CREATE DATABASE "{store.external_name}"'))
+    async with pg_connection(system_store_from_env(), autocommit=True) as conn:
+        await conn.execute(sqlstr(f'DROP DATABASE IF EXISTS "{store.external_name}"'))
+        await conn.execute(sqlstr(f'CREATE DATABASE "{store.external_name}"'))
 
 
 async def create_test_db(store: Store, schema: Schema):
     """Creates a postgres DB with one of our schemas"""
     await create_blank_test_db(store)
-
-    async with global_pg_cursor(store, autocommit=True) as cur:
-        blank_schema = await introspect_sql_schema(cur)
+    async with pg_connection(store, autocommit=True) as conn:
+        blank_schema = await introspect_sql_schema(conn.cursor)
         migration_ops = generate_sql_migration_ops(blank_schema, schema)
-        await apply_sql_migration_ops(cur, migration_ops)
-        await cur.connection.commit()
+        await apply_sql_migration_ops(conn.cursor, migration_ops)
+        await conn.commit()
 
 
 async def delete_test_db(store: Store):
     """Deletes a postgres DB with one of our schemas"""
-    await close_pg_connection_pool(get_pg_connection_uri(store))
-    async with pg_store_connection(store, database="bench", autocommit=True) as cur:
-        await cur.execute(sqlstr(f'DROP DATABASE IF EXISTS "{store.external_name}"'))
+    await get_pg_pool(store).close()
+    async with pg_connection(system_store_from_env(), autocommit=True) as conn:
+        await conn.execute(sqlstr(f'DROP DATABASE IF EXISTS "{store.external_name}"'))
 
 
 @pytest.fixture()

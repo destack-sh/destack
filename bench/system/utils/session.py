@@ -8,7 +8,6 @@ from bench.language.graph import NodeSuperGraph
 from bench.language.node import EMPTY_SCOPE, GraphScope
 from bench.language.session import Session
 from bench.proto.wire import GraphScopeData
-from bench.sql.client import AsyncPostgresConnection
 from bench.system.graph.postgres import PostgresEngine
 from bench.utils.func import bittuple
 from bench.utils.oracle import Oracle
@@ -93,8 +92,3 @@ def global_session(
         _is_readonly=readonly,
         _split_read=split_read,
     )
-
-
-def global_pg_cursor(store: Store, *, autocommit: bool = False):
-    assert store.parent is not None, f"missing parent for {store!r}"
-    return AsyncPostgresConnection(store, store.parent, autocommit=autocommit)

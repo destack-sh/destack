@@ -30,7 +30,7 @@ async def make(
     overwrite: bool = typer.Option(default=False, help="overwrite existing migration for version"),
     from_scratch: bool = typer.Option(default=False, help="generate migration from scratch"),
 ):
-    from bench.sql.client import pg_store_connection
+    from bench.sql.client import pg_connection
     from bench.sql.core import Schema
     from bench.sql.engine import (
         GLOBAL_SCHEMA,
@@ -47,7 +47,6 @@ async def make(
         read_migrations_from_pg,
     )
     from bench.system.utils.session import (
-        global_pg_cursor,
         global_session,
         pg_engine_from_store,
         system_store_from_env,
@@ -70,8 +69,8 @@ async def make(
             raise RuntimeError(
                 f"existing migration for version {VERSION}: {conflicting_migration!r}"
             )
-    async with global_pg_cursor(global_store) as cur:
-        stored_migrations = await read_migrations_from_pg(cur)
+    async with pg_connection(global_store) as conn:
+        stored_migrations = await read_migrations_from_pg(conn.cursor)
     max_file_id = max(m.id for m in file_migrations) if file_migrations else 0
     max_stored_id = max(m.id for m in stored_migrations) if stored_migrations else 0
     if max_stored_id > max_file_id:
@@ -86,8 +85,8 @@ async def make(
                 async with global_session(global_store, (global_pg_engine,), REAL_ORACLE):
                     bench_node = await Bench.descendants(Store).select_all().get(slug=bench)
                     assert bench_node.main_store, f"{bench!r} has no main store"
-                    async with pg_store_connection(bench_node.main_store) as cur:
-                        old_local_schema = await introspect_sql_schema(cur)
+                    async with pg_connection(bench_node.main_store) as conn:
+                        old_local_schema = await introspect_sql_schema(conn.cursor)
             except SqlUndefinedObjectError as e:
                 # missing from_scratch flag?
                 console.print(f"[red]couldn't make migrations (missing --from-scratch?): {e}[/red]")
@@ -99,8 +98,8 @@ async def make(
         local_migration_ops = []
 
     # diff global
-    async with global_pg_cursor(global_store) as cur:
-        old_global_schema = await introspect_sql_schema(cur)
+    async with pg_connection(global_store) as conn:
+        old_global_schema = await introspect_sql_schema(conn.cursor)
     global_migration_ops = generate_sql_migration_ops(old_global_schema, GLOBAL_SCHEMA)
 
     # generate migration
@@ -141,7 +140,7 @@ async def apply(
     ),
     dry_run: bool = typer.Option(default=False, help="only try, don't commit"),
 ):
-    from bench.sql.client import pg_store_connection
+    from bench.sql.client import pg_connection
     from bench.sql.migration import sql_migrate as _migrate
     from bench.system.utils.session import (
         global_session,
@@ -166,12 +165,14 @@ async def apply(
         stores = (global_store,)
 
     for store in stores:
-        async with pg_store_connection(store) as cur:
-            await _migrate(cur=cur, target=target, is_global=bench is None, oracle=REAL_ORACLE)
+        async with pg_connection(store) as conn:
+            await _migrate(
+                cur=conn.cursor, target=target, is_global=bench is None, oracle=REAL_ORACLE
+            )
             if not dry_run:
-                await cur.connection.commit()
+                await conn.commit()
             else:
-                await cur.connection.rollback()
+                await conn.rollback()
 
     logger.info("migrate", duration=time.time() - start)
 
@@ -181,10 +182,9 @@ async def apply(
 async def introspect(bench: Optional[str] = None):  # type: ignore
     """Introspect the current schema of the Postgres instance."""
 
-    from bench.sql.client import pg_store_connection
+    from bench.sql.client import pg_connection
     from bench.sql.migration import introspect_sql_schema
     from bench.system.utils.session import (
-        global_pg_cursor,
         global_session,
         pg_engine_from_store,
         system_store_from_env,
@@ -198,16 +198,16 @@ async def introspect(bench: Optional[str] = None):  # type: ignore
         async with global_session(global_store, (global_pg_engine,), REAL_ORACLE):
             bench_node = await Bench.descendants(NodeType.STORE).get(slug=bench)
             assert bench_node.main_store, f"{bench!r} has no main environment"
-        async with pg_store_connection(bench_node.main_store) as cur:
+        async with pg_connection(bench_node.main_store) as conn:
             schema = await introspect_sql_schema(
-                cur, include_columns=True, include_indexes=True, include_constraints=True
+                conn.cursor, include_columns=True, include_indexes=True, include_constraints=True
             )
     else:
-        async with global_pg_cursor(global_store) as cur:
+        async with pg_connection(global_store) as conn:
             schema = await introspect_sql_schema(
-                cur, include_columns=True, include_indexes=True, include_constraints=True
+                conn.cursor, include_columns=True, include_indexes=True, include_constraints=True
             )
-            await cur.connection.rollback()
+            await conn.rollback()
 
     # generate schema
     chunks: list[str] = []

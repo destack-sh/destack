@@ -69,7 +69,7 @@ class RemoteEngine(GraphEngine["RemoteChannel"]):
         return f"scope={self.scope!r}, node_types={repr_enums(self.node_types)}, remote={self.remote.__class__.__name__}"
 
     @override
-    async def connect(self, session: "Session") -> "RemoteChannel":
+    async def channel(self, session: "Session") -> "RemoteChannel":
         return RemoteChannel(self, session)
 
     @property
@@ -88,7 +88,7 @@ class RemoteChannel(WritableChannel[RemoteEngine]):
         return f"engine={self.engine!r}, session={self.session}"
 
     @override
-    async def reconnect(self):
+    async def reset(self):
         pass  # remote channels use a shared client
 
     @override
