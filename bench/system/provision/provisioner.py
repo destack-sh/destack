@@ -1,4 +1,5 @@
 import abc
+import asyncio
 import enum
 from typing import TYPE_CHECKING, ClassVar, Collection, assert_never, cast, final
 
@@ -27,6 +28,10 @@ class Provisioner[PT: ResourceNode, WT: ResourceNode](DeferredHostPlugin[WT], ab
 
     """The nodes this Provisioner can handle (separate from node types to watch in HostPlugin.)"""
     provision_types: ClassVar[bittuple[NodeType]]
+
+    def __init__(self, host: HostApi, bench: Bench):
+        super().__init__(host, bench)
+        self._lock = asyncio.Lock()
 
     @final
     async def start(self) -> None:
@@ -90,13 +95,14 @@ class Provisioner[PT: ResourceNode, WT: ResourceNode](DeferredHostPlugin[WT], ab
     async def provision(self, resource: PT):
         """Provision the resource."""
         try:
-            with tracer.start_as_current_span(
-                "resource.provision", attributes={"resource": str(resource)}
-            ):
-                await self._do_provision(resource)
-                logger.debug(
-                    "resource.provision", provisioner=self, resource=resource, span="current"
-                )
+            async with self._lock:
+                with tracer.start_as_current_span(
+                    "resource.provision", attributes={"resource": str(resource)}
+                ):
+                    await self._do_provision(resource)
+                    logger.debug(
+                        "resource.provision", provisioner=self, resource=resource, span="current"
+                    )
         except Exception as e:
             logger.error(
                 "resource.provision.error",
@@ -115,11 +121,14 @@ class Provisioner[PT: ResourceNode, WT: ResourceNode](DeferredHostPlugin[WT], ab
     async def update(self, resource: PT):
         """Update the resource properties."""
         try:
-            with tracer.start_as_current_span(
-                "resource.update", attributes={"resource": str(resource)}
-            ):
-                await self._do_update(resource)
-                logger.debug("resource.update", provisioner=self, resource=resource, span="current")
+            async with self._lock:
+                with tracer.start_as_current_span(
+                    "resource.update", attributes={"resource": str(resource)}
+                ):
+                    await self._do_update(resource)
+                    logger.debug(
+                        "resource.update", provisioner=self, resource=resource, span="current"
+                    )
         except Exception as e:
             logger.error(
                 "resource.update.error",
@@ -138,13 +147,14 @@ class Provisioner[PT: ResourceNode, WT: ResourceNode](DeferredHostPlugin[WT], ab
     async def decommission(self, resource: PT):
         """Decommission the resource."""
         try:
-            with tracer.start_as_current_span(
-                "resource.decommission", attributes={"resource": str(resource)}
-            ):
-                await self._do_decommission(resource)
-                logger.debug(
-                    "resource.decommission", provisioner=self, resource=resource, span="current"
-                )
+            async with self._lock:
+                with tracer.start_as_current_span(
+                    "resource.decommission", attributes={"resource": str(resource)}
+                ):
+                    await self._do_decommission(resource)
+                    logger.debug(
+                        "resource.decommission", provisioner=self, resource=resource, span="current"
+                    )
         except Exception as e:
             logger.error(
                 "resource.decommission.error",
