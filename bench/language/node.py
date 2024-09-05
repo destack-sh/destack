@@ -1335,7 +1335,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     A Node with properties like a Struct and a global identity in our graph.
     Conceptually, all nodes live together happily in a single giant supergraph.
     In practice, there are multiple stores and we load smaller subgraphs at runtime.
-    Nodes resolve references to each through a super graph composed of *currently loaded* NodeGraphs.
+    Nodes resolve references to each through a super graph comprising *currently loaded* graphs.
     """
 
     # NOTE :Architecture!: we may need a better :NodeInheritance mechanism since some

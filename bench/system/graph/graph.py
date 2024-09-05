@@ -393,7 +393,10 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
                 span.set_attributes(
                     {"connection_hash": connection.hash, "connection_token": connection.token}
                 )
-        if any(cast(str, root.id) not in result.graph for root in request.roots):
+        # check if all roots are found (if not optional)
+        if not request.is_optional and any(
+            cast(str, root.id) not in result.graph for root in request.roots
+        ):
             missing_roots = tuple(root for root in roots if str(root.id) not in result.graph)
             raise GRPCError(GRPCStatus.NOT_FOUND, f"roots not found: {missing_roots}")
 

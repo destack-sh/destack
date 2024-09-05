@@ -117,7 +117,7 @@ class _ConnectOptions:
 
 @dataclass(slots=True)
 class GetOptions(_ConnectOptions):
-    pass
+    is_optional: bool = False
 
 
 @dataclass(slots=True)

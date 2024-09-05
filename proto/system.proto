@@ -14,10 +14,12 @@ message GetNodesRequest {
   GraphScopeData scope = 1;
   // The 'root' nodes to get around.
   repeated NodeReferenceData roots = 2;  // must be of same type
+  // Whether the roots are considered optional (if not found, return empty result instead of error).
+  optional bool is_optional = 3;
   // Options to configure read.
-  optional ReadOptionsData options = 3;
+  optional ReadOptionsData options = 19;
   // Whether to sideline the cache.
-  optional bool no_cache = 4;
+  optional bool no_cache = 20; 
 }
 message GetNodesResponse {
   // Nodes are in pre-order (parent before children) traversal.
@@ -68,9 +70,9 @@ message SearchNodesRequest {
   // Whether to get the total count.
   optional bool count = 9;
   // Options to configure read.
-  optional ReadOptionsData options = 10;
+  optional ReadOptionsData options = 19;
   // Whether to sideline the cache.
-  optional bool no_cache = 11;
+  optional bool no_cache = 20;
 }
 message SearchNodesResponse {
   // The 'root' result set for the search.
@@ -123,7 +125,7 @@ message AggregateNodesRequest {
   // Aggregation expression.
   ExpressionData aggregation = 6;
   // Whether to sideline the cache.
-  optional bool no_cache = 7;
+  optional bool no_cache = 20;
 }
 message AggregateNodesResponse {
   GraphScopeData scope = 1;
@@ -167,7 +169,7 @@ message CommitTransactionResponse {
 
 // Common service definition for global and bench-local :GraphIO
 service GraphIO {
-  // Get nodes (of the same root type) in this graph. Error if any node is not found/accessible.
+  // Get nodes (of the same root type) in this graph. 
   rpc GetNodes(GetNodesRequest) returns (GetNodesResponse);
   // Receive any relevant node edits for a get query.
   rpc WatchGet(WatchGetRequest) returns (stream WatchGetResponse);
