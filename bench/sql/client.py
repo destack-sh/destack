@@ -95,44 +95,50 @@ class AsyncPostgresPool:
     def is_used(self) -> bool:
         return len(self._connections) > 0
 
+    async def _do_open(self):
+        if self._pool is not None:
+            return  # already open
+        # open new pool
+        self._pool = AsyncConnectionPool(
+            self._connection_uri,
+            min_size=self.min_size,
+            max_size=self.max_size,
+            max_idle=PG_MAX_IDLE_TIMEOUT,
+            timeout=PG_CONNECT_TIMEOUT,
+            reconnect_timeout=PG_RECONNECT_TIMEOUT,
+            connection_class=psycopg.AsyncConnection,
+            kwargs={"row_factory": dict_row},
+            name=self._sanitized_connection_uri,
+        )
+        await self._pool.open()
+        logger.trace("postgres.pool.open", pool=self, span="current")
+
     @tracer.start_as_current_span("postgres.pool.open")
     async def open(self):
         """Opens the connection pool (start allowing new connections)."""
         async with self._pool_lock:
-            if self._pool is not None:
-                return  # already open
-            # open new pool
-            self._pool = AsyncConnectionPool(
-                self._connection_uri,
-                min_size=self.min_size,
-                max_size=self.max_size,
-                max_idle=PG_MAX_IDLE_TIMEOUT,
-                timeout=PG_CONNECT_TIMEOUT,
-                reconnect_timeout=PG_RECONNECT_TIMEOUT,
-                connection_class=psycopg.AsyncConnection,
-                kwargs={"row_factory": dict_row},
-                name=self._sanitized_connection_uri,
-            )
-            await self._pool.open()
-            logger.trace("postgres.pool.open", pool=self, span="current")
+            await self._do_open()
+
+    async def _do_close(self):
+        if self._pool is None:
+            return  # already closed
+        assert self._pool is not None, f"already closed: {self._pool!r}"
+        await self._pool.close()
+        self._pool = None
+        logger.trace("postgres.pool.close", pool=self, span="current")
 
     @tracer.start_as_current_span("postgres.pool.close")
     async def close(self):
         """Closes the connection pool (stop allowing new connections)."""
         async with self._pool_lock:
-            if self._pool is None:
-                return  # already closed
-            assert self._pool is not None, f"already closed: {self._pool!r}"
-            await self._pool.close()
-            self._pool = None
-            logger.trace("postgres.pool.close", pool=self, span="current")
+            await self._do_close()
 
     @tracer.start_as_current_span("postgres.pool.acquire")
     async def acquire(self, autocommit: bool = False) -> "AsyncPostgresConnection":
         """Connects to the pool."""
-        if not self.is_open:
-            await self.open()
         async with self._pool_lock:
+            if not self.is_open:
+                await self._do_open()
             assert self._pool is not None, f"pool not open: {self._pool!r}"
             conn = await self._pool.getconn()
             connection = AsyncPostgresConnection(self, conn)
@@ -151,9 +157,9 @@ class AsyncPostgresPool:
             await self._pool.putconn(connection.conn)
             self._connections.remove(connection)
             logger.trace("postgres.pool.release", pool=self, connection=connection, span="current")
-        # auto close if no more connections
-        if not self.is_used:
-            await self.close()
+            # auto close if no more connections
+            if not self.is_used:
+                await self._do_close()
 
     async def __aenter__(self):
         await self.open()

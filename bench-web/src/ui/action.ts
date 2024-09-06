@@ -414,7 +414,7 @@ export function fireAction(
   if (action.isEnabled != null && !toValue(action.isEnabled)) return false;
   if (action.kind == "static") {
     // static: just call callback directly
-    log.info("action.static", action.id);
+    log.trace("action.static", action.id);
     const ret = action.action(action, context);
     return typeof ret === "boolean" ? ret : true;
   } else if (action.kind == "virtual") {
@@ -423,13 +423,13 @@ export function fireAction(
       let impl = view.exposed?.actions?.[action.id];
       if (typeof impl == "function") impl = { action: impl };
       if (impl != null && (impl.isEnabled == null || toValue(impl.isEnabled) == true)) {
-        log.info("action.virtual", action.id);
+        log.trace("action.virtual", action.id);
         const ret = impl.action(action, context);
         if (typeof ret != "boolean" || ret === true) return true;
         /** else: keep searching up */
       }
     }
-    log.debug("action.virtual", action.id, "no implementing view", viewsInOrder);
+    log.trace("action.virtual", action.id, "no implementing view", viewsInOrder);
     if (isDeveloperMode.value) {
       toaster.debug({
         title: `Can't ${toValue(action.title)} Here`,

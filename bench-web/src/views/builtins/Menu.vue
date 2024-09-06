@@ -103,7 +103,7 @@ function clear() {
 /** Triggers the action for the given item */
 function fire(itemIdx: number) {
   const item = props.items[itemIdx];
-  log.debug("menu.fire", item.id);
+  log.trace("menu.fire", item.id);
   activeItemIdx.value = itemIdx;
   if (typeof item.action == "object") {
     if (activeNestedItemIdx.value == itemIdx) {

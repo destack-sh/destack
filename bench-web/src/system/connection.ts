@@ -882,7 +882,7 @@ async function gcInactiveConnections() {
       DateTime.now().diff(c.lastReferencedAt).milliseconds > INACTIVE_CONNECTION_TIMEOUT,
   );
   if (inactiveConnections.length > 0) {
-    log.debug("graph.gcInactiveConnections", { count: inactiveConnections.length });
+    log.trace("graph.gcInactiveConnections", { count: inactiveConnections.length });
     await Promise.all(inactiveConnections.map((c) => _removeConnection(c)));
   }
 }
