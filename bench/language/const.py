@@ -2,7 +2,7 @@ import contextvars
 import secrets
 import typing
 from datetime import datetime, timedelta
-from typing import Any, Mapping, Optional, cast
+from typing import Any, Mapping, Optional, TypeGuard, cast
 from uuid import UUID
 
 from bench.utils.func import IdEnum, bittuple, cyrb53a
@@ -402,20 +402,20 @@ OBJECT_TYPES_SET: frozenset[ObjectType] = frozenset(OBJECT_TYPES)
 BENCH_TYPES: bittuple[BenchType] = bittuple(*BenchType)  # type: ignore
 
 
-def is_node_type(obj: IdEnum | int) -> bool:
-    return obj in NODE_TYPES_SET
+def is_node_type(obj: IdEnum | int | Any) -> TypeGuard[NodeType]:
+    return isinstance(obj, int) and obj in NODE_TYPES_SET
 
 
-def is_struct_type(obj: IdEnum | int) -> bool:
-    return obj in STRUCT_TYPES_SET
+def is_struct_type(obj: IdEnum | int | Any) -> TypeGuard[StructType]:
+    return isinstance(obj, int) and obj in STRUCT_TYPES_SET
 
 
-def is_object_type(obj: IdEnum | int) -> bool:
-    return obj in OBJECT_TYPES_SET
+def is_object_type(obj: IdEnum | int | Any) -> TypeGuard[ObjectType]:
+    return isinstance(obj, int) and obj in OBJECT_TYPES_SET
 
 
-def is_enum_type(obj: IdEnum | int) -> bool:
-    return obj in ENUM_TYPES_SET
+def is_enum_type(obj: IdEnum | int | Any) -> TypeGuard[EnumType]:
+    return isinstance(obj, int) and obj in ENUM_TYPES_SET
 
 
 @enum_(EnumType.CLOUD)
