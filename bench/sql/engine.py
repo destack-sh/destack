@@ -479,27 +479,22 @@ def _pg_lower_conditional(node: Union[type[Node], Block], cond: Expression) -> E
     prop = cond.property
 
     # translate general pointer queries into underlying id/ck queries
-    if prop is not None and prop.reference_kind is not None and cond.value_packed is not None:
+    if prop is not None and prop.reference_kind is not None:
         assert prop.reference_stored_ids, f"unexpected stored ids: {prop!r}"
-        assert cond.value is not None, f"missing value for {cond!r}"
         is_list = cond.op == ConditionalOp.IN or cond.op == ConditionalOp.NOT_IN
         id_prop = prop.reference_stored_ids[0]
-        id_clause = C(
-            op=cond.op,
-            property=id_prop,
-            value=cond.value.id if not is_list else [r.id for r in cond.value],
-        )
+        id_clause = C(op=cond.op, property=id_prop)
+        if cond.value_packed is not None:
+            id_clause.value = cond.value.id if not is_list else [r.id for r in cond.value]
         if (
-            prop.reference_stored_meta
-            and "ck" in prop.reference_stored_meta
-            and prop.reference_stored_meta["ck"] is not id_prop
+            prop.reference_stored_metas
+            and "ck" in prop.reference_stored_metas
+            and prop.reference_stored_metas["ck"] is not id_prop
         ):
-            ck_prop = prop.reference_stored_meta["ck"]
-            ck_clause = C(
-                op=cond.op,
-                property=ck_prop,
-                value=cond.value.ck if not is_list else [r.ck for r in cond.value],
-            )
+            ck_prop = prop.reference_stored_metas["ck"]
+            ck_clause = C(op=cond.op, property=ck_prop)
+            if cond.value_packed is not None:
+                ck_clause.value = cond.value.ck if not is_list else [r.ck for r in cond.value]
             joint_clause = C(ConditionalOp.OR, clauses=[id_clause, ck_clause])
             return joint_clause
         else:
@@ -1228,7 +1223,7 @@ def _pg_pack_node_reference_into_row(
     # unravel reference
     assert prop.reference_stored_ids is not None, f"no stored ids for {prop!r}"
     assert prop.reference_stored_ids_by_type is not None, f"no stored ids for {prop!r}"
-    assert prop.reference_stored_meta is not None, f"no stored extras for {prop!r}"
+    assert prop.reference_stored_metas is not None, f"no stored extras for {prop!r}"
     if prop.is_list:  # list reference
         # map to references list
         if value is None:
@@ -1244,7 +1239,7 @@ def _pg_pack_node_reference_into_row(
             stored_prop = prop.reference_stored_ids_by_type[cast(NodeType, ref.type)]
             row[stored_prop.name].append(ref.id)
         # additional pointer metadata
-        for meta_key, meta_prop in prop.reference_stored_meta.items():
+        for meta_key, meta_prop in prop.reference_stored_metas.items():
             row[meta_prop.name] = [getattr(v, meta_key) for v in references]
     else:  # single reference
         # map to single reference
@@ -1262,7 +1257,7 @@ def _pg_pack_node_reference_into_row(
             else:
                 row[stored_prop.name] = None
         # additional pointer metadata
-        for meta_key, meta_prop in prop.reference_stored_meta.items():
+        for meta_key, meta_prop in prop.reference_stored_metas.items():
             row[meta_prop.name] = getattr(value, meta_key) if value is not None else None
 
 
@@ -1286,7 +1281,7 @@ def _pg_unpack_node_reference_from_row(prop: Property, row: RowOut, node: AnyNod
         bench_id = str(bench_id)
 
     assert prop.reference_stored_ids is not None, f"no stored ids for {prop!r}"
-    assert prop.reference_stored_meta is not None, f"no stored extras for {prop!r}"
+    assert prop.reference_stored_metas is not None, f"no stored extras for {prop!r}"
     assert prop.reference_wired_ptr is not None, f"no wired ptr for {prop!r}"
     if prop.is_list:  # list reference
         # can only be a a set of id props + a single ck prop
@@ -1304,7 +1299,7 @@ def _pg_unpack_node_reference_from_row(prop: Property, row: RowOut, node: AnyNod
         setattr(node, prop.reference_wired_ptr.name, ptrs)
         # additional pointer metadata
         for i, ptr in enumerate(ptrs):
-            for meta_key, meta_prop in prop.reference_stored_meta.items():
+            for meta_key, meta_prop in prop.reference_stored_metas.items():
                 extra_value = cast(list, row.get(meta_prop.name))[i]
                 if extra_value is None:
                     continue
@@ -1338,7 +1333,7 @@ def _pg_unpack_node_reference_from_row(prop: Property, row: RowOut, node: AnyNod
             ptr = None
         # additional pointer metadata
         if ptr is not None:
-            for meta_key, meta_prop in prop.reference_stored_meta.items():
+            for meta_key, meta_prop in prop.reference_stored_metas.items():
                 extra_value = row.get(meta_prop.name)
                 if extra_value is None:
                     continue
