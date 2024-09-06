@@ -257,8 +257,12 @@ def trim_otel_span(_, __, event_dict: Any):
 def inline_otel_span(_, __, event_dict: Any):
     """Always adds the current span"""
     span = trace.get_current_span()
-    event_dict["trace_id"] = span.get_span_context().trace_id
-    event_dict["span_id"] = span.get_span_context().span_id
+    trace_id = span.get_span_context().trace_id
+    span_id = span.get_span_context().span_id
+    if not trace_id or not span_id:
+        return event_dict  # not enabled
+    event_dict["trace_id"] = trace_id
+    event_dict["span_id"] = span_id
     if "span" in event_dict:
         del event_dict["span"]
     return event_dict

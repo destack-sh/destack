@@ -263,14 +263,12 @@ class Runtime:
                             raise  # give up if not retryable (anymore)
                     finally:
                         runner.inner_task = None
-                        attempt._do_set("terminated_at", self.oracle.utc(), validate=False)
+                        terminated_at = self.oracle.utc()
+                        attempt._do_set("terminated_at", terminated_at, validate=False)
                         attempt._do_set("terminated_epoch", self.session.epoch, validate=False)
                         assert attempt.started_at, f"missing started_at for attempt {attempt!r}"
-                        attempt._do_set(
-                            "duration",
-                            (attempt.terminated_at - attempt.started_at).total_seconds(),  # type: ignore
-                            validate=False,
-                        )
+                        duration = (terminated_at - attempt.started_at).total_seconds()
+                        attempt._do_set("duration", duration, validate=False)
             else:
                 raise retry.to_error()  # give up
         finally:

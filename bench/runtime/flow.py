@@ -331,6 +331,7 @@ class FlowRunner(Runner[RunnerCache, Block]):
             raise
 
 
+@dataclass(slots=True, repr=False)
 class StepRunnerBase(Runner[RunnerCache, Step], abc.ABC):
     outer_task: asyncio.Task | None = None
     flow: FlowRunner | None = None
