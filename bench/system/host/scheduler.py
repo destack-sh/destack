@@ -95,7 +95,7 @@ class QueueRunPlugin(HostPlugin[Run]):
                 title="Failed to queue run",
                 text=Text.from_markdown("Could not reach any currently available machine."),
             )
-            async with self.host.session(commit=True):
+            async with self.host.session(commit=True):  # :StaleNodes
                 run.status = RunStatus.FAILED
                 run.error = error
             log.error(

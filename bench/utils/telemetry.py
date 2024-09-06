@@ -19,6 +19,7 @@ from bench.utils.env import ENV, IS_DEBUG, IS_DEV
 from bench.utils.utils import get_from_env
 
 VERSION = Path("version").read_text().strip()
+OTLP_ENDPOINT = get_from_env("OTLP_ENDPOINT", description="Full URL to send OTLP traces to")
 
 _setup_tracing = False
 _processor: BatchSpanProcessor | None = None
@@ -62,7 +63,6 @@ def setup_tracing():
     from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
     from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 
-    OLTP_ENDPOINT = get_from_env("OTLP_ENDPOINT", description="Full URL to send OTLP traces to")
     resource = Resource(
         attributes={
             SERVICE_NAME: get_from_env(
@@ -73,12 +73,12 @@ def setup_tracing():
         }
     )
     tracer_provider = TracerProvider(resource=resource)
-    _processor = BaggageBatchSpanProcessor(OTLPSpanExporter(endpoint=OLTP_ENDPOINT, insecure=True))
+    _processor = BaggageBatchSpanProcessor(OTLPSpanExporter(endpoint=OTLP_ENDPOINT, insecure=True))
     tracer_provider.add_span_processor(_processor)
     trace.set_tracer_provider(tracer_provider)
 
     reader = PeriodicExportingMetricReader(
-        OTLPMetricExporter(endpoint=OLTP_ENDPOINT, insecure=True),
+        OTLPMetricExporter(endpoint=OTLP_ENDPOINT, insecure=True),
     )
     meter_provider = MeterProvider(resource=resource, metric_readers=[reader])
     metrics.set_meter_provider(meter_provider)

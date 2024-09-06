@@ -1037,7 +1037,6 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
 
     def _do_set(self, key: str, value, *, track: bool = True, validate: bool = True):
         """Sets *any* attribute on this node."""
-        is_tracked = track and self._session is not None
         prop = self.__properties__.get(key)
         if prop is not None:
             if prop.is_untracked:
@@ -1045,13 +1044,10 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
                 return
 
             # remember old value
-            if is_tracked and (validate or self.__is_node__):
-                old_value = getattr(self, key)
-            else:
-                old_value = None
+            old_value = getattr(self, key) if track and (validate or self.__is_node__) else None
 
             # validate/set
-            if is_tracked and validate:
+            if track and validate:
                 # coerce & check type (if it's not a contributed property, which only we edit)
                 if prop._type_info is not None and prop.reference_source is None:
                     value = coerce_value(
@@ -1073,9 +1069,10 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
                 object.__setattr__(self, key, value)
 
             # track edit in session
-            if is_tracked and self.__is_node__:
+            if track and self.__is_node__:
                 node = cast("Node", self)
                 if not node._is_new:
+                    assert self._session is not None, f"{self!r} is not in a Session"
                     if self._updated_properties is None:
                         self._updated_properties = bitarray(self.__max_property_ord__ + 1)
                     if prop.is_value_runtime:
@@ -1083,18 +1080,18 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
                         value_packed_ptr = cast(Property, prop.value_packed_ptr)
                         old_value = getattr(self, value_packed_ptr.name)
                         self._updated_properties[value_packed_ptr.ord] = True
-                        cast("Session", self._session)._update(
+                        self._session._update(
                             node,
                             properties=(value_packed_ptr,),
                             old_values={value_packed_ptr.id: old_value},
                         )
                     else:
                         self._updated_properties[prop.ord] = True
-                        cast("Session", self._session)._update(
+                        self._session._update(
                             node, properties=(prop,), old_values={prop.id: old_value}
                         )
             return
-        elif is_tracked and self.__passthrough__ is not None:
+        elif track and self.__passthrough__ is not None:
             # try passthrough target (if any)
             for passthrough_key in self.__passthrough__:
                 target = getattr(self, passthrough_key, UNSET)

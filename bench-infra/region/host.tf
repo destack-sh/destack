@@ -22,7 +22,8 @@ locals {
     GLOBAL_PG_PASSWORD   = var.global_pg_password
     GLOBAL_PG_CRYPTO_KEY = var.global_pg_crypto_key
 
-    TRACING   = 0
+    OTLP_ENDPOINT = "http://jaeger.monitoring.svc.cluster.local:4317"
+    TRACING   = 1
     LOG_LEVEL = "DEBUG"
     LOG_MODE  = "JSON"
 

@@ -43,7 +43,7 @@ def setup_env():
         dir = dir.parent
 
     for dot_env_path in dot_env_paths:
-        dotenv.load_dotenv(dot_env_path, verbose=True, override=False)
+        dotenv.load_dotenv(dot_env_path, verbose=True, override=True)
 
 
 IS_DEBUG: bool = hasattr(sys, "gettrace") and sys.gettrace() is not None

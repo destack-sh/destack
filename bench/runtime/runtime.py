@@ -4,7 +4,7 @@ from typing import Any, Mapping
 from uuid import UUID
 
 import structlog
-from opentelemetry import trace
+from opentelemetry import baggage, context, trace
 
 from bench.language.block import Block
 from bench.language.code import Code, CodeType
@@ -285,6 +285,7 @@ class Runtime:
         """Runs a Runner, retrying automatically and updating the Run along the way."""
         run = runner.run
         assert run is not None, f"missing run in {runner!r}"
+        context.attach(baggage.set_baggage("run_id", str(run.id)))
 
         # NOTE :Performance: update the run as efficiently as possible :RuntimeHotPath
 
