@@ -96,7 +96,7 @@ class EditStack {
       buffer.tx.with({ connectionId, change }).addEdit(undoEdit);
       buffer.tx.clearDebounce(edit.id!); // 'freeze' the original edit
     }
-    log.debug("edit.undo", { edits, undoEdits, undoIndex: this._undoIndex });
+    log.info("edit.undo", { edits, undoEdits, undoIndex: this._undoIndex });
   }
 
   /**
@@ -132,7 +132,7 @@ class EditStack {
       buffer.tx.with({ connectionId, change }).addEdit(redoEdit);
       buffer.tx.clearDebounce(edit.id!); // 'freeze' the original edit
     }
-    log.debug("edit.undo", { edits, redoEdits, undoIndex: this._undoIndex });
+    log.info("edit.undo", { edits, redoEdits, undoIndex: this._undoIndex });
   }
 
   subscribeToBuffer(buffer: TransactionBuffer): () => void {

@@ -3,14 +3,11 @@ import { toCamelName } from "@/language/const";
 import { Orientation, RegionArea } from "@/proto/wire";
 import { isDeveloperMode } from "@/system/client";
 import { connections, hasPendingConnections } from "@/system/connection";
-import { ICON_BY_REGION_AREA, IconInline, makeIcon } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
 import { GEOLOCATION } from "@/utils/geolocation";
 import Popover from "@/views/builtins/Popover.vue";
 import Scroll from "@/views/containers/Scroll.vue";
-import { computed, ref, type Ref } from "vue";
-
-const geolocationIcon = computed(() => (GEOLOCATION.value?.area ? ICON_BY_REGION_AREA[GEOLOCATION.value?.area] : null));
+import { ref, type Ref } from "vue";
 
 const expandedConnectionId: Ref<number | null> = ref(null);
 </script>
@@ -28,9 +25,8 @@ const expandedConnectionId: Ref<number | null> = ref(null);
         "
         @click.stop="toggle"
       >
-        <IconInline
-          v-bind="geolocationIcon ?? makeIcon({ faName: 'fas fa-cloud' })"
-          class="transition-colors duration-75"
+        <i
+          class="fa-globe fas transition-colors duration-75"
           :class="
             !hasPendingConnections
               ? ' text-gray-700 hover:text-primary-900'

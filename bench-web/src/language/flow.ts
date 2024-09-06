@@ -653,7 +653,7 @@ export class FlowContext {
     try {
       if (this.draggable?.kind == "step-port" && at.kind == "step-port") {
         if (portIdEquals(this.draggable.port, at.port)) return; // no-op
-        log.debug("flow.drag.connect", { from: this.draggable.port, to: at.port });
+        log.info("flow.drag.connect", { from: this.draggable.port, to: at.port });
         createPipe(this.tx, this.graph, {
           parent: this.flow.value,
           pipe: { type: PipeType.THEN },
