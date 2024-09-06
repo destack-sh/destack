@@ -90,7 +90,7 @@ export interface GetNodesResponse {
      */
     connectionToken: string;
 }
-// NOTE :Architecture: the # :ConnectionUpdateOrdering here is suboptimal
+// NOTE :Architecture: the :ConnectionUpdateOrdering here is not strictly correct
 //  (currently we assume added/removed_nodes, then edits, then cascaded_edits for updates)
 
 /**

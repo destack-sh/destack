@@ -1910,6 +1910,7 @@ message PropertyReferenceData {
   optional ObjectType type = 30;
   int32 id = 31;
   optional NodeType references_node = 32;
+  optional string references_meta = 33;
 }
 
 // A stored query.
@@ -2688,7 +2689,7 @@ message MessageData {
 // A Node with properties like a Struct and a global identity in our graph.
 // Conceptually, all nodes live together happily in a single giant supergraph.
 // In practice, there are multiple stores and we load smaller subgraphs at runtime.
-// Nodes resolve references to each through a super graph composed of *currently loaded* NodeGraphs.
+// Nodes resolve references to each through a super graph comprising *currently loaded* graphs.
 message BaseNodeData {
   ObjectType metatype = 1;
   string id = 2;

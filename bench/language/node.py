@@ -1406,6 +1406,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         same_bench=True,
         baseless=True,
     )
+    # managed_by? owned_by?
     if TYPE_CHECKING:
         created_by_id: Optional[UUID] = None
         created_by_type: NodeType | None = None
@@ -2155,6 +2156,7 @@ class PropertyReference(Struct):
     type: ObjectType | None = p_regular(30)
     id: int = p_regular(31)
     references_node: Optional[NodeType] = p_internal(32)  # disambiguate reference properties
+    references_meta: Optional[str] = p_internal(33, default=None)
 
     def __content_str__(self):
         object_cls = Node if self.type is None else OBJECT_CLASS_BY_TYPE.get(self.type)
@@ -2177,16 +2179,6 @@ class PropertyReference(Struct):
         else:
             return OBJECT_CLASS_BY_TYPE.get(self.type)
 
-    @override
-    def _validate_component(self, properties: tuple[Property, ...], invalid: "ValidationHandler"):
-        object_cls = self.object_cls
-        if object_cls is None:
-            invalid(self, "invalid type", (PropertyReference.type,))
-        else:
-            prop = object_cls.__properties_by_id__.get(self.id)
-            if prop is None:
-                invalid(self, "invalid prop id", (PropertyReference.id,))
-
     def resolve(self) -> Property:
         resolved = self.resolve_maybe()
         if resolved is None:
@@ -2196,13 +2188,17 @@ class PropertyReference(Struct):
     def resolve_maybe(self) -> "Property | None":
         object_cls = self.object_cls
         prop = (object_cls or Node).__properties_by_id__.get(self.id)
-        if prop is None:
-            return None
-        if self.references_node is not None:
-            assert prop.reference_stored_ids_by_type is not None, f"{prop!r} has no stored ids"
-            prop = prop.reference_stored_ids_by_type.get(self.references_node)
-            if prop is None:
-                return None
+        if prop is not None:
+            if self.references_meta is not None:
+                assert prop.reference_stored_metas is not None, f"{prop!r} has no stored metas"
+                meta_prop = prop.reference_stored_metas.get(self.references_meta)  # type: ignore
+                if meta_prop is not None:
+                    return meta_prop
+            if self.references_node is not None:
+                assert prop.reference_stored_ids_by_type is not None, f"{prop!r} has no stored ids"
+                id_prop = prop.reference_stored_ids_by_type.get(self.references_node)
+                if id_prop is not None:
+                    return id_prop
         return prop
 
 

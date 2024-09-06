@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.09.05.3"
+VERSION = "2024.09.06.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -2096,6 +2096,7 @@ class PropertyReferenceData(betterproto.Message):
     type: Optional["ObjectType"] = betterproto.enum_field(30, optional=True)
     id: int = betterproto.int32_field(31)
     references_node: Optional["NodeType"] = betterproto.enum_field(32, optional=True)
+    references_meta: Optional[str] = betterproto.string_field(33, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -3011,7 +3012,7 @@ class BaseNodeData(betterproto.Message):
     A Node with properties like a Struct and a global identity in our graph.
      Conceptually, all nodes live together happily in a single giant supergraph.
      In practice, there are multiple stores and we load smaller subgraphs at runtime.
-     Nodes resolve references to each through a super graph composed of *currently loaded* NodeGraphs.
+     Nodes resolve references to each through a super graph comprising *currently loaded* graphs.
     """
 
     metatype: "ObjectType" = betterproto.enum_field(1)

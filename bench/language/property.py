@@ -113,7 +113,8 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
     reference_stored_ids: tuple["Property", ...] | None = None  # stored representation
     reference_stored_props: tuple["Property", ...] | None = None
     reference_stored_ids_by_type: dict[NodeType, "Property"] | None = None
-    reference_stored_meta: dict[PropertyReferenceMetadata, "Property"] | None = None
+    reference_stored_metas: dict[PropertyReferenceMetadata, "Property"] | None = None
+    reference_meta: PropertyReferenceMetadata | None = None
     reference_source: Optional["Property"] = None
     reference_struct: StructType | None = None  # for struct child types
     reference_is_node_data: bool = False
@@ -207,6 +208,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
             if self.reference_source is not None and self.reference_source.is_node_reference:
                 assert self.reference_nodes is not None, f"missing reference nodes for {self!r}"
                 ref.references_node = self.reference_nodes[0]
+                ref.references_meta = self.reference_meta
             self._cached_as_ref = ref
         return self._cached_as_ref
 
@@ -503,6 +505,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
                     py_type_raw=list[UUID] if is_list else UUID,
                     reference_nodes=tuple(shared_ptr_types),
                     reference_source=self,
+                    reference_meta="id",
                     is_runtime=False,
                     is_wired=False,
                     is_stored=True,
@@ -524,6 +527,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
                         py_type_raw=list[UUID] if is_list else UUID,
                         reference_nodes=tuple(shared_ptr_types),
                         reference_source=self,
+                        reference_meta="ck",
                         is_runtime=False,
                         is_wired=False,
                         is_stored=True,
@@ -541,6 +545,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
                         component=self.component,
                         py_type_raw=list[NodeType] if is_list else NodeType,
                         reference_source=self,
+                        reference_meta="type",
                         is_runtime=False,
                         is_wired=False,
                         is_stored=True,
@@ -564,6 +569,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
                     py_type_raw=list[UUID] if is_list else UUID,
                     reference_kind=self.reference_kind,
                     reference_source=self,
+                    reference_meta="bench_id",
                     reference_nodes=(NodeType.BENCH,),
                     is_runtime=False,
                     is_wired=False,
@@ -586,6 +592,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
                     reference_kind=self.reference_kind,
                     py_type_raw=list[UUID] if is_list else UUID,
                     reference_source=self,
+                    reference_meta="base_ck",
                     is_runtime=False,
                     is_wired=False,
                     is_stored=True,
@@ -602,6 +609,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
                     stored_base_bench_id = extra_stored_props["bench_id"].clone()
                     stored_base_bench_id.is_required = False
                     stored_base_bench_id.name = self.name + "_base_bench_id"
+                    stored_base_bench_id.reference_meta = "base_bench_id"
                     extra_stored_props["base_bench_id"] = stored_base_bench_id
 
             # index contributed info into this property
@@ -612,7 +620,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
             self.reference_stored_ids = tuple(stored_ids)
             self.reference_stored_ids_by_type = frozendict(stored_ids_by_type)
             self.reference_stored_props = tuple(stored_ids + list(extra_stored_props.values()))
-            self.reference_stored_meta = frozendict(extra_stored_props)
+            self.reference_stored_metas = frozendict(extra_stored_props)
 
             return (self.reference_wired_ptr, *stored_ids, *extra_stored_props.values())
         elif self.reference_wired_ptr:
