@@ -14,7 +14,7 @@ from bench.utils.env import setup_env
 setup_env()
 
 from bench.utils.logging import setup_logging  # noqa: E402
-from bench.utils.tracing import setup_tracing  # noqa: E402
+from bench.utils.telemetry import setup_tracing  # noqa: E402
 
 setup_logging()
 setup_tracing()

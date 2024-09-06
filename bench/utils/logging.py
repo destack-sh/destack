@@ -240,6 +240,19 @@ def trim_logger(_, __, event_dict: Any):
     return event_dict
 
 
+def inline_object_keys(_, __, event_dict: Any):
+    """Inline key object attributes (so we get the repr + specific attributes to search)"""
+    inlined = {}
+    for key, value in event_dict.items():
+        if id := getattr(value, "id", None):
+            inlined[f"{key}_id"] = str(id)
+        if ck := getattr(value, "ck", None):
+            inlined[f"{key}_ck"] = str(ck)
+    for key, value in inlined.items():
+        event_dict[key] = value
+    return event_dict
+
+
 def trim_otel_span(_, __, event_dict: Any):
     """Removes the span, adds a duration if it's the current main span"""
     event_dict["duration"] = ""  # default to blank duration (for padding)
@@ -257,22 +270,22 @@ def trim_otel_span(_, __, event_dict: Any):
 def inline_otel_span(_, __, event_dict: Any):
     """Always adds the current span"""
     span = trace.get_current_span()
+    if "span" in event_dict:
+        del event_dict["span"]
     trace_id = span.get_span_context().trace_id
     span_id = span.get_span_context().span_id
     if not trace_id or not span_id:
         return event_dict  # not enabled
     event_dict["trace_id"] = trace_id
     event_dict["span_id"] = span_id
-    if "span" in event_dict:
-        del event_dict["span"]
     return event_dict
 
 
-TRACE = 5
+_TRACE_LEVEL = 5
 
 
 def _trace(self, msg, *args, **kw):
-    return self.log(TRACE, msg, *args, **kw)
+    return self.log(_TRACE_LEVEL, msg, *args, **kw)
 
 
 _setup_logging = False
@@ -284,15 +297,15 @@ def setup_logging(apply_logging: bool = True, apply_structlog: bool = True):
         return
 
     # add trace logging level
-    _add_logging_level("TRACE", logging.DEBUG - TRACE, "trace")
-    structlog.stdlib.TRACE = TRACE  # type: ignore
-    structlog.stdlib.NAME_TO_LEVEL["trace"] = TRACE  # type: ignore
-    structlog.stdlib.LEVEL_TO_NAME[TRACE] = "trace"  # type: ignore
+    _add_logging_level("TRACE", logging.DEBUG - _TRACE_LEVEL, "trace")
+    structlog.stdlib.TRACE = _TRACE_LEVEL  # type: ignore
+    structlog.stdlib.NAME_TO_LEVEL["trace"] = _TRACE_LEVEL  # type: ignore
+    structlog.stdlib.LEVEL_TO_NAME[_TRACE_LEVEL] = "trace"  # type: ignore
     structlog.stdlib._FixedFindCallerLogger.trace = _trace  # type: ignore
     structlog.stdlib.BoundLogger.trace = _trace  # type: ignore
     structlog.stdlib.AsyncBoundLogger.trace = _trace  # type: ignore
-    structlog._native.LEVEL_TO_FILTERING_LOGGER[TRACE] = (  # type: ignore
-        structlog._native._make_filtering_bound_logger(TRACE)  # type: ignore
+    structlog._native.LEVEL_TO_FILTERING_LOGGER[_TRACE_LEVEL] = (  # type: ignore
+        structlog._native._make_filtering_bound_logger(_TRACE_LEVEL)  # type: ignore
     )
     for logger in structlog._native.LEVEL_TO_FILTERING_LOGGER.values():  # type: ignore
         logger.trace = _trace
@@ -301,23 +314,25 @@ def setup_logging(apply_logging: bool = True, apply_structlog: bool = True):
     if apply_logging:
         logging.config.dictConfig(LOGGING)
     if apply_structlog:
+        pre_processors = [
+            structlog.stdlib.add_log_level,
+            structlog.stdlib.filter_by_level,
+            structlog.stdlib.add_logger_name,
+            structlog.processors.TimeStamper(fmt="iso", utc=True, key="timestamp"),
+        ]
+        if LOG_MODE == LogMode.PLAIN:
+            custom_processors = [trim_logger, trim_otel_span]
+        else:
+            custom_processors = [inline_object_keys, inline_otel_span]
+        post_processors = [
+            structlog.stdlib.PositionalArgumentsFormatter(),
+            structlog.processors.StackInfoRenderer(),
+            structlog.processors.format_exc_info,
+            structlog.processors.UnicodeDecoder(),
+            structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
+        ]
         structlog.configure(
-            processors=[
-                structlog.stdlib.add_log_level,
-                structlog.stdlib.filter_by_level,
-                structlog.stdlib.add_logger_name,
-                structlog.processors.TimeStamper(fmt="iso", utc=True, key="timestamp"),
-                *(
-                    (trim_logger, trim_otel_span)
-                    if LOG_MODE == LogMode.PLAIN
-                    else (inline_otel_span,)
-                ),
-                structlog.stdlib.PositionalArgumentsFormatter(),
-                structlog.processors.StackInfoRenderer(),
-                structlog.processors.format_exc_info,
-                structlog.processors.UnicodeDecoder(),
-                structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
-            ],
+            processors=[*pre_processors, *custom_processors, *post_processors],
             context_class=dict,
             logger_factory=structlog.stdlib.LoggerFactory(),
             wrapper_class=structlog.make_filtering_bound_logger(PYTHON_LOG_LEVEL),

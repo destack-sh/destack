@@ -6,7 +6,6 @@ from enum import Enum, StrEnum
 from typing import Optional, Type, cast
 
 import cachetools
-import sentry_sdk
 
 
 def str_to_bool(value: str) -> bool:
@@ -92,13 +91,6 @@ def get_method_source(method) -> str:
         cleaned_lines.append(line)
 
     return textwrap.dedent("".join(cleaned_lines))
-
-
-def sentry_capture(e: BaseException) -> bool:
-    sentry_enabled = sentry_sdk.Hub.current is not None
-    if sentry_enabled:
-        sentry_sdk.capture_exception(e)
-    return sentry_enabled
 
 
 def omit_empty(obj):

@@ -1,8 +1,9 @@
 from pathlib import Path
 from time import time_ns
 from typing import Any, Optional, cast
+from uuid import UUID
 
-from opentelemetry import metrics, trace
+from opentelemetry import baggage, context, metrics, trace
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
 from opentelemetry.sdk.resources import (
@@ -22,6 +23,32 @@ VERSION = Path("version").read_text().strip()
 _setup_tracing = False
 _processor: BatchSpanProcessor | None = None
 _reader: PeriodicExportingMetricReader | None = None
+
+
+class BaggageBatchSpanProcessor(BatchSpanProcessor):
+    def on_start(self, span: Span, parent_context: Optional[Any] = None) -> None:
+        super().on_start(span, parent_context)
+        # inherit baggage as span attributes
+        for key, value in baggage.get_all(parent_context).items():
+            span.set_attribute(key, value)  # type: ignore
+
+
+def _render_value(value: Any):
+    if isinstance(value, (str, int, float, bool)):
+        return value
+    elif isinstance(value, UUID):
+        return str(value)
+    else:
+        return repr(value)
+
+
+def set_baggage(**kwargs):
+    """Sets the baggage."""
+    for key, value in kwargs.items():
+        if value is None:
+            continue
+        key = key.replace("__", ".")
+        context.attach(baggage.set_baggage(key, _render_value(value)))
 
 
 def setup_tracing():
@@ -46,7 +73,7 @@ def setup_tracing():
         }
     )
     tracer_provider = TracerProvider(resource=resource)
-    _processor = BatchSpanProcessor(OTLPSpanExporter(endpoint=OLTP_ENDPOINT, insecure=True))
+    _processor = BaggageBatchSpanProcessor(OTLPSpanExporter(endpoint=OLTP_ENDPOINT, insecure=True))
     tracer_provider.add_span_processor(_processor)
     trace.set_tracer_provider(tracer_provider)
 
