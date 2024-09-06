@@ -289,7 +289,10 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
 
             # actually commit
             _, cascaded_edits = await session.commit(_data_graph=data_graph)
-            session.untrack_many(*unpacked_graph.nodes)  # prevent accidental edits
+            # NOTE :Robustness: edited nodes are unsynced copies (from unpack) :StaleNodes
+            #  So we should really untrack them (to disable further edits) or keep them in sync,
+            #   but I'm not sure how that should work yet, and we need to edit them async sometimes
+            #   (e.g. in the scheduler we try scheduling new runs and then mark them as failed).
 
         return edits, cascaded_edits
 

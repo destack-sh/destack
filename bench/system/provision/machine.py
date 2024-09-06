@@ -23,6 +23,7 @@ from bench.system.provision.provisioner import Provisioner
 from bench.utils.analytics import SENTRY_DSN
 from bench.utils.env import ENV, IS_DEV, IS_TEST
 from bench.utils.func import bittuple
+from bench.utils.telemetry import OTLP_ENDPOINT
 from bench.utils.utils import get_from_env, get_from_env_maybe
 
 if TYPE_CHECKING:
@@ -75,7 +76,8 @@ def _get_machine_env_vars(
         "CLIENT_TYPE": str(client.type.value),
         "CLIENT_ACCESS_TOKEN": client.access_token,
         # config
-        "TRACING": "0",
+        "OTLP_ENDPOINT": OTLP_ENDPOINT,
+        "TRACING": "1",
         "LOG_LEVEL": "DEBUG",
         "LOG_MODE": "JSON",
     }

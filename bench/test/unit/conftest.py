@@ -11,9 +11,8 @@ from bench.runtime.remote import RemoteEngine
 from bench.runtime.runtime import Runtime
 from bench.sql.client import pg_connection
 from bench.sql.engine import sqlstr
-from bench.system.host.core import HostProxy
-from bench.system.provision.provisioner import decommission
 from bench.test.conftest import _setup_test_env
+from bench.test.fixtures import delete_test_db
 
 # NOTE: must run setup before importing from bench
 _setup_test_env()
@@ -22,7 +21,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from bench.language import Session, Store
-from bench.language.bench import Bench, Client, Package
+from bench.language.bench import Bench, Client, Package, ResourceStatus
 from bench.language.block import Block
 from bench.language.connection import NullEngine
 from bench.language.const import (
@@ -296,7 +295,10 @@ async def local_runtime_async(global_store: Store):
         async with session:
             yield handle
     finally:
-        await decommission(HostProxy(global_store, session), bench, list(bench.resources))
+        # delete DBs
+        for store in bench.stores:
+            if store.current_status == ResourceStatus.UP:
+                await delete_test_db(store)
 
 
 @pytest.fixture()

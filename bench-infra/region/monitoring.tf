@@ -210,8 +210,7 @@ resource "kubernetes_service" "kube_state_metrics" {
 
 #
 # BetterStack
-# NOTE: see the old notes from https://github.com/symbolx/bench/blob/b2f6ba5c5697cb492de2bf2090cb34e75557fcf6/infra/index.ts
-#  (deploying this is slightly annoying)
+# (see the old notes from https://github.com/symbolx/bench/blob/b2f6ba5c5697cb492de2bf2090cb34e75557fcf6/infra/index.ts)
 #
 
 resource "helm_release" "betterstack_logs" {
@@ -285,6 +284,77 @@ resource "helm_release" "betterstack_logs" {
   ]
 }
 
+# 
+# Jaeger
+# 
+
+resource "kubernetes_deployment" "jaeger" {
+  metadata {
+    name = "jaeger"
+    labels = {
+      app = "jaeger"
+    }
+    namespace = "monitoring"
+  }
+
+  spec {
+    replicas = 1
+
+    selector {
+      match_labels = {
+        app = "jaeger"
+      }
+    }
+
+    template {
+      metadata {
+        labels = {
+          app = "jaeger"
+        }
+      }
+
+      spec {
+        container {
+          image = "jaegertracing/all-in-one:latest"
+          name  = "jaeger"
+
+          port {
+            container_port = 16686
+          }
+          port {
+            container_port = 4317
+          }
+          port {
+            container_port = 4318
+          }
+        }
+      }
+    }
+  }
+}
+
+resource "kubernetes_service" "jaeger" {
+  metadata {
+    name      = "jaeger"
+    namespace = "monitoring"
+  }
+  spec {
+    selector = {
+      app = "jaeger"
+    }
+    port {
+      port = 16686
+      name = "ui"
+    }
+    port {
+      port = 4317
+      name = "grpc"
+    }
+    type = "ClusterIP"
+  }
+}
+
 #
-# TODO :Infra: proper monitoring with prometheus?, betterstack, OLTP, ...s
+# TODO :Infra! :Robustness!: proper monitoring with OLTP metrics/spans/logs/alerts (in one place?)
+#  (Prometheus/Grafana? Honeycomb? Signoz?)
 # 

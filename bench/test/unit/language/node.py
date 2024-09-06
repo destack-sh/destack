@@ -215,7 +215,7 @@ def test_roundtrip_rich_reference(shared_session: Session, shared_package: Packa
     assert unpacked_view.equals(view)
 
 
-@pytest.skip("NOTE :Robustness: check circular node ancestry")
+@pytest.mark.skip("NOTE :Robustness: check circular node ancestry")
 async def test_create_circular_node_ancestry(hosted_runtime: RuntimeHandle):
     """Create a circular node ancestry. Should fail."""
     # page->block1->block2
