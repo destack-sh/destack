@@ -213,3 +213,19 @@ def test_roundtrip_rich_reference(shared_session: Session, shared_package: Packa
         view_data, supergraph=shared_session._supergraph, session=shared_session
     )
     assert unpacked_view.equals(view)
+
+
+@pytest.skip("NOTE :Robustness: check circular node ancestry")
+async def test_create_circular_node_ancestry(hosted_runtime: RuntimeHandle):
+    """Create a circular node ancestry. Should fail."""
+    # page->block1->block2
+    block1 = Block.new(BlockType.CODE, "Code1")
+    hosted_runtime.page().blocks.append(block1)
+    block2 = Block.new(BlockType.CODE, "Code2")
+    block1.blocks.append(block2)
+    await hosted_runtime.session.commit()
+
+    # now force block2->block1
+    block1.parent = block2
+    hosted_runtime.session._move(block1, (), {})
+    await hosted_runtime.session.commit()

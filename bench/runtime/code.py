@@ -35,14 +35,14 @@ tracer = trace.get_tracer(__name__)
 # NOTE :Performance :Robustness: run (some?) sync code in a separate thread?
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, repr=False)
 class CodeRunnerCache[T: RunnableNode](RunnerCache[T]):
     compiled: "CompiledCode | None" = None
     exports: Mapping[str, Any] | None = None  # for scripts
     last_expr_value: Any | None = None  # for snippets
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, repr=False)
 class CodeRunnerBase[T: RunnableNode](Runner[CodeRunnerCache[T], T]):
     """Common base for compiling and running code."""
 

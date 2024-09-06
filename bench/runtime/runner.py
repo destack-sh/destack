@@ -57,7 +57,7 @@ class RunnerCache[T: RunnableNode]:
         return f"<{self.__class__.__name__} {self}"
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, repr=False)
 class Runner[S: RunnerCache, T: RunnableNode](abc.ABC):
     """A runner for a single run (tracked or untracked)."""
 

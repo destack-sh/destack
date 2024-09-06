@@ -64,7 +64,13 @@ class LogSink:
             text_plain = text_plain[: self.max_log_length] + "... <line too long, truncated>"
 
         # NOTE :Incomplete: transform kwargs into freeform LogInfo.values
-        log = LogInfo(created_at=self.oracle.utc(), level=level, text=text, text_plain=text_plain)
+        log = LogInfo(
+            created_at=self.oracle.utc(),
+            level=level,
+            text=text,
+            text_plain=text_plain,
+            _skip_validate_self=True,
+        )
         self.logs.append(log)
 
         # close if overflown
@@ -75,6 +81,7 @@ class LogSink:
                     created_at=self.oracle.utc(),
                     level=LogLevel.WARNING,
                     text_plain=f"<stopping log capture, log overflow (exceeded {self.max_logs} logs)>",
+                    _skip_validate_self=True,
                 )
             )
 
