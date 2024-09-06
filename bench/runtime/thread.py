@@ -27,6 +27,7 @@ from bench.runtime.runtime import Runtime
 from bench.utils.func import CriticalLock
 from bench.utils.oracle import Oracle
 from bench.utils.task import TaskManager
+from bench.utils.telemetry import set_baggage
 
 if TYPE_CHECKING:
     pass
@@ -187,7 +188,6 @@ class RuntimeThread:
         )
         logger.info("thread.start", process=self, bench=self._bench)
 
-    @tracer.start_as_current_span("thread.process_run")
     async def _process_run_queue(self, run_data: RunData):
         # TODO :Robustness Run.created_epoch may be ahead of our own epoch if the sync takes longer to
         #  arrive than the request from the scheduler (both from our Host). This means the caller/user
@@ -199,29 +199,37 @@ class RuntimeThread:
         assert (
             run_data.parent_ptr and UUID(run_data.package_ptr.id) == package.id
         ), f"{run_data!r} not in {package!r}"
-        async with self._session.active(readonly=True):
-            # TODO :Incomplete: watch entire Run (tree) while running to handle pause/abort/...
-            #  (and maybe figure out better way to manage :TransientGraphs in supergraph)
-            graph = NodeGraph(
-                scope=self._session._get_scope_for_node(package),
-                node_types=RUNTIME_NODE_TYPES,
-                supergraph=self._supergraph,
-            )
-            run = wiring.unpack_object_validate(
-                run_data,
-                supergraph=self._supergraph,
-                graph=graph,
-                parent=package,
-                session=self._session,
-                expect=Run,
-            )
-            graph.add(run)
-            self._supergraph.add_graph(graph)
-        try:
-            await self._runner.run_run(run, return_error=True)
-        finally:
-            self._supergraph.remove_graph(graph)
-        logger.info("thread.process_run", process=self, run=run, span="current")
+        set_baggage(
+            bench_id=self._bench_id,
+            client_id=self._client_id,
+            machine_id=self._machine_id,
+            server_id=self._server_id,
+        )
+
+        with tracer.start_as_current_span("thread.process_run"):
+            async with self._session.active(readonly=True):
+                # TODO :Incomplete: watch entire Run (tree) while running to handle pause/abort/...
+                #  (and maybe figure out better way to manage :TransientGraphs in supergraph)
+                graph = NodeGraph(
+                    scope=self._session._get_scope_for_node(package),
+                    node_types=RUNTIME_NODE_TYPES,
+                    supergraph=self._supergraph,
+                )
+                run = wiring.unpack_object_validate(
+                    run_data,
+                    supergraph=self._supergraph,
+                    graph=graph,
+                    parent=package,
+                    session=self._session,
+                    expect=Run,
+                )
+                graph.add(run)
+                self._supergraph.add_graph(graph)
+            try:
+                await self._runner.run_run(run, return_error=True)
+            finally:
+                self._supergraph.remove_graph(graph)
+            logger.info("thread.process_run", process=self, run=run, span="current")
 
     def close(self):
         self._tasks.close()

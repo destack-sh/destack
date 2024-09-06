@@ -406,8 +406,11 @@ class Subject(Struct):
     )
     if TYPE_CHECKING:
         client_ptr: Optional[NodeReference] = None
+        client_id: Optional[UUID] = None
         user_ptr: Optional[NodeReference] = None
+        user_id: Optional[UUID] = None
         server_ptr: Optional[NodeReference] = None
+        server_id: Optional[UUID] = None
 
     # accessories
     identity: Optional["Block"] = p_system(

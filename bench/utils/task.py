@@ -3,7 +3,6 @@ import contextlib
 from typing import Any, Awaitable, Callable, Coroutine
 
 from bench.utils.oracle import Oracle
-from bench.utils.utils import sentry_capture
 
 
 async def _wrap_task(coro: Coroutine, logger, task_id: str, owner: Any) -> None:
@@ -13,13 +12,7 @@ async def _wrap_task(coro: Coroutine, logger, task_id: str, owner: Any) -> None:
         logger.trace(f"{task_id}.cancel", task_id=task_id, owner=owner, exc_info=e)
         pass
     except BaseException as e:
-        logger.exception(
-            f"{task_id}.error",
-            task_id=task_id,
-            owner=owner,
-            exc_info=e,
-            sentry=sentry_capture(e),
-        )
+        logger.exception(f"{task_id}.error", task_id=task_id, owner=owner, exc_info=e)
         raise
 
 
@@ -76,13 +69,7 @@ class TaskManager:
             logger.trace(f"{task_id}.cancel", task_id=task_id, owner=owner, exc_info=e)
             pass
         except BaseException as e:
-            logger.exception(
-                f"{task_id}.error",
-                task_id=task_id,
-                owner=owner,
-                exc_info=e,
-                sentry=sentry_capture(e),
-            )
+            logger.exception(f"{task_id}.error", task_id=task_id, owner=owner, exc_info=e, sentry=e)
             raise
 
     def run(self, coro: Coroutine, task_id: str | None = None) -> None:
@@ -114,11 +101,7 @@ class TaskManager:
                     self._logger.trace("task.cancel", owner=self._owner, task_id=task_id)
                     break
                 self._logger.exception(
-                    "task.error",
-                    owner=self._owner,
-                    task_id=task_id,
-                    exc_info=e,
-                    sentry=sentry_capture(e),
+                    "task.error", owner=self._owner, task_id=task_id, exc_info=e, sentry=e
                 )
                 if not skip_errors:
                     if self._on_error is not None:
@@ -164,11 +147,7 @@ class TaskManager:
                     self._logger.trace("task.cancel", owner=self._owner, task_id=task_id)
                     break
                 self._logger.exception(
-                    "task.error",
-                    owner=self._owner,
-                    task_id=task_id,
-                    exc_info=e,
-                    sentry=sentry_capture(e),
+                    "task.error", owner=self._owner, task_id=task_id, exc_info=e, sentry=e
                 )
                 if not skip_errors:
                     if self._on_error is not None:

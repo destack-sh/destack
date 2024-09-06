@@ -42,8 +42,7 @@ from bench.utils.env import IS_DEV, IS_TEST
 from bench.utils.oracle import Oracle
 from bench.utils.string import Casing, to_casing
 from bench.utils.task import TaskManager
-from bench.utils.tracing import export_now
-from bench.utils.utils import sentry_capture
+from bench.utils.telemetry import export_now, set_baggage
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -177,65 +176,65 @@ class ServiceBase:
         func = self._wrap_rpc_func(func, method_slug, handler)  # custom wrap per service
 
         @functools.wraps(func)
-        @self.tracer.start_as_current_span(rpc_name)
         async def _managed_rpc(stream: grpclib.server.Stream) -> None:
             """Managed RPC call with some instrumentation and error handling."""
 
             log = self.logger.bind(service=self, method=method)
-            span = trace.get_current_span()
-            try:
-                request = cast(betterproto.Message, await stream.recv_message())
-                self.validate_request(request)
+            set_baggage(service=service_slug)
+            with tracer.start_as_current_span(rpc_name) as span:
+                try:
+                    request = cast(betterproto.Message, await stream.recv_message())
+                    self.validate_request(request)
 
-                # prepare
-                metadata: RpcMetadata = unpack_rpc_headers(stream.metadata or {})  # type: ignore
-                if self.kind == ServiceKind.PUBLIC:
-                    subject = await self.get_request_subject(request, metadata)
-                    log = log.bind(subject=subject)
-                else:
-                    subject = None
+                    # prepare
+                    metadata: RpcMetadata = unpack_rpc_headers(stream.metadata or {})  # type: ignore
+                    if self.kind == ServiceKind.PUBLIC:
+                        subject = await self.get_request_subject(request, metadata)
+                        log = log.bind(subject=subject)
+                        set_baggage(
+                            subject__client_id=subject.client_id,
+                            subject__user_id=subject.user_id,
+                            subject__server_id=subject.server_id,
+                        )
+                    else:
+                        subject = None
 
-                # call
-                if cardinality == grpclib.const.Cardinality.UNARY_UNARY:
-                    if self.kind == ServiceKind.PUBLIC:
-                        response = await func(subject, request)
-                    else:
-                        response = await func(request)
-                    await stream.send_message(response)
-                elif cardinality == grpclib.const.Cardinality.UNARY_STREAM:
-                    if self.kind == ServiceKind.PUBLIC:
-                        response_stream = func(subject, request)
-                    else:
-                        response_stream = func(request)
-                    span.end()  # end early (streaming, span shouldn't continue forever)
-                    async for response in response_stream:
-                        log.trace(f"{rpc_name}.update", response=response)
+                    # call
+                    if cardinality == grpclib.const.Cardinality.UNARY_UNARY:
+                        if self.kind == ServiceKind.PUBLIC:
+                            response = await func(subject, request)
+                        else:
+                            response = await func(request)
                         await stream.send_message(response)
-                else:
-                    raise NotImplementedError(f"unsupported cardinality {cardinality}")
-                log.info(rpc_name, span="current")
-
-            except GRPCError as e:
-                # pass through GRPC errors
-                sentry_capture(e)
-                log.info(f"{rpc_name}.error", exc_info=e, span="current")
-                raise
-
-            except BenchError as e:
-                # wrap error
-                log.info(f"{rpc_name}.error", exc_info=e, span="current")
-                status = get_grpc_status_from_bench_error(e)
-                raise GRPCError(status, str(e)) from e
-
-            except Exception as e:
-                # internal error
-                sentry_capture(e)
-                log.error(f"{rpc_name}.internal_error", exc_info=e, span="current")
-                if IS_DEV or IS_TEST:
-                    details = f"{e.__class__.__name__}: {e}"
-                else:
-                    details = e.__class__.__name__
-                raise GRPCError(GRPCStatus.INTERNAL, details) from e
+                    elif cardinality == grpclib.const.Cardinality.UNARY_STREAM:
+                        if self.kind == ServiceKind.PUBLIC:
+                            response_stream = func(subject, request)
+                        else:
+                            response_stream = func(request)
+                        span.end()  # end early (streaming, span shouldn't continue forever)
+                        async for response in response_stream:
+                            log.trace(f"{rpc_name}.update", response=response)
+                            await stream.send_message(response)
+                    else:
+                        raise RuntimeError(f"unsupported cardinality: {cardinality}")
+                    log.info(rpc_name, span="current")
+                except GRPCError as e:
+                    # pass through GRPC errors
+                    log.info(f"{rpc_name}.error", exc_info=e, span="current")
+                    raise
+                except BenchError as e:
+                    # wrap error
+                    log.info(f"{rpc_name}.error", exc_info=e, span="current")
+                    status = get_grpc_status_from_bench_error(e)
+                    raise GRPCError(status, str(e)) from e
+                except Exception as e:
+                    # internal error
+                    log.error(f"{rpc_name}.internal_error", exc_info=e, span="current")
+                    if IS_DEV or IS_TEST:
+                        details = f"{e.__class__.__name__}: {e}"
+                    else:
+                        details = e.__class__.__name__
+                    raise GRPCError(GRPCStatus.INTERNAL, details) from e
 
         return grpclib.const.Handler(_managed_rpc, cardinality, request_type, reply_type)
 

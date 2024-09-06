@@ -82,6 +82,7 @@ from bench.system.utils.session import (
 from bench.utils.env import ENV
 from bench.utils.func import to_uuid
 from bench.utils.oracle import Oracle
+from bench.utils.telemetry import set_baggage
 from bench.utils.utils import get_from_env
 from bench.utils.uuidt import UUIDT
 
@@ -201,6 +202,7 @@ class HostRouterService(ServiceBase, HostBase):
             @functools.wraps(func)
             async def _multiplexed_unary_stream_rpc(subject: Subject, request: betterproto.Message):
                 host = await self._get_host(request)
+                set_baggage(bench_id=host.bench_id)
                 async for response in getattr(host, method_name)(subject, request):
                     yield response
 
