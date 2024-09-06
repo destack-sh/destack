@@ -27,7 +27,7 @@ const humanizedError = computed(() => {
       </span>
       <!-- TODO :UX: help to restore node if not found (and is accessible, else help with policies) -->
     </template>
-    <template v-else-if="!humanizedError">
+    <template v-else-if="!humanizedError || duration.as('seconds') < 5">
       <!-- Loading -->
       <!-- (delay appear to prevent flickering for very fast loads) -->
       <Transition
@@ -51,7 +51,7 @@ const humanizedError = computed(() => {
           <i class="fas fa-cloud-slash text-warning-600" />
           <span class="mt-1.5 text-gray-700">Unable to connect.</span>
           <p class="text-gray-400">
-            (We'll try again. Try the <a :href="DISCORD_URL" class="mt-1 underline" target="_blank">Discord</a>.)
+            (We're retrying. Try the <a :href="DISCORD_URL" class="mt-1 underline" target="_blank">Discord</a>.)
           </p>
         </div>
       </Transition>
@@ -67,7 +67,7 @@ const humanizedError = computed(() => {
         </p>
         <p class="max-w-80 text-gray-900">{{ humanizedError.text }}</p>
         <p class="text-gray-400">
-          (We'll try again. Try the <a :href="DISCORD_URL" class="mt-1 underline" target="_blank">Discord</a>.)
+          (We're retrying. Try the <a :href="DISCORD_URL" class="mt-1 underline" target="_blank">Discord</a>.)
         </p>
       </div>
     </template>

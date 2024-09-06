@@ -154,7 +154,7 @@ async def test_run_flow_error(local_runtime: RuntimeHandle):
     assert runner.run and len(runner.run.runs) == 2
 
 
-async def test_run_flow_error_with_error_port(local_runtime: RuntimeHandle):
+async def test_run_flow_error_with_error_suppressed(local_runtime: RuntimeHandle):
     """Run a code step with an error connected to the error port. Flow should complete."""
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
     Start = Step.new(StepType.START, "Start")

@@ -167,6 +167,7 @@ class Runtime:
                     status=runner.status,
                     inputs=runner.inputs,
                     attempts=runner.attempts,
+                    session=self.session,
                     _skip_validate_self=True,
                 )
                 self.session._create(run)
@@ -290,6 +291,8 @@ class Runtime:
         # NOTE :Performance: update the run as efficiently as possible :RuntimeHotPath
 
         # update context
+        if run.session_id != self.session.id:
+            run._do_set("session", self.session, validate=False)
         run._do_set("client_ptr", self.session.client_ptr, validate=False)
         run._do_set("machine_ptr", self.session.machine_ptr, validate=False)
         run._do_set("server_ptr", self.session.server_ptr, validate=False)

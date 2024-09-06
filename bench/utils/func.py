@@ -135,11 +135,9 @@ def next_or_none(iterator: Iterable[Any]) -> Any | None:
         return None
 
 
-def partition[T](
-    pred: Callable[[T], bool], iterable: Iterable[T]
-) -> tuple[tuple[T, ...], tuple[T, ...]]:
+def partition[T](pred: Callable[[T], bool], iterable: Iterable[T]) -> tuple[list[T], list[T]]:
     t1, t2 = tee(iterable)
-    return tuple(filterfalse(pred, t1)), tuple(filter(pred, t2))
+    return list(filterfalse(pred, t1)), list(filter(pred, t2))
 
 
 def group_by[K, V](iterable: Collection[V], key: typing.Callable[[V], K]) -> dict[K, list[V]]:
