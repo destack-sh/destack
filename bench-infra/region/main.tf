@@ -152,11 +152,12 @@ module "cluster_0" {
   cluster_endpoint_public_access           = true
 
   eks_managed_node_groups = {
-    "bench-${var.env}-${var.region}-system-nodes" = {
-      instance_types = ["t3.medium"]
-      min_size       = 1
-      max_size       = 3
-      desired_size   = 2
+    "bench-${var.env}-${var.region}-nodes" = {
+      instance_types = ["c7g.medium"]
+      ami_type       = "AL2_ARM_64"
+      min_size       = 3
+      max_size       = 6
+      desired_size   = 4
 
       iam_role_use_name_prefix = false
     }

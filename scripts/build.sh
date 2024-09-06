@@ -21,7 +21,6 @@ for IMAGE in ${IMAGES[@]}; do
   # Build the Docker image and tag it properly (with commit hash)
   docker build . \
     --target $IMAGE \
-    --platform linux/amd64 \
     -f bench-infra/docker/Dockerfile.bench \
     -t symbolx/$IMAGE:latest \
     -t symbolx/$IMAGE:$GIT_COMMIT \
