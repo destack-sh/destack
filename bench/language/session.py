@@ -11,6 +11,7 @@ from typing import (
     Iterable,
     Optional,
     Sequence,
+    cast,
 )
 from uuid import UUID
 
@@ -667,16 +668,36 @@ class Session(RuntimeNode[SessionData]):
                 logger.error("session.queue.error", session=self, exc_info=e)
                 raise
 
-    def _preflush(self) -> list[EditData]:
+    def _is_current_session_node(self, node: Node) -> bool:
+        """Whether this is a runtime node tied to the current session."""
+        if node.metatype == NodeType.SESSION:
+            return self.id == node.id
+        elif node.metatype == NodeType.RUN:
+            return cast("Run", node).session_id == self.id
+        else:
+            return False
+
+    def _preflush(self, *, include_session: bool) -> list[EditData]:
         """
         Creates an "edit boundary" by accumulating edit events & marking all nodes as 'flushed'.
         This means any new edits won't be debounced after this point (e.g. to create before update).
         """
         assert self._tx is not None, f"no active transaction in {self!r}"
-        new_edits = self._tx.preflush()
-        for node in self._pending_nodes_by_id.values():
-            node._flush_self()
-        return new_edits
+
+        if include_session:
+            for node in self._pending_nodes_by_id.values():
+                node._flush_self()
+            new_edits = self._tx.preflush()
+            return new_edits
+        else:
+            # exclude session node edits (like Runs from this Session) to reduce edit churn
+            for node in self._pending_nodes_by_id.values():
+                if not self._is_current_session_node(node):
+                    node._flush_self()
+            new_edits = self._tx.preflush(
+                filter=lambda e: not self._is_current_session_node(e.node)
+            )
+            return new_edits
 
     @tracer.start_as_current_span("session.flush.do")
     @async_shield
@@ -684,6 +705,7 @@ class Session(RuntimeNode[SessionData]):
         assert self.is_open, f"cannot commit {self!r} when closed"
         assert self._tx is not None, f"no active transaction in {self!r}"
         try:
+            self._preflush(include_session=True)
             async with self._tx_lock:
                 edits, cascaded_edits = await self._tx.flush()
                 logger.trace(
@@ -707,6 +729,7 @@ class Session(RuntimeNode[SessionData]):
         assert self.is_open, f"cannot commit {self!r} when closed"
         assert self._tx is not None, f"no active transaction in {self!r}"
         try:
+            self._preflush(include_session=True)
             log = logger.bind(session=self, span="current")
             async with self._tx_lock:
                 # extend commit hook
@@ -750,7 +773,7 @@ class Session(RuntimeNode[SessionData]):
         assert self._tx is not None, f"no active transaction in {self!r}"
 
         if optimistic:
-            new_edits = self._preflush()
+            new_edits = self._preflush(include_session=False)
             logger.trace("session.flush.mark", session=self, edits=len(new_edits), span="current")
             return new_edits, []
         else:
@@ -774,9 +797,9 @@ class Session(RuntimeNode[SessionData]):
         assert self._tx is not None, f"no active transaction in {self!r}"
         trace.get_current_span().set_attribute("optimistic", optimistic)
 
-        new_edits = self._preflush()
         if optimistic:
             # schedule a new commit
+            new_edits = self._preflush(include_session=False)
             event = _CommitEvent(id=self._flush_counter, new_edits=new_edits)
             if not self._tx.has_edits:
                 return [], []  # nothing to do
@@ -864,15 +887,25 @@ class HasSessionContext(BuiltinObject):
     )
     if TYPE_CHECKING:
         block_ptr: Optional[NodeReference] = None
+        block_id: Optional[UUID] = None
         step_ptr: Optional[NodeReference] = None
+        step_id: Optional[UUID] = None
         session_ptr: Optional[NodeReference] = None
+        session_id: Optional[UUID] = None
         run_ptr: Optional[NodeReference] = None
+        run_id: Optional[UUID] = None
         run_root_ptr: Optional[NodeReference] = None
+        run_root_id: Optional[UUID] = None
         client_ptr: Optional[NodeReference] = None
+        client_id: Optional[UUID] = None
         machine_ptr: Optional[NodeReference] = None
+        machine_id: Optional[UUID] = None
         server_ptr: Optional[NodeReference] = None
+        server_id: Optional[UUID] = None
         user_ptr: Optional[NodeReference] = None
+        user_id: Optional[UUID] = None
         identity_ptr: Optional[NodeReference] = None
+        identity_id: Optional[UUID] = None
 
 
 @struct_(StructType.SESSION_CONTEXT)
