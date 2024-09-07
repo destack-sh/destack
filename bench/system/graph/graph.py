@@ -425,7 +425,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
             query=query,
             connection=connection,
             graph=result.graph,
-            adapted=len(adapted_nodes),
+            nodes=len(adapted_nodes),
             epoch=self.epoch,
             span="current",
         )
@@ -532,7 +532,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
             query=query,
             connection=connection,
             graph=result.graph,
-            adapted=len(adapted_nodes),
+            nodes=len(adapted_nodes),
             epoch=self.epoch,
             span="current",
         )

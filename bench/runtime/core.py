@@ -108,6 +108,7 @@ STATIC_CODE_GLOBALS: dict[str, Any] = {
     "ModelIncapableError": ModelIncapableError,
     # external
     "asyncio": asyncio,
+    "sleep": asyncio.sleep,
 }
 # and some general stuff
 for t in (datetime, timedelta, UUID, base64):
