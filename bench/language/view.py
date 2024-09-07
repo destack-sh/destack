@@ -548,6 +548,9 @@ class Space(SourceNode[SpaceData]):
     base: Optional[Node] = p_regular(
         76, default=None, require=False, array=False, references=tuple(NODE_TYPES)
     )
+    run: Optional["Run"] = p_regular(
+        77, default=None, require=False, array=False, references=NodeType.RUN
+    )
 
     views: NodeList["View"] = p_node_children(NodeType.VIEW)
 
@@ -639,7 +642,7 @@ class StartViewState(ViewState):
     """The state of a Start view."""
 
     inputs_packed: Any = p_value_packed(30)
-    last_run: "Run | None" = p_regular(40, default=None, require=False, references=NodeType.RUN)
+    run: "Run | None" = p_regular(40, default=None, require=False, references=NodeType.RUN)
     feed: "FeedViewState | None" = p_regular(
         50, default=None, require=False, struct=StructType.FEED_VIEW_STATE
     )

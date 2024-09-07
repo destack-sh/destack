@@ -545,6 +545,7 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
       const otherGet = params as GetConnectionParams<T>;
       // scope included?
       if (getScopeFromParams(otherGet).benchId != getScopeFromParams(thisGet).benchId) return false;
+      // nocheckin: fix this for Runs
       // node types included?
       const thisNodeTypes = [
         ...thisGet.roots.map((r) => r.type),

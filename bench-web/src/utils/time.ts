@@ -68,14 +68,8 @@ const TIME_UNIT_NAMES: Record<TimeUnit, string> = {
   y: "year",
 };
 const TIME_UNITS_SHORT: TimeUnit[] = ["ms", "s", "m", "h", "d", "w", "y"];
-const DEFAULT_PRECISION_BY_UNIT: Record<TimeUnit, number> = {
-  ms: 1,
-  s: 1,
-  m: 0,
-  h: 0,
-  d: 0,
-  w: 0,
-  y: 0,
+const DIGITS_PER_UNIT: Partial<Record<TimeUnit, number>> = {
+  s: 2,
 };
 
 type FormatDurationOptions = {
@@ -83,7 +77,6 @@ type FormatDurationOptions = {
   minValue?: number;
   tooSmall?: string;
   maxUnit?: TimeUnit;
-  precision?: number;
   short?: boolean;
 };
 
@@ -92,7 +85,7 @@ type FormatDurationOptions = {
  * Like 3.7s, 48m, 2d, 1w, 3y.
  */
 export function formatDuration(duration: Duration | number, options?: FormatDurationOptions): string {
-  const { minUnit = "ms", maxUnit = "y", minValue, tooSmall = "now", precision, short = true } = options ?? {};
+  const { minUnit = "ms", maxUnit = "y", minValue, tooSmall = "now", short = true } = options ?? {};
   const durationMs = typeof duration == "number" ? duration * 1000 : duration.as("milliseconds");
 
   // find largest unit that fits
@@ -109,13 +102,22 @@ export function formatDuration(duration: Duration | number, options?: FormatDura
     return tooSmall;
   }
 
-  // convert & format
+  // convert/round
+  let roundedValue: string;
   const unitValue = durationMs / TIME_UNIT_MILLIS[currentUnit];
-  const roundedValue = parseFloat(unitValue.toFixed(precision));
+  if (DIGITS_PER_UNIT[currentUnit] != null) {
+    const numDigits = Math.ceil(Math.log10(unitValue));
+    const precision = Math.max(0, DIGITS_PER_UNIT[currentUnit]! - numDigits);
+    roundedValue = unitValue.toFixed(precision);
+  } else {
+    roundedValue = unitValue.toFixed(0);
+  }
+
+  // format
   if (short) {
     return `${roundedValue}${currentUnit}`;
   } else {
-    const unitName = roundedValue === 1 ? TIME_UNIT_NAMES[currentUnit] : TIME_UNIT_NAMES[currentUnit] + "s";
+    const unitName = parseFloat(roundedValue) == 1 ? TIME_UNIT_NAMES[currentUnit] : TIME_UNIT_NAMES[currentUnit] + "s";
     return `${roundedValue} ${unitName}`;
   }
 }

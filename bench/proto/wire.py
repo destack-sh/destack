@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.09.06.4"
+VERSION = "2024.09.07.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -2287,7 +2287,7 @@ class StartViewStateData(betterproto.Message):
     inputs_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
         30, optional=True
     )
-    last_run_ptr: Optional["NodeReferenceData"] = betterproto.message_field(40, optional=True)
+    run_ptr: Optional["NodeReferenceData"] = betterproto.message_field(40, optional=True)
     feed: Optional["FeedViewStateData"] = betterproto.message_field(50, optional=True)
 
 
@@ -3456,6 +3456,7 @@ class SpaceData(betterproto.Message):
     focus: Optional["SelectionData"] = betterproto.message_field(70, optional=True)
     inspection_ptr: Optional["NodeReferenceData"] = betterproto.message_field(75, optional=True)
     base_ptr: Optional["NodeReferenceData"] = betterproto.message_field(76, optional=True)
+    run_ptr: Optional["NodeReferenceData"] = betterproto.message_field(77, optional=True)
 
 
 @dataclass(eq=False, repr=False)

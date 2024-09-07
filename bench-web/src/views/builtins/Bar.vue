@@ -15,6 +15,7 @@ import Popover from "@/views/builtins/Popover.vue";
 import { useElementSize } from "@vueuse/core";
 import { computed, ref, type Ref } from "vue";
 import ConnectionStatus from "./ConnectionStatus.vue";
+import { runtime } from "@/system/runtime";
 
 const props = defineProps<{
   anchor: Anchor;
@@ -220,10 +221,11 @@ const dockActions: Ref<Action[]> = computed(
       class="flex flex-shrink-0 items-center gap-1.5"
       :class="[orientation == Orientation.HORIZONTAL ? 'ml-auto flex-row pr-1' : 'mt-auto flex-col pb-1']"
     >
+      <!-- Active Run -->
+      <!-- nocheckin -->
+      {{ runtime?.runRef.value?.id }} {{ runtime?.runGraph?.nodes.length }}
       <!-- Connection -->
       <ConnectionStatus />
-      <!-- Notifications -->
-      <!-- Main Clients/Places (browser plugin, mobile, etc.) -->
       <!-- User Menu -->
       <template v-if="user">
         <!-- User (logged in) -->

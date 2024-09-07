@@ -1677,9 +1677,9 @@ export interface StartViewStateData {
      */
     inputsPacked?: Struct;
     /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData last_run_ptr = 40;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData run_ptr = 40;
      */
-    lastRunPtr?: NodeReferenceData;
+    runPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional symbolx.bench.FeedViewStateData feed = 50;
      */
@@ -5270,6 +5270,10 @@ export interface SpaceData {
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData base_ptr = 76;
      */
     basePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData run_ptr = 77;
+     */
+    runPtr?: NodeReferenceData;
 }
 /**
  * A data or control flow node in a Flow. Ports on Steps are connected by Pipes.
@@ -15696,7 +15700,7 @@ class StartViewStateData$Type extends MessageType<StartViewStateData> {
         super("symbolx.bench.StartViewStateData", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
             { no: 30, name: "inputs_packed", kind: "message", T: () => Struct },
-            { no: 40, name: "last_run_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 40, name: "run_ptr", kind: "message", T: () => NodeReferenceData },
             { no: 50, name: "feed", kind: "message", T: () => FeedViewStateData }
         ]);
     }
@@ -15718,8 +15722,8 @@ class StartViewStateData$Type extends MessageType<StartViewStateData> {
                 case /* optional google.protobuf.Struct inputs_packed */ 30:
                     message.inputsPacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.inputsPacked);
                     break;
-                case /* optional symbolx.bench.NodeReferenceData last_run_ptr */ 40:
-                    message.lastRunPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.lastRunPtr);
+                case /* optional symbolx.bench.NodeReferenceData run_ptr */ 40:
+                    message.runPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.runPtr);
                     break;
                 case /* optional symbolx.bench.FeedViewStateData feed */ 50:
                     message.feed = FeedViewStateData.internalBinaryRead(reader, reader.uint32(), options, message.feed);
@@ -15742,9 +15746,9 @@ class StartViewStateData$Type extends MessageType<StartViewStateData> {
         /* optional google.protobuf.Struct inputs_packed = 30; */
         if (message.inputsPacked)
             Struct.internalBinaryWrite(message.inputsPacked, writer.tag(30, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.NodeReferenceData last_run_ptr = 40; */
-        if (message.lastRunPtr)
-            NodeReferenceData.internalBinaryWrite(message.lastRunPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData run_ptr = 40; */
+        if (message.runPtr)
+            NodeReferenceData.internalBinaryWrite(message.runPtr, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.FeedViewStateData feed = 50; */
         if (message.feed)
             FeedViewStateData.internalBinaryWrite(message.feed, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
@@ -23456,7 +23460,8 @@ class SpaceData$Type extends MessageType<SpaceData> {
             { no: 40, name: "bar_position", kind: "enum", opt: true, T: () => ["symbolx.bench.Anchor", Anchor, "ANCHOR_"] },
             { no: 70, name: "focus", kind: "message", T: () => SelectionData },
             { no: 75, name: "inspection_ptr", kind: "message", T: () => NodeReferenceData },
-            { no: 76, name: "base_ptr", kind: "message", T: () => NodeReferenceData }
+            { no: 76, name: "base_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 77, name: "run_ptr", kind: "message", T: () => NodeReferenceData }
         ]);
     }
     create(value?: PartialMessage<SpaceData>): SpaceData {
@@ -23566,6 +23571,9 @@ class SpaceData$Type extends MessageType<SpaceData> {
                 case /* optional symbolx.bench.NodeReferenceData base_ptr */ 76:
                     message.basePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.basePtr);
                     break;
+                case /* optional symbolx.bench.NodeReferenceData run_ptr */ 77:
+                    message.runPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.runPtr);
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -23663,6 +23671,9 @@ class SpaceData$Type extends MessageType<SpaceData> {
         /* optional symbolx.bench.NodeReferenceData base_ptr = 76; */
         if (message.basePtr)
             NodeReferenceData.internalBinaryWrite(message.basePtr, writer.tag(76, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.NodeReferenceData run_ptr = 77; */
+        if (message.runPtr)
+            NodeReferenceData.internalBinaryWrite(message.runPtr, writer.tag(77, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -26508,6 +26519,7 @@ export enum SpaceProperty {
   focus = 70,
   inspectionPtr = 75,
   basePtr = 76,
+  runPtr = 77,
 }
 
 export enum BlockProperty {
@@ -27655,7 +27667,7 @@ export enum LineProperty {
 export enum StartViewStateProperty {
   metatype = 1,
   inputsPacked = 30,
-  lastRunPtr = 40,
+  runPtr = 40,
   feed = 50,
 }
 
@@ -28448,7 +28460,7 @@ export const LineDataInfo: Record<LineProperty, PropertyInfo> = {
 export const StartViewStateDataInfo: Record<StartViewStateProperty, PropertyInfo> = {
   [StartViewStateProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.START_VIEW_STATE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [StartViewStateProperty.inputsPacked]: { id: 30, name: 'inputs_packed', component: ObjectType.START_VIEW_STATE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
-  [StartViewStateProperty.lastRunPtr]: { id: 40, name: 'last_run_ptr', component: ObjectType.START_VIEW_STATE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [StartViewStateProperty.runPtr]: { id: 40, name: 'run_ptr', component: ObjectType.START_VIEW_STATE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [StartViewStateProperty.feed]: { id: 50, name: 'feed', component: ObjectType.START_VIEW_STATE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.FEED_VIEW_STATE },
 }
 export const FeedViewStateDataInfo: Record<FeedViewStateProperty, PropertyInfo> = {
@@ -28608,7 +28620,7 @@ export const ServerDataInfo: Record<ServerProperty, PropertyInfo> = {
   [ServerProperty.region]: { id: 35, name: 'region', component: ObjectType.SERVER, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.status]: { id: 36, name: 'status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.09.06.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.09.07.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.minCpu]: { id: 50, name: 'min_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 4.0 }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.maxCpu]: { id: 51, name: 'max_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 4.0 }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -28637,7 +28649,7 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.region]: { id: 35, name: 'region', component: ObjectType.STORE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.status]: { id: 36, name: 'status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.09.06.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.09.07.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 50, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 51, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -28663,7 +28675,7 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.region]: { id: 35, name: 'region', component: ObjectType.MACHINE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.status]: { id: 36, name: 'status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.09.06.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.09.07.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 42, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 43, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -28834,6 +28846,7 @@ export const SpaceDataInfo: Record<SpaceProperty, PropertyInfo> = {
   [SpaceProperty.focus]: { id: 70, name: 'focus', component: ObjectType.SPACE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SELECTION },
   [SpaceProperty.inspectionPtr]: { id: 75, name: 'inspection_ptr', component: ObjectType.SPACE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.PIPE, NodeType.BADGE, NodeType.FILE, NodeType.SECRET, NodeType.MESSAGE, NodeType.RECORD, NodeType.NOTIFICATION, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE },
   [SpaceProperty.basePtr]: { id: 76, name: 'base_ptr', component: ObjectType.SPACE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.PIPE, NodeType.BADGE, NodeType.FILE, NodeType.SECRET, NodeType.MESSAGE, NodeType.RECORD, NodeType.NOTIFICATION, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE },
+  [SpaceProperty.runPtr]: { id: 77, name: 'run_ptr', component: ObjectType.SPACE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const BlockDataInfo: Record<BlockProperty, PropertyInfo> = {
   [BlockProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.BLOCK, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
