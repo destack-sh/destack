@@ -354,6 +354,9 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
 
     @override
     async def get_nodes(self, subject: Subject, request: "GetNodesRequest") -> "GetNodesResponse":
+        # check that there is at least one root
+        if not request.roots:
+            raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "no roots provided")
         # parse query & fetch
         async with self.new_request_session(supergraph=subject._supergraph) as session:
             with self.tracer.start_as_current_span("graph.get.parse"):

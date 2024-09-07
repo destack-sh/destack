@@ -1,29 +1,27 @@
 import type { ReadNodeGraph } from "@/language/graph";
 import { makeRun, type RunnableObject } from "@/language/session";
 import type { Transaction } from "@/language/transaction";
-import { ChangeCategory, NodeType, type NodeReferenceData, type RunData } from "@/proto/wire";
+import { BlockData, ChangeCategory, NodeType, StepData, type NodeReferenceData, type RunData } from "@/proto/wire";
 import { toNodeRef, type SomeNodeReferenceData, type TypedNodeReferenceData } from "@/proto/wiring";
 import { useGetConnection, type Connection } from "@/system/connection";
 import { canvas, pkgConnection, pkgGraph, space } from "@/system/space";
 import { computedValue } from "@/utils/ref";
-import { computed, type Ref } from "vue";
+import { computed, watchEffect, type Ref } from "vue";
 
-/**
- * Runtime for managing runtime Nodes, wrapping the local runtime and related stuff.
- */
-export class Runtime {
+/** A reactive Run with all its descendants */
+export class RunTree {
+  // active run
   graph: ReadNodeGraph;
-  txFactory: () => Transaction;
-  runGraph: ReadNodeGraph;
-  runPtr: Ref<TypedNodeReferenceData<NodeType.RUN> | null>; // the current active Run
-  runRef: Ref<RunData | null>; // the current active Run
+  runPtr: Ref<TypedNodeReferenceData<NodeType.RUN> | null>;
+  runRef: Ref<RunData | null>;
+  runsRef: Ref<RunData[]>;
+  runBasePtr: Ref<TypedNodeReferenceData<NodeType.BLOCK | NodeType.STEP> | null>;
+  runBaseRef: Ref<BlockData | StepData | null>;
   runConnection: Connection<"get", NodeType.RUN>;
+  runsByBaseCk: Ref<Record<string, RunData[]>>;
 
-  constructor(graph: ReadNodeGraph, txFactory: () => Transaction, runPtr: Ref<SomeNodeReferenceData | null>) {
+  constructor(graph: ReadNodeGraph, runPtr: Ref<TypedNodeReferenceData<NodeType.RUN> | null>) {
     this.graph = graph;
-    this.txFactory = txFactory;
-
-    // active run
     this.runPtr = runPtr as Ref<TypedNodeReferenceData<NodeType.RUN> | null>;
     const { graph: runGraph, connection: runConnection } = useGetConnection(
       { name: "runtime.run", live: true },
@@ -31,12 +29,77 @@ export class Runtime {
         scope: graph.scope,
         roots: [this.runPtr.value!],
         options: { descendantTypes: [NodeType.RUN] },
+        isOptional: true,
         isEnabled: this.runPtr.value != null,
       })),
     );
-    this.runGraph = runGraph;
     this.runRef = runGraph.getRef(this.runPtr);
+    this.runsRef = runGraph.getDescendantsRef(this.runPtr, { metatypes: [NodeType.RUN], includeSelf: true });
+    this.runBasePtr = computedValue(
+      () =>
+        (this.runRef.value?.stepPtr ?? this.runRef.value?.blockPtr) as TypedNodeReferenceData<
+          NodeType.BLOCK | NodeType.STEP
+        >,
+    );
+    this.runBaseRef = graph.getRef(this.runBasePtr);
     this.runConnection = runConnection;
+    this.runsByBaseCk = computed(() => {
+      const runByBaseCk: Record<string, RunData[]> = {};
+      for (const run of this.runsRef.value) {
+        const base = run.stepPtr ?? run.blockPtr;
+        if (base?.ck != null) {
+          if (runByBaseCk[base.ck] == null) {
+            runByBaseCk[base.ck] = [];
+          }
+          runByBaseCk[base.ck].push(run);
+        }
+      }
+      return runByBaseCk;
+    });
+  }
+
+  /** The root Run. */
+  get run() {
+    return this.runRef.value;
+  }
+
+  /** The current active Run tree (preorder). */
+  get runs() {
+    return this.runsRef.value;
+  }
+
+  /** The base node of the current active Run. */
+  get base() {
+    return this.runBaseRef.value;
+  }
+
+  /** Gets the last (active) Runs for the given base node. */
+  getLastActiveRuns(base: { ck?: string }): RunData[] {
+    return this.runsByBaseCk.value[base.ck!] ?? [];
+  }
+
+  /** Gets the last (active) Run for the given base node. */
+  getLastActiveRun(base: { ck?: string }): RunData | null {
+    return this.runsByBaseCk.value[base.ck!]?.[0] ?? null;
+  }
+}
+
+/**
+ * Runtime for managing runtime Nodes, wrapping the local runtime and related stuff.
+ */
+export class Runtime {
+  graph: ReadNodeGraph;
+  txFactory: () => Transaction;
+
+  // active run
+  activeRunTree: RunTree;
+
+  constructor(graph: ReadNodeGraph, txFactory: () => Transaction, runPtr: Ref<SomeNodeReferenceData | null>) {
+    this.graph = graph;
+    this.txFactory = txFactory;
+
+    // active run
+    this.activeRunTree = new RunTree(graph, runPtr as Ref<TypedNodeReferenceData<NodeType.RUN> | null>);
   }
 
   get tx() {
@@ -45,7 +108,12 @@ export class Runtime {
 
   /** The current active Run. */
   get run() {
-    return this.runRef.value;
+    return this.activeRunTree.run;
+  }
+
+  /** The current active Run base node. */
+  get runBase() {
+    return this.activeRunTree.base;
   }
 
   /** Creates a new Run and makes it the current active Run in the Space. */

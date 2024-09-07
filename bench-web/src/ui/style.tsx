@@ -24,6 +24,29 @@ export const ACCENT_COLOR_BY_RUN_STATUS: Record<RunStatus, string> = {
   [RunStatus.FAILED]: "text-danger-600",
 };
 
+export const COLOR_BY_LOG_LEVEL: Record<LogLevel, ColorType> = {
+  [LogLevel.UNSPECIFIED]: ColorType.GRAY,
+  [LogLevel.TRACE]: ColorType.GRAY,
+  [LogLevel.DEBUG]: ColorType.GRAY,
+  [LogLevel.INFO]: ColorType.GRAY,
+  [LogLevel.WARNING]: ColorType.WARNING,
+  [LogLevel.ERROR]: ColorType.DANGER,
+  [LogLevel.CRITICAL]: ColorType.DANGER,
+};
+
+export const COLOR_BY_RUN_STATUS: Record<RunStatus, ColorType> = {
+  [RunStatus.UNSPECIFIED]: ColorType.GRAY,
+  [RunStatus.SCHEDULED]: ColorType.GRAY,
+  [RunStatus.QUEUED]: ColorType.GRAY,
+  [RunStatus.RUNNING]: ColorType.GRAY,
+  [RunStatus.PAUSED]: ColorType.GRAY,
+  [RunStatus.SUSPENDED]: ColorType.GRAY,
+  [RunStatus.COMPLETED]: ColorType.SUCCESS,
+  [RunStatus.CANCELLED]: ColorType.WARNING,
+  [RunStatus.ABORTED]: ColorType.WARNING,
+  [RunStatus.FAILED]: ColorType.DANGER,
+};
+
 export const COLOR_SHADE_INDEX: Record<ColorShade, number> = {
   [ColorShade.UNSPECIFIED]: 7,
   [ColorShade.S50]: 0,

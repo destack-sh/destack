@@ -82,10 +82,10 @@ const expandedConnectionId: Ref<number | null> = ref(null);
                 <span class="ml-auto flex flex-row pl-4 align-top">
                   <template v-if="isDeveloperMode">
                     <span class="mr-2" :class="connection.referenceCount > 0 ? '' : 'text-gray-500'">
-                      {{ connection.referenceCount }}
+                      r={{ connection.referenceCount }}
                     </span>
                     <span class="mr-2">
-                      {{ connection.epoch }}
+                      e={{ connection.epoch }}
                     </span>
                   </template>
                   <!-- Connected (status) -->

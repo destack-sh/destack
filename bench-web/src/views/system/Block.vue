@@ -1,4 +1,10 @@
 <script lang="ts" setup>
+import { BLOCK_CONTEXT_ACTIONS } from "@/language/block";
+import { NAME_CONSTRAINT, PAGE_BLOCK_TYPES, RUNNABLE_BLOCK_TYPES, TYPE_BLOCK_TYPES } from "@/language/const";
+import { createField, makeTypeInfo, resolveType, type TypeIdentity } from "@/language/field";
+import { isGeneratedNodeName } from "@/language/node";
+import { isRunnable } from "@/language/session";
+import { packValue, unpackValue } from "@/language/value";
 import {
   BenchType,
   BlockType,
@@ -12,34 +18,25 @@ import {
   ViewData,
   ViewType,
 } from "@/proto/wire";
-import { toNodeRefOneOf, unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
-import type { ActionMapImplementation } from "@/ui/action";
+import { unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import type { PreparedGetConnection } from "@/system/connection";
 import { useExistingConnection } from "@/system/connection";
-import { IconInline, getNodeIcon } from "@/ui/icon";
 import { canvas, inspectionPtr } from "@/system/space";
-import { isGeneratedNodeName, isRunnableRef } from "@/language/node";
-import {
-  getNativeConstraintProps as getNativeConstraintProps,
-  guardNativeInput,
-  guardNativeNameInput,
-} from "@/ui/view";
+import type { ActionMapImplementation } from "@/ui/action";
+import { IconInline, getNodeIcon } from "@/ui/icon";
 import { onMouseReleasedOnce } from "@/ui/layout";
 import { menuActionsLike, pushPopover, type PopoverInfo, type PopoverInfoIn } from "@/ui/popover";
 import type { TooltipInfo } from "@/ui/tooltip";
+import { getNativeConstraintProps, guardNativeNameInput } from "@/ui/view";
 import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import { makeViewId, viewEmits, type FocusAnchor, type ViewExposed } from "@/views/common";
 import Code from "@/views/content/Code.vue";
 import Icon from "@/views/content/Icon.vue";
 import Text from "@/views/content/Text.vue";
 import Value from "@/views/content/Value.vue";
+import Flow from "@/views/system/Flow.vue";
 import Type from "@/views/system/Type.vue";
 import { computed, nextTick, ref, toRef, type Ref } from "vue";
-import { NAME_CONSTRAINT, PAGE_BLOCK_TYPES, RUNNABLE_BLOCK_TYPES, TYPE_BLOCK_TYPES } from "@/language/const";
-import { createField, makeTypeInfo, resolveType, type TypeIdentity } from "@/language/field";
-import { packValue, unpackValue } from "@/language/value";
-import Flow from "@/views/system/Flow.vue";
-import { BLOCK_CONTEXT_ACTIONS } from "@/language/block";
 
 const props = defineProps<
   {
@@ -62,7 +59,7 @@ const { graph: pkgGraph, connection: pkgConnection } = pkgGetConnection;
 const block = pkgGraph.getRef(nodePtr, { ignoreAncestors: props.self == null });
 const fields = pkgGraph.getChildrenRef(block, NodeType.FIELD);
 
-const isRunnable = isRunnableRef(block, pkgGraph, fields);
+const runnable = computed(() => block.value != null && isRunnable(block.value, pkgGraph, fields.value));
 const isGeneratedName = computed(
   () => block.value != null && isGeneratedNodeName(block.value.metatype as unknown as NodeType, block.value.name),
 );
@@ -105,14 +102,7 @@ function focus(anchor?: FocusAnchor | NodeReferenceData) {
 }
 
 canvas.registerView(self, id);
-defineExpose<ViewExposed & { isRunnable: Ref<boolean> }>({
-  self,
-  id,
-  variants: [Variant.PRIMARY, Variant.STEALTH],
-  actions,
-  focus,
-  isRunnable,
-});
+defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALTH], actions, focus });
 </script>
 <template>
   <div
@@ -122,7 +112,7 @@ defineExpose<ViewExposed & { isRunnable: Ref<boolean> }>({
     :class="[
       borderless || variant == Variant.STEALTH ? '' : 'border',
       nodePtr?.id == inspectionPtr?.id ? 'border-primary-900' : ['border-gray-200 px-2 py-1.5 hover:border-gray-200'],
-    ]"
+    ]" 
   >
     <!-- Header -->
     <!-- NOTE :UX: revamp block to indicate all its states/properties better, hide header if not needed, ... -->

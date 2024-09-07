@@ -11,6 +11,7 @@ import {
 import { FLOW_GRID_STEP } from "@/language/flow";
 import { isDescendantOf, resolveNode, type ReadNodeGraph } from "@/language/graph";
 import { updateOrder } from "@/language/order";
+import type { RunnableNode } from "@/language/session";
 import { newChangeId, type Transaction } from "@/language/transaction";
 import {
   BlockType,
@@ -390,31 +391,4 @@ export function moveNode(
   } else {
     throw new Error(`unexpected anchor: ${anchor}`);
   }
-}
-
-/** Whether the given node is runnable */
-export function isRunnable(node: AnyNodeData, graph: ReadNodeGraph, fields?: FieldData[]): boolean {
-  if (isNode(node, NodeType.STEP)) {
-    return true;
-  } else if (isNode(node, NodeType.BLOCK)) {
-    if (node.type == BlockType.CODE || node.type == BlockType.FLOW) {
-      return true;
-    } else if (node.type == BlockType.TEXT) {
-      fields = fields ?? graph.getChildren(node, NodeType.FIELD);
-      return fields.some((f) => f.zone == FieldZone.INPUT) && fields.some((f) => f.zone == FieldZone.OUTPUT);
-    } else {
-      return false;
-    }
-  } else {
-    return false;
-  }
-}
-
-export function isRunnableRef(
-  node: Ref<AnyNodeData | null | undefined>,
-  graph: ReadNodeGraph,
-  fields?: Ref<FieldData[]>,
-): Ref<boolean> {
-  fields = fields ?? graph.getChildrenRef(node, NodeType.FIELD);
-  return computed(() => node.value != null && isRunnable(node.value!, graph, fields?.value));
 }

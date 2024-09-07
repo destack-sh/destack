@@ -22,7 +22,7 @@ const props = defineProps<
 const emit = defineEmits(viewEmits());
 const self = toRef(props, "self");
 
-const { graph: spaceGraph } = useExistingConnection(self);
+const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self);
 const splits = spaceGraph.getChildrenRef(self, NodeType.VIEW, { ignoreAncestors: true });
 
 const focusedSplitIdx: Ref<number | null> = computed(() => {

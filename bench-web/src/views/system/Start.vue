@@ -1,14 +1,11 @@
 <script lang="ts" setup>
 import { toCamelName } from "@/language/const";
 import { makeExpression } from "@/language/expression";
-import { makeTypeInfo, propertyType } from "@/language/field";
-import { isRunnable } from "@/language/node";
-import { makeRun } from "@/language/session";
-import { packBuiltinObject, packValueJson, unpackBuiltinObject } from "@/language/value";
+import { makeTypeInfo } from "@/language/field";
+import { isRunnable, type RunnableNode } from "@/language/session";
+import { packBuiltinObject, unpackBuiltinObject } from "@/language/value";
 import {
-  BlockData,
   BoxData,
-  ChangeCategory,
   ExpressionOp,
   FeedViewStateData,
   FieldZone,
@@ -17,7 +14,6 @@ import {
   Orientation,
   RunProperty,
   RunStatus,
-  StepData,
   StepType,
   TypeKind,
   Variant,
@@ -34,12 +30,12 @@ import {
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
 import { useExistingConnection, useNode } from "@/system/connection";
+import { runtime } from "@/system/runtime";
 import { canvas, inspectionPtr } from "@/system/space";
-import { VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import { ICON_BY_RUN_STATUS, IconInline } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
 import { ACCENT_COLOR_BY_RUN_STATUS } from "@/ui/style";
-import { toggleHelperViewPin, useViewState } from "@/ui/view";
+import { toggleHelperViewPin, useViewState, VIEW_DEFAULT_HEADER_HEIGHT } from "@/ui/view";
 import { computedValue, mapRef } from "@/utils/ref";
 import { tsToDt } from "@/utils/time";
 import NodeReference from "@/views/builtins/NodeReference.vue";
@@ -50,7 +46,6 @@ import Text from "@/views/content/Text.vue";
 import Feed from "@/views/system/Feed.vue";
 import ValueObject from "@/views/system/ValueObject.vue";
 import { computed, ref, toRef, watch, type Ref } from "vue";
-import { runtime } from "@/system/runtime";
 
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
 const MIN_WIDTH = 320;
@@ -83,16 +78,16 @@ const {
 const runPtr = useViewStateProp(canvas.tx, "runPtr", undefined) as Ref<
   TypedNodeReferenceData<NodeType.RUN> | undefined
 >;
-const { node: run } = useNode({
+const { node: someRun } = useNode({
   name: "start.run",
   live: true,
   nodePtr: runPtr,
   isOptional: true,
   isEnabled: computed(() => runPtr.value != null),
 });
-const runOfBase = computed(() => {
+const run = computed(() => {
   if (runPtr.value == null || runPtr.value.baseCk != runnablePtr.value?.ck) return null;
-  else return run.value;
+  else return someRun.value;
 });
 const feedState = computed((): FeedViewStateData => {
   const runNodeProperty = runnablePtr.value?.type == NodeType.BLOCK ? RunProperty.blockPtr : RunProperty.stepPtr;
@@ -124,23 +119,17 @@ const ancestors = pkgGraph.getAncestorsRef(focusPtr, { includeSelf: true });
 
 // current runnable / inputs
 // NOTE: we 'sticky' the last runnable node (so even if we currently don't have one, we keep the last one)
-const currentRunnableNode: Ref<BlockData | StepData | null> = computed(() => {
-  // for some reason this type checks but ancestors.find doesn't
-  for (const ancestor of ancestors.value) {
-    if (isRunnable(ancestor, pkgGraph)) {
-      return ancestor as BlockData | StepData;
-    }
-  }
-  return null;
-});
-const runnableNode: Ref<BlockData | StepData | null> = ref(null);
+const currentRunnableNode: Ref<RunnableNode | null | undefined> = computed(() =>
+  ancestors.value.find((node) => isRunnable(node, pkgGraph)),
+);
+const lastRunnableNode: Ref<RunnableNode | null> = ref(null);
 watch(currentRunnableNode, (newNode) => {
-  if (newNode != null) runnableNode.value = newNode;
+  if (newNode != null) lastRunnableNode.value = newNode;
 });
-const runnablePtr = computed(() => (runnableNode.value != null ? toPlainNodeRef(runnableNode.value) : null));
+const runnablePtr = computed(() => (lastRunnableNode.value != null ? toPlainNodeRef(lastRunnableNode.value) : null));
 const baseTypePtr = computed(() => {
-  if (isNode(runnableNode.value, NodeType.STEP) && runnableNode.value.type == StepType.BLOCK)
-    return runnableNode.value.nodePtr;
+  if (isNode(lastRunnableNode.value, NodeType.STEP) && lastRunnableNode.value.type == StepType.BLOCK)
+    return lastRunnableNode.value.nodePtr;
   else return runnablePtr.value ?? undefined;
 });
 const inputsPacked: Ref<Record<string, any>> = mapRef(
@@ -160,8 +149,8 @@ const outputType = computed(() =>
 );
 
 function createRun() {
-  if (runnableNode.value == null) return;
-  const run = runtime.createRun(runnableNode.value, { inputsPacked: inputsPacked.value });
+  if (lastRunnableNode.value == null) return;
+  const run = runtime.createRun(lastRunnableNode.value, { inputsPacked: inputsPacked.value });
   runPtr.value = toNodeRef(run);
 }
 
@@ -169,7 +158,7 @@ canvas.registerView(self);
 defineExpose<ViewExposed>({ self });
 </script>
 <template>
-  <div v-if="runnableNode" class="h-full w-full">
+  <div v-if="lastRunnableNode" class="h-full w-full">
     <!-- NOTE :UX: start view is ugly -->
     <!-- Header -->
     <div class="group mx-auto flex w-full flex-row items-center" :style="{ height: HEADER_HEIGHT + 'px' }">
@@ -178,21 +167,21 @@ defineExpose<ViewExposed>({ self });
         :style="{ minWidth: MIN_WIDTH + 'px' }"
       >
         <!-- Runnable -->
-        <NodeReference class="font-medium" :node="runnableNode" :connection="pkgConnection" />
+        <NodeReference class="font-medium" :node="lastRunnableNode" :connection="pkgConnection" />
         <!-- Pin/unpin node -->
         <button
           v-tooltip="{ title: 'Pin node in view', small: true, placement: 'bottom' }"
-          :disabled="nodePtr == null && runnableNode == null"
+          :disabled="nodePtr == null && lastRunnableNode == null"
           class="ml-1.5 hover:text-primary-900"
           :class="nodePtr != null ? 'text-gray-700' : 'text-gray-400'"
-          @click="toggleHelperViewPin(spaceConnection.tx, spaceGraph, { self, nodePtr: runnableNode })"
+          @click="toggleHelperViewPin(spaceConnection.tx, spaceGraph, { self, nodePtr: lastRunnableNode })"
         >
           <i class="fas mr-1.5" :class="nodePtr == null ? 'fa-unlock' : 'fa-lock'" />
         </button>
         <!-- Meta & Controls -->
         <div class="ml-auto flex flex-row items-center pl-1.5">
           <button
-            :disabled="runnableNode == null"
+            :disabled="lastRunnableNode == null"
             class="h-fit enabled:text-gray-900 enabled:hover:text-primary-900 disabled:text-gray-400"
             @click="() => createRun()"
           >
@@ -226,33 +215,30 @@ defineExpose<ViewExposed>({ self });
         <!-- Divider -->
         <div class="mx-auto my-2 w-full"><div class="h-[1px] w-full min-w-fit bg-gray-200" /></div>
         <!-- Outputs (last run) -->
-        <div v-if="runOfBase?.outputsPacked != null" class="mx-auto mt-1 py-3">
+        <div v-if="run?.outputsPacked != null" class="mx-auto mt-1 py-3">
           <h4 class="font-semibold">Outputs</h4>
           <ValueObject
             class="w-full py-2"
             :value-type="outputType"
             is-inline
             :variant="Variant.STEALTH"
-            :model-value="unpackProtoJson(runOfBase.outputsPacked)"
+            :model-value="unpackProtoJson(run.outputsPacked)"
           />
         </div>
         <!-- Error (last run) -->
-        <div v-else-if="runOfBase?.error != null" class="mx-auto mt-1 py-3">
+        <div v-else-if="run?.error != null" class="mx-auto mt-1 py-3">
           <h4 class="font-semibold">Error</h4>
-          <RunError class="mt-2" :run="runOfBase" :error="runOfBase.error" />
+          <RunError class="mt-2" :run="run" :error="run.error" />
         </div>
         <!-- No terminated last run yet -->
         <div v-else-if="variant != Variant.COMPACT" class="mx-auto mt-1 py-3">
           <h4 class="font-semibold">Outputs</h4>
           <!-- Placeholder -->
           <div class="mt-2 w-full">
-            <span v-if="runOfBase != null">
-              <IconInline
-                :class="ACCENT_COLOR_BY_RUN_STATUS[runOfBase.status]"
-                v-bind="ICON_BY_RUN_STATUS[runOfBase.status]"
-              />
-              <span class="ml-1.5" :class="ACCENT_COLOR_BY_RUN_STATUS[runOfBase.status]">
-                {{ toCamelName(RunStatus, runOfBase.status) }}
+            <span v-if="run != null">
+              <IconInline :class="ACCENT_COLOR_BY_RUN_STATUS[run.status]" v-bind="ICON_BY_RUN_STATUS[run.status]" />
+              <span class="ml-1.5" :class="ACCENT_COLOR_BY_RUN_STATUS[run.status]">
+                {{ toCamelName(RunStatus, run.status) }}
               </span>
             </span>
             <span v-else>
@@ -264,9 +250,9 @@ defineExpose<ViewExposed>({ self });
         <!-- Divider -->
         <div class="mx-auto my-2 w-full"><div class="h-[1px] w-full min-w-fit bg-gray-200" /></div>
         <!-- Logs (last run) -->
-        <div v-if="runOfBase?.logs != null && runOfBase.logs.length > 0" class="mt-1 flex flex-col gap-y-1 py-3">
+        <div v-if="run?.logs != null && run.logs.length > 0" class="mt-1 flex flex-col gap-y-1 py-3">
           <h4 class="mb-2 font-semibold">Logs</h4>
-          <div v-for="(log, i) in runOfBase.logs" :key="i" class="flex flex-row text-gray-900">
+          <div v-for="(log, i) in run.logs" :key="i" class="flex flex-row text-gray-900">
             <span class="mr-2 flex-shrink-0 text-gray-400">{{ tsToDt(log.createdAt!).toFormat("HH:mm:ss:SSS") }}</span>
             <pre v-if="log.textPlain" class="w-fit">{{ log.textPlain }}</pre>
             <Text v-else-if="log.text" :model-value="log.text" :variant="Variant.STEALTH" />
