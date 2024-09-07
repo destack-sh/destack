@@ -51,7 +51,7 @@ const humanizedError = computed(() => {
           <i class="fas fa-cloud-slash text-warning-600" />
           <span class="mt-1.5 text-gray-700">Unable to connect.</span>
           <p class="text-gray-400">
-            (We're retrying. Try the <a :href="DISCORD_URL" class="mt-1 underline" target="_blank">Discord</a>.)
+            (Retrying secretly... check the <a :href="DISCORD_URL" class="mt-1 underline" target="_blank">Discord</a>.)
           </p>
         </div>
       </Transition>
@@ -67,7 +67,7 @@ const humanizedError = computed(() => {
         </p>
         <p class="max-w-80 text-gray-900">{{ humanizedError.text }}</p>
         <p class="text-gray-400">
-          (We're retrying. Try the <a :href="DISCORD_URL" class="mt-1 underline" target="_blank">Discord</a>.)
+          (Retrying secretly... Try the <a :href="DISCORD_URL" class="mt-1 underline" target="_blank">Discord</a>.)
         </p>
       </div>
     </template>

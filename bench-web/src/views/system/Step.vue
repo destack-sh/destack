@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { blockToType } from "@/language/block";
-import { NAME_CONSTRAINT, OUTGOING_STEP_TYPES, toCamelName, TYPE_BLOCK_TYPES } from "@/language/const";
+import { NAME_CONSTRAINT, OUTGOING_STEP_TYPES, TYPE_BLOCK_TYPES } from "@/language/const";
 import { createField, FIELD_CONTEXT_ACTIONS, makeTypeInfo, type TypeIdentity } from "@/language/field";
 import {
   FLOW_GRID_STEP,
@@ -35,6 +35,7 @@ import { menuActionsLike, pushPopover, type PopoverContext, type PopoverInfo, ty
 import { ACCENT_COLOR_BY_RUN_STATUS, COLOR_BY_RUN_STATUS, getColorHex } from "@/ui/style";
 import type { TooltipInfo } from "@/ui/tooltip";
 import { getNativeConstraintProps, guardNativeNameInput } from "@/ui/view";
+import { formatDuration, getDurationFromNow, TimeUpdateInterval } from "@/utils/time";
 import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import Code from "@/views/content/Code.vue";
 import Icon from "@/views/content/Icon.vue";
@@ -252,14 +253,38 @@ defineExpose<ViewExposed>({ self, id, actions });
       <!-- Controls/Meta -->
       <div class="ml-auto flex flex-row pl-2 pr-0.5">
         <!-- Status -->
-        <!-- nocheckin: UX: improve status display -->
-        <button v-if="lastRun" class="px-1">
-          <IconInline
-            class="w-5 text-center"
+        <Transition
+          enter-active-class="transition-opacity duration-75"
+          enter-from-class="opacity-0"
+          enter-to-class="opacity-100"
+          mode="out-in"
+          leave-active-class="transition-opacity duration-75"
+          leave-from-class="opacity-100"
+          leave-to-class="opacity-0"
+          appear
+        >
+          <span 
+            v-if="lastRun" class="px-1 flex-shrink-0 truncate"
             :class="ACCENT_COLOR_BY_RUN_STATUS[lastRun.status]"
-            v-bind="ICON_BY_RUN_STATUS[lastRun.status]"
-          />
-        </button>
+          >
+            <!-- Duration -->
+            <span v-if="lastRun.startedAt" class="mr-1">
+              {{
+                formatDuration(
+                  lastRun.duration ??
+                    getDurationFromNow(lastRun.startedAt, {  updateInterval: TimeUpdateInterval.MILLISECOND }),
+                  { minUnit: "s"}
+                )
+              }}
+            </span>
+            <!-- Icon -->
+            <IconInline
+              class="w-5 text-center"
+              :class="[ACCENT_COLOR_BY_RUN_STATUS[lastRun.status], lastRun.status == RunStatus.RUNNING ? 'animate-spin' : '']"
+              v-bind="ICON_BY_RUN_STATUS[lastRun.status]"
+            />
+          </span>
+        </Transition>
         <!-- Add field -->
         <button
           class="rounded text-gray-400 hover:bg-gray-100 hover:text-primary-900 data-[popover=true]:bg-gray-100 data-[popover=true]:text-primary-900"
@@ -454,6 +479,8 @@ defineExpose<ViewExposed>({ self, id, actions });
         />
       </div>
     </div>
+
+    <!-- NOTE :UX: show last step output/error here? -->
 
     <!-- Padding (to ensure height is a multiple of the grid) -->
     <div class="w-full" :style="{ height: paddingHeight + 'px' }" />

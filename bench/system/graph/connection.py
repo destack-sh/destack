@@ -230,7 +230,8 @@ class GetConnection(Connection[GetResultData, WatchGetUpdate]):
 
     def __init__(self, scope: GraphScopeData, query: "QueryBuilder", oracle: Oracle):
         super().__init__(scope, query, oracle)
-        self._get_node_ids = {r.id for r in query._roots or ()}
+        self._get_node_ids: set[str] = {str(r.id) for r in query._roots or () if r.id}
+        self._get_node_cks: set[str] = {str(r.ck) for r in query._roots or () if r.ck}
 
     def __result_str__(self, result: GetResultData) -> str:
         return f"nodes={len(result.graph)}"
@@ -271,17 +272,20 @@ class GetConnection(Connection[GetResultData, WatchGetUpdate]):
                         raise RuntimeError(f"missing parent ptr for {updated_node!r} in {edit!r}")
                 if parent_id in result_graph:
                     is_in_scope = True  # already have parent
-                elif updated_node.id in self._get_node_ids:
+                elif (
+                    updated_node.id in self._get_node_ids
+                    or getattr(updated_node, "ck", None) in self._get_node_cks
+                ):
                     is_in_scope = True  # optional root
                     # add node and its ancestors
                     # (this must be an optional root that we didn't have before)
-                    ancestor = result_graph.get(parent_id)
+                    ancestor = updated_graph.get(parent_id)
                     while ancestor is not None:
                         if ancestor.id not in result_graph:
                             result_graph.add(ancestor)
                             added_nodes.insert(0, ancestor)  # :ConnectionUpdateOrdering
                         if ancestor.parent_ptr and ancestor.parent_ptr.id:
-                            ancestor = result_graph.get(ancestor.parent_ptr.id)
+                            ancestor = updated_graph.get(ancestor.parent_ptr.id)
                         else:
                             ancestor = None
                 else:
@@ -289,20 +293,18 @@ class GetConnection(Connection[GetResultData, WatchGetUpdate]):
             else:
                 # update/remove: node must already be in our result graph
                 is_in_scope = updated_node.id in result_graph
-            if not is_in_scope:
-                continue  # irrelevant scope
-
-            # apply (just copy node instead of actually applying edit, we don't modify anything here)
-            relevant_edits.append(edit)
-            if edit_type == EditType.ERASE or (
-                not options.include_hidden and edit_type in (EditType.ARCHIVE, EditType.DELETE)
-            ):
-                if updated_node.id in result_graph:
-                    result_graph.remove(updated_node)
-            elif updated_node.id in result_graph:
-                result_graph.update(updated_node)
-            else:
-                result_graph.add(updated_node)
+            if is_in_scope:
+                # apply (just copy node instead of actually applying edit, we don't modify anything here)
+                relevant_edits.append(edit)
+                if edit_type == EditType.ERASE or (
+                    not options.include_hidden and edit_type in (EditType.ARCHIVE, EditType.DELETE)
+                ):
+                    if updated_node.id in result_graph:
+                        result_graph.remove(updated_node)
+                elif updated_node.id in result_graph:
+                    result_graph.update(updated_node)
+                else:
+                    result_graph.add(updated_node)
         return relevant_edits, added_nodes, removed_nodes_ptr
 
     @override

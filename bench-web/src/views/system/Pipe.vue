@@ -36,8 +36,8 @@ defineExpose<ViewExposed>({ self, id });
   <div v-if="pipe && path">
     <!-- Background/outline path for highlighting (and larger hit area) -->
     <svg
-      class="absolute cursor-pointer overflow-visible blur-sm transition-all duration-75"
-      :class="isInspected ? 'opacity-80' : 'opacity-0 hover:opacity-60'"
+      class="absolute cursor-pointer overflow-visible blur-sm transition-colors duration-150"
+      :class="isInspected ? 'opacity-70' : 'opacity-0 hover:opacity-50'"
       :style="{ color: pathColorHex }"
     >
       <path

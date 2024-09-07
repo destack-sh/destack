@@ -502,7 +502,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
                 <!-- Status -->
                 <IconInline
                   class="w-5"
-                  :class="ACCENT_COLOR_BY_RUN_STATUS[item.it.status]"
+                  :class="[ACCENT_COLOR_BY_RUN_STATUS[item.it.status], item.it.status == RunStatus.RUNNING ? 'animate-spin' : '']"
                   v-bind="ICON_BY_RUN_STATUS[item.it.status]"
                 />
                 <!-- Node -->

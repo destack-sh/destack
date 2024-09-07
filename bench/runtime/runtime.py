@@ -332,12 +332,15 @@ class Runtime:
         # run it
         async with self.session.active():
             trace.get_current_span().set_attribute("runner", repr(runner))
+            if runner.is_tracked:
+                # commit any intermediate session edits
+                await self.session.commit(optimistic=True)
             if runner.run is not None:
                 await self._do_run_once_retrying_tracked(runner)
             else:
                 await self._do_run_once_retrying(runner)
-            # always commit after tracked runs, but don't block if we're nested
             if runner.is_tracked:
+                # always commit after tracked runs, but don't block if we're nested
                 await self.session.commit(optimistic=runner.is_nested)
 
     @tracer.start_as_current_span("runner.process_run")
