@@ -50,6 +50,7 @@ import Text from "@/views/content/Text.vue";
 import Feed from "@/views/system/Feed.vue";
 import ValueObject from "@/views/system/ValueObject.vue";
 import { computed, ref, toRef, watch, type Ref } from "vue";
+import { runtime } from "@/system/runtime";
 
 const HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
 const MIN_WIDTH = 320;
@@ -79,19 +80,19 @@ const {
   props,
   emit,
 });
-const lastRunPtr = useViewStateProp(canvas.tx, "lastRunPtr", undefined) as Ref<
+const runPtr = useViewStateProp(canvas.tx, "runPtr", undefined) as Ref<
   TypedNodeReferenceData<NodeType.RUN> | undefined
 >;
-const { node: lastRun } = useNode({
-  name: "start.lastRun",
+const { node: run } = useNode({
+  name: "start.run",
   live: true,
-  nodePtr: lastRunPtr,
+  nodePtr: runPtr,
   isOptional: true,
-  isEnabled: computed(() => lastRunPtr.value != null),
+  isEnabled: computed(() => runPtr.value != null),
 });
-const lastRunOfBase = computed(() => {
-  if (lastRunPtr.value == null || lastRunPtr.value.baseCk != runnablePtr.value?.ck) return null;
-  else return lastRun.value;
+const runOfBase = computed(() => {
+  if (runPtr.value == null || runPtr.value.baseCk != runnablePtr.value?.ck) return null;
+  else return run.value;
 });
 const feedState = computed((): FeedViewStateData => {
   const runNodeProperty = runnablePtr.value?.type == NodeType.BLOCK ? RunProperty.blockPtr : RunProperty.stepPtr;
@@ -160,9 +161,8 @@ const outputType = computed(() =>
 
 function createRun() {
   if (runnableNode.value == null) return;
-  const run = makeRun(runnableNode.value, pkgGraph, { inputsPacked: inputsPacked.value });
-  pkgConnection.tx.with({ category: ChangeCategory.SESSION }).create(run);
-  lastRunPtr.value = toNodeRef(run);
+  const run = runtime.createRun(runnableNode.value, { inputsPacked: inputsPacked.value });
+  runPtr.value = toNodeRef(run);
 }
 
 canvas.registerView(self);
@@ -226,33 +226,33 @@ defineExpose<ViewExposed>({ self });
         <!-- Divider -->
         <div class="mx-auto my-2 w-full"><div class="h-[1px] w-full min-w-fit bg-gray-200" /></div>
         <!-- Outputs (last run) -->
-        <div v-if="lastRunOfBase?.outputsPacked != null" class="mx-auto mt-1 py-3">
+        <div v-if="runOfBase?.outputsPacked != null" class="mx-auto mt-1 py-3">
           <h4 class="font-semibold">Outputs</h4>
           <ValueObject
             class="w-full py-2"
             :value-type="outputType"
             is-inline
             :variant="Variant.STEALTH"
-            :model-value="unpackProtoJson(lastRunOfBase.outputsPacked)"
+            :model-value="unpackProtoJson(runOfBase.outputsPacked)"
           />
         </div>
         <!-- Error (last run) -->
-        <div v-else-if="lastRunOfBase?.error != null" class="mx-auto mt-1 py-3">
+        <div v-else-if="runOfBase?.error != null" class="mx-auto mt-1 py-3">
           <h4 class="font-semibold">Error</h4>
-          <RunError class="mt-2" :run="lastRunOfBase" :error="lastRunOfBase.error" />
+          <RunError class="mt-2" :run="runOfBase" :error="runOfBase.error" />
         </div>
         <!-- No terminated last run yet -->
         <div v-else-if="variant != Variant.COMPACT" class="mx-auto mt-1 py-3">
           <h4 class="font-semibold">Outputs</h4>
           <!-- Placeholder -->
           <div class="mt-2 w-full">
-            <span v-if="lastRunOfBase != null">
+            <span v-if="runOfBase != null">
               <IconInline
-                :class="ACCENT_COLOR_BY_RUN_STATUS[lastRunOfBase.status]"
-                v-bind="ICON_BY_RUN_STATUS[lastRunOfBase.status]"
+                :class="ACCENT_COLOR_BY_RUN_STATUS[runOfBase.status]"
+                v-bind="ICON_BY_RUN_STATUS[runOfBase.status]"
               />
-              <span class="ml-1.5" :class="ACCENT_COLOR_BY_RUN_STATUS[lastRunOfBase.status]">
-                {{ toCamelName(RunStatus, lastRunOfBase.status) }}
+              <span class="ml-1.5" :class="ACCENT_COLOR_BY_RUN_STATUS[runOfBase.status]">
+                {{ toCamelName(RunStatus, runOfBase.status) }}
               </span>
             </span>
             <span v-else>
@@ -264,12 +264,9 @@ defineExpose<ViewExposed>({ self });
         <!-- Divider -->
         <div class="mx-auto my-2 w-full"><div class="h-[1px] w-full min-w-fit bg-gray-200" /></div>
         <!-- Logs (last run) -->
-        <div
-          v-if="lastRunOfBase?.logs != null && lastRunOfBase.logs.length > 0"
-          class="mt-1 flex flex-col gap-y-1 py-3"
-        >
+        <div v-if="runOfBase?.logs != null && runOfBase.logs.length > 0" class="mt-1 flex flex-col gap-y-1 py-3">
           <h4 class="mb-2 font-semibold">Logs</h4>
-          <div v-for="(log, i) in lastRunOfBase.logs" :key="i" class="flex flex-row text-gray-900">
+          <div v-for="(log, i) in runOfBase.logs" :key="i" class="flex flex-row text-gray-900">
             <span class="mr-2 flex-shrink-0 text-gray-400">{{ tsToDt(log.createdAt!).toFormat("HH:mm:ss:SSS") }}</span>
             <pre v-if="log.textPlain" class="w-fit">{{ log.textPlain }}</pre>
             <Text v-else-if="log.text" :model-value="log.text" :variant="Variant.STEALTH" />

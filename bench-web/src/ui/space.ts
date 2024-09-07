@@ -60,7 +60,7 @@ import { log } from "@/utils/log";
 import { deepValueEquals } from "@/utils/ref";
 import { Casing, toCasing } from "@/utils/string";
 import { type FocusAnchor, type ViewComponent, type ViewProps } from "@/views/common";
-import { useActiveElement, useEventListener, type MaybeElement } from "@vueuse/core";
+import { useActiveElement, useEventListener } from "@vueuse/core";
 import {
   computed,
   getCurrentInstance,
@@ -95,6 +95,7 @@ const activeElement = useActiveElement();
  */
 export class SpaceCanvas {
   spacePtr: Ref<TypedNodeReferenceData<NodeType.SPACE> | null>;
+  space: Ref<SpaceData | null>;
   graph: ReadNodeGraph;
   tx: () => Transaction; // for when we're not given a transaction to work with (e.g. browser events)
   viewRefsById: Ref<Record<string, ViewComponent>> = shallowRef({});
@@ -111,6 +112,7 @@ export class SpaceCanvas {
   ) {
     this.spacePtr = spacePtr;
     this.graph = graph;
+    this.space = graph.getRef(spacePtr);
     this.tx = txFactory;
 
     // respond to 'unmanaged' input from browser

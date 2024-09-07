@@ -2065,7 +2065,7 @@ message SessionContextData {
 message StartViewStateData {
   ObjectType metatype = 1;
   optional google.protobuf.Struct inputs_packed = 30;
-  optional NodeReferenceData last_run_ptr = 40;
+  optional NodeReferenceData run_ptr = 40;
   optional FeedViewStateData feed = 50;
 }
 
@@ -3078,6 +3078,7 @@ message SpaceData {
   optional SelectionData focus = 70;
   optional NodeReferenceData inspection_ptr = 75;
   optional NodeReferenceData base_ptr = 76;
+  optional NodeReferenceData run_ptr = 77;
 }
 
 // A data or control flow node in a Flow. Ports on Steps are connected by Pipes.

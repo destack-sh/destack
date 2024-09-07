@@ -5,14 +5,12 @@ import { makeTypeInfo } from "@/language/field";
 import { uploadFile } from "@/language/file";
 import { getGroupedChildrenRef, isDescendantOf } from "@/language/graph";
 import { cloneNode, moveNode } from "@/language/node";
-import { makeRun } from "@/language/session";
 import { packValueJson } from "@/language/value";
 import {
   BenchType,
   BlockData,
   BlockType,
   BoxData,
-  ChangeCategory,
   NodeReferenceData,
   NodeType,
   Orientation,
@@ -32,9 +30,10 @@ import {
 } from "@/proto/wiring";
 import { PACKAGE_SCOPE } from "@/system/client";
 import { useExistingConnection, useGetConnection } from "@/system/connection";
+import { runtime } from "@/system/runtime";
 import { canvas, inspectionPtr } from "@/system/space";
 import { fireActionById, type ActionContext, type ActionMapImplementation } from "@/ui/action";
-import { startDragging, startDraggingIfAllowed, useMultiDropZone } from "@/ui/drag";
+import { startDraggingIfAllowed, useMultiDropZone } from "@/ui/drag";
 import { ICON_BY_BLOCK_TYPE, IconInline } from "@/ui/icon";
 import { ScrollbarWidth } from "@/ui/layout";
 import { menuActionsLike, type PopoverContext, type PopoverInfo, type PopoverInfoIn } from "@/ui/popover";
@@ -247,7 +246,7 @@ const actions: Partial<ActionMapImplementation<"common" | "session">> = {
   "session.run.start": (action, context) => {
     const { block } = getBlockFromContext(context);
     if (block == null) return false;
-    pkgConnection.tx.with({ category: ChangeCategory.SESSION }).create(makeRun(block, pkgGraph));
+    runtime.createRun(block);
   },
 };
 function createAndFocusBlock(
