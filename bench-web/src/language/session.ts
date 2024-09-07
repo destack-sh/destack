@@ -3,6 +3,8 @@ import { makeNode } from "@/language/node";
 import {
   BlockType,
   CodeData,
+  FieldData,
+  FieldZone,
   NodeReferenceData,
   NodeType,
   RunKind,
@@ -10,15 +12,34 @@ import {
   Struct,
   StructType,
   TextData,
+  type AnyNodeData,
   type BlockData,
   type RunData,
-  type StepData
+  type StepData,
 } from "@/proto/wire";
 import { describeNode, isNode, isStruct, toPlainNodeRef } from "@/proto/wiring";
 import { assertNever } from "@/utils/functools";
 
 export type RunnableNode = BlockData | StepData;
 export type RunnableObject = RunnableNode | TextData | CodeData;
+
+/** Whether the given node is runnable */
+export function isRunnable(node: AnyNodeData, graph: ReadNodeGraph, fields?: FieldData[]): node is RunnableNode {
+  if (isNode(node, NodeType.STEP)) {
+    return true;
+  } else if (isNode(node, NodeType.BLOCK)) {
+    if (node.type == BlockType.CODE || node.type == BlockType.FLOW) {
+      return true;
+    } else if (node.type == BlockType.TEXT) {
+      fields = fields ?? graph.getChildren(node, NodeType.FIELD);
+      return fields.some((f) => f.zone == FieldZone.INPUT) && fields.some((f) => f.zone == FieldZone.OUTPUT);
+    } else {
+      return false;
+    }
+  } else {
+    return false;
+  }
+}
 
 /** Determine the type of run for some runnable object */
 export function getRunKind(runnable: RunnableObject): RunKind {

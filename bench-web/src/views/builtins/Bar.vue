@@ -2,9 +2,9 @@
 import { Anchor, ClientType, NodeType, Orientation } from "@/proto/wire";
 import { DECLARED_ACTIONS_BY_ID, fireActionById, type Action, type ActionBuiltinId } from "@/ui/action";
 import { CLIENT_TYPE, isDeveloperMode } from "@/system/client";
-import { DEFAULT_USER_ICON, ICON_BY_NODE_TYPE, IconInline, makeIcon } from "@/ui/icon";
+import { DEFAULT_USER_ICON, getNodeIcon, ICON_BY_NODE_TYPE, ICON_BY_RUN_STATUS, IconInline, makeIcon } from "@/ui/icon";
 import { toCamelName } from "@/language/const";
-import { bench, hasLocalBench } from "@/system/space";
+import { bench, canvas, hasLocalBench } from "@/system/space";
 import { isAuthenticated, user } from "@/system/user";
 import type { FloatingPlacement } from "@/utils/floating";
 import { COMMIT, ENV, VERSION } from "@/utils/globals";
@@ -16,6 +16,7 @@ import { useElementSize } from "@vueuse/core";
 import { computed, ref, type Ref } from "vue";
 import ConnectionStatus from "./ConnectionStatus.vue";
 import { runtime } from "@/system/runtime";
+import { ACCENT_COLOR_BY_RUN_STATUS } from "@/ui/style";
 
 const props = defineProps<{
   anchor: Anchor;
@@ -222,8 +223,27 @@ const dockActions: Ref<Action[]> = computed(
       :class="[orientation == Orientation.HORIZONTAL ? 'ml-auto flex-row pr-1' : 'mt-auto flex-col pb-1']"
     >
       <!-- Active Run -->
-      <!-- nocheckin -->
-      {{ runtime?.runRef.value?.id }} {{ runtime?.runGraph?.nodes.length }}
+      <!-- NOTE :UX: we need a proper run control menu, also this should probably be a real view -->
+      <div
+        v-if="runtime?.run"
+        class="flex items-center gap-1 rounded px-1.5 py-0.5"
+        :class="[orientation == Orientation.HORIZONTAL ? 'flex-row' : 'flex-col']"
+      >
+        <!-- Status -->
+        <IconInline
+          class="w-5"
+          :class="ACCENT_COLOR_BY_RUN_STATUS[runtime.run.status]"
+          v-bind="ICON_BY_RUN_STATUS[runtime.run.status]"
+        />
+        <!-- Node -->
+        <button @click="canvas.goToNode(runtime.runBase)">
+          <IconInline
+            v-bind="runtime.runBase ? getNodeIcon(runtime.runBase) : makeIcon('fas fa-lambda')"
+            class="mr-1 w-5 text-gray-700 group-hover/node:text-primary-900"
+          />
+          <span>{{ runtime.runBase?.name ?? "Lambda" }}</span>
+        </button>
+      </div>
       <!-- Connection -->
       <ConnectionStatus />
       <!-- User Menu -->

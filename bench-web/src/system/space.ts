@@ -20,7 +20,7 @@ import { computed, nextTick, watch } from "vue";
 
 // bench/packages
 export const { graph: benchGraph, connection: benchConnection } = useGetConnection(
-  { name: "bench", live: true, paramsPretty: computed(() => ({ id: local.benchPtr.value?.id })) },
+  { name: "current.bench", live: true, paramsPretty: computed(() => ({ id: local.benchPtr.value?.id })) },
   computed(() => ({
     scope: BENCH_SCOPE.value,
     roots: [local.benchPtr.value!],
@@ -30,7 +30,7 @@ export const { graph: benchGraph, connection: benchConnection } = useGetConnecti
 );
 export const bench = benchGraph.getRef(local.benchPtr);
 export const { graph: pkgGraph, connection: pkgConnection } = useGetConnection(
-  { name: "pkg", live: true, paramsPretty: computed(() => ({ id: local.packagePtr.value?.id })) },
+  { name: "current.pkg", live: true, paramsPretty: computed(() => ({ id: local.packagePtr.value?.id })) },
   computed(() => ({
     scope: PACKAGE_SCOPE.value,
     roots: [local.packagePtr.value!],

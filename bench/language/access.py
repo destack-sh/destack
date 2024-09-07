@@ -558,8 +558,11 @@ def _register_system_policies():
             )
             .deny(EditType.UPSERT)
             .object(node_types=LEGISLATIVE_NODE_TYPES.tuple),
-            PolicyRule(name="CannotRemoveRuntimeNodes")
-            .deny(EditType.ARCHIVE, EditType.DELETE, EditType.ERASE)
+            PolicyRule(
+                name="CannotMoveRuntimeNodes",
+                text=Text.plain("Cannot move or remove runtime nodes"),
+            )
+            .deny(EditType.MOVE, EditType.ARCHIVE, EditType.DELETE, EditType.ERASE)
             .object(node_types=RUNTIME_NODE_TYPES.tuple),
         ),
         Policy(name="OwnerAccess").append(

@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { blockToType } from "@/language/block";
-import { NAME_CONSTRAINT, OUTGOING_STEP_TYPES, TYPE_BLOCK_TYPES } from "@/language/const";
+import { NAME_CONSTRAINT, OUTGOING_STEP_TYPES, toCamelName, TYPE_BLOCK_TYPES } from "@/language/const";
 import { createField, FIELD_CONTEXT_ACTIONS, makeTypeInfo, type TypeIdentity } from "@/language/field";
 import {
   FLOW_GRID_STEP,
@@ -13,22 +13,26 @@ import {
 import { cloneNode, moveNode, onNodeMorphed } from "@/language/node";
 import {
   BenchType,
+  ColorShade,
   FieldData,
   NodeType,
   Orientation,
   PortSide,
   PortType,
+  RunStatus,
   StepType,
   Variant,
   ViewData,
   ViewType,
 } from "@/proto/wire";
 import { describeNode, isNode, toNodeRefOneOf, unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
+import { runtime } from "@/system/runtime";
 import { canvas, inspectionPtr } from "@/system/space";
 import type { ActionContext, ActionMapImplementation } from "@/ui/action";
 import { startDragging, useMultiDropZone, type DraggedContent, type MultiAnchor } from "@/ui/drag";
-import { getNodeIcon, IconInline } from "@/ui/icon";
+import { getNodeIcon, ICON_BY_RUN_STATUS, IconInline } from "@/ui/icon";
 import { menuActionsLike, pushPopover, type PopoverContext, type PopoverInfo, type PopoverInfoIn } from "@/ui/popover";
+import { ACCENT_COLOR_BY_RUN_STATUS, COLOR_BY_RUN_STATUS, getColorHex } from "@/ui/style";
 import type { TooltipInfo } from "@/ui/tooltip";
 import { getNativeConstraintProps, guardNativeNameInput } from "@/ui/view";
 import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
@@ -63,6 +67,12 @@ const paddingHeight = computed(() => FLOW_GRID_STEP - ((bodySize.height.value + 
 function toPortId(port: Port): string {
   return `${port.side}-${port.idx}`;
 }
+
+// run
+const lastRun = computed(() => runtime.activeRunTree.getLastActiveRun({ ck: stepPtr.value?.ck }));
+const lastRunStatusColor = computed(() =>
+  lastRun.value?.status != null ? COLOR_BY_RUN_STATUS[lastRun.value.status] : null,
+);
 
 //
 // Interaction
@@ -191,15 +201,21 @@ defineExpose<ViewExposed>({ self, id, actions });
   <div
     v-if="step"
     ref="containerRef"
-    class="group/step rounded border bg-white transition-colors duration-75"
+    class="group/step rounded border bg-white transition-colors duration-150"
     :class="[stepPtr?.id == inspectionPtr?.id ? 'border-primary-900' : 'border-gray-200 hover:border-gray-300']"
+    :style="{
+      borderColor: lastRunStatusColor != null ? getColorHex(lastRunStatusColor, ColorShade.S600) : undefined,
+    }"
     @mouseup="(e) => flowCtx.endDragging(e, { kind: 'step', step: step! })"
   >
     <!-- Header (:StepHeight) -->
     <div
       ref="headerRef"
-      class="flex w-full flex-row items-center border-b border-gray-200 px-2 transition-colors duration-75 group-hover/step:border-gray-300"
-      :style="{ height: STEP_HEADER_HEIGHT + 'px' }"
+      class="flex w-full flex-row items-center border-b border-gray-200 px-2 transition-colors duration-150 group-hover/step:border-gray-300"
+      :style="{
+        height: STEP_HEADER_HEIGHT + 'px',
+        backgroundColor: lastRunStatusColor != null ? getColorHex(lastRunStatusColor, ColorShade.S50) : undefined,
+      }"
     >
       <!-- Icon/Name -->
       <div class="flex-shrink-0">
@@ -220,11 +236,11 @@ defineExpose<ViewExposed>({ self, id, actions });
         <input
           ref="nameRef"
           type="text"
-          class="ml-0.5 w-fit min-w-fit max-w-fit rounded border-0 px-1 font-medium text-gray-700 outline-none ring-0 transition-colors duration-75 hover:bg-gray-100 focus:ring-0"
+          class="ml-0.5 w-fit min-w-fit max-w-fit rounded border-0 bg-transparent px-1 font-medium text-gray-700 outline-none ring-0 transition-colors duration-150 hover:bg-gray-100 focus:ring-0"
           spellcheck="false"
           data-suppress-drag="true"
           :value="step.name"
-          :size="step.name.length + 3"
+          :size="Math.max(step.name.length, 3)"
           v-bind="getNativeConstraintProps(NAME_CONSTRAINT)"
           @input="
             guardNativeNameInput($event, step!.name, (newValue) =>
@@ -233,8 +249,17 @@ defineExpose<ViewExposed>({ self, id, actions });
           "
         />
       </div>
-      <!-- Controls -->
+      <!-- Controls/Meta -->
       <div class="ml-auto flex flex-row pl-2 pr-0.5">
+        <!-- Status -->
+        <!-- nocheckin: UX: improve status display -->
+        <button v-if="lastRun" class="px-1">
+          <IconInline
+            class="w-5 text-center"
+            :class="ACCENT_COLOR_BY_RUN_STATUS[lastRun.status]"
+            v-bind="ICON_BY_RUN_STATUS[lastRun.status]"
+          />
+        </button>
         <!-- Add field -->
         <button
           class="rounded text-gray-400 hover:bg-gray-100 hover:text-primary-900 data-[popover=true]:bg-gray-100 data-[popover=true]:text-primary-900"
@@ -330,7 +355,7 @@ defineExpose<ViewExposed>({ self, id, actions });
           >
             <!-- Actual 'port' -->
             <button
-              class="absolute cursor-crosshair rounded-sm border bg-white transition-colors duration-75 focus:outline-none"
+              class="absolute cursor-crosshair rounded-sm border bg-white transition-colors duration-150 focus:outline-none"
               :class="[
                 stepPtr?.id == inspectionPtr?.id ? 'border-primary-900' : 'border-gray-200 hover:bg-gray-100 ',
                 'hover:border-primary-900 hover:bg-gray-100',
@@ -341,6 +366,7 @@ defineExpose<ViewExposed>({ self, id, actions });
                 left: port.side == PortSide.INCOMING ? -FLOW_PORT_SIZE / 2 + 'px' : undefined,
                 right: port.side == PortSide.OUTGOING ? -FLOW_PORT_SIZE / 2 + 'px' : undefined,
                 top: FLOW_GRID_STEP / 2 - FLOW_PORT_SIZE / 2 + 'px',
+                borderColor: lastRunStatusColor != null ? getColorHex(lastRunStatusColor, ColorShade.S600) : undefined,
               }"
               data-suppress-drag="true"
               @mousedown="(e) => flowCtx.startDragging(e, { kind: 'step-port', step: step!, port })"
@@ -408,7 +434,7 @@ defineExpose<ViewExposed>({ self, id, actions });
       <!-- Content (:StepHeight) -->
       <div
         v-if="[StepType.TEXT, StepType.CODE].includes(step.type)"
-        class="mt-1 border-t border-gray-200 pt-1 transition-colors duration-75 group-hover/step:border-gray-300"
+        class="mt-1 border-t border-gray-200 pt-1 transition-colors duration-150 group-hover/step:border-gray-300"
       >
         <Text
           v-if="step.type == StepType.TEXT"

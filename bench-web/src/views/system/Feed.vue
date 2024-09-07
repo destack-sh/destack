@@ -258,7 +258,7 @@ const { roots, graph, connection, isStale, isConnected, isConnecting, page } = u
     sort: [
       makeExpression({
         op: ExpressionOp.DESCENDING,
-        propertyPtr: propertyReference(nodeType.value as unknown as ObjectType, LogProperty.createdAt),
+        propertyPtr: propertyReference(nodeType.value, LogProperty.createdAt),
       }),
     ],
     filter: effectiveFilter.value,
@@ -510,6 +510,7 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
                   <IconInline
                     v-bind="item.node != null ? getNodeIcon(item.node) : makeIcon('fas fa-lambda')"
                     class="mr-1 w-5 text-gray-700 group-hover/node:text-primary-900"
+                    @click="canvas.goToNode(item.node)"
                   />
                   <span>{{ (item.node as any)?.name ?? "Lambda" }}</span>
                 </button>

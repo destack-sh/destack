@@ -69,6 +69,7 @@ const TIME_UNIT_NAMES: Record<TimeUnit, string> = {
 };
 const TIME_UNITS_SHORT: TimeUnit[] = ["ms", "s", "m", "h", "d", "w", "y"];
 const DIGITS_PER_UNIT: Partial<Record<TimeUnit, number>> = {
+  ms: 2,
   s: 2,
 };
 
@@ -106,7 +107,7 @@ export function formatDuration(duration: Duration | number, options?: FormatDura
   let roundedValue: string;
   const unitValue = durationMs / TIME_UNIT_MILLIS[currentUnit];
   if (DIGITS_PER_UNIT[currentUnit] != null) {
-    const numDigits = Math.ceil(Math.log10(unitValue));
+    const numDigits = Math.round(unitValue).toString().length;
     const precision = Math.max(0, DIGITS_PER_UNIT[currentUnit]! - numDigits);
     roundedValue = unitValue.toFixed(precision);
   } else {

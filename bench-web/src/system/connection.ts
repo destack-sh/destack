@@ -1,4 +1,4 @@
-import { makeExpression } from "@/language/expression";
+import { SOURCE_NODE_TYPES } from "@/language/const";
 import {
   DEFAULT_NODE_FILTER,
   LayerNodeGraph,
@@ -26,14 +26,13 @@ import {
 import {
   AggregationData,
   ExpressionData,
-  ExpressionOp,
   MESSAGE_TYPE_BY_OBJECT_TYPE,
   NodeType,
   ObjectType,
   type GraphScopeData,
   type NodeReferenceData,
   type NodeTypeMapping,
-  type ReadOptionsData,
+  type ReadOptionsData
 } from "@/proto/wire";
 import { HealthClient } from "@/proto/wire/proto/health.client";
 import {
@@ -41,14 +40,12 @@ import {
   deepContentEquals,
   describeNode,
   makeScope,
-  propertyReference,
-  toPlainNodeRef,
   unwrapSomeNode,
-  type TypedNodeReferenceData,
+  type TypedNodeReferenceData
 } from "@/proto/wiring";
 import { LOCAL_SPACE_PTR, PACKAGE_SCOPE, packagePtr, spaceGraphLocal } from "@/system/client";
 import { toaster } from "@/ui/toast";
-import { assertNever, AsyncEvent } from "@/utils/functools";
+import { AsyncEvent } from "@/utils/functools";
 import { GRPC_KEEPALIVE_INTERVAL as GRPC_KEEPALIVE_INTERVAL_SECONDS, IS_DEV } from "@/utils/globals";
 import { log } from "@/utils/log";
 import { immediateStopWatch, pretendReadonly, toValueRef } from "@/utils/ref";
@@ -524,9 +521,6 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
     await connectedSignal.wait(); // wait for first connection
   }
 
-  // NOTE :Robustness: split doFetch into doFetch and doFetchLive?
-  //  so we can retry doFetchLive if that connection breaks without refetching everything?
-
   /** Actually fetch in the relevant connection type. */
   protected abstract doConnect(
     scope: GraphScopeData,
@@ -537,32 +531,37 @@ export abstract class ConnectionBase<K extends GraphConnectionKind, T extends No
   ): Promise<ConnectionResultMapping<T>[K] & ConnectionInternalResult>;
 
   /** Whether this connection is a superset of the given connection */
-  supports(params: ConnectionParamsMapping<T>[K]): boolean {
+  includes(params: ConnectionParamsMapping<T>[K]): boolean {
     // NOTE :Broken: connection 'overlap' detection is broken :ConnectionMatching
     //  (but shouldn't be an issue for now as we we fetch the entire package source / other search connections separately)
     if (this.kind == "get") {
       const thisGet = this.params as GetConnectionParams<T>;
       const otherGet = params as GetConnectionParams<T>;
-      // scope included?
-      if (getScopeFromParams(otherGet).benchId != getScopeFromParams(thisGet).benchId) return false;
-      // nocheckin: fix this for Runs
-      // node types included?
+      if (getScopeFromParams(otherGet).benchId != getScopeFromParams(thisGet).benchId) {
+        // different bench
+        return false;
+      }
       const thisNodeTypes = [
         ...thisGet.roots.map((r) => r.type),
         ...(thisGet.options?.ancestorTypes ?? []),
         ...(thisGet.options?.descendantTypes ?? []),
       ];
+      if (thisNodeTypes.some((t) => !SOURCE_NODE_TYPES.includes(t))) {
+        // we can only assume that node type overlap is enough for source nodes, otherwise check full params
+        //  (since they're loaded in a very specific way)
+        return deepContentEquals(params, this.params);
+      }
       const otherNodeTypes = [
         ...otherGet.roots.map((r) => r.type),
         ...(otherGet.options?.ancestorTypes ?? []),
         ...(otherGet.options?.descendantTypes ?? []),
       ];
-      if (!otherNodeTypes.every((t) => thisNodeTypes.includes(t))) return false;
-      return true;
+      // check whether all the node types overlap
+      return otherNodeTypes.every((t) => thisNodeTypes.includes(t));
     } else if (this.kind == "search") {
-      return deepContentEquals(this.params, params);
+      return deepContentEquals(params, this.params);
     } else if (this.kind == "aggregate") {
-      return deepContentEquals(this.params, params);
+      return deepContentEquals(params, this.params);
     } else {
       throw new Error(`unsupported connection kind: ${this.kind}`);
     }
@@ -907,7 +906,7 @@ export function findExistingConnection<K extends GraphConnectionKind, T extends 
   match?: ConnectionMatchOptions<K, T>,
 ): ConnectionBase<K, T> | null {
   const matchingConnections =
-    _connections.value.filter((c) => c.kind == kind && c.supports(params) && match?.predicate?.(c) !== false) ?? null;
+    _connections.value.filter((c) => c.kind == kind && c.includes(params) && match?.predicate?.(c) !== false) ?? null;
   if (matchingConnections.length == 0) return null;
   if (matchingConnections.length > 1) {
     // TODO :Broken: find the best connection match somehow :ConnectionMatching
@@ -1191,7 +1190,7 @@ export function useNode<T extends NodeType>(paramsIn: {
           scope: toValue(paramsIn.scope) ?? PACKAGE_SCOPE.value,
           roots: [toValue(paramsIn.nodePtr)!],
           isOptional: paramsIn.isOptional,
-          isEnabled: toValue(paramsIn.nodePtr) != null,
+          isEnabled: toValue(paramsIn.nodePtr) != null && toValue(paramsIn.isEnabled) !== false,
           ancestorTypes: toValue(paramsIn.ancestorTypes),
           descendantTypes: toValue(paramsIn.descendantTypes),
         }) as GetConnectionParams<T>,
