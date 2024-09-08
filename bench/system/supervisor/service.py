@@ -108,7 +108,7 @@ class SupervisorService(GraphIoServiceBase, SupervisorBase):
     ) -> Subject:
         # NOTE :Architecture: for simplicity we don't get the full Subject auth in Supervisor
         #  (like we do in Host, since we have the entire Bench cached and ready there,
-        #   and we don't expect to need Bench-level auth in the supervisor for now).
+        #   and we don't expect to need Bench-level auth in the Supervisor for now).
 
         async with global_session(self._global_store, self.get_engines(), self.oracle):
             # request will use the subject's supergraph, so ensure all subjects are created in session

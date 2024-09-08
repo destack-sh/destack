@@ -7,7 +7,7 @@ import structlog
 from opentelemetry import trace
 from psycopg.rows import dict_row
 from psycopg.sql import SQL
-from psycopg_pool import AsyncConnectionPool
+from psycopg_pool import AsyncConnectionPool, PoolTimeout
 
 from bench.language import Store
 from bench.utils.func import sanitize_connection_uri
@@ -30,10 +30,16 @@ PG_MAX_IDLE_TIMEOUT = get_from_env(
     description="Postgres max idle timeout in seconds",
 )
 PG_CONNECT_TIMEOUT = get_from_env(
-    "PG_CONNECT_TIMEOUT", typ=int, default=10, description="Postgres connection timeout in seconds"
+    "PG_CONNECT_TIMEOUT", typ=int, default=5, description="Postgres connection timeout in seconds"
 )
 PG_RECONNECT_TIMEOUT = get_from_env(
-    "PG_RECONNECT_TIMEOUT", typ=int, default=15, description="Postgres reconnect timeout in seconds"
+    "PG_RECONNECT_TIMEOUT", typ=int, default=10, description="Postgres reconnect timeout in seconds"
+)
+PG_MIN_POOL_SIZE = get_from_env(
+    "PG_MIN_POOL_SIZE", typ=int, default=2, description="Postgres min pool size"
+)
+PG_MAX_POOL_SIZE = get_from_env(
+    "PG_MAX_POOL_SIZE", typ=int, default=8, description="Postgres max pool size"
 )
 
 # NOTE :Cleanup: we should probably gc unused pools after some time
@@ -43,7 +49,9 @@ _pools_by_store: dict[Store, "AsyncPostgresPool"] = {}
 def get_pg_pool(store: Store) -> "AsyncPostgresPool":
     """Gets the connection pool for the given store."""
     if store not in _pools_by_store:
-        _pools_by_store[store] = AsyncPostgresPool(store, min_size=2, max_size=10)
+        _pools_by_store[store] = AsyncPostgresPool(
+            store, min_size=PG_MIN_POOL_SIZE, max_size=PG_MAX_POOL_SIZE
+        )
     return _pools_by_store[store]
 
 
@@ -140,12 +148,22 @@ class AsyncPostgresPool:
             if not self.is_open:
                 await self._do_open()
             assert self._pool is not None, f"pool not open: {self._pool!r}"
-            conn = await self._pool.getconn()
+            try:
+                conn = await self._pool.getconn(PG_CONNECT_TIMEOUT)
+            except PoolTimeout as e:
+                logger.error(
+                    "postgres.pool.acquire.timeout",
+                    pool=self,
+                    error=e,
+                    connections=[c.id for c in self._connections],
+                    span="current",
+                )
+                raise
             connection = AsyncPostgresConnection(self, conn)
             self._connections.append(connection)
             if autocommit != connection.autocommit:
                 await conn.set_autocommit(autocommit)
-            logger.trace("postgres.pool.connect", pool=self, connection=connection, span="current")
+            logger.trace("postgres.pool.acquire", pool=self, connection=connection, span="current")
             return connection
 
     @tracer.start_as_current_span("postgres.pool.release")

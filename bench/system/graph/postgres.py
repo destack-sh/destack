@@ -73,7 +73,9 @@ class PostgresEngine(GraphEngine):
     async def channel(self, session: "Session") -> "PostgresChannel":
         pool = get_pg_pool(self.store)
         conn = await pool.acquire()
-        return PostgresChannel(self, session, conn)
+        channel = PostgresChannel(self, session, conn)
+        logger.trace("postgres.channel.open", channel=channel, conn=conn)
+        return channel
 
     @property
     def includes_hidden(self) -> bool:
@@ -147,7 +149,7 @@ class PostgresChannel(WritableChannel[PostgresEngine]):
         new_revisions, cascaded_edits = await pg_edit(
             cur=self.cur, ctx=self.engine.context, edits=edits
         )
-        await self.cur.connection.commit()
+        await self.connection.commit()
         return CommitResultData(revisions=new_revisions, cascaded_edits=cascaded_edits)
 
     @override
@@ -161,6 +163,7 @@ class PostgresChannel(WritableChannel[PostgresEngine]):
         if not self.cur.connection.broken:
             await self.cur.connection.rollback()
         await self.connection.close()
+        logger.trace("postgres.channel.close", channel=self, conn=self.connection)
 
 
 class PostgresGetConnection[T: Node](GetConnection[PostgresChannel, T]):
@@ -179,12 +182,7 @@ class PostgresGetConnection[T: Node](GetConnection[PostgresChannel, T]):
             options=query._options or ReadOptions(),
             visited_graph=graph,
         )
-        return GetResultData(
-            graph=graph,
-            roots_ptr=roots_ptr,
-            epoch=None,
-            connection_token=None,
-        )
+        return GetResultData(graph=graph, roots_ptr=roots_ptr, epoch=None, connection_token=None)
 
 
 class PostgresSearchConnection[T: Node](SearchConnection[PostgresChannel, T]):

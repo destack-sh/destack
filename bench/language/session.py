@@ -400,15 +400,15 @@ class Session(RuntimeNode[SessionData]):
         assert self.opened_at, f"session not open {self!r}"
         assert not self.closed_at, f"session already closed {self!r}"
 
-        # stop flush loop
-        if self._commit_loop_task is not None:
-            self._commit_loop_task.cancel()
-            with suppress(asyncio.CancelledError):
-                await self._commit_loop_task
-            self._commit_loop_task = None
-
         # close transaction
         async with self._tx_lock:
+            # stop commit loop
+            if self._commit_loop_task is not None:
+                self._commit_loop_task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await self._commit_loop_task
+                self._commit_loop_task = None
+            # close connections/channels
             for connection in self._connections:
                 connection.close()
                 await connection.wait_closed()

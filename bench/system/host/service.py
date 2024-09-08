@@ -237,7 +237,7 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
         self._global_store = global_store
         self._global_pg_engine_unscoped = pg_engine_from_store(global_store)
         self._supergraph = NodeSuperGraph(self.bench_ptr)
-        self._client_cache = ClientCache()
+        self._client_cache = ClientCache(ttl=60)
         self._bench: Bench | None = None
         self._main_package: Package | None = None
         self._scope: GraphScopeData = GraphScope(bench_id=bench_id)._to_data()
