@@ -824,7 +824,7 @@ export class ProxyConnection<K extends GraphConnectionKind, T extends NodeType> 
 // NOTE :Performance: cache/store connections (results) locally for initial hydration?
 //
 
-const INACTIVE_CONNECTION_TIMEOUT = 60 * 1000; // 1 minute
+const INACTIVE_CONNECTION_TIMEOUT = 30 * 1000; // 30 seconds
 
 let connectionId = 0;
 function newConnectionId(): number {

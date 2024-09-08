@@ -14,7 +14,7 @@ from bench.language import Bench, Node, NodeType, Store
 from bench.language.const import (
     EditType,
 )
-from bench.language.graph import NodeSuperGraph
+from bench.language.graph import NodeGraphLike, NodeSuperGraph
 from bench.language.session import Session
 from bench.proto import wiring
 from bench.proto.wire import EditData
@@ -83,7 +83,8 @@ class Commit[T: Node]:
 
 def unpack_commit(
     session: Session,
-    supergraph: NodeSuperGraph,
+    graph: NodeGraphLike,
+    supergraph: NodeSuperGraph,  # graph may not be in supergraph
     edits: list[EditData],
     cascaded_edits: list[EditData],
     epoch: int,
@@ -121,7 +122,7 @@ def unpack_commit(
         edited_types[node_type.ord] = True
         # unpack
         node_id = UUID(edit.node_ptr.id)
-        node = supergraph.get(node_id)
+        node = graph.get(node_id) or supergraph.get(node_id)
         if node is None:
             if node_type == NodeType.LOG:
                 # access logs which are just created for each edit
