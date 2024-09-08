@@ -426,6 +426,7 @@ class Connection[
         self.is_unpacked = options.unpack
         self.log = logger.bind(connection=self)
 
+        self._connect_task: asyncio.Task | None = None
         self._has_result: asyncio.Event = asyncio.Event()
         self._result: ResultT | None = None
         self._result_data: ResultDataT | None = None
@@ -512,6 +513,8 @@ class Connection[
                 self._has_result.set()
             finally:
                 self.session._on_connection_end(self)
+                self.close()
+                await self.wait_closed()
         else:
             # live connection: loop (in seperate task) and await first result
             self.session._on_connection_begin(self)
@@ -545,7 +548,7 @@ class Connection[
                         last_error = None
                     # unpack
                     if self.options.unpack:
-                        # TODO :Broken: in case of re-connect result should replace original nodes/graph somehow
+                        # TODO :Broken!: in case of re-connect result should replace original nodes/graph somehow
                         #  (e.g. if we fetch self._bench = await Bench.get(...) in runtime or such,
                         #   the object reference should either remain connected or be replaced)
                         self._result = self._unpack_result(self._result_data)
@@ -574,7 +577,9 @@ class Connection[
                 self.session._on_error(e)
         finally:
             self.session._on_connection_end(self)
-        log.debug(f"connect.{self.type_name}.end")
+            self.close()
+            await self.wait_closed()
+            log.trace(f"connect.{self.type_name}.end")
 
     @abc.abstractmethod
     def _unpack_result(self, result_data: ResultDataT) -> ResultT:
@@ -598,10 +603,12 @@ class Connection[
     @final
     def close(self):
         """Close the connection."""
+        if self._is_closed:
+            return  # already closed
         self._is_closed = True
         if self._connect_task is not None:
             self._connect_task.cancel()
-        self.log.debug(f"connect.{self.type_name}.close")
+        self.log.trace(f"connect.{self.type_name}.close")
 
     @final
     async def wait_closed(self):

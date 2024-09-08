@@ -521,8 +521,8 @@ class View(SourceNode[ViewData]):
 @enum_(EnumType.SPACE_TYPE)
 class SpaceType(IdEnum):
     DESKTOP = 10
-    MOBILE = 20
-    EXTENSION = 30
+    BROWSER = 20
+    MOBILE = 30
 
 
 @local_node_(NodeType.SPACE)

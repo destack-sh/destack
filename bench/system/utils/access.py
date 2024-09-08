@@ -1,3 +1,4 @@
+import asyncio
 import weakref
 from uuid import UUID
 
@@ -73,18 +74,29 @@ _caches: weakref.WeakSet["ClientCache"] = weakref.WeakSet()
 
 class ClientCache:
     # NOTE :Architecture: should all cached clients be created in the same graph?
-    def __init__(self):
-        self._cache = TTLCache[UUID, Client](maxsize=10_000, ttl=60)
+    def __init__(self, *, ttl: int, maxsize: float = 100_000):
+        self._cache = TTLCache[UUID, Client](maxsize=maxsize, ttl=ttl)
+        self._locks: weakref.WeakValueDictionary[UUID, asyncio.Lock] = weakref.WeakValueDictionary()
         _caches.add(self)
 
     def has(self, client_id: UUID) -> bool:
         return client_id in self._cache
 
     async def get(self, client_id: UUID, client_access_token: str) -> Client:
+        # get client
         client = self._cache.get(client_id)
-        if client is None:
-            client = await do_get_client(client_id)
-            self._cache[client_id] = client
+        if client is None:  # cache miss
+            lock = self._locks.get(client_id)
+            if lock is None:
+                lock = asyncio.Lock()
+                self._locks[client_id] = lock
+            async with lock:
+                client = self._cache.get(client_id)
+                if client is None:
+                    client = await _do_get_client(client_id)
+                    self._cache[client_id] = client
+
+        # check access
         if client.access_token != client_access_token:
             raise GRPCError(GRPCStatus.UNAUTHENTICATED, "invalid access token")
         return client
@@ -96,14 +108,14 @@ class ClientCache:
 
 
 async def get_client(client_id: UUID, client_access_token: str):
-    client = await do_get_client(client_id)
+    client = await _do_get_client(client_id)
     if client.access_token != client_access_token:
         raise GRPCError(GRPCStatus.UNAUTHENTICATED, "invalid access token")
     return client
 
 
 @tracer.start_as_current_span("access.get_client")
-async def do_get_client(client_id: UUID) -> Client:
+async def _do_get_client(client_id: UUID) -> Client:
     try:
         client: Client = (
             await Client.include(User.email, Client.access_token)

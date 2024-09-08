@@ -56,8 +56,8 @@ class Connection[
 ](abc.ABC):
     """
     A system-side query connection to a (sub)graph.
-    This is the counterpart to the runtime/language connections that answers the calls,
-     where we cache results, replay and push updates to connection subscribers.
+    This is the counterpart to the runtime/language connections that answers the calls;
+     here we cache results, replay and push updates to connection subscribers.
     """
 
     read_type: ClassVar[ReadType]
