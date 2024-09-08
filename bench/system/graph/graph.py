@@ -132,7 +132,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
 
     async def start(self):
         self.tasks.start_scheduled(
-            30, self.connector.gc_connections, task_id="gc_connections", skip_errors=False
+            10, self.connector.gc_connections, task_id="gc_connections", skip_errors=False
         )
 
     @property

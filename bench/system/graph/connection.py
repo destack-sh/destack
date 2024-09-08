@@ -45,7 +45,7 @@ CONNECTION_REPLAY_BUFFER_SIZE = get_from_env(
 CONNECTION_CACHE_EXPIRE_SECONDS = get_from_env(
     "CONNECTION_CACHE_EXPIRE_SECONDS",
     typ=int,
-    default=120,
+    default=30,
     description="How long to keep unused connections around",
 )
 

@@ -721,6 +721,7 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
             self._session.track_many(*graph.nodes, force=True)  # may come from other session
             commit = unpack_commit(
                 session=self._session,
+                graph=graph,
                 supergraph=session._supergraph,  # use original session's supergraph
                 edits=edits,
                 cascaded_edits=cascaded_edits,
