@@ -12,6 +12,7 @@ from typing import (
     final,
 )
 from urllib.parse import urlparse
+from uuid import UUID
 
 import betterproto
 import cachetools
@@ -26,8 +27,9 @@ from opentelemetry import trace
 
 from bench.language import ValidationError
 from bench.language.access import AccessError, Subject
-from bench.language.const import BenchError
+from bench.language.const import BenchError, ClientType
 from bench.language.query import NodeNotFoundError
+from bench.proto import wire
 from bench.proto.wire import (
     EditData,
     HealthBase,
@@ -37,7 +39,7 @@ from bench.proto.wire import (
     RpcMetadata,
     ServiceKind,
 )
-from bench.proto.wiring import BENCH_CLASS_BY_PROTO_CLASS, unpack_rpc_headers
+from bench.proto.wiring import BENCH_CLASS_BY_PROTO_CLASS, pack_rpc_headers, unpack_rpc_headers
 from bench.utils.env import IS_DEV, IS_TEST
 from bench.utils.oracle import Oracle
 from bench.utils.string import Casing, to_casing
@@ -302,3 +304,38 @@ def get_channel(connection_uri: str):
     netloc = connection_info.netloc.split(":", 1)[0]
     channel = Channel(host=netloc, port=connection_info.port, ssl=connection_info.scheme == "https")
     return channel
+
+
+def get_rpc_metadata(
+    *,
+    client_type: ClientType,
+    client_id: str | UUID,
+    client_access_token: str | UUID,
+    client_nonce: str | UUID | None = None,
+):
+    """Gets the metadata for a client."""
+    rpc_metadata = RpcMetadata(
+        client_type=cast(wire.ClientType, client_type),
+        client_id=str(client_id),
+        client_nonce=str(client_nonce) if client_nonce is not None else None,
+        client_access_token=str(client_access_token),
+    )
+    return rpc_metadata
+
+
+def get_rpc_headers(
+    *,
+    client_type: ClientType,
+    client_id: str | UUID,
+    client_access_token: str | UUID,
+    client_nonce: str | UUID | None = None,
+):
+    """Gets the headers for a client."""
+    rpc_metadata = get_rpc_metadata(
+        client_type=client_type,
+        client_id=client_id,
+        client_access_token=client_access_token,
+        client_nonce=client_nonce,
+    )
+    rpc_headers = pack_rpc_headers(rpc_metadata)
+    return rpc_headers

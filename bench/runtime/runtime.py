@@ -304,6 +304,9 @@ class Runtime:
             run._do_set("started_at", self.oracle.utc(), validate=False)
         run._do_set("status", RunStatus.RUNNING, validate=False)
 
+        # commit any intermediate session edits
+        await self.session.commit(optimistic=True)
+
         # actually attempt Run
         try:
             await self._do_run_once_retrying(runner)
@@ -322,6 +325,9 @@ class Runtime:
             if run.terminated_at is not None:
                 run._do_set("duration", (run.terminated_at - run.started_at).total_seconds())  # type: ignore
 
+        # always commit after tracked runs, but don't block if we're nested
+        await self.session.commit(optimistic=runner.is_nested)
+
     @tracer.start_as_current_span("runner.run_runner")
     async def run_runner(self, runner: Runner):
         """Runs something runnable, considering its dependencies and run options."""
@@ -332,16 +338,10 @@ class Runtime:
         # run it
         async with self.session.active():
             trace.get_current_span().set_attribute("runner", repr(runner))
-            if runner.is_tracked:
-                # commit any intermediate session edits
-                await self.session.commit(optimistic=True)
             if runner.run is not None:
                 await self._do_run_once_retrying_tracked(runner)
             else:
                 await self._do_run_once_retrying(runner)
-            if runner.is_tracked:
-                # always commit after tracked runs, but don't block if we're nested
-                await self.session.commit(optimistic=runner.is_nested)
 
     @tracer.start_as_current_span("runner.process_run")
     async def run_run(self, run: Run, *, return_error: bool = False) -> Runner | None:

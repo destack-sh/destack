@@ -1,0 +1,250 @@
+import abc
+import asyncio
+import enum
+from contextlib import asynccontextmanager
+from typing import Any, override
+from uuid import UUID, uuid4
+
+import cachetools
+import grpclib
+import grpclib.metadata
+import structlog
+from grpclib.client import Channel
+from opentelemetry import trace
+
+from bench.language.bench import Bench, Branch, Client, Machine, Package, Server
+from bench.language.const import (
+    BENCH_NODE_TYPES,
+    IN_PACKAGE_NODE_TYPES,
+    LOADED_BENCH_NODE_TYPES,
+    PUBLIC_NODE_TYPES,
+    SOURCE_NODE_TYPES,
+    ClientType,
+    NodeType,
+)
+from bench.language.graph import NodeSuperGraph
+from bench.language.node import EMPTY_SCOPE, GraphScope, NodeReference
+from bench.language.session import Session
+from bench.language.user import User
+from bench.proto import wire
+from bench.proto.networking import localize_url
+from bench.proto.services import ServiceBase, get_channel, get_rpc_metadata
+from bench.proto.wire import (
+    GraphScopeData,
+    HostClient,
+    ResolveHostsRequest,
+    ResolveHostsRequestBenchKey,
+    SupervisorClient,
+)
+from bench.proto.wiring import pack_rpc_headers
+from bench.runtime.remote import RemoteEngine
+from bench.utils.func import CriticalLock
+from bench.utils.oracle import Oracle
+from bench.utils.tenacity import RETRY_GRPC_FOREVER
+
+logger = structlog.get_logger(__name__)
+tracer = trace.get_tracer(__name__)
+
+BENCH_QUERY = Bench.descendants(*LOADED_BENCH_NODE_TYPES).select_all()
+PACKAGE_QUERY = (
+    Package.descendants(*SOURCE_NODE_TYPES)
+    .ancestors(Bench, Branch)
+    .select_all()
+    .exclude(Bench.encryption_key)
+)
+
+
+class RuntimeThreadMode(enum.StrEnum):
+    LOCAL = "local"
+    PROCESS = "process"
+
+
+class RuntimeServiceBase(ServiceBase, abc.ABC):
+    """
+    Common base for RuntimeService/RuntimeThread.
+    """
+
+    def __init__(
+        self,
+        *,
+        logger: Any,
+        tracer: trace.Tracer,
+        oracle: Oracle,
+        bench_id: UUID,
+        supervisor_url: str,
+        client_type: ClientType,
+        client_id: UUID,
+        client_access_token: str,
+        server_id: UUID | None,
+        machine_id: UUID | None,
+        mode: "RuntimeThreadMode",
+    ):
+        super().__init__(logger=logger, tracer=tracer, oracle=oracle)
+        self._nonce = uuid4()
+        self._mode = mode
+
+        # services
+        self._supervisor_url = supervisor_url
+        self._supervisor = SupervisorClient(get_channel(supervisor_url))
+        self._host: HostClient | None = None
+        if client_type == ClientType.BENCH_MACHINE and machine_id is None:
+            raise ValueError(f"missing machine_id for {client_type} {client_id}")
+        self._client_type = client_type
+        self._client_id = client_id
+        self._client_access_token = client_access_token
+        self._rpc_metadata = get_rpc_metadata(
+            client_type=client_type,
+            client_id=client_id,
+            client_access_token=client_access_token,
+        )
+        self._rpc_headers = pack_rpc_headers(self._rpc_metadata)
+
+        # bench
+        self._bench_id = bench_id
+        self._bench_ptr = NodeReference(
+            type=NodeType.BENCH, id=bench_id, ck=bench_id, bench_id=bench_id
+        )
+        self._supergraph = NodeSuperGraph(self._bench_ptr)
+        self._bench: Bench | None = None
+        self._main_package: Package | None = None
+        self._session: Session | None = None
+        self._tx_lock: asyncio.Lock = CriticalLock(
+            name=f"{self.__class__.__name__}_{self._bench_id or ''}"
+        )
+        self._server_id = server_id
+        self._server: Server | None = None
+        self._machine_id = machine_id
+        self._machine: Machine | None = None
+        self._client_id = client_id
+        self._client: Client | None = None
+        self._engines: tuple[RemoteEngine, ...] = ()
+
+    @property
+    def bench(self) -> Bench:
+        assert self._bench is not None, f"no bench for {self!r}"
+        return self._bench
+
+    @property
+    def main_package(self) -> Package:
+        assert self._main_package is not None, f"no main package for {self!r}"
+        return self._main_package
+
+    @property
+    def epoch(self) -> int:
+        assert self._bench is not None, f"no bench for {self!r}"
+        assert self._main_package is not None, f"no main package for {self!r}"
+        # NOTE :Cleanup: get current runtime epoch from session? supergraph?
+        #  (feels clumsy and incorrect to get it just from bench/package here)
+        return max(self._bench.connection.epoch, self._main_package.connection.epoch)
+
+    @asynccontextmanager
+    async def session(self, *, readonly: bool = False):
+        """Gets exclusive query and edit access to the main session."""
+        assert self._session is not None, f"no session for {self!r}"
+        async with self._tx_lock, self._session.active(readonly=readonly):
+            yield self._session
+
+    @override
+    async def start(self):
+        # setup host
+        self._host = await self.resolve_host_client(self._bench_id)
+        bench_scope = GraphScopeData(
+            metatype=wire.ObjectType.GRAPH_SCOPE, bench_id=str(self._bench_id)
+        )
+        self._engines = (
+            # global engine
+            RemoteEngine(
+                scope=EMPTY_SCOPE._to_data(),
+                node_types=PUBLIC_NODE_TYPES,
+                remote=self._supervisor,
+                write_retry=RETRY_GRPC_FOREVER,
+                rpc_metadata=self._rpc_metadata,
+            ),
+            # bench engine
+            RemoteEngine(
+                scope=bench_scope,
+                node_types=BENCH_NODE_TYPES | IN_PACKAGE_NODE_TYPES,
+                remote=self._host,
+                write_retry=RETRY_GRPC_FOREVER,
+                rpc_metadata=self._rpc_metadata,
+            ),
+        )
+
+        # setup session
+        self._session = Session(
+            _is_readonly=False,
+            _default_scope=GraphScope(bench_id=self._bench_id)._to_data(),
+            _engines=self._engines,
+            _supervisor=self._supervisor,
+            _host=self._host,
+            _supergraph=self._supergraph,
+            _oracle=self._oracle,
+        )
+        await self._session.open(set_in_context=False)
+
+        # connect to host
+        async with self.session(readonly=True):
+            # get bench
+            self._bench = await BENCH_QUERY.get(self._bench_ptr, live=True)
+            main_branch = self._bench.main_branch
+            assert main_branch, f"{self._bench!r} has no main branch"
+            assert main_branch.main_package_id, f"{main_branch!r} has no main package"
+            main_server = self._bench.main_server
+            assert main_server, f"{self._bench!r} has no main server"
+            self._client = main_server.clients.get(self._client_id)
+            assert self._client, f"{main_server!r} has no client {self._client_id}"
+            if self._server_id:
+                self._server = self._bench.servers.get(self._server_id)
+            if self._machine_id:
+                self._machine = main_server.machines.get(self._machine_id)
+
+            # get package
+            self._main_package = await PACKAGE_QUERY.get(main_branch.main_package_ptr, live=True)
+            self._session.parent = self._main_package
+
+        # update session context
+        self._session.client = self._client
+        self._session.machine = self._machine
+        self._session.server = self._server
+        self._session.user = self._client.parent if isinstance(self._client.parent, User) else None
+        self._session._subject = self._client.parent
+        self._session._origin = (
+            self._client.to_origin(nonce=self._nonce)._to_data() if self._client else None
+        )
+
+    @cachetools.cached({})
+    @tracer.start_as_current_span("runtime.resolve_host_client")
+    async def resolve_host_client(self, bench_id: UUID) -> HostClient:
+        request = ResolveHostsRequest(benches=[ResolveHostsRequestBenchKey(id=str(bench_id))])
+        retry = RETRY_GRPC_FOREVER.new(self.oracle)
+        while retry.should_retry:
+            retry.on_attempt()
+            try:
+                response = await self._supervisor.resolve_hosts(
+                    request,
+                    metadata=self._rpc_headers,
+                    deadline=grpclib.metadata.Deadline.from_timeout(5),
+                )
+                host_info = response.hosts[0]
+                host_info.domain = localize_url(host_info.domain)
+                self.logger.info(
+                    "runtime.resolve_host",
+                    supervisor=self._supervisor,
+                    bench_id=bench_id,
+                    host_domain=host_info.domain,
+                    host_port=host_info.grpc_port,
+                )
+                host_channel = Channel(
+                    host=host_info.domain, port=host_info.grpc_port, ssl=host_info.ssl
+                )
+                return HostClient(host_channel)
+            except Exception as e:
+                interval = retry.get_wait_interval()
+                self.logger.error(
+                    "runtime.resolve_host.error", bench_id=bench_id, exc_info=e, interval=interval
+                )
+                if not retry.on_error(e):
+                    raise
+                await self.oracle.sleep(interval)
+        else:
+            raise retry.to_error(operation=request)
