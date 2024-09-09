@@ -196,7 +196,6 @@ class Package(BenchNode[PackageData]):
     # flags
     is_snapshot: bool = p_system(60, default=False)
     is_overlay: bool = p_system(61, default=False)
-    is_paused: bool = p_system(65, default=False)
 
     blocks: NodeList["Block"] = p_node_children(NodeType.BLOCK)
     spaces: NodeList["Space"] = p_node_children(NodeType.SPACE)
@@ -242,9 +241,6 @@ class Package(BenchNode[PackageData]):
             f"spaces={len(self.spaces)}",
             f"dependencies={len(self.dependencies)}",
         ]
-        for flag in ("is_paused",):
-            if getattr(self, flag):
-                parts.append(flag)
         return ", ".join(parts)
 
 
@@ -411,9 +407,10 @@ class Machine(ResourceNode[MachineData]):
     ram: float = p_regular(52, description="GB", constraint=RAM_CONSTRAINT)
     current_ram: Optional[float] = p_system(53, default=None, description="GB")
 
-    started_at: Optional[datetime] = p_internal(60, default=None)
-    terminated_at: Optional[datetime] = p_internal(61, default=None)
-    active_at: Optional[datetime] = p_internal(62, default=None)
+    started_at: Optional[datetime] = p_system(60, default=None)
+    terminated_at: Optional[datetime] = p_system(61, default=None)
+    active_at: Optional[datetime] = p_system(62, default=None)
+    restarted_at: Optional[datetime] = p_internal(63, default=None)
 
 
 @node_(NodeType.STORE)

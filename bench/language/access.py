@@ -696,7 +696,8 @@ class AccessError(BenchError):
         access: Access | Collection[Access],
         cause: Exception | None = None,
     ):
-        super().__init__(repr(access))
+        access = (access,) if isinstance(access, Access) else access
+        super().__init__(", ".join(repr(a) for a in access))
         self.evaluation = access
         self.cause = cause
 

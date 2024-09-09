@@ -110,9 +110,6 @@ class Block(SourceNode[BlockData]):
     is_owned: bool = p_system(
         61, default=False, description="Whether this is owned by its creator."
     )
-    is_paused: bool = p_regular(
-        64, default=False, description="Whether to pause any runtime activity within this block."
-    )
     # is_test? (for testing)
 
     blocks: NodeList["Block"] = p_node_children(NodeType.BLOCK)

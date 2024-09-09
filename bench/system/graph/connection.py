@@ -570,12 +570,13 @@ class ConnectionIndex:
             ):
                 self._log.debug("connect.gc", connection=connection)
                 self._remove_connection(connection)
-        self._log.trace(
-            "connect.gc",
-            now_ns=now_ns,
-            before_connections=before_count,
-            after_connections=len(self._connections_by_hash),
-        )
+        if before_count != len(self._connections_by_hash):
+            self._log.trace(
+                "connect.gc",
+                now_ns=now_ns,
+                before_connections=before_count,
+                after_connections=len(self._connections_by_hash),
+            )
 
     async def connect[ConnectionT: Connection](
         self, query: QueryBuilder, session: Session, connection_t: type[ConnectionT], *, cache: bool

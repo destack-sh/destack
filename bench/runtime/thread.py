@@ -1,6 +1,6 @@
 import asyncio
 from contextlib import asynccontextmanager
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 from uuid import UUID, uuid4
 
 import structlog
@@ -21,7 +21,19 @@ from bench.language.run import Run
 from bench.language.session import Session
 from bench.language.user import User
 from bench.proto import wiring
-from bench.proto.wire import HostClient, RunData, SupervisorClient
+from bench.proto.services import ServiceBase
+from bench.proto.wire import (
+    HostClient,
+    KillRunRequest,
+    KillRunResponse,
+    PauseRunRequest,
+    PauseRunResponse,
+    ProcessRunRequest,
+    ProcessRunResponse,
+    RunData,
+    RuntimeBase,
+    SupervisorClient,
+)
 from bench.runtime.core import DYNAMIC_CODE_GLOBALS, STATIC_CODE_GLOBALS
 from bench.runtime.runtime import Runtime
 from bench.utils.func import CriticalLock
@@ -44,10 +56,11 @@ PACKAGE_QUERY = (
 )
 
 
-class RuntimeThread:
+class RuntimeThread(ServiceBase, RuntimeBase):
     """
-    A thread for actually executing Runs in a Runtime in some Session with its own state.
-    Should be isolated in a separate Process for security and snapshotting.
+    A 'thread' for executing Runs in a Runtime in some Session.
+    A RuntimeThread processes one top-level Run at a time. It may be paused, resumed or killed.
+    A RuntimeThread may reside in any thread or process (incl. main), depending on the context.
     """
 
     def __init__(
@@ -61,7 +74,6 @@ class RuntimeThread:
         server_id: UUID | None,
         machine_id: UUID | None,
         engines: tuple[GraphEngine, ...],
-        process_queue: asyncio.Queue[RunData],
         oracle: Oracle,
     ):
         self.id = id
@@ -90,11 +102,10 @@ class RuntimeThread:
 
         # processing
         self._session: Session | None = None
-        self._runner: Runtime | None = None
+        self._runtime: Runtime | None = None
         self._tx_lock: asyncio.Lock = CriticalLock(
             name=f"{self.__class__.__name__}_{self._bench_id or ''}_{self.id}"
         )
-        self._run_queue = process_queue
         self._tasks = TaskManager(owner=self, logger=logger, oracle=oracle)
 
     def __str__(self):
@@ -174,26 +185,20 @@ class RuntimeThread:
         )
 
         # finally, start processing runs
-        self._runner = Runtime(
+        self._runtime = Runtime(
             session=self._session,
             oracle=self._oracle,
             static_glbls=STATIC_CODE_GLOBALS,
             dynamic_glbls=DYNAMIC_CODE_GLOBALS,
         )
-        self._tasks.start_queue(
-            self._run_queue,
-            self._process_run_queue,
-            f"{self.bench.slug}_run{self.id}",
-            skip_errors=True,
-        )
         logger.info("thread.start", process=self, bench=self._bench)
 
-    async def _process_run_queue(self, run_data: RunData):
+    async def _do_process_run(self, run_data: RunData) -> None:
         # TODO :Robustness Run.created_epoch may be ahead of our own epoch if the sync takes longer to
         #  arrive than the request from the scheduler (both from our Host). This means the caller/user
         #  may expect a different current state than we actually have (so we may be behind).
         assert self._session is not None, f"no session for {self!r}"
-        assert self._runner is not None, f"no runner for {self!r}"
+        assert self._runtime is not None, f"no runtime for {self!r}"
         assert self._main_package is not None, f"no main package for {self!r}"
         package = self._main_package
         assert (
@@ -202,8 +207,9 @@ class RuntimeThread:
         set_baggage(
             bench_id=self._bench_id,
             client_id=self._client_id,
-            machine_id=self._machine_id,
             server_id=self._server_id,
+            machine_id=self._machine_id,
+            thread_id=self.id,
         )
 
         with tracer.start_as_current_span("thread.process_run"):
@@ -226,10 +232,33 @@ class RuntimeThread:
                 graph.add(run)
                 self._supergraph.add_graph(graph)
             try:
-                await self._runner.run_run(run, return_error=True)
+                await self._runtime.run_run(run, return_error=True)
             finally:
                 self._supergraph.remove_graph(graph)
             logger.info("thread.process_run", process=self, run=run, span="current")
+
+    @override
+    async def process_run(self, request: ProcessRunRequest) -> ProcessRunResponse:
+        await self._do_process_run(request.run)
+        return ProcessRunResponse()
+
+    @override
+    async def pause_run(self, request: PauseRunRequest) -> PauseRunResponse:
+        assert self._runtime is not None, f"no runtime for {self!r}"
+        run = self._supergraph.get(UUID(request.run.id))
+        if not isinstance(run, Run):
+            return PauseRunResponse(is_processed=False)
+        await self._runtime.pause_run(run)
+        return PauseRunResponse(is_processed=True)
+
+    @override
+    async def kill_run(self, request: KillRunRequest) -> KillRunResponse:
+        assert self._runtime is not None, f"no runtime for {self!r}"
+        run = self._supergraph.get(UUID(request.run.id))
+        if not isinstance(run, Run):
+            return KillRunResponse(is_processed=False)
+        await self._runtime.abort_run(run)
+        return KillRunResponse(is_processed=True)
 
     def close(self):
         self._tasks.close()

@@ -196,7 +196,3 @@ export const NODE_SUBTYPE_BY_TYPE: Partial<Record<NodeType, string>> = {
   [NodeType.STEP]: "type",
   [NodeType.FILE]: "coarseType",
 };
-export const NODE_SUBSUBTYPE_BY_TYPE: Partial<Record<NodeType, string>> = {
-  [NodeType.FIELD]: "kind",
-  [NodeType.FILE]: "format",
-};

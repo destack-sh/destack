@@ -276,7 +276,6 @@ function getInspectionInfo(metatype: ObjectType, type: number): Record<string, I
     };
     if (RUNNABLE_BLOCK_TYPES.includes(type) || PAGE_BLOCK_TYPES.includes(type)) {
       properties.Run.push(BlockProperty.identityPtr);
-      properties.Run.push(BlockProperty.isPaused);
     }
     if (type == BlockType.VALUE) {
       // value type

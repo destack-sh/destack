@@ -84,7 +84,7 @@ class Commit[T: Node]:
 def unpack_commit(
     session: Session,
     graph: NodeGraphLike,
-    supergraph: NodeSuperGraph,  # graph may not be in supergraph
+    supergraph: NodeSuperGraph,  # graph may not be in supergraph :StaleNodes
     edits: list[EditData],
     cascaded_edits: list[EditData],
     epoch: int,

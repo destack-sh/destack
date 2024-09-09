@@ -1,4 +1,5 @@
 import asyncio
+from dataclasses import dataclass
 from typing import cast, override
 from urllib.parse import urlparse
 from uuid import UUID, uuid4
@@ -26,8 +27,12 @@ from bench.proto.services import ServiceBase
 from bench.proto.wire import (
     GraphScopeData,
     HostClient,
-    QueueRunRequest,
-    QueueRunResponse,
+    KillRunRequest,
+    KillRunResponse,
+    PauseRunRequest,
+    PauseRunResponse,
+    ProcessRunRequest,
+    ProcessRunResponse,
     ResolveHostsRequest,
     ResolveHostsRequestBenchKey,
     RpcMetadata,
@@ -40,10 +45,18 @@ from bench.proto.wiring import pack_rpc_headers
 from bench.runtime.remote import RemoteEngine
 from bench.runtime.thread import RuntimeThread
 from bench.utils.oracle import Oracle
+from bench.utils.telemetry import set_baggage
 from bench.utils.tenacity import RETRY_GRPC_FOREVER
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
+
+
+@dataclass(slots=True)
+class ActiveRun:
+    run: RunData
+    thread: RuntimeThread | None
+    task: asyncio.Task | None
 
 
 class RuntimeService(ServiceBase, RuntimeBase):
@@ -101,7 +114,8 @@ class RuntimeService(ServiceBase, RuntimeBase):
         )
 
         # processing
-        self._start_queue: asyncio.Queue[RunData] = asyncio.Queue()
+        self._active_runs: list[ActiveRun] = []
+        self._available_threads: asyncio.Queue[RuntimeThread] = asyncio.Queue()
         self._max_threads = max_threads
         self._threads: list[RuntimeThread] = []
 
@@ -142,9 +156,9 @@ class RuntimeService(ServiceBase, RuntimeBase):
         )
 
         # start threads
-        # NOTE :Incomplete: start threads as actual threads/processes (if available i.e. not WASM)
         assert self._max_threads > 0, f"no threads for {self!r}"
         for i in range(self._max_threads):
+            # nocheckin: launch RuntimeThread in own process (if available i.e. not WASM)
             thread = RuntimeThread(
                 id=i,
                 bench_id=self._bench_id,
@@ -154,10 +168,10 @@ class RuntimeService(ServiceBase, RuntimeBase):
                 server_id=self._server_id,
                 machine_id=self._machine_id,
                 engines=self._engines,
-                process_queue=self._start_queue,
                 oracle=self.oracle,
             )
             self._threads.append(thread)
+            self._available_threads.put_nowait(thread)
             await thread.start()
 
         logger.info("runtime.start", runtime=self)
@@ -165,12 +179,69 @@ class RuntimeService(ServiceBase, RuntimeBase):
     def close(self):
         super().close()
 
+    @tracer.start_as_current_span("runtime.process_run")
+    async def _do_process_run(self, run: ActiveRun):
+        set_baggage(bench_id=self._bench_id, client_id=self._client_id, run_id=run.run.id)
+        self._active_runs.append(run)
+        try:
+            # acquire thread
+            try:
+                run.thread = await self._available_threads.get()
+            except asyncio.CancelledError as e:
+                # cancelled before we got a thread
+                logger.trace("runtime.process_run.cancel", error=e)
+                return
+
+            # run in thread
+            try:
+                request = ProcessRunRequest(run=run.run, is_blocking=True)
+                _ = await run.thread.process_run(request)
+            finally:
+                self._available_threads.put_nowait(run.thread)
+        finally:
+            self._active_runs.remove(run)
+
     @override
-    async def queue_run(self, request: QueueRunRequest) -> QueueRunResponse:
-        # just add to start queue
-        self._start_queue.put_nowait(request.run)
-        logger.trace("runtime.queue_run", run=request.run, span="current")
-        return QueueRunResponse()
+    async def process_run(self, request: ProcessRunRequest) -> ProcessRunResponse:
+        run = ActiveRun(run=request.run, thread=None, task=None)
+        run.task = asyncio.create_task(self._do_process_run(run))
+        if request.is_blocking:
+            await run.task
+        return ProcessRunResponse()
+
+    @override
+    async def pause_run(self, request: PauseRunRequest) -> PauseRunResponse:
+        # find active run
+        for run in self._active_runs:
+            if run.run.id == request.run.id:
+                if run.thread is None:
+                    # not yet running, cancel directly
+                    assert run.task is not None, f"no task for {run!r}"
+                    run.task.cancel()
+                else:
+                    # try to pause in thread
+                    request = PauseRunRequest(run=run.run)
+                    _ = await run.thread.pause_run(request)
+                return PauseRunResponse(is_processed=True)
+        else:
+            return PauseRunResponse(is_processed=False)
+
+    @override
+    async def kill_run(self, request: KillRunRequest) -> KillRunResponse:
+        # find active run
+        for run in self._active_runs:
+            if run.run.id == request.run.id:
+                if run.thread is None:
+                    # not yet running, cancel directly
+                    assert run.task is not None, f"no task for {run!r}"
+                    run.task.cancel()
+                else:
+                    # try to kill in thread
+                    request = KillRunRequest(run=run.run)
+                    _ = await run.thread.kill_run(request)
+                return KillRunResponse(is_processed=True)
+        else:
+            return KillRunResponse(is_processed=False)
 
     @cachetools.cached({})
     async def _get_host_client(self, bench_id: UUID) -> HostClient:

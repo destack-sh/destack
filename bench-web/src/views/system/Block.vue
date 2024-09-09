@@ -88,11 +88,6 @@ const actions: Partial<ActionMapImplementation<"common">> & ActionMapImplementat
       nextTick(() => nameRef.value!.focus());
     },
   },
-  // block
-  "block.edit.isPaused": {
-    isChecked: () => block.value?.isPaused ?? false,
-    action: () => pkgConnection.tx.update(block.value!, { isPaused: !block.value!.isPaused }, { debounce: "tick" }),
-  },
 };
 
 // focus

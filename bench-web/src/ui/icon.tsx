@@ -40,7 +40,7 @@ import type { FunctionalComponent } from "vue";
 //  | jq 'to_entries | map(select(.value.free | index("s@olid") or index("brands")) | {"id": .key, label: .value.label, unicode: .value.unicode, alias: .value.search.terms, family: (if .value.free | index("solid") then "fas" else "fab" end)})'
 //  > fa-icons.json
 import _AVAILABLE_FA_ICONS from "@/assets/fa-icons.json";
-import { NODE_SUBSUBTYPE_BY_TYPE, NODE_SUBTYPE_BY_TYPE } from "@/language/const";
+import { NODE_SUBTYPE_BY_TYPE } from "@/language/const";
 import type { TypeIdentity } from "@/language/field";
 import { isNode, type SomeNodeReferenceData } from "@/proto/wiring";
 import { getColorHex, makeColor } from "@/ui/style";
@@ -592,21 +592,12 @@ export function getNodeIcon(
     if (icon != null) return icon;
   }
 
-  // get icon for subsubtype/subtype
+  // get icon for subtype
   const nodeType =
     options?.nodeType ?? (isNode(node) ? (node.metatype as unknown as NodeType) : (node as NodeReferenceData).type);
-  const nodeSubsubtypeKey = NODE_SUBSUBTYPE_BY_TYPE[nodeType];
-  const nodeSubsubtype =
-    nodeSubsubtypeKey != null ? (node as ChangeVignetteData).subsubtype ?? (node as any)[nodeSubsubtypeKey] : undefined;
-  if (nodeSubsubtype != null) {
-    const nodeSubsubtypeIcon = getNodeSubtypeIcon(nodeType, nodeSubsubtypeKey!, nodeSubsubtype);
-    if (nodeSubsubtypeIcon != null) {
-      return nodeSubsubtypeIcon;
-    }
-  }
   const nodeSubtypeKey = NODE_SUBTYPE_BY_TYPE[nodeType];
   const nodeSubtype =
-    nodeSubtypeKey != null ? (node as ChangeVignetteData).subtype ?? (node as any)[nodeSubtypeKey] : undefined;
+    nodeSubtypeKey != null ? ((node as ChangeVignetteData).subtype ?? (node as any)[nodeSubtypeKey]) : undefined;
   if (nodeSubtype != null) {
     const nodeSubtypeIcon = getNodeSubtypeIcon(nodeType, nodeSubtypeKey!, nodeSubtype);
     if (nodeSubtypeIcon != null) {
