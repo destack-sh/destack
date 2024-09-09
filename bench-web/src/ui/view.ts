@@ -367,7 +367,7 @@ export function getNativeConstraintProps(constraint?: Partial<TypeConstraintData
  * Guards and coerces an event listener with a constraint.
  * Forward the value if it passes, otherwise revert the event target to the old value
  */
-export function guardNativeInput<T extends string | number | BigInt>(
+export function guardNativeInput<T extends string | number | bigint>(
   type: TypeIdentity,
   constraint: Partial<TypeConstraintData> | undefined,
   event: Event,

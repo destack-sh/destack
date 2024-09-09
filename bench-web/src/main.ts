@@ -3,12 +3,11 @@ import "./assets/index.css";
 
 import { toaster } from "@/ui/toast";
 import { setupTransactionManagement } from "@/language/transaction";
-import { COMMIT, ENV, IS_DEV, SENTRY_DSN, SUPERVISOR_URL, VERSION } from "@/utils/globals";
+import { COMMIT, ENV, IS_DEV, SUPERVISOR_URL, VERSION } from "@/utils/globals";
 import { keytrap } from "@/ui/keymap";
 import { CONTEXT_MENU_DIRECTIVE, HOVER_MENU_DIRECTIVE, MENU_DIRECTIVE } from "@/ui/popover";
 import { EVENT_OUTSIDE_DIRECTIVE, HOVER_DIRECTIVE, TOOLTIP_DIRECTIVE } from "@/ui/tooltip";
 import { registerViewComponents } from "@/views/registry";
-import * as Sentry from "@sentry/vue";
 import posthog from "posthog-js";
 import { createApp } from "vue";
 import Space from "./Space.vue";
@@ -17,24 +16,12 @@ import { log } from "@/utils/log";
 async function init() {
   const app = createApp(Space);
 
-  // sentry / posthog instrumentation
+  // telemetry
   if (!IS_DEV) {
     posthog.init("phc_d8mi3OMdtKSVA8kzHbBoKtYU3ZsMQakAiLpuOn3W9ma", {
       // public capture key
       api_host: "https://eu.posthog.com",
       enable_recording_console_log: true,
-    });
-    console.info("Setting up Sentry...", SENTRY_DSN != null);
-    Sentry.init({
-      app,
-      dsn: import.meta.env.SENTRY_DSN,
-      integrations: [
-        Sentry.browserTracingIntegration({
-          tracePropagationTargets: ["localhost", "127.0.0.1", "justbench.com", /^\//],
-        }),
-      ],
-      tracesSampleRate: 1.0,
-      logErrors: true,
     });
     posthog.opt_in_capturing();
   } else {
