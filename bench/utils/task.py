@@ -157,7 +157,7 @@ class TaskManager:
 
     def start_scheduled(
         self,
-        run_every: float,
+        every: float,
         process: Callable[[], None | Awaitable[None] | Coroutine[None, None, None]],
         task_id: str | None = None,
         *,
@@ -166,7 +166,7 @@ class TaskManager:
         task_id = self._make_task_id(task_id, process.__name__)
         task = asyncio.create_task(
             coro=self._run_scheduled_tasks(
-                run_every=run_every, process=process, task_id=task_id, skip_errors=skip_errors
+                run_every=every, process=process, task_id=task_id, skip_errors=skip_errors
             ),
             name=task_id,
         )

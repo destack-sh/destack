@@ -96,6 +96,7 @@ class RuntimeThread(ServiceBase, RuntimeBase):
     ):
         super().__init__(logger=logger, tracer=tracer, oracle=oracle)
 
+        # identity
         self.id = id
         self._nonce = uuid4()
 
@@ -265,8 +266,7 @@ class RuntimeThread(ServiceBase, RuntimeBase):
 
         with tracer.start_as_current_span("thread.process_run"):
             async with self._session.active(readonly=True):
-                # TODO :Incomplete: watch entire Run (tree) while running to handle pause/abort/...
-                #  (and maybe figure out better way to manage :TransientGraphs in supergraph)
+                #  NOTE :Cleanup: figure out better way to manage :TransientGraphs in supergraph
                 graph = NodeGraph(
                     scope=self._session._get_scope_for_node(package),
                     node_types=RUNTIME_NODE_TYPES,
@@ -285,7 +285,7 @@ class RuntimeThread(ServiceBase, RuntimeBase):
             try:
                 await self._runtime.run_run(run, return_error=True)
             finally:
-                self._supergraph.remove_graph(graph)
+                self._supergraph.remove_graph(graph)  # :TransientGraphs
             logger.info("thread.process_run", process=self, run=run, span="current")
 
     @override

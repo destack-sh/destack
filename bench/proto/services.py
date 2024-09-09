@@ -249,7 +249,7 @@ class HealthService(HealthBase):
     async def check(self, request: "HealthCheckRequest") -> "HealthCheckResponse":
         # TODO :Robustness :Monitoring: check health properly
         response = HealthCheckResponse(status=HealthCheckResponseServingStatus.SERVING)
-        logger.trace("health.check", request=request, response=response)
+        logger.trace("health.check", service=self, request=request, response=response)
         return response
 
 
