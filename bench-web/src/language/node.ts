@@ -2,16 +2,10 @@
  * Many constants are generated into proto/wire, here some additional ones.
  */
 
-import {
-  NODE_SUBSUBTYPE_BY_TYPE,
-  NODE_SUBTYPE_BY_TYPE,
-  TIMED_NODE_TYPES,
-  toCamelName
-} from "@/language/const";
+import { NODE_SUBTYPE_BY_TYPE, TIMED_NODE_TYPES, toCamelName } from "@/language/const";
 import { FLOW_GRID_STEP } from "@/language/flow";
 import { isDescendantOf, resolveNode, type ReadNodeGraph } from "@/language/graph";
 import { updateOrder } from "@/language/order";
-import type { RunnableNode } from "@/language/session";
 import { newChangeId, type Transaction } from "@/language/transaction";
 import {
   BlockType,
@@ -30,8 +24,7 @@ import {
   ViewType,
   type AnyNodeData,
   type AnyStructData,
-  type FieldData,
-  type NodeTypeMapping
+  type NodeTypeMapping,
 } from "@/proto/wire";
 import {
   describeNode,
@@ -43,12 +36,11 @@ import {
   nodeReference,
   toPlainNodeRef,
   type AnyNodeReferenceData,
-  type SomeNodeReferenceData
+  type SomeNodeReferenceData,
 } from "@/proto/wiring";
 import { addVector2 } from "@/ui/view";
 import { Casing, toCasing } from "@/utils/string";
 import { uuidt } from "@/utils/uuidt";
-import { computed, type Ref } from "vue";
 
 /** Extracts the last (potentially multi-digit) characters as an integer */
 export function extractNameId(name: string): number | null {
@@ -64,13 +56,6 @@ export function getNodeType(node: AnyNodeData | SomeNodeReferenceData): NodeType
 /** Gets the discriminating subtype for a node, if any :NodeSubtype */
 export function getNodeSubtype(node: Partial<AnyNodeData>): FieldZone | BlockType | ViewType | StepType | any {
   const key = NODE_SUBTYPE_BY_TYPE[node.metatype as unknown as NodeType];
-  if (key != null) return (node as any)[key];
-  else return null;
-}
-
-/** Gets the discriminating subsubtype for a node, if any :NodeSubtype */
-export function getNodeSubsubtype(node: AnyNodeData): TypeKind | FileFormat | any {
-  const key = NODE_SUBSUBTYPE_BY_TYPE[node.metatype as unknown as NodeType];
   if (key != null) return (node as any)[key];
   else return null;
 }

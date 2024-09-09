@@ -339,10 +339,7 @@ class RunError(Struct, BenchError):
 @timed_node_(NodeType.RUN)
 class Run(RuntimeNode[RunData], HasNodeBase, HasSessionContext):
     """
-    A 'run' of Blocks (and Steps within them) or 'lambdas' (just Code/Text).
-    When 'running' something that's not directly runnable (like a Text Block, Text Step or Text Lambda),
-     we implicitly pass it to the corresponding default Text program.
-    Once terminated, a Run is effectively immutable.
+    Run a Block, Step or some lambda (Code) in a Session.
     """
 
     # content
@@ -356,13 +353,13 @@ class Run(RuntimeNode[RunData], HasNodeBase, HasSessionContext):
 
     code: Optional["Code"] = p_internal(36, require=False, array=False, struct=StructType.CODE)
     # extra run options if different from base or it's a lambda
-    options: Optional["RunOptions"] = p_regular(
+    options: Optional["RunOptions"] = p_system(
         38, require=False, array=False, struct=StructType.RUN_OPTIONS
     )
 
     # status (overall)
     status: RunStatus = p_internal(40, default=RunStatus.SCHEDULED)  # desired status
-    duration: Optional[float] = p_regular(
+    duration: Optional[float] = p_internal(
         41,
         default=None,
         description="Duration in seconds from first attempt start to last attempt termination.",
@@ -371,19 +368,19 @@ class Run(RuntimeNode[RunData], HasNodeBase, HasSessionContext):
     error: Optional["RunError"] = p_internal(
         43, default=None, require=False, array=False, struct=StructType.RUN_ERROR
     )
-    scheduled_at: Optional[datetime] = p_regular(44, default=None)
-    scheduled_epoch: Optional[int] = p_regular(45, default=None)
-    started_at: Optional[datetime] = p_regular(46, default=None)
-    started_epoch: Optional[int] = p_regular(47, default=None)
-    killed_at: Optional[datetime] = p_regular(48, default=None)
-    halted_at: Optional[datetime] = p_regular(49, default=None)
-    halted_epoch: Optional[int] = p_regular(50, default=None)
-    halted_on_run: Optional["Run"] = p_regular(
+    scheduled_at: Optional[datetime] = p_system(44, default=None)
+    scheduled_epoch: Optional[int] = p_system(45, default=None)
+    started_at: Optional[datetime] = p_internal(46, default=None)
+    started_epoch: Optional[int] = p_internal(47, default=None)
+    killed_at: Optional[datetime] = p_internal(48, default=None)
+    halted_at: Optional[datetime] = p_internal(49, default=None)
+    halted_epoch: Optional[int] = p_internal(50, default=None)
+    halted_on_run: Optional["Run"] = p_internal(
         51, require=False, array=False, same_bench=True, references=NodeType.RUN
     )
     # halted_on_trigger: ...
-    terminated_at: Optional[datetime] = p_regular(53, default=None)
-    terminated_epoch: Optional[int] = p_regular(54, default=None)
+    terminated_at: Optional[datetime] = p_internal(53, default=None)
+    terminated_epoch: Optional[int] = p_internal(54, default=None)
 
     # content
     inputs_packed: Any = p_value_packed(60)

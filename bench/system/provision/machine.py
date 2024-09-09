@@ -217,6 +217,7 @@ class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
     def _get_external_name(self, machine: Machine) -> str:
         """Gets the external name of the given Machine."""
         machine_id_prefix = str(machine.id).split("-")[0]
+        # NOTE: kubernetes resource names must be valid DNS labels (<= 63 chars)
         external_name = (
             f"bench-{ENV.value}-{CLOUD.slug}-{machine.region.slug}-machine-{machine_id_prefix}"
         )
@@ -259,7 +260,6 @@ class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
     def _make_pod_from_machine(self, machine: Machine):
         """Creates a Kubernetes Pod for the Machine."""
         # context
-        # NOTE: kubernetes resource names must be valid DNS labels (<= 63 chars)
 
         labels = {
             "app": KUBERNETES_MACHINE_APP_LABEL,
@@ -338,6 +338,10 @@ class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
         current_status = ResourceStatus.UP if pod_phase == "Running" else ResourceStatus.DOWN
         if machine.current_status != current_status:
             machine.current_status = current_status
+            if current_status == ResourceStatus.UP:
+                machine.started_at = self.host.oracle.utc()
+            elif current_status == ResourceStatus.DOWN:
+                machine.terminated_at = self.host.oracle.utc()
 
         # connection uri (using pod ip, only works inside cluster for now)
         if pod.status and pod.status.pod_ip:  # type: ignore
@@ -385,7 +389,7 @@ class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
             self._kubernetes_pods_by_name[pod.metadata.name] = pod
             machine = machines_by_external_name.get(pod.metadata.name)
             if machine is None:
-                # delete old pod
+                # delete erased pod
                 await self._kubernetes_api.delete_pod(pod.metadata.name)
             else:
                 async with self.host.session(commit=True):
@@ -414,14 +418,21 @@ class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
 
     @override
     async def _do_update(self, resource: Machine):
-        # only update if we need to
         target_diff = resource._get_target_diff("cpu", "ram", "version")
-        if target_diff:
+        if (
+            resource.current_status.is_extant
+            and resource.restarted_at is not None
+            and resource.started_at is not None
+            and resource.restarted_at > resource.started_at
+        ):
+            # 'restart' by deleting it (to be recreated)
+            assert resource.external_name is not None, f"{resource!r} has no external name"
+            await self.kubernetes_api.delete_pod(resource.external_name)
+        elif target_diff:
             assert resource.external_name is not None, f"{resource!r} has no external name"
             pod = self._make_pod_from_machine(resource)
             if "version" in target_diff:
-                # replace full pod (just delete it and it will be recreated)
-                # NOTE :Architecure: force deleting pod to re-create with new version feels clumsy
+                # replace full pod (to be recreated)
                 await self.kubernetes_api.delete_pod(resource.external_name)
             else:
                 # patch pod in place

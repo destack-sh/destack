@@ -329,7 +329,9 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
                     )
                     break
                 except Exception as e:
-                    self.logger.error("graph.commit.error", subject=subject, exc_info=e)
+                    self.logger.error(
+                        "graph.commit.error", subject=subject, exc_info=e, span="current"
+                    )
                     if not retry.on_error(e):
                         raise
                     await self.oracle.sleep(retry.get_wait_interval())

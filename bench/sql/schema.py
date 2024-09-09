@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.09.09.0"
+VERSION = "2024.09.09.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -373,6 +373,7 @@ MACHINE_TABLE = Table(
         Column("started_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("terminated_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("active_at", PrimitiveType.DATETIME, is_nullable=True),
+        Column("restarted_at", PrimitiveType.DATETIME, is_nullable=True),
     ),
 )
 
@@ -534,7 +535,6 @@ PACKAGE_TABLE = Table(
         ),
         Column("is_snapshot", PrimitiveType.BOOLEAN, default="false"),
         Column("is_overlay", PrimitiveType.BOOLEAN, default="false"),
-        Column("is_paused", PrimitiveType.BOOLEAN, default="false"),
     ),
 )
 
@@ -675,7 +675,6 @@ BLOCK_TABLE = Table(
         Column("delegated_policies", PrimitiveType.JSON, is_array=True, is_nullable=True),
         Column("is_builtin", PrimitiveType.BOOLEAN, default="false"),
         Column("is_owned", PrimitiveType.BOOLEAN, default="false"),
-        Column("is_paused", PrimitiveType.BOOLEAN, default="false"),
     ),
 )
 

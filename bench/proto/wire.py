@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.09.09.0"
+VERSION = "2024.09.09.1"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -1281,8 +1281,8 @@ class SortOp(betterproto.Enum):
 class SpaceType(betterproto.Enum):
     UNSPECIFIED = 0
     DESKTOP = 10
-    MOBILE = 20
-    EXTENSION = 30
+    BROWSER = 20
+    MOBILE = 30
 
 
 class Spacing(betterproto.Enum):
@@ -2600,7 +2600,6 @@ class BlockData(betterproto.Message):
     delegated_policies: List["PolicyData"] = betterproto.message_field(49)
     is_builtin: bool = betterproto.bool_field(60)
     is_owned: bool = betterproto.bool_field(61)
-    is_paused: bool = betterproto.bool_field(64)
 
 
 @dataclass(eq=False, repr=False)
@@ -2949,6 +2948,7 @@ class MachineData(betterproto.Message):
     started_at: Optional[datetime] = betterproto.message_field(60, optional=True)
     terminated_at: Optional[datetime] = betterproto.message_field(61, optional=True)
     active_at: Optional[datetime] = betterproto.message_field(62, optional=True)
+    restarted_at: Optional[datetime] = betterproto.message_field(63, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -3109,7 +3109,6 @@ class PackageData(betterproto.Message):
     base_ptr: Optional["NodeReferenceData"] = betterproto.message_field(40, optional=True)
     is_snapshot: bool = betterproto.bool_field(60)
     is_overlay: bool = betterproto.bool_field(61)
-    is_paused: bool = betterproto.bool_field(65)
 
 
 @dataclass(eq=False, repr=False)
@@ -3209,12 +3208,7 @@ class RecordData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class RunData(betterproto.Message):
-    """
-    A 'run' of Blocks (and Steps within them) or 'lambdas' (just Code/Text).
-     When 'running' something that's not directly runnable (like a Text Block, Text Step or Text Lambda),
-     we implicitly pass it to the corresponding default Text program.
-     Once terminated, a Run is effectively immutable.
-    """
+    """Run a Block, Step or some lambda (Code) in a Session."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
@@ -4106,24 +4100,44 @@ class DownloadFilesResponseDownloadHandle(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class RestartRuntimeRequest(betterproto.Message):
-    force: bool = betterproto.bool_field(1)
-
-
-@dataclass(eq=False, repr=False)
-class RestartRuntimeResponse(betterproto.Message):
-    pass
-
-
-@dataclass(eq=False, repr=False)
-class QueueRunRequest(betterproto.Message):
+class ProcessRunRequest(betterproto.Message):
     run: "RunData" = betterproto.message_field(1)
-    epoch: int = betterproto.int64_field(2)
+    is_blocking: bool = betterproto.bool_field(2)
 
 
 @dataclass(eq=False, repr=False)
-class QueueRunResponse(betterproto.Message):
+class ProcessRunResponse(betterproto.Message):
     pass
+
+
+@dataclass(eq=False, repr=False)
+class PauseRunRequest(betterproto.Message):
+    run: "RunData" = betterproto.message_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class PauseRunResponse(betterproto.Message):
+    is_processed: bool = betterproto.bool_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class ResumeRunRequest(betterproto.Message):
+    run: "RunData" = betterproto.message_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class ResumeRunResponse(betterproto.Message):
+    is_processed: bool = betterproto.bool_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class KillRunRequest(betterproto.Message):
+    run: "RunData" = betterproto.message_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class KillRunResponse(betterproto.Message):
+    is_processed: bool = betterproto.bool_field(1)
 
 
 class GraphIoClient(betterproto.ServiceStub):
@@ -4635,35 +4649,52 @@ class HostClient(betterproto.ServiceStub):
 
 
 class RuntimeClient(betterproto.ServiceStub):
-    async def restart(
+    async def process_run(
         self,
-        request: "RestartRuntimeRequest",
+        request: "ProcessRunRequest",
         *,
         timeout: Optional[float] = None,
         deadline: Optional["Deadline"] = None,
         metadata: Optional["MetadataLike"] = None,
-    ) -> "RestartRuntimeResponse":
+    ) -> "ProcessRunResponse":
         return await self._unary_unary(
-            "/symbolx.bench.Runtime/Restart",
+            "/symbolx.bench.Runtime/ProcessRun",
             request,
-            RestartRuntimeResponse,
+            ProcessRunResponse,
             timeout=timeout,
             deadline=deadline,
             metadata=metadata,
         )
 
-    async def queue_run(
+    async def pause_run(
         self,
-        request: "QueueRunRequest",
+        request: "PauseRunRequest",
         *,
         timeout: Optional[float] = None,
         deadline: Optional["Deadline"] = None,
         metadata: Optional["MetadataLike"] = None,
-    ) -> "QueueRunResponse":
+    ) -> "PauseRunResponse":
         return await self._unary_unary(
-            "/symbolx.bench.Runtime/QueueRun",
+            "/symbolx.bench.Runtime/PauseRun",
             request,
-            QueueRunResponse,
+            PauseRunResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def kill_run(
+        self,
+        request: "KillRunRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None,
+    ) -> "KillRunResponse":
+        return await self._unary_unary(
+            "/symbolx.bench.Runtime/KillRun",
+            request,
+            KillRunResponse,
             timeout=timeout,
             deadline=deadline,
             metadata=metadata,
@@ -5252,40 +5283,55 @@ class HostBase(ServiceBase):
 
 
 class RuntimeBase(ServiceBase):
-    async def restart(self, request: "RestartRuntimeRequest") -> "RestartRuntimeResponse":
+    async def process_run(self, request: "ProcessRunRequest") -> "ProcessRunResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def queue_run(self, request: "QueueRunRequest") -> "QueueRunResponse":
+    async def pause_run(self, request: "PauseRunRequest") -> "PauseRunResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def __rpc_restart(
-        self,
-        stream: "grpclib.server.Stream[RestartRuntimeRequest, RestartRuntimeResponse]",
+    async def kill_run(self, request: "KillRunRequest") -> "KillRunResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def __rpc_process_run(
+        self, stream: "grpclib.server.Stream[ProcessRunRequest, ProcessRunResponse]"
     ) -> None:
         request = await stream.recv_message()
-        response = await self.restart(request)
+        response = await self.process_run(request)
         await stream.send_message(response)
 
-    async def __rpc_queue_run(
-        self, stream: "grpclib.server.Stream[QueueRunRequest, QueueRunResponse]"
+    async def __rpc_pause_run(
+        self, stream: "grpclib.server.Stream[PauseRunRequest, PauseRunResponse]"
     ) -> None:
         request = await stream.recv_message()
-        response = await self.queue_run(request)
+        response = await self.pause_run(request)
+        await stream.send_message(response)
+
+    async def __rpc_kill_run(
+        self, stream: "grpclib.server.Stream[KillRunRequest, KillRunResponse]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.kill_run(request)
         await stream.send_message(response)
 
     def __mapping__(self) -> Dict[str, grpclib.const.Handler]:
         return {
-            "/symbolx.bench.Runtime/Restart": grpclib.const.Handler(
-                self.__rpc_restart,
+            "/symbolx.bench.Runtime/ProcessRun": grpclib.const.Handler(
+                self.__rpc_process_run,
                 grpclib.const.Cardinality.UNARY_UNARY,
-                RestartRuntimeRequest,
-                RestartRuntimeResponse,
+                ProcessRunRequest,
+                ProcessRunResponse,
             ),
-            "/symbolx.bench.Runtime/QueueRun": grpclib.const.Handler(
-                self.__rpc_queue_run,
+            "/symbolx.bench.Runtime/PauseRun": grpclib.const.Handler(
+                self.__rpc_pause_run,
                 grpclib.const.Cardinality.UNARY_UNARY,
-                QueueRunRequest,
-                QueueRunResponse,
+                PauseRunRequest,
+                PauseRunResponse,
+            ),
+            "/symbolx.bench.Runtime/KillRun": grpclib.const.Handler(
+                self.__rpc_kill_run,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                KillRunRequest,
+                KillRunResponse,
             ),
         }
 

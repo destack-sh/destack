@@ -9,28 +9,44 @@ import "proto/lang.proto";
 // Runtime
 //
 
-message RestartRuntimeRequest {
-  bool force = 1;
-}
- 
-message RestartRuntimeResponse {
-}
-  
-message QueueRunRequest {
+message ProcessRunRequest {
 	RunData run = 1;
-  int64 epoch = 2;
+	bool is_blocking = 2; // whether to wait for the Run to terminate
 }
-message QueueRunResponse {
+message ProcessRunResponse {
+}
+
+message PauseRunRequest {
+	RunData run = 1;
+}
+message PauseRunResponse {
+	bool is_processed = 1;	
+}
+
+message ResumeRunRequest {
+	RunData run = 1;
+}
+message ResumeRunResponse {
+	bool is_processed = 1;	
+}
+
+message KillRunRequest {
+	RunData run = 1;
+}
+message KillRunResponse {
+	bool is_processed = 1;	
 }
   
-// A Runtime for running a Bench in an isolated environment on/for a Client.
-// The Runtime may run any number of processes and threads to process its Runs in Sessions.
+// A Runtime for running a Bench somewhere (like on a Machine or a Client).
+// The Runtime may run multiple processes/threads to process its Runs in Sessions in parallel.
 service Runtime {
 	option (kind) = INTERNAL; // :ServiceKind
   
-	// Restart this runtime. If force, skip graceful shutdown.
-	rpc Restart(RestartRuntimeRequest) returns (RestartRuntimeResponse);
-	// Starts a new Run in this runtime. The Run must already exist in the graph.
-	rpc QueueRun(QueueRunRequest) returns (QueueRunResponse);
+	// Process a new/existing Run in this runtime. If not blocking, returns immediately on queuing.
+	rpc ProcessRun(ProcessRunRequest) returns (ProcessRunResponse);
+	// Pause a Run in this runtime. If the Run is not activehere , it is ignored.
+	rpc PauseRun(PauseRunRequest) returns (PauseRunResponse);
+	// Kill (abort or cancel) a Run in this runtime. If the Run is not active, it is ignored.
+	rpc KillRun(KillRunRequest) returns (KillRunResponse);
 }
-  
+   

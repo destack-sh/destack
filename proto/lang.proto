@@ -1221,8 +1221,8 @@ enum SortOp {
 enum SpaceType {
   SPACE_TYPE_UNSPECIFIED = 0;
   SPACE_TYPE_DESKTOP = 10;
-  SPACE_TYPE_MOBILE = 20;
-  SPACE_TYPE_EXTENSION = 30;
+  SPACE_TYPE_BROWSER = 20;
+  SPACE_TYPE_MOBILE = 30;
 }
 
 // The spacing scale for positions, padding, margin, etc. We don't enforce this.
@@ -2328,7 +2328,6 @@ message BlockData {
   repeated PolicyData delegated_policies = 49;
   bool is_builtin = 60;
   bool is_owned = 61;
-  bool is_paused = 64;
 }
 
 // A branch is a lineage of Bench history.
@@ -2637,6 +2636,7 @@ message MachineData {
   optional google.protobuf.Timestamp started_at = 60;
   optional google.protobuf.Timestamp terminated_at = 61;
   optional google.protobuf.Timestamp active_at = 62;
+  optional google.protobuf.Timestamp restarted_at = 63;
 }
 
 // A membership to this Bench (and its owner if it's the main Bench).
@@ -2775,7 +2775,6 @@ message PackageData {
   optional NodeReferenceData base_ptr = 40;
   bool is_snapshot = 60;
   bool is_overlay = 61;
-  bool is_paused = 65;
 }
 
 // A connection between two Steps in a Flow (source = outgoing, target = incoming).
@@ -2861,10 +2860,7 @@ message RecordData {
   optional google.protobuf.Struct value_packed = 30;
 }
 
-// A 'run' of Blocks (and Steps within them) or 'lambdas' (just Code/Text).
-// When 'running' something that's not directly runnable (like a Text Block, Text Step or Text Lambda),
-// we implicitly pass it to the corresponding default Text program.
-// Once terminated, a Run is effectively immutable.
+// Run a Block, Step or some lambda (Code) in a Session.
 message RunData {
   ObjectType metatype = 1;
   string id = 2;

@@ -144,7 +144,7 @@ export const ACTION_BUILTIN_IDS = [
   "type.edit.isRequired",
   "type.edit.isSecret",
   // block
-  "block.edit.isPaused",
+  // ...
   // message
   "message.chat.message",
   "message.chat.reply",
@@ -843,17 +843,6 @@ declareActionMap<"type">({
     icon: "fas fa-lock",
     title: "Secret",
     text: "Mark this type as secret",
-  },
-});
-
-// block
-declareActionMap<"block">({
-  // block
-  "block.edit.isPaused": {
-    type: "toggle",
-    icon: "fas fa-pause",
-    title: "Paused",
-    text: "Mark this block as paused",
   },
 });
 
