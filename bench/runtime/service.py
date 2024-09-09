@@ -1,22 +1,20 @@
 import asyncio
-import enum
 import random
 import sys
 from asyncio.subprocess import Process
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Awaitable, assert_never, cast, override
+from typing import Awaitable, assert_never, override
 from uuid import UUID, uuid4
 
 import structlog
 from grpclib.client import Channel
 from opentelemetry import trace
 
-from bench.language import NodeReference
-from bench.language.bench import Machine
-from bench.language.const import ClientType, NodeType
-from bench.proto import wire
-from bench.proto.services import ServiceBase
+from bench.language.const import RUNTIME_NODE_TYPES, ClientType, RunStatus
+from bench.language.graph import NodeGraph
+from bench.language.run import Run
+from bench.proto import wiring
 from bench.proto.wire import (
     HealthCheckRequest,
     HealthClient,
@@ -27,14 +25,12 @@ from bench.proto.wire import (
     PauseRunResponse,
     ProcessRunRequest,
     ProcessRunResponse,
-    RpcMetadata,
     RunData,
     RuntimeBase,
     RuntimeClient,
     ServiceKind,
 )
-from bench.proto.wiring import pack_rpc_headers
-from bench.runtime.remote import RemoteEngine
+from bench.runtime.base import RuntimeServiceBase, RuntimeThreadMode
 from bench.runtime.thread import RuntimeThread
 from bench.utils.oracle import Oracle
 from bench.utils.telemetry import set_baggage
@@ -52,16 +48,12 @@ RUNTIME_HEALTHCHECK_TIMEOUT = get_from_env(
 )
 
 
-class RuntimeThreadMode(enum.StrEnum):
-    LOCAL = "local"
-    PROCESS = "process"
-
-
 @dataclass(slots=True)
 class ManagedRun:
     """A runtime run that is managed in this service."""
 
-    run: RunData
+    run_data: RunData
+    run: Run
     thread: "ManagedThread | None"
     task: asyncio.Task | None
 
@@ -214,7 +206,7 @@ class ManagedThread:
             assert_never(self.mode)
 
 
-class RuntimeService(ServiceBase, RuntimeBase):
+class RuntimeService(RuntimeServiceBase, RuntimeBase):
     kind = ServiceKind.INTERNAL  # :ServiceKind
 
     def __init__(
@@ -231,34 +223,22 @@ class RuntimeService(ServiceBase, RuntimeBase):
         oracle: Oracle,
         mode: RuntimeThreadMode,
     ):
-        super().__init__(logger=logger, tracer=tracer, oracle=oracle)
+        super().__init__(
+            logger=logger,
+            tracer=tracer,
+            oracle=oracle,
+            bench_id=bench_id,
+            supervisor_url=supervisor_url,
+            client_type=client_type,
+            client_id=client_id,
+            client_access_token=client_access_token,
+            server_id=server_id,
+            machine_id=machine_id,
+            mode=mode,
+        )
         self._nonce = uuid4()
 
-        # context
-        self._supervisor_url = supervisor_url
-        if client_type == ClientType.BENCH_MACHINE and machine_id is None:
-            raise ValueError(f"missing machine_id for {client_type} {client_id}")
-        self._client_type = client_type
-        self._client_id = client_id
-        self._client_access_token = client_access_token
-        self._rpc_metadata = RpcMetadata(
-            client_type=cast(wire.ClientType, client_type),
-            client_id=str(self._client_id),
-            client_access_token=self._client_access_token,
-        )
-        self._rpc_headers = pack_rpc_headers(self._rpc_metadata)
-        self._server_id = server_id
-        self._machine_id = machine_id
-        self._machine: Machine | None = None
-        self._engines: tuple[RemoteEngine, ...] = ()
-        self._host: HostClient | None = None
-        self._bench_id = bench_id
-        self._bench_ptr = NodeReference(
-            type=NodeType.BENCH, id=bench_id, ck=bench_id, bench_id=bench_id
-        )
-
         # processing
-        self._mode = mode
         self._max_threads = max_threads
         self._available_threads: asyncio.Queue[ManagedThread] = asyncio.Queue()
         self._threads: list[ManagedThread] = []
@@ -276,6 +256,7 @@ class RuntimeService(ServiceBase, RuntimeBase):
         return self._host
 
     async def start(self):
+        await super().start()
         # start threads
         assert self._max_threads > 0, f"no threads for {self!r}"
         self._threads = [
@@ -292,11 +273,11 @@ class RuntimeService(ServiceBase, RuntimeBase):
             thread.close()
 
     async def wait_closed(self):
+        await super().wait_closed()
         await asyncio.gather(*(t.wait_closed() for t in self._threads))
 
     @tracer.start_as_current_span("runtime.process_run")
     async def _do_process_run(self, run: ManagedRun):
-        set_baggage(bench_id=self._bench_id, client_id=self._client_id, run_id=run.run.id)
         self._active_runs.append(run)
         try:
             # acquire thread
@@ -309,12 +290,14 @@ class RuntimeService(ServiceBase, RuntimeBase):
                     return
             # run in thread
             try:
-                request = ProcessRunRequest(run=run.run, is_blocking=True)
+                request = ProcessRunRequest(run=run.run_data, is_blocking=True)
                 _ = await run.thread.do(run.thread.client.process_run(request), timeout=None)
-                logger.info("runtime.process_run", thread=run.thread, run=run.run, span="current")
+                logger.info(
+                    "runtime.process_run", thread=run.thread, run=run.run_data, span="current"
+                )
             except Exception as e:
                 logger.error(
-                    "runtime.process_run.error", thread=run.thread, run=run.run, exc_info=e
+                    "runtime.process_run.error", thread=run.thread, run=run.run_data, exc_info=e
                 )
                 raise
             finally:
@@ -326,40 +309,75 @@ class RuntimeService(ServiceBase, RuntimeBase):
 
     @override
     async def process_run(self, request: ProcessRunRequest) -> ProcessRunResponse:
-        run = ManagedRun(run=request.run, thread=None, task=None)
-        run.task = asyncio.create_task(self._do_process_run(run))
-        if request.is_blocking:
-            await run.task
+        assert self._main_package, f"{self!r} has no main package"
+        set_baggage(bench_id=self._bench_id, client_id=self._client_id, run_id=request.run.id)
+
+        # unpack run
+        async with self.session() as session:
+            graph = NodeGraph(  # :TransientGraphs
+                scope=session._get_scope_for_node(self._main_package),
+                node_types=RUNTIME_NODE_TYPES,
+                supergraph=self._supergraph,
+            )
+            run = wiring.unpack_object(
+                request.run,
+                supergraph=self._supergraph,
+                graph=graph,
+                session=session,
+                expect=Run,
+            )
+            graph.add(run)
+            run.status = RunStatus.QUEUED
+            self._supergraph.add_graph(graph)
+            managed_run = ManagedRun(run_data=request.run, run=run, thread=None, task=None)
+            await session.commit(optimistic=True)
+
+        # process it (queue and run)
+        try:
+            managed_run.task = asyncio.create_task(self._do_process_run(managed_run))
+            if request.is_blocking:
+                await managed_run.task
+        finally:
+            self._supergraph.remove_graph(graph)  # :TransientGraphs
+
         return ProcessRunResponse()
 
     @override
     async def pause_run(self, request: PauseRunRequest) -> PauseRunResponse:
         # find active run
         for run in self._active_runs:
-            if run.run.id == request.run.id:
+            if run.run_data.id == request.run.id:
                 if run.thread is None:
                     # not yet running, cancel directly
                     assert run.task is not None, f"no task for {run!r}"
                     run.task.cancel()
+                    async with self.session() as session:
+                        run.run.status = RunStatus.PAUSED
+                        await session.commit(optimistic=True)
                 else:
                     # pause in thread
-                    request = PauseRunRequest(run=run.run)
+                    request = PauseRunRequest(run=run.run_data)
                     _ = await run.thread.do(run.thread.client.pause_run(request), timeout=None)
-                    return PauseRunResponse(is_processed=True)
-        return PauseRunResponse(is_processed=False)
+                return PauseRunResponse(is_processed=True)
+        else:
+            return PauseRunResponse(is_processed=False)
 
     @override
     async def kill_run(self, request: KillRunRequest) -> KillRunResponse:
         # find active run
         for run in self._active_runs:
-            if run.run.id == request.run.id:
+            if run.run_data.id == request.run.id:
                 if run.thread is None:
                     # not yet running, cancel directly
                     assert run.task is not None, f"no task for {run!r}"
                     run.task.cancel()
+                    async with self.session() as session:
+                        run.run.status = RunStatus.CANCELLED
+                        await session.commit(optimistic=True)
                 else:
                     # kill in thread
-                    request = KillRunRequest(run=run.run)
+                    request = KillRunRequest(run=run.run_data)
                     _ = await run.thread.do(run.thread.client.kill_run(request), timeout=None)
-                    return KillRunResponse(is_processed=True)
-        return KillRunResponse(is_processed=False)
+                return KillRunResponse(is_processed=True)
+        else:
+            return KillRunResponse(is_processed=False)
