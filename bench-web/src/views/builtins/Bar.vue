@@ -158,7 +158,7 @@ const dockActions: Ref<Action[]> = computed(
       <template #trigger="{ toggle, isOpen }">
         <button
           class="flex h-[30px] w-full select-none flex-row items-center rounded px-2.5 py-1 text-gray-700 hover:bg-gray-100 hover:text-primary-900"
-          :class="[isOpen ? ' bg-gray-100' : '']"
+          :class="[isOpen ? 'bg-gray-100' : '']"
           @click="toggle"
         >
           <img src="@/assets/icon_outline.svg" class="h-5 w-5 rounded-md" />
@@ -223,25 +223,27 @@ const dockActions: Ref<Action[]> = computed(
       :class="[orientation == Orientation.HORIZONTAL ? 'ml-auto flex-row pr-1' : 'mt-auto flex-col pb-1']"
     >
       <!-- Active Run -->
-      <!-- NOTE :UX: we need a proper run control menu, also this should probably be a real view -->
+      <!-- NOTE :UX: we need a proper active run / run control menu (should probably be a real view) -->
+      <!-- nocheckin: active runs -->
+      {{ runtime?.activeRuns?.length }}
       <div
-        v-if="runtime?.run"
+        v-if="runtime?.focusedRun"
         class="flex items-center gap-1 rounded px-1.5 py-0.5"
         :class="[orientation == Orientation.HORIZONTAL ? 'flex-row' : 'flex-col']"
       >
         <!-- Status -->
         <IconInline
           class="w-5"
-          :class="ACCENT_COLOR_BY_RUN_STATUS[runtime.run.status]"
-          v-bind="ICON_BY_RUN_STATUS[runtime.run.status]"
+          :class="ACCENT_COLOR_BY_RUN_STATUS[runtime.focusedRun.status]"
+          v-bind="ICON_BY_RUN_STATUS[runtime.focusedRun.status]"
         />
         <!-- Node -->
-        <button @click="canvas.goToNode(runtime.runBase)">
+        <button @click="canvas.goToNode(runtime.focusedRunBase)">
           <IconInline
-            v-bind="runtime.runBase ? getNodeIcon(runtime.runBase) : makeIcon('fas fa-lambda')"
+            v-bind="runtime.focusedRunBase ? getNodeIcon(runtime.focusedRunBase) : makeIcon('fas fa-lambda')"
             class="mr-1 w-5 text-gray-700 group-hover/node:text-primary-900"
           />
-          <span>{{ runtime.runBase?.name ?? "Lambda" }}</span>
+          <span>{{ runtime.focusedRunBase?.name ?? "Lambda" }}</span>
         </button>
       </div>
       <!-- Connection -->
