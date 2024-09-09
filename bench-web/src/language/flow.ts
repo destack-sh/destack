@@ -440,7 +440,8 @@ export class FlowContext {
 
   /** Convert viewport coordinates to view coordinates */
   viewportToViewVec(viewportVec: { x: number; y: number }): { x: number; y: number } {
-    const canvasBounding = this.containerRef.value?.getBoundingClientRect()!;
+    const canvasBounding = this.containerRef.value?.getBoundingClientRect();
+    if (canvasBounding == null) throw new Error("no canvas bounding");
     return {
       x: viewportVec.x - canvasBounding.left,
       y: viewportVec.y - canvasBounding.top,
@@ -449,7 +450,8 @@ export class FlowContext {
 
   /** Convert view coordinates to viewport coordinates */
   viewToViewportVec(viewVec: { x: number; y: number }): { x: number; y: number } {
-    const canvasBounding = this.containerRef.value?.getBoundingClientRect()!;
+    const canvasBounding = this.containerRef.value?.getBoundingClientRect();
+    if (canvasBounding == null) throw new Error("no canvas bounding");
     return {
       x: viewVec.x + canvasBounding.left,
       y: viewVec.y + canvasBounding.top,
@@ -491,7 +493,8 @@ export class FlowContext {
   /** Zoom the convas around the given origin (panning as needed) */
   zoom(direction: "in" | "out" | number, originViewVec: { x: number; y: number } | "center", steps: number) {
     if (this.view.value == null) return; // not a real view
-    const containerBounding = this.containerRef.value?.getBoundingClientRect()!;
+    const containerBounding = this.containerRef.value?.getBoundingClientRect();
+    if (containerBounding == null) throw new Error("no container bounding");
     if (originViewVec == "center") {
       originViewVec = { x: containerBounding.width / 2, y: containerBounding.height / 2 };
     }

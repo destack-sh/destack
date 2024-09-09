@@ -62,7 +62,7 @@ export function updateOrder<T extends AnyNodeData & { orderKey: string }>(order:
       reference: getReference(nodes),
     });
   }
-  // @ts-ignore: orderKey must exist
+  // @ts-expect-error: orderKey must exist
   order.tx.update(order.node, { orderKey }, { debounce: "tick" });
 }
 
@@ -102,7 +102,7 @@ export function fixOrderKeys<T extends AnyNodeData & { orderKey: string }>(tx: T
     if (!isValidOrderKey(node.orderKey)) {
       // just patch in place
       const orderKey = generateOrderKey(prevOrderKey, nodes[i + 1]?.orderKey ?? null);
-      // @ts-ignore: orderKey must exist
+      // @ts-expect-error: orderKey must exist
       tx.update(node, { orderKey }, { debounce: "tick" });
     } else if (node.orderKey == prevOrderKey) {
       // find all duplicates with same key from here and fix them in one go
@@ -110,7 +110,7 @@ export function fixOrderKeys<T extends AnyNodeData & { orderKey: string }>(tx: T
       const duplicates = nodes.slice(i, i + numDuplicates);
       const orderKeys = generateOrderKeys(prevOrderKey, nodes[i + numDuplicates]?.orderKey ?? null, numDuplicates);
       for (let j = 0; j < numDuplicates; j++) {
-        // @ts-ignore: orderKey must exist
+        // @ts-expect-error: orderKey must exist
         tx.update(duplicates[j], { orderKey: orderKeys[j] }, { debounce: "tick" });
       }
       i += numDuplicates;

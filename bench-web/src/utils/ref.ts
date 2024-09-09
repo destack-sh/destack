@@ -23,7 +23,7 @@ export function pickRef<T, K extends keyof T>(
   obj: Ref<T | null | undefined>,
   key: K,
   valueFallback: T[K],
-  objFallback: T | {} = {},
+  objFallback: T | any = {},
 ): Ref<T[K]> {
   return computed({
     get: () => obj.value?.[key] ?? valueFallback,
@@ -117,7 +117,7 @@ export function wrapValueRefs<T extends Record<string, any>>(obj?: T): RefsToVal
 }
 
 /** A watch(...) that only triggers if its source (or sources) value deeply changed */
-export function watchValue<T extends any>(source: T, callback: () => void, options?: WatchOptions) {
+export function watchValue<T>(source: T, callback: () => void, options?: WatchOptions) {
   return watch(
     source as WatchSource,
     (newValue, oldValue) => {
