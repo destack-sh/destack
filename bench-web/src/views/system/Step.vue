@@ -70,7 +70,7 @@ function toPortId(port: Port): string {
 }
 
 // run
-const lastRun = computed(() => runtime.activeRunTree.getLastActiveRun({ ck: stepPtr.value?.ck }));
+const lastRun = computed(() => runtime.focusedRunTree.getLastActiveRun({ ck: stepPtr.value?.ck }));
 const lastRunStatusColor = computed(() =>
   lastRun.value?.status != null ? COLOR_BY_RUN_STATUS[lastRun.value.status] : null,
 );

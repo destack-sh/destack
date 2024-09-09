@@ -1,16 +1,27 @@
+import { ACTIVE_RUN_STATUSES } from "@/language/const";
+import { makeExpression } from "@/language/expression";
 import type { ReadNodeGraph } from "@/language/graph";
 import { makeRun, type RunnableObject } from "@/language/session";
 import type { Transaction } from "@/language/transaction";
-import { BlockData, ChangeCategory, NodeType, StepData, type NodeReferenceData, type RunData } from "@/proto/wire";
-import { toNodeRef, type SomeNodeReferenceData, type TypedNodeReferenceData } from "@/proto/wiring";
-import { useGetConnection, type Connection } from "@/system/connection";
+import {
+  BlockData,
+  ChangeCategory,
+  ExpressionOp,
+  NodeType,
+  ObjectType,
+  RunProperty,
+  StepData,
+  type NodeReferenceData,
+  type RunData,
+} from "@/proto/wire";
+import { propertyReference, toNodeRef, type SomeNodeReferenceData, type TypedNodeReferenceData } from "@/proto/wiring";
+import { useGetConnection, useSearchConnection, type Connection } from "@/system/connection";
 import { canvas, pkgConnection, pkgGraph, space } from "@/system/space";
 import { computedValue } from "@/utils/ref";
 import { computed, watchEffect, type Ref } from "vue";
 
 /** A reactive Run with all its descendants */
 export class RunTree {
-  // active run
   graph: ReadNodeGraph;
   runPtr: Ref<TypedNodeReferenceData<NodeType.RUN> | null>;
   runRef: Ref<RunData | null>;
@@ -90,30 +101,56 @@ export class RunTree {
 export class Runtime {
   graph: ReadNodeGraph;
   txFactory: () => Transaction;
-
-  // active run
-  activeRunTree: RunTree;
+  focusedRunTree: RunTree;
+  activeRootRuns: Ref<RunData[]>;
 
   constructor(graph: ReadNodeGraph, txFactory: () => Transaction, runPtr: Ref<SomeNodeReferenceData | null>) {
     this.graph = graph;
     this.txFactory = txFactory;
 
-    // active run
-    this.activeRunTree = new RunTree(graph, runPtr as Ref<TypedNodeReferenceData<NodeType.RUN> | null>);
+    this.focusedRunTree = new RunTree(graph, runPtr as Ref<TypedNodeReferenceData<NodeType.RUN> | null>);
+    const { roots: activeRuns } = useSearchConnection(
+      { name: "runtime.activeRuns", live: true },
+      computed(() => ({
+        scope: graph.scope,
+        nodeType: NodeType.RUN,
+        filter: makeExpression({
+          op: ExpressionOp.AND,
+          clauses: [
+            makeExpression({
+              op: ExpressionOp.NOT_EXISTS,
+              propertyPtr: propertyReference(NodeType.RUN, RunProperty.rootPtr),
+            }),
+            makeExpression({
+              op: ExpressionOp.IN,
+              propertyPtr: propertyReference(ObjectType.RUN, RunProperty.status),
+              value: ACTIVE_RUN_STATUSES,
+            }),
+          ],
+        }),
+        isEnabled: graph.scope?.benchId != null,
+      })),
+    );
+    this.activeRootRuns = activeRuns;
   }
 
   get tx() {
     return this.txFactory();
   }
 
-  /** The current active Run. */
-  get run() {
-    return this.activeRunTree.run;
+  /** The current Run. */
+  get focusedRun() {
+    return this.focusedRunTree.run;
   }
 
-  /** The current active Run base node. */
-  get runBase() {
-    return this.activeRunTree.base;
+  /** The current Run base node. */
+  get focusedRunBase() {
+    return this.focusedRunTree.base;
+  }
+
+  /** The current active Run roots. */
+  get activeRuns() {
+    return this.activeRootRuns.value;
   }
 
   /** Creates a new Run and makes it the current active Run in the Space. */

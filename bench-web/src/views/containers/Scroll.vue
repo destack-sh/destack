@@ -50,14 +50,14 @@ watch(
 );
 
 // show scrolling instantly, fade out once inactive
-const isVisiblyScrolling = ref(false);
+const showScrolling = ref(false);
 watch([isThumbScrolling, isNativeScrolling], () => {
   if (isThumbScrolling.value || isNativeScrolling.value) {
-    isVisiblyScrolling.value = true;
+    showScrolling.value = true;
   } else {
     setTimeout(() => {
       if (!isThumbScrolling.value && !isNativeScrolling.value) {
-        isVisiblyScrolling.value = false;
+        showScrolling.value = false;
       }
     }, 1000);
   }
@@ -111,9 +111,9 @@ defineExpose<ViewExposed & { isScrolling: Ref<boolean>; isAtEnd: Ref<boolean>; s
         class="absolute z-40 rounded transition-colors duration-300"
         :class="[
           'hover:opacity-100 group-hover:opacity-80',
-          isVisiblyScrolling ? 'bg-gray-400 opacity-100' : '',
-          !isVisiblyScrolling && trackIsAlwaysVisible ? 'bg-gray-300 opacity-100' : '',
-          !isVisiblyScrolling && !trackIsAlwaysVisible
+          showScrolling ? 'bg-gray-400 opacity-100' : '',
+          !showScrolling && trackIsAlwaysVisible ? 'bg-gray-300 opacity-100' : '',
+          !showScrolling && !trackIsAlwaysVisible
             ? isMouseInArea
               ? 'bg-gray-300 opacity-80'
               : 'bg-gray-300 opacity-0'
