@@ -1,31 +1,24 @@
 import asyncio
+import dataclasses
+import enum
+import random
+import sys
+from asyncio.subprocess import Process
 from dataclasses import dataclass
-from typing import cast, override
-from urllib.parse import urlparse
+from datetime import datetime
+from typing import Any, Awaitable, assert_never, cast, override
 from uuid import UUID, uuid4
 
-import cachetools
-import grpclib
-import grpclib.metadata
 import structlog
 from grpclib.client import Channel
 from opentelemetry import trace
 
 from bench.language import NodeReference
 from bench.language.bench import Machine
-from bench.language.const import (
-    BENCH_NODE_TYPES,
-    IN_PACKAGE_NODE_TYPES,
-    PUBLIC_NODE_TYPES,
-    ClientType,
-    NodeType,
-)
-from bench.language.node import EMPTY_SCOPE
+from bench.language.const import ClientType, NodeType
 from bench.proto import wire
-from bench.proto.networking import localize_url
 from bench.proto.services import ServiceBase
 from bench.proto.wire import (
-    GraphScopeData,
     HostClient,
     KillRunRequest,
     KillRunResponse,
@@ -33,29 +26,51 @@ from bench.proto.wire import (
     PauseRunResponse,
     ProcessRunRequest,
     ProcessRunResponse,
-    ResolveHostsRequest,
-    ResolveHostsRequestBenchKey,
     RpcMetadata,
     RunData,
     RuntimeBase,
+    RuntimeClient,
     ServiceKind,
-    SupervisorClient,
 )
 from bench.proto.wiring import pack_rpc_headers
 from bench.runtime.remote import RemoteEngine
 from bench.runtime.thread import RuntimeThread
 from bench.utils.oracle import Oracle
 from bench.utils.telemetry import set_baggage
-from bench.utils.tenacity import RETRY_GRPC_FOREVER
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
+class RuntimeThreadMode(enum.StrEnum):
+    LOCAL = "local"
+    PROCESS = "process"
+
+
 @dataclass(slots=True)
-class ActiveRun:
+class ManagedThread:
+    """An active runtime thread running (somehow) in this service."""
+
+    id: int
+    mode: RuntimeThreadMode
+    client: RuntimeClient | RuntimeBase
+    thread: RuntimeThread | None = None
+    started_at: datetime | None = None
+    lock: asyncio.Lock = dataclasses.field(default_factory=asyncio.Lock)
+
+    # process
+    port: int | None = None
+    process: Process | None = None
+
+    # nocheckin: periodically health check and kill active non-local threads
+
+
+@dataclass(slots=True)
+class ManagedRun:
+    """A runtime run that is managed in this service."""
+
     run: RunData
-    thread: RuntimeThread | None
+    thread: ManagedThread | None
     task: asyncio.Task | None
 
 
@@ -74,24 +89,13 @@ class RuntimeService(ServiceBase, RuntimeBase):
         machine_id: UUID | None,
         max_threads: int,
         oracle: Oracle,
+        mode: RuntimeThreadMode,
     ):
         super().__init__(logger=logger, tracer=tracer, oracle=oracle)
         self._nonce = uuid4()
 
-        # parse out supervisor host and port
-        _supervisor_url = urlparse(supervisor_url)
-        self._supervisor_host = _supervisor_url.hostname
-        self._supervisor_port = _supervisor_url.port
-        if self._supervisor_host is None or self._supervisor_port is None:
-            raise ValueError(f"invalid supervisor URL: {supervisor_url}")
-        _supervisor_channel = Channel(
-            host=self._supervisor_host,
-            port=self._supervisor_port,
-            ssl=_supervisor_url.scheme == "https",
-        )
-        self._supervisor = SupervisorClient(_supervisor_channel)
-
         # context
+        self._supervisor_url = supervisor_url
         if client_type == ClientType.BENCH_MACHINE and machine_id is None:
             raise ValueError(f"missing machine_id for {client_type} {client_id}")
         self._client_type = client_type
@@ -114,10 +118,11 @@ class RuntimeService(ServiceBase, RuntimeBase):
         )
 
         # processing
-        self._active_runs: list[ActiveRun] = []
-        self._available_threads: asyncio.Queue[RuntimeThread] = asyncio.Queue()
+        self._mode = mode
         self._max_threads = max_threads
-        self._threads: list[RuntimeThread] = []
+        self._available_threads: asyncio.Queue[ManagedThread] = asyncio.Queue()
+        self._threads: list[ManagedThread] = []
+        self._active_runs: list[ManagedRun] = []
 
     def __str__(self):
         return f"{self._client_id} on {self._bench_id}"
@@ -131,79 +136,131 @@ class RuntimeService(ServiceBase, RuntimeBase):
         return self._host
 
     async def start(self):
-        # setup host
-        self._host = await self._get_host_client(self._bench_id)
-        bench_scope = GraphScopeData(
-            metatype=wire.ObjectType.GRAPH_SCOPE, bench_id=str(self._bench_id)
-        )
-        self._engines = (
-            # global engine
-            RemoteEngine(
-                scope=EMPTY_SCOPE._to_data(),
-                node_types=PUBLIC_NODE_TYPES,
-                remote=self._supervisor,
-                write_retry=RETRY_GRPC_FOREVER,
-                rpc_metadata=self._rpc_metadata,
-            ),
-            # bench engine
-            RemoteEngine(
-                scope=bench_scope,
-                node_types=BENCH_NODE_TYPES | IN_PACKAGE_NODE_TYPES,
-                remote=self._host,
-                write_retry=RETRY_GRPC_FOREVER,
-                rpc_metadata=self._rpc_metadata,
-            ),
-        )
-
         # start threads
         assert self._max_threads > 0, f"no threads for {self!r}"
-        for i in range(self._max_threads):
-            # nocheckin: launch RuntimeThread in own process (if available i.e. not WASM)
-            thread = RuntimeThread(
-                id=i,
-                bench_id=self._bench_id,
-                supervisor=self._supervisor,
-                host=self._host,
-                client_id=self._client_id,
-                server_id=self._server_id,
-                machine_id=self._machine_id,
-                engines=self._engines,
-                oracle=self.oracle,
-            )
-            self._threads.append(thread)
+        self._threads = await asyncio.gather(
+            *(self._start_thread(i) for i in range(self._max_threads))
+        )
+        for thread in self._threads:
             self._available_threads.put_nowait(thread)
-            await thread.start()
-
         logger.info("runtime.start", runtime=self)
 
     def close(self):
         super().close()
 
+    async def _start_thread(self, id: int) -> ManagedThread:
+        """Starts a new thread."""
+        if self._mode == RuntimeThreadMode.LOCAL:
+            # run directly
+            assert self._host is not None, f"no host for {self!r}"
+            thread = RuntimeThread(
+                id=id,
+                bench_id=self._bench_id,
+                supervisor_url=self._supervisor_url,
+                client_type=self._client_type,
+                client_id=self._client_id,
+                client_access_token=self._client_access_token,
+                server_id=self._server_id,
+                machine_id=self._machine_id,
+                oracle=self.oracle,
+                mode=self._mode,
+            )
+            await thread.start()
+            managed_thread = ManagedThread(
+                id=id,
+                mode=self._mode,
+                client=thread,
+                thread=thread,
+                started_at=self.oracle.utc(),
+            )
+            return managed_thread
+        elif self._mode == RuntimeThreadMode.PROCESS:
+            # start subprocess
+            port = random.randint(60000, 65535)
+            process, _, client = await self._start_thread_process(id=id, port=port)
+            managed_thread = ManagedThread(
+                id=id,
+                mode=self._mode,
+                client=client,
+                started_at=self.oracle.utc(),
+                process=process,
+                port=port,
+            )
+            return managed_thread
+        else:
+            assert_never(self._mode)
+
+    async def _start_thread_process(self, *, id: int, port: int):
+        """Creates a RuntimeThread in a subprocess."""
+        assert sys.executable, f"no python executable for {self!r}"
+        argv = (
+            "python",
+            "bench.py",
+            "serve",
+            "runtime",
+            "127.0.0.1",
+            str(port),
+            f"--thread-id={id}",
+        )
+        process = await asyncio.create_subprocess_exec(*argv)
+        channel = Channel(host="127.0.0.1", port=port, ssl=False)
+        client = RuntimeClient(channel)
+        return process, channel, client
+
+    async def _restart_thread(self, thread: ManagedThread):
+        """Restarts the given thread."""
+        if thread.mode == RuntimeThreadMode.LOCAL:
+            pass  # nothing
+        elif thread.mode == RuntimeThreadMode.PROCESS:
+            # restart process
+            assert thread.process is not None, f"no process for {thread!r}"
+            assert thread.port is not None, f"no port for {thread!r}"
+            thread.process.terminate()
+            thread.process, _, thread.client = await self._start_thread_process(
+                id=thread.id, port=thread.port
+            )
+        else:
+            assert_never(thread.mode)
+        thread.started_at = self.oracle.utc()
+
+    async def _do_in_thread(
+        self, thread: ManagedThread, func: Awaitable[Any], *, timeout: float | None
+    ):
+        """Await something from the given thread. If it doesn't respond in time, we restart it."""
+        try:
+            await asyncio.wait_for(func, timeout=timeout)
+        except asyncio.TimeoutError as e:
+            logger.error("runtime.in_thread.timeout", error=e)
+            raise
+
     @tracer.start_as_current_span("runtime.process_run")
-    async def _do_process_run(self, run: ActiveRun):
+    async def _do_process_run(self, run: ManagedRun):
         set_baggage(bench_id=self._bench_id, client_id=self._client_id, run_id=run.run.id)
         self._active_runs.append(run)
         try:
             # acquire thread
-            try:
-                run.thread = await self._available_threads.get()
-            except asyncio.CancelledError as e:
-                # cancelled before we got a thread
-                logger.trace("runtime.process_run.cancel", error=e)
-                return
-
+            with tracer.start_as_current_span("runtime.acquire_thread"):
+                try:
+                    run.thread = await self._available_threads.get()
+                except asyncio.CancelledError as e:
+                    # cancelled before we got a thread
+                    logger.trace("runtime.process_run.cancel", error=e)
+                    return
             # run in thread
             try:
                 request = ProcessRunRequest(run=run.run, is_blocking=True)
-                _ = await run.thread.process_run(request)
+                _ = await self._do_in_thread(
+                    run.thread, run.thread.client.process_run(request), timeout=None
+                )
             finally:
+                # release thread
                 self._available_threads.put_nowait(run.thread)
         finally:
             self._active_runs.remove(run)
 
     @override
     async def process_run(self, request: ProcessRunRequest) -> ProcessRunResponse:
-        run = ActiveRun(run=request.run, thread=None, task=None)
+        run = ManagedRun(run=request.run, thread=None, task=None)
         run.task = asyncio.create_task(self._do_process_run(run))
         if request.is_blocking:
             await run.task
@@ -221,7 +278,9 @@ class RuntimeService(ServiceBase, RuntimeBase):
                 else:
                     # try to pause in thread
                     request = PauseRunRequest(run=run.run)
-                    _ = await run.thread.pause_run(request)
+                    _ = await self._do_in_thread(
+                        run.thread, run.thread.client.pause_run(request), timeout=None
+                    )
                 return PauseRunResponse(is_processed=True)
         else:
             return PauseRunResponse(is_processed=False)
@@ -238,43 +297,9 @@ class RuntimeService(ServiceBase, RuntimeBase):
                 else:
                     # try to kill in thread
                     request = KillRunRequest(run=run.run)
-                    _ = await run.thread.kill_run(request)
+                    _ = await self._do_in_thread(
+                        run.thread, run.thread.client.kill_run(request), timeout=None
+                    )
                 return KillRunResponse(is_processed=True)
         else:
             return KillRunResponse(is_processed=False)
-
-    @cachetools.cached({})
-    async def _get_host_client(self, bench_id: UUID) -> HostClient:
-        request = ResolveHostsRequest(benches=[ResolveHostsRequestBenchKey(id=str(bench_id))])
-        retry = RETRY_GRPC_FOREVER.new(self.oracle)
-        while retry.should_retry:
-            retry.on_attempt()
-            try:
-                response = await self._supervisor.resolve_hosts(
-                    request,
-                    metadata=self._rpc_headers,
-                    deadline=grpclib.metadata.Deadline.from_timeout(5),
-                )
-                host_info = response.hosts[0]
-                host_info.domain = localize_url(host_info.domain)
-                self.logger.info(
-                    "runtime.resolve_host",
-                    supervisor=self._supervisor,
-                    bench_id=bench_id,
-                    host_domain=host_info.domain,
-                    host_port=host_info.grpc_port,
-                )
-                host_channel = Channel(
-                    host=host_info.domain, port=host_info.grpc_port, ssl=host_info.ssl
-                )
-                return HostClient(host_channel)
-            except Exception as e:
-                interval = retry.get_wait_interval()
-                self.logger.error(
-                    "runtime.resolve_host.error", bench_id=bench_id, exc_info=e, interval=interval
-                )
-                if not retry.on_error(e):
-                    raise
-                await self.oracle.sleep(interval)
-        else:
-            raise retry.to_error(operation=request)

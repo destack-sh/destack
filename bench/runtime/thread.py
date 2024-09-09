@@ -1,28 +1,37 @@
 import asyncio
 from contextlib import asynccontextmanager
-from typing import TYPE_CHECKING, override
+from typing import TYPE_CHECKING, cast, override
 from uuid import UUID, uuid4
 
+import cachetools
+import grpclib
+import grpclib.metadata
 import structlog
+from grpclib.client import Channel
 from opentelemetry import trace
 
 from bench.language import Bench, NodeReference, Package, Server
 from bench.language.bench import Branch, Client, Machine
-from bench.language.connection import GraphEngine
 from bench.language.const import (
+    BENCH_NODE_TYPES,
+    IN_PACKAGE_NODE_TYPES,
     LOADED_BENCH_NODE_TYPES,
+    PUBLIC_NODE_TYPES,
     RUNTIME_NODE_TYPES,
     SOURCE_NODE_TYPES,
+    ClientType,
     NodeType,
 )
 from bench.language.graph import NodeGraph, NodeSuperGraph
-from bench.language.node import GraphScope
+from bench.language.node import EMPTY_SCOPE, GraphScope
 from bench.language.run import Run
 from bench.language.session import Session
 from bench.language.user import User
-from bench.proto import wiring
-from bench.proto.services import ServiceBase
+from bench.proto import wire, wiring
+from bench.proto.networking import localize_url
+from bench.proto.services import ServiceBase, get_channel
 from bench.proto.wire import (
+    GraphScopeData,
     HostClient,
     KillRunRequest,
     KillRunResponse,
@@ -30,19 +39,25 @@ from bench.proto.wire import (
     PauseRunResponse,
     ProcessRunRequest,
     ProcessRunResponse,
+    ResolveHostsRequest,
+    ResolveHostsRequestBenchKey,
+    RpcMetadata,
     RunData,
     RuntimeBase,
+    ServiceKind,
     SupervisorClient,
 )
 from bench.runtime.core import DYNAMIC_CODE_GLOBALS, STATIC_CODE_GLOBALS
+from bench.runtime.remote import RemoteEngine
 from bench.runtime.runtime import Runtime
 from bench.utils.func import CriticalLock
 from bench.utils.oracle import Oracle
 from bench.utils.task import TaskManager
 from bench.utils.telemetry import set_baggage
+from bench.utils.tenacity import RETRY_GRPC_FOREVER
 
 if TYPE_CHECKING:
-    pass
+    from bench.runtime.service import RuntimeThreadMode
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -63,25 +78,29 @@ class RuntimeThread(ServiceBase, RuntimeBase):
     A RuntimeThread may reside in any thread or process (incl. main), depending on the context.
     """
 
+    kind = ServiceKind.INTERNAL
+
     def __init__(
         self,
         *,
         id: int,
         bench_id: UUID,
-        supervisor: SupervisorClient,
-        host: HostClient,
+        supervisor_url: str,
+        client_type: ClientType,
         client_id: UUID,
+        client_access_token: str,
         server_id: UUID | None,
         machine_id: UUID | None,
-        engines: tuple[GraphEngine, ...],
         oracle: Oracle,
+        mode: "RuntimeThreadMode",
     ):
+        super().__init__(logger=logger, tracer=tracer, oracle=oracle)
+
         self.id = id
         self._nonce = uuid4()
 
         # bench stuff
-        self._supervisor = supervisor
-        self._host = host
+        self._supervisor = SupervisorClient(get_channel(supervisor_url))
         self._bench_id = bench_id
         self._bench_ptr = NodeReference(
             type=NodeType.BENCH, id=bench_id, ck=bench_id, bench_id=bench_id
@@ -91,16 +110,24 @@ class RuntimeThread(ServiceBase, RuntimeBase):
         self._main_package: Package | None = None
 
         # context
+        self._client_type = client_type
         self._client_id = client_id
+        self._client_access_token = client_access_token
+        self._rpc_metadata = RpcMetadata(
+            client_type=cast(wire.ClientType, client_type),
+            client_id=str(self._client_id),
+            client_access_token=self._client_access_token,
+        )
+        self._rpc_headers = wiring.pack_rpc_headers(self._rpc_metadata)
         self._server_id = server_id
         self._machine_id = machine_id
         self._client: Client | None = None
         self._server: Server | None = None
         self._machine: Machine | None = None
-        self._engines = engines
         self._oracle = oracle
 
         # processing
+        self._mode = mode
         self._session: Session | None = None
         self._runtime: Runtime | None = None
         self._tx_lock: asyncio.Lock = CriticalLock(
@@ -109,7 +136,7 @@ class RuntimeThread(ServiceBase, RuntimeBase):
         self._tasks = TaskManager(owner=self, logger=logger, oracle=oracle)
 
     def __str__(self):
-        bench_str = repr(self.bench) if self.bench else self._bench_id
+        bench_str = repr(self.bench) if self._bench else self._bench_id
         client_str = repr(self._client) if self._client else self._client_id
         return f"{self.id} as {client_str} on {bench_str}"
 
@@ -142,6 +169,30 @@ class RuntimeThread(ServiceBase, RuntimeBase):
             yield self._session
 
     async def start(self):
+        # setup host
+        self._host = await self._get_host_client(self._bench_id)
+        bench_scope = GraphScopeData(
+            metatype=wire.ObjectType.GRAPH_SCOPE, bench_id=str(self._bench_id)
+        )
+        self._engines = (
+            # global engine
+            RemoteEngine(
+                scope=EMPTY_SCOPE._to_data(),
+                node_types=PUBLIC_NODE_TYPES,
+                remote=self._supervisor,
+                write_retry=RETRY_GRPC_FOREVER,
+                rpc_metadata=self._rpc_metadata,
+            ),
+            # bench engine
+            RemoteEngine(
+                scope=bench_scope,
+                node_types=BENCH_NODE_TYPES | IN_PACKAGE_NODE_TYPES,
+                remote=self._host,
+                write_retry=RETRY_GRPC_FOREVER,
+                rpc_metadata=self._rpc_metadata,
+            ),
+        )
+
         # setup thread
         self._session = Session(
             _is_readonly=False,
@@ -154,7 +205,7 @@ class RuntimeThread(ServiceBase, RuntimeBase):
         )
         await self._session.open(set_in_context=False)
 
-        # connect
+        # connect to host
         async with self.session(readonly=True):
             # get bench
             self._bench = await BENCH_QUERY.get(self._bench_ptr, live=True)
@@ -259,6 +310,42 @@ class RuntimeThread(ServiceBase, RuntimeBase):
             return KillRunResponse(is_processed=False)
         await self._runtime.abort_run(run)
         return KillRunResponse(is_processed=True)
+
+    @cachetools.cached({})
+    async def _get_host_client(self, bench_id: UUID) -> HostClient:
+        request = ResolveHostsRequest(benches=[ResolveHostsRequestBenchKey(id=str(bench_id))])
+        retry = RETRY_GRPC_FOREVER.new(self.oracle)
+        while retry.should_retry:
+            retry.on_attempt()
+            try:
+                response = await self._supervisor.resolve_hosts(
+                    request,
+                    metadata=self._rpc_headers,
+                    deadline=grpclib.metadata.Deadline.from_timeout(5),
+                )
+                host_info = response.hosts[0]
+                host_info.domain = localize_url(host_info.domain)
+                self.logger.info(
+                    "runtime.resolve_host",
+                    supervisor=self._supervisor,
+                    bench_id=bench_id,
+                    host_domain=host_info.domain,
+                    host_port=host_info.grpc_port,
+                )
+                host_channel = Channel(
+                    host=host_info.domain, port=host_info.grpc_port, ssl=host_info.ssl
+                )
+                return HostClient(host_channel)
+            except Exception as e:
+                interval = retry.get_wait_interval()
+                self.logger.error(
+                    "runtime.resolve_host.error", bench_id=bench_id, exc_info=e, interval=interval
+                )
+                if not retry.on_error(e):
+                    raise
+                await self.oracle.sleep(interval)
+        else:
+            raise retry.to_error(operation=request)
 
     def close(self):
         self._tasks.close()
