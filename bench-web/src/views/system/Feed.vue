@@ -178,11 +178,15 @@ const pills: Ref<FilterPill[]> = computed(() => {
   } else if (nodeType.value == NodeType.RUN) {
     const runStatus = propertyReference(ObjectType.RUN, RunProperty.status);
     pills.push({
-      key: "run-status-scheduled",
-      name: "Scheduled",
+      key: "run-status-pending",
+      name: "Pending",
       isEnabled: true,
       group: "run-status",
-      filterIfActive: makeExpression({ op: ExpressionOp.IN, propertyPtr: runStatus, value: [RunStatus.SCHEDULED] }),
+      filterIfActive: makeExpression({
+        op: ExpressionOp.IN,
+        propertyPtr: runStatus,
+        value: [RunStatus.SCHEDULED, RunStatus.QUEUED],
+      }),
     });
     pills.push({
       key: "run-status-active",
@@ -248,7 +252,15 @@ const effectiveFilter: Ref<ExpressionData> = computed(() => {
 // Feed
 //
 
-const { roots, graph, connection, isStale, isConnected, isConnecting, page } = useSearchConnection(
+const {
+  roots,
+  graph: feedGraph,
+  connection: feedConnection,
+  isStale,
+  isConnected,
+  isConnecting,
+  page,
+} = useSearchConnection(
   { name: `feed.${toCamelName(NodeType, nodeType.value).toLowerCase()}`, live: true },
   computed(() => ({
     scope: PACKAGE_SCOPE.value,
@@ -264,7 +276,7 @@ const { roots, graph, connection, isStale, isConnected, isConnecting, page } = u
     filter: effectiveFilter.value,
   })),
 );
-const preparedConnection: PreparedSearchConnection = { connection, graph };
+const preparedConnection: PreparedSearchConnection = { connection: feedConnection, graph: feedGraph };
 const items = computed<FeedItem[]>(() => {
   const items: FeedItem[] = [];
   for (const it of roots.value) {
@@ -297,6 +309,17 @@ const items = computed<FeedItem[]>(() => {
       let node: BlockData | StepData | null = null;
       if (it.stepPtr != null) node = supergraph.get(it.stepPtr) as StepData;
       else if (it.blockPtr != null) node = supergraph.get(it.blockPtr) as BlockData;
+      const actions: MiniAction[] = [];
+      if (!TERMINAL_RUN_STATUSES.includes(it.status)) {
+        actions.push({
+          id: "session.run.kill",
+          title: "Kill",
+          icon: makeIcon("fas fa-stop"),
+          action: () => {
+            feedConnection.tx.with({ category: ChangeCategory.SESSION }).update(it, { killedAt: Timestamp.now() });
+          },
+        });
+      }
       const item: RunItem = {
         kind: "run",
         id: it.id,
@@ -304,7 +327,7 @@ const items = computed<FeedItem[]>(() => {
         node,
         createdAt: it.createdAt!,
         createdBy: resolveSubject(it.createdByPtr),
-        actions: [],
+        actions,
       };
       items.push(item);
     } else {
@@ -502,7 +525,10 @@ defineExpose<ViewExposed>({ self, id, mapToNode });
                 <!-- Status -->
                 <IconInline
                   class="w-5"
-                  :class="[ACCENT_COLOR_BY_RUN_STATUS[item.it.status], item.it.status == RunStatus.RUNNING ? 'animate-spin' : '']"
+                  :class="[
+                    ACCENT_COLOR_BY_RUN_STATUS[item.it.status],
+                    item.it.status == RunStatus.RUNNING ? 'animate-spin' : '',
+                  ]"
                   v-bind="ICON_BY_RUN_STATUS[item.it.status]"
                 />
                 <!-- Node -->

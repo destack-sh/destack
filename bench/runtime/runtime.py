@@ -380,7 +380,7 @@ class Runtime:
 
     async def abort_run(self, run: Run):
         """Abort a Run currently executing in this Runner."""
-        raise NotImplementedError
+        raise NotImplementedError  # nocheckin
 
     async def run(
         self, run: Run | Block | Step, *, inputs: Any | None = None, return_error: bool = False
