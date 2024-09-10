@@ -22,16 +22,18 @@ terraform {
 locals {
   prefix = "bench-${var.env}-${var.cloud}-${var.region}"
   supervisor_env_vars = {
-    SERVICE_NAME   = "supervisor"
-    ENVIRONMENT    = var.env
-    CLOUD          = var.cloud
-    REGION         = var.region
+    SERVICE_NAME = "supervisor"
+    ENVIRONMENT  = var.env
+    CLOUD        = var.cloud
+    REGION       = var.region
+
     SUPERVISOR_URL = "https://supervisor.justbench.com:${var.supervisor_grpc_port}"
     HOST_MAP = join(",", flatten([
       for k, v in var.host_map : [
         format("%s=%s", k, v)
       ]
     ]))
+    MACHINE_RUNTIME_IMAGE = "ghcr.io/symbolx/bench-runtime"
 
     GLOBAL_PG_HOST       = var.global_pg_host
     GLOBAL_PG_NAME       = var.global_pg_name
@@ -40,10 +42,10 @@ locals {
     GLOBAL_PG_CRYPTO_KEY = var.global_pg_crypto_key
 
     OTLP_ENDPOINT = "http://jaeger.monitoring.svc.cluster.local:4317"
-    TRACING      = 1
-    LOG_LEVEL    = "DEBUG"
-    LOG_MODE     = "JSON"
-    USE_WAITLIST = 1
+    TRACING       = 1
+    LOG_LEVEL     = "DEBUG"
+    LOG_MODE      = "JSON"
+    USE_WAITLIST  = 1
 
     SENTRY_DSN    = var.sentry_dsn
     NEON_API_KEY  = var.neon_api_key
