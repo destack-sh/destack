@@ -85,7 +85,7 @@ class Runtime:
         runner = self._active_runner.get(None)
         return runner.run if runner else None
 
-    @tracer.start_as_current_span("runner.make")
+    @tracer.start_as_current_span("runtime.make")
     async def make_runner(
         self,
         # state
@@ -157,7 +157,7 @@ class Runtime:
                 parent_run = active_runner.run
             else:
                 parent_run = None
-            with tracer.start_as_current_span("runner.create_run"):
+            with tracer.start_as_current_span("runtime.create_run"):
                 run = Run(
                     parent=parent_run or self.session.package,
                     kind=kind,
@@ -195,12 +195,12 @@ class Runtime:
             track=True,
         )
 
-    @tracer.start_as_current_span("runner.run_runner.once_retrying")
+    @tracer.start_as_current_span("runtime.run_runner.once_retrying")
     async def _do_run_once_retrying(self, runner: Runner):
         """Runs a a Runner, retrying automatically and updating the Runner along the way."""
         # check inputs
         if runner.input_type is not None:
-            with tracer.start_as_current_span("runner.check_inputs"):
+            with tracer.start_as_current_span("runtime.check_inputs"):
                 inputs = runner.inputs or ValueObject.new({}, runner.input_type)
                 try:
                     check_value(inputs, runner.input_type, on_invalid_raise)
@@ -221,7 +221,7 @@ class Runtime:
         try:
             while retry.should_retry:
                 with tracer.start_as_current_span(
-                    "runner.attempt", attributes={"attempt": retry.attempt, "runner": repr(runner)}
+                    "runtime.attempt", attributes={"attempt": retry.attempt, "runner": repr(runner)}
                 ):
                     retry.on_attempt()
                     attempt = RunAttempt(
@@ -232,30 +232,35 @@ class Runtime:
                     )
                     runner.attempts.append(attempt)
                     try:
-                        with tracer.start_as_current_span("runner.attempt.run"):
+                        if runner.is_cancelled:
+                            raise asyncio.CancelledError()
+                        with tracer.start_as_current_span("runtime.attempt.run"):
                             runner.inner_task = asyncio.create_task(runner.run_once())
                             await runner.inner_task
                         if runner.output_type is not None:
-                            with tracer.start_as_current_span("runner.check_outputs"):
+                            with tracer.start_as_current_span("runtime.check_outputs"):
                                 check_value(runner.outputs, runner.output_type, on_invalid_raise)
                         # attempt.status = RunStatus.COMPLETED
                         attempt._do_set("status", RunStatus.COMPLETED, validate=False)
-                        log.debug("runner.attempt", attempt=attempt, span="current")
+                        log.debug("runtime.attempt", attempt=attempt, span="current")
                         break  # success
                     except asyncio.CancelledError as e:
                         error = RunError.from_exception(RunErrorKind.RUNTIME, e)
                         attempt._do_set("status", RunStatus.ABORTED, validate=False)
                         attempt._do_set("error", error, validate=False)
                         log.debug(
-                            "runner.attempt.aborted", attempt=attempt, exc_info=e, span="current"
+                            "runtime.attempt.aborted", attempt=attempt, exc_info=e, span="current"
                         )
-                        raise  # give up (always)
+                        if runner.is_nested:
+                            raise  # bubble up if not root runner
+                        else:
+                            return  # give up directly
                     except BaseException as e:
                         error = RunError.from_exception(RunErrorKind.RUNTIME, e)
                         attempt._do_set("error", error, validate=False)
                         attempt._do_set("status", RunStatus.FAILED, validate=False)
                         log.debug(
-                            "runner.attempt.failed", attempt=attempt, exc_info=e, span="current"
+                            "runtime.attempt.failed", attempt=attempt, exc_info=e, span="current"
                         )
                         if not error.is_retryable or (
                             not retry.on_error(e)
@@ -281,7 +286,7 @@ class Runtime:
             # reset active run
             self._active_runner.reset(active_run_runner_token)
 
-    @tracer.start_as_current_span("runner.run_runner.once_tracked")
+    @tracer.start_as_current_span("runtime.run_runner.once_tracked")
     async def _do_run_once_retrying_tracked(self, runner: Runner):
         """Runs a Runner, retrying automatically and updating the Run along the way."""
         run = runner.run
@@ -328,7 +333,7 @@ class Runtime:
         # always commit after tracked runs, but don't block if we're nested
         await self.session.commit(optimistic=runner.is_nested)
 
-    @tracer.start_as_current_span("runner.run_runner")
+    @tracer.start_as_current_span("runtime.run_runner")
     async def run_runner(self, runner: Runner):
         """Runs something runnable, considering its dependencies and run options."""
 
@@ -337,28 +342,36 @@ class Runtime:
 
         # run it
         async with self.session.active():
-            trace.get_current_span().set_attribute("runner", repr(runner))
-            if runner.run is not None:
-                await self._do_run_once_retrying_tracked(runner)
-            else:
-                await self._do_run_once_retrying(runner)
+            self._active_runners_by_id[runner.id] = runner
+            try:
+                trace.get_current_span().set_attribute("runner", repr(runner))
+                if runner.run is not None:
+                    await self._do_run_once_retrying_tracked(runner)
+                else:
+                    await self._do_run_once_retrying(runner)
+            finally:
+                self._active_runners_by_id.pop(runner.id, None)
 
-    @tracer.start_as_current_span("runner.process_run")
-    async def run_run(self, run: Run, *, return_error: bool = False) -> Runner | None:
-        """Start or resume a top-level Run in this Runner. Returns on halt or termination."""
+    @tracer.start_as_current_span("runtime.run")
+    async def run(
+        self, run: Run | Block | Step, *, inputs: Any | None = None, return_error: bool = False
+    ) -> Runner | None:
+        """Start or resume a top-level Run in this Runtime. Returns on halt or termination."""
+        if not isinstance(run, Run):
+            run = Run.from_runnable(run, inputs=inputs, parent=self.active_run)
         runner = None
         async with self.session.active():
             try:
                 runner = await self.make_runner_from_run(run=run)
                 await self.run_runner(runner)
-                logger.info("runner.process_run", run=run, runner=runner, span="current")
+                logger.info("runtime.run", run=run, runner=runner, span="current")
             except (BenchError, ValueError, TypeError) as e:
                 # re-raised inner user error
                 if run.status != RunStatus.FAILED:
                     run.status = RunStatus.FAILED
                     run.error = RunError.from_exception(RunErrorKind.RUNTIME, e)
                 await self.session.commit()
-                logger.info("runner.process_run.error", run=run, exc_info=e, span="current")
+                logger.info("runtime.run.error", run=run, exc_info=e, span="current")
                 if not return_error:
                     raise
             except BaseException as e:
@@ -367,27 +380,20 @@ class Runtime:
                     run.status = RunStatus.FAILED
                     run.error = RunError.from_exception(RunErrorKind.INTERNAL, e)
                 await self.session.commit()
-                logger.error(
-                    "runner.process_run.internal_error", run=run, exc_info=e, span="current"
-                )
+                logger.error("runtime.run.internal_error", run=run, exc_info=e, span="current")
                 if not return_error:
                     raise
         return runner
 
     async def pause_run(self, run: Run):
-        """Pause a Run currently executing in this Runner."""
+        """Pause a Run currently executing in this Runtime."""
         raise NotImplementedError
 
     async def abort_run(self, run: Run):
-        """Abort a Run currently executing in this Runner."""
-        raise NotImplementedError  # nocheckin
-
-    async def run(
-        self, run: Run | Block | Step, *, inputs: Any | None = None, return_error: bool = False
-    ) -> Runner:
-        """Auto-run wrapper for some runnable node (may already be in another run)."""
-        if not isinstance(run, Run):
-            run = Run.from_runnable(run, inputs=inputs, parent=self.active_run)
-        runner = await self.run_run(run, return_error=return_error)
-        assert runner is not None, f"no runner for {run!r}"
-        return runner
+        """Abort a Run currently executing in this Runtime."""
+        runner = self._active_runners_by_id.get(run.id)
+        if runner is None:
+            raise RuntimeError(f"no active runner for {run!r} in {self!r}")
+        runner.is_cancelled = True
+        if runner.inner_task is not None:
+            runner.inner_task.cancel()

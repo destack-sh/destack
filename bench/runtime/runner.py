@@ -78,6 +78,7 @@ class Runner[S: RunnerCache, T: RunnableNode](abc.ABC):
     inner_task: asyncio.Task | None = None  # the active callable being run
     runs: list["Runner"] = dataclasses.field(default_factory=list)  # nested Runners
     run: Run | None = None  # if tracked
+    is_cancelled: bool = False  # whether this run was cancelled before it ran
 
     def __str__(self):
         str_parts: list[str] = [f"runnable={self.cache!r}", f"options={self.options!r}"]
