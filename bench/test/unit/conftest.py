@@ -224,7 +224,9 @@ class RuntimeHandle:
     async def run(
         self, run: Run | Block | Step, *, inputs: Any | None = None, return_error: bool = False
     ) -> Runner:
-        return await self.runtime.run(run, inputs=inputs, return_error=return_error)
+        runner = await self.runtime.run(run, inputs=inputs, return_error=return_error)
+        assert runner is not None, f"no runner for {run!r}"
+        return runner
 
 
 #
