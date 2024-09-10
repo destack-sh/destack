@@ -20,8 +20,7 @@ RUN apt-get install -y curl
 ADD --chmod=755 https://astral.sh/uv/install.sh /install.sh
 RUN /install.sh && rm /install.sh
 
-ENV PYTHONUNBUFFERED 1
-ENV PYTHONPATH "${PYTHONPATH}:/bench"
+ENV PYTHONUNBUFFERED=1
 
 # --- System (Supervisor/Host) ---
 FROM bench-base AS bench-system
@@ -41,8 +40,8 @@ RUN find bench/ -type f -name 'test_*.py' -delete
 
 ARG GIT_COMMIT
 ARG VERSION
-ENV GIT_COMMIT $GIT_COMMIT
-ENV VERSION $VERSION
+ENV GIT_COMMIT=$GIT_COMMIT
+ENV VERSION=$VERSION
 
 EXPOSE 5432
 EXPOSE 80
