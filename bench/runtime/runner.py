@@ -2,11 +2,10 @@ import abc
 import asyncio
 import dataclasses
 from dataclasses import dataclass
-from typing import ClassVar, dataclass_transform
+from typing import TYPE_CHECKING, ClassVar, dataclass_transform
 from uuid import UUID
 
 import structlog
-from git import TYPE_CHECKING
 from opentelemetry import trace
 
 from bench.language.block import Block
