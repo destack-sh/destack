@@ -27,7 +27,6 @@ message ResumeRunRequest {
 	RunData run = 1;
 }
 message ResumeRunResponse {
-	bool is_processed = 1;	
 }
 
 message KillRunRequest {

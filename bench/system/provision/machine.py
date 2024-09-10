@@ -389,7 +389,7 @@ class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
             self._kubernetes_pods_by_name[pod.metadata.name] = pod
             machine = machines_by_external_name.get(pod.metadata.name)
             if machine is None:
-                # delete erased pod
+                # delete pod for removed machine
                 await self._kubernetes_api.delete_pod(pod.metadata.name)
             else:
                 async with self.host.session(commit=True):

@@ -223,9 +223,7 @@ const dockActions: Ref<Action[]> = computed(
       :class="[orientation == Orientation.HORIZONTAL ? 'ml-auto flex-row pr-1' : 'mt-auto flex-col pb-1']"
     >
       <!-- Active Run -->
-      <!-- NOTE :UX: we need a proper active run / run control menu (should probably be a real view) -->
-      <!-- nocheckin: active runs -->
-      {{ runtime?.activeRuns?.length }}
+      <!-- NOTE :UX: add proper active run / run control menu (should probably be a real view.. Feed?) -->
       <div
         v-if="runtime?.focusedRun"
         class="flex items-center gap-1 rounded px-1.5 py-0.5"
