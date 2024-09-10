@@ -111,12 +111,12 @@ class Oracle(abc.ABC):
         ...
 
     @abc.abstractmethod
-    def call_later(self, duration: float, callback: Callable, *args) -> None:
+    def call_later(self, duration: float, callback: Callable, *args) -> asyncio.TimerHandle:
         """Call a callback after a duration in seconds. Like asyncio.call_later. Timing is relative to oracle."""
         ...
 
     @abc.abstractmethod
-    def call_at(self, when: float, callback: Callable, *args) -> None:
+    def call_at(self, when: float, callback: Callable, *args) -> asyncio.TimerHandle:
         """Call a callback at a specific time in seconds. Like asyncio.call_at. Timing is relative to oracle."""
         ...
 
@@ -161,12 +161,12 @@ class RealOracle(Oracle):
         await asyncio.sleep(duration)
 
     @override
-    def call_later(self, duration: float, callback: Callable, *args) -> None:
-        asyncio.get_event_loop().call_later(duration, callback, *args)
+    def call_later(self, duration: float, callback: Callable, *args) -> asyncio.TimerHandle:
+        return asyncio.get_event_loop().call_later(duration, callback, *args)
 
     @override
-    def call_at(self, when: float, callback: Callable, *args) -> None:
-        asyncio.get_event_loop().call_at(when, callback, *args)
+    def call_at(self, when: float, callback: Callable, *args) -> asyncio.TimerHandle:
+        return asyncio.get_event_loop().call_at(when, callback, *args)
 
     @override
     def call_soon(self, callback: Callable, *args) -> None:

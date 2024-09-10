@@ -1383,7 +1383,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
     archived_at: Optional[datetime] = p_system(16, default=None, autoset=True)
     # NOTE: created_by/updated_by are 'baseless' because Run can only be a subject if it's a lambda
     #  (and otherwise we attribute the change to the Run's block/step/identity)
-    created_by: Optional[EditSubject] = p_system(
+    created_by: Optional[EditSubject] = p_system(  # type: ignore (pyright is wrong, EditSubject is a type)
         21,
         default=None,
         require=False,
@@ -1393,7 +1393,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         same_bench=True,
         baseless=True,
     )
-    updated_by: Optional[EditSubject] = p_system(
+    updated_by: Optional[EditSubject] = p_system(  # type: ignore (see above)
         22,
         default=None,
         require=False,
