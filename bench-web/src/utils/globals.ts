@@ -1,19 +1,18 @@
 import { pretendReadonly } from "@/utils/ref";
 import { ref } from "vue";
 
-export const VERSION = "2024.09.10.1";
+export const VERSION = "2024.09.10.2";
 
-// global constants given from env :BenchWebEnv
+// global environment variables :BenchWebEnv
+export const COMMIT = import.meta.env.VITE_COMMIT;
+export const ENV = import.meta.env.VITE_ENVIRONMENT;
+export const SUPERVISOR_URL = import.meta.env.VITE_SUPERVISOR_URL || "127.0.0.1:8080";
+export const DISCORD_URL = import.meta.env.VITE_DISCORD_URL || "https://discord.gg/HUUzkfBn2p";
+const IP_API_KEY_B64 = import.meta.env.VITE_IP_API_KEY;
 
-export const COMMIT = import.meta.env.VITE_APP_COMMIT;
-export const ENV = import.meta.env.VITE_APP_ENVIRONMENT;
-export const SUPERVISOR_URL = import.meta.env.VITE_APP_SUPERVISOR_URL || "127.0.0.1:8080";
-export const GRPC_KEEPALIVE_INTERVAL = import.meta.env.VITE_APP_GRPC_KEEPALIVE_INTERVAL ?? 60;
-
+// other globals
+export const GRPC_KEEPALIVE_INTERVAL = 60;
+export const IP_API_KEY = IP_API_KEY_B64 ? atob(IP_API_KEY_B64) : null;
 export const IS_DEV = ENV == null || ENV == "dev";
 // actually synced from local, but we want a global we can safely import
 export const isDeveloperMode = pretendReadonly(ref(IS_DEV));
-
-export const DISCORD_URL = "https://discord.gg/HUUzkfBn2p";
-const IP_API_KEY_B64 = import.meta.env.VITE_APP_IP_API_KEY;
-export const IP_API_KEY = IP_API_KEY_B64 ? atob(IP_API_KEY_B64) : null;
