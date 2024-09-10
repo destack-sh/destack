@@ -2,7 +2,7 @@ import abc
 import asyncio
 import dataclasses
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, ClassVar, dataclass_transform
+from typing import TYPE_CHECKING, ClassVar, Iterable, dataclass_transform
 from uuid import UUID
 
 import structlog
@@ -97,6 +97,11 @@ class Runner[S: RunnerCache, T: RunnableNode](abc.ABC):
             if content_str
             else f"<{self.__class__.__name__}>"
         )
+
+    def walk(self) -> Iterable["Runner"]:
+        yield self
+        for run in self.runs:
+            yield from run.walk()
 
     @property
     def is_tracked(self) -> bool:

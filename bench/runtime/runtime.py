@@ -390,10 +390,12 @@ class Runtime:
         raise NotImplementedError
 
     async def abort_run(self, run: Run):
-        """Abort a Run currently executing in this Runtime."""
-        runner = self._active_runners_by_id.get(run.id)
-        if runner is None:
+        """Abort a Run currently executing in this Runtime (and any inside it)."""
+        root_runner = self._active_runners_by_id.get(run.id)
+        if root_runner is None:
             raise RuntimeError(f"no active runner for {run!r} in {self!r}")
-        runner.is_cancelled = True
-        if runner.inner_task is not None:
-            runner.inner_task.cancel()
+        for runner in root_runner.walk():
+            runner.is_cancelled = True
+            if runner.inner_task is not None:
+                runner.inner_task.cancel()
+            logger.debug("runtime.run.abort", runner=runner)
