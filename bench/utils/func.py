@@ -4,7 +4,6 @@ import functools
 import hashlib
 import json
 import math
-import re
 import secrets
 import traceback
 import types
@@ -27,6 +26,7 @@ from typing import (
 )
 from uuid import UUID
 
+import regex
 import structlog
 from bitarray import bitarray
 from cachetools import cached
@@ -372,15 +372,15 @@ def decode_b64vlq(value: str) -> int:
     return result
 
 
-def re_search_or_error(pattern: str, string: str) -> re.Match[str]:
-    match = re.search(pattern, string)
+def re_search_or_error(pattern: str, string: str) -> regex.Match[str]:
+    match = regex.search(pattern, string)
     if match is None:
         raise ValueError(f"no match for {pattern!r} in {string!r}")
     return match
 
 
 def sanitize_connection_uri(uri: str) -> str:
-    return re.sub(r":[^@]+@", ":*****@", uri)
+    return regex.sub(r":[^@]+@", ":*****@", uri)
 
 
 _MIN_ID_BY_ENUM: dict[type, int] = {}

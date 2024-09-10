@@ -1,5 +1,4 @@
 import os
-import re
 import shutil
 import subprocess
 from enum import Enum
@@ -8,6 +7,7 @@ from pathlib import Path
 from subprocess import DEVNULL
 from typing import Any
 
+import regex
 import structlog
 import typer
 
@@ -112,8 +112,8 @@ def _build_proto(schema_str: str) -> None:
     # patch in our extra stuff
     wire_py = Path(TEMP_PY_FILE).read_text()
     # rename all '*_request' parameters to just 'request'
-    wire_py = re.sub(r"\w[a-z_]+request,", "request,", wire_py)
-    wire_py = re.sub(r"\w[a-z_]+request:", "request:", wire_py)
+    wire_py = regex.sub(r"\w[a-z_]+request,", "request,", wire_py)
+    wire_py = regex.sub(r"\w[a-z_]+request:", "request:", wire_py)
     # add subject parameter to public service base methods
     for service_name in _PUBLIC_SERVICES:
         base_name = f"{service_name}Base"
@@ -125,7 +125,7 @@ def _build_proto(schema_str: str) -> None:
         except ValueError:
             base_end = len(wire_py)
         base_py = wire_py[base_start:base_end]
-        patched_base_py = re.sub(
+        patched_base_py = regex.sub(
             r"self, request:(?! \"[a-zA-Z]\", \*)",
             'self, subject: "Subject", request:',
             base_py,
@@ -133,7 +133,7 @@ def _build_proto(schema_str: str) -> None:
         wire_py = wire_py[:base_start] + patched_base_py + wire_py[base_end:]
 
     # rename XyzStub to XyzClient (stub is a bad name)
-    wire_py = re.sub(r"(?<!Service)Stub", "Client", wire_py)
+    wire_py = regex.sub(r"(?<!Service)Stub", "Client", wire_py)
 
     patch_prefix_code = f"""
 # type: ignore

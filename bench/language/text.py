@@ -1,7 +1,8 @@
-import re
 from base64 import b64encode
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID
+
+import regex
 
 from bench.language.const import NODE_TYPES, EnumType, NodeType, StructType, enum_
 from bench.language.node import (
@@ -332,8 +333,8 @@ _MARK_TOKENS = {
     "is_code": ("`",),
 }
 _MENTION_REGEX = r"\[([^\]]+)\]\((bench://[^)]+)\)"
-_SPLIT_SPAN_REGEX = re.compile(
-    "|".join(f"(?P<{k}>{'|'.join(map(re.escape, v))})" for k, v in _MARK_TOKENS.items())
+_SPLIT_SPAN_REGEX = regex.compile(
+    "|".join(f"(?P<{k}>{'|'.join(map(regex.escape, v))})" for k, v in _MARK_TOKENS.items())
     + f"|(?P<mention>{_MENTION_REGEX})"
 )
 

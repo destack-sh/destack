@@ -344,6 +344,7 @@ pyyaml==6.0.1
     #   pre-commit
     #   tach
 redis==4.5.4
+regex==2024.7.24
 requests==2.31.0
     # via
     #   docker

@@ -1,12 +1,12 @@
 import base64
 import dataclasses
-import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Collection, assert_never, cast, override
 from uuid import UUID
 
+import regex
 import structlog
 from opentelemetry import trace
 
@@ -159,17 +159,17 @@ class Aliasing:
         if isinstance(obj, Node) and getattr(obj, "py_name"):
             # proper given name
             alias = getattr(obj, "py_name")
-            if not re.match(r"^[a-zA-Z_]\w+$", alias):  # ensure it's a valid python identifier
+            if not regex.match(r"^[a-zA-Z_]\w+$", alias):  # ensure it's a valid python identifier
                 alias = f"{obj.metatype.bench_name}_{alias}"
         else:
             alias = obj.metatype.bench_name if isinstance(obj, Node) else obj.type.bench_name
             alias = alias + "1"
         # bump digit at end to make alias unique
-        count = re.search(r"\d+$", alias)
+        count = regex.search(r"\d+$", alias)
         count = int(count.group()) if count else 1
         while alias in self._node_by_alias:
             count += 1
-            alias = re.sub(r"\d+$", str(count + 1), alias)
+            alias = regex.sub(r"\d+$", str(count + 1), alias)
         self._alias_by_node_id[cast(UUID, obj.id)] = alias
         self._node_by_alias[alias] = obj
         return alias

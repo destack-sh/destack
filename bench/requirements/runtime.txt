@@ -326,7 +326,7 @@ pytz==2024.1
     #   pandas
 pyyaml==6.0.1
     # via huggingface-hub
-regex==2024.5.15
+regex==2024.7.24
     # via dateparser
 requests==2.31.0
     # via

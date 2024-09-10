@@ -1,10 +1,11 @@
 # ruff: noqa: RUF012
 
 import functools
-import re
 from collections.abc import Collection
 from typing import TYPE_CHECKING, Any, Optional, Sequence, TypeVar, Union, cast
 from uuid import UUID
+
+import regex
 
 from bench.language.const import (
     IN_BENCH_NODE_TYPES,
@@ -464,7 +465,7 @@ def evaluate_conditional(cond: Expression, node: Node | AnyNodeData) -> bool:
     # string comparison
     elif cond.op == ConditionalOp.MATCHES_REGEX:
         assert isinstance(cond_value, str), f"expected str value, got {cond_value!r}"
-        return node_value is not None and re.match(cond_value, node_value) is not None
+        return node_value is not None and regex.match(cond_value, node_value) is not None
     elif cond.op == ConditionalOp.STARTS_WITH:
         assert isinstance(cond_value, str), f"expected str value, got {cond_value!r}"
         return node_value is not None and node_value.startswith(cond_value)
@@ -699,8 +700,8 @@ class _TypeQueryBuilder:
     # string
 
     @_require_expression_op(ConditionalOp.MATCHES_REGEX)
-    def matches_regex(self: Any, value: str | re.Pattern) -> "Expression":
-        if isinstance(value, re.Pattern):
+    def matches_regex(self: Any, value: str | regex.Pattern) -> "Expression":
+        if isinstance(value, regex.Pattern):
             value = value.pattern
         return _to_conditional(ConditionalOp.MATCHES_REGEX, self, value=value)
 

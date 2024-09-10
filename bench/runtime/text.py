@@ -1,10 +1,10 @@
 import abc
-import re
 from dataclasses import dataclass
 from typing import Any, ClassVar, Literal, Mapping, Union, assert_never, cast, override
 
 import anthropic
 import openai
+import regex
 import structlog
 from openai.types import chat as openai_chat_types
 from opentelemetry import trace
@@ -444,8 +444,8 @@ class OpenaiModelRunner(ChatModelRunnerBase):
         # clean completion
         completion_text = completion_text.strip()
         # strip ```[python] ... ``` wrapper
-        completion_text = re.sub(r"^```[a-zA-Z]*\n", "", completion_text)
-        completion_text = re.sub(r"\n```$", "", completion_text)
+        completion_text = regex.sub(r"^```[a-zA-Z]*\n", "", completion_text)
+        completion_text = regex.sub(r"\n```$", "", completion_text)
 
         return completion_text
 

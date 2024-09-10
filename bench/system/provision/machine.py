@@ -1,11 +1,11 @@
 import random
-import re
 from pathlib import Path
 from typing import TYPE_CHECKING, assert_never, cast, override
 
 import docker
 import docker.models
 import docker.models.containers
+import regex
 import structlog
 from kubernetes_asyncio import client as k8
 from opentelemetry import trace
@@ -249,7 +249,7 @@ class KubernetesMachineProvisioner(Provisioner[Machine, Machine]):
         """Parses a pod scalar into a float in G units."""
         try:
             # use regex (we assume the format is as above)
-            match = re.match(r"^([0-9.]+)(m|Mi)$", scalar)
+            match = regex.match(r"^([0-9.]+)(m|Mi)$", scalar)
             if match:
                 return float(match.group(1)) / 1000
             else:

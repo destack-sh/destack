@@ -1,7 +1,8 @@
 import dataclasses
-import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Callable, Collection, Optional, TypedDict, Union
+
+import regex
 
 from bench.language.const import BenchError, BlockType
 
@@ -100,7 +101,7 @@ class TypeConstraintIn:
 SLUG_REGEX_CHAR = r"a-z0-9-"
 SLUG_REGEX = rf"^[{SLUG_REGEX_CHAR}]{{3,}}$"
 EMAIL_REGEX = r"^[a-zA-Z0-9_.+\-]+@[a-zA-Z0-9\-]+\.[a-zA-Z0-9\-.]+$"
-NAME_REGEX_CHAR = r"a-zA-Z0-9_'`˚ \-"
+NAME_REGEX_CHAR = r"\p{L}0-9 _,;.\-'`˚ "
 NAME_REGEX_INLINE = rf"[{NAME_REGEX_CHAR}]+"
 NAME_REGEX = rf"^{NAME_REGEX_INLINE}$"
 NAME_CONSTRAINT = TypeConstraintIn(regex=NAME_REGEX, min_length=1, max_length=128)
@@ -111,7 +112,7 @@ EMAIL_CONSTRAINT = TypeConstraintIn(regex=EMAIL_REGEX)
 
 def clean_name(name: str, sub="-") -> str:
     """Strip any invalid characters from a name."""
-    return re.sub(r"[^a-zA-Z0-9_\- ]", sub, name)
+    return regex.sub(rf"[^{NAME_REGEX_CHAR}]", sub, name)
 
 
 def constraint(

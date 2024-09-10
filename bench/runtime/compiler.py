@@ -6,7 +6,6 @@ import builtins
 import inspect
 import io
 import linecache
-import re
 import textwrap
 import types
 from dataclasses import dataclass, field
@@ -14,6 +13,7 @@ from enum import StrEnum
 from tokenize import TokenInfo, tokenize
 from typing import Any, Iterator, Mapping, override
 
+import regex
 import structlog
 from opentelemetry import trace
 
@@ -661,8 +661,8 @@ def _cache_in_linecache(filename: str, code: str) -> None:
 
 
 # pattern for path-like strings (may not be valid paths)
-PATH_PATTERN_NO_SPACE = re.compile(r"^([a-zA-Z0-9_\-\.\/]+)")
-PATH_PATTERN_WITH_SPACE = re.compile(r"^\"([a-zA-Z0-9_\-\.\/ ]+)\"")
+PATH_PATTERN_NO_SPACE = regex.compile(r"^([a-zA-Z0-9_\-\.\/]+)")
+PATH_PATTERN_WITH_SPACE = regex.compile(r"^\"([a-zA-Z0-9_\-\.\/ ]+)\"")
 
 
 def tokenize_code(code: str) -> list[TokenInfo]:

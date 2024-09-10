@@ -1,5 +1,4 @@
 import base64
-import re
 from collections.abc import Mapping
 from datetime import datetime, timedelta
 from typing import (
@@ -15,6 +14,7 @@ from typing import (
 from uuid import UUID
 
 import pytz
+import regex
 import structlog
 from betterproto.lib.google.protobuf import Struct as ProtoStruct
 from opentelemetry import trace
@@ -557,7 +557,9 @@ def check_value_scalar(value: SomeValue, typ: "TypeInfoBase", invalid: "Validati
                     invalid(value, "too short", typ)
                 if typ.constraint.max_length is not None and len(value) > typ.constraint.max_length:
                     invalid(value, "too long", typ)
-                if typ.constraint.regex is not None and not re.match(typ.constraint.regex, value):
+                if typ.constraint.regex is not None and not regex.match(
+                    typ.constraint.regex, value
+                ):
                     raise TypeError(f"{value!r} does not match {typ.constraint.regex!r}", typ)
                 if typ.constraint.starts_with is not None and not value.startswith(
                     typ.constraint.starts_with
