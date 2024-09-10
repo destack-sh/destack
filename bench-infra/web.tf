@@ -49,17 +49,13 @@ resource "aws_s3_bucket_policy" "bench_web_allow_public" {
 # upload the built bench-web/dist to the S3 bucket
 locals {
   # :BenchWebEnv
-  web_variables = { # nocheckin
+  web_variables = {
     "VITE_COMMIT"         = data.external.git.result.sha
     "VITE_ENVIRONMENT"    = var.env
-    "VITE_SENTRY_DSN"     = var.sentry_dsn
     "VITE_SUPERVISOR_URL" = "supervisor.${local.main_website}"
     "VITE_IP_API_KEY"     = base64encode(var.ip_api_key)
   }
-  web_variables_subs = [for k, v in local.web_variables : {
-    regex = "/[a-zA-Z0-9]+\\.${k}/",
-    sub   = "\"${v}\""
-  }]
+  web_variables_subs   = [for k, v in local.web_variables : { regex = "\"${k}\"", sub = "\"${v}\"" }]
   web_exclude_files    = [".DS_Store"]
   web_files_unfiltered = fileset("../bench-web/dist", "**")
   web_files            = setsubtract(local.web_files_unfiltered, local.web_exclude_files)
@@ -80,28 +76,24 @@ resource "aws_s3_object" "bench_web_files" {
   }, split(".", each.key)[length(split(".", each.key)) - 1], "application/octet-stream")
 
   content_base64 = endswith(each.key, ".js") ? base64encode(
-    # :BenchWebEnv (one replace for each variable.. :Cleanup)
+    # :BenchWebEnv (NOTE one replace for each variable.. :Cleanup)
     replace(
       replace(
         replace(
           replace(
-            replace(
-              file("../bench-web/dist/${each.key}"),
-              local.web_variables_subs[0].regex,
-              local.web_variables_subs[0].sub
-            ),
-            local.web_variables_subs[1].regex,
-            local.web_variables_subs[1].sub
+            file("../bench-web/dist/${each.key}"),
+            local.web_variables_subs[0].regex,
+            local.web_variables_subs[0].sub
           ),
-          local.web_variables_subs[2].regex,
-          local.web_variables_subs[2].sub
+          local.web_variables_subs[1].regex,
+          local.web_variables_subs[1].sub
         ),
-        local.web_variables_subs[3].regex,
-        local.web_variables_subs[3].sub
+        local.web_variables_subs[2].regex,
+        local.web_variables_subs[2].sub
       ),
-      local.web_variables_subs[4].regex,
-      local.web_variables_subs[4].sub
-    )
+      local.web_variables_subs[3].regex,
+      local.web_variables_subs[3].sub
+    ),
   ) : filebase64("../bench-web/dist/${each.key}")
 
   tags = {
