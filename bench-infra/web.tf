@@ -49,12 +49,12 @@ resource "aws_s3_bucket_policy" "bench_web_allow_public" {
 # upload the built bench-web/dist to the S3 bucket
 locals {
   # :BenchWebEnv
-  web_variables = {
-    "VITE_APP_COMMIT"         = data.external.git.result.sha
-    "VITE_APP_ENVIRONMENT"    = var.env
-    "VITE_APP_SENTRY_DSN"     = var.sentry_dsn
-    "VITE_APP_SUPERVISOR_URL" = "supervisor.${local.main_website}"
-    "VITE_APP_IP_API_KEY"     = base64encode(var.ip_api_key)
+  web_variables = { # nocheckin
+    "VITE_COMMIT"         = data.external.git.result.sha
+    "VITE_ENVIRONMENT"    = var.env
+    "VITE_SENTRY_DSN"     = var.sentry_dsn
+    "VITE_SUPERVISOR_URL" = "supervisor.${local.main_website}"
+    "VITE_IP_API_KEY"     = base64encode(var.ip_api_key)
   }
   web_variables_subs = [for k, v in local.web_variables : {
     regex = "/[a-zA-Z0-9]+\\.${k}/",

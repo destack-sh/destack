@@ -1,15 +1,13 @@
 {
   "name": "bench-web",
-  "version": "2024.09.10.1",
+  "version": "2024.09.10.2",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "run-p check && run-p build-only",
     "preview": "vite preview",
     "test": "vitest",
-    "build-only": "vite build",
-    "build-unminified": "vite build --mode unminified",
+    "build": "vite build",
     "type": "vue-tsc --noEmit",
     "lint": "eslint .",
     "check": "vue-tsc --noEmit && eslint .",
