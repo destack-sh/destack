@@ -93,9 +93,11 @@ class ProcessRunPlugin(HostPlugin[Run]):
         run = op.run
         assert run.package_id is not None, f"missing package id for run {run!r}"
         assert self.bench.main_server, f"missing main server for {self.bench!r}"
+        op_name = op.op.name.lower()
         log = logger.bind(host=self, run=run, server=self.bench.main_server, retry=op.retry)
 
         # find machine to process run on
+        # nocheckin: adapt this for different run ops (only start should select machines freely)
         for machine in self.bench.main_server.machines:
             if machine.current_status != ResourceStatus.UP:
                 continue
@@ -112,10 +114,10 @@ class ProcessRunPlugin(HostPlugin[Run]):
                 elif op.op == RunOperation.KILL:
                     request = KillRunRequest(run=run._to_data())
                     _ = await runtime.kill_run(request)
-                log.debug(f"scheduler.{op.op.name.lower()}", machine=machine, span="current")
+                log.debug(f"scheduler.{op_name}", machine=machine, span="current")
                 return  # success
             except Exception as e:
-                log.error(f"scheduler.{op.op.name.lower()}.error", machine=machine, error=e)
+                log.error(f"scheduler.{op_name}.error", machine=machine, error=e)
                 op.retry.on_error(e)
                 continue
 
@@ -129,10 +131,10 @@ class ProcessRunPlugin(HostPlugin[Run]):
                 text=Text.from_markdown("Could not reach any currently available machine."),
             )
             async with self.host.session(commit=True):  # :StaleNodes
-                run.status = RunStatus.FAILED
+                run.status = RunStatus.ABORTED if op.op == RunOperation.KILL else RunStatus.FAILED
                 run.error = error
             log.error(
-                "scheduler.queue.failed",
+                f"scheduler.{op_name}.failed",
                 machines=self.bench.main_server.machines,
                 error=error,
                 span="current",
@@ -145,7 +147,7 @@ class ProcessRunPlugin(HostPlugin[Run]):
                 callback=lambda: op.is_cancelled or self._run_queue.put_nowait(op),
             )
             log.debug(
-                "scheduler.queue.retry",
+                f"scheduler.{op_name}.retry",
                 machines=self.bench.main_server.machines,
                 interval=op.retry.get_wait_interval,
                 retry=op.retry,
@@ -162,7 +164,7 @@ class SignalTriggerPlugin(DeferredHostPlugin[Signal | Trigger]):
 
 
 class ScheduleTriggerPlugin(DeferredHostPlugin[Trigger]):
-    """Process active Triggers on their Schedule."""
+    """Process active Triggers according to their Schedule."""
 
     watch_types = bittuple(NodeType.TRIGGER)
 

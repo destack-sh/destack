@@ -236,7 +236,10 @@ defineExpose<ViewExposed>({ self });
           <!-- Placeholder -->
           <div class="mt-2 w-full">
             <span v-if="run != null">
-              <IconInline :class="ACCENT_COLOR_BY_RUN_STATUS[run.status]" v-bind="ICON_BY_RUN_STATUS[run.status]" />
+              <IconInline
+                :class="[ACCENT_COLOR_BY_RUN_STATUS[run.status], run.status == RunStatus.RUNNING ? 'animate-spin' : '']"
+                v-bind="ICON_BY_RUN_STATUS[run.status]"
+              />
               <span class="ml-1.5" :class="ACCENT_COLOR_BY_RUN_STATUS[run.status]">
                 {{ toCamelName(RunStatus, run.status) }}
               </span>
