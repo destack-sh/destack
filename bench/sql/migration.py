@@ -1,6 +1,5 @@
 import enum
 import os
-import re
 import types
 from collections import defaultdict
 from dataclasses import dataclass, replace
@@ -19,6 +18,7 @@ from typing import (
 )
 
 import psycopg
+import regex
 import structlog
 from more_itertools import first
 from opentelemetry import trace
@@ -174,7 +174,7 @@ def read_migrations_from_fs() -> list[Migration]:
         migration_path = MIGRATIONS_PATH / migration_file
         migration_code = Path(migration_path).read_text()
         migration_metadata: dict[str, str] = {
-            match[0]: match[1] for match in re.findall(r"([A-Z_]+) = (.*)", migration_code)
+            match[0]: match[1] for match in regex.findall(r"([A-Z_]+) = (.*)", migration_code)
         }
         migration = Migration(
             id=int(migration_metadata["ID"]),
@@ -634,9 +634,9 @@ def _render_migration_body(ops: list[MigrationOp] | None) -> str:
             continue
 
         # pull out (SELECT ...) sub-queries
-        subqueries = re.findall(r"\(SELECT.*?\)", line)
+        subqueries = regex.findall(r"\(SELECT.*?\)", line)
         for i, subquery in enumerate(subqueries):
-            selected_columns = re.findall(r"SELECT (.*?) FROM", subquery)[0].split(", ")
+            selected_columns = regex.findall(r"SELECT (.*?) FROM", subquery)[0].split(", ")
             var_name = f"_{selected_columns[0]}_{i}"
             line = line.replace(subquery, f"{{{var_name}}}")
             subquery = _wrap_statement(subquery[1:-1])

@@ -1,8 +1,8 @@
 import os
-import re
 from dataclasses import dataclass
 from pathlib import Path
 
+import regex
 import structlog
 import typer
 from rich.console import Console
@@ -25,27 +25,27 @@ def parse_env_var_site(site: str):
     key = description = default = typ = None
     site = site.replace("\n", " ")
 
-    key_match = re.search(r'get_from_env(?:_maybe)?\s*\(\s*["](.*?)["]', site)
+    key_match = regex.search(r'get_from_env(?:_maybe)?\s*\(\s*["](.*?)["]', site)
     if key_match:  # noqa: SIM108
         key = key_match.group(1)
     else:
         key = ""  # mark as invalid
 
-    description_match = re.search(r'description\s*=\s*["](.*?)["]', site, re.DOTALL)
+    description_match = regex.search(r'description\s*=\s*["](.*?)["]', site, regex.DOTALL)
     description = description_match.group(1) if description_match else None
 
-    default_match = re.search(r"default\s*=\s*([^,\(\)]+)", site)
+    default_match = regex.search(r"default\s*=\s*([^,\(\)]+)", site)
     default = default_match.group(1).strip() if default_match else None
     is_required = "get_from_env(" in site and not default_match
 
-    typ_match = re.search(r"typ\s*=\s*([^,\(\)]+)", site)
+    typ_match = regex.search(r"typ\s*=\s*([^,\(\)]+)", site)
     typ = typ_match.group(1).strip() if typ_match else "str"
 
     return EnvDeclaration(key, is_required, description, default, typ)
 
 
 def extract_env_vars_from_file(content: str):
-    env_var_declarations = re.findall(r"get_from_env(?:_maybe)?\([\s\S]*?\)", content)
+    env_var_declarations = regex.findall(r"get_from_env(?:_maybe)?\([\s\S]*?\)", content)
     parsed_declarations = [parse_env_var_site(call) for call in env_var_declarations]
     return [decl for decl in parsed_declarations if decl.key]
 

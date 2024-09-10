@@ -1,4 +1,4 @@
-from dataclasses import replace
+import dataclasses
 from typing import cast
 from uuid import uuid4
 
@@ -116,7 +116,7 @@ async def test_user_registration(supervisor: SupervisorClient):
 
     # logout, invalid token -> fail
     with raises_grpc_error(GRPCStatus.UNAUTHENTICATED):
-        bad_access_metadata = replace(access_metadata, client_access_token="bad")
+        bad_access_metadata = dataclasses.replace(access_metadata, client_access_token="bad")
         bad_access_headers = pack_rpc_headers(bad_access_metadata)
         _ = await supervisor.logout_user(LogoutUserRequest(), metadata=bad_access_headers)
 

@@ -1,6 +1,6 @@
 import asyncio
+import dataclasses
 import gc
-from dataclasses import replace
 from itertools import chain
 from random import Random
 from typing import NamedTuple, final
@@ -402,5 +402,5 @@ async def test_simulation_careful(spec: SimulationSpec):
 )
 async def test_simulation_paranoid(spec: SimulationSpec, num_seeds: int = 1):
     for i in range(0, num_seeds):
-        subspec = replace(spec, seed=spec.seed + i)
+        subspec = dataclasses.replace(spec, seed=spec.seed + i)
         await _do_test_simulation(subspec)

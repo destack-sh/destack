@@ -80,6 +80,7 @@ JSON_STRATEGY = st.none()  # not needed yet
 ORDER_KEY_STRATEGY = st.just(INTEGER_ZERO)  # NOTE :Test: generate order keys properly
 BYTES_STRATEGY = st.binary(min_size=1, max_size=32)
 PROPERTY_STRATEGY = st.sampled_from(ALL_DECLARED_PROPERTIES)
+NAME_STRATEGY = st.text(alphabet=ascii_lowercase, min_size=1, max_size=64)
 SLUG_STRATEGY = st.text(alphabet=ascii_lowercase, min_size=1, max_size=64)
 
 TYPE_KIND_STRATEGY = st.sampled_from(TypeKind)
@@ -313,6 +314,7 @@ STRATEGY_BY_PRIMITIVE_TYPE: dict[PrimitiveType, st.SearchStrategy] = {
 }
 STRATEGY_BY_PROPERTY: dict[str, st.SearchStrategy] = {
     "order_key": ORDER_KEY_STRATEGY,
+    "name": NAME_STRATEGY,
 }
 STRATEGY_BY_OBJECT_PROPERTY: dict[tuple[ObjectType, str], st.SearchStrategy] = {
     (NodeType.FILE, "inline_content"): BYTES_STRATEGY,

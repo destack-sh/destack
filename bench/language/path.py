@@ -1,6 +1,6 @@
-import re
 from typing import TYPE_CHECKING, Optional, assert_never, cast
 
+import regex
 from cachetools import LRUCache, cached
 
 from bench.language.bench import Bench, Branch, Package
@@ -131,8 +131,8 @@ class Path(Struct):
 
 
 # see NAME_REGEX in validationl
-BENCH_PATTERN = re.compile(rf"^@([{SLUG_REGEX_CHAR}]+)$")
-NODE_PATTERN = re.compile(rf"^([>\^~])?([{NAME_REGEX_CHAR}\.]*)$")
+BENCH_PATTERN = regex.compile(rf"^@([{SLUG_REGEX_CHAR}]+)$")
+NODE_PATTERN = regex.compile(rf"^([>\^~])?([{NAME_REGEX_CHAR}\.]*)$")
 
 
 @cached(LRUCache(maxsize=1024 * 10))
