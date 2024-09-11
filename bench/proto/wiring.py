@@ -175,13 +175,13 @@ def pack_object[T: AnyStructData | AnyNodeData](
     metatype = pack_enum(ObjectType, obj.metatype)  # type: ignore
     if expect is not None and not issubclass(data_cls, expect):
         raise RuntimeError(f"expected {expect.__name__} but got {data_cls}")
-    data = data_cls(metatype=metatype)  # type: ignore
+    obj_data = data_cls(metatype=metatype)  # type: ignore
     try:
         for prop in obj.__wired_properties__.values():
             value = getattr(obj, prop.name)
             value = pack_object_prop(prop, value, ignore_array=False)
-            setattr(data, prop.name, value)
-        return cast(T, data)
+            setattr(obj_data, prop.name, value)
+        return cast(T, obj_data)
     except (AttributeError, TypeError, ValueError, KeyError) as e:
         raise ValueError(f"could not pack {obj.metatype.name}: {obj!r}") from e
 
