@@ -200,7 +200,7 @@ class ManagedThread:
             for run in self.service._active_runs:
                 if run.thread == self:
                     run._do_terminate(RunStatus.ABORTED)
-            await session.commit(optimistic=True)
+            session.commit_optimistic()
         # and force restart
         await self._do_restart()
 
@@ -384,7 +384,7 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
             run.status = RunStatus.QUEUED
             self._supergraph.add_graph(graph)
             managed_run = ManagedRun(service=self, run_data=request.run, run=run)
-            await session.commit(optimistic=True)
+            session.commit_optimistic()
 
         # process it (queue and run)
         try:
@@ -407,7 +407,7 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
                     run.task.cancel()
                     async with self.session() as session:
                         run.run.status = RunStatus.PAUSED
-                        await session.commit(optimistic=True)
+                        session.commit_optimistic()
                 else:
                     # pause in thread
                     request = PauseRunRequest(run=run.run_data)
@@ -427,7 +427,7 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
                     run.task.cancel()
                     async with self.session() as session:
                         run._do_terminate(RunStatus.CANCELLED)
-                        await session.commit(optimistic=True)
+                        session.commit_optimistic()
                 else:
                     # kill in thread
                     request = KillRunRequest(run=run.run_data)

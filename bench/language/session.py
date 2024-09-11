@@ -782,6 +782,19 @@ class Session(RuntimeNode[SessionData]):
             return await self._do_flush()
 
     @tracer.start_as_current_span("session.commit.schedule")
+    def commit_optimistic(self):
+        """Commit optimistically, while being explicitly *not* async. See commit."""
+        # schedule a new commit
+        assert self.is_open, f"cannot commit {self!r} when closed"
+        assert self._tx is not None, f"no active transaction in {self!r}"
+        new_edits = self._preflush(include_session=False)
+        event = _CommitEvent(id=self._flush_counter, new_edits=new_edits)
+        if not self._tx.has_edits:
+            return [], []  # nothing to do
+        self._commit_queue.put_nowait(event)
+        logger.trace("session.commit.schedule", session=self, e=event, span="current")
+        return event.new_edits, []
+
     async def commit(
         self, *, optimistic: bool = False, _data_graph: NodeDataGraphLike | None = None
     ) -> tuple[list[EditData], list[EditData]]:
@@ -792,19 +805,13 @@ class Session(RuntimeNode[SessionData]):
         Cascaded edits are only returned for non-optimistic commits.
         """
         assert self.is_open, f"cannot commit {self!r} when closed"
-        assert self._tx is not None, f"no active transaction in {self!r}"
         trace.get_current_span().set_attribute("optimistic", optimistic)
 
         if optimistic:
-            # schedule a new commit
-            new_edits = self._preflush(include_session=False)
-            event = _CommitEvent(id=self._flush_counter, new_edits=new_edits)
-            if not self._tx.has_edits:
-                return [], []  # nothing to do
-            self._commit_queue.put_nowait(event)
-            logger.trace("session.commit.schedule", session=self, e=event, span="current")
-            return event.new_edits, []
-        else:
+            return self.commit_optimistic()
+
+        with tracer.start_as_current_span("session.commit.schedule"):
+            assert self._tx is not None, f"no active transaction in {self!r}"
             # wait for any pending commit, then commit directly
             with tracer.start_as_current_span("session.commit.wait"):
                 await self._commit_queue.join()

@@ -156,8 +156,8 @@ class FlowRunner(Runner[RunnerCache, Block]):
             if runner.node.type.is_boundary:
                 continue  # don't abort boundary steps
             logger.trace("step.abort", step=runner.node, runner=runner)
-            if runner.inner_task is not None:
-                runner.inner_task.cancel()
+            if runner.task is not None:
+                runner.task.cancel()
             if runner.outer_task is not None:
                 runner.outer_task.cancel()
 
