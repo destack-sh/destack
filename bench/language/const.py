@@ -3,7 +3,7 @@ import secrets
 import typing
 from datetime import datetime, timedelta
 from typing import Any, Mapping, Optional, TypeGuard, cast
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from bench.utils.func import IdEnum, bittuple, cyrb53a
 from bench.utils.utils import frozendict, get_from_env
@@ -28,6 +28,7 @@ TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
 FLOAT_EPSILON = 1e-6
 
 # runtime constants
+NONCE = uuid4()
 UNSET = cast(Any, _Unset())
 EMPTY_LIST: list = []
 EMPTY_SET: frozenset = frozenset()

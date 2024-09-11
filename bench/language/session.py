@@ -762,7 +762,6 @@ class Session(RuntimeNode[SessionData]):
             raise
 
     @tracer.start_as_current_span("session.flush.schedule")
-    @async_shield
     async def flush(self, *, optimistic: bool = False) -> tuple[list[EditData], list[EditData]]:
         """
         Flushes the current pending edits.
@@ -783,7 +782,6 @@ class Session(RuntimeNode[SessionData]):
             return await self._do_flush()
 
     @tracer.start_as_current_span("session.commit.schedule")
-    @async_shield
     async def commit(
         self, *, optimistic: bool = False, _data_graph: NodeDataGraphLike | None = None
     ) -> tuple[list[EditData], list[EditData]]:
