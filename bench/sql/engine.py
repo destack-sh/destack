@@ -664,7 +664,6 @@ RETRY_PG = RetryOptions(max_attempts=2, max_retry_interval=5, retry_on=(Operatio
 
 
 @retry(RETRY_PG, REAL_ORACLE)
-@tracer.start_as_current_span("postgres.execute")
 async def _pg_execute(
     cur: psycopg.AsyncCursor,
     statement: sql.Composed,
@@ -674,7 +673,6 @@ async def _pg_execute(
 
 
 @retry(RETRY_PG, REAL_ORACLE)
-@tracer.start_as_current_span("postgres.execute_many")
 async def _pg_executemany(
     cur: psycopg.AsyncCursor,
     statement: sql.Composed,

@@ -1,10 +1,11 @@
+import asyncio
 from typing import TYPE_CHECKING, Any, override
 from uuid import UUID
 
 import structlog
 from opentelemetry import trace
 
-from bench.language.const import RUNTIME_NODE_TYPES, ClientType
+from bench.language.const import NONCE, RUNTIME_NODE_TYPES, ClientType
 from bench.language.graph import NodeGraph
 from bench.language.run import Run
 from bench.proto import wiring
@@ -99,6 +100,7 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
             static_glbls=STATIC_CODE_GLOBALS,
             dynamic_glbls=DYNAMIC_CODE_GLOBALS,
         )
+        asyncio.get_running_loop().set_task_factory(asyncio.eager_task_factory)
         logger.info("thread.start", process=self, bench=self._bench)
 
     async def _do_process_run(self, run_data: RunData) -> None:
@@ -118,6 +120,7 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
             server_id=self._server_id,
             machine_id=self._machine_id,
             thread_id=self.id,
+            thread_nonce=NONCE,
         )
         with tracer.start_as_current_span("thread.process_run"):
             async with self._session.active(readonly=True):

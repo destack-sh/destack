@@ -3,7 +3,7 @@ import asyncio
 import enum
 from contextlib import asynccontextmanager
 from typing import Any, override
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import cachetools
 import grpclib
@@ -17,6 +17,7 @@ from bench.language.const import (
     BENCH_NODE_TYPES,
     IN_PACKAGE_NODE_TYPES,
     LOADED_BENCH_NODE_TYPES,
+    NONCE,
     PUBLIC_NODE_TYPES,
     SOURCE_NODE_TYPES,
     ClientType,
@@ -80,7 +81,6 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
         mode: "RuntimeThreadMode",
     ):
         super().__init__(logger=logger, tracer=tracer, oracle=oracle)
-        self._nonce = uuid4()
         self._mode = mode
 
         # services
@@ -209,7 +209,7 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
         self._session.user = self._client.parent if isinstance(self._client.parent, User) else None
         self._session._subject = self._client.parent
         self._session._origin = (
-            self._client.to_origin(nonce=self._nonce)._to_data() if self._client else None
+            self._client.to_origin(nonce=NONCE)._to_data() if self._client else None
         )
 
     @cachetools.cached({})

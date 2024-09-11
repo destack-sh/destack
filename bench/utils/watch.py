@@ -25,9 +25,12 @@ async def restart_on_file_changes(on_restart: Callable | None = None):
             ):
                 return
             if event.src_path.endswith(".py"):
+                from bench.utils.signal import _run_on_exit
+
                 logger.debug("watcher.reload", path=event.src_path)
                 if on_restart:
                     on_restart()
+                _run_on_exit()
                 os.execv(sys.executable, [sys.executable, *sys.argv])
 
     cwd = str(Path(".").absolute())

@@ -1,12 +1,13 @@
 import asyncio
 import contextlib
+import os
 import random
 import sys
 from asyncio.subprocess import Process
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Awaitable, assert_never, override
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import grpclib
 import structlog
@@ -35,6 +36,7 @@ from bench.proto.wire import (
 from bench.runtime.base import RuntimeServiceBase, RuntimeThreadMode
 from bench.runtime.thread import RuntimeThread
 from bench.utils.oracle import Oracle
+from bench.utils.signal import on_exit
 from bench.utils.telemetry import set_baggage
 from bench.utils.utils import get_from_env
 
@@ -163,8 +165,10 @@ class ManagedThread:
             f"--thread-id={id}",
         )
         process = await asyncio.create_subprocess_exec(*argv)
+        on_exit(process.kill)  # kill on normal exit
         channel = Channel(host="127.0.0.1", port=port, ssl=False)
         client = RuntimeClient(channel)
+
         return process, channel, client
 
     async def _do_restart(self):
@@ -266,7 +270,6 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
             machine_id=machine_id,
             mode=mode,
         )
-        self._nonce = uuid4()
 
         # processing
         self._max_threads = max_threads
@@ -297,6 +300,10 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
     async def start(self):
         await super().start()
         # start threads
+        with contextlib.suppress(Exception):  # ignore errors
+            # ensure we're the process group leader (so subprocesses will die with us)
+            #  (we ignore errors because either setsid is unavailable or we're already the leader)
+            os.setsid()
         assert self._max_threads > 0, f"no threads for {self!r}"
         self._threads = [
             ManagedThread(self, id=i, mode=self._mode) for i in range(self._max_threads)
