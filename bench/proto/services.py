@@ -44,7 +44,7 @@ from bench.utils.env import IS_DEV, IS_TEST
 from bench.utils.oracle import Oracle
 from bench.utils.string import Casing, to_casing
 from bench.utils.task import TaskManager
-from bench.utils.telemetry import export_now, set_baggage
+from bench.utils.telemetry import attach_propagation_context, export_now, set_baggage
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -184,8 +184,11 @@ class ServiceBase:
         async def _managed_rpc(stream: grpclib.server.Stream) -> None:
             """Managed RPC call with some instrumentation and error handling."""
 
+            # context
             log = self.logger.bind(service=self, method=method)
             set_baggage(service=service_slug)
+            attach_propagation_context(cast(Mapping, stream.metadata or {}))
+
             with tracer.start_as_current_span(rpc_name) as span:
                 try:
                     set_baggage(**self.get_service_baggage())

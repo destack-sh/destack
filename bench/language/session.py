@@ -699,7 +699,7 @@ class Session(RuntimeNode[SessionData]):
             )
             return new_edits
 
-    @tracer.start_as_current_span("session.flush.do")
+    @tracer.start_as_current_span("session.flush")
     @async_shield
     async def _do_flush(self) -> tuple[list[EditData], list[EditData]]:
         assert self.is_open, f"cannot commit {self!r} when closed"
@@ -721,7 +721,7 @@ class Session(RuntimeNode[SessionData]):
             await self._tx.reset()
             raise
 
-    @tracer.start_as_current_span("session.commit.do")
+    @tracer.start_as_current_span("session.commit")
     @async_shield
     async def _do_commit(
         self, *, data_graph: NodeDataGraphLike | None = None

@@ -382,12 +382,11 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
                 logger.debug("host.start.no_logs", host=self, bench=self._bench)
 
         # start plugins
-        with tracer.start_as_current_span("host.start.plugins"):
-            self._provisioners = tuple(get_provisioners_for(self, self._bench))
-            self._plugins = (ProcessRunPlugin(self, self._bench), *self._provisioners)
-            await asyncio.gather(*(plugin.start() for plugin in self._plugins))
-            # wait for plugins to finish processing any commits (and to error early)
-            await asyncio.gather(*(plugin.wait_idle(timeout=10) for plugin in self._plugins))
+        self._provisioners = tuple(get_provisioners_for(self, self._bench))
+        self._plugins = (ProcessRunPlugin(self, self._bench), *self._provisioners)
+        await asyncio.gather(*(plugin.start() for plugin in self._plugins))
+        # wait for plugins to finish processing any commits (and to error early)
+        await asyncio.gather(*(plugin.wait_idle(timeout=10) for plugin in self._plugins))
         logger.info(
             "host.start",
             host=self,
