@@ -187,9 +187,9 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         ),
       })
     "
-    class="group/flow relative h-full w-full"
+    class="group/flow relative w-full"
     :class="[
-      variant == Variant.COMPACT ? 'rounded border border-gray-200' : '',
+      variant == Variant.COMPACT ? 'rounded border border-gray-200' : 'h-full',
       flowCtx.dragging.value ? (flowCtx.isDraggingPort ? 'cursor-crosshair' : 'cursor-grabbing') : 'cursor-grab',
     ]"
     @mousedown="(e) => flowCtx.startDraggingIfAllowed(e, { kind: 'canvas' })"
@@ -206,8 +206,8 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
         class="h-full w-full transition-colors duration-75"
         :class="[
           isFocusAbsolute || variant != Variant.COMPACT
-            ? 'text-gray-200 '
-            : 'text-gray-100  group-hover/flow:text-gray-200',
+            ? 'text-gray-200'
+            : 'text-gray-100 group-hover/flow:text-gray-200',
         ]"
         :style="{
           // extra spacing for smooth infinite scrolling

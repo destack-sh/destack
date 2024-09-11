@@ -309,7 +309,7 @@ class Runtime:
             run._do_set("started_at", self.oracle.utc(), validate=False)
         run._do_set("status", RunStatus.RUNNING, validate=False)
 
-        # commit any intermediate session edits
+        # commit intermediate session edits
         await self.session.commit(optimistic=True)
 
         # actually attempt Run
@@ -330,8 +330,8 @@ class Runtime:
             if run.terminated_at is not None:
                 run._do_set("duration", (run.terminated_at - run.started_at).total_seconds())  # type: ignore
 
-        # always commit after tracked runs, but don't block if we're nested
-        await self.session.commit(optimistic=runner.is_nested)
+        # commit intermediate session edits
+        await self.session.commit(optimistic=True)
 
     @tracer.start_as_current_span("runtime.run_runner")
     async def run_runner(self, runner: Runner):
