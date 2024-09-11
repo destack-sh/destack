@@ -88,6 +88,9 @@ class ServiceBase:
         # wrap as property to comply with HostSpec
         return self._oracle
 
+    def get_service_baggage(self) -> dict[str, Any]:
+        return {}
+
     async def start(self) -> None:
         """Start the service. Should be ready for service when returning."""
         pass
@@ -185,6 +188,7 @@ class ServiceBase:
             set_baggage(service=service_slug)
             with tracer.start_as_current_span(rpc_name) as span:
                 try:
+                    set_baggage(**self.get_service_baggage())
                     request = cast(betterproto.Message, await stream.recv_message())
                     self.validate_request(request)
 
@@ -249,7 +253,7 @@ class HealthService(HealthBase):
         self._services = services
 
     async def check(self, request: "HealthCheckRequest") -> "HealthCheckResponse":
-        # TODO :Robustness :Monitoring: check health properly
+        # NOTE :Robustness :Monitoring: check health properly
         response = HealthCheckResponse(status=HealthCheckResponseServingStatus.SERVING)
         logger.trace("health.check", service=self, request=request, response=response)
         return response
@@ -313,7 +317,7 @@ def get_rpc_metadata(
     client_access_token: str | UUID,
     client_nonce: str | UUID | None = None,
 ):
-    """Gets the metadata for a client."""
+    """Gets the gRPC metadata for a client."""
     rpc_metadata = RpcMetadata(
         client_type=cast(wire.ClientType, client_type),
         client_id=str(client_id),
@@ -330,7 +334,7 @@ def get_rpc_headers(
     client_access_token: str | UUID,
     client_nonce: str | UUID | None = None,
 ):
-    """Gets the headers for a client."""
+    """Gets the gRPC headers for a client."""
     rpc_metadata = get_rpc_metadata(
         client_type=client_type,
         client_id=client_id,

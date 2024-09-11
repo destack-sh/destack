@@ -38,7 +38,7 @@ MACHINE_RUNTIME_IMAGE = get_from_env(
 )
 MACHINE_OVERCOMMITMENT = get_from_env(
     "MACHINE_OVERCOMMITMENT",
-    default=4.0,
+    default=2.0,
     typ=float,
     description="By how much to over-commit resources",
 )

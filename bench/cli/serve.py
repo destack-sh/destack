@@ -43,7 +43,7 @@ async def _do_serve(
 async def system(
     host: str, port: int, watch: bool = False, no_supervisor: bool = False, no_check: bool = False
 ):
-    from bench.system.host.service import HostRouterService
+    from bench.system.host.router import HostRouterService
     from bench.system.supervisor.service import SupervisorService
     from bench.system.utils.session import system_store_from_env
     from bench.system.utils.sharding import host_map_from_env
@@ -76,7 +76,7 @@ async def supervisor(host: str, port: int, watch: bool = False, no_check: bool =
 @app.command()
 @async_to_sync_blocking
 async def host(host: str, port: int, watch: bool = False, no_check: bool = False):
-    from bench.system.host.service import HostRouterService
+    from bench.system.host.router import HostRouterService
     from bench.system.utils.session import system_store_from_env
 
     global_store = system_store_from_env()
