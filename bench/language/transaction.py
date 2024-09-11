@@ -382,12 +382,17 @@ class Transaction:
         """
         from bench.proto import wire, wiring
 
+        span = trace.get_current_span()
+        span.set_attribute("edit_events", len(edit_events))
+        span.set_attribute("filter", filter is not None)
+
         edits: list[EditData] = []
         batch: list[EditEvent] = []
 
         # filter
         if filter is not None:
-            edit_events, unconsumed_edit_events = partition(filter, edit_events)
+            unconsumed_edit_events, edit_events = partition(filter, edit_events)
+            span.set_attribute("filtered_edit_events", len(edit_events))
         else:
             unconsumed_edit_events = []
 
@@ -496,6 +501,9 @@ class Transaction:
             )
             edits.append(edit)
             batch.clear()  # reset
+
+        span.set_attribute("edits", len(edits))
+        span.set_attribute("unconsumed_edit_events", len(unconsumed_edit_events))
 
         return unconsumed_edit_events, edits
 
