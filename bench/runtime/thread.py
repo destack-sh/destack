@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, override
+from typing import TYPE_CHECKING, Any, override
 from uuid import UUID
 
 import structlog
@@ -79,6 +79,16 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
 
     def __repr__(self):
         return f"<{self.__class__.__name__} {self}>"
+
+    @override
+    def get_service_baggage(self) -> dict[str, Any]:
+        return {
+            "bench_id": self._bench_id,
+            "client_id": self._client_id,
+            "server_id": self._server_id,
+            "machine_id": self._machine_id,
+            "thread_id": self.id,
+        }
 
     async def start(self):
         await super().start()

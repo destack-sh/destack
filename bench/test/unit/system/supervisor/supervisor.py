@@ -52,9 +52,9 @@ async def supervisor(supervisor_service):
 async def test_user_registration(supervisor: SupervisorClient):
     """Create a User, login and logout. Try some wrong passwords and tokens. Read back data to confirm."""
 
-    user_slug = "test"
-    user_name = "Test"
-    user_email = "test@symbolx.com"
+    user_slug = "bjoern"
+    user_name = "Björn Güneş"
+    user_email = "bjoern@guenes.com"
     client_name = "pytest"
     client_device_name = "pytest"
 

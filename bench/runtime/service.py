@@ -5,7 +5,7 @@ import sys
 from asyncio.subprocess import Process
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Awaitable, assert_never, override
+from typing import Any, Awaitable, assert_never, override
 from uuid import UUID, uuid4
 
 import grpclib
@@ -279,6 +279,15 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
 
     def __repr__(self):
         return f"<{self.__class__.__name__} {self}>"
+
+    @override
+    def get_service_baggage(self) -> dict[str, Any]:
+        return {
+            "bench_id": self._bench_id,
+            "client_id": self._client_id,
+            "server_id": self._server_id,
+            "machine_id": self._machine_id,
+        }
 
     @property
     def host(self) -> HostClient:

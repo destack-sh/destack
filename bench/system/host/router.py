@@ -30,6 +30,7 @@ from bench.system.utils.session import (
 )
 from bench.utils.func import to_uuid
 from bench.utils.oracle import Oracle
+from bench.utils.telemetry import set_baggage
 from bench.utils.utils import get_from_env
 
 logger = structlog.get_logger(__name__)
@@ -139,6 +140,7 @@ class HostRouterService(ServiceBase, HostBase):
                 subject: Subject, request: betterproto.Message
             ) -> None:
                 host = await self._get_host(request)
+                set_baggage(**host.get_service_baggage())
                 return await getattr(host, method_name)(subject, request)
 
             return _multiplexed_unary_rpc
@@ -148,6 +150,7 @@ class HostRouterService(ServiceBase, HostBase):
             @functools.wraps(func)
             async def _multiplexed_unary_stream_rpc(subject: Subject, request: betterproto.Message):
                 host = await self._get_host(request)
+                set_baggage(**host.get_service_baggage())
                 async for response in getattr(host, method_name)(subject, request):
                     yield response
 
