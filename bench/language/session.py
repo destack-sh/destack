@@ -495,7 +495,6 @@ class Session(RuntimeNode[SessionData]):
             if node._is_attached:  # ignore detached create (is created on attach)
                 self._pending_nodes_by_id[node.id] = node
                 self._tx.record_edit_event(EditType.CREATE, node)
-                node._is_new = False
 
     def _upsert(self, *nodes: Node):
         """Creates or updates a node. Any non-id properties will be overwritten."""
@@ -508,7 +507,6 @@ class Session(RuntimeNode[SessionData]):
             assert node._is_attached, f"cannot upsert detached node {node!r}"
             self._pending_nodes_by_id[node.id] = node
             self._tx.record_edit_event(EditType.UPSERT, node, now=now)
-            node._is_new = False
 
     def _update(self, node: Node, properties: Collection[Property], old_values: dict[int, Any]):
         """Updates an existing node. Cannot move. The given properties are overwritten."""
@@ -686,14 +684,16 @@ class Session(RuntimeNode[SessionData]):
 
         if include_session:
             for node in self._pending_nodes_by_id.values():
-                node._flush_self()
+                node._is_new = False
+                node._updated_properties = None
             new_edits = self._tx.preflush()
             return new_edits
         else:
             # exclude session node edits (like Runs from this Session) to reduce edit churn
             for node in self._pending_nodes_by_id.values():
                 if not self._is_current_session_node(node):
-                    node._flush_self()
+                    node._is_new = False
+                    node._updated_properties = None
             new_edits = self._tx.preflush(
                 filter=lambda e: not self._is_current_session_node(e.node)
             )
@@ -732,6 +732,7 @@ class Session(RuntimeNode[SessionData]):
             self._preflush(include_session=True)
             log = logger.bind(session=self, span="current")
             async with self._tx_lock:
+                assert self._tx is not None, f"no active transaction in {self!r}"
                 # extend commit hook
                 if self._extend_commit is not None:
                     if self._tx.has_pending_edits:  # flush pending edits

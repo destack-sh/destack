@@ -626,6 +626,9 @@ def _object_node_ref(prop: Property) -> property:
             if value_ptr is None:
                 return None
             value = self._supergraph.get(value_ptr)
+            if value is None and self._session is not None:
+                # node may already have been removed :TransientGraphs
+                value = self._session._pending_nodes_by_id.get(cast(UUID, value_ptr.id))
             if value is not None:
                 return value
             elif value_ptr.type in RICH_REFERENCE_TYPES_BY_NODE_TYPE:
@@ -654,6 +657,9 @@ def _object_node_ref(prop: Property) -> property:
             values = []
             for value_ptr in value_ptrs:
                 value = self._supergraph.get(value_ptr)
+                if value is None and self._session is not None:
+                    # node may already have been removed :TransientGraphs
+                    value = self._session._pending_nodes_by_id.get(cast(UUID, value_ptr.id))
                 if value is not None:
                     values.append(value)
                 elif value_ptr.type in RICH_REFERENCE_TYPES_BY_NODE_TYPE:
@@ -1183,12 +1189,6 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
         # check inner structs
         for inner_struct in self._walk_struct():
             inner_struct._validate_self((), invalid)
-
-    def _flush_self(self):
-        """Called when this struct has been flushed to the store."""
-        if self.__is_node__:
-            (cast("Node", self))._is_new = False
-        self._updated_properties = None
 
     def __bool__(self):
         return True  # support truthy checks for objects

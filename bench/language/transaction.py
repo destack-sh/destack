@@ -335,7 +335,7 @@ class Transaction:
 
         # make edit event
         scope = session._get_scope_for_node(node)
-        edit = EditEvent(
+        edit_event = EditEvent(
             node=node,
             type=edit_type,
             subject_ptr=subject_ptr,
@@ -345,9 +345,23 @@ class Transaction:
             scope=scope,
             old_values=old_values,
         )
-        if edit_type != EditType.UPDATE and edit_type != EditType.MOVE:
-            edit.node_data = node._to_data()
-        self._pending_edit_events.append(edit)
+        if edit_type in (
+            EditType.ARCHIVE,
+            EditType.UNARCHIVE,
+            EditType.DELETE,
+            EditType.RESTORE,
+            EditType.ERASE,
+        ):
+            node_data = node._to_data()
+            if node._is_new:
+                # find previous create event and set node_data now to 'fresh' node
+                for e in self._pending_edit_events:
+                    if e.node == node and e.type == EditType.CREATE:
+                        edit_event.node_data = node_data
+                        break
+            edit_event.node_data = node_data
+            node._is_new = False
+        self._pending_edit_events.append(edit_event)
 
     def add_edits(self, edits: list[EditData]):
         """Adds full edits to the transaction directly."""
@@ -411,7 +425,7 @@ class Transaction:
             ):
                 continue
 
-            # edit data
+            # edit data (see :EditData for Edit.old_node/new_node)
             old_node: AnyNodeData | None = None
             new_node: AnyNodeData | None = None
             properties: list[int] = []
@@ -440,25 +454,25 @@ class Transaction:
                     setattr(old_node, prop.name, wiring.pack_object_prop(prop, old_value))
                     new_value = getattr(node, prop.name)
                     setattr(new_node, prop.name, wiring.pack_object_prop(prop, new_value))
-            else:
-                # see :EditData for Edit.old_node/new_node
+            elif edit_type in (EditType.CREATE, EditType.UPSERT):
+                new_node = edit_event.node_data or edit_event.node._to_data()
+            elif edit_type in (EditType.ARCHIVE, EditType.DELETE, EditType.ERASE):
                 assert edit_event.node_data is not None, f"missing node data for {edit_event!r}"
-                if edit_type in (EditType.CREATE, EditType.UPSERT):
-                    new_node = edit_event.node_data
-                elif edit_type in (EditType.ARCHIVE, EditType.DELETE, EditType.ERASE):
-                    old_node = wiring.copy_struct(edit_event.node_data)
-                    if edit_type == EditType.ARCHIVE:
-                        old_node.archived_at = None
-                    elif edit_type == EditType.DELETE:
-                        old_node.deleted_at = None
-                elif edit_type == EditType.UNARCHIVE:
-                    assert edit_event.node_data.archived_at, f"cannot unarchive {node!r}"
-                    old_node = edit_event.node_data
-                elif edit_type == EditType.RESTORE:
-                    assert edit_event.node_data.deleted_at, f"cannot restore {node!r}"
-                    old_node = edit_event.node_data
-                else:
-                    assert_never(edit_type)
+                old_node = wiring.copy_struct(edit_event.node_data)
+                if edit_type == EditType.ARCHIVE:
+                    old_node.archived_at = None
+                elif edit_type == EditType.DELETE:
+                    old_node.deleted_at = None
+            elif edit_type == EditType.UNARCHIVE:
+                assert edit_event.node_data is not None, f"missing node data for {edit_event!r}"
+                assert edit_event.node_data.archived_at, f"cannot unarchive {node!r}"
+                old_node = edit_event.node_data
+            elif edit_type == EditType.RESTORE:
+                assert edit_event.node_data is not None, f"missing node data for {edit_event!r}"
+                assert edit_event.node_data.deleted_at, f"cannot restore {node!r}"
+                old_node = edit_event.node_data
+            else:
+                assert_never(edit_type)
 
             # context
             if edit_event.run is not None:
