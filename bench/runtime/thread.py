@@ -140,7 +140,7 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
                 graph.add(run)
                 self._supergraph.add_graph(graph)
             try:
-                await self._runtime.run(run, return_error=True)
+                await self._runtime.run(run, return_error=True, optimistic=True)
             finally:
                 self._supergraph.remove_graph(graph)  # :TransientGraphs
             logger.info("thread.process_run", process=self, run=run, span="current")

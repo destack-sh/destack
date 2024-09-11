@@ -361,7 +361,12 @@ class Runtime:
 
     @tracer.start_as_current_span("runtime.run")
     async def run(
-        self, run: Run | Block | Step, *, inputs: Any | None = None, return_error: bool = False
+        self,
+        run: Run | Block | Step,
+        *,
+        inputs: Any | None = None,
+        return_error: bool = False,
+        optimistic: bool = False,
     ) -> Runner | None:
         """Start or resume a top-level Run in this Runtime. Returns on halt or termination."""
         if not isinstance(run, Run):
@@ -390,6 +395,9 @@ class Runtime:
                 logger.error("runtime.run.internal_error", run=run, exc_info=e, span="current")
                 if not return_error:
                     raise
+            finally:
+                if not optimistic:
+                    await self.session.commit()
         return runner
 
     async def pause_run(self, run: Run):
