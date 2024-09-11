@@ -199,7 +199,7 @@ class RunAttempt(Struct):
     )
 
     def __content_str__(self) -> str:
-        if self.duration:
+        if self.duration is not None:
             return f"{self.status.bench_name}, {self.duration:.3f}s"
         else:
             return f"{self.status.bench_name}"

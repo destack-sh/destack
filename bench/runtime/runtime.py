@@ -1,5 +1,6 @@
 import asyncio
 from contextvars import ContextVar
+from datetime import datetime
 from typing import Any, Mapping
 from uuid import UUID
 
@@ -224,9 +225,10 @@ class Runtime:
                     "runtime.attempt", attributes={"attempt": retry.attempt, "runner": repr(runner)}
                 ):
                     retry.on_attempt()
+                    started_at: datetime | None = None
+                    terminated_at: datetime | None = None
                     attempt = RunAttempt(
                         status=RunStatus.RUNNING,
-                        started_at=self.oracle.utc(),
                         started_epoch=self.session.epoch,
                         _skip_validate_self=True,
                     )
@@ -235,14 +237,17 @@ class Runtime:
                         if runner.is_cancelled:
                             raise asyncio.CancelledError()
                         with tracer.start_as_current_span("runtime.attempt.run"):
+                            started_at = self.oracle.utc()
+                            attempt._do_set("started_at", started_at, validate=False)
                             runner.task = asyncio.create_task(runner.run_once())
                             await runner.task
+                            terminated_at = self.oracle.utc()
                         if runner.output_type is not None:
                             with tracer.start_as_current_span("runtime.check_outputs"):
                                 check_value(runner.outputs, runner.output_type, on_invalid_raise)
                         attempt._do_set("status", RunStatus.COMPLETED, validate=False)
                         log.debug("runtime.attempt", attempt=attempt, span="current")
-                        break  # success
+                        return  # success
                     except asyncio.CancelledError as e:
                         error = RunError.from_exception(RunErrorKind.RUNTIME, e)
                         attempt._do_set("status", RunStatus.ABORTED, validate=False)
@@ -268,11 +273,12 @@ class Runtime:
                             raise  # give up if not retryable (anymore)
                     finally:
                         runner.task = None
-                        terminated_at = self.oracle.utc()
+                        if terminated_at is None:
+                            terminated_at = self.oracle.utc()
                         attempt._do_set("terminated_at", terminated_at, validate=False)
                         attempt._do_set("terminated_epoch", self.session.epoch, validate=False)
-                        if attempt.started_at:
-                            duration = (terminated_at - attempt.started_at).total_seconds()
+                        if started_at is not None:
+                            duration = (terminated_at - started_at).total_seconds()
                             attempt._do_set("duration", duration, validate=False)
             else:
                 raise retry.to_error()  # give up
@@ -326,7 +332,9 @@ class Runtime:
                 # may not have a last attempt if we didn't even try
                 run._do_set("terminated_at", last_attempt.terminated_at, validate=False)
                 run._do_set("terminated_epoch", last_attempt.terminated_epoch, validate=False)
-            if run.terminated_at is not None:
+                if last_attempt.duration is not None:
+                    run._do_set("duration", last_attempt.duration, validate=False)
+            elif run.terminated_at is not None:
                 run._do_set("duration", (run.terminated_at - run.started_at).total_seconds())  # type: ignore
 
             # commit intermediate session edits
