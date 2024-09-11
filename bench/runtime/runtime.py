@@ -235,12 +235,11 @@ class Runtime:
                         if runner.is_cancelled:
                             raise asyncio.CancelledError()
                         with tracer.start_as_current_span("runtime.attempt.run"):
-                            runner.inner_task = asyncio.create_task(runner.run_once())
-                            await runner.inner_task
+                            runner.task = asyncio.create_task(runner.run_once())
+                            await runner.task
                         if runner.output_type is not None:
                             with tracer.start_as_current_span("runtime.check_outputs"):
                                 check_value(runner.outputs, runner.output_type, on_invalid_raise)
-                        # attempt.status = RunStatus.COMPLETED
                         attempt._do_set("status", RunStatus.COMPLETED, validate=False)
                         log.debug("runtime.attempt", attempt=attempt, span="current")
                         break  # success
@@ -268,13 +267,13 @@ class Runtime:
                         ):
                             raise  # give up if not retryable (anymore)
                     finally:
-                        runner.inner_task = None
+                        runner.task = None
                         terminated_at = self.oracle.utc()
                         attempt._do_set("terminated_at", terminated_at, validate=False)
                         attempt._do_set("terminated_epoch", self.session.epoch, validate=False)
-                        assert attempt.started_at, f"missing started_at for attempt {attempt!r}"
-                        duration = (terminated_at - attempt.started_at).total_seconds()
-                        attempt._do_set("duration", duration, validate=False)
+                        if attempt.started_at:
+                            duration = (terminated_at - attempt.started_at).total_seconds()
+                            attempt._do_set("duration", duration, validate=False)
             else:
                 raise retry.to_error()  # give up
         finally:
@@ -310,7 +309,7 @@ class Runtime:
         run._do_set("status", RunStatus.RUNNING, validate=False)
 
         # commit intermediate session edits
-        await self.session.commit(optimistic=True)
+        self.session.commit_optimistic()
 
         # actually attempt Run
         try:
@@ -330,8 +329,8 @@ class Runtime:
             if run.terminated_at is not None:
                 run._do_set("duration", (run.terminated_at - run.started_at).total_seconds())  # type: ignore
 
-        # commit intermediate session edits
-        await self.session.commit(optimistic=True)
+            # commit intermediate session edits
+            self.session.commit_optimistic()
 
     @tracer.start_as_current_span("runtime.run_runner")
     async def run_runner(self, runner: Runner):
@@ -370,7 +369,7 @@ class Runtime:
                 if run.status != RunStatus.FAILED:
                     run.status = RunStatus.FAILED
                     run.error = RunError.from_exception(RunErrorKind.RUNTIME, e)
-                await self.session.commit()
+                self.session.commit_optimistic()
                 logger.info("runtime.run.error", run=run, exc_info=e, span="current")
                 if not return_error:
                     raise
@@ -379,7 +378,7 @@ class Runtime:
                 if run.status != RunStatus.FAILED:
                     run.status = RunStatus.FAILED
                     run.error = RunError.from_exception(RunErrorKind.INTERNAL, e)
-                await self.session.commit()
+                self.session.commit_optimistic()
                 logger.error("runtime.run.internal_error", run=run, exc_info=e, span="current")
                 if not return_error:
                     raise
@@ -394,8 +393,8 @@ class Runtime:
         root_runner = self._active_runners_by_id.get(run.id)
         if root_runner is None:
             raise RuntimeError(f"no active runner for {run!r} in {self!r}")
-        for runner in root_runner.walk():
+        for runner in reversed(list(root_runner.walk())):
             runner.is_cancelled = True
-            if runner.inner_task is not None:
-                runner.inner_task.cancel()
+            if runner.task is not None:
+                runner.task.cancel()
             logger.debug("runtime.run.abort", runner=runner)

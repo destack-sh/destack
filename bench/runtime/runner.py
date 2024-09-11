@@ -75,13 +75,17 @@ class Runner[S: RunnerCache, T: RunnableNode](abc.ABC):
     error: RunError | None = None
     attempts: list[RunAttempt] = dataclasses.field(default_factory=list)
     logs: list[LogInfo] = dataclasses.field(default_factory=list)
-    inner_task: asyncio.Task | None = None  # the active callable being run
+    task: asyncio.Task | None = None  # the active callable being run
     runs: list["Runner"] = dataclasses.field(default_factory=list)  # nested Runners
     run: Run | None = None  # if tracked
     is_cancelled: bool = False  # whether this run was cancelled before it ran
 
     def __str__(self):
-        str_parts: list[str] = [f"runnable={self.cache!r}", f"options={self.options!r}"]
+        str_parts: list[str] = [
+            self.status.bench_name,
+            f"runnable={self.cache!r}",
+            f"options={self.options!r}",
+        ]
         if self.attempts:
             str_parts.append(f"attempts={self.attempts}")
         if self.runs:

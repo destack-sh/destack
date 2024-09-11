@@ -1,3 +1,5 @@
+import asyncio
+
 from bench.language.block import Block
 from bench.language.code import code
 from bench.language.const import BlockType, RunStatus
@@ -232,6 +234,9 @@ async def test_run_flow_race(local_runtime: RuntimeHandle):
     aborted_runs = [r for r in runner.run.runs if r.status == RunStatus.ABORTED]
     assert len(aborted_runs) == 2  # the two losers should be aborted
     assert len(runner.run.runs) == 5  # all steps should run exactly once
+    # slowers steps should be aborted
+    assert runner.runs[2].node == Race2 and runner.runs[2].status == RunStatus.ABORTED
+    assert runner.runs[3].node == Race3 and runner.runs[3].status == RunStatus.ABORTED
 
 
 async def test_run_flow_infinite_loop(local_runtime: RuntimeHandle):
@@ -463,3 +468,31 @@ async def test_run_flow_generator_verifier(local_runtime: RuntimeHandle):
 
 
 # TODO :Incomplete!: flow yield/halt (breakpoints?) & replay
+
+
+async def test_run_flow_abort(local_runtime: RuntimeHandle):
+    """Run a long async flow script and abort it. All pending steps should be aborted."""
+    FlowBlock = Block.new(BlockType.FLOW, "Flow1")
+    Start = Step.new(StepType.START, "Start")
+    Code1 = Step.new(
+        StepType.CODE,
+        "Code1",
+        code=code("await asyncio.sleep(5)"),
+    )
+    Complete = Step.new(StepType.COMPLETE, "Complete")
+    FlowBlock.steps.extend(Start, Code1, Complete)
+    Start.then(Code1).then(Complete)
+    local_runtime.page().blocks.append(FlowBlock)
+    await local_runtime.commit()
+
+    run = Run.from_runnable(FlowBlock)
+    run_task = asyncio.create_task(local_runtime.run(run, return_error=True))
+    # kill after 0.5s
+    await asyncio.sleep(0.5)
+    await local_runtime.runtime.abort_run(run)
+    runner = await run_task
+    # flow should be aborted
+    assert runner.status == RunStatus.ABORTED
+    assert runner.run and runner.run.duration and runner.run.duration < 1
+    # code step should also be aborted
+    assert runner.runs[1].node == Code1 and runner.runs[1].status == RunStatus.ABORTED

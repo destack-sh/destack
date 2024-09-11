@@ -1,3 +1,5 @@
+import asyncio
+
 from bench.language import Block, BlockType, Field, code
 from bench.language.const import RunStatus
 from bench.language.run import Run, RunErrorType, RunKind, RunOptions
@@ -360,3 +362,23 @@ async def test_run_code_raise_unretryable_error(local_runtime: RuntimeHandle):
     assert runner.status == RunStatus.FAILED
     assert runner.error and runner.error.type == RunErrorType.UNKNOWN_NONRETRYABLE
     assert len(runner.attempts) == 1
+
+
+async def test_run_code_abort(local_runtime: RuntimeHandle):
+    """Run a long async code script and abort it."""
+    CodeBlock = Block.new_code(
+        "Code1",
+        """await asyncio.sleep(5)""",
+    )
+    local_runtime.page().blocks.append(CodeBlock)
+    await local_runtime.commit()
+
+    run = Run.from_runnable(CodeBlock)
+    run_task = asyncio.create_task(local_runtime.run(run, return_error=True))
+    # kill after 0.5s
+    await asyncio.sleep(0.5)
+    await local_runtime.runtime.abort_run(run)
+    runner = await run_task
+    # run should be aborted
+    assert runner.status == RunStatus.ABORTED
+    assert runner.run and runner.run.duration and runner.run.duration < 1
