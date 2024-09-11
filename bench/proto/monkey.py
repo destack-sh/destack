@@ -6,17 +6,32 @@ Auto-pasted into the generated wire files.
 import dataclasses
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, Collection, Iterable, Mapping, Self, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    AsyncIterator,
+    Collection,
+    Iterable,
+    Mapping,
+    Optional,
+    Self,
+    Type,
+    Union,
+    override,
+)
 
 import betterproto
-from betterproto import PLACEHOLDER
+import grpclib
+from betterproto import PLACEHOLDER, ServiceStub
 from betterproto import Message as ProtoMessage
 from betterproto import _Duration as ProtoDuration
 from betterproto.lib.google.protobuf import ListValue, NullValue
 from betterproto.lib.google.protobuf import Struct as ProtoStruct
 from betterproto.lib.google.protobuf import Value as ProtoValue
 from betterproto.utils import hybridmethod
+from grpclib.metadata import Deadline
 
+from bench.utils.telemetry import collect_propagation_context
 from bench.utils.utils import frozendict
 
 # monkey-patch betterproto 'default generator' to initialize unspecified enums as None
@@ -64,8 +79,9 @@ class _PatchedProtoClassMetadata(betterproto.ProtoClassMetadata):
 
 betterproto.ProtoClassMetadata._get_default_gen = _PatchedProtoClassMetadata._get_default_gen  # type: ignore
 
-
+#
 # monkey-patch betterproto Messages for better __str__/__repr__ on messages
+#
 
 
 class _PatchedMessage(ProtoMessage):
@@ -223,7 +239,9 @@ def _unwrap_value(value: ProtoValue) -> Any:
         return v
 
 
+#
 # monkey-patch '_Duration' to fix floating preicion loss
+#
 
 
 class _PatchedDuration(ProtoDuration):
@@ -238,10 +256,11 @@ class _PatchedDuration(ProtoDuration):
 
 ProtoDuration.from_timedelta = _PatchedDuration.from_timedelta  # type: ignore
 
-
+#
 # monkey-patch betterproto 'Struct' to fix from_dict/to_dict for nested messages
 #  pulls ahead changes from https://github.com/danielgtaylor/python-betterproto/pull/551
 #  see https://github.com/danielgtaylor/python-betterproto/issues/332
+#
 
 
 @dataclass(eq=False, repr=False)
@@ -299,3 +318,72 @@ class _PatchedRpcMetadata(RpcMetadata):
 
 
 RpcMetadata.__repr__ = _PatchedRpcMetadata.__repr__  # type: ignore
+
+# monkey-patch ServiceStub for client context propagation & instrumentation
+
+MetadataLike = Union[Mapping[str, Value], Any]
+
+
+class _PatchedServiceStub(ServiceStub):
+    def _get_request_kwargs(
+        self,
+        timeout: Optional[float],
+        deadline: Optional["Deadline"],
+        metadata: Optional[MetadataLike],
+    ):
+        metadata = self.metadata if metadata is None else metadata
+        metadata = {**collect_propagation_context(), **(metadata or {})}
+        timeout = self.timeout if timeout is None else timeout
+        deadline = self.deadline if deadline is None else deadline
+        return {"timeout": timeout, "deadline": deadline, "metadata": metadata}
+
+    @override
+    async def _unary_unary(
+        self,
+        route: str,
+        request: "Any",
+        response_type: Type,
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional[MetadataLike] = None,
+    ) -> "Any":
+        """Make a unary request and return the response."""
+        async with self.channel.request(
+            route,
+            grpclib.const.Cardinality.UNARY_UNARY,
+            type(request),
+            response_type,
+            **self._get_request_kwargs(timeout, deadline, metadata),  # type: ignore
+        ) as stream:
+            await stream.send_message(request, end=True)
+            response = await stream.recv_message()
+        assert response is not None
+        return response
+
+    async def _unary_stream(
+        self,
+        route: str,
+        request: "Any",
+        response_type: Type,
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional[MetadataLike] = None,
+    ) -> AsyncIterator:
+        """Make a unary request and return the stream response iterator."""
+        async with self.channel.request(
+            route,
+            grpclib.const.Cardinality.UNARY_STREAM,
+            type(request),
+            response_type,
+            **self._get_request_kwargs(timeout, deadline, metadata),  # type: ignore
+        ) as stream:
+            await stream.send_message(request, end=True)
+            async for message in stream:
+                yield message
+
+
+ServiceStub._get_request_kwargs = _PatchedServiceStub._get_request_kwargs  # type: ignore
+ServiceStub._unary_unary = _PatchedServiceStub._unary_unary  # type: ignore
+ServiceStub._unary_stream = _PatchedServiceStub._unary_stream  # type: ignore

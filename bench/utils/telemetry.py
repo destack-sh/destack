@@ -1,9 +1,10 @@
 from pathlib import Path
 from time import time_ns
-from typing import Any, Optional, cast
+from typing import Any, Mapping, Optional, cast
 from uuid import UUID
 
 from opentelemetry import baggage, context, metrics, trace
+from opentelemetry.baggage.propagation import W3CBaggagePropagator
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
 from opentelemetry.sdk.resources import (
@@ -14,6 +15,7 @@ from opentelemetry.sdk.resources import (
 )
 from opentelemetry.sdk.trace import Span, TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
 from bench.utils.env import ENV, IS_DEBUG, IS_DEV
 from bench.utils.utils import get_from_env
@@ -84,6 +86,21 @@ def setup_tracing():
     metrics.set_meter_provider(meter_provider)
 
     _setup_tracing = True
+
+
+def collect_propagation_context():
+    """Compile current baggage and trace context into a propagation context."""
+    headers = {}
+    W3CBaggagePropagator().inject(headers)
+    TraceContextTextMapPropagator().inject(headers)
+    return headers
+
+
+def attach_propagation_context(headers: Mapping[Any, Any]):
+    """Attaches external baggage and trace context from a propagation context."""
+    ctx = W3CBaggagePropagator().extract(headers)
+    ctx = TraceContextTextMapPropagator().extract(headers, ctx)
+    context.attach(ctx)
 
 
 def export_now():
