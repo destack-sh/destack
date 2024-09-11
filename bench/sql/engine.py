@@ -664,6 +664,7 @@ RETRY_PG = RetryOptions(max_attempts=2, max_retry_interval=5, retry_on=(Operatio
 
 
 @retry(RETRY_PG, REAL_ORACLE)
+@tracer.start_as_current_span("postgres.execute")
 async def _pg_execute(
     cur: psycopg.AsyncCursor,
     statement: sql.Composed,
@@ -673,6 +674,7 @@ async def _pg_execute(
 
 
 @retry(RETRY_PG, REAL_ORACLE)
+@tracer.start_as_current_span("postgres.execute_many")
 async def _pg_executemany(
     cur: psycopg.AsyncCursor,
     statement: sql.Composed,
@@ -752,6 +754,7 @@ def _pg_adapt_rows(
     return tuple(_pg_adapt_row(table, row) for row in rows)
 
 
+@tracer.start_as_current_span("postgres.fetchall")
 async def _pg_fetchall_from_many(cur: psycopg.AsyncCursor, expected: int) -> list[RowOut]:
     # see https://www.psycopg.org/psycopg3/docs/api/cursors.html#psycopg.Cursor.executemany
     results: list[RowOut] = []
