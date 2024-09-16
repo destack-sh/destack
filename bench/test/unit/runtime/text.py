@@ -8,7 +8,7 @@ from bench.language.block import Block
 from bench.language.const import BlockType, RunStatus
 from bench.language.field import Field, to_type
 from bench.language.file import File, FileFormat, FileType, upload
-from bench.language.run import ModelOptions, ModelProvider, RunErrorType, RunOptions
+from bench.language.run import ModelProvider, RunErrorType, RunOptions
 from bench.language.text import md
 from bench.language.validation import constraint
 from bench.test.unit.conftest import RuntimeHandle
@@ -43,7 +43,7 @@ async def test_run_text_output_scalar(local_runtime: RuntimeHandle, model_provid
         "AnalyzeSentiment",
         "",
         fields=[Field.input("Text", str), Field.output("IsHappy", bool)],
-        run_options=RunOptions(max_attempts=1, model_options=ModelOptions(provider=model_provider)),
+        run_options=RunOptions(max_attempts=1, model_provider=model_provider),
     )
     runtime.page().blocks.append(AnalyzeSentiment)
     await runtime.commit()
@@ -63,7 +63,7 @@ async def test_run_text_output_dict(local_runtime: RuntimeHandle, model_provider
         BlockType.CHOICE,
         "Mood",
         fields=[Field.option("Positive"), Field.option("Neutral"), Field.option("Negative")],
-        run_options=RunOptions(max_attempts=1, model_options=ModelOptions(provider=model_provider)),
+        run_options=RunOptions(max_attempts=1, model_provider=model_provider),
     )
     WritingStyle = Block.new(
         BlockType.CLASS,
@@ -85,7 +85,7 @@ async def test_run_text_output_dict(local_runtime: RuntimeHandle, model_provider
             Field.output("Style", WritingStyle),
             Field.output("Mood", Mood),
         ],
-        run_options=RunOptions(model_options=ModelOptions(provider=model_provider)),
+        run_options=RunOptions(model_provider=model_provider),
     )
     runtime.page().blocks.extend(Mood, WritingStyle, AnalyzeSentiment)
     await runtime.commit()
@@ -118,7 +118,7 @@ async def test_run_text_with_solid_images(
             Field.input("Image", File, constraint(file_type=FileType.IMAGE)),
             Field.output("Hue", Hue),
         ],
-        run_options=RunOptions(model_options=ModelOptions(provider=model_provider)),
+        run_options=RunOptions(model_provider=model_provider),
     )
     runtime.page().blocks.extend(Hue, DetectColor)
     await runtime.commit()

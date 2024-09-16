@@ -162,7 +162,6 @@ enum BenchType {
   BENCH_TYPE_RUN_SPAN = 10505;
   BENCH_TYPE_RUN_EVENT = 10506;
   BENCH_TYPE_BREAKPOINT = 10520;
-  BENCH_TYPE_MODEL_OPTIONS = 10430;
   BENCH_TYPE_LOG_INFO = 10550;
   BENCH_TYPE_COLOR = 11000;
   BENCH_TYPE_FONT = 11001;
@@ -234,15 +233,16 @@ enum BenchType {
   BENCH_TYPE_TRIGGER_TYPE = 20520;
   BENCH_TYPE_BREAKPOINT_KIND = 20530;
   BENCH_TYPE_BREAKPOINT_ACTION = 20531;
-  BENCH_TYPE_CODE_TYPE = 20540;
-  BENCH_TYPE_MODEL_PROVIDER = 20550;
-  BENCH_TYPE_MODEL_TYPE = 20551;
-  BENCH_TYPE_STEP_TYPE = 20560;
-  BENCH_TYPE_PIPE_TYPE = 20561;
-  BENCH_TYPE_PIPE_FILTER_TYPE = 20562;
-  BENCH_TYPE_PORT_TYPE = 20563;
-  BENCH_TYPE_PORT_SIDE = 20564;
-  BENCH_TYPE_NOTIFICATION_LEVEL = 20570;
+  BENCH_TYPE_CACHE_BEHAVIOR = 20540;
+  BENCH_TYPE_CODE_TYPE = 20560;
+  BENCH_TYPE_MODEL_PROVIDER = 20570;
+  BENCH_TYPE_MODEL_TYPE = 20571;
+  BENCH_TYPE_STEP_TYPE = 20600;
+  BENCH_TYPE_PIPE_TYPE = 20601;
+  BENCH_TYPE_PIPE_FILTER_TYPE = 20602;
+  BENCH_TYPE_PORT_TYPE = 20603;
+  BENCH_TYPE_PORT_SIDE = 20604;
+  BENCH_TYPE_NOTIFICATION_LEVEL = 20610;
   BENCH_TYPE_SPACE_TYPE = 21000;
   BENCH_TYPE_VIEW_TYPE = 21001;
   BENCH_TYPE_VARIANT = 21002;
@@ -290,6 +290,14 @@ enum BreakpointKind {
   BREAKPOINT_KIND_FAIL_RUN = 2;
   BREAKPOINT_KIND_COMPLETE_RUN = 3;
   BREAKPOINT_KIND_CODE_LINE = 20;
+}
+
+// How to handle caching.
+enum CacheBehavior {
+  CACHE_BEHAVIOR_UNSPECIFIED = 0;
+  CACHE_BEHAVIOR_NEVER = 1;
+  CACHE_BEHAVIOR_ALWAYS = 2;
+  CACHE_BEHAVIOR_INHERIT = 3;
 }
 
 // Optional classification for edits.
@@ -493,15 +501,16 @@ enum EnumType {
   ENUM_TYPE_TRIGGER_TYPE = 20520;
   ENUM_TYPE_BREAKPOINT_KIND = 20530;
   ENUM_TYPE_BREAKPOINT_ACTION = 20531;
-  ENUM_TYPE_CODE_TYPE = 20540;
-  ENUM_TYPE_MODEL_PROVIDER = 20550;
-  ENUM_TYPE_MODEL_TYPE = 20551;
-  ENUM_TYPE_STEP_TYPE = 20560;
-  ENUM_TYPE_PIPE_TYPE = 20561;
-  ENUM_TYPE_PIPE_FILTER_TYPE = 20562;
-  ENUM_TYPE_PORT_TYPE = 20563;
-  ENUM_TYPE_PORT_SIDE = 20564;
-  ENUM_TYPE_NOTIFICATION_LEVEL = 20570;
+  ENUM_TYPE_CACHE_BEHAVIOR = 20540;
+  ENUM_TYPE_CODE_TYPE = 20560;
+  ENUM_TYPE_MODEL_PROVIDER = 20570;
+  ENUM_TYPE_MODEL_TYPE = 20571;
+  ENUM_TYPE_STEP_TYPE = 20600;
+  ENUM_TYPE_PIPE_TYPE = 20601;
+  ENUM_TYPE_PIPE_FILTER_TYPE = 20602;
+  ENUM_TYPE_PORT_TYPE = 20603;
+  ENUM_TYPE_PORT_SIDE = 20604;
+  ENUM_TYPE_NOTIFICATION_LEVEL = 20610;
   ENUM_TYPE_SPACE_TYPE = 21000;
   ENUM_TYPE_VIEW_TYPE = 21001;
   ENUM_TYPE_VARIANT = 21002;
@@ -943,7 +952,6 @@ enum ObjectType {
   OBJECT_TYPE_RUN_SPAN = 10505;
   OBJECT_TYPE_RUN_EVENT = 10506;
   OBJECT_TYPE_BREAKPOINT = 10520;
-  OBJECT_TYPE_MODEL_OPTIONS = 10430;
   OBJECT_TYPE_LOG_INFO = 10550;
   OBJECT_TYPE_COLOR = 11000;
   OBJECT_TYPE_FONT = 11001;
@@ -1325,7 +1333,6 @@ enum StructType {
   STRUCT_TYPE_RUN_SPAN = 10505;
   STRUCT_TYPE_RUN_EVENT = 10506;
   STRUCT_TYPE_BREAKPOINT = 10520;
-  STRUCT_TYPE_MODEL_OPTIONS = 10430;
   STRUCT_TYPE_LOG_INFO = 10550;
   STRUCT_TYPE_COLOR = 11000;
   STRUCT_TYPE_FONT = 11001;
@@ -1772,13 +1779,6 @@ message LogInfoData {
   optional google.protobuf.Struct value_packed = 65;
 }
 
-// Options for running an ML model.
-message ModelOptionsData {
-  ObjectType metatype = 1;
-  optional ModelProvider provider = 30;
-  optional ModelType model = 31;
-}
-
 // A plain reference to a Node.
 // We include the Bench and 'ck' where available.
 // Base = the node is 'based' on (like Record.parent->Block, Signal.type->Block).
@@ -1977,7 +1977,6 @@ message RunFrameData {
 }
 
 // Options for running something.
-// Limits are per top level run context (i.e. the root Run in some Session).
 message RunOptionsData {
   ObjectType metatype = 1;
   optional int32 max_runs = 30;
@@ -1988,10 +1987,12 @@ message RunOptionsData {
   optional float retry_interval = 40;
   optional float backoff = 41;
   optional float max_retry_interval = 42;
-  optional float jitter = 43;
   repeated RunErrorType retry_on = 44;
   repeated BreakpointData breakpoints = 50;
-  optional ModelOptionsData model_options = 60;
+  optional CacheBehavior cache_behavior = 60;
+  optional google.protobuf.Duration cache_expiry = 61;
+  optional ModelProvider model_provider = 70;
+  optional ModelType model_type = 71;
 }
 
 // A span in a Run (a sort of sub-Run).
@@ -2477,8 +2478,7 @@ message FieldData {
   bool is_required = 62;
 }
 
-// A file stored somewhere (like a Drive, orexternally).
-// De-duplicated so that there's only one File per unique file content for our own files.
+// A file stored somewhere (like in a Drive, or externally).
 message FileData {
   ObjectType metatype = 1;
   string id = 2;
@@ -2883,16 +2883,16 @@ message RunData {
   optional RunOptionsData options = 38;
   RunStatus status = 40;
   optional float duration = 41;
-  repeated RunAttemptData attempts = 42;
-  optional RunErrorData error = 43;
-  optional google.protobuf.Timestamp scheduled_at = 44;
-  optional int32 scheduled_epoch = 45;
-  optional google.protobuf.Timestamp started_at = 46;
-  optional int32 started_epoch = 47;
-  optional google.protobuf.Timestamp killed_at = 48;
-  optional google.protobuf.Timestamp halted_at = 49;
-  optional int32 halted_epoch = 50;
-  optional NodeReferenceData halted_on_run_ptr = 51;
+  optional float cached_duration = 42;
+  repeated RunAttemptData attempts = 43;
+  optional RunErrorData error = 44;
+  optional google.protobuf.Timestamp scheduled_at = 45;
+  optional int32 scheduled_epoch = 46;
+  optional google.protobuf.Timestamp started_at = 47;
+  optional int32 started_epoch = 48;
+  optional google.protobuf.Timestamp killed_at = 49;
+  optional google.protobuf.Timestamp halted_at = 50;
+  optional int32 halted_epoch = 51;
   optional google.protobuf.Timestamp terminated_at = 53;
   optional int32 terminated_epoch = 54;
   optional google.protobuf.Struct inputs_packed = 60;

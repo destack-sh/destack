@@ -791,8 +791,7 @@ class FileInfo(Struct[FileInfoData], FileInfoBase):
 @local_node_(NodeType.FILE, indexes=(("drive_id", "sha256"),))
 class File(StateNode[FileData], FileInfoBase):
     """
-    A file stored somewhere (like a Drive, orexternally).
-    De-duplicated so that there's only one File per unique file content for our own files.
+    A file stored somewhere (like in a Drive, or externally).
     """
 
     parent: Union["Package", "Block", None] = p_node_parent(

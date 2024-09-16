@@ -128,8 +128,8 @@ return {"Joke": "Why did the scarecrow win an award? Because he was outstanding 
 
     @property
     def model(self) -> ModelType | None:
-        if self.options.model_options is not None:
-            return self.options.model_options.model
+        if self.options.model_type is not None:
+            return self.options.model_type
         else:
             return None
 

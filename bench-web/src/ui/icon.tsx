@@ -233,7 +233,6 @@ export const ICON_BY_STRUCT_TYPE: Partial<Record<StructType, IconData>> = _makeI
   [StructType.RUN_FRAME]: "fas fa-play",
   [StructType.RUN_TRACE]: "fas fa-play",
   [StructType.BREAKPOINT]: "fas fa-pause",
-  [StructType.MODEL_OPTIONS]: "fas fa-play",
   [StructType.LOG_INFO]: "fas fa-file-lines",
 });
 

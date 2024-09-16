@@ -843,25 +843,6 @@ export interface LogInfoData {
     valuePacked?: Struct;
 }
 /**
- * Options for running an ML model.
- *
- * @generated from protobuf message symbolx.bench.ModelOptionsData
- */
-export interface ModelOptionsData {
-    /**
-     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
-     */
-    metatype: ObjectType;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.ModelProvider provider = 30;
-     */
-    provider?: ModelProvider;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.ModelType model = 31;
-     */
-    model?: ModelType;
-}
-/**
  * A plain reference to a Node.
  * We include the Bench and 'ck' where available.
  * Base = the node is 'based' on (like Record.parent->Block, Signal.type->Block).
@@ -1390,7 +1371,6 @@ export interface RunFrameData {
 }
 /**
  * Options for running something.
- * Limits are per top level run context (i.e. the root Run in some Session).
  *
  * @generated from protobuf message symbolx.bench.RunOptionsData
  */
@@ -1432,10 +1412,6 @@ export interface RunOptionsData {
      */
     maxRetryInterval?: number;
     /**
-     * @generated from protobuf field: optional float jitter = 43;
-     */
-    jitter?: number;
-    /**
      * @generated from protobuf field: repeated symbolx.bench.RunErrorType retry_on = 44;
      */
     retryOn: RunErrorType[];
@@ -1444,9 +1420,21 @@ export interface RunOptionsData {
      */
     breakpoints: BreakpointData[];
     /**
-     * @generated from protobuf field: optional symbolx.bench.ModelOptionsData model_options = 60;
+     * @generated from protobuf field: optional symbolx.bench.CacheBehavior cache_behavior = 60;
      */
-    modelOptions?: ModelOptionsData;
+    cacheBehavior?: CacheBehavior;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Duration cache_expiry = 61;
+     */
+    cacheExpiry?: Duration;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.ModelProvider model_provider = 70;
+     */
+    modelProvider?: ModelProvider;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.ModelType model_type = 71;
+     */
+    modelType?: ModelType;
 }
 /**
  * A span in a Run (a sort of sub-Run).
@@ -3097,8 +3085,7 @@ export interface FieldData {
     isRequired: boolean;
 }
 /**
- * A file stored somewhere (like a Drive, orexternally).
- * De-duplicated so that there's only one File per unique file content for our own files.
+ * A file stored somewhere (like in a Drive, or externally).
  *
  * @generated from protobuf message symbolx.bench.FileData
  */
@@ -4566,45 +4553,45 @@ export interface RunData {
      */
     duration?: number;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.RunAttemptData attempts = 42;
+     * @generated from protobuf field: optional float cached_duration = 42;
+     */
+    cachedDuration?: number;
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.RunAttemptData attempts = 43;
      */
     attempts: RunAttemptData[];
     /**
-     * @generated from protobuf field: optional symbolx.bench.RunErrorData error = 43;
+     * @generated from protobuf field: optional symbolx.bench.RunErrorData error = 44;
      */
     error?: RunErrorData;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp scheduled_at = 44;
+     * @generated from protobuf field: optional google.protobuf.Timestamp scheduled_at = 45;
      */
     scheduledAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional int32 scheduled_epoch = 45;
+     * @generated from protobuf field: optional int32 scheduled_epoch = 46;
      */
     scheduledEpoch?: number;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp started_at = 46;
+     * @generated from protobuf field: optional google.protobuf.Timestamp started_at = 47;
      */
     startedAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional int32 started_epoch = 47;
+     * @generated from protobuf field: optional int32 started_epoch = 48;
      */
     startedEpoch?: number;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp killed_at = 48;
+     * @generated from protobuf field: optional google.protobuf.Timestamp killed_at = 49;
      */
     killedAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp halted_at = 49;
+     * @generated from protobuf field: optional google.protobuf.Timestamp halted_at = 50;
      */
     haltedAt?: Timestamp;
     /**
-     * @generated from protobuf field: optional int32 halted_epoch = 50;
+     * @generated from protobuf field: optional int32 halted_epoch = 51;
      */
     haltedEpoch?: number;
-    /**
-     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData halted_on_run_ptr = 51;
-     */
-    haltedOnRunPtr?: NodeReferenceData;
     /**
      * @generated from protobuf field: optional google.protobuf.Timestamp terminated_at = 53;
      */
@@ -6713,10 +6700,6 @@ export enum BenchType {
      */
     BREAKPOINT = 10520,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_MODEL_OPTIONS = 10430;
-     */
-    MODEL_OPTIONS = 10430,
-    /**
      * @generated from protobuf enum value: BENCH_TYPE_LOG_INFO = 10550;
      */
     LOG_INFO = 10550,
@@ -7001,41 +6984,45 @@ export enum BenchType {
      */
     BREAKPOINT_ACTION = 20531,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_CODE_TYPE = 20540;
+     * @generated from protobuf enum value: BENCH_TYPE_CACHE_BEHAVIOR = 20540;
      */
-    CODE_TYPE = 20540,
+    CACHE_BEHAVIOR = 20540,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_MODEL_PROVIDER = 20550;
+     * @generated from protobuf enum value: BENCH_TYPE_CODE_TYPE = 20560;
      */
-    MODEL_PROVIDER = 20550,
+    CODE_TYPE = 20560,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_MODEL_TYPE = 20551;
+     * @generated from protobuf enum value: BENCH_TYPE_MODEL_PROVIDER = 20570;
      */
-    MODEL_TYPE = 20551,
+    MODEL_PROVIDER = 20570,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_STEP_TYPE = 20560;
+     * @generated from protobuf enum value: BENCH_TYPE_MODEL_TYPE = 20571;
      */
-    STEP_TYPE = 20560,
+    MODEL_TYPE = 20571,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_PIPE_TYPE = 20561;
+     * @generated from protobuf enum value: BENCH_TYPE_STEP_TYPE = 20600;
      */
-    PIPE_TYPE = 20561,
+    STEP_TYPE = 20600,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_PIPE_FILTER_TYPE = 20562;
+     * @generated from protobuf enum value: BENCH_TYPE_PIPE_TYPE = 20601;
      */
-    PIPE_FILTER_TYPE = 20562,
+    PIPE_TYPE = 20601,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_PORT_TYPE = 20563;
+     * @generated from protobuf enum value: BENCH_TYPE_PIPE_FILTER_TYPE = 20602;
      */
-    PORT_TYPE = 20563,
+    PIPE_FILTER_TYPE = 20602,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_PORT_SIDE = 20564;
+     * @generated from protobuf enum value: BENCH_TYPE_PORT_TYPE = 20603;
      */
-    PORT_SIDE = 20564,
+    PORT_TYPE = 20603,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_NOTIFICATION_LEVEL = 20570;
+     * @generated from protobuf enum value: BENCH_TYPE_PORT_SIDE = 20604;
      */
-    NOTIFICATION_LEVEL = 20570,
+    PORT_SIDE = 20604,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_NOTIFICATION_LEVEL = 20610;
+     */
+    NOTIFICATION_LEVEL = 20610,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_SPACE_TYPE = 21000;
      */
@@ -7203,6 +7190,29 @@ export enum BreakpointKind {
      * @generated from protobuf enum value: BREAKPOINT_KIND_CODE_LINE = 20;
      */
     CODE_LINE = 20
+}
+/**
+ * How to handle caching.
+ *
+ * @generated from protobuf enum symbolx.bench.CacheBehavior
+ */
+export enum CacheBehavior {
+    /**
+     * @generated from protobuf enum value: CACHE_BEHAVIOR_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: CACHE_BEHAVIOR_NEVER = 1;
+     */
+    NEVER = 1,
+    /**
+     * @generated from protobuf enum value: CACHE_BEHAVIOR_ALWAYS = 2;
+     */
+    ALWAYS = 2,
+    /**
+     * @generated from protobuf enum value: CACHE_BEHAVIOR_INHERIT = 3;
+     */
+    INHERIT = 3
 }
 /**
  * Optional classification for edits.
@@ -7922,41 +7932,45 @@ export enum EnumType {
      */
     BREAKPOINT_ACTION = 20531,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_CODE_TYPE = 20540;
+     * @generated from protobuf enum value: ENUM_TYPE_CACHE_BEHAVIOR = 20540;
      */
-    CODE_TYPE = 20540,
+    CACHE_BEHAVIOR = 20540,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_MODEL_PROVIDER = 20550;
+     * @generated from protobuf enum value: ENUM_TYPE_CODE_TYPE = 20560;
      */
-    MODEL_PROVIDER = 20550,
+    CODE_TYPE = 20560,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_MODEL_TYPE = 20551;
+     * @generated from protobuf enum value: ENUM_TYPE_MODEL_PROVIDER = 20570;
      */
-    MODEL_TYPE = 20551,
+    MODEL_PROVIDER = 20570,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_STEP_TYPE = 20560;
+     * @generated from protobuf enum value: ENUM_TYPE_MODEL_TYPE = 20571;
      */
-    STEP_TYPE = 20560,
+    MODEL_TYPE = 20571,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_PIPE_TYPE = 20561;
+     * @generated from protobuf enum value: ENUM_TYPE_STEP_TYPE = 20600;
      */
-    PIPE_TYPE = 20561,
+    STEP_TYPE = 20600,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_PIPE_FILTER_TYPE = 20562;
+     * @generated from protobuf enum value: ENUM_TYPE_PIPE_TYPE = 20601;
      */
-    PIPE_FILTER_TYPE = 20562,
+    PIPE_TYPE = 20601,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_PORT_TYPE = 20563;
+     * @generated from protobuf enum value: ENUM_TYPE_PIPE_FILTER_TYPE = 20602;
      */
-    PORT_TYPE = 20563,
+    PIPE_FILTER_TYPE = 20602,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_PORT_SIDE = 20564;
+     * @generated from protobuf enum value: ENUM_TYPE_PORT_TYPE = 20603;
      */
-    PORT_SIDE = 20564,
+    PORT_TYPE = 20603,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_NOTIFICATION_LEVEL = 20570;
+     * @generated from protobuf enum value: ENUM_TYPE_PORT_SIDE = 20604;
      */
-    NOTIFICATION_LEVEL = 20570,
+    PORT_SIDE = 20604,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_NOTIFICATION_LEVEL = 20610;
+     */
+    NOTIFICATION_LEVEL = 20610,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_SPACE_TYPE = 21000;
      */
@@ -9562,10 +9576,6 @@ export enum ObjectType {
      */
     BREAKPOINT = 10520,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_MODEL_OPTIONS = 10430;
-     */
-    MODEL_OPTIONS = 10430,
-    /**
      * @generated from protobuf enum value: OBJECT_TYPE_LOG_INFO = 10550;
      */
     LOG_INFO = 10550,
@@ -10849,10 +10859,6 @@ export enum StructType {
      * @generated from protobuf enum value: STRUCT_TYPE_BREAKPOINT = 10520;
      */
     BREAKPOINT = 10520,
-    /**
-     * @generated from protobuf enum value: STRUCT_TYPE_MODEL_OPTIONS = 10430;
-     */
-    MODEL_OPTIONS = 10430,
     /**
      * @generated from protobuf enum value: STRUCT_TYPE_LOG_INFO = 10550;
      */
@@ -13597,67 +13603,6 @@ class LogInfoData$Type extends MessageType<LogInfoData> {
  */
 export const LogInfoData = new LogInfoData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class ModelOptionsData$Type extends MessageType<ModelOptionsData> {
-    constructor() {
-        super("symbolx.bench.ModelOptionsData", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
-            { no: 30, name: "provider", kind: "enum", opt: true, T: () => ["symbolx.bench.ModelProvider", ModelProvider, "MODEL_PROVIDER_"] },
-            { no: 31, name: "model", kind: "enum", opt: true, T: () => ["symbolx.bench.ModelType", ModelType, "MODEL_TYPE_"] }
-        ]);
-    }
-    create(value?: PartialMessage<ModelOptionsData>): ModelOptionsData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        if (value !== undefined)
-            reflectionMergePartial<ModelOptionsData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ModelOptionsData): ModelOptionsData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.ObjectType metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* optional symbolx.bench.ModelProvider provider */ 30:
-                    message.provider = reader.int32();
-                    break;
-                case /* optional symbolx.bench.ModelType model */ 31:
-                    message.model = reader.int32();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: ModelOptionsData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.ObjectType metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* optional symbolx.bench.ModelProvider provider = 30; */
-        if (message.provider !== undefined)
-            writer.tag(30, WireType.Varint).int32(message.provider);
-        /* optional symbolx.bench.ModelType model = 31; */
-        if (message.model !== undefined)
-            writer.tag(31, WireType.Varint).int32(message.model);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.ModelOptionsData
- */
-export const ModelOptionsData = new ModelOptionsData$Type();
-// @generated message type with reflection information, may provide speed optimized methods
 class NodeReferenceData$Type extends MessageType<NodeReferenceData> {
     constructor() {
         super("symbolx.bench.NodeReferenceData", [
@@ -15007,10 +14952,12 @@ class RunOptionsData$Type extends MessageType<RunOptionsData> {
             { no: 40, name: "retry_interval", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
             { no: 41, name: "backoff", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
             { no: 42, name: "max_retry_interval", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 43, name: "jitter", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
             { no: 44, name: "retry_on", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.RunErrorType", RunErrorType, "RUN_ERROR_TYPE_"] },
             { no: 50, name: "breakpoints", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => BreakpointData },
-            { no: 60, name: "model_options", kind: "message", T: () => ModelOptionsData }
+            { no: 60, name: "cache_behavior", kind: "enum", opt: true, T: () => ["symbolx.bench.CacheBehavior", CacheBehavior, "CACHE_BEHAVIOR_"] },
+            { no: 61, name: "cache_expiry", kind: "message", T: () => Duration },
+            { no: 70, name: "model_provider", kind: "enum", opt: true, T: () => ["symbolx.bench.ModelProvider", ModelProvider, "MODEL_PROVIDER_"] },
+            { no: 71, name: "model_type", kind: "enum", opt: true, T: () => ["symbolx.bench.ModelType", ModelType, "MODEL_TYPE_"] }
         ]);
     }
     create(value?: PartialMessage<RunOptionsData>): RunOptionsData {
@@ -15054,9 +15001,6 @@ class RunOptionsData$Type extends MessageType<RunOptionsData> {
                 case /* optional float max_retry_interval */ 42:
                     message.maxRetryInterval = reader.float();
                     break;
-                case /* optional float jitter */ 43:
-                    message.jitter = reader.float();
-                    break;
                 case /* repeated symbolx.bench.RunErrorType retry_on */ 44:
                     if (wireType === WireType.LengthDelimited)
                         for (let e = reader.int32() + reader.pos; reader.pos < e;)
@@ -15067,8 +15011,17 @@ class RunOptionsData$Type extends MessageType<RunOptionsData> {
                 case /* repeated symbolx.bench.BreakpointData breakpoints */ 50:
                     message.breakpoints.push(BreakpointData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* optional symbolx.bench.ModelOptionsData model_options */ 60:
-                    message.modelOptions = ModelOptionsData.internalBinaryRead(reader, reader.uint32(), options, message.modelOptions);
+                case /* optional symbolx.bench.CacheBehavior cache_behavior */ 60:
+                    message.cacheBehavior = reader.int32();
+                    break;
+                case /* optional google.protobuf.Duration cache_expiry */ 61:
+                    message.cacheExpiry = Duration.internalBinaryRead(reader, reader.uint32(), options, message.cacheExpiry);
+                    break;
+                case /* optional symbolx.bench.ModelProvider model_provider */ 70:
+                    message.modelProvider = reader.int32();
+                    break;
+                case /* optional symbolx.bench.ModelType model_type */ 71:
+                    message.modelType = reader.int32();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -15109,9 +15062,6 @@ class RunOptionsData$Type extends MessageType<RunOptionsData> {
         /* optional float max_retry_interval = 42; */
         if (message.maxRetryInterval !== undefined)
             writer.tag(42, WireType.Bit32).float(message.maxRetryInterval);
-        /* optional float jitter = 43; */
-        if (message.jitter !== undefined)
-            writer.tag(43, WireType.Bit32).float(message.jitter);
         /* repeated symbolx.bench.RunErrorType retry_on = 44; */
         if (message.retryOn.length) {
             writer.tag(44, WireType.LengthDelimited).fork();
@@ -15122,9 +15072,18 @@ class RunOptionsData$Type extends MessageType<RunOptionsData> {
         /* repeated symbolx.bench.BreakpointData breakpoints = 50; */
         for (let i = 0; i < message.breakpoints.length; i++)
             BreakpointData.internalBinaryWrite(message.breakpoints[i], writer.tag(50, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.ModelOptionsData model_options = 60; */
-        if (message.modelOptions)
-            ModelOptionsData.internalBinaryWrite(message.modelOptions, writer.tag(60, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.CacheBehavior cache_behavior = 60; */
+        if (message.cacheBehavior !== undefined)
+            writer.tag(60, WireType.Varint).int32(message.cacheBehavior);
+        /* optional google.protobuf.Duration cache_expiry = 61; */
+        if (message.cacheExpiry)
+            Duration.internalBinaryWrite(message.cacheExpiry, writer.tag(61, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.ModelProvider model_provider = 70; */
+        if (message.modelProvider !== undefined)
+            writer.tag(70, WireType.Varint).int32(message.modelProvider);
+        /* optional symbolx.bench.ModelType model_type = 71; */
+        if (message.modelType !== undefined)
+            writer.tag(71, WireType.Varint).int32(message.modelType);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -22011,16 +21970,16 @@ class RunData$Type extends MessageType<RunData> {
             { no: 38, name: "options", kind: "message", T: () => RunOptionsData },
             { no: 40, name: "status", kind: "enum", T: () => ["symbolx.bench.RunStatus", RunStatus, "RUN_STATUS_"] },
             { no: 41, name: "duration", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
-            { no: 42, name: "attempts", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => RunAttemptData },
-            { no: 43, name: "error", kind: "message", T: () => RunErrorData },
-            { no: 44, name: "scheduled_at", kind: "message", T: () => Timestamp },
-            { no: 45, name: "scheduled_epoch", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 46, name: "started_at", kind: "message", T: () => Timestamp },
-            { no: 47, name: "started_epoch", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 48, name: "killed_at", kind: "message", T: () => Timestamp },
-            { no: 49, name: "halted_at", kind: "message", T: () => Timestamp },
-            { no: 50, name: "halted_epoch", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
-            { no: 51, name: "halted_on_run_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 42, name: "cached_duration", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
+            { no: 43, name: "attempts", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => RunAttemptData },
+            { no: 44, name: "error", kind: "message", T: () => RunErrorData },
+            { no: 45, name: "scheduled_at", kind: "message", T: () => Timestamp },
+            { no: 46, name: "scheduled_epoch", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 47, name: "started_at", kind: "message", T: () => Timestamp },
+            { no: 48, name: "started_epoch", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
+            { no: 49, name: "killed_at", kind: "message", T: () => Timestamp },
+            { no: 50, name: "halted_at", kind: "message", T: () => Timestamp },
+            { no: 51, name: "halted_epoch", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 53, name: "terminated_at", kind: "message", T: () => Timestamp },
             { no: 54, name: "terminated_epoch", kind: "scalar", opt: true, T: 5 /*ScalarType.INT32*/ },
             { no: 60, name: "inputs_packed", kind: "message", T: () => Struct },
@@ -22131,35 +22090,35 @@ class RunData$Type extends MessageType<RunData> {
                 case /* optional float duration */ 41:
                     message.duration = reader.float();
                     break;
-                case /* repeated symbolx.bench.RunAttemptData attempts */ 42:
+                case /* optional float cached_duration */ 42:
+                    message.cachedDuration = reader.float();
+                    break;
+                case /* repeated symbolx.bench.RunAttemptData attempts */ 43:
                     message.attempts.push(RunAttemptData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* optional symbolx.bench.RunErrorData error */ 43:
+                case /* optional symbolx.bench.RunErrorData error */ 44:
                     message.error = RunErrorData.internalBinaryRead(reader, reader.uint32(), options, message.error);
                     break;
-                case /* optional google.protobuf.Timestamp scheduled_at */ 44:
+                case /* optional google.protobuf.Timestamp scheduled_at */ 45:
                     message.scheduledAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.scheduledAt);
                     break;
-                case /* optional int32 scheduled_epoch */ 45:
+                case /* optional int32 scheduled_epoch */ 46:
                     message.scheduledEpoch = reader.int32();
                     break;
-                case /* optional google.protobuf.Timestamp started_at */ 46:
+                case /* optional google.protobuf.Timestamp started_at */ 47:
                     message.startedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.startedAt);
                     break;
-                case /* optional int32 started_epoch */ 47:
+                case /* optional int32 started_epoch */ 48:
                     message.startedEpoch = reader.int32();
                     break;
-                case /* optional google.protobuf.Timestamp killed_at */ 48:
+                case /* optional google.protobuf.Timestamp killed_at */ 49:
                     message.killedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.killedAt);
                     break;
-                case /* optional google.protobuf.Timestamp halted_at */ 49:
+                case /* optional google.protobuf.Timestamp halted_at */ 50:
                     message.haltedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.haltedAt);
                     break;
-                case /* optional int32 halted_epoch */ 50:
+                case /* optional int32 halted_epoch */ 51:
                     message.haltedEpoch = reader.int32();
-                    break;
-                case /* optional symbolx.bench.NodeReferenceData halted_on_run_ptr */ 51:
-                    message.haltedOnRunPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.haltedOnRunPtr);
                     break;
                 case /* optional google.protobuf.Timestamp terminated_at */ 53:
                     message.terminatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.terminatedAt);
@@ -22294,36 +22253,36 @@ class RunData$Type extends MessageType<RunData> {
         /* optional float duration = 41; */
         if (message.duration !== undefined)
             writer.tag(41, WireType.Bit32).float(message.duration);
-        /* repeated symbolx.bench.RunAttemptData attempts = 42; */
+        /* optional float cached_duration = 42; */
+        if (message.cachedDuration !== undefined)
+            writer.tag(42, WireType.Bit32).float(message.cachedDuration);
+        /* repeated symbolx.bench.RunAttemptData attempts = 43; */
         for (let i = 0; i < message.attempts.length; i++)
-            RunAttemptData.internalBinaryWrite(message.attempts[i], writer.tag(42, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.RunErrorData error = 43; */
+            RunAttemptData.internalBinaryWrite(message.attempts[i], writer.tag(43, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.RunErrorData error = 44; */
         if (message.error)
-            RunErrorData.internalBinaryWrite(message.error, writer.tag(43, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp scheduled_at = 44; */
+            RunErrorData.internalBinaryWrite(message.error, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp scheduled_at = 45; */
         if (message.scheduledAt)
-            Timestamp.internalBinaryWrite(message.scheduledAt, writer.tag(44, WireType.LengthDelimited).fork(), options).join();
-        /* optional int32 scheduled_epoch = 45; */
+            Timestamp.internalBinaryWrite(message.scheduledAt, writer.tag(45, WireType.LengthDelimited).fork(), options).join();
+        /* optional int32 scheduled_epoch = 46; */
         if (message.scheduledEpoch !== undefined)
-            writer.tag(45, WireType.Varint).int32(message.scheduledEpoch);
-        /* optional google.protobuf.Timestamp started_at = 46; */
+            writer.tag(46, WireType.Varint).int32(message.scheduledEpoch);
+        /* optional google.protobuf.Timestamp started_at = 47; */
         if (message.startedAt)
-            Timestamp.internalBinaryWrite(message.startedAt, writer.tag(46, WireType.LengthDelimited).fork(), options).join();
-        /* optional int32 started_epoch = 47; */
+            Timestamp.internalBinaryWrite(message.startedAt, writer.tag(47, WireType.LengthDelimited).fork(), options).join();
+        /* optional int32 started_epoch = 48; */
         if (message.startedEpoch !== undefined)
-            writer.tag(47, WireType.Varint).int32(message.startedEpoch);
-        /* optional google.protobuf.Timestamp killed_at = 48; */
+            writer.tag(48, WireType.Varint).int32(message.startedEpoch);
+        /* optional google.protobuf.Timestamp killed_at = 49; */
         if (message.killedAt)
-            Timestamp.internalBinaryWrite(message.killedAt, writer.tag(48, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp halted_at = 49; */
+            Timestamp.internalBinaryWrite(message.killedAt, writer.tag(49, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp halted_at = 50; */
         if (message.haltedAt)
-            Timestamp.internalBinaryWrite(message.haltedAt, writer.tag(49, WireType.LengthDelimited).fork(), options).join();
-        /* optional int32 halted_epoch = 50; */
+            Timestamp.internalBinaryWrite(message.haltedAt, writer.tag(50, WireType.LengthDelimited).fork(), options).join();
+        /* optional int32 halted_epoch = 51; */
         if (message.haltedEpoch !== undefined)
-            writer.tag(50, WireType.Varint).int32(message.haltedEpoch);
-        /* optional symbolx.bench.NodeReferenceData halted_on_run_ptr = 51; */
-        if (message.haltedOnRunPtr)
-            NodeReferenceData.internalBinaryWrite(message.haltedOnRunPtr, writer.tag(51, WireType.LengthDelimited).fork(), options).join();
+            writer.tag(51, WireType.Varint).int32(message.haltedEpoch);
         /* optional google.protobuf.Timestamp terminated_at = 53; */
         if (message.terminatedAt)
             Timestamp.internalBinaryWrite(message.terminatedAt, writer.tag(53, WireType.LengthDelimited).fork(), options).join();
@@ -25396,10 +25355,10 @@ export const SomeNodeData = new SomeNodeData$Type();
 
 // Any...
 export type AnyNodeData = BenchData | UserData | OrganizationData | HandleData | ClientData | ServerData | StoreData | MachineData | DriveData | MembershipData | InviteData | BranchData | PackageData | DependencyData | SpaceData | BlockData | TriggerData | FieldData | QueryData | ViewData | StepData | PipeData | BadgeData | FileData | SecretData | MessageData | RecordData | NotificationData | SessionData | RunData | SignalData | LogData | SkipData
-export type AnyStructData = SessionContextData | EditContextData | EditData | ChangeData | ChangeVignetteData | GraphScopeData | ClientOriginData | NodeReferenceData | PropertyReferenceData | PathData | PathTokenData | PolicyData | PolicyRuleData | SubjectData | AccessZoneData | AccessMatrixData | AccessData | TextData | TextLineData | TextSpanData | TypeInfoData | TypeConstraintData | ScheduleData | FileReferenceData | IconData | SecretReferenceData | FileInfoData | TriggerInfoData | ExpressionData | AggregationData | SelectionData | QueryInfoData | ReadOptionsData | ValueData | ComputedValueData | CodeData | CodeLineData | PortKeyData | PortData | RunErrorData | RunOptionsData | RunAttemptData | RunTraceData | RunFrameData | RunSpanData | RunEventData | BreakpointData | ModelOptionsData | LogInfoData | ColorData | FontData | BoxData | OffsetData | TransformData | Vector2Data | Vector3Data | Vector4Data | LineData | StartViewStateData | FeedViewStateData | UserWizardViewStateData | TreeViewStateData
+export type AnyStructData = SessionContextData | EditContextData | EditData | ChangeData | ChangeVignetteData | GraphScopeData | ClientOriginData | NodeReferenceData | PropertyReferenceData | PathData | PathTokenData | PolicyData | PolicyRuleData | SubjectData | AccessZoneData | AccessMatrixData | AccessData | TextData | TextLineData | TextSpanData | TypeInfoData | TypeConstraintData | ScheduleData | FileReferenceData | IconData | SecretReferenceData | FileInfoData | TriggerInfoData | ExpressionData | AggregationData | SelectionData | QueryInfoData | ReadOptionsData | ValueData | ComputedValueData | CodeData | CodeLineData | PortKeyData | PortData | RunErrorData | RunOptionsData | RunAttemptData | RunTraceData | RunFrameData | RunSpanData | RunEventData | BreakpointData | LogInfoData | ColorData | FontData | BoxData | OffsetData | TransformData | Vector2Data | Vector3Data | Vector4Data | LineData | StartViewStateData | FeedViewStateData | UserWizardViewStateData | TreeViewStateData
 export type AnyNodeReferenceData = NodeReferenceData | FileReferenceData | SecretReferenceData
 export type AnyNodeDataType = typeof BenchData | typeof UserData | typeof OrganizationData | typeof HandleData | typeof ClientData | typeof ServerData | typeof StoreData | typeof MachineData | typeof DriveData | typeof MembershipData | typeof InviteData | typeof BranchData | typeof PackageData | typeof DependencyData | typeof SpaceData | typeof BlockData | typeof TriggerData | typeof FieldData | typeof QueryData | typeof ViewData | typeof StepData | typeof PipeData | typeof BadgeData | typeof FileData | typeof SecretData | typeof MessageData | typeof RecordData | typeof NotificationData | typeof SessionData | typeof RunData | typeof SignalData | typeof LogData | typeof SkipData
-export type AnyStructDataType = typeof SessionContextData | typeof EditContextData | typeof EditData | typeof ChangeData | typeof ChangeVignetteData | typeof GraphScopeData | typeof ClientOriginData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof PathData | typeof PathTokenData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof TypeInfoData | typeof TypeConstraintData | typeof ScheduleData | typeof FileReferenceData | typeof IconData | typeof SecretReferenceData | typeof FileInfoData | typeof TriggerInfoData | typeof ExpressionData | typeof AggregationData | typeof SelectionData | typeof QueryInfoData | typeof ReadOptionsData | typeof ValueData | typeof ComputedValueData | typeof CodeData | typeof CodeLineData | typeof PortKeyData | typeof PortData | typeof RunErrorData | typeof RunOptionsData | typeof RunAttemptData | typeof RunTraceData | typeof RunFrameData | typeof RunSpanData | typeof RunEventData | typeof BreakpointData | typeof ModelOptionsData | typeof LogInfoData | typeof ColorData | typeof FontData | typeof BoxData | typeof OffsetData | typeof TransformData | typeof Vector2Data | typeof Vector3Data | typeof Vector4Data | typeof LineData | typeof StartViewStateData | typeof FeedViewStateData | typeof UserWizardViewStateData | typeof TreeViewStateData
+export type AnyStructDataType = typeof SessionContextData | typeof EditContextData | typeof EditData | typeof ChangeData | typeof ChangeVignetteData | typeof GraphScopeData | typeof ClientOriginData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof PathData | typeof PathTokenData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof TypeInfoData | typeof TypeConstraintData | typeof ScheduleData | typeof FileReferenceData | typeof IconData | typeof SecretReferenceData | typeof FileInfoData | typeof TriggerInfoData | typeof ExpressionData | typeof AggregationData | typeof SelectionData | typeof QueryInfoData | typeof ReadOptionsData | typeof ValueData | typeof ComputedValueData | typeof CodeData | typeof CodeLineData | typeof PortKeyData | typeof PortData | typeof RunErrorData | typeof RunOptionsData | typeof RunAttemptData | typeof RunTraceData | typeof RunFrameData | typeof RunSpanData | typeof RunEventData | typeof BreakpointData | typeof LogInfoData | typeof ColorData | typeof FontData | typeof BoxData | typeof OffsetData | typeof TransformData | typeof Vector2Data | typeof Vector3Data | typeof Vector4Data | typeof LineData | typeof StartViewStateData | typeof FeedViewStateData | typeof UserWizardViewStateData | typeof TreeViewStateData
 
 // Ancestry maps
 export const PARENT_NODE_TYPES: Record<NodeType, NodeType[]> = {
@@ -25633,7 +25592,6 @@ export const MESSAGE_TYPE_BY_OBJECT_TYPE: Partial<Record<ObjectType, MessageType
   [ObjectType.RUN_SPAN]: RunSpanData,
   [ObjectType.RUN_EVENT]: RunEventData,
   [ObjectType.BREAKPOINT]: BreakpointData,
-  [ObjectType.MODEL_OPTIONS]: ModelOptionsData,
   [ObjectType.LOG_INFO]: LogInfoData,
   [ObjectType.COLOR]: ColorData,
   [ObjectType.FONT]: FontData,
@@ -25731,7 +25689,6 @@ export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
   ["symbolx.bench.RunSpanData"]: ObjectType.RUN_SPAN,
   ["symbolx.bench.RunEventData"]: ObjectType.RUN_EVENT,
   ["symbolx.bench.BreakpointData"]: ObjectType.BREAKPOINT,
-  ["symbolx.bench.ModelOptionsData"]: ObjectType.MODEL_OPTIONS,
   ["symbolx.bench.LogInfoData"]: ObjectType.LOG_INFO,
   ["symbolx.bench.ColorData"]: ObjectType.COLOR,
   ["symbolx.bench.FontData"]: ObjectType.FONT,
@@ -25807,6 +25764,7 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.TRIGGER_TYPE]: TriggerType,
   [EnumType.BREAKPOINT_KIND]: BreakpointKind,
   [EnumType.BREAKPOINT_ACTION]: BreakpointAction,
+  [EnumType.CACHE_BEHAVIOR]: CacheBehavior,
   [EnumType.CODE_TYPE]: CodeType,
   [EnumType.MODEL_PROVIDER]: ModelProvider,
   [EnumType.MODEL_TYPE]: ModelType,
@@ -25884,7 +25842,6 @@ export interface StructTypeMapping extends Record<StructType, AnyStructData> {
   [StructType.RUN_SPAN]: RunSpanData,
   [StructType.RUN_EVENT]: RunEventData,
   [StructType.BREAKPOINT]: BreakpointData,
-  [StructType.MODEL_OPTIONS]: ModelOptionsData,
   [StructType.LOG_INFO]: LogInfoData,
   [StructType.COLOR]: ColorData,
   [StructType.FONT]: FontData,
@@ -26018,7 +25975,6 @@ export interface AnyTypeMapping extends Record<ObjectType, AnyStructData | AnyNo
   [ObjectType.RUN_SPAN]: RunSpanData,
   [ObjectType.RUN_EVENT]: RunEventData,
   [ObjectType.BREAKPOINT]: BreakpointData,
-  [ObjectType.MODEL_OPTIONS]: ModelOptionsData,
   [ObjectType.LOG_INFO]: LogInfoData,
   [ObjectType.COLOR]: ColorData,
   [ObjectType.FONT]: FontData,
@@ -26094,6 +26050,7 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.TRIGGER_TYPE]: TriggerType,
   [EnumType.BREAKPOINT_KIND]: BreakpointKind,
   [EnumType.BREAKPOINT_ACTION]: BreakpointAction,
+  [EnumType.CACHE_BEHAVIOR]: CacheBehavior,
   [EnumType.CODE_TYPE]: CodeType,
   [EnumType.MODEL_PROVIDER]: ModelProvider,
   [EnumType.MODEL_TYPE]: ModelType,
@@ -26955,16 +26912,16 @@ export enum RunProperty {
   options = 38,
   status = 40,
   duration = 41,
-  attempts = 42,
-  error = 43,
-  scheduledAt = 44,
-  scheduledEpoch = 45,
-  startedAt = 46,
-  startedEpoch = 47,
-  killedAt = 48,
-  haltedAt = 49,
-  haltedEpoch = 50,
-  haltedOnRunPtr = 51,
+  cachedDuration = 42,
+  attempts = 43,
+  error = 44,
+  scheduledAt = 45,
+  scheduledEpoch = 46,
+  startedAt = 47,
+  startedEpoch = 48,
+  killedAt = 49,
+  haltedAt = 50,
+  haltedEpoch = 51,
   terminatedAt = 53,
   terminatedEpoch = 54,
   inputsPacked = 60,
@@ -27505,10 +27462,12 @@ export enum RunOptionsProperty {
   retryInterval = 40,
   backoff = 41,
   maxRetryInterval = 42,
-  jitter = 43,
   retryOn = 44,
   breakpoints = 50,
-  modelOptions = 60,
+  cacheBehavior = 60,
+  cacheExpiry = 61,
+  modelProvider = 70,
+  modelType = 71,
 }
 
 export enum RunAttemptProperty {
@@ -27559,12 +27518,6 @@ export enum BreakpointProperty {
   kind = 30,
   action = 31,
   condition = 40,
-}
-
-export enum ModelOptionsProperty {
-  metatype = 1,
-  provider = 30,
-  model = 31,
 }
 
 export enum LogInfoProperty {
@@ -27675,11 +27628,11 @@ export enum TreeViewStateProperty {
 }
 
 export type AnyNodeProperty = typeof BenchProperty | typeof UserProperty | typeof OrganizationProperty | typeof HandleProperty | typeof ClientProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof MembershipProperty | typeof InviteProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof PipeProperty | typeof BadgeProperty | typeof FileProperty | typeof SecretProperty | typeof MessageProperty | typeof RecordProperty | typeof NotificationProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof SkipProperty
-export type AnyStructProperty = typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof FileReferenceProperty | typeof IconProperty | typeof SecretReferenceProperty | typeof FileInfoProperty | typeof TriggerInfoProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof ReadOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PortKeyProperty | typeof PortProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof BreakpointProperty | typeof ModelOptionsProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof UserWizardViewStateProperty | typeof TreeViewStateProperty
+export type AnyStructProperty = typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof FileReferenceProperty | typeof IconProperty | typeof SecretReferenceProperty | typeof FileInfoProperty | typeof TriggerInfoProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof ReadOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PortKeyProperty | typeof PortProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof BreakpointProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof UserWizardViewStateProperty | typeof TreeViewStateProperty
 export type AnyProperty = AnyNodeProperty | AnyStructProperty
 export type AnyNodePropertyType = typeof BenchProperty | typeof UserProperty | typeof OrganizationProperty | typeof HandleProperty | typeof ClientProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof MembershipProperty | typeof InviteProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof PipeProperty | typeof BadgeProperty | typeof FileProperty | typeof SecretProperty | typeof MessageProperty | typeof RecordProperty | typeof NotificationProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof SkipProperty
-export type AnyStructPropertyType = typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof FileReferenceProperty | typeof IconProperty | typeof SecretReferenceProperty | typeof FileInfoProperty | typeof TriggerInfoProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof ReadOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PortKeyProperty | typeof PortProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof BreakpointProperty | typeof ModelOptionsProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof UserWizardViewStateProperty | typeof TreeViewStateProperty
-export type AnyPropertyType = typeof BenchProperty | typeof UserProperty | typeof OrganizationProperty | typeof HandleProperty | typeof ClientProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof MembershipProperty | typeof InviteProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof PipeProperty | typeof BadgeProperty | typeof FileProperty | typeof SecretProperty | typeof MessageProperty | typeof RecordProperty | typeof NotificationProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof SkipProperty | typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof FileReferenceProperty | typeof IconProperty | typeof SecretReferenceProperty | typeof FileInfoProperty | typeof TriggerInfoProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof ReadOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PortKeyProperty | typeof PortProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof BreakpointProperty | typeof ModelOptionsProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof UserWizardViewStateProperty | typeof TreeViewStateProperty
+export type AnyStructPropertyType = typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof FileReferenceProperty | typeof IconProperty | typeof SecretReferenceProperty | typeof FileInfoProperty | typeof TriggerInfoProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof ReadOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PortKeyProperty | typeof PortProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof BreakpointProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof UserWizardViewStateProperty | typeof TreeViewStateProperty
+export type AnyPropertyType = typeof BenchProperty | typeof UserProperty | typeof OrganizationProperty | typeof HandleProperty | typeof ClientProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof MembershipProperty | typeof InviteProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof PipeProperty | typeof BadgeProperty | typeof FileProperty | typeof SecretProperty | typeof MessageProperty | typeof RecordProperty | typeof NotificationProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof SkipProperty | typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof FileReferenceProperty | typeof IconProperty | typeof SecretReferenceProperty | typeof FileInfoProperty | typeof TriggerInfoProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof ReadOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PortKeyProperty | typeof PortProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof BreakpointProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof UserWizardViewStateProperty | typeof TreeViewStateProperty
 export const NODE_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyNodePropertyType>> = {
   [ObjectType.BENCH]: BenchProperty,
   [ObjectType.USER]: UserProperty,
@@ -27764,7 +27717,6 @@ export const STRUCT_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyStructP
   [ObjectType.RUN_SPAN]: RunSpanProperty,
   [ObjectType.RUN_EVENT]: RunEventProperty,
   [ObjectType.BREAKPOINT]: BreakpointProperty,
-  [ObjectType.MODEL_OPTIONS]: ModelOptionsProperty,
   [ObjectType.LOG_INFO]: LogInfoProperty,
   [ObjectType.COLOR]: ColorProperty,
   [ObjectType.FONT]: FontProperty,
@@ -27862,7 +27814,6 @@ export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>>
   [ObjectType.RUN_SPAN]: RunSpanProperty,
   [ObjectType.RUN_EVENT]: RunEventProperty,
   [ObjectType.BREAKPOINT]: BreakpointProperty,
-  [ObjectType.MODEL_OPTIONS]: ModelOptionsProperty,
   [ObjectType.LOG_INFO]: LogInfoProperty,
   [ObjectType.COLOR]: ColorProperty,
   [ObjectType.FONT]: FontProperty,
@@ -28022,14 +27973,14 @@ export const PathTokenDataInfo: Record<PathTokenProperty, PropertyInfo> = {
 }
 export const PolicyDataInfo: Record<PolicyProperty, PropertyInfo> = {
   [PolicyProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.POLICY, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [PolicyProperty.name]: { id: 30, name: 'name', component: ObjectType.POLICY, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[a-zA-Z0-9_'`˚ \\-]+$" }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [PolicyProperty.name]: { id: 30, name: 'name', component: ObjectType.POLICY, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$" }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [PolicyProperty.text]: { id: 31, name: 'text', component: ObjectType.POLICY, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [PolicyProperty.rules]: { id: 32, name: 'rules', component: ObjectType.POLICY, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY_RULE },
   [PolicyProperty.scopesPtr]: { id: 33, name: 'scopes_ptr', component: ObjectType.POLICY, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const PolicyRuleDataInfo: Record<PolicyRuleProperty, PropertyInfo> = {
   [PolicyRuleProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.POLICY_RULE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [PolicyRuleProperty.name]: { id: 30, name: 'name', component: ObjectType.POLICY_RULE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[a-zA-Z0-9_'`˚ \\-]+$" }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [PolicyRuleProperty.name]: { id: 30, name: 'name', component: ObjectType.POLICY_RULE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$" }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [PolicyRuleProperty.text]: { id: 31, name: 'text', component: ObjectType.POLICY_RULE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [PolicyRuleProperty.subjectIsDelegated]: { id: 40, name: 'subject_is_delegated', component: ObjectType.POLICY_RULE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
   [PolicyRuleProperty.subjectIsAuthenticated]: { id: 41, name: 'subject_is_authenticated', component: ObjectType.POLICY_RULE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, isRuntime: true, isWired: true, isStored: true },
@@ -28266,7 +28217,7 @@ export const ReadOptionsDataInfo: Record<ReadOptionsProperty, PropertyInfo> = {
 export const ValueDataInfo: Record<ValueProperty, PropertyInfo> = {
   [ValueProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.VALUE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [ValueProperty.type]: { id: 31, name: 'type', component: ObjectType.VALUE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_INFO },
-  [ValueProperty.name]: { id: 32, name: 'name', component: ObjectType.VALUE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[a-zA-Z0-9_'`˚ \\-]+$" }, isRuntime: true, isWired: true, isStored: true },
+  [ValueProperty.name]: { id: 32, name: 'name', component: ObjectType.VALUE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$" }, isRuntime: true, isWired: true, isStored: true },
   [ValueProperty.text]: { id: 34, name: 'text', component: ObjectType.VALUE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [ValueProperty.valuePacked]: { id: 35, name: 'value_packed', component: ObjectType.VALUE, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
 }
@@ -28316,10 +28267,12 @@ export const RunOptionsDataInfo: Record<RunOptionsProperty, PropertyInfo> = {
   [RunOptionsProperty.retryInterval]: { id: 40, name: 'retry_interval', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0 }, isRuntime: true, isWired: true, isStored: true },
   [RunOptionsProperty.backoff]: { id: 41, name: 'backoff', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 1 }, isRuntime: true, isWired: true, isStored: true },
   [RunOptionsProperty.maxRetryInterval]: { id: 42, name: 'max_retry_interval', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0 }, isRuntime: true, isWired: true, isStored: true },
-  [RunOptionsProperty.jitter]: { id: 43, name: 'jitter', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0, maxValue: 1 }, isRuntime: true, isWired: true, isStored: true },
   [RunOptionsProperty.retryOn]: { id: 44, name: 'retry_on', component: ObjectType.RUN_OPTIONS, enumType: EnumType.RUN_ERROR_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [RunOptionsProperty.breakpoints]: { id: 50, name: 'breakpoints', component: ObjectType.RUN_OPTIONS, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.BREAKPOINT },
-  [RunOptionsProperty.modelOptions]: { id: 60, name: 'model_options', component: ObjectType.RUN_OPTIONS, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.MODEL_OPTIONS },
+  [RunOptionsProperty.cacheBehavior]: { id: 60, name: 'cache_behavior', component: ObjectType.RUN_OPTIONS, enumType: EnumType.CACHE_BEHAVIOR, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [RunOptionsProperty.cacheExpiry]: { id: 61, name: 'cache_expiry', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.INTERVAL, isRuntime: true, isWired: true, isStored: true },
+  [RunOptionsProperty.modelProvider]: { id: 70, name: 'model_provider', component: ObjectType.RUN_OPTIONS, enumType: EnumType.MODEL_PROVIDER, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [RunOptionsProperty.modelType]: { id: 71, name: 'model_type', component: ObjectType.RUN_OPTIONS, enumType: EnumType.MODEL_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
 }
 export const RunAttemptDataInfo: Record<RunAttemptProperty, PropertyInfo> = {
   [RunAttemptProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.RUN_ATTEMPT, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -28364,11 +28317,6 @@ export const BreakpointDataInfo: Record<BreakpointProperty, PropertyInfo> = {
   [BreakpointProperty.kind]: { id: 30, name: 'kind', component: ObjectType.BREAKPOINT, enumType: EnumType.BREAKPOINT_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [BreakpointProperty.action]: { id: 31, name: 'action', component: ObjectType.BREAKPOINT, enumType: EnumType.BREAKPOINT_ACTION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [BreakpointProperty.condition]: { id: 40, name: 'condition', component: ObjectType.BREAKPOINT, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
-}
-export const ModelOptionsDataInfo: Record<ModelOptionsProperty, PropertyInfo> = {
-  [ModelOptionsProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.MODEL_OPTIONS, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
-  [ModelOptionsProperty.provider]: { id: 30, name: 'provider', component: ObjectType.MODEL_OPTIONS, enumType: EnumType.MODEL_PROVIDER, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [ModelOptionsProperty.model]: { id: 31, name: 'model', component: ObjectType.MODEL_OPTIONS, enumType: EnumType.MODEL_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
 }
 export const LogInfoDataInfo: Record<LogInfoProperty, PropertyInfo> = {
   [LogInfoProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.LOG_INFO, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -28480,7 +28428,7 @@ export const BenchDataInfo: Record<BenchProperty, PropertyInfo> = {
   [BenchProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.BENCH, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
   [BenchProperty.mainHandlePtr]: { id: 31, name: 'main_handle_ptr', component: ObjectType.BENCH, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.HANDLE], referenceStruct: StructType.NODE_REFERENCE },
   [BenchProperty.slug]: { id: 32, name: 'slug', component: ObjectType.BENCH, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { regex: "^[a-z0-9-]{3,}$" }, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isUnique: true },
-  [BenchProperty.name]: { id: 33, name: 'name', component: ObjectType.BENCH, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[a-zA-Z0-9_'`˚ \\-]+$" }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [BenchProperty.name]: { id: 33, name: 'name', component: ObjectType.BENCH, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$" }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [BenchProperty.text]: { id: 34, name: 'text', component: ObjectType.BENCH, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [BenchProperty.icon]: { id: 35, name: 'icon', component: ObjectType.BENCH, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [BenchProperty.ownerPtr]: { id: 36, name: 'owner_ptr', component: ObjectType.BENCH, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION], referenceStruct: StructType.NODE_REFERENCE },
@@ -28506,7 +28454,7 @@ export const UserDataInfo: Record<UserProperty, PropertyInfo> = {
   [UserProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.USER, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
   [UserProperty.mainHandlePtr]: { id: 31, name: 'main_handle_ptr', component: ObjectType.USER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.HANDLE], referenceStruct: StructType.NODE_REFERENCE },
   [UserProperty.slug]: { id: 32, name: 'slug', component: ObjectType.USER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isUnique: true },
-  [UserProperty.name]: { id: 33, name: 'name', component: ObjectType.USER, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[a-zA-Z0-9_'`˚ \\-]+$" }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [UserProperty.name]: { id: 33, name: 'name', component: ObjectType.USER, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$" }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [UserProperty.text]: { id: 34, name: 'text', component: ObjectType.USER, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [UserProperty.email]: { id: 35, name: 'email', component: ObjectType.USER, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { regex: "^[a-zA-Z0-9_.+\\-]+@[a-zA-Z0-9\\-]+\\.[a-zA-Z0-9\\-.]+$" }, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isUnique: true, isDeferred: true, isSensitive: true },
   [UserProperty.icon]: { id: 36, name: 'icon', component: ObjectType.USER, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
@@ -28531,7 +28479,7 @@ export const OrganizationDataInfo: Record<OrganizationProperty, PropertyInfo> = 
   [OrganizationProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.ORGANIZATION, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
   [OrganizationProperty.mainHandlePtr]: { id: 31, name: 'main_handle_ptr', component: ObjectType.ORGANIZATION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.HANDLE], referenceStruct: StructType.NODE_REFERENCE },
   [OrganizationProperty.slug]: { id: 32, name: 'slug', component: ObjectType.ORGANIZATION, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, isUnique: true },
-  [OrganizationProperty.name]: { id: 33, name: 'name', component: ObjectType.ORGANIZATION, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[a-zA-Z0-9_'`˚ \\-]+$" }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [OrganizationProperty.name]: { id: 33, name: 'name', component: ObjectType.ORGANIZATION, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$" }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [OrganizationProperty.text]: { id: 34, name: 'text', component: ObjectType.ORGANIZATION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [OrganizationProperty.icon]: { id: 35, name: 'icon', component: ObjectType.ORGANIZATION, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
   [OrganizationProperty.mainBenchPtr]: { id: 36, name: 'main_bench_ptr', component: ObjectType.ORGANIZATION, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
@@ -28570,7 +28518,7 @@ export const ClientDataInfo: Record<ClientProperty, PropertyInfo> = {
   [ClientProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.CLIENT, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [ClientProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
   [ClientProperty.type]: { id: 30, name: 'type', component: ObjectType.CLIENT, enumType: EnumType.CLIENT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [ClientProperty.name]: { id: 32, name: 'name', component: ObjectType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[a-zA-Z0-9_'`˚ \\-]+$" }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ClientProperty.name]: { id: 32, name: 'name', component: ObjectType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$" }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ClientProperty.deviceType]: { id: 40, name: 'device_type', component: ObjectType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [ClientProperty.deviceName]: { id: 41, name: 'device_name', component: ObjectType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [ClientProperty.operatingSystem]: { id: 42, name: 'operating_system', component: ObjectType.CLIENT, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
@@ -28598,12 +28546,12 @@ export const ServerDataInfo: Record<ServerProperty, PropertyInfo> = {
   [ServerProperty.createdByPtr]: { id: 21, name: 'created_by_ptr', component: ObjectType.SERVER, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [ServerProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.SERVER, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [ServerProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
-  [ServerProperty.name]: { id: 32, name: 'name', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[a-zA-Z0-9_'`˚ \\-]+$" }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.name]: { id: 32, name: 'name', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$" }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.text]: { id: 34, name: 'text', component: ObjectType.SERVER, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [ServerProperty.region]: { id: 35, name: 'region', component: ObjectType.SERVER, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.status]: { id: 36, name: 'status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.09.09.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.09.16.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.minCpu]: { id: 50, name: 'min_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 4.0 }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.maxCpu]: { id: 51, name: 'max_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 4.0 }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -28627,12 +28575,12 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.createdByPtr]: { id: 21, name: 'created_by_ptr', component: ObjectType.STORE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [StoreProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.STORE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [StoreProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
-  [StoreProperty.name]: { id: 32, name: 'name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[a-zA-Z0-9_'`˚ \\-]+$" }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.name]: { id: 32, name: 'name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$" }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.text]: { id: 34, name: 'text', component: ObjectType.STORE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [StoreProperty.region]: { id: 35, name: 'region', component: ObjectType.STORE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.status]: { id: 36, name: 'status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.09.09.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.09.16.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 50, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 51, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -28653,12 +28601,12 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.createdByPtr]: { id: 21, name: 'created_by_ptr', component: ObjectType.MACHINE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [MachineProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.MACHINE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [MachineProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
-  [MachineProperty.name]: { id: 32, name: 'name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[a-zA-Z0-9_'`˚ \\-]+$" }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.name]: { id: 32, name: 'name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$" }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.text]: { id: 34, name: 'text', component: ObjectType.MACHINE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [MachineProperty.region]: { id: 35, name: 'region', component: ObjectType.MACHINE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.status]: { id: 36, name: 'status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.09.09.1", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.09.16.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 42, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 43, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -28688,7 +28636,7 @@ export const DriveDataInfo: Record<DriveProperty, PropertyInfo> = {
   [DriveProperty.createdByPtr]: { id: 21, name: 'created_by_ptr', component: ObjectType.DRIVE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [DriveProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.DRIVE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [DriveProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.DRIVE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
-  [DriveProperty.name]: { id: 32, name: 'name', component: ObjectType.DRIVE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[a-zA-Z0-9_'`˚ \\-]+$" }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [DriveProperty.name]: { id: 32, name: 'name', component: ObjectType.DRIVE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$" }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [DriveProperty.text]: { id: 34, name: 'text', component: ObjectType.DRIVE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [DriveProperty.region]: { id: 35, name: 'region', component: ObjectType.DRIVE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [DriveProperty.status]: { id: 36, name: 'status', component: ObjectType.DRIVE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -28747,7 +28695,7 @@ export const BranchDataInfo: Record<BranchProperty, PropertyInfo> = {
   [BranchProperty.createdByPtr]: { id: 21, name: 'created_by_ptr', component: ObjectType.BRANCH, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [BranchProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.BRANCH, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [BranchProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.BRANCH, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
-  [BranchProperty.name]: { id: 32, name: 'name', component: ObjectType.BRANCH, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[a-zA-Z0-9_'`˚ \\-]+$" }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [BranchProperty.name]: { id: 32, name: 'name', component: ObjectType.BRANCH, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$" }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [BranchProperty.slug]: { id: 33, name: 'slug', component: ObjectType.BRANCH, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { regex: "^[a-z0-9-]{3,}$" }, isRuntime: true, isWired: true, isStored: true },
   [BranchProperty.text]: { id: 34, name: 'text', component: ObjectType.BRANCH, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [BranchProperty.icon]: { id: 35, name: 'icon', component: ObjectType.BRANCH, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
@@ -28821,7 +28769,7 @@ export const SpaceDataInfo: Record<SpaceProperty, PropertyInfo> = {
   [SpaceProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.SPACE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [SpaceProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
   [SpaceProperty.type]: { id: 30, name: 'type', component: ObjectType.SPACE, enumType: EnumType.SPACE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [SpaceProperty.name]: { id: 31, name: 'name', component: ObjectType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[a-zA-Z0-9_'`˚ \\-]+$" }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [SpaceProperty.name]: { id: 31, name: 'name', component: ObjectType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$" }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [SpaceProperty.text]: { id: 32, name: 'text', component: ObjectType.SPACE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [SpaceProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [SpaceProperty.policies]: { id: 34, name: 'policies', component: ObjectType.SPACE, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY },
@@ -28851,7 +28799,7 @@ export const BlockDataInfo: Record<BlockProperty, PropertyInfo> = {
   [BlockProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.BLOCK, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [BlockProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
   [BlockProperty.type]: { id: 30, name: 'type', component: ObjectType.BLOCK, enumType: EnumType.BLOCK_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [BlockProperty.name]: { id: 32, name: 'name', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[a-zA-Z0-9_'`˚ \\-]+$" }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [BlockProperty.name]: { id: 32, name: 'name', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$" }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [BlockProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [BlockProperty.basesPtr]: { id: 35, name: 'bases_ptr', component: ObjectType.BLOCK, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [BlockProperty.text]: { id: 36, name: 'text', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
@@ -28887,7 +28835,7 @@ export const TriggerDataInfo: Record<TriggerProperty, PropertyInfo> = {
   [TriggerProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.TRIGGER, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [TriggerProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.TRIGGER, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
   [TriggerProperty.type]: { id: 30, name: 'type', component: ObjectType.TRIGGER, enumType: EnumType.TRIGGER_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [TriggerProperty.name]: { id: 31, name: 'name', component: ObjectType.TRIGGER, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[a-zA-Z0-9_'`˚ \\-]+$" }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [TriggerProperty.name]: { id: 31, name: 'name', component: ObjectType.TRIGGER, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$" }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [TriggerProperty.processedEpoch]: { id: 40, name: 'processed_epoch', component: ObjectType.TRIGGER, kind: 'primitive', primitiveType: PrimitiveType.INT32, isRuntime: true, isWired: true, isStored: true },
   [TriggerProperty.schedule]: { id: 50, name: 'schedule', component: ObjectType.TRIGGER, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.SCHEDULE },
   [TriggerProperty.signalPtr]: { id: 51, name: 'signal_ptr', component: ObjectType.TRIGGER, kind: 'reference', constraint: { blockType: 12 }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
@@ -28913,7 +28861,7 @@ export const FieldDataInfo: Record<FieldProperty, PropertyInfo> = {
   [FieldProperty.createdByPtr]: { id: 21, name: 'created_by_ptr', component: ObjectType.FIELD, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [FieldProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.FIELD, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [FieldProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
-  [FieldProperty.name]: { id: 30, name: 'name', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[a-zA-Z0-9_'`˚ \\-]+$" }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [FieldProperty.name]: { id: 30, name: 'name', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$" }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.orderKey]: { id: 31, name: 'order_key', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.zone]: { id: 32, name: 'zone', component: ObjectType.FIELD, enumType: EnumType.FIELD_ZONE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.text]: { id: 33, name: 'text', component: ObjectType.FIELD, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
@@ -28951,7 +28899,7 @@ export const QueryDataInfo: Record<QueryProperty, PropertyInfo> = {
   [QueryProperty.createdByPtr]: { id: 21, name: 'created_by_ptr', component: ObjectType.QUERY, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [QueryProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.QUERY, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [QueryProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.QUERY, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
-  [QueryProperty.name]: { id: 30, name: 'name', component: ObjectType.QUERY, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[a-zA-Z0-9_'`˚ \\-]+$" }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [QueryProperty.name]: { id: 30, name: 'name', component: ObjectType.QUERY, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$" }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [QueryProperty.orderKey]: { id: 31, name: 'order_key', component: ObjectType.QUERY, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [QueryProperty.readType]: { id: 40, name: 'read_type', component: ObjectType.QUERY, enumType: EnumType.READ_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [QueryProperty.nodeType]: { id: 41, name: 'node_type', component: ObjectType.QUERY, enumType: EnumType.NODE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
@@ -28979,7 +28927,7 @@ export const ViewDataInfo: Record<ViewProperty, PropertyInfo> = {
   [ViewProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.VIEW, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [ViewProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
   [ViewProperty.type]: { id: 30, name: 'type', component: ObjectType.VIEW, enumType: EnumType.VIEW_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [ViewProperty.name]: { id: 31, name: 'name', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[a-zA-Z0-9_'`˚ \\-]+$" }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [ViewProperty.name]: { id: 31, name: 'name', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$" }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [ViewProperty.title]: { id: 32, name: 'title', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 256 }, isRuntime: true, isWired: true, isStored: true },
   [ViewProperty.text]: { id: 33, name: 'text', component: ObjectType.VIEW, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [ViewProperty.orderKey]: { id: 34, name: 'order_key', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
@@ -29025,7 +28973,7 @@ export const StepDataInfo: Record<StepProperty, PropertyInfo> = {
   [StepProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.STEP, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [StepProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
   [StepProperty.type]: { id: 30, name: 'type', component: ObjectType.STEP, enumType: EnumType.STEP_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [StepProperty.name]: { id: 32, name: 'name', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[a-zA-Z0-9_'`˚ \\-]+$" }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [StepProperty.name]: { id: 32, name: 'name', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$" }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [StepProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [StepProperty.text]: { id: 34, name: 'text', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TEXT },
   [StepProperty.icon]: { id: 35, name: 'icon', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.ICON },
@@ -29059,7 +29007,7 @@ export const PipeDataInfo: Record<PipeProperty, PropertyInfo> = {
   [PipeProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.PIPE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [PipeProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.PIPE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
   [PipeProperty.type]: { id: 30, name: 'type', component: ObjectType.PIPE, enumType: EnumType.PIPE_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [PipeProperty.name]: { id: 32, name: 'name', component: ObjectType.PIPE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[a-zA-Z0-9_'`˚ \\-]+$" }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [PipeProperty.name]: { id: 32, name: 'name', component: ObjectType.PIPE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$" }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [PipeProperty.orderKey]: { id: 33, name: 'order_key', component: ObjectType.PIPE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "a0", isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [PipeProperty.sourcePtr]: { id: 35, name: 'source_ptr', component: ObjectType.PIPE, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.STEP], referenceStruct: StructType.NODE_REFERENCE },
   [PipeProperty.sourcePort]: { id: 36, name: 'source_port', component: ObjectType.PIPE, kind: 'reference', primitiveType: PrimitiveType.JSON, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.PORT_KEY },
@@ -29088,7 +29036,7 @@ export const BadgeDataInfo: Record<BadgeProperty, PropertyInfo> = {
   [BadgeProperty.createdByPtr]: { id: 21, name: 'created_by_ptr', component: ObjectType.BADGE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [BadgeProperty.updatedByPtr]: { id: 22, name: 'updated_by_ptr', component: ObjectType.BADGE, kind: 'reference', isAutoset: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.SERVER, NodeType.BLOCK, NodeType.STEP, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [BadgeProperty.setProperties]: { id: 29, name: 'set_properties', component: ObjectType.BADGE, kind: 'primitive', primitiveType: PrimitiveType.INT32, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true },
-  [BadgeProperty.name]: { id: 31, name: 'name', component: ObjectType.BADGE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[a-zA-Z0-9_'`˚ \\-]+$" }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [BadgeProperty.name]: { id: 31, name: 'name', component: ObjectType.BADGE, kind: 'primitive', primitiveType: PrimitiveType.STRING, constraint: { minLength: 1, maxLength: 128, regex: "^[\\p{L}0-9 _,;.\\-'`˚ ]+$" }, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [BadgeProperty.delegatedPolicies]: { id: 32, name: 'delegated_policies', component: ObjectType.BADGE, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY },
   [BadgeProperty.expiresAt]: { id: 33, name: 'expires_at', component: ObjectType.BADGE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRuntime: true, isWired: true, isStored: true },
   [BadgeProperty.key]: { id: 40, name: 'key', component: ObjectType.BADGE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isRuntime: true, isWired: true, isStored: true, isUnique: true, isDeferred: true, isSensitive: true, isEncrypted: true },
@@ -29263,19 +29211,19 @@ export const RunDataInfo: Record<RunProperty, PropertyInfo> = {
   [RunProperty.kind]: { id: 30, name: 'kind', component: ObjectType.RUN, enumType: EnumType.RUN_KIND, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [RunProperty.rootPtr]: { id: 32, name: 'root_ptr', component: ObjectType.RUN, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
   [RunProperty.code]: { id: 36, name: 'code', component: ObjectType.RUN, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
-  [RunProperty.options]: { id: 38, name: 'options', component: ObjectType.RUN, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_OPTIONS },
-  [RunProperty.status]: { id: 40, name: 'status', component: ObjectType.RUN, enumType: EnumType.RUN_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.duration]: { id: 41, name: 'duration', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.attempts]: { id: 42, name: 'attempts', component: ObjectType.RUN, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_ATTEMPT },
-  [RunProperty.error]: { id: 43, name: 'error', component: ObjectType.RUN, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_ERROR },
-  [RunProperty.scheduledAt]: { id: 44, name: 'scheduled_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.scheduledEpoch]: { id: 45, name: 'scheduled_epoch', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.startedAt]: { id: 46, name: 'started_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.startedEpoch]: { id: 47, name: 'started_epoch', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.killedAt]: { id: 48, name: 'killed_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.haltedAt]: { id: 49, name: 'halted_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.haltedEpoch]: { id: 50, name: 'halted_epoch', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
-  [RunProperty.haltedOnRunPtr]: { id: 51, name: 'halted_on_run_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
+  [RunProperty.options]: { id: 38, name: 'options', component: ObjectType.RUN, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_OPTIONS },
+  [RunProperty.status]: { id: 40, name: 'status', component: ObjectType.RUN, enumType: EnumType.RUN_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.duration]: { id: 41, name: 'duration', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.cachedDuration]: { id: 42, name: 'cached_duration', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.attempts]: { id: 43, name: 'attempts', component: ObjectType.RUN, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_ATTEMPT },
+  [RunProperty.error]: { id: 44, name: 'error', component: ObjectType.RUN, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_ERROR },
+  [RunProperty.scheduledAt]: { id: 45, name: 'scheduled_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.scheduledEpoch]: { id: 46, name: 'scheduled_epoch', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.startedAt]: { id: 47, name: 'started_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.startedEpoch]: { id: 48, name: 'started_epoch', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.killedAt]: { id: 49, name: 'killed_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.haltedAt]: { id: 50, name: 'halted_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
+  [RunProperty.haltedEpoch]: { id: 51, name: 'halted_epoch', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RunProperty.terminatedAt]: { id: 53, name: 'terminated_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RunProperty.terminatedEpoch]: { id: 54, name: 'terminated_epoch', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.INT32, isInternal: true, isRuntime: true, isWired: true, isStored: true },
   [RunProperty.inputsPacked]: { id: 60, name: 'inputs_packed', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
@@ -29429,7 +29377,6 @@ export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo
   [ObjectType.RUN_SPAN]: RunSpanDataInfo,
   [ObjectType.RUN_EVENT]: RunEventDataInfo,
   [ObjectType.BREAKPOINT]: BreakpointDataInfo,
-  [ObjectType.MODEL_OPTIONS]: ModelOptionsDataInfo,
   [ObjectType.LOG_INFO]: LogInfoDataInfo,
   [ObjectType.COLOR]: ColorDataInfo,
   [ObjectType.FONT]: FontDataInfo,

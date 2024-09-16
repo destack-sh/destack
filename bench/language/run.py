@@ -1,5 +1,5 @@
 from asyncio import CancelledError
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Collection, Optional, Union, assert_never, cast
 
 from bench.language.code import Code
@@ -102,19 +102,19 @@ class ModelType(IdEnum):
         return ModelProvider((self.value // 100) * 100)
 
 
-@struct_(StructType.MODEL_OPTIONS)
-class ModelOptions(Struct):
-    """Options for running an ML model."""
+@enum_(EnumType.CACHE_BEHAVIOR)
+class CacheBehavior(IdEnum):
+    """How to handle caching."""
 
-    provider: ModelProvider | None = p_regular(30)
-    model: ModelType | None = p_regular(31)
+    NEVER = 1
+    ALWAYS = 2
+    INHERIT = 3
 
 
 @struct_(StructType.RUN_OPTIONS)
 class RunOptions(Struct):
     """
     Options for running something.
-    Limits are per top level run context (i.e. the root Run in some Session).
     """
 
     # general
@@ -128,16 +128,18 @@ class RunOptions(Struct):
     retry_interval: Optional[float] = p_regular(40, constraint=TypeConstraintIn(min_value=0))
     backoff: Optional[float] = p_regular(41, constraint=TypeConstraintIn(min_value=1))
     max_retry_interval: Optional[float] = p_regular(42, constraint=TypeConstraintIn(min_value=0))
-    jitter: Optional[float] = p_regular(43, constraint=TypeConstraintIn(min_value=0, max_value=1))
     retry_on: list["RunErrorType"] = p_regular(44, array=True)
 
     # debug
     breakpoints: list["Breakpoint"] = p_regular(50, array=True, struct=StructType.BREAKPOINT)
 
+    # cache
+    cache_behavior: Optional["CacheBehavior"] = p_regular(60)
+    cache_expiry: Optional[timedelta] = p_regular(61)
+
     # model
-    model_options: Optional["ModelOptions"] = p_regular(
-        60, require=False, array=False, struct=StructType.MODEL_OPTIONS
-    )
+    model_provider: Optional["ModelProvider"] = p_regular(70)
+    model_type: Optional["ModelType"] = p_regular(71)
 
     def to_retry(self) -> RetryOptions:
         """Turns the options into our RetryOptions."""
@@ -146,7 +148,6 @@ class RunOptions(Struct):
             retry_interval=self.retry_interval or 1,
             backoff=self.backoff or 2,
             max_retry_interval=self.max_retry_interval or 30,
-            jitter=self.jitter,
             # retry_on is handled separately in runtime because we need the specific RunErrorType
         )
 
@@ -364,20 +365,22 @@ class Run(RuntimeNode[RunData], HasNodeBase, HasSessionContext):
         default=None,
         description="Duration in seconds from first attempt start to last attempt termination.",
     )
-    attempts: list[RunAttempt] = p_internal(42, array=True, struct=StructType.RUN_ATTEMPT)
+    cached_duration: Optional[float] = p_internal(
+        42,
+        default=None,
+        description="Total original duration of contained Run cache hits.",
+    )
+    attempts: list[RunAttempt] = p_internal(43, array=True, struct=StructType.RUN_ATTEMPT)
     error: Optional["RunError"] = p_internal(
-        43, default=None, require=False, array=False, struct=StructType.RUN_ERROR
+        44, default=None, require=False, array=False, struct=StructType.RUN_ERROR
     )
-    scheduled_at: Optional[datetime] = p_system(44, default=None)
-    scheduled_epoch: Optional[int] = p_system(45, default=None)
-    started_at: Optional[datetime] = p_internal(46, default=None)
-    started_epoch: Optional[int] = p_internal(47, default=None)
-    killed_at: Optional[datetime] = p_internal(48, default=None)
-    halted_at: Optional[datetime] = p_internal(49, default=None)
-    halted_epoch: Optional[int] = p_internal(50, default=None)
-    halted_on_run: Optional["Run"] = p_internal(
-        51, require=False, array=False, same_bench=True, references=NodeType.RUN
-    )
+    scheduled_at: Optional[datetime] = p_system(45, default=None)
+    scheduled_epoch: Optional[int] = p_system(46, default=None)
+    started_at: Optional[datetime] = p_internal(47, default=None)
+    started_epoch: Optional[int] = p_internal(48, default=None)
+    killed_at: Optional[datetime] = p_internal(49, default=None)
+    halted_at: Optional[datetime] = p_internal(50, default=None)
+    halted_epoch: Optional[int] = p_internal(51, default=None)
     # halted_on_trigger: ...
     terminated_at: Optional[datetime] = p_internal(53, default=None)
     terminated_epoch: Optional[int] = p_internal(54, default=None)

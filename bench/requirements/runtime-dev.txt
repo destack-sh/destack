@@ -48,6 +48,7 @@ certifi==2024.7.4
     #   httpx
     #   requests
     #   sentry-sdk
+    #   sherlock-project
 cffi==1.16.0
     # via
     #   cryptography
@@ -62,6 +63,8 @@ click==8.1.7
     #   magika
     #   pip-tools
     #   typer
+colorama==0.4.6
+    # via sherlock-project
 coloredlogs==15.0.1
     # via onnxruntime
 coverage==7.5.3
@@ -88,6 +91,8 @@ distro==1.9.0
     #   openai
 dropbox==11.36.2
 duckdb==1.0.0
+et-xmlfile==1.1.0
+    # via openpyxl
 execnet==2.1.1
     # via pytest-xdist
 feedparser==6.0.10
@@ -251,6 +256,8 @@ onnxruntime==1.18.1
     # via magika
 openai==1.35.13
 opencv-python==4.10.0.84
+openpyxl==3.1.5
+    # via sherlock-project
 opentelemetry-api==1.24.0
     # via
     #   opentelemetry-exporter-otlp-proto-grpc
@@ -275,6 +282,7 @@ packaging==24.0
     #   onnxruntime
     #   pytest
 pandas==2.2.2
+    # via sherlock-project
 pathspec==0.12.1
     # via black
 pillow==10.3.0
@@ -356,6 +364,8 @@ pyproject-hooks==1.1.0
 pyright==1.1.379
 pyrsistent==0.20.0
     # via jsonschema
+pysocks==1.7.1
+    # via sherlock-project
 pytest==8.2.0
     # via
     #   pytest-asyncio
@@ -402,7 +412,11 @@ requests==2.31.0
     #   pyairtable
     #   pygithub
     #   python-twitter-v2
+    #   requests-futures
     #   requests-oauthlib
+    #   sherlock-project
+requests-futures==1.0.1
+    # via sherlock-project
 requests-oauthlib==2.0.0
     # via
     #   atlassian-python-api
@@ -425,6 +439,7 @@ sgmllib3k==1.0.0
     # via feedparser
 shellingham==1.5.4
     # via typer
+sherlock-project==0.15.0
 six==1.16.0
     # via
     #   atlassian-python-api
@@ -445,6 +460,8 @@ sortedcontainers==2.4.0
 soupsieve==2.5
     # via beautifulsoup4
 sqlglot==25.10.0
+stem==1.8.2
+    # via sherlock-project
 stone==3.3.6
     # via dropbox
 structlog==24.2.0

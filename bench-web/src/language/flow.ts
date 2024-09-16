@@ -954,9 +954,7 @@ export function pathToSvg(path: Vector2[]): string {
 
 /** Gets the view width for a Step. */
 export function getStepWidth(step: StepData): number {
-  if (BOUNDARY_STEP_TYPES.includes(step.type)) return FLOW_GRID_STEP * 8;
-  else if (step.type == StepType.TEXT || step.type == StepType.CODE) return FLOW_GRID_STEP * 10;
-  else return FLOW_GRID_STEP * 10;
+  return FLOW_GRID_STEP * 10;
 }
 
 /** Estimate the view size of a Step. Width should be exact, but height is likely overestimated a bit. */

@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.09.11.3"
+VERSION = "2024.09.16.0"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -197,7 +197,6 @@ class BenchType(betterproto.Enum):
     RUN_SPAN = 10505
     RUN_EVENT = 10506
     BREAKPOINT = 10520
-    MODEL_OPTIONS = 10430
     LOG_INFO = 10550
     COLOR = 11000
     FONT = 11001
@@ -269,15 +268,16 @@ class BenchType(betterproto.Enum):
     TRIGGER_TYPE = 20520
     BREAKPOINT_KIND = 20530
     BREAKPOINT_ACTION = 20531
-    CODE_TYPE = 20540
-    MODEL_PROVIDER = 20550
-    MODEL_TYPE = 20551
-    STEP_TYPE = 20560
-    PIPE_TYPE = 20561
-    PIPE_FILTER_TYPE = 20562
-    PORT_TYPE = 20563
-    PORT_SIDE = 20564
-    NOTIFICATION_LEVEL = 20570
+    CACHE_BEHAVIOR = 20540
+    CODE_TYPE = 20560
+    MODEL_PROVIDER = 20570
+    MODEL_TYPE = 20571
+    STEP_TYPE = 20600
+    PIPE_TYPE = 20601
+    PIPE_FILTER_TYPE = 20602
+    PORT_TYPE = 20603
+    PORT_SIDE = 20604
+    NOTIFICATION_LEVEL = 20610
     SPACE_TYPE = 21000
     VIEW_TYPE = 21001
     VARIANT = 21002
@@ -325,6 +325,15 @@ class BreakpointKind(betterproto.Enum):
     FAIL_RUN = 2
     COMPLETE_RUN = 3
     CODE_LINE = 20
+
+
+class CacheBehavior(betterproto.Enum):
+    """How to handle caching."""
+
+    UNSPECIFIED = 0
+    NEVER = 1
+    ALWAYS = 2
+    INHERIT = 3
 
 
 class ChangeCategory(betterproto.Enum):
@@ -537,15 +546,16 @@ class EnumType(betterproto.Enum):
     TRIGGER_TYPE = 20520
     BREAKPOINT_KIND = 20530
     BREAKPOINT_ACTION = 20531
-    CODE_TYPE = 20540
-    MODEL_PROVIDER = 20550
-    MODEL_TYPE = 20551
-    STEP_TYPE = 20560
-    PIPE_TYPE = 20561
-    PIPE_FILTER_TYPE = 20562
-    PORT_TYPE = 20563
-    PORT_SIDE = 20564
-    NOTIFICATION_LEVEL = 20570
+    CACHE_BEHAVIOR = 20540
+    CODE_TYPE = 20560
+    MODEL_PROVIDER = 20570
+    MODEL_TYPE = 20571
+    STEP_TYPE = 20600
+    PIPE_TYPE = 20601
+    PIPE_FILTER_TYPE = 20602
+    PORT_TYPE = 20603
+    PORT_SIDE = 20604
+    NOTIFICATION_LEVEL = 20610
     SPACE_TYPE = 21000
     VIEW_TYPE = 21001
     VARIANT = 21002
@@ -990,7 +1000,6 @@ class ObjectType(betterproto.Enum):
     RUN_SPAN = 10505
     RUN_EVENT = 10506
     BREAKPOINT = 10520
-    MODEL_OPTIONS = 10430
     LOG_INFO = 10550
     COLOR = 11000
     FONT = 11001
@@ -1388,7 +1397,6 @@ class StructType(betterproto.Enum):
     RUN_SPAN = 10505
     RUN_EVENT = 10506
     BREAKPOINT = 10520
-    MODEL_OPTIONS = 10430
     LOG_INFO = 10550
     COLOR = 11000
     FONT = 11001
@@ -1923,15 +1931,6 @@ class LogInfoData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class ModelOptionsData(betterproto.Message):
-    """Options for running an ML model."""
-
-    metatype: "ObjectType" = betterproto.enum_field(1)
-    provider: Optional["ModelProvider"] = betterproto.enum_field(30, optional=True)
-    model: Optional["ModelType"] = betterproto.enum_field(31, optional=True)
-
-
-@dataclass(eq=False, repr=False)
 class NodeReferenceData(betterproto.Message):
     """
     A plain reference to a Node.
@@ -2178,10 +2177,7 @@ class RunFrameData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class RunOptionsData(betterproto.Message):
-    """
-    Options for running something.
-     Limits are per top level run context (i.e. the root Run in some Session).
-    """
+    """Options for running something."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     max_runs: Optional[int] = betterproto.int32_field(30, optional=True)
@@ -2192,10 +2188,12 @@ class RunOptionsData(betterproto.Message):
     retry_interval: Optional[float] = betterproto.float_field(40, optional=True)
     backoff: Optional[float] = betterproto.float_field(41, optional=True)
     max_retry_interval: Optional[float] = betterproto.float_field(42, optional=True)
-    jitter: Optional[float] = betterproto.float_field(43, optional=True)
     retry_on: List["RunErrorType"] = betterproto.enum_field(44)
     breakpoints: List["BreakpointData"] = betterproto.message_field(50)
-    model_options: Optional["ModelOptionsData"] = betterproto.message_field(60, optional=True)
+    cache_behavior: Optional["CacheBehavior"] = betterproto.enum_field(60, optional=True)
+    cache_expiry: Optional[timedelta] = betterproto.message_field(61, optional=True)
+    model_provider: Optional["ModelProvider"] = betterproto.enum_field(70, optional=True)
+    model_type: Optional["ModelType"] = betterproto.enum_field(71, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -2769,10 +2767,7 @@ class FieldData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class FileData(betterproto.Message):
-    """
-    A file stored somewhere (like a Drive, orexternally).
-     De-duplicated so that there's only one File per unique file content for our own files.
-    """
+    """A file stored somewhere (like in a Drive, or externally)."""
 
     metatype: "ObjectType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
@@ -3231,16 +3226,16 @@ class RunData(betterproto.Message):
     options: Optional["RunOptionsData"] = betterproto.message_field(38, optional=True)
     status: "RunStatus" = betterproto.enum_field(40)
     duration: Optional[float] = betterproto.float_field(41, optional=True)
-    attempts: List["RunAttemptData"] = betterproto.message_field(42)
-    error: Optional["RunErrorData"] = betterproto.message_field(43, optional=True)
-    scheduled_at: Optional[datetime] = betterproto.message_field(44, optional=True)
-    scheduled_epoch: Optional[int] = betterproto.int32_field(45, optional=True)
-    started_at: Optional[datetime] = betterproto.message_field(46, optional=True)
-    started_epoch: Optional[int] = betterproto.int32_field(47, optional=True)
-    killed_at: Optional[datetime] = betterproto.message_field(48, optional=True)
-    halted_at: Optional[datetime] = betterproto.message_field(49, optional=True)
-    halted_epoch: Optional[int] = betterproto.int32_field(50, optional=True)
-    halted_on_run_ptr: Optional["NodeReferenceData"] = betterproto.message_field(51, optional=True)
+    cached_duration: Optional[float] = betterproto.float_field(42, optional=True)
+    attempts: List["RunAttemptData"] = betterproto.message_field(43)
+    error: Optional["RunErrorData"] = betterproto.message_field(44, optional=True)
+    scheduled_at: Optional[datetime] = betterproto.message_field(45, optional=True)
+    scheduled_epoch: Optional[int] = betterproto.int32_field(46, optional=True)
+    started_at: Optional[datetime] = betterproto.message_field(47, optional=True)
+    started_epoch: Optional[int] = betterproto.int32_field(48, optional=True)
+    killed_at: Optional[datetime] = betterproto.message_field(49, optional=True)
+    halted_at: Optional[datetime] = betterproto.message_field(50, optional=True)
+    halted_epoch: Optional[int] = betterproto.int32_field(51, optional=True)
     terminated_at: Optional[datetime] = betterproto.message_field(53, optional=True)
     terminated_epoch: Optional[int] = betterproto.int32_field(54, optional=True)
     inputs_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
@@ -4127,7 +4122,7 @@ class ResumeRunRequest(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class ResumeRunResponse(betterproto.Message):
-    is_processed: bool = betterproto.bool_field(1)
+    pass
 
 
 @dataclass(eq=False, repr=False)
@@ -5543,7 +5538,6 @@ AnyStructData = Union[
     RunSpanData,
     RunEventData,
     BreakpointData,
-    ModelOptionsData,
     LogInfoData,
     ColorData,
     FontData,
