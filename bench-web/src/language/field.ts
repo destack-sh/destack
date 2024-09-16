@@ -288,6 +288,24 @@ export function nodeMatchesConstraint(node: AnyNodeData, constraint: TypeConstra
   }
 }
 
+/** Whether the given type supports lists :ListableTypes. */
+export function supportsList(type: { kind: TypeKind } & Partial<TypeInfoData>): boolean {
+  if ([TypeKind.NODE, TypeKind.BASED_NODE, TypeKind.ENUM, TypeKind.OBJECT].includes(type.kind)) return true;
+  else if (
+    [
+      PrimitiveType.INT32,
+      PrimitiveType.INT64,
+      PrimitiveType.FLOAT32,
+      PrimitiveType.FLOAT64,
+      PrimitiveType.STRING,
+      PrimitiveType.UUID,
+      PrimitiveType.DATETIME,
+    ].includes(type.primitiveType!)
+  )
+    return true;
+  else return false;
+}
+
 // NOTE :Architecture: :TypeResolution in frontend should probably happen reactively in a dedicated.. something.
 
 /** Resolves the actual type identity :TypeResolution */
