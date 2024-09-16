@@ -1,8 +1,17 @@
 // TODO :Architecture: figure out proper all-encompassing event system/bus
 
-import { Orientation, Variant, ViewData, ViewType, type NodeReferenceData, type NodeType } from "@/proto/wire";
+import {
+  Orientation,
+  TypeInfoData,
+  Variant,
+  ViewData,
+  ViewType,
+  type NodeReferenceData,
+  type NodeType,
+} from "@/proto/wire";
 import type { TypedNodeReferenceData } from "@/proto/wiring";
 import type { ActionMapImplementation } from "@/ui/action";
+import { LISTABLE_VIEW_TYPES } from "@/ui/view";
 import { Casing, toCasing } from "@/utils/string";
 import { v4 } from "uuid";
 import { computed, getCurrentInstance, type ComponentInstance, type FunctionalComponent, type Ref } from "vue";
@@ -59,9 +68,11 @@ export type ViewExposed = (
 
 // TODO :Architecture :Performance: revisit content view wrapper for vapor mode
 export const ViewContentWrapper: FunctionalComponent<{
+  type?: ViewType;
   title?: string;
   variant?: Variant;
   orientation?: Orientation;
+  valueType?: TypeInfoData;
 }> = (props, { slots }) => {
   const classBase =
     props.title == null
@@ -69,18 +80,18 @@ export const ViewContentWrapper: FunctionalComponent<{
       : props.orientation === Orientation.HORIZONTAL
         ? "flex flex-row items-center justify-between gap-x-5"
         : "flex flex-col";
-
   const labelClass =
     props.variant !== Variant.STEALTH ? "mb-0.5 block font-semibold text-gray-900" : "mb-0.5 block text-gray-700";
+  const isUnsupported = props.valueType?.isList && !LISTABLE_VIEW_TYPES.has(props.type!);
 
   return (
     <div class={classBase}>
       {props.title && <label class={labelClass}>{props.title}</label>}
-      {slots.default ? slots.default() : null}
+      {isUnsupported ? <div class="text-red-500">???</div> : slots.default ? slots.default() : null}
     </div>
   );
 };
-ViewContentWrapper.props = ["title", "variant", "orientation"];
+ViewContentWrapper.props = ["type", "title", "variant", "orientation", "valueType"];
 
 /** Creates an id for an 'anonymous' view */
 function deriveViewId(selfId: string, name: string): string {

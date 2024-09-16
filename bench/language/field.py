@@ -376,6 +376,8 @@ class TypeInfoBase(BuiltinObject):
         ):
             actual_kind = self.kind.name if self.kind else "None"
             invalid(self, f"kind is {actual_kind} but should be {implied_kind.name}", None)
+        if self.is_list and not self.supports_list:
+            invalid(self, "list type is not supported", None)
 
     def __call__(self, *args, **kwargs) -> "SomeValue":
         """Converts the given value to this type."""
@@ -397,6 +399,29 @@ class TypeInfoBase(BuiltinObject):
             return coerce_value_object_scalar(kwargs, typ, as_packed=True)
 
         raise ValueError(f"cannot create {self!r} (resolved={typ!r}) directly")
+
+    @property
+    def supports_list(self) -> bool:  # :ListableTypes
+        """Whether this type supports lists."""
+        if self.kind in (  # noqa: SIM114
+            TypeKind.NODE,
+            TypeKind.BASED_NODE,
+            TypeKind.ENUM,
+            TypeKind.OBJECT,
+        ):
+            return True
+        elif self.primitive_type in (  # noqa: SIM103
+            PrimitiveType.FLOAT32,
+            PrimitiveType.FLOAT64,
+            PrimitiveType.INT32,
+            PrimitiveType.INT64,
+            PrimitiveType.STRING,
+            PrimitiveType.UUID,
+            PrimitiveType.DATETIME,
+        ):
+            return True
+        else:
+            return False
 
     @property
     def identity_key(self) -> str:
