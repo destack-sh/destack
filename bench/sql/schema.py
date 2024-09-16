@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.09.11.3"
+VERSION = "2024.09.16.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1246,6 +1246,7 @@ RUN_TABLE = Table(
         Column("options", PrimitiveType.JSON, is_nullable=True),
         Column("status", PrimitiveType.INT16, default="1"),
         Column("duration", PrimitiveType.FLOAT32, is_nullable=True),
+        Column("cached_duration", PrimitiveType.FLOAT32, is_nullable=True),
         Column("attempts", PrimitiveType.JSON, is_array=True),
         Column("error", PrimitiveType.JSON, is_nullable=True),
         Column("scheduled_at", PrimitiveType.DATETIME, is_nullable=True),
@@ -1255,8 +1256,6 @@ RUN_TABLE = Table(
         Column("killed_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("halted_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("halted_epoch", PrimitiveType.INT32, is_nullable=True),
-        Column("halted_on_run_id", PrimitiveType.UUID, is_nullable=True),
-        Column("halted_on_run_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("terminated_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("terminated_epoch", PrimitiveType.INT32, is_nullable=True),
         Column("inputs_packed", PrimitiveType.JSON, is_nullable=True),

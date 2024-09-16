@@ -92,6 +92,7 @@ export const EXPOSED_BLOCK_TYPES = [
   BlockType.VIEW,
   BlockType.VALUE,
 ];
+export const EXPOSED_STEP_TYPES = [StepType.START, StepType.COMPLETE, StepType.CODE, StepType.TEXT, StepType.BLOCK];
 export const EXPOSED_STRUCT_TYPES = [
   // core
   StructType.PATH,
@@ -123,7 +124,6 @@ export const EXPOSED_STRUCT_TYPES = [
   StructType.RUN_FRAME,
   StructType.RUN_TRACE,
   StructType.BREAKPOINT,
-  StructType.MODEL_OPTIONS,
   StructType.LOG_INFO,
 ];
 export const EXPOSED_PRIMITIVE_TYPES = [
@@ -146,6 +146,7 @@ export const EXPOSED_ANCHORS = [
 export const EXPOSED_PIPE_FILTER_TYPES = [PipeFilterType.IS_TRUTHY, PipeFilterType.IS_FALSY, PipeFilterType.HAS_ERROR];
 export const FILTERED_ENUMS: Partial<Record<EnumType, number[]>> = {
   [EnumType.BLOCK_TYPE]: EXPOSED_BLOCK_TYPES,
+  [EnumType.STEP_TYPE]: EXPOSED_STEP_TYPES,
   [EnumType.STRUCT_TYPE]: EXPOSED_STRUCT_TYPES,
   [EnumType.OBJECT_TYPE]: [...NODE_TYPES, ...EXPOSED_STRUCT_TYPES],
   [EnumType.BENCH_TYPE]: [...NODE_TYPES, ...EXPOSED_STRUCT_TYPES, ...ENUM_TYPES],

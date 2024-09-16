@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.09.11.3"  # auto change via version script
+VERSION = "2024.09.16.0"  # auto change via version script
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -137,15 +137,16 @@ class EnumType(IdEnum):
     TRIGGER_TYPE = 20520
     BREAKPOINT_KIND = 20530
     BREAKPOINT_ACTION = 20531
-    CODE_TYPE = 20540
-    MODEL_PROVIDER = 20550
-    MODEL_TYPE = 20551
-    STEP_TYPE = 20560
-    PIPE_TYPE = 20561
-    PIPE_FILTER_TYPE = 20562
-    PORT_TYPE = 20563
-    PORT_SIDE = 20564
-    NOTIFICATION_LEVEL = 20570
+    CACHE_BEHAVIOR = 20540
+    CODE_TYPE = 20560
+    MODEL_PROVIDER = 20570
+    MODEL_TYPE = 20571
+    STEP_TYPE = 20600
+    PIPE_TYPE = 20601
+    PIPE_FILTER_TYPE = 20602
+    PORT_TYPE = 20603
+    PORT_SIDE = 20604
+    NOTIFICATION_LEVEL = 20610
 
     # view
     SPACE_TYPE = 21000
@@ -366,7 +367,6 @@ class StructType(IdEnum):
     RUN_SPAN = 10505
     RUN_EVENT = 10506
     BREAKPOINT = 10520
-    MODEL_OPTIONS = 10430
     LOG_INFO = 10550
 
     # space/views

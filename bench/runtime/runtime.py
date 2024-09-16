@@ -114,8 +114,8 @@ class Runtime:
                 subtype = CodeType.SCRIPT
         elif kind == RunKind.TEXT:
             text = text or node.text
-            if options and options.model_options:
-                subtype = options.model_options.provider
+            if options and options.model_provider:
+                subtype = options.model_provider
         elif kind == RunKind.STEP:
             assert isinstance(node, Step), f"unexpected node type: {node!r}"
             subtype = node.type

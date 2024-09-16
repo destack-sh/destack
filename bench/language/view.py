@@ -148,7 +148,7 @@ class Variant(IdEnum):
     SECONDARY = 2
     COMPACT = 3
     STEALTH = 4
-    # ... may have more later
+    # ...
 
 
 @enum_(EnumType.COLOR_TYPE)
