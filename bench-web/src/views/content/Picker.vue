@@ -2,6 +2,7 @@
 import {
   BenchType,
   BoxData,
+  IconData,
   NodeReferenceData,
   NodeType,
   ObjectType,
@@ -15,7 +16,7 @@ import {
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { ICON_BY_BENCH_TYPE, ICON_BY_BLOCK_TYPE, IconInline, makeIcon } from "@/ui/icon";
 import { isEnumType, isNodeType } from "@/language/const";
-import type { NodeItem, TypeItem } from "@/ui/search";
+import type { NodeItem, SearchItem, TypeItem } from "@/ui/search";
 import { enumIndex, graphIndex, typeIndex, useSearch, type EnumOptionItem, type SearchIndex } from "@/ui/search";
 import { canvas, pkgGraph } from "@/system/space";
 import { ScrollbarWidth } from "@/ui/layout";
@@ -91,12 +92,21 @@ const facetName = computed(() => {
   }
 });
 // NOTE: technically modelValueTitle/Icon aren't fully reactive (requires modelValue to change)
-const modelValueTitle = computed(() =>
-  props.modelValue != null ? index.value.fromValue(props.modelValue)?.title : null,
-);
-const modelValueIcon = computed(() =>
-  props.modelValue != null ? index.value.fromValue(props.modelValue)?.icon : null,
-);
+const hasModelValue = computed(() => {
+  if (props.modelValue == null) return false;
+  if (props.valueType?.isList) return (props.modelValue as any[]).length > 0;
+  else return true;
+});
+const modelValueVignettes: Ref<{ title: string | undefined; icon: IconData | undefined }[]> = computed(() => {
+  if (!hasModelValue.value) return [];
+  if (!props.valueType?.isList) {
+    const value = index.value.fromValue(props.modelValue) as SearchItem | null;
+    return [{ title: value?.title, icon: (value as any)?.icon }];
+  } else {
+    const values = (props.modelValue as any[]).map((v) => index.value.fromValue(v) as SearchItem | null);
+    return values.map((v) => ({ title: v?.title, icon: (v as any)?.icon }));
+  }
+});
 
 type PickerItem = EnumOptionItem | NodeItem | TypeItem;
 const index: Ref<SearchIndex<any>> = computed(() => {
@@ -143,20 +153,40 @@ watch(results, () => {
 });
 
 function isSelected(value: PickerItem) {
-  return props.modelValue != null && index.value.valueEquals(value, props.modelValue);
+  return hasModelValue.value && index.value.valueEquals(value, props.modelValue);
 }
 function isActive(item: PickerItem) {
   return item.id === activeResultId.value;
 }
-function fire(option: string | PickerItem | undefined) {
+function select(option: string | PickerItem | undefined) {
   if (typeof option == "string") option = results.value.find((r) => r.id === option);
   if (option == null) return;
   const value = index.value.toValue(option);
-  apply(value);
+  if (value != null) {
+    if (!props.valueType?.isList) {
+      apply(value);
+    } else if (!isSelected(option)) {
+      apply([...((props.modelValue as any[]) ?? []), value]);
+    }
+  }
+}
+function deselect(option: PickerItem | number) {
+  if (!props.valueType?.isList) {
+    apply(undefined);
+  } else if (hasModelValue.value) {
+    if (typeof option == "number") {
+      apply((props.modelValue as any[]).filter((v, i) => i != option));
+    } else {
+      apply((props.modelValue as any[]).filter((v) => !index.value.valueEquals(v, option)));
+    }
+  }
 }
 function apply(value: any) {
   emit("update:modelValue", value ?? undefined);
   emit("apply", value ?? undefined);
+}
+function clear() {
+  apply(undefined);
 }
 
 function focus(anchor?: "previous" | "next" | FocusAnchor | NodeReferenceData) {
@@ -180,11 +210,11 @@ canvas.registerView(self, id);
 defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPACT, Variant.STEALTH], focus });
 </script>
 <template>
-  <ViewContentWrapper v-bind="props">
+  <ViewContentWrapper :type="ViewType.PICKER" v-bind="props">
     <!-- TODO :Incomplete: Picker.isDisabled/... -->
     <!-- Dropdown -->
     <!-- NOTE: dropdown button style should match inline combobox header style since we overlay them -->
-    <button
+    <div
       v-if="!isInline && variant != Variant.COMPACT"
       ref="buttonRef"
       v-menu="
@@ -201,13 +231,16 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
           onApply: (value: any) => apply(value),
         })
       "
+      role="button"
       :disabled="props.isDisabled || !props.isInput"
-      class="group flex w-full flex-row items-center rounded border border-gray-200 bg-white px-2.5 py-1 hover:border-gray-300 data-[popover=true]:border-gray-300"
+      class="group flex w-full flex-row flex-wrap items-center gap-y-1 rounded border border-gray-200 bg-white px-2.5 py-1 hover:border-gray-300 data-[popover=true]:border-gray-300"
     >
       <!-- Current value -->
-      <template v-if="modelValue != null">
-        <IconInline v-if="modelValueIcon" v-bind="modelValueIcon" class="mr-1.5 w-5 text-gray-700" />
-        <span class="truncate">{{ modelValueTitle ?? "???" }}</span>
+      <template v-if="hasModelValue">
+        <button v-for="(v, i) in modelValueVignettes" :key="i" class="mr-2 flex flex-row items-center">
+          <IconInline v-if="v.icon" v-bind="v.icon" class="mr-1.5 w-5 text-gray-700" />
+          <span class="truncate">{{ v.title ?? "???" }}</span>
+        </button>
       </template>
       <template v-else>
         <IconInline v-if="facetIcon" v-bind="facetIcon" class="mr-1.5 w-5 text-gray-400" />
@@ -217,15 +250,15 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
       <div v-if="!props.isDisabled && props.isInput" class="ml-auto flex-shrink-0 pl-1.5">
         <!-- Clear -->
         <button
-          v-if="modelValue != null && !valueType?.isRequired"
+          v-if="hasModelValue && !valueType?.isRequired"
           class="mr-2 text-gray-400 opacity-0 hover:text-primary-900 group-hover:opacity-100"
-          @click.stop="emit('update:modelValue', undefined)"
+          @click.stop="clear"
         >
           <i class="fas fa-xmark" />
         </button>
         <i class="fas fa-caret-down ml-auto text-gray-400 hover:text-primary-900" />
       </div>
-    </button>
+    </div>
 
     <!-- Inline Multi-Toggle -->
     <div
@@ -240,7 +273,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
         :data-selected="isSelected(item)"
         :disabled="props.isDisabled"
         class="group flex-1 flex-shrink-0 truncate rounded px-0.5 text-center font-medium shadow-gray-200 hover:text-primary-900 enabled:text-gray-600 disabled:text-gray-400 data-[selected=true]:bg-white data-[selected=true]:text-gray-700 data-[selected=true]:shadow-sm"
-        @click.prevent="!isSelected(item) || valueType?.isRequired ? fire(item) : apply(undefined)"
+        @click.prevent="!isSelected(item) || valueType?.isRequired ? select(item) : clear()"
       >
         <IconInline
           v-if="variant == Variant.STEALTH && item.icon"
@@ -258,22 +291,35 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
     <!-- Inline Combobox -->
     <div v-else-if="isInline" :style="{ width: width + 'px' }">
       <!-- Header -->
-      <div class="flex h-[30px] w-full flex-row items-center border-b border-gray-200 px-3 py-1">
-        <IconInline
-          v-bind="modelValueIcon ?? icon ?? makeIcon({ faName: 'fas fa-caret-circle-down' })"
-          class="mr-2 w-5 text-gray-700"
-        />
+      <div class="flex w-full flex-row flex-wrap items-center gap-y-1 border-b border-gray-200 px-2.5 py-1">
+        <!-- Current value -->
+        <template v-if="valueType?.isList">
+          <button v-for="(v, i) in modelValueVignettes" :key="i" class="mr-2 flex flex-row items-center">
+            <IconInline v-if="v.icon" v-bind="v.icon" class="mr-1.5 w-5 text-gray-700" />
+            <span class="truncate">{{ v.title ?? "???" }}</span>
+            <!-- Deselect -->
+            <button class="ml-1 text-gray-400 hover:text-primary-900" @click.stop="deselect(i)">
+              <i class="fas fa-xmark" />
+            </button>
+          </button>
+        </template>
         <!-- Query -->
-        <input
-          ref="queryRef"
-          v-model="query"
-          type="text"
-          class="w-full border-0 bg-transparent p-0 placeholder-gray-500 outline-none ring-0 focus:ring-0"
-          :placeholder="placeholder ?? modelValueTitle ?? `Select ${facetName ?? '???'}`"
-          @keydown.enter.stop.prevent="activeResultId && fire(activeResultId)"
-          @keydown.up.stop.prevent="focus('previous')"
-          @keydown.down.stop.prevent="focus('next')"
-        />
+        <span class="flex flex-row items-center">
+          <IconInline
+            v-bind="icon ?? makeIcon({ faName: 'fas fa-caret-circle-down' })"
+            class="mr-2 w-5 text-gray-700"
+          />
+          <input
+            ref="queryRef"
+            v-model="query"
+            type="text"
+            class="w-full border-0 bg-transparent p-0 placeholder-gray-500 outline-none ring-0 focus:ring-0"
+            :placeholder="placeholder ?? `Select ${facetName ?? '???'}`"
+            @keydown.enter.stop.prevent="activeResultId && select(activeResultId)"
+            @keydown.up.stop.prevent="focus('previous')"
+            @keydown.down.stop.prevent="focus('next')"
+          />
+        </span>
       </div>
       <!-- Body -->
       <Scroll
@@ -290,10 +336,10 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
             <li
               :ref="(ref?: any) => (ref != null ? (resultsRefs[item.id] = ref) : delete resultsRefs[item.id])"
               role="menuitem"
-              class="mx-0.5 mb-[1px] mr-1.5 mt-[1px] flex h-[28px] max-w-full cursor-pointer flex-row items-center rounded border border-transparent px-2 hover:bg-gray-100 data-[active=true]:border-primary-900"
+              class="mx-0.5 mb-[1px] mr-1.5 mt-[1px] flex h-[28px] max-w-full cursor-pointer flex-row items-center rounded border border-transparent px-1.5 hover:bg-gray-100 data-[active=true]:border-primary-900"
               :data-selected="isSelected(item)"
               :data-active="isActive(item)"
-              @click.prevent="fire(item)"
+              @click.prevent="select(item)"
             >
               <!-- Content -->
               <IconInline

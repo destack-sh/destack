@@ -12,6 +12,7 @@ import {
 import type { TypedNodeReferenceData } from "@/proto/wiring";
 import type { ActionMapImplementation } from "@/ui/action";
 import { LISTABLE_VIEW_TYPES } from "@/ui/view";
+import { IS_DEV } from "@/utils/globals";
 import { Casing, toCasing } from "@/utils/string";
 import { v4 } from "uuid";
 import { computed, getCurrentInstance, type ComponentInstance, type FunctionalComponent, type Ref } from "vue";
@@ -87,7 +88,11 @@ export const ViewContentWrapper: FunctionalComponent<{
   return (
     <div class={classBase}>
       {props.title && <label class={labelClass}>{props.title}</label>}
-      {isUnsupported ? <div class="text-red-500">???</div> : slots.default ? slots.default() : null}
+      {isUnsupported ? (
+        <div class="text-red-500">{IS_DEV ? (props.type ?? '<no view type>') : "???"}</div>
+      ) : slots.default ? (
+        slots.default()
+      ) : null}
     </div>
   );
 };

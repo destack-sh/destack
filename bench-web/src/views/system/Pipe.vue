@@ -29,6 +29,7 @@ const pathColorHex = computed(() => getColorHex(pipe.value?.color ?? ColorType.G
 
 const isInspected = computed(() => inspectionPtr.value?.id == pipePtr.value?.id);
 
+// nocheckin: path rendering performance
 canvas.registerView(self, id);
 defineExpose<ViewExposed>({ self, id });
 </script>
