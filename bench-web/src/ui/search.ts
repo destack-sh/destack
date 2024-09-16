@@ -291,6 +291,7 @@ export function enumIndex(idx: { id: string; enumTypes: EnumType[]; enumValues?:
  * Search the available type identities (built-ins plus from graph).
  */
 export function typeIndex(idx: {
+  // nocheckin: enum types
   id: string;
   graph: ReadNodeGraph;
   skipDepth?: number;

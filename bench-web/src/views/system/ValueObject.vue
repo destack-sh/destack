@@ -149,13 +149,13 @@ defineExpose<ViewExposed>({ self, id, focus });
           :key="field.id"
           class="mx-auto w-full"
           :class="[
-            isFullWidth ? 'flex flex-col' : 'flex flex-row flex-wrap items-center gap-x-[10%]',
+            isFullWidth ? 'flex flex-col' : 'flex flex-row items-center gap-x-[10%]',
             variant != Variant.STEALTH ? 'px-4' : '',
           ]"
           :style="{ minWidth: MIN_WIDTH + 'px' }"
         >
           <!-- Field -->
-          <span class="w-[100px] self-start">
+          <span class="w-[100px]">
             <span class="max-w-full truncate py-1 font-medium text-gray-900">{{ field.name }}</span>
           </span>
           <!-- Value -->

@@ -401,9 +401,9 @@ export function getInspectionLayout(
           log.warn("lang.missingView", property); // will indicate no view for value in UI
           continue;
         }
-        inspectedProperty.viewType = valueView.viewType;
-        inspectedProperty.props = valueView.props;
-        inspectedProperty.isFullWidth = FULL_WIDTH_VIEW_TYPES.includes(valueView.viewType);
+        inspectedProperty.viewType = valueView.type;
+        inspectedProperty.props = valueView;
+        inspectedProperty.isFullWidth = FULL_WIDTH_VIEW_TYPES.includes(valueView.type!);
         inspectedProperties.push(inspectedProperty);
       }
     }

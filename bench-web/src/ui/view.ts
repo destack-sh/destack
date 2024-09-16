@@ -231,15 +231,12 @@ export const VIEW_TYPE_BY_PRIMITIVE_TYPE: Partial<Record<PrimitiveType, ViewType
   [PrimitiveType.INTERVAL]: ViewType.CALENDAR,
   [PrimitiveType.JSON]: ViewType.JSON,
 };
-export const LISTABLE_VIEW_TYPES = new Set([ViewType.PICKER, ViewType.FILE, ViewType.OBJECT]);
+export const LISTABLE_VIEW_TYPES = new Set([ViewType.PICKER, ViewType.OBJECT]); // nocheckin: list pickers
 
-export function getViewForValueType(type: Omit<TypeIdentity, "kind"> & Partial<TypeInfoData>): {
-  viewType: ViewType;
-  props?: ViewProps;
-} | null {
+export function getViewForValueType(type: Omit<TypeIdentity, "kind"> & Partial<TypeInfoData>): ViewProps | null {
   if (type.kind == TypeKind.OBJECT) {
     // object
-    return { viewType: ViewType.OBJECT, props: { valueType: type as TypeInfoData } };
+    return { type: ViewType.OBJECT, valueType: type as TypeInfoData };
   } else if (type.benchType != null) {
     if (VIEW_TYPE_BY_BENCH_TYPE[type.benchType] != null) {
       if (
@@ -249,39 +246,34 @@ export function getViewForValueType(type: Omit<TypeIdentity, "kind"> & Partial<T
       ) {
         // specific file type view
         return {
-          viewType: VIEW_TYPE_BY_FILE_TYPE[type.constraint.fileType]!,
-          props: {
-            valueType: makeTypeInfo(type),
-            isInline: [FileType.IMAGE, FileType.AUDIO, FileType.VIDEO].includes(type.constraint.fileType),
-          },
+          type: VIEW_TYPE_BY_FILE_TYPE[type.constraint.fileType]!,
+          valueType: makeTypeInfo(type),
+          isInline: [FileType.IMAGE, FileType.AUDIO, FileType.VIDEO].includes(type.constraint.fileType),
         };
       } else if (type.benchType == BenchType.FILE) {
         // generic file type view
-        return { viewType: ViewType.FILE, props: { valueType: makeTypeInfo(type), isInline: true } };
+        return { type: ViewType.FILE, valueType: makeTypeInfo(type), isInline: true };
       }
 
       // specific bench type view
-      return { viewType: VIEW_TYPE_BY_BENCH_TYPE[type.benchType]!, props: { valueType: makeTypeInfo(type) } };
+      return { type: VIEW_TYPE_BY_BENCH_TYPE[type.benchType]!, valueType: makeTypeInfo(type) };
     } else if (isEnumType(type.benchType)) {
       // enum type -> picker
-      if (getEnumOptions(type.benchType).length <= 5 && ICONS_BY_ENUM_TYPE[type.benchType] != null) {
-        // prefer inline picker for small enums
+      if (!type.isList && getEnumOptions(type.benchType).length <= 5 && ICONS_BY_ENUM_TYPE[type.benchType] != null) {
+        // prefer inline picker for small scalar enums
         const variant = ICONS_BY_ENUM_TYPE[type.benchType] != null ? Variant.STEALTH : Variant.COMPACT;
-        return {
-          viewType: ViewType.PICKER,
-          props: { valueType: makeTypeInfo(type), variant, isInline: true },
-        };
+        return { type: ViewType.PICKER, valueType: makeTypeInfo(type), variant, isInline: true };
       } else {
         // regular picker
-        return { viewType: ViewType.PICKER, props: { valueType: makeTypeInfo(type) } };
+        return { type: ViewType.PICKER, valueType: makeTypeInfo(type) };
       }
     } else if (isNodeType(type.benchType)) {
       // node picker
-      return { viewType: ViewType.PICKER, props: { valueType: makeTypeInfo(type) } };
+      return { type: ViewType.PICKER, valueType: makeTypeInfo(type) };
     }
   } else if (type.primitiveType != null && VIEW_TYPE_BY_PRIMITIVE_TYPE[type.primitiveType] != null) {
     // primitive
-    return { viewType: VIEW_TYPE_BY_PRIMITIVE_TYPE[type.primitiveType!]!, props: { valueType: makeTypeInfo(type) } };
+    return { type: VIEW_TYPE_BY_PRIMITIVE_TYPE[type.primitiveType!]!, valueType: makeTypeInfo(type) };
   }
 
   return null;
@@ -334,9 +326,9 @@ export function getFieldViews(
       isSet,
       value,
       prepareUpdate,
-      viewType: view?.viewType,
-      viewProps: { ...view?.props, isInput: options?.isInput },
-      isFullWidth: FULL_WIDTH_VIEW_TYPES.includes(view?.viewType!),
+      viewType: view?.type,
+      viewProps: { ...view, isInput: options?.isInput },
+      isFullWidth: FULL_WIDTH_VIEW_TYPES.includes(view?.type!),
     });
   }
   return fieldViews;

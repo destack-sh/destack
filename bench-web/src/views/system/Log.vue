@@ -86,9 +86,9 @@ const properties = computed(() => {
       property,
       type: propertyType,
       isKernel: property.isKernel ?? false,
-      viewType: propertyView?.viewType,
-      viewProps: { ...propertyView?.props, isInput: false },
-      isFullWidth: propertyView != null && FULL_WIDTH_VIEW_TYPES.includes(propertyView?.viewType),
+      viewType: propertyView?.type,
+      viewProps: { ...propertyView, isInput: false },
+      isFullWidth: propertyView != null && FULL_WIDTH_VIEW_TYPES.includes(propertyView?.type!),
       oldValue: (oldNode.value as any)[propertyName],
       newValue: (newNode.value as any)[propertyName],
     };
