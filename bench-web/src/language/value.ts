@@ -52,7 +52,7 @@ function packValueScalar(value: ScalarValue, type: TypeIdentity): JsonValue {
       }
       return Number(value);
     } else if (type.primitiveType == PrimitiveType.JSON) {
-      // auto-unpack proto json
+      // auto-unpack proto json :ProtoStructMapping
       if (isProtoJson(value)) {
         return ProtoStruct.toJson(value);
       } else {
@@ -301,7 +301,7 @@ export function packValue(
   if (type.kind == TypeKind.ALIAS) {
     throw new Error(`unresolved type ${describeTypeIdentity(type)}`);
   } else if (type.kind == TypeKind.OBJECT) {
-    // nested object
+    // nested value object
     if (options.graph == null) throw new Error(`missing graph to pack object type ${describeTypeIdentity(type)}`);
     if (value == null) {
       return null;
@@ -319,7 +319,7 @@ export function packValue(
       return valuePacked;
     }
   } else {
-    // wrap scalar
+    // scalar
     let valuePacked;
     if (value == null) {
       valuePacked = null;
@@ -333,17 +333,6 @@ export function packValue(
     }
     return valuePacked;
   }
-}
-
-export function packValueJson(
-  value: any,
-  type: TypeIdentity,
-  options: { graph?: ReadNodeGraph; wrapScalar: boolean; recurseValueObject: boolean } = {
-    wrapScalar: true,
-    recurseValueObject: true,
-  },
-): ProtoStruct {
-  return ProtoStruct.fromJson(packValue(value, type, options));
 }
 
 /**
@@ -366,7 +355,7 @@ export function unpackValue(
   if (type.kind == TypeKind.ALIAS) {
     throw new Error(`unresolved type ${describeTypeIdentity(type)}`);
   } else if (type.kind == TypeKind.OBJECT) {
-    // nested object
+    // nested value object
     if (options.graph == null) {
       throw new Error(
         `missing graph to unpack object type ${describeTypeIdentity(type)}: ${JSON.stringify(valuePacked)}`,
@@ -388,7 +377,7 @@ export function unpackValue(
       );
     }
   } else {
-    // unwrap scalar
+    // scalar
     if (valuePacked == null) {
       return null;
     }

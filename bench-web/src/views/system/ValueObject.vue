@@ -6,6 +6,7 @@ import {
   IconData,
   NodeType,
   ObjectType,
+  TypeKind,
   Variant,
   ViewData,
   ViewType,
@@ -27,6 +28,7 @@ import {
 import { getViewComponent, hasViewComponent } from "@/views/registry";
 import { computed, ref, toRef, type Ref } from "vue";
 import { getTitleField } from "@/language/field";
+import { packValue, unpackValue } from "@/language/value";
 
 const MIN_WIDTH = 320;
 const DEFAULT_WIDTH = 280;
@@ -59,7 +61,7 @@ const baseType = pkgGraph.getRef(baseTypePtr);
 const fields = pkgGraph.getChildrenRef(baseType, NodeType.FIELD); // these need to be resolved later :TypeResolution
 const titleField = computed(() => getTitleField(fields.value));
 const fieldViews = computed(() =>
-  getFieldViews(fields.value, focusedValue.value, pkgGraph, {
+  getFieldViews(fields.value, pkgGraph, {
     zones: [props.valueType?.baseFieldZone ?? FieldZone.MEMBER],
     isInput: props.isInput,
   }),
@@ -103,7 +105,7 @@ function apply(value: any) {
   emit("apply", value);
 }
 function clear() {
-  apply(undefined);
+  apply(props.valueType?.isList ? [] : undefined);
 }
 
 canvas.registerView(self, id);
@@ -178,11 +180,17 @@ defineExpose<ViewExposed>({ self, id, focus });
           <button
             v-for="(v, i) in values"
             :key="i"
-            class="mr-2 flex flex-row items-center"
+            class="mr-2 flex flex-row items-center rounded hover:bg-gray-100 px-0.5"
             @click.stop="activeValueIdx = i"
           >
-            <IconInline v-bind="facetIcon" class="mr-1.5 w-5 text-center text-gray-700" />
-            <span class="max-w-20 truncate text-gray-900">{{ v.title ?? facetName ?? "???" }}</span>
+            <IconInline
+              v-bind="facetIcon"
+              class="mr-1.5 w-5 text-center"
+              :class="activeValueIdx == i ? 'text-primary-900' : 'text-gray-700'"
+            />
+            <span class="max-w-20 truncate" :class="activeValueIdx == i ? 'text-primary-900' : 'text-gray-900'">
+              {{ v.title ?? facetName ?? "???" }}
+            </span>
             <!-- Remove -->
             <button v-if="valueType?.isList" class="ml-1 text-gray-400 hover:text-primary-900" @click.stop="remove(i)">
               <i class="fas fa-xmark" />
@@ -225,12 +233,11 @@ defineExpose<ViewExposed>({ self, id, focus });
           <span class="w-[100px]">
             <span class="max-w-full truncate py-1 font-medium text-gray-900">{{ fieldView.field.name }}</span>
           </span>
-          {{ focusedValue[fieldView.storageKey] }}
           <!-- Value -->
           <component
             :is="getViewComponent(fieldView.viewType)"
             v-if="
-              (fieldView.value != null || (isInput && !isDisabled)) &&
+              (focusedValue?.[fieldView.storageKey] != null || (isInput && !isDisabled)) &&
               fieldView.viewType != null &&
               hasViewComponent(fieldView.viewType)
             "
@@ -241,21 +248,37 @@ defineExpose<ViewExposed>({ self, id, focus });
             :class="['ml-auto flex-shrink-0', fieldView.isFullWidth ? '' : 'text-right']"
             :style="{ width: fieldView.isFullWidth ? '100%' : 'calc(90% - 100px)' }"
             v-bind="fieldView.viewProps"
-            :model-value="fieldView.value"
+            :model-value="
+              fieldView.fieldType.kind == TypeKind.OBJECT
+                ? focusedValue?.[fieldView.storageKey]
+                : unpackValue(focusedValue?.[fieldView.storageKey], fieldView.fieldType, {
+                    graph: pkgGraph,
+                    unwrapScalar: false,
+                    recurseValueObject: false,
+                  })
+            "
             @update:model-value="
               (value: any) => {
-                const newValue = fieldView.prepareUpdate(value);
+                const valuePacked =
+                  fieldView.fieldType.kind == TypeKind.OBJECT
+                    ? value
+                    : packValue(value, fieldView.fieldType, {
+                        graph: pkgGraph,
+                        wrapScalar: false,
+                        recurseValueObject: false,
+                      });
+                const newObject = { ...focusedValue, [fieldView.storageKey]: valuePacked };
                 if (!valueType?.isList) {
-                  emit('update:modelValue', newValue);
+                  emit('update:modelValue', newObject);
                 } else {
-                  const newValues = (props.modelValue as any[]).map((v, i) => (i == focusedValueIdx ? newValue : v));
+                  const newValues = (props.modelValue as any[]).map((v, i) => (i == focusedValueIdx ? newObject : v));
                   emit('update:modelValue', newValues);
                 }
               }
             "
           />
           <div
-            v-else-if="fieldView.value == null"
+            v-else-if="fieldView.viewType != null"
             class="ml-auto flex-shrink-0 text-gray-400"
             :class="fieldView.isFullWidth ? '' : 'text-right'"
           >

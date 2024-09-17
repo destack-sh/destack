@@ -294,7 +294,11 @@ defineExpose<ViewExposed>({ self, id, focus });
       <div class="flex w-full flex-row flex-wrap items-center gap-y-1 border-b border-gray-200 px-2.5 py-1">
         <!-- Current value -->
         <template v-if="valueType?.isList">
-          <button v-for="(v, i) in valueVignettes" :key="i" class="mr-2 flex flex-row items-center">
+          <button
+            v-for="(v, i) in valueVignettes"
+            :key="i"
+            class="mr-2 flex flex-row items-center px-0.5 hover:bg-gray-100"
+          >
             <IconInline v-if="v.icon" v-bind="v.icon" class="mr-1.5 w-5 text-gray-700" />
             <span class="truncate">{{ v.title ?? "???" }}</span>
             <!-- Deselect -->

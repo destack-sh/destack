@@ -467,8 +467,8 @@ def coerce_value(
                 ancestor_prop=ancestor_prop,
             )
         else:
-            if isinstance(value, Sequence):
-                raise TypeError(f"{value!r} is not a sequence (expected {typ!r})")
+            if not isinstance(value, Sequence):
+                raise TypeError(f"{value!r} ({type(value)}) is not a sequence (expected {typ!r})")
             return [
                 coerce_value_object_scalar(
                     cast(dict, element),
@@ -494,7 +494,7 @@ def coerce_value(
             )
         else:
             if not isinstance(value, Sequence):
-                raise TypeError(f"{value!r} is not a sequence (expected {typ!r})")
+                raise TypeError(f"{value!r} ({type(value)}) is not a sequence (expected {typ!r})")
             return [
                 _coerce_value_scalar(
                     element,
