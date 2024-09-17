@@ -231,7 +231,7 @@ export const VIEW_TYPE_BY_PRIMITIVE_TYPE: Partial<Record<PrimitiveType, ViewType
   [PrimitiveType.INTERVAL]: ViewType.CALENDAR,
   [PrimitiveType.JSON]: ViewType.JSON,
 };
-export const LISTABLE_VIEW_TYPES = new Set([ViewType.PICKER, ViewType.OBJECT, ViewType.STRING, ViewType.NUMBER]); // nocheckin: list pickers
+export const LISTABLE_VIEW_TYPES = new Set([ViewType.PICKER, ViewType.OBJECT, ViewType.STRING, ViewType.NUMBER]);
 
 export function getViewForValueType(type: Omit<TypeIdentity, "kind"> & Partial<TypeInfoData>): ViewProps | null {
   if (type.kind == TypeKind.OBJECT) {

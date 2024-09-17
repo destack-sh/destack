@@ -659,24 +659,19 @@ def check_value(value: Any, typ: "TypeInfoBase", invalid: "ValidationHandler") -
     """
     typ = typ._to_resolved()
     assert typ.kind != TypeKind.ALIAS, f"unresolved type {typ!r}"
+    if value is None:
+        if typ.is_required:
+            invalid(value, "missing required value", typ)
+        else:
+            return
     if typ.kind == TypeKind.OBJECT:
         if not typ.is_list:
-            if value is None:
-                if typ.is_required:
-                    invalid(value, "missing required value", typ)
-                else:
-                    return
             check_value_object_scalar(value, typ, invalid)
         elif _check_is_list(value, typ, invalid):
             for element in value:
                 check_value_object_scalar(element, typ, invalid)
     else:
         if not typ.is_list:
-            if value is None:
-                if typ.is_required:
-                    invalid(value, "missing required value", typ)
-                else:
-                    return
             check_value_scalar(value, typ, invalid)
         elif _check_is_list(value, typ, invalid):
             for element in value:
