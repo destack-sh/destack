@@ -207,7 +207,7 @@ function focus(anchor?: "previous" | "next" | FocusAnchor | NodeReferenceData) {
 }
 
 canvas.registerView(self, id);
-defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPACT, Variant.STEALTH], focus });
+defineExpose<ViewExposed>({ self, id, focus });
 </script>
 <template>
   <ViewContentWrapper :type="ViewType.PICKER" v-bind="props">

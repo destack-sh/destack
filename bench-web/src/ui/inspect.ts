@@ -248,7 +248,7 @@ type InspectionLayout = {
 function getInspectionInfo(metatype: ObjectType, type: number): Record<string, InspectionCategory> | null {
   if (metatype == ObjectType.FIELD) {
     if (type == FieldZone.OPTION) {
-      return { Common: [FieldProperty.zone, FieldProperty.text] };
+      return { Common: [FieldProperty.text] };
     }
     const properties = {
       Common: [
@@ -265,7 +265,7 @@ function getInspectionInfo(metatype: ObjectType, type: number): Record<string, I
             },
           }),
         },
-        { from: 30, to: 43, excluding: [FieldProperty.valuePacked] },
+        { from: 33, to: 43, excluding: [FieldProperty.valuePacked] },
       ],
       Constraint: [{ from: 60 }],
     };

@@ -413,7 +413,7 @@ function focus() {
 }
 
 canvas.registerView(self, id);
-defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALTH], actions, focus });
+defineExpose<ViewExposed>({ self, id, actions, focus });
 </script>
 <template>
   <ViewContentWrapper v-bind="props">

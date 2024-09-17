@@ -27,7 +27,7 @@ function apply(value: boolean) {
 }
 
 canvas.registerView(self, id);
-defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.SECONDARY], focus: () => inputRef.value });
+defineExpose<ViewExposed>({ self, id, focus: () => inputRef.value });
 </script>
 <template>
   <ViewContentWrapper v-bind="props">

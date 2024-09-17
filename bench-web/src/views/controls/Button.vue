@@ -50,12 +50,7 @@ const classByVariant: Ref<Partial<Record<Variant, string[]>>> = computed(() => (
 }));
 
 canvas.registerView(self, id);
-defineExpose<ViewExposed>({
-  self,
-  id,
-  variants: [Variant.PRIMARY, Variant.SECONDARY, Variant.COMPACT, Variant.STEALTH],
-  focus: () => buttonRef.value,
-});
+defineExpose<ViewExposed>({ self, id, focus: () => buttonRef.value });
 </script>
 <template>
   <button ref="buttonRef" :class="[classByVariant[variant!] ?? classByVariant[Variant.PRIMARY]]" :disabled="isDisabled">

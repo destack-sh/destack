@@ -97,7 +97,7 @@ function focus(anchor?: FocusAnchor | NodeReferenceData) {
 }
 
 canvas.registerView(self, id);
-defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALTH], actions, focus });
+defineExpose<ViewExposed>({ self, id, actions, focus });
 </script>
 <template>
   <div
@@ -107,7 +107,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
     :class="[
       borderless || variant == Variant.STEALTH ? '' : 'border',
       nodePtr?.id == inspectionPtr?.id ? 'border-primary-900' : ['border-gray-200 px-2 py-1.5 hover:border-gray-200'],
-    ]" 
+    ]"
   >
     <!-- Header -->
     <!-- NOTE :UX: revamp block to indicate all its states/properties better, hide header if not needed, ... -->
@@ -162,7 +162,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.STEALT
               ? 'text-gray-400'
               : [
                   variant != Variant.STEALTH ? '' : 'opacity-0 group-hover/block:opacity-100',
-                  'text-gray-300  group-hover/block:text-gray-400',
+                  'text-gray-300 group-hover/block:text-gray-400',
                 ],
           ]"
         >
