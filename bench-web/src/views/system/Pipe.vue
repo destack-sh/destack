@@ -29,12 +29,12 @@ const pathColorHex = computed(() => getColorHex(pipe.value?.color ?? ColorType.G
 
 const isInspected = computed(() => inspectionPtr.value?.id == pipePtr.value?.id);
 
-// nocheckin: path rendering performance
 canvas.registerView(self, id);
 defineExpose<ViewExposed>({ self, id });
 </script>
 <template>
   <div v-if="pipe && path">
+    <!-- TODO :Performance: pipe/path rendering consumes a lot of CPU time -->
     <!-- Background/outline path for highlighting (and larger hit area) -->
     <svg
       class="absolute cursor-pointer overflow-visible blur-sm transition-colors duration-150"

@@ -321,7 +321,7 @@ const actions: Partial<ActionMapImplementation<"common">> & ActionMapImplementat
 
 const isFocusedAbsolute = canvas.isFocusedAbsoluteRef(self);
 canvas.registerView(self, id);
-defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPACT], mapToNode, actions, focus });
+defineExpose<ViewExposed>({ self, id, mapToNode, actions, focus });
 </script>
 <template>
   <div class="flex h-full w-full flex-col">
@@ -642,7 +642,7 @@ defineExpose<ViewExposed>({ self, id, variants: [Variant.PRIMARY, Variant.COMPAC
             ref="textRef"
             v-model="text"
             class="w-full self-end hover:cursor-text"
-            :class="variant != Variant.COMPACT ? 'my-1 ' : 'my-0.5'"
+            :class="variant != Variant.COMPACT ? 'my-1' : 'my-0.5'"
             :variant="Variant.STEALTH"
             is-input
             :placeholder="

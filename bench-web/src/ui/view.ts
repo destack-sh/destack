@@ -393,13 +393,12 @@ export function guardNativeInput<T extends string | number | bigint>(
 
   // check
   let isValid = true;
-
   if (typeof newValue == "string") {
     if (constraint.minLength != null && newValue.length < constraint.minLength) {
       isValid = false;
     } else if (constraint.maxLength != null && newValue.length > constraint.maxLength) {
       isValid = false;
-    } else if (constraint.regex != null && !new RegExp(constraint.regex).test(newValue)) {
+    } else if (constraint.regex != null && !new RegExp(constraint.regex, "u").test(newValue)) {
       isValid = false;
     }
   }
@@ -410,7 +409,6 @@ export function guardNativeInput<T extends string | number | bigint>(
       isValid = false;
     }
   }
-
   if (!isValid) {
     const input = event.target as HTMLInputElement;
     input.value = oldValue?.toString() ?? "";
