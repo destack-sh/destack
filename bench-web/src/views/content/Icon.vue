@@ -99,7 +99,7 @@ canvas.registerView(self, id);
 defineExpose<ViewExposed>({ self, id, focus });
 </script>
 <template>
-  <ViewContentWrapper v-bind="props">
+  <ViewContentWrapper :type="ViewType.ICON" v-bind="props">
     <!-- TODO :Incomplete: Icon.isInput/isDisabled/variants/... -->
     <!-- Dropdown -->
     <button

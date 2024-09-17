@@ -137,7 +137,7 @@ canvas.registerView(self, id);
 defineExpose<ViewExposed>({ self, id });
 </script>
 <template>
-  <ViewContentWrapper v-bind="props" :class="[size?.height != null ? 'h-full' : 's']">
+  <ViewContentWrapper  v-bind="props" :class="[size?.height != null ? 'h-full' : 's']">
     <!-- Actual file input (hidden) -->
     <input
       ref="fileInputRef"

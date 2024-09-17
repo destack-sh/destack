@@ -60,7 +60,7 @@ canvas.registerView(self, id);
 defineExpose<ViewExposed>({ self, id, focus });
 </script>
 <template>
-  <ViewContentWrapper v-bind="props">
+  <ViewContentWrapper :type="ViewType.COLOR" v-bind="props">
     <!-- TODO :Incomplete: Color.isInput/isDisabled/variants/... -->
     <!-- Dropdown -->
     <button
