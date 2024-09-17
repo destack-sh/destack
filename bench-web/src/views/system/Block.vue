@@ -81,6 +81,39 @@ const forceShowText: Ref<boolean> = ref(false);
 // Interaction
 //
 
+const value = computed(() => {
+  // unfortunate :ProtoStructMapping for every change
+  if (block.value?.valueType == null) {
+    return undefined;
+  } else if (block.value?.valueType.kind == TypeKind.OBJECT) {
+    const valuePacked = block.value?.valuePacked == null ? null : ProtoStruct.toJson(block.value.valuePacked);
+    return valuePacked;
+  } else {
+    const valuePacked = block.value?.valuePacked == null ? null : ProtoStruct.toJson(block.value.valuePacked);
+    return unpackValue(valuePacked, block.value.valueType, {
+      graph: pkgGraph,
+      unwrapScalar: true,
+      recurseValueObject: false,
+    });
+  }
+});
+function updateValue(value: any) {
+  if (block.value == null) throw new Error(`no block`);
+  const valuePacked =
+    block.value?.valueType?.kind == TypeKind.OBJECT
+      ? value
+      : packValue(value, block.value.valueType!, {
+          graph: pkgGraph,
+          wrapScalar: true,
+          recurseValueObject: false,
+        });
+  if (valuePacked != null) {
+    pkgConnection.tx.update(block.value, { valuePacked: ProtoStruct.fromJson(valuePacked) }, { debounce: "short" });
+  } else {
+    pkgConnection.tx.update(block.value, { valuePacked: undefined }, { debounce: "short" });
+  }
+}
+
 const actions: Partial<ActionMapImplementation<"common">> & ActionMapImplementation<"block"> = {
   // common
   "common.edit.rename": {
@@ -240,7 +273,6 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
     </div>
     <!-- Body -->
     <div class="flex flex-col gap-y-1.5 py-1">
-      <!-- Variable(s) ... -->
       <Value
         v-if="block.type == BlockType.VALUE"
         :value-type="
@@ -248,34 +280,8 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
             ? (resolveType(block.valueType, pkgGraph) as TypeInfoData) /* close enough */
             : undefined
         "
-        :model-value="
-          // unfortunate :ProtoStructMapping for every change
-          block!.valueType == null
-            ? undefined
-            : unpackValue(block?.valuePacked == null ? null : ProtoStruct.toJson(block.valuePacked), block!.valueType, {
-                graph: pkgGraph,
-                unwrapScalar: true,
-                recurseValueObject: false,
-              })
-        "
-        @update:model-value="
-          (newValue) => {
-            const valuePacked = packValue(newValue, block?.valueType!, {
-              graph: pkgGraph,
-              wrapScalar: true,
-              recurseValueObject: false,
-            });
-            if (valuePacked != null) {
-              pkgConnection.tx.update(
-                block!,
-                { valuePacked: ProtoStruct.fromJson(valuePacked) },
-                { debounce: 'short' },
-              );
-            } else {
-              pkgConnection.tx.update(block!, { valuePacked: undefined }, { debounce: 'short' });
-            }
-          }
-        "
+        :model-value="value"
+        @update:model-value="(newValue) => updateValue(newValue)"
       />
       <Type
         v-if="

@@ -283,9 +283,6 @@ export type FieldView = {
   field: FieldData;
   fieldType: TypeIdentity;
   storageKey: string;
-  isSet: boolean;
-  value: any;
-  prepareUpdate: (value: any) => Record<string, any>;
   viewType?: ViewType;
   viewProps?: any;
   isFullWidth?: boolean;
@@ -294,7 +291,6 @@ export type FieldView = {
 /** View the values of a value object */
 export function getFieldViews(
   fields: FieldData[],
-  objectValuePacked: Record<string, any>,
   graph: ReadNodeGraph,
   options?: { zones?: FieldZone[]; isInput?: boolean },
 ): FieldView[] {
@@ -303,29 +299,11 @@ export function getFieldViews(
     if (options?.zones != null && !options.zones.includes(field.zone)) continue;
     const fieldType = resolveType(field, graph);
     const storageKey = getStorageKey(field, fieldType);
-    let value;
-    if (fieldType.kind == TypeKind.OBJECT) {
-      value = objectValuePacked?.[storageKey]; // keep packed for object types
-    } else {
-      value = unpackValue(objectValuePacked?.[storageKey], field, {
-        graph: graph,
-        unwrapScalar: false,
-        recurseValueObject: false,
-      });
-    }
-    const prepareUpdate = (newValue: any) => ({
-      ...objectValuePacked,
-      [storageKey]: packValue(newValue, field, { graph: graph, wrapScalar: false, recurseValueObject: false }),
-    });
-    const isSet = value != null && !(Array.isArray(value) && value.length === 0);
     const view = getViewForValueType(fieldType);
     fieldViews.push({
       field,
       fieldType,
       storageKey,
-      isSet,
-      value,
-      prepareUpdate,
       viewType: view?.type,
       viewProps: { ...view, isInput: options?.isInput },
       isFullWidth: FULL_WIDTH_VIEW_TYPES.includes(view?.type!),

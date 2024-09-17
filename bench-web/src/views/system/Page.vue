@@ -5,7 +5,7 @@ import { makeTypeInfo } from "@/language/field";
 import { uploadFile } from "@/language/file";
 import { getGroupedChildrenRef, isDescendantOf } from "@/language/graph";
 import { cloneNode, moveNode } from "@/language/node";
-import { packValueJson } from "@/language/value";
+import { packValue } from "@/language/value";
 import {
   BenchType,
   BlockData,
@@ -23,6 +23,7 @@ import {
 import {
   describeNode,
   isNode,
+  packProtoJson,
   toNodeRef,
   toNodeRefOneOf,
   unwrapProtoOneOf,
@@ -157,7 +158,7 @@ const { activeDropZone } = useMultiDropZone({
           block: {
             type: BlockType.VALUE,
             valueType: variableType,
-            valuePacked: packValueJson(toNodeRef(upload.file.value!), variableType),
+            valuePacked: packProtoJson(packValue(toNodeRef(upload.file.value!), variableType)),
           },
           anchor: anchor == "start" ? "before" : "after",
           target: target,
