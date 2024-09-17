@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { ViewData, NodeType, Variant } from "@/proto/wire";
+import { ViewData, NodeType, Variant, ViewType } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { ViewContentWrapper, makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import { canvas } from "@/system/space";
@@ -30,7 +30,7 @@ canvas.registerView(self, id);
 defineExpose<ViewExposed>({ self, id, focus: () => inputRef.value });
 </script>
 <template>
-  <ViewContentWrapper v-bind="props">
+  <ViewContentWrapper :type="ViewType.TOGGLE" v-bind="props">
     <button
       v-if="variant == null || variant == Variant.PRIMARY"
       role="switch"

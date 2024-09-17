@@ -91,14 +91,14 @@ const facetName = computed(() => {
     return null;
   }
 });
-// NOTE: technically modelValueTitle/Icon aren't fully reactive (requires modelValue to change)
-const hasModelValue = computed(() => {
+// NOTE :Broken: technically modelValueVignettes/Icon aren't fully reactive (requires modelValue to change)
+const hasValue = computed(() => {
   if (props.modelValue == null) return false;
   if (props.valueType?.isList) return (props.modelValue as any[]).length > 0;
   else return true;
 });
-const modelValueVignettes: Ref<{ title: string | undefined; icon: IconData | undefined }[]> = computed(() => {
-  if (!hasModelValue.value) return [];
+const valueVignettes: Ref<{ title: string | undefined; icon: IconData | undefined }[]> = computed(() => {
+  if (!hasValue.value) return [];
   if (!props.valueType?.isList) {
     const value = index.value.fromValue(props.modelValue) as SearchItem | null;
     return [{ title: value?.title, icon: (value as any)?.icon }];
@@ -153,7 +153,7 @@ watch(results, () => {
 });
 
 function isSelected(value: PickerItem) {
-  return hasModelValue.value && index.value.valueEquals(value, props.modelValue);
+  return hasValue.value && index.value.valueEquals(value, props.modelValue);
 }
 function isActive(item: PickerItem) {
   return item.id === activeResultId.value;
@@ -173,7 +173,7 @@ function select(option: string | PickerItem | undefined) {
 function deselect(option: PickerItem | number) {
   if (!props.valueType?.isList) {
     apply(undefined);
-  } else if (hasModelValue.value) {
+  } else if (hasValue.value) {
     if (typeof option == "number") {
       apply((props.modelValue as any[]).filter((v, i) => i != option));
     } else {
@@ -225,7 +225,7 @@ defineExpose<ViewExposed>({ self, id, focus });
           props: {
             ...(props as ViewProps),
             title: undefined, // clear title
-            size: { metatype: ObjectType.BOX, width: buttonRef?.getBoundingClientRect().width },
+            size: { metatype: ObjectType.BOX, width: Math.max(MIN_WIDTH, buttonRef?.getBoundingClientRect().width!) },
             isInline: true,
           },
           onApply: (value: any) => apply(value),
@@ -236,8 +236,8 @@ defineExpose<ViewExposed>({ self, id, focus });
       class="group flex w-full flex-row flex-wrap items-center gap-y-1 rounded border border-gray-200 bg-white px-2.5 py-1 hover:border-gray-300 data-[popover=true]:border-gray-300"
     >
       <!-- Current value -->
-      <template v-if="hasModelValue">
-        <button v-for="(v, i) in modelValueVignettes" :key="i" class="mr-2 flex flex-row items-center">
+      <template v-if="hasValue">
+        <button v-for="(v, i) in valueVignettes" :key="i" class="mr-2 flex flex-row items-center">
           <IconInline v-if="v.icon" v-bind="v.icon" class="mr-1.5 w-5 text-gray-700" />
           <span class="truncate">{{ v.title ?? "???" }}</span>
         </button>
@@ -250,7 +250,7 @@ defineExpose<ViewExposed>({ self, id, focus });
       <div v-if="!props.isDisabled && props.isInput" class="ml-auto flex-shrink-0 pl-1.5">
         <!-- Clear -->
         <button
-          v-if="hasModelValue && !valueType?.isRequired"
+          v-if="hasValue && !valueType?.isRequired"
           class="mr-2 text-gray-400 opacity-0 hover:text-primary-900 group-hover:opacity-100"
           @click.stop="clear"
         >
@@ -294,7 +294,7 @@ defineExpose<ViewExposed>({ self, id, focus });
       <div class="flex w-full flex-row flex-wrap items-center gap-y-1 border-b border-gray-200 px-2.5 py-1">
         <!-- Current value -->
         <template v-if="valueType?.isList">
-          <button v-for="(v, i) in modelValueVignettes" :key="i" class="mr-2 flex flex-row items-center">
+          <button v-for="(v, i) in valueVignettes" :key="i" class="mr-2 flex flex-row items-center">
             <IconInline v-if="v.icon" v-bind="v.icon" class="mr-1.5 w-5 text-gray-700" />
             <span class="truncate">{{ v.title ?? "???" }}</span>
             <!-- Deselect -->

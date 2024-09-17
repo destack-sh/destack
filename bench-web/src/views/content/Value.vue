@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { NodeType, ViewData } from "@/proto/wire";
+import { NodeType, ViewData, ViewType } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import type { PreparedGetConnection } from "@/system/connection";
 import { canvas } from "@/system/space";
@@ -30,7 +30,7 @@ canvas.registerView(self, id);
 defineExpose<ViewExposed>({ self, id });
 </script>
 <template>
-  <ViewContentWrapper v-bind="props">
+  <ViewContentWrapper :type="ViewType.VALUE" v-bind="props">
     <component
       :is="getViewComponent(valueView.type)"
       v-if="valueType != null && valueView?.type != null && hasViewComponent(valueView.type)"

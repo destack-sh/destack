@@ -291,14 +291,11 @@ export function enumIndex(idx: { id: string; enumTypes: EnumType[]; enumValues?:
  * Search the available type identities (built-ins plus from graph).
  */
 export function typeIndex(idx: {
-  // nocheckin: enum types
   id: string;
   graph: ReadNodeGraph;
   skipDepth?: number;
   maxDepth?: number;
 }): SearchIndex<TypeItem> {
-  const intrinsicEnumTypes = [EnumType.PRIMITIVE_TYPE, EnumType.FILE_TYPE, EnumType.BLOCK_TYPE, EnumType.OBJECT_TYPE];
-
   function mapFromValue(value: TypeIdentity): TypeItem | null {
     if (value.baseTypePtr != null) {
       const nodeItem = itemFromNode(idx.id, idx.graph, value.baseTypePtr);
@@ -322,6 +319,7 @@ export function typeIndex(idx: {
     return null;
   }
 
+  const intrinsicEnumTypes = [EnumType.PRIMITIVE_TYPE, EnumType.FILE_TYPE, EnumType.BLOCK_TYPE, EnumType.OBJECT_TYPE];
   function mapFromIntrinsicOption(enumType: EnumType, option: EnumOption): TypeItem {
     const item: TypeItem = {
       kind: TypeKind.LITERAL,

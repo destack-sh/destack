@@ -289,7 +289,7 @@ export function nodeMatchesConstraint(node: AnyNodeData, constraint: TypeConstra
 }
 
 /** Whether the given type supports lists :ListableTypes. */
-export function supportsList(type: { kind: TypeKind } & Partial<TypeInfoData>): boolean {
+export function typeSupportsList(type: { kind: TypeKind } & Partial<TypeInfoData>): boolean {
   if ([TypeKind.NODE, TypeKind.BASED_NODE, TypeKind.ENUM, TypeKind.OBJECT].includes(type.kind)) return true;
   else if (
     [
@@ -304,6 +304,11 @@ export function supportsList(type: { kind: TypeKind } & Partial<TypeInfoData>): 
   )
     return true;
   else return false;
+}
+
+/** Whether the type is some numeric type (int, float, etc.) */
+export function typeIsNumeric(type: { kind: TypeKind } & Partial<TypeInfoData>): boolean {
+  return type.primitiveType != null && type.primitiveType >= 2 && type.primitiveType <= 20;
 }
 
 // NOTE :Architecture: :TypeResolution in frontend should probably happen reactively in a dedicated.. something.
@@ -510,4 +515,11 @@ export function updateFieldType(tx: Transaction, graph: ReadNodeGraph, field: Fi
   }
 
   tx.update(field, update, { debounce: "tick" });
+}
+
+/** Gets the most appropriate 'title' field from the given fields. Can be text, number, or anything simple to render. */
+export function getTitleField(fields: FieldData[]): { field: FieldData | undefined; idx: number | undefined } {
+  let titleIdx = fields.findIndex((f) => f.primitiveType == PrimitiveType.STRING);
+  if (titleIdx == null) titleIdx = fields.findIndex((f) => typeIsNumeric(f));
+  return { field: titleIdx != null ? fields[titleIdx] : undefined, idx: titleIdx };
 }

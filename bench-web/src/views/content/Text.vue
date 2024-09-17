@@ -416,7 +416,7 @@ canvas.registerView(self, id);
 defineExpose<ViewExposed>({ self, id, actions, focus });
 </script>
 <template>
-  <ViewContentWrapper v-bind="props">
+  <ViewContentWrapper :type="ViewType.TEXT" v-bind="props">
     <!-- NOTE :UX :Incomplete: Text menus (insert, morph, bubble, etc.) -->
     <!-- NOTE: textRef must be in a stable fragment to mount the editor view -->
     <div

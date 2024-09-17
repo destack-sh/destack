@@ -1,5 +1,15 @@
 <script lang="ts" setup>
-import { BlockType, BoxData, FieldZone, NodeType, ObjectType, Variant, ViewData, ViewType } from "@/proto/wire";
+import {
+  BlockType,
+  BoxData,
+  FieldZone,
+  IconData,
+  NodeType,
+  ObjectType,
+  Variant,
+  ViewData,
+  ViewType,
+} from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { useExistingConnection, type PreparedGetConnection } from "@/system/connection";
 import { ICON_BY_BLOCK_TYPE, IconInline } from "@/ui/icon";
@@ -16,6 +26,7 @@ import {
 } from "@/views/common";
 import { getViewComponent, hasViewComponent } from "@/views/registry";
 import { computed, ref, toRef, type Ref } from "vue";
+import { getTitleField } from "@/language/field";
 
 const MIN_WIDTH = 320;
 const DEFAULT_WIDTH = 280;
@@ -40,17 +51,38 @@ const width = computed(() =>
   props.variant == Variant.STEALTH ? null : Math.max(MIN_WIDTH, props.size?.width ?? DEFAULT_WIDTH),
 );
 
-const hasValue = computed(() => props.modelValue != null);
+const facetIcon = computed(() => baseType.value?.icon ?? ICON_BY_BLOCK_TYPE[BlockType.CLASS]);
+const facetName = computed(() => baseType.value?.name);
 const baseTypePtr = computed(() => props.valueType?.baseTypePtr as TypedNodeReferenceData<NodeType.BLOCK> | undefined);
 const { graph: pkgGraph } = props.preparedConnection ?? useExistingConnection(baseTypePtr);
 const baseType = pkgGraph.getRef(baseTypePtr);
 const fields = pkgGraph.getChildrenRef(baseType, NodeType.FIELD); // these need to be resolved later :TypeResolution
+const titleField = computed(() => getTitleField(fields.value));
 const fieldViews = computed(() =>
-  getFieldViews(fields.value, props.modelValue, pkgGraph, {
+  getFieldViews(fields.value, focusedValue.value, pkgGraph, {
     zones: [props.valueType?.baseFieldZone ?? FieldZone.MEMBER],
     isInput: props.isInput,
   }),
 );
+const hasValue = computed(() => {
+  if (props.modelValue == null) return false;
+  if (props.valueType?.isList) return (props.modelValue as any[]).length > 0;
+  else return true;
+});
+const values: Ref<{ title: string | number | undefined; icon: IconData | undefined; value: any }[]> = computed(() => {
+  if (!hasValue.value) return [];
+  const values = props.valueType?.isList ? (props.modelValue as any[]) : [props.modelValue];
+  return values.map((value) => {
+    const title = titleField.value != null ? value[fieldViews.value[titleField.value.idx!]?.storageKey] : undefined;
+    return { title, icon: undefined, value };
+  });
+});
+const activeValueIdx: Ref<number | null> = ref(null);
+const focusedValueIdx = computed(() => {
+  if (!props.valueType?.isList || activeValueIdx.value == null) return 0;
+  else return activeValueIdx.value;
+});
+const focusedValue = computed(() => values.value[focusedValueIdx.value!]?.value);
 
 function focus() {
   if (!props.isInline) {
@@ -58,16 +90,27 @@ function focus() {
   }
 }
 
+function add() {
+  if (!props.valueType?.isList) throw new Error(`cannot add to non-list`);
+  apply(((props.modelValue as any[]) ?? []).concat({}));
+}
+function remove(idx: number) {
+  if (!props.valueType?.isList) throw new Error(`cannot remove from non-list`);
+  apply(((props.modelValue as any[]) ?? []).filter((_, i) => i != idx));
+}
 function apply(value: any) {
   emit("update:modelValue", value);
   emit("apply", value);
+}
+function clear() {
+  apply(undefined);
 }
 
 canvas.registerView(self, id);
 defineExpose<ViewExposed>({ self, id, focus });
 </script>
 <template>
-  <ViewContentWrapper v-bind="props">
+  <ViewContentWrapper :type="ViewType.OBJECT" v-bind="props">
     <!-- Preview -->
     <div
       v-if="!isInline"
@@ -79,7 +122,7 @@ defineExpose<ViewExposed>({ self, id, focus });
           referenceMargin: 0,
           props: {
             ...(props as ViewProps),
-            size: { metatype: ObjectType.BOX, width: buttonRef?.getBoundingClientRect().width },
+            size: { metatype: ObjectType.BOX, width: Math.max(MIN_WIDTH, buttonRef?.getBoundingClientRect().width!) },
             isInline: true,
           },
           propsRef: () => ({ modelValue: props.modelValue }),
@@ -89,100 +132,137 @@ defineExpose<ViewExposed>({ self, id, focus });
       "
       role="button"
       :disabled="isDisabled"
-      class="group flex w-full flex-row items-center rounded border border-gray-200 bg-white px-2.5 py-1 hover:border-gray-300 disabled:bg-gray-100 data-[popover=true]:border-gray-300"
+      class="group flex w-full flex-row flex-wrap items-center gap-y-1 rounded border border-gray-200 bg-white px-2.5 py-1 hover:border-gray-300 disabled:bg-gray-100 data-[popover=true]:border-gray-300"
     >
-      <!-- Icon/Type name -->
-      <IconInline
-        v-bind="baseType?.icon ?? ICON_BY_BLOCK_TYPE[BlockType.CLASS]"
-        class="mr-1.5 w-5 text-center text-gray-700"
-      />
-      <span :class="hasValue ? 'text-gray-900' : 'text-gray-400'">{{ baseType?.name ?? "???" }}</span>
-      <!-- NOTE :UX: add Object inline value preview? -->
-      <div class="ml-2 flex flex-row gap-x-1.5">
-        <div v-for="{ field } of fieldViews.filter((f) => f.isSet)" :key="field.id">
-          <span class="text-gray-400">{{ field.name }}</span>
-        </div>
-      </div>
+      <!-- Current value -->
+      <template v-if="hasValue">
+        <button v-for="(v, i) in values" :key="i" class="mr-2 flex flex-row items-center">
+          <IconInline v-bind="facetIcon" class="mr-1.5 w-5 text-center text-gray-700" />
+          <span class="max-w-20 truncate text-gray-900">{{ v.title ?? facetName ?? "???" }}</span>
+        </button>
+      </template>
+      <template v-else>
+        <IconInline v-bind="facetIcon" class="mr-1.5 w-5 text-center text-gray-400" />
+        <span class="text-gray-400">{{ facetName ?? "???" }}</span>
+      </template>
       <!-- Controls -->
-      <div class="ml-auto flex-shrink-0 pl-2">
+      <div v-if="!props.isDisabled && props.isInput" class="ml-auto flex-shrink-0 pl-2">
+        <!-- Add -->
+        <button
+          v-if="valueType?.isList"
+          class="mr-2 text-gray-400 opacity-0 hover:text-primary-900 group-hover:opacity-100"
+          @click.stop="add"
+        >
+          <i class="fas fa-plus" />
+        </button>
         <!-- Clear -->
-        <i
-          v-if="hasValue && isInput && !isDisabled"
-          role="button"
-          class="fas fa-xmark text-gray-400 opacity-0 hover:text-primary-900 group-hover:opacity-100"
-          @click.stop="emit('update:modelValue', undefined)"
-        />
+        <button
+          v-if="hasValue && !valueType?.isRequired"
+          class="mr-2 text-gray-400 opacity-0 hover:text-primary-900 group-hover:opacity-100"
+          @click.stop="clear"
+        >
+          <i class="fas fa-xmark" />
+        </button>
       </div>
     </div>
 
     <!-- Inline Object -->
     <div v-else class="w-full">
-      <!-- Header? -->
-      <div v-if="variant != Variant.STEALTH" class="flex w-full flex-row border-b px-2.5 py-1">
-        <!-- Icon/Type name -->
-        <span>
-          <IconInline
-            v-bind="baseType?.icon ?? ICON_BY_BLOCK_TYPE[BlockType.CLASS]"
-            class="mr-1.5 w-5 text-center text-gray-700"
-          />
-          <span class="font-semibold">{{ baseType?.name }}</span>
-        </span>
+      <!-- Header -->
+      <div
+        v-if="variant != Variant.STEALTH"
+        class="flex w-full flex-row flex-wrap items-center gap-y-1 border-b px-2.5 py-1"
+      >
+        <!-- Current value -->
+        <template v-if="hasValue">
+          <button
+            v-for="(v, i) in values"
+            :key="i"
+            class="mr-2 flex flex-row items-center"
+            @click.stop="activeValueIdx = i"
+          >
+            <IconInline v-bind="facetIcon" class="mr-1.5 w-5 text-center text-gray-700" />
+            <span class="max-w-20 truncate text-gray-900">{{ v.title ?? facetName ?? "???" }}</span>
+            <!-- Remove -->
+            <button v-if="valueType?.isList" class="ml-1 text-gray-400 hover:text-primary-900" @click.stop="remove(i)">
+              <i class="fas fa-xmark" />
+            </button>
+          </button>
+        </template>
+        <template v-else>
+          <IconInline v-bind="facetIcon" class="mr-1.5 w-5 text-center text-gray-400" />
+          <span class="max-w-20 truncate text-gray-400">{{ facetName ?? "???" }}</span>
+        </template>
         <!-- Controls -->
-        <div class="ml-auto flex-shrink-0 pl-2 pr-2">
+        <div v-if="!props.isDisabled && props.isInput" class="ml-auto flex-shrink-0 pl-2 pr-2">
+          <!-- Add -->
+          <button v-if="valueType?.isList" class="mr-2 text-gray-400 hover:text-primary-900" @click.stop="add">
+            <i class="fas fa-plus" />
+          </button>
           <!-- Clear -->
-          <i
-            v-if="hasValue"
-            role="button"
-            class="fas fa-xmark text-gray-400 hover:text-primary-900"
-            @click.stop="emit('update:modelValue', undefined)"
-          />
+          <button class="mr-2 text-gray-400 hover:text-primary-900" @click.stop="clear">
+            <i class="fas fa-xmark" />
+          </button>
         </div>
       </div>
-      <!-- Fields -->
+      <!-- Fields (for current value) -->
       <ul
         class="flex flex-col gap-y-2.5"
         :class="variant != Variant.STEALTH ? 'py-3' : ''"
         :style="{ width: width != null ? width + 'px' : '100%' }"
       >
         <li
-          v-for="{ field, value, prepareUpdate: update, viewType, isFullWidth, viewProps } of fieldViews"
-          :key="field.id"
+          v-for="fieldView of fieldViews"
+          :key="fieldView.field.id"
           class="mx-auto w-full"
           :class="[
-            isFullWidth ? 'flex flex-col' : 'flex flex-row items-center gap-x-[10%]',
+            fieldView.isFullWidth ? 'flex flex-col' : 'flex flex-row items-center gap-x-[10%]',
             variant != Variant.STEALTH ? 'px-4' : '',
           ]"
           :style="{ minWidth: MIN_WIDTH + 'px' }"
         >
           <!-- Field -->
           <span class="w-[100px]">
-            <span class="max-w-full truncate py-1 font-medium text-gray-900">{{ field.name }}</span>
+            <span class="max-w-full truncate py-1 font-medium text-gray-900">{{ fieldView.field.name }}</span>
           </span>
+          {{ focusedValue[fieldView.storageKey] }}
           <!-- Value -->
           <component
-            :is="getViewComponent(viewType)"
-            v-if="(value != null || (isInput && !isDisabled)) && viewType != null && hasViewComponent(viewType)"
-            :ref="(ref: any) => (ref != null ? (componentRefs[field.id] = ref) : delete componentRefs[field.id])"
-            :class="['ml-auto flex-shrink-0', isFullWidth ? '' : 'text-right']"
-            :style="{ width: isFullWidth ? '100%' : 'calc(90% - 100px)' }"
-            v-bind="viewProps"
-            :model-value="value"
+            :is="getViewComponent(fieldView.viewType)"
+            v-if="
+              (fieldView.value != null || (isInput && !isDisabled)) &&
+              fieldView.viewType != null &&
+              hasViewComponent(fieldView.viewType)
+            "
+            :ref="
+              (ref: any) =>
+                ref != null ? (componentRefs[fieldView.field.id] = ref) : delete componentRefs[fieldView.field.id]
+            "
+            :class="['ml-auto flex-shrink-0', fieldView.isFullWidth ? '' : 'text-right']"
+            :style="{ width: fieldView.isFullWidth ? '100%' : 'calc(90% - 100px)' }"
+            v-bind="fieldView.viewProps"
+            :model-value="fieldView.value"
             @update:model-value="
               (value: any) => {
-                const newValue = update(value);
-                emit('update:modelValue', newValue);
+                const newValue = fieldView.prepareUpdate(value);
+                if (!valueType?.isList) {
+                  emit('update:modelValue', newValue);
+                } else {
+                  const newValues = (props.modelValue as any[]).map((v, i) => (i == focusedValueIdx ? newValue : v));
+                  emit('update:modelValue', newValues);
+                }
               }
             "
           />
           <div
-            v-else-if="value == null"
+            v-else-if="fieldView.value == null"
             class="ml-auto flex-shrink-0 text-gray-400"
-            :class="isFullWidth ? '' : 'text-right'"
+            :class="fieldView.isFullWidth ? '' : 'text-right'"
           >
             <span class="italic">Unset</span>
           </div>
-          <div v-else class="ml-auto flex-shrink-0 text-warning-600" :class="isFullWidth ? '' : 'text-right'">
-            {{ viewType != null ? ViewType[viewType] : "No View for Type" }}
+          <div v-else class="ml-auto flex-shrink-0 text-warning-600" :class="fieldView.isFullWidth ? '' : 'text-right'">
+            {{ fieldView.viewType != null ? ViewType[fieldView.viewType] : "No View for Type" }}
           </div>
         </li>
       </ul>

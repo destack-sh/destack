@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { ViewData, NodeType, CodeData, Variant } from "@/proto/wire";
+import { ViewData, NodeType, CodeData, Variant, ViewType } from "@/proto/wire";
 import { type TypedNodeReferenceData } from "@/proto/wiring";
 import { ViewContentWrapper, makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import { canvas } from "@/system/space";
@@ -184,7 +184,7 @@ canvas.registerView(self, id);
 defineExpose<ViewExposed>({ self, id, actions });
 </script>
 <template>
-  <ViewContentWrapper :title="title" :variant="variant" :orientation="orientation">
+  <ViewContentWrapper :type="ViewType.CODE" :title="title" :variant="variant" :orientation="orientation">
     <!-- NOTE: codeRef must be in a stable fragment to mount the editor view -->
     <div
       ref="codeRef"
