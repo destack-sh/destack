@@ -1292,7 +1292,7 @@ def _pg_unpack_node_reference_from_row(prop: Property, row: RowOut, node: AnyNod
             ids = cast(list[UUID] | None, row.get(stored_prop.name))
             for id in ids or ():
                 ptr = NodeReferenceData(
-                    metatype=wire.ObjectType.NODE_REFERENCE,
+                    metatype=wire.ObjectType.OBJECT_TYPE_NODE_REFERENCE,
                     id=str(id),
                     type=cast(list[wire.NodeType], stored_prop.reference_nodes)[0],
                 )
@@ -1323,7 +1323,7 @@ def _pg_unpack_node_reference_from_row(prop: Property, row: RowOut, node: AnyNod
             value = cast(UUID | None, row.get(stored_prop.name))
             if value is not None:
                 ptr = NodeReferenceData(
-                    metatype=wire.ObjectType.NODE_REFERENCE,
+                    metatype=wire.ObjectType.OBJECT_TYPE_NODE_REFERENCE,
                     id=str(value),
                     # if this is a heterogeneous ck pointer, type will be overwritten from extras
                     type=cast(list[wire.NodeType], stored_prop.reference_nodes)[0],
@@ -1505,7 +1505,7 @@ async def pg_walk_graph_down(
             )
             for child_row in children_rows:
                 child_ptr = NodeReferenceData(
-                    metatype=wire.ObjectType.NODE_REFERENCE,
+                    metatype=wire.ObjectType.OBJECT_TYPE_NODE_REFERENCE,
                     id=str(child_row["id"]),
                     type=wire.NodeType(child_type),
                 )
@@ -1790,9 +1790,9 @@ async def _pg_edit_cascade(
             assert root_edit.old_node is not None, f"no old node for {root_edit!r}"
             old_node = wiring.unwrap_some_node(root_edit.old_node)
             if edit_type == EditType.UNARCHIVE:
-                removed_at = old_node.archived_at
+                removed_at = old_node.archived_at.ToDatetime()
             elif edit_type == EditType.RESTORE:
-                removed_at = old_node.deleted_at
+                removed_at = old_node.deleted_at.ToDatetime()
             else:
                 assert_never(edit_type)
             assert removed_at is not None, f"no removed_at for {root_edit!r}"
@@ -1918,7 +1918,7 @@ async def _pg_edit_batch(
             nodes.append(node)
             # inline implicit metadata
             row: dict[str, SqlPrimitive] = pg_pack_node_data_row(node)
-            row["created_at"] = row["updated_at"] = edit.edited_at
+            row["created_at"] = row["updated_at"] = edit.edited_at.ToDatetime()
             if "created_epoch" in node_cls.__properties__:
                 row["created_epoch"] = row["updated_epoch"] = edit.epoch
             _pg_pack_node_reference_into_row(
@@ -2002,18 +2002,19 @@ async def _pg_edit_batch(
                     value = _pack_struct_data_prop(prop, value, ignore_array=False)
                     row[prop.name] = value
             # implicit properties
-            row["updated_at"] = edit.edited_at
+            edited_at = edit.edited_at.ToDatetime()
+            row["updated_at"] = edited_at
             if "updated_epoch" in node_cls.__properties__:
                 row["updated_epoch"] = edit.epoch
             _pg_pack_node_reference_into_row(
                 node_cls.get_property("updated_by"), row, edit.subject_ptr
             )
             if edit_type == EditType.ARCHIVE:
-                row["archived_at"] = edit.edited_at
+                row["archived_at"] = edited_at
             elif edit_type == EditType.UNARCHIVE:
                 row["archived_at"] = None
             elif edit_type == EditType.DELETE:
-                row["deleted_at"] = edit.edited_at
+                row["deleted_at"] = edited_at
             elif edit_type == EditType.RESTORE:
                 row["deleted_at"] = None
             dynamic_values.append(row)

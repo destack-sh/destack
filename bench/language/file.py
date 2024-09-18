@@ -880,7 +880,7 @@ async def upload_batch(
             files=[f._to_data() for f in files],
             environment=MACHINE_ENVIRONMENT,
         )
-        upload_rep = await session.host.upload_files(upload_req, metadata=session._rpc_headers)
+        upload_rep = await session.host.UploadFiles(upload_req, metadata=session._rpc_headers)
         assert len(upload_rep.handles) == len(
             files
         ), f"unexpected handles: {len(upload_rep.handles)} != {len(files)}"
@@ -936,7 +936,7 @@ async def download_batch(
             ],
             environment=MACHINE_ENVIRONMENT,
         )
-        download_rep = await session.host.download_files(
+        download_rep = await session.host.DownloadFiles(
             download_req, metadata=session._rpc_headers
         )
         handles_by_id = {h.file.id: h for h in download_rep.handles}

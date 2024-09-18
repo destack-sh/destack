@@ -35,10 +35,9 @@ from bench.utils.string import Casing, to_casing
 
 LANG_PROTO = "proto/lang.proto"
 TEMP_PY_DIR = "bench/proto/wire.tmp"
-TEMP_PY_FILE = "bench/proto/wire.py.tmp"
-WIRE_PY_FILE = "bench/proto/wire.py"
+TARGET_PY_DIR = "bench/proto/wire"
 TEMP_TS_DIR = "bench-web/src/proto/wire.tmp"
-WIRE_TS_DIR = "bench-web/src/proto/wire"
+TARGET_TS_DIR = "bench-web/src/proto/wire"
 EXTRA_PROTO_PY_FILES = (
     "proto/common.proto proto/health.proto proto/system.proto proto/runtime.proto"
 )
@@ -100,10 +99,12 @@ def _build_proto(schema_str: str) -> None:
     # Python (betterproto)
     #
 
-    Path(TEMP_PY_FILE).unlink(missing_ok=True)
+    Path(TEMP_PY_DIR).unlink(missing_ok=True)
     Path(TEMP_PY_DIR).mkdir(parents=True, exist_ok=True)
-    # TODO :Performance!: use native protoc instead of betterproto
-    # protoc -I . --python_out={TEMP_PY_DIR} --pyi_out={TEMP_PY_DIR} --grpclib_python_out={TEMP_PY_DIR} {LANG_PROTO} {EXTRA_PROTO_PY_FILES}
+    # nocheckin :Performance!: use native protoc instead of betterproto
+    run_shell_sync(
+        f"protoc -I . --python_out={TEMP_PY_DIR} --pyi_out={TEMP_PY_DIR} --grpclib_python_out={TEMP_PY_DIR} {LANG_PROTO} {EXTRA_PROTO_PY_FILES}"
+    )
     run_shell_sync(
         f"protoc -I . --python_betterproto_out={TEMP_PY_DIR} {LANG_PROTO} {EXTRA_PROTO_PY_FILES}",
     )
@@ -161,9 +162,9 @@ AnyStructData = Union[{', '.join([cls.__name__ + 'Data' for cls in STRUCT_CLASSE
         patch_prefix_code + "\n\n" + wire_py + "\n\n" + patch_postfix_code
     )
     shutil.rmtree(TEMP_PY_DIR, ignore_errors=True)
-    run_shell_sync(f"ruff check {TEMP_PY_FILE} --fix", check=True, stdout=DEVNULL)
-    run_shell_sync(f"ruff format {TEMP_PY_FILE}", check=True, stdout=DEVNULL)
-    on_apply.append(lambda: shutil.move(TEMP_PY_FILE, WIRE_PY_FILE))
+    run_shell_sync(f"ruff check {TEMP_PY_DIR} --fix", check=True, stdout=DEVNULL)
+    run_shell_sync(f"ruff format {TEMP_PY_DIR}", check=True, stdout=DEVNULL)
+    on_apply.append(lambda: shutil.move(TEMP_PY_DIR, TARGET_PY_DIR))
 
     #
     # TypeScript (protobuf-ts)
@@ -542,8 +543,8 @@ export * from './google/protobuf/timestamp';
     # overwrite WIRE_TS_DIR with TEMP_TS_DIR
     on_apply.append(
         lambda: (
-            shutil.rmtree(WIRE_TS_DIR, ignore_errors=True),
-            shutil.move(TEMP_TS_DIR, WIRE_TS_DIR),
+            shutil.rmtree(TARGET_TS_DIR, ignore_errors=True),
+            shutil.move(TEMP_TS_DIR, TARGET_TS_DIR),
         )
     )
 

@@ -166,7 +166,7 @@ class Session(RuntimeNode[SessionData]):
     _pending_nodes_by_id: dict[UUID, Node] = p_runtime(default_factory=dict)
     _default_scope: GraphScopeData = p_runtime(default_factory=lambda: EMPTY_SCOPE._to_data())
     _local_epoch: int | None = p_runtime(default=None)
-    _extend_commit: Callable[["Session", list["EditData"]], Awaitable[list[EditData]]] | None = (
+    _extend_commit: Callable[["Session", Sequence["EditData"]], Awaitable[Sequence[EditData]]] | None = (
         p_runtime(default=None)
     )
     _on_commit: (
@@ -231,7 +231,7 @@ class Session(RuntimeNode[SessionData]):
         """Whether this session has any pending (unflushed) edits."""
         return self._tx is not None and self._tx.has_pending_edits
 
-    def add_edits(self, edits: list[EditData]):
+    def add_edits(self, edits: Sequence[EditData]):
         """Adds the given edits to this session."""
         assert self._tx is not None, f"no active transaction in {self!r}"
         self._tx.add_edits(edits)
@@ -269,7 +269,7 @@ class Session(RuntimeNode[SessionData]):
 
     def _get_scope_for_node(self, n: Node) -> GraphScopeData:
         """Get the scope for a node in this session."""
-        scope = GraphScopeData(metatype=wire.ObjectType.GRAPH_SCOPE)
+        scope = GraphScopeData(metatype=wire.ObjectType.OBJECT_TYPE_GRAPH_SCOPE)
         if isinstance(n, BenchNode):
             scope.bench_id = uuid_to_str(n.bench_id) or self._default_scope.bench_id
         if isinstance(n, PackageNode):
@@ -278,7 +278,7 @@ class Session(RuntimeNode[SessionData]):
 
     def _get_scope_for_node_ptr(self, ptr: NodeReferenceBase) -> GraphScopeData:
         """Get the scope for a node pointer in this session."""
-        scope = GraphScopeData(metatype=wire.ObjectType.GRAPH_SCOPE)
+        scope = GraphScopeData(metatype=wire.ObjectType.OBJECT_TYPE_GRAPH_SCOPE)
         if ptr.bench_id is not None:
             scope.bench_id = uuid_to_str(ptr.bench_id)
         return scope
@@ -473,7 +473,7 @@ class Session(RuntimeNode[SessionData]):
     def _get_context(self) -> SessionContextData:
         """Gathers context valid for the entire session"""
         if self._context_data is None:
-            context = SessionContextData(metatype=wire.ObjectType.SESSION_CONTEXT)
+            context = SessionContextData(metatype=wire.ObjectType.OBJECT_TYPE_SESSION_CONTEXT)
             if self.client_ptr is not None:
                 context.client_ptr = self.client_ptr._to_data()
             if self.machine_ptr is not None:
@@ -737,7 +737,7 @@ class Session(RuntimeNode[SessionData]):
                 if self._extend_commit is not None:
                     if self._tx.has_pending_edits:  # flush pending edits
                         await self._tx.flush()
-                    new_edits: list[EditData] = await self._extend_commit(self, self._tx._edits)
+                    new_edits: Sequence[EditData] = await self._extend_commit(self, self._tx._edits)
                     self._tx.add_edits(new_edits)
 
                 # do commit

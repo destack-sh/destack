@@ -6,8 +6,6 @@ from typing import Any, override
 from uuid import UUID
 
 import cachetools
-import grpclib
-import grpclib.metadata
 import structlog
 from grpclib.client import Channel
 from opentelemetry import trace
@@ -34,7 +32,6 @@ from bench.proto.wire import (
     GraphScopeData,
     HostClient,
     ResolveHostsRequest,
-    ResolveHostsRequestBenchKey,
     SupervisorClient,
 )
 from bench.proto.wiring import pack_rpc_headers
@@ -149,7 +146,7 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
         # setup host
         self._host = await self.resolve_host_client(self._bench_id)
         bench_scope = GraphScopeData(
-            metatype=wire.ObjectType.GRAPH_SCOPE, bench_id=str(self._bench_id)
+            metatype=wire.ObjectType.OBJECT_TYPE_GRAPH_SCOPE, bench_id=str(self._bench_id)
         )
         self._engines = (
             # global engine
@@ -215,15 +212,13 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
     @cachetools.cached({})
     @tracer.start_as_current_span("runtime.resolve_host_client")
     async def resolve_host_client(self, bench_id: UUID) -> HostClient:
-        request = ResolveHostsRequest(benches=[ResolveHostsRequestBenchKey(id=str(bench_id))])
+        request = ResolveHostsRequest(benches=[ResolveHostsRequest.BenchKey(id=str(bench_id))])
         retry = RETRY_GRPC_FOREVER.new(self.oracle)
         while retry.should_retry:
             retry.on_attempt()
             try:
-                response = await self._supervisor.resolve_hosts(
-                    request,
-                    metadata=self._rpc_headers,
-                    deadline=grpclib.metadata.Deadline.from_timeout(5),
+                response = await self._supervisor.ResolveHosts(
+                    request, metadata=self._rpc_headers, timeout=(5)
                 )
                 host_info = response.hosts[0]
                 host_info.domain = localize_url(host_info.domain)

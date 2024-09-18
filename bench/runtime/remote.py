@@ -30,7 +30,7 @@ from bench.language.session import Session
 from bench.proto.wire import (
     EditData,
     ExpressionData,
-    GraphIoClient,
+    GraphIOClient,
     GraphScopeData,
     HostClient,
     ReadOptionsData,
@@ -53,7 +53,7 @@ class RemoteEngine(GraphEngine["RemoteChannel"]):
         self,
         scope: GraphScopeData,
         node_types: bittuple[NodeType],
-        remote: GraphIoClient | HostClient | SupervisorClient,
+        remote: GraphIOClient | HostClient | SupervisorClient,
         rpc_metadata: RpcMetadata,
         write_retry: RetryOptions = RETRY_GRPC,
     ):
@@ -159,11 +159,11 @@ class RemoteChannel(WritableChannel[RemoteEngine]):
             scope=self.engine.scope,
             context=self.session._get_context(),
         )
-        response = await self.engine.remote.commit_transaction(
+        response = await self.engine.remote.CommitTransaction(
             request, metadata=self.engine.rpc_headers
         )
         return CommitResultData(
-            revisions=response.revisions, cascaded_edits=response.cascaded_edits
+            revisions=list(response.revisions), cascaded_edits=list(response.cascaded_edits)
         )
 
 
@@ -182,7 +182,7 @@ class RemoteGetConnection[T: Node](GetConnection[RemoteChannel, T]):
             options=query._options._to_data() if query._options else None,
             scope=engine.scope,
         )
-        response = await self.channel.engine.remote.get_nodes(request, metadata=engine.rpc_headers)
+        response = await self.channel.engine.remote.GetNodes(request, metadata=engine.rpc_headers)
         nodes = [wiring.unwrap_some_node(n) for n in response.nodes]
         graph = NodeDataGraph(scope=engine.scope, node_types=engine.node_types, nodes=nodes)
         return GetResultData(
@@ -287,7 +287,7 @@ class RemoteAggregateConnection(AggregateConnection[RemoteChannel]):
             aggregation=cast(ExpressionData, query._aggregation._to_data()),
             scope=engine.scope,
         )
-        response = await engine.remote.aggregate_nodes(request, metadata=engine.rpc_headers)
+        response = await engine.remote.AggregateNodes(request, metadata=engine.rpc_headers)
         return AggregateResultData(
             aggregation=response.aggregation,
             epoch=response.epoch,

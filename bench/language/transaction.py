@@ -1,7 +1,7 @@
 import dataclasses
 from collections import defaultdict
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Callable, Collection, Optional, assert_never, cast
+from typing import TYPE_CHECKING, Any, Callable, Collection, Optional, Sequence, assert_never, cast
 from uuid import UUID
 
 import structlog
@@ -363,13 +363,13 @@ class Transaction:
             node._is_new = False
         self._pending_edit_events.append(edit_event)
 
-    def add_edits(self, edits: list[EditData]):
+    def add_edits(self, edits: Sequence[EditData]):
         """Adds full edits to the transaction directly."""
         self._pending_edits.extend(edits)
         if self.session._local_epoch is not None:
             self._track_edits(edits)
 
-    def _track_edits(self, edits: list[EditData]):
+    def _track_edits(self, edits: Sequence[EditData]):
         """Tracks edits in our logical clock (local epoch)."""
         # assign local epoch if we have one
         epoch = self.session._local_epoch
@@ -476,7 +476,7 @@ class Transaction:
 
             # context
             if edit_event.run is not None:
-                edit_context = EditContextData(metatype=wire.ObjectType.EDIT_CONTEXT)
+                edit_context = EditContextData(metatype=wire.ObjectType.OBJECT_TYPE_EDIT_CONTEXT)
                 run = edit_event.run
                 edit_context.run_ptr = run._to_plain_ref_data()
                 edit_context.run_root_ptr = (
@@ -500,7 +500,7 @@ class Transaction:
 
             # make edit
             edit = EditData(
-                metatype=wire.ObjectType.EDIT,
+                metatype=wire.ObjectType.OBJECT_TYPE_EDIT,
                 id=new_edit_id(),
                 type=wiring.pack_enum(EditType, edit_type),
                 node_ptr=node._to_plain_ref_data(),

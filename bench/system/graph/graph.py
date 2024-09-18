@@ -1,7 +1,7 @@
 import abc
 import asyncio
 from datetime import datetime
-from typing import AsyncIterator, NamedTuple, cast, final, override
+from typing import AsyncIterator, NamedTuple, Sequence, cast, final, override
 from uuid import UUID
 
 import betterproto
@@ -167,7 +167,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
         )
 
     def _prepare_commit(
-        self, subject: Subject, context: SessionContext, edits: list[EditData]
+        self, subject: Subject, context: SessionContext, edits: Sequence[EditData]
     ) -> "CommitArea":
         """Prepares and validates the edits for a commit."""
         area = parse_commit_scope(edits, base_graph=None)
@@ -180,7 +180,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
         return area
 
     @final
-    async def _extend_commit_hook(self, session: Session, edits: list[EditData]) -> list[EditData]:
+    async def _extend_commit_hook(self, session: Session, edits: Sequence[EditData]) -> Sequence[EditData]:
         return await self.extend_commit(session=session, context=None, edits=edits)
 
     @final
@@ -206,8 +206,8 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
         self,
         session: Session,
         context: SessionContext | None,
-        edits: list[EditData],
-    ) -> list[EditData]:
+        edits: Sequence[EditData],
+    ) -> Sequence[EditData]:
         """Extend a commit. Returns any new edits."""
         return []  # do nothing by default
 
@@ -228,8 +228,8 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
         scope: GraphScopeData,
         subject: Subject,
         context: SessionContext,
-        edits: list[EditData],
-    ) -> tuple[list[EditData], list[EditData]]:
+        edits: Sequence[EditData],
+    ) -> tuple[Sequence[EditData], Sequence[EditData]]:
         """Commits some edits."""
 
         # pre-validate/prepare edits
@@ -644,7 +644,7 @@ class CommitArea(NamedTuple):
 
 
 @tracer.start_as_current_span(name="graph.parse_commit_scope")
-def parse_commit_scope(edits: list[EditData], base_graph: NodeDataGraph | None) -> CommitArea:
+def parse_commit_scope(edits: Sequence[EditData], base_graph: NodeDataGraph | None) -> CommitArea:
     """
     Gets the specific nodes (scopes) and related nodes that are edited. :NodeEditScope
     """
@@ -754,7 +754,7 @@ def validate_edit(edit: EditData, subject: Subject, now: datetime) -> None:
         )
 
     # time
-    if not edit.edited_at or not _is_allowable_drift(edit.edited_at, now):
+    if not edit.edited_at or not _is_allowable_drift(edit.edited_at.ToDatetime(), now):
         raise GRPCError(
             GRPCStatus.INVALID_ARGUMENT,
             f"bad edited_at in {edit!r}: {edit.edited_at} !~= {now}",

@@ -644,7 +644,10 @@ class QueryBuilder[NodeT: Node, NodeDataT: AnyNodeData]:
 
     @staticmethod
     def _to_node_types(node_types: tuple[NodeTypeOrClass, ...]) -> list[NodeType]:
-        return [cast(type[Node], t).metatype if isinstance(t, type) else t for t in node_types]
+        return [
+            cast(type[Node], t).metatype if isinstance(t, type) else cast(NodeType, t)
+            for t in node_types
+        ]
 
 
 @object_()

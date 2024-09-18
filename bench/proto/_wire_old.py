@@ -1,9 +1,10 @@
 # type: ignore
 # ruff: noqa
+# nocheckin: remove _wire_old.py
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.09.18.1"
+VERSION = "2024.09.18.2"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -2432,9 +2433,9 @@ class TypeInfoData(betterproto.Message):
     )
     condition: Optional["ExpressionData"] = betterproto.message_field(54, optional=True)
     constraint: Optional["TypeConstraintData"] = betterproto.message_field(55, optional=True)
-    is_list: bool = betterproto.bool_field(60)
-    is_secret: bool = betterproto.bool_field(61)
-    is_required: bool = betterproto.bool_field(62)
+    is_required: bool = betterproto.bool_field(60)
+    is_list: bool = betterproto.bool_field(61)
+    is_secret: bool = betterproto.bool_field(62)
 
 
 @dataclass(eq=False, repr=False)
@@ -2760,9 +2761,9 @@ class FieldData(betterproto.Message):
     )
     condition: Optional["ExpressionData"] = betterproto.message_field(54, optional=True)
     constraint: Optional["TypeConstraintData"] = betterproto.message_field(55, optional=True)
-    is_list: bool = betterproto.bool_field(60)
-    is_secret: bool = betterproto.bool_field(61)
-    is_required: bool = betterproto.bool_field(62)
+    is_required: bool = betterproto.bool_field(60)
+    is_list: bool = betterproto.bool_field(61)
+    is_secret: bool = betterproto.bool_field(62)
 
 
 @dataclass(eq=False, repr=False)
@@ -4135,7 +4136,7 @@ class KillRunResponse(betterproto.Message):
     is_processed: bool = betterproto.bool_field(1)
 
 
-class GraphIoClient(betterproto.ServiceStub):
+class GraphIOClient(betterproto.ServiceStub):
     async def get_nodes(
         self,
         request: "GetNodesRequest",
@@ -5409,7 +5410,7 @@ class HealthClient(betterproto.ServiceStub):
             yield response
 
 
-class HealthBase(ServiceBase):
+class HealthClient(ServiceBase):
     async def check(self, request: "HealthCheckRequest") -> "HealthCheckResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 

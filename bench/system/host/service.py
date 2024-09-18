@@ -1,7 +1,7 @@
 import asyncio
 from contextlib import asynccontextmanager
 from itertools import chain
-from typing import Any, cast, override
+from typing import Any, Sequence, cast, override
 from uuid import UUID
 
 import betterproto
@@ -43,7 +43,6 @@ from bench.proto import wire
 from bench.proto.wire import (
     DownloadFilesRequest,
     DownloadFilesResponse,
-    DownloadFilesResponseDownloadHandle,
     EditData,
     GraphScopeData,
     HostBase,
@@ -52,7 +51,6 @@ from bench.proto.wire import (
     SessionContextData,
     UploadFilesRequest,
     UploadFilesResponse,
-    UploadFilesResponseUploadHandle,
 )
 from bench.proto.wiring import (
     pack_proto_json,
@@ -230,7 +228,7 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
             if metadata.client_type is None:
                 raise GRPCError(GRPCStatus.UNAUTHENTICATED, "missing client type")
             client_id = UUID(metadata.client_id)
-            if metadata.client_type != wire.ClientType.BENCH_MACHINE:
+            if metadata.client_type != wire.ClientType.CLIENT_TYPE_BENCH_MACHINE:
                 # user client
                 if CLIENT_CACHE_ENABLED and self._client_cache.has(client_id):
                     client = await self._client_cache.get(client_id, metadata.client_access_token)
@@ -414,7 +412,7 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
 
     @override
     @tracer.start_as_current_span("host.prepare_commit")
-    def _prepare_commit(self, subject: Subject, context: SessionContext, edits: list[EditData]):
+    def _prepare_commit(self, subject: Subject, context: SessionContext, edits: Sequence[EditData]):
         assert subject.client and subject.client_ptr, f"no client for {subject!r}"
         assert self._main_package is not None, f"package not loaded in {self!r}"
 
@@ -499,7 +497,7 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
                 node_type, new_node_packed
             )
             log_data = LogData(
-                metatype=wire.ObjectType.LOG,
+                metatype=wire.ObjectType.OBJECT_TYPE_LOG,
                 id=str(UUIDT()),
                 revision=0,
                 parent_ptr=package_ptr,
@@ -513,8 +511,8 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
                 updated_epoch=edit.epoch,
                 updated_by_ptr=edit.subject_ptr,
                 # meta
-                kind=wire.LogKind.CHANGE,
-                level=wire.LogLevel.INFO,
+                kind=wire.LogKind.LOG_KIND_CHANGE,
+                level=wire.LogLevel.LOG_LEVEL_INFO,
                 undo_of_ptr=edit.undo_of_ptr,
                 # content
                 type=cast(wire.AccessType, edit.type),
@@ -541,7 +539,7 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
             )
             create_log_edit = EditData(
                 id=log_data.id,
-                type=wire.EditType.CREATE,
+                type=wire.EditType.EDIT_TYPE_CREATE,
                 scope=edit.scope,
                 node_ptr=NodeReference._ref_data_from_node_data(log_data),
                 origin=None,
@@ -756,7 +754,7 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
 
 
 @tracer.start_as_current_span("host.validate_context")
-def validate_context(subject: Subject, context: SessionContext, edits: list[EditData]):
+def validate_context(subject: Subject, context: SessionContext, edits: Sequence[EditData]):
     """Checks the session context and per edit context for consistency."""
     assert subject.client and subject.client_ptr, f"no client for {subject!r}"
     if not context.client_ptr or context.client_ptr.id != subject.client_ptr.id:
