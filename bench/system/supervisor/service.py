@@ -32,7 +32,6 @@ from bench.proto.wire import (
     LogoutUserResponse,
     ResolveHostsRequest,
     ResolveHostsResponse,
-    ResolveHostsResponseHostInfo,
     RpcMetadata,
     ServiceKind,
     SignupUserRequest,
@@ -186,6 +185,8 @@ class SupervisorService(GraphIoServiceBase, SupervisorBase):
                 last_logged_in_at=self.oracle.utc(),
                 _is_new=True,  # force create
             )
+            if not request.password:
+                raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "password required")
             user.password_salt = generate_salt(SALT_LENGTH)
             user.password_hash = hash_password(request.password, user.password_salt)
             session._create(user)
@@ -388,7 +389,7 @@ class SupervisorService(GraphIoServiceBase, SupervisorBase):
         self, subject: "Subject", request: "ResolveHostsRequest"
     ) -> "ResolveHostsResponse":
         async with self.new_request_session(supergraph=subject._supergraph):
-            hosts: list[ResolveHostsResponseHostInfo] = []
+            hosts: list[ResolveHostsResponse.HostInfo] = []
             for bench_key in request.benches:
                 # NOTE :Performance: batch resolve_hosts lookups
                 key, value = betterproto.which_one_of(bench_key, "bench")
@@ -399,7 +400,7 @@ class SupervisorService(GraphIoServiceBase, SupervisorBase):
                 else:
                     raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "no bench specified")
                 host_info = self._host_map.get_or_error(bench.region)
-                host_info = ResolveHostsResponseHostInfo(
+                host_info = ResolveHostsResponse.HostInfo(
                     domain=host_info.host_domain,
                     grpc_port=host_info.grpc_port,
                     grpc_web_port=host_info.grpc_web_port,

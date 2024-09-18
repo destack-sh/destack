@@ -1697,6 +1697,7 @@ async def pg_edit(
         return [], []
 
     # batch operations by edit kind and node type
+    assert edits[0].node_ptr is not None, f"no node ptr for {edits[0]!r}"
     batch_node_cls = NODE_CLASS_BY_TYPE[wiring.unpack_enum(NodeType, edits[0].node_ptr.type)]
     batch_updated_properties: bitarray = bitarray(batch_node_cls.__max_property_ord__ + 1)
     batch: list[EditData] = []
@@ -1705,6 +1706,7 @@ async def pg_edit(
 
     for i, prev_edit in enumerate(edits):
         next_edit = edits[i + 1] if i + 1 < len(edits) else None
+        assert prev_edit.node_ptr is not None, f"no node ptr for {prev_edit!r}"
         batch.append(prev_edit)
 
         # accumulate updated properties
@@ -1716,6 +1718,7 @@ async def pg_edit(
         if (
             next_edit is not None
             and next_edit.type == prev_edit.type
+            and next_edit.node_ptr is not None
             and next_edit.node_ptr.type == prev_edit.node_ptr.type
         ):
             continue
@@ -1753,8 +1756,7 @@ async def pg_edit(
         # NOTE: in case of multiple edits to the same node, the returned revision is the latest.
         new_revisions_by_id = {node.id: node.revision for node in changed_nodes}
         for edit in batch:
-            node_id = cast(str, edit.node_ptr.id)
-            all_new_revisions.append(new_revisions_by_id[node_id])
+            all_new_revisions.append(new_revisions_by_id[edit.node_ptr.id])
 
         # start new batch if needed
         if next_edit is not None:
@@ -1789,12 +1791,13 @@ async def _pg_edit_cascade(
             assert root_edit.old_node is not None, f"no old node for {root_edit!r}"
             old_node = wiring.unwrap_some_node(root_edit.old_node)
             if edit_type == EditType.UNARCHIVE:
+                assert old_node.archived_at is not None, f"no archived_at for {old_node!r}"
                 removed_at = old_node.archived_at.ToDatetime()
             elif edit_type == EditType.RESTORE:
+                assert old_node.deleted_at is not None, f"no deleted_at for {old_node!r}"
                 removed_at = old_node.deleted_at.ToDatetime()
             else:
                 assert_never(edit_type)
-            assert removed_at is not None, f"no removed_at for {root_edit!r}"
             removed_dts.append(removed_at)
             removed_at_by_root_node_id[cast(str, root_edit.node_ptr.id)] = removed_at
         extra_filter = C(

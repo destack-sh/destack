@@ -1,4 +1,5 @@
 import os
+import re
 import shutil
 import subprocess
 from enum import Enum
@@ -132,6 +133,13 @@ def _build_proto(schema_str: str) -> None:
             rf"import ({'|'.join(p.stem for p in generated_py_files)})",
             r"from . import \1",
             wire_py,
+        )
+        # make all message fields optional (some whitespace, lower_case_var: annotation)
+        wire_py = regex.sub(
+            r"^(?!.*FieldContainer)(^[ ]+[a-z_]+: [\w\[\|\.]+)",
+            r"\1 | None",
+            wire_py,
+            flags=re.MULTILINE,
         )
         # rename XyzStub to XyzClient (stub is a bad name)
         wire_py = regex.sub(r"(?<!Service)Stub", "Client", wire_py)
