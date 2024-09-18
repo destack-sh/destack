@@ -57,7 +57,7 @@ class RunnerCache[T: RunnableNode]:
 
 
 @dataclass(slots=True, repr=False)
-class Runner[S: RunnerCache, T: RunnableNode](abc.ABC):
+class Runner[S: RunnerCache, T: RunnableNode]:
     """A runner for a single run (tracked or untracked)."""
 
     cache_cls: ClassVar[type[RunnerCache]] = RunnerCache
