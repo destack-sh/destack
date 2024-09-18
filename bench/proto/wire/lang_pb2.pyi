@@ -1,3 +1,10 @@
+
+# type: ignore
+# ruff: noqa
+
+from typing import TYPE_CHECKING, Union
+    
+
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from google.protobuf import duration_pb2 as _duration_pb2
 from google.protobuf import struct_pb2 as _struct_pb2

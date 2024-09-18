@@ -65,7 +65,6 @@ from bench.proto.wire import (
     EditData,
     FileReferenceData,
     GraphScopeData,
-    IdEnum,
     NodeReferenceData,
     SecretReferenceData,
 )
@@ -89,7 +88,7 @@ from bench.sql.core import (
     Table,
 )
 from bench.utils.env import IS_DEV
-from bench.utils.func import bittuple, describe_type, group_by, to_uuid
+from bench.utils.func import IdEnum, bittuple, describe_type, group_by, to_uuid
 from bench.utils.oracle import REAL_ORACLE
 from bench.utils.string import Casing, to_casing
 from bench.utils.tenacity import RetryOptions, retry

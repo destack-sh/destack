@@ -898,9 +898,8 @@ async def upload_batch(
                 ), f"unexpected file: {file!r}"
 
                 # POST file to url
-                fields = handle.fields.to_dict()
                 form_data = aiohttp.FormData()
-                for key, value in fields.items():
+                for key, value in handle.fields.items():
                     form_data.add_field(key, value)
                 form_data.add_field(
                     "file", file_content, filename=file.title, content_type=file.mime_type
