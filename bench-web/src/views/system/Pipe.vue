@@ -59,7 +59,7 @@ defineExpose<ViewExposed>({ self, id });
         stroke="currentColor"
         fill="none"
         :stroke-dasharray="
-          pipe.type == PipeType.THEN ? `${PIPE_WIDTH * 3},${PIPE_WIDTH * 2}` : `${1},${PIPE_WIDTH * 2}`
+          pipe.type == PipeType.CONTROL_AND_DATA ? `${PIPE_WIDTH * 3},${PIPE_WIDTH * 2}` : `${1},${PIPE_WIDTH * 2}`
         "
         :d="pathSvg"
       >

@@ -1006,8 +1006,8 @@ enum PipeFilterType {
 
 enum PipeType {
   PIPE_TYPE_UNSPECIFIED = 0;
-  PIPE_TYPE_THEN = 1;
-  PIPE_TYPE_WITH = 2;
+  PIPE_TYPE_CONTROL_AND_DATA = 1;
+  PIPE_TYPE_DATA = 2;
 }
 
 enum PolicyEffect {

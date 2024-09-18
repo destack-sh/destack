@@ -1679,7 +1679,7 @@ async def pg_search_node_graph(
         return roots, graph
 
 
-# TODO :Performance!: use psycopg3/postgres pipelining to batch edits?
+# TODO :Performance!: use psycopg3/postgres pipelining to batch edits
 
 
 @_trace_pg_span

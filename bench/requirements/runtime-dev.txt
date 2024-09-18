@@ -302,7 +302,7 @@ ply==3.11
 pre-commit==3.3.3
 prompt-toolkit==3.0.47
     # via tach
-proto-plus==1.23.0
+proto-plus==1.24.0
     # via
     #   google-ai-generativelanguage
     #   google-api-core

@@ -102,6 +102,8 @@ def _build_proto(schema_str: str) -> None:
 
     Path(TEMP_PY_FILE).unlink(missing_ok=True)
     Path(TEMP_PY_DIR).mkdir(parents=True, exist_ok=True)
+    # TODO :Performance!: use native protoc instead of betterproto
+    # protoc -I . --python_out={TEMP_PY_DIR} --pyi_out={TEMP_PY_DIR} --grpclib_python_out={TEMP_PY_DIR} {LANG_PROTO} {EXTRA_PROTO_PY_FILES}
     run_shell_sync(
         f"protoc -I . --python_betterproto_out={TEMP_PY_DIR} {LANG_PROTO} {EXTRA_PROTO_PY_FILES}",
     )
