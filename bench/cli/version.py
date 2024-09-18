@@ -23,7 +23,7 @@ def show():
 def bump(revision: int = typer.Option(None)):
     """
     Bump the CalVer to the current date. Increment revision if the date is the same.
-    Format is YYYY.MM.DD.R
+    Format: YYYY.MM.DD.R
     """
     current_version = VERSION
     current_version_date = datetime.strptime(current_version[:10], "%Y.%m.%d").date()  # noqa: DTZ007
@@ -40,7 +40,7 @@ def bump(revision: int = typer.Option(None)):
         "version",
         "bench/language/const.py",
         "bench/sql/schema.py",
-        "bench/proto/wire.py",
+        "bench/proto/wire/__init__.py",
         "bench-web/package.json",
         "bench-web/src/utils/globals.ts",
     ):

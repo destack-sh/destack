@@ -1,0 +1,51 @@
+syntax = "proto3";
+
+package symbolx.bench;
+
+import "common.proto";
+import "lang.proto";
+
+//
+// Runtime
+//
+
+message ProcessRunRequest {
+	RunData run = 1;
+	bool is_blocking = 2; // whether to wait for the Run to terminate
+}
+message ProcessRunResponse {
+}
+
+message PauseRunRequest {
+	RunData run = 1;
+}
+message PauseRunResponse {
+	bool is_processed = 1;	
+}
+
+message ResumeRunRequest {
+	RunData run = 1;
+}
+message ResumeRunResponse {
+}
+
+message KillRunRequest {
+	RunData run = 1;
+}
+message KillRunResponse {
+	bool is_processed = 1;	
+}
+  
+// A Runtime for running a Bench somewhere (like on a Machine or a Client).
+// The Runtime may run multiple processes/threads to process its Runs in Sessions in parallel.
+service Runtime {
+	option (kind) = INTERNAL; // :ServiceKind
+  
+	// Process a new/existing Run in this runtime. If not blocking, returns immediately on queuing.
+	rpc ProcessRun(ProcessRunRequest) returns (ProcessRunResponse);
+	// Pause a Run in this runtime. If the Run is not activehere , it is ignored.
+	rpc PauseRun(PauseRunRequest) returns (PauseRunResponse);
+	// Kill (abort or cancel) a Run in this runtime. If the Run is not active, it is ignored.
+	rpc KillRun(KillRunRequest) returns (KillRunResponse);
+}
+   

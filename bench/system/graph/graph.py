@@ -180,7 +180,9 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
         return area
 
     @final
-    async def _extend_commit_hook(self, session: Session, edits: Sequence[EditData]) -> Sequence[EditData]:
+    async def _extend_commit_hook(
+        self, session: Session, edits: Sequence[EditData]
+    ) -> Sequence[EditData]:
         return await self.extend_commit(session=session, context=None, edits=edits)
 
     @final

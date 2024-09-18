@@ -936,9 +936,7 @@ async def download_batch(
             ],
             environment=MACHINE_ENVIRONMENT,
         )
-        download_rep = await session.host.DownloadFiles(
-            download_req, metadata=session._rpc_headers
-        )
+        download_rep = await session.host.DownloadFiles(download_req, metadata=session._rpc_headers)
         handles_by_id = {h.file.id: h for h in download_rep.handles}
         del download_rep
 

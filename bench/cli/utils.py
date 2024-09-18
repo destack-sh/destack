@@ -8,8 +8,6 @@ import structlog
 import uvloop
 from opentelemetry import trace
 
-from bench.language.setup import NODE_CLASSES
-
 if TYPE_CHECKING:
     pass
 
@@ -62,6 +60,7 @@ class InconsistencyError(RuntimeError):
 async def check_is_consistent(*, check_db: bool) -> None:
     """Checks whether the language constructs are in sync with the derived stuff."""
     from bench.language import VERSION as LANG_VERSION
+    from bench.language.setup import NODE_CLASSES
     from bench.proto.wire import VERSION as PROTO_VERSION
     from bench.sql.client import pg_connection
     from bench.sql.core import Schema
