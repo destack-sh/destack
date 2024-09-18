@@ -166,9 +166,9 @@ class Session(RuntimeNode[SessionData]):
     _pending_nodes_by_id: dict[UUID, Node] = p_runtime(default_factory=dict)
     _default_scope: GraphScopeData = p_runtime(default_factory=lambda: EMPTY_SCOPE._to_data())
     _local_epoch: int | None = p_runtime(default=None)
-    _extend_commit: Callable[["Session", Sequence["EditData"]], Awaitable[Sequence[EditData]]] | None = (
-        p_runtime(default=None)
-    )
+    _extend_commit: (
+        Callable[["Session", Sequence["EditData"]], Awaitable[Sequence[EditData]]] | None
+    ) = p_runtime(default=None)
     _on_commit: (
         Callable[
             ["Session", NodeGraphLike, NodeDataGraphLike, list["EditData"], list["EditData"]],

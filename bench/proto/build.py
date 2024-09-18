@@ -39,9 +39,17 @@ TARGET_PY_DIR = "bench/proto/wire"
 TEMP_TS_DIR = "bench-web/src/proto/wire.tmp"
 TARGET_TS_DIR = "bench-web/src/proto/wire"
 EXTRA_PROTO_PY_FILES = (
-    "proto/common.proto proto/health.proto proto/system.proto proto/runtime.proto"
+    "proto/common.proto",
+    "proto/health.proto",
+    "proto/system.proto",
+    "proto/runtime.proto",
 )
-EXTRA_PROTO_TS_FILES = "proto/common.proto proto/health.proto proto/system.proto proto/web.proto"
+EXTRA_PROTO_TS_FILES = (
+    "proto/common.proto",
+    "proto/health.proto",
+    "proto/system.proto",
+    "proto/web.proto",
+)
 
 logger = structlog.get_logger(__name__)
 app = typer.Typer(short_help="proto management")
@@ -97,70 +105,56 @@ def _build_proto(schema_str: str) -> None:
 
     #
     # Python (betterproto)
+    # nocheckin :Performance!: use native protoc instead of betterproto
     #
 
-    Path(TEMP_PY_DIR).unlink(missing_ok=True)
+    # NOTE: we copy the proto files into the temporary wire directory to ensure the import paths
+    #  are correct for protobuf's python generator.
     Path(TEMP_PY_DIR).mkdir(parents=True, exist_ok=True)
-    # nocheckin :Performance!: use native protoc instead of betterproto
+    py_proto_files = [LANG_PROTO, *EXTRA_PROTO_PY_FILES]
+    py_proto_files = [p.replace("proto/", "") for p in py_proto_files]
+    run_shell_sync("cp -r proto wire")
+    # replace 'import "proto/..." with 'import "..." in all files in wire
+    for path in Path("wire").rglob("*.proto"):
+        path.write_text(regex.sub(r"import \"proto/", "import ", path.read_text()))
     run_shell_sync(
-        f"protoc -I . --python_out={TEMP_PY_DIR} --pyi_out={TEMP_PY_DIR} --grpclib_python_out={TEMP_PY_DIR} {LANG_PROTO} {EXTRA_PROTO_PY_FILES}"
+        f"protoc -I wire --python_out={TEMP_PY_DIR} --pyi_out={TEMP_PY_DIR} --grpclib_python_out={TEMP_PY_DIR} {' '.join(py_proto_files)}"
     )
-    run_shell_sync(
-        f"protoc -I . --python_betterproto_out={TEMP_PY_DIR} {LANG_PROTO} {EXTRA_PROTO_PY_FILES}",
-    )
-    run_shell_sync(
-        f"cat {TEMP_PY_DIR}/symbolx/bench/__init__.py {TEMP_PY_DIR}/grpc/health/v1/__init__.py > {TEMP_PY_FILE}"
-    )
+    run_shell_sync("rm -r wire")
 
-    # patch in our extra stuff
-    wire_py = Path(TEMP_PY_FILE).read_text()
-    # rename all '*_request' parameters to just 'request'
-    wire_py = regex.sub(r"\w[a-z_]+request,", "request,", wire_py)
-    wire_py = regex.sub(r"\w[a-z_]+request:", "request:", wire_py)
-    # add subject parameter to public service base methods
-    for service_name in _PUBLIC_SERVICES:
-        base_name = f"{service_name}Base"
-        # find section of code that defines this class
-        #  (start with class <base_name> and end with next class or end of file)
-        base_start = wire_py.index(f"class {base_name}(ServiceBase):")
-        try:
-            base_end = wire_py.index("class", base_start + 1)
-        except ValueError:
-            base_end = len(wire_py)
-        base_py = wire_py[base_start:base_end]
-        patched_base_py = regex.sub(
-            r"self, request:(?! \"[a-zA-Z]\", \*)",
-            'self, subject: "Subject", request:',
-            base_py,
+    # patch in our extra stuff into every file
+    generated_py_files = Path(TEMP_PY_DIR).rglob("*.py")
+    for path in generated_py_files:
+        wire_py = path.read_text()
+        # replace 'import <name>' with 'from .<name> import <name>' (if name is one of generated_py_files)
+        wire_py = regex.sub(
+            rf"import ({'|'.join(p.stem for p in generated_py_files)})",
+            r"from . import \1",
+            wire_py,
         )
-        wire_py = wire_py[:base_start] + patched_base_py + wire_py[base_end:]
+        # rename XyzStub to XyzClient (stub is a bad name)
+        wire_py = regex.sub(r"(?<!Service)Stub", "Client", wire_py)
+        patch_prefix_code = """
+# ruff: noqa
 
-    # rename XyzStub to XyzClient (stub is a bad name)
-    wire_py = regex.sub(r"(?<!Service)Stub", "Client", wire_py)
+from typing import TYPE_CHECKING, Union
+    """
+        path.write_text(patch_prefix_code + "\n\n" + wire_py)
 
-    patch_prefix_code = f"""
-# type: ignore
+    Path(TEMP_PY_DIR + "/__init__.py").write_text(f"""
 # ruff: noqa
 
 from typing import TYPE_CHECKING, Union
 
 VERSION = '{VERSION}'
 
-if TYPE_CHECKING:
-    from bench.language import Subject
-"""
-    patch_postfix_code = f"""
-
-# ensure monkey patching is applied when this is imported
-import bench.proto.monkey # noqa
+# import from all generated files
+{"\n".join(f"from .{path.stem} import *" for path in generated_py_files)}
 
 # extra utility types
 AnyNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES])}]
 AnyStructData = Union[{', '.join([cls.__name__ + 'Data' for cls in STRUCT_CLASSES])}]
-    """
-    Path(TEMP_PY_FILE).write_text(
-        patch_prefix_code + "\n\n" + wire_py + "\n\n" + patch_postfix_code
-    )
+""")
     shutil.rmtree(TEMP_PY_DIR, ignore_errors=True)
     run_shell_sync(f"ruff check {TEMP_PY_DIR} --fix", check=True, stdout=DEVNULL)
     run_shell_sync(f"ruff format {TEMP_PY_DIR}", check=True, stdout=DEVNULL)
@@ -173,7 +167,7 @@ AnyStructData = Union[{', '.join([cls.__name__ + 'Data' for cls in STRUCT_CLASSE
     shutil.rmtree(TEMP_TS_DIR, ignore_errors=True)
     Path(TEMP_TS_DIR).mkdir(parents=True, exist_ok=True)
     run_shell_sync(
-        f"bun x protoc --ts_out {TEMP_TS_DIR} --proto_path . {LANG_PROTO} {EXTRA_PROTO_TS_FILES}",
+        f"bun x protoc --ts_out {TEMP_TS_DIR} --proto_path . {LANG_PROTO} {' '.join(EXTRA_PROTO_TS_FILES)}",
     )
 
     # ancestry maps
