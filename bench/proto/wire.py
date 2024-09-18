@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2024.09.18.0"
+VERSION = "2024.09.18.1"
 
 if TYPE_CHECKING:
     from bench.language import Subject
@@ -1055,8 +1055,8 @@ class PipeFilterType(betterproto.Enum):
 
 class PipeType(betterproto.Enum):
     UNSPECIFIED = 0
-    THEN = 1
-    WITH = 2
+    CONTROL_AND_DATA = 1
+    DATA = 2
 
 
 class PolicyEffect(betterproto.Enum):

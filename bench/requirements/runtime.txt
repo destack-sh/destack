@@ -262,7 +262,7 @@ pluggy==1.5.0
     # via pytest
 ply==3.11
     # via stone
-proto-plus==1.23.0
+proto-plus==1.24.0
     # via
     #   google-ai-generativelanguage
     #   google-api-core

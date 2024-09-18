@@ -117,7 +117,14 @@ class StepState:
         """Wrap a Step in a StepState."""
         input_type = step.input_type
         inputs = ValueObject.new({}, input_type)
-        unset_ports = {to_port_id(p): p for p in step.incoming_ports}
+
+        # add incoming ports to unset (except optional fields)
+        unset_ports = {}
+        for port in step.incoming_ports:
+            port_id = to_port_id(port)
+            port_field = port.field
+            if port_field is None or port_field.is_required:
+                unset_ports[port_id] = port
         return StepState(
             step=step, input_type=input_type, inputs=inputs, unset_ports=unset_ports, runners=[]
         )
@@ -215,7 +222,7 @@ class FlowRunner(Runner[RunnerCache, Block]):
         def _fire_pipe(pipe: Pipe, target_state: StepState):
             """'Fire' the target step of the pipe."""
             fire = FireType.FULL if pipe.target_port.type == PortType.RUN else FireType.PARTIAL
-            if pipe.type == PipeType.THEN and (
+            if pipe.type == PipeType.CONTROL_AND_DATA and (
                 target_state.step not in fired_steps or fired_steps[target_state.step] < fire
             ):
                 fired_steps[target_state.step] = fire

@@ -51,8 +51,8 @@ if TYPE_CHECKING:
 
 @enum_(EnumType.PIPE_TYPE)
 class PipeType(IdEnum):
-    THEN = 1  # value + fire
-    WITH = 2  # value
+    CONTROL_AND_DATA = 1  # then: value + fire
+    DATA = 2  # with: value
 
 
 @enum_(EnumType.PIPE_FILTER_TYPE)
@@ -112,9 +112,9 @@ class Pipe(SourceNode[PipeData]):
     )
 
     def __content_str__(self) -> str:
-        if self.type == PipeType.THEN:
+        if self.type == PipeType.CONTROL_AND_DATA:
             arrow_str = "->"
-        elif self.type == PipeType.WITH:
+        elif self.type == PipeType.DATA:
             arrow_str = "-"
         else:
             assert_never(self.type)
@@ -433,7 +433,7 @@ class Step(SourceNode[StepData]):
     ) -> "Step":
         """Connects a source Step to this Step as a Then. Returns the target Step (for chaining)."""
         _ = target.connect(
-            type=PipeType.THEN,
+            type=PipeType.CONTROL_AND_DATA,
             name=name,
             source=self,
             source_port=source_port,
@@ -455,7 +455,7 @@ class Step(SourceNode[StepData]):
     ) -> "Step":
         """Connects a source Step to this Step as a With. Returns the target Step (for chaining)."""
         _ = target.connect(
-            type=PipeType.WITH,
+            type=PipeType.DATA,
             name=name,
             source=self,
             source_port=source_port,

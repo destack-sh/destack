@@ -287,8 +287,8 @@ export const ICON_BY_STEP_TYPE: Partial<Record<StepType, IconData>> = _makeIcons
 });
 
 export const ICON_BY_PIPE_TYPE: Partial<Record<PipeType, IconData>> = _makeIcons<PipeType>({
-  [PipeType.THEN]: "fas fa-arrow-right-long",
-  [PipeType.WITH]: "fas fa-horizontal-rule",
+  [PipeType.CONTROL_AND_DATA]: "fas fa-arrow-right-long",
+  [PipeType.DATA]: "fas fa-horizontal-rule",
 });
 
 export const ICON_BY_PIPE_FILTER_TYPE: Partial<Record<PipeFilterType, IconData>> = _makeIcons<PipeFilterType>({
