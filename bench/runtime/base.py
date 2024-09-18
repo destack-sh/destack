@@ -221,6 +221,7 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
                     request, metadata=self._rpc_headers, timeout=(5)
                 )
                 host_info = response.hosts[0]
+                assert host_info.domain, f"no domain for {host_info!r}"
                 host_info.domain = localize_url(host_info.domain)
                 self.logger.info(
                     "runtime.resolve_host",
