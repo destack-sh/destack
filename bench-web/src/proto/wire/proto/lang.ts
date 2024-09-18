@@ -2057,17 +2057,17 @@ export interface TypeInfoData {
      */
     constraint?: TypeConstraintData;
     /**
-     * @generated from protobuf field: bool is_list = 60;
+     * @generated from protobuf field: bool is_required = 60;
+     */
+    isRequired: boolean;
+    /**
+     * @generated from protobuf field: bool is_list = 61;
      */
     isList: boolean;
     /**
-     * @generated from protobuf field: bool is_secret = 61;
+     * @generated from protobuf field: bool is_secret = 62;
      */
     isSecret: boolean;
-    /**
-     * @generated from protobuf field: bool is_required = 62;
-     */
-    isRequired: boolean;
 }
 /**
  * The state of a User view.
@@ -3072,17 +3072,17 @@ export interface FieldData {
      */
     constraint?: TypeConstraintData;
     /**
-     * @generated from protobuf field: bool is_list = 60;
+     * @generated from protobuf field: bool is_required = 60;
+     */
+    isRequired: boolean;
+    /**
+     * @generated from protobuf field: bool is_list = 61;
      */
     isList: boolean;
     /**
-     * @generated from protobuf field: bool is_secret = 61;
+     * @generated from protobuf field: bool is_secret = 62;
      */
     isSecret: boolean;
-    /**
-     * @generated from protobuf field: bool is_required = 62;
-     */
-    isRequired: boolean;
 }
 /**
  * A file stored somewhere (like in a Drive, or externally).
@@ -16537,18 +16537,18 @@ class TypeInfoData$Type extends MessageType<TypeInfoData> {
             { no: 50, name: "default_packed", kind: "message", T: () => Struct },
             { no: 54, name: "condition", kind: "message", T: () => ExpressionData },
             { no: 55, name: "constraint", kind: "message", T: () => TypeConstraintData },
-            { no: 60, name: "is_list", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 61, name: "is_secret", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 62, name: "is_required", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
+            { no: 60, name: "is_required", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 61, name: "is_list", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 62, name: "is_secret", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<TypeInfoData>): TypeInfoData {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.kind = 0;
+        message.isRequired = false;
         message.isList = false;
         message.isSecret = false;
-        message.isRequired = false;
         if (value !== undefined)
             reflectionMergePartial<TypeInfoData>(this, message, value);
         return message;
@@ -16588,14 +16588,14 @@ class TypeInfoData$Type extends MessageType<TypeInfoData> {
                 case /* optional symbolx.bench.TypeConstraintData constraint */ 55:
                     message.constraint = TypeConstraintData.internalBinaryRead(reader, reader.uint32(), options, message.constraint);
                     break;
-                case /* bool is_list */ 60:
+                case /* bool is_required */ 60:
+                    message.isRequired = reader.bool();
+                    break;
+                case /* bool is_list */ 61:
                     message.isList = reader.bool();
                     break;
-                case /* bool is_secret */ 61:
+                case /* bool is_secret */ 62:
                     message.isSecret = reader.bool();
-                    break;
-                case /* bool is_required */ 62:
-                    message.isRequired = reader.bool();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -16639,15 +16639,15 @@ class TypeInfoData$Type extends MessageType<TypeInfoData> {
         /* optional symbolx.bench.TypeConstraintData constraint = 55; */
         if (message.constraint)
             TypeConstraintData.internalBinaryWrite(message.constraint, writer.tag(55, WireType.LengthDelimited).fork(), options).join();
-        /* bool is_list = 60; */
-        if (message.isList !== false)
-            writer.tag(60, WireType.Varint).bool(message.isList);
-        /* bool is_secret = 61; */
-        if (message.isSecret !== false)
-            writer.tag(61, WireType.Varint).bool(message.isSecret);
-        /* bool is_required = 62; */
+        /* bool is_required = 60; */
         if (message.isRequired !== false)
-            writer.tag(62, WireType.Varint).bool(message.isRequired);
+            writer.tag(60, WireType.Varint).bool(message.isRequired);
+        /* bool is_list = 61; */
+        if (message.isList !== false)
+            writer.tag(61, WireType.Varint).bool(message.isList);
+        /* bool is_secret = 62; */
+        if (message.isSecret !== false)
+            writer.tag(62, WireType.Varint).bool(message.isSecret);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -18662,9 +18662,9 @@ class FieldData$Type extends MessageType<FieldData> {
             { no: 50, name: "default_packed", kind: "message", T: () => Struct },
             { no: 54, name: "condition", kind: "message", T: () => ExpressionData },
             { no: 55, name: "constraint", kind: "message", T: () => TypeConstraintData },
-            { no: 60, name: "is_list", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 61, name: "is_secret", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 62, name: "is_required", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
+            { no: 60, name: "is_required", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 61, name: "is_list", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 62, name: "is_secret", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<FieldData>): FieldData {
@@ -18680,9 +18680,9 @@ class FieldData$Type extends MessageType<FieldData> {
         message.orderKey = "";
         message.zone = 0;
         message.kind = 0;
+        message.isRequired = false;
         message.isList = false;
         message.isSecret = false;
-        message.isRequired = false;
         if (value !== undefined)
             reflectionMergePartial<FieldData>(this, message, value);
         return message;
@@ -18795,14 +18795,14 @@ class FieldData$Type extends MessageType<FieldData> {
                 case /* optional symbolx.bench.TypeConstraintData constraint */ 55:
                     message.constraint = TypeConstraintData.internalBinaryRead(reader, reader.uint32(), options, message.constraint);
                     break;
-                case /* bool is_list */ 60:
+                case /* bool is_required */ 60:
+                    message.isRequired = reader.bool();
+                    break;
+                case /* bool is_list */ 61:
                     message.isList = reader.bool();
                     break;
-                case /* bool is_secret */ 61:
+                case /* bool is_secret */ 62:
                     message.isSecret = reader.bool();
-                    break;
-                case /* bool is_required */ 62:
-                    message.isRequired = reader.bool();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -18919,15 +18919,15 @@ class FieldData$Type extends MessageType<FieldData> {
         /* optional symbolx.bench.TypeConstraintData constraint = 55; */
         if (message.constraint)
             TypeConstraintData.internalBinaryWrite(message.constraint, writer.tag(55, WireType.LengthDelimited).fork(), options).join();
-        /* bool is_list = 60; */
-        if (message.isList !== false)
-            writer.tag(60, WireType.Varint).bool(message.isList);
-        /* bool is_secret = 61; */
-        if (message.isSecret !== false)
-            writer.tag(61, WireType.Varint).bool(message.isSecret);
-        /* bool is_required = 62; */
+        /* bool is_required = 60; */
         if (message.isRequired !== false)
-            writer.tag(62, WireType.Varint).bool(message.isRequired);
+            writer.tag(60, WireType.Varint).bool(message.isRequired);
+        /* bool is_list = 61; */
+        if (message.isList !== false)
+            writer.tag(61, WireType.Varint).bool(message.isList);
+        /* bool is_secret = 62; */
+        if (message.isSecret !== false)
+            writer.tag(62, WireType.Varint).bool(message.isSecret);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -26562,9 +26562,9 @@ export enum FieldProperty {
   defaultPacked = 50,
   condition = 54,
   constraint = 55,
-  isList = 60,
-  isSecret = 61,
-  isRequired = 62,
+  isRequired = 60,
+  isList = 61,
+  isSecret = 62,
 }
 
 export enum QueryProperty {
@@ -27246,9 +27246,9 @@ export enum TypeInfoProperty {
   defaultPacked = 50,
   condition = 54,
   constraint = 55,
-  isList = 60,
-  isSecret = 61,
-  isRequired = 62,
+  isRequired = 60,
+  isList = 61,
+  isSecret = 62,
 }
 
 export enum TypeConstraintProperty {
@@ -28071,9 +28071,9 @@ export const TypeInfoDataInfo: Record<TypeInfoProperty, PropertyInfo> = {
   [TypeInfoProperty.defaultPacked]: { id: 50, name: 'default_packed', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [TypeInfoProperty.condition]: { id: 54, name: 'condition', component: ObjectType.TYPE_INFO, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
   [TypeInfoProperty.constraint]: { id: 55, name: 'constraint', component: ObjectType.TYPE_INFO, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_CONSTRAINT },
-  [TypeInfoProperty.isList]: { id: 60, name: 'is_list', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [TypeInfoProperty.isSecret]: { id: 61, name: 'is_secret', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [TypeInfoProperty.isRequired]: { id: 62, name: 'is_required', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [TypeInfoProperty.isRequired]: { id: 60, name: 'is_required', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [TypeInfoProperty.isList]: { id: 61, name: 'is_list', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [TypeInfoProperty.isSecret]: { id: 62, name: 'is_secret', component: ObjectType.TYPE_INFO, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const TypeConstraintDataInfo: Record<TypeConstraintProperty, PropertyInfo> = {
   [TypeConstraintProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.TYPE_CONSTRAINT, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -28876,9 +28876,9 @@ export const FieldDataInfo: Record<FieldProperty, PropertyInfo> = {
   [FieldProperty.defaultPacked]: { id: 50, name: 'default_packed', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [FieldProperty.condition]: { id: 54, name: 'condition', component: ObjectType.FIELD, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.EXPRESSION },
   [FieldProperty.constraint]: { id: 55, name: 'constraint', component: ObjectType.FIELD, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.TYPE_CONSTRAINT },
-  [FieldProperty.isList]: { id: 60, name: 'is_list', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [FieldProperty.isSecret]: { id: 61, name: 'is_secret', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [FieldProperty.isRequired]: { id: 62, name: 'is_required', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [FieldProperty.isRequired]: { id: 60, name: 'is_required', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [FieldProperty.isList]: { id: 61, name: 'is_list', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
+  [FieldProperty.isSecret]: { id: 62, name: 'is_secret', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
 }
 export const QueryDataInfo: Record<QueryProperty, PropertyInfo> = {
   [QueryProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.QUERY, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },

@@ -295,9 +295,9 @@ class TypeInfoBase(BuiltinObject):
     )
 
     # flags
-    is_list: bool = p_regular(60, default=False)
-    is_secret: bool = p_regular(61, default=False)
-    is_required: bool = p_regular(62, default=False)
+    is_required: bool = p_regular(60, default=False)
+    is_list: bool = p_regular(61, default=False)
+    is_secret: bool = p_regular(62, default=False)
 
     # resolved
     _resolved_type: Optional["TypeInfoBase"] = p_runtime(default=None)

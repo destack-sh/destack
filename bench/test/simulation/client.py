@@ -53,7 +53,9 @@ class UserHandle:
     async def prepare(self, supervisor_client: SupervisorClient):
         """Creates the User"""
         client_in = ClientDataIn(
-            type=wire.ClientType.BENCH_MACHINE, name=f"{self.name}-signup", device_name="test"
+            type=wire.ClientType.CLIENT_TYPE_BENCH_MACHINE,
+            name=f"{self.name}-signup",
+            device_name="test",
         )
         signup_req = SignupUserRequest(
             slug=self.name,
@@ -62,7 +64,7 @@ class UserHandle:
             password=self.name,
             client=client_in,
         )
-        signup_rep = await supervisor_client.signup_user(signup_req)
+        signup_rep = await supervisor_client.SignupUser(signup_req)
         self._user_data = signup_rep.user
         self._user_ptr = unpack_object(
             NodeReference._ref_data_from_node_data(self._user_data),
@@ -97,7 +99,7 @@ class ClientHandle:
 
     def to_origin(self, *, nonce: str | None) -> ClientOriginData:
         return ClientOriginData(
-            metatype=wire.ObjectType.CLIENT_ORIGIN,
+            metatype=wire.ObjectType.OBJECT_TYPE_CLIENT_ORIGIN,
             type=self.client_data.type,
             id=self.client_data.id,
             nonce=nonce or self.client_data.id,
@@ -123,7 +125,7 @@ class ClientHandle:
             password=self.spec.username,
             client=client_in,
         )
-        login_rep = await supervisor_client.login_user(login_req)
+        login_rep = await supervisor_client.LoginUser(login_req)
         self._client_data = login_rep.client
         self._access_token = login_rep.access_token
         self._rpc_metadata = RpcMetadata(

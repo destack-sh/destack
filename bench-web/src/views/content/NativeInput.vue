@@ -104,7 +104,7 @@ defineExpose<ViewExposed>({ self, id, focus: () => inputRef.value });
       <template v-else>
         <!-- List -->
         <div v-for="(v, i) in values" :key="i" class="rounded bg-gray-100 px-1 hover:text-primary-900">
-          <span>{{ v }} </span>
+          <span class="truncate">{{ v }}</span>
           <!-- Remove -->
           <button
             v-if="!isDisabled"
@@ -157,7 +157,7 @@ defineExpose<ViewExposed>({ self, id, focus: () => inputRef.value });
       </template>
       <template v-else>
         <!-- List -->
-        <div v-for="(v, i) in values" :key="i" class="rounded bg-gray-100 px-1">{{ v }}</div>
+        <div v-for="(v, i) in values" :key="i" class="rounded truncate bg-gray-100 px-1">{{ v }}</div>
       </template>
     </div>
   </ViewContentWrapper>

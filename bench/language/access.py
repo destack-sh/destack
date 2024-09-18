@@ -1059,7 +1059,7 @@ def evaluate_and_adapt_read(
             if node.parent_ptr.id in skips:
                 continue
             skip = wire.SkipData(
-                metatype=wire.ObjectType.SKIP,
+                metatype=wire.ObjectType.OBJECT_TYPE_SKIP,
                 id=node.id,
                 parent_ptr=node.parent_ptr,
                 revision=node.revision,

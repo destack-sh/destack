@@ -35,7 +35,6 @@ from bench.proto.wire import (
     HealthBase,
     HealthCheckRequest,
     HealthCheckResponse,
-    HealthCheckResponseServingStatus,
     RpcMetadata,
     ServiceKind,
 )
@@ -257,7 +256,7 @@ class HealthService(HealthBase):
 
     async def check(self, request: "HealthCheckRequest") -> "HealthCheckResponse":
         # NOTE :Robustness :Monitoring: check health properly
-        response = HealthCheckResponse(status=HealthCheckResponseServingStatus.SERVING)
+        response = HealthCheckResponse(status=HealthCheckResponse.ServingStatus.SERVING)
         logger.trace("health.check", service=self, request=request, response=response)
         return response
 

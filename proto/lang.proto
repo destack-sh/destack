@@ -2187,9 +2187,9 @@ message TypeInfoData {
   optional google.protobuf.Struct default_packed = 50;
   optional ExpressionData condition = 54;
   optional TypeConstraintData constraint = 55;
-  bool is_list = 60;
-  bool is_secret = 61;
-  bool is_required = 62;
+  bool is_required = 60;
+  bool is_list = 61;
+  bool is_secret = 62;
 }
 
 // The state of a User view.
@@ -2473,9 +2473,9 @@ message FieldData {
   optional google.protobuf.Struct default_packed = 50;
   optional ExpressionData condition = 54;
   optional TypeConstraintData constraint = 55;
-  bool is_list = 60;
-  bool is_secret = 61;
-  bool is_required = 62;
+  bool is_required = 60;
+  bool is_list = 61;
+  bool is_secret = 62;
 }
 
 // A file stored somewhere (like in a Drive, or externally).

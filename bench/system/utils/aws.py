@@ -55,4 +55,4 @@ def get_s3_client_for_presigning(zone: Optional[MachineEnvironment]) -> S3Client
     elif zone == MachineEnvironment.MINIKUBE:
         return get_s3_client(localize_for="minikube")
     else:
-        assert_never(zone)
+        raise ValueError(f"unexpected machine environment: {zone}")

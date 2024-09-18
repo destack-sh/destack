@@ -19,13 +19,7 @@ from bench.language.session import Session
 from bench.language.setup import OBJECT_CLASS_BY_TYPE
 from bench.language.validation import on_invalid_raise
 from bench.proto import wire
-from bench.proto.wire import (
-    AnyNodeData,
-    AnyStructData,
-    NodeReferenceData,
-    RpcMetadata,
-    RpcMetadataBadgeInfo,
-)
+from bench.proto.wire import AnyNodeData, AnyStructData, NodeReferenceData, RpcMetadata
 from bench.utils.func import IdEnum, IdEnumOrUnion, to_uuid
 from bench.utils.string import Casing, to_casing
 
@@ -59,7 +53,7 @@ def copy_struct[T: AnyStructData | AnyNodeData](data: T) -> T:
             value = copy_struct_prop(prop, value)
             setattr(data_copy, prop.name, value)
     except (AttributeError, TypeError, ValueError, KeyError) as e:
-        raise ValueError(f"could not copy {data.metatype.name}: {data!r}") from e
+        raise ValueError(f"could not copy {type(data).__name__}: {data!r}") from e
     return data_copy  # type: ignore
 
 
@@ -121,7 +115,7 @@ def pack_object_prop(prop: Property, value: Any, ignore_array: bool = False) -> 
     elif prop.reference_kind is not None and not prop.reference_kind.is_struct_tree:
         value_id = str(value.id)
         return NodeReferenceData(
-            metatype=wire.ObjectType.NODE_REFERENCE,
+            metatype=wire.ObjectType.OBJECT_TYPE_NODE_REFERENCE,
             type=pack_enum(NodeType, value.type),
             id=value_id,
             ck=str(value.ck) if value.ck is not None else value_id,
@@ -240,7 +234,7 @@ def unpack_object[T: BuiltinObject](
             obj._track_self(session)
         return cast(T, obj)
     except (AttributeError, TypeError, ValueError, KeyError) as e:
-        raise ValueError(f"could not unpack {obj_data.metatype.name}: {obj_data!r}") from e
+        raise ValueError(f"could not unpack {type(obj_data).__name__}: {obj_data!r}") from e
 
 
 def unpack_object_validate[T: BuiltinObject](
@@ -376,7 +370,7 @@ def unpack_node_roots(
 def wrap_some_node(node: AnyNodeData) -> wire.SomeNodeData:
     """Wraps a concrete node type into a generic node message."""
     wrapper = wire.SomeNodeData()
-    field_name = to_casing(cast(str, node.metatype.name), Casing.SNAKE)
+    field_name = to_casing(cast(str, NodeType(node.metatype).name), Casing.SNAKE)
     setattr(wrapper, field_name, node)
     return wrapper
 
@@ -426,12 +420,9 @@ def unpack_rpc_headers(headers: Mapping) -> RpcMetadata:
     metadata.client_access_token = headers.get("x-bench-5")
     if headers.get("6"):
         unpacked_badges = json.loads(b64decode(headers.get("x-bench-6")).decode("utf-8"))  # type: ignore
-        metadata.badges = [
-            RpcMetadataBadgeInfo(
-                id=badge.get("2"),
-                key=badge.get("3"),
-                password=badge.get("4"),
-            )
-            for badge in unpacked_badges
-        ]
+        for unpacked_badge in unpacked_badges:
+            metadata_badge = metadata.badges.add()
+            metadata_badge.id = unpacked_badge.get("2")
+            metadata_badge.key = unpacked_badge.get("3")
+            metadata_badge.password = unpacked_badge.get("4")
     return metadata

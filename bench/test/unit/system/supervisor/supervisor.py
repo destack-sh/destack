@@ -1,4 +1,3 @@
-import dataclasses
 from typing import cast
 from uuid import uuid4
 
@@ -61,7 +60,7 @@ async def test_user_registration(supervisor: SupervisorClient):
     user_in = UserData(slug=user_slug, name=user_name, email=user_email)
     client_in = ClientDataIn(
         id=str(uuid4()),
-        type=wire.ClientType.BENCH_WEB,
+        type=wire.ClientType.CLIENT_TYPE_BENCH_WEB,
         name=client_name,
         device_name=client_device_name,
     )
@@ -74,22 +73,22 @@ async def test_user_registration(supervisor: SupervisorClient):
         client=cast(ClientDataIn, client_in),
         password="Password123!",
     )
-    signup_rep = await supervisor.signup_user(signup_req)
+    signup_rep = await supervisor.SignupUser(signup_req)
     assert signup_rep.user.slug == user_slug
 
     # login, invalid password -> fail
     login_req = LoginUserRequest(slug=user_slug, password="bad", client=client_in)
     with raises_grpc_error(GRPCStatus.UNAUTHENTICATED):
-        _ = await supervisor.login_user(login_req)
+        _ = await supervisor.LoginUser(login_req)
 
     # login, wrong password -> fail
     login_req = LoginUserRequest(slug=user_slug, password="321Password!!!", client=client_in)
     with raises_grpc_error(GRPCStatus.UNAUTHENTICATED):
-        _ = await supervisor.login_user(login_req)
+        _ = await supervisor.LoginUser(login_req)
 
     # login, correct password -> success
     login_req = LoginUserRequest(slug=user_slug, password="Password123!", client=client_in)
-    login_rep = await supervisor.login_user(login_req)
+    login_rep = await supervisor.LoginUser(login_req)
     assert login_rep.access_token
 
     # read user with sensitive data, authorized -> success
@@ -106,7 +105,7 @@ async def test_user_registration(supervisor: SupervisorClient):
         client_id=login_rep.client.id, client_access_token=login_rep.access_token
     )
     access_headers = pack_rpc_headers(access_metadata)
-    read_user_rep = await supervisor.get_nodes(read_user_req, metadata=access_headers)
+    read_user_rep = await supervisor.GetNodes(read_user_req, metadata=access_headers)
     assert len(read_user_rep.nodes) == 3
     assert read_user_rep.nodes[0].user.email == user_email
     assert read_user_rep.nodes[0].user.main_handle_ptr
@@ -116,13 +115,14 @@ async def test_user_registration(supervisor: SupervisorClient):
 
     # logout, invalid token -> fail
     with raises_grpc_error(GRPCStatus.UNAUTHENTICATED):
-        bad_access_metadata = dataclasses.replace(access_metadata, client_access_token="bad")
+        bad_access_metadata = access_metadata.__deepcopy__()
+        bad_access_metadata.client_access_token = "bad"
         bad_access_headers = pack_rpc_headers(bad_access_metadata)
-        _ = await supervisor.logout_user(LogoutUserRequest(), metadata=bad_access_headers)
+        _ = await supervisor.LogoutUser(LogoutUserRequest(), metadata=bad_access_headers)
 
     # logout, valid token -> success
-    _ = await supervisor.logout_user(LogoutUserRequest(), metadata=access_headers)
+    _ = await supervisor.LogoutUser(LogoutUserRequest(), metadata=access_headers)
 
     # read user, logged out, expired token -> fail
     with raises_grpc_error(GRPCStatus.UNAUTHENTICATED):
-        _ = await supervisor.get_nodes(read_user_req, metadata=access_headers)
+        _ = await supervisor.GetNodes(read_user_req, metadata=access_headers)

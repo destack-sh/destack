@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.09.18.1"
+VERSION = "2024.09.18.2"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -766,9 +766,9 @@ FIELD_TABLE = Table(
         Column("default_packed", PrimitiveType.JSON, is_nullable=True),
         Column("condition", PrimitiveType.JSON, is_nullable=True),
         Column("constraint", PrimitiveType.JSON, is_nullable=True),
+        Column("is_required", PrimitiveType.BOOLEAN, default="false"),
         Column("is_list", PrimitiveType.BOOLEAN, default="false"),
         Column("is_secret", PrimitiveType.BOOLEAN, default="false"),
-        Column("is_required", PrimitiveType.BOOLEAN, default="false"),
     ),
 )
 

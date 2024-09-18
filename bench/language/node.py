@@ -2110,7 +2110,7 @@ class NodeReference(Struct[NodeReferenceData], NodeReferenceBase):
 
         node_cls = OBJECT_CLASS_BY_TYPE[cast(ObjectType, node_data.metatype)]
         reference = NodeReferenceData(
-            metatype=wire.ObjectType.NODE_REFERENCE,
+            metatype=wire.ObjectType.OBJECT_TYPE_NODE_REFERENCE,
             type=cast(wire.NodeType, node_data.metatype),
             id=node_data.id,
             ck=getattr(node_data, "ck", node_data.id),
