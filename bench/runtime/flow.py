@@ -354,8 +354,8 @@ class CompleteStepRunner(StepRunnerBase):
     @override
     async def run_once(self) -> None:
         self.outputs = self.inputs
-        assert self.flow is not None, f"{self!r} has no Flow"
-        self.flow._complete(outputs=self.outputs)
+        if self.flow is not None:  # may be running outside of flow
+            self.flow._complete(outputs=self.outputs)
 
 
 #

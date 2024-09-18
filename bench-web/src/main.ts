@@ -2,7 +2,7 @@
 import "./assets/index.css";
 
 import { toaster } from "@/ui/toast";
-import { setupTransactionManagement } from "@/language/transaction";
+import { startTransactionRotation as startTransactionBuffers } from "@/language/transaction";
 import { COMMIT, ENV, IS_DEV, SUPERVISOR_URL, VERSION } from "@/utils/globals";
 import { keytrap } from "@/ui/keymap";
 import { CONTEXT_MENU_DIRECTIVE, HOVER_MENU_DIRECTIVE, MENU_DIRECTIVE } from "@/ui/popover";
@@ -57,8 +57,8 @@ async function init() {
   // start our own stuff
   await registerViewComponents();
   toaster.run();
-  keytrap.track(document); // ensure it's always running
-  setupTransactionManagement();
+  keytrap.track(document);
+  startTransactionBuffers();
 
   app.mount("#app");
 }

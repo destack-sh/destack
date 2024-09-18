@@ -1,15 +1,15 @@
-import type { IconData, TextData, Timestamp } from "@/proto/wire";
+import type { IconData, TextData } from "@/proto/wire";
 import type { Action } from "@/ui/action";
+import { normalizeKeymapKey, parseKeymapSignature } from "@/ui/keymap";
+import type { PopoverInfoIn } from "@/ui/popover";
 import { isOnMac } from "@/utils/browser";
 import { findFloatingContainer, type FloatingOptions, type FloatingPlacement } from "@/utils/floating";
-import { normalizeKeymapKey, parseKeymapSignature } from "@/ui/keymap";
 import { log } from "@/utils/log";
 import { pretendReadonly } from "@/utils/ref";
 import { Casing, toCasing } from "@/utils/string";
 import type { MaybeElement } from "@vueuse/core";
 import { DateTime } from "luxon";
-import { computed, shallowRef, toValue, type Directive, type FunctionalComponent, type Ref } from "vue";
-import type { PopoverInfo, PopoverInfoIn } from "@/ui/popover";
+import { computed, Directive, shallowRef, toValue, type FunctionalComponent, type Ref } from "vue";
 
 //
 // Shortcut
@@ -49,7 +49,7 @@ export const Shortcut: FunctionalComponent<{ shortcut: string }> = (props) => {
           <span class="flex flex-row gap-x-0.5">
             {keys.map((key) => (
               // Key
-              <kbd class="min-w-5 rounded border border-gray-300 bg-white px-1 py-0.5 text-center font-sans text-xs  hover:border-orange-900 hover:bg-gray-100 hover:text-orange-900">
+              <kbd class="min-w-5 rounded border border-gray-300 bg-white px-1 py-0.5 text-center font-sans text-xs hover:border-orange-900 hover:bg-gray-100 hover:text-orange-900">
                 {KEY_ICONS_FA[key] != null ? (
                   <i class={KEY_ICONS_FA[key]} />
                 ) : KEY_ICONS_TEXT[key] != null ? (
@@ -296,36 +296,73 @@ const INPUT_EVENTS = [
   "focus",
   "blur",
   "contextmenu",
-];
+] as const;
+
 type InputEventName = (typeof INPUT_EVENTS)[number];
 type InputOutsideCallback = (e: Event) => boolean;
 
 type EventOutsideTriggerElement = {
-  inputOutsideEventName?: InputEventName;
   inputOutsideOnInput?: (e: Event) => void;
+  inputOutsideEventName?: InputEventName;
+  inputOutsideTimeoutId?: number;
 } & HTMLElement;
 
+type InputOutsideBinding =
+  | InputOutsideCallback
+  | {
+      callback: InputOutsideCallback;
+      delay?: number;
+    };
+
 /** Convenience X outside Y directive. Event name is derived from modifier. */
-export const EVENT_OUTSIDE_DIRECTIVE: Directive<MaybeElement, InputOutsideCallback> = {
+export const EVENT_OUTSIDE_DIRECTIVE: Directive<MaybeElement, InputOutsideBinding> = {
   mounted(el, binding) {
     const triggerEl = el as EventOutsideTriggerElement;
-    const eventName = Object.keys(binding.modifiers)[0];
-    if (!INPUT_EVENTS.includes(eventName)) throw new Error(`Invalid input event: ${eventName}`);
+    const eventName = Object.keys(binding.modifiers)[0] as InputEventName;
 
-    triggerEl.inputOutsideOnInput = (e: Event) => {
+    if (!INPUT_EVENTS.includes(eventName)) {
+      throw new Error(`Invalid input event: ${eventName}`);
+    }
+
+    let callback: InputOutsideCallback;
+    let delay = 0;
+    if (typeof binding.value === "function") {
+      callback = binding.value;
+    } else if (typeof binding.value === "object" && typeof binding.value.callback === "function") {
+      callback = binding.value.callback;
+      delay = binding.value.delay ?? 0;
+    } else {
+      throw new Error(`invalid input outside binding: ${binding.value}`);
+    }
+
+    const handler = (e: Event) => {
       if (!triggerEl.contains(e.target as Node)) {
-        binding.value!(e);
+        callback(e);
         if (binding.modifiers.stop) e.stopPropagation();
         if (binding.modifiers.prevent) e.preventDefault();
       }
     };
+
+    triggerEl.inputOutsideOnInput = handler;
     triggerEl.inputOutsideEventName = eventName;
-    document.addEventListener(eventName, triggerEl.inputOutsideOnInput);
+
+    if (delay > 0) {
+      triggerEl.inputOutsideTimeoutId = window.setTimeout(() => {
+        document.addEventListener(eventName, triggerEl.inputOutsideOnInput!);
+      }, delay);
+    } else {
+      document.addEventListener(eventName, triggerEl.inputOutsideOnInput);
+    }
   },
 
   unmounted(el) {
     const triggerEl = el as EventOutsideTriggerElement;
-    if (triggerEl.inputOutsideOnInput)
+
+    if (triggerEl.inputOutsideTimeoutId) {
+      clearTimeout(triggerEl.inputOutsideTimeoutId);
+    }
+    if (triggerEl.inputOutsideOnInput) {
       document.removeEventListener(triggerEl.inputOutsideEventName!, triggerEl.inputOutsideOnInput);
+    }
   },
 };
