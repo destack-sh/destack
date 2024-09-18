@@ -167,7 +167,7 @@ defineExpose<ViewExposed>({ self });
         :style="{ minWidth: MIN_WIDTH + 'px' }"
       >
         <!-- Runnable -->
-        <NodeReference class="font-medium" :node="lastRunnableNode" :connection="pkgConnection" />
+        <NodeReference class="font-medium" :node="lastRunnableNode" is-input :connection="pkgConnection" />
         <!-- Pin/unpin node -->
         <button
           v-tooltip="{ title: 'Pin node in view', small: true, placement: 'bottom' }"

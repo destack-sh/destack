@@ -7,7 +7,7 @@ import type { Connection } from "@/system/connection";
 import { IconInline, getNodeIcon } from "@/ui/icon";
 import type { PopoverInfoIn } from "@/ui/popover";
 import { getNativeConstraintProps, guardNativeNameInput } from "@/ui/view";
-import { computed } from "vue";
+import { computed, ref } from "vue";
 
 const props = defineProps<{
   node: AnyNodeData | SomeNodeReferenceData;
@@ -15,8 +15,13 @@ const props = defineProps<{
   isInput?: boolean;
 }>();
 
+const inputRef = ref<HTMLInputElement | null>(null);
 const nodeType = computed(() => getNodeType(props.node));
+const nodeTypeName = computed(() => (nodeType.value != null ? toCamelName(ObjectType, nodeType.value) : "???"));
 const nodeProperties = computed(() => (nodeType.value != null ? PROPERTY_ENUM_BY_TYPE[nodeType.value] : null));
+const hasName = computed(() => nodeProperties.value != null && "name" in nodeProperties.value);
+const name = computed(() => (props.node as any).name);
+const editingName = ref(false);
 </script>
 <template>
   <div>
@@ -42,12 +47,15 @@ const nodeProperties = computed(() => (nodeType.value != null ? PROPERTY_ENUM_BY
     />
     <!-- Name (editable & has name) -->
     <input
-      v-if="nodeProperties != null && 'name' in nodeProperties && isInput"
-      class="ml-1 truncate rounded border-0 bg-transparent px-1 py-0.5 outline-none ring-0 hover:bg-gray-100 focus:ring-0"
+      v-if="hasName && editingName"
+      ref="inputRef"
+      v-outside.mousedown="{ callback: () => (editingName = false), delay: 100 }"
+      class="ml-1 truncate rounded border-0 bg-gray-100 px-1 py-0.5 outline-none ring-0 focus:ring-0"
       spellcheck="false"
-      :value="'name' in node ? node.name : toCamelName(ObjectType, node.metatype)"
-      :disabled="!('name' in node)"
+      :value="name ?? nodeTypeName"
       v-bind="getNativeConstraintProps(NAME_CONSTRAINT)"
+      :size="(name?.length ?? nodeTypeName.length) + 3"
+      @keydown.enter.stop.prevent="editingName = false"
       @input="
         guardNativeNameInput($event, (node as any).name, (newValue) => {
           if (!isNode(node)) throw new Error(`unexpected node: ${describeNode(node)}`);
@@ -55,8 +63,13 @@ const nodeProperties = computed(() => (nodeType.value != null ? PROPERTY_ENUM_BY
         })
       "
     />
-    <span v-else class="ml-1 truncate rounded px-1 py-0.5 hover:bg-gray-100">
+    <button
+      v-else
+      :disabled="!isInput"
+      class="ml-1 cursor-text truncate rounded px-1 py-0.5 hover:bg-gray-100"
+      @click.stop.prevent="(editingName = true), $nextTick(() => inputRef?.focus())"
+    >
       {{ (node as any).name ?? (node as any).title ?? "???" }}
-    </span>
+    </button>
   </div>
 </template>

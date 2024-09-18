@@ -1082,7 +1082,7 @@ async function commitTransactionBuffers() {
 
 let _setupTransactionManagement = false;
 /** Start automatic transaction rotation. */
-export function setupTransactionManagement() {
+export function startTransactionRotation() {
   if (_setupTransactionManagement) return;
   _setupTransactionManagement = true;
   // watch buffers
