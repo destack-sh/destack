@@ -30,21 +30,6 @@
     },
     // general configs
     {
-      "name": "bench.build",
-      "type": "debugpy",
-      "request": "launch",
-      "program": "${workspaceFolder}/bench.py",
-      "args": ["build"],
-      "env": {
-        "ENVIRONMENT": "dev",
-        "PYTHONUNBUFFERED": "1",
-        "SERVICE_NAME": "cli",
-      },
-      "console": "integratedTerminal",
-      "cwd": "${workspaceFolder}",
-      "justMyCode": true
-    },
-    {
       "name": "bench.system",
       "type": "debugpy",
       "request": "launch",
@@ -57,7 +42,7 @@
       },
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
-      "justMyCode": true
+      "justMyCode": false
     },
     {
       "name": "bench.runtime",
@@ -73,7 +58,7 @@
       },
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
-      "justMyCode": true,
+      "justMyCode": false,
       "python": "${workspaceFolder}/venv-runtime/bin/python"
     }, 
   ],

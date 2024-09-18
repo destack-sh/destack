@@ -548,7 +548,7 @@ class Connection[
                         last_error = None
                     # unpack
                     if self.options.unpack:
-                        # TODO :Broken!: in case of re-connect result should replace original nodes/graph somehow
+                        # nocheckin :Broken!: in case of re-connect result should replace original nodes/graph somehow
                         #  (e.g. if we fetch self._bench = await Bench.get(...) in runtime or such,
                         #   the object reference should either remain connected or be replaced)
                         self._result = self._unpack_result(self._result_data)

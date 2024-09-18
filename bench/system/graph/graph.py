@@ -191,10 +191,10 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
         data_graph: NodeDataGraphLike,
         edits: list[EditData],
         cascaded_edits: list[EditData],
-    ):
+    ) -> None:
         assert session._local_epoch is not None, f"no system epoch in {session!r}"
         self.epoch = session._local_epoch
-        return await self.on_commit(
+        await self.on_commit(
             session=session,
             graph=graph,
             data_graph=data_graph,
@@ -319,7 +319,9 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
         # We can probably optimize this by only locking some tighter critical sections
         #  if we rollback somehow on failure. Maybe we can even 'cache' apply some edits only in memory.
         # We'll also eventually need to thread/shard the Host (maybe lock only on overlapping edits?).
-        async with self._session_lock:
+        with tracer.start_as_current_span("graph.lock.acquire"):
+            await self._session_lock.acquire()
+        try:
             retry = COMMIT_RETRY.new(self.oracle)
             while retry.should_retry:
                 retry.on_attempt()
@@ -337,6 +339,8 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
                     await self.oracle.sleep(retry.get_wait_interval())
             else:
                 raise retry.to_error("commit")
+        finally:
+            self._session_lock.release()
 
         self.logger.info(
             "graph.commit",
