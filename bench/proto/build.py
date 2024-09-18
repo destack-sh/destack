@@ -4,7 +4,6 @@ import subprocess
 from enum import Enum
 from itertools import chain
 from pathlib import Path
-from subprocess import DEVNULL
 from typing import Any
 
 import regex
@@ -116,14 +115,16 @@ def _build_proto(schema_str: str) -> None:
     run_shell_sync("cp -r proto wire")
     # replace 'import "proto/..." with 'import "..." in all files in wire
     for path in Path("wire").rglob("*.proto"):
-        path.write_text(regex.sub(r"import \"proto/", "import ", path.read_text()))
+        path.write_text(regex.sub(r"import \"proto/", 'import "', path.read_text()))
     run_shell_sync(
         f"protoc -I wire --python_out={TEMP_PY_DIR} --pyi_out={TEMP_PY_DIR} --grpclib_python_out={TEMP_PY_DIR} {' '.join(py_proto_files)}"
     )
     run_shell_sync("rm -r wire")
 
     # patch in our extra stuff into every file
-    generated_py_files = Path(TEMP_PY_DIR).rglob("*.py")
+    generated_py_files = list(Path(TEMP_PY_DIR).rglob("*.py")) + list(
+        Path(TEMP_PY_DIR).rglob("*.pyi")
+    )
     for path in generated_py_files:
         wire_py = path.read_text()
         # replace 'import <name>' with 'from .<name> import <name>' (if name is one of generated_py_files)
@@ -135,6 +136,7 @@ def _build_proto(schema_str: str) -> None:
         # rename XyzStub to XyzClient (stub is a bad name)
         wire_py = regex.sub(r"(?<!Service)Stub", "Client", wire_py)
         patch_prefix_code = """
+# type: ignore
 # ruff: noqa
 
 from typing import TYPE_CHECKING, Union
@@ -155,10 +157,9 @@ VERSION = '{VERSION}'
 AnyNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES])}]
 AnyStructData = Union[{', '.join([cls.__name__ + 'Data' for cls in STRUCT_CLASSES])}]
 """)
-    shutil.rmtree(TEMP_PY_DIR, ignore_errors=True)
-    run_shell_sync(f"ruff check {TEMP_PY_DIR} --fix", check=True, stdout=DEVNULL)
-    run_shell_sync(f"ruff format {TEMP_PY_DIR}", check=True, stdout=DEVNULL)
-    on_apply.append(lambda: shutil.move(TEMP_PY_DIR, TARGET_PY_DIR))
+    on_apply.append(lambda: shutil.rmtree(TARGET_PY_DIR, ignore_errors=True))  # noqa: FURB113
+    on_apply.append(lambda: shutil.copytree(TEMP_PY_DIR, TARGET_PY_DIR))
+    on_apply.append(lambda: shutil.rmtree(TEMP_PY_DIR, ignore_errors=True))
 
     #
     # TypeScript (protobuf-ts)

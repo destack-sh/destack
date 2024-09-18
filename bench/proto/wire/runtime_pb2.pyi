@@ -1,3 +1,10 @@
+
+# type: ignore
+# ruff: noqa
+
+from typing import TYPE_CHECKING, Union
+    
+
 from . import common_pb2 as _common_pb2
 from . import lang_pb2 as _lang_pb2
 from google.protobuf import descriptor as _descriptor
