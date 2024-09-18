@@ -1,13 +1,12 @@
-import abc
 import asyncio
 import dataclasses
 from asyncio import Queue
+from dataclasses import dataclass
 from enum import IntEnum
 from typing import Any, Collection, Literal, assert_never, override
 from uuid import UUID
 
 import structlog
-from attr import dataclass
 from opentelemetry import trace
 
 from bench.language.block import Block
@@ -74,7 +73,7 @@ class StepState:
     input_type: TypeInfoBase
     inputs: ValueObject
     unset_ports: dict[PortId, PortKey]
-    runners: list["StepRunnerBase"]
+    runners: list["StepRunner"]
 
     def __str__(self) -> str:
         return f"{self.step!r}, inputs={self.inputs!r}, runners={len(self.runners)}, unset_ports={len(self.unset_ports)}"
@@ -129,12 +128,12 @@ class FlowRunner(Runner[RunnerCache, Block]):
     """Runs an entire Flow."""
 
     _step_states: dict[Step, "StepState"] = dataclasses.field(default_factory=dict)
-    _active_runners: dict[Run, "StepRunnerBase"] = dataclasses.field(default_factory=dict)
+    _active_runners: dict[Run, "StepRunner"] = dataclasses.field(default_factory=dict)
     _force_complete: ValueObject | Literal[True] | None = None
     _force_fail: RunError | None = None
     _terminated_runs: Queue[tuple[Step, Run]] = dataclasses.field(default_factory=Queue)
 
-    async def _make_runner(self, step_state: StepState) -> "StepRunnerBase":
+    async def _make_runner(self, step_state: StepState) -> "StepRunner":
         """Make a new StepRunner for the given Step."""
         runner = await self.runtime.make_runner(
             kind=RunKind.STEP,
@@ -145,7 +144,7 @@ class FlowRunner(Runner[RunnerCache, Block]):
             options=RUN_ONCE,
             track=True,
         )
-        assert isinstance(runner, StepRunnerBase), f"unexpected runner: {runner!r}"
+        assert isinstance(runner, StepRunner), f"unexpected runner: {runner!r}"
         runner.flow = self
         step_state.runners.append(runner)
         return runner
@@ -179,14 +178,14 @@ class FlowRunner(Runner[RunnerCache, Block]):
         self._abort()  # cancel all active steps
         logger.debug("flow.fail", flow=self.node, runner=self)
 
-    async def _start_step(self, state: StepState, runner: "StepRunnerBase") -> None:
+    async def _start_step(self, state: StepState, runner: "StepRunner") -> None:
         """Run a Step in the Flow (actual run is started as a task and not directly awaited)."""
         assert runner.run is not None, f"{runner!r} has no Run"
         self._active_runners[runner.run] = runner
         logger.debug("step.start", step=state.step, run=runner.run)
         runner.outer_task = asyncio.create_task(self._do_run_step(runner))
 
-    async def _do_run_step(self, runner: "StepRunnerBase") -> None:
+    async def _do_run_step(self, runner: "StepRunner") -> None:
         """Wraps a StepRunner in a task and awaits it."""
         assert runner.run is not None, f"{runner!r} has no Run"
         try:
@@ -198,7 +197,7 @@ class FlowRunner(Runner[RunnerCache, Block]):
                 del self._active_runners[runner.run]
 
     def _get_outgoing_pipes_for(self, step: Step):
-        # NOTE :Incomplete: outgoing pipes for step don't consider nesting yet
+        # NOTE :Incomplete: outgoing pipes for step don't consider nesting
         for pipe in self.node.pipes:
             if pipe.source_ptr and pipe.source_ptr.id == step.id:
                 yield pipe
@@ -332,7 +331,7 @@ class FlowRunner(Runner[RunnerCache, Block]):
 
 
 @dataclass(slots=True, repr=False)
-class StepRunnerBase(Runner[RunnerCache, Step], abc.ABC):
+class StepRunner(Runner):
     outer_task: asyncio.Task | None = None
     flow: FlowRunner | None = None
 
@@ -343,14 +342,14 @@ class StepRunnerBase(Runner[RunnerCache, Step], abc.ABC):
 
 
 @runner_(RunKind.STEP, StepType.START)
-class StartStepRunner(StepRunnerBase):
+class StartStepRunner(StepRunner):
     @override
     async def run_once(self) -> None:
         self.outputs = self.inputs
 
 
 @runner_(RunKind.STEP, StepType.COMPLETE)
-class CompleteStepRunner(StepRunnerBase):
+class CompleteStepRunner(StepRunner):
     @override
     async def run_once(self) -> None:
         self.outputs = self.inputs
@@ -364,7 +363,7 @@ class CompleteStepRunner(StepRunnerBase):
 
 
 @runner_(RunKind.STEP, StepType.BLOCK)
-class BlockStepRunner(StepRunnerBase):
+class BlockStepRunner(StepRunner):
     @override
     async def run_once(self) -> None:
         block = self.node.node
@@ -378,7 +377,7 @@ class BlockStepRunner(StepRunnerBase):
 
 
 @runner_(RunKind.STEP, StepType.CODE)
-class CodeStepRunner(StepRunnerBase):
+class CodeStepRunner(StepRunner):
     @override
     async def run_once(self) -> None:
         code = self.code or Code.empty()
@@ -396,7 +395,7 @@ class CodeStepRunner(StepRunnerBase):
 
 
 @runner_(RunKind.STEP, StepType.TEXT)
-class TextStepRunner(StepRunnerBase):
+class TextStepRunner(StepRunner):
     @override
     async def run_once(self) -> None:
         text = self.text or Text.empty()

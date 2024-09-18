@@ -10,6 +10,21 @@ from bench.language.text import md
 from bench.test.unit.conftest import RuntimeHandle
 
 
+async def test_run_step_directly(local_runtime: RuntimeHandle):
+    """Run a Steps directly."""
+    Flow1 = Block.new(BlockType.FLOW, "Flow1")
+    Start = Step.new(StepType.START, "Start")
+    Code = Step.new(StepType.CODE, "Code", code=code("pass"))
+    Complete = Step.new(StepType.COMPLETE, "Complete")
+    Flow1.steps.extend(Start, Code, Complete)
+    local_runtime.page().blocks.append(Flow1)
+    await local_runtime.commit()
+
+    _ = await local_runtime.run(Start)
+    _ = await local_runtime.run(Code)
+    _ = await local_runtime.run(Complete)
+
+
 async def test_run_flow_empty(local_runtime: RuntimeHandle):
     """Empty Code without any fields should fail."""
     Flow1 = Block.new(BlockType.FLOW, "Flow1")
