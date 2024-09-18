@@ -237,15 +237,27 @@ defineExpose<ViewExposed>({ self, id, focus });
     >
       <!-- Current value -->
       <template v-if="hasValue">
-        <button v-for="(v, i) in valueVignettes" :key="i" class="mr-2 flex flex-row items-center">
+        <button
+          v-for="(v, i) in valueVignettes"
+          :key="i"
+          class="mr-2 flex flex-row items-center rounded"
+          :class="valueType?.isList ? 'bg-gray-100 px-1' : ''"
+        >
           <IconInline v-if="v.icon" v-bind="v.icon" class="mr-1.5 w-5 text-gray-700" />
           <span class="truncate">{{ v.title ?? "???" }}</span>
         </button>
       </template>
-      <template v-else>
+      <div v-else class="mr-2">
         <IconInline v-if="facetIcon" v-bind="facetIcon" class="mr-1.5 w-5 text-gray-400" />
         <span class="truncate text-gray-400">{{ facetName ?? "Select" }}</span>
-      </template>
+      </div>
+      <!-- Add -->
+      <button
+        v-if="valueType?.isList"
+        class="mr-2 text-gray-400 opacity-0 hover:text-primary-900 group-hover:opacity-100"
+      >
+        <i class="fas fa-plus" />
+      </button>
       <!-- Controls -->
       <div v-if="!props.isDisabled && props.isInput" class="ml-auto flex-shrink-0 pl-1.5">
         <!-- Clear -->
@@ -297,12 +309,12 @@ defineExpose<ViewExposed>({ self, id, focus });
           <button
             v-for="(v, i) in valueVignettes"
             :key="i"
-            class="mr-2 flex flex-row items-center px-0.5 hover:bg-gray-100"
+            class="mr-2 flex flex-row items-center rounded bg-gray-100 px-1"
           >
             <IconInline v-if="v.icon" v-bind="v.icon" class="mr-1.5 w-5 text-gray-700" />
             <span class="truncate">{{ v.title ?? "???" }}</span>
             <!-- Deselect -->
-            <button class="ml-1 text-gray-400 hover:text-primary-900" @click.stop="deselect(i)">
+            <button class="ml-1.5 text-gray-400 hover:text-primary-900" @click.stop="deselect(i)">
               <i class="fas fa-xmark" />
             </button>
           </button>

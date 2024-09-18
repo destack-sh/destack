@@ -138,15 +138,20 @@ defineExpose<ViewExposed>({ self, id, focus });
     >
       <!-- Current value -->
       <template v-if="hasValue">
-        <button v-for="(v, i) in values" :key="i" class="mr-2 flex flex-row items-center">
+        <button
+          v-for="(v, i) in values"
+          :key="i"
+          class="mr-2 flex flex-row items-center rounded"
+          :class="valueType?.isList ? 'bg-gray-100 px-1' : ''"
+        >
           <IconInline v-bind="facetIcon" class="mr-1.5 w-5 text-center text-gray-700" />
           <span class="max-w-20 truncate text-gray-900">{{ v.title ?? facetName ?? "???" }}</span>
         </button>
       </template>
-      <template v-else>
+      <div v-else class="mr-2">
         <IconInline v-bind="facetIcon" class="mr-1.5 w-5 text-center text-gray-400" />
         <span class="text-gray-400">{{ facetName ?? "???" }}</span>
-      </template>
+      </div>
       <!-- Add -->
       <button
         v-if="valueType?.isList"
@@ -160,7 +165,7 @@ defineExpose<ViewExposed>({ self, id, focus });
         <!-- Clear -->
         <button
           v-if="hasValue && !valueType?.isRequired"
-          class="mr-2 text-gray-400 opacity-0 hover:text-primary-900 group-hover:opacity-100"
+          class="text-gray-400 opacity-0 hover:text-primary-900 group-hover:opacity-100"
           @click.stop="clear"
         >
           <i class="fas fa-xmark" />
@@ -180,7 +185,7 @@ defineExpose<ViewExposed>({ self, id, focus });
           <button
             v-for="(v, i) in values"
             :key="i"
-            class="mr-2 flex flex-row items-center rounded px-0.5 hover:bg-gray-100"
+            class="mr-2 flex flex-row items-center rounded bg-gray-100 px-1"
             @click.stop="activeValueIdx = i"
           >
             <IconInline
@@ -192,7 +197,11 @@ defineExpose<ViewExposed>({ self, id, focus });
               {{ v.title ?? facetName ?? "???" }}
             </span>
             <!-- Remove -->
-            <button v-if="valueType?.isList" class="ml-1 text-gray-400 hover:text-primary-900" @click.stop="remove(i)">
+            <button
+              v-if="valueType?.isList"
+              class="ml-1.5 text-gray-400 hover:text-primary-900"
+              @click.stop="remove(i)"
+            >
               <i class="fas fa-xmark" />
             </button>
           </button>

@@ -70,7 +70,7 @@ defineExpose<ViewExposed>({ self, id, focus: () => inputRef.value });
     <!-- Input -->
     <div
       v-if="isInput"
-      class="group flex flex-1 flex-row flex-wrap items-center gap-x-1 gap-y-1 rounded outline-1 outline-primary-900 focus-within:outline hover:border-gray-300"
+      class="group flex flex-row flex-wrap items-center gap-x-1 gap-y-1 rounded outline-1 outline-primary-900 focus-within:outline hover:border-gray-300"
       :class="[
         isDisabled ? 'bg-gray-100 text-gray-700' : 'bg-white text-gray-900',
         variant != Variant.STEALTH ? 'border border-gray-200 px-2 py-1' : '',
@@ -102,13 +102,13 @@ defineExpose<ViewExposed>({ self, id, focus: () => inputRef.value });
         />
       </template>
       <template v-else>
-        <!-- List values -->
-        <div v-for="(v, i) in values" :key="i" class="rounded px-0.5 hover:bg-gray-100">
+        <!-- List -->
+        <div v-for="(v, i) in values" :key="i" class="rounded bg-gray-100 px-1 hover:text-primary-900">
           <span>{{ v }} </span>
           <!-- Remove -->
           <button
             v-if="!isDisabled"
-            class="ml-1 text-gray-400 hover:text-primary-900 group-hover:opacity-100"
+            class="ml-1.5 text-gray-400 opacity-0 hover:text-primary-900 group-hover:opacity-100"
             @click.stop="remove(i)"
           >
             <i class="fas fa-xmark" />
@@ -121,7 +121,7 @@ defineExpose<ViewExposed>({ self, id, focus: () => inputRef.value });
           :value="addingValue"
           spellcheck="false"
           :type="inputType"
-          class="rounded border-0 bg-transparent p-0 px-0.5 outline-none ring-0 hover:bg-gray-100 focus:ring-0"
+          class="rounded border-0 bg-gray-100 p-0 px-1 outline-none ring-0 hover:text-primary-900 focus:ring-0"
           v-bind="getNativeConstraintProps(valueType?.constraint)"
           :disabled="isDisabled"
           @keydown.enter.stop.prevent="addCurrentValue(), $nextTick(() => inputRef?.focus())"
@@ -146,8 +146,19 @@ defineExpose<ViewExposed>({ self, id, focus: () => inputRef.value });
       </template>
     </div>
     <!-- Read-only -->
-    <div v-else>
-      <span v-for="(v, i) in values" :key="i">{{ v }}</span>
+    <div
+      v-else
+      class="group flex flex-row flex-wrap items-center gap-x-1 gap-y-1 rounded text-gray-700 outline-1 outline-primary-900 focus-within:outline hover:border-gray-300"
+      :class="[variant != Variant.STEALTH ? 'border border-gray-200 px-2 py-1' : '']"
+    >
+      <template v-if="!valueType?.isList">
+        <!-- Scalar -->
+        <span>{{ modelValue }}</span>
+      </template>
+      <template v-else>
+        <!-- List -->
+        <div v-for="(v, i) in values" :key="i" class="rounded bg-gray-100 px-1">{{ v }}</div>
+      </template>
     </div>
   </ViewContentWrapper>
 </template>
