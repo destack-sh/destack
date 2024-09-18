@@ -222,8 +222,8 @@ class ServiceBase:
                             response_stream = func(request)
                         span.end()  # end early (streaming, span shouldn't continue forever)
                         async for response in response_stream:
-                            log.trace(f"{rpc_name}.update", response=response)
                             await stream.send_message(response)
+                            log.trace(f"{rpc_name}.update", response=response)
                     else:
                         raise RuntimeError(f"unsupported cardinality: {cardinality}")
                     log.info(rpc_name, span="current")
