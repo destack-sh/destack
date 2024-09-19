@@ -15,7 +15,7 @@ DESCRIPTOR: _descriptor.FileDescriptor
 class HealthCheckRequest(_message.Message):
     __slots__ = ("service",)
     SERVICE_FIELD_NUMBER: _ClassVar[int]
-    service: str | None
+    service: str
     def __init__(self, service: _Optional[str] = ...) -> None: ...
 
 class HealthCheckResponse(_message.Message):
@@ -31,5 +31,5 @@ class HealthCheckResponse(_message.Message):
     NOT_SERVING: HealthCheckResponse.ServingStatus
     SERVICE_UNKNOWN: HealthCheckResponse.ServingStatus
     STATUS_FIELD_NUMBER: _ClassVar[int]
-    status: HealthCheckResponse.ServingStatus | None
+    status: HealthCheckResponse.ServingStatus
     def __init__(self, status: _Optional[_Union[HealthCheckResponse.ServingStatus, str]] = ...) -> None: ...

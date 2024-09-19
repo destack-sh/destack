@@ -44,9 +44,9 @@ class RpcMetadata(_message.Message):
     CLIENT_NONCE_FIELD_NUMBER: _ClassVar[int]
     CLIENT_ACCESS_TOKEN_FIELD_NUMBER: _ClassVar[int]
     BADGES_FIELD_NUMBER: _ClassVar[int]
-    client_type: _lang_pb2.ClientType | None
-    client_id: str | None
-    client_nonce: str | None
-    client_access_token: str | None
+    client_type: _lang_pb2.ClientType
+    client_id: str
+    client_nonce: str
+    client_access_token: str
     badges: _containers.RepeatedCompositeFieldContainer[RpcMetadata.BadgeInfo]
     def __init__(self, client_type: _Optional[_Union[_lang_pb2.ClientType, str]] = ..., client_id: _Optional[str] = ..., client_nonce: _Optional[str] = ..., client_access_token: _Optional[str] = ..., badges: _Optional[_Iterable[_Union[RpcMetadata.BadgeInfo, _Mapping]]] = ...) -> None: ...

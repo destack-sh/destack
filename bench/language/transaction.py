@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any, Callable, Collection, Optional, Sequence,
 from uuid import UUID
 
 import structlog
+from google.protobuf.timestamp_pb2 import Timestamp
 from opentelemetry import trace
 
 from bench.language.connection import Channel, WritableChannel
@@ -511,7 +512,7 @@ class Transaction:
                 origin=edit_event.origin,
                 subject_ptr=subject_ptr,
                 context=edit_context,
-                edited_at=edit_event.now,
+                edited_at=Timestamp().FromDatetime(edit_event.now),
             )
             edits.append(edit)
             batch.clear()  # reset
@@ -682,7 +683,7 @@ def edit_graph(
                 new_value = wiring.unpack_object_prop(prop, new_value_data, supergraph=supergraph)
                 node._do_set(prop.name, new_value, track=track)
             # implicit metadata
-            node.updated_at = edit.edited_at
+            node.updated_at = edit.edited_at.ToDatetime()
             if "updated_epoch" in node.__properties__:
                 node._do_set("updated_epoch", edit.epoch, track=track)
             node._do_set(
@@ -735,7 +736,7 @@ def edit_data_graph(
         node_subtype = NODE_SUBTYPE_PROPERTY_BY_TYPE.get(cast(NodeType, node.metatype))
         node_subsubtype = NODE_SUBSUBTYPE_PROPERTY_BY_TYPE.get(cast(NodeType, node.metatype))
         vignette = ChangeVignetteData(
-            metatype=wire.ObjectType.CHANGE_VIGNETTE,
+            metatype=wire.ObjectType.OBJECT_TYPE_CHANGE_VIGNETTE,
             name=getattr(node, "name", None),
             title=getattr(node, "title", None),
             subtype=getattr(node, node_subtype, None) if node_subtype else None,

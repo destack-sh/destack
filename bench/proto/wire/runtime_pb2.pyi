@@ -17,8 +17,8 @@ class ProcessRunRequest(_message.Message):
     __slots__ = ("run", "is_blocking")
     RUN_FIELD_NUMBER: _ClassVar[int]
     IS_BLOCKING_FIELD_NUMBER: _ClassVar[int]
-    run: _lang_pb2.RunData | None
-    is_blocking: bool | None
+    run: _lang_pb2.RunData
+    is_blocking: bool
     def __init__(self, run: _Optional[_Union[_lang_pb2.RunData, _Mapping]] = ..., is_blocking: bool = ...) -> None: ...
 
 class ProcessRunResponse(_message.Message):
@@ -28,19 +28,19 @@ class ProcessRunResponse(_message.Message):
 class PauseRunRequest(_message.Message):
     __slots__ = ("run",)
     RUN_FIELD_NUMBER: _ClassVar[int]
-    run: _lang_pb2.RunData | None
+    run: _lang_pb2.RunData
     def __init__(self, run: _Optional[_Union[_lang_pb2.RunData, _Mapping]] = ...) -> None: ...
 
 class PauseRunResponse(_message.Message):
     __slots__ = ("is_processed",)
     IS_PROCESSED_FIELD_NUMBER: _ClassVar[int]
-    is_processed: bool | None
+    is_processed: bool
     def __init__(self, is_processed: bool = ...) -> None: ...
 
 class ResumeRunRequest(_message.Message):
     __slots__ = ("run",)
     RUN_FIELD_NUMBER: _ClassVar[int]
-    run: _lang_pb2.RunData | None
+    run: _lang_pb2.RunData
     def __init__(self, run: _Optional[_Union[_lang_pb2.RunData, _Mapping]] = ...) -> None: ...
 
 class ResumeRunResponse(_message.Message):
@@ -50,11 +50,11 @@ class ResumeRunResponse(_message.Message):
 class KillRunRequest(_message.Message):
     __slots__ = ("run",)
     RUN_FIELD_NUMBER: _ClassVar[int]
-    run: _lang_pb2.RunData | None
+    run: _lang_pb2.RunData
     def __init__(self, run: _Optional[_Union[_lang_pb2.RunData, _Mapping]] = ...) -> None: ...
 
 class KillRunResponse(_message.Message):
     __slots__ = ("is_processed",)
     IS_PROCESSED_FIELD_NUMBER: _ClassVar[int]
-    is_processed: bool | None
+    is_processed: bool
     def __init__(self, is_processed: bool = ...) -> None: ...
