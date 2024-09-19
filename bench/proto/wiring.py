@@ -1,13 +1,15 @@
 import json
 from base64 import b64decode, b64encode
-from copy import copy
 from itertools import chain
 from typing import Any, Collection, Mapping, Union, cast
 from uuid import UUID
 
 import structlog
+from google.protobuf.duration_pb2 import Duration
 from google.protobuf.json_format import MessageToDict
+from google.protobuf.message import Message as ProtoMessage
 from google.protobuf.struct_pb2 import Struct as ProtoStruct
+from google.protobuf.timestamp_pb2 import Timestamp
 from opentelemetry import trace
 
 from bench.language.connection import Connection
@@ -43,35 +45,9 @@ BENCH_CLASS_BY_PROTO_CLASS: dict[type[Union[AnyNodeData, AnyStructData]], type[B
 
 def copy_struct[T: AnyStructData | AnyNodeData](data: T) -> T:
     """Deepcopy a struct data object."""
-    bench_cls = OBJECT_CLASS_BY_TYPE[cast(ObjectType, data.metatype)]
-    data_copy = type(data)(metatype=data.metatype)  # type: ignore
-    try:
-        for prop in bench_cls.__wired_properties__.values():
-            if not hasattr(data, prop.name):
-                continue
-            value = getattr(data, prop.name)
-            value = copy_struct_prop(prop, value)
-            setattr(data_copy, prop.name, value)
-    except (AttributeError, TypeError, ValueError, KeyError) as e:
-        raise ValueError(f"could not copy {type(data).__name__}: {data!r}") from e
-    return data_copy  # type: ignore
-
-
-def copy_struct_prop(prop: Property, value: Any) -> Any:
-    """Deepcopy a single struct property."""
-    if value is None or (value == "" and not prop.is_required):
-        return None
-    elif prop.is_list:
-        if prop.is_struct:
-            return [copy_struct(cast(Any, v)) for v in value]
-        else:
-            return list(value)
-    elif prop.is_struct:
-        return copy_struct(cast(Any, value))
-    elif prop.primitive_type == PrimitiveType.JSON:
-        return copy(value)
-    else:
-        return value
+    copy = type(data)(metatype=data.metatype)
+    copy.CopyFrom(data)  # type: ignore
+    return copy
 
 
 def pack_proto_json(value: dict[str, Any]) -> ProtoStruct:
@@ -104,11 +80,9 @@ def unpack_enum[EnumT: IdEnumOrUnion](enum_cls: type[EnumT], value: Any) -> Enum
 #
 
 
-def pack_object_prop(prop: Property, value: Any, ignore_array: bool = False) -> Any:
+def pack_object_prop_scalar(prop: Property, value: Any, into: Any | None = None) -> Any:
     if value is None:
         return None
-    elif prop.is_list and not ignore_array:
-        return [pack_object_prop(prop, v, ignore_array=True) for v in value]
     elif prop.is_struct:
         return pack_object(value)
     elif prop.reference_is_node_data:
@@ -127,20 +101,31 @@ def pack_object_prop(prop: Property, value: Any, ignore_array: bool = False) -> 
         return str(value)  # uuids are wired as strings
     elif prop.primitive_type == PrimitiveType.JSON:
         return pack_proto_json(value)
+    elif prop.primitive_type == PrimitiveType.DATETIME:
+        ts = Timestamp()
+        ts.FromDatetime(value)
+        return ts
+    elif prop.primitive_type == PrimitiveType.INTERVAL:
+        dur = Duration()
+        dur.FromTimedelta(value)
+        return dur
     else:
         return value
 
 
-def unpack_object_prop(
-    prop: Property, value: Any, *, supergraph: NodeSuperGraph, ignore_array: bool = False
-) -> Any:
+def pack_object_prop(prop: Property, value: Any) -> Any:
+    if value is None:
+        return None
+    elif not prop.is_list:
+        return pack_object_prop_scalar(prop, value)
+    else:
+        return [pack_object_prop_scalar(prop, v) for v in value]
+
+
+def unpack_object_prop_scalar(prop: Property, value: Any, *, supergraph: NodeSuperGraph) -> Any:
     try:
         if value is None:
             return None
-        elif prop.is_list and not ignore_array:
-            return [
-                unpack_object_prop(prop, v, supergraph=supergraph, ignore_array=True) for v in value
-            ]
         elif prop.is_struct:
             return unpack_object(value, supergraph=supergraph)
         elif prop.reference_is_node_data:
@@ -158,26 +143,50 @@ def unpack_object_prop(
             return UUID(value)  # uuids are wired as strings
         elif prop.primitive_type == PrimitiveType.JSON:
             return unpack_proto_json(value)
+        elif prop.primitive_type == PrimitiveType.DATETIME:
+            return Timestamp.ToDatetime(value)
+        elif prop.primitive_type == PrimitiveType.INTERVAL:
+            return Duration.ToTimedelta(value)
         else:
             return value
     except (AttributeError, TypeError, ValueError, KeyError) as e:
         raise ValueError(f"could not unpack value: {value!r} for {prop!r}") from e
 
 
+def unpack_object_prop(prop: Property, value: Any, *, supergraph: NodeSuperGraph) -> Any:
+    if value is None:
+        return None
+    elif not prop.is_list:
+        return unpack_object_prop_scalar(prop, value, supergraph=supergraph)
+    else:
+        return [unpack_object_prop_scalar(prop, v, supergraph=supergraph) for v in value]
+
+
 def pack_object[T: AnyStructData | AnyNodeData](
-    obj: BuiltinObject, expect: type[T] | None = None
+    obj: BuiltinObject, expect: type[T] | None = None, into: T | None = None
 ) -> T:
     """Pack a struct and any contained structs."""
     data_cls = PROTO_CLASS_BY_TYPE[obj.metatype]
     metatype = pack_enum(ObjectType, obj.metatype)  # type: ignore
     if expect is not None and not issubclass(data_cls, expect):
         raise RuntimeError(f"expected {expect.__name__} but got {data_cls}")
-    obj_data = data_cls(metatype=metatype)  # type: ignore
+    obj_data = into if into is not None else data_cls(metatype=metatype)  # type: ignore
     try:
         for prop in obj.__wired_properties__.values():
             value = getattr(obj, prop.name)
-            value = pack_object_prop(prop, value, ignore_array=False)
-            setattr(obj_data, prop.name, value)
+            if value is None:
+                continue
+            if not prop.is_list:
+                packed_value = pack_object_prop_scalar(prop, value)
+                if isinstance(packed_value, ProtoMessage):
+                    getattr(obj_data, prop.name).CopyFrom(packed_value)
+                else:
+                    setattr(obj_data, prop.name, packed_value)
+            else:
+                packed_value = getattr(obj_data, prop.name)
+                for item in value:
+                    packed_item = packed_value.add()
+                    _ = pack_object_prop_scalar(prop, item, into=packed_item)
         return cast(T, obj_data)
     except (AttributeError, TypeError, ValueError, KeyError) as e:
         raise ValueError(f"could not pack {obj.metatype.name}: {obj!r}") from e
@@ -218,9 +227,7 @@ def unpack_object[T: BuiltinObject](
             if not prop.is_runtime or prop.is_computed:
                 continue
             value = getattr(obj_data, prop.name)
-            object_kwargs[prop.name] = unpack_object_prop(
-                prop, value, supergraph=supergraph, ignore_array=False
-            )
+            object_kwargs[prop.name] = unpack_object_prop(prop, value, supergraph=supergraph)
         object_kwargs["_supergraph"] = supergraph
         if session is not None:
             object_kwargs["_session"] = session
@@ -374,7 +381,7 @@ def wrap_some_node(node: AnyNodeData) -> wire.SomeNodeData:
     """Wraps a concrete node type into a generic node message."""
     wrapper = wire.SomeNodeData()
     field_name = to_casing(cast(str, NodeType(node.metatype).name), Casing.SNAKE)
-    setattr(wrapper, field_name, node)
+    getattr(wrapper, field_name).CopyFrom(node)
     return wrapper
 
 

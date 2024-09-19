@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.09.19.1"
+VERSION = "2024.09.19.2"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -605,12 +605,7 @@ SPACE_TABLE = Table(
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("order_key", PrimitiveType.STRING, default="'a0'::character varying"),
         Column("policies", PrimitiveType.JSON, is_array=True, is_nullable=True),
-        Column(
-            "bar_position",
-            PrimitiveType.INT16,
-            is_nullable=True,
-            default="'TOP'::character varying",
-        ),
+        Column("bar_position", PrimitiveType.INT16, is_nullable=True, default="1"),
         Column("focus", PrimitiveType.JSON, is_nullable=True),
         Column("inspection_id", PrimitiveType.UUID, is_nullable=True),
         Column("inspection_ck", PrimitiveType.UUID, is_nullable=True),
@@ -752,7 +747,7 @@ FIELD_TABLE = Table(
         Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
         Column("name", PrimitiveType.STRING),
         Column("order_key", PrimitiveType.STRING, default="'a0'::character varying"),
-        Column("zone", PrimitiveType.INT16, default="'VARIABLE'::character varying"),
+        Column("zone", PrimitiveType.INT16, default="1"),
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("icon", PrimitiveType.JSON, is_nullable=True),
         Column("value_packed", PrimitiveType.JSON, is_nullable=True),
@@ -1199,7 +1194,7 @@ SESSION_TABLE = Table(
         Column("updated_by_id", PrimitiveType.UUID, is_nullable=True),
         Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
         Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
-        Column("status", PrimitiveType.INT16, default="'PENDING'::character varying"),
+        Column("status", PrimitiveType.INT16, default="1"),
         Column("duration", PrimitiveType.FLOAT32, is_nullable=True),
         Column("opened_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("closed_at", PrimitiveType.DATETIME, is_nullable=True),
@@ -1249,7 +1244,7 @@ RUN_TABLE = Table(
         Column("root_base_ck", PrimitiveType.UUID, is_nullable=True),
         Column("code", PrimitiveType.JSON, is_nullable=True),
         Column("options", PrimitiveType.JSON, is_nullable=True),
-        Column("status", PrimitiveType.INT16, default="'SCHEDULED'::character varying"),
+        Column("status", PrimitiveType.INT16, default="1"),
         Column("duration", PrimitiveType.FLOAT32, is_nullable=True),
         Column("cached_duration", PrimitiveType.FLOAT32, is_nullable=True),
         Column("attempts", PrimitiveType.JSON, is_array=True),
@@ -1372,7 +1367,7 @@ LOG_TABLE = Table(
         Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
         Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
         Column("kind", PrimitiveType.INT16),
-        Column("level", PrimitiveType.INT16, default="'INFO'::character varying"),
+        Column("level", PrimitiveType.INT16, default="3"),
         Column("change_id", PrimitiveType.UUID, is_nullable=True),
         Column("undo_of_id", PrimitiveType.UUID, is_nullable=True),
         Column("type", PrimitiveType.INT16, is_nullable=True),
