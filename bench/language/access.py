@@ -1107,9 +1107,9 @@ def evaluate_edit(
         if node_cls.__roots__:
             # regular non-root node: scope = parent if creating, else scope = node :NodeEditScope
             if edit.type in (EditType.CREATE, EditType.UPSERT):
-                assert edit.new_node, f"no new node for {edit!r}"
+                assert edit.HasField("new_node"), f"no new node for {edit!r}"
                 node_data = wiring.unwrap_some_node(edit.new_node)
-                assert node_data.parent_ptr, f"no parent for {edit!r}"
+                assert node_data.HasField("parent_ptr"), f"no parent for {edit!r}"
                 scope_ptr = node_data.parent_ptr
                 while scope_ptr.id in new_node_scopes_by_child_id:
                     scope_ptr = new_node_scopes_by_child_id[scope_ptr.id]

@@ -1826,13 +1826,13 @@ async def _pg_edit_cascade(
         # only cascade to nodes that were removed at the exact same time
         removed_dts = []
         for root_edit in batch:
-            assert root_edit.old_node is not None, f"no old node for {root_edit!r}"
+            assert root_edit.HasField("old_node"), f"no old node for {root_edit!r}"
             old_node = wiring.unwrap_some_node(root_edit.old_node)
             if edit_type == EditType.UNARCHIVE:
-                assert old_node.archived_at is not None, f"no archived_at for {old_node!r}"
+                assert old_node.HasField("archived_at"), f"no archived_at for {old_node!r}"
                 removed_at = old_node.archived_at.ToDatetime(tzinfo=pytz.utc)
             elif edit_type == EditType.RESTORE:
-                assert old_node.deleted_at is not None, f"no deleted_at for {old_node!r}"
+                assert old_node.HasField("deleted_at"), f"no deleted_at for {old_node!r}"
                 removed_at = old_node.deleted_at.ToDatetime(tzinfo=pytz.utc)
             else:
                 assert_never(edit_type)
@@ -1956,7 +1956,7 @@ async def _pg_edit_batch(
         rows = []
         for edit in batch:
             assert edit.epoch is not None, f"no epoch for {edit!r}"
-            assert edit.new_node, f"no new node for {edit!r}"
+            assert edit.HasField("new_node"), f"no new node for {edit!r}"
             node = wiring.unwrap_some_node(edit.new_node)
             nodes.append(node)
             # inline implicit metadata
@@ -2030,7 +2030,7 @@ async def _pg_edit_batch(
 
             # update directly edited properties
             if edit_type == EditType.UPDATE or edit_type == EditType.MOVE:
-                assert edit.new_node, f"no new node for {edit!r}"
+                assert edit.HasField("new_node"), f"no new node for {edit!r}"
                 new_node_data = wiring.unwrap_some_node(edit.new_node)
                 for prop_id in edit.properties:
                     prop = node_cls.__properties_by_id__.get(prop_id)

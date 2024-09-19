@@ -19,7 +19,7 @@ import structlog
 from google.protobuf.duration_pb2 import Duration
 from google.protobuf.duration_pb2 import Duration as Interval
 from google.protobuf.struct_pb2 import Struct as ProtoStruct
-from google.protobuf.timestamp_pb2 import Timestamp 
+from google.protobuf.timestamp_pb2 import Timestamp
 from opentelemetry import trace
 
 from bench.language.const import (
@@ -935,7 +935,7 @@ def pack_builtin_object_data(
 ) -> dict[str, JsonValue]:
     """Packs a single struct/node data value using typed proto ids as keys and enum values."""
     value_packed: dict[str, JsonValue] = {}
-    object_cls = OBJECT_CLASS_BY_TYPE[cast(ObjectType, value.metatype)]
+    object_cls = OBJECT_CLASS_BY_TYPE[value.metatype]  # type: ignore
     for prop in only if only is not None else object_cls.__wired_properties__.values():
         if prop.reference_wired_ptr is not None:
             prop = prop.reference_wired_ptr

@@ -676,7 +676,7 @@ def parse_commit_scope(edits: Sequence[EditData], base_graph: NodeDataGraph | No
         node_id = edit.node_ptr.id
         edited_node_ids.add(node_id)
         if edit.type == EditType.CREATE or edit.type == EditType.UPSERT:
-            assert edit.new_node is not None, f"missing new node for {edit!r}"
+            assert edit.HasField("new_node"), f"missing new node for {edit!r}"
             new_node = wiring.unwrap_some_node(edit.new_node)
             # node scope is parent since we don't have this node yet
             if new_node.parent_ptr is None:
@@ -693,7 +693,7 @@ def parse_commit_scope(edits: Sequence[EditData], base_graph: NodeDataGraph | No
             node_scope = edit.node_ptr
             if edit.type == EditType.MOVE:
                 # also add new parent to scope
-                assert edit.new_node is not None, f"missing new node for {edit!r}"
+                assert edit.HasField("new_node"), f"missing new node for {edit!r}"
                 new_node = wiring.unwrap_some_node(edit.new_node)
                 assert (
                     new_node.parent_ptr is not None
@@ -788,12 +788,12 @@ def validate_edit(edit: EditData, subject: Subject, now: datetime) -> None:
         EditType.RESTORE,
         EditType.ERASE,
     )
-    if should_set_new != (edit.new_node is not None):
+    if should_set_new != edit.HasField("new_node"):
         raise GRPCError(
             GRPCStatus.INVALID_ARGUMENT,
             f"bad new_node in {edit!r}: {edit.new_node}",
         )
-    if should_set_old != (edit.old_node is not None):
+    if should_set_old != edit.HasField("old_node"):
         raise GRPCError(
             GRPCStatus.INVALID_ARGUMENT,
             f"bad old_node in {edit!r}: {edit.old_node}",
@@ -802,7 +802,6 @@ def validate_edit(edit: EditData, subject: Subject, now: datetime) -> None:
     # properties
     if edit.type in (EditType.UPDATE, EditType.MOVE):
         # check that properties are in both old and new
-        assert edit.old_node and edit.new_node
         # no forbidden properties
         if any(is_implicit_node_property(p) for p in edit.properties):
             bad_properties = [
