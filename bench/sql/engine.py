@@ -20,13 +20,12 @@ from typing import (
     cast,
 )
 from uuid import UUID
-
+from google.protobuf.message import Message as ProtoMessage
 import cachetools
 import psycopg
 import pytz
 import structlog
 from bitarray import bitarray
-from google.protobuf.timestamp_pb2 import Timestamp
 from opentelemetry import trace
 from psycopg import OperationalError, sql
 from psycopg.types.json import Jsonb
@@ -89,7 +88,7 @@ from bench.sql.core import (
     Table,
 )
 from bench.utils.env import IS_DEV
-from bench.utils.func import IdEnum, bittuple, describe_type, group_by, to_uuid
+from bench.utils.func import bittuple, describe_type, group_by, to_uuid
 from bench.utils.oracle import REAL_ORACLE
 from bench.utils.string import Casing, to_casing
 from bench.utils.tenacity import RetryOptions, retry
@@ -398,9 +397,7 @@ def map_node_class_to_pg_table(node: type[Node]) -> Table:
         if prop.default_sql is not UNSET:
             column.default = prop.default_sql
         elif prop.default is not UNSET and prop.default is not None:
-            if isinstance(prop.default, IdEnum):
-                column.default = f"'{prop.default.name}'::character varying"
-            elif isinstance(prop.default, bool):
+            if isinstance(prop.default, bool):
                 column.default = "false" if prop.default is False else "true"
             elif isinstance(prop.default, int):
                 column.default = str(prop.default)
@@ -1165,17 +1162,13 @@ async def pg_truncate(cur: psycopg.AsyncCursor, table: Table, ctx: Context) -> N
 NodeT = TypeVar("NodeT", bound=Node)
 
 
-def _pack_struct_data_prop(prop: Property, value: Any, ignore_array: bool) -> SqlPrimitive:
+def _pack_struct_data_prop_scalar(prop: Property, value: Any) -> SqlPrimitive:
     """Packs the value of a struct property for storage in Postgres."""
     if value is None:
         return None
-    elif prop.is_list and not ignore_array:
-        return [_pack_struct_data_prop(prop, v, ignore_array=True) for v in value]
     elif prop.is_struct:
         value = pack_builtin_object_data(value)
         return Jsonb(value)  # type: ignore
-    elif prop.is_enum:
-        return value.value
     elif prop.primitive_type == PrimitiveType.UUID:
         return to_uuid(value)
     elif prop.primitive_type == PrimitiveType.JSON:
@@ -1184,16 +1177,22 @@ def _pack_struct_data_prop(prop: Property, value: Any, ignore_array: bool) -> Sq
         return value
 
 
-def _unpack_struct_data_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
+def _pack_struct_data_prop(prop: Property, value: Any) -> SqlPrimitive:
+    """Packs the value of a struct property for storage in Postgres."""
+    if value is None:
+        return None
+    elif not prop.is_list:
+        return _pack_struct_data_prop_scalar(prop, value)
+    else:
+        return [_pack_struct_data_prop_scalar(prop, v) for v in value]
+
+
+def _unpack_struct_data_prop_scalar(prop: Property, value: Any, into: Any | None = None) -> Any:
     """Unpacks the value of a struct property from Postgres."""
     if value is None:
         return None
-    elif prop.is_list and not ignore_array:
-        return [_unpack_struct_data_prop(prop, v, ignore_array=True) for v in value]
     elif prop.reference_struct:
-        return unpack_builtin_object_data(value)
-    elif prop.is_enum:
-        return wiring.pack_enum(prop.py_type_stripped, prop.py_type_stripped(value))
+        return unpack_builtin_object_data(value, into=into)
     elif prop.primitive_type == PrimitiveType.DATETIME:
         if value.tzinfo is None:
             return value.replace(tzinfo=pytz.utc)
@@ -1219,7 +1218,7 @@ def _pg_pack_node_reference_into_row(
         # stored as struct (jsonb)
         assert prop.reference_wired_ptr is not None, f"no wired/stored ptr for {prop!r}"
         prop = prop.reference_wired_ptr
-        row[prop.name] = _pack_struct_data_prop(prop, value, ignore_array=False)
+        row[prop.name] = _pack_struct_data_prop(prop, value)
         return
     # unravel reference
     assert prop.reference_stored_ids is not None, f"no stored ids for {prop!r}"
@@ -1273,7 +1272,7 @@ def _pg_unpack_node_reference_from_row(prop: Property, row: RowOut, node: AnyNod
         prop = prop.reference_wired_ptr
         value = row.get(prop.name)
         if value is not None:
-            setattr(node, prop.name, _unpack_struct_data_prop(prop, value, ignore_array=False))
+            getattr(node, prop.name).CopyFrom(_unpack_struct_data_prop_scalar(prop, value))
         return
 
     # get bench id
@@ -1359,9 +1358,11 @@ def pg_pack_node_data_row(node: AnyNodeData) -> dict[str, SqlPrimitive]:
     try:
         row: dict[str, SqlPrimitive] = {}
         for name, prop in node_cls.__wired_properties__.items():
+            if not node.HasField(name):
+                continue
             if prop.reference_source is None:
                 # regular non-ref property
-                row[name] = _pack_struct_data_prop(prop, getattr(node, name), ignore_array=False)
+                row[name] = _pack_struct_data_prop(prop, getattr(node, name))
             else:
                 # unravel stored node reference :StoredPointers
                 value: NodeReferenceData | list[NodeReferenceData] | None = getattr(
@@ -1382,9 +1383,19 @@ def pg_unpack_node_data_row(node_cls: type[Node], row: Mapping[str, Any]) -> Any
             if prop.reference_source is None:
                 # regular non-ref property
                 value = row.get(name)
-                if value is not None:
-                    value = _unpack_struct_data_prop(prop, value, ignore_array=False)
-                    setattr(data, name, value)
+                if value is None:
+                    continue
+                if not prop.is_list:
+                    packed_value = _unpack_struct_data_prop_scalar(prop, value)
+                    if isinstance(packed_value, ProtoMessage):
+                        getattr(data, name).CopyFrom(packed_value)
+                    else:
+                        setattr(data, name, packed_value)
+                else:
+                    packed_value = getattr(data, name)
+                    for item in value:
+                        packed_item = packed_value.add()
+                        _ = _unpack_struct_data_prop_scalar(prop, item, into=packed_item)
             else:
                 # ravel stored node reference :StoredPointers
                 _pg_unpack_node_reference_from_row(prop.reference_source, row, data)
@@ -1869,10 +1880,10 @@ async def _pg_edit_cascade(
                 removed_at = removed_at_by_root_node_id[cast(str, root_edit.node_ptr.id)]
                 if edit_type == EditType.UNARCHIVE:
                     old_node = wiring.unwrap_some_node(cascaded_edit.old_node)
-                    old_node.archived_at = Timestamp().FromDatetime(removed_at)
+                    old_node.archived_at.FromDatetime(removed_at)
                 elif edit_type == EditType.RESTORE:
                     old_node = wiring.unwrap_some_node(cascaded_edit.old_node)
-                    old_node.deleted_at = Timestamp().FromDatetime(removed_at)
+                    old_node.deleted_at.FromDatetime(removed_at)
                 else:
                     assert_never(edit_type)
             elif edit_type in (EditType.ARCHIVE, EditType.DELETE, EditType.ERASE):
@@ -2007,7 +2018,7 @@ async def _pg_edit_batch(
                     _pg_pack_node_reference_into_row(prop, row, value)
                 else:
                     value = getattr(new_node_data, prop.name)
-                    value = _pack_struct_data_prop(prop, value, ignore_array=False)
+                    value = _pack_struct_data_prop(prop, value)
                     row[prop.name] = value
             # implicit properties
             edited_at = edit.edited_at.ToDatetime()

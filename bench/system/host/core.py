@@ -143,9 +143,9 @@ def unpack_commit(
             assert edit.old_node, f"missing new node data for {edit!r}"
             node = wiring.copy_struct(wiring.unwrap_some_node(edit.old_node))
             if edit.type == EditType.UNARCHIVE:
-                node.archived_at = None
+                node.ClearField("archived_at")
             elif edit.type == EditType.RESTORE:
-                node.deleted_at = None
+                node.ClearField("deleted_at")
         else:
             raise RuntimeError(f"unexpected cascaded edit type {edit.type} in {edit!r}")
         assert node.parent_ptr, f"missing parent ptr for {node!r} in {edit!r}"

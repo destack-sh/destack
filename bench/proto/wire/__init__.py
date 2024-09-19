@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = '2024.09.19.1'
+VERSION = '2024.09.19.2'
 
 # import from all generated files
 from .runtime_pb2 import *

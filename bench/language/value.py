@@ -930,6 +930,8 @@ def pack_builtin_object_data(
     for prop in only if only is not None else object_cls.__wired_properties__.values():
         if prop.reference_wired_ptr is not None:
             prop = prop.reference_wired_ptr
+        if not value.HasField(prop.name):
+            continue
         prop_value = getattr(value, prop.name)
         if prop_value is None or (prop.is_list and len(prop_value) == 0):
             continue
@@ -947,6 +949,7 @@ def unpack_builtin_object_data[T: AnyStructData | AnyNodeData](
     value_packed: dict[str, Any],
     expect: type[T] | None = None,
     only: Collection[Property | Any] | None = None,
+    into: T | None = None,
 ) -> AnyStructData | AnyNodeData:
     """Unpacks a single struct/node data value using typed proto ids as keys and enum values."""
     from bench.proto import wire, wiring
@@ -961,7 +964,7 @@ def unpack_builtin_object_data[T: AnyStructData | AnyNodeData](
     object_cls = OBJECT_CLASS_BY_TYPE[cast(ObjectType, object_type)]
     proto_cls = wiring.PROTO_CLASS_BY_TYPE[cast(ObjectType, object_type)]
 
-    value = proto_cls(metatype=object_type)  # type: ignore
+    value = into if into is not None else proto_cls(metatype=object_type)  # type: ignore
     for prop in only if only is not None else object_cls.__wired_properties__.values():
         if prop.reference_wired_ptr is not None:
             prop = prop.reference_wired_ptr

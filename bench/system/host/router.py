@@ -1,6 +1,6 @@
 import asyncio
 import functools
-from typing import Callable
+from typing import AsyncIterator, Callable, Mapping, override
 from uuid import UUID
 
 import grpclib.server
@@ -16,6 +16,26 @@ from bench.language.const import LOADED_BENCH_NODE_TYPES, SOURCE_NODE_TYPES
 from bench.proto.services import ServiceBase
 from bench.proto.wire import GraphScopeData, HostBase, ServiceKind
 from bench.proto.wire.common_pb2 import RpcMetadata
+from bench.proto.wire.system_pb2 import (
+    AggregateNodesRequest,
+    AggregateNodesResponse,
+    CommitTransactionRequest,
+    CommitTransactionResponse,
+    DownloadFilesRequest,
+    DownloadFilesResponse,
+    GetNodesRequest,
+    GetNodesResponse,
+    SearchNodesRequest,
+    SearchNodesResponse,
+    UploadFilesRequest,
+    UploadFilesResponse,
+    WatchAggregateRequest,
+    WatchAggregateResponse,
+    WatchGetRequest,
+    WatchGetResponse,
+    WatchSearchRequest,
+    WatchSearchResponse,
+)
 from bench.system.host.service import HostService
 from bench.system.utils.session import global_session, pg_engine_from_store
 from bench.utils.func import to_uuid
@@ -116,6 +136,7 @@ class HostRouterService(ServiceBase, HostBase):
         host = await self._get_host(request)
         return await host.get_request_subject(request, metadata)
 
+    @override
     def _wrap_rpc_func(
         self, func: Callable, method_name: str, handler: grpclib.const.Handler
     ) -> Callable:
@@ -144,3 +165,59 @@ class HostRouterService(ServiceBase, HostBase):
 
         else:
             raise NotImplementedError(f"unexpected cardinality in {method_name}: {cardinality}")
+
+    #
+    # Stub methods (implemented by HostService, forwarded in _wrap_rpc)
+    #
+
+    @override
+    async def get_nodes(self, request: "GetNodesRequest", headers: Mapping) -> "GetNodesResponse":
+        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
+
+    def watch_get(
+        self, request: "WatchGetRequest", headers: Mapping
+    ) -> AsyncIterator["WatchGetResponse"]:
+        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
+        yield WatchGetResponse()  # unreachable
+
+    @override
+    async def search_nodes(
+        self, request: "SearchNodesRequest", headers: Mapping
+    ) -> "SearchNodesResponse":
+        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
+
+    def watch_search(
+        self, request: "WatchSearchRequest", headers: Mapping
+    ) -> AsyncIterator["WatchSearchResponse"]:
+        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
+        yield WatchSearchResponse()  # unreachable
+
+    @override
+    async def aggregate_nodes(
+        self, request: "AggregateNodesRequest", headers: Mapping
+    ) -> "AggregateNodesResponse":
+        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
+
+    def watch_aggregate(
+        self, request: "WatchAggregateRequest", headers: Mapping
+    ) -> AsyncIterator["WatchAggregateResponse"]:
+        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
+        yield WatchAggregateResponse()  # unreachable
+
+    @override
+    async def commit_transaction(
+        self, request: "CommitTransactionRequest", headers: Mapping
+    ) -> "CommitTransactionResponse":
+        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
+
+    @override
+    async def upload_files(
+        self, request: "UploadFilesRequest", headers: Mapping
+    ) -> "UploadFilesResponse":
+        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
+
+    @override
+    async def download_files(
+        self, request: "DownloadFilesRequest", headers: Mapping
+    ) -> "DownloadFilesResponse":
+        raise GRPCError(GRPCStatus.UNIMPLEMENTED)

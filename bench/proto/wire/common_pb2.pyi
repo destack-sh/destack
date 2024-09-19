@@ -35,9 +35,9 @@ class RpcMetadata(_message.Message):
         ID_FIELD_NUMBER: _ClassVar[int]
         KEY_FIELD_NUMBER: _ClassVar[int]
         PASSWORD_FIELD_NUMBER: _ClassVar[int]
-        id: str | None
-        key: str | None
-        password: str | None
+        id: str
+        key: str
+        password: str
         def __init__(self, id: _Optional[str] = ..., key: _Optional[str] = ..., password: _Optional[str] = ...) -> None: ...
     CLIENT_TYPE_FIELD_NUMBER: _ClassVar[int]
     CLIENT_ID_FIELD_NUMBER: _ClassVar[int]

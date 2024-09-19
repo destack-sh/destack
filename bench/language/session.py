@@ -280,7 +280,7 @@ class Session(RuntimeNode[SessionData]):
         """Get the scope for a node pointer in this session."""
         scope = GraphScopeData(metatype=wire.ObjectType.OBJECT_TYPE_GRAPH_SCOPE)
         if ptr.bench_id is not None:
-            scope.bench_id = uuid_to_str(ptr.bench_id)
+            scope.bench_id = uuid_to_str(ptr.bench_id) or ""
         return scope
 
     def _get_scope_for_query(self, query: "QueryBuilder") -> GraphScopeData:

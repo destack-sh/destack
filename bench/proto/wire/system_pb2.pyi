@@ -34,9 +34,9 @@ class GetNodesRequest(_message.Message):
     NO_CACHE_FIELD_NUMBER: _ClassVar[int]
     scope: _lang_pb2.GraphScopeData
     roots: _containers.RepeatedCompositeFieldContainer[_lang_pb2.NodeReferenceData]
-    is_optional: bool | None
-    options: _lang_pb2.ReadOptionsData | None
-    no_cache: bool | None
+    is_optional: bool
+    options: _lang_pb2.ReadOptionsData
+    no_cache: bool
     def __init__(self, scope: _Optional[_Union[_lang_pb2.GraphScopeData, _Mapping]] = ..., roots: _Optional[_Iterable[_Union[_lang_pb2.NodeReferenceData, _Mapping]]] = ..., is_optional: bool = ..., options: _Optional[_Union[_lang_pb2.ReadOptionsData, _Mapping]] = ..., no_cache: bool = ...) -> None: ...
 
 class GetNodesResponse(_message.Message):
@@ -88,13 +88,13 @@ class SearchNodesRequest(_message.Message):
     scope: _lang_pb2.GraphScopeData
     node_type: _lang_pb2.NodeType
     bases: _containers.RepeatedCompositeFieldContainer[_lang_pb2.NodeReferenceData]
-    filter: _lang_pb2.ExpressionData | None
+    filter: _lang_pb2.ExpressionData
     sort: _containers.RepeatedCompositeFieldContainer[_lang_pb2.ExpressionData]
-    first: int | None
-    skip: int | None
-    count: bool | None
-    options: _lang_pb2.ReadOptionsData | None
-    no_cache: bool | None
+    first: int
+    skip: int
+    count: bool
+    options: _lang_pb2.ReadOptionsData
+    no_cache: bool
     def __init__(self, scope: _Optional[_Union[_lang_pb2.GraphScopeData, _Mapping]] = ..., node_type: _Optional[_Union[_lang_pb2.NodeType, str]] = ..., bases: _Optional[_Iterable[_Union[_lang_pb2.NodeReferenceData, _Mapping]]] = ..., filter: _Optional[_Union[_lang_pb2.ExpressionData, _Mapping]] = ..., sort: _Optional[_Iterable[_Union[_lang_pb2.ExpressionData, _Mapping]]] = ..., first: _Optional[int] = ..., skip: _Optional[int] = ..., count: bool = ..., options: _Optional[_Union[_lang_pb2.ReadOptionsData, _Mapping]] = ..., no_cache: bool = ...) -> None: ...
 
 class SearchNodesResponse(_message.Message):
@@ -106,7 +106,7 @@ class SearchNodesResponse(_message.Message):
     CONNECTION_TOKEN_FIELD_NUMBER: _ClassVar[int]
     roots_ptr: _containers.RepeatedCompositeFieldContainer[_lang_pb2.NodeReferenceData]
     nodes: _containers.RepeatedCompositeFieldContainer[_lang_pb2.SomeNodeData]
-    total: int | None
+    total: int
     epoch: int
     connection_token: str
     def __init__(self, roots_ptr: _Optional[_Iterable[_Union[_lang_pb2.NodeReferenceData, _Mapping]]] = ..., nodes: _Optional[_Iterable[_Union[_lang_pb2.SomeNodeData, _Mapping]]] = ..., total: _Optional[int] = ..., epoch: _Optional[int] = ..., connection_token: _Optional[str] = ...) -> None: ...
@@ -135,7 +135,7 @@ class WatchSearchResponse(_message.Message):
     added_nodes: _containers.RepeatedCompositeFieldContainer[_lang_pb2.SomeNodeData]
     removed_nodes_ptr: _containers.RepeatedCompositeFieldContainer[_lang_pb2.NodeReferenceData]
     roots_ptr: _containers.RepeatedCompositeFieldContainer[_lang_pb2.NodeReferenceData]
-    total: int | None
+    total: int
     epoch: int
     def __init__(self, edits: _Optional[_Iterable[_Union[_lang_pb2.EditData, _Mapping]]] = ..., cascaded_edits: _Optional[_Iterable[_Union[_lang_pb2.EditData, _Mapping]]] = ..., added_nodes: _Optional[_Iterable[_Union[_lang_pb2.SomeNodeData, _Mapping]]] = ..., removed_nodes_ptr: _Optional[_Iterable[_Union[_lang_pb2.NodeReferenceData, _Mapping]]] = ..., roots_ptr: _Optional[_Iterable[_Union[_lang_pb2.NodeReferenceData, _Mapping]]] = ..., total: _Optional[int] = ..., epoch: _Optional[int] = ...) -> None: ...
 
@@ -151,10 +151,10 @@ class AggregateNodesRequest(_message.Message):
     scope: _lang_pb2.GraphScopeData
     node_type: _lang_pb2.NodeType
     bases: _containers.RepeatedCompositeFieldContainer[_lang_pb2.NodeReferenceData]
-    filter: _lang_pb2.ExpressionData | None
+    filter: _lang_pb2.ExpressionData
     sort: _containers.RepeatedCompositeFieldContainer[_lang_pb2.ExpressionData]
     aggregation: _lang_pb2.ExpressionData
-    no_cache: bool | None
+    no_cache: bool
     def __init__(self, scope: _Optional[_Union[_lang_pb2.GraphScopeData, _Mapping]] = ..., node_type: _Optional[_Union[_lang_pb2.NodeType, str]] = ..., bases: _Optional[_Iterable[_Union[_lang_pb2.NodeReferenceData, _Mapping]]] = ..., filter: _Optional[_Union[_lang_pb2.ExpressionData, _Mapping]] = ..., sort: _Optional[_Iterable[_Union[_lang_pb2.ExpressionData, _Mapping]]] = ..., aggregation: _Optional[_Union[_lang_pb2.ExpressionData, _Mapping]] = ..., no_cache: bool = ...) -> None: ...
 
 class AggregateNodesResponse(_message.Message):
@@ -196,7 +196,7 @@ class CommitTransactionRequest(_message.Message):
     scope: _lang_pb2.GraphScopeData
     id: str
     edits: _containers.RepeatedCompositeFieldContainer[_lang_pb2.EditData]
-    context: _lang_pb2.SessionContextData | None
+    context: _lang_pb2.SessionContextData
     def __init__(self, scope: _Optional[_Union[_lang_pb2.GraphScopeData, _Mapping]] = ..., id: _Optional[str] = ..., edits: _Optional[_Iterable[_Union[_lang_pb2.EditData, _Mapping]]] = ..., context: _Optional[_Union[_lang_pb2.SessionContextData, _Mapping]] = ...) -> None: ...
 
 class CommitTransactionResponse(_message.Message):
@@ -222,17 +222,17 @@ class ClientDataIn(_message.Message):
     PLACE_ID_FIELD_NUMBER: _ClassVar[int]
     ACCESS_TOKEN_FIELD_NUMBER: _ClassVar[int]
     SPACE_PTR_FIELD_NUMBER: _ClassVar[int]
-    id: str | None
+    id: str
     type: _lang_pb2.ClientType
     name: str
-    device_type: str | None
-    device_name: str | None
-    operating_system: str | None
-    browser_name: str | None
-    browser_version: str | None
-    place_id: str | None
-    access_token: str | None
-    space_ptr: _lang_pb2.NodeReferenceData | None
+    device_type: str
+    device_name: str
+    operating_system: str
+    browser_name: str
+    browser_version: str
+    place_id: str
+    access_token: str
+    space_ptr: _lang_pb2.NodeReferenceData
     def __init__(self, id: _Optional[str] = ..., type: _Optional[_Union[_lang_pb2.ClientType, str]] = ..., name: _Optional[str] = ..., device_type: _Optional[str] = ..., device_name: _Optional[str] = ..., operating_system: _Optional[str] = ..., browser_name: _Optional[str] = ..., browser_version: _Optional[str] = ..., place_id: _Optional[str] = ..., access_token: _Optional[str] = ..., space_ptr: _Optional[_Union[_lang_pb2.NodeReferenceData, _Mapping]] = ...) -> None: ...
 
 class SignupUserRequest(_message.Message):
@@ -243,9 +243,9 @@ class SignupUserRequest(_message.Message):
     EMAIL_FIELD_NUMBER: _ClassVar[int]
     PASSWORD_FIELD_NUMBER: _ClassVar[int]
     CLIENT_FIELD_NUMBER: _ClassVar[int]
-    id: str | None
+    id: str
     slug: str
-    name: str | None
+    name: str
     email: str
     password: str
     client: ClientDataIn
@@ -306,7 +306,7 @@ class LogoutUserRequest(_message.Message):
     CLIENTS_FIELD_NUMBER: _ClassVar[int]
     LOGOUT_ALL_FIELD_NUMBER: _ClassVar[int]
     clients: _containers.RepeatedCompositeFieldContainer[_lang_pb2.NodeReferenceData]
-    logout_all: bool | None
+    logout_all: bool
     def __init__(self, clients: _Optional[_Iterable[_Union[_lang_pb2.NodeReferenceData, _Mapping]]] = ..., logout_all: bool = ...) -> None: ...
 
 class LogoutUserResponse(_message.Message):
@@ -384,7 +384,7 @@ class UploadFilesRequest(_message.Message):
     ENVIRONMENT_FIELD_NUMBER: _ClassVar[int]
     scope: _lang_pb2.GraphScopeData
     files: _containers.RepeatedCompositeFieldContainer[_lang_pb2.FileData]
-    environment: MachineEnvironment | None
+    environment: MachineEnvironment
     def __init__(self, scope: _Optional[_Union[_lang_pb2.GraphScopeData, _Mapping]] = ..., files: _Optional[_Iterable[_Union[_lang_pb2.FileData, _Mapping]]] = ..., environment: _Optional[_Union[MachineEnvironment, str]] = ...) -> None: ...
 
 class UploadFilesResponse(_message.Message):
@@ -411,7 +411,7 @@ class DownloadFilesRequest(_message.Message):
     ENVIRONMENT_FIELD_NUMBER: _ClassVar[int]
     scope: _lang_pb2.GraphScopeData
     files: _containers.RepeatedCompositeFieldContainer[_lang_pb2.NodeReferenceData]
-    environment: MachineEnvironment | None
+    environment: MachineEnvironment
     def __init__(self, scope: _Optional[_Union[_lang_pb2.GraphScopeData, _Mapping]] = ..., files: _Optional[_Iterable[_Union[_lang_pb2.NodeReferenceData, _Mapping]]] = ..., environment: _Optional[_Union[MachineEnvironment, str]] = ...) -> None: ...
 
 class DownloadFilesResponse(_message.Message):

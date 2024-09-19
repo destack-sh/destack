@@ -113,11 +113,6 @@ class ServiceBase:
         assert len(patched_mapping) > 0, f"no RPCs found in {self!r}"
         return patched_mapping
 
-    def _wrap_rpc_func(
-        self, func: RpcCallable, method_name: str, handler: grpclib.const.Handler
-    ) -> Callable:
-        return func
-
     def _validate_request(self, request: ProtoMessage) -> None:
         """Validate a request message."""
         pass
@@ -146,6 +141,11 @@ class ServiceBase:
 
     async def get_request_subject(self, request: ProtoMessage, metadata: RpcMetadata) -> Subject:
         raise NotImplementedError(f"{self.__class__.__name__} must implement _get_subject")
+
+    def _wrap_rpc_func(
+        self, func: RpcCallable, method_name: str, handler: grpclib.const.Handler
+    ) -> Callable:
+        return func
 
     @final
     def _wrap_rpc(self, method: str, handler: grpclib.const.Handler) -> grpclib.const.Handler:

@@ -216,8 +216,8 @@ UpdateData = WatchGetUpdate | WatchSearchUpdate | WatchAggregateUpdate
 
 
 def scope_includes(scope: GraphScopeData, other: GraphScopeData) -> bool:
-    return (scope.bench_id is None or scope.bench_id == other.bench_id) and (
-        scope.package_id is None or scope.package_id == other.package_id
+    return (not scope.bench_id or scope.bench_id == other.bench_id) and (
+        not scope.package_id or scope.package_id == other.package_id
     )
 
 
