@@ -505,14 +505,17 @@ class Transaction:
                 type=wiring.pack_enum(EditType, edit_type),
                 node_ptr=node._to_plain_ref_data(),
                 properties=properties,
-                new_node=wiring.wrap_some_node_maybe(new_node_data),
-                old_node=wiring.wrap_some_node_maybe(old_node_data),
                 scope=edit_event.scope,
                 origin=edit_event.origin,
-                subject_ptr=subject_ptr,
                 context=edit_context,
                 edited_at=edited_at,
             )
+            if subject_ptr is not None:
+                edit.subject_ptr.CopyFrom(subject_ptr)
+            if new_node_data is not None:
+                edit.new_node.CopyFrom(wiring.wrap_some_node(new_node_data))
+            if old_node_data is not None:
+                edit.old_node.CopyFrom(wiring.wrap_some_node(old_node_data))
             edits.append(edit)
             batch.clear()  # reset
 
@@ -635,10 +638,10 @@ def edit_graph(
             not options.include_hidden and edit_type in (EditType.UNARCHIVE, EditType.RESTORE)
         ):
             if edit_type in (EditType.CREATE, EditType.UPSERT):
-                assert edit.new_node, f"missing new node for {edit!r}"
+                assert edit.HasField("new_node"), f"missing new node for {edit!r}"
                 new_node_data = wiring.unwrap_some_node(edit.new_node)
             else:
-                assert edit.old_node, f"missing old node for {edit!r}"
+                assert edit.HasField("old_node"), f"missing old node for {edit!r}"
                 new_node_data = wiring.unwrap_some_node(edit.old_node)
                 if edit_type == EditType.UNARCHIVE:
                     new_node_data.ClearField("archived_at")
@@ -647,11 +650,14 @@ def edit_graph(
                 else:
                     assert_never(edit_type)
             # inline implicit metadata
-            new_node_data.created_at = new_node_data.updated_at = edit.edited_at
+            new_node_data.created_at.CopyFrom(edit.edited_at)
+            new_node_data.updated_at.CopyFrom(edit.edited_at)
             if hasattr(new_node_data, "created_epoch"):
                 setattr(new_node_data, "created_epoch", edit.epoch)
                 setattr(new_node_data, "updated_epoch", edit.epoch)
-            new_node_data.created_by_ptr = new_node_data.updated_by_ptr = edit.subject_ptr
+            if edit.HasField("subject_ptr"):
+                new_node_data.created_by_ptr.CopyFrom(edit.subject_ptr)
+                new_node_data.updated_by_ptr.CopyFrom(edit.subject_ptr)
             # unpack
             node = wiring.unpack_object(
                 new_node_data, graph=graph, supergraph=supergraph, expect=Node
@@ -668,7 +674,7 @@ def edit_graph(
             graph.remove(node)
         else:
             # some update
-            assert edit.new_node, f"missing new node for {edit!r}"
+            assert edit.HasField("new_node"), f"missing new node for {edit!r}"
             new_node_data = wiring.unwrap_some_node(edit.new_node)
             node = graph.get(node_id)
             assert node is not None, f"missing node {node_id!r} for update: {edit!r}"
@@ -760,10 +766,10 @@ def edit_data_graph(
         ):
             # add
             if edit_type in (EditType.CREATE, EditType.UPSERT):
-                assert edit.new_node, f"missing new node for {edit!r}"
+                assert edit.HasField("new_node"), f"missing new node for {edit!r}"
                 new_node_data = wiring.unwrap_some_node(edit.new_node)
             else:
-                assert edit.old_node, f"missing old node for {edit!r}"
+                assert edit.HasField("old_node"), f"missing old node for {edit!r}"
                 new_node_data = wiring.unwrap_some_node(edit.old_node)
                 if edit_type == EditType.UNARCHIVE:
                     new_node_data.ClearField("archived_at")
@@ -803,7 +809,7 @@ def edit_data_graph(
         else:
             # update
             # (or any other edit if prepass, where we assume all nodes are loaded in the graph)
-            if edit.new_node is not None:
+            if edit.HasField("new_node"):
                 new_node_data = wiring.unwrap_some_node(edit.new_node)
             else:
                 new_node_data = None
@@ -833,9 +839,11 @@ def edit_data_graph(
             # prepass: 'reset' externally provided data to known ground truth (from graph)
             if is_prepass:  # :EditData
                 if edit_type in (EditType.UPDATE, EditType.MOVE):
-                    edit.old_node = wiring.wrap_some_node(cast(AnyNodeData, old_node))
+                    edit.old_node.CopyFrom(wiring.wrap_some_node(cast(AnyNodeData, old_node)))
                 elif edit_type in (EditType.ARCHIVE, EditType.DELETE, EditType.ERASE):
-                    edit.old_node = wiring.wrap_some_node(wiring.copy_struct(updated_node_data))
+                    edit.old_node.CopyFrom(
+                        wiring.wrap_some_node(wiring.copy_struct(updated_node_data))
+                    )
                     if edit_type == EditType.ARCHIVE:
                         old_node = wiring.unwrap_some_node(edit.old_node)
                         old_node.ClearField("archived_at")
@@ -843,8 +851,9 @@ def edit_data_graph(
                         old_node = wiring.unwrap_some_node(edit.old_node)
                         old_node.ClearField("deleted_at")
                 elif edit_type in (EditType.UNARCHIVE, EditType.RESTORE):
-                    edit.old_node = wiring.wrap_some_node(
-                        wiring.copy_struct(updated_node_data)  # keep archived_at/deleted_at
+                    # keep archived_at/deleted_at
+                    edit.old_node.CopyFrom(
+                        wiring.wrap_some_node(wiring.copy_struct(updated_node_data))
                     )
 
             # implicit metadata

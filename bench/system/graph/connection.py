@@ -203,7 +203,7 @@ def _unpack_edited_node(updated_graph: NodeDataGraphLike, edit: EditData) -> Any
     updated_node = updated_graph.get(node_id)
     if updated_node is None:
         if edit.type in (EditType.CREATE, EditType.UPSERT):
-            assert edit.new_node, f"missing new node data for {edit!r}"
+            assert edit.HasField("new_node"), f"missing new node data for {edit!r}"
             updated_node = unwrap_some_node(edit.new_node)
         elif edit.type in (
             EditType.ARCHIVE,
@@ -212,7 +212,7 @@ def _unpack_edited_node(updated_graph: NodeDataGraphLike, edit: EditData) -> Any
             EditType.UNARCHIVE,
             EditType.RESTORE,
         ):
-            assert edit.old_node, f"missing old node data for {edit!r}"
+            assert edit.HasField("old_node"), f"missing old node data for {edit!r}"
             updated_node = unwrap_some_node(edit.old_node)
         else:
             raise RuntimeError(f"unexpected empty edit type {edit.type} in {edit!r}")

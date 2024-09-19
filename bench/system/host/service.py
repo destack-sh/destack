@@ -478,12 +478,12 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
             # pack old/new node
             node_cls = NODE_CLASS_BY_TYPE[node_type]
             properties = tuple(node_cls.__properties_by_id__[p] for p in edit.properties)
-            if edit.old_node:
+            if edit.HasField("old_node"):
                 old_node = unwrap_some_node(edit.old_node)
                 old_node_packed = pack_builtin_object_data(old_node, only=properties or None)
             else:
                 old_node_packed = None
-            if edit.new_node:
+            if edit.HasField("new_node"):
                 new_node = unwrap_some_node(edit.new_node)
                 new_node_packed = pack_builtin_object_data(new_node, only=properties or None)
             else:
@@ -504,50 +504,69 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
                 bench_ptr=bench_ptr,
                 created_at=edit.edited_at,
                 created_epoch=edit.epoch,
-                created_by_ptr=edit.subject_ptr,
-                # NOTE :Architecture: ideally we shouldn't need to store updated_* for Logs?
                 updated_at=edit.edited_at,
                 updated_epoch=edit.epoch,
-                updated_by_ptr=edit.subject_ptr,
                 # meta
                 kind=wire.LogKind.LOG_KIND_CHANGE,
                 level=wire.LogLevel.LOG_LEVEL_INFO,
-                undo_of_ptr=edit.undo_of_ptr,
                 # content
                 type=cast(wire.AccessType, edit.type),
-                node_ptr=edit.node_ptr,
                 properties=edit.properties,
-                old_node_packed=old_node_packed,
-                old_node_secret_packed=old_node_secret_packed,
-                new_node_packed=new_node_packed,
-                new_node_secret_packed=new_node_secret_packed,
                 new_revision=edit.revision,
                 category=edit.category,
-                vignette=edit.vignette,
-                # session context
-                block_ptr=edit.context.block_ptr if edit.context else None,
-                step_ptr=edit.context.step_ptr if edit.context else None,
-                session_ptr=edit.context.session_ptr if edit.context else None,
-                run_ptr=edit.context.run_ptr if edit.context else None,
-                run_root_ptr=edit.context.run_root_ptr if edit.context else None,
-                client_ptr=context_data.client_ptr,
-                machine_ptr=context_data.machine_ptr,
-                server_ptr=context_data.server_ptr,
-                user_ptr=context_data.user_ptr,
-                identity_ptr=edit.context.identity_ptr if edit.context else None,
             )
+            # meta
+            if edit.HasField("subject_ptr"):
+                log_data.created_by_ptr.CopyFrom(edit.subject_ptr)
+                log_data.updated_by_ptr.CopyFrom(edit.subject_ptr)
+            if edit.HasField("undo_of_ptr"):
+                log_data.undo_of_ptr.CopyFrom(edit.undo_of_ptr)
+            # content
+            if edit.HasField("node_ptr"):
+                log_data.node_ptr.CopyFrom(edit.node_ptr)
+            if edit.HasField("vignette"):
+                log_data.vignette.CopyFrom(edit.vignette)
+            if old_node_packed is not None:
+                log_data.old_node_packed.CopyFrom(old_node_packed)
+            if old_node_secret_packed is not None:
+                log_data.old_node_secret_packed.CopyFrom(old_node_secret_packed)
+            if new_node_packed is not None:
+                log_data.new_node_packed.CopyFrom(new_node_packed)
+            if new_node_secret_packed is not None:
+                log_data.new_node_secret_packed.CopyFrom(new_node_secret_packed)
+            # session context
+            if edit.context.block_ptr.metatype != 0:
+                log_data.block_ptr.CopyFrom(edit.context.block_ptr)
+            if edit.context.step_ptr.metatype != 0:
+                log_data.step_ptr.CopyFrom(edit.context.step_ptr)
+            if edit.context.session_ptr.metatype != 0:
+                log_data.session_ptr.CopyFrom(edit.context.session_ptr)
+            if edit.context.run_ptr.metatype != 0:
+                log_data.run_ptr.CopyFrom(edit.context.run_ptr)
+            if edit.context.run_root_ptr.metatype != 0:
+                log_data.run_root_ptr.CopyFrom(edit.context.run_root_ptr)
+            if context_data.client_ptr.metatype != 0:
+                log_data.client_ptr.CopyFrom(context_data.client_ptr)
+            if context_data.machine_ptr.metatype != 0:
+                log_data.machine_ptr.CopyFrom(context_data.machine_ptr)
+            if context_data.server_ptr.metatype != 0:
+                log_data.server_ptr.CopyFrom(context_data.server_ptr)
+            if context_data.user_ptr.metatype != 0:
+                log_data.user_ptr.CopyFrom(context_data.user_ptr)
+            if edit.context.identity_ptr.metatype != 0:
+                log_data.identity_ptr.CopyFrom(edit.context.identity_ptr)
             create_log_edit = EditData(
                 id=log_data.id,
                 type=wire.EditType.EDIT_TYPE_CREATE,
                 scope=edit.scope,
                 node_ptr=NodeReference._ref_data_from_node_data(log_data),
-                origin=None,
                 epoch=edit.epoch,
                 revision=log_data.revision,
                 new_node=wrap_some_node(log_data),
                 edited_at=log_data.created_at,
-                subject_ptr=edit.subject_ptr,
             )
+            if edit.HasField("subject_ptr"):
+                create_log_edit.subject_ptr.CopyFrom(edit.subject_ptr)
             log_edits.append(create_log_edit)
 
         # add edits to session
