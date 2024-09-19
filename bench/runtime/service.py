@@ -6,7 +6,7 @@ import sys
 from asyncio.subprocess import Process
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Awaitable, assert_never, override
+from typing import Any, Awaitable, Mapping, assert_never, override
 from uuid import UUID
 
 import grpclib
@@ -344,7 +344,12 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
                 )
                 # and run 'blocking'
                 request = ProcessRunRequest(run=run.run_data, is_blocking=True)
-                _ = await run.thread.client.process_run(request)
+                if isinstance(run.thread.client, RuntimeBase):
+                    _ = await run.thread.client.process_run(request, {})
+                elif isinstance(run.thread.client, RuntimeClient):
+                    _ = await run.thread.client.process_run(request)
+                else:
+                    raise RuntimeError(f"unexpected : {type(run.thread.client)}")
                 extra_healthcheck.cancel()  # no longer needed
                 logger.info(
                     "runtime.process_run", thread=run.thread, run=run.run_data, span="current"
@@ -362,7 +367,7 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
             self._active_runs.remove(run)
 
     @override
-    async def process_run(self, request: ProcessRunRequest) -> ProcessRunResponse:
+    async def process_run(self, request: ProcessRunRequest, headers: Mapping) -> ProcessRunResponse:
         assert self._main_package, f"{self!r} has no main package"
         set_baggage(bench_id=self._bench_id, client_id=self._client_id, run_id=request.run.id)
 
@@ -397,7 +402,7 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
         return ProcessRunResponse()
 
     @override
-    async def pause_run(self, request: PauseRunRequest) -> PauseRunResponse:
+    async def pause_run(self, request: PauseRunRequest, headers: Mapping) -> PauseRunResponse:
         # find active run
         for run in self._active_runs:
             if run.run_data.id == request.run.id:
@@ -411,13 +416,19 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
                 else:
                     # pause in thread
                     request = PauseRunRequest(run=run.run_data)
-                    _ = await run.thread.do(run.thread.client.pause_run(request), timeout=None)
+                    if isinstance(run.thread.client, RuntimeBase):
+                        method = run.thread.client.pause_run(request, headers)
+                    elif isinstance(run.thread.client, RuntimeClient):
+                        method = run.thread.client.pause_run(request, metadata=headers)
+                    else:
+                        raise RuntimeError(f"unexpected : {type(run.thread.client)}")
+                    _ = await run.thread.do(method, timeout=None)
                 return PauseRunResponse(is_processed=True)
         else:
             return PauseRunResponse(is_processed=False)
 
     @override
-    async def kill_run(self, request: KillRunRequest) -> KillRunResponse:
+    async def kill_run(self, request: KillRunRequest, headers: Mapping) -> KillRunResponse:
         # find active run
         for run in self._active_runs:
             if run.run_data.id == request.run.id:
@@ -431,7 +442,13 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
                 else:
                     # kill in thread
                     request = KillRunRequest(run=run.run_data)
-                    _ = await run.thread.do(run.thread.client.kill_run(request), timeout=None)
+                    if isinstance(run.thread.client, RuntimeBase):
+                        method = run.thread.client.kill_run(request, headers)
+                    elif isinstance(run.thread.client, RuntimeClient):
+                        method = run.thread.client.kill_run(request, metadata=headers)
+                    else:
+                        raise RuntimeError(f"unexpected : {type(run.thread.client)}")
+                    _ = await run.thread.do(method, timeout=None)
                 return KillRunResponse(is_processed=True)
         else:
             return KillRunResponse(is_processed=False)

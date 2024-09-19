@@ -2,7 +2,7 @@
 # type: ignore
 # ruff: noqa
 
-from typing import TYPE_CHECKING, Union, AsyncIterator
+from typing import TYPE_CHECKING, Union, AsyncIterator, Mapping
     
 
 from . import lang_pb2 as _lang_pb2

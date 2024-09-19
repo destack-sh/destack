@@ -1,11 +1,11 @@
 import asyncio
 from contextlib import asynccontextmanager
 from itertools import chain
-from typing import Any, Sequence, cast, override
+from typing import Any, Mapping, Sequence, cast, override
 from uuid import UUID
 
-import betterproto
 import structlog
+from google.protobuf.message import Message as ProtoMessage
 from google.protobuf.struct_pb2 import Struct as ProtoStruct
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
@@ -52,10 +52,10 @@ from bench.proto.wire import (
     UploadFilesRequest,
     UploadFilesResponse,
 )
+from bench.proto.wire.common_pb2 import RpcMetadata
 from bench.proto.wiring import (
     pack_proto_json,
     unpack_object_validate,
-    unpack_rpc_headers,
     unwrap_some_node,
     wrap_some_node,
 )
@@ -214,10 +214,9 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
                 await self._session.commit()
 
     @tracer.start_as_current_span("host.get_request_subject")
-    async def get_request_subject(self, request: betterproto.Message) -> Subject:
+    async def get_request_subject(self, request: ProtoMessage, metadata: RpcMetadata) -> Subject:
         assert self._bench is not None, f"bench not loaded in {self!r}"
         assert self._session is not None, f"session not ready in {self!r}"
-        metadata = unpack_rpc_headers(request.metadata)
 
         # get client
         is_staff = False
@@ -651,7 +650,9 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
     # Files
     #
 
-    async def upload_files(self, request: UploadFilesRequest) -> UploadFilesResponse:
+    async def upload_files(
+        self, request: UploadFilesRequest, headers: Mapping
+    ) -> UploadFilesResponse:
         # TODO :Broken :Security: evaluate file upload access
         s3_client = get_s3_client_for_presigning(request.environment)
         handles: list[UploadFilesResponse.UploadHandle] = []
@@ -715,7 +716,9 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
 
         return UploadFilesResponse(handles=handles)
 
-    async def download_files(self, request: DownloadFilesRequest) -> DownloadFilesResponse:
+    async def download_files(
+        self, request: DownloadFilesRequest, headers: Mapping
+    ) -> DownloadFilesResponse:
         # TODO :Broken :Security!: evaluate file download access
         s3_client = get_s3_client_for_presigning(request.environment)
 

@@ -27,6 +27,7 @@ from bench.language.graph import NodeDataGraph
 from bench.language.node import Node
 from bench.language.query import QueryBuilder
 from bench.language.session import Session
+from bench.proto.services import unary_stream_rpc
 from bench.proto.wire import (
     EditData,
     ExpressionData,
@@ -203,12 +204,12 @@ class RemoteGetConnection[T: Node](GetConnection[RemoteChannel, T]):
         watch_req = WatchGetRequest(
             scope=self.scope, connection_token=result.connection_token, since_epoch=result.epoch
         )
-        async for rep in self.channel.engine.remote.watch_get(watch_req):
+        async for rep in unary_stream_rpc(self.channel.engine.remote.watch_get, watch_req):
             update = WatchGetUpdate(
-                edits=rep.edits,
-                cascaded_edits=rep.cascaded_edits,
+                edits=list(rep.edits),
+                cascaded_edits=list(rep.cascaded_edits),
                 added_nodes=[wiring.unwrap_some_node(n) for n in rep.added_nodes],
-                removed_nodes_ptr=rep.removed_nodes_ptr,
+                removed_nodes_ptr=list(rep.removed_nodes_ptr),
                 epoch=rep.epoch,
             )
             yield update
@@ -242,7 +243,7 @@ class RemoteSearchConnection[T: Node](SearchConnection[RemoteChannel, T]):
         return SearchResultData(
             graph=graph,
             roots=roots,
-            roots_ptr=response.roots_ptr,
+            roots_ptr=list(response.roots_ptr),
             total=response.total,
             epoch=response.epoch,
             connection_token=response.connection_token,
@@ -259,13 +260,13 @@ class RemoteSearchConnection[T: Node](SearchConnection[RemoteChannel, T]):
         watch_req = WatchSearchRequest(
             scope=self.scope, connection_token=result.connection_token, since_epoch=result.epoch
         )
-        async for rep in self.channel.engine.remote.watch_search(watch_req):
+        async for rep in unary_stream_rpc(self.channel.engine.remote.watch_search, watch_req):
             update = WatchSearchUpdate(
-                edits=rep.edits,
-                cascaded_edits=rep.cascaded_edits,
+                edits=list(rep.edits),
+                cascaded_edits=list(rep.cascaded_edits),
                 added_nodes=[wiring.unwrap_some_node(n) for n in rep.added_nodes],
-                removed_nodes_ptr=rep.removed_nodes_ptr,
-                roots_ptr=rep.roots_ptr,
+                removed_nodes_ptr=list(rep.removed_nodes_ptr),
+                roots_ptr=list(rep.roots_ptr),
                 total=rep.total,
                 epoch=rep.epoch,
             )

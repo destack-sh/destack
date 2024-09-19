@@ -15,6 +15,7 @@ from bench.language.bench import Branch
 from bench.language.const import LOADED_BENCH_NODE_TYPES, SOURCE_NODE_TYPES
 from bench.proto.services import ServiceBase
 from bench.proto.wire import GraphScopeData, HostBase, ServiceKind
+from bench.proto.wire.common_pb2 import RpcMetadata
 from bench.system.host.service import HostService
 from bench.system.utils.session import global_session, pg_engine_from_store
 from bench.utils.func import to_uuid
@@ -111,9 +112,9 @@ class HostRouterService(ServiceBase, HostBase):
                     host = await self._start_host(bench_id)
         return host
 
-    async def get_request_subject(self, request: ProtoMessage) -> Subject:
+    async def get_request_subject(self, request: ProtoMessage, metadata: RpcMetadata) -> Subject:
         host = await self._get_host(request)
-        return await host.get_request_subject(request)
+        return await host.get_request_subject(request, metadata)
 
     def _wrap_rpc_func(
         self, func: Callable, method_name: str, handler: grpclib.const.Handler

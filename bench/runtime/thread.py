@@ -1,5 +1,5 @@
 import asyncio
-from typing import TYPE_CHECKING, Any, override
+from typing import TYPE_CHECKING, Any, Mapping, override
 from uuid import UUID
 
 import structlog
@@ -146,12 +146,12 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
             logger.info("thread.process_run", process=self, run=run, span="current")
 
     @override
-    async def process_run(self, request: ProcessRunRequest) -> ProcessRunResponse:
+    async def process_run(self, request: ProcessRunRequest, headers: Mapping) -> ProcessRunResponse:
         await self._do_process_run(request.run)
         return ProcessRunResponse()
 
     @override
-    async def pause_run(self, request: PauseRunRequest) -> PauseRunResponse:
+    async def pause_run(self, request: PauseRunRequest, headers: Mapping) -> PauseRunResponse:
         assert self._runtime is not None, f"no runtime for {self!r}"
         run = self._supergraph.get(UUID(request.run.id))
         if not isinstance(run, Run):
@@ -160,7 +160,7 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
         return PauseRunResponse(is_processed=True)
 
     @override
-    async def kill_run(self, request: KillRunRequest) -> KillRunResponse:
+    async def kill_run(self, request: KillRunRequest, headers: Mapping) -> KillRunResponse:
         assert self._runtime is not None, f"no runtime for {self!r}"
         run = self._supergraph.get(UUID(request.run.id))
         if not isinstance(run, Run):

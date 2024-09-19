@@ -64,7 +64,7 @@ class UserHandle:
             password=self.name,
             client=client_in,
         )
-        signup_rep = await supervisor_client.SignupUser(signup_req)
+        signup_rep = await supervisor_client.signup_user(signup_req)
         self._user_data = signup_rep.user
         self._user_ptr = unpack_object(
             NodeReference._ref_data_from_node_data(self._user_data),
@@ -125,7 +125,7 @@ class ClientHandle:
             password=self.spec.username,
             client=client_in,
         )
-        login_rep = await supervisor_client.LoginUser(login_req)
+        login_rep = await supervisor_client.login_user(login_req)
         self._client_data = login_rep.client
         self._access_token = login_rep.access_token
         self._rpc_metadata = RpcMetadata(
