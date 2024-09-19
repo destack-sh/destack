@@ -2,7 +2,6 @@
 
 aiohttp==3.9.5
 anthropic==0.31.0
-betterproto[compiler] @ git+https://github.com/danielgtaylor/python-betterproto.git@5666393f9d10e13609d8eeac8d1ab3815dce5fd6
 bitarray==2.9.2
 boto3==1.34.104
 botocore==1.34.104
@@ -12,6 +11,7 @@ certifi==2024.7.4
 croniter==1.4.1
 googleapis-common-protos==1.63.0
 google-generativeai==0.7.2
+grpclib==0.4.7
 httpx[http2,brotli]==0.27.0
 magika==0.5.1
 more-itertools==9.0.0

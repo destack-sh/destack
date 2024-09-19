@@ -217,7 +217,7 @@ class RuntimeServiceBase(ServiceBase, abc.ABC):
         while retry.should_retry:
             retry.on_attempt()
             try:
-                response = await self._supervisor.ResolveHosts(
+                response = await self._supervisor.resolve_hosts(
                     request, metadata=self._rpc_headers, timeout=(5)
                 )
                 host_info = response.hosts[0]

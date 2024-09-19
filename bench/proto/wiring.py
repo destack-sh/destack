@@ -5,9 +5,8 @@ from itertools import chain
 from typing import Any, Collection, Mapping, Union, cast
 from uuid import UUID
 
-import betterproto
 import structlog
-from betterproto.lib.google.protobuf import Struct as ProtoStruct
+from google.protobuf.struct_pb2 import Struct as ProtoStruct
 from opentelemetry import trace
 
 from bench.language.connection import Connection
@@ -384,7 +383,9 @@ def wrap_some_node_maybe(node: AnyNodeData | None) -> wire.SomeNodeData | None:
 
 def unwrap_some_node(node: wire.SomeNodeData) -> AnyNodeData:
     """Unwraps a generic node type into a concrete node type."""
-    _, wrapped_node = betterproto.which_one_of(node, "node")
+    node_key = node.WhichOneof("node")
+    assert node_key is not None, f"node not set in {node!r}"
+    wrapped_node = getattr(node, node_key)
     assert wrapped_node is not None, f"node not set in {node!r}"
     return wrapped_node
 

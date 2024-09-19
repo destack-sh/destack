@@ -104,8 +104,7 @@ def _build_proto(schema_str: str) -> None:
     Path(LANG_PROTO).write_text(schema_str)
 
     #
-    # Python (betterproto)
-    # nocheckin :Performance!: use native protoc instead of betterproto
+    # Python
     #
 
     # NOTE: we copy the proto files into the temporary wire directory to ensure the import paths
@@ -134,7 +133,28 @@ def _build_proto(schema_str: str) -> None:
             r"from . import \1",
             wire_py,
         )
-        # make all message fields optional (some whitespace, lower_case_var: annotation)
+        if "_grpc" in path.stem:
+            # snake case all methods (replace def <MyName> with def <my_name>, also for self.MyName)
+            rpc_names = re.findall(r"async def ([a-zA-Z0-9_]+)\(", wire_py)
+            for name in rpc_names:
+                new_name = to_casing(name, Casing.SNAKE)
+                wire_py = wire_py.replace(f"async def {name}(", f"async def {new_name}(")
+                wire_py = wire_py.replace(f"self.{name}", f"self.{new_name}")
+            # replace service methods Method(Stream) -> None with Method(Request) -> Response | AsyncIterator[Response]
+            wire_py = regex.sub(
+                r"(?!.*watch)(async def )([a-zA-Z0-9_]+)\(self, stream: 'grpclib.server.Stream\[([a-zA-Z0-9_\.]+), ([a-zA-Z0-9_\.]+)\]'\) -> None:",
+                r"\1\2(self, request: '\3') -> '\4':",
+                wire_py,
+                flags=re.MULTILINE,
+            )
+            wire_py = regex.sub(
+                r"(async def )(watch[a-zA-Z0-9_]*)\(self, stream: 'grpclib.server.Stream\[([a-zA-Z0-9_\.]+), ([a-zA-Z0-9_\.]+)\]'\) -> None:",
+                r"\1\2(self, request: '\3') -> AsyncIterator['\4']:",
+                wire_py,
+                flags=re.MULTILINE,
+            )
+        # make all scalar message fields optional (some whitespace, lower_case_var: annotation)
+        # nocheckin: only make optional message fields optional
         wire_py = regex.sub(
             r"^(?!.*FieldContainer)(^[ ]+[a-z_]+: [\w\[\|\.]+)",
             r"\1 | None",
@@ -147,7 +167,7 @@ def _build_proto(schema_str: str) -> None:
 # type: ignore
 # ruff: noqa
 
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Union, AsyncIterator
     """
         path.write_text(patch_prefix_code + "\n\n" + wire_py)
 

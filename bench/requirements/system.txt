@@ -20,10 +20,8 @@ attrs==23.2.0
     # via aiohttp
 backoff==2.2.1
     # via posthog
-betterproto @ git+https://github.com/danielgtaylor/python-betterproto.git@5666393f9d10e13609d8eeac8d1ab3815dce5fd6
 bitarray==2.9.2
 black==23.7.0
-    # via betterproto
 boto3==1.34.104
 botocore==1.34.104
     # via
@@ -104,7 +102,6 @@ grpcio==1.64.0
 grpcio-status==1.62.2
     # via google-api-core
 grpclib==0.4.7
-    # via betterproto
 h11==0.14.0
     # via
     #   httpcore
@@ -141,10 +138,6 @@ idna==3.7
     #   yarl
 importlib-metadata==7.0.0
     # via opentelemetry-api
-isort==5.13.2
-    # via betterproto
-jinja2==3.1.4
-    # via betterproto
 jiter==0.4.2
     # via anthropic
 jmespath==1.0.1
@@ -156,8 +149,6 @@ kubernetes-asyncio==30.3.0
 magika==0.5.1
 markdown-it-py==3.0.0
     # via rich
-markupsafe==2.1.5
-    # via jinja2
 mdurl==0.1.2
     # via markdown-it-py
 monotonic==1.6
@@ -248,7 +239,6 @@ pyparsing==3.1.2
     # via httplib2
 python-dateutil==2.9.0.post0
     # via
-    #   betterproto
     #   botocore
     #   croniter
     #   kubernetes
@@ -314,7 +304,6 @@ typer==0.12.3
 typing-extensions==4.11.0
     # via
     #   anthropic
-    #   betterproto
     #   google-generativeai
     #   huggingface-hub
     #   openai

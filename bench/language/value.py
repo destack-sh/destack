@@ -16,7 +16,7 @@ from uuid import UUID
 import pytz
 import regex
 import structlog
-from betterproto.lib.google.protobuf import Struct as ProtoStruct
+from google.protobuf.struct_pb2 import Struct as ProtoStruct
 from opentelemetry import trace
 
 from bench.language.const import (

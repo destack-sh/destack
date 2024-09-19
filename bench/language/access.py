@@ -730,6 +730,7 @@ def generate_access_matrix(
     ):
         """Generates any new applicable access zones downstream from the node for all identities."""
 
+        assert node_data.id is not None, f"no id for {node_data!r}"
         node_type: NodeType = wiring.unpack_enum(NodeType, node_data.metatype)
 
         # if this node defines new policies, apply them to their scope
@@ -802,6 +803,7 @@ def generate_access_matrix(
     # start at root
     root_zones_by_identity = {}
     for root in roots:
+        assert root.id is not None, f"no id for {root!r}"
         # figure out owner
         root_type = wiring.unpack_enum(NodeType, root.metatype)
         root_cls = NODE_CLASS_BY_TYPE[root_type]
@@ -999,8 +1001,10 @@ def evaluate_and_adapt_read(
     # evaluate access per node
     with tracer.start_as_current_span("access.evaluate_read", attributes={"nodes": len(graph)}):
         for root in graph.find_roots():
+            assert root.id, f"no id for {root!r}"
             descendants = graph.get_descendants(root, recursive=True)
             for node in chain((root,), descendants):
+                assert node.id, f"no id for {node!r}"
                 # evaluate access
                 node_type = NodeType(node.metatype)
                 node_properties: bitarray = NODE_CLASS_BY_TYPE[node_type].__properties_mask_set__
@@ -1032,6 +1036,7 @@ def evaluate_and_adapt_read(
     # adapt & filter nodes
     with tracer.start_as_current_span("access.adapt_read", attributes={"nodes": len(graph)}):
         for node in requested_nodes_preorder:
+            assert node.id, f"no id for {node!r}"
             node_cls = NODE_CLASS_BY_TYPE[cast(NodeType, node.metatype)]
             allowed_properties = allowed_properties_by_node_id.get(node.id)
             node_type = cast(NodeType, node.metatype)
@@ -1092,10 +1097,10 @@ def evaluate_edit(
     new_node_scopes_by_child_id: dict[str, NodeReferenceData] = {}
     for edit in edits:
         access_type: AccessType = wiring.unpack_enum(EditType, edit.type)
-        node_type: NodeType = wiring.unpack_enum(NodeType, edit.node_ptr.type)
-        node_cls = NODE_CLASS_BY_TYPE[node_type]
         node_ptr = edit.node_ptr
-        assert node_ptr.id is not None, f"no node id for {edit!r}"
+        assert node_ptr and node_ptr.id is not None, f"no node id for {edit!r}"
+        node_type: NodeType = wiring.unpack_enum(NodeType, node_ptr.type)
+        node_cls = NODE_CLASS_BY_TYPE[node_type]
 
         # figure out the scope to evaluate what in
         if node_cls.__roots__:

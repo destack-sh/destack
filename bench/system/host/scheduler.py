@@ -126,15 +126,15 @@ class ProcessRunPlugin(HostPlugin[Run]):
             try:
                 if op.op == RunOperation.START or op.op == RunOperation.RESUME:
                     request = ProcessRunRequest(run=run._to_data(), is_blocking=False)
-                    response = await runtime.ProcessRun(request)
+                    response = await runtime.process_run(request)
                     success = True
                 elif op.op == RunOperation.PAUSE:
                     request = PauseRunRequest(run=run._to_data())
-                    response = await runtime.PauseRun(request)
+                    response = await runtime.pause_run(request)
                     success = response.is_processed
                 elif op.op == RunOperation.KILL:
                     request = KillRunRequest(run=run._to_data())
-                    response = await runtime.KillRun(request)
+                    response = await runtime.kill_run(request)
                     success = response.is_processed
                 else:
                     assert_never(op.op)

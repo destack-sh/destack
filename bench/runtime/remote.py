@@ -159,7 +159,7 @@ class RemoteChannel(WritableChannel[RemoteEngine]):
             scope=self.engine.scope,
             context=self.session._get_context(),
         )
-        response = await self.engine.remote.CommitTransaction(
+        response = await self.engine.remote.commit_transaction(
             request, metadata=self.engine.rpc_headers
         )
         return CommitResultData(
@@ -182,7 +182,7 @@ class RemoteGetConnection[T: Node](GetConnection[RemoteChannel, T]):
             options=query._options._to_data() if query._options else None,
             scope=engine.scope,
         )
-        response = await self.channel.engine.remote.GetNodes(request, metadata=engine.rpc_headers)
+        response = await self.channel.engine.remote.get_nodes(request, metadata=engine.rpc_headers)
         nodes = [wiring.unwrap_some_node(n) for n in response.nodes]
         graph = NodeDataGraph(scope=engine.scope, node_types=engine.node_types, nodes=nodes)
         return GetResultData(
@@ -287,7 +287,8 @@ class RemoteAggregateConnection(AggregateConnection[RemoteChannel]):
             aggregation=cast(ExpressionData, query._aggregation._to_data()),
             scope=engine.scope,
         )
-        response = await engine.remote.AggregateNodes(request, metadata=engine.rpc_headers)
+        response = await engine.remote.aggregate_nodes(request, metadata=engine.rpc_headers)
+        assert response.aggregation is not None, f"{response!r} has no aggregation"
         return AggregateResultData(
             aggregation=response.aggregation,
             epoch=response.epoch,
