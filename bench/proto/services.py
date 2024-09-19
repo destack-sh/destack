@@ -174,12 +174,12 @@ class ServiceBase:
                         raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "missing request")
                     self._validate_request(request)
                     if handler.cardinality == grpclib.const.Cardinality.UNARY_UNARY:
-                        response = await handler.func(request, stream.metadata)
+                        response = await func(request, stream.metadata)
                         await stream.send_message(response)
                     elif handler.cardinality == grpclib.const.Cardinality.UNARY_STREAM:
                         span.end()  # end early (streaming, span shouldn't continue forever)
-                        async for response in handler.func(request, stream.metadata):
-                            log.trace(f"{rpc_name}.update", response=response)
+                        async for response in func(request, stream.metadata):
+                            log.trace(f"{rpc_name}.update")
                             await stream.send_message(response)
                     else:
                         raise RuntimeError(f"unsuported cardinality {handler.cardinality}")
@@ -205,20 +205,18 @@ class ServiceBase:
         return grpclib.const.Handler(_managed_rpc, cardinality, request_type, reply_type)
 
 
-class HealthService(HealthBase):
+class HealthService(ServiceBase, HealthBase):
     """Health check service."""
 
-    def __init__(self, services: Collection[ServiceBase]):
-        super().__init__()
+    def __init__(self, services: Collection[ServiceBase], oracle: Oracle):
+        super().__init__(logger=logger, tracer=tracer, oracle=oracle)
         self._services = services
 
     @override
     async def check(self, request: HealthCheckRequest, headers: Mapping) -> HealthCheckResponse:
         # NOTE :Robustness :Monitoring: check health properly
         response = HealthCheckResponse(status=HealthCheckResponse.ServingStatus.SERVING)
-        logger.trace(
-            "health.check", service=self, request=request, response=response, span="current"
-        )
+        logger.trace("health.check", service=self, span="current")
         return response
 
     @override
@@ -232,12 +230,12 @@ class HealthService(HealthBase):
 class GrpcServer(grpclib.server.Server):
     """gRPC server with extra bells and whistles."""
 
-    def __init__(self, handlers: Collection["IServable"], **kwargs):
+    def __init__(self, handlers: Collection["IServable"], oracle: Oracle, **kwargs):
         assert all(
             isinstance(h, ServiceBase) for h in handlers
         ), f"unexpected handlers: {handlers!r}"
         self._services: tuple[ServiceBase, ...] = cast(tuple[ServiceBase, ...], tuple(handlers))
-        self._health_service = HealthService(self._services)
+        self._health_service = HealthService(self._services, oracle)
         super().__init__((*handlers, self._health_service), **kwargs)
         self._host: str | None = None
         self._port: int | None = None

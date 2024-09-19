@@ -560,7 +560,7 @@ class Connection[
                         assert (
                             update.epoch > self.epoch
                         ), f"epoch regression: {update!r} in {self!r}"
-                        log.trace(f"connect.{self.type_name}.update", update=update)
+                        log.trace(f"connect.{self.type_name}.update")
                         self._apply_update(self._result_data, self._result, update)
                         for callback in self._update_subscribers:
                             callback(update)

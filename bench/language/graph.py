@@ -14,6 +14,7 @@ from typing import (
     Union,
     cast,
     overload,
+    override,
 )
 from uuid import UUID
 
@@ -33,12 +34,14 @@ if TYPE_CHECKING:
     from bench.language import (
         Field,
         Node,
+        NodeReference,
         NodeReferenceBase,
         Property,
         SomeNodeReference,
         Struct,
         ValueObject,
     )
+    from bench.proto.wiring import NodeReferenceData
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -150,6 +153,9 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
         self._nodes_by_ck.clear()
         self._nodes_by_parent.clear()
 
+    @abc.abstractmethod
+    def _get_parent_ptr(self, node: V) -> "NodeReferenceData | NodeReference | None": ...
+
     def add(self, node: V):
         """Add a node to the graph (error if node already exists, *no* descendants)"""
         assert isinstance(
@@ -163,7 +169,7 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
         self._nodes_by_id[node.id] = node
         if hasattr(node, "ck"):
             self._nodes_by_ck[getattr(node, "ck")] = node
-        if node.parent_ptr is not None:
+        if self._get_parent_ptr(node) is not None:
             self._add_to_parent(node)
 
     def update(self, node: V, _force_update_parent: bool = False):
@@ -181,10 +187,12 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
 
         # update parent if changed
         # (the instance may be edited in place, so we remember the last parent by identity as well)
+        old_parent_ptr = self._get_parent_ptr(old)
         old_parent_id = self._parent_by_node.get(
-            node.id, old.parent_ptr.id if old.parent_ptr is not None else None
+            node.id, old_parent_ptr.id if old_parent_ptr is not None else None
         )
-        new_parent_id = node.parent_ptr.id if node.parent_ptr is not None else None
+        node_parent_ptr = self._get_parent_ptr(node)
+        new_parent_id = node_parent_ptr.id if node_parent_ptr is not None else None
         if old_parent_id != new_parent_id or _force_update_parent:
             if old_parent_id is not None and not _force_update_parent:
                 self._remove_from_parent(old)
@@ -212,7 +220,7 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
             raise GraphConsistencyError(f"node {node!r} does not exist in {self!r}")
         if hasattr(node, "ck"):
             self._nodes_by_ck.pop(getattr(node, "ck"), None)
-        if node.parent_ptr is not None:
+        if self._get_parent_ptr(node) is not None:
             self._remove_from_parent(node)
         # descend
         if node.id in self._nodes_by_parent:
@@ -224,8 +232,9 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
 
     def _add_to_parent(self, node: V):
         """Adds the node to our parent index for that parent/type pair"""
-        assert node.parent_ptr is not None, f"{node!r} has no parent for {self!r}"
-        parent_id = cast(K, node.parent_ptr.id)
+        node_parent_ptr = self._get_parent_ptr(node)
+        assert node_parent_ptr is not None, f"{node!r} has no parent for {self!r}"
+        parent_id = cast(K, node_parent_ptr.id)
         if parent_id not in self._nodes_by_parent:
             self._nodes_by_parent[parent_id] = {}
         metatype = cast(ObjectType, node.metatype)
@@ -236,10 +245,11 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
 
     def _remove_from_parent(self, node: V):
         """Removes the node from our parent index, cleaning up child containers if empty"""
-        assert node.parent_ptr is not None, f"{node!r} has no parent for {self!r}"
+        node_parent_ptr = self._get_parent_ptr(node)
+        assert node_parent_ptr is not None, f"{node!r} has no parent for {self!r}"
         parent_id = self._parent_by_node.get(cast(K, node.id))
         if parent_id is None:
-            parent_id = cast(K | None, node.parent_ptr.id)
+            parent_id = cast(K | None, node_parent_ptr.id)
             assert parent_id, f"{node!r} has no parent for {self!r}"
         else:
             del self._parent_by_node[cast(K, node.id)]
@@ -332,7 +342,7 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
     def get_root(self, node: V) -> V:
         """Gets the root node for a given node"""
         root = node
-        while root.parent_ptr is not None:
+        while self._get_parent_ptr(root) is not None:
             root = self._nodes_by_id[cast(K, root.parent_ptr.id)]
         return root
 
@@ -341,7 +351,7 @@ class _NodeGraphBase[K: str | UUID, V: AnyNodeData | Node](abc.ABC):
         assert isinstance(node.id, self.key_type), f"expected {self.value_type}, got {node!r}"
         ancestors: list[V] = []
         cur = node
-        while cur.parent_ptr is not None:
+        while self._get_parent_ptr(cur) is not None:
             cur = self._nodes_by_id[cast(K, cur.parent_ptr.id)]
             ancestors.append(cur)
         return ancestors
@@ -382,6 +392,10 @@ class NodeGraph(_NodeGraphBase[UUID, "Node"]):
         super().__init__(scope, node_types, nodes=nodes)
         self.supergraph = supergraph
 
+    @override
+    def _get_parent_ptr(self, node: "Node") -> "NodeReferenceData | NodeReference | None":
+        return node.parent_ptr
+
 
 class NodeDataGraph(_NodeGraphBase[str, AnyNodeData]):
     """
@@ -390,6 +404,13 @@ class NodeDataGraph(_NodeGraphBase[str, AnyNodeData]):
 
     key_type = str
     value_type = "AnyNodeData"
+
+    @override
+    def _get_parent_ptr(self, node: "AnyNodeData") -> "NodeReferenceData | NodeReference | None":
+        if node.parent_ptr.metatype != 0:
+            return node.parent_ptr
+        else:
+            return None
 
 
 class NodeSuperGraph:

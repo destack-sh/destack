@@ -145,20 +145,20 @@ class HostRouterService(ServiceBase, HostBase):
         if cardinality == grpclib.const.Cardinality.UNARY_UNARY:
 
             @functools.wraps(func)
-            async def _multiplexed_unary_rpc(subject: Subject, request: ProtoMessage) -> None:
+            async def _multiplexed_unary_rpc(request: ProtoMessage, metadata: RpcMetadata) -> None:
                 host = await self._get_host(request)
                 set_baggage(**host.get_service_baggage())
-                return await getattr(host, method_name)(subject, request)
+                return await getattr(host, method_name)(request, metadata)
 
             return _multiplexed_unary_rpc
 
         elif cardinality == grpclib.const.Cardinality.UNARY_STREAM:
 
             @functools.wraps(func)
-            async def _multiplexed_unary_stream_rpc(subject: Subject, request: ProtoMessage):
+            async def _multiplexed_unary_stream_rpc(request: ProtoMessage, metadata: RpcMetadata):
                 host = await self._get_host(request)
                 set_baggage(**host.get_service_baggage())
-                async for response in getattr(host, method_name)(subject, request):
+                async for response in getattr(host, method_name)(request, metadata):
                     yield response
 
             return _multiplexed_unary_stream_rpc

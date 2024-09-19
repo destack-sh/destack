@@ -513,9 +513,10 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
                 type=cast(wire.AccessType, edit.type),
                 properties=edit.properties,
                 new_revision=edit.revision,
-                category=edit.category,
             )
             # meta
+            if edit.category != 0:
+                log_data.category = edit.category
             if edit.HasField("subject_ptr"):
                 log_data.created_by_ptr.CopyFrom(edit.subject_ptr)
                 log_data.updated_by_ptr.CopyFrom(edit.subject_ptr)
@@ -612,7 +613,7 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
             (self._main_package, PACKAGE_QUERY._options, package_edits),
         ):
             # filter the in memory edits to only those with an origin (we = system has origin = null)
-            external_edits = tuple(e for e in subedits if e.origin is not None)
+            external_edits = tuple(e for e in subedits if e.origin.id)
             edit_graph(
                 graph=root_node._graph,
                 supergraph=self._supergraph,

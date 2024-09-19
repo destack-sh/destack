@@ -350,7 +350,6 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
         self.logger.info(
             "graph.commit",
             subject=subject,
-            request=request,
             request_edits=len(request.edits),
             epoch=self.epoch,
             span="current",
