@@ -427,8 +427,8 @@ class Transaction:
                 continue
 
             # edit data (see :EditData for Edit.old_node/new_node)
-            old_node: AnyNodeData | None = None
-            new_node: AnyNodeData | None = None
+            old_node_data: AnyNodeData | None = None
+            new_node_data: AnyNodeData | None = None
             properties: list[int] = []
             if edit_type in (EditType.UPDATE, EditType.MOVE):
                 # coalesce any move/update sequence into move
@@ -445,33 +445,33 @@ class Transaction:
                 properties.sort()  # ascending
                 # pack old/new
                 proto_cls = cast(type[AnyNodeData], wiring.PROTO_CLASS_BY_TYPE[node.metatype])
-                old_node = proto_cls(metatype=wire.ObjectType(node.metatype))
-                new_node = proto_cls(metatype=wire.ObjectType(node.metatype))
+                old_node_data = proto_cls(metatype=cast(wire.ObjectType, node.metatype))
+                new_node_data = proto_cls(metatype=cast(wire.ObjectType, node.metatype))
                 for prop_id, old_value in old_values.items():
                     prop = node.__properties_by_id__.get(prop_id)
                     assert prop is not None, f"no property {prop_id} for {node!r} in {batch!r}"
                     if prop.reference_wired_ptr is not None:
                         prop = prop.reference_wired_ptr
-                    setattr(old_node, prop.name, wiring.pack_object_prop(prop, old_value))
+                    wiring.pack_and_set_object_prop(old_node_data, prop, old_value)
                     new_value = getattr(node, prop.name)
-                    setattr(new_node, prop.name, wiring.pack_object_prop(prop, new_value))
+                    wiring.pack_and_set_object_prop(new_node_data, prop, new_value)
             elif edit_type in (EditType.CREATE, EditType.UPSERT):
-                new_node = edit_event.node_data or edit_event.node._to_data()
+                new_node_data = edit_event.node_data or edit_event.node._to_data()
             elif edit_type in (EditType.ARCHIVE, EditType.DELETE, EditType.ERASE):
                 assert edit_event.node_data is not None, f"missing node data for {edit_event!r}"
-                old_node = wiring.copy_struct(edit_event.node_data)
+                old_node_data = wiring.copy_struct(edit_event.node_data)
                 if edit_type == EditType.ARCHIVE:
-                    old_node.ClearField("archived_at")
+                    old_node_data.ClearField("archived_at")
                 elif edit_type == EditType.DELETE:
-                    old_node.ClearField("deleted_at")
+                    old_node_data.ClearField("deleted_at")
             elif edit_type == EditType.UNARCHIVE:
                 assert edit_event.node_data is not None, f"missing node data for {edit_event!r}"
                 assert edit_event.node_data.archived_at, f"cannot unarchive {node!r}"
-                old_node = edit_event.node_data
+                old_node_data = edit_event.node_data
             elif edit_type == EditType.RESTORE:
                 assert edit_event.node_data is not None, f"missing node data for {edit_event!r}"
                 assert edit_event.node_data.deleted_at, f"cannot restore {node!r}"
-                old_node = edit_event.node_data
+                old_node_data = edit_event.node_data
             else:
                 assert_never(edit_type)
 
@@ -502,8 +502,8 @@ class Transaction:
                 type=wiring.pack_enum(EditType, edit_type),
                 node_ptr=node._to_plain_ref_data(),
                 properties=properties,
-                new_node=wiring.wrap_some_node_maybe(new_node),
-                old_node=wiring.wrap_some_node_maybe(old_node),
+                new_node=wiring.wrap_some_node_maybe(new_node_data),
+                old_node=wiring.wrap_some_node_maybe(old_node_data),
                 scope=edit_event.scope,
                 origin=edit_event.origin,
                 subject_ptr=subject_ptr,
@@ -748,6 +748,7 @@ def edit_data_graph(
         node_cls = NODE_CLASS_BY_TYPE[node_type]
         node_id = edit.node_ptr.id
         assert node_id is not None, f"missing node id for {edit!r}"
+        subject_ptr = edit.subject_ptr if edit.HasField("subject_ptr") else None
 
         if edit_type in (EditType.CREATE, EditType.UPSERT) or (
             not options.include_hidden
@@ -772,7 +773,12 @@ def edit_data_graph(
             if hasattr(new_node_data, "created_epoch"):
                 setattr(new_node_data, "created_epoch", edit.epoch)
                 setattr(new_node_data, "updated_epoch", edit.epoch)
-            new_node_data.created_by_ptr = new_node_data.updated_by_ptr = edit.subject_ptr
+            if subject_ptr is not None:
+                new_node_data.created_by_ptr.CopyFrom(subject_ptr)
+                new_node_data.updated_by_ptr.CopyFrom(subject_ptr)
+            else:
+                new_node_data.created_by_ptr.ClearField("created_by_ptr")
+                new_node_data.updated_by_ptr.ClearField("updated_by_ptr")
             if edit_type == EditType.CREATE or new_node_data.id not in graph:
                 graph.add(new_node_data)
             else:
@@ -808,7 +814,7 @@ def edit_data_graph(
 
             # directly edited properties
             proto_cls = wiring.PROTO_CLASS_BY_TYPE[node_cls.metatype]
-            old_node = proto_cls(metatype=wire.ObjectType(node_cls.metatype))
+            old_node = proto_cls(metatype=cast(wire.ObjectType, node_cls.metatype))
             if edit_type in (EditType.UPDATE, EditType.MOVE):
                 for prop_id in edit.properties:
                     prop = node_cls.__properties_by_id__.get(prop_id)
@@ -817,9 +823,9 @@ def edit_data_graph(
                         prop = prop.reference_wired_ptr
                     if is_prepass:
                         old_value = getattr(updated_node_data, prop.name)
-                        setattr(old_node, prop.name, old_value)
+                        wiring.set_object_prop(old_node, prop, old_value)
                     new_value_data = getattr(new_node_data, prop.name)
-                    setattr(updated_node_data, prop.name, new_value_data)
+                    wiring.set_object_prop(updated_node_data, prop, new_value_data)
 
             # prepass: 'reset' externally provided data to known ground truth (from graph)
             if is_prepass:  # :EditData
@@ -842,7 +848,7 @@ def edit_data_graph(
             updated_node_data.updated_at = edit.edited_at
             if "updated_epoch" in node_cls.__properties__:
                 setattr(updated_node_data, "updated_epoch", edit.epoch)
-            setattr(updated_node_data, "updated_by_ptr", edit.subject_ptr)
+            updated_node_data.updated_by_ptr.CopyFrom(edit.subject_ptr)
             # Edit.revision may be unset when editing before flushing for validation
             updated_node_data.revision = edit.revision if edit.revision is not None else -1
             if edit_type == EditType.ARCHIVE:

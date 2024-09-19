@@ -268,6 +268,10 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
         return not self.is_required
 
     @property
+    def is_optional_scalar(self) -> bool:
+        return self.is_optional and not self.is_list
+
+    @property
     def is_enum(self):
         return self.enum_type is not None
 

@@ -20,12 +20,15 @@ from typing import (
     cast,
 )
 from uuid import UUID
-from google.protobuf.message import Message as ProtoMessage
+
 import cachetools
 import psycopg
 import pytz
 import structlog
 from bitarray import bitarray
+from google.protobuf.duration_pb2 import Duration
+from google.protobuf.message import Message as ProtoMessage
+from google.protobuf.timestamp_pb2 import Timestamp
 from opentelemetry import trace
 from psycopg import OperationalError, sql
 from psycopg.types.json import Jsonb
@@ -1173,6 +1176,10 @@ def _pack_struct_data_prop_scalar(prop: Property, value: Any) -> SqlPrimitive:
         return to_uuid(value)
     elif prop.primitive_type == PrimitiveType.JSON:
         return Jsonb(wiring.unpack_proto_json(value))  # type: ignore
+    elif prop.primitive_type == PrimitiveType.DATETIME:
+        return value.ToDatetime()
+    elif prop.primitive_type == PrimitiveType.INTERVAL:
+        return value.ToTimedelta()
     else:
         return value
 
@@ -1202,6 +1209,14 @@ def _unpack_struct_data_prop_scalar(prop: Property, value: Any, into: Any | None
         return str(value)
     elif prop.primitive_type == PrimitiveType.JSON:
         return wiring.pack_proto_json(value)
+    elif prop.primitive_type == PrimitiveType.DATETIME:
+        ts = Timestamp()
+        ts.FromDatetime(value)
+        return ts
+    elif prop.primitive_type == PrimitiveType.INTERVAL:
+        dur = Duration()
+        dur.FromTimedelta(value)
+        return dur
     else:
         return value
 
@@ -1226,12 +1241,7 @@ def _pg_pack_node_reference_into_row(
     assert prop.reference_stored_metas is not None, f"no stored extras for {prop!r}"
     if prop.is_list:  # list reference
         # map to references list
-        if value is None:
-            references = ()
-        elif isinstance(value, list):
-            references = value
-        else:
-            raise ValueError(f"expected list of references, got {value!r}")
+        references = () if value is None else cast(list[NodeReferenceData], value)
         # pointer id/ck
         for stored_prop in prop.reference_stored_ids:
             row[stored_prop.name] = []
@@ -1358,16 +1368,22 @@ def pg_pack_node_data_row(node: AnyNodeData) -> dict[str, SqlPrimitive]:
     try:
         row: dict[str, SqlPrimitive] = {}
         for name, prop in node_cls.__wired_properties__.items():
-            if not node.HasField(name):
-                continue
             if prop.reference_source is None:
                 # regular non-ref property
-                row[name] = _pack_struct_data_prop(prop, getattr(node, name))
+                if prop.is_optional_scalar and not node.HasField(name):
+                    value = None
+                else:
+                    value = getattr(node, name)
+                row[name] = _pack_struct_data_prop(prop, value)
             else:
                 # unravel stored node reference :StoredPointers
-                value: NodeReferenceData | list[NodeReferenceData] | None = getattr(
-                    node, cast(Property, prop.reference_source.reference_wired_ptr).name
-                )
+                wired_name = cast(Property, prop.reference_source.reference_wired_ptr).name
+                if prop.is_optional_scalar and not node.HasField(wired_name):
+                    value = None
+                else:
+                    if prop.reference_is_rich:
+                        wired_name = node.WhichOneof(wired_name)
+                    value = getattr(node, wired_name)
                 _pg_pack_node_reference_into_row(prop.reference_source, row, value)
         return row
     except (AttributeError, TypeError, ValueError, KeyError) as e:
@@ -1378,28 +1394,40 @@ def pg_unpack_node_data_row(node_cls: type[Node], row: Mapping[str, Any]) -> Any
     """Unpacks a node's data from a row from the respective table."""
     try:
         proto_cls = PROTO_CLASS_BY_TYPE[node_cls.metatype]
-        data = cast(AnyNodeData, proto_cls(metatype=wiring.pack_enum(NodeType, node_cls.metatype)))  # type: ignore
+        obj_data = cast(
+            AnyNodeData, proto_cls(metatype=wiring.pack_enum(NodeType, node_cls.metatype))
+        )  # type: ignore
         for name, prop in node_cls.__wired_properties__.items():
-            if prop.reference_source is None:
-                # regular non-ref property
-                value = row.get(name)
-                if value is None:
-                    continue
-                if not prop.is_list:
-                    packed_value = _unpack_struct_data_prop_scalar(prop, value)
-                    if isinstance(packed_value, ProtoMessage):
-                        getattr(data, name).CopyFrom(packed_value)
-                    else:
-                        setattr(data, name, packed_value)
-                else:
-                    packed_value = getattr(data, name)
-                    for item in value:
-                        packed_item = packed_value.add()
-                        _ = _unpack_struct_data_prop_scalar(prop, item, into=packed_item)
-            else:
+            if prop.reference_source is not None:
                 # ravel stored node reference :StoredPointers
-                _pg_unpack_node_reference_from_row(prop.reference_source, row, data)
-        return data
+                _pg_unpack_node_reference_from_row(prop.reference_source, row, obj_data)
+                continue
+
+            # regular non-ref property
+            value = row.get(name)
+            if value is None:
+                continue
+            if not prop.is_list:  # scalar
+                packed_value = _unpack_struct_data_prop_scalar(prop, value)
+                if isinstance(packed_value, ProtoMessage):
+                    getattr(obj_data, name).CopyFrom(packed_value)
+                elif prop.is_struct:
+                    assert (
+                        value is None
+                    ), f"unexpected non-proto struct value for {prop!r}: {value!r}"
+                    obj_data.ClearField(name)
+                else:
+                    setattr(obj_data, name, packed_value)
+            else:  # list
+                assert (
+                    prop.is_struct or len(value) == 0
+                ), f"cannot set non-struct {prop!r}: {value!r}"
+                packed_value = getattr(obj_data, name)
+                for item in value:
+                    packed_item = packed_value.add()
+                    _ = _unpack_struct_data_prop_scalar(prop, item, into=packed_item)
+
+        return obj_data
     except (AttributeError, TypeError, ValueError, KeyError) as e:
         row_str = repr(row) if IS_DEV else describe_type(row)
         raise ValueError(f"could not unpack row {node_cls.metatype.name}: {row_str}") from e
@@ -1938,12 +1966,9 @@ async def _pg_edit_batch(
             row["created_at"] = row["updated_at"] = edit.edited_at.ToDatetime()
             if "created_epoch" in node_cls.__properties__:
                 row["created_epoch"] = row["updated_epoch"] = edit.epoch
-            _pg_pack_node_reference_into_row(
-                node_cls.get_property("created_by"), row, edit.subject_ptr
-            )
-            _pg_pack_node_reference_into_row(
-                node_cls.get_property("updated_by"), row, edit.subject_ptr
-            )
+            subject_ptr = edit.subject_ptr if edit.HasField("subject_ptr") else None
+            _pg_pack_node_reference_into_row(node_cls.get_property("created_by"), row, subject_ptr)
+            _pg_pack_node_reference_into_row(node_cls.get_property("updated_by"), row, subject_ptr)
             rows.append(row)
 
         if edit_type == EditType.CREATE:
@@ -2025,9 +2050,8 @@ async def _pg_edit_batch(
             row["updated_at"] = edited_at
             if "updated_epoch" in node_cls.__properties__:
                 row["updated_epoch"] = edit.epoch
-            _pg_pack_node_reference_into_row(
-                node_cls.get_property("updated_by"), row, edit.subject_ptr
-            )
+            subject_ptr = edit.subject_ptr if edit.HasField("subject_ptr") else None
+            _pg_pack_node_reference_into_row(node_cls.get_property("updated_by"), row, subject_ptr)
             if edit_type == EditType.ARCHIVE:
                 row["archived_at"] = edited_at
             elif edit_type == EditType.UNARCHIVE:

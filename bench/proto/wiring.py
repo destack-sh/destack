@@ -22,6 +22,7 @@ from bench.language.setup import OBJECT_CLASS_BY_TYPE
 from bench.language.validation import on_invalid_raise
 from bench.proto import wire
 from bench.proto.wire import AnyNodeData, AnyStructData, NodeReferenceData, RpcMetadata
+from bench.proto.wire.lang_pb2 import FileReferenceData, SecretReferenceData
 from bench.utils.func import IdEnum, IdEnumOrUnion, to_uuid
 from bench.utils.string import Casing, to_casing
 
@@ -162,6 +163,61 @@ def unpack_object_prop(prop: Property, value: Any, *, supergraph: NodeSuperGraph
         return [unpack_object_prop_scalar(prop, v, supergraph=supergraph) for v in value]
 
 
+def get_rich_reference_prop_name(prop: Property, value: Any) -> str:
+    """Gets the name of the rich reference property for the given property. :RichReferences"""
+    if isinstance(value, FileReferenceData):
+        return f"{prop.name}_file"
+    elif isinstance(value, SecretReferenceData):
+        return f"{prop.name}_secret"
+    elif isinstance(value, NodeReferenceData):
+        return f"{prop.name}_node"
+    else:
+        raise ValueError(f"unexpected rich reference value: {value!r}")
+
+
+def pack_and_set_object_prop(obj_data: AnyStructData | AnyNodeData, prop: Property, value: Any):
+    """Pack and set the given property on the given data object."""
+    if not prop.is_list:  # scalar
+        packed_value = pack_object_prop_scalar(prop, value)
+        if isinstance(packed_value, ProtoMessage):  # message field
+            if prop.reference_is_rich:  # one of field, set appropriate one
+                prop_name = get_rich_reference_prop_name(prop, packed_value)
+                getattr(obj_data, prop_name).CopyFrom(packed_value)
+            else:  # regular message field
+                getattr(obj_data, prop.name).CopyFrom(packed_value)
+        elif prop.is_struct:  # empty message field
+            assert value is None, f"unexpected non-proto struct value for {prop!r}: {value!r}"
+            obj_data.ClearField(prop.name)
+        else:  # primitive field
+            setattr(obj_data, prop.name, packed_value)
+    else:  # list
+        assert prop.is_struct or len(value) == 0, f"cannot set non-struct {prop!r}: {value!r}"
+        packed_value = getattr(obj_data, prop.name)
+        for item in value:
+            packed_item = packed_value.add()
+            _ = pack_object_prop_scalar(prop, item, into=packed_item)
+
+
+def set_object_prop(obj_data: AnyStructData | AnyNodeData, prop: Property, value: Any):
+    """Set the packed property on the given data object."""
+    if not prop.is_list:  # scalar
+        if isinstance(value, ProtoMessage):  # message field
+            if prop.reference_is_rich:  # one of field, set appropriate one
+                prop_name = get_rich_reference_prop_name(prop, value)
+                getattr(obj_data, prop_name).CopyFrom(value)
+            else:  # regular message field
+                getattr(obj_data, prop.name).CopyFrom(value)
+        elif prop.is_struct:  # empty message field
+            assert value is None, f"unexpected non-proto struct value for {prop!r}: {value!r}"
+            obj_data.ClearField(prop.name)
+        else:  # primitive field
+            setattr(obj_data, prop.name, value)
+    else:  # list
+        assert prop.is_struct or len(value) == 0, f"cannot set non-struct {prop!r}: {value!r}"
+        getattr(obj_data, prop.name).clear()
+        getattr(obj_data, prop.name).extend(value)
+
+
 def pack_object[T: AnyStructData | AnyNodeData](
     obj: BuiltinObject, expect: type[T] | None = None, into: T | None = None
 ) -> T:
@@ -176,17 +232,7 @@ def pack_object[T: AnyStructData | AnyNodeData](
             value = getattr(obj, prop.name)
             if value is None:
                 continue
-            if not prop.is_list:
-                packed_value = pack_object_prop_scalar(prop, value)
-                if isinstance(packed_value, ProtoMessage):
-                    getattr(obj_data, prop.name).CopyFrom(packed_value)
-                else:
-                    setattr(obj_data, prop.name, packed_value)
-            else:
-                packed_value = getattr(obj_data, prop.name)
-                for item in value:
-                    packed_item = packed_value.add()
-                    _ = pack_object_prop_scalar(prop, item, into=packed_item)
+            pack_and_set_object_prop(obj_data, prop, value)
         return cast(T, obj_data)
     except (AttributeError, TypeError, ValueError, KeyError) as e:
         raise ValueError(f"could not pack {obj.metatype.name}: {obj!r}") from e

@@ -930,7 +930,7 @@ def pack_builtin_object_data(
     for prop in only if only is not None else object_cls.__wired_properties__.values():
         if prop.reference_wired_ptr is not None:
             prop = prop.reference_wired_ptr
-        if not value.HasField(prop.name):
+        if prop.is_optional and not value.HasField(prop.name):
             continue
         prop_value = getattr(value, prop.name)
         if prop_value is None or (prop.is_list and len(prop_value) == 0):
@@ -957,12 +957,11 @@ def unpack_builtin_object_data[T: AnyStructData | AnyNodeData](
     if expect is None:
         object_type = value_packed.get("1")
         assert object_type is not None, f"{value_packed!r} has no object type and none given"
-        object_type = wire.ObjectType(object_type)
+        object_type = cast(ObjectType, int(object_type))
     else:
         object_type = wiring.OBJECT_TYPE_BY_PROTO_CLASS[expect]
-        object_type = wire.ObjectType(object_type)
-    object_cls = OBJECT_CLASS_BY_TYPE[cast(ObjectType, object_type)]
-    proto_cls = wiring.PROTO_CLASS_BY_TYPE[cast(ObjectType, object_type)]
+    object_cls = OBJECT_CLASS_BY_TYPE[object_type]
+    proto_cls = wiring.PROTO_CLASS_BY_TYPE[object_type]
 
     value = into if into is not None else proto_cls(metatype=object_type)  # type: ignore
     for prop in only if only is not None else object_cls.__wired_properties__.values():
