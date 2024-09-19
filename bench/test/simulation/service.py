@@ -3,8 +3,6 @@ import enum
 from typing import TYPE_CHECKING, final, override
 from uuid import UUID
 
-from betterproto import ServiceStub
-
 from bench.language import NodeReference
 from bench.proto import wire
 from bench.proto.services import ServiceBase
@@ -29,7 +27,7 @@ class ServiceStatus(enum.Enum):
     RECOVERING = 4
 
 
-class ServiceHandle[SpecT: ServiceSpec, S: ServiceBase, C: ServiceStub](abc.ABC):
+class ServiceHandle[SpecT: ServiceSpec, S: ServiceBase, C: object](abc.ABC):
     """Wrapper for a simulated service we can monkey around with"""
 
     service_cls: type[S]

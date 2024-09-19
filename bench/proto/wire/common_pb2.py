@@ -2,7 +2,7 @@
 # type: ignore
 # ruff: noqa
 
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Union, AsyncIterator
     
 
 # -*- coding: utf-8 -*-

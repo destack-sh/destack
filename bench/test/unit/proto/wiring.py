@@ -1,14 +1,6 @@
-from datetime import datetime, timedelta
-
-import pytz
-from betterproto import _Duration as ProtoDuration
-from betterproto import _Timestamp as ProtoTimestamp
-from hypothesis import example, given
-from hypothesis import strategies as st
+from hypothesis import given
 
 from bench.language import BuiltinObject, Session
-from bench.language.const import PrimitiveType
-from bench.language.value import MAX_VALUE_BY_PRIMITIVE_TYPE, MIN_VALUE_BY_PRIMITIVE_TYPE
 from bench.proto import wiring
 from bench.test.strategies import builtin_objects, examples
 from bench.test.unit.conftest import BUILTIN_OBJECTS_OF_EVERY_TYPE
@@ -58,37 +50,3 @@ def test_roundtrip_builtin_object_copy(obj: BuiltinObject, shared_session: Sessi
     assert unpacked_obj.equals(obj), f"{unpacked_obj!r} != {obj!r}"
     # (we want to check both assertions but the first is easier to debug)
     assert copied_obj_data == packed_obj_data, f"{copied_obj_data!r} != {packed_obj_data!r}"
-
-
-# NOTE :Test: we manually test time values since they are converted into proto-specific structures
-#  with different precision and timezone handling
-
-
-@given(
-    value=st.timedeltas(
-        min_value=MIN_VALUE_BY_PRIMITIVE_TYPE[PrimitiveType.INTERVAL],
-        max_value=MAX_VALUE_BY_PRIMITIVE_TYPE[PrimitiveType.INTERVAL],
-    )
-)
-@example(value=timedelta(days=99421, microseconds=1))
-def test_roundtrip_timedelta(value: timedelta):
-    packed_value_data = ProtoDuration.from_timedelta(value)
-    unpacked_value = packed_value_data.to_timedelta()
-    assert unpacked_value == value, f"{unpacked_value!r} != {value!r}"
-
-    packed_value_json = packed_value_data.to_json()
-    unpacked_value_data = ProtoDuration().from_json(packed_value_json)
-    unpacked_value = unpacked_value_data.to_timedelta()
-    assert unpacked_value == value, f"{unpacked_value!r} != {value!r}"
-
-
-@given(value=st.datetimes(timezones=st.just(pytz.utc)))
-def test_roundtrip_datetime(value: datetime):
-    packed_value_data = ProtoTimestamp.from_datetime(value)
-    unpacked_value = packed_value_data.to_datetime()
-    assert unpacked_value == value, f"{unpacked_value!r} != {value!r}"
-
-    packed_value_json = packed_value_data.to_json()
-    unpacked_value_data = ProtoTimestamp().from_json(packed_value_json)
-    unpacked_value = unpacked_value_data.to_datetime()
-    assert unpacked_value == value, f"{unpacked_value!r} != {value!r}"

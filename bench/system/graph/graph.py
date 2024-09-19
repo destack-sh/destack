@@ -4,7 +4,6 @@ from datetime import datetime
 from typing import AsyncIterator, NamedTuple, Sequence, cast, final, override
 from uuid import UUID
 
-import betterproto
 import structlog
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
@@ -57,7 +56,7 @@ from bench.proto.wire import (
     EditData,
     GetNodesRequest,
     GetNodesResponse,
-    GraphIoBase,
+    GraphIOBase,
     GraphScopeData,
     NodeReferenceData,
     SearchNodesRequest,
@@ -81,6 +80,7 @@ from bench.utils.func import CriticalLock, bittuple, group_by, to_uuid
 from bench.utils.oracle import Oracle
 from bench.utils.tenacity import RetryOptions
 from bench.utils.utils import get_from_env
+from google.protobuf.message import Message as ProtoMessage
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -94,7 +94,7 @@ MAX_TIME_DRIFT_SECONDS = get_from_env(
 COMMIT_RETRY = RetryOptions(max_attempts=3, retry_on=(ChannelUnavailableError,))
 
 
-class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
+class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
     """Common base for global & Bench-local graph I/O operations."""
 
     def __init__(
@@ -122,7 +122,7 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
         """Gets the graph engines available to this subgraph."""
         ...
 
-    def _validate_request(self, request: betterproto.Message) -> None:
+    def _validate_request(self, request: ProtoMessage) -> None:
         """Validate a request message for this service."""
         scope: GraphScopeData = getattr(request, "scope", EMPTY_SCOPE._to_data())
         if to_uuid(scope.bench_id) != self.bench_id:
@@ -300,8 +300,9 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
 
     @override
     async def commit_transaction(
-        self, subject: Subject, request: "CommitTransactionRequest"
+        self, request: "CommitTransactionRequest"
     ) -> "CommitTransactionResponse":
+        subject = await self.get_request_subject(request)
         assert subject.client is not None, f"no client for {subject!r}"
 
         # figure out context
@@ -361,11 +362,12 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
         )
 
     @override
-    async def get_nodes(self, subject: Subject, request: "GetNodesRequest") -> "GetNodesResponse":
+    async def get_nodes(self, request: "GetNodesRequest") -> "GetNodesResponse":
         # check that there is at least one root
         if not request.roots:
             raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "no roots provided")
         # parse query & fetch
+        subject = await self.get_request_subject(request)
         async with self.new_request_session(supergraph=subject._supergraph) as session:
             with self.tracer.start_as_current_span("graph.get.parse"):
                 roots = [
@@ -444,9 +446,8 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
         )
 
     @override
-    async def watch_get(
-        self, subject: Subject, request: WatchGetRequest
-    ) -> AsyncIterator[WatchGetResponse]:
+    async def watch_get(self, request: WatchGetRequest) -> AsyncIterator[WatchGetResponse]:
+        subject = await self.get_request_subject(request)
         subscription = await self.connector.subscribe(
             subject=subject,
             connection_t=GetConnection,
@@ -476,10 +477,9 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
             subscription.cancel()
 
     @override
-    async def search_nodes(
-        self, subject: Subject, request: "SearchNodesRequest"
-    ) -> "SearchNodesResponse":
+    async def search_nodes(self, request: "SearchNodesRequest") -> "SearchNodesResponse":
         # parse query & fetch
+        subject = await self.get_request_subject(request)
         async with self.new_request_session(supergraph=subject._supergraph) as session:
             with self.tracer.start_as_current_span("graph.search.parse"):
                 node_type: NodeType = wiring.unpack_enum(NodeType, request.node_type)
@@ -553,9 +553,8 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
         )
 
     @override
-    async def watch_search(
-        self, subject: Subject, request: WatchSearchRequest
-    ) -> AsyncIterator[WatchSearchResponse]:
+    async def watch_search(self, request: WatchSearchRequest) -> AsyncIterator[WatchSearchResponse]:
+        subject = await self.get_request_subject(request)
         subscription = await self.connector.subscribe(
             subject=subject,
             connection_t=SearchConnection,
@@ -587,10 +586,9 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
             subscription.cancel()
 
     @override
-    async def aggregate_nodes(
-        self, subject: Subject, request: "AggregateNodesRequest"
-    ) -> "AggregateNodesResponse":
+    async def aggregate_nodes(self, request: "AggregateNodesRequest") -> "AggregateNodesResponse":
         # parse query & fetch
+        subject = await self.get_request_subject(request)
         async with self.new_request_session(supergraph=subject._supergraph) as session:
             with self.tracer.start_as_current_span("graph.aggregate.parse"):
                 node_type: NodeType = wiring.unpack_enum(NodeType, request.node_type)
@@ -631,10 +629,10 @@ class GraphIoServiceBase(ServiceBase, GraphIoBase, abc.ABC):
 
     @override
     async def watch_aggregate(
-        self, subject: Subject, request: WatchAggregateRequest
+        self, request: WatchAggregateRequest
     ) -> AsyncIterator[WatchAggregateResponse]:
         raise GRPCError(GRPCStatus.UNIMPLEMENTED, "watch_aggregate not yet supported")
-        yield  # unreachable (for type)
+        yield  # unreachable (for type checking)
 
 
 class CommitArea(NamedTuple):

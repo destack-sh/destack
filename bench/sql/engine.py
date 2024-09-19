@@ -1985,7 +1985,9 @@ async def _pg_edit_batch(
         # collect dynamic values
         dynamic_values: list[RowIn] = []
         for edit in batch:
+            assert edit.node_ptr is not None, f"no node ptr for {edit!r}"
             assert edit.epoch is not None, f"no epoch for {edit!r}"
+            assert edit.edited_at is not None, f"no edited_at for {edit!r}"
             if edit_type == EditType.UPDATE or edit_type == EditType.MOVE:
                 assert edit.new_node, f"no new node for {edit!r}"
                 new_node_data = wiring.unwrap_some_node(edit.new_node)
@@ -2065,7 +2067,7 @@ async def _pg_edit_batch(
             return None
 
     else:
-        raise ValueError(f"unexpected edit kind {edit_type} {node_type} for {batch!r}")
+        assert_never(edit_type)
 
 
 @cachetools.cached({})

@@ -6,7 +6,7 @@ from uuid import UUID
 
 import betterproto
 import structlog
-from betterproto.lib.google.protobuf import Struct as ProtoStruct
+from google.protobuf.struct_pb2 import Struct as ProtoStruct
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 from opentelemetry import trace
@@ -55,6 +55,7 @@ from bench.proto.wire import (
 from bench.proto.wiring import (
     pack_proto_json,
     unpack_object_validate,
+    unpack_rpc_headers,
     unwrap_some_node,
     wrap_some_node,
 )
@@ -213,11 +214,10 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
                 await self._session.commit()
 
     @tracer.start_as_current_span("host.get_request_subject")
-    async def get_request_subject(
-        self, request: betterproto.Message, metadata: wire.RpcMetadata
-    ) -> Subject:
+    async def get_request_subject(self, request: betterproto.Message) -> Subject:
         assert self._bench is not None, f"bench not loaded in {self!r}"
         assert self._session is not None, f"session not ready in {self!r}"
+        metadata = unpack_rpc_headers(request.metadata)
 
         # get client
         is_staff = False
@@ -433,8 +433,8 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
         self,
         session: Session,
         context: SessionContext | None,
-        edits: list[EditData],
-    ) -> list[EditData]:
+        edits: Sequence[EditData],
+    ) -> Sequence[EditData]:
         extended_edits: list[EditData] = []
         # NOTE :Incomplete: run plugins to extend commit (not needed yet)
 
@@ -651,12 +651,10 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
     # Files
     #
 
-    async def upload_files(
-        self, subject: Subject, request: UploadFilesRequest
-    ) -> UploadFilesResponse:
+    async def upload_files(self, request: UploadFilesRequest) -> UploadFilesResponse:
         # TODO :Broken :Security: evaluate file upload access
         s3_client = get_s3_client_for_presigning(request.environment)
-        handles: list[UploadFilesResponseUploadHandle] = []
+        handles: list[UploadFilesResponse.UploadHandle] = []
         for file_data in request.files:
             # get drive (from in-memory graph)
             if (
@@ -704,22 +702,20 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
                 Conditions=[{k: v} for k, v in file_fields.items()],
                 ExpiresIn=S3_PRESIGNED_URL_EXPIRY,
             )
-            fields = ProtoStruct().from_dict(presigned_post["fields"])
+            fields = pack_proto_json(presigned_post["fields"])
             get_url = s3_client.generate_presigned_url(
                 "get_object",
                 Params={"Bucket": get_drive_bucket(drive), "Key": file_key},
                 ExpiresIn=S3_PRESIGNED_URL_EXPIRY,
             )
-            handle = UploadFilesResponseUploadHandle(
+            handle = UploadFilesResponse.UploadHandle(
                 file=file_data, post_url=presigned_post["url"], fields=fields, get_url=get_url
             )
             handles.append(handle)
 
         return UploadFilesResponse(handles=handles)
 
-    async def download_files(
-        self, subject: Subject, request: DownloadFilesRequest
-    ) -> DownloadFilesResponse:
+    async def download_files(self, request: DownloadFilesRequest) -> DownloadFilesResponse:
         # TODO :Broken :Security!: evaluate file download access
         s3_client = get_s3_client_for_presigning(request.environment)
 
@@ -734,7 +730,7 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
             )
 
         # get pre-signed URLs
-        handles: list[DownloadFilesResponseDownloadHandle] = []
+        handles: list[DownloadFilesResponse.DownloadHandle] = []
         for file in files:
             if file.kind not in (FileKind.DRIVE, FileKind.DRIVE_INLINE) or not file.sha256:
                 raise GRPCError(GRPCStatus.INVALID_ARGUMENT, f"unexpected file: {file.kind}")
@@ -747,7 +743,7 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
                 Params={"Bucket": bucket, "Key": file_key},
                 ExpiresIn=S3_PRESIGNED_URL_EXPIRY,
             )
-            handle = DownloadFilesResponseDownloadHandle(file=file._to_data(), get_url=get_url)
+            handle = DownloadFilesResponse.DownloadHandle(file=file._to_data(), get_url=get_url)
             handles.append(handle)
 
         return DownloadFilesResponse(handles=handles)

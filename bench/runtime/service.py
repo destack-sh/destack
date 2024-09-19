@@ -344,7 +344,7 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
                 )
                 # and run 'blocking'
                 request = ProcessRunRequest(run=run.run_data, is_blocking=True)
-                _ = await run.thread.client.ProcessRun(request)
+                _ = await run.thread.client.process_run(request)
                 extra_healthcheck.cancel()  # no longer needed
                 logger.info(
                     "runtime.process_run", thread=run.thread, run=run.run_data, span="current"

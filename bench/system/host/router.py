@@ -3,31 +3,20 @@ import functools
 from typing import Callable
 from uuid import UUID
 
-import betterproto
 import grpclib.server
 import structlog
+from google.protobuf.message import Message as ProtoMessage
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 from opentelemetry import trace
 
 from bench.language import Bench, Package, Store, Subject
 from bench.language.bench import Branch
-from bench.language.const import (
-    LOADED_BENCH_NODE_TYPES,
-    SOURCE_NODE_TYPES,
-)
-from bench.proto import wire
-from bench.proto.services import RpcCallable, ServiceBase
-from bench.proto.wire import (
-    GraphScopeData,
-    HostBase,
-    ServiceKind,
-)
+from bench.language.const import LOADED_BENCH_NODE_TYPES, SOURCE_NODE_TYPES
+from bench.proto.services import ServiceBase
+from bench.proto.wire import GraphScopeData, HostBase, ServiceKind
 from bench.system.host.service import HostService
-from bench.system.utils.session import (
-    global_session,
-    pg_engine_from_store,
-)
+from bench.system.utils.session import global_session, pg_engine_from_store
 from bench.utils.func import to_uuid
 from bench.utils.oracle import Oracle
 from bench.utils.telemetry import set_baggage
@@ -102,7 +91,7 @@ class HostRouterService(ServiceBase, HostBase):
         self.hosts[bench_id] = host
         return host
 
-    async def _get_host(self, request: betterproto.Message) -> "HostService":
+    async def _get_host(self, request: ProtoMessage) -> "HostService":
         """Gets or starts a running Host for the given Bench"""
 
         # get request's bench id
@@ -122,23 +111,19 @@ class HostRouterService(ServiceBase, HostBase):
                     host = await self._start_host(bench_id)
         return host
 
-    async def get_request_subject(
-        self, request: betterproto.Message, metadata: wire.RpcMetadata
-    ) -> Subject:
+    async def get_request_subject(self, request: ProtoMessage) -> Subject:
         host = await self._get_host(request)
-        return await host.get_request_subject(request, metadata)
+        return await host.get_request_subject(request)
 
     def _wrap_rpc_func(
-        self, func: RpcCallable, method_name: str, handler: grpclib.const.Handler
+        self, func: Callable, method_name: str, handler: grpclib.const.Handler
     ) -> Callable:
         _, cardinality, _request_type, _reply_type = handler
 
         if cardinality == grpclib.const.Cardinality.UNARY_UNARY:
 
             @functools.wraps(func)
-            async def _multiplexed_unary_rpc(
-                subject: Subject, request: betterproto.Message
-            ) -> None:
+            async def _multiplexed_unary_rpc(subject: Subject, request: ProtoMessage) -> None:
                 host = await self._get_host(request)
                 set_baggage(**host.get_service_baggage())
                 return await getattr(host, method_name)(subject, request)
@@ -148,7 +133,7 @@ class HostRouterService(ServiceBase, HostBase):
         elif cardinality == grpclib.const.Cardinality.UNARY_STREAM:
 
             @functools.wraps(func)
-            async def _multiplexed_unary_stream_rpc(subject: Subject, request: betterproto.Message):
+            async def _multiplexed_unary_stream_rpc(subject: Subject, request: ProtoMessage):
                 host = await self._get_host(request)
                 set_baggage(**host.get_service_baggage())
                 async for response in getattr(host, method_name)(subject, request):

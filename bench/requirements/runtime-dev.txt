@@ -22,10 +22,8 @@ authlib==0.15.6
 base58==2.1.1
 beautifulsoup4==4.11.1
     # via atlassian-python-api
-betterproto @ git+https://github.com/danielgtaylor/python-betterproto.git@5666393f9d10e13609d8eeac8d1ab3815dce5fd6
 bitarray==2.9.2
 black==23.7.0
-    # via betterproto
 boto3==1.34.104
     # via mypy-boto3
 boto3-stubs==1.34.151
@@ -150,7 +148,6 @@ grpcio==1.63.0
 grpcio-status==1.62.2
     # via google-api-core
 grpclib==0.4.7
-    # via betterproto
 h11==0.14.0
     # via httpcore
 h2==4.1.0
@@ -191,11 +188,8 @@ inflection==0.5.1
     # via pyairtable
 iniconfig==2.0.0
     # via pytest
-isort==5.12.0
-    # via betterproto
 itsdangerous==2.1.2
 jinja2==3.1.2
-    # via betterproto
 jiter==0.4.2
     # via anthropic
 jmespath==1.0.1
@@ -380,7 +374,6 @@ pytest-mock==3.14.0
 pytest-xdist==3.6.1
 python-dateutil==2.9.0.post0
     # via
-    #   betterproto
     #   botocore
     #   croniter
     #   dateparser
@@ -487,7 +480,6 @@ types-s3transfer==0.10.1
 typing-extensions==4.11.0
     # via
     #   anthropic
-    #   betterproto
     #   google-generativeai
     #   huggingface-hub
     #   openai

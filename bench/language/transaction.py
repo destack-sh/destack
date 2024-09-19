@@ -831,9 +831,11 @@ def edit_data_graph(
                 elif edit_type in (EditType.ARCHIVE, EditType.DELETE, EditType.ERASE):
                     edit.old_node = wiring.wrap_some_node(wiring.copy_struct(updated_node_data))
                     if edit_type == EditType.ARCHIVE:
-                        edit.old_node.archived_at = None
+                        old_node = wiring.unwrap_some_node(edit.old_node)
+                        old_node.archived_at = None
                     elif edit_type == EditType.DELETE:
-                        edit.old_node.deleted_at = None
+                        old_node = wiring.unwrap_some_node(edit.old_node)
+                        old_node.deleted_at = None
                 elif edit_type in (EditType.UNARCHIVE, EditType.RESTORE):
                     edit.old_node = wiring.wrap_some_node(
                         wiring.copy_struct(updated_node_data)  # keep archived_at/deleted_at

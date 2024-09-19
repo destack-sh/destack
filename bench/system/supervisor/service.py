@@ -1,7 +1,6 @@
 from typing import cast, override
 from uuid import UUID, uuid4, uuid5
 
-import betterproto
 import structlog
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
@@ -241,7 +240,7 @@ class SupervisorService(GraphIoServiceBase, SupervisorBase):
         async with self.new_request_session(
             supergraph=subject._supergraph, readonly=False
         ) as session:
-            key_name, key_value = betterproto.which_one_of(request, "user")
+            key_name = request.WhichOneOf("user")
             if key_value is None:
                 raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "no user provided")
             user = (
@@ -392,7 +391,8 @@ class SupervisorService(GraphIoServiceBase, SupervisorBase):
             hosts: list[ResolveHostsResponse.HostInfo] = []
             for bench_key in request.benches:
                 # NOTE :Performance: batch resolve_hosts lookups
-                key, value = betterproto.which_one_of(bench_key, "bench")
+                key = bench_key.WhichOneof("bench")
+                value = getattr(bench_key, key)
                 if key == "id":
                     bench = await Bench.get(id=to_uuid(value))
                 elif key == "slug":

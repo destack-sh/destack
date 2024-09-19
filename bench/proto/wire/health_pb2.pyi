@@ -2,7 +2,7 @@
 # type: ignore
 # ruff: noqa
 
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Union, AsyncIterator
     
 
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
