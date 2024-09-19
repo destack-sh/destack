@@ -6,6 +6,7 @@ from typing import Any, Collection, Mapping, Union, cast
 from uuid import UUID
 
 import structlog
+from google.protobuf.json_format import MessageToDict
 from google.protobuf.struct_pb2 import Struct as ProtoStruct
 from opentelemetry import trace
 
@@ -74,11 +75,14 @@ def copy_struct_prop(prop: Property, value: Any) -> Any:
 
 
 def pack_proto_json(value: dict[str, Any]) -> ProtoStruct:
-    return ProtoStruct.from_dict(value)
+    struct = ProtoStruct()
+    struct.update(value)
+    return struct
 
 
 def unpack_proto_json(value: ProtoStruct) -> dict[str, Any]:
-    return value.to_dict()
+    json = MessageToDict(value)
+    return json
 
 
 def pack_enum[EnumT: IdEnumOrUnion](enum_cls: type[EnumT], value: EnumT) -> Any:

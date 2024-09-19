@@ -8,6 +8,7 @@ from typing import (
     ClassVar,
     Collection,
     Mapping,
+    Optional,
     TypeVar,
     Union,
     cast,
@@ -18,6 +19,7 @@ from urllib.parse import urlparse
 from uuid import UUID
 
 import cachetools
+import grpclib.client
 import grpclib.server
 import structlog
 from google.protobuf.message import Message as ProtoMessage
@@ -142,7 +144,7 @@ class ServiceBase:
         """Sends the response to the given stream."""
         await stream.send_message(response)
 
-    async def get_request_subject(self, request: ProtoMessage) -> Subject:
+    async def get_request_subject(self, request: ProtoMessage, metadata: RpcMetadata) -> Subject:
         raise NotImplementedError(f"{self.__class__.__name__} must implement _get_subject")
 
     @final
@@ -212,7 +214,7 @@ class HealthService(HealthBase):
         self._services = services
 
     @override
-    async def check(self, request: HealthCheckRequest) -> HealthCheckResponse:
+    async def check(self, request: HealthCheckRequest, headers: Mapping) -> HealthCheckResponse:
         # NOTE :Robustness :Monitoring: check health properly
         response = HealthCheckResponse(status=HealthCheckResponse.ServingStatus.SERVING)
         logger.trace(
@@ -221,7 +223,9 @@ class HealthService(HealthBase):
         return response
 
     @override
-    async def watch(self, request: HealthCheckRequest) -> AsyncIterator[HealthCheckResponse]:
+    async def watch(
+        self, request: HealthCheckRequest, headers: Mapping
+    ) -> AsyncIterator[HealthCheckResponse]:
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
         yield HealthCheckResponse()
 
@@ -310,3 +314,15 @@ def get_rpc_headers(
     )
     rpc_headers = pack_rpc_headers(rpc_metadata)
     return rpc_headers
+
+
+async def unary_stream_rpc[ReqT, RepT](
+    method: grpclib.client.UnaryStreamMethod[ReqT, RepT],
+    request: ReqT,
+    *,
+    timeout: Optional[float] = None,
+) -> AsyncIterator[RepT]:
+    async with method.open(timeout=timeout) as stream:
+        await stream.send_message(request)
+        async for response in stream:
+            yield response

@@ -1,10 +1,11 @@
 import abc
 import asyncio
 from datetime import datetime
-from typing import AsyncIterator, NamedTuple, Sequence, cast, final, override
+from typing import AsyncIterator, Mapping, NamedTuple, Sequence, cast, final, override
 from uuid import UUID
 
 import structlog
+from google.protobuf.message import Message as ProtoMessage
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 from opentelemetry import trace
@@ -80,7 +81,6 @@ from bench.utils.func import CriticalLock, bittuple, group_by, to_uuid
 from bench.utils.oracle import Oracle
 from bench.utils.tenacity import RetryOptions
 from bench.utils.utils import get_from_env
-from google.protobuf.message import Message as ProtoMessage
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -300,9 +300,10 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
 
     @override
     async def commit_transaction(
-        self, request: "CommitTransactionRequest"
+        self, request: "CommitTransactionRequest", headers: Mapping
     ) -> "CommitTransactionResponse":
-        subject = await self.get_request_subject(request)
+        metadata = wiring.unpack_rpc_headers(headers)
+        subject = await self.get_request_subject(request, metadata)
         assert subject.client is not None, f"no client for {subject!r}"
 
         # figure out context
@@ -362,12 +363,13 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
         )
 
     @override
-    async def get_nodes(self, request: "GetNodesRequest") -> "GetNodesResponse":
+    async def get_nodes(self, request: "GetNodesRequest", headers: Mapping) -> "GetNodesResponse":
         # check that there is at least one root
         if not request.roots:
             raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "no roots provided")
         # parse query & fetch
-        subject = await self.get_request_subject(request)
+        metadata = wiring.unpack_rpc_headers(headers)
+        subject = await self.get_request_subject(request, metadata)
         async with self.new_request_session(supergraph=subject._supergraph) as session:
             with self.tracer.start_as_current_span("graph.get.parse"):
                 roots = [
@@ -446,8 +448,11 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
         )
 
     @override
-    async def watch_get(self, request: WatchGetRequest) -> AsyncIterator[WatchGetResponse]:
-        subject = await self.get_request_subject(request)
+    async def watch_get(
+        self, request: WatchGetRequest, headers: Mapping
+    ) -> AsyncIterator[WatchGetResponse]:
+        metadata = wiring.unpack_rpc_headers(headers)
+        subject = await self.get_request_subject(request, metadata)
         subscription = await self.connector.subscribe(
             subject=subject,
             connection_t=GetConnection,
@@ -477,9 +482,12 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
             subscription.cancel()
 
     @override
-    async def search_nodes(self, request: "SearchNodesRequest") -> "SearchNodesResponse":
+    async def search_nodes(
+        self, request: "SearchNodesRequest", headers: Mapping
+    ) -> "SearchNodesResponse":
         # parse query & fetch
-        subject = await self.get_request_subject(request)
+        metadata = wiring.unpack_rpc_headers(headers)
+        subject = await self.get_request_subject(request, metadata)
         async with self.new_request_session(supergraph=subject._supergraph) as session:
             with self.tracer.start_as_current_span("graph.search.parse"):
                 node_type: NodeType = wiring.unpack_enum(NodeType, request.node_type)
@@ -553,8 +561,11 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
         )
 
     @override
-    async def watch_search(self, request: WatchSearchRequest) -> AsyncIterator[WatchSearchResponse]:
-        subject = await self.get_request_subject(request)
+    async def watch_search(
+        self, request: WatchSearchRequest, headers: Mapping
+    ) -> AsyncIterator[WatchSearchResponse]:
+        metadata = wiring.unpack_rpc_headers(headers)
+        subject = await self.get_request_subject(request, metadata)
         subscription = await self.connector.subscribe(
             subject=subject,
             connection_t=SearchConnection,
@@ -586,9 +597,12 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
             subscription.cancel()
 
     @override
-    async def aggregate_nodes(self, request: "AggregateNodesRequest") -> "AggregateNodesResponse":
+    async def aggregate_nodes(
+        self, request: "AggregateNodesRequest", headers: Mapping
+    ) -> "AggregateNodesResponse":
         # parse query & fetch
-        subject = await self.get_request_subject(request)
+        metadata = wiring.unpack_rpc_headers(headers)
+        subject = await self.get_request_subject(request, metadata)
         async with self.new_request_session(supergraph=subject._supergraph) as session:
             with self.tracer.start_as_current_span("graph.aggregate.parse"):
                 node_type: NodeType = wiring.unpack_enum(NodeType, request.node_type)
@@ -629,7 +643,7 @@ class GraphIoServiceBase(ServiceBase, GraphIOBase, abc.ABC):
 
     @override
     async def watch_aggregate(
-        self, request: WatchAggregateRequest
+        self, request: WatchAggregateRequest, headers: Mapping
     ) -> AsyncIterator[WatchAggregateResponse]:
         raise GRPCError(GRPCStatus.UNIMPLEMENTED, "watch_aggregate not yet supported")
         yield  # unreachable (for type checking)

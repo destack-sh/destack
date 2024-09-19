@@ -140,16 +140,16 @@ def _build_proto(schema_str: str) -> None:
                 new_name = to_casing(name, Casing.SNAKE)
                 wire_py = wire_py.replace(f"async def {name}(", f"async def {new_name}(")
                 wire_py = wire_py.replace(f"self.{name}", f"self.{new_name}")
-            # replace service methods Method(Stream) -> None with Method(Request) -> Response | AsyncIterator[Response]
+            # replace service methods Method(Stream) -> None with Method(Request, Metadata) -> Response | AsyncIterator[Response]
             wire_py = regex.sub(
                 r"(?!.*watch)(async def )([a-zA-Z0-9_]+)\(self, stream: 'grpclib.server.Stream\[([a-zA-Z0-9_\.]+), ([a-zA-Z0-9_\.]+)\]'\) -> None:",
-                r"\1\2(self, request: '\3') -> '\4':",
+                r"\1\2(self, request: '\3', headers: Mapping) -> '\4':",
                 wire_py,
                 flags=re.MULTILINE,
             )
             wire_py = regex.sub(
-                r"(async def )(watch[a-zA-Z0-9_]*)\(self, stream: 'grpclib.server.Stream\[([a-zA-Z0-9_\.]+), ([a-zA-Z0-9_\.]+)\]'\) -> None:",
-                r"\1\2(self, request: '\3') -> AsyncIterator['\4']:",
+                r"async (def )(watch[a-zA-Z0-9_]*)\(self, stream: 'grpclib.server.Stream\[([a-zA-Z0-9_\.]+), ([a-zA-Z0-9_\.]+)\]'\) -> None:",
+                r"\1\2(self, request: '\3', headers: Mapping) -> AsyncIterator['\4']:",
                 wire_py,
                 flags=re.MULTILINE,
             )
@@ -167,7 +167,7 @@ def _build_proto(schema_str: str) -> None:
 # type: ignore
 # ruff: noqa
 
-from typing import TYPE_CHECKING, Union, AsyncIterator
+from typing import TYPE_CHECKING, Union, AsyncIterator, Mapping
     """
         path.write_text(patch_prefix_code + "\n\n" + wire_py)
 

@@ -1,10 +1,11 @@
-from typing import cast, override
+from typing import Mapping, cast, override
 from uuid import UUID, uuid4, uuid5
 
 import structlog
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 from opentelemetry import trace
+from google.protobuf.message import Message as ProtoMessage
 
 from bench.language import Bench, Client, NodeReference, Server, Store, User
 from bench.language.access import Subject
@@ -101,13 +102,10 @@ class SupervisorService(GraphIoServiceBase, SupervisorBase):
         return (self._global_pg_engine,)
 
     @tracer.start_as_current_span("supervisor.get_request_subject")
-    async def get_request_subject(
-        self, request: betterproto.Message, metadata: RpcMetadata
-    ) -> Subject:
+    async def get_request_subject(self, request: ProtoMessage, metadata: RpcMetadata) -> Subject:
         # NOTE :Architecture: for simplicity we don't get the full Subject auth in Supervisor
         #  (like we do in Host, since we have the entire Bench cached and ready there,
         #   and we don't expect to need Bench-level auth in the Supervisor for now).
-
         async with global_session(self._global_store, self.get_engines(), self.oracle):
             # request will use the subject's supergraph, so ensure all subjects are created in session
             if not metadata.client_id or not metadata.client_access_token:
@@ -167,8 +165,10 @@ class SupervisorService(GraphIoServiceBase, SupervisorBase):
 
     @override
     async def signup_user(
-        self, subject: Subject, request: "SignupUserRequest"
+        self, request: "SignupUserRequest", headers: Mapping
     ) -> "SignupUserResponse":
+        metadata = wiring.unpack_rpc_headers(headers)
+        subject = await self.get_request_subject(request, metadata)
         if subject.is_authenticated:
             raise GRPCError(GRPCStatus.ALREADY_EXISTS, "already logged in")
 
@@ -204,8 +204,10 @@ class SupervisorService(GraphIoServiceBase, SupervisorBase):
 
     @override
     async def change_user_password(
-        self, subject: Subject, request: "ChangeUserPasswordRequest"
+        self, request: "ChangeUserPasswordRequest", headers: Mapping
     ) -> "ChangeUserPasswordResponse":
+        metadata = wiring.unpack_rpc_headers(headers)
+        subject = await self.get_request_subject(request, metadata)
         if not subject.user:
             raise GRPCError(GRPCStatus.UNAUTHENTICATED, "not logged in")
 
@@ -232,8 +234,10 @@ class SupervisorService(GraphIoServiceBase, SupervisorBase):
 
     @override
     async def login_user(
-        self, subject: Subject, request: "LoginUserRequest"
+        self, request: "LoginUserRequest", headers: Mapping
     ) -> "LoginUserResponse":
+        metadata = wiring.unpack_rpc_headers(headers)
+        subject = await self.get_request_subject(request, metadata)
         if subject.is_authenticated:
             raise GRPCError(GRPCStatus.ALREADY_EXISTS, "already logged in")
 
@@ -278,8 +282,10 @@ class SupervisorService(GraphIoServiceBase, SupervisorBase):
 
     @override
     async def logout_user(
-        self, subject: Subject, request: "LogoutUserRequest"
+        self, request: "LogoutUserRequest", headers: Mapping
     ) -> "LogoutUserResponse":
+        metadata = wiring.unpack_rpc_headers(headers)
+        subject = await self.get_request_subject(request, metadata)
         if subject.client is None:
             raise GRPCError(GRPCStatus.UNAUTHENTICATED, "not logged in")
         if subject.user is None:
@@ -316,8 +322,10 @@ class SupervisorService(GraphIoServiceBase, SupervisorBase):
 
     @override
     async def create_bench(
-        self, subject: Subject, request: "CreateBenchRequest"
+        self, request: "CreateBenchRequest", headers: Mapping
     ) -> "CreateBenchResponse":
+        metadata = wiring.unpack_rpc_headers(headers)
+        subject = await self.get_request_subject(request, metadata)
         user: User | None = subject.user
         if not user:
             raise GRPCError(GRPCStatus.UNAUTHENTICATED, "not logged in")

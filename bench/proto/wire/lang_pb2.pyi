@@ -2,7 +2,7 @@
 # type: ignore
 # ruff: noqa
 
-from typing import TYPE_CHECKING, Union, AsyncIterator
+from typing import TYPE_CHECKING, Union, AsyncIterator, Mapping
     
 
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
