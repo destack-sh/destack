@@ -426,12 +426,6 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
             raise ValueError(f"unexpected reference kind {self.reference_kind!r} for {self!r}")
 
         if is_wired:
-            if (
-                self.reference_kind == ReferenceKind.NODE_ANCESTOR
-                or self.reference_kind == ReferenceKind.NODE_ANCESTOR_OR_SELF
-            ):
-                # wired ancestors are not required (even though stored ancestors are)
-                is_required = False
             # wired reference representation is just a nice NodeReference struct
             self.reference_wired_ptr = Property(
                 id=self.id,  # re-use id, self is not stored
@@ -455,6 +449,12 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
                 primitive_type=None,
                 constraint=self.constraint,
             )
+            if (
+                self.reference_kind == ReferenceKind.NODE_ANCESTOR
+                or self.reference_kind == ReferenceKind.NODE_ANCESTOR_OR_SELF
+            ):
+                # wired ancestors are not required (even though stored ancestors are)
+                self.reference_wired_ptr.is_required = False
 
         if is_stored and self.reference_is_rich:
             assert not self.reference_force_fk, f"rich references cannot have FKs {self!r}"

@@ -2205,11 +2205,11 @@ export interface BadgeData {
      */
     parentPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData package_ptr = 5;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData package_ptr = 5;
      */
     packagePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench_ptr = 6;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData bench_ptr = 6;
      */
     benchPtr?: NodeReferenceData;
     /**
@@ -2308,7 +2308,7 @@ export interface BenchData {
      */
     parentPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench_ptr = 6;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData bench_ptr = 6;
      */
     benchPtr?: NodeReferenceData;
     /**
@@ -2427,11 +2427,11 @@ export interface BlockData {
      */
     parentPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData package_ptr = 5;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData package_ptr = 5;
      */
     packagePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench_ptr = 6;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData bench_ptr = 6;
      */
     benchPtr?: NodeReferenceData;
     /**
@@ -2566,7 +2566,7 @@ export interface BranchData {
      */
     parentPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench_ptr = 6;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData bench_ptr = 6;
      */
     benchPtr?: NodeReferenceData;
     /**
@@ -2785,11 +2785,11 @@ export interface DependencyData {
      */
     parentPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData package_ptr = 5;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData package_ptr = 5;
      */
     packagePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench_ptr = 6;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData bench_ptr = 6;
      */
     benchPtr?: NodeReferenceData;
     /**
@@ -2868,7 +2868,7 @@ export interface DriveData {
      */
     parentPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench_ptr = 6;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData bench_ptr = 6;
      */
     benchPtr?: NodeReferenceData;
     /**
@@ -2956,11 +2956,11 @@ export interface FieldData {
      */
     parentPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData package_ptr = 5;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData package_ptr = 5;
      */
     packagePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench_ptr = 6;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData bench_ptr = 6;
      */
     benchPtr?: NodeReferenceData;
     /**
@@ -3103,11 +3103,11 @@ export interface FileData {
      */
     parentPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData package_ptr = 5;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData package_ptr = 5;
      */
     packagePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench_ptr = 6;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData bench_ptr = 6;
      */
     benchPtr?: NodeReferenceData;
     /**
@@ -3317,7 +3317,7 @@ export interface InviteData {
      */
     parentPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench_ptr = 6;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData bench_ptr = 6;
      */
     benchPtr?: NodeReferenceData;
     /**
@@ -3396,11 +3396,11 @@ export interface LogData {
      */
     parentPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData package_ptr = 5;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData package_ptr = 5;
      */
     packagePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench_ptr = 6;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData bench_ptr = 6;
      */
     benchPtr?: NodeReferenceData;
     /**
@@ -3560,7 +3560,7 @@ export interface MachineData {
      */
     parentPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench_ptr = 6;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData bench_ptr = 6;
      */
     benchPtr?: NodeReferenceData;
     /**
@@ -3699,7 +3699,7 @@ export interface MembershipData {
      */
     parentPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench_ptr = 6;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData bench_ptr = 6;
      */
     benchPtr?: NodeReferenceData;
     /**
@@ -3771,11 +3771,11 @@ export interface MessageData {
      */
     parentPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData package_ptr = 5;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData package_ptr = 5;
      */
     packagePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench_ptr = 6;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData bench_ptr = 6;
      */
     benchPtr?: NodeReferenceData;
     /**
@@ -3920,11 +3920,11 @@ export interface NotificationData {
      */
     parentPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData package_ptr = 5;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData package_ptr = 5;
      */
     packagePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench_ptr = 6;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData bench_ptr = 6;
      */
     benchPtr?: NodeReferenceData;
     /**
@@ -4095,7 +4095,7 @@ export interface PackageData {
      */
     parentPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench_ptr = 6;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData bench_ptr = 6;
      */
     benchPtr?: NodeReferenceData;
     /**
@@ -4187,11 +4187,11 @@ export interface PipeData {
      */
     parentPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData package_ptr = 5;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData package_ptr = 5;
      */
     packagePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench_ptr = 6;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData bench_ptr = 6;
      */
     benchPtr?: NodeReferenceData;
     /**
@@ -4306,11 +4306,11 @@ export interface QueryData {
      */
     parentPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData package_ptr = 5;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData package_ptr = 5;
      */
     packagePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench_ptr = 6;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData bench_ptr = 6;
      */
     benchPtr?: NodeReferenceData;
     /**
@@ -4410,11 +4410,11 @@ export interface RecordData {
      */
     parentPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData package_ptr = 5;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData package_ptr = 5;
      */
     packagePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench_ptr = 6;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData bench_ptr = 6;
      */
     benchPtr?: NodeReferenceData;
     /**
@@ -4481,11 +4481,11 @@ export interface RunData {
      */
     parentPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData package_ptr = 5;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData package_ptr = 5;
      */
     packagePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench_ptr = 6;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData bench_ptr = 6;
      */
     benchPtr?: NodeReferenceData;
     /**
@@ -4684,11 +4684,11 @@ export interface SecretData {
      */
     parentPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData package_ptr = 5;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData package_ptr = 5;
      */
     packagePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench_ptr = 6;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData bench_ptr = 6;
      */
     benchPtr?: NodeReferenceData;
     /**
@@ -4764,7 +4764,7 @@ export interface ServerData {
      */
     parentPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench_ptr = 6;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData bench_ptr = 6;
      */
     benchPtr?: NodeReferenceData;
     /**
@@ -4882,11 +4882,11 @@ export interface SessionData {
      */
     parentPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData package_ptr = 5;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData package_ptr = 5;
      */
     packagePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench_ptr = 6;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData bench_ptr = 6;
      */
     benchPtr?: NodeReferenceData;
     /**
@@ -4981,11 +4981,11 @@ export interface SignalData {
      */
     parentPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData package_ptr = 5;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData package_ptr = 5;
      */
     packagePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench_ptr = 6;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData bench_ptr = 6;
      */
     benchPtr?: NodeReferenceData;
     /**
@@ -5159,11 +5159,11 @@ export interface SpaceData {
      */
     parentPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData package_ptr = 5;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData package_ptr = 5;
      */
     packagePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench_ptr = 6;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData bench_ptr = 6;
      */
     benchPtr?: NodeReferenceData;
     /**
@@ -5288,11 +5288,11 @@ export interface StepData {
      */
     parentPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData package_ptr = 5;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData package_ptr = 5;
      */
     packagePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench_ptr = 6;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData bench_ptr = 6;
      */
     benchPtr?: NodeReferenceData;
     /**
@@ -5419,7 +5419,7 @@ export interface StoreData {
      */
     parentPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench_ptr = 6;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData bench_ptr = 6;
      */
     benchPtr?: NodeReferenceData;
     /**
@@ -5526,11 +5526,11 @@ export interface TriggerData {
      */
     parentPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData package_ptr = 5;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData package_ptr = 5;
      */
     packagePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench_ptr = 6;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData bench_ptr = 6;
      */
     benchPtr?: NodeReferenceData;
     /**
@@ -5732,11 +5732,11 @@ export interface ViewData {
      */
     parentPtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData package_ptr = 5;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData package_ptr = 5;
      */
     packagePtr?: NodeReferenceData;
     /**
-     * @generated from protobuf field: symbolx.bench.NodeReferenceData bench_ptr = 6;
+     * @generated from protobuf field: optional symbolx.bench.NodeReferenceData bench_ptr = 6;
      */
     benchPtr?: NodeReferenceData;
     /**
@@ -17064,10 +17064,10 @@ class BadgeData$Type extends MessageType<BadgeData> {
                 case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
-                case /* symbolx.bench.NodeReferenceData package_ptr */ 5:
+                case /* optional symbolx.bench.NodeReferenceData package_ptr */ 5:
                     message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
                     break;
-                case /* symbolx.bench.NodeReferenceData bench_ptr */ 6:
+                case /* optional symbolx.bench.NodeReferenceData bench_ptr */ 6:
                     message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* optional symbolx.bench.NodeReferenceData template_ptr */ 7:
@@ -17155,10 +17155,10 @@ class BadgeData$Type extends MessageType<BadgeData> {
         /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData package_ptr = 5; */
+        /* optional symbolx.bench.NodeReferenceData package_ptr = 5; */
         if (message.packagePtr)
             NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData bench_ptr = 6; */
+        /* optional symbolx.bench.NodeReferenceData bench_ptr = 6; */
         if (message.benchPtr)
             NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.NodeReferenceData template_ptr = 7; */
@@ -17295,7 +17295,7 @@ class BenchData$Type extends MessageType<BenchData> {
                 case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
-                case /* symbolx.bench.NodeReferenceData bench_ptr */ 6:
+                case /* optional symbolx.bench.NodeReferenceData bench_ptr */ 6:
                     message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* int64 revision */ 10:
@@ -17392,7 +17392,7 @@ class BenchData$Type extends MessageType<BenchData> {
         /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData bench_ptr = 6; */
+        /* optional symbolx.bench.NodeReferenceData bench_ptr = 6; */
         if (message.benchPtr)
             NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
         /* int64 revision = 10; */
@@ -17557,10 +17557,10 @@ class BlockData$Type extends MessageType<BlockData> {
                 case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
-                case /* symbolx.bench.NodeReferenceData package_ptr */ 5:
+                case /* optional symbolx.bench.NodeReferenceData package_ptr */ 5:
                     message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
                     break;
-                case /* symbolx.bench.NodeReferenceData bench_ptr */ 6:
+                case /* optional symbolx.bench.NodeReferenceData bench_ptr */ 6:
                     message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* optional symbolx.bench.NodeReferenceData template_ptr */ 7:
@@ -17675,10 +17675,10 @@ class BlockData$Type extends MessageType<BlockData> {
         /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData package_ptr = 5; */
+        /* optional symbolx.bench.NodeReferenceData package_ptr = 5; */
         if (message.packagePtr)
             NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData bench_ptr = 6; */
+        /* optional symbolx.bench.NodeReferenceData bench_ptr = 6; */
         if (message.benchPtr)
             NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.NodeReferenceData template_ptr = 7; */
@@ -17838,7 +17838,7 @@ class BranchData$Type extends MessageType<BranchData> {
                 case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
-                case /* symbolx.bench.NodeReferenceData bench_ptr */ 6:
+                case /* optional symbolx.bench.NodeReferenceData bench_ptr */ 6:
                     message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* int64 revision */ 10:
@@ -17923,7 +17923,7 @@ class BranchData$Type extends MessageType<BranchData> {
         /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData bench_ptr = 6; */
+        /* optional symbolx.bench.NodeReferenceData bench_ptr = 6; */
         if (message.benchPtr)
             NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
         /* int64 revision = 10; */
@@ -18298,10 +18298,10 @@ class DependencyData$Type extends MessageType<DependencyData> {
                 case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
-                case /* symbolx.bench.NodeReferenceData package_ptr */ 5:
+                case /* optional symbolx.bench.NodeReferenceData package_ptr */ 5:
                     message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
                     break;
-                case /* symbolx.bench.NodeReferenceData bench_ptr */ 6:
+                case /* optional symbolx.bench.NodeReferenceData bench_ptr */ 6:
                     message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* optional symbolx.bench.NodeReferenceData template_ptr */ 7:
@@ -18374,10 +18374,10 @@ class DependencyData$Type extends MessageType<DependencyData> {
         /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData package_ptr = 5; */
+        /* optional symbolx.bench.NodeReferenceData package_ptr = 5; */
         if (message.packagePtr)
             NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData bench_ptr = 6; */
+        /* optional symbolx.bench.NodeReferenceData bench_ptr = 6; */
         if (message.benchPtr)
             NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.NodeReferenceData template_ptr = 7; */
@@ -18491,7 +18491,7 @@ class DriveData$Type extends MessageType<DriveData> {
                 case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
-                case /* symbolx.bench.NodeReferenceData bench_ptr */ 6:
+                case /* optional symbolx.bench.NodeReferenceData bench_ptr */ 6:
                     message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* int64 revision */ 10:
@@ -18564,7 +18564,7 @@ class DriveData$Type extends MessageType<DriveData> {
         /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData bench_ptr = 6; */
+        /* optional symbolx.bench.NodeReferenceData bench_ptr = 6; */
         if (message.benchPtr)
             NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
         /* int64 revision = 10; */
@@ -18705,10 +18705,10 @@ class FieldData$Type extends MessageType<FieldData> {
                 case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
-                case /* symbolx.bench.NodeReferenceData package_ptr */ 5:
+                case /* optional symbolx.bench.NodeReferenceData package_ptr */ 5:
                     message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
                     break;
-                case /* symbolx.bench.NodeReferenceData bench_ptr */ 6:
+                case /* optional symbolx.bench.NodeReferenceData bench_ptr */ 6:
                     message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* optional symbolx.bench.NodeReferenceData template_ptr */ 7:
@@ -18829,10 +18829,10 @@ class FieldData$Type extends MessageType<FieldData> {
         /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData package_ptr = 5; */
+        /* optional symbolx.bench.NodeReferenceData package_ptr = 5; */
         if (message.packagePtr)
             NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData bench_ptr = 6; */
+        /* optional symbolx.bench.NodeReferenceData bench_ptr = 6; */
         if (message.benchPtr)
             NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.NodeReferenceData template_ptr = 7; */
@@ -19011,10 +19011,10 @@ class FileData$Type extends MessageType<FileData> {
                 case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
-                case /* symbolx.bench.NodeReferenceData package_ptr */ 5:
+                case /* optional symbolx.bench.NodeReferenceData package_ptr */ 5:
                     message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
                     break;
-                case /* symbolx.bench.NodeReferenceData bench_ptr */ 6:
+                case /* optional symbolx.bench.NodeReferenceData bench_ptr */ 6:
                     message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* int64 revision */ 10:
@@ -19132,10 +19132,10 @@ class FileData$Type extends MessageType<FileData> {
         /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData package_ptr = 5; */
+        /* optional symbolx.bench.NodeReferenceData package_ptr = 5; */
         if (message.packagePtr)
             NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData bench_ptr = 6; */
+        /* optional symbolx.bench.NodeReferenceData bench_ptr = 6; */
         if (message.benchPtr)
             NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
         /* int64 revision = 10; */
@@ -19453,7 +19453,7 @@ class InviteData$Type extends MessageType<InviteData> {
                 case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
-                case /* symbolx.bench.NodeReferenceData bench_ptr */ 6:
+                case /* optional symbolx.bench.NodeReferenceData bench_ptr */ 6:
                     message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* int64 revision */ 10:
@@ -19523,7 +19523,7 @@ class InviteData$Type extends MessageType<InviteData> {
         /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData bench_ptr = 6; */
+        /* optional symbolx.bench.NodeReferenceData bench_ptr = 6; */
         if (message.benchPtr)
             NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
         /* int64 revision = 10; */
@@ -19656,10 +19656,10 @@ class LogData$Type extends MessageType<LogData> {
                 case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
-                case /* symbolx.bench.NodeReferenceData package_ptr */ 5:
+                case /* optional symbolx.bench.NodeReferenceData package_ptr */ 5:
                     message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
                     break;
-                case /* symbolx.bench.NodeReferenceData bench_ptr */ 6:
+                case /* optional symbolx.bench.NodeReferenceData bench_ptr */ 6:
                     message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* int64 revision */ 10:
@@ -19793,10 +19793,10 @@ class LogData$Type extends MessageType<LogData> {
         /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData package_ptr = 5; */
+        /* optional symbolx.bench.NodeReferenceData package_ptr = 5; */
         if (message.packagePtr)
             NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData bench_ptr = 6; */
+        /* optional symbolx.bench.NodeReferenceData bench_ptr = 6; */
         if (message.benchPtr)
             NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
         /* int64 revision = 10; */
@@ -19991,7 +19991,7 @@ class MachineData$Type extends MessageType<MachineData> {
                 case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
-                case /* symbolx.bench.NodeReferenceData bench_ptr */ 6:
+                case /* optional symbolx.bench.NodeReferenceData bench_ptr */ 6:
                     message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* int64 revision */ 10:
@@ -20106,7 +20106,7 @@ class MachineData$Type extends MessageType<MachineData> {
         /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData bench_ptr = 6; */
+        /* optional symbolx.bench.NodeReferenceData bench_ptr = 6; */
         if (message.benchPtr)
             NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
         /* int64 revision = 10; */
@@ -20259,7 +20259,7 @@ class MembershipData$Type extends MessageType<MembershipData> {
                 case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
-                case /* symbolx.bench.NodeReferenceData bench_ptr */ 6:
+                case /* optional symbolx.bench.NodeReferenceData bench_ptr */ 6:
                     message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* int64 revision */ 10:
@@ -20323,7 +20323,7 @@ class MembershipData$Type extends MessageType<MembershipData> {
         /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData bench_ptr = 6; */
+        /* optional symbolx.bench.NodeReferenceData bench_ptr = 6; */
         if (message.benchPtr)
             NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
         /* int64 revision = 10; */
@@ -20431,10 +20431,10 @@ class MessageData$Type extends MessageType<MessageData> {
                 case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
-                case /* symbolx.bench.NodeReferenceData package_ptr */ 5:
+                case /* optional symbolx.bench.NodeReferenceData package_ptr */ 5:
                     message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
                     break;
-                case /* symbolx.bench.NodeReferenceData bench_ptr */ 6:
+                case /* optional symbolx.bench.NodeReferenceData bench_ptr */ 6:
                     message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* int64 revision */ 10:
@@ -20513,10 +20513,10 @@ class MessageData$Type extends MessageType<MessageData> {
         /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData package_ptr = 5; */
+        /* optional symbolx.bench.NodeReferenceData package_ptr = 5; */
         if (message.packagePtr)
             NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData bench_ptr = 6; */
+        /* optional symbolx.bench.NodeReferenceData bench_ptr = 6; */
         if (message.benchPtr)
             NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
         /* int64 revision = 10; */
@@ -20767,10 +20767,10 @@ class NotificationData$Type extends MessageType<NotificationData> {
                 case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
-                case /* symbolx.bench.NodeReferenceData package_ptr */ 5:
+                case /* optional symbolx.bench.NodeReferenceData package_ptr */ 5:
                     message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
                     break;
-                case /* symbolx.bench.NodeReferenceData bench_ptr */ 6:
+                case /* optional symbolx.bench.NodeReferenceData bench_ptr */ 6:
                     message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* int64 revision */ 10:
@@ -20849,10 +20849,10 @@ class NotificationData$Type extends MessageType<NotificationData> {
         /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData package_ptr = 5; */
+        /* optional symbolx.bench.NodeReferenceData package_ptr = 5; */
         if (message.packagePtr)
             NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData bench_ptr = 6; */
+        /* optional symbolx.bench.NodeReferenceData bench_ptr = 6; */
         if (message.benchPtr)
             NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
         /* int64 revision = 10; */
@@ -21154,7 +21154,7 @@ class PackageData$Type extends MessageType<PackageData> {
                 case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
-                case /* symbolx.bench.NodeReferenceData bench_ptr */ 6:
+                case /* optional symbolx.bench.NodeReferenceData bench_ptr */ 6:
                     message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* int64 revision */ 10:
@@ -21230,7 +21230,7 @@ class PackageData$Type extends MessageType<PackageData> {
         /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData bench_ptr = 6; */
+        /* optional symbolx.bench.NodeReferenceData bench_ptr = 6; */
         if (message.benchPtr)
             NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
         /* int64 revision = 10; */
@@ -21362,10 +21362,10 @@ class PipeData$Type extends MessageType<PipeData> {
                 case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
-                case /* symbolx.bench.NodeReferenceData package_ptr */ 5:
+                case /* optional symbolx.bench.NodeReferenceData package_ptr */ 5:
                     message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
                     break;
-                case /* symbolx.bench.NodeReferenceData bench_ptr */ 6:
+                case /* optional symbolx.bench.NodeReferenceData bench_ptr */ 6:
                     message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* optional symbolx.bench.NodeReferenceData template_ptr */ 7:
@@ -21462,10 +21462,10 @@ class PipeData$Type extends MessageType<PipeData> {
         /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData package_ptr = 5; */
+        /* optional symbolx.bench.NodeReferenceData package_ptr = 5; */
         if (message.packagePtr)
             NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData bench_ptr = 6; */
+        /* optional symbolx.bench.NodeReferenceData bench_ptr = 6; */
         if (message.benchPtr)
             NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.NodeReferenceData template_ptr = 7; */
@@ -21614,10 +21614,10 @@ class QueryData$Type extends MessageType<QueryData> {
                 case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
-                case /* symbolx.bench.NodeReferenceData package_ptr */ 5:
+                case /* optional symbolx.bench.NodeReferenceData package_ptr */ 5:
                     message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
                     break;
-                case /* symbolx.bench.NodeReferenceData bench_ptr */ 6:
+                case /* optional symbolx.bench.NodeReferenceData bench_ptr */ 6:
                     message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* optional symbolx.bench.NodeReferenceData template_ptr */ 7:
@@ -21705,10 +21705,10 @@ class QueryData$Type extends MessageType<QueryData> {
         /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData package_ptr = 5; */
+        /* optional symbolx.bench.NodeReferenceData package_ptr = 5; */
         if (message.packagePtr)
             NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData bench_ptr = 6; */
+        /* optional symbolx.bench.NodeReferenceData bench_ptr = 6; */
         if (message.benchPtr)
             NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.NodeReferenceData template_ptr = 7; */
@@ -21830,10 +21830,10 @@ class RecordData$Type extends MessageType<RecordData> {
                 case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
-                case /* symbolx.bench.NodeReferenceData package_ptr */ 5:
+                case /* optional symbolx.bench.NodeReferenceData package_ptr */ 5:
                     message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
                     break;
-                case /* symbolx.bench.NodeReferenceData bench_ptr */ 6:
+                case /* optional symbolx.bench.NodeReferenceData bench_ptr */ 6:
                     message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* int64 revision */ 10:
@@ -21894,10 +21894,10 @@ class RecordData$Type extends MessageType<RecordData> {
         /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData package_ptr = 5; */
+        /* optional symbolx.bench.NodeReferenceData package_ptr = 5; */
         if (message.packagePtr)
             NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData bench_ptr = 6; */
+        /* optional symbolx.bench.NodeReferenceData bench_ptr = 6; */
         if (message.benchPtr)
             NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
         /* int64 revision = 10; */
@@ -22034,10 +22034,10 @@ class RunData$Type extends MessageType<RunData> {
                 case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
-                case /* symbolx.bench.NodeReferenceData package_ptr */ 5:
+                case /* optional symbolx.bench.NodeReferenceData package_ptr */ 5:
                     message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
                     break;
-                case /* symbolx.bench.NodeReferenceData bench_ptr */ 6:
+                case /* optional symbolx.bench.NodeReferenceData bench_ptr */ 6:
                     message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* int64 revision */ 10:
@@ -22197,10 +22197,10 @@ class RunData$Type extends MessageType<RunData> {
         /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData package_ptr = 5; */
+        /* optional symbolx.bench.NodeReferenceData package_ptr = 5; */
         if (message.packagePtr)
             NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData bench_ptr = 6; */
+        /* optional symbolx.bench.NodeReferenceData bench_ptr = 6; */
         if (message.benchPtr)
             NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
         /* int64 revision = 10; */
@@ -22400,10 +22400,10 @@ class SecretData$Type extends MessageType<SecretData> {
                 case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
-                case /* symbolx.bench.NodeReferenceData package_ptr */ 5:
+                case /* optional symbolx.bench.NodeReferenceData package_ptr */ 5:
                     message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
                     break;
-                case /* symbolx.bench.NodeReferenceData bench_ptr */ 6:
+                case /* optional symbolx.bench.NodeReferenceData bench_ptr */ 6:
                     message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* int64 revision */ 10:
@@ -22470,10 +22470,10 @@ class SecretData$Type extends MessageType<SecretData> {
         /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData package_ptr = 5; */
+        /* optional symbolx.bench.NodeReferenceData package_ptr = 5; */
         if (message.packagePtr)
             NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData bench_ptr = 6; */
+        /* optional symbolx.bench.NodeReferenceData bench_ptr = 6; */
         if (message.benchPtr)
             NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
         /* int64 revision = 10; */
@@ -22593,7 +22593,7 @@ class ServerData$Type extends MessageType<ServerData> {
                 case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
-                case /* symbolx.bench.NodeReferenceData bench_ptr */ 6:
+                case /* optional symbolx.bench.NodeReferenceData bench_ptr */ 6:
                     message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* int64 revision */ 10:
@@ -22690,7 +22690,7 @@ class ServerData$Type extends MessageType<ServerData> {
         /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData bench_ptr = 6; */
+        /* optional symbolx.bench.NodeReferenceData bench_ptr = 6; */
         if (message.benchPtr)
             NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
         /* int64 revision = 10; */
@@ -22832,10 +22832,10 @@ class SessionData$Type extends MessageType<SessionData> {
                 case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
-                case /* symbolx.bench.NodeReferenceData package_ptr */ 5:
+                case /* optional symbolx.bench.NodeReferenceData package_ptr */ 5:
                     message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
                     break;
-                case /* symbolx.bench.NodeReferenceData bench_ptr */ 6:
+                case /* optional symbolx.bench.NodeReferenceData bench_ptr */ 6:
                     message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* int64 revision */ 10:
@@ -22917,10 +22917,10 @@ class SessionData$Type extends MessageType<SessionData> {
         /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData package_ptr = 5; */
+        /* optional symbolx.bench.NodeReferenceData package_ptr = 5; */
         if (message.packagePtr)
             NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData bench_ptr = 6; */
+        /* optional symbolx.bench.NodeReferenceData bench_ptr = 6; */
         if (message.benchPtr)
             NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
         /* int64 revision = 10; */
@@ -23050,10 +23050,10 @@ class SignalData$Type extends MessageType<SignalData> {
                 case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
-                case /* symbolx.bench.NodeReferenceData package_ptr */ 5:
+                case /* optional symbolx.bench.NodeReferenceData package_ptr */ 5:
                     message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
                     break;
-                case /* symbolx.bench.NodeReferenceData bench_ptr */ 6:
+                case /* optional symbolx.bench.NodeReferenceData bench_ptr */ 6:
                     message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* int64 revision */ 10:
@@ -23147,10 +23147,10 @@ class SignalData$Type extends MessageType<SignalData> {
         /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData package_ptr = 5; */
+        /* optional symbolx.bench.NodeReferenceData package_ptr = 5; */
         if (message.packagePtr)
             NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData bench_ptr = 6; */
+        /* optional symbolx.bench.NodeReferenceData bench_ptr = 6; */
         if (message.benchPtr)
             NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
         /* int64 revision = 10; */
@@ -23444,10 +23444,10 @@ class SpaceData$Type extends MessageType<SpaceData> {
                 case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
-                case /* symbolx.bench.NodeReferenceData package_ptr */ 5:
+                case /* optional symbolx.bench.NodeReferenceData package_ptr */ 5:
                     message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
                     break;
-                case /* symbolx.bench.NodeReferenceData bench_ptr */ 6:
+                case /* optional symbolx.bench.NodeReferenceData bench_ptr */ 6:
                     message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* optional symbolx.bench.NodeReferenceData template_ptr */ 7:
@@ -23544,10 +23544,10 @@ class SpaceData$Type extends MessageType<SpaceData> {
         /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData package_ptr = 5; */
+        /* optional symbolx.bench.NodeReferenceData package_ptr = 5; */
         if (message.packagePtr)
             NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData bench_ptr = 6; */
+        /* optional symbolx.bench.NodeReferenceData bench_ptr = 6; */
         if (message.benchPtr)
             NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.NodeReferenceData template_ptr = 7; */
@@ -23702,10 +23702,10 @@ class StepData$Type extends MessageType<StepData> {
                 case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
-                case /* symbolx.bench.NodeReferenceData package_ptr */ 5:
+                case /* optional symbolx.bench.NodeReferenceData package_ptr */ 5:
                     message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
                     break;
-                case /* symbolx.bench.NodeReferenceData bench_ptr */ 6:
+                case /* optional symbolx.bench.NodeReferenceData bench_ptr */ 6:
                     message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* optional symbolx.bench.NodeReferenceData template_ptr */ 7:
@@ -23814,10 +23814,10 @@ class StepData$Type extends MessageType<StepData> {
         /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData package_ptr = 5; */
+        /* optional symbolx.bench.NodeReferenceData package_ptr = 5; */
         if (message.packagePtr)
             NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData bench_ptr = 6; */
+        /* optional symbolx.bench.NodeReferenceData bench_ptr = 6; */
         if (message.benchPtr)
             NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.NodeReferenceData template_ptr = 7; */
@@ -23973,7 +23973,7 @@ class StoreData$Type extends MessageType<StoreData> {
                 case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
-                case /* symbolx.bench.NodeReferenceData bench_ptr */ 6:
+                case /* optional symbolx.bench.NodeReferenceData bench_ptr */ 6:
                     message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* int64 revision */ 10:
@@ -24061,7 +24061,7 @@ class StoreData$Type extends MessageType<StoreData> {
         /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData bench_ptr = 6; */
+        /* optional symbolx.bench.NodeReferenceData bench_ptr = 6; */
         if (message.benchPtr)
             NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
         /* int64 revision = 10; */
@@ -24202,10 +24202,10 @@ class TriggerData$Type extends MessageType<TriggerData> {
                 case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
-                case /* symbolx.bench.NodeReferenceData package_ptr */ 5:
+                case /* optional symbolx.bench.NodeReferenceData package_ptr */ 5:
                     message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
                     break;
-                case /* symbolx.bench.NodeReferenceData bench_ptr */ 6:
+                case /* optional symbolx.bench.NodeReferenceData bench_ptr */ 6:
                     message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* optional symbolx.bench.NodeReferenceData template_ptr */ 7:
@@ -24293,10 +24293,10 @@ class TriggerData$Type extends MessageType<TriggerData> {
         /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData package_ptr = 5; */
+        /* optional symbolx.bench.NodeReferenceData package_ptr = 5; */
         if (message.packagePtr)
             NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData bench_ptr = 6; */
+        /* optional symbolx.bench.NodeReferenceData bench_ptr = 6; */
         if (message.benchPtr)
             NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.NodeReferenceData template_ptr = 7; */
@@ -24676,10 +24676,10 @@ class ViewData$Type extends MessageType<ViewData> {
                 case /* optional symbolx.bench.NodeReferenceData parent_ptr */ 4:
                     message.parentPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
                     break;
-                case /* symbolx.bench.NodeReferenceData package_ptr */ 5:
+                case /* optional symbolx.bench.NodeReferenceData package_ptr */ 5:
                     message.packagePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.packagePtr);
                     break;
-                case /* symbolx.bench.NodeReferenceData bench_ptr */ 6:
+                case /* optional symbolx.bench.NodeReferenceData bench_ptr */ 6:
                     message.benchPtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.benchPtr);
                     break;
                 case /* optional symbolx.bench.NodeReferenceData template_ptr */ 7:
@@ -24839,10 +24839,10 @@ class ViewData$Type extends MessageType<ViewData> {
         /* optional symbolx.bench.NodeReferenceData parent_ptr = 4; */
         if (message.parentPtr)
             NodeReferenceData.internalBinaryWrite(message.parentPtr, writer.tag(4, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData package_ptr = 5; */
+        /* optional symbolx.bench.NodeReferenceData package_ptr = 5; */
         if (message.packagePtr)
             NodeReferenceData.internalBinaryWrite(message.packagePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.NodeReferenceData bench_ptr = 6; */
+        /* optional symbolx.bench.NodeReferenceData bench_ptr = 6; */
         if (message.benchPtr)
             NodeReferenceData.internalBinaryWrite(message.benchPtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
         /* optional symbolx.bench.NodeReferenceData template_ptr = 7; */
@@ -28418,7 +28418,7 @@ export const BenchDataInfo: Record<BenchProperty, PropertyInfo> = {
   [BenchProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.BENCH, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [BenchProperty.id]: { id: 2, name: 'id', component: ObjectType.BENCH, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [BenchProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.BENCH, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceStruct: StructType.NODE_REFERENCE },
-  [BenchProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.BENCH, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [BenchProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.BENCH, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [BenchProperty.revision]: { id: 10, name: 'revision', component: ObjectType.BENCH, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: 0, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [BenchProperty.createdAt]: { id: 11, name: 'created_at', component: ObjectType.BENCH, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [BenchProperty.createdEpoch]: { id: 12, name: 'created_epoch', component: ObjectType.BENCH, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
@@ -28538,7 +28538,7 @@ export const ServerDataInfo: Record<ServerProperty, PropertyInfo> = {
   [ServerProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SERVER, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [ServerProperty.id]: { id: 2, name: 'id', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.SERVER, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [ServerProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.SERVER, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [ServerProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.SERVER, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [ServerProperty.revision]: { id: 10, name: 'revision', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: 0, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.createdAt]: { id: 11, name: 'created_at', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.createdEpoch]: { id: 12, name: 'created_epoch', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
@@ -28554,7 +28554,7 @@ export const ServerDataInfo: Record<ServerProperty, PropertyInfo> = {
   [ServerProperty.region]: { id: 35, name: 'region', component: ObjectType.SERVER, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.status]: { id: 36, name: 'status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.09.19.4", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.09.19.6", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.minCpu]: { id: 50, name: 'min_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 4.0 }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.maxCpu]: { id: 51, name: 'max_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 4.0 }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -28567,7 +28567,7 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.STORE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [StoreProperty.id]: { id: 2, name: 'id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.STORE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [StoreProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.STORE, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [StoreProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.STORE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [StoreProperty.revision]: { id: 10, name: 'revision', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: 0, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.createdAt]: { id: 11, name: 'created_at', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.createdEpoch]: { id: 12, name: 'created_epoch', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
@@ -28583,7 +28583,7 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.region]: { id: 35, name: 'region', component: ObjectType.STORE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.status]: { id: 36, name: 'status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.09.19.4", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.09.19.6", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 50, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 51, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -28593,7 +28593,7 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.MACHINE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [MachineProperty.id]: { id: 2, name: 'id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.MACHINE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.SERVER, NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [MachineProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.MACHINE, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [MachineProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.MACHINE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [MachineProperty.revision]: { id: 10, name: 'revision', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: 0, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.createdAt]: { id: 11, name: 'created_at', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.createdEpoch]: { id: 12, name: 'created_epoch', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
@@ -28609,7 +28609,7 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.region]: { id: 35, name: 'region', component: ObjectType.MACHINE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.status]: { id: 36, name: 'status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.09.19.4", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.09.19.6", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 42, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 43, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -28628,7 +28628,7 @@ export const DriveDataInfo: Record<DriveProperty, PropertyInfo> = {
   [DriveProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.DRIVE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [DriveProperty.id]: { id: 2, name: 'id', component: ObjectType.DRIVE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [DriveProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.DRIVE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [DriveProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.DRIVE, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [DriveProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.DRIVE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [DriveProperty.revision]: { id: 10, name: 'revision', component: ObjectType.DRIVE, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: 0, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [DriveProperty.createdAt]: { id: 11, name: 'created_at', component: ObjectType.DRIVE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [DriveProperty.createdEpoch]: { id: 12, name: 'created_epoch', component: ObjectType.DRIVE, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
@@ -28649,7 +28649,7 @@ export const MembershipDataInfo: Record<MembershipProperty, PropertyInfo> = {
   [MembershipProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.MEMBERSHIP, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [MembershipProperty.id]: { id: 2, name: 'id', component: ObjectType.MEMBERSHIP, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [MembershipProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.MEMBERSHIP, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [MembershipProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.MEMBERSHIP, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [MembershipProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.MEMBERSHIP, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [MembershipProperty.revision]: { id: 10, name: 'revision', component: ObjectType.MEMBERSHIP, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: 0, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [MembershipProperty.createdAt]: { id: 11, name: 'created_at', component: ObjectType.MEMBERSHIP, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [MembershipProperty.createdEpoch]: { id: 12, name: 'created_epoch', component: ObjectType.MEMBERSHIP, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
@@ -28667,7 +28667,7 @@ export const InviteDataInfo: Record<InviteProperty, PropertyInfo> = {
   [InviteProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.INVITE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [InviteProperty.id]: { id: 2, name: 'id', component: ObjectType.INVITE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [InviteProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.INVITE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [InviteProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.INVITE, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [InviteProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.INVITE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [InviteProperty.revision]: { id: 10, name: 'revision', component: ObjectType.INVITE, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: 0, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [InviteProperty.createdAt]: { id: 11, name: 'created_at', component: ObjectType.INVITE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [InviteProperty.createdEpoch]: { id: 12, name: 'created_epoch', component: ObjectType.INVITE, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
@@ -28687,7 +28687,7 @@ export const BranchDataInfo: Record<BranchProperty, PropertyInfo> = {
   [BranchProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.BRANCH, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [BranchProperty.id]: { id: 2, name: 'id', component: ObjectType.BRANCH, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [BranchProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.BRANCH, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
-  [BranchProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.BRANCH, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [BranchProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.BRANCH, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [BranchProperty.revision]: { id: 10, name: 'revision', component: ObjectType.BRANCH, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: 0, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [BranchProperty.createdAt]: { id: 11, name: 'created_at', component: ObjectType.BRANCH, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [BranchProperty.createdEpoch]: { id: 12, name: 'created_epoch', component: ObjectType.BRANCH, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
@@ -28712,7 +28712,7 @@ export const PackageDataInfo: Record<PackageProperty, PropertyInfo> = {
   [PackageProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.PACKAGE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [PackageProperty.id]: { id: 2, name: 'id', component: ObjectType.PACKAGE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [PackageProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.PACKAGE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BRANCH], referenceStruct: StructType.NODE_REFERENCE },
-  [PackageProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.PACKAGE, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [PackageProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.PACKAGE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [PackageProperty.revision]: { id: 10, name: 'revision', component: ObjectType.PACKAGE, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: 0, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [PackageProperty.createdAt]: { id: 11, name: 'created_at', component: ObjectType.PACKAGE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [PackageProperty.createdEpoch]: { id: 12, name: 'created_epoch', component: ObjectType.PACKAGE, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
@@ -28735,8 +28735,8 @@ export const DependencyDataInfo: Record<DependencyProperty, PropertyInfo> = {
   [DependencyProperty.id]: { id: 2, name: 'id', component: ObjectType.DEPENDENCY, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [DependencyProperty.ck]: { id: 3, name: 'ck', component: ObjectType.DEPENDENCY, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [DependencyProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.DEPENDENCY, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PACKAGE, NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [DependencyProperty.packagePtr]: { id: 5, name: 'package_ptr', component: ObjectType.DEPENDENCY, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [DependencyProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.DEPENDENCY, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [DependencyProperty.packagePtr]: { id: 5, name: 'package_ptr', component: ObjectType.DEPENDENCY, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [DependencyProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.DEPENDENCY, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [DependencyProperty.templatePtr]: { id: 7, name: 'template_ptr', component: ObjectType.DEPENDENCY, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.DEPENDENCY], referenceStruct: StructType.NODE_REFERENCE },
   [DependencyProperty.templatedEpoch]: { id: 8, name: 'templated_epoch', component: ObjectType.DEPENDENCY, kind: 'primitive', primitiveType: PrimitiveType.INT64, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [DependencyProperty.revision]: { id: 10, name: 'revision', component: ObjectType.DEPENDENCY, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: 0, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
@@ -28757,8 +28757,8 @@ export const SpaceDataInfo: Record<SpaceProperty, PropertyInfo> = {
   [SpaceProperty.id]: { id: 2, name: 'id', component: ObjectType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [SpaceProperty.ck]: { id: 3, name: 'ck', component: ObjectType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [SpaceProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.SPACE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PACKAGE, NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [SpaceProperty.packagePtr]: { id: 5, name: 'package_ptr', component: ObjectType.SPACE, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [SpaceProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.SPACE, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [SpaceProperty.packagePtr]: { id: 5, name: 'package_ptr', component: ObjectType.SPACE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [SpaceProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.SPACE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [SpaceProperty.templatePtr]: { id: 7, name: 'template_ptr', component: ObjectType.SPACE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.SPACE], referenceStruct: StructType.NODE_REFERENCE },
   [SpaceProperty.templatedEpoch]: { id: 8, name: 'templated_epoch', component: ObjectType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.INT64, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [SpaceProperty.revision]: { id: 10, name: 'revision', component: ObjectType.SPACE, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: 0, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
@@ -28787,8 +28787,8 @@ export const BlockDataInfo: Record<BlockProperty, PropertyInfo> = {
   [BlockProperty.id]: { id: 2, name: 'id', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [BlockProperty.ck]: { id: 3, name: 'ck', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [BlockProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.BLOCK, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BLOCK, NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [BlockProperty.packagePtr]: { id: 5, name: 'package_ptr', component: ObjectType.BLOCK, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [BlockProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.BLOCK, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [BlockProperty.packagePtr]: { id: 5, name: 'package_ptr', component: ObjectType.BLOCK, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [BlockProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.BLOCK, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [BlockProperty.templatePtr]: { id: 7, name: 'template_ptr', component: ObjectType.BLOCK, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [BlockProperty.templatedEpoch]: { id: 8, name: 'templated_epoch', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.INT64, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [BlockProperty.revision]: { id: 10, name: 'revision', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: 0, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
@@ -28823,8 +28823,8 @@ export const TriggerDataInfo: Record<TriggerProperty, PropertyInfo> = {
   [TriggerProperty.id]: { id: 2, name: 'id', component: ObjectType.TRIGGER, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [TriggerProperty.ck]: { id: 3, name: 'ck', component: ObjectType.TRIGGER, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [TriggerProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.TRIGGER, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [TriggerProperty.packagePtr]: { id: 5, name: 'package_ptr', component: ObjectType.TRIGGER, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [TriggerProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.TRIGGER, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [TriggerProperty.packagePtr]: { id: 5, name: 'package_ptr', component: ObjectType.TRIGGER, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [TriggerProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.TRIGGER, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [TriggerProperty.templatePtr]: { id: 7, name: 'template_ptr', component: ObjectType.TRIGGER, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.TRIGGER], referenceStruct: StructType.NODE_REFERENCE },
   [TriggerProperty.templatedEpoch]: { id: 8, name: 'templated_epoch', component: ObjectType.TRIGGER, kind: 'primitive', primitiveType: PrimitiveType.INT64, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [TriggerProperty.revision]: { id: 10, name: 'revision', component: ObjectType.TRIGGER, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: 0, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
@@ -28850,8 +28850,8 @@ export const FieldDataInfo: Record<FieldProperty, PropertyInfo> = {
   [FieldProperty.id]: { id: 2, name: 'id', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.ck]: { id: 3, name: 'ck', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.FIELD, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BLOCK, NodeType.STEP], referenceStruct: StructType.NODE_REFERENCE },
-  [FieldProperty.packagePtr]: { id: 5, name: 'package_ptr', component: ObjectType.FIELD, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [FieldProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.FIELD, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [FieldProperty.packagePtr]: { id: 5, name: 'package_ptr', component: ObjectType.FIELD, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [FieldProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.FIELD, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [FieldProperty.templatePtr]: { id: 7, name: 'template_ptr', component: ObjectType.FIELD, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.FIELD], referenceStruct: StructType.NODE_REFERENCE },
   [FieldProperty.templatedEpoch]: { id: 8, name: 'templated_epoch', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.INT64, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [FieldProperty.revision]: { id: 10, name: 'revision', component: ObjectType.FIELD, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: 0, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
@@ -28888,8 +28888,8 @@ export const QueryDataInfo: Record<QueryProperty, PropertyInfo> = {
   [QueryProperty.id]: { id: 2, name: 'id', component: ObjectType.QUERY, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [QueryProperty.ck]: { id: 3, name: 'ck', component: ObjectType.QUERY, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [QueryProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.QUERY, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [QueryProperty.packagePtr]: { id: 5, name: 'package_ptr', component: ObjectType.QUERY, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [QueryProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.QUERY, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [QueryProperty.packagePtr]: { id: 5, name: 'package_ptr', component: ObjectType.QUERY, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [QueryProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.QUERY, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [QueryProperty.templatePtr]: { id: 7, name: 'template_ptr', component: ObjectType.QUERY, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.QUERY], referenceStruct: StructType.NODE_REFERENCE },
   [QueryProperty.templatedEpoch]: { id: 8, name: 'templated_epoch', component: ObjectType.QUERY, kind: 'primitive', primitiveType: PrimitiveType.INT64, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [QueryProperty.revision]: { id: 10, name: 'revision', component: ObjectType.QUERY, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: 0, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
@@ -28915,8 +28915,8 @@ export const ViewDataInfo: Record<ViewProperty, PropertyInfo> = {
   [ViewProperty.id]: { id: 2, name: 'id', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [ViewProperty.ck]: { id: 3, name: 'ck', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [ViewProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.VIEW, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.SPACE, NodeType.VIEW, NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [ViewProperty.packagePtr]: { id: 5, name: 'package_ptr', component: ObjectType.VIEW, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [ViewProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.VIEW, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [ViewProperty.packagePtr]: { id: 5, name: 'package_ptr', component: ObjectType.VIEW, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [ViewProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.VIEW, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [ViewProperty.templatePtr]: { id: 7, name: 'template_ptr', component: ObjectType.VIEW, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.VIEW], referenceStruct: StructType.NODE_REFERENCE },
   [ViewProperty.templatedEpoch]: { id: 8, name: 'templated_epoch', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.INT64, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [ViewProperty.revision]: { id: 10, name: 'revision', component: ObjectType.VIEW, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: 0, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
@@ -28961,8 +28961,8 @@ export const StepDataInfo: Record<StepProperty, PropertyInfo> = {
   [StepProperty.id]: { id: 2, name: 'id', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [StepProperty.ck]: { id: 3, name: 'ck', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [StepProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.STEP, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BLOCK, NodeType.STEP], referenceStruct: StructType.NODE_REFERENCE },
-  [StepProperty.packagePtr]: { id: 5, name: 'package_ptr', component: ObjectType.STEP, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [StepProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.STEP, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [StepProperty.packagePtr]: { id: 5, name: 'package_ptr', component: ObjectType.STEP, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [StepProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.STEP, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [StepProperty.templatePtr]: { id: 7, name: 'template_ptr', component: ObjectType.STEP, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.STEP], referenceStruct: StructType.NODE_REFERENCE },
   [StepProperty.templatedEpoch]: { id: 8, name: 'templated_epoch', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.INT64, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [StepProperty.revision]: { id: 10, name: 'revision', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: 0, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
@@ -28995,8 +28995,8 @@ export const PipeDataInfo: Record<PipeProperty, PropertyInfo> = {
   [PipeProperty.id]: { id: 2, name: 'id', component: ObjectType.PIPE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [PipeProperty.ck]: { id: 3, name: 'ck', component: ObjectType.PIPE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [PipeProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.PIPE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BLOCK, NodeType.STEP], referenceStruct: StructType.NODE_REFERENCE },
-  [PipeProperty.packagePtr]: { id: 5, name: 'package_ptr', component: ObjectType.PIPE, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [PipeProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.PIPE, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [PipeProperty.packagePtr]: { id: 5, name: 'package_ptr', component: ObjectType.PIPE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [PipeProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.PIPE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [PipeProperty.templatePtr]: { id: 7, name: 'template_ptr', component: ObjectType.PIPE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.PIPE], referenceStruct: StructType.NODE_REFERENCE },
   [PipeProperty.templatedEpoch]: { id: 8, name: 'templated_epoch', component: ObjectType.PIPE, kind: 'primitive', primitiveType: PrimitiveType.INT64, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [PipeProperty.revision]: { id: 10, name: 'revision', component: ObjectType.PIPE, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: 0, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
@@ -29025,8 +29025,8 @@ export const BadgeDataInfo: Record<BadgeProperty, PropertyInfo> = {
   [BadgeProperty.id]: { id: 2, name: 'id', component: ObjectType.BADGE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [BadgeProperty.ck]: { id: 3, name: 'ck', component: ObjectType.BADGE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [BadgeProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.BADGE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PACKAGE, NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [BadgeProperty.packagePtr]: { id: 5, name: 'package_ptr', component: ObjectType.BADGE, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [BadgeProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.BADGE, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [BadgeProperty.packagePtr]: { id: 5, name: 'package_ptr', component: ObjectType.BADGE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [BadgeProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.BADGE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [BadgeProperty.templatePtr]: { id: 7, name: 'template_ptr', component: ObjectType.BADGE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_TEMPLATE, referenceNodes: [NodeType.BADGE], referenceStruct: StructType.NODE_REFERENCE },
   [BadgeProperty.templatedEpoch]: { id: 8, name: 'templated_epoch', component: ObjectType.BADGE, kind: 'primitive', primitiveType: PrimitiveType.INT64, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [BadgeProperty.revision]: { id: 10, name: 'revision', component: ObjectType.BADGE, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: 0, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
@@ -29051,8 +29051,8 @@ export const FileDataInfo: Record<FileProperty, PropertyInfo> = {
   [FileProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.FILE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [FileProperty.id]: { id: 2, name: 'id', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.FILE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PACKAGE, NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [FileProperty.packagePtr]: { id: 5, name: 'package_ptr', component: ObjectType.FILE, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [FileProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.FILE, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [FileProperty.packagePtr]: { id: 5, name: 'package_ptr', component: ObjectType.FILE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [FileProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.FILE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [FileProperty.revision]: { id: 10, name: 'revision', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: 0, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.createdAt]: { id: 11, name: 'created_at', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [FileProperty.createdEpoch]: { id: 12, name: 'created_epoch', component: ObjectType.FILE, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
@@ -29088,8 +29088,8 @@ export const SecretDataInfo: Record<SecretProperty, PropertyInfo> = {
   [SecretProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SECRET, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [SecretProperty.id]: { id: 2, name: 'id', component: ObjectType.SECRET, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [SecretProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.SECRET, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PACKAGE, NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [SecretProperty.packagePtr]: { id: 5, name: 'package_ptr', component: ObjectType.SECRET, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [SecretProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.SECRET, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [SecretProperty.packagePtr]: { id: 5, name: 'package_ptr', component: ObjectType.SECRET, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [SecretProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.SECRET, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [SecretProperty.revision]: { id: 10, name: 'revision', component: ObjectType.SECRET, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: 0, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [SecretProperty.createdAt]: { id: 11, name: 'created_at', component: ObjectType.SECRET, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [SecretProperty.createdEpoch]: { id: 12, name: 'created_epoch', component: ObjectType.SECRET, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
@@ -29108,8 +29108,8 @@ export const MessageDataInfo: Record<MessageProperty, PropertyInfo> = {
   [MessageProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.MESSAGE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [MessageProperty.id]: { id: 2, name: 'id', component: ObjectType.MESSAGE, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [MessageProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.MESSAGE, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PACKAGE, NodeType.BLOCK, NodeType.VIEW, NodeType.STEP, NodeType.MESSAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [MessageProperty.packagePtr]: { id: 5, name: 'package_ptr', component: ObjectType.MESSAGE, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [MessageProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.MESSAGE, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [MessageProperty.packagePtr]: { id: 5, name: 'package_ptr', component: ObjectType.MESSAGE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [MessageProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.MESSAGE, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [MessageProperty.revision]: { id: 10, name: 'revision', component: ObjectType.MESSAGE, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: 0, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [MessageProperty.createdAt]: { id: 11, name: 'created_at', component: ObjectType.MESSAGE, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [MessageProperty.createdEpoch]: { id: 12, name: 'created_epoch', component: ObjectType.MESSAGE, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
@@ -29132,8 +29132,8 @@ export const RecordDataInfo: Record<RecordProperty, PropertyInfo> = {
   [RecordProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.RECORD, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [RecordProperty.id]: { id: 2, name: 'id', component: ObjectType.RECORD, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [RecordProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.RECORD, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [RecordProperty.packagePtr]: { id: 5, name: 'package_ptr', component: ObjectType.RECORD, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [RecordProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.RECORD, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [RecordProperty.packagePtr]: { id: 5, name: 'package_ptr', component: ObjectType.RECORD, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [RecordProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.RECORD, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [RecordProperty.revision]: { id: 10, name: 'revision', component: ObjectType.RECORD, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: 0, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [RecordProperty.createdAt]: { id: 11, name: 'created_at', component: ObjectType.RECORD, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [RecordProperty.createdEpoch]: { id: 12, name: 'created_epoch', component: ObjectType.RECORD, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
@@ -29150,8 +29150,8 @@ export const NotificationDataInfo: Record<NotificationProperty, PropertyInfo> = 
   [NotificationProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.NOTIFICATION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [NotificationProperty.id]: { id: 2, name: 'id', component: ObjectType.NOTIFICATION, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [NotificationProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.NOTIFICATION, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [NotificationProperty.packagePtr]: { id: 5, name: 'package_ptr', component: ObjectType.NOTIFICATION, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [NotificationProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.NOTIFICATION, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [NotificationProperty.packagePtr]: { id: 5, name: 'package_ptr', component: ObjectType.NOTIFICATION, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [NotificationProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.NOTIFICATION, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [NotificationProperty.revision]: { id: 10, name: 'revision', component: ObjectType.NOTIFICATION, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: 0, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [NotificationProperty.createdAt]: { id: 11, name: 'created_at', component: ObjectType.NOTIFICATION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [NotificationProperty.createdEpoch]: { id: 12, name: 'created_epoch', component: ObjectType.NOTIFICATION, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
@@ -29174,8 +29174,8 @@ export const SessionDataInfo: Record<SessionProperty, PropertyInfo> = {
   [SessionProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SESSION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [SessionProperty.id]: { id: 2, name: 'id', component: ObjectType.SESSION, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [SessionProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.SESSION, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [SessionProperty.packagePtr]: { id: 5, name: 'package_ptr', component: ObjectType.SESSION, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [SessionProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.SESSION, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [SessionProperty.packagePtr]: { id: 5, name: 'package_ptr', component: ObjectType.SESSION, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [SessionProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.SESSION, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [SessionProperty.revision]: { id: 10, name: 'revision', component: ObjectType.SESSION, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: 0, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [SessionProperty.createdAt]: { id: 11, name: 'created_at', component: ObjectType.SESSION, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [SessionProperty.createdEpoch]: { id: 12, name: 'created_epoch', component: ObjectType.SESSION, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
@@ -29199,8 +29199,8 @@ export const RunDataInfo: Record<RunProperty, PropertyInfo> = {
   [RunProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.RUN, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [RunProperty.id]: { id: 2, name: 'id', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [RunProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.RUN, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PACKAGE, NodeType.RUN], referenceStruct: StructType.NODE_REFERENCE },
-  [RunProperty.packagePtr]: { id: 5, name: 'package_ptr', component: ObjectType.RUN, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [RunProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.RUN, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [RunProperty.packagePtr]: { id: 5, name: 'package_ptr', component: ObjectType.RUN, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [RunProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.RUN, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [RunProperty.revision]: { id: 10, name: 'revision', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: 0, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [RunProperty.createdAt]: { id: 11, name: 'created_at', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [RunProperty.createdEpoch]: { id: 12, name: 'created_epoch', component: ObjectType.RUN, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
@@ -29250,8 +29250,8 @@ export const SignalDataInfo: Record<SignalProperty, PropertyInfo> = {
   [SignalProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SIGNAL, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [SignalProperty.id]: { id: 2, name: 'id', component: ObjectType.SIGNAL, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [SignalProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.SIGNAL, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [SignalProperty.packagePtr]: { id: 5, name: 'package_ptr', component: ObjectType.SIGNAL, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [SignalProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.SIGNAL, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [SignalProperty.packagePtr]: { id: 5, name: 'package_ptr', component: ObjectType.SIGNAL, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [SignalProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.SIGNAL, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [SignalProperty.revision]: { id: 10, name: 'revision', component: ObjectType.SIGNAL, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: 0, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [SignalProperty.createdAt]: { id: 11, name: 'created_at', component: ObjectType.SIGNAL, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [SignalProperty.createdEpoch]: { id: 12, name: 'created_epoch', component: ObjectType.SIGNAL, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
@@ -29279,8 +29279,8 @@ export const LogDataInfo: Record<LogProperty, PropertyInfo> = {
   [LogProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.LOG, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
   [LogProperty.id]: { id: 2, name: 'id', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [LogProperty.parentPtr]: { id: 4, name: 'parent_ptr', component: ObjectType.LOG, kind: 'reference', isInternal: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_PARENT, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [LogProperty.packagePtr]: { id: 5, name: 'package_ptr', component: ObjectType.LOG, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
-  [LogProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.LOG, kind: 'reference', isRequired: true, isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
+  [LogProperty.packagePtr]: { id: 5, name: 'package_ptr', component: ObjectType.LOG, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.PACKAGE], referenceStruct: StructType.NODE_REFERENCE },
+  [LogProperty.benchPtr]: { id: 6, name: 'bench_ptr', component: ObjectType.LOG, kind: 'reference', isInternal: true, isComputed: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_ANCESTOR_OR_SELF, referenceNodes: [NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [LogProperty.revision]: { id: 10, name: 'revision', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: 0, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [LogProperty.createdAt]: { id: 11, name: 'created_at', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.DATETIME, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },
   [LogProperty.createdEpoch]: { id: 12, name: 'created_epoch', component: ObjectType.LOG, kind: 'primitive', primitiveType: PrimitiveType.INT64, default: -1, isRequired: true, isInternal: true, isSystem: true, isAutoset: true, isRuntime: true, isWired: true, isStored: true },

@@ -740,14 +740,17 @@ def edit_data_graph(
     def _make_vignette(node: AnyNodeData) -> ChangeVignetteData:
         node_subtype = NODE_SUBTYPE_PROPERTY_BY_TYPE.get(cast(NodeType, node.metatype))
         node_subsubtype = NODE_SUBSUBTYPE_PROPERTY_BY_TYPE.get(cast(NodeType, node.metatype))
-        vignette = ChangeVignetteData(
-            metatype=wire.ObjectType.OBJECT_TYPE_CHANGE_VIGNETTE,
-            name=getattr(node, "name", None),
-            title=getattr(node, "title", None),
-            subtype=getattr(node, node_subtype, None) if node_subtype else None,
-            subsubtype=getattr(node, node_subsubtype, None) if node_subsubtype else None,
-            icon=getattr(node, "icon", None),
-        )
+        vignette = ChangeVignetteData(metatype=wire.ObjectType.OBJECT_TYPE_CHANGE_VIGNETTE)
+        if getattr(node, "name", None) is not None:
+            vignette.name = getattr(node, "name")
+        if getattr(node, "title", None) is not None:
+            vignette.title = getattr(node, "title")
+        if node_subtype and getattr(node, node_subtype, None) is not None:
+            vignette.subtype = getattr(node, node_subtype)
+        if node_subsubtype and getattr(node, node_subsubtype, None) is not None:
+            vignette.subsubtype = getattr(node, node_subsubtype)
+        if getattr(node, "icon", None) is not None and node.HasField("icon"):
+            vignette.icon.CopyFrom(getattr(node, "icon"))
         return vignette
 
     for edit in edits:
@@ -778,7 +781,8 @@ def edit_data_graph(
                 else:
                     assert_never(edit_type)
             # inline implicit metadata
-            new_node_data.created_at = new_node_data.updated_at = edit.edited_at
+            new_node_data.created_at.CopyFrom(edit.edited_at)
+            new_node_data.updated_at.CopyFrom(edit.edited_at)
             if hasattr(new_node_data, "created_epoch"):
                 setattr(new_node_data, "created_epoch", edit.epoch)
                 setattr(new_node_data, "updated_epoch", edit.epoch)
@@ -786,8 +790,8 @@ def edit_data_graph(
                 new_node_data.created_by_ptr.CopyFrom(subject_ptr)
                 new_node_data.updated_by_ptr.CopyFrom(subject_ptr)
             else:
-                new_node_data.created_by_ptr.ClearField("created_by_ptr")
-                new_node_data.updated_by_ptr.ClearField("updated_by_ptr")
+                new_node_data.ClearField("created_by_ptr")
+                new_node_data.ClearField("updated_by_ptr")
             if edit_type == EditType.CREATE or new_node_data.id not in graph:
                 graph.add(new_node_data)
             else:
@@ -819,7 +823,7 @@ def edit_data_graph(
 
             # prepass: make vignette with old data
             if is_prepass:
-                edit.vignette = _make_vignette(updated_node_data)
+                edit.vignette.CopyFrom(_make_vignette(updated_node_data))
 
             # directly edited properties
             proto_cls = wiring.PROTO_CLASS_BY_TYPE[node_cls.metatype]
@@ -857,7 +861,7 @@ def edit_data_graph(
                     )
 
             # implicit metadata
-            updated_node_data.updated_at = edit.edited_at
+            updated_node_data.updated_at.CopyFrom(edit.edited_at)
             if "updated_epoch" in node_cls.__properties__:
                 setattr(updated_node_data, "updated_epoch", edit.epoch)
             updated_node_data.updated_by_ptr.CopyFrom(edit.subject_ptr)

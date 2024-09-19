@@ -1280,7 +1280,9 @@ def _pg_unpack_node_reference_from_row(prop: Property, row: RowOut, node: AnyNod
         prop = prop.reference_wired_ptr
         value = row.get(prop.name)
         if value is not None:
-            getattr(node, prop.name).CopyFrom(_unpack_struct_data_prop_scalar(prop, value))
+            ptr = _unpack_struct_data_prop_scalar(prop, value)
+            wired_name = wiring.get_rich_reference_prop_name(prop, ptr)
+            getattr(node, wired_name).CopyFrom(ptr)
         return
 
     # get bench id

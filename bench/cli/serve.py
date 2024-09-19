@@ -27,7 +27,7 @@ async def _do_serve(
         await check_is_consistent(check_db=True)
     logger.info("serve", handlers=handlers, host=host, port=port, env=ENV)
     start = time_ns()
-    server = GrpcServer(handlers=handlers)
+    server = GrpcServer(handlers=handlers, oracle=REAL_ORACLE)
     if IS_DEV and watch:
         _ = asyncio.create_task(restart_on_file_changes())  # noqa: RUF006
     try:
