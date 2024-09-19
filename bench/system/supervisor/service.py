@@ -158,9 +158,9 @@ class SupervisorService(GraphIoServiceBase, SupervisorBase):
 
     def _patch_client(self, client: Client, client_data: ClientDataIn) -> Client:
         # copy over other properties
-        for key, value in client_data.__dict__.items():
-            if key not in ("id", "name") and key in client.__properties__:
-                setattr(client, key, value)
+        for (field, value) in client_data.ListFields():
+            if field.name not in ("id", "name") and field.name in client.__properties__:
+                setattr(client, field.name, value)
         return client
 
     @override

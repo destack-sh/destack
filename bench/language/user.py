@@ -66,7 +66,9 @@ class User(Node[UserData]):
     slug: Optional[str] = p_system(32, unique=True)  # must match main handle
     name: str = p_regular(33, constraint=NAME_CONSTRAINT)
     text: Optional["Text"] = p_regular(34, default=None, struct=StructType.TEXT)
-    email: str = p_system(35, defer=True, unique=True, sensitive=True, constraint=EMAIL_CONSTRAINT)
+    email: str | None = p_system(
+        35, defer=True, unique=True, sensitive=True, constraint=EMAIL_CONSTRAINT
+    )
     icon: Optional["Icon"] = p_regular(36, default=None, struct=StructType.ICON)
     main_bench: Optional["Bench"] = p_system(
         37, array=False, require=False, references=NodeType.BENCH, fk=True

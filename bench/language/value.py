@@ -16,7 +16,10 @@ from uuid import UUID
 import pytz
 import regex
 import structlog
+from google.protobuf.duration_pb2 import Duration
+from google.protobuf.duration_pb2 import Duration as Interval
 from google.protobuf.struct_pb2 import Struct as ProtoStruct
+from google.protobuf.timestamp_pb2 import Timestamp 
 from opentelemetry import trace
 
 from bench.language.const import (
@@ -68,6 +71,8 @@ ScalarValueData = Union[
     dict[str, "ScalarValueData"],
     list["ScalarValueData"],
     ProtoStruct,
+    Timestamp,
+    Duration,
 ]
 SomeValue = Union[ScalarValue, Collection[ScalarValue], None]
 SomeValueData = Union[ScalarValueData, Collection[ScalarValueData], None]
@@ -835,9 +840,9 @@ def pack_value_scalar(value: ScalarValue | ScalarValueData, typ: "TypeInfoBase")
             else:
                 return cast(JsonValue, value)
         elif typ.primitive_type == PrimitiveType.DATETIME:
-            return cast(datetime, value).isoformat()
+            return cast(Timestamp, value).ToDatetime(tzinfo=pytz.utc).isoformat()
         elif typ.primitive_type == PrimitiveType.INTERVAL:
-            return cast(timedelta, value).total_seconds()
+            return cast(Interval, value).seconds + cast(Interval, value).nanos / 1e9
         else:
             return cast(JsonValue, value)
     elif typ.kind == TypeKind.NODE or typ.kind == TypeKind.BASED_NODE:
@@ -905,9 +910,13 @@ def unpack_value_scalar_data(value_packed: JsonValue, typ: "TypeInfoBase") -> Sc
 
             return wiring.pack_proto_json(cast(dict, value_packed))
         elif typ.primitive_type == PrimitiveType.DATETIME:
-            return datetime.fromisoformat(cast(str, value_packed))
+            ts = Timestamp()
+            ts.FromDatetime(datetime.fromisoformat(cast(str, value_packed)))
+            return ts
         elif typ.primitive_type == PrimitiveType.INTERVAL:
-            return timedelta(seconds=cast(int, value_packed))
+            dur = Duration()
+            dur.FromTimedelta(timedelta(seconds=cast(float, value_packed)))
+            return dur
         else:
             return cast(PrimitiveValue, value_packed)
     elif typ.kind == TypeKind.ENUM:
@@ -930,7 +939,7 @@ def pack_builtin_object_data(
     for prop in only if only is not None else object_cls.__wired_properties__.values():
         if prop.reference_wired_ptr is not None:
             prop = prop.reference_wired_ptr
-        if prop.is_optional and not value.HasField(prop.name):
+        if prop.is_optional_scalar and not value.HasField(prop.name):
             continue
         prop_value = getattr(value, prop.name)
         if prop_value is None or (prop.is_list and len(prop_value) == 0):
@@ -952,7 +961,7 @@ def unpack_builtin_object_data[T: AnyStructData | AnyNodeData](
     into: T | None = None,
 ) -> AnyStructData | AnyNodeData:
     """Unpacks a single struct/node data value using typed proto ids as keys and enum values."""
-    from bench.proto import wire, wiring
+    from bench.proto import wiring
 
     if expect is None:
         object_type = value_packed.get("1")
@@ -976,7 +985,7 @@ def unpack_builtin_object_data[T: AnyStructData | AnyNodeData](
             ]
         else:
             prop_value = unpack_value_scalar_data(prop_value_packed, prop.type_info)
-        setattr(value, prop.name, prop_value)
+        wiring.set_object_prop(value, prop, prop_value)
     return value
 
 

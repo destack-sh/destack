@@ -537,7 +537,7 @@ class Space(SourceNode[SpaceData]):
     order_key: str = p_internal(33, default=INTEGER_ZERO)
     policies: list["Policy"] | None = p_regular(34, struct=StructType.POLICY, array=True)
 
-    bar_position: Optional[Anchor] = p_regular(40, default=Anchor.TOP)
+    bar_position: Anchor = p_regular(40, default=Anchor.TOP)
 
     focus: Optional[Selection] = p_regular(
         70, default=None, require=False, struct=StructType.SELECTION

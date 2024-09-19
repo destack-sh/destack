@@ -799,7 +799,7 @@ class File(StateNode[FileData], FileInfoBase):
     )
 
     # meta
-    retention: FileRetentionMode | None = p_system(
+    retention: FileRetentionMode = p_system(
         30, default=FileRetentionMode.AUTOMATIC, default_sql=None
     )
     expires_at: Optional[datetime] = p_system(31)
@@ -935,7 +935,9 @@ async def download_batch(
             ],
             environment=MACHINE_ENVIRONMENT,
         )
-        download_rep = await session.host.download_files(download_req, metadata=session._rpc_headers)
+        download_rep = await session.host.download_files(
+            download_req, metadata=session._rpc_headers
+        )
         handles_by_id = {h.file.id: h for h in download_rep.handles}
         del download_rep
 

@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import AsyncIterator, Mapping, NamedTuple, Sequence, cast, final, override
 from uuid import UUID
 
+import pytz
 import structlog
 from google.protobuf.message import Message as ProtoMessage
 from grpclib import GRPCError
@@ -768,7 +769,9 @@ def validate_edit(edit: EditData, subject: Subject, now: datetime) -> None:
         )
 
     # time
-    if not edit.edited_at or not _is_allowable_drift(edit.edited_at.ToDatetime(), now):
+    if not edit.edited_at or not _is_allowable_drift(
+        edit.edited_at.ToDatetime(tzinfo=pytz.utc), now
+    ):
         raise GRPCError(
             GRPCStatus.INVALID_ARGUMENT,
             f"bad edited_at in {edit!r}: {edit.edited_at} !~= {now}",

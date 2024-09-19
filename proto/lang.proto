@@ -2018,7 +2018,7 @@ message RunTraceData {
 message ScheduleData {
   ObjectType metatype = 1;
   ScheduleType type = 30;
-  optional string timezone = 31;
+  string timezone = 31;
   int32 every = 40;
   TimeInterval interval = 41;
   optional google.protobuf.Duration offset = 42;
@@ -2495,7 +2495,7 @@ message FileData {
   optional NodeReferenceData created_by_ptr = 21;
   optional NodeReferenceData updated_by_ptr = 22;
   repeated int32 set_properties = 29;
-  optional FileRetentionMode retention = 30;
+  FileRetentionMode retention = 30;
   optional google.protobuf.Timestamp expires_at = 31;
   FileKind kind = 40;
   string title = 41;
@@ -3070,7 +3070,7 @@ message SpaceData {
   optional TextData text = 32;
   string order_key = 33;
   repeated PolicyData policies = 34;
-  optional Anchor bar_position = 40;
+  Anchor bar_position = 40;
   optional SelectionData focus = 70;
   optional NodeReferenceData inspection_ptr = 75;
   optional NodeReferenceData base_ptr = 76;
