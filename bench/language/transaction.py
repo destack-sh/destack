@@ -496,6 +496,8 @@ class Transaction:
                 subject_ptr = None
 
             # make edit
+            edited_at = Timestamp()
+            edited_at.FromDatetime(edit_event.now)
             edit = EditData(
                 metatype=wire.ObjectType.OBJECT_TYPE_EDIT,
                 id=new_edit_id(),
@@ -508,7 +510,7 @@ class Transaction:
                 origin=edit_event.origin,
                 subject_ptr=subject_ptr,
                 context=edit_context,
-                edited_at=Timestamp().FromDatetime(edit_event.now),
+                edited_at=edited_at,
             )
             edits.append(edit)
             batch.clear()  # reset
