@@ -95,6 +95,26 @@ def _render_js_value(value: Any) -> str:
         raise RuntimeError(f"unexpected value: {value}")
 
 
+def _parse_optional_proto_fields(files: list[str]):
+    """Parse out <MessageName>,<FieldName> tuples for all required proto fields."""
+    required_fields_by_message: dict[str, set[str]] = {}
+    for path in files:
+        proto_file = Path(path).read_text()
+        # parse out message blocks like
+        for match in re.finditer(
+            r"message ([a-zA-Z0-9_]+) {(\n.+?\n)+}", proto_file, flags=re.DOTALL
+        ):
+            required_fields: set[str] = set()
+            message_name = match.group(1)
+            message_block = match.group(2)
+            # parse out field names + optionality
+            for match in re.finditer(r"optional ([a-zA-Z0-9_\.]+) ([a-zA-Z0-9_]+)", message_block):
+                field_name = match.group(2)
+                required_fields.add(field_name)
+            required_fields_by_message[message_name] = required_fields
+    return required_fields_by_message
+
+
 def _build_proto(schema_str: str) -> None:
     """Regenerate external artifacts from the proto schema."""
 
@@ -111,9 +131,10 @@ def _build_proto(schema_str: str) -> None:
     #  are correct for protobuf's python generator.
     Path(TEMP_PY_DIR).mkdir(parents=True, exist_ok=True)
     py_proto_files = [LANG_PROTO, *EXTRA_PROTO_PY_FILES]
+    optional_fields = _parse_optional_proto_fields(py_proto_files)
+    # replace 'import "proto/..." with 'import "..." in all files in wire
     py_proto_files = [p.replace("proto/", "") for p in py_proto_files]
     run_shell_sync("cp -r proto wire")
-    # replace 'import "proto/..." with 'import "..." in all files in wire
     for path in Path("wire").rglob("*.proto"):
         path.write_text(regex.sub(r"import \"proto/", 'import "', path.read_text()))
     run_shell_sync(
@@ -153,14 +174,20 @@ def _build_proto(schema_str: str) -> None:
                 wire_py,
                 flags=re.MULTILINE,
             )
-        # make all scalar message fields optional (some whitespace, lower_case_var: annotation)
-        # nocheckin: only make optional message fields optional
-        wire_py = regex.sub(
-            r"^(?!.*FieldContainer)(^[ ]+[a-z_]+: [\w\[\|\.]+)",
-            r"\1 | None",
-            wire_py,
-            flags=re.MULTILINE,
-        )
+
+        # mark optional fields as optional
+        # find every generated message class
+        for match in re.finditer(r"class ([a-zA-Z0-9_]+)\(_message.Message\):", wire_py):
+            message_name = match.group(1)
+            wire_py = regex.sub(
+                rf"^([ ]+({'|'.join(optional_fields.get(message_name, ()))}): [\w\[\|\._]+)",
+                r"\1 | None",
+                wire_py,
+                flags=re.MULTILINE,
+                pos=match.start(),
+                count=len(optional_fields.get(message_name, ())),
+            )
+
         # rename XyzStub to XyzClient (stub is a bad name)
         wire_py = regex.sub(r"(?<!Service)Stub", "Client", wire_py)
         patch_prefix_code = """

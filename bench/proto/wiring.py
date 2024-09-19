@@ -420,9 +420,9 @@ def unpack_rpc_headers(headers: Mapping) -> RpcMetadata:
     metadata = RpcMetadata()
     if headers.get("x-bench-2"):
         metadata.client_type = wire.ClientType(int(headers["x-bench-2"]))
-    metadata.client_id = headers.get("x-bench-3")
-    metadata.client_nonce = headers.get("x-bench-4")
-    metadata.client_access_token = headers.get("x-bench-5")
+    metadata.client_id = headers.get("x-bench-3")  # type: ignore
+    metadata.client_nonce = headers.get("x-bench-4")  # type: ignore
+    metadata.client_access_token = headers.get("x-bench-5")  # type: ignore
     if headers.get("6"):
         unpacked_badges = json.loads(b64decode(headers.get("x-bench-6")).decode("utf-8"))  # type: ignore
         for unpacked_badge in unpacked_badges:

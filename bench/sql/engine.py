@@ -26,6 +26,7 @@ import psycopg
 import pytz
 import structlog
 from bitarray import bitarray
+from google.protobuf.timestamp_pb2 import Timestamp
 from opentelemetry import trace
 from psycopg import OperationalError, sql
 from psycopg.types.json import Jsonb
@@ -1756,6 +1757,7 @@ async def pg_edit(
         # NOTE: in case of multiple edits to the same node, the returned revision is the latest.
         new_revisions_by_id = {node.id: node.revision for node in changed_nodes}
         for edit in batch:
+            assert edit.node_ptr.id, f"missing id for {edit!r}"
             all_new_revisions.append(new_revisions_by_id[edit.node_ptr.id])
 
         # start new batch if needed
@@ -1866,9 +1868,11 @@ async def _pg_edit_cascade(
                 root_edit = root_edit_by_cascaded_node_id[cast(str, node.id)]
                 removed_at = removed_at_by_root_node_id[cast(str, root_edit.node_ptr.id)]
                 if edit_type == EditType.UNARCHIVE:
-                    cascaded_edit.old_node.archived_at = removed_at
+                    old_node = wiring.unwrap_some_node(cascaded_edit.old_node)
+                    old_node.archived_at = Timestamp().FromDatetime(removed_at)
                 elif edit_type == EditType.RESTORE:
-                    cascaded_edit.old_node.deleted_at = removed_at
+                    old_node = wiring.unwrap_some_node(cascaded_edit.old_node)
+                    old_node.deleted_at = Timestamp().FromDatetime(removed_at)
                 else:
                     assert_never(edit_type)
             elif edit_type in (EditType.ARCHIVE, EditType.DELETE, EditType.ERASE):

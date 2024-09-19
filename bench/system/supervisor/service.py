@@ -2,10 +2,10 @@ from typing import Mapping, cast, override
 from uuid import UUID, uuid4, uuid5
 
 import structlog
+from google.protobuf.message import Message as ProtoMessage
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 from opentelemetry import trace
-from google.protobuf.message import Message as ProtoMessage
 
 from bench.language import Bench, Client, NodeReference, Server, Store, User
 from bench.language.access import Subject
@@ -244,7 +244,8 @@ class SupervisorService(GraphIoServiceBase, SupervisorBase):
         async with self.new_request_session(
             supergraph=subject._supergraph, readonly=False
         ) as session:
-            key_name = request.WhichOneOf("user")
+            key_name = request.WhichOneof("user")
+            key_value = getattr(request, key_name)
             if key_value is None:
                 raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "no user provided")
             user = (
@@ -393,8 +394,10 @@ class SupervisorService(GraphIoServiceBase, SupervisorBase):
 
     @override
     async def resolve_hosts(
-        self, subject: "Subject", request: "ResolveHostsRequest"
+        self, request: "ResolveHostsRequest", headers: Mapping
     ) -> "ResolveHostsResponse":
+        metadata = wiring.unpack_rpc_headers(headers)
+        subject = await self.get_request_subject(request, metadata)
         async with self.new_request_session(supergraph=subject._supergraph):
             hosts: list[ResolveHostsResponse.HostInfo] = []
             for bench_key in request.benches:
