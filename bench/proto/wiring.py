@@ -188,6 +188,8 @@ def pack_and_set_object_prop(obj_data: AnyStructData | AnyNodeData, prop: Proper
         elif prop.is_struct:  # empty message field
             assert value is None, f"unexpected non-proto struct value for {prop!r}: {value!r}"
             obj_data.ClearField(prop.name)
+        elif value is None:
+            obj_data.ClearField(prop.name)
         else:  # primitive field
             setattr(obj_data, prop.name, packed_value)
     else:  # list
@@ -209,6 +211,8 @@ def set_object_prop(obj_data: AnyStructData | AnyNodeData, prop: Property, value
                 getattr(obj_data, prop.name).CopyFrom(value)
         elif prop.is_struct:  # empty message field
             assert value is None, f"unexpected non-proto struct value for {prop!r}: {value!r}"
+            obj_data.ClearField(prop.name)
+        elif value is None:
             obj_data.ClearField(prop.name)
         else:  # primitive field
             setattr(obj_data, prop.name, value)
@@ -258,19 +262,22 @@ def unpack_object[T: BuiltinObject](
     graph: NodeGraph | None = None,
     parent: Node | None = None,
     # NOTE: by default new Nodes add themselves to their graph, but during
-    #  unpacking we almost never want this (because we manage it manually outside of sessions).
+    #  unpacking we almost never want this (because we manage unpacking manually).
     skip_add_self: bool = True,
 ) -> T:
     """Unpack a builtin object and any contained structs without validating."""
     supergraph = supergraph or NULL_SUPERGRAPH
     assert obj_data.metatype is not None, f"missing metatype for {obj_data!r}"
-    object_cls = OBJECT_CLASS_BY_TYPE[ObjectType(obj_data.metatype)]  # type: ignore
+    assert obj_data.metatype != 0, f"missing metatype for {obj_data!r}"
+    object_cls = OBJECT_CLASS_BY_TYPE[obj_data.metatype]  # type: ignore
     if expect and not issubclass(object_cls, expect):
         raise RuntimeError(f"expected {expect} but got {object_cls}")
     object_kwargs = {}
     try:
         for prop in object_cls.__wired_properties__.values():
             if not prop.is_runtime or prop.is_computed:
+                continue
+            if prop.is_optional_scalar and not obj_data.HasField(prop.name):
                 continue
             value = getattr(obj_data, prop.name)
             object_kwargs[prop.name] = unpack_object_prop(prop, value, supergraph=supergraph)
@@ -473,9 +480,12 @@ def unpack_rpc_headers(headers: Mapping) -> RpcMetadata:
     metadata = RpcMetadata()
     if headers.get("x-bench-2"):
         metadata.client_type = wire.ClientType(int(headers["x-bench-2"]))
-    metadata.client_id = headers.get("x-bench-3")  # type: ignore
-    metadata.client_nonce = headers.get("x-bench-4")  # type: ignore
-    metadata.client_access_token = headers.get("x-bench-5")  # type: ignore
+    if headers.get("x-bench-3"):
+        metadata.client_id = headers.get("x-bench-3")  # type: ignore
+    if headers.get("x-bench-4"):
+        metadata.client_nonce = headers.get("x-bench-4")  # type: ignore
+    if headers.get("x-bench-5"):
+        metadata.client_access_token = headers.get("x-bench-5")  # type: ignore
     if headers.get("6"):
         unpacked_badges = json.loads(b64decode(headers.get("x-bench-6")).decode("utf-8"))  # type: ignore
         for unpacked_badge in unpacked_badges:

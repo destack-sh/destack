@@ -174,16 +174,15 @@ class ServiceBase:
                         raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "missing request")
                     self._validate_request(request)
                     if handler.cardinality == grpclib.const.Cardinality.UNARY_UNARY:
-                        response = await handler.func(request)
+                        response = await handler.func(request, stream.metadata)
                         await stream.send_message(response)
                     elif handler.cardinality == grpclib.const.Cardinality.UNARY_STREAM:
                         span.end()  # end early (streaming, span shouldn't continue forever)
-                        async for response in handler.func(request):
+                        async for response in handler.func(request, stream.metadata):
                             log.trace(f"{rpc_name}.update", response=response)
                             await stream.send_message(response)
                     else:
                         raise RuntimeError(f"unsuported cardinality {handler.cardinality}")
-                    await func(stream)
                     log.info(rpc_name, span="current")
                 except GRPCError as e:
                     # pass through GRPC errors

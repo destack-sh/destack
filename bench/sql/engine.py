@@ -23,7 +23,6 @@ from uuid import UUID
 
 import cachetools
 import psycopg
-import pytz
 import structlog
 from bitarray import bitarray
 from google.protobuf.duration_pb2 import Duration
@@ -1200,11 +1199,6 @@ def _unpack_struct_data_prop_scalar(prop: Property, value: Any, into: Any | None
         return None
     elif prop.reference_struct:
         return unpack_builtin_object_data(value, into=into)
-    elif prop.primitive_type == PrimitiveType.DATETIME:
-        if value.tzinfo is None:
-            return value.replace(tzinfo=pytz.utc)
-        else:
-            return value.astimezone(pytz.utc)
     elif prop.primitive_type == PrimitiveType.UUID:
         return str(value)
     elif prop.primitive_type == PrimitiveType.JSON:
@@ -1250,7 +1244,7 @@ def _pg_pack_node_reference_into_row(
             row[stored_prop.name].append(ref.id)
         # additional pointer metadata
         for meta_key, meta_prop in prop.reference_stored_metas.items():
-            row[meta_prop.name] = [getattr(v, meta_key) for v in references]
+            row[meta_prop.name] = [getattr(v, meta_key) or None for v in references]
     else:  # single reference
         # map to single reference
         if value is None:
@@ -1268,7 +1262,10 @@ def _pg_pack_node_reference_into_row(
                 row[stored_prop.name] = None
         # additional pointer metadata
         for meta_key, meta_prop in prop.reference_stored_metas.items():
-            row[meta_prop.name] = getattr(value, meta_key) if value is not None else None
+            if value is None:
+                row[meta_prop.name] = None
+            else:
+                row[meta_prop.name] = getattr(value, meta_key) or None
 
 
 def _pg_unpack_node_reference_from_row(prop: Property, row: RowOut, node: AnyNodeData) -> None:
@@ -1295,18 +1292,15 @@ def _pg_unpack_node_reference_from_row(prop: Property, row: RowOut, node: AnyNod
     assert prop.reference_wired_ptr is not None, f"no wired ptr for {prop!r}"
     if prop.is_list:  # list reference
         # can only be a a set of id props + a single ck prop
-        ptrs = []
+        ptrs = getattr(node, prop.reference_wired_ptr.name)
         # pointer id/cks
         for stored_prop in prop.reference_stored_ids:
             ids = cast(list[UUID] | None, row.get(stored_prop.name))
             for id in ids or ():
-                ptr = NodeReferenceData(
-                    metatype=wire.ObjectType.OBJECT_TYPE_NODE_REFERENCE,
-                    id=str(id),
-                    type=cast(list[wire.NodeType], stored_prop.reference_nodes)[0],
-                )
-                ptrs.append(ptr)
-        setattr(node, prop.reference_wired_ptr.name, ptrs)
+                ptr: NodeReferenceData = ptrs.add()
+                ptr.metatype = wire.ObjectType.OBJECT_TYPE_NODE_REFERENCE
+                ptr.id = str(id)
+                ptr.type = cast(list[wire.NodeType], stored_prop.reference_nodes)[0]
         # additional pointer metadata
         for i, ptr in enumerate(ptrs):
             for meta_key, meta_prop in prop.reference_stored_metas.items():
@@ -1337,29 +1331,29 @@ def _pg_unpack_node_reference_from_row(prop: Property, row: RowOut, node: AnyNod
                     # if this is a heterogeneous ck pointer, type will be overwritten from extras
                     type=cast(list[wire.NodeType], stored_prop.reference_nodes)[0],
                 )
-                setattr(node, prop.reference_wired_ptr.name, ptr)
                 break
         else:
-            ptr = None
+            return
+
         # additional pointer metadata
-        if ptr is not None:
-            for meta_key, meta_prop in prop.reference_stored_metas.items():
-                extra_value = row.get(meta_prop.name)
-                if extra_value is None:
-                    continue
-                elif meta_prop.primitive_type == PrimitiveType.UUID:
-                    extra_value = str(extra_value)
-                elif meta_prop.enum_type == EnumType.NODE_TYPE:
-                    extra_value = NodeType(extra_value)
-                else:
-                    raise RuntimeError(f"unexpected meta prop type: {meta_prop!r}")
-                setattr(ptr, meta_key, extra_value)
-            if not ptr.ck:
-                ptr.ck = ptr.id
-            if bench_id and not ptr.bench_id:
-                ptr.bench_id = bench_id
-                if ptr.base_ck:
-                    ptr.base_bench_id = ptr.bench_id
+        for meta_key, meta_prop in prop.reference_stored_metas.items():
+            extra_value = row.get(meta_prop.name)
+            if extra_value is None:
+                continue
+            elif meta_prop.primitive_type == PrimitiveType.UUID:
+                extra_value = str(extra_value)
+            elif meta_prop.enum_type == EnumType.NODE_TYPE:
+                extra_value = NodeType(extra_value)
+            else:
+                raise RuntimeError(f"unexpected meta prop type: {meta_prop!r}")
+            setattr(ptr, meta_key, extra_value)
+        if not ptr.ck:
+            ptr.ck = ptr.id
+        if bench_id and not ptr.bench_id:
+            ptr.bench_id = bench_id
+            if ptr.base_ck:
+                ptr.base_bench_id = ptr.bench_id
+        getattr(node, prop.reference_wired_ptr.name).CopyFrom(ptr)
 
 
 def pg_pack_node_data_row(node: AnyNodeData) -> dict[str, SqlPrimitive]:
@@ -1546,7 +1540,7 @@ async def pg_walk_graph_down(
                 child_ptr = NodeReferenceData(
                     metatype=wire.ObjectType.OBJECT_TYPE_NODE_REFERENCE,
                     id=str(child_row["id"]),
-                    type=wire.NodeType(child_type),
+                    type=cast(wire.NodeType, child_type),
                 )
                 next_parents.append(child_ptr)
                 all_descendants.append(child_ptr)
@@ -1876,10 +1870,11 @@ async def _pg_edit_cascade(
                 edited_at=root_edit.edited_at,
                 epoch=root_edit.epoch,
                 scope=root_edit.scope,  # should always be the same
-                subject_ptr=root_edit.subject_ptr,
                 category=root_edit.category,
                 context=root_edit.context,
             )
+            if root_edit.HasField("subject_ptr"):
+                cascaded_edit.subject_ptr.CopyFrom(root_edit.subject_ptr)
             all_cascaded_edits.append(cascaded_edit)
             root_edit_by_cascaded_node_id[cast(str, node_ptr.id)] = root_edit
 
@@ -1902,7 +1897,7 @@ async def _pg_edit_cascade(
         for node, cascaded_edit in zip(nodes, cascaded_edits):
             cascaded_edit.revision = node.revision
             if edit_type in (EditType.UNARCHIVE, EditType.RESTORE):
-                cascaded_edit.old_node = wiring.wrap_some_node(node)
+                cascaded_edit.old_node.CopyFrom(wiring.wrap_some_node(node))
                 # set root edit removed_at in cascaded_edit.old_node
                 root_edit = root_edit_by_cascaded_node_id[cast(str, node.id)]
                 removed_at = removed_at_by_root_node_id[cast(str, root_edit.node_ptr.id)]
@@ -1915,7 +1910,7 @@ async def _pg_edit_cascade(
                 else:
                     assert_never(edit_type)
             elif edit_type in (EditType.ARCHIVE, EditType.DELETE, EditType.ERASE):
-                cascaded_edit.old_node = wiring.wrap_some_node(node)
+                cascaded_edit.old_node.CopyFrom(wiring.wrap_some_node(node))
             else:
                 raise RuntimeError(
                     f"unexpected cascaded edit type{edit_type!r} for {cascaded_edit!r}"
@@ -2027,24 +2022,35 @@ async def _pg_edit_batch(
         for edit in batch:
             assert edit.node_ptr is not None, f"no node ptr for {edit!r}"
             assert edit.epoch is not None, f"no epoch for {edit!r}"
-            assert edit.edited_at is not None, f"no edited_at for {edit!r}"
+            assert edit.HasField("edited_at"), f"no edited_at for {edit!r}"
+            row = {"id": edit.node_ptr.id}
+
+            # update directly edited properties
             if edit_type == EditType.UPDATE or edit_type == EditType.MOVE:
                 assert edit.new_node, f"no new node for {edit!r}"
                 new_node_data = wiring.unwrap_some_node(edit.new_node)
-            else:
-                new_node_data = None
-            row = {"id": edit.node_ptr.id}
-            # directly edited properties
-            for prop_id in edit.properties:
-                prop = node_cls.__properties_by_id__.get(prop_id)
-                assert prop is not None, f"no property {prop_id!r} in {node_cls!r} for {edit!r}"
-                if prop.is_node_reference:
-                    value = getattr(new_node_data, cast(Property, prop.reference_wired_ptr).name)
-                    _pg_pack_node_reference_into_row(prop, row, value)
-                else:
-                    value = getattr(new_node_data, prop.name)
-                    value = _pack_struct_data_prop(prop, value)
-                    row[prop.name] = value
+                for prop_id in edit.properties:
+                    prop = node_cls.__properties_by_id__.get(prop_id)
+                    assert prop is not None, f"no property {prop_id!r} in {node_cls!r} for {edit!r}"
+                    if not prop.is_node_reference:
+                        # regular non-ref property
+                        if prop.is_optional_scalar and not new_node_data.HasField(prop.name):
+                            value = None
+                        else:
+                            value = getattr(new_node_data, prop.name)
+                        value = _pack_struct_data_prop(prop, value)
+                        row[prop.name] = value
+                    else:
+                        # unravel stored node reference :StoredPointers
+                        wired_name = cast(Property, prop.reference_wired_ptr).name
+                        if prop.is_optional_scalar and not new_node_data.HasField(wired_name):
+                            value = None
+                        else:
+                            if prop.reference_is_rich:
+                                wired_name = new_node_data.WhichOneof(wired_name)
+                            value = getattr(new_node_data, wired_name)
+                        _pg_pack_node_reference_into_row(prop, row, value)
+
             # implicit properties
             edited_at = edit.edited_at.ToDatetime()
             row["updated_at"] = edited_at
