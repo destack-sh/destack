@@ -4,6 +4,7 @@ from itertools import chain
 from typing import Any, Collection, Mapping, Union, cast
 from uuid import UUID
 
+import pytz
 import structlog
 from google.protobuf.duration_pb2 import Duration
 from google.protobuf.json_format import MessageToDict
@@ -81,7 +82,7 @@ def unpack_enum[EnumT: IdEnumOrUnion](enum_cls: type[EnumT], value: Any) -> Enum
 #
 
 
-def pack_object_prop_scalar(prop: Property, value: Any, into: Any | None = None) -> Any:
+def pack_object_prop_scalar(prop: Property, value: Any) -> Any:
     if value is None:
         return None
     elif prop.is_struct:
@@ -145,7 +146,7 @@ def unpack_object_prop_scalar(prop: Property, value: Any, *, supergraph: NodeSup
         elif prop.primitive_type == PrimitiveType.JSON:
             return unpack_proto_json(value)
         elif prop.primitive_type == PrimitiveType.DATETIME:
-            return Timestamp.ToDatetime(value)
+            return Timestamp.ToDatetime(value, tzinfo=pytz.utc)
         elif prop.primitive_type == PrimitiveType.INTERVAL:
             return Duration.ToTimedelta(value)
         else:
@@ -192,12 +193,16 @@ def pack_and_set_object_prop(obj_data: AnyStructData | AnyNodeData, prop: Proper
             obj_data.ClearField(prop.name)
         else:  # primitive field
             setattr(obj_data, prop.name, packed_value)
-    else:  # list
-        assert prop.is_struct or len(value) == 0, f"cannot set non-struct {prop!r}: {value!r}"
+    elif len(value) > 0:  # list
         packed_value = getattr(obj_data, prop.name)
-        for item in value:
-            packed_item = packed_value.add()
-            _ = pack_object_prop_scalar(prop, item, into=packed_item)
+        if prop.is_struct:
+            for item in value:
+                packed_item = packed_value.add()
+                _ = pack_object(item, into=packed_item)
+        else:
+            for item in value:
+                packed_item = pack_object_prop_scalar(prop, item)
+                packed_value.append(packed_item)
 
 
 def set_object_prop(obj_data: AnyStructData | AnyNodeData, prop: Property, value: Any):
@@ -216,9 +221,7 @@ def set_object_prop(obj_data: AnyStructData | AnyNodeData, prop: Property, value
             obj_data.ClearField(prop.name)
         else:  # primitive field
             setattr(obj_data, prop.name, value)
-    else:  # list
-        assert prop.is_struct or len(value) == 0, f"cannot set non-struct {prop!r}: {value!r}"
-        getattr(obj_data, prop.name).clear()
+    elif len(value) > 0:  # list
         getattr(obj_data, prop.name).extend(value)
 
 
@@ -267,8 +270,7 @@ def unpack_object[T: BuiltinObject](
 ) -> T:
     """Unpack a builtin object and any contained structs without validating."""
     supergraph = supergraph or NULL_SUPERGRAPH
-    assert obj_data.metatype is not None, f"missing metatype for {obj_data!r}"
-    assert obj_data.metatype != 0, f"missing metatype for {obj_data!r}"
+    assert obj_data.metatype, f"missing metatype for {obj_data!r}"
     object_cls = OBJECT_CLASS_BY_TYPE[obj_data.metatype]  # type: ignore
     if expect and not issubclass(object_cls, expect):
         raise RuntimeError(f"expected {expect} but got {object_cls}")
@@ -279,7 +281,12 @@ def unpack_object[T: BuiltinObject](
                 continue
             if prop.is_optional_scalar and not obj_data.HasField(prop.name):
                 continue
-            value = getattr(obj_data, prop.name)
+            if prop.reference_is_rich:
+                oneof_name = obj_data.WhichOneof(prop.name)
+                assert oneof_name, f"missing oneof for {prop!r}"
+                value = getattr(obj_data, oneof_name)
+            else:
+                value = getattr(obj_data, prop.name)
             object_kwargs[prop.name] = unpack_object_prop(prop, value, supergraph=supergraph)
         object_kwargs["_supergraph"] = supergraph
         if session is not None:
@@ -324,7 +331,7 @@ def unpack_object_validate_maybe[T: BuiltinObject](
     expect: type[T] | None = None,
     session: Session | None = None,
 ) -> T | None:
-    if obj_data is None:
+    if obj_data is None or obj_data.metatype is None or obj_data.metatype == 0:
         return None
     else:
         return unpack_object_validate(
@@ -458,15 +465,15 @@ def pack_rpc_headers(metadata: RpcMetadata) -> dict[str, str]:
     # flat encoding with prefix, messages as base64 :RpcMetadataEncoding
     packed = {
         "2": str(int(metadata.client_type)) if metadata.client_type is not None else None,
-        "3": metadata.client_id,
-        "4": metadata.client_nonce,
-        "5": metadata.client_access_token,
+        "3": metadata.client_id or None,
+        "4": metadata.client_nonce or None,
+        "5": metadata.client_access_token or None,
     }
     packed_badges = [
         {
             "2": badge.id,
-            "3": badge.key,
-            "4": badge.password,
+            "3": badge.key or None,
+            "4": badge.password or None,
         }
         for badge in metadata.badges
     ]
@@ -479,7 +486,7 @@ def unpack_rpc_headers(headers: Mapping) -> RpcMetadata:
     # flat encoding with prefixy, messages as base64 :RpcMetadataEncoding
     metadata = RpcMetadata()
     if headers.get("x-bench-2"):
-        metadata.client_type = wire.ClientType(int(headers["x-bench-2"]))
+        metadata.client_type = cast(wire.ClientType, int(headers["x-bench-2"]))
     if headers.get("x-bench-3"):
         metadata.client_id = headers.get("x-bench-3")  # type: ignore
     if headers.get("x-bench-4"):

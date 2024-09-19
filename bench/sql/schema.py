@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.09.19.2"
+VERSION = "2024.09.19.4"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -105,7 +105,7 @@ USER_TABLE = Table(
         Column("slug", PrimitiveType.STRING, is_unique=True, is_nullable=True),
         Column("name", PrimitiveType.STRING),
         Column("text", PrimitiveType.JSON, is_nullable=True),
-        Column("email", PrimitiveType.STRING, is_unique=True),
+        Column("email", PrimitiveType.STRING, is_unique=True, is_nullable=True),
         Column("icon", PrimitiveType.JSON, is_nullable=True),
         Column(
             "main_bench_id",
@@ -605,7 +605,7 @@ SPACE_TABLE = Table(
         Column("text", PrimitiveType.JSON, is_nullable=True),
         Column("order_key", PrimitiveType.STRING, default="'a0'::character varying"),
         Column("policies", PrimitiveType.JSON, is_array=True, is_nullable=True),
-        Column("bar_position", PrimitiveType.INT16, is_nullable=True, default="1"),
+        Column("bar_position", PrimitiveType.INT16, default="1"),
         Column("focus", PrimitiveType.JSON, is_nullable=True),
         Column("inspection_id", PrimitiveType.UUID, is_nullable=True),
         Column("inspection_ck", PrimitiveType.UUID, is_nullable=True),
@@ -1035,7 +1035,7 @@ FILE_TABLE = Table(
         Column("updated_by_id", PrimitiveType.UUID, is_nullable=True),
         Column("updated_by_ck", PrimitiveType.UUID, is_nullable=True),
         Column("updated_by_type", PrimitiveType.INT16, is_nullable=True),
-        Column("retention", PrimitiveType.INT16, is_nullable=True),
+        Column("retention", PrimitiveType.INT16),
         Column("expires_at", PrimitiveType.DATETIME, is_nullable=True),
         Column("kind", PrimitiveType.INT16),
         Column("title", PrimitiveType.STRING),

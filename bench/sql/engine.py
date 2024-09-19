@@ -23,6 +23,7 @@ from uuid import UUID
 
 import cachetools
 import psycopg
+import pytz
 import structlog
 from bitarray import bitarray
 from google.protobuf.duration_pb2 import Duration
@@ -1412,14 +1413,16 @@ def pg_unpack_node_data_row(node_cls: type[Node], row: Mapping[str, Any]) -> Any
                     obj_data.ClearField(name)
                 else:
                     setattr(obj_data, name, packed_value)
-            else:  # list
-                assert (
-                    prop.is_struct or len(value) == 0
-                ), f"cannot set non-struct {prop!r}: {value!r}"
+            elif len(value) > 0:  # list
                 packed_value = getattr(obj_data, name)
-                for item in value:
-                    packed_item = packed_value.add()
-                    _ = _unpack_struct_data_prop_scalar(prop, item, into=packed_item)
+                if prop.is_struct:
+                    for item in value:
+                        packed_item = packed_value.add()
+                        _ = _unpack_struct_data_prop_scalar(prop, item, into=packed_item)
+                else:
+                    for item in value:
+                        packed_item = _unpack_struct_data_prop_scalar(prop, item)
+                        packed_value.append(packed_item)
 
         return obj_data
     except (AttributeError, TypeError, ValueError, KeyError) as e:
@@ -1827,10 +1830,10 @@ async def _pg_edit_cascade(
             old_node = wiring.unwrap_some_node(root_edit.old_node)
             if edit_type == EditType.UNARCHIVE:
                 assert old_node.archived_at is not None, f"no archived_at for {old_node!r}"
-                removed_at = old_node.archived_at.ToDatetime()
+                removed_at = old_node.archived_at.ToDatetime(tzinfo=pytz.utc)
             elif edit_type == EditType.RESTORE:
                 assert old_node.deleted_at is not None, f"no deleted_at for {old_node!r}"
-                removed_at = old_node.deleted_at.ToDatetime()
+                removed_at = old_node.deleted_at.ToDatetime(tzinfo=pytz.utc)
             else:
                 assert_never(edit_type)
             removed_dts.append(removed_at)
@@ -1958,7 +1961,7 @@ async def _pg_edit_batch(
             nodes.append(node)
             # inline implicit metadata
             row: dict[str, SqlPrimitive] = pg_pack_node_data_row(node)
-            row["created_at"] = row["updated_at"] = edit.edited_at.ToDatetime()
+            row["created_at"] = row["updated_at"] = edit.edited_at.ToDatetime(tzinfo=pytz.utc)
             if "created_epoch" in node_cls.__properties__:
                 row["created_epoch"] = row["updated_epoch"] = edit.epoch
             subject_ptr = edit.subject_ptr if edit.HasField("subject_ptr") else None

@@ -100,19 +100,17 @@ def test_roundtrip_nested_value(session: Session, package: Package):
         name="Field1", bench_type=NodeType.FIELD, base_type=choice1, kind=TypeKind.BASED_NODE
     )
     class1.fields.create(
-        name="Field2", primitive_type=PrimitiveType.BOOLEAN, kind=TypeKind.PRIMITIVE
+        name="Field2", primitive_type=PrimitiveType.INT32, kind=TypeKind.PRIMITIVE, is_list=True
     )
-    class1.fields.create(
-        name="Field3", bench_type=StructType.TEXT, kind=TypeKind.STRUCT, is_list=True
-    )
+    class1.fields.create(name="Field3", bench_type=StructType.TEXT, kind=TypeKind.STRUCT)
     class1.fields.create(name="Field4", base_type=class2, kind=TypeKind.ALIAS)
 
     # outer value
     value = cast(ValueObject, class1())
     value.Field1 = choice1.fields.Option1
     assert value.Field1 is choice1.fields.Option1
-    value.Field2 = False
-    value.Field3 = [Text.plain("hello bench!")]
+    value.Field2 = [24]
+    value.Field3 = Text.plain("hello bench!")
     value.Field4 = cast(ValueObject, class2())
 
     class1_type = class1.to_type(as_object=True)

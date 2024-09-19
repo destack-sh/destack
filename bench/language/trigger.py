@@ -42,7 +42,7 @@ class Schedule(Struct):
     """The time-based schedule of something."""
 
     type: ScheduleType = p_regular(30, require=True)
-    timezone: Optional[str] = p_regular(31, default=pytz.utc.zone)
+    timezone: str = p_regular(31, default=pytz.utc.zone)
 
     # interval
     every: int = p_regular(40, default=1, constraint=TypeConstraintIn(min_value=1, max_value=60))

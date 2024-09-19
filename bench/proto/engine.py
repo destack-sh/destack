@@ -170,7 +170,7 @@ def generate_proto_schema(
 ) -> ProtoSchema:
     from bench.language import Node, Struct
 
-    proto_types_cache: dict[type[_ThingType], ProtoThing] = {}
+    proto_types_cache: dict[_ThingType, ProtoThing] = {}
     for thing in bench_classes:
         _ = map_object_type_to_proto(thing, proto_types_cache, alias=aliases.get(thing))
 

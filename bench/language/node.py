@@ -979,8 +979,8 @@ class BuiltinObject[ObjectDataT: AnyNodeData | AnyStructData](abc.ABC):
                 # compare struct recursively
                 if prop.is_list:
                     if (
-                        not isinstance(self_value, list)
-                        or not isinstance(other_value, list)
+                        not isinstance(self_value, Sequence)
+                        or not isinstance(other_value, Sequence)
                         or len(self_value) != len(other_value)
                     ):
                         return False  # unequal list

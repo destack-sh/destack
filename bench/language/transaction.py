@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, Callable, Collection, Optional, Sequence, assert_never, cast
 from uuid import UUID
 
+import pytz
 import structlog
 from google.protobuf.timestamp_pb2 import Timestamp
 from opentelemetry import trace
@@ -681,7 +682,7 @@ def edit_graph(
                 new_value = wiring.unpack_object_prop(prop, new_value_data, supergraph=supergraph)
                 node._do_set(prop.name, new_value, track=track)
             # implicit metadata
-            node.updated_at = edit.edited_at.ToDatetime()
+            node.updated_at = edit.edited_at.ToDatetime(tzinfo=pytz.utc)
             if "updated_epoch" in node.__properties__:
                 node._do_set("updated_epoch", edit.epoch, track=track, validate=False)
             node._do_set(
