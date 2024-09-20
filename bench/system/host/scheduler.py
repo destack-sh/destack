@@ -175,9 +175,10 @@ class ProcessRunPlugin(HostPlugin[Run]):
             )
         else:
             # retry later
-            op.retry_at = self.host.oracle.utc() + timedelta(seconds=op.retry.get_wait_interval())
-            self.host.oracle.call_at(
-                when=op.retry_at.timestamp(),
+            retry_interval = op.retry.get_wait_interval()
+            op.retry_at = self.host.oracle.utc() + timedelta(seconds=retry_interval)
+            self.host.oracle.call_later(
+                delay=retry_interval,
                 callback=lambda: op.is_cancelled or self._run_queue.put_nowait(op),
             )
             log.trace(

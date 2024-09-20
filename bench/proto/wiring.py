@@ -24,7 +24,7 @@ from bench.language.validation import on_invalid_raise
 from bench.proto import wire
 from bench.proto.wire import AnyNodeData, AnyStructData, NodeReferenceData, RpcMetadata
 from bench.proto.wire.lang_pb2 import FileReferenceData, SecretReferenceData
-from bench.utils.func import IdEnum, IdEnumOrUnion, to_uuid
+from bench.utils.func import IdEnumOrUnion, to_uuid
 from bench.utils.string import Casing, to_casing
 
 logger = structlog.get_logger(__name__)
@@ -64,15 +64,10 @@ def unpack_proto_json(value: ProtoStruct) -> dict[str, Any]:
 
 
 def pack_enum[EnumT: IdEnumOrUnion](enum_cls: type[EnumT], value: EnumT) -> Any:
-    assert isinstance(enum_cls, type), f"{enum_cls} is not a type"
-    assert issubclass(enum_cls, IdEnum), f"{enum_cls} is not an IdEnum"
-    assert isinstance(value, int), f"{value} is not an int"
     return value
 
 
 def unpack_enum[EnumT: IdEnumOrUnion](enum_cls: type[EnumT], value: Any) -> EnumT:
-    assert isinstance(enum_cls, type), f"{enum_cls} is not a type"
-    assert issubclass(enum_cls, IdEnum), f"{enum_cls} is not an IdEnum"
     return enum_cls(value)
 
 
@@ -176,6 +171,18 @@ def get_rich_reference_prop_name(prop: Property, value: Any) -> str:
         raise ValueError(f"unexpected rich reference value: {value!r}")
 
 
+def get_object_prop(obj_data: AnyStructData | AnyNodeData, prop: Property) -> Any:
+    """Gets the value of the given property from the given data object."""
+    if prop.reference_wired_ptr is not None:
+        prop = prop.reference_wired_ptr
+    prop_name = prop.name
+    if prop.is_optional_scalar and not obj_data.HasField(prop_name):
+        return None
+    if prop.reference_is_rich:
+        prop_name = obj_data.WhichOneof(prop_name)
+    return getattr(obj_data, prop_name)
+
+
 def pack_and_set_object_prop(obj_data: AnyStructData | AnyNodeData, prop: Property, value: Any):
     """Pack and set the given property on the given data object."""
     if not prop.is_list:  # scalar
@@ -270,7 +277,7 @@ def unpack_object[T: BuiltinObject](
 ) -> T:
     """Unpack a builtin object and any contained structs without validating."""
     supergraph = supergraph or NULL_SUPERGRAPH
-    assert obj_data.metatype, f"missing metatype for {obj_data!r}"
+    assert obj_data.metatype, f"missing metatype for {type(obj_data)}: {obj_data!r}"
     object_cls = OBJECT_CLASS_BY_TYPE[obj_data.metatype]  # type: ignore
     if expect and not issubclass(object_cls, expect):
         raise RuntimeError(f"expected {expect} but got {object_cls}")

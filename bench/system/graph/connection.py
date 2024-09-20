@@ -464,10 +464,7 @@ class SearchConnection(Connection[SearchResultData, WatchSearchUpdate]):
                     if ancestor.id not in self._result_data.graph:
                         self._result_data.graph.add(ancestor)
                         added_nodes.insert(0, ancestor)  # :ConnectionUpdateOrdering
-                    if ancestor.parent_ptr and ancestor.parent_ptr.id:
-                        ancestor = graph.get(ancestor.parent_ptr.id)
-                    else:
-                        ancestor = None
+                    ancestor = graph.get(ancestor.parent_ptr.id) if ancestor.parent_ptr.id else None
 
             # apply sort & limit
             if self.query._sort:

@@ -840,9 +840,15 @@ def pack_value_scalar(value: ScalarValue | ScalarValueData, typ: "TypeInfoBase")
             else:
                 return cast(JsonValue, value)
         elif typ.primitive_type == PrimitiveType.DATETIME:
-            return cast(Timestamp, value).ToDatetime(tzinfo=pytz.utc).isoformat()
+            if isinstance(value, Timestamp):
+                return cast(Timestamp, value).ToDatetime(tzinfo=pytz.utc).isoformat()
+            else:
+                return cast(datetime, value).isoformat()
         elif typ.primitive_type == PrimitiveType.INTERVAL:
-            return cast(Interval, value).seconds + cast(Interval, value).nanos / 1e9
+            if isinstance(value, Interval):
+                return cast(Interval, value).seconds + cast(Interval, value).nanos / 1e9
+            else:
+                return cast(timedelta, value).total_seconds()
         else:
             return cast(JsonValue, value)
     elif typ.kind == TypeKind.NODE or typ.kind == TypeKind.BASED_NODE:
@@ -939,9 +945,12 @@ def pack_builtin_object_data(
     for prop in only if only is not None else object_cls.__wired_properties__.values():
         if prop.reference_wired_ptr is not None:
             prop = prop.reference_wired_ptr
-        if prop.is_optional_scalar and not value.HasField(prop.name):
+        prop_name = prop.name
+        if prop.is_optional_scalar and not value.HasField(prop_name):
             continue
-        prop_value = getattr(value, prop.name)
+        if prop.reference_is_rich:
+            prop_name = value.WhichOneof(prop_name)
+        prop_value = getattr(value, prop_name)
         if prop_value is None or (prop.is_list and len(prop_value) == 0):
             continue
         elif prop.is_list:

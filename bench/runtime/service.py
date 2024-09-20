@@ -352,11 +352,14 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
                     raise RuntimeError(f"unexpected : {type(run.thread.client)}")
                 extra_healthcheck.cancel()  # no longer needed
                 logger.info(
-                    "runtime.process_run", thread=run.thread, run=run.run_data, span="current"
+                    "runtime.process_run", thread=run.thread, run_id=run.run_data.id, span="current"
                 )
             except Exception as e:
                 logger.error(
-                    "runtime.process_run.error", thread=run.thread, run=run.run_data, exc_info=e
+                    "runtime.process_run.error",
+                    thread=run.thread,
+                    run_id=run.run_data.id,
+                    exc_info=e,
                 )
                 raise
             finally:

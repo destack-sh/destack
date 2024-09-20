@@ -94,8 +94,8 @@ class SimulatedOracle(Oracle):
         await event.wait()
 
     @override
-    def call_later(self, duration: float, callback: Callable, *args) -> asyncio.TimerHandle:
-        return self.call_at(self.time() + duration, callback, *args)
+    def call_later(self, delay: float, callback: Callable, *args) -> asyncio.TimerHandle:
+        return self.call_at(self.time() + delay, callback, *args)
 
     @override
     def call_at(self, when: float, callback: Callable, *args) -> asyncio.TimerHandle:
