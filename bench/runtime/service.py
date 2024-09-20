@@ -14,8 +14,7 @@ import structlog
 from grpclib.client import Channel
 from opentelemetry import trace
 
-from bench.language.const import RUNTIME_NODE_TYPES, ClientType, RunStatus
-from bench.language.graph import NodeGraph
+from bench.language.const import ClientType, RunStatus
 from bench.language.run import Run
 from bench.proto import wiring
 from bench.proto.wire import (
@@ -82,12 +81,11 @@ class ManagedThread:
 
         self._client: RuntimeClient | RuntimeBase | None = None
         self._started_at: datetime | None = None
-        self._lock = asyncio.Lock()
         self._restarts = 0
+        self._active_runs: list[ManagedRun] = []
 
         # local
         self._thread: RuntimeThread | None = None
-
         # process
         self._port: int | None = None
         self._process: Process | None = None
@@ -254,6 +252,7 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
         server_id: UUID | None,
         machine_id: UUID | None,
         max_threads: int,
+        max_concurrency_per_thread: int,
         oracle: Oracle,
         mode: RuntimeThreadMode,
     ):
@@ -273,7 +272,8 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
 
         # processing
         self._max_threads = max_threads
-        self._available_threads: asyncio.Queue[ManagedThread] = asyncio.Queue()
+        self._max_concurrency_per_thread = max_concurrency_per_thread
+        self._run_semaphore = asyncio.BoundedSemaphore(max_threads * max_concurrency_per_thread)
         self._threads: list[ManagedThread] = []
         self._active_runs: list[ManagedRun] = []
 
@@ -299,6 +299,7 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
 
     async def start(self):
         await super().start()
+        asyncio.get_running_loop().set_task_factory(asyncio.eager_task_factory)
         # start threads
         with contextlib.suppress(Exception):  # ignore errors
             # ensure we're the process group leader (so subprocesses will die with us)
@@ -309,8 +310,6 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
             ManagedThread(self, id=i, mode=self._mode) for i in range(self._max_threads)
         ]
         await asyncio.gather(*(t.start() for t in self._threads))
-        for thread in self._threads:
-            self._available_threads.put_nowait(thread)
         logger.info("runtime.start", runtime=self)
 
     def close(self):
@@ -329,12 +328,10 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
         try:
             # acquire thread
             with tracer.start_as_current_span("runtime.acquire_thread"):
-                try:
-                    run.thread = await self._available_threads.get()
-                except asyncio.CancelledError as e:
-                    # cancelled before we got a thread
-                    logger.trace("runtime.process_run.cancel", error=e)
-                    return
+                await self._run_semaphore.acquire()
+                run.thread = min(self._threads, key=lambda t: len(t._active_runs))
+                run.thread._active_runs.append(run)
+                logger.trace("runtime.acquire_thread", runtime=self, thread=run.thread)
             # run in thread
             try:
                 # schedule extra healthcheck to ensure consistent termination
@@ -363,9 +360,9 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
                 )
                 raise
             finally:
-                # release thread
-                self._available_threads.put_nowait(run.thread)
-
+                self._run_semaphore.release()
+                run.thread._active_runs.remove(run)
+                logger.trace("runtime.release_thread", runtime=self, thread=run.thread)
         finally:
             self._active_runs.remove(run)
 
@@ -376,31 +373,18 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
 
         # unpack run
         async with self.session() as session:
-            graph = NodeGraph(  # :TransientGraphs
-                scope=session._get_scope_for_node(self._main_package),
-                node_types=RUNTIME_NODE_TYPES,
-                supergraph=self._supergraph,
-            )
+            # NOTE :UX: mark run as queued as we queue it for a thread
+            #  (without having a race condition because of optimistic commits on both sides;
+            #   i.e. never commit the 'mark as queued' after it already ran and mess up the status)
             run = wiring.unpack_object(
-                request.run,
-                supergraph=self._supergraph,
-                graph=graph,
-                session=session,
-                expect=Run,
+                request.run, supergraph=self._supergraph, session=session, expect=Run
             )
-            graph.add(run)
-            run.status = RunStatus.QUEUED
-            self._supergraph.add_graph(graph)
             managed_run = ManagedRun(service=self, run_data=request.run, run=run)
-            session.commit_optimistic()
 
         # process it (queue and run)
-        try:
-            managed_run.task = asyncio.create_task(self._do_process_run(managed_run))
-            if request.is_blocking:
-                await managed_run.task
-        finally:
-            self._supergraph.remove_graph(graph)  # :TransientGraphs
+        managed_run.task = asyncio.create_task(self._do_process_run(managed_run))
+        if request.is_blocking:
+            await managed_run.task
 
         return ProcessRunResponse()
 

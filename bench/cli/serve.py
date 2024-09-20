@@ -103,6 +103,12 @@ async def runtime(host: str, port: int, *, thread_id: int = -1, watch: bool = Fa
     max_threads = get_from_env(
         "RUNTIME_THREADS", typ=int, default=1, description="Maximum number of runtime threads"
     )
+    max_concurrency_per_thread = get_from_env(
+        "RUNTIME_CONCURRENCY",
+        typ=int,
+        default=10,
+        description="Maximum number of concurrent runs per runtime thread",
+    )
     mode = get_from_env(
         "RUNTIME_THREAD_MODE",
         typ=RuntimeThreadMode,
@@ -120,6 +126,7 @@ async def runtime(host: str, port: int, *, thread_id: int = -1, watch: bool = Fa
             server_id=server_id,
             machine_id=machine_id,
             max_threads=max_threads,
+            max_concurrency_per_thread=max_concurrency_per_thread,
             oracle=REAL_ORACLE,
             mode=mode,
         )
