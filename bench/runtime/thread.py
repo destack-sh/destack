@@ -35,9 +35,8 @@ tracer = trace.get_tracer(__name__)
 
 class RuntimeThread(RuntimeServiceBase, RuntimeBase):
     """
-    A 'thread' for executing Runs in a Runtime in some Session.
-    A RuntimeThread processes one top-level Run at a time. It may be paused, resumed or killed.
-    A RuntimeThread may reside in any thread or process (incl. main), depending on the context.
+    A 'thread' for executing Runs in a Runtime in some Session. Runs may be paused, resumed and killed.
+    A RuntimeThread may reside in any logical thread or process (incl. main), depending on context.
     """
 
     kind = ServiceKind.INTERNAL

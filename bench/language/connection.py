@@ -550,7 +550,7 @@ class Connection[
                     if self.options.unpack:
                         old_result = self._result
                         new_result = self._unpack_result(self._result_data)
-                        if old_result is not None:  # try to patch in place
+                        if old_result is not None:  # patch in place
                             self._result = self._patch_result(old_result, new_result)
                         else:
                             self._result = new_result
