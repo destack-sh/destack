@@ -36,10 +36,16 @@ PG_RECONNECT_TIMEOUT = get_from_env(
     "PG_RECONNECT_TIMEOUT", typ=int, default=10, description="Postgres reconnect timeout in seconds"
 )
 PG_MIN_POOL_SIZE = get_from_env(
-    "PG_MIN_POOL_SIZE", typ=int, default=2, description="Postgres min pool size"
+    "PG_MIN_POOL_SIZE", typ=int, default=4, description="Postgres min pool size"
 )
 PG_MAX_POOL_SIZE = get_from_env(
     "PG_MAX_POOL_SIZE", typ=int, default=8, description="Postgres max pool size"
+)
+PG_POOL_AUTOCLOSE = get_from_env(
+    "PG_POOL_AUTOCLOSE",
+    typ=bool,
+    default=False,
+    description="Whether to automatically close unused postgres pools",
 )
 
 # NOTE :Cleanup: we should probably gc unused pools after some time
@@ -176,7 +182,7 @@ class AsyncPostgresPool:
             self._connections.remove(connection)
             logger.trace("postgres.pool.release", pool=self, connection=connection, span="current")
             # auto close if no more connections
-            if not self.is_used:
+            if not self.is_used and PG_POOL_AUTOCLOSE:
                 await self._do_close()
 
     async def __aenter__(self):
