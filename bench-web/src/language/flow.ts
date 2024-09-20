@@ -659,7 +659,7 @@ export class FlowContext {
         log.info("flow.drag.connect", { from: this.draggable.port, to: at.port });
         createPipe(this.tx, this.graph, {
           parent: this.flow.value,
-          pipe: { type: PipeType.THEN },
+          pipe: { type: PipeType.CONTROL_AND_DATA },
           source: this.draggable.port,
           target: at.port,
         });
