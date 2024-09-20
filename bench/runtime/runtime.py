@@ -299,6 +299,9 @@ class Runtime:
         context.attach(baggage.set_baggage("run_id", str(run.id)))
 
         # NOTE :Performance: update the run as efficiently as possible :RuntimeHotPath
+        # NOTE :UX :Performance: commit optimistically ideally only while inside user code
+        #  (while we're inside a leaf Runner.run, but not while updating/creating Runs,
+        #   so for instance inside a Flow we should wait for all initial Steps to start somehow)
 
         # update context
         if run.session_id != self.session.id:

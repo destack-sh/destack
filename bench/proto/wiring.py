@@ -146,7 +146,7 @@ def unpack_object_prop_scalar(prop: Property, value: Any, *, supergraph: NodeSup
             return Duration.ToTimedelta(value)
         else:
             return value
-    except (AttributeError, TypeError, ValueError, KeyError) as e:
+    except (AssertionError, AttributeError, TypeError, ValueError, KeyError) as e:
         raise ValueError(f"could not unpack value: {value!r} for {prop!r}") from e
 
 
@@ -248,7 +248,7 @@ def pack_object[T: AnyStructData | AnyNodeData](
                 continue
             pack_and_set_object_prop(obj_data, prop, value)
         return cast(T, obj_data)
-    except (AttributeError, TypeError, ValueError, KeyError) as e:
+    except (AssertionError, AttributeError, TypeError, ValueError, KeyError) as e:
         raise ValueError(f"could not pack {obj.metatype.name}: {obj!r}") from e
 
 
@@ -310,7 +310,7 @@ def unpack_object[T: BuiltinObject](
         if session is not None and isinstance(obj, Node):
             obj._track_self(session)
         return cast(T, obj)
-    except (AttributeError, TypeError, ValueError, KeyError) as e:
+    except (AssertionError, AttributeError, TypeError, ValueError, KeyError) as e:
         raise ValueError(f"could not unpack {type(obj_data).__name__}: {obj_data!r}") from e
 
 
