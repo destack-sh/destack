@@ -26,7 +26,7 @@ from google.protobuf.message import Message as ProtoMessage
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 from grpclib._typing import IServable
-from grpclib.client import Channel
+from grpclib.client import Channel, ServiceMethod
 from opentelemetry import trace
 
 from bench.language import ValidationError
@@ -46,7 +46,12 @@ from bench.utils.env import IS_DEV, IS_TEST
 from bench.utils.oracle import Oracle
 from bench.utils.string import Casing, to_casing
 from bench.utils.task import TaskManager
-from bench.utils.telemetry import attach_propagation_context, export_now, set_baggage
+from bench.utils.telemetry import (
+    attach_propagation_context,
+    collect_propagation_context,
+    export_now,
+    set_baggage,
+)
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -319,7 +324,43 @@ async def unary_stream_rpc[ReqT, RepT](
     *,
     timeout: Optional[float] = None,
 ) -> AsyncIterator[RepT]:
-    async with method.open(timeout=timeout) as stream:
-        await stream.send_message(request)
+    async with method.open(timeout=timeout, metadata=collect_propagation_context()) as stream:
+        await stream.send_message(request, end=True)
         async for response in stream:
             yield response
+
+
+# monkey-patch grpclib clients to inject propagation context
+
+_Value = Union[str, bytes]
+_MetadataLike = Union[Mapping[str, _Value], Collection[tuple[str, _Value]]]
+
+
+class _PatchedServiceMethod(ServiceMethod):
+    def open(
+        self,
+        *,
+        timeout: Optional[float] = None,
+        metadata: Optional[_MetadataLike] = None,
+    ):
+        # inject propagation context
+        if metadata is None:
+            metadata = {}
+        elif isinstance(metadata, Mapping):
+            metadata = {**metadata}  # type: ignore
+        else:
+            raise TypeError(f"unexpected metadata type: {metadata}")
+        metadata.update(collect_propagation_context())
+
+        # open channel (see ServiceMethod.open)
+        return self.channel.request(
+            self.name,
+            self._cardinality,
+            self.request_type,
+            self.reply_type,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+
+ServiceMethod.open = _PatchedServiceMethod.open  # type: ignore
