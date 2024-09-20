@@ -655,7 +655,7 @@ def edit_graph(
             if hasattr(new_node_data, "created_epoch"):
                 setattr(new_node_data, "created_epoch", edit.epoch)
                 setattr(new_node_data, "updated_epoch", edit.epoch)
-            if edit.HasField("subject_ptr"):
+            if edit.subject_ptr.metatype != 0:
                 new_node_data.created_by_ptr.CopyFrom(edit.subject_ptr)
                 new_node_data.updated_by_ptr.CopyFrom(edit.subject_ptr)
             # unpack
@@ -760,7 +760,7 @@ def edit_data_graph(
         node_cls = NODE_CLASS_BY_TYPE[node_type]
         node_id = edit.node_ptr.id
         assert node_id is not None, f"missing node id for {edit!r}"
-        subject_ptr = edit.subject_ptr if edit.HasField("subject_ptr") else None
+        subject_ptr = edit.subject_ptr if edit.subject_ptr.metatype != 0 else None
 
         if edit_type in (EditType.CREATE, EditType.UPSERT) or (
             not options.include_hidden
@@ -865,7 +865,10 @@ def edit_data_graph(
             updated_node_data.updated_at.CopyFrom(edit.edited_at)
             if "updated_epoch" in node_cls.__properties__:
                 setattr(updated_node_data, "updated_epoch", edit.epoch)
-            updated_node_data.updated_by_ptr.CopyFrom(edit.subject_ptr)
+            if edit.subject_ptr.metatype != 0:
+                updated_node_data.updated_by_ptr.CopyFrom(edit.subject_ptr)
+            else:
+                updated_node_data.ClearField("updated_by_ptr")
             # Edit.revision may be unset when editing before flushing for validation
             updated_node_data.revision = edit.revision if edit.revision is not None else -1
             if edit_type == EditType.ARCHIVE:
