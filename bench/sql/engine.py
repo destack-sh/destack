@@ -752,7 +752,6 @@ def _pg_adapt_rows(
     return tuple(_pg_adapt_row(table, row) for row in rows)
 
 
-@tracer.start_as_current_span("postgres.fetchall")
 async def _pg_fetchall_from_many(cur: psycopg.AsyncCursor, expected: int) -> list[RowOut]:
     # see https://www.psycopg.org/psycopg3/docs/api/cursors.html#psycopg.Cursor.executemany
     results: list[RowOut] = []

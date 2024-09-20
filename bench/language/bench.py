@@ -355,8 +355,8 @@ RAM_CONSTRAINT = TypeConstraint(min_value=0.1, max_value=16.0)
 @node_(NodeType.SERVER)
 class Server(ResourceNode[ServerData]):
     """
-    A server provides some compute for a Bench's Runtime.
-    Physical compute is materialized (on-demand) as Machines.
+    A Server provides virtual compute for a Bench's Runtime.
+    Physical compute is materialized dynamically on Machines.
     """
 
     version: str = p_system(40, default=VERSION, default_sql=None)
@@ -385,8 +385,8 @@ class Server(ResourceNode[ServerData]):
 @node_(NodeType.MACHINE)
 class Machine(ResourceNode[MachineData]):
     """
-    A Machine provides some isolated compute, usually for a Server.
-    A Machine may also be manually provisioned with specific image/profiles.
+    A Machine provides physical compute.
+    Machines are usually tied to a Server, but may also be manually provisioned.
     """
 
     parent: Server | Bench | None = p_node_parent(4, NodeType.SERVER, NodeType.BENCH)
