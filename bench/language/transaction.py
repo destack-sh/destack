@@ -684,7 +684,7 @@ def edit_graph(
                 assert prop is not None, f"no property {prop_id} for {node!r} in {edit!r}"
                 if prop.reference_wired_ptr is not None:
                     prop = prop.reference_wired_ptr
-                new_value_data = getattr(new_node_data, prop.name)
+                new_value_data = wiring.get_object_prop(new_node_data, prop)
                 new_value = wiring.unpack_object_prop(prop, new_value_data, supergraph=supergraph)
                 node._do_set(prop.name, new_value, track=track)
             # implicit metadata
@@ -741,9 +741,9 @@ def edit_data_graph(
         node_subtype = NODE_SUBTYPE_PROPERTY_BY_TYPE.get(cast(NodeType, node.metatype))
         node_subsubtype = NODE_SUBSUBTYPE_PROPERTY_BY_TYPE.get(cast(NodeType, node.metatype))
         vignette = ChangeVignetteData(metatype=wire.ObjectType.OBJECT_TYPE_CHANGE_VIGNETTE)
-        if getattr(node, "name", None) is not None:
+        if getattr(node, "name", None):
             vignette.name = getattr(node, "name")
-        if getattr(node, "title", None) is not None:
+        if getattr(node, "title", None):
             vignette.title = getattr(node, "title")
         if node_subtype and getattr(node, node_subtype, None) is not None:
             vignette.subtype = getattr(node, node_subtype)
@@ -829,15 +829,16 @@ def edit_data_graph(
             proto_cls = wiring.PROTO_CLASS_BY_TYPE[node_cls.metatype]
             old_node = proto_cls(metatype=cast(wire.ObjectType, node_cls.metatype))
             if edit_type in (EditType.UPDATE, EditType.MOVE):
+                assert new_node_data is not None, f"missing new node data for {edit!r}"
                 for prop_id in edit.properties:
                     prop = node_cls.__properties_by_id__.get(prop_id)
                     assert prop is not None, f"missing property {prop_id} for update: {edit!r}"
                     if prop.reference_wired_ptr is not None:
                         prop = prop.reference_wired_ptr
                     if is_prepass:
-                        old_value = getattr(updated_node_data, prop.name)
+                        old_value = wiring.get_object_prop(updated_node_data, prop)
                         wiring.set_object_prop(old_node, prop, old_value)
-                    new_value_data = getattr(new_node_data, prop.name)
+                    new_value_data = wiring.get_object_prop(new_node_data, prop)
                     wiring.set_object_prop(updated_node_data, prop, new_value_data)
 
             # prepass: 'reset' externally provided data to known ground truth (from graph)

@@ -572,7 +572,7 @@ class bittuple(typing.Generic[EnumT], Collection[EnumT]):  # noqa: N801
             enum_cls = items[0].__class__
         assert isinstance(enum_cls, type) and issubclass(
             enum_cls, IdEnum
-        ), f"invalid enum_cls: {enum_cls} ({items})"
+        ), f"invalid bittuple {enum_cls}: {items}"
         self.enum_cls = enum_cls
         self.bits = bitarray(enum_cls.get_max_ord() + 1)
         for arg in items:

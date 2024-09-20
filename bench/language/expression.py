@@ -1,11 +1,14 @@
 # ruff: noqa: RUF012
 
+import datetime
 import functools
 from collections.abc import Collection
 from typing import TYPE_CHECKING, Any, Optional, Sequence, TypeVar, Union, cast
 from uuid import UUID
 
 import regex
+from google.protobuf.duration_pb2 import Duration
+from google.protobuf.timestamp_pb2 import Timestamp
 
 from bench.language.const import (
     IN_BENCH_NODE_TYPES,
@@ -405,29 +408,59 @@ def coerce_sort(
     return coerced
 
 
-def _lower_expression_value(cond: Expression, prop: Property, value: Any) -> Any:
+def _lower_expression_value(prop: Property, value: Any) -> Any:
     """
     'Lowers' the given value to enable direct comparison.
     This is related to the lower_conditional pass we do in the sql engine backend,
      but we also down the value into its data format.
     """
     # auto lower collections
-    if isinstance(value, (list, tuple)):
-        return [_lower_expression_value(cond, prop, v) for v in value]
+    if isinstance(value, Sequence) and type(value) is not str:
+        return [_lower_expression_value(prop, v) for v in value]
 
+    # identity
     if isinstance(value, Node):
-        value = value.id
+        value = value.ck or value.id
     if isinstance(
         value, (NodeReferenceBase, NodeReferenceData, FileReferenceData, SecretReferenceData)
     ):
-        value = value.id
+        value = value.ck or value.id
     if isinstance(value, UUID):
         value = str(value)
+
+    # time
+    if prop.primitive_type == PrimitiveType.DATETIME:
+        if isinstance(value, Timestamp):
+            value = value.ToNanoseconds()
+        elif isinstance(value, datetime.datetime):
+            value = value.timestamp() * 1e9
+        else:
+            raise ValueError(f"unexpected value type: {type(value)}")
+    elif prop.primitive_type == PrimitiveType.INTERVAL:
+        if isinstance(value, Duration):
+            value = value.seconds + value.nanos / 1e9
+        elif isinstance(value, datetime.timedelta):
+            value = value.total_seconds()
+        else:
+            raise ValueError(f"unexpected value type: {type(value)}")
+
     return value
 
 
+def _get_node_expression_value(node: Node | AnyNodeData, prop: Property) -> Any:
+    """Gets the value of a property from a Node / packed node data."""
+    if isinstance(node, Node):
+        value = getattr(node, prop.py_name)
+    else:
+        if prop.is_optional_scalar and not node.HasField(prop.name):
+            value = None
+        else:
+            value = getattr(node, prop.name)
+    return _lower_expression_value(prop, value)
+
+
 def evaluate_conditional(cond: Expression, node: Node | AnyNodeData) -> bool:
-    """Evaluates the conditional expression against the node."""
+    """Evaluates the conditional expression on a Node / packed node data."""
     assert cond.kind == ExpressionKind.CONDITIONAL, f"expected Conditional, got {cond!r}"
     # logical
     if cond.op in ExpressionOps.COND_COMPOUND:
@@ -445,10 +478,9 @@ def evaluate_conditional(cond: Expression, node: Node | AnyNodeData) -> bool:
     assert prop is not None, f"expected Conditional with property, got {cond!r}"
     if prop.reference_wired_ptr is not None:
         prop = prop.reference_wired_ptr
-    node_value = getattr(node, prop.py_name)
-    node_value = _lower_expression_value(cond, prop, node_value)
+    node_value = _get_node_expression_value(node, prop)
     cond_value = cond.value
-    cond_value = _lower_expression_value(cond, prop, cond_value)
+    cond_value = _lower_expression_value(prop, cond_value)
     # basic comparison
     if cond.op == ConditionalOp.EQUALS:
         return node_value == cond_value
@@ -505,8 +537,8 @@ def _compare_sort_key(
         assert prop is not None, f"expected Sort with property, got {sort!r}"
         if prop.reference_wired_ptr is not None:
             prop = prop.reference_wired_ptr
-        a_value = getattr(a, prop.py_name)
-        b_value = getattr(b, prop.py_name)
+        a_value = _get_node_expression_value(a, prop)
+        b_value = _get_node_expression_value(b, prop)
         if a_value == b_value:
             continue
         if prop.primitive_type is not None and (
