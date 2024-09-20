@@ -30,7 +30,7 @@ from bench.language.const import (
     ReadType,
 )
 from bench.language.expression import C
-from bench.language.graph import NodeDataGraph, NodeGraph
+from bench.language.graph import NodeDataGraph, NodeGraph, patch_graph
 from bench.language.node import Node
 from bench.language.setup import CHILD_NODE_TYPES, DESCENDANT_NODE_TYPES, NODE_CLASS_BY_TYPE
 from bench.proto.wire import (
@@ -548,10 +548,12 @@ class Connection[
                         last_error = None
                     # unpack
                     if self.options.unpack:
-                        # nocheckin :Broken!: in case of re-connect result should replace original nodes/graph somehow
-                        #  (e.g. if we fetch self._bench = await Bench.get(...) in runtime or such,
-                        #   the object reference should either remain connected or be replaced)
-                        self._result = self._unpack_result(self._result_data)
+                        old_result = self._result
+                        new_result = self._unpack_result(self._result_data)
+                        if old_result is not None:  # try to patch in place
+                            self._result = self._patch_result(old_result, new_result)
+                        else:
+                            self._result = new_result
                     self._has_result.set()
                     retry.on_success()
 
@@ -584,6 +586,11 @@ class Connection[
     @abc.abstractmethod
     def _unpack_result(self, result_data: ResultDataT) -> ResultT:
         """Unpacks the result data into a result object."""
+        ...
+
+    @abc.abstractmethod
+    def _patch_result(self, old_result: ResultT, new_result: ResultT) -> ResultT:
+        """Patches the old result with the new result (may just return the new result)."""
         ...
 
     @abc.abstractmethod
@@ -638,6 +645,12 @@ class GetConnection[ChannelT: Channel, T: Node](
         return GetResult(graph=graph, roots=list(roots))
 
     @override
+    def _patch_result(self, old_result: GetResult, new_result: GetResult) -> GetResult:
+        _ = patch_graph(existing=old_result.graph, patch=new_result.graph)
+        old_result.roots = [old_result.graph.get(root.id) for root in new_result.roots]
+        return old_result
+
+    @override
     def _apply_update(
         self, result_data: GetResultData, result: GetResult | None, update: WatchGetUpdate
     ):
@@ -680,6 +693,13 @@ class SearchConnection[ChannelT: Channel, T: Node](
             connection=self,
         )
         return SearchResult(graph=graph, roots=list(roots), total=result_data.total)
+
+    @override
+    def _patch_result(self, old_result: SearchResult, new_result: SearchResult) -> SearchResult:
+        _ = patch_graph(existing=old_result.graph, patch=new_result.graph)
+        old_result.roots = [old_result.graph.get(root.id) for root in new_result.roots]
+        old_result.total = new_result.total
+        return old_result
 
     @override
     def _apply_update(
@@ -767,6 +787,12 @@ class AggregateConnection[ChannelT: Channel](
             result_data.aggregation, supergraph=self.session._supergraph, expect=Aggregation
         )
         return AggregateResult(aggregation=aggregation)
+
+    @override
+    def _patch_result(
+        self, old_result: AggregateResult, new_result: AggregateResult
+    ) -> AggregateResult:
+        return new_result  # nothing to patch
 
     @override
     def _apply_update(

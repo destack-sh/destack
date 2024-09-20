@@ -872,3 +872,24 @@ class ValueList(list, Generic[ValueParentT]):
         if any(v.parent is not None for v in cast(list[Union["ValueObject", "Struct"]], values)):
             values = [v._copy_to(parent, parent_prop) for v in values]  # type: ignore
         return ValueList(parent, parent_prop, ancestor_prop, values)
+
+
+def patch_graph(existing: NodeGraph, patch: NodeGraph) -> None:
+    """Patches the graph (and the shared nodes in it) in place with the new graph."""
+    for existing_node in list(existing.nodes):
+        if existing_node.id not in patch:
+            # node removed: leave as is, remove from existing graph
+            existing.remove(existing_node)
+            continue
+        else:
+            # node updated: patch in place
+            patch_node = patch[existing_node.id]
+            for prop in existing_node.__wired_properties__.values():
+                if prop.is_computed:
+                    continue  # ignore computed properties
+                prop_value = getattr(existing_node, prop.name)
+                existing_node._do_set(prop.name, prop_value, track=False, validate=False)
+    for patch_node in list(patch.nodes):
+        if patch_node.id not in existing:
+            # node added: add to existing graph
+            existing.add(patch_node)
