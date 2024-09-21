@@ -931,15 +931,38 @@ export function createDesktopDefaultSpace(tx: Transaction, space: SpaceData): { 
   const window = makeMainWindow(space, tx);
   const layout = makeLayout(tx, window, [
     {
-      type: ViewType.TAB,
+      type: ViewType.SPLIT,
       name: "Side",
       orientation: Orientation.VERTICAL,
       size: makeStruct({ metatype: StructType.BOX, width: 320 }),
       children: [
         {
-          type: ViewType.TREE,
-          title: "Explore",
-          valuePacked: packBuiltinObjectJson({ metatype: ObjectType.TREE_VIEW_STATE, preset: TreeViewPreset.EXPLORE }),
+          type: ViewType.TAB,
+          name: "SideTop",
+          children: [
+            {
+              type: ViewType.TREE,
+              title: "Explore",
+              valuePacked: packBuiltinObjectJson({
+                metatype: ObjectType.TREE_VIEW_STATE,
+                preset: TreeViewPreset.EXPLORE,
+              }),
+            },
+          ],
+        },
+        {
+          type: ViewType.TAB,
+          name: "SideBottom",
+          children: [
+            {
+              type: ViewType.TREE,
+              title: "Outline",
+              valuePacked: packBuiltinObjectJson({
+                metatype: ObjectType.TREE_VIEW_STATE,
+                preset: TreeViewPreset.OUTLINE,
+              }),
+            },
+          ],
         },
       ],
     },
@@ -949,13 +972,13 @@ export function createDesktopDefaultSpace(tx: Transaction, space: SpaceData): { 
       size: makeStruct({ metatype: StructType.BOX, widthRelative: 1500 }),
     },
     {
-      type: ViewType.TAB,
+      type: ViewType.SPLIT,
       name: "Secondary",
+      orientation: Orientation.VERTICAL,
       size: makeStruct({ metatype: StructType.BOX, widthRelative: 700 }),
       children: [
-        { type: ViewType.INSPECT },
-        { type: ViewType.FEED, name: "Logs1", title: "Logs" },
-        { type: ViewType.START },
+        { type: ViewType.TAB, name: "SecondaryTop", children: [{ type: ViewType.INSPECT }] },
+        { type: ViewType.TAB, name: "SecondaryBottom", children: [{ type: ViewType.START }] },
       ],
     },
   ]);

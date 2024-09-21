@@ -32,7 +32,7 @@ import {
 import { PACKAGE_SCOPE } from "@/system/client";
 import { useExistingConnection, useGetConnection } from "@/system/connection";
 import { runtime } from "@/system/runtime";
-import { canvas, inspectionPtr } from "@/system/space";
+import { bench, canvas, inspectionPtr } from "@/system/space";
 import { fireActionById, type ActionContext, type ActionMapImplementation } from "@/ui/action";
 import { startDraggingIfAllowed, useMultiDropZone } from "@/ui/drag";
 import { ICON_BY_BLOCK_TYPE, IconInline } from "@/ui/icon";
@@ -146,12 +146,12 @@ const { activeDropZone } = useMultiDropZone({
     if (targetId == null) return; // need target
     if (dragged.kind == "file") {
       // create variable with file
-      const container = page.value;
-      if (container == null || !dragged.files) return;
+      if (!dragged.files) return;
       const target = pkgGraph.getOrError({ id: targetId });
       if (!isNode(target, NodeType.BLOCK)) throw new Error(`unexpected target node type: ${describeNode(target)}`);
       Array.from(dragged.files).forEach(async (file) => {
-        const upload = uploadFile(() => pkgConnection.tx, file, { parent: container });
+        if (bench.value == null) throw new Error("no current bench");
+        const upload = uploadFile(() => pkgConnection.tx, file, { bench: bench.value });
         await upload.completion.wait();
         const variableType = makeTypeInfo({ kind: TypeKind.NODE, benchType: BenchType.FILE });
         const block = createBlock(pkgConnection.tx, pkgGraph, {

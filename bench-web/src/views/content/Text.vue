@@ -27,7 +27,7 @@ import {
   type SomeNodeReferenceData,
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
-import { canvas, pkg, pkgConnection, pkgGraph } from "@/system/space";
+import { bench, canvas, pkg, pkgConnection, pkgGraph } from "@/system/space";
 import { IS_IN_ALT_MODE, type ActionImplementation, type ActionMapImplementation } from "@/ui/action";
 import { useDropZone } from "@/ui/drag";
 import { DEFAULT_MISSING_ICON, ICON_BY_NODE_TYPE, getNodeIcon } from "@/ui/icon";
@@ -349,7 +349,8 @@ const { isInDropZone } = useDropZone({
       if (pos == null) return; // not in editor
       Array.from(dragged.files).forEach(async (file) => {
         // upload and insert each file individually
-        const upload = uploadFile(() => pkgConnection.tx, file, { parent: pkg.value! });
+        if (bench.value == null) throw new Error("no current bench");
+        const upload = uploadFile(() => pkgConnection.tx, file, { bench: bench.value });
         await upload.completion.wait();
         if (view == null) throw new Error("view no mounted");
         insertMention(toNodeRef(upload.file.value!), pos);
@@ -515,10 +516,10 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
   @apply text-primary-900;
 }
 .text span.mention .name {
-  @apply underline  decoration-gray-300 underline-offset-3;
+  @apply underline decoration-gray-300 underline-offset-3;
 }
 .text span.textMirror-selectednode.mention .name {
-  @apply bg-primary-100 text-primary-900  decoration-primary-900;
+  @apply bg-primary-100 text-primary-900 decoration-primary-900;
 }
 .altmode .text span.mention:hover,
 .text span.mention[data-node-type="file"]:hover .name {

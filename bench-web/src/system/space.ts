@@ -1,5 +1,5 @@
 import { getHostClient } from "@/proto/services";
-import { BenchData, BranchData, ChangeCategory, NodeType, SpaceType } from "@/proto/wire";
+import { Anchor, BenchData, BranchData, ChangeCategory, NodeType, SpaceType } from "@/proto/wire";
 import {
   makeScope,
   nodeReference,
@@ -128,6 +128,7 @@ export async function assignSpaceInPackage() {
       packagePtr: toPlainNodeRef(pkg.value),
       name: "MySpace",
       orderKey: "a0",
+      barPosition: Anchor.TOP,
     });
     createEmptySpace(pkgConnection.tx, space);
     local.setSpace(toPlainNodeRef(space));
