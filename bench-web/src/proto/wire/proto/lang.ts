@@ -351,12 +351,7 @@ export interface ComputedValueData {
     code?: CodeData;
 }
 /**
- * An edit to a Node. Currently, edits are always on the property level (no sub-properties or values).
- *
- * For updates/moves, the old/new node values are just the edited properties.
- * For archive/delete/erase, the old node is the full node.
- * (technically we don't *need* the old node if it's not an erase, but it's very convenient)
- * Similarly, for create/upsert/unarchive/restore, the new node is the full node.
+ * An edit to a Node in some context.
  *
  * @generated from protobuf message symbolx.bench.EditData
  */
@@ -468,6 +463,73 @@ export interface EditContextData {
      * @generated from protobuf field: optional symbolx.bench.NodeReferenceData identity_ptr = 75;
      */
     identityPtr?: NodeReferenceData;
+}
+/**
+ * Content of an Edit to a Node.  Currently, edits are always on the property level (no sub-properties or values).
+ *
+ * For updates/moves, the old/new node values are just the edited properties.
+ * For archive/delete/erase, the old node is the full node.
+ * (technically we don't *need* the old node if it's not an erase, but it's very convenient)
+ * Similarly, for create/upsert/unarchive/restore, the new node is the full node.
+ *
+ * @generated from protobuf message symbolx.bench.EditInfoData
+ */
+export interface EditInfoData {
+    /**
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: string id = 2;
+     */
+    id: string;
+    /**
+     * @generated from protobuf field: symbolx.bench.EditType type = 30;
+     */
+    type: EditType;
+    /**
+     * @generated from protobuf field: symbolx.bench.NodeReferenceData node_ptr = 31;
+     */
+    nodePtr?: NodeReferenceData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.ChangeVignetteData vignette = 32;
+     */
+    vignette?: ChangeVignetteData;
+    /**
+     * @generated from protobuf field: repeated int32 properties = 40;
+     */
+    properties: number[];
+    /**
+     * @generated from protobuf field: optional symbolx.bench.SomeNodeData old_node = 41;
+     */
+    oldNode?: SomeNodeData;
+    /**
+     * @generated from protobuf field: optional symbolx.bench.SomeNodeData new_node = 42;
+     */
+    newNode?: SomeNodeData;
+}
+/**
+ * An edit operation.
+ *
+ * @generated from protobuf message symbolx.bench.EditOperationData
+ */
+export interface EditOperationData {
+    /**
+     * @generated from protobuf field: symbolx.bench.ObjectType metatype = 1;
+     */
+    metatype: ObjectType;
+    /**
+     * @generated from protobuf field: symbolx.bench.EditOperationType type = 30;
+     */
+    type: EditOperationType;
+    /**
+     * @generated from protobuf field: repeated string path = 31;
+     */
+    path: string[];
+    /**
+     * @generated from protobuf field: optional google.protobuf.Struct value_packed = 40;
+     */
+    valuePacked?: Struct;
 }
 /**
  * An expression like a value, function, comparison or such.
@@ -6730,13 +6792,21 @@ export enum BenchType {
      */
     EDIT = 10005,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_CHANGE = 10006;
+     * @generated from protobuf enum value: BENCH_TYPE_EDIT_INFO = 10006;
      */
-    CHANGE = 10006,
+    EDIT_INFO = 10006,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_CHANGE_VIGNETTE = 10007;
+     * @generated from protobuf enum value: BENCH_TYPE_EDIT_OPERATION = 10007;
      */
-    CHANGE_VIGNETTE = 10007,
+    EDIT_OPERATION = 10007,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_CHANGE = 10010;
+     */
+    CHANGE = 10010,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_CHANGE_VIGNETTE = 10011;
+     */
+    CHANGE_VIGNETTE = 10011,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_GRAPH_SCOPE = 10050;
      */
@@ -7013,6 +7083,10 @@ export enum BenchType {
      * @generated from protobuf enum value: BENCH_TYPE_CHANGE_CATEGORY = 20036;
      */
     CHANGE_CATEGORY = 20036,
+    /**
+     * @generated from protobuf enum value: BENCH_TYPE_EDIT_OPERATION_TYPE = 20037;
+     */
+    EDIT_OPERATION_TYPE = 20037,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_POLICY_EFFECT = 20040;
      */
@@ -7855,6 +7929,33 @@ export enum Day {
     SUNDAY = 7
 }
 /**
+ * The type of edit operation.
+ *
+ * @generated from protobuf enum symbolx.bench.EditOperationType
+ */
+export enum EditOperationType {
+    /**
+     * @generated from protobuf enum value: EDIT_OPERATION_TYPE_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: EDIT_OPERATION_TYPE_SET = 1;
+     */
+    SET = 1,
+    /**
+     * @generated from protobuf enum value: EDIT_OPERATION_TYPE_CLEAR = 2;
+     */
+    CLEAR = 2,
+    /**
+     * @generated from protobuf enum value: EDIT_OPERATION_TYPE_APPEND = 3;
+     */
+    APPEND = 3,
+    /**
+     * @generated from protobuf enum value: EDIT_OPERATION_TYPE_REMOVE = 4;
+     */
+    REMOVE = 4
+}
+/**
  * Ways to edit nodes.
  *
  * @generated from protobuf enum symbolx.bench.EditType
@@ -7961,6 +8062,10 @@ export enum EnumType {
      * @generated from protobuf enum value: ENUM_TYPE_CHANGE_CATEGORY = 20036;
      */
     CHANGE_CATEGORY = 20036,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_EDIT_OPERATION_TYPE = 20037;
+     */
+    EDIT_OPERATION_TYPE = 20037,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_POLICY_EFFECT = 20040;
      */
@@ -9622,13 +9727,21 @@ export enum ObjectType {
      */
     EDIT = 10005,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_CHANGE = 10006;
+     * @generated from protobuf enum value: OBJECT_TYPE_EDIT_INFO = 10006;
      */
-    CHANGE = 10006,
+    EDIT_INFO = 10006,
     /**
-     * @generated from protobuf enum value: OBJECT_TYPE_CHANGE_VIGNETTE = 10007;
+     * @generated from protobuf enum value: OBJECT_TYPE_EDIT_OPERATION = 10007;
      */
-    CHANGE_VIGNETTE = 10007,
+    EDIT_OPERATION = 10007,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_CHANGE = 10010;
+     */
+    CHANGE = 10010,
+    /**
+     * @generated from protobuf enum value: OBJECT_TYPE_CHANGE_VIGNETTE = 10011;
+     */
+    CHANGE_VIGNETTE = 10011,
     /**
      * @generated from protobuf enum value: OBJECT_TYPE_GRAPH_SCOPE = 10050;
      */
@@ -10906,13 +11019,21 @@ export enum StructType {
      */
     EDIT = 10005,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_CHANGE = 10006;
+     * @generated from protobuf enum value: STRUCT_TYPE_EDIT_INFO = 10006;
      */
-    CHANGE = 10006,
+    EDIT_INFO = 10006,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_CHANGE_VIGNETTE = 10007;
+     * @generated from protobuf enum value: STRUCT_TYPE_EDIT_OPERATION = 10007;
      */
-    CHANGE_VIGNETTE = 10007,
+    EDIT_OPERATION = 10007,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_CHANGE = 10010;
+     */
+    CHANGE = 10010,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_CHANGE_VIGNETTE = 10011;
+     */
+    CHANGE_VIGNETTE = 10011,
     /**
      * @generated from protobuf enum value: STRUCT_TYPE_GRAPH_SCOPE = 10050;
      */
@@ -12917,6 +13038,183 @@ class EditContextData$Type extends MessageType<EditContextData> {
  * @generated MessageType for protobuf message symbolx.bench.EditContextData
  */
 export const EditContextData = new EditContextData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class EditInfoData$Type extends MessageType<EditInfoData> {
+    constructor() {
+        super("symbolx.bench.EditInfoData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.EditType", EditType, "EDIT_TYPE_"] },
+            { no: 31, name: "node_ptr", kind: "message", T: () => NodeReferenceData },
+            { no: 32, name: "vignette", kind: "message", T: () => ChangeVignetteData },
+            { no: 40, name: "properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
+            { no: 41, name: "old_node", kind: "message", T: () => SomeNodeData },
+            { no: 42, name: "new_node", kind: "message", T: () => SomeNodeData }
+        ]);
+    }
+    create(value?: PartialMessage<EditInfoData>): EditInfoData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = "";
+        message.type = 0;
+        message.properties = [];
+        if (value !== undefined)
+            reflectionMergePartial<EditInfoData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: EditInfoData): EditInfoData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* string id */ 2:
+                    message.id = reader.string();
+                    break;
+                case /* symbolx.bench.EditType type */ 30:
+                    message.type = reader.int32();
+                    break;
+                case /* symbolx.bench.NodeReferenceData node_ptr */ 31:
+                    message.nodePtr = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
+                    break;
+                case /* optional symbolx.bench.ChangeVignetteData vignette */ 32:
+                    message.vignette = ChangeVignetteData.internalBinaryRead(reader, reader.uint32(), options, message.vignette);
+                    break;
+                case /* repeated int32 properties */ 40:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.properties.push(reader.int32());
+                    else
+                        message.properties.push(reader.int32());
+                    break;
+                case /* optional symbolx.bench.SomeNodeData old_node */ 41:
+                    message.oldNode = SomeNodeData.internalBinaryRead(reader, reader.uint32(), options, message.oldNode);
+                    break;
+                case /* optional symbolx.bench.SomeNodeData new_node */ 42:
+                    message.newNode = SomeNodeData.internalBinaryRead(reader, reader.uint32(), options, message.newNode);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: EditInfoData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* string id = 2; */
+        if (message.id !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.id);
+        /* symbolx.bench.EditType type = 30; */
+        if (message.type !== 0)
+            writer.tag(30, WireType.Varint).int32(message.type);
+        /* symbolx.bench.NodeReferenceData node_ptr = 31; */
+        if (message.nodePtr)
+            NodeReferenceData.internalBinaryWrite(message.nodePtr, writer.tag(31, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.ChangeVignetteData vignette = 32; */
+        if (message.vignette)
+            ChangeVignetteData.internalBinaryWrite(message.vignette, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
+        /* repeated int32 properties = 40; */
+        if (message.properties.length) {
+            writer.tag(40, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.properties.length; i++)
+                writer.int32(message.properties[i]);
+            writer.join();
+        }
+        /* optional symbolx.bench.SomeNodeData old_node = 41; */
+        if (message.oldNode)
+            SomeNodeData.internalBinaryWrite(message.oldNode, writer.tag(41, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.SomeNodeData new_node = 42; */
+        if (message.newNode)
+            SomeNodeData.internalBinaryWrite(message.newNode, writer.tag(42, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.EditInfoData
+ */
+export const EditInfoData = new EditInfoData$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class EditOperationData$Type extends MessageType<EditOperationData> {
+    constructor() {
+        super("symbolx.bench.EditOperationData", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbolx.bench.ObjectType", ObjectType, "OBJECT_TYPE_"] },
+            { no: 30, name: "type", kind: "enum", T: () => ["symbolx.bench.EditOperationType", EditOperationType, "EDIT_OPERATION_TYPE_"] },
+            { no: 31, name: "path", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ },
+            { no: 40, name: "value_packed", kind: "message", T: () => Struct }
+        ]);
+    }
+    create(value?: PartialMessage<EditOperationData>): EditOperationData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.type = 0;
+        message.path = [];
+        if (value !== undefined)
+            reflectionMergePartial<EditOperationData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: EditOperationData): EditOperationData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.ObjectType metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* symbolx.bench.EditOperationType type */ 30:
+                    message.type = reader.int32();
+                    break;
+                case /* repeated string path */ 31:
+                    message.path.push(reader.string());
+                    break;
+                case /* optional google.protobuf.Struct value_packed */ 40:
+                    message.valuePacked = Struct.internalBinaryRead(reader, reader.uint32(), options, message.valuePacked);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: EditOperationData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.ObjectType metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* symbolx.bench.EditOperationType type = 30; */
+        if (message.type !== 0)
+            writer.tag(30, WireType.Varint).int32(message.type);
+        /* repeated string path = 31; */
+        for (let i = 0; i < message.path.length; i++)
+            writer.tag(31, WireType.LengthDelimited).string(message.path[i]);
+        /* optional google.protobuf.Struct value_packed = 40; */
+        if (message.valuePacked)
+            Struct.internalBinaryWrite(message.valuePacked, writer.tag(40, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.EditOperationData
+ */
+export const EditOperationData = new EditOperationData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ExpressionData$Type extends MessageType<ExpressionData> {
     constructor() {
@@ -26021,10 +26319,10 @@ export const SomeNodeData = new SomeNodeData$Type();
 
 // Any...
 export type AnyNodeData = BenchData | UserData | OrganizationData | HandleData | ClientData | ServerData | StoreData | MachineData | DriveData | VaultData | CacheData | FileData | SecretData | MembershipData | InviteData | BranchData | PackageData | DependencyData | SpaceData | BlockData | TriggerData | FieldData | QueryData | ViewData | StepData | PipeData | BadgeData | MessageData | RecordData | SessionData | RunData | SignalData | LogData | NotificationData | SkipData
-export type AnyStructData = SessionContextData | EditContextData | EditData | ChangeData | ChangeVignetteData | GraphScopeData | ClientOriginData | NodeReferenceData | PropertyReferenceData | PathData | PathTokenData | PolicyData | PolicyRuleData | SubjectData | AccessZoneData | AccessMatrixData | AccessData | TextData | TextLineData | TextSpanData | TypeInfoData | TypeConstraintData | ScheduleData | FileInfoData | FileReferenceData | IconData | SecretReferenceData | TriggerInfoData | ExpressionData | AggregationData | SelectionData | QueryInfoData | ReadOptionsData | ValueData | ComputedValueData | CodeData | CodeLineData | PortKeyData | PortData | RunErrorData | RunOptionsData | RunAttemptData | RunTraceData | RunFrameData | RunSpanData | RunEventData | BreakpointData | LogInfoData | ColorData | FontData | BoxData | OffsetData | TransformData | Vector2Data | Vector3Data | Vector4Data | LineData | StartViewStateData | FeedViewStateData | UserWizardViewStateData | TreeViewStateData
+export type AnyStructData = SessionContextData | EditContextData | EditData | EditInfoData | EditOperationData | ChangeData | ChangeVignetteData | GraphScopeData | ClientOriginData | NodeReferenceData | PropertyReferenceData | PathData | PathTokenData | PolicyData | PolicyRuleData | SubjectData | AccessZoneData | AccessMatrixData | AccessData | TextData | TextLineData | TextSpanData | TypeInfoData | TypeConstraintData | ScheduleData | FileInfoData | FileReferenceData | IconData | SecretReferenceData | TriggerInfoData | ExpressionData | AggregationData | SelectionData | QueryInfoData | ReadOptionsData | ValueData | ComputedValueData | CodeData | CodeLineData | PortKeyData | PortData | RunErrorData | RunOptionsData | RunAttemptData | RunTraceData | RunFrameData | RunSpanData | RunEventData | BreakpointData | LogInfoData | ColorData | FontData | BoxData | OffsetData | TransformData | Vector2Data | Vector3Data | Vector4Data | LineData | StartViewStateData | FeedViewStateData | UserWizardViewStateData | TreeViewStateData
 export type AnyNodeReferenceData = NodeReferenceData | FileReferenceData | SecretReferenceData
 export type AnyNodeDataType = typeof BenchData | typeof UserData | typeof OrganizationData | typeof HandleData | typeof ClientData | typeof ServerData | typeof StoreData | typeof MachineData | typeof DriveData | typeof VaultData | typeof CacheData | typeof FileData | typeof SecretData | typeof MembershipData | typeof InviteData | typeof BranchData | typeof PackageData | typeof DependencyData | typeof SpaceData | typeof BlockData | typeof TriggerData | typeof FieldData | typeof QueryData | typeof ViewData | typeof StepData | typeof PipeData | typeof BadgeData | typeof MessageData | typeof RecordData | typeof SessionData | typeof RunData | typeof SignalData | typeof LogData | typeof NotificationData | typeof SkipData
-export type AnyStructDataType = typeof SessionContextData | typeof EditContextData | typeof EditData | typeof ChangeData | typeof ChangeVignetteData | typeof GraphScopeData | typeof ClientOriginData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof PathData | typeof PathTokenData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof TypeInfoData | typeof TypeConstraintData | typeof ScheduleData | typeof FileInfoData | typeof FileReferenceData | typeof IconData | typeof SecretReferenceData | typeof TriggerInfoData | typeof ExpressionData | typeof AggregationData | typeof SelectionData | typeof QueryInfoData | typeof ReadOptionsData | typeof ValueData | typeof ComputedValueData | typeof CodeData | typeof CodeLineData | typeof PortKeyData | typeof PortData | typeof RunErrorData | typeof RunOptionsData | typeof RunAttemptData | typeof RunTraceData | typeof RunFrameData | typeof RunSpanData | typeof RunEventData | typeof BreakpointData | typeof LogInfoData | typeof ColorData | typeof FontData | typeof BoxData | typeof OffsetData | typeof TransformData | typeof Vector2Data | typeof Vector3Data | typeof Vector4Data | typeof LineData | typeof StartViewStateData | typeof FeedViewStateData | typeof UserWizardViewStateData | typeof TreeViewStateData
+export type AnyStructDataType = typeof SessionContextData | typeof EditContextData | typeof EditData | typeof EditInfoData | typeof EditOperationData | typeof ChangeData | typeof ChangeVignetteData | typeof GraphScopeData | typeof ClientOriginData | typeof NodeReferenceData | typeof PropertyReferenceData | typeof PathData | typeof PathTokenData | typeof PolicyData | typeof PolicyRuleData | typeof SubjectData | typeof AccessZoneData | typeof AccessMatrixData | typeof AccessData | typeof TextData | typeof TextLineData | typeof TextSpanData | typeof TypeInfoData | typeof TypeConstraintData | typeof ScheduleData | typeof FileInfoData | typeof FileReferenceData | typeof IconData | typeof SecretReferenceData | typeof TriggerInfoData | typeof ExpressionData | typeof AggregationData | typeof SelectionData | typeof QueryInfoData | typeof ReadOptionsData | typeof ValueData | typeof ComputedValueData | typeof CodeData | typeof CodeLineData | typeof PortKeyData | typeof PortData | typeof RunErrorData | typeof RunOptionsData | typeof RunAttemptData | typeof RunTraceData | typeof RunFrameData | typeof RunSpanData | typeof RunEventData | typeof BreakpointData | typeof LogInfoData | typeof ColorData | typeof FontData | typeof BoxData | typeof OffsetData | typeof TransformData | typeof Vector2Data | typeof Vector3Data | typeof Vector4Data | typeof LineData | typeof StartViewStateData | typeof FeedViewStateData | typeof UserWizardViewStateData | typeof TreeViewStateData
 
 // Ancestry maps
 export const PARENT_NODE_TYPES: Record<NodeType, NodeType[]> = {
@@ -26224,6 +26522,8 @@ export const MESSAGE_TYPE_BY_OBJECT_TYPE: Partial<Record<ObjectType, MessageType
   [ObjectType.SESSION_CONTEXT]: SessionContextData,
   [ObjectType.EDIT_CONTEXT]: EditContextData,
   [ObjectType.EDIT]: EditData,
+  [ObjectType.EDIT_INFO]: EditInfoData,
+  [ObjectType.EDIT_OPERATION]: EditOperationData,
   [ObjectType.CHANGE]: ChangeData,
   [ObjectType.CHANGE_VIGNETTE]: ChangeVignetteData,
   [ObjectType.GRAPH_SCOPE]: GraphScopeData,
@@ -26323,6 +26623,8 @@ export const OBJECT_TYPE_BY_MESSAGE_TYPE_NAME: Record<string, ObjectType> = {
   ["symbolx.bench.SessionContextData"]: ObjectType.SESSION_CONTEXT,
   ["symbolx.bench.EditContextData"]: ObjectType.EDIT_CONTEXT,
   ["symbolx.bench.EditData"]: ObjectType.EDIT,
+  ["symbolx.bench.EditInfoData"]: ObjectType.EDIT_INFO,
+  ["symbolx.bench.EditOperationData"]: ObjectType.EDIT_OPERATION,
   ["symbolx.bench.ChangeData"]: ObjectType.CHANGE,
   ["symbolx.bench.ChangeVignetteData"]: ObjectType.CHANGE_VIGNETTE,
   ["symbolx.bench.GraphScopeData"]: ObjectType.GRAPH_SCOPE,
@@ -26398,6 +26700,7 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.USE_TYPE]: UseType,
   [EnumType.ACCESS_TYPE]: AccessType,
   [EnumType.CHANGE_CATEGORY]: ChangeCategory,
+  [EnumType.EDIT_OPERATION_TYPE]: EditOperationType,
   [EnumType.POLICY_EFFECT]: PolicyEffect,
   [EnumType.CLOUD]: Cloud,
   [EnumType.REGION]: Region,
@@ -26476,6 +26779,8 @@ export interface StructTypeMapping extends Record<StructType, AnyStructData> {
   [StructType.SESSION_CONTEXT]: SessionContextData,
   [StructType.EDIT_CONTEXT]: EditContextData,
   [StructType.EDIT]: EditData,
+  [StructType.EDIT_INFO]: EditInfoData,
+  [StructType.EDIT_OPERATION]: EditOperationData,
   [StructType.CHANGE]: ChangeData,
   [StructType.CHANGE_VIGNETTE]: ChangeVignetteData,
   [StructType.GRAPH_SCOPE]: GraphScopeData,
@@ -26613,6 +26918,8 @@ export interface AnyTypeMapping extends Record<ObjectType, AnyStructData | AnyNo
   [ObjectType.SESSION_CONTEXT]: SessionContextData,
   [ObjectType.EDIT_CONTEXT]: EditContextData,
   [ObjectType.EDIT]: EditData,
+  [ObjectType.EDIT_INFO]: EditInfoData,
+  [ObjectType.EDIT_OPERATION]: EditOperationData,
   [ObjectType.CHANGE]: ChangeData,
   [ObjectType.CHANGE_VIGNETTE]: ChangeVignetteData,
   [ObjectType.GRAPH_SCOPE]: GraphScopeData,
@@ -26688,6 +26995,7 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.USE_TYPE]: UseType,
   [EnumType.ACCESS_TYPE]: AccessType,
   [EnumType.CHANGE_CATEGORY]: ChangeCategory,
+  [EnumType.EDIT_OPERATION_TYPE]: EditOperationType,
   [EnumType.POLICY_EFFECT]: PolicyEffect,
   [EnumType.CLOUD]: Cloud,
   [EnumType.REGION]: Region,
@@ -27808,6 +28116,24 @@ export enum EditProperty {
   undoOfPtr = 69,
 }
 
+export enum EditInfoProperty {
+  metatype = 1,
+  id = 2,
+  type = 30,
+  nodePtr = 31,
+  vignette = 32,
+  properties = 40,
+  oldNode = 41,
+  newNode = 42,
+}
+
+export enum EditOperationProperty {
+  metatype = 1,
+  type = 30,
+  path = 31,
+  valuePacked = 40,
+}
+
 export enum ChangeProperty {
   metatype = 1,
   key = 30,
@@ -28359,11 +28685,11 @@ export enum TreeViewStateProperty {
 }
 
 export type AnyNodeProperty = typeof BenchProperty | typeof UserProperty | typeof OrganizationProperty | typeof HandleProperty | typeof ClientProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof VaultProperty | typeof CacheProperty | typeof FileProperty | typeof SecretProperty | typeof MembershipProperty | typeof InviteProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof PipeProperty | typeof BadgeProperty | typeof MessageProperty | typeof RecordProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof SkipProperty
-export type AnyStructProperty = typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof FileInfoProperty | typeof FileReferenceProperty | typeof IconProperty | typeof SecretReferenceProperty | typeof TriggerInfoProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof ReadOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PortKeyProperty | typeof PortProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof BreakpointProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof UserWizardViewStateProperty | typeof TreeViewStateProperty
+export type AnyStructProperty = typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditInfoProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof FileInfoProperty | typeof FileReferenceProperty | typeof IconProperty | typeof SecretReferenceProperty | typeof TriggerInfoProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof ReadOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PortKeyProperty | typeof PortProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof BreakpointProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof UserWizardViewStateProperty | typeof TreeViewStateProperty
 export type AnyProperty = AnyNodeProperty | AnyStructProperty
 export type AnyNodePropertyType = typeof BenchProperty | typeof UserProperty | typeof OrganizationProperty | typeof HandleProperty | typeof ClientProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof VaultProperty | typeof CacheProperty | typeof FileProperty | typeof SecretProperty | typeof MembershipProperty | typeof InviteProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof PipeProperty | typeof BadgeProperty | typeof MessageProperty | typeof RecordProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof SkipProperty
-export type AnyStructPropertyType = typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof FileInfoProperty | typeof FileReferenceProperty | typeof IconProperty | typeof SecretReferenceProperty | typeof TriggerInfoProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof ReadOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PortKeyProperty | typeof PortProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof BreakpointProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof UserWizardViewStateProperty | typeof TreeViewStateProperty
-export type AnyPropertyType = typeof BenchProperty | typeof UserProperty | typeof OrganizationProperty | typeof HandleProperty | typeof ClientProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof VaultProperty | typeof CacheProperty | typeof FileProperty | typeof SecretProperty | typeof MembershipProperty | typeof InviteProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof PipeProperty | typeof BadgeProperty | typeof MessageProperty | typeof RecordProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof SkipProperty | typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof FileInfoProperty | typeof FileReferenceProperty | typeof IconProperty | typeof SecretReferenceProperty | typeof TriggerInfoProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof ReadOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PortKeyProperty | typeof PortProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof BreakpointProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof UserWizardViewStateProperty | typeof TreeViewStateProperty
+export type AnyStructPropertyType = typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditInfoProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof FileInfoProperty | typeof FileReferenceProperty | typeof IconProperty | typeof SecretReferenceProperty | typeof TriggerInfoProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof ReadOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PortKeyProperty | typeof PortProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof BreakpointProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof UserWizardViewStateProperty | typeof TreeViewStateProperty
+export type AnyPropertyType = typeof BenchProperty | typeof UserProperty | typeof OrganizationProperty | typeof HandleProperty | typeof ClientProperty | typeof ServerProperty | typeof StoreProperty | typeof MachineProperty | typeof DriveProperty | typeof VaultProperty | typeof CacheProperty | typeof FileProperty | typeof SecretProperty | typeof MembershipProperty | typeof InviteProperty | typeof BranchProperty | typeof PackageProperty | typeof DependencyProperty | typeof SpaceProperty | typeof BlockProperty | typeof TriggerProperty | typeof FieldProperty | typeof QueryProperty | typeof ViewProperty | typeof StepProperty | typeof PipeProperty | typeof BadgeProperty | typeof MessageProperty | typeof RecordProperty | typeof SessionProperty | typeof RunProperty | typeof SignalProperty | typeof LogProperty | typeof NotificationProperty | typeof SkipProperty | typeof SessionContextProperty | typeof EditContextProperty | typeof EditProperty | typeof EditInfoProperty | typeof EditOperationProperty | typeof ChangeProperty | typeof ChangeVignetteProperty | typeof GraphScopeProperty | typeof ClientOriginProperty | typeof NodeReferenceProperty | typeof PropertyReferenceProperty | typeof PathProperty | typeof PathTokenProperty | typeof PolicyProperty | typeof PolicyRuleProperty | typeof SubjectProperty | typeof AccessZoneProperty | typeof AccessMatrixProperty | typeof AccessProperty | typeof TextProperty | typeof TextLineProperty | typeof TextSpanProperty | typeof TypeInfoProperty | typeof TypeConstraintProperty | typeof ScheduleProperty | typeof FileInfoProperty | typeof FileReferenceProperty | typeof IconProperty | typeof SecretReferenceProperty | typeof TriggerInfoProperty | typeof ExpressionProperty | typeof AggregationProperty | typeof SelectionProperty | typeof QueryInfoProperty | typeof ReadOptionsProperty | typeof ValueProperty | typeof ComputedValueProperty | typeof CodeProperty | typeof CodeLineProperty | typeof PortKeyProperty | typeof PortProperty | typeof RunErrorProperty | typeof RunOptionsProperty | typeof RunAttemptProperty | typeof RunTraceProperty | typeof RunFrameProperty | typeof RunSpanProperty | typeof RunEventProperty | typeof BreakpointProperty | typeof LogInfoProperty | typeof ColorProperty | typeof FontProperty | typeof BoxProperty | typeof OffsetProperty | typeof TransformProperty | typeof Vector2Property | typeof Vector3Property | typeof Vector4Property | typeof LineProperty | typeof StartViewStateProperty | typeof FeedViewStateProperty | typeof UserWizardViewStateProperty | typeof TreeViewStateProperty
 export const NODE_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyNodePropertyType>> = {
   [ObjectType.BENCH]: BenchProperty,
   [ObjectType.USER]: UserProperty,
@@ -28406,6 +28732,8 @@ export const STRUCT_PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyStructP
   [ObjectType.SESSION_CONTEXT]: SessionContextProperty,
   [ObjectType.EDIT_CONTEXT]: EditContextProperty,
   [ObjectType.EDIT]: EditProperty,
+  [ObjectType.EDIT_INFO]: EditInfoProperty,
+  [ObjectType.EDIT_OPERATION]: EditOperationProperty,
   [ObjectType.CHANGE]: ChangeProperty,
   [ObjectType.CHANGE_VIGNETTE]: ChangeVignetteProperty,
   [ObjectType.GRAPH_SCOPE]: GraphScopeProperty,
@@ -28505,6 +28833,8 @@ export const PROPERTY_ENUM_BY_TYPE: Partial<Record<ObjectType, AnyPropertyType>>
   [ObjectType.SESSION_CONTEXT]: SessionContextProperty,
   [ObjectType.EDIT_CONTEXT]: EditContextProperty,
   [ObjectType.EDIT]: EditProperty,
+  [ObjectType.EDIT_INFO]: EditInfoProperty,
+  [ObjectType.EDIT_OPERATION]: EditOperationProperty,
   [ObjectType.CHANGE]: ChangeProperty,
   [ObjectType.CHANGE_VIGNETTE]: ChangeVignetteProperty,
   [ObjectType.GRAPH_SCOPE]: GraphScopeProperty,
@@ -28651,6 +28981,22 @@ export const EditDataInfo: Record<EditProperty, PropertyInfo> = {
   [EditProperty.revision]: { id: 67, name: 'revision', component: ObjectType.EDIT, kind: 'primitive', primitiveType: PrimitiveType.INT64, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [EditProperty.epoch]: { id: 68, name: 'epoch', component: ObjectType.EDIT, kind: 'primitive', primitiveType: PrimitiveType.INT64, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [EditProperty.undoOfPtr]: { id: 69, name: 'undo_of_ptr', component: ObjectType.EDIT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.LOG], referenceStruct: StructType.NODE_REFERENCE },
+}
+export const EditInfoDataInfo: Record<EditInfoProperty, PropertyInfo> = {
+  [EditInfoProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.EDIT_INFO, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [EditInfoProperty.id]: { id: 2, name: 'id', component: ObjectType.EDIT_INFO, kind: 'primitive', primitiveType: PrimitiveType.UUID, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [EditInfoProperty.type]: { id: 30, name: 'type', component: ObjectType.EDIT_INFO, enumType: EnumType.EDIT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [EditInfoProperty.nodePtr]: { id: 31, name: 'node_ptr', component: ObjectType.EDIT_INFO, kind: 'reference', isRequired: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION, NodeType.HANDLE, NodeType.CLIENT, NodeType.SERVER, NodeType.STORE, NodeType.MACHINE, NodeType.DRIVE, NodeType.VAULT, NodeType.CACHE, NodeType.FILE, NodeType.SECRET, NodeType.MEMBERSHIP, NodeType.INVITE, NodeType.BRANCH, NodeType.PACKAGE, NodeType.DEPENDENCY, NodeType.SPACE, NodeType.BLOCK, NodeType.TRIGGER, NodeType.FIELD, NodeType.QUERY, NodeType.VIEW, NodeType.STEP, NodeType.PIPE, NodeType.BADGE, NodeType.MESSAGE, NodeType.RECORD, NodeType.SESSION, NodeType.RUN, NodeType.SIGNAL, NodeType.LOG, NodeType.NOTIFICATION, NodeType.SKIP], referenceStruct: StructType.NODE_REFERENCE },
+  [EditInfoProperty.vignette]: { id: 32, name: 'vignette', component: ObjectType.EDIT_INFO, kind: 'reference', primitiveType: PrimitiveType.JSON, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CHANGE_VIGNETTE },
+  [EditInfoProperty.properties]: { id: 40, name: 'properties', component: ObjectType.EDIT_INFO, kind: 'primitive', primitiveType: PrimitiveType.INT16, isList: true, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [EditInfoProperty.oldNode]: { id: 41, name: 'old_node', component: ObjectType.EDIT_INFO, kind: 'primitive', isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceIsNodeData: true },
+  [EditInfoProperty.newNode]: { id: 42, name: 'new_node', component: ObjectType.EDIT_INFO, kind: 'primitive', isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true, referenceIsNodeData: true },
+}
+export const EditOperationDataInfo: Record<EditOperationProperty, PropertyInfo> = {
+  [EditOperationProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.EDIT_OPERATION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
+  [EditOperationProperty.type]: { id: 30, name: 'type', component: ObjectType.EDIT_OPERATION, enumType: EnumType.EDIT_OPERATION_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [EditOperationProperty.path]: { id: 31, name: 'path', component: ObjectType.EDIT_OPERATION, kind: 'primitive', primitiveType: PrimitiveType.STRING, isList: true, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [EditOperationProperty.valuePacked]: { id: 40, name: 'value_packed', component: ObjectType.EDIT_OPERATION, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
 }
 export const ChangeDataInfo: Record<ChangeProperty, PropertyInfo> = {
   [ChangeProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.CHANGE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -29286,7 +29632,7 @@ export const ServerDataInfo: Record<ServerProperty, PropertyInfo> = {
   [ServerProperty.region]: { id: 35, name: 'region', component: ObjectType.SERVER, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.status]: { id: 36, name: 'status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.09.21.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.09.21.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.minCpu]: { id: 50, name: 'min_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 4.0 }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.maxCpu]: { id: 51, name: 'max_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 4.0 }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -29315,7 +29661,7 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.region]: { id: 35, name: 'region', component: ObjectType.STORE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.status]: { id: 36, name: 'status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.09.21.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.09.21.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 50, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 51, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -29341,7 +29687,7 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.region]: { id: 35, name: 'region', component: ObjectType.MACHINE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.status]: { id: 36, name: 'status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.09.21.2", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.09.21.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 42, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 43, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -30115,6 +30461,8 @@ export const PROPERTY_INFOS_BY_TYPE: Record<ObjectType, Record<any, PropertyInfo
   [ObjectType.SESSION_CONTEXT]: SessionContextDataInfo,
   [ObjectType.EDIT_CONTEXT]: EditContextDataInfo,
   [ObjectType.EDIT]: EditDataInfo,
+  [ObjectType.EDIT_INFO]: EditInfoDataInfo,
+  [ObjectType.EDIT_OPERATION]: EditOperationDataInfo,
   [ObjectType.CHANGE]: ChangeDataInfo,
   [ObjectType.CHANGE_VIGNETTE]: ChangeVignetteDataInfo,
   [ObjectType.GRAPH_SCOPE]: GraphScopeDataInfo,

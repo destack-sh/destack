@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.09.21.2"  # auto change via version script
+VERSION = "2024.09.21.3"  # auto change via version script
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -83,6 +83,7 @@ class EnumType(IdEnum):
     USE_TYPE = 20034
     ACCESS_TYPE = 20035  # ReadType | EditType | UseType
     CHANGE_CATEGORY = 20036
+    EDIT_OPERATION_TYPE = 20037
     POLICY_EFFECT = 20040
 
     # bench
@@ -328,8 +329,10 @@ class StructType(IdEnum):
     SESSION_CONTEXT = 10001
     EDIT_CONTEXT = 10002
     EDIT = 10005
-    CHANGE = 10006
-    CHANGE_VIGNETTE = 10007
+    EDIT_INFO = 10006
+    EDIT_OPERATION = 10007
+    CHANGE = 10010
+    CHANGE_VIGNETTE = 10011
 
     # utility
     GRAPH_SCOPE = 10050

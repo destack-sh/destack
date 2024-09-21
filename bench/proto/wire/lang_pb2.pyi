@@ -133,6 +133,8 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_SESSION_CONTEXT: _ClassVar[BenchType]
     BENCH_TYPE_EDIT_CONTEXT: _ClassVar[BenchType]
     BENCH_TYPE_EDIT: _ClassVar[BenchType]
+    BENCH_TYPE_EDIT_INFO: _ClassVar[BenchType]
+    BENCH_TYPE_EDIT_OPERATION: _ClassVar[BenchType]
     BENCH_TYPE_CHANGE: _ClassVar[BenchType]
     BENCH_TYPE_CHANGE_VIGNETTE: _ClassVar[BenchType]
     BENCH_TYPE_GRAPH_SCOPE: _ClassVar[BenchType]
@@ -204,6 +206,7 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_USE_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_ACCESS_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_CHANGE_CATEGORY: _ClassVar[BenchType]
+    BENCH_TYPE_EDIT_OPERATION_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_POLICY_EFFECT: _ClassVar[BenchType]
     BENCH_TYPE_CLOUD: _ClassVar[BenchType]
     BENCH_TYPE_REGION: _ClassVar[BenchType]
@@ -434,6 +437,14 @@ class Day(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     DAY_SATURDAY: _ClassVar[Day]
     DAY_SUNDAY: _ClassVar[Day]
 
+class EditOperationType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    EDIT_OPERATION_TYPE_UNSPECIFIED: _ClassVar[EditOperationType]
+    EDIT_OPERATION_TYPE_SET: _ClassVar[EditOperationType]
+    EDIT_OPERATION_TYPE_CLEAR: _ClassVar[EditOperationType]
+    EDIT_OPERATION_TYPE_APPEND: _ClassVar[EditOperationType]
+    EDIT_OPERATION_TYPE_REMOVE: _ClassVar[EditOperationType]
+
 class EditType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     EDIT_TYPE_UNSPECIFIED: _ClassVar[EditType]
@@ -463,6 +474,7 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_USE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_ACCESS_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_CHANGE_CATEGORY: _ClassVar[EnumType]
+    ENUM_TYPE_EDIT_OPERATION_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_POLICY_EFFECT: _ClassVar[EnumType]
     ENUM_TYPE_CLOUD: _ClassVar[EnumType]
     ENUM_TYPE_REGION: _ClassVar[EnumType]
@@ -915,6 +927,8 @@ class ObjectType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     OBJECT_TYPE_SESSION_CONTEXT: _ClassVar[ObjectType]
     OBJECT_TYPE_EDIT_CONTEXT: _ClassVar[ObjectType]
     OBJECT_TYPE_EDIT: _ClassVar[ObjectType]
+    OBJECT_TYPE_EDIT_INFO: _ClassVar[ObjectType]
+    OBJECT_TYPE_EDIT_OPERATION: _ClassVar[ObjectType]
     OBJECT_TYPE_CHANGE: _ClassVar[ObjectType]
     OBJECT_TYPE_CHANGE_VIGNETTE: _ClassVar[ObjectType]
     OBJECT_TYPE_GRAPH_SCOPE: _ClassVar[ObjectType]
@@ -1285,6 +1299,8 @@ class StructType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     STRUCT_TYPE_SESSION_CONTEXT: _ClassVar[StructType]
     STRUCT_TYPE_EDIT_CONTEXT: _ClassVar[StructType]
     STRUCT_TYPE_EDIT: _ClassVar[StructType]
+    STRUCT_TYPE_EDIT_INFO: _ClassVar[StructType]
+    STRUCT_TYPE_EDIT_OPERATION: _ClassVar[StructType]
     STRUCT_TYPE_CHANGE: _ClassVar[StructType]
     STRUCT_TYPE_CHANGE_VIGNETTE: _ClassVar[StructType]
     STRUCT_TYPE_GRAPH_SCOPE: _ClassVar[StructType]
@@ -1590,6 +1606,8 @@ BENCH_TYPE_SKIP: BenchType
 BENCH_TYPE_SESSION_CONTEXT: BenchType
 BENCH_TYPE_EDIT_CONTEXT: BenchType
 BENCH_TYPE_EDIT: BenchType
+BENCH_TYPE_EDIT_INFO: BenchType
+BENCH_TYPE_EDIT_OPERATION: BenchType
 BENCH_TYPE_CHANGE: BenchType
 BENCH_TYPE_CHANGE_VIGNETTE: BenchType
 BENCH_TYPE_GRAPH_SCOPE: BenchType
@@ -1661,6 +1679,7 @@ BENCH_TYPE_EDIT_TYPE: BenchType
 BENCH_TYPE_USE_TYPE: BenchType
 BENCH_TYPE_ACCESS_TYPE: BenchType
 BENCH_TYPE_CHANGE_CATEGORY: BenchType
+BENCH_TYPE_EDIT_OPERATION_TYPE: BenchType
 BENCH_TYPE_POLICY_EFFECT: BenchType
 BENCH_TYPE_CLOUD: BenchType
 BENCH_TYPE_REGION: BenchType
@@ -1851,6 +1870,11 @@ DAY_THURSDAY: Day
 DAY_FRIDAY: Day
 DAY_SATURDAY: Day
 DAY_SUNDAY: Day
+EDIT_OPERATION_TYPE_UNSPECIFIED: EditOperationType
+EDIT_OPERATION_TYPE_SET: EditOperationType
+EDIT_OPERATION_TYPE_CLEAR: EditOperationType
+EDIT_OPERATION_TYPE_APPEND: EditOperationType
+EDIT_OPERATION_TYPE_REMOVE: EditOperationType
 EDIT_TYPE_UNSPECIFIED: EditType
 EDIT_TYPE_CREATE: EditType
 EDIT_TYPE_UPSERT: EditType
@@ -1875,6 +1899,7 @@ ENUM_TYPE_EDIT_TYPE: EnumType
 ENUM_TYPE_USE_TYPE: EnumType
 ENUM_TYPE_ACCESS_TYPE: EnumType
 ENUM_TYPE_CHANGE_CATEGORY: EnumType
+ENUM_TYPE_EDIT_OPERATION_TYPE: EnumType
 ENUM_TYPE_POLICY_EFFECT: EnumType
 ENUM_TYPE_CLOUD: EnumType
 ENUM_TYPE_REGION: EnumType
@@ -2261,6 +2286,8 @@ OBJECT_TYPE_SKIP: ObjectType
 OBJECT_TYPE_SESSION_CONTEXT: ObjectType
 OBJECT_TYPE_EDIT_CONTEXT: ObjectType
 OBJECT_TYPE_EDIT: ObjectType
+OBJECT_TYPE_EDIT_INFO: ObjectType
+OBJECT_TYPE_EDIT_OPERATION: ObjectType
 OBJECT_TYPE_CHANGE: ObjectType
 OBJECT_TYPE_CHANGE_VIGNETTE: ObjectType
 OBJECT_TYPE_GRAPH_SCOPE: ObjectType
@@ -2538,6 +2565,8 @@ STRUCT_TYPE_UNSPECIFIED: StructType
 STRUCT_TYPE_SESSION_CONTEXT: StructType
 STRUCT_TYPE_EDIT_CONTEXT: StructType
 STRUCT_TYPE_EDIT: StructType
+STRUCT_TYPE_EDIT_INFO: StructType
+STRUCT_TYPE_EDIT_OPERATION: StructType
 STRUCT_TYPE_CHANGE: StructType
 STRUCT_TYPE_CHANGE_VIGNETTE: StructType
 STRUCT_TYPE_GRAPH_SCOPE: StructType
@@ -3088,6 +3117,63 @@ class EditContextData(_message.Message):
         run_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         run_root_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
         identity_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
+    ) -> None: ...
+
+class EditInfoData(_message.Message):
+    __slots__ = (
+        "metatype",
+        "id",
+        "type",
+        "node_ptr",
+        "vignette",
+        "properties",
+        "old_node",
+        "new_node",
+    )
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    ID_FIELD_NUMBER: _ClassVar[int]
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    NODE_PTR_FIELD_NUMBER: _ClassVar[int]
+    VIGNETTE_FIELD_NUMBER: _ClassVar[int]
+    PROPERTIES_FIELD_NUMBER: _ClassVar[int]
+    OLD_NODE_FIELD_NUMBER: _ClassVar[int]
+    NEW_NODE_FIELD_NUMBER: _ClassVar[int]
+    metatype: ObjectType
+    id: str
+    type: EditType
+    node_ptr: NodeReferenceData
+    vignette: ChangeVignetteData
+    properties: _containers.RepeatedScalarFieldContainer[int]
+    old_node: SomeNodeData
+    new_node: SomeNodeData
+    def __init__(
+        self,
+        metatype: _Optional[_Union[ObjectType, str]] = ...,
+        id: _Optional[str] = ...,
+        type: _Optional[_Union[EditType, str]] = ...,
+        node_ptr: _Optional[_Union[NodeReferenceData, _Mapping]] = ...,
+        vignette: _Optional[_Union[ChangeVignetteData, _Mapping]] = ...,
+        properties: _Optional[_Iterable[int]] = ...,
+        old_node: _Optional[_Union[SomeNodeData, _Mapping]] = ...,
+        new_node: _Optional[_Union[SomeNodeData, _Mapping]] = ...,
+    ) -> None: ...
+
+class EditOperationData(_message.Message):
+    __slots__ = ("metatype", "type", "path", "value_packed")
+    METATYPE_FIELD_NUMBER: _ClassVar[int]
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    PATH_FIELD_NUMBER: _ClassVar[int]
+    VALUE_PACKED_FIELD_NUMBER: _ClassVar[int]
+    metatype: ObjectType
+    type: EditOperationType
+    path: _containers.RepeatedScalarFieldContainer[str]
+    value_packed: _struct_pb2.Struct
+    def __init__(
+        self,
+        metatype: _Optional[_Union[ObjectType, str]] = ...,
+        type: _Optional[_Union[EditOperationType, str]] = ...,
+        path: _Optional[_Iterable[str]] = ...,
+        value_packed: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...,
     ) -> None: ...
 
 class ExpressionData(_message.Message):
