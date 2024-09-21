@@ -154,6 +154,8 @@ def test_sample_value_scalar_constrained(session: Session, package: Package):
 UNGENERATABLE_STRUCT_TYPES = [
     # Edit/Change have old/new_node_packed data
     StructType.EDIT,
+    StructType.EDIT_INFO,
+    StructType.EDIT_OPERATION,
     StructType.CHANGE,
     # references have special handling
     StructType.NODE_REFERENCE,

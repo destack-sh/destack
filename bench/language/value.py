@@ -744,12 +744,12 @@ def sample_scalar_value(typ: "TypeInfoBase") -> ScalarValue | None:
                 return typ.base_type.fields[0]
         return None  # NOTE :Incomplete: :SampleNodeValues
     elif typ.kind == TypeKind.STRUCT:
-        return sample_builtin_object(typ)
+        return sample_builtin_object_scalar(typ)
     else:
         raise RuntimeError(f"unexpected type {typ!r}")
 
 
-def sample_builtin_object(typ: "TypeInfoBase") -> "BuiltinObject":
+def sample_builtin_object_scalar(typ: "TypeInfoBase") -> "BuiltinObject":
     """Samples a representative object value for the given type (recursively)."""
     object_cls = OBJECT_CLASS_BY_TYPE.get(cast(ObjectType, typ.bench_type))
     assert object_cls is not None, f"missing object class for {typ!r}"
@@ -779,6 +779,9 @@ def sample_builtin_object(typ: "TypeInfoBase") -> "BuiltinObject":
             object_kwargs[prop.name] = None
         else:
             object_kwargs[prop.name] = sample_value(prop.type_info)
+    if typ.bench_type == StructType.TYPE_INFO:
+        # many types don't support lists, so just make it a scalar
+        object_kwargs["is_list"] = False
     return object_cls(**object_kwargs)
 
 
