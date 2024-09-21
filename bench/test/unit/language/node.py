@@ -200,7 +200,7 @@ def test_roundtrip_rich_reference(shared_session: Session, shared_package: Packa
 
     # file reference (rich)
     file = File(
-        parent=shared_package,
+        parent=shared_package.bench.main_drive,
         kind=FileKind.DRIVE,
         title="myfile.txt",
         coarse_type=FileType.TEXT,

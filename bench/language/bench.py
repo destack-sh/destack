@@ -2,7 +2,7 @@ import abc
 from datetime import datetime
 from enum import Enum
 from itertools import chain
-from typing import TYPE_CHECKING, Any, Generic, Iterable, Optional, Self, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Iterable, Optional, Self, TypeVar, Union
 from uuid import UUID
 
 from bench.language.const import (
@@ -60,7 +60,6 @@ if TYPE_CHECKING:
         Organization,
         Policy,
         Region,
-        ResourceNode,
         Server,
         Space,
         Store,
@@ -115,9 +114,17 @@ class Bench(BenchNode[BenchData]):
     main_drive: Optional["Drive"] = p_system(
         42, require=False, array=False, references=NodeType.DRIVE, fk=True, same_bench=True
     )
+    main_vault: Optional["Vault"] = p_system(
+        43, require=False, array=False, references=NodeType.VAULT, fk=True, same_bench=True
+    )
+    main_cache: Optional["Cache"] = p_system(
+        44, require=False, array=False, references=NodeType.CACHE, fk=True, same_bench=True
+    )
     stores: NodeList["Store"] = p_node_children(NodeType.STORE)
     servers: NodeList["Server"] = p_node_children(NodeType.SERVER)
     drives: NodeList["Drive"] = p_node_children(NodeType.DRIVE)
+    vaults: NodeList["Vault"] = p_node_children(NodeType.VAULT)
+    caches: NodeList["Cache"] = p_node_children(NodeType.CACHE)
 
     # source
     main_branch: Optional["Branch"] = p_regular(
@@ -290,15 +297,14 @@ NodeDataT = TypeVar("NodeDataT", bound=AnyNodeData)
 
 
 @node_component()
-class ResourceNode(BenchNode[NodeDataT], abc.ABC, Generic[NodeDataT]):
+class ResourceNode[NodeDataT: AnyNodeData](BenchNode[NodeDataT], abc.ABC):
     """
     An external resource in a Bench.
     Resources generally work on the 'desired state' principle.
-    The real 'current' state is stored in current_* properties.
+    The actual 'current' state is stored in current_* properties (where relevant).
     """
 
     parent: Bench | None = p_node_parent(4, NodeType.BENCH, is_system=True)
-    name: str = p_regular(32, constraint=NAME_CONSTRAINT)
     text: Optional["Text"] = p_regular(34, default=None, struct=StructType.TEXT)
     region: Region = p_system(35, default=REGION, default_sql=None)
     status: ResourceStatus = p_system(36, default=ResourceStatus.UP, default_sql=None)
@@ -345,6 +351,24 @@ class ResourceNode(BenchNode[NodeDataT], abc.ABC, Generic[NodeDataT]):
         return current_diff
 
 
+@node_component()
+class NamedResourceNode[NodeDataT: AnyNodeData](ResourceNode[NodeDataT]):
+    """
+    A named resource in a Bench.
+    """
+
+    name: str = p_regular(32, constraint=NAME_CONSTRAINT)
+
+
+@node_component()
+class AnonymousResourceNode[NodeDataT: AnyNodeData](ResourceNode[NodeDataT]):
+    """
+    An anonymous resource in a Bench.
+    """
+
+    pass
+
+
 CPU_CONSTRAINT = TypeConstraint(
     min_value=0.1,
     max_value=4.0,
@@ -353,7 +377,7 @@ RAM_CONSTRAINT = TypeConstraint(min_value=0.1, max_value=16.0)
 
 
 @node_(NodeType.SERVER)
-class Server(ResourceNode[ServerData]):
+class Server(NamedResourceNode[ServerData]):
     """
     A Server provides virtual compute for a Bench's Runtime.
     Physical compute is materialized dynamically on Machines.
@@ -383,7 +407,7 @@ class Server(ResourceNode[ServerData]):
 
 
 @node_(NodeType.MACHINE)
-class Machine(ResourceNode[MachineData]):
+class Machine(NamedResourceNode[MachineData]):
     """
     A Machine provides physical compute.
     Machines are usually tied to a Server, but may also be manually provisioned.
@@ -414,7 +438,7 @@ class Machine(ResourceNode[MachineData]):
 
 
 @node_(NodeType.STORE)
-class Store(ResourceNode[StoreData]):
+class Store(NamedResourceNode[StoreData]):
     """A trusty Postgres-compatible database."""
 
     version: str = p_system(40, default=VERSION, default_sql=None)
@@ -428,8 +452,22 @@ class Store(ResourceNode[StoreData]):
 
 
 @node_(NodeType.DRIVE)
-class Drive(ResourceNode[DriveData]):
+class Drive(NamedResourceNode[DriveData]):
     """Drive for file storage."""
+
+    ...
+
+
+@node_(NodeType.VAULT)
+class Vault(NamedResourceNode[DriveData]):
+    """Vault for secret storage."""
+
+    ...
+
+
+@node_(NodeType.CACHE)
+class Cache(NamedResourceNode[DriveData]):
+    """Cache for ephemeral key-value storage."""
 
     ...
 

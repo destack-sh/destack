@@ -1,13 +1,13 @@
 from typing import TYPE_CHECKING, Any, Union, cast, override
 
+from bench.language.bench import AnonymousResourceNode
 from bench.language.const import NodeType, StructType
 from bench.language.field import TypeInfo
 from bench.language.node import (
     NodeReference,
     NodeReferenceBase,
-    StateNode,
     Struct,
-    local_node_,
+    node_,
     struct_,
 )
 from bench.language.property import (
@@ -21,18 +21,16 @@ from bench.language.validation import TITLE_CONSTRAINT, ValidationHandler
 from bench.proto.wire import SecretData, SecretReferenceData
 
 if TYPE_CHECKING:
-    from bench.language import Block, Package
+    from bench.language import Vault
 
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@local_node_(NodeType.SECRET)
-class Secret(StateNode[SecretData]):
+@node_(NodeType.SECRET)
+class Secret(AnonymousResourceNode[SecretData]):
     """A secret value."""
 
-    parent: Union["Package", "Block", None] = p_node_parent(
-        4, NodeType.PACKAGE, NodeType.BLOCK, is_system=True
-    )
+    parent: Union["Vault", None] = p_node_parent(4, NodeType.VAULT, is_system=True)
 
     # meta
     title: str = p_regular(33, constraint=TITLE_CONSTRAINT)

@@ -91,6 +91,7 @@ export const EXPOSED_BLOCK_TYPES = [
   BlockType.FLOW,
   BlockType.VIEW,
   BlockType.VALUE,
+  BlockType.DATABASE,
 ];
 export const EXPOSED_STEP_TYPES = [StepType.START, StepType.COMPLETE, StepType.CODE, StepType.TEXT, StepType.BLOCK];
 export const EXPOSED_STRUCT_TYPES = [

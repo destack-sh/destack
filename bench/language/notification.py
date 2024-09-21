@@ -10,8 +10,7 @@ from bench.language.const import (
 from bench.language.field import TypeInfoBase
 from bench.language.node import (
     HasNodeBase,
-    HasTimeIdentity,
-    StateNode,
+    RuntimeNode,
     Struct,
     object_,
     timed_node_,
@@ -38,9 +37,9 @@ if TYPE_CHECKING:
 
 
 @timed_node_(NodeType.NOTIFICATION, passthrough="value")
-class Notification(HasTimeIdentity, StateNode[NotificationData], HasNodeBase):
+class Notification(RuntimeNode[NotificationData], HasNodeBase):
     """
-    A Notification for a Bench (author = created_by).
+    A Notification to a Bench (author = created_by).
     """
 
     parent: "Package | None" = p_node_parent(4, NodeType.PACKAGE)

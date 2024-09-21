@@ -22,7 +22,16 @@ import {
   TypeConstraintData,
   UploadFilesResponse_UploadHandle,
 } from "@/proto/wire";
-import { isNode, isNodeOrRef, isStruct, makeScope, newNodeId, nodeReference, toPlainNodeRef, unpackProtoJson } from "@/proto/wiring";
+import {
+  isNode,
+  isNodeOrRef,
+  isStruct,
+  makeScope,
+  newNodeId,
+  nodeReference,
+  toPlainNodeRef,
+  unpackProtoJson,
+} from "@/proto/wiring";
 import { ICON_BY_FILE_FORMAT, ICON_BY_FILE_TYPE } from "@/ui/icon";
 import { AsyncEvent, groupByScalar } from "@/utils/functools";
 import { log } from "@/utils/log";
@@ -105,7 +114,6 @@ export async function extractFile(
     id: identity.id,
     parentPtr: toPlainNodeRef(parent),
     benchPtr: parent.benchPtr,
-    packagePtr: isNode(parent, NodeType.PACKAGE) ? toPlainNodeRef(parent) : parent.packagePtr,
     kind: FileKind.DRIVE,
     title,
     coarseType,
@@ -381,7 +389,9 @@ export function downloadFiles(
       progress: shallowRef(0),
       completion: new AsyncEvent(),
       includesContent:
-        typeof options?.includeContent == "function" ? options.includeContent(file) : options?.includeContent ?? false,
+        typeof options?.includeContent == "function"
+          ? options.includeContent(file)
+          : (options?.includeContent ?? false),
     };
     cacheDownload(download);
     return markRaw(download);

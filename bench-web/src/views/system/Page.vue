@@ -480,6 +480,7 @@ defineExpose<ViewExposed>({ self, actions, focus });
               BlockType.TEXT,
               BlockType.CODE,
               BlockType.FLOW,
+              BlockType.DATABASE,
               BlockType.VIEW,
             ]"
             :key="blockType"

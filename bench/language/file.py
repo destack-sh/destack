@@ -22,7 +22,7 @@ import structlog
 from opentelemetry import trace
 from PIL import Image
 
-from bench.language.bench import Drive
+from bench.language.bench import AnonymousResourceNode, Drive
 from bench.language.const import (
     EnumType,
     NodeType,
@@ -35,9 +35,8 @@ from bench.language.node import (
     BuiltinObject,
     NodeReference,
     NodeReferenceBase,
-    StateNode,
     Struct,
-    local_node_,
+    node_,
     object_,
     struct_,
 )
@@ -65,7 +64,7 @@ from bench.utils.utils import get_from_env
 if TYPE_CHECKING:
     from magika import Magika
 
-    from bench.language import Block, Package, Session, Step
+    from bench.language import Session
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -239,7 +238,6 @@ class FileFormat(IdEnum):  # :FileFormats
         return MIME_TYPES_BY_FILE_FORMAT.get(self, ())
 
 
-# NOTE :Cleanup: auto-copy file format mappings into bench-web?
 # :FileFormats
 FILE_FORMAT_BY_EXTENSION = {
     # text
@@ -489,11 +487,6 @@ class FileInfoBase(BuiltinObject):
     # content
     kind: FileKind = p_internal(40)
     title: str = p_regular(41, constraint=TITLE_CONSTRAINT)
-    drive: Drive | None = p_regular(
-        42, references=NodeType.DRIVE, require=False, array=False, same_bench=True
-    )
-    if TYPE_CHECKING:
-        drive_ptr: Optional[NodeReference] = None
     external_url: Optional[str] = p_regular(43, default=None)  # if external
     inline_content: Optional[bytes] = p_regular(
         44, default=None, constraint=constraint(min_length=1)
@@ -788,26 +781,24 @@ class FileInfo(Struct[FileInfoData], FileInfoBase):
     __content_str__ = FileInfoBase.__content_str__  # type: ignore
 
 
-@local_node_(NodeType.FILE, indexes=(("drive_id", "sha256"),))
-class File(StateNode[FileData], FileInfoBase):
+@node_(NodeType.FILE)
+class File(AnonymousResourceNode[FileData], FileInfoBase):
     """
     A file stored somewhere (like in a Drive, or externally).
     """
 
-    parent: Union["Package", "Block", None] = p_node_parent(
-        4, NodeType.PACKAGE, NodeType.BLOCK, is_system=True
-    )
-
-    # meta
-    retention: FileRetentionMode = p_system(
-        30, default=FileRetentionMode.AUTOMATIC, default_sql=None
-    )
-    expires_at: Optional[datetime] = p_system(31)
+    parent: Union["Drive", None] = p_node_parent(4, NodeType.DRIVE, is_system=True)
 
     # content/info
     # ...FileInfoBase[40-69]
 
-    __content_str__ = FileInfoBase.__content_str__
+    # meta
+    retention: FileRetentionMode = p_system(
+        70, default=FileRetentionMode.AUTOMATIC, default_sql=None
+    )
+    expires_at: Optional[datetime] = p_system(71)
+
+    __content_str__ = FileInfoBase.__content_str__  # type: ignore
 
     def to_ref(self) -> "FileReference":
         """Gets a reference to this file."""
@@ -1058,31 +1049,24 @@ async def upload(
     mime_type: str | None = None,
     coarse_type: FileType | None = None,
     format: FileFormat | str | None = None,
-    parent: "Step |Block | Package | None" = None,
     drive: "Drive | None" = None,
     session: "Session | None" = None,
 ) -> "File":
     """Uploads the given file to the given (or current) session."""
-    from bench.language.flow import Step
 
     # extract file info
     file, content = await extract_file_info(
         file_in, title, mime_type=mime_type, coarse_type=coarse_type, format=format
     )
 
-    # context
+    # drive
     if session is None:
         session = active_session()
-    if parent is None:
-        parent = session.package
     if drive is None:
         drive = session.bench.main_drive
         if drive is None:
             raise ValueError(f"no drive to upload file {title!r} to in {session!r}")
-    if isinstance(parent, Step):
-        parent = parent.block
-    file.parent = parent
-    file.drive = drive
+    file.parent = drive
 
     # upload file, then create in session
     await upload_batch(files=[file], file_contents=[content], session=session)

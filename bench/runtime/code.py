@@ -99,7 +99,7 @@ class CodeRunnerBase[T: RunnableNode](Runner[CodeRunnerCache[T], T]):
         assert self.node is not None, f"no node scope for {self!r}"
         _get_node = functools.partial(get_node, self.node)
         _render = functools.partial(render, options=RenderOptions(scope=self.node))
-        _upload = functools.partial(upload, parent=self.node)
+        _upload = functools.partial(upload)
         glbls = {  # :CodeGlobals
             # static
             **self.runtime.static_glbls,

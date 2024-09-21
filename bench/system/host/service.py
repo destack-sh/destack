@@ -686,17 +686,17 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
                     GRPCStatus.INVALID_ARGUMENT,
                     f"unexpected file: {file_data!r} (kind={file_data.kind}, sha256={file_data.sha256})",
                 )
-            if file_data.drive_ptr:
-                drive = self.bench._graph.get(UUID(file_data.drive_ptr.id))
+            if file_data.parent_ptr.metatype != 0:
+                drive = self.bench._graph.get(UUID(file_data.parent_ptr.id))
                 if not isinstance(drive, Drive):
                     raise GRPCError(
                         GRPCStatus.INVALID_ARGUMENT,
-                        f"unexpected drive: {file_data.drive_ptr!r}->{drive!r}",
+                        f"unexpected drive: {file_data.parent_ptr!r}->{drive!r}",
                     )
             else:  # default to main drive
                 drive = self.bench.main_drive
                 assert drive, f"{self.bench!r} has no main drive"
-                file_data.drive_ptr = drive._to_plain_ref_data()
+                file_data.parent_ptr.CopyFrom(drive._to_plain_ref_data())
 
             # presign post URL
             file_key = get_file_key(drive, file_data.sha256, file_data.title)
@@ -757,7 +757,7 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
         for file in files:
             if file.kind not in (FileKind.DRIVE, FileKind.DRIVE_INLINE) or not file.sha256:
                 raise GRPCError(GRPCStatus.INVALID_ARGUMENT, f"unexpected file: {file.kind}")
-            drive = file.drive
+            drive = file.parent
             assert drive, f"no drive for {file!r}"
             bucket = get_drive_bucket(drive)
             file_key = get_file_key(drive, file.sha256, file.title)
