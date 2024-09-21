@@ -226,7 +226,6 @@ class ChangeKind(IdEnum):
     """The kind of Change."""
 
     CODE = 1
-    MATERIALIZED = 2
     LOGS = 3
     LOGS_QUERY = 4
 
@@ -241,8 +240,16 @@ class Change(Struct):
 
     key: UUID = p_system(30, default_factory=UUIDT)
     kind: ChangeKind = p_internal(31, require=True, description="The kind of change.")
-    scope: Optional["Node"] = p_internal(32, require=False, references=NODE_TYPES.tuple)
-    code: Optional["Code"] = p_internal(33, require=False, array=False, struct=StructType.CODE)
+    scope: Optional["Node"] = p_internal(
+        32, require=False, references=NODE_TYPES.tuple, description="Where to apply the change."
+    )
+    code: Optional["Code"] = p_internal(
+        33,
+        require=False,
+        array=False,
+        struct=StructType.CODE,
+        description="Code to (re)produce the change.",
+    )
     edits: list[Edit] = p_internal(
         34, array=True, struct=StructType.EDIT, description="The materialized edits in the change."
     )
