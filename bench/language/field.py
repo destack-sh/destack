@@ -457,7 +457,7 @@ class TypeInfoBase(BuiltinObject):
 
 @struct_(StructType.TYPE_INFO)
 class TypeInfo(Struct, TypeInfoBase):
-    """A type from the type system."""
+    """A type in the type system."""
 
     # redirect so we get TypeInfoBase.__content_str__ (not Struct.__content_str__)
     __content_str__ = TypeInfoBase.__content_str__  # type: ignore

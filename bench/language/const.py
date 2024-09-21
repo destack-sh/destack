@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.09.20.4"  # auto change via version script
+VERSION = "2024.09.21.2"  # auto change via version script
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -191,28 +191,36 @@ class NodeType(IdEnum):
     ORGANIZATION = 3
     HANDLE = 4
     CLIENT = 5
-    # CHALLENGE?
 
     #
     # Regional
     #
 
-    # resource
-    SERVER = 500  # virtual infinitely scalable server
-    STORE = 501  # our trusted postgres store
-    MACHINE = 502  # actual machine providing compute and such
+    # resource (named)
+    SERVER = 500  # infinite compute
+    STORE = 501  # trusty ol' postgres
+    MACHINE = 502  # actual machine providing compute
     DRIVE = 503  # object store like S3/MinIO, maybe block storage later
-    # CACHE, DOMAIN, EMAIL?, PHONE?, ... # (maybe Email/Phone/... should be in source?)
+    VAULT = 504  # secret storage
+    CACHE = 505  # ephemeral key-value store
+    # BROWSER, DOMAIN, EMAIL, PHONE, ...
+    # resource (anonymous)
+    FILE = 550
+    SECRET = 551
 
     # auth
     MEMBERSHIP = 600
     INVITE = 601
+    # CHALLENGE?
+
+    # synchronization
+    # POOL, LOCK, BARRIER, ...?
 
     #
     # Local (per Bench)
     #
 
-    # source (per package, can be templated/instantiated)
+    # source (versioned, templatable)
     BRANCH = 1000
     PACKAGE = 1001
     DEPENDENCY = 1002
@@ -228,20 +236,21 @@ class NodeType(IdEnum):
     # TAG?
     # POLICY?
 
-    # state (must be resolved against Package)
-    FILE = 1100
-    SECRET = 1101
-    MESSAGE = 1102  # (based, timed)
-    RECORD = 1103  # (based)
-    NOTIFICATION = 1104  # (based, timed)
+    # state (versioned)
+    MESSAGE = 1100  # (based, timed)
+    RECORD = 1101  # (based)
 
-    # runtime (eternal, so can't be removed and we don't log individual edits)
-    SESSION = 1200  # (timed)
-    RUN = 1201  # (based, timed)
-    SIGNAL = 1202  # (based, timed)
-    LOG = 1203  # (timed)
+    # runtime
+    SESSION = 1900  # (timed)
+    RUN = 1901  # (based, timed)
+    SIGNAL = 1902  # (based, timed)
+    LOG = 1903  # (timed)
+    NOTIFICATION = 1904  # (timed)
 
-    # misc
+    #
+    # Misc
+    #
+
     SKIP = 9000
 
 
@@ -249,12 +258,13 @@ class NodeType(IdEnum):
 NODE_TYPES = bittuple(*NodeType)
 NODE_TYPES_SET: frozenset[NodeType] = frozenset(NODE_TYPES)
 ROOT_NODE_TYPES = bittuple(NodeType.BENCH, NodeType.USER, NodeType.ORGANIZATION)
-UNIVERSE_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if nt.id < 100))
 GLOBAL_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if nt.id < 1000))
+RESOURCE_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if nt.id >= 500 and nt.id < 600))
+ANONYMOUS_RESOURCE_NODE_TYPES = bittuple(*tuple(nt for nt in RESOURCE_NODE_TYPES if nt.id >= 550))
 LOCAL_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if nt.id >= 1000))
 SOURCE_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if nt.id >= 1000 and nt.id < 1100))
 STATE_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if nt.id >= 1100 and nt.id < 1200))
-RUNTIME_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if nt.id >= 1200 and nt.id < 1300))
+RUNTIME_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if nt.id >= 1900 and nt.id < 2000))
 
 BASED_NODE_TYPES = bittuple(  # :HasBase
     NodeType.FIELD,
@@ -272,8 +282,10 @@ TIMED_NODE_TYPES = bittuple(
     NodeType.NOTIFICATION,
     NodeType.MESSAGE,
 )
-IN_PACKAGE_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if nt.id >= 1001))
-SUB_PACKAGE_NODE_TYPES = bittuple(*tuple(nt for nt in NODE_TYPES if nt.id > 1001))
+IN_PACKAGE_NODE_TYPES = bittuple(
+    *tuple(nt for nt in NODE_TYPES if nt.id >= 1001 and nt.id < 2000), NodeType.SKIP
+)
+SUB_PACKAGE_NODE_TYPES = bittuple(*tuple(nt for nt in IN_PACKAGE_NODE_TYPES if nt.id > 1001))
 IN_BENCH_NODE_TYPES = bittuple(
     *(
         *tuple(nt for nt in NODE_TYPES if nt.id >= 500),
@@ -294,7 +306,13 @@ BENCH_NODE_TYPES = bittuple(
     NodeType.CLIENT,
     *(nt for nt in NODE_TYPES if nt.id >= 500 and nt.id < 700),
 )
-LOADED_BENCH_NODE_TYPES = bittuple(*(nt for nt in BENCH_NODE_TYPES if nt not in STATE_NODE_TYPES))
+LOADED_BENCH_NODE_TYPES = bittuple(
+    *(
+        nt
+        for nt in BENCH_NODE_TYPES
+        if nt not in STATE_NODE_TYPES and nt not in ANONYMOUS_RESOURCE_NODE_TYPES
+    )
+)
 PUBLIC_NODE_TYPES = bittuple(NodeType.USER, NodeType.ORGANIZATION)
 USER_NODE_TYPES = bittuple(NodeType.USER, NodeType.ORGANIZATION, NodeType.CLIENT, NodeType.HANDLE)
 
@@ -339,10 +357,10 @@ class StructType(IdEnum):
     TYPE_INFO = 10200
     TYPE_CONSTRAINT = 10201
     SCHEDULE = 10202
+    FILE_INFO = 10203
     FILE_REFERENCE = 10204
     ICON = 10205
     SECRET_REFERENCE = 10206
-    FILE_INFO = 10207
     TRIGGER_INFO = 10208
 
     # expressions

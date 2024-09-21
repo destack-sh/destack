@@ -19,6 +19,8 @@ logger = structlog.get_logger(__name__)
 app = typer.Typer(short_help="migration management")
 console = Console()
 
+BENCH_QUERY = Bench.descendants(Store).select_all()
+
 
 @app.command(help="generate global / local SQL migrations")
 @async_to_sync_blocking
@@ -32,11 +34,7 @@ async def make(
 ):
     from bench.sql.client import pg_connection
     from bench.sql.core import Schema
-    from bench.sql.engine import (
-        GLOBAL_SCHEMA,
-        LOCAL_SCHEMA,
-        SqlUndefinedObjectError,
-    )
+    from bench.sql.engine import GLOBAL_SCHEMA, LOCAL_SCHEMA, SqlUndefinedObjectError
     from bench.sql.migration import (
         Migration,
         add_migration_to_fs,
@@ -83,7 +81,7 @@ async def make(
         if not from_scratch:
             try:
                 async with global_session(global_store, (global_pg_engine,), REAL_ORACLE):
-                    bench_node = await Bench.descendants(Store).select_all().get(slug=bench)
+                    bench_node = await BENCH_QUERY.get(slug=bench)
                     assert bench_node.main_store, f"{bench!r} has no main store"
                     async with pg_connection(bench_node.main_store) as conn:
                         old_local_schema = await introspect_sql_schema(conn.cursor)
@@ -156,10 +154,10 @@ async def apply(
     if bench is not None:
         async with global_session(global_store, (global_pg_engine,), REAL_ORACLE):
             if bench != "*":
-                bench_node = await Bench.descendants(Store).select_all().get(slug=bench)
+                bench_node = await BENCH_QUERY.get(slug=bench)
                 stores = (*bench_node.stores,)
             else:
-                benches = await Bench.descendants(Store).select_all().tolist()
+                benches = await BENCH_QUERY.tolist()
                 stores = tuple(store for bench in benches for store in bench.stores)
     else:
         stores = (global_store,)

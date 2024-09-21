@@ -7,17 +7,21 @@ from .access import (
     Subject,
 )
 from .bench import (
+    AnonymousResourceNode,
     Bench,
     Branch,
+    Cache,
     Client,
     Dependency,
     Drive,
     Machine,
+    NamedResourceNode,
     Package,
     ResourceNode,
     ResourceStatus,
     Server,
     Store,
+    Vault,
 )
 from .block import Block
 from .code import Code, CodeLine, CodeType, code
@@ -165,6 +169,7 @@ __all__ = [
     "Aggregation",
     "Alignment",
     "Anchor",
+    "AnonymousResourceNode",
     "Badge",
     "Bench",
     "BenchError",
@@ -176,6 +181,7 @@ __all__ = [
     "Branch",
     "BuiltinObject",
     "C",
+    "Cache",
     "Change",
     "ChangeCategory",
     "ChangeVignette",
@@ -229,6 +235,7 @@ __all__ = [
     "Machine",
     "Message",
     "MultipleNodesFoundError",
+    "NamedResourceNode",
     "Node",
     "Node",
     "NodeDataDict",
@@ -322,6 +329,7 @@ __all__ = [
     "ValueList",
     "ValueObject",
     "Variant",
+    "Vault",
     "Vector2",
     "Vector3",
     "Vector4",

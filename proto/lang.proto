@@ -91,6 +91,10 @@ enum BenchType {
   BENCH_TYPE_STORE = 501;
   BENCH_TYPE_MACHINE = 502;
   BENCH_TYPE_DRIVE = 503;
+  BENCH_TYPE_VAULT = 504;
+  BENCH_TYPE_CACHE = 505;
+  BENCH_TYPE_FILE = 550;
+  BENCH_TYPE_SECRET = 551;
   BENCH_TYPE_MEMBERSHIP = 600;
   BENCH_TYPE_INVITE = 601;
   BENCH_TYPE_BRANCH = 1000;
@@ -105,15 +109,13 @@ enum BenchType {
   BENCH_TYPE_STEP = 1030;
   BENCH_TYPE_PIPE = 1031;
   BENCH_TYPE_BADGE = 1040;
-  BENCH_TYPE_FILE = 1100;
-  BENCH_TYPE_SECRET = 1101;
-  BENCH_TYPE_MESSAGE = 1102;
-  BENCH_TYPE_RECORD = 1103;
-  BENCH_TYPE_NOTIFICATION = 1104;
-  BENCH_TYPE_SESSION = 1200;
-  BENCH_TYPE_RUN = 1201;
-  BENCH_TYPE_SIGNAL = 1202;
-  BENCH_TYPE_LOG = 1203;
+  BENCH_TYPE_MESSAGE = 1100;
+  BENCH_TYPE_RECORD = 1101;
+  BENCH_TYPE_SESSION = 1900;
+  BENCH_TYPE_RUN = 1901;
+  BENCH_TYPE_SIGNAL = 1902;
+  BENCH_TYPE_LOG = 1903;
+  BENCH_TYPE_NOTIFICATION = 1904;
   BENCH_TYPE_SKIP = 9000;
   BENCH_TYPE_SESSION_CONTEXT = 10001;
   BENCH_TYPE_EDIT_CONTEXT = 10002;
@@ -138,10 +140,10 @@ enum BenchType {
   BENCH_TYPE_TYPE_INFO = 10200;
   BENCH_TYPE_TYPE_CONSTRAINT = 10201;
   BENCH_TYPE_SCHEDULE = 10202;
+  BENCH_TYPE_FILE_INFO = 10203;
   BENCH_TYPE_FILE_REFERENCE = 10204;
   BENCH_TYPE_ICON = 10205;
   BENCH_TYPE_SECRET_REFERENCE = 10206;
-  BENCH_TYPE_FILE_INFO = 10207;
   BENCH_TYPE_TRIGGER_INFO = 10208;
   BENCH_TYPE_EXPRESSION = 10300;
   BENCH_TYPE_AGGREGATION = 10301;
@@ -836,6 +838,10 @@ enum NodeType {
   NODE_TYPE_STORE = 501;
   NODE_TYPE_MACHINE = 502;
   NODE_TYPE_DRIVE = 503;
+  NODE_TYPE_VAULT = 504;
+  NODE_TYPE_CACHE = 505;
+  NODE_TYPE_FILE = 550;
+  NODE_TYPE_SECRET = 551;
   NODE_TYPE_MEMBERSHIP = 600;
   NODE_TYPE_INVITE = 601;
   NODE_TYPE_BRANCH = 1000;
@@ -850,15 +856,13 @@ enum NodeType {
   NODE_TYPE_STEP = 1030;
   NODE_TYPE_PIPE = 1031;
   NODE_TYPE_BADGE = 1040;
-  NODE_TYPE_FILE = 1100;
-  NODE_TYPE_SECRET = 1101;
-  NODE_TYPE_MESSAGE = 1102;
-  NODE_TYPE_RECORD = 1103;
-  NODE_TYPE_NOTIFICATION = 1104;
-  NODE_TYPE_SESSION = 1200;
-  NODE_TYPE_RUN = 1201;
-  NODE_TYPE_SIGNAL = 1202;
-  NODE_TYPE_LOG = 1203;
+  NODE_TYPE_MESSAGE = 1100;
+  NODE_TYPE_RECORD = 1101;
+  NODE_TYPE_SESSION = 1900;
+  NODE_TYPE_RUN = 1901;
+  NODE_TYPE_SIGNAL = 1902;
+  NODE_TYPE_LOG = 1903;
+  NODE_TYPE_NOTIFICATION = 1904;
   NODE_TYPE_SKIP = 9000;
 }
 
@@ -881,6 +885,10 @@ enum ObjectType {
   OBJECT_TYPE_STORE = 501;
   OBJECT_TYPE_MACHINE = 502;
   OBJECT_TYPE_DRIVE = 503;
+  OBJECT_TYPE_VAULT = 504;
+  OBJECT_TYPE_CACHE = 505;
+  OBJECT_TYPE_FILE = 550;
+  OBJECT_TYPE_SECRET = 551;
   OBJECT_TYPE_MEMBERSHIP = 600;
   OBJECT_TYPE_INVITE = 601;
   OBJECT_TYPE_BRANCH = 1000;
@@ -895,15 +903,13 @@ enum ObjectType {
   OBJECT_TYPE_STEP = 1030;
   OBJECT_TYPE_PIPE = 1031;
   OBJECT_TYPE_BADGE = 1040;
-  OBJECT_TYPE_FILE = 1100;
-  OBJECT_TYPE_SECRET = 1101;
-  OBJECT_TYPE_MESSAGE = 1102;
-  OBJECT_TYPE_RECORD = 1103;
-  OBJECT_TYPE_NOTIFICATION = 1104;
-  OBJECT_TYPE_SESSION = 1200;
-  OBJECT_TYPE_RUN = 1201;
-  OBJECT_TYPE_SIGNAL = 1202;
-  OBJECT_TYPE_LOG = 1203;
+  OBJECT_TYPE_MESSAGE = 1100;
+  OBJECT_TYPE_RECORD = 1101;
+  OBJECT_TYPE_SESSION = 1900;
+  OBJECT_TYPE_RUN = 1901;
+  OBJECT_TYPE_SIGNAL = 1902;
+  OBJECT_TYPE_LOG = 1903;
+  OBJECT_TYPE_NOTIFICATION = 1904;
   OBJECT_TYPE_SKIP = 9000;
   OBJECT_TYPE_SESSION_CONTEXT = 10001;
   OBJECT_TYPE_EDIT_CONTEXT = 10002;
@@ -928,10 +934,10 @@ enum ObjectType {
   OBJECT_TYPE_TYPE_INFO = 10200;
   OBJECT_TYPE_TYPE_CONSTRAINT = 10201;
   OBJECT_TYPE_SCHEDULE = 10202;
+  OBJECT_TYPE_FILE_INFO = 10203;
   OBJECT_TYPE_FILE_REFERENCE = 10204;
   OBJECT_TYPE_ICON = 10205;
   OBJECT_TYPE_SECRET_REFERENCE = 10206;
-  OBJECT_TYPE_FILE_INFO = 10207;
   OBJECT_TYPE_TRIGGER_INFO = 10208;
   OBJECT_TYPE_EXPRESSION = 10300;
   OBJECT_TYPE_AGGREGATION = 10301;
@@ -1309,10 +1315,10 @@ enum StructType {
   STRUCT_TYPE_TYPE_INFO = 10200;
   STRUCT_TYPE_TYPE_CONSTRAINT = 10201;
   STRUCT_TYPE_SCHEDULE = 10202;
+  STRUCT_TYPE_FILE_INFO = 10203;
   STRUCT_TYPE_FILE_REFERENCE = 10204;
   STRUCT_TYPE_ICON = 10205;
   STRUCT_TYPE_SECRET_REFERENCE = 10206;
-  STRUCT_TYPE_FILE_INFO = 10207;
   STRUCT_TYPE_TRIGGER_INFO = 10208;
   STRUCT_TYPE_EXPRESSION = 10300;
   STRUCT_TYPE_AGGREGATION = 10301;
@@ -1685,7 +1691,6 @@ message FileInfoData {
   ObjectType metatype = 1;
   FileKind kind = 40;
   string title = 41;
-  optional NodeReferenceData drive_ptr = 42;
   optional string external_url = 43;
   optional bytes inline_content = 44;
   FileType coarse_type = 50;
@@ -1714,7 +1719,6 @@ message FileReferenceData {
   optional string base_bench_id = 35;
   FileKind kind = 40;
   string title = 41;
-  optional NodeReferenceData drive_ptr = 42;
   optional string external_url = 43;
   optional bytes inline_content = 44;
   FileType coarse_type = 50;
@@ -2175,7 +2179,7 @@ message TypeConstraintData {
   optional FileFormat file_format = 73;
 }
 
-// A type from the type system.
+// A type in the type system.
 message TypeInfoData {
   ObjectType metatype = 1;
   TypeKind kind = 40;
@@ -2290,6 +2294,8 @@ message BenchData {
   optional NodeReferenceData main_store_ptr = 40;
   optional NodeReferenceData main_server_ptr = 41;
   optional NodeReferenceData main_drive_ptr = 42;
+  optional NodeReferenceData main_vault_ptr = 43;
+  optional NodeReferenceData main_cache_ptr = 44;
   optional NodeReferenceData main_branch_ptr = 50;
 }
 
@@ -2356,6 +2362,29 @@ message BranchData {
   optional NodeReferenceData base_ptr = 41;
   bool is_overlay = 60;
   bool is_light = 61;
+}
+
+// Cache for ephemeral key-value storage.
+message CacheData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 6;
+  int64 revision = 10;
+  google.protobuf.Timestamp created_at = 11;
+  int64 created_epoch = 12;
+  google.protobuf.Timestamp updated_at = 13;
+  int64 updated_epoch = 14;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  optional google.protobuf.Timestamp archived_at = 16;
+  optional NodeReferenceData created_by_ptr = 21;
+  optional NodeReferenceData updated_by_ptr = 22;
+  repeated int32 set_properties = 29;
+  string name = 32;
+  optional TextData text = 34;
+  Region region = 35;
+  ResourceStatus status = 36;
+  ResourceStatus current_status = 37;
 }
 
 // A client to a Bench.
@@ -2483,7 +2512,6 @@ message FileData {
   ObjectType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData package_ptr = 5;
   optional NodeReferenceData bench_ptr = 6;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
@@ -2495,11 +2523,12 @@ message FileData {
   optional NodeReferenceData created_by_ptr = 21;
   optional NodeReferenceData updated_by_ptr = 22;
   repeated int32 set_properties = 29;
-  FileRetentionMode retention = 30;
-  optional google.protobuf.Timestamp expires_at = 31;
+  optional TextData text = 34;
+  Region region = 35;
+  ResourceStatus status = 36;
+  ResourceStatus current_status = 37;
   FileKind kind = 40;
   string title = 41;
-  optional NodeReferenceData drive_ptr = 42;
   optional string external_url = 43;
   optional bytes inline_content = 44;
   FileType coarse_type = 50;
@@ -2515,6 +2544,8 @@ message FileData {
   optional int32 bitrate = 61;
   optional int32 channels = 62;
   optional int32 sample_rate = 63;
+  FileRetentionMode retention = 70;
+  optional google.protobuf.Timestamp expires_at = 71;
 }
 
 // A Bench @handle. Can only be created/edited by the system.
@@ -2601,8 +2632,8 @@ message LogData {
   optional NodeReferenceData identity_ptr = 79;
 }
 
-// A Machine provides some isolated compute, usually for a Server.
-// A Machine may also be manually provisioned with specific image/profiles.
+// A Machine provides physical compute.
+// Machines are usually tied to a Server, but may also be manually provisioned.
 message MachineData {
   ObjectType metatype = 1;
   string id = 2;
@@ -2704,7 +2735,7 @@ message BaseNodeData {
   repeated int32 set_properties = 29;
 }
 
-// A Notification for a Bench (author = created_by).
+// A Notification to a Bench (author = created_by).
 message NotificationData {
   ObjectType metatype = 1;
   string id = 2;
@@ -2918,7 +2949,6 @@ message SecretData {
   ObjectType metatype = 1;
   string id = 2;
   optional NodeReferenceData parent_ptr = 4;
-  optional NodeReferenceData package_ptr = 5;
   optional NodeReferenceData bench_ptr = 6;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
@@ -2931,12 +2961,16 @@ message SecretData {
   optional NodeReferenceData updated_by_ptr = 22;
   repeated int32 set_properties = 29;
   string title = 33;
+  optional TextData text = 34;
+  Region region = 35;
+  ResourceStatus status = 36;
+  ResourceStatus current_status = 37;
   TypeInfoData value_type = 40;
   optional google.protobuf.Struct value_packed = 41;
 }
 
-// A server provides some compute for a Bench's Runtime.
-// Physical compute is materialized (on-demand) as Machines.
+// A Server provides virtual compute for a Bench's Runtime.
+// Physical compute is materialized dynamically on Machines.
 message ServerData {
   ObjectType metatype = 1;
   string id = 2;
@@ -3207,6 +3241,29 @@ message UserData {
   bool is_staff = 90;
 }
 
+// Vault for secret storage.
+message VaultData {
+  ObjectType metatype = 1;
+  string id = 2;
+  optional NodeReferenceData parent_ptr = 4;
+  optional NodeReferenceData bench_ptr = 6;
+  int64 revision = 10;
+  google.protobuf.Timestamp created_at = 11;
+  int64 created_epoch = 12;
+  google.protobuf.Timestamp updated_at = 13;
+  int64 updated_epoch = 14;
+  optional google.protobuf.Timestamp deleted_at = 15;
+  optional google.protobuf.Timestamp archived_at = 16;
+  optional NodeReferenceData created_by_ptr = 21;
+  optional NodeReferenceData updated_by_ptr = 22;
+  repeated int32 set_properties = 29;
+  string name = 32;
+  optional TextData text = 34;
+  Region region = 35;
+  ResourceStatus status = 36;
+  ResourceStatus current_status = 37;
+}
+
 // A view of a user interface in a Bench.
 message ViewData {
   ObjectType metatype = 1;
@@ -3270,30 +3327,32 @@ message SomeNodeData {
     StoreData store = 7;
     MachineData machine = 8;
     DriveData drive = 9;
-    MembershipData membership = 10;
-    InviteData invite = 11;
-    BranchData branch = 12;
-    PackageData package = 13;
-    DependencyData dependency = 14;
-    SpaceData space = 15;
-    BlockData block = 16;
-    TriggerData trigger = 17;
-    FieldData field = 18;
-    QueryData query = 19;
-    ViewData view = 20;
-    StepData step = 21;
-    PipeData pipe = 22;
-    BadgeData badge = 23;
-    FileData file = 24;
-    SecretData secret = 25;
-    MessageData message = 26;
-    RecordData record = 27;
-    NotificationData notification = 28;
-    SessionData session = 29;
-    RunData run = 30;
-    SignalData signal = 31;
-    LogData log = 32;
-    SkipData skip = 33;
+    VaultData vault = 10;
+    CacheData cache = 11;
+    FileData file = 12;
+    SecretData secret = 13;
+    MembershipData membership = 14;
+    InviteData invite = 15;
+    BranchData branch = 16;
+    PackageData package = 17;
+    DependencyData dependency = 18;
+    SpaceData space = 19;
+    BlockData block = 20;
+    TriggerData trigger = 21;
+    FieldData field = 22;
+    QueryData query = 23;
+    ViewData view = 24;
+    StepData step = 25;
+    PipeData pipe = 26;
+    BadgeData badge = 27;
+    MessageData message = 28;
+    RecordData record = 29;
+    SessionData session = 30;
+    RunData run = 31;
+    SignalData signal = 32;
+    LogData log = 33;
+    NotificationData notification = 34;
+    SkipData skip = 35;
   };
 }
 
