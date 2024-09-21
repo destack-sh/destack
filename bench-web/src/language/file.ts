@@ -3,8 +3,10 @@ import { type Transaction } from "@/language/transaction";
 import { makeNode } from "@/language/node";
 import { getCachedHostClient } from "@/proto/services";
 import {
+  BenchData,
   BlockData,
   DownloadFilesResponse_DownloadHandle,
+  DriveData,
   EXTENSIONS_BY_FILE_FORMAT,
   FILE_FORMAT_BY_EXTENSION,
   FILE_FORMAT_BY_MIME_TYPE,
@@ -12,12 +14,14 @@ import {
   FileFormat,
   FileKind,
   FileReferenceData,
+  FileRetentionMode,
   FileType,
   IconData,
   MIME_TYPES_BY_FILE_FORMAT,
   NodeReferenceData,
   NodeType,
   PackageData,
+  ResourceStatus,
   StructType,
   TypeConstraintData,
   UploadFilesResponse_UploadHandle,
@@ -50,7 +54,8 @@ export enum FileStatus {
 export type FileUpload = {
   status: Ref<FileStatus>;
   isActive: Ref<boolean>;
-  parent: PackageData | BlockData;
+  bench: BenchData;
+  parent: DriveData | null;
   nodePtr: NodeReferenceData;
   file: Ref<FileData | null>;
   content: File;
@@ -86,7 +91,8 @@ export const activeFileUploads = computed(() => fileUploads.value.filter((u) => 
 export async function extractFile(
   content: File,
   identity: NodeReferenceData,
-  parent: PackageData | BlockData,
+  parent: DriveData | null,
+  bench: BenchData,
 ): Promise<FileData> {
   const title = content.name;
 
@@ -112,13 +118,17 @@ export async function extractFile(
   const file = makeNode({
     metatype: NodeType.FILE,
     id: identity.id,
-    parentPtr: toPlainNodeRef(parent),
-    benchPtr: parent.benchPtr,
+    parentPtr: parent ? toPlainNodeRef(parent) : undefined,
+    benchPtr: toPlainNodeRef(bench),
+    region: bench.region,
+    status: ResourceStatus.UP,
+    currentStatus: ResourceStatus.DOWN,
     kind: FileKind.DRIVE,
     title,
     coarseType,
     mimeType,
     format,
+    retention: FileRetentionMode.AUTOMATIC,
     size: BigInt(content.size),
     sha256: await sha256(content),
   });
@@ -193,13 +203,15 @@ async function doUploadFiles(
   uploads: FileUpload[],
   options?: { validate: (upload: FileUpload, info: FileData) => void },
 ): Promise<void> {
+  if (uploads.length == 0) return;
+
   log.trace("file.uploadFiles", uploads);
   // extract files
   for (const upload of uploads) {
     try {
       upload.status.value = FileStatus.PREPARING;
       if (options?.validate) {
-        upload.file.value = await extractFile(upload.content, upload.nodePtr, upload.parent);
+        upload.file.value = await extractFile(upload.content, upload.nodePtr, upload.parent, upload.bench);
         options.validate(upload, upload.file.value);
       }
     } catch (e) {
@@ -209,7 +221,7 @@ async function doUploadFiles(
   }
 
   // get post URLs
-  const scope = makeScope({ benchId: uploads[0].parent.benchPtr!.id });
+  const scope = makeScope({ benchId: uploads[0].bench.id });
   const host = getCachedHostClient(scope);
   let handles: UploadFilesResponse_UploadHandle[] = [];
   try {
@@ -263,17 +275,19 @@ export function uploadFiles(
   txFactory: () => Transaction,
   contents: File[],
   options: {
-    parent: PackageData | BlockData;
+    parent?: DriveData;
+    bench: BenchData;
     allowedTypes?: FileType[];
     allowedFormats?: FileFormat[];
   },
 ): FileUpload[] {
   const uploads: FileUpload[] = contents.map((content) => {
-    const fileIdentity = nodeReference(NodeType.FILE, newNodeId(), { benchId: options.parent.benchPtr!.id });
+    const fileIdentity = nodeReference(NodeType.FILE, newNodeId(), { benchId: options.bench.id });
     const upload: FileUpload = {
       status: shallowRef(FileStatus.PENDING),
       isActive: computed(() => upload.status.value != FileStatus.COMPLETED && upload.status.value != FileStatus.FAILED),
-      parent: options.parent,
+      parent: options?.parent ?? null,
+      bench: options.bench,
       nodePtr: fileIdentity,
       file: shallowRef(null),
       content,
@@ -313,7 +327,8 @@ export function uploadFile(
   txFactory: () => Transaction,
   content: File,
   options: {
-    parent: PackageData | BlockData;
+    parent?: DriveData;
+    bench: BenchData;
     allowedTypes?: FileType[];
     allowedFormats?: FileFormat[];
   },

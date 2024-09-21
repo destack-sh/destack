@@ -19,7 +19,7 @@ import {
   ViewType,
 } from "@/proto/wire";
 import { toNodeRef, type TypedNodeReferenceData } from "@/proto/wiring";
-import { canvas, pkg, pkgConnection } from "@/system/space";
+import { bench, canvas, pkg, pkgConnection } from "@/system/space";
 import { useDropZone } from "@/ui/drag";
 import { ICON_BY_FILE_FORMAT, ICON_BY_FILE_TYPE, IconInline } from "@/ui/icon";
 import { type HoverMenuOptions, type PopoverContext } from "@/ui/popover";
@@ -93,12 +93,12 @@ const loadFailed = computed(() => download.value?.status.value == FileStatus.FAI
 
 async function onFileSelected(files: File[]) {
   if (files.length == 0) return;
-  if (pkg.value == null) throw new Error("no current package");
+  if (bench.value == null) throw new Error("no current bench");
   const content = files[0];
   // NOTE :Incomplete: uploaded file should be attributed to closest ancestor block, not package (?)
   try {
     upload.value = uploadFile(() => pkgConnection.tx, content, {
-      parent: pkg.value,
+      bench: bench.value,
       allowedTypes: fileType.value != FileType.GENERIC ? [fileType.value] : undefined,
       allowedFormats: fileFormat.value != null ? [fileFormat.value] : undefined,
     });
@@ -137,7 +137,7 @@ canvas.registerView(self, id);
 defineExpose<ViewExposed>({ self, id });
 </script>
 <template>
-  <ViewContentWrapper  v-bind="props" :class="[size?.height != null ? 'h-full' : 's']">
+  <ViewContentWrapper v-bind="props" :class="[size?.height != null ? 'h-full' : 's']">
     <!-- Actual file input (hidden) -->
     <input
       ref="fileInputRef"
@@ -181,7 +181,7 @@ defineExpose<ViewExposed>({ self, id });
       :class="[
         isInDropZone
           ? 'border-primary-900 outline outline-1 outline-primary-900'
-          : 'border-gray-200  hover:border-gray-300',
+          : 'border-gray-200 hover:border-gray-300',
       ]"
       @click="download?.getUrl.value != null ? openFile() : fileInputRef!.click()"
     >
@@ -241,7 +241,7 @@ defineExpose<ViewExposed>({ self, id });
       :class="[
         isInDropZone
           ? 'border-primary-900 text-primary-900 outline outline-2 outline-primary-900'
-          : ' border-gray-200 text-gray-400  hover:border-gray-300',
+          : 'border-gray-200 text-gray-400 hover:border-gray-300',
       ]"
       @click="fileInputRef!.click()"
     >
@@ -326,7 +326,7 @@ defineExpose<ViewExposed>({ self, id });
       <!-- Overlay -->
       <div
         class="absolute top-0 w-full"
-        :class="upload?.isActive?.value ? 'h-full bg-white bg-opacity-50 transition-colors  duration-150' : ''"
+        :class="upload?.isActive?.value ? 'h-full bg-white bg-opacity-50 transition-colors duration-150' : ''"
       >
         <!-- Upload progress -->
         <div v-if="upload != null && upload.isActive.value" class="absolute top-0 w-full">
