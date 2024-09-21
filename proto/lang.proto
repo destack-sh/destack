@@ -120,8 +120,10 @@ enum BenchType {
   BENCH_TYPE_SESSION_CONTEXT = 10001;
   BENCH_TYPE_EDIT_CONTEXT = 10002;
   BENCH_TYPE_EDIT = 10005;
-  BENCH_TYPE_CHANGE = 10006;
-  BENCH_TYPE_CHANGE_VIGNETTE = 10007;
+  BENCH_TYPE_EDIT_INFO = 10006;
+  BENCH_TYPE_EDIT_OPERATION = 10007;
+  BENCH_TYPE_CHANGE = 10010;
+  BENCH_TYPE_CHANGE_VIGNETTE = 10011;
   BENCH_TYPE_GRAPH_SCOPE = 10050;
   BENCH_TYPE_CLIENT_ORIGIN = 10051;
   BENCH_TYPE_NODE_REFERENCE = 10052;
@@ -191,6 +193,7 @@ enum BenchType {
   BENCH_TYPE_USE_TYPE = 20034;
   BENCH_TYPE_ACCESS_TYPE = 20035;
   BENCH_TYPE_CHANGE_CATEGORY = 20036;
+  BENCH_TYPE_EDIT_OPERATION_TYPE = 20037;
   BENCH_TYPE_POLICY_EFFECT = 20040;
   BENCH_TYPE_CLOUD = 20050;
   BENCH_TYPE_REGION = 20051;
@@ -430,6 +433,15 @@ enum Day {
   DAY_SUNDAY = 7;
 }
 
+// The type of edit operation.
+enum EditOperationType {
+  EDIT_OPERATION_TYPE_UNSPECIFIED = 0;
+  EDIT_OPERATION_TYPE_SET = 1;
+  EDIT_OPERATION_TYPE_CLEAR = 2;
+  EDIT_OPERATION_TYPE_APPEND = 3;
+  EDIT_OPERATION_TYPE_REMOVE = 4;
+}
+
 // Ways to edit nodes.
 enum EditType {
   EDIT_TYPE_UNSPECIFIED = 0;
@@ -459,6 +471,7 @@ enum EnumType {
   ENUM_TYPE_USE_TYPE = 20034;
   ENUM_TYPE_ACCESS_TYPE = 20035;
   ENUM_TYPE_CHANGE_CATEGORY = 20036;
+  ENUM_TYPE_EDIT_OPERATION_TYPE = 20037;
   ENUM_TYPE_POLICY_EFFECT = 20040;
   ENUM_TYPE_CLOUD = 20050;
   ENUM_TYPE_REGION = 20051;
@@ -914,8 +927,10 @@ enum ObjectType {
   OBJECT_TYPE_SESSION_CONTEXT = 10001;
   OBJECT_TYPE_EDIT_CONTEXT = 10002;
   OBJECT_TYPE_EDIT = 10005;
-  OBJECT_TYPE_CHANGE = 10006;
-  OBJECT_TYPE_CHANGE_VIGNETTE = 10007;
+  OBJECT_TYPE_EDIT_INFO = 10006;
+  OBJECT_TYPE_EDIT_OPERATION = 10007;
+  OBJECT_TYPE_CHANGE = 10010;
+  OBJECT_TYPE_CHANGE_VIGNETTE = 10011;
   OBJECT_TYPE_GRAPH_SCOPE = 10050;
   OBJECT_TYPE_CLIENT_ORIGIN = 10051;
   OBJECT_TYPE_NODE_REFERENCE = 10052;
@@ -1295,8 +1310,10 @@ enum StructType {
   STRUCT_TYPE_SESSION_CONTEXT = 10001;
   STRUCT_TYPE_EDIT_CONTEXT = 10002;
   STRUCT_TYPE_EDIT = 10005;
-  STRUCT_TYPE_CHANGE = 10006;
-  STRUCT_TYPE_CHANGE_VIGNETTE = 10007;
+  STRUCT_TYPE_EDIT_INFO = 10006;
+  STRUCT_TYPE_EDIT_OPERATION = 10007;
+  STRUCT_TYPE_CHANGE = 10010;
+  STRUCT_TYPE_CHANGE_VIGNETTE = 10011;
   STRUCT_TYPE_GRAPH_SCOPE = 10050;
   STRUCT_TYPE_CLIENT_ORIGIN = 10051;
   STRUCT_TYPE_NODE_REFERENCE = 10052;
@@ -1629,12 +1646,7 @@ message ComputedValueData {
   optional CodeData code = 36;
 }
 
-// An edit to a Node. Currently, edits are always on the property level (no sub-properties or values).
-// 
-// For updates/moves, the old/new node values are just the edited properties.
-// For archive/delete/erase, the old node is the full node.
-// (technically we don't *need* the old node if it's not an erase, but it's very convenient)
-// Similarly, for create/upsert/unarchive/restore, the new node is the full node.
+// An edit to a Node in some context.
 message EditData {
   ObjectType metatype = 1;
   string id = 2;
@@ -1665,6 +1677,31 @@ message EditContextData {
   optional NodeReferenceData run_ptr = 73;
   optional NodeReferenceData run_root_ptr = 74;
   optional NodeReferenceData identity_ptr = 75;
+}
+
+// Content of an Edit to a Node.  Currently, edits are always on the property level (no sub-properties or values).
+// 
+// For updates/moves, the old/new node values are just the edited properties.
+// For archive/delete/erase, the old node is the full node.
+// (technically we don't *need* the old node if it's not an erase, but it's very convenient)
+// Similarly, for create/upsert/unarchive/restore, the new node is the full node.
+message EditInfoData {
+  ObjectType metatype = 1;
+  string id = 2;
+  EditType type = 30;
+  NodeReferenceData node_ptr = 31;
+  optional ChangeVignetteData vignette = 32;
+  repeated int32 properties = 40;
+  optional SomeNodeData old_node = 41;
+  optional SomeNodeData new_node = 42;
+}
+
+// An edit operation.
+message EditOperationData {
+  ObjectType metatype = 1;
+  EditOperationType type = 30;
+  repeated string path = 31;
+  optional google.protobuf.Struct value_packed = 40;
 }
 
 // An expression like a value, function, comparison or such.

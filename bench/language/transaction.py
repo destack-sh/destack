@@ -33,7 +33,7 @@ from bench.language.node import (
     Struct,
     struct_,
 )
-from bench.language.property import p_internal, p_system
+from bench.language.property import p_internal, p_system, p_value_packed
 from bench.language.setup import NODE_CLASS_BY_TYPE
 from bench.proto.wire import (
     AnyNodeData,
@@ -91,16 +91,34 @@ class ChangeVignette(Struct):
     )
 
 
-@struct_(StructType.EDIT)
-class Edit(Struct):
+@enum_(EnumType.EDIT_OPERATION_TYPE)
+class EditOperationType(IdEnum):
+    """The type of edit operation."""
+
+    SET = 1
+    CLEAR = 2
+    APPEND = 3
+    REMOVE = 4
+
+
+@struct_(StructType.EDIT_OPERATION)
+class EditOperation(Struct):
+    """An edit operation."""
+
+    type: EditOperationType = p_system(30, require=True, default=EditOperationType.SET)
+    path: list[str] = p_system(31, array=True)
+    value_packed: Any = p_value_packed(40)
+
+
+@struct_(StructType.EDIT_INFO)
+class EditInfo(Struct):
     """
-    An edit to a Node. Currently, edits are always on the property level (no sub-properties or values).
+    Content of an Edit to a Node.  Currently, edits are always on the property level (no sub-properties or values).
 
     For updates/moves, the old/new node values are just the edited properties.
     For archive/delete/erase, the old node is the full node.
       (technically we don't *need* the old node if it's not an erase, but it's very convenient)
-    Similarly, for create/upsert/unarchive/restore, the new node is the full node.
-    """
+    Similarly, for create/upsert/unarchive/restore, the new node is the full node."""
 
     # NOTE: Edit.old_node/new_node :EditData are populated as follows:
     #  (default is old_node=None, new_node=None)
@@ -149,6 +167,15 @@ class Edit(Struct):
         is_node_data=True,
         description="The new values for the edited properties (may be partial.)",
     )
+
+
+@struct_(StructType.EDIT)
+class Edit(EditInfo):
+    """
+    An edit to a Node in some context.
+    """
+
+    # ...EditInfo[30-59]
 
     # meta
     scope: GraphScope = p_system(
