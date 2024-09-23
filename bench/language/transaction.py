@@ -95,10 +95,16 @@ class ChangeVignette(Struct):
 class EditOperationType(IdEnum):
     """The type of edit operation."""
 
+    # general
     SET = 1
     CLEAR = 2
+
+    # list
     APPEND = 3
     REMOVE = 4
+
+    # text
+    # ...
 
 
 @struct_(StructType.EDIT_OPERATION)

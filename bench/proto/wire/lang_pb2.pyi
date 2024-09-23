@@ -326,7 +326,6 @@ class ChangeKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     CHANGE_KIND_UNSPECIFIED: _ClassVar[ChangeKind]
     CHANGE_KIND_CODE: _ClassVar[ChangeKind]
-    CHANGE_KIND_MATERIALIZED: _ClassVar[ChangeKind]
     CHANGE_KIND_LOGS: _ClassVar[ChangeKind]
     CHANGE_KIND_LOGS_QUERY: _ClassVar[ChangeKind]
 
@@ -1480,16 +1479,18 @@ class ViewType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     VIEW_TYPE_DRAWER: _ClassVar[ViewType]
     VIEW_TYPE_SCROLL: _ClassVar[ViewType]
     VIEW_TYPE_GRID: _ClassVar[ViewType]
-    VIEW_TYPE_LIST: _ClassVar[ViewType]
-    VIEW_TYPE_TABLE: _ClassVar[ViewType]
     VIEW_TYPE_GROUP: _ClassVar[ViewType]
     VIEW_TYPE_SECTION: _ClassVar[ViewType]
+    VIEW_TYPE_FORM: _ClassVar[ViewType]
     VIEW_TYPE_SPACER: _ClassVar[ViewType]
     VIEW_TYPE_DIVIDER: _ClassVar[ViewType]
-    VIEW_TYPE_SHAPE: _ClassVar[ViewType]
+    VIEW_TYPE_LIST: _ClassVar[ViewType]
+    VIEW_TYPE_TABLE: _ClassVar[ViewType]
+    VIEW_TYPE_BREADCRUMB: _ClassVar[ViewType]
     VIEW_TYPE_PROGRESS: _ClassVar[ViewType]
     VIEW_TYPE_AVATAR: _ClassVar[ViewType]
     VIEW_TYPE_BADGE: _ClassVar[ViewType]
+    VIEW_TYPE_SHAPE: _ClassVar[ViewType]
     VIEW_TYPE_CHART: _ClassVar[ViewType]
     VIEW_TYPE_BUTTON: _ClassVar[ViewType]
     VIEW_TYPE_MULTI_BUTTON: _ClassVar[ViewType]
@@ -1781,7 +1782,6 @@ CHANGE_CATEGORY_SPACE: ChangeCategory
 CHANGE_CATEGORY_SESSION: ChangeCategory
 CHANGE_KIND_UNSPECIFIED: ChangeKind
 CHANGE_KIND_CODE: ChangeKind
-CHANGE_KIND_MATERIALIZED: ChangeKind
 CHANGE_KIND_LOGS: ChangeKind
 CHANGE_KIND_LOGS_QUERY: ChangeKind
 CLIENT_TYPE_UNSPECIFIED: ClientType
@@ -2716,16 +2716,18 @@ VIEW_TYPE_STACK: ViewType
 VIEW_TYPE_DRAWER: ViewType
 VIEW_TYPE_SCROLL: ViewType
 VIEW_TYPE_GRID: ViewType
-VIEW_TYPE_LIST: ViewType
-VIEW_TYPE_TABLE: ViewType
 VIEW_TYPE_GROUP: ViewType
 VIEW_TYPE_SECTION: ViewType
+VIEW_TYPE_FORM: ViewType
 VIEW_TYPE_SPACER: ViewType
 VIEW_TYPE_DIVIDER: ViewType
-VIEW_TYPE_SHAPE: ViewType
+VIEW_TYPE_LIST: ViewType
+VIEW_TYPE_TABLE: ViewType
+VIEW_TYPE_BREADCRUMB: ViewType
 VIEW_TYPE_PROGRESS: ViewType
 VIEW_TYPE_AVATAR: ViewType
 VIEW_TYPE_BADGE: ViewType
+VIEW_TYPE_SHAPE: ViewType
 VIEW_TYPE_CHART: ViewType
 VIEW_TYPE_BUTTON: ViewType
 VIEW_TYPE_MULTI_BUTTON: ViewType
