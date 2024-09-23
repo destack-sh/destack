@@ -111,10 +111,7 @@ const feedState = computed((): FeedViewStateData => {
     // pre-filter to only runs of this node
     metatype: ObjectType.FEED_VIEW_STATE,
     nodeType: NodeType.RUN,
-    filter: makeExpression({
-      op: ExpressionOp.AND,
-      clauses,
-    }),
+    filter: makeExpression({ op: ExpressionOp.AND, clauses }),
     filterPills: state.value.feed?.filterPills ?? [],
   };
   return feedState;

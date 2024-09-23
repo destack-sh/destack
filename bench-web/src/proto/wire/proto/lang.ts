@@ -1474,19 +1474,19 @@ export interface RunOptionsData {
      */
     breakpoints: BreakpointData[];
     /**
-     * @generated from protobuf field: optional symbolx.bench.CacheBehavior cache_behavior = 60;
+     * @generated from protobuf field: optional symbolx.bench.CacheMode cache_mode = 70;
      */
-    cacheBehavior?: CacheBehavior;
+    cacheMode?: CacheMode;
     /**
-     * @generated from protobuf field: optional google.protobuf.Duration cache_expiry = 61;
+     * @generated from protobuf field: optional google.protobuf.Duration cache_expiry = 71;
      */
     cacheExpiry?: Duration;
     /**
-     * @generated from protobuf field: optional symbolx.bench.ModelProvider model_provider = 70;
+     * @generated from protobuf field: optional symbolx.bench.ModelProvider model_provider = 80;
      */
     modelProvider?: ModelProvider;
     /**
-     * @generated from protobuf field: optional symbolx.bench.ModelType model_type = 71;
+     * @generated from protobuf field: optional symbolx.bench.ModelType model_type = 81;
      */
     modelType?: ModelType;
 }
@@ -7264,9 +7264,9 @@ export enum BenchType {
      */
     BREAKPOINT_ACTION = 20531,
     /**
-     * @generated from protobuf enum value: BENCH_TYPE_CACHE_BEHAVIOR = 20540;
+     * @generated from protobuf enum value: BENCH_TYPE_CACHE_MODE = 20540;
      */
-    CACHE_BEHAVIOR = 20540,
+    CACHE_MODE = 20540,
     /**
      * @generated from protobuf enum value: BENCH_TYPE_CODE_TYPE = 20560;
      */
@@ -7397,41 +7397,41 @@ export enum BlockType {
      */
     NOTIFICATION = 13,
     /**
-     * @generated from protobuf enum value: BLOCK_TYPE_TEXT = 30;
+     * @generated from protobuf enum value: BLOCK_TYPE_TEXT = 20;
      */
-    TEXT = 30,
+    TEXT = 20,
     /**
-     * @generated from protobuf enum value: BLOCK_TYPE_CODE = 31;
+     * @generated from protobuf enum value: BLOCK_TYPE_CODE = 21;
      */
-    CODE = 31,
+    CODE = 21,
     /**
-     * @generated from protobuf enum value: BLOCK_TYPE_FLOW = 32;
+     * @generated from protobuf enum value: BLOCK_TYPE_FLOW = 22;
      */
-    FLOW = 32,
+    FLOW = 22,
     /**
-     * @generated from protobuf enum value: BLOCK_TYPE_VALUE = 50;
+     * @generated from protobuf enum value: BLOCK_TYPE_VALUE = 30;
      */
-    VALUE = 50,
+    VALUE = 30,
     /**
-     * @generated from protobuf enum value: BLOCK_TYPE_DATABASE = 51;
+     * @generated from protobuf enum value: BLOCK_TYPE_DATABASE = 31;
      */
-    DATABASE = 51,
+    DATABASE = 31,
     /**
-     * @generated from protobuf enum value: BLOCK_TYPE_QUERY = 52;
+     * @generated from protobuf enum value: BLOCK_TYPE_QUERY = 32;
      */
-    QUERY = 52,
+    QUERY = 32,
     /**
-     * @generated from protobuf enum value: BLOCK_TYPE_VIEW = 70;
+     * @generated from protobuf enum value: BLOCK_TYPE_VIEW = 40;
      */
-    VIEW = 70,
+    VIEW = 40,
     /**
-     * @generated from protobuf enum value: BLOCK_TYPE_ROLE = 90;
+     * @generated from protobuf enum value: BLOCK_TYPE_ROLE = 50;
      */
-    ROLE = 90,
+    ROLE = 50,
     /**
-     * @generated from protobuf enum value: BLOCK_TYPE_IDENTITY = 91;
+     * @generated from protobuf enum value: BLOCK_TYPE_IDENTITY = 51;
      */
-    IDENTITY = 91
+    IDENTITY = 51
 }
 /**
  * @generated from protobuf enum symbolx.bench.BreakpointAction
@@ -7474,25 +7474,21 @@ export enum BreakpointKind {
 /**
  * How to handle caching.
  *
- * @generated from protobuf enum symbolx.bench.CacheBehavior
+ * @generated from protobuf enum symbolx.bench.CacheMode
  */
-export enum CacheBehavior {
+export enum CacheMode {
     /**
-     * @generated from protobuf enum value: CACHE_BEHAVIOR_UNSPECIFIED = 0;
+     * @generated from protobuf enum value: CACHE_MODE_UNSPECIFIED = 0;
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: CACHE_BEHAVIOR_NEVER = 1;
+     * @generated from protobuf enum value: CACHE_MODE_NEVER = 1;
      */
     NEVER = 1,
     /**
-     * @generated from protobuf enum value: CACHE_BEHAVIOR_ALWAYS = 2;
+     * @generated from protobuf enum value: CACHE_MODE_ALWAYS = 2;
      */
-    ALWAYS = 2,
-    /**
-     * @generated from protobuf enum value: CACHE_BEHAVIOR_INHERIT = 3;
-     */
-    INHERIT = 3
+    ALWAYS = 2
 }
 /**
  * Optional classification for edits.
@@ -8239,9 +8235,9 @@ export enum EnumType {
      */
     BREAKPOINT_ACTION = 20531,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_CACHE_BEHAVIOR = 20540;
+     * @generated from protobuf enum value: ENUM_TYPE_CACHE_MODE = 20540;
      */
-    CACHE_BEHAVIOR = 20540,
+    CACHE_MODE = 20540,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_CODE_TYPE = 20560;
      */
@@ -9309,29 +9305,37 @@ export enum ModelType {
      */
     UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: MODEL_TYPE_GPT4_0 = 101;
+     * @generated from protobuf enum value: MODEL_TYPE_OPENAI_GPT4_0 = 101;
      */
-    GPT4_0 = 101,
+    OPENAI_GPT4_0 = 101,
     /**
-     * @generated from protobuf enum value: MODEL_TYPE_GPT4_O_MINI = 102;
+     * @generated from protobuf enum value: MODEL_TYPE_OPENAI_GPT4_O_MINI = 102;
      */
-    GPT4_O_MINI = 102,
+    OPENAI_GPT4_O_MINI = 102,
     /**
-     * @generated from protobuf enum value: MODEL_TYPE_CLAUDE_3_5_SONNET = 201;
+     * @generated from protobuf enum value: MODEL_TYPE_OPENAI_O1_PREVIEW = 103;
      */
-    CLAUDE_3_5_SONNET = 201,
+    OPENAI_O1_PREVIEW = 103,
     /**
-     * @generated from protobuf enum value: MODEL_TYPE_GEMINI_1_5_PRO = 301;
+     * @generated from protobuf enum value: MODEL_TYPE_OPENAI_O1_MINI = 104;
      */
-    GEMINI_1_5_PRO = 301,
+    OPENAI_O1_MINI = 104,
     /**
-     * @generated from protobuf enum value: MODEL_TYPE_LLAMA_3_1_80B = 401;
+     * @generated from protobuf enum value: MODEL_TYPE_ANTHROPIC_CLAUDE_3_5_SONNET = 201;
      */
-    LLAMA_3_1_80B = 401,
+    ANTHROPIC_CLAUDE_3_5_SONNET = 201,
     /**
-     * @generated from protobuf enum value: MODEL_TYPE_LLAMA_3_1_400B = 402;
+     * @generated from protobuf enum value: MODEL_TYPE_GOOGLE_GEMINI_1_5_PRO = 301;
      */
-    LLAMA_3_1_400B = 402
+    GOOGLE_GEMINI_1_5_PRO = 301,
+    /**
+     * @generated from protobuf enum value: MODEL_TYPE_META_LLAMA_3_1_80B = 401;
+     */
+    META_LLAMA_3_1_80B = 401,
+    /**
+     * @generated from protobuf enum value: MODEL_TYPE_META_LLAMA_3_1_400B = 402;
+     */
+    META_LLAMA_3_1_400B = 402
 }
 /**
  * @generated from protobuf enum symbolx.bench.Month
@@ -15464,10 +15468,10 @@ class RunOptionsData$Type extends MessageType<RunOptionsData> {
             { no: 42, name: "max_retry_interval", kind: "scalar", opt: true, T: 2 /*ScalarType.FLOAT*/ },
             { no: 44, name: "retry_on", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.RunErrorType", RunErrorType, "RUN_ERROR_TYPE_"] },
             { no: 50, name: "breakpoints", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => BreakpointData },
-            { no: 60, name: "cache_behavior", kind: "enum", opt: true, T: () => ["symbolx.bench.CacheBehavior", CacheBehavior, "CACHE_BEHAVIOR_"] },
-            { no: 61, name: "cache_expiry", kind: "message", T: () => Duration },
-            { no: 70, name: "model_provider", kind: "enum", opt: true, T: () => ["symbolx.bench.ModelProvider", ModelProvider, "MODEL_PROVIDER_"] },
-            { no: 71, name: "model_type", kind: "enum", opt: true, T: () => ["symbolx.bench.ModelType", ModelType, "MODEL_TYPE_"] }
+            { no: 70, name: "cache_mode", kind: "enum", opt: true, T: () => ["symbolx.bench.CacheMode", CacheMode, "CACHE_MODE_"] },
+            { no: 71, name: "cache_expiry", kind: "message", T: () => Duration },
+            { no: 80, name: "model_provider", kind: "enum", opt: true, T: () => ["symbolx.bench.ModelProvider", ModelProvider, "MODEL_PROVIDER_"] },
+            { no: 81, name: "model_type", kind: "enum", opt: true, T: () => ["symbolx.bench.ModelType", ModelType, "MODEL_TYPE_"] }
         ]);
     }
     create(value?: PartialMessage<RunOptionsData>): RunOptionsData {
@@ -15521,16 +15525,16 @@ class RunOptionsData$Type extends MessageType<RunOptionsData> {
                 case /* repeated symbolx.bench.BreakpointData breakpoints */ 50:
                     message.breakpoints.push(BreakpointData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* optional symbolx.bench.CacheBehavior cache_behavior */ 60:
-                    message.cacheBehavior = reader.int32();
+                case /* optional symbolx.bench.CacheMode cache_mode */ 70:
+                    message.cacheMode = reader.int32();
                     break;
-                case /* optional google.protobuf.Duration cache_expiry */ 61:
+                case /* optional google.protobuf.Duration cache_expiry */ 71:
                     message.cacheExpiry = Duration.internalBinaryRead(reader, reader.uint32(), options, message.cacheExpiry);
                     break;
-                case /* optional symbolx.bench.ModelProvider model_provider */ 70:
+                case /* optional symbolx.bench.ModelProvider model_provider */ 80:
                     message.modelProvider = reader.int32();
                     break;
-                case /* optional symbolx.bench.ModelType model_type */ 71:
+                case /* optional symbolx.bench.ModelType model_type */ 81:
                     message.modelType = reader.int32();
                     break;
                 default:
@@ -15582,18 +15586,18 @@ class RunOptionsData$Type extends MessageType<RunOptionsData> {
         /* repeated symbolx.bench.BreakpointData breakpoints = 50; */
         for (let i = 0; i < message.breakpoints.length; i++)
             BreakpointData.internalBinaryWrite(message.breakpoints[i], writer.tag(50, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.CacheBehavior cache_behavior = 60; */
-        if (message.cacheBehavior !== undefined)
-            writer.tag(60, WireType.Varint).int32(message.cacheBehavior);
-        /* optional google.protobuf.Duration cache_expiry = 61; */
+        /* optional symbolx.bench.CacheMode cache_mode = 70; */
+        if (message.cacheMode !== undefined)
+            writer.tag(70, WireType.Varint).int32(message.cacheMode);
+        /* optional google.protobuf.Duration cache_expiry = 71; */
         if (message.cacheExpiry)
-            Duration.internalBinaryWrite(message.cacheExpiry, writer.tag(61, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbolx.bench.ModelProvider model_provider = 70; */
+            Duration.internalBinaryWrite(message.cacheExpiry, writer.tag(71, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbolx.bench.ModelProvider model_provider = 80; */
         if (message.modelProvider !== undefined)
-            writer.tag(70, WireType.Varint).int32(message.modelProvider);
-        /* optional symbolx.bench.ModelType model_type = 71; */
+            writer.tag(80, WireType.Varint).int32(message.modelProvider);
+        /* optional symbolx.bench.ModelType model_type = 81; */
         if (message.modelType !== undefined)
-            writer.tag(71, WireType.Varint).int32(message.modelType);
+            writer.tag(81, WireType.Varint).int32(message.modelType);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -26749,7 +26753,7 @@ export const ENUM_BY_TYPE: Record<EnumType, Record<number | string, number | str
   [EnumType.TRIGGER_TYPE]: TriggerType,
   [EnumType.BREAKPOINT_KIND]: BreakpointKind,
   [EnumType.BREAKPOINT_ACTION]: BreakpointAction,
-  [EnumType.CACHE_BEHAVIOR]: CacheBehavior,
+  [EnumType.CACHE_MODE]: CacheMode,
   [EnumType.CODE_TYPE]: CodeType,
   [EnumType.MODEL_PROVIDER]: ModelProvider,
   [EnumType.MODEL_TYPE]: ModelType,
@@ -27044,7 +27048,7 @@ export interface EnumTypeMapping extends Record<EnumType, any> {
   [EnumType.TRIGGER_TYPE]: TriggerType,
   [EnumType.BREAKPOINT_KIND]: BreakpointKind,
   [EnumType.BREAKPOINT_ACTION]: BreakpointAction,
-  [EnumType.CACHE_BEHAVIOR]: CacheBehavior,
+  [EnumType.CACHE_MODE]: CacheMode,
   [EnumType.CODE_TYPE]: CodeType,
   [EnumType.MODEL_PROVIDER]: ModelProvider,
   [EnumType.MODEL_TYPE]: ModelType,
@@ -28525,10 +28529,10 @@ export enum RunOptionsProperty {
   maxRetryInterval = 42,
   retryOn = 44,
   breakpoints = 50,
-  cacheBehavior = 60,
-  cacheExpiry = 61,
-  modelProvider = 70,
-  modelType = 71,
+  cacheMode = 70,
+  cacheExpiry = 71,
+  modelProvider = 80,
+  modelType = 81,
 }
 
 export enum RunAttemptProperty {
@@ -28955,7 +28959,7 @@ export const SessionContextDataInfo: Record<SessionContextProperty, PropertyInfo
   [SessionContextProperty.machinePtr]: { id: 76, name: 'machine_ptr', component: ObjectType.SESSION_CONTEXT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MACHINE], referenceStruct: StructType.NODE_REFERENCE },
   [SessionContextProperty.serverPtr]: { id: 77, name: 'server_ptr', component: ObjectType.SESSION_CONTEXT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SERVER], referenceStruct: StructType.NODE_REFERENCE },
   [SessionContextProperty.userPtr]: { id: 78, name: 'user_ptr', component: ObjectType.SESSION_CONTEXT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
-  [SessionContextProperty.identityPtr]: { id: 79, name: 'identity_ptr', component: ObjectType.SESSION_CONTEXT, kind: 'reference', constraint: { blockType: 91 }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [SessionContextProperty.identityPtr]: { id: 79, name: 'identity_ptr', component: ObjectType.SESSION_CONTEXT, kind: 'reference', constraint: { blockType: 51 }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const EditContextDataInfo: Record<EditContextProperty, PropertyInfo> = {
   [EditContextProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.EDIT_CONTEXT, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -29090,11 +29094,11 @@ export const SubjectDataInfo: Record<SubjectProperty, PropertyInfo> = {
   [SubjectProperty.clientPtr]: { id: 40, name: 'client_ptr', component: ObjectType.SUBJECT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.CLIENT], referenceStruct: StructType.NODE_REFERENCE },
   [SubjectProperty.userPtr]: { id: 41, name: 'user_ptr', component: ObjectType.SUBJECT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
   [SubjectProperty.serverPtr]: { id: 42, name: 'server_ptr', component: ObjectType.SUBJECT, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SERVER], referenceStruct: StructType.NODE_REFERENCE },
-  [SubjectProperty.identityPtr]: { id: 50, name: 'identity_ptr', component: ObjectType.SUBJECT, kind: 'reference', constraint: { blockType: 91 }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [SubjectProperty.identityPtr]: { id: 50, name: 'identity_ptr', component: ObjectType.SUBJECT, kind: 'reference', constraint: { blockType: 51 }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [SubjectProperty.badgesPtr]: { id: 51, name: 'badges_ptr', component: ObjectType.SUBJECT, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BADGE], referenceStruct: StructType.NODE_REFERENCE },
   [SubjectProperty.ownedPtr]: { id: 52, name: 'owned_ptr', component: ObjectType.SUBJECT, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER, NodeType.ORGANIZATION, NodeType.BENCH], referenceStruct: StructType.NODE_REFERENCE },
   [SubjectProperty.membershipsPtr]: { id: 53, name: 'memberships_ptr', component: ObjectType.SUBJECT, kind: 'reference', isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MEMBERSHIP], referenceStruct: StructType.NODE_REFERENCE },
-  [SubjectProperty.rolesPtr]: { id: 54, name: 'roles_ptr', component: ObjectType.SUBJECT, kind: 'reference', constraint: { blockType: 90 }, isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [SubjectProperty.rolesPtr]: { id: 54, name: 'roles_ptr', component: ObjectType.SUBJECT, kind: 'reference', constraint: { blockType: 50 }, isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const AccessZoneDataInfo: Record<AccessZoneProperty, PropertyInfo> = {
   [AccessZoneProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.ACCESS_ZONE, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -29352,10 +29356,10 @@ export const RunOptionsDataInfo: Record<RunOptionsProperty, PropertyInfo> = {
   [RunOptionsProperty.maxRetryInterval]: { id: 42, name: 'max_retry_interval', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0 }, isRuntime: true, isWired: true, isStored: true },
   [RunOptionsProperty.retryOn]: { id: 44, name: 'retry_on', component: ObjectType.RUN_OPTIONS, enumType: EnumType.RUN_ERROR_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true },
   [RunOptionsProperty.breakpoints]: { id: 50, name: 'breakpoints', component: ObjectType.RUN_OPTIONS, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRequired: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.BREAKPOINT },
-  [RunOptionsProperty.cacheBehavior]: { id: 60, name: 'cache_behavior', component: ObjectType.RUN_OPTIONS, enumType: EnumType.CACHE_BEHAVIOR, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [RunOptionsProperty.cacheExpiry]: { id: 61, name: 'cache_expiry', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.INTERVAL, isRuntime: true, isWired: true, isStored: true },
-  [RunOptionsProperty.modelProvider]: { id: 70, name: 'model_provider', component: ObjectType.RUN_OPTIONS, enumType: EnumType.MODEL_PROVIDER, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
-  [RunOptionsProperty.modelType]: { id: 71, name: 'model_type', component: ObjectType.RUN_OPTIONS, enumType: EnumType.MODEL_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [RunOptionsProperty.cacheMode]: { id: 70, name: 'cache_mode', component: ObjectType.RUN_OPTIONS, enumType: EnumType.CACHE_MODE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [RunOptionsProperty.cacheExpiry]: { id: 71, name: 'cache_expiry', component: ObjectType.RUN_OPTIONS, kind: 'primitive', primitiveType: PrimitiveType.INTERVAL, isRuntime: true, isWired: true, isStored: true },
+  [RunOptionsProperty.modelProvider]: { id: 80, name: 'model_provider', component: ObjectType.RUN_OPTIONS, enumType: EnumType.MODEL_PROVIDER, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
+  [RunOptionsProperty.modelType]: { id: 81, name: 'model_type', component: ObjectType.RUN_OPTIONS, enumType: EnumType.MODEL_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRuntime: true, isWired: true, isStored: true },
 }
 export const RunAttemptDataInfo: Record<RunAttemptProperty, PropertyInfo> = {
   [RunAttemptProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.RUN_ATTEMPT, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -29636,7 +29640,7 @@ export const ServerDataInfo: Record<ServerProperty, PropertyInfo> = {
   [ServerProperty.region]: { id: 35, name: 'region', component: ObjectType.SERVER, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.status]: { id: 36, name: 'status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.09.23.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.09.23.4", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.minCpu]: { id: 50, name: 'min_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 4.0 }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.maxCpu]: { id: 51, name: 'max_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 4.0 }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -29665,7 +29669,7 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.region]: { id: 35, name: 'region', component: ObjectType.STORE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.status]: { id: 36, name: 'status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.09.23.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.09.23.4", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 50, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 51, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -29691,7 +29695,7 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.region]: { id: 35, name: 'region', component: ObjectType.MACHINE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.status]: { id: 36, name: 'status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.09.23.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.09.23.4", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 42, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 43, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -29867,7 +29871,7 @@ export const InviteDataInfo: Record<InviteProperty, PropertyInfo> = {
   [InviteProperty.userPtr]: { id: 30, name: 'user_ptr', component: ObjectType.INVITE, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
   [InviteProperty.userEmail]: { id: 31, name: 'user_email', component: ObjectType.INVITE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isRuntime: true, isWired: true, isStored: true },
   [InviteProperty.isOwner]: { id: 32, name: 'is_owner', component: ObjectType.INVITE, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isRuntime: true, isWired: true, isStored: true },
-  [InviteProperty.rolesPtr]: { id: 33, name: 'roles_ptr', component: ObjectType.INVITE, kind: 'reference', constraint: { blockType: 90 }, isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [InviteProperty.rolesPtr]: { id: 33, name: 'roles_ptr', component: ObjectType.INVITE, kind: 'reference', constraint: { blockType: 50 }, isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const BranchDataInfo: Record<BranchProperty, PropertyInfo> = {
   [BranchProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.BRANCH, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -29997,8 +30001,8 @@ export const BlockDataInfo: Record<BlockProperty, PropertyInfo> = {
   [BlockProperty.valuePacked]: { id: 40, name: 'value_packed', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [BlockProperty.code]: { id: 42, name: 'code', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
   [BlockProperty.runOptions]: { id: 43, name: 'run_options', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.RUN_OPTIONS },
-  [BlockProperty.rolesPtr]: { id: 46, name: 'roles_ptr', component: ObjectType.BLOCK, kind: 'reference', constraint: { blockType: 90 }, isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [BlockProperty.identityPtr]: { id: 47, name: 'identity_ptr', component: ObjectType.BLOCK, kind: 'reference', constraint: { blockType: 91 }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [BlockProperty.rolesPtr]: { id: 46, name: 'roles_ptr', component: ObjectType.BLOCK, kind: 'reference', constraint: { blockType: 50 }, isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [BlockProperty.identityPtr]: { id: 47, name: 'identity_ptr', component: ObjectType.BLOCK, kind: 'reference', constraint: { blockType: 51 }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [BlockProperty.policies]: { id: 48, name: 'policies', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY },
   [BlockProperty.delegatedPolicies]: { id: 49, name: 'delegated_policies', component: ObjectType.BLOCK, kind: 'reference', primitiveType: PrimitiveType.JSON, isList: true, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.POLICY },
   [BlockProperty.isBuiltin]: { id: 60, name: 'is_builtin', component: ObjectType.BLOCK, kind: 'primitive', primitiveType: PrimitiveType.BOOLEAN, default: false, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -30171,8 +30175,8 @@ export const StepDataInfo: Record<StepProperty, PropertyInfo> = {
   [StepProperty.valuePacked]: { id: 41, name: 'value_packed', component: ObjectType.STEP, kind: 'primitive', primitiveType: PrimitiveType.JSON, isInternal: true, isRuntime: true, isWired: true, isStored: true, isValuePacked: true },
   [StepProperty.nodePtr]: { id: 43, name: 'node_ptr', component: ObjectType.STEP, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK, NodeType.STEP, NodeType.TRIGGER], referenceStruct: StructType.NODE_REFERENCE },
   [StepProperty.code]: { id: 44, name: 'code', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.CODE },
-  [StepProperty.rolesPtr]: { id: 46, name: 'roles_ptr', component: ObjectType.STEP, kind: 'reference', constraint: { blockType: 90 }, isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
-  [StepProperty.identityPtr]: { id: 47, name: 'identity_ptr', component: ObjectType.STEP, kind: 'reference', constraint: { blockType: 91 }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [StepProperty.rolesPtr]: { id: 46, name: 'roles_ptr', component: ObjectType.STEP, kind: 'reference', constraint: { blockType: 50 }, isList: true, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [StepProperty.identityPtr]: { id: 47, name: 'identity_ptr', component: ObjectType.STEP, kind: 'reference', constraint: { blockType: 51 }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
   [StepProperty.position]: { id: 80, name: 'position', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.VECTOR2 },
   [StepProperty.size]: { id: 81, name: 'size', component: ObjectType.STEP, kind: 'reference', primitiveType: PrimitiveType.JSON, isRuntime: true, isWired: true, isStored: true, referenceKind: ReferenceKind.STRUCT_CHILD, referenceStruct: StructType.BOX },
 }
@@ -30349,7 +30353,7 @@ export const RunDataInfo: Record<RunProperty, PropertyInfo> = {
   [RunProperty.machinePtr]: { id: 76, name: 'machine_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MACHINE], referenceStruct: StructType.NODE_REFERENCE },
   [RunProperty.serverPtr]: { id: 77, name: 'server_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SERVER], referenceStruct: StructType.NODE_REFERENCE },
   [RunProperty.userPtr]: { id: 78, name: 'user_ptr', component: ObjectType.RUN, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
-  [RunProperty.identityPtr]: { id: 79, name: 'identity_ptr', component: ObjectType.RUN, kind: 'reference', constraint: { blockType: 91 }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [RunProperty.identityPtr]: { id: 79, name: 'identity_ptr', component: ObjectType.RUN, kind: 'reference', constraint: { blockType: 51 }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const SignalDataInfo: Record<SignalProperty, PropertyInfo> = {
   [SignalProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.SIGNAL, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -30378,7 +30382,7 @@ export const SignalDataInfo: Record<SignalProperty, PropertyInfo> = {
   [SignalProperty.machinePtr]: { id: 76, name: 'machine_ptr', component: ObjectType.SIGNAL, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MACHINE], referenceStruct: StructType.NODE_REFERENCE },
   [SignalProperty.serverPtr]: { id: 77, name: 'server_ptr', component: ObjectType.SIGNAL, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SERVER], referenceStruct: StructType.NODE_REFERENCE },
   [SignalProperty.userPtr]: { id: 78, name: 'user_ptr', component: ObjectType.SIGNAL, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
-  [SignalProperty.identityPtr]: { id: 79, name: 'identity_ptr', component: ObjectType.SIGNAL, kind: 'reference', constraint: { blockType: 91 }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [SignalProperty.identityPtr]: { id: 79, name: 'identity_ptr', component: ObjectType.SIGNAL, kind: 'reference', constraint: { blockType: 51 }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const LogDataInfo: Record<LogProperty, PropertyInfo> = {
   [LogProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.LOG, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },
@@ -30419,7 +30423,7 @@ export const LogDataInfo: Record<LogProperty, PropertyInfo> = {
   [LogProperty.machinePtr]: { id: 76, name: 'machine_ptr', component: ObjectType.LOG, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.MACHINE], referenceStruct: StructType.NODE_REFERENCE },
   [LogProperty.serverPtr]: { id: 77, name: 'server_ptr', component: ObjectType.LOG, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.SERVER], referenceStruct: StructType.NODE_REFERENCE },
   [LogProperty.userPtr]: { id: 78, name: 'user_ptr', component: ObjectType.LOG, kind: 'reference', isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.USER], referenceStruct: StructType.NODE_REFERENCE },
-  [LogProperty.identityPtr]: { id: 79, name: 'identity_ptr', component: ObjectType.LOG, kind: 'reference', constraint: { blockType: 91 }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
+  [LogProperty.identityPtr]: { id: 79, name: 'identity_ptr', component: ObjectType.LOG, kind: 'reference', constraint: { blockType: 51 }, isRuntime: true, isWired: true, referenceKind: ReferenceKind.NODE_REGULAR, referenceNodes: [NodeType.BLOCK], referenceStruct: StructType.NODE_REFERENCE },
 }
 export const NotificationDataInfo: Record<NotificationProperty, PropertyInfo> = {
   [NotificationProperty.metatype]: { id: 1, name: 'metatype', component: ObjectType.NOTIFICATION, enumType: EnumType.OBJECT_TYPE, kind: 'enum', primitiveType: PrimitiveType.INT16, isRequired: true, isInternal: true, isComputed: true, isWired: true },

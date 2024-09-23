@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.09.23.1"  # auto change via version script
+VERSION = "2024.09.23.4"  # auto change via version script
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -607,21 +607,21 @@ class BlockType(IdEnum):
     # PROTOCOL, TAG, ISSUE, METRIC, BLOCK, ...?
 
     # runnable
-    TEXT = 30  # define a 'paragraph' of text/prompt with fields (optionally incl. input/output)
-    CODE = 31  # define a code function/script with fields (optionally incl. input/output)
-    FLOW = 32  # define a flow with steps and fields (optionally incl. input/output)
+    TEXT = 20  # define a 'paragraph' of text/prompt with fields (optionally incl. input/output)
+    CODE = 21  # define a code function/script with fields (optionally incl. input/output)
+    FLOW = 22  # define a flow with steps and fields (optionally incl. input/output)
 
     # data
-    VALUE = 50  # define a single-value variable
-    DATABASE = 51  # define a database with records & queries
-    QUERY = 52  # define a set of queries
+    VALUE = 30  # define a single-value variable
+    DATABASE = 31  # define a database with records & queries
+    QUERY = 32  # define a set of queries
 
     # view
-    VIEW = 70  # define a view (with fields and nested views)
+    VIEW = 40  # define a view (with fields and nested views)
 
     # auth
-    ROLE = 90  # define a role with policies
-    IDENTITY = 91  # define an identity with roles & policies
+    ROLE = 50  # define a role with policies
+    IDENTITY = 51  # define an identity with roles & policies
 
     @property
     def is_page(self) -> bool:

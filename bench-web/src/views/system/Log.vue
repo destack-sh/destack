@@ -19,9 +19,10 @@ import Inaccessible from "@/views/builtins/Inaccessible.vue";
 import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import { getViewComponent, hasViewComponent } from "@/views/registry";
 import { computed, toRef, type Ref } from "vue";
-import { FULL_WIDTH_VIEW_TYPES, getPropertyTitle } from "@/ui/inspect";
 import { unpackBuiltinObject } from "@/language/value";
 import { getPropertyType, type TypeIdentity } from "@/language/field";
+import { getPropertyTitle } from "@/language/const";
+import { FULL_WIDTH_VIEW_TYPES } from "@/ui/view";
 
 const props = defineProps<
   { self?: TypedNodeReferenceData<NodeType.VIEW>; preparedConnection?: PreparedNodeConnection } & Partial<

@@ -3,6 +3,7 @@ import {
   Anchor,
   BenchType,
   BlockType,
+  CacheMode,
   ChangeVignetteData,
   ColorData,
   ColorShade,
@@ -522,6 +523,11 @@ export const ICON_BY_RESOURCE_STATUS: Partial<Record<ResourceStatus, IconData>> 
   [ResourceStatus.GONE]: "fas fa-empty-set",
 });
 
+export const ICON_BY_CACHE_MODE: Partial<Record<CacheMode, IconData>> = _makeIcons<CacheMode>({
+  [CacheMode.NEVER]: "fas fa-bolt-slash",
+  [CacheMode.ALWAYS]: "fas fa-bolt",
+});
+
 // big registry of ICON_BY_* by enum type
 export const ICONS_BY_ENUM_TYPE: Partial<Record<EnumType, Record<any, IconData>>> = {
   [EnumType.NODE_TYPE]: ICON_BY_NODE_TYPE,
@@ -544,9 +550,10 @@ export const ICONS_BY_ENUM_TYPE: Partial<Record<EnumType, Record<any, IconData>>
   [EnumType.REGION_AREA]: ICON_BY_REGION_AREA,
   [EnumType.REGION]: ICON_BY_REGION,
   [EnumType.RESOURCE_STATUS]: ICON_BY_RESOURCE_STATUS,
+  [EnumType.CACHE_MODE]: ICON_BY_CACHE_MODE,
 };
 
-/** Resolves the icon for a field :FieldIcon */
+/** Resolves the icon for a type :FieldIcon */
 export function getTypeIcon(node: Partial<FieldData> | TypeIdentity): IconData | undefined {
   if ((node as FieldData).zone == FieldZone.OPTION) {
     return ICON_BY_FIELD_ZONE[FieldZone.OPTION];

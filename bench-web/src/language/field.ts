@@ -13,27 +13,27 @@ import { makeNodeName } from "@/language/node";
 import { getOrderKey } from "@/language/order";
 import type { Transaction } from "@/language/transaction";
 import {
-  TypeInfoData,
-  type AnyNodeData,
-  PrimitiveType,
   BenchType,
-  TypeKind,
   BlockData,
   BlockType,
+  ColorType,
+  EnumType,
   FieldData,
   FieldZone,
   FileType,
+  NodeReferenceData,
   NodeType,
   ObjectType,
+  PrimitiveType,
   PropertyReferenceData,
+  StepData,
   StepType,
   StructType,
   TypeConstraintData,
+  TypeInfoData,
+  TypeKind,
+  type AnyNodeData,
   type PropertyInfo,
-  ColorType,
-  EnumType,
-  NodeReferenceData,
-  StepData,
 } from "@/proto/wire";
 import {
   contentEquals,
@@ -49,7 +49,7 @@ import type { ActionBuiltinId } from "@/ui/action";
 import { getNodeIcon, getTypeIcon, makeIcon } from "@/ui/icon";
 import { getEnumTitle } from "@/ui/inspect";
 import { getRandomColorType } from "@/ui/style";
-import { encodeB64VLQ, decodeB64VLQ, assertNever } from "@/utils/functools";
+import { assertNever, decodeB64VLQ, encodeB64VLQ } from "@/utils/functools";
 
 export const FIELD_CONTEXT_ACTIONS: ActionBuiltinId[] = [
   "common.edit.rename",

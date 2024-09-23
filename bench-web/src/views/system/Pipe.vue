@@ -34,7 +34,7 @@ defineExpose<ViewExposed>({ self, id });
 </script>
 <template>
   <div v-if="pipe && path">
-    <!-- TODO :Performance: pipe/path rendering consumes a lot of CPU time -->
+    <!-- NOTE :Performance: pipe/path rendering consumes a lot of CPU time -->
     <!-- Background/outline path for highlighting (and larger hit area) -->
     <svg
       class="absolute cursor-pointer overflow-visible blur-sm transition-colors duration-150"
@@ -53,21 +53,36 @@ defineExpose<ViewExposed>({ self, id });
     <!-- Primary path -->
     <svg class="pointer-events-none absolute overflow-visible" :style="{ color: pathColorHex }">
       <path
+        class="dash-animation"
         :stroke-width="PIPE_WIDTH"
         stroke-linecap="round"
         stroke-linejoin="bevel"
         stroke="currentColor"
         fill="none"
         :stroke-dasharray="
-          pipe.type == PipeType.CONTROL_AND_DATA ? `${PIPE_WIDTH * 3},${PIPE_WIDTH * 2}` : `${1},${PIPE_WIDTH * 2}`
+          pipe.type === PipeType.CONTROL_AND_DATA ? `${PIPE_WIDTH * 3},${PIPE_WIDTH * 2}` : `${1},${PIPE_WIDTH * 2}`
         "
         :d="pathSvg"
-      >
-        <animate attributeName="stroke-dashoffset" from="0" to="-100" dur="5s" repeatCount="indefinite" />
-      </path>
+      />
     </svg>
   </div>
   <div v-else>
     <!-- pipe without valid path, can't show anything meaningful here -->
   </div>
 </template>
+<style scoped>
+.dash-animation {
+  will-change: stroke-dashoffset;
+  transform: translateZ(0);
+  animation: dashOffsetAnimation 5s linear infinite;
+}
+
+@keyframes dashOffsetAnimation {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: -100;
+  }
+}
+</style>

@@ -2,7 +2,7 @@ import { isEnumType, isNodeType, NAME_CONSTRAINT } from "@/language/const";
 import { getPropertyType, getStorageKey, makeTypeInfo, resolveType, type TypeIdentity } from "@/language/field";
 import type { ReadNodeGraph } from "@/language/graph";
 import { type DebounceLevel, type Transaction } from "@/language/transaction";
-import { packBuiltinObject, packValue, unpackBuiltinObject, unpackValue } from "@/language/value";
+import { packBuiltinObject, unpackBuiltinObject } from "@/language/value";
 import {
   Anchor,
   BenchType,
@@ -47,7 +47,7 @@ import {
   type TypedNodeReferenceData,
 } from "@/proto/wiring";
 import { ICONS_BY_ENUM_TYPE } from "@/ui/icon";
-import { FULL_WIDTH_VIEW_TYPES, getEnumOptions } from "@/ui/inspect";
+import { getEnumOptions } from "@/ui/inspect";
 import { isFocusableElement } from "@/utils/element";
 import { computedValue } from "@/utils/ref";
 import { getViewTypeByComponentName, type ViewComponent, type ViewProps } from "@/views/common";
@@ -232,6 +232,7 @@ export const VIEW_TYPE_BY_PRIMITIVE_TYPE: Partial<Record<PrimitiveType, ViewType
   [PrimitiveType.JSON]: ViewType.JSON,
 };
 export const LISTABLE_VIEW_TYPES = new Set([ViewType.PICKER, ViewType.OBJECT, ViewType.STRING, ViewType.NUMBER]);
+export const FULL_WIDTH_VIEW_TYPES = [ViewType.TEXT, ViewType.CODE, ViewType.IMAGE, ViewType.AUDIO, ViewType.VIDEO];
 
 export function getViewForValueType(type: Omit<TypeIdentity, "kind"> & Partial<TypeInfoData>): ViewProps | null {
   if (type.kind == TypeKind.OBJECT) {

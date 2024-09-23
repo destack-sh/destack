@@ -64,7 +64,7 @@ import Scroll from "@/views/containers/Scroll.vue";
 import Log from "@/views/system/Log.vue";
 import Run from "@/views/system/Run.vue";
 import { computed, ref, toRef, type Ref } from "vue";
-import { EDIT_TYPE_PAST_VERB, getPropertyTitle } from "@/ui/inspect";
+import { EDIT_TYPE_PAST_VERB, getPropertyTitle } from "@/language/const";
 import { makeEditFromLog } from "@/language/edit";
 import { useViewExpansion, useViewState } from "@/ui/view";
 

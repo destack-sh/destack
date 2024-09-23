@@ -1,13 +1,23 @@
 import {
+  Anchor,
   BlockDataInfo,
   BlockProperty,
   BlockType,
+  EditType,
+  ENUM_BY_TYPE,
   EnumType,
+  EnumTypeMapping,
   FieldData,
+  IconData,
+  ModelProvider,
+  ModelType,
   NodeReferenceData,
   NodeType,
   NotificationData,
   ObjectType,
+  PipeFilterType,
+  PrimitiveType,
+  PropertyInfo,
   RecordData,
   RunData,
   RunStatus,
@@ -196,3 +206,146 @@ export const NODE_SUBTYPE_BY_TYPE: Partial<Record<NodeType, string>> = {
   [NodeType.STEP]: "type",
   [NodeType.FILE]: "coarseType",
 };
+
+//
+// Enums
+//
+
+export const EDIT_TYPE_PRESENT_VERB: Record<EditType, string> = {
+  [EditType.UNSPECIFIED]: "???",
+  [EditType.CREATE]: "creates",
+  [EditType.UPSERT]: "upserts",
+  [EditType.UPDATE]: "updates",
+  [EditType.MOVE]: "moves",
+  [EditType.ARCHIVE]: "archives",
+  [EditType.UNARCHIVE]: "unarchives",
+  [EditType.DELETE]: "deletes",
+  [EditType.RESTORE]: "restores",
+  [EditType.ERASE]: "erases",
+};
+export const EDIT_TYPE_PAST_VERB: Record<EditType, string> = {
+  [EditType.UNSPECIFIED]: "???",
+  [EditType.CREATE]: "created",
+  [EditType.UPSERT]: "upserted",
+  [EditType.UPDATE]: "updated",
+  [EditType.MOVE]: "moved",
+  [EditType.ARCHIVE]: "archived",
+  [EditType.UNARCHIVE]: "unarchived",
+  [EditType.DELETE]: "deleted",
+  [EditType.RESTORE]: "restored",
+  [EditType.ERASE]: "erased",
+};
+
+// NOTE: we soft-limit the subset of available enum options in bench-web
+//  (in code and backend the entire ranges are available)
+export const EXPOSED_BLOCK_TYPES = [
+  BlockType.PAGE,
+  BlockType.CLASS,
+  BlockType.CHOICE,
+  BlockType.TEXT,
+  BlockType.CODE,
+  BlockType.FLOW,
+  BlockType.VIEW,
+  BlockType.VALUE,
+  BlockType.DATABASE,
+];
+export const EXPOSED_STEP_TYPES = [StepType.START, StepType.COMPLETE, StepType.CODE, StepType.TEXT, StepType.BLOCK];
+export const EXPOSED_STRUCT_TYPES = [
+  // core
+  StructType.PATH,
+  StructType.TYPE_INFO,
+  StructType.SCHEDULE,
+  StructType.TRIGGER_INFO,
+  // files
+  StructType.ICON,
+  // code
+  StructType.CODE,
+  // expressions
+  StructType.EXPRESSION,
+  StructType.SELECTION,
+  StructType.VALUE,
+  // views
+  StructType.COLOR,
+  StructType.FONT,
+  StructType.OFFSET,
+  StructType.BOX,
+  // access
+  StructType.POLICY,
+  StructType.POLICY_RULE,
+  // text
+  StructType.TEXT,
+  // run
+  StructType.RUN_OPTIONS,
+  StructType.RUN_ATTEMPT,
+  StructType.RUN_ERROR,
+  StructType.RUN_FRAME,
+  StructType.RUN_TRACE,
+  StructType.BREAKPOINT,
+  StructType.LOG_INFO,
+];
+export const EXPOSED_PRIMITIVE_TYPES = [
+  PrimitiveType.BOOLEAN,
+  PrimitiveType.INT64,
+  PrimitiveType.FLOAT64,
+  PrimitiveType.STRING,
+  PrimitiveType.JSON,
+  PrimitiveType.BYTES,
+  PrimitiveType.UUID,
+  PrimitiveType.DATETIME,
+];
+export const EXPOSED_ANCHORS = [
+  // the rest are exposed too but as additional flags (start/end)
+  Anchor.LEFT,
+  Anchor.TOP,
+  Anchor.RIGHT,
+  Anchor.BOTTOM,
+];
+export const EXPOSED_PIPE_FILTER_TYPES = [PipeFilterType.IS_TRUTHY, PipeFilterType.IS_FALSY, PipeFilterType.HAS_ERROR];
+export const EXPOSED_MODEL_TYPES = [
+  // :ModelType
+  ModelType.OPENAI_GPT4_0,
+  ModelType.OPENAI_GPT4_O_MINI,
+  ModelType.OPENAI_O1_MINI,
+  ModelType.OPENAI_O1_PREVIEW,
+  ModelType.ANTHROPIC_CLAUDE_3_5_SONNET,
+];
+export const FILTERED_ENUMS: Partial<Record<EnumType, number[]>> = {
+  [EnumType.BLOCK_TYPE]: EXPOSED_BLOCK_TYPES,
+  [EnumType.STEP_TYPE]: EXPOSED_STEP_TYPES,
+  [EnumType.STRUCT_TYPE]: EXPOSED_STRUCT_TYPES,
+  [EnumType.OBJECT_TYPE]: [...NODE_TYPES, ...EXPOSED_STRUCT_TYPES],
+  [EnumType.BENCH_TYPE]: [...NODE_TYPES, ...EXPOSED_STRUCT_TYPES, ...ENUM_TYPES],
+  [EnumType.PRIMITIVE_TYPE]: EXPOSED_PRIMITIVE_TYPES,
+  [EnumType.ANCHOR]: EXPOSED_ANCHORS,
+  [EnumType.PIPE_FILTER_TYPE]: EXPOSED_PIPE_FILTER_TYPES,
+  [EnumType.MODEL_TYPE]: EXPOSED_MODEL_TYPES,
+};
+
+export const ENUM_TITLE_BY_TYPE: Partial<Record<EnumType, Record<any, string>>> = {
+  [EnumType.PRIMITIVE_TYPE]: {
+    [PrimitiveType.INT64]: "Integer",
+    [PrimitiveType.FLOAT64]: "Number",
+  },
+  [EnumType.MODEL_PROVIDER]: {
+    [ModelProvider.OPENAI]: "OpenAI",
+  },
+  [EnumType.MODEL_TYPE]: {
+    // :ModelType
+    [ModelType.OPENAI_GPT4_0]: "OpenAI GPT-4o",
+    [ModelType.OPENAI_GPT4_O_MINI]: "OpenAI GPT-4o Mini",
+    [ModelType.OPENAI_O1_MINI]: "OpenAI O1 Mini",
+    [ModelType.OPENAI_O1_PREVIEW]: "OpenAI O1 Preview",
+    [ModelType.ANTHROPIC_CLAUDE_3_5_SONNET]: "Anthropic Claude 3.5 Sonnet",
+    [ModelType.GOOGLE_GEMINI_1_5_PRO]: "Google Gemini 1.5",
+    [ModelType.META_LLAMA_3_1_80B]: "Meta Llama 3.1",
+    [ModelType.META_LLAMA_3_1_400B]: "Meta Llama 3.1 (400B)",
+  },
+};
+
+export function getPropertyTitle(property: PropertyInfo): string {
+  let pythonName = property.name;
+  if (pythonName.endsWith("_ptr")) pythonName = pythonName.slice(0, -4);
+  if (pythonName.endsWith("_packed")) pythonName = pythonName.slice(0, -7);
+  const title = toCasing(pythonName, Casing.CAMEL, true);
+  return title;
+}

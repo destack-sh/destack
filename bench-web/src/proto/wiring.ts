@@ -100,18 +100,12 @@ export function newStructId(): number {
   return Math.floor(Math.random() * 0x7fffffff);
 }
 
-/** Makes a struct with an identity (if required) */
+/** Makes a struct */
 export function makeStruct<T extends StructType>(
-  data: Omit<StructTypeMapping[T], "metatype" | "id"> & { metatype: T },
+  data: Partial<Omit<StructTypeMapping[T], "metatype">> & { metatype: T },
 ): StructTypeMapping[T] {
-  const properties = STRUCT_PROPERTY_ENUM_BY_TYPE[data.metatype as unknown as ObjectType]!;
-  let struct;
-  if ("id" in properties) {
-    struct = { id: newStructId(), ...data };
-  } else {
-    struct = { ...data };
-  }
-  return struct as unknown as StructTypeMapping[T];
+  const struct = { ...data };
+  return fillDefaultObject(struct as unknown as StructTypeMapping[T]);
 }
 
 /** Fills unset properties in the given object with default values. */
@@ -396,7 +390,7 @@ export function deepContentEquals(object: any, other: any): boolean {
 
 //
 // Proto JSON ("Struct")
-// 
+//
 
 export function isProtoJson(value: any): value is ProtoStruct {
   return typeof value == "object" && "fields" in value && !("metatype" in value);

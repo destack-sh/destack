@@ -273,15 +273,15 @@ enum BlockType {
   BLOCK_TYPE_CHOICE = 11;
   BLOCK_TYPE_SIGNAL = 12;
   BLOCK_TYPE_NOTIFICATION = 13;
-  BLOCK_TYPE_TEXT = 30;
-  BLOCK_TYPE_CODE = 31;
-  BLOCK_TYPE_FLOW = 32;
-  BLOCK_TYPE_VALUE = 50;
-  BLOCK_TYPE_DATABASE = 51;
-  BLOCK_TYPE_QUERY = 52;
-  BLOCK_TYPE_VIEW = 70;
-  BLOCK_TYPE_ROLE = 90;
-  BLOCK_TYPE_IDENTITY = 91;
+  BLOCK_TYPE_TEXT = 20;
+  BLOCK_TYPE_CODE = 21;
+  BLOCK_TYPE_FLOW = 22;
+  BLOCK_TYPE_VALUE = 30;
+  BLOCK_TYPE_DATABASE = 31;
+  BLOCK_TYPE_QUERY = 32;
+  BLOCK_TYPE_VIEW = 40;
+  BLOCK_TYPE_ROLE = 50;
+  BLOCK_TYPE_IDENTITY = 51;
 }
 
 enum BreakpointAction {
@@ -298,11 +298,10 @@ enum BreakpointKind {
 }
 
 // How to handle caching.
-enum CacheBehavior {
-  CACHE_BEHAVIOR_UNSPECIFIED = 0;
-  CACHE_BEHAVIOR_NEVER = 1;
-  CACHE_BEHAVIOR_ALWAYS = 2;
-  CACHE_BEHAVIOR_INHERIT = 3;
+enum CacheMode {
+  CACHE_MODE_UNSPECIFIED = 0;
+  CACHE_MODE_NEVER = 1;
+  CACHE_MODE_ALWAYS = 2;
 }
 
 // Optional classification for edits.
@@ -815,12 +814,14 @@ enum ModelProvider {
 
 enum ModelType {
   MODEL_TYPE_UNSPECIFIED = 0;
-  MODEL_TYPE_GPT4_0 = 101;
-  MODEL_TYPE_GPT4_O_MINI = 102;
-  MODEL_TYPE_CLAUDE_3_5_SONNET = 201;
-  MODEL_TYPE_GEMINI_1_5_PRO = 301;
-  MODEL_TYPE_LLAMA_3_1_80B = 401;
-  MODEL_TYPE_LLAMA_3_1_400B = 402;
+  MODEL_TYPE_OPENAI_GPT4_0 = 101;
+  MODEL_TYPE_OPENAI_GPT4_O_MINI = 102;
+  MODEL_TYPE_OPENAI_O1_PREVIEW = 103;
+  MODEL_TYPE_OPENAI_O1_MINI = 104;
+  MODEL_TYPE_ANTHROPIC_CLAUDE_3_5_SONNET = 201;
+  MODEL_TYPE_GOOGLE_GEMINI_1_5_PRO = 301;
+  MODEL_TYPE_META_LLAMA_3_1_80B = 401;
+  MODEL_TYPE_META_LLAMA_3_1_400B = 402;
 }
 
 enum Month {
@@ -2031,10 +2032,10 @@ message RunOptionsData {
   optional float max_retry_interval = 42;
   repeated RunErrorType retry_on = 44;
   repeated BreakpointData breakpoints = 50;
-  optional CacheBehavior cache_behavior = 60;
-  optional google.protobuf.Duration cache_expiry = 61;
-  optional ModelProvider model_provider = 70;
-  optional ModelType model_type = 71;
+  optional CacheMode cache_mode = 70;
+  optional google.protobuf.Duration cache_expiry = 71;
+  optional ModelProvider model_provider = 80;
+  optional ModelType model_type = 81;
 }
 
 // A span in a Run (a sort of sub-Run).
