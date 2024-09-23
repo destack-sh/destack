@@ -153,7 +153,7 @@ defineExpose<ViewExposed>({ self, id, focus: () => inputRef.value });
     >
       <template v-if="!valueType?.isList">
         <!-- Scalar -->
-        <span>{{ modelValue }}</span>
+        <span class="text-left">{{ modelValue }}</span>
       </template>
       <template v-else>
         <!-- List -->

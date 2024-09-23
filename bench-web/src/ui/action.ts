@@ -1,3 +1,7 @@
+import { EXPOSED_ANCHORS } from "@/language/const";
+import { getEditStack } from "@/language/edit";
+import { getAllTransactionBuffers } from "@/language/transaction";
+import { packBuiltinObjectJson } from "@/language/value";
 import {
   BlockData,
   BlockType,
@@ -14,19 +18,19 @@ import {
 } from "@/proto/wire";
 import { describeNode, isNode, toPlainNodeRef, type AnyNodeReferenceData } from "@/proto/wiring";
 import { isDeveloperMode, packagePtr } from "@/system/client";
-import { makeIcon } from "@/ui/icon";
 import { canvas, hasLocalBench, inspectionPtr, pkg, pkgConnection, pkgGraph, space } from "@/system/space";
+import { makeIcon } from "@/ui/icon";
+import { getRandomEnumOption } from "@/ui/inspect";
+import { keytrap, type KeySignature } from "@/ui/keymap";
+import { clearSpace, createDesktopAdvancedSpace, createDesktopDefaultSpace, createEmptySpace } from "@/ui/space";
 import { toaster } from "@/ui/toast";
-import { getAllTransactionBuffers } from "@/language/transaction";
-import { packBuiltinObjectJson } from "@/language/value";
+import { collectViewComponentsUp, SPACE_DEFAULT_BAR_POSITION } from "@/ui/view";
 import { generateOrderKey } from "@/utils/fractional";
 import { type FilterPrefix } from "@/utils/functools";
 import { DISCORD_URL, IS_DEV } from "@/utils/globals";
-import { keytrap, type KeySignature } from "@/ui/keymap";
 import { log } from "@/utils/log";
 import { generateRandomName } from "@/utils/naming";
 import { Casing, toCasing } from "@/utils/string";
-import { clearSpace, createDesktopAdvancedSpace, createDesktopDefaultSpace, createEmptySpace } from "@/ui/space";
 import type { ViewComponent } from "@/views/common";
 import { useKeyModifier } from "@vueuse/core";
 import {
@@ -40,9 +44,6 @@ import {
   type MaybeRef,
   type Ref,
 } from "vue";
-import { EXPOSED_ANCHORS, getRandomEnumOption } from "@/ui/inspect";
-import { getEditStack } from "@/language/edit";
-import { collectViewComponentsUp, SPACE_DEFAULT_BAR_POSITION } from "@/ui/view";
 
 export const IS_IN_ALT_MODE = useKeyModifier("Alt");
 

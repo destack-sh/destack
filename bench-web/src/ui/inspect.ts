@@ -2,165 +2,56 @@
  * Many constants are generated into proto/wire, here some additional ones.
  */
 
-import { type ReadNodeGraph } from "@/language/graph";
-import type { Transaction } from "@/language/transaction";
-import {
-  Anchor,
-  BenchType,
-  BlockProperty,
-  BlockType,
-  EditType,
-  ENUM_BY_TYPE,
-  EnumType,
-  FieldProperty,
-  FieldZone,
-  IconData,
-  NodeType,
-  ObjectType,
-  PipeFilterType,
-  PipeProperty,
-  PrimitiveType,
-  PROPERTY_ENUM_BY_TYPE,
-  PROPERTY_INFOS_BY_TYPE,
-  StepProperty,
-  StepType,
-  Struct,
-  StructType,
-  ViewProperty,
-  ViewType,
-  type AnyNodeData,
-  type BlockData,
-  type EnumTypeMapping,
-  type FieldData,
-  type PropertyInfo,
-} from "@/proto/wire";
-import { onNodeMorphed } from "@/language/node";
-import { ICONS_BY_ENUM_TYPE } from "@/ui/icon";
-import { getViewForValueType } from "@/ui/view";
-import { log } from "@/utils/log";
-import { toCasing, Casing } from "@/utils/string";
-import type { ViewProps } from "@/views/common";
 import {
   BOUNDARY_STEP_TYPES,
+  ENUM_TITLE_BY_TYPE,
   ENUM_TYPES,
+  FILTERED_ENUMS,
+  getPropertyTitle,
   NODE_SUBTYPE_BY_TYPE,
-  NODE_TYPES,
   PAGE_BLOCK_TYPES,
   RUNNABLE_BLOCK_TYPES,
   toCamelName,
 } from "@/language/const";
 import { makeTypeInfo, updateFieldType, type TypeIdentity } from "@/language/field";
-
-//
-// Enums
-//
-
-export const EDIT_TYPE_PRESENT_VERB: Record<EditType, string> = {
-  [EditType.UNSPECIFIED]: "???",
-  [EditType.CREATE]: "creates",
-  [EditType.UPSERT]: "upserts",
-  [EditType.UPDATE]: "updates",
-  [EditType.MOVE]: "moves",
-  [EditType.ARCHIVE]: "archives",
-  [EditType.UNARCHIVE]: "unarchives",
-  [EditType.DELETE]: "deletes",
-  [EditType.RESTORE]: "restores",
-  [EditType.ERASE]: "erases",
-};
-export const EDIT_TYPE_PAST_VERB: Record<EditType, string> = {
-  [EditType.UNSPECIFIED]: "???",
-  [EditType.CREATE]: "created",
-  [EditType.UPSERT]: "upserted",
-  [EditType.UPDATE]: "updated",
-  [EditType.MOVE]: "moved",
-  [EditType.ARCHIVE]: "archived",
-  [EditType.UNARCHIVE]: "unarchived",
-  [EditType.DELETE]: "deleted",
-  [EditType.RESTORE]: "restored",
-  [EditType.ERASE]: "erased",
-};
-
-// NOTE: we soft-limit the subset of available enum options in bench-web
-//  (in code and backend the entire ranges are available)
-export const EXPOSED_BLOCK_TYPES = [
-  BlockType.PAGE,
-  BlockType.CLASS,
-  BlockType.CHOICE,
-  BlockType.TEXT,
-  BlockType.CODE,
-  BlockType.FLOW,
-  BlockType.VIEW,
-  BlockType.VALUE,
-  BlockType.DATABASE,
-];
-export const EXPOSED_STEP_TYPES = [StepType.START, StepType.COMPLETE, StepType.CODE, StepType.TEXT, StepType.BLOCK];
-export const EXPOSED_STRUCT_TYPES = [
-  // core
-  StructType.PATH,
-  StructType.TYPE_INFO,
-  StructType.SCHEDULE,
-  StructType.TRIGGER_INFO,
-  // files
-  StructType.ICON,
-  // code
-  StructType.CODE,
-  // expressions
-  StructType.EXPRESSION,
-  StructType.SELECTION,
-  StructType.VALUE,
-  // views
-  StructType.COLOR,
-  StructType.FONT,
-  StructType.OFFSET,
-  StructType.BOX,
-  // access
-  StructType.POLICY,
-  StructType.POLICY_RULE,
-  // text
-  StructType.TEXT,
-  // run
-  StructType.RUN_OPTIONS,
-  StructType.RUN_ATTEMPT,
-  StructType.RUN_ERROR,
-  StructType.RUN_FRAME,
-  StructType.RUN_TRACE,
-  StructType.BREAKPOINT,
-  StructType.LOG_INFO,
-];
-export const EXPOSED_PRIMITIVE_TYPES = [
-  PrimitiveType.BOOLEAN,
-  PrimitiveType.INT64,
-  PrimitiveType.FLOAT64,
-  PrimitiveType.STRING,
-  PrimitiveType.JSON,
-  PrimitiveType.BYTES,
-  PrimitiveType.UUID,
-  PrimitiveType.DATETIME,
-];
-export const EXPOSED_ANCHORS = [
-  // the rest are exposed too but as additional flags (start/end)
-  Anchor.LEFT,
-  Anchor.TOP,
-  Anchor.RIGHT,
-  Anchor.BOTTOM,
-];
-export const EXPOSED_PIPE_FILTER_TYPES = [PipeFilterType.IS_TRUTHY, PipeFilterType.IS_FALSY, PipeFilterType.HAS_ERROR];
-export const FILTERED_ENUMS: Partial<Record<EnumType, number[]>> = {
-  [EnumType.BLOCK_TYPE]: EXPOSED_BLOCK_TYPES,
-  [EnumType.STEP_TYPE]: EXPOSED_STEP_TYPES,
-  [EnumType.STRUCT_TYPE]: EXPOSED_STRUCT_TYPES,
-  [EnumType.OBJECT_TYPE]: [...NODE_TYPES, ...EXPOSED_STRUCT_TYPES],
-  [EnumType.BENCH_TYPE]: [...NODE_TYPES, ...EXPOSED_STRUCT_TYPES, ...ENUM_TYPES],
-  [EnumType.PRIMITIVE_TYPE]: EXPOSED_PRIMITIVE_TYPES,
-  [EnumType.ANCHOR]: EXPOSED_ANCHORS,
-  [EnumType.PIPE_FILTER_TYPE]: EXPOSED_PIPE_FILTER_TYPES,
-};
-export const ENUM_TITLE_BY_TYPE: Partial<Record<EnumType, Record<any, string>>> = {
-  [EnumType.PRIMITIVE_TYPE]: {
-    [PrimitiveType.INT64]: "Integer",
-    [PrimitiveType.FLOAT64]: "Number",
-  },
-};
+import { type ReadNodeGraph } from "@/language/graph";
+import { onNodeMorphed } from "@/language/node";
+import type { Transaction } from "@/language/transaction";
+import {
+  BenchType,
+  BlockProperty,
+  BlockType,
+  ENUM_BY_TYPE,
+  EnumType,
+  EnumTypeMapping,
+  FieldProperty,
+  FieldZone,
+  IconData,
+  ModelProvider,
+  NodeType,
+  ObjectType,
+  PipeProperty,
+  PROPERTY_ENUM_BY_TYPE,
+  PROPERTY_INFOS_BY_TYPE,
+  RunOptionsProperty,
+  RunProperty,
+  StepData,
+  StepProperty,
+  StepType,
+  StructType,
+  ViewProperty,
+  ViewType,
+  type AnyNodeData,
+  type BlockData,
+  type FieldData,
+  type PropertyInfo,
+} from "@/proto/wire";
+import { makeStruct } from "@/proto/wiring";
+import { ICONS_BY_ENUM_TYPE } from "@/ui/icon";
+import { FULL_WIDTH_VIEW_TYPES, getViewForValueType } from "@/ui/view";
+import { log } from "@/utils/log";
+import { Casing, toCasing } from "@/utils/string";
+import type { ViewProps } from "@/views/common";
 
 export type EnumOption<T extends EnumType = EnumType> = {
   id: string;
@@ -205,18 +96,6 @@ export function getRandomEnumOption<T extends EnumType>(enumType: T): EnumTypeMa
   return options[Math.floor(Math.random() * options.length)].value;
 }
 
-export function getPropertyTitle(property: PropertyInfo): string {
-  let pythonName = property.name;
-  if (pythonName.endsWith("_ptr")) pythonName = pythonName.slice(0, -4);
-  if (pythonName.endsWith("_packed")) pythonName = pythonName.slice(0, -7);
-  const title = toCasing(pythonName, Casing.CAMEL, true);
-  return title;
-}
-
-//
-// Inspection
-//
-
 type InspectionCategory = (
   | { from?: number; to?: number; excluding?: number[] }
   | {
@@ -225,6 +104,7 @@ type InspectionCategory = (
       replace: (properties: PropertyInfo[]) => InspectedPropertyIn;
     }
   | number
+  | InspectedProperty
 )[];
 
 type InspectedProperty = {
@@ -245,7 +125,10 @@ type InspectionLayout = {
 };
 
 // NOTE: we (try to) only use metatype/type to avoid recomputing inspection layouts on every change (might have to revisit)
-// NOTE :Architecture: the inspection layout generation is pretty clumsy
+// NOTE :UX :Architecture: inspect view layout & generation is pretty clumsy
+const RUNNABLE_TEXT_PROPERTIES = [RunOptionsProperty.modelType];
+const RUNNABLE_PROPERTIES = [RunOptionsProperty.cacheMode];
+const RUN_OPTIONS_PROPERTIES = PROPERTY_INFOS_BY_TYPE[ObjectType.RUN_OPTIONS]!;
 function getInspectionInfo(metatype: ObjectType, type: number): Record<string, InspectionCategory> | null {
   if (metatype == ObjectType.FIELD) {
     if (type == FieldZone.OPTION) {
@@ -278,6 +161,16 @@ function getInspectionInfo(metatype: ObjectType, type: number): Record<string, I
     };
     if (RUNNABLE_BLOCK_TYPES.includes(type) || PAGE_BLOCK_TYPES.includes(type)) {
       properties.Run.push(BlockProperty.identityPtr);
+      const blockProperties = PROPERTY_INFOS_BY_TYPE[ObjectType.BLOCK]!;
+      const runOptionProperties = [...RUNNABLE_PROPERTIES];
+      if (type == BlockType.TEXT) {
+        runOptionProperties.push(...RUNNABLE_TEXT_PROPERTIES);
+      }
+      runOptionProperties
+        .map((p) =>
+          getNestedInspectedProperty(blockProperties[BlockProperty.runOptions], "Run", RUN_OPTIONS_PROPERTIES[p]),
+        )
+        .forEach((p) => properties.Run.push(p));
     }
     if (type == BlockType.VALUE) {
       // value type
@@ -307,6 +200,16 @@ function getInspectionInfo(metatype: ObjectType, type: number): Record<string, I
     }
     if (!BOUNDARY_STEP_TYPES.includes(type)) {
       properties.Run.push(StepProperty.identityPtr);
+      const stepProperties = PROPERTY_INFOS_BY_TYPE[ObjectType.STEP]!;
+      const runOptionProperties = [...RUNNABLE_PROPERTIES];
+      if (type == StepType.TEXT) {
+        runOptionProperties.push(...RUNNABLE_TEXT_PROPERTIES);
+      }
+      runOptionProperties
+        .map((p) =>
+          getNestedInspectedProperty(stepProperties[StepProperty.runOptions], "Run", RUN_OPTIONS_PROPERTIES[p]),
+        )
+        .forEach((p) => properties.Run.push(p));
     }
     return properties;
   } else if (metatype == ObjectType.PIPE) {
@@ -330,8 +233,58 @@ function getInspectionInfo(metatype: ObjectType, type: number): Record<string, I
   }
 }
 
-export const FULL_WIDTH_VIEW_TYPES = [ViewType.TEXT, ViewType.CODE, ViewType.IMAGE, ViewType.AUDIO, ViewType.VIDEO];
-const ALWAYS_EXCLUDED_PROPERTIES: string[] = ["order_key"];
+const EXCLUDED_PROPERTIES: string[] = ["order_key"];
+
+/** Generates inspection property info for a nested property. */
+function getNestedInspectedProperty(
+  parentProperty: PropertyInfo,
+  category: string,
+  property: PropertyInfo,
+): InspectedProperty {
+  const inspectedProperty = getInspectedProperty(parentProperty.component, category, property);
+  const parentPropertyName = PROPERTY_ENUM_BY_TYPE[parentProperty.component]![parentProperty.id];
+  const propertyName = PROPERTY_ENUM_BY_TYPE[property.component]![property.id];
+  return {
+    ...inspectedProperty,
+    read: (node: AnyNodeData) => (node as any)[parentPropertyName]?.[propertyName],
+    write: (tx: Transaction, graph: ReadNodeGraph, node: AnyNodeData, value: any) => {
+      if (parentProperty.referenceStruct != null) {
+        value = makeStruct({
+          metatype: parentProperty.referenceStruct,
+          ...(node as any)[parentPropertyName],
+          [propertyName]: value,
+        });
+      }
+      tx.update(node as any, { [parentPropertyName]: value }, { debounce: "tick" });
+    },
+  };
+}
+
+/** Generate inspection property info for a property. */
+function getInspectedProperty(metatype: ObjectType, category: string, property: PropertyInfo): InspectedProperty {
+  const allProperties = PROPERTY_ENUM_BY_TYPE[metatype] ?? [];
+  const title = getPropertyTitle(property);
+  const protoName = allProperties[property.id];
+  const inspectedProperty: InspectedProperty = { title, protoName, category, property };
+  const valueView = getViewForValueType({
+    primitiveType: property.primitiveType,
+    benchType: (property.enumType ?? property.referenceNodes?.[0] ?? property.referenceStruct) as unknown as
+      | BenchType
+      | undefined,
+    isRequired: property.isRequired ?? false,
+    isList: property.isList ?? false,
+    isSecret: property.isEncrypted ?? false,
+    constraint:
+      property.constraint != null ? { metatype: ObjectType.TYPE_CONSTRAINT, ...property.constraint } : undefined,
+  });
+  if (valueView == null) {
+    throw new Error(`no view for ${ObjectType[metatype]}.${property.id}`);
+  }
+  inspectedProperty.viewType = valueView.type;
+  inspectedProperty.props = valueView;
+  inspectedProperty.isFullWidth = FULL_WIDTH_VIEW_TYPES.includes(valueView.type!);
+  return inspectedProperty;
+}
 
 /** Generates the inspection layout for an object metatype. */
 export function getInspectionLayout(
@@ -342,9 +295,8 @@ export function getInspectionLayout(
   const propertyInfos = PROPERTY_INFOS_BY_TYPE[metatype];
   const seenProperties: Record<number, PropertyInfo> = {};
   const inspectedProperties: InspectedProperty[] = [];
-  const excluded = ALWAYS_EXCLUDED_PROPERTIES.concat(options?.exclude ?? []);
+  const excluded = EXCLUDED_PROPERTIES.concat(options?.exclude ?? []);
 
-  const allProperties = PROPERTY_ENUM_BY_TYPE[metatype] ?? [];
   const categories: Record<string, InspectionCategory> = getInspectionInfo(metatype, type) ?? {
     Common: [{ from: undefined, to: undefined }],
   };
@@ -352,8 +304,10 @@ export function getInspectionLayout(
     const categoryProperties = categories[category as keyof typeof categories];
     // assemble all properties in category
     for (const range of categoryProperties) {
-      let propertiesInRange;
-      if (typeof range == "object") {
+      let propertiesInRange: PropertyInfo[];
+      if (typeof range == "object" && "title" in range) {
+        propertiesInRange = [];
+      } else if (typeof range == "object" && !("title" in range)) {
         propertiesInRange = Object.values(propertyInfos).filter((property) => {
           if ((range.from != null && property.id < range.from) || (range.to != null && property.id >= range.to)) {
             return false;
@@ -376,6 +330,9 @@ export function getInspectionLayout(
         const inspectedProperty: InspectedProperty = { ...replaced, property: propertiesInRange[0], category };
         inspectedProperties.push(inspectedProperty);
         continue; // already handled
+      } else if (typeof range == "object" && "title" in range) {
+        inspectedProperties.push(range);
+        continue; // already handled
       }
       for (const property of propertiesInRange) {
         if (seenProperties[property.id]) continue;
@@ -384,28 +341,13 @@ export function getInspectionLayout(
         seenProperties[property.id] = property;
 
         // map properties to components
-        const title = getPropertyTitle(property);
-        const protoName = allProperties[property.id];
-        const inspectedProperty: InspectedProperty = { title, protoName, category, property };
-        const valueView = getViewForValueType({
-          primitiveType: property.primitiveType,
-          benchType: (property.enumType ?? property.referenceNodes?.[0] ?? property.referenceStruct) as unknown as
-            | BenchType
-            | undefined,
-          isRequired: property.isRequired ?? false,
-          isList: property.isList ?? false,
-          isSecret: property.isEncrypted ?? false,
-          constraint:
-            property.constraint != null ? { metatype: ObjectType.TYPE_CONSTRAINT, ...property.constraint } : undefined,
-        });
-        if (valueView == null) {
+        try {
+          const inspectedProperty = getInspectedProperty(metatype, category, property);
+          inspectedProperties.push(inspectedProperty);
+        } catch (e) {
           log.warn("lang.missingView", property); // will indicate no view for value in UI
           continue;
         }
-        inspectedProperty.viewType = valueView.type;
-        inspectedProperty.props = valueView;
-        inspectedProperty.isFullWidth = FULL_WIDTH_VIEW_TYPES.includes(valueView.type!);
-        inspectedProperties.push(inspectedProperty);
       }
     }
   }

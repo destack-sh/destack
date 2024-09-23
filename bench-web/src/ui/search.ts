@@ -1,10 +1,13 @@
+import { blockToType } from "@/language/block";
+import { TYPE_BLOCK_TYPES, isStructType } from "@/language/const";
+import { typeIdentityEquals, type TypeIdentity } from "@/language/field";
+import type { NodeKey, ReadNodeGraph } from "@/language/graph";
 import {
   BenchType,
   BlockData,
   BlockType,
   ENUM_BY_TYPE,
   EnumType,
-  FieldZone,
   FileType,
   NodeType,
   ObjectType,
@@ -12,19 +15,15 @@ import {
   TypeKind,
   type AnyNodeData,
   type IconData,
-  type NodeReferenceData,
+  type NodeReferenceData
 } from "@/proto/wire";
 import { isNode, toNodeRef, toPlainNodeRef, unwrapProtoOneOf } from "@/proto/wiring";
 import { ACTION_BUILTIN_IDS_INDEX, IMPLEMENTED_ACTIONS, type Action } from "@/ui/action";
-import type { NodeKey, ReadNodeGraph } from "@/language/graph";
 import { AVAILABLE_FA_ICONS, DEFAULT_ENUM_ICON, DEFAULT_MISSING_ICON, getNodeIcon, type IconMetadata } from "@/ui/icon";
-import { TYPE_BLOCK_TYPES, isStructType } from "@/language/const";
+import { EnumOption, getEnumOptions } from "@/ui/inspect";
 import uFuzzy from "@leeoniya/ufuzzy";
 import { tryOnBeforeUnmount } from "@vueuse/core";
 import { markRaw, shallowRef, toRef, toValue, watch, type MaybeRef, type Ref } from "vue";
-import { getEnumOptions, type EnumOption } from "@/ui/inspect";
-import { blockToType } from "@/language/block";
-import { type TypeIdentity, typeIdentityEquals } from "@/language/field";
 
 export type NodeItem = Omit<NodeReferenceData, "metatype" | "id"> & {
   metatype: "node";

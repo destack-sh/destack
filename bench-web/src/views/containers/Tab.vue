@@ -196,7 +196,7 @@ canvas.registerView(self);
 defineExpose<ViewExposed>({ self, actions });
 </script>
 <template>
-  <div class="relative select-none" :style="{ width: size.width + 'px', height: size.height + 'px' }">
+  <div class="relative" :style="{ width: size.width + 'px', height: size.height + 'px' }">
     <!-- Tabs header -->
     <Scroll
       ref="headerRef"
@@ -208,7 +208,7 @@ defineExpose<ViewExposed>({ self, actions });
           context,
         })
       "
-      class="scrollbar-none relative flex w-full flex-row bg-gray-100"
+      class="scrollbar-none relative flex w-full select-none flex-row bg-gray-100"
       :orientation="Orientation.HORIZONTAL"
       :track-width="ScrollbarWidth.sm"
       track-is-overlay
@@ -235,7 +235,7 @@ defineExpose<ViewExposed>({ self, actions });
         class="group relative flex h-full select-none flex-row items-center whitespace-nowrap border-gray-200 px-2.5 hover:cursor-pointer"
         :class="[
           // we grow a single tab to the full width of the tabbed view
-          i == focusedTabIdx ? 'bg-white text-primary-900  ' : 'border-b hover:text-primary-900',
+          i == focusedTabIdx ? 'bg-white text-primary-900' : 'border-b hover:text-primary-900',
           i == focusedTabIdx && isFocusAbsolute && !hasOneTab ? 'shadow-inset-md shadow-primary-900' : '',
           i != focusedTabIdx ? 'text-gray-600' : '',
           hasOneTab ? 'w-full max-w-full' : 'max-w-52 border-r',
@@ -248,7 +248,7 @@ defineExpose<ViewExposed>({ self, actions });
         <IconInline
           v-bind="tab.icon ?? ICON_BY_VIEW_TYPE[tab.type] ?? ICON_BY_NODE_TYPE[NodeType.VIEW]"
           class="mr-1.5 w-5"
-          :class="i == focusedTabIdx ? '' : ' group-hover:text-primary-900'"
+          :class="i == focusedTabIdx ? '' : 'group-hover:text-primary-900'"
         />
         <span class="truncate" :class="[tabsTitles[i] == tab.name ? 'italic' : '']">{{ tabsTitles[i] }}</span>
         <!-- Close tab -->

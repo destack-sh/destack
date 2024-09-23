@@ -104,7 +104,7 @@ TellJoke = Block.new(
 
 TellJoke("I'm very happy!")
 
-# You would return something like:
+# You would return some valid Python like:
 
 return {"Joke": "Why did the scarecrow win an award? Because he was outstanding in his field!"}
 
@@ -122,7 +122,7 @@ return {"Joke": "Why did the scarecrow win an award? Because he was outstanding 
 """
     ASSISTANT_PREFIX_MESSAGE = """\
 #
-# Here is the inline Python code that RETURNS the SPECIFIC answer for these SPECIFIC inputs
+# Here is the valid inline Python code that RETURNS the SPECIFIC answer for these SPECIFIC inputs
 #  (NO generalizing over other inputs, NOT defining a function, raising if an answer is impossible):
 #"""
 

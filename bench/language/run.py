@@ -82,13 +82,15 @@ class ModelProvider(IdEnum):
 
 
 @enum_(EnumType.MODEL_TYPE)
-class ModelType(IdEnum):
+class ModelType(IdEnum):  # :ModelType
     # internal
     ...  # ?
     # external
     # openai
     OPENAI_GPT4_0 = 101
     OPENAI_GPT4_O_MINI = 102
+    OPENAI_O1_PREVIEW = 103
+    OPENAI_O1_MINI = 104
     # anthropic
     ANTHROPIC_CLAUDE_3_5_SONNET = 201
     # google
@@ -103,12 +105,11 @@ class ModelType(IdEnum):
 
 
 @enum_(EnumType.CACHE_BEHAVIOR)
-class CacheBehavior(IdEnum):
+class CacheMode(IdEnum):
     """How to handle caching."""
 
     NEVER = 1
     ALWAYS = 2
-    INHERIT = 3
 
 
 @struct_(StructType.RUN_OPTIONS)
@@ -134,7 +135,7 @@ class RunOptions(Struct):
     breakpoints: list["Breakpoint"] = p_regular(50, array=True, struct=StructType.BREAKPOINT)
 
     # cache
-    cache_behavior: Optional["CacheBehavior"] = p_regular(70)
+    cache_mode: Optional["CacheMode"] = p_regular(70)
     cache_expiry: Optional[timedelta] = p_regular(71)
 
     # model

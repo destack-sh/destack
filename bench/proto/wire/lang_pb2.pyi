@@ -309,12 +309,11 @@ class BreakpointKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BREAKPOINT_KIND_COMPLETE_RUN: _ClassVar[BreakpointKind]
     BREAKPOINT_KIND_CODE_LINE: _ClassVar[BreakpointKind]
 
-class CacheBehavior(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+class CacheMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
-    CACHE_BEHAVIOR_UNSPECIFIED: _ClassVar[CacheBehavior]
-    CACHE_BEHAVIOR_NEVER: _ClassVar[CacheBehavior]
-    CACHE_BEHAVIOR_ALWAYS: _ClassVar[CacheBehavior]
-    CACHE_BEHAVIOR_INHERIT: _ClassVar[CacheBehavior]
+    CACHE_MODE_UNSPECIFIED: _ClassVar[CacheMode]
+    CACHE_MODE_NEVER: _ClassVar[CacheMode]
+    CACHE_MODE_ALWAYS: _ClassVar[CacheMode]
 
 class ChangeCategory(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -816,12 +815,14 @@ class ModelProvider(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
 class ModelType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     MODEL_TYPE_UNSPECIFIED: _ClassVar[ModelType]
-    MODEL_TYPE_GPT4_0: _ClassVar[ModelType]
-    MODEL_TYPE_GPT4_O_MINI: _ClassVar[ModelType]
-    MODEL_TYPE_CLAUDE_3_5_SONNET: _ClassVar[ModelType]
-    MODEL_TYPE_GEMINI_1_5_PRO: _ClassVar[ModelType]
-    MODEL_TYPE_LLAMA_3_1_80B: _ClassVar[ModelType]
-    MODEL_TYPE_LLAMA_3_1_400B: _ClassVar[ModelType]
+    MODEL_TYPE_OPENAI_GPT4_0: _ClassVar[ModelType]
+    MODEL_TYPE_OPENAI_GPT4_O_MINI: _ClassVar[ModelType]
+    MODEL_TYPE_OPENAI_O1_PREVIEW: _ClassVar[ModelType]
+    MODEL_TYPE_OPENAI_O1_MINI: _ClassVar[ModelType]
+    MODEL_TYPE_ANTHROPIC_CLAUDE_3_5_SONNET: _ClassVar[ModelType]
+    MODEL_TYPE_GOOGLE_GEMINI_1_5_PRO: _ClassVar[ModelType]
+    MODEL_TYPE_META_LLAMA_3_1_80B: _ClassVar[ModelType]
+    MODEL_TYPE_META_LLAMA_3_1_400B: _ClassVar[ModelType]
 
 class Month(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1773,10 +1774,9 @@ BREAKPOINT_KIND_START_RUN: BreakpointKind
 BREAKPOINT_KIND_FAIL_RUN: BreakpointKind
 BREAKPOINT_KIND_COMPLETE_RUN: BreakpointKind
 BREAKPOINT_KIND_CODE_LINE: BreakpointKind
-CACHE_BEHAVIOR_UNSPECIFIED: CacheBehavior
-CACHE_BEHAVIOR_NEVER: CacheBehavior
-CACHE_BEHAVIOR_ALWAYS: CacheBehavior
-CACHE_BEHAVIOR_INHERIT: CacheBehavior
+CACHE_MODE_UNSPECIFIED: CacheMode
+CACHE_MODE_NEVER: CacheMode
+CACHE_MODE_ALWAYS: CacheMode
 CHANGE_CATEGORY_UNSPECIFIED: ChangeCategory
 CHANGE_CATEGORY_SPACE: ChangeCategory
 CHANGE_CATEGORY_SESSION: ChangeCategory
@@ -2188,12 +2188,14 @@ MODEL_PROVIDER_ANTHROPIC: ModelProvider
 MODEL_PROVIDER_GOOGLE: ModelProvider
 MODEL_PROVIDER_META: ModelProvider
 MODEL_TYPE_UNSPECIFIED: ModelType
-MODEL_TYPE_GPT4_0: ModelType
-MODEL_TYPE_GPT4_O_MINI: ModelType
-MODEL_TYPE_CLAUDE_3_5_SONNET: ModelType
-MODEL_TYPE_GEMINI_1_5_PRO: ModelType
-MODEL_TYPE_LLAMA_3_1_80B: ModelType
-MODEL_TYPE_LLAMA_3_1_400B: ModelType
+MODEL_TYPE_OPENAI_GPT4_0: ModelType
+MODEL_TYPE_OPENAI_GPT4_O_MINI: ModelType
+MODEL_TYPE_OPENAI_O1_PREVIEW: ModelType
+MODEL_TYPE_OPENAI_O1_MINI: ModelType
+MODEL_TYPE_ANTHROPIC_CLAUDE_3_5_SONNET: ModelType
+MODEL_TYPE_GOOGLE_GEMINI_1_5_PRO: ModelType
+MODEL_TYPE_META_LLAMA_3_1_80B: ModelType
+MODEL_TYPE_META_LLAMA_3_1_400B: ModelType
 MONTH_UNSPECIFIED: Month
 MONTH_JANUARY: Month
 MONTH_FEBRUARY: Month
@@ -3936,7 +3938,7 @@ class RunOptionsData(_message.Message):
         "max_retry_interval",
         "retry_on",
         "breakpoints",
-        "cache_behavior",
+        "cache_mode",
         "cache_expiry",
         "model_provider",
         "model_type",
@@ -3952,7 +3954,7 @@ class RunOptionsData(_message.Message):
     MAX_RETRY_INTERVAL_FIELD_NUMBER: _ClassVar[int]
     RETRY_ON_FIELD_NUMBER: _ClassVar[int]
     BREAKPOINTS_FIELD_NUMBER: _ClassVar[int]
-    CACHE_BEHAVIOR_FIELD_NUMBER: _ClassVar[int]
+    CACHE_MODE_FIELD_NUMBER: _ClassVar[int]
     CACHE_EXPIRY_FIELD_NUMBER: _ClassVar[int]
     MODEL_PROVIDER_FIELD_NUMBER: _ClassVar[int]
     MODEL_TYPE_FIELD_NUMBER: _ClassVar[int]
@@ -3967,7 +3969,7 @@ class RunOptionsData(_message.Message):
     max_retry_interval: float
     retry_on: _containers.RepeatedScalarFieldContainer[RunErrorType]
     breakpoints: _containers.RepeatedCompositeFieldContainer[BreakpointData]
-    cache_behavior: CacheBehavior
+    cache_mode: CacheMode
     cache_expiry: _duration_pb2.Duration
     model_provider: ModelProvider
     model_type: ModelType
@@ -3984,7 +3986,7 @@ class RunOptionsData(_message.Message):
         max_retry_interval: _Optional[float] = ...,
         retry_on: _Optional[_Iterable[_Union[RunErrorType, str]]] = ...,
         breakpoints: _Optional[_Iterable[_Union[BreakpointData, _Mapping]]] = ...,
-        cache_behavior: _Optional[_Union[CacheBehavior, str]] = ...,
+        cache_mode: _Optional[_Union[CacheMode, str]] = ...,
         cache_expiry: _Optional[_Union[_duration_pb2.Duration, _Mapping]] = ...,
         model_provider: _Optional[_Union[ModelProvider, str]] = ...,
         model_type: _Optional[_Union[ModelType, str]] = ...,
