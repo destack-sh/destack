@@ -87,15 +87,15 @@ class ModelType(IdEnum):
     ...  # ?
     # external
     # openai
-    GPT4_0 = 101
-    GPT4_O_MINI = 102
+    OPENAI_GPT4_0 = 101
+    OPENAI_GPT4_O_MINI = 102
     # anthropic
-    CLAUDE_3_5_SONNET = 201
+    ANTHROPIC_CLAUDE_3_5_SONNET = 201
     # google
-    GEMINI_1_5_PRO = 301
+    GOOGLE_GEMINI_1_5_PRO = 301
     # meta
-    LLAMA_3_1_80B = 401
-    LLAMA_3_1_400B = 402
+    META_LLAMA_3_1_80B = 401
+    META_LLAMA_3_1_400B = 402
 
     @property
     def provider(self) -> ModelProvider:
@@ -134,12 +134,12 @@ class RunOptions(Struct):
     breakpoints: list["Breakpoint"] = p_regular(50, array=True, struct=StructType.BREAKPOINT)
 
     # cache
-    cache_behavior: Optional["CacheBehavior"] = p_regular(60)
-    cache_expiry: Optional[timedelta] = p_regular(61)
+    cache_behavior: Optional["CacheBehavior"] = p_regular(70)
+    cache_expiry: Optional[timedelta] = p_regular(71)
 
     # model
-    model_provider: Optional["ModelProvider"] = p_regular(70)
-    model_type: Optional["ModelType"] = p_regular(71)
+    model_provider: Optional["ModelProvider"] = p_regular(80)
+    model_type: Optional["ModelType"] = p_regular(81)
 
     def to_retry(self) -> RetryOptions:
         """Turns the options into our RetryOptions."""
@@ -435,12 +435,19 @@ class Run(RuntimeNode[RunData], HasNodeBase, HasSessionContext):
             return None  # freely typed
 
     @property
-    def base(self) -> Optional["Block"]:
-        return self.block
+    def base(self) -> Optional["Step | Block"]:
+        if self.step_ptr is not None:
+            return self.step
+        else:
+            return self.block
 
     @staticmethod
     def get_base_from_data(data: AnyNodeData) -> Optional[NodeReferenceData]:
-        return cast(RunData, data).block_ptr
+        run_data = cast(RunData, data)
+        if run_data.step_ptr.metatype != 0:
+            return cast(RunData, data).step_ptr
+        else:
+            return cast(RunData, data).block_ptr
 
     def pause(self):
         """Pauses the Run."""

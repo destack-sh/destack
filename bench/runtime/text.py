@@ -338,10 +338,10 @@ anthropic_client = anthropic.AsyncClient(
 
 @runner_(RunKind.TEXT, ModelProvider.OPENAI)
 class OpenaiModelRunner(ChatModelRunnerBase):
-    DEFAULT_MODEL = ModelType.GPT4_0
+    DEFAULT_MODEL = ModelType.OPENAI_GPT4_0
     MODEL_BY_TYPE: ClassVar[Mapping[ModelType, str]] = {
-        ModelType.GPT4_0: "gpt-4o-2024-08-06",
-        ModelType.GPT4_O_MINI: "gpt-4o-mini",
+        ModelType.OPENAI_GPT4_0: "gpt-4o-latest",
+        ModelType.OPENAI_GPT4_O_MINI: "gpt-4o-mini",
     }
 
     @override
@@ -452,9 +452,9 @@ class OpenaiModelRunner(ChatModelRunnerBase):
 
 @runner_(RunKind.TEXT, ModelProvider.ANTHROPIC)
 class AnthropicModelRunner(ChatModelRunnerBase):
-    DEFAULT_MODEL = ModelType.CLAUDE_3_5_SONNET
+    DEFAULT_MODEL = ModelType.ANTHROPIC_CLAUDE_3_5_SONNET
     MODEL_BY_TYPE: ClassVar[Mapping[ModelType, str]] = {
-        ModelType.CLAUDE_3_5_SONNET: "claude-3-5-sonnet-20240620"
+        ModelType.ANTHROPIC_CLAUDE_3_5_SONNET: "claude-3-5-sonnet-20240620"
     }
 
     @override
