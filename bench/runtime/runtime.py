@@ -312,7 +312,7 @@ class Runtime:
         run._do_set("user_ptr", self.session.user_ptr, validate=False)
 
         # start if not yet started
-        if not run.started_at:
+        if run.started_at is None:
             run._do_set("started_epoch", self.session.epoch, validate=False)
             run._do_set("started_at", self.oracle.utc(), validate=False)
         run._do_set("status", RunStatus.RUNNING, validate=False)
@@ -324,6 +324,7 @@ class Runtime:
         try:
             await self._do_run_once_retrying(runner)
         finally:
+            # get status from last runner / last attempt
             run._do_set("attempts", runner.attempts, validate=False)
             run._do_set("logs", runner.logs, validate=False)
             run._do_set("inputs", runner.inputs, validate=False)
@@ -332,12 +333,17 @@ class Runtime:
             run._do_set("status", runner.status, validate=False)
             last_attempt = runner.current_attempt
             if last_attempt is not None:
-                # may not have a last attempt if we didn't even try
                 run._do_set("terminated_at", last_attempt.terminated_at, validate=False)
                 run._do_set("terminated_epoch", last_attempt.terminated_epoch, validate=False)
                 if last_attempt.duration is not None:
                     run._do_set("duration", last_attempt.duration, validate=False)
             elif run.terminated_at is not None:
+                # didn't make an attempt, but we have a terminated_at
+                run._do_set("duration", (run.terminated_at - run.started_at).total_seconds())  # type: ignore
+            elif run.status.is_terminal:
+                # didn't make an attempt
+                run._do_set("terminated_at", self.oracle.utc(), validate=False)
+                run._do_set("terminated_epoch", self.session.epoch, validate=False)
                 run._do_set("duration", (run.terminated_at - run.started_at).total_seconds())  # type: ignore
 
             # commit intermediate session edits
