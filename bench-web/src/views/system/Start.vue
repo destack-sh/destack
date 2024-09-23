@@ -91,25 +91,29 @@ const run = computed(() => {
 });
 const feedState = computed((): FeedViewStateData => {
   const runNodeProperty = runnablePtr.value?.type == NodeType.BLOCK ? RunProperty.blockPtr : RunProperty.stepPtr;
-  const runOtherNodeProperty = runnablePtr.value?.type == NodeType.BLOCK ? RunProperty.stepPtr : RunProperty.blockPtr;
+  const clauses = [
+    makeExpression({
+      op: ExpressionOp.EQUALS,
+      propertyPtr: propertyReference(ObjectType.RUN, runNodeProperty),
+      value: runnablePtr.value,
+    }),
+  ];
+  if (runnablePtr.value?.type == NodeType.BLOCK) {
+    clauses.push(
+      makeExpression({
+        op: ExpressionOp.NOT_EXISTS,
+        propertyPtr: propertyReference(ObjectType.RUN, RunProperty.stepPtr),
+        value: runnablePtr.value,
+      }),
+    );
+  }
   const feedState: FeedViewStateData = {
     // pre-filter to only runs of this node
     metatype: ObjectType.FEED_VIEW_STATE,
     nodeType: NodeType.RUN,
     filter: makeExpression({
       op: ExpressionOp.AND,
-      clauses: [
-        makeExpression({
-          op: ExpressionOp.EQUALS,
-          propertyPtr: propertyReference(ObjectType.RUN, runNodeProperty),
-          value: runnablePtr.value,
-        }),
-        // other node property must not be set (i.e. if we want Run.block == X, Run.step should be null and vice versa)
-        makeExpression({
-          op: ExpressionOp.NOT_EXISTS,
-          propertyPtr: propertyReference(ObjectType.RUN, runOtherNodeProperty),
-        }),
-      ],
+      clauses,
     }),
     filterPills: state.value.feed?.filterPills ?? [],
   };
