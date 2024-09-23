@@ -49,13 +49,13 @@ PG_POOL_AUTOCLOSE = get_from_env(
 )
 
 # NOTE :Cleanup: we should probably gc unused pools after some time
-_pools_by_store: dict[Store, "AsyncPostgresPool"] = {}
+_pools_by_store: dict[Store, "PostgresConnectionPool"] = {}
 
 
-def get_pg_pool(store: Store) -> "AsyncPostgresPool":
+def get_pg_pool(store: Store) -> "PostgresConnectionPool":
     """Gets the connection pool for the given store."""
     if store not in _pools_by_store:
-        _pools_by_store[store] = AsyncPostgresPool(
+        _pools_by_store[store] = PostgresConnectionPool(
             store, min_size=PG_MIN_POOL_SIZE, max_size=PG_MAX_POOL_SIZE
         )
     return _pools_by_store[store]
@@ -74,7 +74,7 @@ async def pg_connection(store: Store, *, autocommit: bool = False):
         await pool.release(connection)
 
 
-class AsyncPostgresPool:
+class PostgresConnectionPool:
     """
     A connection pool to a Store. Wraps an underlying psycopg connection pool.
     There should only ever be one AsyncPostgresPool per Store / connection URI at a time.
@@ -87,10 +87,10 @@ class AsyncPostgresPool:
         self.min_size = min_size
         self.max_size = max_size
         self.id = self._pool_id
-        AsyncPostgresPool._pool_id += 1
+        PostgresConnectionPool._pool_id += 1
         self._pool: AsyncConnectionPool | None = None
         self._pool_lock = asyncio.Lock()
-        self._connections: list[AsyncPostgresConnection] = []
+        self._connections: list[PostgresConnection] = []
         assert store.connection_uri, f"store {store!r} has no connection_uri"
         self._connection_uri = store.connection_uri
         self._sanitized_connection_uri = sanitize_connection_uri(self._connection_uri)
@@ -148,35 +148,35 @@ class AsyncPostgresPool:
             await self._do_close()
 
     @tracer.start_as_current_span("postgres.pool.acquire")
-    async def acquire(self, autocommit: bool = False) -> "AsyncPostgresConnection":
+    async def acquire(self, autocommit: bool = False) -> "PostgresConnection":
         """Connects to the pool."""
         async with self._pool_lock:
             if not self.is_open:
                 await self._do_open()
-            assert self._pool is not None, f"pool not open: {self._pool!r}"
-            try:
-                conn = await self._pool.getconn(PG_CONNECT_TIMEOUT)
-            except PoolTimeout as e:
-                logger.error(
-                    "postgres.pool.acquire.timeout",
-                    pool=self,
-                    error=e,
-                    connections=[c.id for c in self._connections],
-                    span="current",
-                )
-                raise
-            connection = AsyncPostgresConnection(self, conn)
-            self._connections.append(connection)
-            if autocommit != connection.autocommit:
-                await conn.set_autocommit(autocommit)
-            logger.trace("postgres.pool.acquire", pool=self, connection=connection, span="current")
-            return connection
+        assert self._pool is not None, f"pool not open: {self!r}"
+        try:
+            conn = await self._pool.getconn(PG_CONNECT_TIMEOUT)
+        except PoolTimeout as e:
+            logger.error(
+                "postgres.pool.acquire.timeout",
+                pool=self,
+                error=e,
+                connections=[c.id for c in self._connections],
+                span="current",
+            )
+            raise
+        connection = PostgresConnection(self, conn)
+        self._connections.append(connection)
+        if autocommit != connection.autocommit:
+            await conn.set_autocommit(autocommit)
+        logger.trace("postgres.pool.acquire", pool=self, connection=connection, span="current")
+        return connection
 
     @tracer.start_as_current_span("postgres.pool.release")
-    async def release(self, connection: "AsyncPostgresConnection"):
+    async def release(self, connection: "PostgresConnection"):
         """Releases the connection back to the pool."""
         async with self._pool_lock:
-            assert self._pool is not None, f"pool not open: {self._pool!r}"
+            assert self._pool is not None, f"pool not open: {self!r}"
             assert connection.conn is not None, f"no connection for {connection!r}"
             await self._pool.putconn(connection.conn)
             self._connections.remove(connection)
@@ -193,19 +193,20 @@ class AsyncPostgresPool:
         await self.close()
 
 
-class AsyncPostgresConnection:
+class PostgresConnection:
     """A Postgres connection to a Store. Wraps an underlying psycopg connection."""
 
     _connection_id: ClassVar[int] = 0
 
     def __init__(
-        self, pool: AsyncPostgresPool, conn: psycopg.AsyncConnection, autocommit: bool = False
+        self, pool: PostgresConnectionPool, conn: psycopg.AsyncConnection, autocommit: bool = False
     ):
         self.id = self._connection_id
         self.pool = pool
-        AsyncPostgresConnection._connection_id += 1
+        PostgresConnection._connection_id += 1
         self._conn = conn
         self._cursor = conn.cursor()
+        self._lock = asyncio.Lock()
         self.autocommit = autocommit
 
     def __str__(self):

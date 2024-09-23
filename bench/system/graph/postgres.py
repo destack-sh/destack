@@ -32,7 +32,7 @@ from bench.proto.wire import (
     EditData,
     GraphScopeData,
 )
-from bench.sql.client import AsyncPostgresConnection, get_pg_pool
+from bench.sql.client import PostgresConnection, get_pg_pool
 from bench.sql.engine import (
     TABLE_BY_NODE_TYPE,
     BenchContext,
@@ -110,7 +110,7 @@ class PostgresChannel(WritableChannel[PostgresEngine]):
         self,
         engine: "PostgresEngine",
         session: "Session",
-        connection: "AsyncPostgresConnection",
+        connection: "PostgresConnection",
     ):
         super().__init__(engine, session)
         self.connection = connection

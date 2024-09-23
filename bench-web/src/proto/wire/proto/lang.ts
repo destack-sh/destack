@@ -7528,10 +7528,6 @@ export enum ChangeKind {
      */
     CODE = 1,
     /**
-     * @generated from protobuf enum value: CHANGE_KIND_MATERIALIZED = 2;
-     */
-    MATERIALIZED = 2,
-    /**
      * @generated from protobuf enum value: CHANGE_KIND_LOGS = 3;
      */
     LOGS = 3,
@@ -11683,14 +11679,6 @@ export enum ViewType {
      */
     GRID = 1013,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_LIST = 1020;
-     */
-    LIST = 1020,
-    /**
-     * @generated from protobuf enum value: VIEW_TYPE_TABLE = 1021;
-     */
-    TABLE = 1021,
-    /**
      * @generated from protobuf enum value: VIEW_TYPE_GROUP = 1030;
      */
     GROUP = 1030,
@@ -11699,117 +11687,133 @@ export enum ViewType {
      */
     SECTION = 1031,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_SPACER = 1050;
+     * @generated from protobuf enum value: VIEW_TYPE_FORM = 1032;
      */
-    SPACER = 1050,
+    FORM = 1032,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_DIVIDER = 1051;
+     * @generated from protobuf enum value: VIEW_TYPE_SPACER = 1040;
      */
-    DIVIDER = 1051,
+    SPACER = 1040,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_SHAPE = 1053;
+     * @generated from protobuf enum value: VIEW_TYPE_DIVIDER = 1041;
      */
-    SHAPE = 1053,
+    DIVIDER = 1041,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_PROGRESS = 1054;
+     * @generated from protobuf enum value: VIEW_TYPE_LIST = 1050;
      */
-    PROGRESS = 1054,
+    LIST = 1050,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_AVATAR = 1055;
+     * @generated from protobuf enum value: VIEW_TYPE_TABLE = 1051;
      */
-    AVATAR = 1055,
+    TABLE = 1051,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_BADGE = 1056;
+     * @generated from protobuf enum value: VIEW_TYPE_BREADCRUMB = 1100;
      */
-    BADGE = 1056,
+    BREADCRUMB = 1100,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_CHART = 1057;
+     * @generated from protobuf enum value: VIEW_TYPE_PROGRESS = 1101;
      */
-    CHART = 1057,
+    PROGRESS = 1101,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_BUTTON = 1100;
+     * @generated from protobuf enum value: VIEW_TYPE_AVATAR = 1102;
      */
-    BUTTON = 1100,
+    AVATAR = 1102,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_MULTI_BUTTON = 1101;
+     * @generated from protobuf enum value: VIEW_TYPE_BADGE = 1103;
      */
-    MULTI_BUTTON = 1101,
+    BADGE = 1103,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_LINK = 1110;
+     * @generated from protobuf enum value: VIEW_TYPE_SHAPE = 1130;
      */
-    LINK = 1110,
+    SHAPE = 1130,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_VALUE = 1220;
+     * @generated from protobuf enum value: VIEW_TYPE_CHART = 1140;
      */
-    VALUE = 1220,
+    CHART = 1140,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_NUMBER = 1232;
+     * @generated from protobuf enum value: VIEW_TYPE_BUTTON = 1200;
      */
-    NUMBER = 1232,
+    BUTTON = 1200,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_SLIDER = 1233;
+     * @generated from protobuf enum value: VIEW_TYPE_MULTI_BUTTON = 1201;
      */
-    SLIDER = 1233,
+    MULTI_BUTTON = 1201,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_STRING = 1240;
+     * @generated from protobuf enum value: VIEW_TYPE_LINK = 1210;
      */
-    STRING = 1240,
+    LINK = 1210,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_TEXT = 1241;
+     * @generated from protobuf enum value: VIEW_TYPE_VALUE = 1300;
      */
-    TEXT = 1241,
+    VALUE = 1300,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_CODE = 1242;
+     * @generated from protobuf enum value: VIEW_TYPE_NUMBER = 1310;
      */
-    CODE = 1242,
+    NUMBER = 1310,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_JSON = 1243;
+     * @generated from protobuf enum value: VIEW_TYPE_SLIDER = 1311;
      */
-    JSON = 1243,
+    SLIDER = 1311,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_TOGGLE = 1250;
+     * @generated from protobuf enum value: VIEW_TYPE_STRING = 1320;
      */
-    TOGGLE = 1250,
+    STRING = 1320,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_PICKER = 1253;
+     * @generated from protobuf enum value: VIEW_TYPE_TEXT = 1321;
      */
-    PICKER = 1253,
+    TEXT = 1321,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_CALENDAR = 1256;
+     * @generated from protobuf enum value: VIEW_TYPE_CODE = 1322;
      */
-    CALENDAR = 1256,
+    CODE = 1322,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_MAP = 1258;
+     * @generated from protobuf enum value: VIEW_TYPE_JSON = 1323;
      */
-    MAP = 1258,
+    JSON = 1323,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_COLOR = 1260;
+     * @generated from protobuf enum value: VIEW_TYPE_TOGGLE = 1330;
      */
-    COLOR = 1260,
+    TOGGLE = 1330,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_ICON = 1261;
+     * @generated from protobuf enum value: VIEW_TYPE_PICKER = 1331;
      */
-    ICON = 1261,
+    PICKER = 1331,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_FILE = 1270;
+     * @generated from protobuf enum value: VIEW_TYPE_CALENDAR = 1340;
      */
-    FILE = 1270,
+    CALENDAR = 1340,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_IMAGE = 1273;
+     * @generated from protobuf enum value: VIEW_TYPE_MAP = 1341;
      */
-    IMAGE = 1273,
+    MAP = 1341,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_AUDIO = 1274;
+     * @generated from protobuf enum value: VIEW_TYPE_COLOR = 1342;
      */
-    AUDIO = 1274,
+    COLOR = 1342,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_VIDEO = 1275;
+     * @generated from protobuf enum value: VIEW_TYPE_ICON = 1343;
      */
-    VIDEO = 1275,
+    ICON = 1343,
     /**
-     * @generated from protobuf enum value: VIEW_TYPE_DOCUMENT = 1276;
+     * @generated from protobuf enum value: VIEW_TYPE_FILE = 1350;
      */
-    DOCUMENT = 1276
+    FILE = 1350,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_IMAGE = 1353;
+     */
+    IMAGE = 1353,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_AUDIO = 1354;
+     */
+    AUDIO = 1354,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_VIDEO = 1355;
+     */
+    VIDEO = 1355,
+    /**
+     * @generated from protobuf enum value: VIEW_TYPE_DOCUMENT = 1356;
+     */
+    DOCUMENT = 1356
 }
 // @generated message type with reflection information, may provide speed optimized methods
 class AccessData$Type extends MessageType<AccessData> {
@@ -29632,7 +29636,7 @@ export const ServerDataInfo: Record<ServerProperty, PropertyInfo> = {
   [ServerProperty.region]: { id: 35, name: 'region', component: ObjectType.SERVER, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.status]: { id: 36, name: 'status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.SERVER, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.09.21.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [ServerProperty.version]: { id: 40, name: 'version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.09.23.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.minCpu]: { id: 50, name: 'min_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 4.0 }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [ServerProperty.maxCpu]: { id: 51, name: 'max_cpu', component: ObjectType.SERVER, kind: 'primitive', primitiveType: PrimitiveType.FLOAT32, constraint: { minValue: 0.1, maxValue: 4.0 }, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
@@ -29661,7 +29665,7 @@ export const StoreDataInfo: Record<StoreProperty, PropertyInfo> = {
   [StoreProperty.region]: { id: 35, name: 'region', component: ObjectType.STORE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.status]: { id: 36, name: 'status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.STORE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.09.21.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [StoreProperty.version]: { id: 40, name: 'version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.09.23.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [StoreProperty.externalName]: { id: 50, name: 'external_name', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [StoreProperty.externalId]: { id: 51, name: 'external_id', component: ObjectType.STORE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
@@ -29687,7 +29691,7 @@ export const MachineDataInfo: Record<MachineProperty, PropertyInfo> = {
   [MachineProperty.region]: { id: 35, name: 'region', component: ObjectType.MACHINE, enumType: EnumType.REGION, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 1001, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.status]: { id: 36, name: 'status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 10, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentStatus]: { id: 37, name: 'current_status', component: ObjectType.MACHINE, enumType: EnumType.RESOURCE_STATUS, kind: 'enum', primitiveType: PrimitiveType.INT16, default: 30, isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
-  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.09.21.3", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
+  [MachineProperty.version]: { id: 40, name: 'version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, default: "2024.09.23.0", isRequired: true, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.currentVersion]: { id: 41, name: 'current_version', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isRuntime: true, isWired: true, isStored: true },
   [MachineProperty.externalName]: { id: 42, name: 'external_name', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },
   [MachineProperty.externalId]: { id: 43, name: 'external_id', component: ObjectType.MACHINE, kind: 'primitive', primitiveType: PrimitiveType.STRING, isInternal: true, isSystem: true, isKernel: true, isRuntime: true, isWired: true, isStored: true, isSensitive: true },

@@ -215,8 +215,8 @@ protobuf==4.24.3
     #   onnxruntime
     #   opentelemetry-proto
     #   proto-plus
-psycopg==3.2.1
-psycopg-binary==3.2.1
+psycopg==3.2.2
+psycopg-binary==3.2.2
     # via psycopg
 psycopg-pool==3.2.2
     # via psycopg

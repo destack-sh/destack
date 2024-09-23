@@ -79,64 +79,90 @@ class ViewType(IdEnum):
     HISTORY = 409
 
     #
-    # General
+    # Organization
     #
 
-    # containers (root)
+    # layout
     WINDOW = 1000
     TAB = 1002
     SPLIT = 1003
     SPLIT_DRAWER = 1004
-    # containers (layout)
     STACK = 1010
     DRAWER = 1011
     SCROLL = 1012
     GRID = 1013
     # ROW, COLUMN, ...?
-    # containers (data)
-    LIST = 1020
-    TABLE = 1021
-    # containers (group)
+
+    # groups
     GROUP = 1030
     SECTION = 1031
+    FORM = 1032
 
     # presentation
-    SPACER = 1050
-    DIVIDER = 1051
-    SHAPE = 1053
-    PROGRESS = 1054
-    AVATAR = 1055
-    BADGE = 1056
-    CHART = 1057
+    SPACER = 1040
+    DIVIDER = 1041
+
+    # collections
+    LIST = 1050
+    TABLE = 1051
+
+    #
+    # Style
+    #
+
+    # navigation
+    BREADCRUMB = 1100
+    PROGRESS = 1101
+    AVATAR = 1102
+    BADGE = 1103
+
+    # illustration
+    SHAPE = 1130
+
+    # graphing
+    CHART = 1140
+
+    #
+    # Action
+    #
 
     # controls
-    BUTTON = 1100
-    MULTI_BUTTON = 1101
-    LINK = 1110
+    BUTTON = 1200
+    MULTI_BUTTON = 1201
+    LINK = 1210
 
-    # content
-    VALUE = 1220  # (generic content routed according to value type)
+    #
+    # Content
+    #
+
+    VALUE = 1300  # (generic content routed according to value type)
+
     # numeric
-    NUMBER = 1232
-    SLIDER = 1233
+    NUMBER = 1310
+    SLIDER = 1311
+
     # stringy
-    STRING = 1240
-    TEXT = 1241
-    CODE = 1242
-    JSON = 1243
+    STRING = 1320
+    TEXT = 1321
+    CODE = 1322
+    JSON = 1323
+
     # selection
-    TOGGLE = 1250
-    PICKER = 1253
-    CALENDAR = 1256
-    MAP = 1258
-    COLOR = 1260
-    ICON = 1261
+    TOGGLE = 1330
+    PICKER = 1331
+
+    # rich
+    CALENDAR = 1340
+    MAP = 1341
+    COLOR = 1342
+    ICON = 1343
+
     # file
-    FILE = 1270  # (generic file content according to file type)
-    IMAGE = 1273
-    AUDIO = 1274
-    VIDEO = 1275
-    DOCUMENT = 1276
+    FILE = 1350  # (generic file content according to file type)
+    IMAGE = 1353
+    AUDIO = 1354
+    VIDEO = 1355
+    DOCUMENT = 1356
     ...
 
 
