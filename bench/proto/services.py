@@ -87,6 +87,17 @@ class ServiceBase:
         self._oracle = oracle
         self.tasks = TaskManager(owner=self, logger=logger, oracle=oracle)
 
+    def __str__(self) -> str:
+        return ""
+
+    @final
+    def __repr__(self) -> str:
+        content_str = str(self)
+        if content_str:
+            return f"<{self.__class__.__name__} {content_str}>"
+        else:
+            return f"<{self.__class__.__name__}>"
+
     @property
     def oracle(self) -> Oracle:
         # wrap as property to comply with HostSpec

@@ -77,9 +77,6 @@ class RuntimeThread(RuntimeServiceBase, RuntimeBase):
         client_str = repr(self._client) if self._client else self._client_id
         return f"{self.id} as {client_str} on {bench_str}"
 
-    def __repr__(self):
-        return f"<{self.__class__.__name__} {self}>"
-
     @override
     def get_service_baggage(self) -> dict[str, Any]:
         return {

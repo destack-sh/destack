@@ -280,9 +280,6 @@ class RuntimeService(RuntimeServiceBase, RuntimeBase):
     def __str__(self):
         return f"{self._client_id} on {self._bench_id}"
 
-    def __repr__(self):
-        return f"<{self.__class__.__name__} {self}>"
-
     @override
     def get_service_baggage(self) -> dict[str, Any]:
         return {

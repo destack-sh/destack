@@ -85,9 +85,6 @@ class SupervisorService(GraphIoServiceBase, SupervisorBase):
     def __str__(self):
         return "shards=[*]"
 
-    def __repr__(self):
-        return f"<{self.__class__.__name__} {self}>"
-
     async def start(self) -> None:
         await super().start()
 
@@ -158,7 +155,7 @@ class SupervisorService(GraphIoServiceBase, SupervisorBase):
 
     def _patch_client(self, client: Client, client_data: ClientDataIn) -> Client:
         # copy over other properties
-        for (field, value) in client_data.ListFields():
+        for field, value in client_data.ListFields():
             if field.name not in ("id", "name") and field.name in client.__properties__:
                 setattr(client, field.name, value)
         return client
