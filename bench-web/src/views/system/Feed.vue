@@ -120,6 +120,7 @@ type RunItem = FeedItemBase & {
   node: BlockData | StepData | null;
 };
 type FeedItem = LogEditItem | RunItem;
+
 //
 // Filter
 //

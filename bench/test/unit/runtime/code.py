@@ -146,6 +146,7 @@ async def test_run_code_function_invalid_inputs(local_runtime: RuntimeHandle):
     assert runner.status == RunStatus.FAILED
     assert len(runner.attempts) == 0
     assert runner.error and runner.error.type == RunErrorType.INVALID_VALUE
+    assert runner.run and runner.run.duration is not None
 
 
 async def test_run_code_function_invalid_outputs(local_runtime: RuntimeHandle):
