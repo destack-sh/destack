@@ -87,9 +87,6 @@ class HostRouterService(ServiceBase, HostBase):
     def __str__(self):
         return "shards=[*]"
 
-    def __repr__(self):
-        return f"<{self.__class__.__name__} {self}>"
-
     async def start(self) -> None:
         await super().start()
         async with global_session(self._global_store, (self._global_pg_engine,), self.oracle):

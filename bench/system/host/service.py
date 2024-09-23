@@ -148,9 +148,6 @@ class HostService(GraphIoServiceBase, HostApi, HostBase):
     def __str__(self):
         return f"{self._bench or self.bench_id}"
 
-    def __repr__(self):
-        return f"<{self.__class__.__name__} {self}>"
-
     @override
     def get_service_baggage(self) -> dict[str, Any]:
         return {"bench_id": self.bench_id}
