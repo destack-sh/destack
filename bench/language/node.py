@@ -1276,17 +1276,20 @@ class Struct[StructDataT: AnyStructData](BuiltinObject[StructDataT], abc.ABC):
             setattr(copy, prop_name, prop_value)
         return copy
 
-    def override(self, override: "Self | None") -> Self:
+    def override(self, override: "Self | None" = None, **kwargs) -> Self:
         """Overrides this struct with set properties from another struct (in a copy)."""
-        if override is None:
+        if override is None and len(kwargs) == 0:
             return self
-        copy = self.clone()
-        for prop in self.__declared_properties__.values():
-            override_value = getattr(override, prop.name)
-            if (not prop.is_list and override_value is not None) or (
-                prop.is_list and override_value
-            ):
-                setattr(copy, prop.name, override_value)
+        copy = self.clone()  #
+        if override is not None:
+            for prop in self.__declared_properties__.values():
+                override_value = getattr(override, prop.name)
+                if (not prop.is_list and override_value is not None) or (
+                    prop.is_list and override_value
+                ):
+                    setattr(copy, prop.name, override_value)
+        for key, value in kwargs.items():
+            setattr(copy, key, value)
         return copy
 
     def _move_to(

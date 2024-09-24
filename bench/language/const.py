@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.09.23.4"  # auto change via version script
+VERSION = "2024.09.24.0"  # auto change via version script
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -646,7 +646,7 @@ BLOCK_TYPES: tuple[BlockType, ...] = tuple(BlockType)
 class BlockTypes:
     PAGES = bittuple(BlockType.PAGE, BlockType.FLOW, BlockType.DATABASE, BlockType.VIEW)
     TYPES = bittuple(*tuple(t for t in BLOCK_TYPES if 10 <= t.id < 20))
-    RUNNABLE = bittuple(*tuple(t for t in BLOCK_TYPES if 30 <= t.id < 40))
+    RUNNABLE = bittuple(*tuple(t for t in BLOCK_TYPES if 20 <= t.id < 30))
     CLASSES = bittuple(
         BlockType.CLASS, BlockType.SIGNAL, *RUNNABLE, BlockType.VALUE, BlockType.DATABASE
     )

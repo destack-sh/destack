@@ -9,12 +9,12 @@ import structlog
 from opentelemetry import trace
 
 from bench.language.block import Block
-from bench.language.code import Code, CodeType
+from bench.language.code import Code
 from bench.language.const import RunStatus
 from bench.language.field import TypeInfoBase
-from bench.language.flow import Step, StepType
+from bench.language.flow import Step
 from bench.language.log import LogInfo
-from bench.language.run import ModelProvider, Run, RunAttempt, RunError, RunKind, RunOptions
+from bench.language.run import Run, RunAttempt, RunError, RunKind, RunOptions
 from bench.language.text import Text
 from bench.language.value import ValueObject
 
@@ -26,7 +26,6 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 RunnableNode = Block | Step
-RunSubtype = CodeType | StepType | ModelProvider
 
 
 @dataclass(slots=True)
@@ -38,19 +37,13 @@ class RunnerCache[T: RunnableNode]:
 
     id: UUID
     kind: RunKind
-    subtype: RunSubtype | None
     node: T
     code: Code | None = None
     text: Text | None = None
     variables: ValueObject | None = None
 
     def __str__(self):
-        type_str = (
-            f"{self.kind.bench_name}:{self.subtype.bench_name}"
-            if self.subtype
-            else self.kind.bench_name
-        )
-        return f"{type_str}: {self.id} (in {self.node})"
+        return f"{self.kind.bench_name}: {self.id} (in {self.node})"
 
     def __repr__(self):
         return f"<{self.__class__.__name__} {self}"
@@ -136,10 +129,6 @@ class Runner[S: RunnerCache, T: RunnableNode]:
         return self.cache.variables
 
     @property
-    def key(self) -> RunSubtype | None:
-        return self.cache.subtype
-
-    @property
     def current_attempt(self) -> RunAttempt | None:
         return self.attempts[-1] if self.attempts else None
 
@@ -149,18 +138,12 @@ class Runner[S: RunnerCache, T: RunnableNode]:
         raise NotImplementedError
 
 
-_runners: dict[tuple[RunKind, RunSubtype | None], type[Runner]] = {}
-
-
 @dataclass_transform()
-def runner_(kind: RunKind, typ: RunSubtype | None = None):
+def runner_():
     """Registers a Runner for a specific RunnableType."""
 
     def decorator(cls):
-        if (kind, typ) in _runners:
-            raise ValueError(f"runner already registered for {typ}: {_runners[(kind, typ)]!r}")
         cls = dataclass(cls, repr=False, slots=True)  # type: ignore
-        _runners[(kind, typ)] = cls
         return cls
 
     return decorator
