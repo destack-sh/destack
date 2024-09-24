@@ -104,7 +104,7 @@ defineExpose<ViewExposed>({ self, id, focus: () => inputRef.value });
         <!-- Clear -->
         <button
           v-if="!isDisabled && !valueType?.isRequired"
-          class="ml-auto text-gray-400 opacity-0 hover:text-primary-900 group-hover:opacity-100"
+          class="ml-auto pl-1 text-gray-400 opacity-0 hover:text-primary-900 group-hover:opacity-100"
           @click.stop="clear"
         >
           <i class="fas fa-xmark" />

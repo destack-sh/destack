@@ -384,20 +384,23 @@ def _coerce_value_scalar(
     ancestor_prop: "Property | None" = None,
 ) -> ScalarValue:
     """Coerces a scalar value (primitive, node, struct)"""
-    if typ.kind == TypeKind.PRIMITIVE:
-        assert typ.primitive_type is not None, f"missing primitive type for {typ!r}"
-        if typ.primitive_type.is_numeric:
-            if typ.primitive_type.is_float:
-                value = float(cast(Any, value))
-            elif typ.primitive_type.is_int:
-                value = int(cast(Any, value))
-    elif typ.kind == TypeKind.STRUCT and parent is not None and isinstance(value, Struct):
-        assert parent_prop is not None, f"{typ!r} got parent {parent!r} but no parent_prop"
-        value = cast("Struct", value)._move_to(parent, parent_prop, ancestor_prop)
-    elif as_packed and (typ.kind == TypeKind.NODE or typ.kind == TypeKind.BASED_NODE):
-        assert isinstance(value, (Node, NodeReferenceBase)), f"expected Node, got {value!r}"
-        value = value.to_ref()
-    return value
+    try:
+        if typ.kind == TypeKind.PRIMITIVE:
+            assert typ.primitive_type is not None, f"missing primitive type for {typ!r}"
+            if typ.primitive_type.is_numeric:
+                if typ.primitive_type.is_float:
+                    value = float(cast(Any, value))
+                elif typ.primitive_type.is_int:
+                    value = int(cast(Any, value))
+        elif typ.kind == TypeKind.STRUCT and parent is not None and isinstance(value, Struct):
+            assert parent_prop is not None, f"{typ!r} got parent {parent!r} but no parent_prop"
+            value = cast("Struct", value)._move_to(parent, parent_prop, ancestor_prop)
+        elif as_packed and (typ.kind == TypeKind.NODE or typ.kind == TypeKind.BASED_NODE):
+            assert isinstance(value, (Node, NodeReferenceBase)), f"expected Node, got {value!r}"
+            value = value.to_ref()
+        return value
+    except (AssertionError, AttributeError, TypeError, ValueError, KeyError) as e:
+        raise ValueError(f"could not coerce {value!r} ({type(value)}) as {typ!r}") from e
 
 
 def coerce_value_object_scalar(
