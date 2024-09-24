@@ -83,46 +83,57 @@ class ChatModelRunnerBase(Runner[RunnerCache, RunnableNode], abc.ABC):
     """
 
     SYSTEM_MESSAGE = """\
-# You are a computational assistant on a new development platform called Bench.
-# Users define their programs in a language of Blocks, Fields, Steps, Views, etc.,
-#  some of which will be 'rendered' into Python code for you to consider as context, inputs & instructions.
-# Your one and only job is to generate valid Python answers as outputs to a SPECIFIC invocation of a SPECIFIC task.
-# You MUST use your best judgement to fill in incomplete or conflicting instructions,
-#  but you MUST NOT impute missing information unless explicitly asked.
-
-# Consider an unrelated example task like the following:
-
-TellJoke = Block.new(
-    BlockType.TEXT,
-    "GiveSentiment",
-    fields=[Field.input("Topic", str), Field.output("Joke", str)],
-)
-
-# For the given inputs:
-
-TellJoke("I'm very happy!")
-
-# You would return some valid Python like:
-
-return {"Joke": "Why did the scarecrow win an award? Because he was outstanding in his field!"}
-
-# There are more complex tasks and types; you MUST adhere to the type schemas (examples are provided).
+# You are an obedient AI emulator on a new development platform called Bench.
+# You must respond with valid Python statements that include a 'return'. Use good formatting.
 """
     USER_POSTFIX_MESSAGE = """\
 #
-# Return the answer to the specific invocation of task '{task_alias}' with the given inputs.
-#  - You MUST NOT attempt to generalize over inputs; you MUST return the answer for these specific inputs only.
-#  - You MAY add reasoning comments *before* the output to outline your thinking (especially if some form of rationale is part of the output).
-#  - You MAY import and use the Python standard library for math and similar basic operations, but nothing else.
-#  - You MUST use your native capabilities (NOT Python) to do AI stuff (like image processing or summarization).
+# Return the answer to the specific invocation of '{task_alias}' with the given inputs.
+#  - You MUST NOT attempt to generalize over inputs; return the answer for the specific inputs only.
+#  - You MAY solve math and other basic operations in Python when appropriate, but nothing fancy.
+#  - You MUST use your native capabilities (NOT Python) to emulate AI stuff (like image processing or summarization).
 #  - You MAY `raise ModelIncapableError("<reason>")` if an output for the given inputs is impossible.
 # 
+
+# 
+# Some general (simplified) examples 
+#
+
+# Example: using Python to compute the answer directly
+return {
+    'Count': String.count(Pattern)
+} 
+
+# Example: using Python to stage and help with the answer
+PersonsInImage = ['John', 'Mary']
+return {
+    'Persons In Image': PersonsInImage, 
+    'Num Entities': len(Persons),
+    'Scene Description': md("*John* and *Mary* are standing on a street in front of a house"),
+}
+
+# Example: giving the answer directly, putting rationale before output (even if field order differs)
+Explanation = '''\
+To detect whether something is a prime number, we have to check if it is divisible by any number other than 1 and itself. 
+If it is divisible by any number other than 1 and itself, then it is not a prime number.
+Otherwise, it is a prime number.
+'''
+
+return {
+    "Improved Code": code('''\
+if n <= 1:
+    return False
+for i in range(2, int(n**0.5) + 1):
+    if n % i == 0:
+        return False
+return True
+'''),
+    "Explanation": Explanation,
+}
 """
     ASSISTANT_PREFIX_MESSAGE = """\
 #
-# Here is the valid inline Python code that RETURNS the SPECIFIC answer for these SPECIFIC inputs
-#  (NO generalizing over other inputs, NOT defining a function, raising if an answer is impossible):
-#"""
+"""
 
     @property
     def model(self) -> ModelType | None:
@@ -189,8 +200,7 @@ return {"Joke": "Why did the scarecrow win an award? Because he was outstanding 
             rendered_pages.append(rendered_context)
         rendered = ChatMessageTextContent(f"""\
 # 
-# Context around your task '{self.task_alias}'
-# Includes relevant and irrelevant instructions and information to consider.
+# Context for '{self.task_alias}' (may include irrelevant information!)
 #
 
 {'\n\n'.join(rendered_pages) or "# <no context available>"}
@@ -276,14 +286,13 @@ return {"Joke": "Why did the scarecrow win an award? Because he was outstanding 
 
         rendered = ChatMessageTextContent(f"""\
 #
-# Inputs for your specific task '{self.task_alias}'
+# Inputs for '{self.task_alias}'
 # 
 
 {rendered_inputs}
 
 # 
-# Your specific task is `{self.task_alias}`
-# You MUST focus on this task with the inputs above in relation to the provided context.
+# You are emulating one invocation of '{self.task_alias}' for the above inputs.
 #
 
 {rendered_task}
@@ -297,19 +306,21 @@ return {"Joke": "Why did the scarecrow win an award? Because he was outstanding 
         if self.output_type is None or len(self.output_type._fields) == 0:
             raise RunImpossibleError(f"no output fields for {self!r}")
 
-        rendered_examples = []
+        rendered_example = {}
         for field in self.output_type._fields:
-            example_value = sample_value(field)
-            rendered_example = render_value_expr(example_value, field, options=render_options)
-            rendered_examples.append(f"{field.py_name} = {rendered_example}")
+            field_value = sample_value(field)
+            rendered_example[field.py_name] = render_value_expr(
+                field_value, field, options=render_options
+            )
+        rendered_example_parts = [f"    '{k}': {v}" for k, v in rendered_example.items()]
+        rendered_example_str = f"{{\n{',\n'.join(rendered_example_parts)}\n}}"
 
         rendered = ChatMessageTextContent(f"""\
 # 
-# Some random syntax examples for values of the right types
-#  (the values are *not* specific to your actual task and semantically irrelevant)
-#
-
-{'\n'.join(e for e in rendered_examples)}
+# A syntactically valid answer to '{self.task_alias}' looks something like this:
+# 
+                                          
+return {rendered_example_str}
 """)
         return (rendered,)
 
