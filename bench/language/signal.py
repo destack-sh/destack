@@ -33,7 +33,7 @@ class Signal(RuntimeNode[SignalData], HasNodeBase, HasSessionContext):
         require=True,
         array=False,
         references=NodeType.BLOCK,
-        constraint=constraint(block_type=BlockType.SIGNAL),
+        constraint=constraint(block_types=[BlockType.SIGNAL]),
     )
 
     # content

@@ -74,10 +74,10 @@ class TypeConstraintIn:
     starts_with: str | None = None
     ends_with: str | None = None
     # node-ish
-    block_type: "BlockType | None" = None
-    step_type: "StepType | None" = None
-    file_type: "FileType | None" = None
-    file_format: "FileFormat | None" = None
+    block_types: "list[BlockType]" = dataclasses.field(default_factory=list)
+    step_types: "list[StepType]" = dataclasses.field(default_factory=list)
+    file_types: "list[FileType]" = dataclasses.field(default_factory=list)
+    file_formats: "list[FileFormat]" = dataclasses.field(default_factory=list)
 
     def into(self) -> "TypeConstraint":
         from bench.language.field import TypeConstraint
@@ -91,10 +91,10 @@ class TypeConstraintIn:
             regex=self.regex,
             starts_with=self.starts_with,
             ends_with=self.ends_with,
-            block_type=self.block_type,
-            step_type=self.step_type,
-            file_type=self.file_type,
-            file_format=self.file_format,
+            block_types=self.block_types,
+            step_types=self.step_types,
+            file_types=self.file_types,
+            file_formats=self.file_formats,
         )
 
 
@@ -124,10 +124,10 @@ def constraint(
     regex: str | None = None,
     starts_with: str | None = None,
     ends_with: str | None = None,
-    block_type: "BlockType | None" = None,
-    step_type: "StepType | None" = None,
-    file_type: "FileType | None" = None,
-    file_format: "FileFormat | None" = None,
+    block_types: "list[BlockType] | None" = None,
+    step_types: "list[StepType] | None" = None,
+    file_types: "list[FileType] | None" = None,
+    file_formats: "list[FileFormat] | None" = None,
 ) -> "TypeConstraintIn":
     return TypeConstraintIn(
         min_value=min_value,
@@ -138,8 +138,8 @@ def constraint(
         regex=regex,
         starts_with=starts_with,
         ends_with=ends_with,
-        block_type=block_type,
-        step_type=step_type,
-        file_type=file_type,
-        file_format=file_format,
+        block_types=block_types if block_types is not None else [],
+        step_types=step_types if step_types is not None else [],
+        file_types=file_types if file_types is not None else [],
+        file_formats=file_formats if file_formats is not None else [],
     )

@@ -13,7 +13,7 @@ import {
   RUNNABLE_BLOCK_TYPES,
   toCamelName,
 } from "@/language/const";
-import { makeTypeInfo, updateFieldType, type TypeIdentity } from "@/language/field";
+import { makeTypeConstraint, makeTypeInfo, updateFieldType, type TypeIdentity } from "@/language/field";
 import { type ReadNodeGraph } from "@/language/graph";
 import { onNodeMorphed } from "@/language/node";
 import type { Transaction } from "@/language/transaction";
@@ -39,6 +39,8 @@ import {
   StepProperty,
   StepType,
   StructType,
+  TypeConstraintProperty,
+  TypeInfoProperty,
   ViewProperty,
   ViewType,
   type AnyNodeData,
@@ -129,12 +131,13 @@ type InspectionLayout = {
 const RUNNABLE_TEXT_PROPERTIES = [RunOptionsProperty.modelType];
 const RUNNABLE_PROPERTIES = [RunOptionsProperty.cacheMode];
 const RUN_OPTIONS_PROPERTIES = PROPERTY_INFOS_BY_TYPE[ObjectType.RUN_OPTIONS]!;
+const TYPE_CONSTRAINT_PROPERTIES = PROPERTY_INFOS_BY_TYPE[ObjectType.TYPE_CONSTRAINT]!;
 function getInspectionInfo(metatype: ObjectType, type: number): Record<string, InspectionCategory> | null {
   if (metatype == ObjectType.FIELD) {
     if (type == FieldZone.OPTION) {
       return { Common: [FieldProperty.text] };
     }
-    const properties = {
+    const properties: Record<string, InspectionCategory> = {
       Common: [
         {
           from: 40,
@@ -143,9 +146,9 @@ function getInspectionInfo(metatype: ObjectType, type: number): Record<string, I
             title: "Type",
             viewType: ViewType.PICKER,
             props: { valueType: makeTypeInfo({ isRequired: true, benchType: BenchType.TYPE_INFO }) },
-            read: (node: FieldData) => node,
-            write: (tx: Transaction, graph: ReadNodeGraph, node: FieldData, value: TypeIdentity | null) => {
-              updateFieldType(tx, graph, node, value);
+            read: (node: AnyNodeData) => node,
+            write: (tx: Transaction, graph: ReadNodeGraph, node: AnyNodeData, value: TypeIdentity | null) => {
+              updateFieldType(tx, graph, node as FieldData, value);
             },
           }),
         },
@@ -153,6 +156,15 @@ function getInspectionInfo(metatype: ObjectType, type: number): Record<string, I
       ],
       Constraint: [{ from: 60 }],
     };
+    const typeConstraint = PROPERTY_INFOS_BY_TYPE[ObjectType.TYPE_INFO]![TypeInfoProperty.constraint];
+    const typeConstraintProperties = [
+      TypeConstraintProperty.regex,
+      TypeConstraintProperty.startsWith,
+      TypeConstraintProperty.endsWith,
+    ];
+    typeConstraintProperties
+      .map((p) => getNestedInspectedProperty(typeConstraint, "Constraint", TYPE_CONSTRAINT_PROPERTIES[p]))
+      .forEach((p) => properties.Constraint.push(p));
     return properties;
   } else if (metatype == ObjectType.BLOCK) {
     const properties: Record<string, InspectionCategory> = {
@@ -161,15 +173,13 @@ function getInspectionInfo(metatype: ObjectType, type: number): Record<string, I
     };
     if (RUNNABLE_BLOCK_TYPES.includes(type) || PAGE_BLOCK_TYPES.includes(type)) {
       properties.Run.push(BlockProperty.identityPtr);
-      const blockProperties = PROPERTY_INFOS_BY_TYPE[ObjectType.BLOCK]!;
       const runOptionProperties = [...RUNNABLE_PROPERTIES];
       if (type == BlockType.TEXT) {
         runOptionProperties.push(...RUNNABLE_TEXT_PROPERTIES);
       }
+      const runOptions = PROPERTY_INFOS_BY_TYPE[ObjectType.BLOCK]![BlockProperty.runOptions];
       runOptionProperties
-        .map((p) =>
-          getNestedInspectedProperty(blockProperties[BlockProperty.runOptions], "Run", RUN_OPTIONS_PROPERTIES[p]),
-        )
+        .map((p) => getNestedInspectedProperty(runOptions, "Run", RUN_OPTIONS_PROPERTIES[p]))
         .forEach((p) => properties.Run.push(p));
     }
     if (type == BlockType.VALUE) {
@@ -205,7 +215,7 @@ function getInspectionInfo(metatype: ObjectType, type: number): Record<string, I
       if (type == StepType.TEXT) {
         runOptionProperties.push(...RUNNABLE_TEXT_PROPERTIES);
       }
-      runOptionProperties.push(RunOptionsProperty.suppressFailure)
+      runOptionProperties.push(RunOptionsProperty.suppressFailure);
       runOptionProperties
         .map((p) =>
           getNestedInspectedProperty(stepProperties[StepProperty.runOptions], "Run", RUN_OPTIONS_PROPERTIES[p]),
@@ -275,8 +285,7 @@ function getInspectedProperty(metatype: ObjectType, category: string, property: 
     isRequired: property.isRequired ?? false,
     isList: property.isList ?? false,
     isSecret: property.isEncrypted ?? false,
-    constraint:
-      property.constraint != null ? { metatype: ObjectType.TYPE_CONSTRAINT, ...property.constraint } : undefined,
+    constraint: property.constraint != null ? makeTypeConstraint(property.constraint) : undefined,
   });
   if (valueView == null) {
     throw new Error(`no view for ${ObjectType[metatype]}.${property.id}`);

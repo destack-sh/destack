@@ -242,14 +242,14 @@ export function getViewForValueType(type: Omit<TypeIdentity, "kind"> & Partial<T
     if (VIEW_TYPE_BY_BENCH_TYPE[type.benchType] != null) {
       if (
         type.benchType == BenchType.FILE &&
-        type.constraint?.fileType != null &&
-        VIEW_TYPE_BY_FILE_TYPE[type.constraint.fileType] != null
+        type.constraint?.fileTypes?.length == 1 &&
+        VIEW_TYPE_BY_FILE_TYPE[type.constraint.fileTypes[0]] != null
       ) {
         // specific file type view
         return {
-          type: VIEW_TYPE_BY_FILE_TYPE[type.constraint.fileType]!,
+          type: VIEW_TYPE_BY_FILE_TYPE[type.constraint.fileTypes[0]]!,
           valueType: makeTypeInfo(type),
-          isInline: [FileType.IMAGE, FileType.AUDIO, FileType.VIDEO].includes(type.constraint.fileType),
+          isInline: [FileType.IMAGE, FileType.AUDIO, FileType.VIDEO].includes(type.constraint.fileTypes[0]),
         };
       } else if (type.benchType == BenchType.FILE) {
         // generic file type view

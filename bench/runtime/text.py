@@ -295,7 +295,7 @@ return {"Joke": "Why did the scarecrow win an award? Because he was outstanding 
     ) -> tuple[ChatMessageContent, ...]:
         """Renders relevant examples for the task / context"""
         if self.output_type is None or len(self.output_type._fields) == 0:
-            raise RunImpossibleError(f"no outputs for {self!r}")
+            raise RunImpossibleError(f"no output fields for {self!r}")
 
         rendered_examples = []
         for field in self.output_type._fields:

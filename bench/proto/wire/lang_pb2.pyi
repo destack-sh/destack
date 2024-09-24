@@ -251,7 +251,7 @@ class BenchType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BENCH_TYPE_TRIGGER_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_BREAKPOINT_KIND: _ClassVar[BenchType]
     BENCH_TYPE_BREAKPOINT_ACTION: _ClassVar[BenchType]
-    BENCH_TYPE_CACHE_BEHAVIOR: _ClassVar[BenchType]
+    BENCH_TYPE_CACHE_MODE: _ClassVar[BenchType]
     BENCH_TYPE_CODE_TYPE: _ClassVar[BenchType]
     BENCH_TYPE_MODEL_PROVIDER: _ClassVar[BenchType]
     BENCH_TYPE_MODEL_TYPE: _ClassVar[BenchType]
@@ -517,7 +517,7 @@ class EnumType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_TRIGGER_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_BREAKPOINT_KIND: _ClassVar[EnumType]
     ENUM_TYPE_BREAKPOINT_ACTION: _ClassVar[EnumType]
-    ENUM_TYPE_CACHE_BEHAVIOR: _ClassVar[EnumType]
+    ENUM_TYPE_CACHE_MODE: _ClassVar[EnumType]
     ENUM_TYPE_CODE_TYPE: _ClassVar[EnumType]
     ENUM_TYPE_MODEL_PROVIDER: _ClassVar[EnumType]
     ENUM_TYPE_MODEL_TYPE: _ClassVar[EnumType]
@@ -1726,7 +1726,7 @@ BENCH_TYPE_SESSION_STATUS: BenchType
 BENCH_TYPE_TRIGGER_TYPE: BenchType
 BENCH_TYPE_BREAKPOINT_KIND: BenchType
 BENCH_TYPE_BREAKPOINT_ACTION: BenchType
-BENCH_TYPE_CACHE_BEHAVIOR: BenchType
+BENCH_TYPE_CACHE_MODE: BenchType
 BENCH_TYPE_CODE_TYPE: BenchType
 BENCH_TYPE_MODEL_PROVIDER: BenchType
 BENCH_TYPE_MODEL_TYPE: BenchType
@@ -1944,7 +1944,7 @@ ENUM_TYPE_SESSION_STATUS: EnumType
 ENUM_TYPE_TRIGGER_TYPE: EnumType
 ENUM_TYPE_BREAKPOINT_KIND: EnumType
 ENUM_TYPE_BREAKPOINT_ACTION: EnumType
-ENUM_TYPE_CACHE_BEHAVIOR: EnumType
+ENUM_TYPE_CACHE_MODE: EnumType
 ENUM_TYPE_CODE_TYPE: EnumType
 ENUM_TYPE_MODEL_PROVIDER: EnumType
 ENUM_TYPE_MODEL_TYPE: EnumType
@@ -4454,10 +4454,10 @@ class TypeConstraintData(_message.Message):
         "regex",
         "starts_with",
         "ends_with",
-        "block_type",
-        "step_type",
-        "file_type",
-        "file_format",
+        "block_types",
+        "step_types",
+        "file_types",
+        "file_formats",
     )
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     MIN_VALUE_FIELD_NUMBER: _ClassVar[int]
@@ -4468,10 +4468,10 @@ class TypeConstraintData(_message.Message):
     REGEX_FIELD_NUMBER: _ClassVar[int]
     STARTS_WITH_FIELD_NUMBER: _ClassVar[int]
     ENDS_WITH_FIELD_NUMBER: _ClassVar[int]
-    BLOCK_TYPE_FIELD_NUMBER: _ClassVar[int]
-    STEP_TYPE_FIELD_NUMBER: _ClassVar[int]
-    FILE_TYPE_FIELD_NUMBER: _ClassVar[int]
-    FILE_FORMAT_FIELD_NUMBER: _ClassVar[int]
+    BLOCK_TYPES_FIELD_NUMBER: _ClassVar[int]
+    STEP_TYPES_FIELD_NUMBER: _ClassVar[int]
+    FILE_TYPES_FIELD_NUMBER: _ClassVar[int]
+    FILE_FORMATS_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
     min_value: float
     max_value: float
@@ -4481,10 +4481,10 @@ class TypeConstraintData(_message.Message):
     regex: str
     starts_with: str
     ends_with: str
-    block_type: BlockType
-    step_type: StepType
-    file_type: FileType
-    file_format: FileFormat
+    block_types: _containers.RepeatedScalarFieldContainer[BlockType]
+    step_types: _containers.RepeatedScalarFieldContainer[StepType]
+    file_types: _containers.RepeatedScalarFieldContainer[FileType]
+    file_formats: _containers.RepeatedScalarFieldContainer[FileFormat]
     def __init__(
         self,
         metatype: _Optional[_Union[ObjectType, str]] = ...,
@@ -4496,10 +4496,10 @@ class TypeConstraintData(_message.Message):
         regex: _Optional[str] = ...,
         starts_with: _Optional[str] = ...,
         ends_with: _Optional[str] = ...,
-        block_type: _Optional[_Union[BlockType, str]] = ...,
-        step_type: _Optional[_Union[StepType, str]] = ...,
-        file_type: _Optional[_Union[FileType, str]] = ...,
-        file_format: _Optional[_Union[FileFormat, str]] = ...,
+        block_types: _Optional[_Iterable[_Union[BlockType, str]]] = ...,
+        step_types: _Optional[_Iterable[_Union[StepType, str]]] = ...,
+        file_types: _Optional[_Iterable[_Union[FileType, str]]] = ...,
+        file_formats: _Optional[_Iterable[_Union[FileFormat, str]]] = ...,
     ) -> None: ...
 
 class TypeInfoData(_message.Message):

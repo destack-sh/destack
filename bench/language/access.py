@@ -419,7 +419,7 @@ class Subject(Struct):
         require=False,
         array=False,
         references=NodeType.BLOCK,
-        constraint=constraint(block_type=BlockType.IDENTITY),
+        constraint=constraint(block_types=[BlockType.IDENTITY]),
     )
     badges: list["Badge"] = p_system(51, require=False, array=True, references=NodeType.BADGE)
     owned: list[Ownable] = p_system(
@@ -433,7 +433,7 @@ class Subject(Struct):
         require=False,
         array=True,
         references=NodeType.BLOCK,
-        constraint=constraint(block_type=BlockType.ROLE),
+        constraint=constraint(block_types=[BlockType.ROLE]),
     )
 
     def __content_str__(self):
