@@ -85,7 +85,7 @@ defineExpose<ViewExposed>({ self, id, focus: () => inputRef.value });
           :value="modelValue"
           spellcheck="false"
           :type="inputType"
-          class="w-full border-0 bg-transparent p-0 outline-none ring-0 focus:ring-0"
+          class="flex-1 border-0 bg-transparent p-0 outline-none ring-0 focus:ring-0"
           v-bind="getNativeConstraintProps(valueType?.constraint)"
           :disabled="isDisabled"
           @input="
@@ -95,11 +95,20 @@ defineExpose<ViewExposed>({ self, id, focus: () => inputRef.value });
               $event,
               values[0],
               (newValue) => {
-                emit('update:modelValue', newValue, typeof newValue);
+                console.log(valueType, $event, newValue)
+                emit('update:modelValue', newValue);
               },
             )
           "
         />
+        <!-- Clear -->
+        <button
+          v-if="!isDisabled && !valueType?.isRequired"
+          class="ml-auto text-gray-400 opacity-0 hover:text-primary-900 group-hover:opacity-100"
+          @click.stop="clear"
+        >
+          <i class="fas fa-xmark" />
+        </button>
       </template>
       <template v-else>
         <!-- List -->
@@ -131,7 +140,7 @@ defineExpose<ViewExposed>({ self, id, focus: () => inputRef.value });
               valueType?.constraint,
               $event,
               values[0],
-              (newValue) => (addingValue = newValue),
+              (newValue) => (addingValue = newValue ?? null),
             )
           "
         />
@@ -157,7 +166,7 @@ defineExpose<ViewExposed>({ self, id, focus: () => inputRef.value });
       </template>
       <template v-else>
         <!-- List -->
-        <div v-for="(v, i) in values" :key="i" class="rounded truncate bg-gray-100 px-1">{{ v }}</div>
+        <div v-for="(v, i) in values" :key="i" class="truncate rounded bg-gray-100 px-1">{{ v }}</div>
       </template>
     </div>
   </ViewContentWrapper>

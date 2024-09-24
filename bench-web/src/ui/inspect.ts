@@ -13,7 +13,7 @@ import {
   RUNNABLE_BLOCK_TYPES,
   toCamelName,
 } from "@/language/const";
-import { makeTypeConstraint, makeTypeInfo, updateFieldType, type TypeIdentity } from "@/language/field";
+import { makeTypeConstraint, makeTypeInfo, typeIsNumeric, updateFieldType, type TypeIdentity } from "@/language/field";
 import { type ReadNodeGraph } from "@/language/graph";
 import { onNodeMorphed } from "@/language/node";
 import type { Transaction } from "@/language/transaction";
@@ -31,6 +31,7 @@ import {
   NodeType,
   ObjectType,
   PipeProperty,
+  PrimitiveType,
   PROPERTY_ENUM_BY_TYPE,
   PROPERTY_INFOS_BY_TYPE,
   RunOptionsProperty,
@@ -48,7 +49,7 @@ import {
   type FieldData,
   type PropertyInfo,
 } from "@/proto/wire";
-import { makeStruct } from "@/proto/wiring";
+import { isNode, makeStruct } from "@/proto/wiring";
 import { ICONS_BY_ENUM_TYPE } from "@/ui/icon";
 import { FULL_WIDTH_VIEW_TYPES, getViewForValueType } from "@/ui/view";
 import { log } from "@/utils/log";
@@ -132,9 +133,9 @@ const RUNNABLE_TEXT_PROPERTIES = [RunOptionsProperty.modelType];
 const RUNNABLE_PROPERTIES = [RunOptionsProperty.cacheMode];
 const RUN_OPTIONS_PROPERTIES = PROPERTY_INFOS_BY_TYPE[ObjectType.RUN_OPTIONS]!;
 const TYPE_CONSTRAINT_PROPERTIES = PROPERTY_INFOS_BY_TYPE[ObjectType.TYPE_CONSTRAINT]!;
-function getInspectionInfo(metatype: ObjectType, type: number): Record<string, InspectionCategory> | null {
-  if (metatype == ObjectType.FIELD) {
-    if (type == FieldZone.OPTION) {
+function getInspectionInfo(node: AnyNodeData): Record<string, InspectionCategory> | null {
+  if (isNode(node, NodeType.FIELD)) {
+    if (node.zone == FieldZone.OPTION) {
       return { Common: [FieldProperty.text] };
     }
     const properties: Record<string, InspectionCategory> = {
@@ -153,28 +154,39 @@ function getInspectionInfo(metatype: ObjectType, type: number): Record<string, I
           }),
         },
         { from: 33, to: 43, excluding: [FieldProperty.valuePacked] },
+        { from: 60 },
       ],
-      Constraint: [{ from: 60 }],
+      Constraint: [],
     };
     const typeConstraint = PROPERTY_INFOS_BY_TYPE[ObjectType.TYPE_INFO]![TypeInfoProperty.constraint];
-    const typeConstraintProperties = [
-      TypeConstraintProperty.regex,
-      TypeConstraintProperty.startsWith,
-      TypeConstraintProperty.endsWith,
-    ];
+    const typeConstraintProperties: TypeConstraintProperty[] = [];
+    if (node.primitiveType == PrimitiveType.STRING) {
+      typeConstraintProperties.push(TypeConstraintProperty.regex);
+      typeConstraintProperties.push(TypeConstraintProperty.startsWith);
+      typeConstraintProperties.push(TypeConstraintProperty.endsWith);
+    }
+    if (node.primitiveType == PrimitiveType.STRING || node.isList) {
+      typeConstraintProperties.push(TypeConstraintProperty.minLength);
+      typeConstraintProperties.push(TypeConstraintProperty.maxLength);
+    }
+    if (typeIsNumeric(node)) {
+      typeConstraintProperties.push(TypeConstraintProperty.minValue);
+      typeConstraintProperties.push(TypeConstraintProperty.maxValue);
+      typeConstraintProperties.push(TypeConstraintProperty.stepValue);
+    }
     typeConstraintProperties
       .map((p) => getNestedInspectedProperty(typeConstraint, "Constraint", TYPE_CONSTRAINT_PROPERTIES[p]))
       .forEach((p) => properties.Constraint.push(p));
     return properties;
-  } else if (metatype == ObjectType.BLOCK) {
+  } else if (isNode(node, NodeType.BLOCK)) {
     const properties: Record<string, InspectionCategory> = {
       Common: [BlockProperty.type],
       Run: [],
     };
-    if (RUNNABLE_BLOCK_TYPES.includes(type) || PAGE_BLOCK_TYPES.includes(type)) {
+    if (RUNNABLE_BLOCK_TYPES.includes(node.type) || PAGE_BLOCK_TYPES.includes(node.type)) {
       properties.Run.push(BlockProperty.identityPtr);
       const runOptionProperties = [...RUNNABLE_PROPERTIES];
-      if (type == BlockType.TEXT) {
+      if (node.type == BlockType.TEXT) {
         runOptionProperties.push(...RUNNABLE_TEXT_PROPERTIES);
       }
       const runOptions = PROPERTY_INFOS_BY_TYPE[ObjectType.BLOCK]![BlockProperty.runOptions];
@@ -182,7 +194,7 @@ function getInspectionInfo(metatype: ObjectType, type: number): Record<string, I
         .map((p) => getNestedInspectedProperty(runOptions, "Run", RUN_OPTIONS_PROPERTIES[p]))
         .forEach((p) => properties.Run.push(p));
     }
-    if (type == BlockType.VALUE) {
+    if (node.type == BlockType.VALUE) {
       // value type
       properties.Common.push({
         from: BlockProperty.valueType,
@@ -200,19 +212,19 @@ function getInspectionInfo(metatype: ObjectType, type: number): Record<string, I
       });
     }
     return properties;
-  } else if (metatype == ObjectType.STEP) {
+  } else if (isNode(node, NodeType.STEP)) {
     const properties: Record<string, InspectionCategory> = {
       Common: [StepProperty.type],
       Run: [],
     };
-    if ([StepType.BLOCK, StepType.TRIGGER].includes(type)) {
+    if ([StepType.BLOCK, StepType.TRIGGER].includes(node.type)) {
       properties.Common.push(StepProperty.nodePtr);
     }
-    if (!BOUNDARY_STEP_TYPES.includes(type)) {
+    if (!BOUNDARY_STEP_TYPES.includes(node.type)) {
       properties.Run.push(StepProperty.identityPtr);
       const stepProperties = PROPERTY_INFOS_BY_TYPE[ObjectType.STEP]!;
       const runOptionProperties = [...RUNNABLE_PROPERTIES];
-      if (type == StepType.TEXT) {
+      if (node.type == StepType.TEXT) {
         runOptionProperties.push(...RUNNABLE_TEXT_PROPERTIES);
       }
       runOptionProperties.push(RunOptionsProperty.suppressFailure);
@@ -223,14 +235,14 @@ function getInspectionInfo(metatype: ObjectType, type: number): Record<string, I
         .forEach((p) => properties.Run.push(p));
     }
     return properties;
-  } else if (metatype == ObjectType.PIPE) {
+  } else if (isNode(node, NodeType.PIPE)) {
     const properties: Record<string, InspectionCategory> = {
       Common: [PipeProperty.type, PipeProperty.color],
       Filter: [PipeProperty.filterType],
       Mapping: [],
     };
     return properties;
-  } else if (metatype == ObjectType.VIEW) {
+  } else if (isNode(node, NodeType.VIEW)) {
     const properties = {
       Common: [{ to: 40 }, ViewProperty.isInput],
       Content: [{ from: 40, to: 50 }],
@@ -297,17 +309,13 @@ function getInspectedProperty(metatype: ObjectType, category: string, property: 
 }
 
 /** Generates the inspection layout for an object metatype. */
-export function getInspectionLayout(
-  metatype: ObjectType,
-  type: any,
-  options?: { exclude?: string[] },
-): InspectionLayout {
-  const propertyInfos = PROPERTY_INFOS_BY_TYPE[metatype];
+export function getInspectionLayout(node: AnyNodeData, options?: { exclude?: string[] }): InspectionLayout {
+  const propertyInfos = PROPERTY_INFOS_BY_TYPE[node.metatype];
   const seenProperties: Record<number, PropertyInfo> = {};
   const inspectedProperties: InspectedProperty[] = [];
   const excluded = EXCLUDED_PROPERTIES.concat(options?.exclude ?? []);
 
-  const categories: Record<string, InspectionCategory> = getInspectionInfo(metatype, type) ?? {
+  const categories: Record<string, InspectionCategory> = getInspectionInfo(node) ?? {
     Common: [{ from: undefined, to: undefined }],
   };
   for (const category of Object.keys(categories)) {
@@ -352,7 +360,7 @@ export function getInspectionLayout(
 
         // map properties to components
         try {
-          const inspectedProperty = getInspectedProperty(metatype, category, property);
+          const inspectedProperty = getInspectedProperty(node.metatype, category, property);
           inspectedProperties.push(inspectedProperty);
         } catch (e) {
           log.warn("lang.missingView", property); // will indicate no view for value in UI
@@ -362,7 +370,7 @@ export function getInspectionLayout(
     }
   }
 
-  const discriminator = NODE_SUBTYPE_BY_TYPE[metatype as unknown as NodeType];
+  const discriminator = NODE_SUBTYPE_BY_TYPE[node.metatype as unknown as NodeType];
   function onWrite(tx: Transaction, graph: ReadNodeGraph, node: AnyNodeData, property: PropertyInfo) {
     // trigger morph
     if (discriminator == property.name) {

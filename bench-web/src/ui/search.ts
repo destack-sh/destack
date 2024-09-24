@@ -325,6 +325,7 @@ export function typeIndex(idx: {
       id: `${enumType}-${option.id}`,
       title: option.title,
       icon: option.icon,
+      isRequired: false,
       isList: false,
       isSecret: false,
       metatype: "type",
