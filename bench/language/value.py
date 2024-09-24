@@ -688,9 +688,9 @@ def check_value(value: Any, typ: "TypeInfoBase", invalid: "ValidationHandler") -
 
 #
 # Value sampling
-# NOTE :Incomplete :Feature: we'll probably want value sampling as a more general feature
+# NOTE :Incomplete: we'll probably want value sampling as a more general feature
 #  (also, value sampling is suspiciously similar to the strategy-based sampling we do
-#   during testing, but just different enough because this is sparse, low-volume & user-facing)
+#   during testing? It's *just* different enough as this is sparse, low-volume & user-facing)
 #
 
 SAMPLE_VALUE_BY_PROPERTY: dict[str, SomeValue] = {
@@ -745,7 +745,7 @@ def sample_scalar_value(typ: "TypeInfoBase") -> ScalarValue | None:
             assert typ.base_type is not None, f"missing base type for {typ!r}"
             if len(typ.base_type.fields) > 0:
                 return typ.base_type.fields[0]
-        return None  # NOTE :Incomplete: :SampleNodeValues
+        return None  # TODO :Incomplete: :SampleNodeValues
     elif typ.kind == TypeKind.STRUCT:
         return sample_builtin_object_scalar(typ)
     else:
@@ -773,7 +773,7 @@ def sample_builtin_object_scalar(typ: "TypeInfoBase") -> "BuiltinObject":
             prop_value = SAMPLE_VALUE_BY_PROPERTY[prop.name]
             object_kwargs[prop.name] = [prop_value] if prop.is_list else prop_value
         elif prop.is_node_reference:
-            ...  # NOTE :Incomplete: :SampleNodeValues
+            ...  # TODO :Incomplete: :SampleNodeValues
         elif prop.is_struct_reference and not prop.is_required:
             object_kwargs[prop.name] = [] if prop.is_list else None  # don't recurse
         elif prop.is_property_reference:
@@ -825,7 +825,6 @@ def sample_value(typ: "TypeInfoBase", recurse_objects: bool = True) -> SomeValue
 
 #
 # Value packing
-# TODO :Incomplete: support freeform values (incl. alongside typed values)
 #
 
 
