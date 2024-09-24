@@ -172,6 +172,16 @@ function getInspectionInfo(node: AnyNodeData): Record<string, InspectionCategory
       typeConstraintProperties.push(TypeConstraintProperty.startsWith);
       typeConstraintProperties.push(TypeConstraintProperty.endsWith);
     }
+    if (node.benchType == BenchType.BLOCK) {
+      typeConstraintProperties.push(TypeConstraintProperty.blockTypes);
+    }
+    if (node.benchType == BenchType.STEP) {
+      typeConstraintProperties.push(TypeConstraintProperty.stepTypes);
+    }
+    if (node.benchType == BenchType.FILE) {
+      typeConstraintProperties.push(TypeConstraintProperty.fileTypes);
+      typeConstraintProperties.push(TypeConstraintProperty.fileFormats);
+    }
     if (node.primitiveType == PrimitiveType.STRING || node.isList) {
       typeConstraintProperties.push(TypeConstraintProperty.minLength);
       typeConstraintProperties.push(TypeConstraintProperty.maxLength);

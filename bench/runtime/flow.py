@@ -10,7 +10,6 @@ import structlog
 from opentelemetry import trace
 
 from bench.language.block import Block
-from bench.language.code import Code
 from bench.language.const import RunStatus
 from bench.language.field import TypeInfoBase
 from bench.language.flow import (
@@ -24,7 +23,6 @@ from bench.language.flow import (
     StepType,
 )
 from bench.language.run import Run, RunError, RunKind
-from bench.language.text import Text
 from bench.language.value import ValueObject
 from bench.runtime.core import RUN_ONCE, ManualRetryableError, RunImpossibleError
 from bench.runtime.runner import Runner, RunnerCache
@@ -383,11 +381,9 @@ class BlockStepRunner(StepRunner):
 class CodeStepRunner(StepRunner):
     @override
     async def run_once(self) -> None:
-        code = self.code or Code.empty()
         code_runner = await self.runtime.make_runner(
             kind=RunKind.CODE,
             node=self.node,
-            code=code,
             options=RUN_ONCE,
             inputs=self.inputs,
             track=False,
@@ -399,11 +395,9 @@ class CodeStepRunner(StepRunner):
 class TextStepRunner(StepRunner):
     @override
     async def run_once(self) -> None:
-        text = self.text or Text.empty()
         text_runner = await self.runtime.make_runner(
             kind=RunKind.TEXT,
             node=self.node,
-            text=text,
             options=RUN_ONCE.override(
                 model_provider=self.options.model_provider, model_type=self.options.model_type
             ),

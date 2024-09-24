@@ -1,6 +1,5 @@
 <script lang="ts" setup>
 import { canvas } from "@/system/space";
-import { focusInElement } from "@/ui/view";
 import {
   activePopovers,
   popPopover,
@@ -9,17 +8,18 @@ import {
   type PopoverInfo,
   type PopoverInstance,
 } from "@/ui/popover";
+import { focusInElement } from "@/ui/view";
 import { getElement } from "@/utils/element";
 import { getFloatingPosition, type FloatingPlacement } from "@/utils/floating";
 import { log } from "@/utils/log";
 import Menu from "@/views/builtins/Menu.vue";
 import { getViewComponent } from "@/views/registry";
 import { useElementSize, useEventListener, type MaybeElement } from "@vueuse/core";
-import { computed, nextTick, shallowRef, toValue, triggerRef, watch, watchEffect, type Ref } from "vue";
+import { computed, nextTick, ref, shallowRef, toValue, triggerRef, watch, watchEffect, type Ref } from "vue";
 
 const popoverContainerRefs: Ref<Record<number, MaybeElement>> = shallowRef({});
 const popoverInnerRefs: Ref<Record<number, MaybeElement>> = shallowRef({});
-const popoverValues: Ref<Record<number, any>> = shallowRef({});
+const popoverValues: Ref<Record<number, any>> = ref({});
 const topPopoverContainer = computed(() => popoverContainerRefs.value[topPopover.value?.id]);
 const topPopoverSize = useElementSize(topPopoverContainer, undefined, { box: "border-box" });
 
@@ -136,7 +136,7 @@ function toComponent(info: PopoverInfo): any {
   else return getViewComponent(info.component);
 }
 
-function fire(popover: PopoverInstance) {
+function onApply(popover: PopoverInstance) {
   popover.info.onApply?.(popoverValues.value[popover.id]);
 }
 
@@ -198,7 +198,7 @@ function close(popover: PopoverInstance | undefined) {
               updatePopover(popover, { props: { ...popover.info.props, ...newProps } });
             }
           "
-          @apply="() => (fire(popover), close(popover))"
+          @apply="(value: any, keepOpen?: boolean) => (onApply(popover), keepOpen || close(popover))"
           @close="() => close(popover)"
         />
       </div>

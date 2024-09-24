@@ -27,7 +27,7 @@ export type ViewComponent = {
 };
 
 export const VIEW_EMITS = {
-  apply: null,
+  apply: (value: any, keepOpen?: boolean) => null,
   cancel: null,
   close: null,
   ["update:modelValue"]: null,
