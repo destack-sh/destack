@@ -82,7 +82,7 @@ defineExpose<ViewExposed>({ self, id });
     stroke-dashoffset: 0;
   }
   to {
-    stroke-dashoffset: -100;
+    stroke-dashoffset: -60;
   }
 }
 </style>

@@ -90,7 +90,7 @@ class ChatModelRunnerBase(Runner[RunnerCache, RunnableNode], abc.ABC):
 #
 # Return the answer to the specific invocation of '{task_alias}' with the given inputs.
 #  - You MUST NOT attempt to generalize over inputs; return the answer for the specific inputs only.
-#  - You MAY solve math and other basic operations in Python when appropriate, but nothing fancy.
+#  - You SHOULD solve math, simple string operations and such in Python when appropriate, but nothing fancy.
 #  - You MUST use your native capabilities (NOT Python) to emulate AI stuff (like image processing or summarization).
 #  - You MAY `raise ModelIncapableError("<reason>")` if an output for the given inputs is impossible.
 # 
@@ -99,7 +99,7 @@ class ChatModelRunnerBase(Runner[RunnerCache, RunnableNode], abc.ABC):
 # Some general (simplified) examples 
 #
 
-# Example: using Python to compute the answer directly
+# Example: using Python to compute the answer directly since it's easy in code
 return {
     'Count': String.count(Pattern)
 } 
@@ -118,7 +118,6 @@ To detect whether something is a prime number, we have to check if it is divisib
 If it is divisible by any number other than 1 and itself, then it is not a prime number.
 Otherwise, it is a prime number.
 '''
-
 return {
     "Improved Code": code('''\
 if n <= 1:

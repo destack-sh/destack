@@ -183,7 +183,7 @@ function deselect(option: PickerItem | number) {
 }
 function apply(value: any) {
   emit("update:modelValue", value ?? undefined);
-  emit("apply", value ?? undefined);
+  emit("apply", value ?? undefined, props.valueType?.isList);
 }
 function clear() {
   apply(undefined);

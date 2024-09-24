@@ -419,6 +419,7 @@ export const ICON_BY_PRIMITIVE_TYPE: Partial<Record<PrimitiveType, IconData>> = 
 
 export const ICON_BY_FILE_TYPE: Partial<Record<FileType, IconData>> = _makeIcons({
   [FileType.TEXT]: "fas fa-file-lines",
+  [FileType.CODE]: "fas fa-file-code",
   [FileType.IMAGE]: "fas fa-image",
   [FileType.AUDIO]: "fas fa-volume",
   [FileType.VIDEO]: "fas fa-video",
