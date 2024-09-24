@@ -66,7 +66,15 @@ export const FIELD_CONTEXT_ACTIONS: ActionBuiltinId[] = [
 
 export type TypeIdentity = Pick<
   TypeInfoData,
-  "kind" | "primitiveType" | "benchType" | "baseTypePtr" | "baseFieldZone" | "isList" | "isSecret" | "constraint"
+  | "kind"
+  | "primitiveType"
+  | "benchType"
+  | "baseTypePtr"
+  | "baseFieldZone"
+  | "isRequired"
+  | "isList"
+  | "isSecret"
+  | "constraint"
 > & { id?: any; ck?: string };
 
 export function describeTypeIdentity(type: TypeIdentity & Partial<AnyNodeData>): string {
@@ -155,6 +163,7 @@ export function getPropertyType(property: PropertyInfo | PropertyReferenceData):
       kind,
       benchType,
       primitiveType,
+      isRequired: property.isRequired ?? false,
       isList: property.isList ?? false,
       isSecret: property.isEncrypted ?? false,
     };
@@ -235,9 +244,9 @@ export function decodeTypeIdentity(key: string): TypeIdentity {
   const value = key.slice(1);
 
   if (kind === TypeKind.PRIMITIVE) {
-    return { kind, primitiveType: decodeB64VLQ(value) as PrimitiveType, isList, isSecret };
+    return { kind, primitiveType: decodeB64VLQ(value) as PrimitiveType, isRequired: false, isList, isSecret };
   } else if (kind === TypeKind.NODE || kind === TypeKind.STRUCT || kind === TypeKind.ENUM) {
-    return { kind, benchType: decodeB64VLQ(value) as BenchType, isList, isSecret };
+    return { kind, benchType: decodeB64VLQ(value) as BenchType, isRequired: false, isList, isSecret };
   } else if (kind === TypeKind.BASED_NODE) {
     const baseTypePtr = {
       metatype: ObjectType.NODE_REFERENCE,
@@ -245,10 +254,10 @@ export function decodeTypeIdentity(key: string): TypeIdentity {
       ck: padCkFromTkB64(value.slice(0, TK_LENGTH_B64)),
     };
     const benchType = decodeB64VLQ(value.slice(TK_LENGTH_B64)) as BenchType;
-    return { kind, baseTypePtr, benchType, isList, isSecret };
+    return { kind, baseTypePtr, benchType, isRequired: false, isList, isSecret };
   } else if (kind === TypeKind.OBJECT) {
     const baseTypePtr = { metatype: ObjectType.NODE_REFERENCE, type: NodeType.BLOCK, ck: padCkFromTkB64(value) };
-    return { kind, baseTypePtr, isList, isSecret };
+    return { kind, baseTypePtr, isRequired: false, isList, isSecret };
   } else {
     throw new Error(`unsupported type kind ${kind}`);
   }
@@ -317,7 +326,7 @@ export function typeSupportsList(type: { kind: TypeKind } & Partial<TypeInfoData
 
 /** Whether the type is some numeric type (int, float, etc.) */
 export function typeIsNumeric(type: { kind: TypeKind } & Partial<TypeInfoData>): boolean {
-  return type.primitiveType != null && type.primitiveType >= 2 && type.primitiveType <= 20;
+  return type.primitiveType != null && type.primitiveType >= 2 && type.primitiveType < 20;
 }
 
 // NOTE :Architecture: :TypeResolution in frontend should probably happen reactively in a dedicated.. something.

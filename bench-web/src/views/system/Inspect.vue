@@ -8,7 +8,12 @@ import { canvas, inspectionPtr } from "@/system/space";
 import { ICON_BY_NODE_TYPE, IconInline } from "@/ui/icon";
 import { getInspectionLayout } from "@/ui/inspect";
 import { ScrollbarWidth } from "@/ui/layout";
-import { toggleHelperViewPin, VIEW_DEFAULT_HEADER_HEIGHT, VIEW_DEFAULT_MAX_WIDTH, VIEW_DEFAULT_MIN_WIDTH } from "@/ui/view";
+import {
+  toggleHelperViewPin,
+  VIEW_DEFAULT_HEADER_HEIGHT,
+  VIEW_DEFAULT_MAX_WIDTH,
+  VIEW_DEFAULT_MIN_WIDTH,
+} from "@/ui/view";
 import { computedValue } from "@/utils/ref";
 import NodeReference from "@/views/builtins/NodeReference.vue";
 import { viewEmits, type ViewExposed } from "@/views/common";
@@ -34,15 +39,10 @@ const inspectedPtr = computedValue(() => nodePtr.value ?? inspectionPtr.value);
 const { graph: spaceGraph, connection: spaceConnection } = useExistingConnection(self);
 const { graph: pkgGraph, connection: pkgConnection } = useExistingConnection(inspectedPtr);
 const inspectedNode = pkgGraph.getRef(inspectedPtr);
-const inspectedNodeType = computed(() => inspectedNode.value?.metatype);
-const inspectedNodeSubtype = computed(() => (inspectedNode.value != null ? getNodeSubtype(inspectedNode.value) : null));
-const ancestors = pkgGraph.getAncestorsRef(inspectedNode, { includeSelf: true });
 
 const inspectionLayout = computed(() => {
-  if (inspectedNodeType.value == null) return null;
-  const layout = getInspectionLayout(inspectedNodeType.value, inspectedNodeSubtype.value, {
-    exclude: ["icon", "name"] /* separate in header */,
-  });
+  if (inspectedNode.value == null) return null;
+  const layout = getInspectionLayout(inspectedNode.value, { exclude: ["icon", "name"] });
   return layout;
 });
 

@@ -344,12 +344,13 @@ export function guardNativeInput<T extends string | number | bigint>(
   constraint: Partial<TypeConstraintData> | undefined,
   event: Event,
   oldValue: T | undefined,
-  onAccept: (T: string | number) => void,
+  onAccept: (T: string | number | undefined) => void,
 ) {
   // coerce
-  let newValue: string | number = (event.target as HTMLInputElement).value ?? "";
+  let newValue: string | number | undefined = (event.target as HTMLInputElement).value ?? "";
+  if (newValue == "") newValue = undefined;
   if (
-    type.kind == TypeKind.PRIMITIVE &&
+    newValue != undefined &&
     [
       PrimitiveType.INT16,
       PrimitiveType.INT32,
