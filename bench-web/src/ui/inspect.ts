@@ -13,7 +13,14 @@ import {
   RUNNABLE_BLOCK_TYPES,
   toCamelName,
 } from "@/language/const";
-import { makeTypeConstraint, makeTypeInfo, typeIsNumeric, updateFieldType, type TypeIdentity } from "@/language/field";
+import {
+  getPropertyType,
+  makeTypeConstraint,
+  makeTypeInfo,
+  typeIsNumeric,
+  updateFieldType,
+  type TypeIdentity,
+} from "@/language/field";
 import { type ReadNodeGraph } from "@/language/graph";
 import { onNodeMorphed } from "@/language/node";
 import type { Transaction } from "@/language/transaction";
@@ -289,16 +296,8 @@ function getInspectedProperty(metatype: ObjectType, category: string, property: 
   const title = getPropertyTitle(property);
   const protoName = allProperties[property.id];
   const inspectedProperty: InspectedProperty = { title, protoName, category, property };
-  const valueView = getViewForValueType({
-    primitiveType: property.primitiveType,
-    benchType: (property.enumType ?? property.referenceNodes?.[0] ?? property.referenceStruct) as unknown as
-      | BenchType
-      | undefined,
-    isRequired: property.isRequired ?? false,
-    isList: property.isList ?? false,
-    isSecret: property.isEncrypted ?? false,
-    constraint: property.constraint != null ? makeTypeConstraint(property.constraint) : undefined,
-  });
+  const propertyType = getPropertyType(property);
+  const valueView = getViewForValueType(propertyType);
   if (valueView == null) {
     throw new Error(`no view for ${ObjectType[metatype]}.${property.id}`);
   }

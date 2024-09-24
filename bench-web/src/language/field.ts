@@ -166,6 +166,7 @@ export function getPropertyType(property: PropertyInfo | PropertyReferenceData):
       isRequired: property.isRequired ?? false,
       isList: property.isList ?? false,
       isSecret: property.isEncrypted ?? false,
+      constraint: property.constraint != null ? makeTypeConstraint(property.constraint) : undefined,
     };
     _propertyTypeInfos[cacheKey] = type;
   }

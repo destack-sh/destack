@@ -36,7 +36,7 @@ export type PrimitiveValue = JsonPrimitive | bigint | Timestamp;
 export type ScalarValue = PrimitiveValue | ProtoStruct | AnyStructData | AnyNodeData;
 export type SomeValue = ScalarValue | SomeValue[] | { [key: string]: SomeValue };
 
-// TODO :Architecture :Performance: encode/decode protoStruct/Json in connections (at the fetch/commit boundary) :ProtoStructMapping
+// TODO :Architecture :Performance: encode/decode protoStruct/Json in „connections (at the fetch/commit boundary) :ProtoStructMapping
 //  Could either fork protobuf-ts or just switch to ts-proto?
 
 /** Packs a single data value in its robust JSON-able representation. */
