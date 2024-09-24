@@ -205,6 +205,7 @@ function getInspectionInfo(metatype: ObjectType, type: number): Record<string, I
       if (type == StepType.TEXT) {
         runOptionProperties.push(...RUNNABLE_TEXT_PROPERTIES);
       }
+      runOptionProperties.push(RunOptionsProperty.suppressFailure)
       runOptionProperties
         .map((p) =>
           getNestedInspectedProperty(stepProperties[StepProperty.runOptions], "Run", RUN_OPTIONS_PROPERTIES[p]),

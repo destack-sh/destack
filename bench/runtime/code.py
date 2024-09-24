@@ -12,7 +12,6 @@ from bench.language.code import Code, CodeType
 from bench.language.file import upload
 from bench.language.path import get_node, get_node_or_error
 from bench.language.render import RenderOptions
-from bench.language.run import RunKind
 from bench.language.value import ValueObject, coerce_value_object
 from bench.runtime.capture import (
     MAX_LOG_LINE_LENGTH,
@@ -26,7 +25,6 @@ from bench.runtime.runner import (
     RunnableNode,
     Runner,
     RunnerCache,
-    runner_,
 )
 
 logger = structlog.get_logger(__name__)
@@ -136,7 +134,6 @@ class CodeRunnerBase[T: RunnableNode](Runner[CodeRunnerCache[T], T]):
         return outputs
 
 
-@runner_(RunKind.CODE, CodeType.SNIPPET)
 class CodeSnippetRunner(CodeRunnerBase):
     """Run a code snippet and update the value of the state's last expression."""
 
@@ -145,7 +142,6 @@ class CodeSnippetRunner(CodeRunnerBase):
         raise NotImplementedError
 
 
-@runner_(RunKind.CODE, CodeType.SCRIPT)
 class CodeScriptRunner(CodeRunnerBase):
     """Run a code script and update the state's exported definitions."""
 
@@ -171,7 +167,6 @@ class CodeScriptRunner(CodeRunnerBase):
         self.cache.exports = exports
 
 
-@runner_(RunKind.CODE, CodeType.FUNCTION)
 class CodeFunctionRunner(CodeRunnerBase):
     """Run a code function and update the run's outputs."""
 

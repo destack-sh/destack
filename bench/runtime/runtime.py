@@ -1,17 +1,17 @@
 import asyncio
 from contextvars import ContextVar
 from datetime import datetime
-from typing import Any, Mapping
+from typing import Any, Mapping, assert_never
 from uuid import UUID
 
 import structlog
 from opentelemetry import baggage, context, trace
 
 from bench.language.block import Block
-from bench.language.code import Code, CodeType
+from bench.language.code import Code
 from bench.language.const import BenchError, RunErrorKind, RunStatus
-from bench.language.flow import Step
-from bench.language.run import Run, RunAttempt, RunError, RunKind, RunOptions
+from bench.language.flow import Step, StepType
+from bench.language.run import ModelProvider, Run, RunAttempt, RunError, RunKind, RunOptions
 from bench.language.session import Session
 from bench.language.text import Text
 from bench.language.validation import ValidationError, on_invalid_raise
@@ -22,7 +22,7 @@ from bench.runtime.core import (
     STATIC_CODE_GLOBALS,
     RunImpossibleError,
 )
-from bench.runtime.runner import Runner, RunSubtype, _runners
+from bench.runtime.runner import RunnableNode, Runner
 from bench.utils.oracle import Oracle
 from bench.utils.uuidt import UUIDT
 
@@ -65,12 +65,6 @@ class Runtime:
         self._active_runner: ContextVar[Runner | None] = ContextVar("active_runner")
         self._active_runners_by_id: dict[UUID, Runner] = {}
 
-        # ensure runners are imported
-        if not _runners:
-            import bench.runtime.code  # noqa: F401, RUF100
-            import bench.runtime.flow  # noqa: F401, RUF100
-            import bench.runtime.text  # noqa: F401, RUF100
-
     def __str__(self):
         return f"{len(self._active_runners_by_id)} active, {self.session!r}"
 
@@ -94,7 +88,6 @@ class Runtime:
         *,
         node: Block | Step,
         track: bool,
-        subtype: RunSubtype | None = None,
         code: Code | None = None,
         text: Text | None = None,
         variables: ValueObject | None = None,
@@ -108,27 +101,19 @@ class Runtime:
         # figure out which runner we need
         if kind == RunKind.CODE:
             code = code or node.code or Code.empty()
-            if (isinstance(node, Block) and node.has_function_fields) or isinstance(node, Step):
-                subtype = CodeType.FUNCTION
-            else:
-                subtype = CodeType.SCRIPT
         elif kind == RunKind.TEXT:
             text = text or node.text
-            if options and options.model_provider:
-                subtype = options.model_provider
         elif kind == RunKind.STEP:
             assert isinstance(node, Step), f"unexpected node type: {node!r}"
-            subtype = node.type
 
         # make runner with state
-        runner_cls = _runners.get((kind, subtype))
+        runner_cls = get_runner_cls(kind=kind, node=node, code=code, text=text, options=options)
         if runner_cls is None:
-            raise RunImpossibleError(f"no runner for {kind.bench_name}:{subtype}")
+            raise RunImpossibleError(f"no runner for {kind.bench_name}:{node!r}")
         # NOTE :Incomplete: re-use existing state sometimes (e.g., code script exports)
         cache = runner_cls.cache_cls(
             id=node.id,
             kind=kind,
-            subtype=subtype,
             node=node,
             code=code,
             text=text,
@@ -423,3 +408,70 @@ class Runtime:
             if runner.task is not None:
                 runner.task.cancel()
             logger.debug("runtime.run.abort", runner=runner)
+
+
+def get_runner_cls(
+    *,
+    kind: RunKind,
+    node: RunnableNode,
+    code: Code | None,
+    text: Text | None,
+    options: RunOptions | None,
+) -> type[Runner] | None:
+    """Gets the runner for the given Run configuration."""
+    if kind == RunKind.CODE:
+        from bench.runtime.code import CodeFunctionRunner, CodeScriptRunner
+
+        code = code or node.code or Code.empty()
+        if (isinstance(node, Block) and node.has_function_fields) or isinstance(node, Step):
+            return CodeFunctionRunner
+        else:
+            return CodeScriptRunner
+    elif kind == RunKind.TEXT:
+        from bench.runtime.text import AnthropicModelRunner, OpenaiModelRunner, TextRunner
+
+        if options is not None and options.model_provider:
+            provider = options.model_provider
+        elif options is not None and options.model_type:
+            provider = options.model_type.provider
+        else:
+            provider = None
+
+        if provider is not None:
+            if provider == ModelProvider.OPENAI:
+                return OpenaiModelRunner
+            elif provider == ModelProvider.ANTHROPIC:
+                return AnthropicModelRunner
+            else:
+                return None
+        else:
+            return TextRunner
+    elif kind == RunKind.STEP:
+        from bench.runtime.flow import (
+            BlockStepRunner,
+            CodeStepRunner,
+            CompleteStepRunner,
+            StartStepRunner,
+            TextStepRunner,
+        )
+
+        if not isinstance(node, Step):
+            raise ValueError(f"unexpected node type for run kind {kind}: {node!r}")
+        if node.type == StepType.START:
+            return StartStepRunner
+        elif node.type == StepType.COMPLETE:
+            return CompleteStepRunner
+        elif node.type == StepType.BLOCK:
+            return BlockStepRunner
+        elif node.type == StepType.CODE:
+            return CodeStepRunner
+        elif node.type == StepType.TEXT:
+            return TextStepRunner
+        else:
+            return None
+    elif kind == RunKind.FLOW:
+        from bench.runtime.flow import FlowRunner
+
+        return FlowRunner
+    else:
+        assert_never(kind)

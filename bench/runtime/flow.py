@@ -10,7 +10,7 @@ import structlog
 from opentelemetry import trace
 
 from bench.language.block import Block
-from bench.language.code import Code, CodeType
+from bench.language.code import Code
 from bench.language.const import RunStatus
 from bench.language.field import TypeInfoBase
 from bench.language.flow import (
@@ -27,7 +27,7 @@ from bench.language.run import Run, RunError, RunKind
 from bench.language.text import Text
 from bench.language.value import ValueObject
 from bench.runtime.core import RUN_ONCE, ManualRetryableError, RunImpossibleError
-from bench.runtime.runner import Runner, RunnerCache, runner_
+from bench.runtime.runner import Runner, RunnerCache
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -130,7 +130,7 @@ class StepState:
         )
 
 
-@runner_(RunKind.FLOW, None)
+@dataclass(slots=True, repr=False)
 class FlowRunner(Runner[RunnerCache, Block]):
     """Runs an entire Flow."""
 
@@ -348,14 +348,12 @@ class StepRunner(Runner):
 #
 
 
-@runner_(RunKind.STEP, StepType.START)
 class StartStepRunner(StepRunner):
     @override
     async def run_once(self) -> None:
         self.outputs = self.inputs
 
 
-@runner_(RunKind.STEP, StepType.COMPLETE)
 class CompleteStepRunner(StepRunner):
     @override
     async def run_once(self) -> None:
@@ -369,7 +367,6 @@ class CompleteStepRunner(StepRunner):
 #
 
 
-@runner_(RunKind.STEP, StepType.BLOCK)
 class BlockStepRunner(StepRunner):
     @override
     async def run_once(self) -> None:
@@ -383,14 +380,12 @@ class BlockStepRunner(StepRunner):
         self.outputs = block_runner.outputs
 
 
-@runner_(RunKind.STEP, StepType.CODE)
 class CodeStepRunner(StepRunner):
     @override
     async def run_once(self) -> None:
         code = self.code or Code.empty()
         code_runner = await self.runtime.make_runner(
             kind=RunKind.CODE,
-            subtype=CodeType.FUNCTION,
             node=self.node,
             code=code,
             options=RUN_ONCE,
@@ -401,7 +396,6 @@ class CodeStepRunner(StepRunner):
         self.outputs = code_runner.outputs
 
 
-@runner_(RunKind.STEP, StepType.TEXT)
 class TextStepRunner(StepRunner):
     @override
     async def run_once(self) -> None:
@@ -410,7 +404,9 @@ class TextStepRunner(StepRunner):
             kind=RunKind.TEXT,
             node=self.node,
             text=text,
-            options=RUN_ONCE,
+            options=RUN_ONCE.override(
+                model_provider=self.options.model_provider, model_type=self.options.model_type
+            ),
             inputs=self.inputs,
             track=False,
         )

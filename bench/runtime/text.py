@@ -23,14 +23,13 @@ from bench.language.render import Aliasing, RenderOptions, render, render_value_
 from bench.language.run import ModelProvider, ModelType, RunKind
 from bench.language.value import sample_value
 from bench.runtime.core import RUN_ONCE, ModelFailedError, ModelIncapableError, RunImpossibleError
-from bench.runtime.runner import RunnableNode, Runner, RunnerCache, runner_
+from bench.runtime.runner import RunnableNode, Runner, RunnerCache
 from bench.utils.utils import get_from_env
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
-@runner_(RunKind.TEXT, None)
 class TextRunner(Runner):
     """The router for text functions without explicitly assigned models/providers."""
 
@@ -38,9 +37,8 @@ class TextRunner(Runner):
     async def run_once(self) -> None:
         runner = await self.runtime.make_runner(
             RunKind.TEXT,
-            subtype=ModelProvider.ANTHROPIC,
             node=self.node,
-            options=RUN_ONCE,
+            options=RUN_ONCE.override(model_provider=ModelProvider.OPENAI),
             inputs=self.inputs,
             track=False,
         )
@@ -336,12 +334,13 @@ anthropic_client = anthropic.AsyncClient(
 )
 
 
-@runner_(RunKind.TEXT, ModelProvider.OPENAI)
 class OpenaiModelRunner(ChatModelRunnerBase):
     DEFAULT_MODEL = ModelType.OPENAI_GPT4_0
     MODEL_BY_TYPE: ClassVar[Mapping[ModelType, str]] = {
-        ModelType.OPENAI_GPT4_0: "gpt-4o-latest",
-        ModelType.OPENAI_GPT4_O_MINI: "gpt-4o-mini",
+        ModelType.OPENAI_GPT4_0: "gpt-4o-2024-08-06",
+        ModelType.OPENAI_GPT4_O_MINI: "gpt-4o-mini-2024-07-18",
+        ModelType.OPENAI_O1_MINI: "o1-mini-2024-09-12",
+        ModelType.OPENAI_O1_PREVIEW: "o1-preview-09-12",
     }
 
     @override
@@ -450,7 +449,6 @@ class OpenaiModelRunner(ChatModelRunnerBase):
         return completion_text
 
 
-@runner_(RunKind.TEXT, ModelProvider.ANTHROPIC)
 class AnthropicModelRunner(ChatModelRunnerBase):
     DEFAULT_MODEL = ModelType.ANTHROPIC_CLAUDE_3_5_SONNET
     MODEL_BY_TYPE: ClassVar[Mapping[ModelType, str]] = {
@@ -537,6 +535,5 @@ class AnthropicModelRunner(ChatModelRunnerBase):
         return completion_text
 
 
-@runner_(RunKind.TEXT, ModelProvider.GOOGLE)
 class GoogleModelRunner(ChatModelRunnerBase):
     pass
