@@ -169,6 +169,10 @@ export const ICON_BY_NODE_TYPE: Partial<Record<NodeType, IconData>> = _makeIcons
   [NodeType.MACHINE]: "fas fa-desktop",
   [NodeType.STORE]: "fas fa-database",
   [NodeType.DRIVE]: "fas fa-hdd",
+  [NodeType.VAULT]: "fas fa-treasure-chest",
+  [NodeType.CACHE]: "fas fa-bolt",
+  [NodeType.FILE]: "fas fa-file",
+  [NodeType.SECRET]: "fas fa-key",
 
   // source
   [NodeType.BRANCH]: "fas fa-code-branch",
@@ -186,7 +190,6 @@ export const ICON_BY_NODE_TYPE: Partial<Record<NodeType, IconData>> = _makeIcons
   [NodeType.BADGE]: "fas fa-id-badge",
 
   // state
-  [NodeType.FILE]: "fas fa-file",
   [NodeType.MESSAGE]: "fas fa-message",
   [NodeType.RECORD]: "fas fa-database",
 

@@ -610,8 +610,5 @@ export function getFileAcceptFromConstraint(
   constraint: TypeConstraintData | undefined,
 ): string | undefined {
   if (type == FileType.GENERIC) return undefined;
-  return getFileAccept({
-    allowedTypes: [type],
-    allowedFormats: constraint?.fileFormat != null ? [constraint.fileFormat] : undefined,
-  });
+  return getFileAccept({ allowedTypes: [type], allowedFormats: constraint?.fileFormats });
 }

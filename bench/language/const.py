@@ -21,7 +21,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2024.09.24.0"  # auto change via version script
+VERSION = "2024.09.24.1"  # auto change via version script
 REVISION_PENDING = -1
 TK_LENGTH_BYTES = 8
 TK_LENGTH_B64 = 12  # 1.5 * TK_LENGTH_BYTES (must be integer)
@@ -138,7 +138,7 @@ class EnumType(IdEnum):
     TRIGGER_TYPE = 20520
     BREAKPOINT_KIND = 20530
     BREAKPOINT_ACTION = 20531
-    CACHE_BEHAVIOR = 20540
+    CACHE_MODE = 20540
     CODE_TYPE = 20560
     MODEL_PROVIDER = 20570
     MODEL_TYPE = 20571

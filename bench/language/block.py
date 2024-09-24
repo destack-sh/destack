@@ -87,13 +87,13 @@ class Block(SourceNode[BlockData]):
         require=False,
         array=True,
         references=NodeType.BLOCK,
-        constraint=constraint(block_type=BlockType.ROLE),
+        constraint=constraint(block_types=[BlockType.ROLE]),
     )
     identity: Optional["Block"] = p_regular(
         47,
         require=False,
         references=NodeType.BLOCK,
-        constraint=constraint(block_type=BlockType.IDENTITY),
+        constraint=constraint(block_types=[BlockType.IDENTITY]),
     )
     policies: list["Policy"] = p_regular(48, require=False, array=True, struct=StructType.POLICY)
     delegated_policies: list["Policy"] = p_regular(

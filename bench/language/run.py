@@ -104,7 +104,7 @@ class ModelType(IdEnum):  # :ModelType
         return ModelProvider((self.value // 100) * 100)
 
 
-@enum_(EnumType.CACHE_BEHAVIOR)
+@enum_(EnumType.CACHE_MODE)
 class CacheMode(IdEnum):
     """How to handle caching."""
 

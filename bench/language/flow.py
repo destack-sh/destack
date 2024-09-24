@@ -343,13 +343,13 @@ class Step(SourceNode[StepData]):
         require=False,
         array=True,
         references=NodeType.BLOCK,
-        constraint=constraint(block_type=BlockType.ROLE),
+        constraint=constraint(block_types=[BlockType.ROLE]),
     )
     identity: Optional["Block"] = p_regular(
         47,
         require=False,
         references=NodeType.BLOCK,
-        constraint=constraint(block_type=BlockType.IDENTITY),
+        constraint=constraint(block_types=[BlockType.IDENTITY]),
     )
     if TYPE_CHECKING:
         node_ptr: Optional["NodeReference"] = None

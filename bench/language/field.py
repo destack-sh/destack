@@ -220,10 +220,10 @@ class TypeConstraint(Struct):
     starts_with: Optional[str] = p_regular(61, require=False, default=None)
     ends_with: Optional[str] = p_regular(62, require=False, default=None)
     # node-ish (these should probably be lists?)
-    block_type: Optional[BlockType] = p_regular(70, require=False, default=None)
-    step_type: Optional["StepType"] = p_regular(71, require=False, default=None)
-    file_type: Optional["FileType"] = p_regular(72, require=False, default=None)
-    file_format: Optional["FileFormat"] = p_regular(73, require=False, default=None)
+    block_types: list["BlockType"] = p_regular(70, array=True)
+    step_types: list["StepType"] = p_regular(71, array=True)
+    file_types: list["FileType"] = p_regular(72, array=True)
+    file_formats: list["FileFormat"] = p_regular(73, array=True)
     ...
 
 
@@ -517,13 +517,15 @@ def to_type_scalar(
             return TypeInfo(kind=TypeKind.ENUM, bench_type=typ)
     elif isinstance(typ, FileType):
         return TypeInfo(
-            kind=TypeKind.NODE, bench_type=NodeType.FILE, constraint=TypeConstraint(file_type=typ)
+            kind=TypeKind.NODE,
+            bench_type=NodeType.FILE,
+            constraint=TypeConstraint(file_types=[typ]),
         )
     elif isinstance(typ, FileFormat):
         return TypeInfo(
             kind=TypeKind.NODE,
             bench_type=NodeType.FILE,
-            constraint=TypeConstraint(file_format=typ),
+            constraint=TypeConstraint(file_formats=[typ]),
         )
     elif isinstance(typ, type):
         primitive_type = PRIMITIVE_TYPE_BY_PY_TYPE.get(typ)
@@ -571,10 +573,10 @@ def reverse_type_scalar(typ: TypeInfoBase) -> TypeIn | None:
             return typ.primitive_type
     elif typ.kind in (TypeKind.NODE, TypeKind.STRUCT, TypeKind.ENUM):
         if typ.constraint:
-            if typ.constraint.file_format:
-                return typ.constraint.file_format
-            elif typ.constraint.file_type:
-                return typ.constraint.file_type
+            if len(typ.constraint.file_formats) == 1:
+                return typ.constraint.file_formats[0]
+            elif len(typ.constraint.file_types) == 1:
+                return typ.constraint.file_types[0]
         assert typ.bench_type is not None, f"missing bench type for {typ!r}"
         bench_cls = BENCH_CLASS_BY_TYPE[typ.bench_type]
         return bench_cls

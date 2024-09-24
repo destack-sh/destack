@@ -58,11 +58,14 @@ const self = toRef(props, "self");
 const id = makeViewId(props);
 
 const fileType = computed(() => {
-  if (props.valueType?.constraint?.fileType != null) return props.valueType.constraint.fileType;
+  if (props.valueType?.constraint?.fileTypes?.length == 1) return props.valueType.constraint.fileTypes[0];
   else if (props.type != null) return FILE_TYPE_BY_VIEW_TYPE[props.type] ?? FileType.GENERIC;
   else return FileType.GENERIC;
 });
-const fileFormat = computed(() => props.valueType?.constraint?.fileFormat);
+const fileFormat = computed(() => {
+  if (props.valueType?.constraint?.fileFormats?.length == 1) return props.valueType.constraint.fileFormats[0];
+  else return undefined;
+});
 const facetIcon = computed(() => {
   if (fileFormat.value != null && ICON_BY_FILE_FORMAT[fileFormat.value] != null) {
     return ICON_BY_FILE_FORMAT[fileFormat.value];

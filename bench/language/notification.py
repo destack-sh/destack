@@ -49,7 +49,7 @@ class Notification(RuntimeNode[NotificationData], HasNodeBase):
         require=True,
         array=False,
         references=NodeType.BLOCK,
-        constraint=constraint(block_type=BlockType.NOTIFICATION),
+        constraint=constraint(block_types=[BlockType.NOTIFICATION]),
     )
     expires_at: Optional[datetime] = p_internal(33, default=None)
     read_at: Optional[datetime] = p_internal(34, default=None)

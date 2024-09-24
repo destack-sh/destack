@@ -50,6 +50,7 @@ import { getNodeIcon, getTypeIcon, makeIcon } from "@/ui/icon";
 import { getEnumTitle } from "@/ui/inspect";
 import { getRandomColorType } from "@/ui/style";
 import { assertNever, decodeB64VLQ, encodeB64VLQ } from "@/utils/functools";
+import { deepValueEquals } from "@/utils/ref";
 
 export const FIELD_CONTEXT_ACTIONS: ActionBuiltinId[] = [
   "common.edit.rename",
@@ -96,10 +97,10 @@ export function typeIdentityEquals(a: TypeIdentity, b: TypeIdentity): boolean {
       return false;
     } else if (a.constraint != null && b.constraint != null) {
       return (
-        a.constraint.fileType == b.constraint.fileType &&
-        a.constraint.fileFormat == b.constraint.fileFormat &&
-        a.constraint.blockType == b.constraint.blockType &&
-        a.constraint.stepType == b.constraint.stepType
+        deepValueEquals(a.constraint.blockTypes, b.constraint.blockTypes) &&
+        deepValueEquals(a.constraint.stepTypes, b.constraint.stepTypes) &&
+        deepValueEquals(a.constraint.fileTypes, b.constraint.fileTypes) &&
+        deepValueEquals(a.constraint.fileFormats, b.constraint.fileFormats)
       );
     } else {
       return true;
@@ -107,6 +108,10 @@ export function typeIdentityEquals(a: TypeIdentity, b: TypeIdentity): boolean {
   } else {
     return false;
   }
+}
+
+export function makeTypeConstraint(partial: Partial<Omit<TypeConstraintData, "metatype">>): TypeConstraintData {
+  return makeDefaultObject({ ...partial, metatype: ObjectType.TYPE_CONSTRAINT });
 }
 
 export function makeTypeInfo(partial: Partial<Omit<TypeInfoData, "metatype">>): TypeInfoData {
@@ -259,14 +264,14 @@ export function getStorageKey(field: FieldData, fieldType?: TypeIdentity): strin
 /** Gets the implied subtype node name  */
 export function getConstrainedTypeName(type: TypeIdentity): string | null {
   const metatypeName = toCamelName(BenchType, type.benchType);
-  if (type.constraint?.blockType != null) {
-    const subtypeName = toCamelName(BlockType, type.constraint!.blockType);
+  if (type.constraint?.blockTypes?.length == 1) {
+    const subtypeName = toCamelName(BlockType, type.constraint!.blockTypes[0]);
     return `${subtypeName} ${metatypeName}`;
-  } else if (type.constraint?.stepType != null) {
-    const subtypeName = toCamelName(StepType, type.constraint!.stepType);
+  } else if (type.constraint?.stepTypes?.length == 1) {
+    const subtypeName = toCamelName(StepType, type.constraint!.stepTypes[0]);
     return `${subtypeName} ${metatypeName}`;
-  } else if (type.constraint?.fileType != null) {
-    const subtypeName = toCamelName(FileType, type.constraint!.fileType);
+  } else if (type.constraint?.fileTypes?.length == 1) {
+    const subtypeName = toCamelName(FileType, type.constraint!.fileTypes[0]);
     return `${subtypeName} ${metatypeName}`;
   } else {
     return metatypeName;
@@ -275,14 +280,18 @@ export function getConstrainedTypeName(type: TypeIdentity): string | null {
 
 /** Whether the value meets the type constraints */
 export function nodeMatchesConstraint(node: AnyNodeData, constraint: TypeConstraintData): boolean {
-  if (constraint.blockType != null) {
-    return isNode(node, NodeType.BLOCK) && node.type == constraint.blockType;
-  } else if (constraint.stepType != null) {
-    return isNode(node, NodeType.STEP) && node.type == constraint.stepType;
-  } else if (constraint.fileType != null && isNode(node, NodeType.FILE)) {
-    if (constraint.fileFormat != null && node.format != constraint.fileFormat) return false;
-    if (constraint.fileType != null && node.coarseType != constraint.fileType) return false;
-    return true;
+  if (constraint.blockTypes.length > 0) {
+    return isNode(node, NodeType.BLOCK) && constraint.blockTypes.includes(node.type);
+  } else if (constraint.stepTypes.length > 0) {
+    return isNode(node, NodeType.STEP) && constraint.stepTypes.includes(node.type);
+  } else if (constraint.fileTypes.length > 0 && isNode(node, NodeType.FILE)) {
+    if (constraint.fileFormats.length > 0 && node.format != null && !constraint.fileFormats.includes(node.format)) {
+      return false;
+    } else if (constraint.fileTypes.length > 0 && !constraint.fileTypes.includes(node.coarseType)) {
+      return false;
+    } else {
+      return true;
+    }
   } else {
     return true; // no constraint
   }
@@ -346,10 +355,10 @@ function getFieldNameFromType(graph: ReadNodeGraph, field: Partial<FieldData>): 
   if (field.kind == TypeKind.PRIMITIVE) {
     return getEnumTitle(EnumType.PRIMITIVE_TYPE, field.primitiveType!);
   } else if (field.kind == TypeKind.STRUCT || field.kind == TypeKind.NODE || field.kind == TypeKind.ENUM) {
-    if (field.benchType == BenchType.FILE && field.constraint?.fileFormat != null) {
-      return getEnumTitle(EnumType.FILE_FORMAT, field.constraint.fileFormat);
-    } else if (field.benchType == BenchType.FILE && field.constraint?.fileType != null) {
-      return getEnumTitle(EnumType.FILE_TYPE, field.constraint.fileType);
+    if (field.benchType == BenchType.FILE && field.constraint?.fileFormats?.length == 1) {
+      return getEnumTitle(EnumType.FILE_FORMAT, field.constraint.fileFormats[0]);
+    } else if (field.benchType == BenchType.FILE && field.constraint?.fileTypes?.length == 1) {
+      return getEnumTitle(EnumType.FILE_TYPE, field.constraint.fileTypes[0]);
     } else {
       return getEnumTitle(EnumType.BENCH_TYPE, field.benchType!);
     }

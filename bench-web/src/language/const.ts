@@ -325,6 +325,9 @@ export const ENUM_TITLE_BY_TYPE: Partial<Record<EnumType, Record<any, string>>> 
   [EnumType.PRIMITIVE_TYPE]: {
     [PrimitiveType.INT64]: "Integer",
     [PrimitiveType.FLOAT64]: "Number",
+    [PrimitiveType.UUID]: "UUID",
+    [PrimitiveType.JSON]: "JSON",
+    [PrimitiveType.DATETIME]: "Date",
   },
   [EnumType.MODEL_PROVIDER]: {
     [ModelProvider.OPENAI]: "OpenAI",

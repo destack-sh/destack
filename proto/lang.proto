@@ -238,7 +238,7 @@ enum BenchType {
   BENCH_TYPE_TRIGGER_TYPE = 20520;
   BENCH_TYPE_BREAKPOINT_KIND = 20530;
   BENCH_TYPE_BREAKPOINT_ACTION = 20531;
-  BENCH_TYPE_CACHE_BEHAVIOR = 20540;
+  BENCH_TYPE_CACHE_MODE = 20540;
   BENCH_TYPE_CODE_TYPE = 20560;
   BENCH_TYPE_MODEL_PROVIDER = 20570;
   BENCH_TYPE_MODEL_TYPE = 20571;
@@ -514,7 +514,7 @@ enum EnumType {
   ENUM_TYPE_TRIGGER_TYPE = 20520;
   ENUM_TYPE_BREAKPOINT_KIND = 20530;
   ENUM_TYPE_BREAKPOINT_ACTION = 20531;
-  ENUM_TYPE_CACHE_BEHAVIOR = 20540;
+  ENUM_TYPE_CACHE_MODE = 20540;
   ENUM_TYPE_CODE_TYPE = 20560;
   ENUM_TYPE_MODEL_PROVIDER = 20570;
   ENUM_TYPE_MODEL_TYPE = 20571;
@@ -2212,10 +2212,10 @@ message TypeConstraintData {
   optional string regex = 60;
   optional string starts_with = 61;
   optional string ends_with = 62;
-  optional BlockType block_type = 70;
-  optional StepType step_type = 71;
-  optional FileType file_type = 72;
-  optional FileFormat file_format = 73;
+  repeated BlockType block_types = 70;
+  repeated StepType step_types = 71;
+  repeated FileType file_types = 72;
+  repeated FileFormat file_formats = 73;
 }
 
 // A type in the type system.

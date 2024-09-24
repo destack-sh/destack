@@ -22,7 +22,7 @@ def _for_every_provider():
     )
 
 
-async def test_run_text_empty(local_runtime: RuntimeHandle):
+async def test_run_text_no_outputs(local_runtime: RuntimeHandle):
     """Empty Text without any output fields should fail."""
     runtime = local_runtime
     Text1 = Block.new_text("Text1", "")
@@ -115,7 +115,7 @@ async def test_run_text_with_solid_images(
         "DetectColor",
         "Detect the primary color of the given image",
         fields=[
-            Field.input("Image", File, constraint(file_type=FileType.IMAGE)),
+            Field.input("Image", File, constraint(file_types=[FileType.IMAGE])),
             Field.output("Hue", Hue),
         ],
         run_options=RunOptions(model_provider=model_provider),
@@ -145,7 +145,7 @@ async def test_run_text_with_giant_images(
         BlockType.TEXT,
         "TitleImage",
         fields=[
-            Field.input("image", File, constraint(file_type=FileType.IMAGE)),
+            Field.input("image", File, constraint(file_types=[FileType.IMAGE])),
             Field.output("title", str, text=md("A fitting title of the image")),
         ],
     )

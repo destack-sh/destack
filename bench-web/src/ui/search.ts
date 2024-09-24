@@ -1,6 +1,6 @@
 import { blockToType } from "@/language/block";
 import { TYPE_BLOCK_TYPES, isStructType } from "@/language/const";
-import { typeIdentityEquals, type TypeIdentity } from "@/language/field";
+import { makeTypeConstraint, typeIdentityEquals, type TypeIdentity } from "@/language/field";
 import type { NodeKey, ReadNodeGraph } from "@/language/graph";
 import {
   BenchType,
@@ -15,7 +15,7 @@ import {
   TypeKind,
   type AnyNodeData,
   type IconData,
-  type NodeReferenceData
+  type NodeReferenceData,
 } from "@/proto/wire";
 import { isNode, toNodeRef, toPlainNodeRef, unwrapProtoOneOf } from "@/proto/wiring";
 import { ACTION_BUILTIN_IDS_INDEX, IMPLEMENTED_ACTIONS, type Action } from "@/ui/action";
@@ -303,12 +303,12 @@ export function typeIndex(idx: {
       const option = getEnumOptions(EnumType.PRIMITIVE_TYPE).find((option) => option.value == value.primitiveType);
       if (option != null) return mapFromIntrinsicOption(EnumType.PRIMITIVE_TYPE, option);
     } else if (value.benchType != null) {
-      if (value.constraint?.fileType != null) {
-        const option = getEnumOptions(EnumType.FILE_TYPE).find((option) => option.value == value.constraint!.fileType);
+      if (value.constraint?.fileTypes?.length == 1) {
+        const option = getEnumOptions(EnumType.FILE_TYPE).find((option) => option.value == value.constraint!.fileTypes[0]);
         if (option != null) return mapFromIntrinsicOption(EnumType.FILE_TYPE, option);
-      } else if (value.constraint?.blockType != null) {
+      } else if (value.constraint?.blockTypes?.length == 1) {
         const option = getEnumOptions(EnumType.BLOCK_TYPE).find(
-          (option) => option.value == value.constraint!.blockType,
+          (option) => option.value == value.constraint!.blockTypes[0],
         );
         if (option != null) return mapFromIntrinsicOption(EnumType.BLOCK_TYPE, option);
       }
@@ -341,12 +341,12 @@ export function typeIndex(idx: {
       item.title = option.title + " File";
       item.kind = TypeKind.NODE;
       item.benchType = BenchType.FILE;
-      item.constraint = { metatype: ObjectType.TYPE_CONSTRAINT, fileType: option.value as FileType };
+      item.constraint = makeTypeConstraint({ fileTypes: [option.value as FileType] });
     } else if (enumType == EnumType.BLOCK_TYPE) {
       item.title = option.title + " Block";
       item.kind = TypeKind.NODE;
       item.benchType = BenchType.BLOCK;
-      item.constraint = { metatype: ObjectType.TYPE_CONSTRAINT, blockType: option.value as BlockType };
+      item.constraint = makeTypeConstraint({ blockTypes: [option.value as BlockType] });
     } else {
       throw new Error(`unexpected enum type: ${enumType} (${option.value})`);
     }
