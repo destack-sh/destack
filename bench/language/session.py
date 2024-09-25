@@ -180,7 +180,7 @@ class Session(RuntimeNode[SessionData]):
 
     # runtime
     _oracle: Oracle = p_runtime()
-    _active_session_token: contextvars.Token | None = p_runtime(default=None)
+    _active_session_token: list[contextvars.Token] = p_runtime(default_factory=list)
     _rpc_metadata: RpcMetadata | None = p_runtime(default=None)
     _rpc_headers: dict[str, str] | None = p_runtime(default=None)
     _runtime: Optional["Runtime"] = p_runtime(default=None)
@@ -246,7 +246,7 @@ class Session(RuntimeNode[SessionData]):
 
     @property
     def is_active(self):
-        return self._active_session_token is not None
+        return len(self._active_session_token) > 0
 
     @property
     def is_suspended(self):
@@ -388,7 +388,7 @@ class Session(RuntimeNode[SessionData]):
                 bench_id=uuid_to_str(self.parent.bench_id), package_id=uuid_to_str(self.parent.id)
             )
         if set_in_context:
-            self._active_session_token = _active_session.set(self)
+            self._active_session_token.append(_active_session.set(self))
 
         # start flush loop
         self._commit_loop_task = asyncio.create_task(self._run_commit_loop())
@@ -421,10 +421,10 @@ class Session(RuntimeNode[SessionData]):
         # close session
         self.closed_at = self._oracle.utc()
         self.duration = (self.closed_at - self.opened_at).total_seconds()
-        if self._active_session_token is not None:
+        for token in self._active_session_token:
             with suppress(ValueError):  # ignore error if token is from other context
-                _active_session.reset(self._active_session_token)
-                self._active_session_token = None
+                _active_session.reset(token)
+        self._active_session_token.clear()
 
         # remove dangling graph if this was a solo session
         # NOTE :Cleanup: not sure how to prune graphs from temporary objects like request sessions :TransientGraphs
@@ -611,13 +611,9 @@ class Session(RuntimeNode[SessionData]):
     # Transactions
     #
 
-    # NOTE :Cleanup :Robustness: Session suspend/unsuspend/active is pretty clumsy
-    #  (also getting occassional 'ContextVar was created in a different context' errors...)
-
     def suspend(self):
         """Suspend the session, *erroring* on further edits."""
         self._is_suspended = True
-        self._active_session_token = None
 
     def unsuspend(self):
         """Stop suspending the session, allowing further edits."""
@@ -631,18 +627,17 @@ class Session(RuntimeNode[SessionData]):
         was_active = self._active_session_token is not None
         self._is_readonly = readonly
         self.unsuspend()
-        self._active_session_token = _active_session.set(self)
+        active_session_token = _active_session.set(self)
+        self._active_session_token.append(active_session_token)
         try:
             yield self
         finally:
             if was_suspended:
                 self.suspend()
-            elif not was_active and self._active_session_token is not None:
-                try:
-                    _active_session.reset(self._active_session_token)
-                except Exception as e:
-                    logger.warning("session.reset.error", session=self, exc_info=e)  # see above
-                self._active_session_token = None
+            elif not was_active and active_session_token in self._active_session_token:
+                with suppress(ValueError):  # ignore error from bad token
+                    _active_session.reset(active_session_token)
+                self._active_session_token.remove(active_session_token)
             self._is_readonly = was_readonly
 
     async def _run_commit_loop(self):
@@ -660,7 +655,7 @@ class Session(RuntimeNode[SessionData]):
                 logger.trace("session.queue.tick", session=self, e=event)
             except asyncio.CancelledError:
                 if not self._commit_queue.empty():
-                    logger.warning("session.queue.cancel", session=self)
+                    logger.debug("session.queue.cancel", session=self)
                 break
             except BaseException as e:
                 logger.error("session.queue.error", session=self, exc_info=e)
