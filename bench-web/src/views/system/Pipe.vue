@@ -3,7 +3,9 @@ import { pathToSvg, PIPE_WIDTH, useFlowContext } from "@/language/flow";
 import { ColorShade, ColorType, NodeType, PipeType, ViewData } from "@/proto/wire";
 import { unwrapProtoOneOf, type TypedNodeReferenceData } from "@/proto/wiring";
 import { canvas, inspectionPtr } from "@/system/space";
+import { ActionMapImplementation } from "@/ui/action";
 import { getColorHex } from "@/ui/style";
+import { assertNever } from "@/utils/functools";
 import { makeViewId, viewEmits, type ViewExposed } from "@/views/common";
 import { computed, toRef } from "vue";
 
@@ -29,16 +31,32 @@ const pathColorHex = computed(() => getColorHex(pipe.value?.color ?? ColorType.G
 
 const isInspected = computed(() => inspectionPtr.value?.id == pipePtr.value?.id);
 
+// actions
+const actions: Partial<ActionMapImplementation<"common" | "pipe">> = {
+  "pipe.edit.isControl": {
+    action: () => {
+      if (pipe.value == null) return false;
+      const newType = pipe.value.type == PipeType.CONTROL_AND_DATA ? PipeType.DATA : PipeType.CONTROL_AND_DATA;
+      flowCtx.tx.update(pipe.value, { type: newType }, { debounce: "tick" });
+    },
+  },
+  "pipe.edit.isHidden": {
+    action: () => {
+      if (pipe.value == null) return false;
+      flowCtx.tx.update(pipe.value, { isHidden: !pipe.value.isHidden }, { debounce: "tick" });
+    },
+  },
+};
+
 canvas.registerView(self, id);
-defineExpose<ViewExposed>({ self, id });
+defineExpose<ViewExposed>({ self, id, actions });
 </script>
 <template>
-  <div v-if="pipe && path">
-    <!-- NOTE :Performance: pipe/path rendering consumes a lot of CPU time -->
+  <div v-if="pipe && path" :class="pipe.isHidden && !isInspected ? 'pointer-events-none' : ''">
     <!-- Background/outline path for highlighting (and larger hit area) -->
     <svg
       class="absolute cursor-pointer overflow-visible blur-sm transition-colors duration-150"
-      :class="isInspected ? 'opacity-70' : 'opacity-0 hover:opacity-50'"
+      :class="isInspected ? 'opacity-70' : pipe.isHidden ? 'opacity-0' : 'opacity-0 hover:opacity-50'"
       :style="{ color: pathColorHex }"
     >
       <path
@@ -51,17 +69,18 @@ defineExpose<ViewExposed>({ self, id });
       />
     </svg>
     <!-- Primary path -->
-    <svg class="pointer-events-none absolute overflow-visible" :style="{ color: pathColorHex }">
+    <svg
+      class="pointer-events-none absolute overflow-visible transition-colors duration-150"
+      :class="pipe.isHidden ? (isInspected ? 'opacity-70' : 'opacity-0') : 'opacity-100'"
+      :style="{ color: pathColorHex }"
+    >
       <path
-        class="dash-animation"
         :stroke-width="PIPE_WIDTH"
         stroke-linecap="round"
         stroke-linejoin="bevel"
         stroke="currentColor"
         fill="none"
-        :stroke-dasharray="
-          pipe.type === PipeType.CONTROL_AND_DATA ? `${PIPE_WIDTH * 3},${PIPE_WIDTH * 2}` : `${1},${PIPE_WIDTH * 2}`
-        "
+        :stroke-dasharray="pipe.type === PipeType.DATA ? `${1},${PIPE_WIDTH * 2}` : undefined"
         :d="pathSvg"
       />
     </svg>
@@ -70,19 +89,3 @@ defineExpose<ViewExposed>({ self, id });
     <!-- pipe without valid path, can't show anything meaningful here -->
   </div>
 </template>
-<style scoped>
-.dash-animation {
-  will-change: stroke-dashoffset;
-  transform: translateZ(0);
-  animation: dashOffsetAnimation 5s linear infinite;
-}
-
-@keyframes dashOffsetAnimation {
-  from {
-    stroke-dashoffset: 0;
-  }
-  to {
-    stroke-dashoffset: -60;
-  }
-}
-</style>

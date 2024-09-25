@@ -110,6 +110,7 @@ class Pipe(SourceNode[PipeData]):
     color: Optional["Color"] = p_regular(
         81, default=None, require=False, array=False, struct=StructType.COLOR
     )
+    is_hidden: bool = p_regular(82, default=False)
 
     def __content_str__(self) -> str:
         if self.type == PipeType.CONTROL_AND_DATA:

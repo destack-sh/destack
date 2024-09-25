@@ -11,7 +11,7 @@ from bench.sql.core import (
     Table,
 )
 
-VERSION = "2024.09.25.0"
+VERSION = "2024.09.25.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -1100,6 +1100,7 @@ PIPE_TABLE = Table(
         Column("filter_type", PrimitiveType.INT16, is_nullable=True),
         Column("line", PrimitiveType.JSON, is_nullable=True),
         Column("color", PrimitiveType.JSON, is_nullable=True),
+        Column("is_hidden", PrimitiveType.BOOLEAN, default="false"),
     ),
 )
 

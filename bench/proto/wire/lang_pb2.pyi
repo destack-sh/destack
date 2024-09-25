@@ -6750,6 +6750,7 @@ class PipeData(_message.Message):
         "filter_type",
         "line",
         "color",
+        "is_hidden",
     )
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
@@ -6779,6 +6780,7 @@ class PipeData(_message.Message):
     FILTER_TYPE_FIELD_NUMBER: _ClassVar[int]
     LINE_FIELD_NUMBER: _ClassVar[int]
     COLOR_FIELD_NUMBER: _ClassVar[int]
+    IS_HIDDEN_FIELD_NUMBER: _ClassVar[int]
     metatype: ObjectType
     id: str
     ck: str
@@ -6807,6 +6809,7 @@ class PipeData(_message.Message):
     filter_type: PipeFilterType
     line: LineData
     color: ColorData
+    is_hidden: bool
     def __init__(
         self,
         metatype: _Optional[_Union[ObjectType, str]] = ...,
@@ -6837,6 +6840,7 @@ class PipeData(_message.Message):
         filter_type: _Optional[_Union[PipeFilterType, str]] = ...,
         line: _Optional[_Union[LineData, _Mapping]] = ...,
         color: _Optional[_Union[ColorData, _Mapping]] = ...,
+        is_hidden: bool = ...,
     ) -> None: ...
 
 class QueryData(_message.Message):

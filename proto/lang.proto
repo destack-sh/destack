@@ -2879,6 +2879,7 @@ message PipeData {
   optional PipeFilterType filter_type = 50;
   optional LineData line = 80;
   optional ColorData color = 81;
+  bool is_hidden = 82;
 }
 
 // A stored query with identity.
