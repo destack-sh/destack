@@ -139,13 +139,17 @@ export const ACTION_BUILTIN_IDS = [
   "session.run.pause",
   "session.run.resume",
   "session.run.kill",
-  "session.run.logs",
   // type
   "type.edit.isList",
   "type.edit.isRequired",
   "type.edit.isSecret",
   // block
   // ...
+  // step
+  // ...
+  // pipe
+  "pipe.edit.isControl",
+  "pipe.edit.isHidden",
   // message
   "message.chat.message",
   "message.chat.reply",
@@ -814,11 +818,6 @@ declareActionMap<"session">({
     title: "Kill",
     text: "Kill this node",
   },
-  "session.run.logs": {
-    icon: "fas fa-clipboard-list",
-    title: "View Logs",
-    text: "View the logs of this run",
-  },
 });
 
 // type
@@ -841,6 +840,22 @@ declareActionMap<"type">({
     icon: "fas fa-lock",
     title: "Secret",
     text: "Mark this type as secret",
+  },
+});
+
+// pipe
+declareActionMap<"pipe">({
+  "pipe.edit.isControl": {
+    type: "toggle",
+    icon: "fas fa-arrows-alt-h",
+    title: "Control",
+    text: "Mark this pipe as a control/data pipe",
+  },
+  "pipe.edit.isHidden": {
+    type: "toggle",
+    icon: "fas fa-eye-slash",
+    title: "Hide",
+    text: "Hide this pipe",
   },
 });
 

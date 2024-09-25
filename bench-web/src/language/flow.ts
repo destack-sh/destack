@@ -53,6 +53,8 @@ export const PIPE_CONTEXT_ACTIONS: ActionBuiltinId[] = [
   "common.edit.duplicate",
   "common.edit.archive",
   "common.edit.delete",
+  "pipe.edit.isControl",
+  "pipe.edit.isHidden",
 ];
 
 export const FLOW_GRID_STEP = 28;
@@ -63,7 +65,7 @@ export const FLOW_SCALE_MIN = 0.5;
 export const FLOW_SCALE_MAX = 4.0;
 export const FLOW_SCALE_SPEED = 0.01;
 
-export const PIPE_WIDTH = 4;
+export const PIPE_WIDTH = 2;
 export const STEP_HEADER_HEIGHT = VIEW_DEFAULT_HEADER_HEIGHT;
 
 /** Rounds the given vector to the nearest grid position (in world coordinates). */
@@ -655,13 +657,22 @@ export class FlowContext {
     // (re-)connect ports
     try {
       if (this.draggable?.kind == "step-port" && at.kind == "step-port") {
-        if (portIdEquals(this.draggable.port, at.port)) return; // no-op
-        log.info("flow.drag.connect", { from: this.draggable.port, to: at.port });
+        const sourcePort = this.draggable.port;
+        const targetPort = at.port;
+        if (portIdEquals(sourcePort, targetPort)) return; // no-op
+        log.info("flow.drag.connect", { from: sourcePort, to: targetPort });
+        // if both ports are field ports, make it a data pipe and hide by default
+        let isHidden: boolean = false;
+        let type = PipeType.CONTROL_AND_DATA;
+        if (sourcePort.type == PortType.FIELD && targetPort.type == PortType.FIELD) {
+          isHidden = true;
+          type = PipeType.DATA;
+        }
         createPipe(this.tx, this.graph, {
           parent: this.flow.value,
-          pipe: { type: PipeType.CONTROL_AND_DATA },
-          source: this.draggable.port,
-          target: at.port,
+          pipe: { type, isHidden },
+          source: sourcePort,
+          target: targetPort,
         });
       }
     } catch (e) {

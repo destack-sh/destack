@@ -403,10 +403,10 @@ defineExpose<ViewExposed>({ self, id, actions });
                 v-if="flowCtx.getPipesAtPort(port).length > 0"
                 class="flex-row-wrap absolute flex flex-col"
                 :style="{
-                  width: FLOW_PORT_SIZE - 2 + 'px',
-                  height: FLOW_PORT_SIZE - 2 + 'px',
-                  top: 0 + 'px',
-                  left: 0 + 'px',
+                  width: FLOW_PORT_SIZE - 4 + 'px',
+                  height: FLOW_PORT_SIZE - 4 + 'px',
+                  top: 1 + 'px',
+                  left: 1 + 'px',
                 }"
               >
                 <div

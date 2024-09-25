@@ -254,7 +254,7 @@ function getInspectionInfo(node: AnyNodeData): Record<string, InspectionCategory
     return properties;
   } else if (isNode(node, NodeType.PIPE)) {
     const properties: Record<string, InspectionCategory> = {
-      Common: [PipeProperty.type, PipeProperty.color],
+      Common: [PipeProperty.type, PipeProperty.color, PipeProperty.isHidden],
       Filter: [PipeProperty.filterType],
       Mapping: [],
     };
