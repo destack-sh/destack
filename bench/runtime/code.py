@@ -10,7 +10,7 @@ from opentelemetry import trace
 from bench.language import render
 from bench.language.code import Code, CodeType
 from bench.language.file import upload
-from bench.language.path import get_node, get_node_or_error
+from bench.language.path import get_node, get_node_or_error, get_path
 from bench.language.render import RenderOptions
 from bench.language.value import ValueObject, coerce_value_object
 from bench.runtime.capture import (
@@ -96,6 +96,7 @@ class CodeRunnerBase[T: RunnableNode](Runner[CodeRunnerCache[T], T]):
         # assemble globals
         assert self.node is not None, f"no node scope for {self!r}"
         _get_node = functools.partial(get_node, self.node)
+        _get_path = functools.partial(get_path, self.node)
         _render = functools.partial(render, options=RenderOptions(scope=self.node))
         _upload = functools.partial(upload)
         glbls = {  # :CodeGlobals
@@ -104,6 +105,7 @@ class CodeRunnerBase[T: RunnableNode](Runner[CodeRunnerCache[T], T]):
             # dynamic
             "self": self.node,
             "get_node": _get_node,
+            "get_path": _get_path,
             "render": _render,
             "upload": _upload,
             "log": self.log_sink,
@@ -187,8 +189,8 @@ class CodeFunctionRunner(CodeRunnerBase):
             for field in self.inputs.fields:
                 value = self.inputs._do_get(field)
                 glbls[field.name] = value
-                if field.py_name:
-                    glbls[field.py_name] = value
+                if field.code_name:
+                    glbls[field.code_name] = value
 
         # run
         exec(compiled.body_co, glbls)  # shouldn't error

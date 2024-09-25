@@ -156,9 +156,9 @@ class Aliasing:
         """Adds the given nodes to the context of this renderer."""
         if obj.id in self._alias_by_node_id:
             return self._alias_by_node_id[obj.id]  # already assigned
-        if isinstance(obj, Node) and getattr(obj, "py_name"):
+        if isinstance(obj, Node) and getattr(obj, "code_name"):
             # proper given name
-            alias = getattr(obj, "py_name")
+            alias = getattr(obj, "code_name")
             if not regex.match(r"^[a-zA-Z_]\w+$", alias):  # ensure it's a valid python identifier
                 alias = f"{obj.metatype.bench_name}_{alias}"
         else:
@@ -294,7 +294,9 @@ class Renderer:
             field_value = cast(SomeValue, getattr(value, field.name, None))
             field_value_repr = self.render_value_expr(field_value, field_type)
             repr_by_name[field.name] = field_value_repr
-        return f"{typ.base_type.py_name}({', '.join(f'{k}={v}' for k, v in repr_by_name.items())})"
+        return (
+            f"{typ.base_type.code_name}({', '.join(f'{k}={v}' for k, v in repr_by_name.items())})"
+        )
 
     def render_value_expr(self, value: "SomeValue | None", typ: "TypeInfoBase") -> str:
         """Renders a value into an expression."""

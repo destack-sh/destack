@@ -239,7 +239,7 @@ class ValueObject(Mapping[str, Any]):
         for field in self._type._base_fields:
             if self._type.base_field_zone is not None and field.zone != self._type.base_field_zone:
                 continue
-            if field.py_name == item or field.name == item:
+            if field.code_name == item or field.name == item:
                 return True
         return False
 
@@ -430,7 +430,7 @@ def coerce_value_object_scalar(
             if field_value is None:
                 field_value = value.get(field.name)
             if field_value is None:
-                field_value = value.get(field.py_name)
+                field_value = value.get(field.code_name)
             if field_value is None:
                 continue
             value_coerced[field.storage_key] = coerce_value(

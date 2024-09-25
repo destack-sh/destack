@@ -187,15 +187,24 @@ async def test_run_code_function_inputs_in_context(local_runtime: RuntimeHandle)
     Function = Block.new_code(
         "Function",
         """\
-assert globals().get('Input1') == 3
-assert globals().get('Input2') is None
+assert Input1 == 3
+assert Input2 is None
+assert Long_Input == "hi"
+assert Very_WEIRD__THER_Input == 7
 """,
-        fields=(Field.input("Input1", int), Field.input("Input2", int)),
+        fields=(
+            Field.input("Input1", int),
+            Field.input("Input2", bool),
+            Field.input("Long Input", str),
+            Field.input("Very WEIRD ÖTHER Input", int),
+        ),
     )
     local_runtime.page().blocks.append(Function)
     await local_runtime.commit()
 
-    _ = await local_runtime.run(Function, inputs={"Input1": 3})
+    _ = await local_runtime.run(
+        Function, inputs={"Input1": 3, "Long Input": "hi", "Very WEIRD ÖTHER Input": 7}
+    )
 
 
 async def test_run_code_function_output_none(local_runtime: RuntimeHandle):

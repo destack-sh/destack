@@ -85,7 +85,7 @@ from bench.proto.wire import (
 )
 from bench.utils.env import IS_DEV, IS_TEST
 from bench.utils.func import bittuple, is_close, stable_hash
-from bench.utils.string import to_py_name
+from bench.utils.string import to_code_name
 from bench.utils.utils import frozendict
 from bench.utils.uuidt import UUIDT
 
@@ -1494,7 +1494,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
         content_str = self.__content_str__()
         if content_str:
             content_str = f" ({content_str})"
-        ident_str = self.py_name
+        ident_str = self.code_name
         if ident_str is None:
             ident_str = str(self.id)
         if self.archived_at is not None:
@@ -1635,10 +1635,10 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
             return f"[id={self.id}]"
 
     @property
-    def py_name(self) -> Optional[str]:
+    def code_name(self) -> Optional[str]:
         """The python identifier-compatible name of this node."""
         if self.metatype == NodeType.PACKAGE and self.parent is not None:
-            return self.parent.py_name
+            return self.parent.code_name
         if "slug" in self.__properties__:
             slug = getattr(self, "slug")
             if slug:  # prefer slug as ident
@@ -1647,7 +1647,7 @@ class Node[NodeDataT: AnyNodeData](BuiltinObject[NodeDataT], abc.ABC):
             name = getattr(self, "name")
             if name is None:
                 return None
-            return to_py_name(name)
+            return to_code_name(name)
         return None
 
     @property

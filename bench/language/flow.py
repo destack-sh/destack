@@ -189,7 +189,7 @@ class PortKeyBase(BuiltinObject):
             return f".*[{self.side.bench_name}]"
         elif self.type == PortType.FIELD:
             field = self.field
-            return f".{field.py_name if field else '???'}"
+            return f".{field.code_name if field else '???'}"
         else:
             assert_never(self.type)
 

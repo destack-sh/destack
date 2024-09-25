@@ -138,20 +138,20 @@ class Expression(Struct):
             or self.op in ExpressionOps.COND_RANGE
             or self.op in ExpressionOps.COND_STRING
         ):
-            py_name = self.target.py_name if self.target is not None else "???"
+            code_name = self.target.code_name if self.target is not None else "???"
             try:
                 value_str = str(self.value)
             except Exception:  # don't crash if value is invalid
                 value_str = "???"
             if len(value_str) > 60:
                 value_str = f"{value_str[:48]}...{value_str[-12:]}"
-            return f"{py_name}{_CONDITIONAL_OP_SIGN[self.op]}{value_str}"
+            return f"{code_name}{_CONDITIONAL_OP_SIGN[self.op]}{value_str}"
         elif self.op in ExpressionOps.COND_EXISTENCE:
-            py_name = self.target.py_name if self.target is not None else "???"
-            return f"{py_name}{_CONDITIONAL_OP_SIGN[self.op]}"
+            code_name = self.target.code_name if self.target is not None else "???"
+            return f"{code_name}{_CONDITIONAL_OP_SIGN[self.op]}"
         elif self.op in ExpressionOps.SORT:
-            py_name = self.target.py_name if self.target is not None else "???"
-            return f"{'-' if self.op == SortOp.DESCENDING else ''}{py_name}"
+            code_name = self.target.code_name if self.target is not None else "???"
+            return f"{'-' if self.op == SortOp.DESCENDING else ''}{code_name}"
         return to_casing(self.op.name, Casing.CAMEL)
 
     @property_
@@ -450,7 +450,7 @@ def _lower_expression_value(prop: Property, value: Any) -> Any:
 def _get_node_expression_value(node: Node | AnyNodeData, prop: Property) -> Any:
     """Gets the value of a property from a Node / packed node data."""
     if isinstance(node, Node):
-        value = getattr(node, prop.py_name)
+        value = getattr(node, prop.code_name)
     else:
         if prop.is_optional_scalar and not node.HasField(prop.name):
             value = None

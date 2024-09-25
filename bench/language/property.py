@@ -213,7 +213,7 @@ class Property(_TypeQueryBuilder if TYPE_CHECKING else object):
         return self._cached_as_ref
 
     @property
-    def py_name(self) -> str:
+    def code_name(self) -> str:
         assert self.name is not None, f"{self!r} has no name"
         return self.name
 
