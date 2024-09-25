@@ -71,6 +71,7 @@ const focusedNodePtr = computedValue(() => props.focus?.nodesPtr[0]);
 const pendingPath = computed(() => {
   if (flowCtx.draggable?.kind != "step-port") return null;
   return flowCtx.computePath(
+    "direct",
     flowCtx.getPortPosition(flowCtx.draggable.step, flowCtx.draggable.port)!,
     flowCtx.draggable.port.side,
     flowCtx.draggable.cursorWorldPos!,
@@ -247,22 +248,6 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           transform: `scale(${scale}, ${scale}) translate(${transform?.translateX ?? 0}px, ${transform?.translateY ?? 0}px) `,
         }"
       >
-        <!-- Pipes -->
-        <!-- NOTE: we draw Pipes behind Steps -->
-        <Pipe
-          v-for="pipe in pipes"
-          :ref="(ref: any) => (ref != null ? (pipeRefs[pipe.id] = ref) : delete pipeRefs[pipe.id])"
-          :key="pipe.id"
-          v-contextmenu="
-            (context: PopoverContext): PopoverInfo => ({
-              kind: 'menu',
-              placement: 'bottom-right',
-              items: menuActionsLike(PIPE_CONTEXT_ACTIONS, { context: { ...context, triggerNode: pipe } }),
-            })
-          "
-          :node-ptr="toNodeRefOneOf(pipe)"
-          class="absolute"
-        />
         <!-- Steps -->
         <Step
           v-for="step in steps"
@@ -284,7 +269,21 @@ defineExpose<ViewExposed>({ self, id, actions, focus });
           :node-ptr="toNodeRefOneOf(step)"
           @mousedown="(e) => flowCtx.startDraggingIfAllowed(e, { kind: 'step', step })"
         />
-
+        <!-- Pipes -->
+        <Pipe
+          v-for="pipe in pipes"
+          :ref="(ref: any) => (ref != null ? (pipeRefs[pipe.id] = ref) : delete pipeRefs[pipe.id])"
+          :key="pipe.id"
+          v-contextmenu="
+            (context: PopoverContext): PopoverInfo => ({
+              kind: 'menu',
+              placement: 'bottom-right',
+              items: menuActionsLike(PIPE_CONTEXT_ACTIONS, { context: { ...context, triggerNode: pipe } }),
+            })
+          "
+          :node-ptr="toNodeRefOneOf(pipe)"
+          class="absolute"
+        />
         <!-- Pending Pipe (above Steps for clarity)-->
         <div
           v-if="flowCtx.draggable?.kind == 'step-port'"

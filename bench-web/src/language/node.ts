@@ -98,12 +98,12 @@ export function generateNodeName(metatype: NodeType, siblings: AnyNodeData[], va
 }
 
 /** Checks whether the node name was likely generated */
-export function isGeneratedNodeName(metatype: NodeType, name: string): boolean {
+export function isGeneratedNodeName(metatype: NodeType | ObjectType, name: string): boolean {
   // match name as <type><id> (groups)
   const match = name.match(/([a-zA-Z]+)(\d+)/);
   if (match == null) return false;
   const typeName = toCasing(match[1], Casing.ALL_CAPS);
-  const key = NODE_SUBTYPE_BY_TYPE[metatype];
+  const key = NODE_SUBTYPE_BY_TYPE[metatype as unknown as NodeType];
   if (key != null) {
     const properties = PROPERTY_ENUM_BY_TYPE[metatype as unknown as ObjectType];
     const propertyInfos = PROPERTY_INFOS_BY_TYPE[metatype as unknown as ObjectType];

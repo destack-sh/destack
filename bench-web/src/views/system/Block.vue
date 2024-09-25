@@ -61,7 +61,7 @@ const fields = pkgGraph.getChildrenRef(block, NodeType.FIELD);
 
 const runnable = computed(() => block.value != null && isRunnable(block.value, pkgGraph, fields.value));
 const isGeneratedName = computed(
-  () => block.value != null && isGeneratedNodeName(block.value.metatype as unknown as NodeType, block.value.name),
+  () => block.value != null && isGeneratedNodeName(block.value.metatype, block.value.name),
 );
 const isQuasiAnonymous = computed(
   () =>
