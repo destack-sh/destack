@@ -703,7 +703,7 @@ class GraphNodeList[V: Node](NodeList[V]):
             return cast(V, self._parent._graph.get(key))
         elif isinstance(key, str):
             return first(
-                (n for n in self.nodes if n.py_name == key or getattr(n, "name", None) == key),
+                (n for n in self.nodes if n.code_name == key or getattr(n, "name", None) == key),
                 None,
             )
         else:

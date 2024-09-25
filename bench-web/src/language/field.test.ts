@@ -44,7 +44,7 @@ const TEST_TYPE_IDENTITIES: (Partial<TypeIdentity> & { kind: TypeKind, identityK
 
 describe("type encoding", () => {
   test.each(TEST_TYPE_IDENTITIES)("encode and decode type identity", (target) => {
-    const identityKey = encodeTypeIdentity({ isSecret: false, isList: false, ...target });
+    const identityKey = encodeTypeIdentity({ isRequired: false, isSecret: false, isList: false, ...target });
     expect(identityKey).toBe(target.identityKey);
 
     const decoded = decodeTypeIdentity(identityKey);

@@ -978,10 +978,11 @@ export interface OffsetData {
 }
 /**
  * A human-readable Bench path to reference nodes.
- * Paths names and special operators combined with slashes.
+ * Paths names and special operators are combined with slashes.
+ * Names may be the actual names or the code names of nodes.
  * Fields may also be accessed with '.' separators.
  *
- * Relative:
+ * Segments:
  * / -> root of this package
  * . -> current node
  * .. -> parent of current node
@@ -990,11 +991,11 @@ export interface OffsetData {
  * Node -> ./Node -> node 'Node' relative to current node
  * >Sibling -> sibling 'Sibling' of current node
  * ~ -> closest container
- * ~Node -> closest container with node 'Node'
+ * ~Node -> closest container with name 'Node'
  * ^Name -> uniquely named node or child in closest container
- * .property -> 'property' of current node
+ * .field -> 'field' Field of current node
  *
- * Node2.property -> 'property' of 'Node2' (there must not be anything after .property)
+ * Node2.field -> 'field' of 'Node2' (there must not be anything after .property)
  * Node1/Node2/Node3 -> child 'Node3' of child 'Node2' of child 'Node1' of current node
  *
  * @bench -> absolute reference to bench 'bench'

@@ -2,13 +2,13 @@ import pytest
 from hypothesis import assume, given
 from hypothesis import strategies as st
 
-from bench.utils.string import Casing, to_casing, to_py_name
+from bench.utils.string import Casing, to_casing, to_code_name
 
 
 @given(st.text())
 def test_to_py_name(s: str):
     assume(len(s) > 0)
-    ident = to_py_name(s)
+    ident = to_code_name(s)
     assert ident.isidentifier()
 
 

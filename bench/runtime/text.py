@@ -317,7 +317,7 @@ return True
         rendered_example = {}
         for field in self.output_type._fields:
             field_value = sample_value(field)
-            rendered_example[field.py_name] = render_value_expr(
+            rendered_example[field.code_name] = render_value_expr(
                 field_value, field, options=render_options
             )
         rendered_example_parts = [f"    '{k}': {v}" for k, v in rendered_example.items()]

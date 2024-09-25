@@ -25,9 +25,9 @@ def _strip_alpha_num(name: str) -> str:
     return name
 
 
-def to_py_name(name: str) -> str:
+def to_code_name(name: str) -> str:
     """
-    Turns a string into a valid Python identifier.
+    Turns a string into a valid Python/JS/... identifier.
     Does not attempt to transform casing, just make as few transformations as possible.
     """
     if not name:

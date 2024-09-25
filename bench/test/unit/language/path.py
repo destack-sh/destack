@@ -10,8 +10,8 @@ from bench.language.file import File, FileKind, FileType
 from bench.language.flow import Step, StepType
 from bench.language.path import (
     PathError,
+    PathLogicError,
     PathTokenType,
-    PathUnnamedNodeError,
     get_node,
     get_path,
     parse_path,
@@ -53,10 +53,10 @@ from bench.language.session import Session
             ],
         ),
         (
-            "./current/node",
+            "./CÜRRENT NÖDE/node",
             [
                 (PathTokenType.CURRENT, None),
-                (PathTokenType.CHILD, "current"),
+                (PathTokenType.CHILD, "CÜRRENT NÖDE"),
                 (PathTokenType.CHILD, "node"),
             ],
         ),
@@ -165,6 +165,7 @@ def mock_package_populated(session: Session):
     flow211 = page21.blocks.create(name="Flow211", type=BlockType.FLOW)
     step2111 = flow211.steps.append(Step.new(StepType.START, "Step2111"))  # noqa: F841
     step2112 = flow211.steps.append(Step.new(StepType.START, "Step2112"))  # noqa: F841
+    step2112_t_st = flow211.steps.append(Step.new(StepType.START, "Step2112 TÖST"))  # noqa: F841
     choice212 = page21.blocks.create(  # noqa: F841
         name="Choice212",
         type=BlockType.CHOICE,
@@ -212,6 +213,8 @@ def mock_package_populated(session: Session):
         ("Flow111", "^Step1111", "Step1111"),
         ("Flow111", "^Step1112", "Step1112"),
         ("Flow111", "^Step11121", "Step11121"),
+        ("Flow211", "^Step2112 TÖST", "Step2112 TÖST"),
+        ("Flow211", "^Step2112_T_ST", "Step2112 TÖST"),
     ],
 )
 def test_get_node(
@@ -308,5 +311,5 @@ def test_unnamed_node(session: Session, mock_package: Package):
     )
     session._create(file)
 
-    with pytest.raises(PathUnnamedNodeError):
+    with pytest.raises(PathLogicError):
         get_path(package, file)

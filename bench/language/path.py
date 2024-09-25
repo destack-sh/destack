@@ -74,10 +74,11 @@ class PathToken(Struct):
 class Path(Struct):
     """
     A human-readable Bench path to reference nodes.
-    Paths names and special operators combined with slashes.
+    Paths names and special operators are combined with slashes.
+    Names may be the actual names or the code names of nodes.
     Fields may also be accessed with '.' separators.
 
-    Relative:
+    Segments:
         / -> root of this package
         . -> current node
         .. -> parent of current node
@@ -86,11 +87,11 @@ class Path(Struct):
         Node -> ./Node -> node 'Node' relative to current node
         >Sibling -> sibling 'Sibling' of current node
         ~ -> closest container
-        ~Node -> closest container with node 'Node'
+        ~Node -> closest container with name 'Node'
         ^Name -> uniquely named node or child in closest container
-        .property -> 'property' of current node
+        .field -> 'field' Field of current node
 
-        Node2.property -> 'property' of 'Node2' (there must not be anything after .property)
+        Node2.field -> 'field' of 'Node2' (there must not be anything after .property)
         Node1/Node2/Node3 -> child 'Node3' of child 'Node2' of child 'Node1' of current node
 
         @bench -> absolute reference to bench 'bench'
@@ -260,7 +261,7 @@ def _normalize_node(scope: Node) -> Node:
 def _get_child(scope: Node, name: str, node_type: NodeType | None = None) -> Node | None:
     """Finds a named child from a scope (if any)."""
     for child in scope._graph.iter_descendants(scope, node_type=node_type):
-        if getattr(child, "name", None) == name:  # :NodeNameIndexing
+        if getattr(child, "name", None) == name or child.code_name == name:
             return child
     return None
 
@@ -268,7 +269,7 @@ def _get_child(scope: Node, name: str, node_type: NodeType | None = None) -> Nod
 def _get_descendant(scope: Node, name: str, node_type: NodeType | None = None) -> Node | None:
     """Finds any named descendant from a scope (if any, ignoring container boundaries)."""
     for descendant in scope._graph.iter_descendants(scope, recursive=True, node_type=node_type):
-        if getattr(descendant, "name", None) == name:  # :NodeNameIndexing
+        if getattr(descendant, "name", None) == name or descendant.code_name == name:
             return descendant
     return None
 
@@ -291,7 +292,7 @@ def _get_contained_descendant(scope: Node, name: str) -> Node | None:
         while blocks:
             block = blocks.pop()
             for child in block.blocks:
-                if child.name == name:
+                if child.name == name or child.code_name == name:
                     return child
                 if not child.is_page:
                     blocks.append(child)
@@ -305,7 +306,7 @@ def _get_contained_descendant(scope: Node, name: str) -> Node | None:
         while steps:
             step = steps.pop()
             for child in step.steps:
-                if child.name == name:
+                if child.name == name or child.code_name == name:
                     return child
                 steps.append(child)
     elif isinstance(scope, View):
@@ -328,7 +329,7 @@ def _get_container(scope: Node, name: str | None = None) -> Node | None:
     if not isinstance(scope, SourceNode):
         # there is no container outside of source other than the bench/pkg
         if isinstance(scope, PackageNode) and (
-            name is None or getattr(scope, "name", None) == name
+            name is None or getattr(scope, "name", None) == name or scope.code_name == name
         ):
             return scope.package
     else:
@@ -336,7 +337,7 @@ def _get_container(scope: Node, name: str | None = None) -> Node | None:
         parent = scope.parent
         while parent is not None:
             if parent.metatype in (NodeType.BLOCK, NodeType.SPACE, NodeType.PACKAGE) and (
-                name is None or getattr(parent, "name", None) == name
+                name is None or getattr(parent, "name", None) == name or parent.code_name == name
             ):
                 return parent
             parent = parent.parent
@@ -451,7 +452,7 @@ def _get_path_to_root(node: Node) -> list[Node]:
 
 
 def get_path(scope: Node, node: Node) -> Path:
-    """Finds a path to the given node from a scope. Basically an inverse of get_node."""
+    """Finds a path to the given node from a scope. The inverse of get_node."""
     scope = _normalize_node(scope)
     node = _normalize_node(node)
 
